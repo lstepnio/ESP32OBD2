@@ -13,7 +13,7 @@ Recorded 2026-09-25. This separates observed behavior from design targets.
 | Updates | On-device partition read confirmed 24 KiB NVS and a 1 MiB factory app slot, with no OTA slots or rollback enabled | One USB migration to an OTA-capable image/partition layout; see [storage design](architecture/config-storage.md) |
 | UI/app | Compose debug app builds; on 2026-09-25 the installed Pixel 10 Pro app rediscovered the latest flashed integration firmware and read public protocol 0 capabilities with `quickSelect: true`, `configWrite: false`, and `ota: false` | Pairing, owner reset, applied-state readback, physical LCD legibility, full configuration operations |
 
-The integration branch now builds an authenticated protocol 0 quick-selection path in firmware and Android. Commit `cc5641f` was uploaded to the USB gauge and esptool verified the flash hashes. The Pixel's capability read confirms public discovery against that image. Phone pairing, physical passkey display, owner reset, and applied-state readback are still unobserved. Full configuration transactions remain unimplemented.
+The integration branch now builds an authenticated protocol 0 quick-selection path in firmware and Android. Commit `cc5641f` was uploaded to the USB gauge and esptool verified the flash hashes. The Pixel's capability read confirms public discovery against that image. A control attempt without a confirmed physical pairing window did not complete; the app now reports timeout separately from cancellation. Phone pairing, physical passkey display, owner reset, and applied-state readback are still unobserved. Full configuration transactions remain unimplemented.
 
 ## Baseline provenance
 

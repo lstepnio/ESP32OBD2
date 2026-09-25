@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 
 private val CanvasColor = Color(0xFF0C1114)
 private val SurfaceColor = Color(0xFF172025)
@@ -118,6 +119,8 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 model.connected(model.bleClient.readNearby())
+            } catch (error: TimeoutCancellationException) {
+                model.connectionError("Gauge discovery timed out. Keep the gauge powered and try again")
             } catch (error: CancellationException) {
                 model.connectionError("Gauge discovery was interrupted")
                 throw error
@@ -142,6 +145,8 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 model.selectionApplied(model.bleClient.selectNearby(index))
+            } catch (error: TimeoutCancellationException) {
+                model.selectionError("Pairing or gauge confirmation timed out. Open pairing on the gauge and retry")
             } catch (error: CancellationException) {
                 model.selectionError("Gauge selection was interrupted; read its state before retrying")
                 throw error

@@ -1,6 +1,6 @@
 # Paired control hardware review
 
-Status: Android phone is available. On 2026-09-25, commit `cc5641f` was built and uploaded to the USB gauge with three flash image hashes verified, and the current debug APK was installed on a Pixel 10 Pro. The Pixel discovered the gauge and read protocol 0 capabilities with `quickSelect: true`, `configWrite: false`, and `ota: false`. This is public discovery evidence only. Pairing, owner authorization, control write, and applied-state readback remain pending the physical pairing review below.
+Status: Android phone is available. On 2026-09-25, commit `cc5641f` was built and uploaded to the USB gauge with three flash image hashes verified, and the current debug APK was installed on a Pixel 10 Pro. The Pixel discovered the gauge and read protocol 0 capabilities with `quickSelect: true`, `configWrite: false`, and `ota: false`. This is public discovery evidence only. A control attempt without a confirmed physical pairing window did not complete, and no applied selection was observed. The app has since been updated to distinguish its timeout from a cancelled operation. Pairing, owner authorization, control write, and applied-state readback remain pending the physical pairing review below.
 
 ## Preparation
 
