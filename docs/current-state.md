@@ -4,13 +4,13 @@ Recorded 2026-09-25. This separates observed behavior from design targets.
 
 | Component | Observed state | Remaining evidence |
 | --- | --- | --- |
-| Hardware | Waveshare ESP32-S3-Touch-LCD-1.28; GC9A01, 240 × 240; CST816S touch; esptool reported S3 rev 0.2 and 2 MB embedded PSRAM | Confirm enclosure, power behavior, daylight legibility |
+| Hardware | Waveshare ESP32-S3-Touch-LCD-1.28; GC9A01, 240 × 240; CST816S touch; esptool reported S3 rev 0.2, 2 MB embedded PSRAM, and 16 MB flash | Confirm enclosure, power behavior, daylight legibility |
 | Firmware | Exact-board upstream commit `e1f4d8ffbb2bfe0fb38369e44d532319770ddc00`; built/flashed with IDF 5.4.1; user confirmed display works | M1 branch flashed and UI observed on serial; vehicle/adapter session not verified |
 | Board startup | Serial showed LCD, LVGL, touch, UI, and BLE controller startup; touch changed PID | No simultaneous phone and adapter session observed |
 | BLE adapter | M1 has ECM and TCM connection contexts for `18F0` / `2AF1` / `2AF0`; ECM can auto-select or bind a MAC, TCM requires a distinct MAC and remains disabled by default | Live dual-link operation, durable/bonded adapter identity, alternate GATT profiles |
 | PIDs | Fixed RPM, speed, engine load, coolant, fuel list in `main/main.c` | Capability discovery, per-ECU attribution, custom decoders |
 | Configuration | NVS stores selected PID and display rotation | Transactional versioned configuration service |
-| Updates | Factory app partition, no OTA slots or rollback enabled | One USB migration to an OTA-capable image/partition layout |
+| Updates | On-device partition read confirmed 24 KiB NVS and a 1 MiB factory app slot, with no OTA slots or rollback enabled | One USB migration to an OTA-capable image/partition layout; see [storage design](architecture/config-storage.md) |
 | UI/app | Compose debug app builds; Pixel 10 Pro previously read the public capability endpoint; integration firmware for paired quick selection was uploaded with verified flash hashes | Pairing, owner reset, applied-state readback, physical LCD legibility, full configuration operations |
 
 The integration branch now builds an authenticated protocol 0 quick-selection path in firmware and Android. Its firmware image was uploaded to the USB gauge and esptool verified the flash hashes. Phone pairing, physical passkey display, owner reset, and applied-state readback are still unobserved. Full configuration transactions remain unimplemented.

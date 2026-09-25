@@ -4,7 +4,7 @@ Status: proposed for the first full configuration transfer. The paired protocol 
 
 ## Capacity evidence
 
-The checked-in ESP-IDF 5.4.1 configuration selects a 16 MB flash size and the default single-app partition table. That table allocates 0x6000 bytes (24 KiB) to NVS and 1 MiB to the factory application. The current app image is about 954 KiB. The [configuration contract](../../contracts/config.schema.json) and [BLE transaction draft](../protocol/ble-v1.md) allow a 64 KiB JSON document. A 64 KiB staged document plus an active generation cannot fit safely in the existing NVS partition. The existing app slot also leaves little growth room.
+On 2026-09-25, `esptool.py flash_id` on the USB-connected ESP32-S3 reported a 16 MB flash chip (manufacturer `20`, device `4018`). A read of the board's partition table at `0x8000`, decoded with ESP-IDF 5.4.1 `gen_esp32part.py`, showed NVS at `0x9000` for 24 KiB, `phy_init` at `0xf000` for 4 KiB, and a factory app at `0x10000` for 1 MiB. The first 3072 bytes of the board read matched the local build's partition binary; the remaining bytes in the 4096-byte read were erased padding. The current app image is about 954 KiB. The [configuration contract](../../contracts/config.schema.json) and [BLE transaction draft](../protocol/ble-v1.md) allow a 64 KiB JSON document. A 64 KiB staged document plus an active generation cannot fit safely in the existing NVS partition. The existing app slot also leaves little growth room.
 
 ## Migration layout
 
@@ -24,6 +24,6 @@ Firmware must keep the previous generation until the new one has booted and rend
 
 ## Gate before implementation
 
-Confirm actual flash geometry on the exact board, image size on the release toolchain, partition offsets/alignment, NVS owner/bond migration behavior, and power-loss recovery. Keep full `configWrite` capability false until this layout and transaction are implemented and exercised. The quick-selection path remains explicitly separate so no 64 KiB document is promised by the current firmware.
+The flash capacity and current on-device table are now observed. Before activating a new table, finalize aligned offsets and slot sizes against a measured release image; specify whether the existing NVS owner/bond records survive or are intentionally reset; and define power-loss recovery. This migration requires an explicit USB flash procedure because the current factory app occupies the region where a new table may place OTA metadata or configuration data. Keep full `configWrite` capability false until the layout and transaction are implemented and exercised. The quick-selection path remains explicitly separate so no 64 KiB document is promised by the current firmware.
 
 Android must map legacy local profile UUIDs to schema-conforming `vehicleProfileId` values without silently renaming the user's local profile or losing its draft. New local IDs already use a `vehicle-` prefix. This mapping belongs in the explicit configuration export layer, with a stable persisted association before full Apply is enabled.
