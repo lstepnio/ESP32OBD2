@@ -24,7 +24,9 @@ enum class VehiclePidStatus { Responding, NoResponse }
 
 data class VehiclePidObservation(
     val profileId: String,
+    val sessionId: String,
     val adapterId: String,
+    val ecuId: String,
     val pidId: String,
     val source: String,
     val status: VehiclePidStatus,
@@ -87,10 +89,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // Capability reads from the gauge do not populate vehicle PID observations.
     var vehicleObservations by mutableStateOf<List<VehiclePidObservation>>(emptyList())
         private set
+    var activeVehicleSessionId by mutableStateOf<String?>(null)
+        private set
     var deviceMessage by mutableStateOf("No gauge connected")
         private set
     var capabilities by mutableStateOf<CapabilitySnapshot?>(null)
         private set
+    val configurationBlockers: List<String>
+        get() = buildList {
+            if (profileError != null) add("Local profile data needs recovery before applying")
+            if (draft.warning >= draft.critical) add("Coolant critical limit must exceed warning")
+            if (capabilities == null) add("Read gauge capabilities first")
+            else if (capabilities?.configWrite != true) add("Gauge does not offer full configuration writes")
+            val observed = activeVehicleSessionId != null && vehicleObservations.any { observation ->
+                observation.profileId == profileCollection.activeId &&
+                    observation.sessionId == activeVehicleSessionId &&
+                    observation.adapterId.isNotBlank() && observation.ecuId.isNotBlank() &&
+                    observation.pidId == draft.pidId && observation.source == draft.source &&
+                    observation.status == VehiclePidStatus.Responding
+            }
+            if (activeVehicleSessionId == null) add("No vehicle discovery session is active")
+            else if (!observed) add("Selected PID has no responding evidence for this profile and ECU")
+            add("Versioned configuration transfer is not implemented")
+        }
     var scanning by mutableStateOf(false)
         private set
     var discoveryPreview by mutableStateOf(false)

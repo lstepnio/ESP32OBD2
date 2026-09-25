@@ -400,8 +400,10 @@ private fun DesignScreen(model: AppViewModel) {
             Text("Apply to gauge")
         }
         Spacer(Modifier.height(8.dp))
-        Text("Apply unlocks when owned configuration writes are supported by firmware.",
-            color = MutedColor, fontSize = 13.sp, lineHeight = 18.sp)
+        Text("Full configuration is pending:", color = MutedColor, fontSize = 13.sp)
+        model.configurationBlockers.forEach { reason ->
+            Text("• $reason", color = MutedColor, fontSize = 13.sp, lineHeight = 18.sp)
+        }
     }
 }
 

@@ -81,7 +81,8 @@ class ProfileStore(context: Context) {
     }
 
     companion object {
-        fun newId(): String = UUID.randomUUID().toString()
+        // Compatible with the future device configuration ID pattern.
+        fun newId(): String = "vehicle-${UUID.randomUUID()}"
         private fun defaultCollection() = ProfileCollection(
             "default", listOf(VehicleProfile("default", "My vehicle", Draft())),
         )
