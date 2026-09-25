@@ -208,6 +208,7 @@ static void obd_task(void *arg)
     while (true)
     {
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(period_ms));
+        ble_companion_tick();
 
         if (!ble_obd_is_connected(obd))
         {

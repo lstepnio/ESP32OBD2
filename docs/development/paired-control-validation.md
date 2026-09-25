@@ -1,6 +1,6 @@
 # Paired control hardware review
 
-Status: pending Android phone access. The integration image has been uploaded to the USB gauge and both source targets build. None of the pairing or control cases below has been observed yet.
+Status: pending Android phone access. An integration image was uploaded to the USB gauge, and both source targets build. The latest pairing-window expiry change has been built but not uploaded. None of the pairing or control cases below has been observed yet.
 
 ## Preparation
 
@@ -14,6 +14,7 @@ Status: pending Android phone access. The integration image has been uploaded to
 | Case | Action | Expected evidence |
 | --- | --- | --- |
 | First owner | Long press gauge, then tap Set preview reading on gauge | Round LCD shows a six-digit code; Android system pairing prompt accepts it; app reports success only after authenticated state readback; gauge shows the chosen built-in label |
+| Window expiry | Long press gauge without pairing and wait more than 120 seconds | PAIR READY clears from the LCD and a new owner cannot bond until another physical long press |
 | Without physical window | Forget Android bond and try a fresh pairing without a gauge long press | New pairing fails and no selected reading changes |
 | Reconnect | Close app, reopen, choose another built-in reading | Previously bonded phone reconnects without a new passkey; applied label and app confirmation agree |
 | Rejected input | Attempt an unsupported index or malformed control payload using an authenticated development client | GATT rejects it, saved selection is unchanged |
@@ -25,4 +26,4 @@ Record Android version, app commit, firmware commit, observed passkey layout, GA
 
 ## Next configuration increment
 
-Once the paired path passes, add `config.get` and versioned staged configuration writes with base revision, complete hash, schema validation, semantic checks, atomic NVS activation, and post-commit readback. The current two-byte quick-selection command is intentionally outside the full configuration document. Its acceptance does not authorize alert thresholds, custom PIDs, DTC clearing, or OTA.
+Once the paired path passes, add `config.get` and versioned staged configuration writes with base revision, complete hash, schema validation, semantic checks, atomic generation activation, and post-commit readback. The current two-byte quick-selection command is intentionally outside the full configuration document. Its acceptance does not authorize alert thresholds, custom PIDs, DTC clearing, or OTA.
