@@ -100,12 +100,14 @@ static const char capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
     "\"maxAdapterLinks\":2,\"simultaneousAdapterLinksVerified\":false,"
     "\"savedStateRead\":true,\"displayRotationWrite\":true,"
-    "\"configWrite\":false,\"quickSelect\":true,\"ota\":false}";
+    "\"configWrite\":false,\"experimentalNumericConfig\":true,"
+    "\"quickSelect\":true,\"ota\":false}";
 static const char document_capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
     "\"maxAdapterLinks\":2,\"simultaneousAdapterLinksVerified\":false,"
     "\"savedStateRead\":false,\"displayRotationWrite\":false,"
-    "\"configWrite\":false,\"quickSelect\":false,\"ota\":false}";
+    "\"configWrite\":false,\"experimentalNumericConfig\":true,"
+    "\"quickSelect\":false,\"ota\":false}";
 
 /* Protocol 0 quick-select request: byte 0 = 1, byte 1 = built-in PID index 0..4.
  * A successful ATT write queues a request; the authenticated state read confirms apply. */

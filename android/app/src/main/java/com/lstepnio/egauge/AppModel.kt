@@ -67,6 +67,7 @@ data class CapabilitySnapshot(
     val maxAdapterLinks: Int,
     val simultaneousVerified: Boolean,
     val configWrite: Boolean,
+    val experimentalNumericConfig: Boolean,
     val savedStateRead: Boolean,
     val quickSelect: Boolean,
     val displayRotationWrite: Boolean,
@@ -105,6 +106,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var savedGauge by mutableStateOf<GaugeSavedSnapshot?>(null)
         private set
+    var activeConfigRevision by mutableStateOf<Long?>(null)
+        private set
     val configurationBlockers: List<String>
         get() = buildList {
             if (profileError != null) add("Local profile data needs recovery before applying")
@@ -125,7 +128,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
             if (activeVehicleSessionId == null) add("No vehicle discovery session is active")
             else if (!observed) add("Selected PID has no responding evidence for this profile and ECU")
-            add("Versioned configuration transfer is not implemented")
+            add("General configuration and vehicle evidence are not implemented")
         }
     var scanning by mutableStateOf(false)
         private set
@@ -182,7 +185,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         scanning = false
         capabilities = value
         savedGauge = null
-        deviceMessage = if (value.quickSelect)
+        deviceMessage = if (value.experimentalNumericConfig)
+            "Gauge identified. Experimental numeric ECM transfer requires the paired owner."
+        else if (value.quickSelect)
             "Gauge identified. Built-in reading selection is available after pairing."
         else "Gauge identified. Discovery link closed; protocol ${value.protocolMajor} is read only."
     }
@@ -195,6 +200,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         scanning = false
         savedGauge = value
         deviceMessage = "Gauge saved state read at revision ${value.revision}."
+    }
+    fun configApplied(value: GaugeConfigTransferClient.Applied) {
+        scanning = false
+        activeConfigRevision = value.revision
+        savedGauge = null
+        capabilities = capabilities?.copy(quickSelect = false, savedStateRead = false,
+            displayRotationWrite = false)
+        deviceMessage = "Numeric ECM profile active at revision ${value.revision}. SHA-256 ${value.sha256.take(12)}…"
     }
     fun selectionError(message: String) {
         scanning = false

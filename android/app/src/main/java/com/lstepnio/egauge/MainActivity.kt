@@ -103,7 +103,8 @@ class MainActivity : ComponentActivity() {
                 ),
             ) {
                 CompanionApp(model, onFindGauge = ::requestGauge, onSelectReading = ::requestSelection,
-                    onReadSaved = ::requestSavedSnapshot, onRotate = ::requestRotation)
+                    onReadSaved = ::requestSavedSnapshot, onRotate = ::requestRotation,
+                    onApplyNumeric = ::requestNumericConfiguration)
             }
         }
     }
@@ -201,12 +202,29 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun requestNumericConfiguration() {
+        if (model.capabilities?.experimentalNumericConfig != true) return
+        model.markScanning(true)
+        lifecycleScope.launch {
+            try {
+                val applied = GaugeConfigTransferClient(this@MainActivity).apply(
+                    model.bleClient.selectedGauge(), model.draft, model.profileCollection.activeId)
+                model.configApplied(applied)
+            } catch (error: CancellationException) {
+                model.selectionError("Configuration transfer interrupted; read gauge status before retrying")
+                throw error
+            } catch (error: Exception) {
+                model.selectionError(error.message ?: "Gauge did not confirm configuration")
+            }
+        }
+    }
 }
 
 @Composable
 private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                          onSelectReading: () -> Unit, onReadSaved: () -> Unit,
-                         onRotate: (Int) -> Unit) {
+                         onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 720.dp
         if (wide) {
@@ -222,7 +240,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                         )
                     }
                 }
-                AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, Modifier.weight(1f))
+                AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, onApplyNumeric, Modifier.weight(1f))
             }
         } else {
             Scaffold(containerColor = CanvasColor, bottomBar = {
@@ -236,7 +254,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                         )
                     }
                 }
-            }) { padding -> AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, Modifier.padding(padding)) }
+            }) { padding -> AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, onApplyNumeric, Modifier.padding(padding)) }
         }
     }
 }
@@ -244,13 +262,13 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
 @Composable
 private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                     onSelectReading: () -> Unit, onReadSaved: () -> Unit,
-                    onRotate: (Int) -> Unit, modifier: Modifier = Modifier) {
+                    onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 840.dp).fillMaxWidth().fillMaxHeight().padding(horizontal = 20.dp)) {
             Header(model)
             when (model.destination) {
                 Destination.Garage -> GarageScreen(model, onFindGauge)
-                Destination.Design -> DesignScreen(model)
+                Destination.Design -> DesignScreen(model, onApplyNumeric)
                 Destination.Pids -> PidsScreen(model)
                 Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved, onRotate)
             }
@@ -407,7 +425,7 @@ private fun SourceRow(source: String, title: String, detail: String) {
 }
 
 @Composable
-private fun DesignScreen(model: AppViewModel) {
+private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit) {
     val pid = demoCatalog.first { it.id == model.draft.pidId }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("01 / Your dashboard", "Make every signal count.",
@@ -492,6 +510,20 @@ private fun DesignScreen(model: AppViewModel) {
         Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().height(50.dp)) {
             Text("Apply to gauge")
         }
+        val numericReady = model.capabilities?.experimentalNumericConfig == true &&
+            !model.scanning && model.profileError == null && model.draft.source == "ECM" &&
+            model.draft.pidId in listOf("rpm", "coolant", "speed") &&
+            model.draft.warning in -40..215 && model.draft.critical in -40..215 &&
+            model.draft.warning + model.draft.hysteresis < model.draft.critical &&
+            model.draft.warning - model.draft.hysteresis >= -40
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onApplyNumeric, enabled = numericReady,
+            modifier = Modifier.fillMaxWidth().height(50.dp)) {
+            Text(if (model.scanning) "Sending numeric profile…" else "Send experimental numeric profile")
+        }
+        Text("Sends RPM, coolant and speed numeric pages plus your coolant thresholds. " +
+            "The selected page opens first. Requires the owner bond; vehicle support is unverified.",
+            color = MutedColor, fontSize = 13.sp, lineHeight = 18.sp)
         Spacer(Modifier.height(8.dp))
         Text("Full configuration is pending:", color = MutedColor, fontSize = 13.sp)
         model.configurationBlockers.forEach { reason ->
@@ -713,6 +745,7 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                 InfoLine("Protocol", "${caps.protocolMajor} • ${if (caps.quickSelect) "paired quick select" else "discovery only"}")
                 InfoLine("Adapter slots", "${caps.maxAdapterLinks} • coexistence unverified")
                 InfoLine("Configuration", when {
+                    caps.experimentalNumericConfig -> "Experimental numeric ECM profile transfer"
                     caps.displayRotationWrite -> "Built-in reading and display rotation"
                     caps.quickSelect -> "Built-in reading only"
                     else -> "Read only"

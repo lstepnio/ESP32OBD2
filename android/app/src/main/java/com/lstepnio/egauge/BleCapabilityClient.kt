@@ -29,6 +29,7 @@ class BleCapabilityClient(private val context: Context) {
     private val controlId = UUID.fromString("6f1a0002-9e3b-4f45-a714-69c9d23b6c00")
     private val stateId = UUID.fromString("6f1a0003-9e3b-4f45-a714-69c9d23b6c00")
     private var selectedDevice: BluetoothDevice? = null
+    fun selectedGauge(): BluetoothDevice = selectedDevice ?: error("Read gauge capabilities first")
 
     /** Reads the persisted protocol-0 selection after owner authentication. */
     @SuppressLint("MissingPermission")
@@ -399,6 +400,7 @@ class BleCapabilityClient(private val context: Context) {
             maxAdapterLinks = objectValue.getInt("maxAdapterLinks").coerceIn(0, 2),
             simultaneousVerified = objectValue.getBoolean("simultaneousAdapterLinksVerified"),
             configWrite = configWrite,
+            experimentalNumericConfig = objectValue.optBoolean("experimentalNumericConfig", false),
             savedStateRead = objectValue.optBoolean("savedStateRead", false),
             quickSelect = objectValue.optBoolean("quickSelect", false),
             displayRotationWrite = objectValue.optBoolean("displayRotationWrite", false),
