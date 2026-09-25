@@ -34,7 +34,9 @@ class BleCapabilityClient(private val context: Context) {
         val found = CompletableDeferred<BluetoothDevice>()
         val callback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
-                if (!found.isCompleted) found.complete(result.device)
+                if (!found.isCompleted) {
+                    found.complete(result.device)
+                }
             }
             override fun onScanFailed(errorCode: Int) {
                 if (!found.isCompleted) found.completeExceptionally(
@@ -42,9 +44,13 @@ class BleCapabilityClient(private val context: Context) {
             }
         }
         val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(serviceId)).build()
-        scanner.startScan(listOf(filter), ScanSettings.Builder().build(), callback)
+        scanner.startScan(
+            listOf(filter),
+            ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),
+            callback,
+        )
         val device = try {
-            withTimeout(12_000) { found.await() }
+            withTimeout(15_000) { found.await() }
         } finally {
             scanner.stopScan(callback)
         }
@@ -59,9 +65,16 @@ class BleCapabilityClient(private val context: Context) {
                 if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED) {
                     if (!result.isCompleted) result.completeExceptionally(
                         IllegalStateException("Gauge disconnected ($status)"))
-                } else if (newState == BluetoothProfile.STATE_CONNECTED && !gatt.discoverServices()) {
-                    if (!result.isCompleted) result.completeExceptionally(
-                        IllegalStateException("Could not discover gauge services"))
+                } else if (newState == BluetoothProfile.STATE_CONNECTED && !gatt.requestMtu(185)) {
+                    discover(gatt)
+                }
+            }
+            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+                discover(gatt)
+            }
+            private fun discover(gatt: BluetoothGatt) {
+                if (!gatt.discoverServices() && !result.isCompleted) {
+                    result.completeExceptionally(IllegalStateException("Could not discover gauge services"))
                 }
             }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {

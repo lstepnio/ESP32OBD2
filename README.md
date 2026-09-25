@@ -2,7 +2,7 @@
 
 A standalone round OBD-II gauge and native Android companion for vehicle telemetry, flexible PID discovery, dashboard configuration, and recoverable firmware updates.
 
-**Status: design foundation, an Android app foundation, and a working upstream firmware baseline.** The Waveshare display and touch work on the connected device. The Android app builds with simulated data, local dashboard drafts, an offline PID decoder, and a read-only BLE capability reader. Live vehicle communication, configuration transfer, firmware updates, and Android BLE operation on a physical phone have not been verified.
+**Status: design foundation, an Android app foundation, and a working upstream firmware baseline.** The Waveshare display and touch work on the connected device. The Android app builds with simulated data, local dashboard drafts, an offline PID decoder, and a read-only BLE capability reader. A Pixel 10 Pro found the gauge and read protocol 0 capabilities over BLE. Live vehicle communication, configuration transfer, and firmware updates have not been verified.
 
 ## Start here
 
