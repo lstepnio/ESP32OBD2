@@ -340,6 +340,14 @@ static bool alert_valid(const cJSON *item, const cJSON *definitions)
         (critical && (critical->valuedouble < minimum->valuedouble ||
                       critical->valuedouble > maximum->valuedouble)) ||
         hysteresis->valuedouble >= maximum->valuedouble - minimum->valuedouble) return false;
+    if (strcmp(direction->valuestring, "above") == 0) {
+        if ((warning && warning->valuedouble - hysteresis->valuedouble < minimum->valuedouble) ||
+            (critical && critical->valuedouble - hysteresis->valuedouble < minimum->valuedouble))
+            return false;
+    } else if ((warning && warning->valuedouble + hysteresis->valuedouble > maximum->valuedouble) ||
+               (critical && critical->valuedouble + hysteresis->valuedouble > maximum->valuedouble)) {
+        return false;
+    }
     if (warning != NULL && critical != NULL) {
         if (strcmp(direction->valuestring, "above") == 0)
             return warning->valuedouble + hysteresis->valuedouble < critical->valuedouble;
