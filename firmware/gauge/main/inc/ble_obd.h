@@ -34,7 +34,8 @@ typedef void (*ble_obd_response_cb_t)(int pid, uint8_t const *data, size_t len, 
 // Public Function Declarations
 // ---------------------------------------------------------------------------------------------------------------------
 
-ble_obd_ctx_t *ble_obd_connect(ble_obd_response_cb_t response_cb, void *usr_ctx);
+ble_obd_ctx_t *ble_obd_connect(unsigned source_id, const char *peer_mac,
+                               ble_obd_response_cb_t response_cb, void *usr_ctx);
 
 int ble_obd_rxtx(ble_obd_ctx_t *obd, uint8_t mode, uint8_t pid, uint32_t timeout_ms);
 

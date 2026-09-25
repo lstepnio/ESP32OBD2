@@ -1,6 +1,6 @@
 # M1 transport increment
 
-Status: implementation branch `feat/m1-transport-core`, 2026-09-25. This is a narrow response-integrity and display-freshness increment, not completion of M1.
+Status: implementation branch `feat/m1-transport-core`, 2026-09-25. Response assembly, display freshness, and two independently owned central-link contexts are implemented. M1 remains incomplete.
 
 ## Implemented
 
@@ -9,18 +9,20 @@ Status: implementation branch `feat/m1-transport-core`, 2026-09-25. This is a na
 - A response timeout keeps the old transaction outstanding until its prompt arrives. Five consecutive waits without that prompt terminate the BLE link for a clean reconnect. Queue overflow also terminates the link. The callback context remains allocated while asynchronous NimBLE events can arrive.
 - A displayed numeric value expires after 1.5 seconds without a new reading. Switching the selected PID clears the previous value immediately.
 - Service discovery now checks that both TX and RX characteristic handles were found before it reports success.
+- ECM and TCM have separate stable BLE connection handles, GATT characteristic handles, RX queues, transaction assemblers, connection generations, and polling tasks. One scan mutex serializes discovery on the shared radio.
+- An ECM MAC may be set for deterministic binding; a blank ECM MAC keeps first-compatible discovery, excluding the configured TCM address. TCM requires an explicit, different MAC and otherwise stays disabled. The TCM task currently holds the link for coexistence measurement and sends no PID requests until a TCM catalog/profile is installed.
 
 ## Evidence and open limits
 
-The ESP-IDF 5.4.1 firmware build and host parser fixtures with address and undefined-behavior sanitizers pass locally. CI runs both gates. The branch was flashed over USB to `/dev/cu.usbmodem5C931582021` on 2026-09-25. Esptool verified both written images. Serial output showed the UI handling a PID touch event and a BLE service discovery timeout. A matching `18F0` adapter was not observed during this check, so vehicle readings and reconnect behavior remain unverified. The current BLE manager is still a singleton and chooses the first adapter advertising service `18F0`; it cannot represent separate ECM and TCM links or a phone link. It still assumes the notification CCCD is immediately after the RX value handle. Per-responder attribution, explicit adapter selection, robust GATT descriptor discovery and the companion service are next.
+The ESP-IDF 5.4.1 firmware build and host parser fixtures with address and undefined-behavior sanitizers pass locally. CI runs both gates. The branch was flashed over USB to `/dev/cu.usbmodem5C931582021` on 2026-09-25. Esptool verified both written images. Serial output showed the UI handling a PID touch event and service discovery retries. After the two-context refactor, the default empty-MAC firmware was flashed again and an ECM discovery retry was observed without a crash. A matching `18F0` adapter was not observed during these checks, so live readings, second-link coexistence and reconnect behavior remain unverified. The phone peripheral service is not yet implemented. GATT discovery still assumes the notification CCCD is immediately after the RX value handle. Header-bearing CAN replies, per-responder attribution, TCM PID polling, descriptor discovery and the companion service are next.
 
 The round display uses `...` for a stale or unavailable value. A later UI increment will distinguish stale, searching, and unavailable states visually while preserving the no-old-number rule.
 
 ## Hardware validation sequence
 
-1. Flash this branch over USB and confirm the display and touch still start.
+1. Flash this branch over USB and confirm the display and touch still start. Default empty-MAC image has been flashed; startup serial is observed, while a fresh physical touch check remains useful.
 2. With one known `18F0` adapter, check that RPM and coolant update, disappear after link loss, and recover after reconnect. Record the adapter make, firmware and GATT map.
 3. Capture response fragments, timeouts and BLE disconnect events, with any VIN or identifying vehicle data removed.
-4. Measure two adapter links plus a phone peripheral session while LVGL renders. If coexistence or freshness is inadequate, record the radio and memory measurements and choose the documented fallback in [multi-adapter architecture](../architecture/multi-adapter.md).
+4. Set `EGAUGE_TCM_ADAPTER_MAC` to the second adapter's observed BLE address in a local build. With both adapters present, measure two links while LVGL renders. Phone peripheral coexistence requires the later companion service. If coexistence or freshness is inadequate, record the radio and memory measurements and choose the documented fallback in [multi-adapter architecture](../architecture/multi-adapter.md).
 
 No DTC clearing or vehicle command is added by this increment.

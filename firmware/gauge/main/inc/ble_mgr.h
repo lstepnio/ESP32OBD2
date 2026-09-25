@@ -99,7 +99,7 @@ static_assert(ARRAY_SIZE(ble_mgr_status_strs) == BLE_MGR_E_API_LOCK_ERROR + 1,
 // Public Function Declarations
 // ---------------------------------------------------------------------------------------------------------------------
 
-ble_mgr_ctx_t *ble_mgr_init(int timeout_ms);
+ble_mgr_ctx_t *ble_mgr_init(unsigned source_id, int timeout_ms);
 
 ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
                                          ble_mgr_disc_cfg_t const *disc_cfg,

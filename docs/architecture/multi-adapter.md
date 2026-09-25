@@ -12,9 +12,9 @@ UI labels all ambiguous signals with source/ECU. Garage shows ECM adapter and TC
 
 ## Feasibility TODO: MULTI-001
 
-**Unresolved. No simultaneous multi-adapter operation is implemented or measured.** Baseline `sdkconfig` enables three NimBLE connections and both roles, but its manager owns a shared singleton connection context. Configuration capacity is not evidence of working multiple links.
+**Unresolved hardware feasibility.** M1 now has two independently owned central connection contexts and serialized discovery, with TCM link activation gated by an explicit MAC. No simultaneous two-adapter operation has been measured. Baseline `sdkconfig` enables three NimBLE connections and both roles, but configuration capacity is not evidence of working multiple links or a phone peripheral service.
 
-1. Refactor central sessions into independent owned contexts before connecting a second adapter. Validate controller and host connection counts for ESP-IDF 5.4.1, buffer pools, heap/stack and session cleanup.
+1. Independent central contexts are implemented. Validate controller and host connection counts for ESP-IDF 5.4.1, buffer pools, heap/stack and session cleanup on two powered adapters.
 2. Bench scenario: two independently powered adapters/emulated radios, continuous ECM + TCM polling, phone connected/subscribed, LVGL rendering and local alerts. Record achieved per-source rates, P95 response latency, missed deadlines, reconnect behavior, radio parameters and minimum free memory.
 3. Interrupt each adapter independently; verify the other continues, phone configuration remains available, and no cross-source responses appear. Test duplicate names and overlapping `7E8`/PID identities.
 4. Run two hours under combined load with zero cross-source attribution and bounded queues/memory. Compare against single-adapter baseline. Raise phone telemetry interval before sacrificing warning freshness. Maintenance OTA may explicitly disconnect both adapters.
