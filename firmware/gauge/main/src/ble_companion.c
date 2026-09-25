@@ -206,6 +206,17 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_ADV_COMPLETE:
         advertise();
         break;
+    case BLE_GAP_EVENT_REPEAT_PAIRING: {
+        /* Android may have forgotten a bond that NimBLE still stores. Only a
+         * fresh physical window with no owner may replace that stale bond. */
+        struct ble_gap_conn_desc desc;
+        if (atomic_load(&g_has_owner) || !pairing_open() ||
+            ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc) != 0)
+            return BLE_GAP_REPEAT_PAIRING_IGNORE;
+        int rc = ble_store_util_delete_peer(&desc.peer_id_addr);
+        ESP_LOGI(TAG, "Replacing stale unowned bond during physical pairing: %d", rc);
+        return rc == 0 ? BLE_GAP_REPEAT_PAIRING_RETRY : BLE_GAP_REPEAT_PAIRING_IGNORE;
+    }
     case BLE_GAP_EVENT_PASSKEY_ACTION: {
         struct ble_sm_io io = {0};
         if (event->passkey.params.action != BLE_SM_IOACT_DISP ||
@@ -272,6 +283,7 @@ void ble_companion_open_pairing_window(void)
     if (atomic_load(&g_has_owner)) return;
     atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
     atomic_store(&g_pairing_until, xTaskGetTickCount() + pdMS_TO_TICKS(120000));
+    ESP_LOGI(TAG, "Physical owner pairing window opened");
     ui_show_pairing_code(g_ui, UINT32_MAX);
 }
 

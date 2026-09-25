@@ -1,6 +1,12 @@
 # Paired control hardware review
 
-Status: Android phone is available. On 2026-09-25, commit `cc5641f` was built and uploaded to the USB gauge with three flash image hashes verified, and the current debug APK was installed on a Pixel 10 Pro. The Pixel discovered the gauge and read protocol 0 capabilities with `quickSelect: true`, `configWrite: false`, and `ota: false`. This is public discovery evidence only. A control attempt without a confirmed physical pairing window did not complete, and no applied selection was observed. The app has since been updated to distinguish its timeout from a cancelled operation. Pairing, owner authorization, control write, and applied-state readback remain pending the physical pairing review below.
+Status: Android phone is available. On 2026-09-25, integration images were uploaded to the USB gauge with flash hashes verified, and the debug APK was installed on a Pixel 10 Pro. The Pixel discovered the gauge and read protocol 0 capabilities with `quickSelect: true`, `configWrite: false`, and `ota: false`. This is public discovery evidence only. Pairing, owner authorization, control write, and applied-state readback have not passed.
+
+## Live pairing blocker, 2026-09-25
+
+The user confirmed PAIR READY on the gauge during several attempts. The gauge serial monitor logged the physical owner window opening and the phone link connecting. It did not show a passkey, and the user confirmed no six-digit code appeared. Android's Bluetooth manager reported `SMP_RSP_TIMEOUT` about 30 seconds after initiating bonding, with no bond stored. The app did not confirm a selection. Both explicit `createBond()` before GATT connection and a GATT-first protected state read reached this failure. Temporarily pausing OBD adapter scans during the pairing window did not change it and was removed. A guarded handler for NimBLE's repeat-pairing event was added because that stack otherwise silently ignores a new request for an already bonded peer, but no repeat-pairing event was observed in these attempts; it is not evidence of the root cause.
+
+Next capture NimBLE SMP or controller trace around the pairing request, verify whether the gauge receives that SMP PDU, and determine why it sends no pairing response. Preserve authenticated, physical-window-only pairing while diagnosing. Do not mark quick selection as validated from the public capability read or from a bond attempt alone.
 
 ## Preparation
 

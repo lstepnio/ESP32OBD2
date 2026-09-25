@@ -18,7 +18,6 @@ import android.os.ParcelUuid
 import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.util.UUID
@@ -36,18 +35,14 @@ class BleCapabilityClient(private val context: Context) {
     suspend fun selectNearby(index: Int): Int {
         require(index in 0..4)
         val device = selectedDevice ?: error("Read this gauge's capabilities before controlling it")
-        if (device.bondState != BluetoothDevice.BOND_BONDED) {
-            if (!device.createBond()) error("Android could not start gauge pairing")
-            withTimeout(90_000) {
-                while (device.bondState != BluetoothDevice.BOND_BONDED) delay(250)
-            }
-        }
         val result = CompletableDeferred<Int>()
         val handler = Handler(Looper.getMainLooper())
         var stateCharacteristic: BluetoothGattCharacteristic? = null
         var controlCharacteristic: BluetoothGattCharacteristic? = null
         var writeSent = false
         var readAttempts = 0
+        var bondStarted = false
+        var sawBonding = false
         val callback = object : BluetoothGattCallback() {
             private fun fail(message: String) {
                 if (!result.isCompleted) result.completeExceptionally(IllegalStateException(message))
@@ -82,6 +77,11 @@ class BleCapabilityClient(private val context: Context) {
             ) { onStateRead(gatt, characteristic.uuid, value, status) }
             private fun onStateRead(gatt: BluetoothGatt, uuid: UUID, value: ByteArray, status: Int) {
                 if (result.isCompleted || uuid != stateId) return
+                if ((status == BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION ||
+                     status == BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION) && !writeSent) {
+                    awaitBond(gatt)
+                    return
+                }
                 if (status != BluetoothGatt.GATT_SUCCESS || value.size != 4 || value[0].toInt() != 1) {
                     fail("Secure gauge state read failed ($status). Open pairing on the gauge and accept Android's prompt.")
                     return
@@ -108,6 +108,27 @@ class BleCapabilityClient(private val context: Context) {
                         if (!result.isCompleted && !gatt.readCharacteristic(stateCharacteristic))
                             fail("Could not read applied gauge state")
                     }, 200)
+                }
+            }
+            private fun awaitBond(gatt: BluetoothGatt) {
+                if (result.isCompleted) return
+                when (device.bondState) {
+                    BluetoothDevice.BOND_BONDED -> {
+                        val state = stateCharacteristic ?: return fail("State characteristic missing")
+                        if (!gatt.readCharacteristic(state)) fail("Could not retry secure state read")
+                    }
+                    BluetoothDevice.BOND_BONDING -> {
+                        sawBonding = true
+                        handler.postDelayed({ awaitBond(gatt) }, 250)
+                    }
+                    else -> {
+                        if (sawBonding) return fail("Android pairing was rejected or cancelled")
+                        if (!bondStarted) {
+                            bondStarted = true
+                            if (!device.createBond()) return fail("Android could not start gauge pairing")
+                        }
+                        handler.postDelayed({ awaitBond(gatt) }, 250)
+                    }
                 }
             }
             override fun onCharacteristicWrite(
