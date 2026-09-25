@@ -244,7 +244,9 @@ function gaugeSvg(mini = false) {
         : "SIMULATED";
   const text = (x, y, t, size, fill = "#F2F5EF", weight = 500) =>
     `<text x="${x}" y="${y}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${size}" font-weight="${weight}" fill="${fill}">${t}</text>`;
-  if (scenario === "critical" && !state.ack) {
+  if (state.updateStarted && !state.updateDone) {
+    body = `${text(120, 62, "FIRMWARE UPDATE", 15, "#B7F36B")}${text(120, 130, Math.round(state.update) + "%", 56)}${text(120, 163, state.updatePaused ? "Transfer paused" : "Demo maintenance", 15, "#A9BABD")}${text(120, 189, "READINGS PAUSED", 11, "#FFCB66")}`;
+  } else if (scenario === "critical" && !state.ack) {
     body = `<circle cx="120" cy="120" r="111" fill="none" stroke="#FF7E79" stroke-width="5"/>${text(120, 62, "HIGH COOLANT", 16, "#FF7E79", 700)}${text(120, 134, valueFor(catalog[1], Math.max(state.coolant, state.critical + 3)), 62)}${text(120, 159, unitFor(catalog[1]), 18)}${text(120, 187, "Tap to acknowledge", 13, "#FF7E79")}`;
   } else if (scenario === "cel") {
     body = `${text(120, 56, "CHECK ENGINE", 16, "#FFCB66", 700)}${text(120, 113, state.cleared ? "P0420" : "P0300", 40)}${text(120, 146, state.cleared ? "Permanent code" : "Random misfire", 16)}${text(120, 170, state.cleared ? "ECU must verify repair" : "Confirmed · ECU 7E8", 13, "#A9BABD")}${text(120, 192, "DEMO DIAGNOSTICS", 10, "#A9BABD")}`;
@@ -656,6 +658,7 @@ setInterval(() => {
       state.updateDone = true;
       toast("Demo firmware boot confirmed. Update simulation complete.");
     }
+    renderGauge();
     if (state.section === "updates") renderPhone();
   }
 }, 450);
