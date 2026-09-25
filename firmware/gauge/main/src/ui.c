@@ -15,6 +15,7 @@
 
 #include "freertos/projdefs.h"
 #include "freertos/queue.h"
+#include "freertos/task.h"
 #include "portmacro.h"
 
 #include "core/lv_obj.h"
@@ -45,6 +46,13 @@ static const char *TAG = "UI";
 // Types
 // ---------------------------------------------------------------------------------------------------------------------
 
+typedef struct {
+    int32_t value;
+    TickType_t received_at;
+} ui_sample_t;
+
+#define UI_SAMPLE_FRESH_MS 1500
+
 struct _ui_t
 {
     ui_touch_callback_t touch_cb;
@@ -73,12 +81,14 @@ struct _ui_t
 // ---------------------------------------------------------------------------------------------------------------------
 
 extern const lv_font_t notosans_semibold_64;
+extern const lv_font_t notosans_semibold_32;
 extern const lv_font_t notosans_medium_16;
 extern const lv_font_t notosans_medium_24;
 
 static const lv_font_t *const font_title    = &notosans_semibold_64;
-static const lv_font_t *const font_subtitle = &notosans_medium_24;
-static const lv_font_t *const font_unit     = &notosans_medium_16;
+static const lv_font_t *const font_compact  = &notosans_semibold_32;
+static const lv_font_t *const font_subtitle = &notosans_medium_16;
+static const lv_font_t *const font_unit     = &notosans_medium_24;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Private Function Definitions
@@ -115,14 +125,16 @@ static void ui_align_labels(ui_t *ui)
 {
     lv_obj_t *scr = lv_screen_active();
     ESP_NULL_CHECK(scr, TAG, "Current screen is NULL");
-
-    // info label
-    lv_obj_align_to(ui->widgets.info_lbl, ui->widgets.value_lbl, LV_ALIGN_OUT_BOTTOM_MID, 0, 12);
-
-    // unit label
-    lv_obj_set_x(ui->widgets.unit_lbl, lv_obj_get_width(scr) - 44);
-    lv_obj_set_y(ui->widgets.unit_lbl, lv_obj_get_y(ui->widgets.value_lbl) + lv_obj_get_height(ui->widgets.value_lbl) -
-                                           lv_obj_get_height(ui->widgets.unit_lbl) - 10);
+    // Essential text stays inside the circle's 104 px safe radius. Its lower
+    // corners disappear well before the 240 x 240 frame ends.
+    int32_t safe_width = lv_obj_get_width(scr) - 74;
+    if (safe_width < 80) safe_width = lv_obj_get_width(scr);
+    lv_obj_set_width(ui->widgets.info_lbl, safe_width);
+    lv_obj_set_width(ui->widgets.value_lbl, safe_width);
+    lv_obj_set_width(ui->widgets.unit_lbl, safe_width);
+    lv_obj_align(ui->widgets.info_lbl, LV_ALIGN_TOP_MID, 0, 48);
+    lv_obj_align(ui->widgets.value_lbl, LV_ALIGN_TOP_MID, 0, 78);
+    lv_obj_align(ui->widgets.unit_lbl, LV_ALIGN_TOP_MID, 0, 158);
 }
 
 static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, const char *unit)
@@ -132,10 +144,14 @@ static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, c
     if (value != NULL)
     {
         lv_label_set_text_fmt(ui->widgets.value_lbl, "%" PRId32, *value);
+        lv_obj_set_style_text_font(ui->widgets.value_lbl,
+                                   strlen(lv_label_get_text(ui->widgets.value_lbl)) > 4 ? font_compact : font_title,
+                                   LV_PART_MAIN);
     }
     else
     {
         lv_label_set_text(ui->widgets.value_lbl, "...");
+        lv_obj_set_style_text_font(ui->widgets.value_lbl, font_title, LV_PART_MAIN);
     }
 
     if (info != NULL)
@@ -158,15 +174,18 @@ static void ui_task(lv_timer_t *timer)
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
     // get latest value (non-blocking). Continue with previous value if queue is empty
-    int32_t target = DISPLAY_VALUE_INVALID;
-    xQueuePeek(ui->rtos.value_que, &target, 0);
-    if (target == DISPLAY_VALUE_INVALID)
+    ui_sample_t sample = {.value = DISPLAY_VALUE_INVALID};
+    bool received = xQueuePeek(ui->rtos.value_que, &sample, 0) == pdTRUE;
+    bool fresh = received && sample.value != DISPLAY_VALUE_INVALID &&
+                 xTaskGetTickCount() - sample.received_at <= pdMS_TO_TICKS(UI_SAMPLE_FRESH_MS);
+    if (!fresh)
     {
         ui->display.current_value = 0.0f;
         ui_update_screen(ui, NULL, NULL, NULL);
     }
     else
     {
+        int32_t target = sample.value;
         ui->display.current_value += (target - ui->display.current_value) * 0.4f;
         int32_t rounded = (int32_t)(ui->display.current_value >= 0.0f ? ui->display.current_value + 0.5f
                                                                       : ui->display.current_value - 0.5f);
@@ -206,7 +225,7 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     lv_obj_set_style_text_color(value_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(value_lbl, font_title, LV_PART_MAIN);
     lv_obj_set_style_text_align(value_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_center(value_lbl);
+    lv_label_set_long_mode(value_lbl, LV_LABEL_LONG_DOT);
 
     // Info label
     lv_obj_t *info_lbl = lv_label_create(scr);
@@ -215,15 +234,16 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     lv_obj_set_style_text_color(info_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(info_lbl, font_subtitle, LV_PART_MAIN);
     lv_obj_set_style_text_align(info_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(info_lbl, LV_LABEL_LONG_DOT);
 
-    // Unit label (bottom-aligned with widgets.value_lbl, right edge)
+    // Unit label centered below the number, away from the curved right edge.
     lv_obj_t *unit_lbl = lv_label_create(scr);
     ESP_NULL_CHECK(unit_lbl, TAG, "Failed to create unit label");
     lv_label_set_text(unit_lbl, cfg->unit ? cfg->unit : "");
     lv_obj_set_style_text_color(unit_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(unit_lbl, font_unit, LV_PART_MAIN);
-    lv_obj_set_style_text_align(unit_lbl, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
-    lv_obj_align_to(info_lbl, value_lbl, LV_ALIGN_OUT_RIGHT_BOTTOM, 0, 0);
+    lv_obj_set_style_text_align(unit_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(unit_lbl, LV_LABEL_LONG_DOT);
 
     ui->widgets.value_lbl = value_lbl;
     ui->widgets.info_lbl  = info_lbl;
@@ -255,7 +275,7 @@ ui_t *ui_init(obd_pid_cfg_t const *cfg, uint32_t interval_ms, ui_touch_callback_
     memset(ui, 0, sizeof(ui_t));
     ESP_LOGI(TAG, "ui pointer2: %p (addr: %p)", ui, (void *)&ui);
 
-    ui->rtos.value_que    = xQueueCreate(1, sizeof(uint32_t));
+    ui->rtos.value_que    = xQueueCreate(1, sizeof(ui_sample_t));
     ui->rtos.touch_ev_que = xQueueCreate(4, sizeof(lv_event_code_t));
     ui->touch_cb          = touch_cb;
 
@@ -279,9 +299,12 @@ void ui_set_value(ui_t *ui, int32_t const *value)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
-    int32_t set_value = value != NULL ? *value : DISPLAY_VALUE_INVALID;
+    ui_sample_t sample = {
+        .value = value != NULL ? *value : DISPLAY_VALUE_INVALID,
+        .received_at = xTaskGetTickCount(),
+    };
 
-    if (xQueueOverwrite(ui->rtos.value_que, &set_value) != pdTRUE)
+    if (xQueueOverwrite(ui->rtos.value_que, &sample) != pdTRUE)
     {
         ESP_LOGE(TAG, "Failed to overwrite value in queue");
     }
@@ -292,6 +315,7 @@ void ui_set_obd_cfg(ui_t *ui, obd_pid_cfg_t const *cfg)
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     ESP_NULL_CHECK(cfg, TAG, "OBD PID config is NULL");
 
+    ui_set_value(ui, NULL);
     ui_update_screen(ui, NULL, cfg->name, cfg->unit);
     ESP_LOGI(TAG, "Updated OBD PID config: 0x%02X (%s)", cfg->pid, cfg->name);
 }

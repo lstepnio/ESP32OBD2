@@ -5,6 +5,10 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <ctype.h>
+#include "sdkconfig.h"
 
 #include "esp_err.h"
 #include "esp_log.h"
@@ -26,6 +30,7 @@
 #include "bsp_lvgl.h"
 
 #include "ble_obd.h"
+#include "ble_mgr.h"
 #include "config.h"
 #include "obd.h"
 #include "ui.h"
@@ -180,12 +185,13 @@ static void obd_task(void *arg)
 
     while (true)
     {
-        obd = ble_obd_connect(obd_response_cb, ui);
+        obd = ble_obd_connect(0, CONFIG_EGAUGE_ECM_ADAPTER_MAC, obd_response_cb, ui);
         if (obd != NULL)
         {
             break;
         }
         ESP_LOGW(TAG, "Failed to connect to RX/TX service. Retrying...");
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
     ESP_LOGI(TAG, "RX/TX BLE service connected");
 
@@ -213,6 +219,29 @@ static void obd_task(void *arg)
         {
             ESP_LOGW(TAG, "Failed to send request: %d", status);
         }
+    }
+}
+
+static bool adapter_mac_valid(const char *mac)
+{
+    if (strlen(mac) != 17) return false;
+    for (size_t i = 0; i < 17; i++) {
+        if (i % 3 == 2) { if (mac[i] != ':') return false; }
+        else if (!isxdigit((unsigned char)mac[i])) return false;
+    }
+    return true;
+}
+
+static void tcm_link_task(void *arg)
+{
+    (void)arg;
+    while (true) {
+        ble_obd_ctx_t *tcm = ble_obd_connect(1, CONFIG_EGAUGE_TCM_ADAPTER_MAC, NULL, NULL);
+        if (tcm) {
+            ESP_LOGI(TAG, "TCM adapter link connected; awaiting TCM PID configuration");
+            while (ble_obd_is_connected(tcm)) vTaskDelay(pdMS_TO_TICKS(500));
+        }
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
@@ -303,7 +332,23 @@ void app_main(void)
 
     bsp_display_on_off(true);
 
+    ESP_NULL_CHECK(ble_mgr_init(0, 2000), TAG, "BLE ECM slot initialization failed");
+    ESP_NULL_CHECK(ble_mgr_init(1, 2000), TAG, "BLE TCM slot initialization failed");
+    if (CONFIG_EGAUGE_ECM_ADAPTER_MAC[0] && !adapter_mac_valid(CONFIG_EGAUGE_ECM_ADAPTER_MAC)) {
+        ESP_LOGE(TAG, "Invalid ECM adapter MAC in firmware configuration");
+        return;
+    }
     init_obd_task(ui);
+    if (CONFIG_EGAUGE_TCM_ADAPTER_MAC[0]) {
+        if (!adapter_mac_valid(CONFIG_EGAUGE_TCM_ADAPTER_MAC) ||
+            (CONFIG_EGAUGE_ECM_ADAPTER_MAC[0] &&
+             strcasecmp(CONFIG_EGAUGE_ECM_ADAPTER_MAC, CONFIG_EGAUGE_TCM_ADAPTER_MAC) == 0)) {
+            ESP_LOGE(TAG, "Invalid or duplicate TCM adapter MAC; second link disabled");
+        } else {
+            BaseType_t started = xTaskCreate(tcm_link_task, "tcm_link", 4096, NULL, 5, NULL);
+            ESP_CHECK(started == pdPASS, TAG, "TCM link task creation failed");
+        }
+    }
 
     while (true)
     {

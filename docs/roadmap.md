@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-Status: all milestones below are planned except the existing upstream baseline and this design foundation. Complete vertical slices with documentation and evidence before expanding the catalog.
+Status: M0 is complete. An initial M1 transport increment is implemented on `feat/m1-transport-core`; the remaining M1 acceptance criteria are open. Complete vertical slices with documentation and evidence before expanding the catalog.
 
 | Milestone | Deliverables | Exit criteria |
 | --- | --- | --- |

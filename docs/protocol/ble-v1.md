@@ -1,6 +1,8 @@
 # Companion BLE protocol, draft v1
 
-**Not implemented by the baseline.** Freeze only after the dual-link vertical slice. Firmware is peripheral to the Android central and central to the OBD adapter. One authorized phone session initially. A bonded device identity, not a changing BLE MAC address, identifies the gauge.
+**Draft v1, not implemented.** Freeze only after the dual-link vertical slice. M1 exposes a separate experimental, public, read-only capability characteristic at UUID `6f1a0001-9e3b-4f45-a714-69c9d23b6c00`. It advertises the service and name `eGauge`, reports `protocolMajor: 0`, and sets configuration writes and OTA to false. This is a connection/coexistence probe, not v1 ownership or control. The local reference client is `tools/ble_probe.py`.
+
+In v1, firmware is peripheral to the Android central and central to the OBD adapter. One authorized phone session initially. A bonded device identity, not a changing BLE MAC address, identifies the gauge.
 
 ## Discovery, ownership, and capabilities
 
