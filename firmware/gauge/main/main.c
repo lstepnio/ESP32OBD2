@@ -36,6 +36,7 @@
 #include "ble_mgr.h"
 #include "config.h"
 #include "config_store.h"
+#include "config_document.h"
 #include "obd.h"
 #include "ui.h"
 #include "util.h"
@@ -338,6 +339,7 @@ void app_main(void)
     // esp_log_level_set("UI", ESP_LOG_DEBUG);
     esp_log_level_set("main", ESP_LOG_DEBUG);
 
+    config_document_init();
     init_config();
 
     bsp_init();

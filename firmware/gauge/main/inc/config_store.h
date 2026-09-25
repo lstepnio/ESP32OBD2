@@ -25,8 +25,9 @@ esp_err_t config_store_write(uint32_t offset, const void *data, size_t length);
 esp_err_t config_store_verify(void);
 void config_store_abort(void);
 
-/* The caller must validate the complete schema and device semantics. The
- * callback reads the staged document through its partition and byte length.
+/* The store enforces the version 1 document validator before commit and at
+ * boot. The caller callback applies any further runtime capability checks.
+ * The callback reads the staged document through its partition and byte length.
  * It runs while the store is locked and must not call config_store functions.
  * Passing no validator never activates untrusted bytes. */
 typedef esp_err_t (*config_store_validator_t)(const esp_partition_t *partition,

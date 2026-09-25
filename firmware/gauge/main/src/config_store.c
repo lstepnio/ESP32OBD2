@@ -8,6 +8,7 @@
 #include "freertos/semphr.h"
 #include "mbedtls/sha256.h"
 #include "config_store.h"
+#include "config_document.h"
 
 #define HEADER_MAGIC 0x31434645U /* EFC1 on little-endian flash */
 #define COMMIT_MAGIC 0x54494d43U /* CMIT */
@@ -79,6 +80,12 @@ static bool valid_slot(int index, config_store_record_t *record)
     uint8_t actual[32];
     if (hash_document(slots[index], header.length, actual) != ESP_OK ||
         memcmp(actual, header.sha256, sizeof(actual)) != 0) return false;
+    config_document_context_t context = {
+        .base_revision = header.revision - 1,
+        .max_adapter_links = 2,
+    };
+    if (config_document_validate(slots[index], DOCUMENT_OFFSET, header.length,
+                                 &context) != ESP_OK) return false;
     record->revision = header.revision;
     record->length = header.length;
     memcpy(record->sha256, actual, sizeof(actual));
@@ -211,6 +218,12 @@ esp_err_t config_store_commit(config_store_validator_t validator, void *context,
         err = ESP_ERR_INVALID_CRC;
         goto done;
     }
+    config_document_context_t limits = {
+        .base_revision = active_record.revision,
+        .max_adapter_links = 2,
+    };
+    err = config_document_validate(partition, DOCUMENT_OFFSET, transfer.length, &limits);
+    if (err != ESP_OK) goto done;
     err = validator(partition, DOCUMENT_OFFSET, transfer.length, context);
     if (err != ESP_OK) goto done;
     slot_header_t header = {
