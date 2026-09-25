@@ -125,18 +125,18 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= 31 &&
             (checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
              checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED)) {
-            model.connectionError("Grant nearby device permission, then try again")
+            model.selectionError("Grant nearby device permission, then try again")
             return
         }
         val index = when (model.draft.pidId) {
             "rpm" -> 0; "speed" -> 1; "load" -> 2; "coolant" -> 3; "fuel" -> 4
-            else -> { model.connectionError("This example has no built-in gauge reading"); return }
+            else -> { model.selectionError("This example has no built-in gauge reading"); return }
         }
         model.markScanning(true)
         lifecycleScope.launch {
             runCatching { BleCapabilityClient(applicationContext).selectNearby(index) }
                 .onSuccess(model::selectionApplied)
-                .onFailure { model.connectionError(it.message ?: "Could not select gauge reading") }
+                .onFailure { model.selectionError(it.message ?: "Could not select gauge reading") }
         }
     }
 }
@@ -625,8 +625,10 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit, onSelectR
                 Spacer(Modifier.height(10.dp))
                 Text("First setup: long press the gauge to open pairing, then enter its code in Android. A 12-second hold resets the owner bond.",
                     color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
-                OutlinedButton(onClick = onSelectReading, enabled = !model.scanning && model.profileError == null) {
-                    Text(if (model.scanning) "Connecting…" else "Set preview reading on gauge")
+                OutlinedButton(onClick = onSelectReading,
+                    enabled = !model.scanning && model.profileError == null && model.draft.pidId != "tcm") {
+                    Text(if (model.scanning) "Connecting…" else if (model.draft.pidId == "tcm")
+                        "No built-in TCM reading" else "Set preview reading on gauge")
                 }
             }
         }

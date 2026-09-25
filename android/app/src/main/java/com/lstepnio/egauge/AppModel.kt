@@ -152,6 +152,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         scanning = false
         deviceMessage = "Gauge confirmed built-in reading ${index + 1} of 5."
     }
+    fun selectionError(message: String) {
+        scanning = false
+        deviceMessage = message
+    }
     fun selectPid(pid: PidExample) = save(draft.copy(pidId = pid.id, source = pid.source))
     fun selectLayout(layout: GaugeLayout) = save(draft.copy(layout = layout))
     fun setWarning(value: Int) = save(draft.copy(warning = value))
