@@ -14,6 +14,8 @@ The generated table parsed with ESP-IDF 5.4.1 tooling. The built app occupied ab
 
 The config partitions hold bounded bytes, not executable code. Each generation has a header with magic, schema version, document length, SHA-256, revision, header CRC32, and commit marker. The low-level `config_store` module scans committed generations at boot, streams at most 64 KiB into the inactive slot, checks SHA-256, requires a semantic-validation callback before writing the commit marker, and reads back the committed record. It never erases the current active slot during a transfer. The module has no BLE operation or semantic validator wired yet, so no document can be committed from the app. The active slot remains untouched until the inactive slot passes length, digest, schema, semantic, budget, and capability validation.
 
+The development board's 2 MB Quad PSRAM is now enabled at 40 MHz. The flashed image logged device detection, a successful boot memory check, a 2048 KiB heap pool, and normal display and BLE startup. The allocator reserves 32 KiB of internal memory for DMA and internal allocations; NimBLE remains configured to allocate its buffers internally. Configuration parsing can use explicitly bounded PSRAM allocations, but the parser, semantic validator, and activation path are still pending.
+
 ## Atomic apply
 
 1. `config.begin` checks authenticated owner, `baseRevision`, declared schema, length at most 64 KiB, and expected SHA-256. It reserves an inactive generation and returns a transfer ID and accepted offset.
