@@ -14,6 +14,8 @@ The protected version 2 state read subsequently reported saved Coolant at durabl
 
 After enabling 2 MB PSRAM and adding a revision-checked rotation opcode to protocol 0, the Pixel saved 90 degrees and read it back at legacy revision 26. Following a gauge reset, it read 90 degrees again without pairing. The user reported that the LCD looked correctly rotated and touch selected one reading per tap. The revision was 41 on that later read; the intervening legacy saves have not been attributed. Do not treat that revision jump as evidence of a rotation fault or of correct write frequency without a serial trace during the interval.
 
+After the document validator image was flashed, the Pixel read RPM, 90 degrees, and legacy revision 58 through the existing owner bond. An idle serial observation for 30 seconds showed adapter connection timeouts because no adapter was present, but no configuration saves. A following authenticated phone read still reported RPM, 90 degrees, and revision 58. This rules out continuous autonomous legacy writes during that observed interval; it does not attribute the earlier revision changes.
+
 ## Preparation
 
 1. Keep the gauge powered by USB and open the latest Android debug APK.
