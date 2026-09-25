@@ -136,5 +136,6 @@ for p in mds:
 tokens = json.loads((ROOT / 'design/tokens.json').read_text())
 css = (ROOT / 'design/prototype/styles.css').read_text()
 for name, color in tokens['color'].items():
-    check(re.search(r'--' + re.escape(name) + r'\s*:\s*' + re.escape(color), css), f'Prototype token mismatch: {name}')
+    match = re.search(r'--' + re.escape(name) + r'\s*:\s*(#[0-9a-fA-F]{6})', css)
+    check(match and match.group(1).lower() == color.lower(), f'Prototype token mismatch: {name}')
 print(f'PASS: {len(schemas)} schemas, {count} examples, {len(negative_cases)} rejection cases, signed decode vector, {len(mds)} document link sets, color token parity.')
