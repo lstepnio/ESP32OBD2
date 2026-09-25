@@ -8,6 +8,8 @@ The capability JSON advertises `quickSelect: true`, `configWrite: false` and `ot
 
 The device uses LE Secure Connections, authenticated passkey entry, encryption and bonding. A gauge long press opens a 120-second association window. The six-digit passkey appears on its LCD and Android shows the system pairing prompt. The first authenticated bonded phone identity is stored in NVS as owner. Protected GATT access also checks that identity. A 12-second physical hold erases the owner association and bond, then restarts the gauge. This reset is intentionally local.
 
+Owner adoption requires a passkey event on the same connection within that physical window. A previously bonded phone that reconnects after owner reset cannot silently reclaim ownership during the next window. If bond deletion fails, the owner association is still cleared and old encrypted links remain unauthorized; the user may need to forget stale bonds on the phone before a fresh pairing.
+
 Protocol 0 uses two extra characteristics under the service UUID below:
 
 | Prefix | Access | Value |

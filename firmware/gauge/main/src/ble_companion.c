@@ -155,6 +155,7 @@ static const struct ble_gatt_svc_def services[] = {
 
 static uint8_t own_addr_type;
 static uint16_t phone_conn = BLE_HS_CONN_HANDLE_NONE;
+static atomic_uint pairing_conn;
 
 static int phone_gap_event(struct ble_gap_event *event, void *arg);
 
@@ -196,6 +197,7 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_DISCONNECT:
         if (event->disconnect.conn.conn_handle == phone_conn) {
             phone_conn = BLE_HS_CONN_HANDLE_NONE;
+            atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
             ESP_LOGI(TAG, "Phone discovery link disconnected");
             ui_show_pairing_code(g_ui, pairing_open() ? UINT32_MAX : 0);
             advertise();
@@ -210,16 +212,22 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
             atomic_load(&g_has_owner) || !pairing_open()) return BLE_HS_EAUTHEN;
         io.action = BLE_SM_IOACT_DISP;
         io.passkey = 100000 + esp_random() % 900000;
-        ui_show_pairing_code(g_ui, io.passkey);
-        return ble_sm_inject_io(event->passkey.conn_handle, &io);
+        int rc = ble_sm_inject_io(event->passkey.conn_handle, &io);
+        if (rc == 0) {
+            atomic_store(&pairing_conn, event->passkey.conn_handle);
+            ui_show_pairing_code(g_ui, io.passkey);
+        }
+        return rc;
     }
     case BLE_GAP_EVENT_ENC_CHANGE:
         if (event->enc_change.status == 0) {
             struct ble_gap_conn_desc desc;
             if (ble_gap_conn_find(event->enc_change.conn_handle, &desc) == 0 &&
                 desc.sec_state.encrypted && desc.sec_state.authenticated && desc.sec_state.bonded) {
-                if (!atomic_load(&g_has_owner) && pairing_open() && !save_owner(&desc.peer_id_addr)) {
-                    ble_gap_terminate(event->enc_change.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+                if (!atomic_load(&g_has_owner)) {
+                    if (!pairing_open() || event->enc_change.conn_handle != atomic_load(&pairing_conn) ||
+                        !save_owner(&desc.peer_id_addr))
+                        ble_gap_terminate(event->enc_change.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
                 } else if (atomic_load(&g_has_owner) && !address_equal(&desc.peer_id_addr, &g_owner)) {
                     ble_gap_terminate(event->enc_change.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
                 }
@@ -249,6 +257,7 @@ int ble_companion_register(void)
 void ble_companion_reset(void)
 {
     phone_conn = BLE_HS_CONN_HANDLE_NONE;
+    atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
 }
 
 void ble_companion_set_control(ui_t *ui, QueueHandle_t selection_queue, uint8_t selected_index)
@@ -261,6 +270,7 @@ void ble_companion_set_control(ui_t *ui, QueueHandle_t selection_queue, uint8_t 
 void ble_companion_open_pairing_window(void)
 {
     if (atomic_load(&g_has_owner)) return;
+    atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
     atomic_store(&g_pairing_until, xTaskGetTickCount() + pdMS_TO_TICKS(120000));
     ui_show_pairing_code(g_ui, UINT32_MAX);
 }
@@ -284,8 +294,7 @@ void ble_companion_forget_owner(void)
     if (!atomic_load(&g_has_owner)) return;
     int rc = ble_store_util_delete_peer(&g_owner);
     if (rc != 0) {
-        ESP_LOGE(TAG, "Could not erase owner bond: %d", rc);
-        return;
+        ESP_LOGW(TAG, "Owner bond deletion returned %d; clearing owner association", rc);
     }
     nvs_handle_t handle;
     if (nvs_open("eg_owner", NVS_READWRITE, &handle) != ESP_OK) return;
