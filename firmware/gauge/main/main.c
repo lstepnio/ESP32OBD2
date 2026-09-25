@@ -50,64 +50,25 @@ static const char *TAG = "main";
 #define LV_DISPLAY_ROTATION_MAX LV_DISPLAY_ROTATION_270
 
 // ---------------------------------------------------------------------------------------------------------------------
-// OBD Conversion Functions
-// ---------------------------------------------------------------------------------------------------------------------
-
-static int obd_conv_rpm(int32_t *value, uint8_t const *data, size_t len)
-{
-    ESP_NULL_CHECK(value, TAG, "value pointer is NULL");
-    ESP_NULL_CHECK(data, TAG, "data pointer is NULL");
-
-    if (len < 2)
-    {
-        ESP_LOGW(TAG, "Invalid RPM data length: %zu", len);
-        return -1;
-    }
-    // RPM is calculated as (A * 256 + B) / 4
-    *value = ((data[0] << 8) | data[1]) / 4;
-    return 0;
-}
-
-static int obd_conf_percent(int32_t *value, uint8_t const *data, size_t len)
-{
-    ESP_NULL_CHECK(value, TAG, "value pointer is NULL");
-    ESP_NULL_CHECK(data, TAG, "data pointer is NULL");
-
-    if (len < 1)
-    {
-        ESP_LOGW(TAG, "obd_conf_percent: invalid data length: %zu", len);
-        return -1;
-    }
-    // percentage value (A * 100) / 255
-    *value = (data[0] * 100) / 255;
-    return 0;
-}
-
-static int obd_conf_temperature(int32_t *value, uint8_t const *data, size_t len)
-{
-    ESP_NULL_CHECK(value, TAG, "value pointer is NULL");
-    ESP_NULL_CHECK(data, TAG, "data pointer is NULL");
-
-    if (len < 1)
-    {
-        ESP_LOGW(TAG, "obd_conf_temperature: invalid data length: %zu", len);
-        return -1;
-    }
-    // Temperature is calculated as A - 40
-    *value = data[0] - 40;
-    return 0;
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
 // Constants / Config
 // ---------------------------------------------------------------------------------------------------------------------
 
 static const obd_pid_cfg_t g_obd_pids[] = {
-    {0x0C, 2, "RPM", "/min", obd_conv_rpm},         // Engine RPM
-    {0x0D, 1, "SPEED", "km/h", NULL},               // Vehicle Speed
-    {0x04, 1, "ENGINE", "%", obd_conf_percent},     // Engine Load
-    {0x05, 1, "TEMP", "°C", obd_conf_temperature},  // Coolant Temperature
-    {0x2F, 1, "FUEL", "%", obd_conf_percent},       // Fuel Level
+    {.pid = 0x0C, .len = 2, .name = "RPM", .unit = "/min",
+     .decoder = {.byte_length = 2, .numerator = 1, .denominator = 4,
+                 .minimum = 0, .maximum = 16383.75}},
+    {.pid = 0x0D, .len = 1, .name = "SPEED", .unit = "km/h",
+     .decoder = {.byte_length = 1, .numerator = 1, .denominator = 1,
+                 .minimum = 0, .maximum = 255}},
+    {.pid = 0x04, .len = 1, .name = "ENGINE", .unit = "%",
+     .decoder = {.byte_length = 1, .numerator = 100, .denominator = 255,
+                 .minimum = 0, .maximum = 100}},
+    {.pid = 0x05, .len = 1, .name = "TEMP", .unit = "°C",
+     .decoder = {.byte_length = 1, .numerator = 1, .denominator = 1,
+                 .offset = -40, .minimum = -40, .maximum = 215}},
+    {.pid = 0x2F, .len = 1, .name = "FUEL", .unit = "%",
+     .decoder = {.byte_length = 1, .numerator = 100, .denominator = 255,
+                 .minimum = 0, .maximum = 100}},
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -157,24 +118,13 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
         return;
     }
 
-    int32_t value = 0;
-    if (g_current_obd_cfg->conversion != NULL)
-    {
-        if (g_current_obd_cfg->conversion(&value, data, len) != 0)
-        {
-            ESP_LOGW(TAG, "Failed to convert data for PID 0x%02X", pid);
-            return;
-        }
-    }
-    else if (len == 1)
-    {
-        value = data[0];
-    }
-    else
-    {
-        ESP_LOGW(TAG, "No conversion function for PID 0x%02X", pid);
+    double decoded;
+    if (!pid_decoder_eval(&g_current_obd_cfg->decoder, data, len, &decoded) ||
+        decoded < INT32_MIN || decoded > INT32_MAX) {
+        ESP_LOGW(TAG, "Rejected invalid value for PID 0x%02X", pid);
         return;
     }
+    int32_t value = (int32_t)decoded;
 
     ESP_LOGI(TAG, "Received PID 0x%02X (%s): %" PRId32, pid, g_current_obd_cfg->name, value);
     ui_set_value(ui, &value);

@@ -6,12 +6,11 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "pid_decoder.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------------------------------------------------
-
-typedef int (*obd_pid_conversion_t)(int32_t *value, uint8_t const *data, size_t len);
 
 typedef struct
 {
@@ -19,5 +18,5 @@ typedef struct
     size_t               len;         // Length of the data expected for this PID
     const char          *name;        // Name of the PID
     const char          *unit;        // Unit of the PID (optional)
-    obd_pid_conversion_t conversion;  // Function to convert raw data to a value
+    pid_numeric_decoder_t decoder;
 } obd_pid_cfg_t;

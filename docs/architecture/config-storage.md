@@ -16,6 +16,8 @@ The config partitions hold bounded bytes, not executable code. Each generation h
 
 The development board's 2 MB Quad PSRAM is now enabled at 40 MHz. The flashed image logged device detection, a successful boot memory check, a 2048 KiB heap pool, and normal display and BLE startup. The allocator reserves 32 KiB of internal memory for DMA and internal allocations; NimBLE remains configured to allocate its buffers internally. The validator reads at most 64 KiB plus one terminator into PSRAM and directs cJSON allocations to PSRAM. It runs outside the steady-state renderer path. Its schema and semantic rules need independent fixture coverage before accepting app writes.
 
+The five built-in Mode 01 readings now use a shared, allocation-free numeric decoder with explicit byte width, byte order, signedness, scale, offset, and value range. This replaces their separate conversion functions and establishes the runtime numeric primitive for future validated PID definitions. The request scheduler still uses the fixed built-in list; the validator does not activate custom definitions yet.
+
 ## Atomic apply
 
 1. `config.begin` checks authenticated owner, `baseRevision`, declared schema, length at most 64 KiB, and expected SHA-256. It reserves an inactive generation and returns a transfer ID and accepted offset.

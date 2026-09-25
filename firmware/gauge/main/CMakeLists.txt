@@ -12,6 +12,7 @@ idf_component_register(
         "src/config.c"
         "src/config_store.c"
         "src/config_document.c"
+        "src/pid_decoder.c"
         "src/ui.c"
         ${FONT_SOURCES}
     INCLUDE_DIRS
