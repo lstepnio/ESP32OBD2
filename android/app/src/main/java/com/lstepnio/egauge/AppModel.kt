@@ -67,9 +67,12 @@ data class CapabilitySnapshot(
     val maxAdapterLinks: Int,
     val simultaneousVerified: Boolean,
     val configWrite: Boolean,
+    val configRead: Boolean,
     val quickSelect: Boolean,
     val ota: Boolean,
 )
+
+data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revision: Long)
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     val bleClient = BleCapabilityClient(application)
@@ -98,6 +101,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var deviceMessage by mutableStateOf("No gauge connected")
         private set
     var capabilities by mutableStateOf<CapabilitySnapshot?>(null)
+        private set
+    var savedGauge by mutableStateOf<GaugeSavedSnapshot?>(null)
         private set
     val configurationBlockers: List<String>
         get() = buildList {
@@ -170,20 +175,33 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         scanning = false
         deviceMessage = message
         capabilities = null
+        savedGauge = null
     }
     fun connected(value: CapabilitySnapshot) {
         scanning = false
         capabilities = value
+        savedGauge = null
         deviceMessage = if (value.quickSelect)
             "Gauge identified. Built-in reading selection is available after pairing."
         else "Gauge identified. Discovery link closed; protocol ${value.protocolMajor} is read only."
     }
     fun selectionApplied(index: Int) {
         scanning = false
+        savedGauge = null
         deviceMessage = "Gauge confirmed built-in reading ${index + 1} of 5."
+    }
+    fun snapshotRead(value: GaugeSavedSnapshot) {
+        scanning = false
+        savedGauge = value
+        deviceMessage = "Gauge saved state read at revision ${value.revision}."
     }
     fun selectionError(message: String) {
         scanning = false
+        deviceMessage = message
+    }
+    fun snapshotError(message: String) {
+        scanning = false
+        savedGauge = null
         deviceMessage = message
     }
     fun selectPid(pid: PidExample) = save(draft.copy(pidId = pid.id, source = pid.source))

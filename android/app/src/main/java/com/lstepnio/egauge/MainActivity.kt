@@ -66,6 +66,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 
 private val CanvasColor = Color(0xFF0C1114)
 private val SurfaceColor = Color(0xFF172025)
@@ -101,7 +102,8 @@ class MainActivity : ComponentActivity() {
                     error = CriticalColor,
                 ),
             ) {
-                CompanionApp(model, onFindGauge = ::requestGauge, onSelectReading = ::requestSelection)
+                CompanionApp(model, onFindGauge = ::requestGauge, onSelectReading = ::requestSelection,
+                    onReadSaved = ::requestSavedSnapshot)
             }
         }
     }
@@ -145,6 +147,18 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 model.selectionApplied(model.bleClient.selectNearby(index))
+                if (model.capabilities?.configRead == true) {
+                    model.markScanning(true)
+                    delay(350)
+                    try {
+                        model.snapshotRead(model.bleClient.readSavedSnapshot())
+                    } catch (error: CancellationException) {
+                        model.snapshotError("Saved gauge state refresh was interrupted")
+                        throw error
+                    } catch (error: Exception) {
+                        model.snapshotError("Reading changed on gauge; saved state refresh failed. Tap Read saved gauge state to retry.")
+                    }
+                }
             } catch (error: TimeoutCancellationException) {
                 model.selectionError("Pairing or gauge confirmation timed out. Open pairing on the gauge and retry")
             } catch (error: CancellationException) {
@@ -155,10 +169,25 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun requestSavedSnapshot() {
+        model.markScanning(true)
+        lifecycleScope.launch {
+            try {
+                model.snapshotRead(model.bleClient.readSavedSnapshot())
+            } catch (error: CancellationException) {
+                model.snapshotError("Saved gauge state read was interrupted")
+                throw error
+            } catch (error: Exception) {
+                model.snapshotError(error.message ?: "Could not read saved gauge state")
+            }
+        }
+    }
 }
 
 @Composable
-private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onSelectReading: () -> Unit) {
+private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
+                         onSelectReading: () -> Unit, onReadSaved: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 720.dp
         if (wide) {
@@ -174,7 +203,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onSelectR
                         )
                     }
                 }
-                AppBody(model, onFindGauge, onSelectReading, Modifier.weight(1f))
+                AppBody(model, onFindGauge, onSelectReading, onReadSaved, Modifier.weight(1f))
             }
         } else {
             Scaffold(containerColor = CanvasColor, bottomBar = {
@@ -188,14 +217,15 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onSelectR
                         )
                     }
                 }
-            }) { padding -> AppBody(model, onFindGauge, onSelectReading, Modifier.padding(padding)) }
+            }) { padding -> AppBody(model, onFindGauge, onSelectReading, onReadSaved, Modifier.padding(padding)) }
         }
     }
 }
 
 @Composable
 private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
-                    onSelectReading: () -> Unit, modifier: Modifier = Modifier) {
+                    onSelectReading: () -> Unit, onReadSaved: () -> Unit,
+                    modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 840.dp).fillMaxWidth().fillMaxHeight().padding(horizontal = 20.dp)) {
             Header(model)
@@ -203,7 +233,7 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                 Destination.Garage -> GarageScreen(model, onFindGauge)
                 Destination.Design -> DesignScreen(model)
                 Destination.Pids -> PidsScreen(model)
-                Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading)
+                Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved)
             }
         }
     }
@@ -648,7 +678,8 @@ private fun PidsScreen(model: AppViewModel) {
 }
 
 @Composable
-private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit, onSelectReading: () -> Unit) {
+private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
+                         onSelectReading: () -> Unit, onReadSaved: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("03 / Device", "Know what is ready.",
             "Capabilities come from the gauge. Other panels show the planned workflow without vehicle actions.")
@@ -662,6 +693,14 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit, onSelectR
                 InfoLine("Protocol", "${caps.protocolMajor} • ${if (caps.quickSelect) "paired quick select" else "discovery only"}")
                 InfoLine("Adapter slots", "${caps.maxAdapterLinks} • coexistence unverified")
                 InfoLine("Configuration", if (caps.quickSelect) "Built-in reading only" else "Read only")
+                model.savedGauge?.let { saved ->
+                    Spacer(Modifier.height(12.dp))
+                    InfoLine("Saved reading", listOf("RPM", "Speed", "Engine load", "Coolant", "Fuel")[saved.readingIndex])
+                    InfoLine("Saved revision", saved.revision.toString())
+                    InfoLine("Display rotation", "${saved.rotation * 90}°")
+                    Text("This is the gauge's persisted selection. The design studio remains a phone-only draft.",
+                        color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+                }
             }
             Spacer(Modifier.height(14.dp))
             OutlinedButton(onClick = onFindGauge, enabled = !model.scanning) {
@@ -675,6 +714,12 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit, onSelectR
                     enabled = !model.scanning && model.profileError == null && model.draft.pidId != "tcm") {
                     Text(if (model.scanning) "Connecting…" else if (model.draft.pidId == "tcm")
                         "No built-in TCM reading" else "Set preview reading on gauge")
+                }
+                if (caps.configRead) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = onReadSaved, enabled = !model.scanning) {
+                        Text("Read saved gauge state")
+                    }
                 }
             }
         }

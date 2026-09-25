@@ -20,6 +20,7 @@
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
 #include "ble_companion.h"
+#include "config.h"
 #include "ui.h"
 
 static const char *TAG = "COMPANION";
@@ -39,7 +40,6 @@ static const ble_uuid128_t state_uuid = BLE_UUID128_INIT(
 static ui_t *g_ui;
 static QueueHandle_t g_selection_queue;
 static atomic_uchar g_selected_index;
-static atomic_uint g_revision;
 static ble_addr_t g_owner;
 static atomic_bool g_has_owner;
 static atomic_uint g_pairing_until;
@@ -91,7 +91,7 @@ static bool save_owner(const ble_addr_t *owner)
 static const char capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
     "\"maxAdapterLinks\":2,\"simultaneousAdapterLinksVerified\":false,"
-    "\"configWrite\":false,\"quickSelect\":true,\"ota\":false}";
+    "\"configRead\":true,\"configWrite\":false,\"quickSelect\":true,\"ota\":false}";
 
 /* Protocol 0 quick-select request: byte 0 = 1, byte 1 = built-in PID index 0..4.
  * A successful ATT write queues a request; the authenticated state read confirms apply. */
@@ -118,8 +118,16 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     (void)arg;
     if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
     if (!authorized(conn_handle)) return BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
-    unsigned revision = atomic_load(&g_revision);
-    uint8_t state[] = {1, atomic_load(&g_selected_index), revision & 0xff, (revision >> 8) & 0xff};
+    config_t saved;
+    uint32_t revision;
+    if (config_read_snapshot(&saved, &revision) != ESP_OK || saved.cfg_idx > 4 ||
+        saved.disp_rot > LV_DISPLAY_ROTATION_270) return BLE_ATT_ERR_UNLIKELY;
+    /* Version 2 extends the original state value on the same GATT handle.
+     * Applied and saved indices may briefly differ during UI activation. */
+    uint8_t state[] = {2, atomic_load(&g_selected_index), saved.cfg_idx,
+                       (uint8_t)saved.disp_rot, (uint8_t)revision,
+                       (uint8_t)(revision >> 8), (uint8_t)(revision >> 16),
+                       (uint8_t)(revision >> 24)};
     if (ctxt->offset > sizeof(state)) return BLE_ATT_ERR_INVALID_OFFSET;
     return os_mbuf_append(ctxt->om, state + ctxt->offset,
                           sizeof(state) - ctxt->offset) == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
@@ -290,7 +298,6 @@ void ble_companion_open_pairing_window(void)
 void ble_companion_selection_applied(uint8_t selected_index)
 {
     atomic_store(&g_selected_index, selected_index);
-    atomic_fetch_add(&g_revision, 1);
 }
 
 void ble_companion_tick(void)

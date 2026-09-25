@@ -262,13 +262,17 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
     switch (event_code)
     {
     case LV_EVENT_CLICKED:
-        g_config.cfg_idx  = (g_config.cfg_idx + 1) % ARRAY_SIZE(g_obd_pids);
+    {
+        config_t updated = g_config;
+        updated.cfg_idx = (updated.cfg_idx + 1) % ARRAY_SIZE(g_obd_pids);
+        if (config_save(&updated) != ESP_OK) break;
+        g_config = updated;
         g_current_obd_cfg = &g_obd_pids[g_config.cfg_idx];
         ESP_LOGI(TAG, "Switched to PID: 0x%02X (%s)", g_current_obd_cfg->pid, g_current_obd_cfg->name);
         ui_set_obd_cfg(ui, g_current_obd_cfg);
-        config_save(&g_config);
         ble_companion_selection_applied(g_config.cfg_idx);
         break;
+    }
     case LV_EVENT_LONG_PRESSED:
         ble_companion_open_pairing_window();
         break;
@@ -285,9 +289,16 @@ static void init_config(void)
 {
     ESP_LOGI(TAG, "Initializing configuration...");
 
-    config_init();
+    ESP_ERROR_CHECK(config_init());
 
     esp_err_t err = config_load(&g_config);
+
+    if (err == ESP_OK && (g_config.cfg_idx >= ARRAY_SIZE(g_obd_pids) ||
+                          g_config.disp_rot > LV_DISPLAY_ROTATION_270)) {
+        ESP_LOGE(TAG, "Saved legacy configuration is invalid");
+        g_config = (config_t){.cfg_idx = 0, .disp_rot = LV_DISPLAY_ROTATION_0};
+        err = ESP_ERR_INVALID_ARG;
+    }
 
     if (err != ESP_OK)
     {

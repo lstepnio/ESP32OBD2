@@ -4,7 +4,7 @@
 
 ## Implemented protocol 0 quick selection
 
-The capability JSON advertises `quickSelect: true`, `configWrite: false` and `ota: false`. The app must check this flag. This operation does not enable custom PIDs, threshold writes, diagnostics, OTA, or arbitrary OBD requests.
+The capability JSON advertises `quickSelect: true`, `configRead: true`, `configWrite: false` and `ota: false`. The app must check these flags. This operation does not enable custom PIDs, threshold writes, diagnostics, OTA, or arbitrary OBD requests.
 
 The device uses LE Secure Connections, authenticated passkey entry, encryption and bonding. A gauge long press opens a 120-second association window. The six-digit passkey appears on its LCD and Android shows the system pairing prompt. The first authenticated bonded phone identity is stored in NVS as owner. Protected GATT access also checks that identity. A 12-second physical hold erases the owner association and bond, then restarts the gauge. This reset is intentionally local.
 
@@ -15,9 +15,9 @@ Protocol 0 uses two extra characteristics under the service UUID below:
 | Prefix | Access | Value |
 | --- | --- | --- |
 | `6f1a0002` | Authenticated write with response | Exactly two bytes: opcode `01`, built-in reading index `00`..`04` |
-| `6f1a0003` | Authenticated read | Four bytes: version `01`, applied index, little-endian volatile session revision `u16` |
+| `6f1a0003` | Authenticated read | Legacy version `01`: four bytes with applied index and volatile session revision `u16`. Current version `02`: eight bytes with applied index, saved index, display rotation enum `00`..`03`, and little-endian durable legacy revision `u32` |
 
-Indices are RPM, speed, engine load, coolant temperature, and fuel level. A successful ATT write means the bounded request entered the firmware queue. Android reads state after the write and reports success only when the applied index matches. Firmware saves the choice in existing NVS before publishing it. The session revision resets on reboot and is not a durable config revision. A retry of the same index is safe. A failed or ambiguous readback must not be displayed as applied.
+Indices are RPM, speed, engine load, coolant temperature, and fuel level. A successful ATT write means the bounded request entered the firmware queue. Android reads state after the write and reports success only when the applied index matches. Firmware saves the choice in existing NVS before publishing it. The old session revision resets on reboot. The version `02` legacy revision persists in NVS, starts at zero for an older saved selection, and increments on each successful legacy save. It is not a v1 full-document revision. A retry of the same index is safe. A failed or ambiguous readback must not be displayed as applied. Android shows the saved snapshot separately from the phone's design draft. Version `02` reuses the existing characteristic so bonded Android devices with a cached GATT database can still read it after an app update.
 
 This is a development slice requiring phone pairing and LCD review before a production security claim. The pairing UI, Android system dialog behavior, bond recovery, and simultaneous OBD-adapter compatibility need hardware evidence. Runtime Secure Connections-only policy may exclude adapters that require legacy pairing; verify actual adapters before relying on dual-link operation.
 
