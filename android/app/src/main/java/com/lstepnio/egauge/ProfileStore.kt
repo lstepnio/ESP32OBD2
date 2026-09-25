@@ -37,6 +37,9 @@ class ProfileStore(context: Context) {
                         .getOrDefault(GaugeLayout.Arc),
                     warning = saved.getInt("warning").coerceIn(-40, 250),
                     critical = saved.getInt("critical").coerceIn(-40, 250),
+                    hysteresis = saved.optInt("hysteresis", 3).coerceIn(0, 20),
+                    triggerDwellMs = saved.optInt("triggerDwellMs", 1000).coerceIn(0, 60000),
+                    clearDwellMs = saved.optInt("clearDwellMs", 2000).coerceIn(0, 60000),
                     source = saved.getString("source").takeIf { it == "ECM" || it == "TCM" } ?: "ECM",
                 ))
             }
@@ -60,6 +63,9 @@ class ProfileStore(context: Context) {
                     .put("layout", profile.draft.layout.name)
                     .put("warning", profile.draft.warning)
                     .put("critical", profile.draft.critical)
+                    .put("hysteresis", profile.draft.hysteresis)
+                    .put("triggerDwellMs", profile.draft.triggerDwellMs)
+                    .put("clearDwellMs", profile.draft.clearDwellMs)
                     .put("source", profile.draft.source)))
         }
         preferences.edit().putString("collection", root.put("profiles", items).toString()).apply()

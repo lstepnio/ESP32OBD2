@@ -385,15 +385,43 @@ private fun DesignScreen(model: AppViewModel) {
             Spacer(Modifier.height(12.dp))
             ThresholdRow("Warning", model.draft.warning, WarningColor,
                 onDecrease = { model.setWarning((model.draft.warning - 1).coerceAtLeast(-40)) },
-                onIncrease = { model.setWarning((model.draft.warning + 1).coerceAtMost(250)) })
+                onIncrease = { model.setWarning((model.draft.warning + 1).coerceAtMost(215)) })
             Spacer(Modifier.height(10.dp))
             ThresholdRow("Critical", model.draft.critical, CriticalColor,
                 onDecrease = { model.setCritical((model.draft.critical - 1).coerceAtLeast(-40)) },
-                onIncrease = { model.setCritical((model.draft.critical + 1).coerceAtMost(250)) })
+                onIncrease = { model.setCritical((model.draft.critical + 1).coerceAtMost(215)) })
             Spacer(Modifier.height(12.dp))
-            Text(if (model.draft.warning < model.draft.critical) "Limits saved in local draft"
-                else "Critical must be above warning", color = if (model.draft.warning < model.draft.critical)
-                MutedColor else CriticalColor, fontSize = 14.sp)
+            Text("Hysteresis", color = TextColor, fontSize = 14.sp)
+            Row(Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(0, 2, 3, 5).forEach { value ->
+                    FilterChip(selected = model.draft.hysteresis == value,
+                        onClick = { model.setHysteresis(value) }, label = { Text("$value °C") })
+                }
+            }
+            Text("Alert after", color = TextColor, fontSize = 14.sp)
+            Row(Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(0, 1000, 2000, 5000).forEach { value ->
+                    FilterChip(selected = model.draft.triggerDwellMs == value,
+                        onClick = { model.setTriggerDwell(value) }, label = { Text("${value / 1000} s") })
+                }
+            }
+            Text("Clear after", color = TextColor, fontSize = 14.sp)
+            Row(Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(1000, 2000, 5000, 10000).forEach { value ->
+                    FilterChip(selected = model.draft.clearDwellMs == value,
+                        onClick = { model.setClearDwell(value) }, label = { Text("${value / 1000} s") })
+                }
+            }
+            val limitsValid = model.draft.warning in -40..215 &&
+                model.draft.critical in -40..215 && model.draft.warning < model.draft.critical &&
+                model.draft.warning - model.draft.hysteresis >= -40 &&
+                model.draft.hysteresis < model.draft.critical - model.draft.warning
+            Text(if (limitsValid) "Saved in local draft; gauge alerts are not enabled"
+                else "Check warning, critical and hysteresis spacing",
+                color = if (limitsValid) MutedColor else CriticalColor, fontSize = 14.sp)
         }
         Spacer(Modifier.height(20.dp))
         Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().height(50.dp)) {

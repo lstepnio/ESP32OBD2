@@ -55,6 +55,9 @@ data class Draft(
     val layout: GaugeLayout = GaugeLayout.Arc,
     val warning: Int = 105,
     val critical: Int = 115,
+    val hysteresis: Int = 3,
+    val triggerDwellMs: Int = 1000,
+    val clearDwellMs: Int = 2000,
     val source: String = "ECM",
 )
 
@@ -99,6 +102,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         get() = buildList {
             if (profileError != null) add("Local profile data needs recovery before applying")
             if (draft.warning >= draft.critical) add("Coolant critical limit must exceed warning")
+            if (draft.warning !in -40..215 || draft.critical !in -40..215)
+                add("Coolant limits must be within -40 to 215 °C")
+            if (draft.warning - draft.hysteresis < -40 ||
+                draft.hysteresis >= draft.critical - draft.warning)
+                add("Coolant hysteresis does not fit the selected limits")
             if (capabilities == null) add("Read gauge capabilities first")
             else if (capabilities?.configWrite != true) add("Gauge does not offer full configuration writes")
             val observed = activeVehicleSessionId != null && vehicleObservations.any { observation ->
@@ -181,6 +189,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun selectLayout(layout: GaugeLayout) = save(draft.copy(layout = layout))
     fun setWarning(value: Int) = save(draft.copy(warning = value))
     fun setCritical(value: Int) = save(draft.copy(critical = value))
+    fun setHysteresis(value: Int) = save(draft.copy(hysteresis = value.coerceIn(0, 20)))
+    fun setTriggerDwell(value: Int) = save(draft.copy(triggerDwellMs = value.coerceIn(0, 60000)))
+    fun setClearDwell(value: Int) = save(draft.copy(clearDwellMs = value.coerceIn(0, 60000)))
     fun setSource(value: String) = save(draft.copy(source = value))
 
     private fun save(value: Draft) {
