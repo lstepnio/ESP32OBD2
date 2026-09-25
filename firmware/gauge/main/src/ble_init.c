@@ -48,7 +48,10 @@ static void nimble_host_config_init(ble_init_config_t const *config)
     ble_hs_cfg.sm_bonding = 1;
     ble_hs_cfg.sm_mitm = 1;
     ble_hs_cfg.sm_sc = 1;
-    ble_hs_cfg.sm_sc_only = 1;
+    /* ESP-IDF 5.4.1 NimBLE's sm_sc_only request branch does not advance a
+     * valid pairing request. Legacy pairing is disabled in sdkconfig,
+     * so Secure Connections remains required without that broken branch. */
+    ble_hs_cfg.sm_sc_only = 0;
     ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
     ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
     ble_store_config_init();

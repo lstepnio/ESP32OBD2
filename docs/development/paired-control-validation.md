@@ -1,12 +1,14 @@
 # Paired control hardware review
 
-Status: Android phone is available. On 2026-09-25, integration images were uploaded to the USB gauge with flash hashes verified, and the debug APK was installed on a Pixel 10 Pro. The Pixel discovered the gauge and read protocol 0 capabilities with `quickSelect: true`, `configWrite: false`, and `ota: false`. This is public discovery evidence only. Pairing, owner authorization, control write, and applied-state readback have not passed.
+Status: On 2026-09-25, the integration image was uploaded to the USB gauge with flash hashes verified, and the debug APK was installed on a Pixel 10 Pro. The Pixel discovered the gauge, read protocol 0 capabilities, completed LE Secure Connections passkey bonding, and confirmed authenticated built-in selections by state readback, including after a gauge reboot. No OBD adapter was present.
 
-## Live pairing blocker, 2026-09-25
+## Pairing diagnosis and observed fix, 2026-09-25
 
-The user confirmed PAIR READY on the gauge during several attempts. The gauge serial monitor logged the physical owner window opening and the phone link connecting. It did not show a passkey, and the user confirmed no six-digit code appeared. Android's Bluetooth manager reported `SMP_RSP_TIMEOUT` about 30 seconds after initiating bonding, with no bond stored. The app did not confirm a selection. Both explicit `createBond()` before GATT connection and a GATT-first protected state read reached this failure. Temporarily pausing OBD adapter scans during the pairing window did not change it and was removed. A guarded handler for NimBLE's repeat-pairing event was added because that stack otherwise silently ignores a new request for an already bonded peer, but no replacement log was observed in these attempts; this does not establish whether the event fired or explain the root cause.
+Initial attempts showed PAIR READY and a phone link, but no six-digit code. Android reported `SMP_RSP_TIMEOUT` after about 30 seconds. Inspection of the bundled ESP-IDF 5.4.1 NimBLE `ble_sm_pair_req_rx()` found that the `ble_hs_cfg.sm_sc_only` branch validates a valid Secure Connections request without filling or transmitting a pairing response. This is consistent with the timeout. The firmware now leaves that runtime flag off, disables legacy pairing at build time, sets security level 4, and retains bonding, MITM, Secure Connections, and display-only passkey settings. The stack rejects peers lacking Secure Connections when legacy pairing is compiled out.
 
-Next capture NimBLE SMP or controller trace around the pairing request, verify whether the gauge receives that SMP PDU, and determine why it sends no pairing response. Preserve authenticated, physical-window-only pairing while diagnosing. Do not mark quick selection as validated from the public capability read or from a bond attempt alone.
+After flashing this change, the gauge displayed a six-digit code and Android showed its system PIN entry dialog. The user entered the displayed code. Android's Bluetooth manager reported `BOND_BONDED`, `pairingAlgorithm:SC`, and `pairingVariant:PASSKEY_ENTRY`. The app confirmed built-in reading 5 of 5 (fuel), and the firmware logged the saved fuel selection. A later phone GATT connection, without another physical pairing window or passkey, confirmed built-in reading 3 of 5 (engine load); firmware logged PID `0x04` saved. The app reports success only after its protected state readback.
+
+The first reboot check exposed a separate persistence defect: NimBLE's `CONFIG_BT_NIMBLE_NVS_PERSIST` was disabled, so the gauge lost its bond keys while its owner association remained in NVS. Android then requested pairing again. We enabled that option, flashed the new image, used the gauge's 12-second owner reset, and removed the stale eGauge bond in Android settings. After a fresh passkey bond, a gauge reboot and another authenticated selection succeeded without a new pairing prompt. This verifies bond and owner persistence on the tested hardware. The guarded stale-bond recovery handler and other security cases below remain untested.
 
 ## Preparation
 
@@ -26,7 +28,7 @@ Next capture NimBLE SMP or controller trace around the pairing request, verify w
 | Rejected input | Attempt an unsupported index or malformed control payload using an authenticated development client | GATT rejects it, saved selection is unchanged |
 | Lost phone | Hold gauge touch for 12 seconds, forget eGauge in Android Bluetooth settings, pair again | Owner bond is removed, gauge restarts, and a new physical pairing window allows association |
 | Stale bond after reset | Reconnect an old bonded phone before entering a fresh passkey | It cannot regain owner status or change a reading; a fresh physical passkey exchange is required |
-| Reboot persistence | Power-cycle gauge after a confirmed selection | Chosen built-in reading survives; volatile session revision may restart |
+| Reboot persistence | Restart gauge after a confirmed selection, then select again from the same bonded phone | Observed: no new passkey prompt; authenticated selection and readback succeeded. Independent display confirmation of the preexisting reading is still needed |
 
 Record Android version, app commit, firmware commit, observed passkey layout, GATT errors, selection before/after, and whether any pairing prompt uses a weaker method. A successful build or flash hash does not satisfy these cases. Do not interpret a public capability read as owner authentication.
 
