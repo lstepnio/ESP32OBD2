@@ -19,6 +19,8 @@ Indices are RPM, speed, engine load, coolant temperature, and fuel level. A succ
 
 This is a development slice requiring phone pairing and LCD review before a production security claim. The pairing UI, Android system dialog behavior, bond recovery, and simultaneous OBD-adapter compatibility need hardware evidence. Runtime Secure Connections-only policy may exclude adapters that require legacy pairing; verify actual adapters before relying on dual-link operation.
 
+The implementation follows the ESP-IDF NimBLE security settings and Android's system-managed bonding API. See [Espressif's security option reference](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/api-reference/kconfig.html) and [Android `BluetoothDevice.createBond`](https://developer.android.com/reference/android/bluetooth/BluetoothDevice#createBond()). Those references describe platform behavior; they do not prove this exact phone/gauge exchange until observed.
+
 In v1, firmware is peripheral to the Android central and central to the OBD adapter. One authorized phone session initially. A bonded device identity, not a changing BLE MAC address, identifies the gauge.
 
 ## Discovery, ownership, and capabilities
