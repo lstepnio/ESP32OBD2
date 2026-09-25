@@ -414,34 +414,38 @@ private fun RoundPreview(pid: PidExample, layout: GaugeLayout) {
                     drawArc(AccentColor, 145f, 160f, false, style = Stroke(10.dp.toPx(), cap = StrokeCap.Round))
                 }
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.widthIn(max = 166.dp)) {
-                Text(pid.gaugeLabel, color = MutedColor, fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(10.dp))
-                Text(pid.demoValue, color = TextColor, fontSize = if (pid.demoValue.length > 4) 44.sp else 54.sp,
-                    fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(pid.unit, color = AccentColor, fontSize = 17.sp)
-                if (layout == GaugeLayout.Bar) {
-                    Spacer(Modifier.height(10.dp))
-                    Box(Modifier.width(120.dp).height(6.dp).clip(CircleShape).background(RaisedColor)) {
-                        Box(Modifier.fillMaxWidth(.62f).height(6.dp).background(AccentColor))
-                    }
+            Text(pid.gaugeLabel, color = MutedColor, fontSize = 13.sp,
+                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 48.dp).width(166.dp))
+            Text(pid.demoValue, color = TextColor,
+                fontSize = if (pid.demoValue.length > 4) 42.sp else 48.sp,
+                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 77.dp).width(166.dp))
+            Text(pid.unit, color = AccentColor, fontSize = 17.sp,
+                textAlign = TextAlign.Center, maxLines = 1,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 141.dp).width(140.dp))
+            if (layout == GaugeLayout.Bar) {
+                Box(Modifier.align(Alignment.TopCenter).padding(top = 169.dp)
+                    .width(120.dp).height(6.dp).clip(CircleShape).background(RaisedColor)) {
+                    Box(Modifier.fillMaxWidth(.62f).height(6.dp).background(AccentColor))
                 }
-                if (layout == GaugeLayout.Dual) {
-                    Spacer(Modifier.height(8.dp))
-                    Text("92 °C  /  coolant", color = MutedColor, fontSize = 15.sp)
-                }
-                if (layout == GaugeLayout.Trend) {
-                    Spacer(Modifier.height(8.dp))
-                    Canvas(Modifier.width(110.dp).height(28.dp)) {
-                        val points = listOf(.72f, .55f, .61f, .35f, .40f, .23f)
-                        for (i in 0 until points.lastIndex)
-                            drawLine(AccentColor,
-                                Offset(size.width * i / points.lastIndex, size.height * points[i]),
-                                Offset(size.width * (i + 1) / points.lastIndex, size.height * points[i + 1]),
-                                strokeWidth = 2.dp.toPx())
-                    }
+            }
+            if (layout == GaugeLayout.Dual) {
+                Text("92 °C  /  coolant", color = MutedColor, fontSize = 13.sp,
+                    textAlign = TextAlign.Center, maxLines = 1,
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 165.dp).width(166.dp))
+            }
+            if (layout == GaugeLayout.Trend) {
+                Canvas(Modifier.align(Alignment.TopCenter).padding(top = 158.dp)
+                    .width(110.dp).height(25.dp)) {
+                    val points = listOf(.72f, .55f, .61f, .35f, .40f, .23f)
+                    for (i in 0 until points.lastIndex)
+                        drawLine(AccentColor,
+                            Offset(size.width * i / points.lastIndex, size.height * points[i]),
+                            Offset(size.width * (i + 1) / points.lastIndex, size.height * points[i + 1]),
+                            strokeWidth = 2.dp.toPx())
                 }
             }
             Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 19.dp)) {
