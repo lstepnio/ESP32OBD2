@@ -8,6 +8,7 @@
 #include <string.h>
 #include <strings.h>
 #include <ctype.h>
+#include <stdatomic.h>
 #include "sdkconfig.h"
 
 #include "esp_err.h"
@@ -84,6 +85,7 @@ static const obd_pid_cfg_t g_obd_pids[] = {
 // ---------------------------------------------------------------------------------------------------------------------
 
 static obd_pid_cfg_t const *g_current_obd_cfg = &g_obd_pids[0];
+static atomic_uchar g_displayed_pid;
 static config_runtime_t *g_runtime;
 static uint32_t g_last_poll[32];
 static uint8_t g_poll_cursor;
@@ -229,7 +231,7 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
     }
 
     ESP_LOGI(TAG, "Received PID 0x%02X (%s): %" PRId32, pid, definition->name, value);
-    if (pid == g_current_obd_cfg->pid) ui_set_value(ui, &value);
+    if (pid == atomic_load(&g_displayed_pid)) ui_set_value(ui, &value);
 }
 
 static void obd_task(void *arg)
@@ -382,6 +384,7 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         g_current_obd_cfg = page_cfg(g_config.cfg_idx);
         ESP_LOGI(TAG, "Switched to PID: 0x%02X (%s)", g_current_obd_cfg->pid, g_current_obd_cfg->name);
         ui_set_obd_cfg(ui, g_current_obd_cfg);
+        atomic_store(&g_displayed_pid, g_current_obd_cfg->pid);
         ui_set_freshness(ui, page_stale_ms(g_config.cfg_idx));
         ble_companion_selection_applied(g_config.cfg_idx);
         break;
@@ -446,6 +449,8 @@ static void init_config(void)
         g_current_obd_cfg = page_cfg(g_config.cfg_idx);
     }
     if (g_runtime) g_config.disp_rot = (lv_display_rotation_t)g_runtime->rotation;
+    g_current_obd_cfg = page_cfg(g_config.cfg_idx);
+    atomic_store(&g_displayed_pid, g_current_obd_cfg->pid);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -527,6 +532,7 @@ void app_main(void)
                 g_current_obd_cfg = page_cfg(command.value);
                 if (lvgl_port_lock(portMAX_DELAY)) {
                     ui_set_obd_cfg(ui, g_current_obd_cfg);
+                    atomic_store(&g_displayed_pid, g_current_obd_cfg->pid);
                     ui_set_freshness(ui, page_stale_ms(command.value));
                     lvgl_port_unlock();
                     ble_companion_selection_applied(command.value);
