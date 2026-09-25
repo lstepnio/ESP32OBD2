@@ -10,13 +10,14 @@ idf_component_register(
         "src/elm_response.c"
         "src/ble_util.c"
         "src/config.c"
+        "src/config_store.c"
         "src/ui.c"
         ${FONT_SOURCES}
     INCLUDE_DIRS
         "."
         "inc"
     REQUIRES lvgl esp_lvgl_port bt
-    PRIV_REQUIRES nvs_flash
+    PRIV_REQUIRES nvs_flash spi_flash mbedtls
 )
 
 target_compile_options(${COMPONENT_TARGET} PRIVATE -Wall -Wextra -Wshadow -Werror)

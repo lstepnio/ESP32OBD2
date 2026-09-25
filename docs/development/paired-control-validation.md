@@ -10,6 +10,8 @@ After flashing this change, the gauge displayed a six-digit code and Android sho
 
 The first reboot check exposed a separate persistence defect: NimBLE's `CONFIG_BT_NIMBLE_NVS_PERSIST` was disabled, so the gauge lost its bond keys while its owner association remained in NVS. Android then requested pairing again. We enabled that option, flashed the new image, used the gauge's 12-second owner reset, and removed the stale eGauge bond in Android settings. After a fresh passkey bond, a gauge reboot and another authenticated selection succeeded without a new pairing prompt. This verifies bond and owner persistence on the tested hardware. The guarded stale-bond recovery handler and other security cases below remain untested.
 
+The protected version 2 state read subsequently reported saved Coolant at durable legacy revision 8. After a gauge reset, the phone read revision 8 again. Later app interactions advanced the saved selection to Engine load at revision 9. The 16 MB USB partition migration then booted from `ota_0` at `0x60000`. The already bonded Pixel completed another protected saved-state read without a new passkey. That read reported RPM at revision 12 after intervening app interactions, so it verifies continued owner access rather than an unchanged selection across the migration. The app keeps the phone draft separate from this saved gauge state. An immediate reconnect after a selection occasionally failed to refresh; the app now clears the stale saved snapshot and offers a separate retry.
+
 ## Preparation
 
 1. Keep the gauge powered by USB and open the latest Android debug APK.
@@ -34,4 +36,4 @@ Record Android version, app commit, firmware commit, observed passkey layout, GA
 
 ## Next configuration increment
 
-Once the paired path passes, add `config.get` and versioned staged configuration writes with base revision, complete hash, schema validation, semantic checks, atomic generation activation, and post-commit readback. The current two-byte quick-selection command is intentionally outside the full configuration document. Its acceptance does not authorize alert thresholds, custom PIDs, DTC clearing, or OTA.
+The partition layout and low-level two-slot storage module now exist, but the semantic validator, BLE transfer, app Apply flow, trial activation, and readback are still pending. Add a full-document `config.get` and versioned staged configuration writes with base revision, complete hash, schema validation, semantic checks, atomic generation activation, and post-commit readback. The current two-byte quick-selection command is intentionally outside the full configuration document. Its acceptance does not authorize alert thresholds, custom PIDs, DTC clearing, or OTA.

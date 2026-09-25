@@ -12,7 +12,7 @@ The [active 16 MB table](../../firmware/gauge/partitions.csv) keeps the current 
 
 The generated table parsed with ESP-IDF 5.4.1 tooling. The built app occupied about 960 KiB of its 3 MiB slot. After USB migration, the boot log listed both configuration and OTA slots and loaded the app from `0x60000`. The old NVS partition was not erased, and the app read its existing configuration. The already bonded Pixel then completed a protected saved-state read without another pairing prompt, confirming owner access survived this migration. OTA rollback and configuration power-loss handling remain unimplemented and unverified.
 
-The config partitions hold bounded bytes, not executable code. Each generation has a header with magic, schema version, document length, SHA-256, generation number, and commit marker. The device writes only the inactive slot. The active slot remains untouched until the inactive slot passes length, digest, schema, semantic, budget, and capability validation.
+The config partitions hold bounded bytes, not executable code. Each generation has a header with magic, schema version, document length, SHA-256, revision, header CRC32, and commit marker. The low-level `config_store` module scans committed generations at boot, streams at most 64 KiB into the inactive slot, checks SHA-256, requires a semantic-validation callback before writing the commit marker, and reads back the committed record. It never erases the current active slot during a transfer. The module has no BLE operation or semantic validator wired yet, so no document can be committed from the app. The active slot remains untouched until the inactive slot passes length, digest, schema, semantic, budget, and capability validation.
 
 ## Atomic apply
 
@@ -26,6 +26,6 @@ Firmware must keep the previous generation until the new one has booted and rend
 
 ## Gate before full configuration
 
-The flash layout, `ota_0` boot path, and existing owner-bond access are observed. The next gates are staged-slot format and semantic validation, power-loss recovery, and readback after activation. Keep full `configWrite` capability false until the transaction is implemented and exercised. The quick-selection path remains explicitly separate so no 64 KiB document is promised by the current firmware.
+The flash layout, `ota_0` boot path, and existing owner-bond access are observed. The next gates are schema and semantic validation, BLE transfer with revision conflicts and readback, trial activation with power-loss recovery, and Android presentation of the accepted revision and digest. Keep full `configWrite` capability false until the transaction is implemented and exercised. The quick-selection path remains explicitly separate so no 64 KiB document is promised by the current firmware.
 
 Android must map legacy local profile UUIDs to schema-conforming `vehicleProfileId` values without silently renaming the user's local profile or losing its draft. New local IDs already use a `vehicle-` prefix. This mapping belongs in the explicit configuration export layer, with a stable persisted association before full Apply is enabled.

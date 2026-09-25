@@ -35,6 +35,7 @@
 #include "ble_companion.h"
 #include "ble_mgr.h"
 #include "config.h"
+#include "config_store.h"
 #include "obd.h"
 #include "ui.h"
 #include "util.h"
@@ -290,6 +291,7 @@ static void init_config(void)
     ESP_LOGI(TAG, "Initializing configuration...");
 
     ESP_ERROR_CHECK(config_init());
+    ESP_ERROR_CHECK(config_store_init());
 
     esp_err_t err = config_load(&g_config);
 
