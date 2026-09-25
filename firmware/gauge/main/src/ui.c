@@ -330,8 +330,8 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     ui->widgets.pairing_lbl = pairing_lbl;
 
     lv_obj_t *alert_lbl = lv_label_create(scr);
-    lv_obj_set_size(alert_lbl, 184, 30);
-    lv_obj_align(alert_lbl, LV_ALIGN_TOP_MID, 0, 12);
+    lv_obj_set_size(alert_lbl, 150, 24);
+    lv_obj_align(alert_lbl, LV_ALIGN_TOP_MID, 0, 18);
     lv_obj_set_style_text_font(alert_lbl, font_subtitle, LV_PART_MAIN);
     lv_obj_set_style_text_align(alert_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_label_set_long_mode(alert_lbl, LV_LABEL_LONG_DOT);
@@ -339,7 +339,7 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     ui->widgets.alert_lbl = alert_lbl;
 
     lv_obj_t *diagnostics_lbl = lv_label_create(scr);
-    lv_obj_set_size(diagnostics_lbl, 170, 24);
+    lv_obj_set_size(diagnostics_lbl, 150, 24);
     lv_obj_align(diagnostics_lbl, LV_ALIGN_BOTTOM_MID, 0, -22);
     lv_obj_set_style_text_font(diagnostics_lbl, font_subtitle, LV_PART_MAIN);
     lv_obj_set_style_text_align(diagnostics_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
