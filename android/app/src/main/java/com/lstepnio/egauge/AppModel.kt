@@ -1,7 +1,6 @@
 package com.lstepnio.egauge
 
 import android.app.Application
-import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -17,15 +16,16 @@ data class PidExample(
     val demoValue: String,
     val evidence: String,
     val category: String,
+    val gaugeLabel: String,
 )
 
 val demoCatalog = listOf(
-    PidExample("rpm", "Engine RPM", "ECM", "01 0C", "rpm", "2,840", "Example response", "Engine"),
-    PidExample("coolant", "Coolant temperature", "ECM", "01 05", "°C", "92", "Example response", "Thermal"),
-    PidExample("speed", "Vehicle speed", "ECM", "01 0D", "km/h", "64", "Example response", "Driving"),
-    PidExample("load", "Calculated load", "ECM", "01 04", "%", "38", "Example response", "Engine"),
-    PidExample("fuel", "Fuel level", "ECM", "01 2F", "%", "73", "Example response", "Fuel"),
-    PidExample("tcm", "Transmission input speed", "TCM", "Vehicle specific", "rpm", "2,120", "Synthetic only", "Transmission"),
+    PidExample("rpm", "Engine RPM", "ECM", "01 0C", "rpm", "2,840", "Example response", "Engine", "ENGINE RPM"),
+    PidExample("coolant", "Coolant temperature", "ECM", "01 05", "°C", "92", "Example response", "Thermal", "COOLANT"),
+    PidExample("speed", "Vehicle speed", "ECM", "01 0D", "km/h", "64", "Example response", "Driving", "SPEED"),
+    PidExample("load", "Calculated load", "ECM", "01 04", "%", "38", "Example response", "Engine", "ENGINE LOAD"),
+    PidExample("fuel", "Fuel level", "ECM", "01 2F", "%", "73", "Example response", "Fuel", "FUEL LEVEL"),
+    PidExample("tcm", "Transmission input speed", "TCM", "Vehicle specific", "rpm", "2,120", "Synthetic only", "Transmission", "INPUT SPEED"),
 )
 
 enum class Destination(val label: String, val glyph: String) {
@@ -54,11 +54,18 @@ data class CapabilitySnapshot(
 )
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
-    private val preferences = application.getSharedPreferences("draft-v1", Context.MODE_PRIVATE)
+    private val profileStore = ProfileStore(application)
+    private val loadedProfiles = profileStore.load()
 
     var destination by mutableStateOf(Destination.Garage)
         private set
-    var draft by mutableStateOf(loadDraft())
+    var profileCollection by mutableStateOf(loadedProfiles.collection)
+        private set
+    var profileError by mutableStateOf(loadedProfiles.error)
+        private set
+    var profileNameInput by mutableStateOf("")
+        private set
+    var draft by mutableStateOf(profileCollection.active.draft)
         private set
     var query by mutableStateOf("")
         private set
@@ -76,6 +83,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var labInput by mutableStateOf("41 0C 2C 60")
         private set
+    var customLabOpen by mutableStateOf(false)
+        private set
+    var customRequestInput by mutableStateOf("22 F1 90")
+        private set
+    var customSource by mutableStateOf("ECM")
+        private set
 
     fun navigate(value: Destination) { destination = value }
     fun search(value: String) { query = value }
@@ -83,6 +96,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun showDiscoveryPreview(value: Boolean) { discoveryPreview = value }
     fun showLab(value: Boolean) { labOpen = value }
     fun editLabInput(value: String) { labInput = value.take(128) }
+    fun showCustomLab(value: Boolean) { customLabOpen = value }
+    fun editCustomRequest(value: String) { customRequestInput = value.take(32) }
+    fun selectCustomSource(value: String) { if (value == "ECM" || value == "TCM") customSource = value }
+    fun editProfileName(value: String) { profileNameInput = value.take(32) }
+    fun selectProfile(id: String) {
+        if (profileError != null || profileCollection.profiles.none { it.id == id }) return
+        profileCollection = profileCollection.copy(activeId = id)
+        draft = profileCollection.active.draft
+        profileStore.save(profileCollection)
+    }
+    fun createProfile() {
+        val name = profileNameInput.trim()
+        if (profileError != null || name.isEmpty() || profileCollection.profiles.size >= 8 ||
+            profileCollection.profiles.any { it.name.equals(name, ignoreCase = true) }) return
+        val profile = VehicleProfile(ProfileStore.newId(), name, Draft())
+        profileCollection = profileCollection.copy(
+            activeId = profile.id,
+            profiles = profileCollection.profiles + profile,
+        )
+        draft = profile.draft
+        profileNameInput = ""
+        profileStore.save(profileCollection)
+    }
     fun markScanning(value: Boolean) { scanning = value }
     fun connectionError(message: String) {
         scanning = false
@@ -101,22 +137,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun setSource(value: String) = save(draft.copy(source = value))
 
     private fun save(value: Draft) {
+        if (profileError != null) return
         draft = value
-        preferences.edit().putString("pid", value.pidId).putString("layout", value.layout.name)
-            .putInt("warning", value.warning).putInt("critical", value.critical)
-            .putString("source", value.source).apply()
-    }
-
-    private fun loadDraft(): Draft {
-        val pid = preferences.getString("pid", "rpm")!!.takeIf { id -> demoCatalog.any { it.id == id } } ?: "rpm"
-        val layout = runCatching { GaugeLayout.valueOf(preferences.getString("layout", "Arc")!!) }
-            .getOrDefault(GaugeLayout.Arc)
-        return Draft(
-            pidId = pid,
-            layout = layout,
-            warning = preferences.getInt("warning", 105).coerceIn(-40, 250),
-            critical = preferences.getInt("critical", 115).coerceIn(-40, 250),
-            source = preferences.getString("source", "ECM")!!.takeIf { it == "ECM" || it == "TCM" } ?: "ECM",
-        )
+        profileCollection = profileCollection.copy(profiles = profileCollection.profiles.map { profile ->
+            if (profile.id == profileCollection.activeId) profile.copy(draft = value) else profile
+        })
+        profileStore.save(profileCollection)
     }
 }

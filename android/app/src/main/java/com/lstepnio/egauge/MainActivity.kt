@@ -253,9 +253,46 @@ private fun GarageScreen(model: AppViewModel, onFindGauge: () -> Unit) {
         }
         Spacer(Modifier.height(16.dp))
         Panel {
+            SectionHeading("Local vehicle profiles")
+            Text("Keep dashboard drafts separate for each vehicle. These names do not confirm PID support.",
+                color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
+            model.profileError?.let { error ->
+                Spacer(Modifier.height(10.dp))
+                Text("Saved profiles could not be opened: $error. Editing is paused to protect them.",
+                    color = CriticalColor, fontSize = 13.sp, lineHeight = 19.sp)
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                model.profileCollection.profiles.forEach { profile ->
+                    FilterChip(
+                        selected = profile.id == model.profileCollection.activeId,
+                        onClick = { model.selectProfile(profile.id) },
+                        enabled = model.profileError == null,
+                        label = { Text(profile.name, maxLines = 1) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(value = model.profileNameInput, onValueChange = model::editProfileName,
+                label = { Text("New profile name") }, singleLine = true,
+                enabled = model.profileError == null && model.profileCollection.profiles.size < 8,
+                modifier = Modifier.fillMaxWidth())
+            val duplicateName = model.profileCollection.profiles.any {
+                it.name.equals(model.profileNameInput.trim(), ignoreCase = true)
+            }
+            if (duplicateName) Text("A profile with this name already exists.",
+                color = WarningColor, fontSize = 12.sp)
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = model::createProfile,
+                enabled = model.profileError == null && model.profileNameInput.trim().isNotEmpty() &&
+                    !duplicateName && model.profileCollection.profiles.size < 8) { Text("Create local profile") }
+        }
+        Spacer(Modifier.height(16.dp))
+        Panel {
             StatusPill("LOCAL DRAFT", AccentColor)
             Spacer(Modifier.height(14.dp))
-            Text("Your dashboard is taking shape", color = TextColor,
+            Text("${model.profileCollection.active.name} dashboard", color = TextColor,
                 fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Text("The current preview stays on this phone. Device configuration needs a future secure firmware operation.",
                 color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
@@ -289,7 +326,7 @@ private fun DesignScreen(model: AppViewModel) {
     val pid = demoCatalog.first { it.id == model.draft.pidId }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("01 / Your dashboard", "Make every signal count.",
-            "Choose a reading and a layout. The preview uses simulated values.")
+            "Editing ${model.profileCollection.active.name}. Choose a reading and a layout; values are simulated.")
         RoundPreview(pid, model.draft.layout)
         Spacer(Modifier.height(22.dp))
         SectionHeading("Renderer")
@@ -368,12 +405,13 @@ private fun RoundPreview(pid: PidExample, layout: GaugeLayout) {
                     drawArc(AccentColor, 145f, 160f, false, style = Stroke(10.dp.toPx(), cap = StrokeCap.Round))
                 }
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(pid.name.uppercase(), color = MutedColor, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+            Column(horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.widthIn(max = 166.dp)) {
+                Text(pid.gaugeLabel, color = MutedColor, fontSize = 13.sp, fontWeight = FontWeight.Bold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(10.dp))
-                Text(pid.demoValue, color = TextColor, fontSize = if (pid.demoValue.length > 4) 45.sp else 56.sp,
-                    fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(pid.demoValue, color = TextColor, fontSize = if (pid.demoValue.length > 4) 44.sp else 54.sp,
+                    fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(pid.unit, color = AccentColor, fontSize = 17.sp)
                 if (layout == GaugeLayout.Bar) {
                     Spacer(Modifier.height(10.dp))
@@ -397,9 +435,9 @@ private fun RoundPreview(pid: PidExample, layout: GaugeLayout) {
                     }
                 }
             }
-        }
-        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp)) {
-            StatusPill("SIMULATED", WarningColor)
+            Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 19.dp)) {
+                StatusPill("DEMO", WarningColor)
+            }
         }
     }
 }
@@ -455,6 +493,43 @@ private fun PidsScreen(model: AppViewModel) {
                         fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     is DecodeResult.Error -> Text(result.message, color = WarningColor,
                         fontSize = 13.sp, lineHeight = 19.sp)
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = { model.showCustomLab(!model.customLabOpen) },
+            modifier = Modifier.fillMaxWidth()) {
+            Text(if (model.customLabOpen) "Close custom request lab" else "Draft a custom read request")
+        }
+        if (model.customLabOpen) {
+            Spacer(Modifier.height(10.dp))
+            Panel {
+                Text("Offline request check", color = TextColor,
+                    fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text("Choose an ECU and enter a read request. This checks syntax only; vehicle support and decoding remain unknown.",
+                    color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("ECM", "TCM").forEach { source ->
+                        FilterChip(selected = model.customSource == source,
+                            onClick = { model.selectCustomSource(source) }, label = { Text(source) })
+                    }
+                }
+                OutlinedTextField(value = model.customRequestInput,
+                    onValueChange = model::editCustomRequest,
+                    label = { Text("Read request bytes") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(10.dp))
+                when (val preview = previewReadRequest(model.customRequestInput)) {
+                    is ReadRequestPreview.Valid -> {
+                        Text("${preview.description} • ${model.customSource}",
+                            color = AccentColor, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Request ${preview.request}  →  Expected prefix ${preview.responsePrefix}",
+                            color = TextColor, fontSize = 13.sp, lineHeight = 19.sp)
+                        Text("Local draft only. No adapter was queried.",
+                            color = WarningColor, fontSize = 12.sp)
+                    }
+                    is ReadRequestPreview.Invalid -> Text(preview.reason,
+                        color = WarningColor, fontSize = 13.sp, lineHeight = 19.sp)
                 }
             }
         }
