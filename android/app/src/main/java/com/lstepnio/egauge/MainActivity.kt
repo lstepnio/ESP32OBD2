@@ -104,7 +104,8 @@ class MainActivity : ComponentActivity() {
             ) {
                 CompanionApp(model, onFindGauge = ::requestGauge, onSelectReading = ::requestSelection,
                     onReadSaved = ::requestSavedSnapshot, onRotate = ::requestRotation,
-                    onApplyNumeric = ::requestNumericConfiguration)
+                    onApplyNumeric = ::requestNumericConfiguration,
+                    onReadConfig = ::requestActiveConfiguration)
             }
         }
     }
@@ -219,12 +220,28 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun requestActiveConfiguration() {
+        model.markScanning(true)
+        lifecycleScope.launch {
+            try {
+                model.configStatusRead(GaugeConfigTransferClient(this@MainActivity)
+                    .readActive(model.bleClient.selectedGauge()))
+            } catch (error: CancellationException) {
+                model.selectionError("Configuration status read was interrupted")
+                throw error
+            } catch (error: Exception) {
+                model.selectionError(error.message ?: "Could not read active configuration")
+            }
+        }
+    }
 }
 
 @Composable
 private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                          onSelectReading: () -> Unit, onReadSaved: () -> Unit,
-                         onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit) {
+                         onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit,
+                         onReadConfig: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 720.dp
         if (wide) {
@@ -240,7 +257,8 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                         )
                     }
                 }
-                AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, onApplyNumeric, Modifier.weight(1f))
+                AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, onApplyNumeric,
+                    onReadConfig, Modifier.weight(1f))
             }
         } else {
             Scaffold(containerColor = CanvasColor, bottomBar = {
@@ -254,7 +272,8 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                         )
                     }
                 }
-            }) { padding -> AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, onApplyNumeric, Modifier.padding(padding)) }
+            }) { padding -> AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate,
+                onApplyNumeric, onReadConfig, Modifier.padding(padding)) }
         }
     }
 }
@@ -262,7 +281,8 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
 @Composable
 private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                     onSelectReading: () -> Unit, onReadSaved: () -> Unit,
-                    onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit, modifier: Modifier = Modifier) {
+                    onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit,
+                    onReadConfig: () -> Unit, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 840.dp).fillMaxWidth().fillMaxHeight().padding(horizontal = 20.dp)) {
             Header(model)
@@ -270,7 +290,8 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                 Destination.Garage -> GarageScreen(model, onFindGauge)
                 Destination.Design -> DesignScreen(model, onApplyNumeric)
                 Destination.Pids -> PidsScreen(model)
-                Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved, onRotate)
+                Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved,
+                    onRotate, onReadConfig)
             }
         }
     }
@@ -731,7 +752,7 @@ private fun PidsScreen(model: AppViewModel) {
 @Composable
 private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                          onSelectReading: () -> Unit, onReadSaved: () -> Unit,
-                         onRotate: (Int) -> Unit) {
+                         onRotate: (Int) -> Unit, onReadConfig: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("03 / Device", "Know what is ready.",
             "Capabilities come from the gauge. Other panels show the planned workflow without vehicle actions.")
@@ -762,6 +783,12 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
             Spacer(Modifier.height(14.dp))
             OutlinedButton(onClick = onFindGauge, enabled = !model.scanning) {
                 Text(if (model.scanning) "Finding gauge…" else "Read gauge capabilities")
+            }
+            if (caps?.experimentalNumericConfig == true) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = onReadConfig, enabled = !model.scanning) {
+                    Text("Read active configuration status")
+                }
             }
             if (caps?.quickSelect == true) {
                 Spacer(Modifier.height(10.dp))

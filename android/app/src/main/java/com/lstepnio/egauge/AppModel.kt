@@ -209,6 +209,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             displayRotationWrite = false)
         deviceMessage = "Numeric ECM profile active at revision ${value.revision}. SHA-256 ${value.sha256.take(12)}…"
     }
+    fun configStatusRead(value: GaugeConfigTransferClient.ActiveStatus) {
+        scanning = false
+        activeConfigRevision = value.revision.takeIf { it > 0 }
+        deviceMessage = if (value.revision == 0L)
+            "Gauge is using built-in readings. Transfer phase ${value.transferPhase}."
+        else "Gauge active config revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…; " +
+            "transfer phase ${value.transferPhase}, last result ${value.lastResult}."
+    }
     fun selectionError(message: String) {
         scanning = false
         deviceMessage = message

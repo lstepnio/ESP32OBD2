@@ -28,6 +28,8 @@ class GaugeConfigTransferClient(private val context: Context) {
         data class Failed(val reason: String) : Event
     }
     data class Applied(val revision: Long, val sha256: String)
+    data class ActiveStatus(val revision: Long, val sha256: String, val transferPhase: Int,
+                            val lastResult: Int)
     private data class Status(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
                               val transferId: Long, val accepted: Long, val revision: Long, val hash: ByteArray)
 
@@ -153,6 +155,13 @@ class GaugeConfigTransferClient(private val context: Context) {
             .put("hysteresis", draft.hysteresis).put("triggerDwellMs", draft.triggerDwellMs)
             .put("clearDwellMs", draft.clearDwellMs)
         return json.toString().toByteArray(Charsets.UTF_8)
+    }
+
+    suspend fun readActive(device: BluetoothDevice): ActiveStatus {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        val status = withGauge(device) { command(0x17, 1) }
+        return ActiveStatus(status.revision, status.hash.joinToString("") { "%02x".format(it) },
+            status.phase, status.result)
     }
 
     suspend fun apply(device: BluetoothDevice, draft: Draft, profileId: String): Applied {
