@@ -29,7 +29,7 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
     data class Applied(val revision: Long, val sha256: String)
     private data class Status(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
-                              val accepted: Long, val revision: Long, val hash: ByteArray)
+                              val transferId: Long, val accepted: Long, val revision: Long, val hash: ByteArray)
 
     @SuppressLint("MissingPermission")
     private suspend fun <T> withGauge(device: BluetoothDevice, action: suspend Session.() -> T): T {
@@ -96,7 +96,7 @@ class GaugeConfigTransferClient(private val context: Context) {
             val bytes = event.bytes
             require(bytes.size == 64 && bytes[0].toInt() == 3) { "Gauge returned an unsupported status version" }
             return Status(bytes[1].toInt() and 255, bytes[2].toInt() and 255, bytes[3].toInt() and 255,
-                u32(bytes, 4), u32(bytes, 12), u32(bytes, 20), bytes.copyOfRange(32, 64))
+                u32(bytes, 4), u32(bytes, 8), u32(bytes, 12), u32(bytes, 20), bytes.copyOfRange(32, 64))
         }
         @SuppressLint("MissingPermission")
         suspend fun command(opcode: Int, sequence: Long, payload: ByteArray = byteArrayOf()): Status {
@@ -196,13 +196,21 @@ class GaugeConfigTransferClient(private val context: Context) {
         var confirmed: Status? = null
         repeat(5) {
             if (confirmed == null) {
-                confirmed = runCatching { withGauge(device) { command(0x17, sequence++) } }.getOrNull()
+                val observed = runCatching { withGauge(device) { command(0x17, sequence++) } }.getOrNull()
+                if (observed?.phase in 1..3 && observed?.transferId == transferId &&
+                    observed.opcode == 0x15 && observed.result != 0) {
+                    runCatching { withGauge(device) { command(0x16, sequence++, le32(transferId)) } }
+                    error("Gauge rejected configuration commit (result ${observed.result})")
+                }
+                if (observed?.phase == 0) confirmed = observed
                 if (confirmed == null) delay(1200)
             }
         }
         val durable = confirmed ?: error("Gauge commit succeeded, but reboot readback is unavailable")
-        check(durable.revision == expectedRevision && durable.hash.contentEquals(digest)) {
-            "Gauge rebooted but active configuration differs; read status before retrying"
+        if (durable.revision != expectedRevision || !durable.hash.contentEquals(digest)) {
+            if (durable.phase in 1..3 && durable.transferId == transferId)
+                runCatching { withGauge(device) { command(0x16, sequence++, le32(transferId)) } }
+            error("Gauge did not activate the sent configuration (result ${durable.result}); active revision ${durable.revision}")
         }
         return Applied(durable.revision, digest.joinToString("") { "%02x".format(it) })
     }
