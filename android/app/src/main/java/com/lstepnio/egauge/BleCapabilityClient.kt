@@ -29,12 +29,13 @@ class BleCapabilityClient(private val context: Context) {
     private val capabilityId = UUID.fromString("6f1a0001-9e3b-4f45-a714-69c9d23b6c00")
     private val controlId = UUID.fromString("6f1a0002-9e3b-4f45-a714-69c9d23b6c00")
     private val stateId = UUID.fromString("6f1a0003-9e3b-4f45-a714-69c9d23b6c00")
+    private var selectedDevice: BluetoothDevice? = null
 
     /** Protocol-0 paired quick selection. ATT write is followed by state readback. */
     @SuppressLint("MissingPermission")
     suspend fun selectNearby(index: Int): Int {
         require(index in 0..4)
-        val device = scanNearby()
+        val device = selectedDevice ?: error("Read this gauge's capabilities before controlling it")
         if (device.bondState != BluetoothDevice.BOND_BONDED) {
             if (!device.createBond()) error("Android could not start gauge pairing")
             withTimeout(90_000) {
@@ -133,7 +134,11 @@ class BleCapabilityClient(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     suspend fun readNearby(): CapabilitySnapshot {
-        return readCapabilities(scanNearby())
+        selectedDevice = null
+        val device = scanNearby()
+        val capabilities = readCapabilities(device)
+        selectedDevice = device
+        return capabilities
     }
 
     @SuppressLint("MissingPermission")

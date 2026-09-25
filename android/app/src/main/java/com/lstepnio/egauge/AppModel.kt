@@ -72,6 +72,7 @@ data class CapabilitySnapshot(
 )
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
+    val bleClient = BleCapabilityClient(application)
     private val profileStore = ProfileStore(application)
     private val loadedProfiles = profileStore.load()
 

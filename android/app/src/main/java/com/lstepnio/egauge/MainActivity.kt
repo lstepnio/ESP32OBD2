@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 private val CanvasColor = Color(0xFF0C1114)
 private val SurfaceColor = Color(0xFF172025)
@@ -115,9 +116,14 @@ class MainActivity : ComponentActivity() {
     private fun readGauge() {
         model.markScanning(true)
         lifecycleScope.launch {
-            runCatching { BleCapabilityClient(applicationContext).readNearby() }
-                .onSuccess(model::connected)
-                .onFailure { model.connectionError(it.message ?: "Could not read the gauge") }
+            try {
+                model.connected(model.bleClient.readNearby())
+            } catch (error: CancellationException) {
+                model.connectionError("Gauge discovery was interrupted")
+                throw error
+            } catch (error: Exception) {
+                model.connectionError(error.message ?: "Could not read the gauge")
+            }
         }
     }
 
@@ -134,9 +140,14 @@ class MainActivity : ComponentActivity() {
         }
         model.markScanning(true)
         lifecycleScope.launch {
-            runCatching { BleCapabilityClient(applicationContext).selectNearby(index) }
-                .onSuccess(model::selectionApplied)
-                .onFailure { model.selectionError(it.message ?: "Could not select gauge reading") }
+            try {
+                model.selectionApplied(model.bleClient.selectNearby(index))
+            } catch (error: CancellationException) {
+                model.selectionError("Gauge selection was interrupted; read its state before retrying")
+                throw error
+            } catch (error: Exception) {
+                model.selectionError(error.message ?: "Could not select gauge reading")
+            }
         }
     }
 }

@@ -5,7 +5,7 @@ Status: pending Android phone access. The integration image has been uploaded to
 ## Preparation
 
 1. Keep the gauge powered by USB and open the latest Android debug APK.
-2. In Device, read gauge capabilities. Require protocol major 0 and `quickSelect: true` before showing the paired action.
+2. In Device, read gauge capabilities. Require protocol major 0 and `quickSelect: true` before showing the paired action. If multiple gauges are nearby, identify the one chosen by the current first-match discovery behavior before continuing. The control action uses that same discovered Bluetooth device for the current app session.
 3. In Design, select a built-in example such as Speed. TCM's synthetic input-speed example is intentionally unsupported by quick select.
 4. Keep any vehicle adapter disconnected for the first review. Pairing should not require vehicle data.
 
