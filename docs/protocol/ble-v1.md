@@ -1,6 +1,6 @@
 # Companion BLE protocol, draft v1
 
-**Draft v1, not implemented.** Freeze only after the dual-link vertical slice. M1 exposes an experimental public capability characteristic at UUID `6f1a0001-9e3b-4f45-a714-69c9d23b6c00`. The integration branch adds bounded protocol 0 reading selection and display rotation controls described below. Full configuration writes and OTA remain disabled.
+**Draft v1, not implemented.** Freeze only after the dual-link vertical slice. M1 exposes an experimental public capability characteristic at UUID `6f1a0001-9e3b-4f45-a714-69c9d23b6c00`. The integration branch adds bounded protocol 0 reading selection and display rotation controls described below. Firmware also has an [experimental owner transfer](experimental-firmware-transfers.md) on the same handles; Android has not exercised it. Full configuration and OTA capability flags remain disabled.
 
 ## Implemented protocol 0 quick selection
 

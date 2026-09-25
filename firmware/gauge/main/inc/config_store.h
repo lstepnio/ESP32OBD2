@@ -23,6 +23,8 @@ esp_err_t config_store_begin(uint32_t base_revision, uint32_t length,
                              const uint8_t expected_sha256[32]);
 esp_err_t config_store_write(uint32_t offset, const void *data, size_t length);
 esp_err_t config_store_verify(void);
+/* Validate the staged schema and semantic references without committing. */
+esp_err_t config_store_validate(void);
 void config_store_abort(void);
 
 /* The store enforces the version 1 document validator before commit and at

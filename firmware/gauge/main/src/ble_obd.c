@@ -242,3 +242,55 @@ bool ble_obd_is_connected(ble_obd_ctx_t *obd)
     ESP_NULL_CHECK(obd, TAG, "context is NULL");
     return ble_mgr_is_connected(obd->mgr_ctx);
 }
+
+int ble_obd_read_service(ble_obd_ctx_t *obd, uint8_t mode, uint32_t timeout_ms,
+                         uint8_t *data, size_t *length)
+{
+    if (!obd || !data || !length || *length == 0 || !timeout_ms ||
+        (mode != 3 && mode != 7 && mode != 10)) return -1;
+    TickType_t budget = pdMS_TO_TICKS(timeout_ms);
+    if (!budget) budget = 1;
+    if (xSemaphoreTake(obd->mutex, budget) != pdTRUE) return -1;
+    int result = -1;
+    uint32_t generation = atomic_load(&obd->generation);
+    if (generation != obd->active_generation) {
+        obd->active_generation = generation;
+        obd->awaiting_prompt = false;
+        obd->consecutive_timeouts = 0;
+        elm_response_reset(&obd->response);
+    }
+    if (!ble_mgr_is_connected(obd->mgr_ctx)) goto done;
+    if (obd->awaiting_prompt && !wait_for_prompt(obd, budget)) {
+        if (++obd->consecutive_timeouts >= 5) ble_mgr_disconnect(obd->mgr_ctx);
+        goto done;
+    }
+    if (atomic_load(&obd->rx_overflow)) {
+        ble_mgr_disconnect(obd->mgr_ctx);
+        goto done;
+    }
+    rx_byte_t ignored;
+    while (xQueueReceive(obd->rx, &ignored, 0) == pdTRUE) {}
+    elm_response_reset(&obd->response);
+    char command[4];
+    snprintf(command, sizeof(command), "%02X\r", mode);
+    obd->awaiting_prompt = true;
+    if (ble_mgr_send(obd->mgr_ctx, obd->chars[0].handle, command,
+                     strlen(command)) != BLE_MGR_E_OK) goto done;
+    if (!wait_for_prompt(obd, budget)) {
+        obd->consecutive_timeouts = 1;
+        goto done;
+    }
+    obd->consecutive_timeouts = 0;
+    elm_payload_t payload;
+    elm_result_t decoded = elm_response_decode_service(&obd->response, mode, &payload);
+    if (decoded == ELM_OK && payload.length <= *length &&
+        !atomic_load(&obd->rx_overflow) &&
+        atomic_load(&obd->generation) == obd->active_generation) {
+        memcpy(data, payload.bytes, payload.length);
+        *length = payload.length;
+        result = 0;
+    } else ESP_LOGW(TAG, "Rejected service %02X response (status=%d)", mode, decoded);
+done:
+    xSemaphoreGive(obd->mutex);
+    return result;
+}

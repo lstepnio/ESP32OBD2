@@ -11,6 +11,11 @@ idf_component_register(
         "src/ble_util.c"
         "src/config.c"
         "src/config_store.c"
+        "src/config_transfer.c"
+        "src/config_runtime.c"
+        "src/alert_engine.c"
+        "src/ota_transfer.c"
+        "src/transfer_gate.c"
         "src/config_document.c"
         "src/pid_decoder.c"
         "src/ui.c"
@@ -18,8 +23,9 @@ idf_component_register(
     INCLUDE_DIRS
         "."
         "inc"
+    EMBED_TXTFILES "certs/dev-update-public.pem"
     REQUIRES lvgl esp_lvgl_port bt
-    PRIV_REQUIRES nvs_flash spi_flash mbedtls json
+    PRIV_REQUIRES nvs_flash spi_flash mbedtls json app_update
 )
 
 target_compile_options(${COMPONENT_TARGET} PRIVATE -Wall -Wextra -Wshadow -Werror)

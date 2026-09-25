@@ -30,3 +30,7 @@ bool elm_response_push(elm_response_t *response, uint8_t byte);
 /* Headerless Mode 01 only. Multiple matching responders are deliberately rejected. */
 elm_result_t elm_response_decode(const elm_response_t *response, uint8_t mode,
                                  uint8_t pid, elm_payload_t *payload);
+/* Headerless single-responder emissions service, for Mode 03/07/0A reads.
+ * Ambiguous or malformed multi-ECU replies fail closed. */
+elm_result_t elm_response_decode_service(const elm_response_t *response, uint8_t mode,
+                                         elm_payload_t *payload);

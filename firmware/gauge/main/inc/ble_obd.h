@@ -40,3 +40,5 @@ ble_obd_ctx_t *ble_obd_connect(unsigned source_id, const char *peer_mac,
 int ble_obd_rxtx(ble_obd_ctx_t *obd, uint8_t mode, uint8_t pid, uint32_t timeout_ms);
 
 bool ble_obd_is_connected(ble_obd_ctx_t *ctx);
+int ble_obd_read_service(ble_obd_ctx_t *obd, uint8_t mode, uint32_t timeout_ms,
+                         uint8_t *data, size_t *length);

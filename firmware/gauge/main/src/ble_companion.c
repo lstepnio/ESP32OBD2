@@ -21,6 +21,8 @@
 #include "services/gatt/ble_svc_gatt.h"
 #include "ble_companion.h"
 #include "config.h"
+#include "config_transfer.h"
+#include "ota_transfer.h"
 #include "ui.h"
 
 static const char *TAG = "COMPANION";
@@ -43,6 +45,11 @@ static atomic_uchar g_selected_index;
 static ble_addr_t g_owner;
 static atomic_bool g_has_owner;
 static atomic_uint g_pairing_until;
+static atomic_bool g_ready;
+static uint8_t extended_status_mode;
+static bool document_active;
+static uint8_t status_snapshot[CONFIG_TRANSFER_STATUS_SIZE];
+static size_t status_snapshot_length;
 
 static bool address_equal(const ble_addr_t *a, const ble_addr_t *b)
 {
@@ -93,6 +100,11 @@ static const char capabilities[] =
     "\"maxAdapterLinks\":2,\"simultaneousAdapterLinksVerified\":false,"
     "\"savedStateRead\":true,\"displayRotationWrite\":true,"
     "\"configWrite\":false,\"quickSelect\":true,\"ota\":false}";
+static const char document_capabilities[] =
+    "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
+    "\"maxAdapterLinks\":2,\"simultaneousAdapterLinksVerified\":false,"
+    "\"savedStateRead\":false,\"displayRotationWrite\":false,"
+    "\"configWrite\":false,\"quickSelect\":false,\"ota\":false}";
 
 /* Protocol 0 quick-select request: byte 0 = 1, byte 1 = built-in PID index 0..4.
  * A successful ATT write queues a request; the authenticated state read confirms apply. */
@@ -104,10 +116,25 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
     if (ctxt->op != BLE_GATT_ACCESS_OP_WRITE_CHR) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
     if (!authorized(conn_handle)) return BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
     size_t length = OS_MBUF_PKTLEN(ctxt->om);
-    if (length != 2 && length != 6) return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
-    uint8_t request[6] = {0};
+    if (length < 2 || length > CONFIG_TRANSFER_MAX_REQUEST)
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    uint8_t request[CONFIG_TRANSFER_MAX_REQUEST] = {0};
     if (os_mbuf_copydata(ctxt->om, 0, length, request) != 0)
         return BLE_ATT_ERR_UNLIKELY;
+    if (request[0] >= 0x10 && request[0] <= 0x17) {
+        if (!config_transfer_command(request, length)) return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode = 1;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] >= 0x20 && request[0] <= 0x28) {
+        if (!ota_transfer_command(request, length)) return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode = 2;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (document_active) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
+    if (length != 2 && length != 6) return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     companion_command_t command = {.opcode = request[0], .value = request[1]};
     if (command.opcode == 1 && (length != 2 || command.value > 4))
         return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
@@ -121,6 +148,8 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
     }
     if (g_command_queue == NULL || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
         return BLE_ATT_ERR_UNLIKELY;
+    extended_status_mode = 0;
+    status_snapshot_length = 0;
     return 0;
 }
 
@@ -131,6 +160,23 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     (void)arg;
     if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
     if (!authorized(conn_handle)) return BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
+    if (extended_status_mode == 1) {
+        if (ctxt->offset == 0 || status_snapshot_length == 0)
+            status_snapshot_length = config_transfer_status(status_snapshot);
+        if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
+                              status_snapshot_length - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+    if (extended_status_mode == 2) {
+        if (ctxt->offset == 0 || status_snapshot_length == 0)
+            status_snapshot_length = ota_transfer_status(status_snapshot);
+        if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
+                              status_snapshot_length - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+    if (document_active) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
     config_t saved;
     uint32_t revision;
     if (config_read_snapshot(&saved, &revision) != ESP_OK || saved.cfg_idx > 4 ||
@@ -153,9 +199,10 @@ static int capabilities_read(uint16_t conn_handle, uint16_t attr_handle,
     (void)attr_handle;
     (void)arg;
     if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
-    size_t length = sizeof(capabilities) - 1;
+    const char *value = document_active ? document_capabilities : capabilities;
+    size_t length = strlen(value);
     if (ctxt->offset > length) return BLE_ATT_ERR_INVALID_OFFSET;
-    return os_mbuf_append(ctxt->om, capabilities + ctxt->offset,
+    return os_mbuf_append(ctxt->om, value + ctxt->offset,
                           length - ctxt->offset) == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
@@ -203,6 +250,7 @@ static void advertise(void)
     rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
                            &params, phone_gap_event, NULL);
     if (rc != 0) ESP_LOGW(TAG, "Advertising failed: %d", rc);
+    else atomic_store(&g_ready, true);
 }
 
 static int phone_gap_event(struct ble_gap_event *event, void *arg)
@@ -218,6 +266,9 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_DISCONNECT:
         if (event->disconnect.conn.conn_handle == phone_conn) {
             phone_conn = BLE_HS_CONN_HANDLE_NONE;
+            extended_status_mode = 0;
+            status_snapshot_length = 0;
+            config_transfer_disconnect();
             atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
             ESP_LOGI(TAG, "Phone discovery link disconnected");
             ui_show_pairing_code(g_ui, pairing_open() ? UINT32_MAX : 0);
@@ -288,15 +339,25 @@ int ble_companion_register(void)
 
 void ble_companion_reset(void)
 {
+    atomic_store(&g_ready, false);
     phone_conn = BLE_HS_CONN_HANDLE_NONE;
+    extended_status_mode = 0;
+    status_snapshot_length = 0;
     atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
 }
 
-void ble_companion_set_control(ui_t *ui, QueueHandle_t command_queue, uint8_t selected_index)
+bool ble_companion_ready(void)
+{
+    return atomic_load(&g_ready);
+}
+
+void ble_companion_set_control(ui_t *ui, QueueHandle_t command_queue,
+                               uint8_t selected_index, bool custom)
 {
     g_ui = ui;
     g_command_queue = command_queue;
     atomic_store(&g_selected_index, selected_index);
+    document_active = custom;
 }
 
 void ble_companion_open_pairing_window(void)

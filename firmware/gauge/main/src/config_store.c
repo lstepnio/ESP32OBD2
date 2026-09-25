@@ -170,8 +170,16 @@ esp_err_t config_store_write(uint32_t offset, const void *data, size_t length)
         return ESP_ERR_INVALID_ARG;
     xSemaphoreTake(store_lock, portMAX_DELAY);
     esp_err_t err = ESP_ERR_INVALID_STATE;
-    if (!transfer.open || offset != transfer.written || length > transfer.length - offset)
+    if (!transfer.open || offset > transfer.length || length > transfer.length - offset)
         goto done;
+    if (offset < transfer.written && length <= transfer.written - offset) {
+        uint8_t previous[1024];
+        err = esp_partition_read(slots[transfer.slot], DOCUMENT_OFFSET + offset,
+                                 previous, length);
+        if (err == ESP_OK && memcmp(previous, data, length) != 0) err = ESP_ERR_INVALID_CRC;
+        goto done;
+    }
+    if (offset != transfer.written) goto done;
     err = esp_partition_write(slots[transfer.slot], DOCUMENT_OFFSET + offset, data, length);
     if (err == ESP_OK) transfer.written += length;
 done:
@@ -189,6 +197,30 @@ esp_err_t config_store_verify(void)
     err = hash_document(slots[transfer.slot], transfer.length, actual);
     if (err == ESP_OK && memcmp(actual, transfer.sha256, sizeof(actual)) != 0)
         err = ESP_ERR_INVALID_CRC;
+done:
+    xSemaphoreGive(store_lock);
+    return err;
+}
+
+esp_err_t config_store_validate(void)
+{
+    if (store_lock == NULL) return ESP_ERR_INVALID_STATE;
+    xSemaphoreTake(store_lock, portMAX_DELAY);
+    esp_err_t err = ESP_ERR_INVALID_STATE;
+    if (!transfer.open || transfer.written != transfer.length) goto done;
+    uint8_t actual[32];
+    err = hash_document(slots[transfer.slot], transfer.length, actual);
+    if (err != ESP_OK) goto done;
+    if (memcmp(actual, transfer.sha256, sizeof(actual)) != 0) {
+        err = ESP_ERR_INVALID_CRC;
+        goto done;
+    }
+    config_document_context_t limits = {
+        .base_revision = active_record.revision,
+        .max_adapter_links = 2,
+    };
+    err = config_document_validate(slots[transfer.slot], DOCUMENT_OFFSET,
+                                   transfer.length, &limits);
 done:
     xSemaphoreGive(store_lock);
     return err;

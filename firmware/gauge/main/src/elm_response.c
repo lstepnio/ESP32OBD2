@@ -88,3 +88,54 @@ elm_result_t elm_response_decode(const elm_response_t *response, uint8_t mode,
     if (failed || matches != 1) { payload->length = 0; return result; }
     return ELM_OK;
 }
+
+elm_result_t elm_response_decode_service(const elm_response_t *response, uint8_t mode,
+                                         elm_payload_t *payload)
+{
+    payload->length = 0;
+    if (response->overflow) return ELM_OVERFLOW;
+    if (mode != 3 && mode != 7 && mode != 10) return ELM_MALFORMED;
+    unsigned matches = 0;
+    elm_result_t result = ELM_MALFORMED;
+    for (size_t offset = 0; offset < response->length;) {
+        const char *line = response->text + offset;
+        size_t len = 0;
+        while (offset + len < response->length && line[len] != '\r' && line[len] != '\n') ++len;
+        offset += len;
+        while (offset < response->length &&
+               (response->text[offset] == '\r' || response->text[offset] == '\n')) ++offset;
+        while (len && (*line == ' ' || *line == '\t')) { ++line; --len; }
+        while (len && (line[len - 1] == ' ' || line[len - 1] == '\t')) --len;
+        if (!len || equals(line, len, "SEARCHING...")) continue;
+        if (equals(line, len, "NO DATA")) return ELM_NO_DATA;
+        if (equals(line, len, "?") || equals(line, len, "STOPPED") ||
+            equals(line, len, "CAN ERROR") || equals(line, len, "BUS ERROR") ||
+            equals(line, len, "UNABLE TO CONNECT")) return ELM_ADAPTER_ERROR;
+        uint8_t bytes[ELM_PAYLOAD_CAPACITY + 1];
+        size_t count = 0;
+        int high = -1;
+        for (size_t i = 0; i < len; ++i) {
+            if (line[i] == ' ' || line[i] == '\t') {
+                if (high >= 0) return ELM_MALFORMED;
+                continue;
+            }
+            int digit = hex(line[i]);
+            if (digit < 0) return ELM_MALFORMED;
+            if (high < 0) high = digit;
+            else {
+                if (count >= sizeof(bytes)) return ELM_OVERFLOW;
+                bytes[count++] = (uint8_t)((high << 4) | digit);
+                high = -1;
+            }
+        }
+        if (high >= 0) return ELM_MALFORMED;
+        if (count == 1 && bytes[0] == mode) continue;
+        if (count < 1 || bytes[0] != (uint8_t)(mode + 0x40)) return ELM_MALFORMED;
+        ++matches;
+        if (matches != 1) return ELM_AMBIGUOUS;
+        payload->length = count - 1;
+        memcpy(payload->bytes, bytes + 1, payload->length);
+        result = ELM_OK;
+    }
+    return matches == 1 ? result : ELM_MALFORMED;
+}

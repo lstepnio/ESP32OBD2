@@ -1,6 +1,6 @@
 # Firmware updates and recovery, draft 0.1
 
-**Current flashed firmware cannot receive these updates.** It uses a single factory app partition. The first companion-capable release requires a deliberate USB flash of the new partition layout and bootloader. Subsequent app updates use BLE to write an inactive OTA slot; v1 does not update bootloader or partition table over BLE.
+The development gauge now runs the two-slot layout and a rollback-enabled bootloader. Firmware has an experimental owner-only BLE transfer and activation path described in [experimental firmware transfers](experimental-firmware-transfers.md). Android delivery and signed release enforcement are not implemented. Public `ota` remains false. BLE updates do not change the bootloader or partition table.
 
 ## Proposed 16 MiB layout
 
@@ -9,17 +9,17 @@
 | nvs | 0x9000 | 0x6000 | Settings/bonds metadata |
 | phy_init | 0xF000 | 0x1000 | Radio |
 | otadata | 0x10000 | 0x2000 | Redundant boot selection |
-| reserved | 0x12000 | 0xE000 | Alignment/future reserved space |
-| ota_0 | 0x20000 | 0x400000 | App A, 4 MiB |
-| ota_1 | 0x420000 | 0x400000 | App B, 4 MiB |
-| config | 0x820000 | 0x80000 | Two validated config generations |
-| storage | 0x8A0000 | 0x760000 | Bounded catalogs/assets/diagnostics |
+| config_a | 0x12000 | 0x20000 | Configuration generation A |
+| config_b | 0x32000 | 0x20000 | Configuration generation B |
+| reserved | 0x52000 | 0xE000 | Alignment |
+| ota_0 | 0x60000 | 0x300000 | App A, 3 MiB |
+| ota_1 | 0x360000 | 0x300000 | App B, 3 MiB |
 
-Ends at 0x1000000. App slots are 64 KiB aligned. This is a design allocation, not an installed partition table. Generate/validate partition CSV and image sizes before the USB migration. Do not assume a stock filesystem provides atomic two-slot configuration without an implementation.
+The remaining flash is unassigned. This table is installed on the development gauge and is defined by [partitions.csv](../../firmware/gauge/partitions.csv). App slots are 64 KiB aligned. Configuration commit uses its own validated two-generation flash store.
 
 ## Artifact trust
 
-Release bundle includes exact board ID/revision, chip target, image size/hash, monotonically increasing release sequence, semantic version, protocol/config compatibility ranges, minimum bootloader, partition-layout ID, release notes hash, channel and signing key ID. See [manifest schema](../../contracts/release-manifest.schema.json). Sign canonical UTF-8 JSON (RFC 8785/JCS) bytes as a detached ECDSA P-256 signature with a pinned release key; never sign loosely serialized JSON. Both phone and gauge validate metadata signature, board/partition compatibility, size and SHA-256. Use ESP-IDF signed-app verification on device as an independent image check. Specify and validate the ESP secure-image key format separately from the metadata key, rather than assuming those signatures are interchangeable.
+Release bundle should include exact board ID/revision, chip target, image size/hash, monotonically increasing release sequence, semantic version, protocol/config compatibility ranges, minimum bootloader, partition-layout ID, release notes hash, channel and signing key ID. See [manifest schema](../../contracts/release-manifest.schema.json). The experimental firmware path currently verifies a pinned P-256 signature over its board tag, image size and SHA-256. A production release should sign canonical UTF-8 JSON (RFC 8785/JCS) bytes as detached metadata, and both phone and gauge should validate metadata signature, board/partition compatibility, size and SHA-256. ESP-IDF signed-app verification would provide an independent image check. Specify and validate the ESP secure-image key format separately from the metadata key, rather than assuming those signatures are interchangeable.
 
 Keep private signing keys outside the repo/ordinary CI; a protected release job receives narrow signing access. Plan key rotation with an old-key-signed trust-set change before revocation. Reject normal version downgrades; an explicit recovery policy can select the last known valid slot. No eFuse anti-rollback or secure-boot provisioning during prototype setup. Application verification without secure boot does not protect against hostile replacement through physical flashing.
 
