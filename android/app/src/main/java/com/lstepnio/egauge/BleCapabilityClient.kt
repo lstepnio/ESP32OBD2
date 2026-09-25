@@ -118,17 +118,28 @@ class BleCapabilityClient(private val context: Context) {
         }
     }
 
-    /** Protocol-0 paired quick selection. ATT write is followed by state readback. */
-    @SuppressLint("MissingPermission")
+    /** Protocol-0 owner controls. An ATT write is followed by durable state readback. */
     suspend fun selectNearby(index: Int): Int {
         require(index in 0..4)
+        return controlNearby(1, index).readingIndex
+    }
+
+    suspend fun rotateNearby(rotation: Int): GaugeSavedSnapshot {
+        require(rotation in 0..3)
+        return controlNearby(2, rotation)
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun controlNearby(opcode: Int, value: Int): GaugeSavedSnapshot {
         val device = selectedDevice ?: error("Read this gauge's capabilities before controlling it")
-        val result = CompletableDeferred<Int>()
+        val result = CompletableDeferred<GaugeSavedSnapshot>()
         val handler = Handler(Looper.getMainLooper())
         var stateCharacteristic: BluetoothGattCharacteristic? = null
         var controlCharacteristic: BluetoothGattCharacteristic? = null
         var writeSent = false
+        var baseRevision = 0L
         var readAttempts = 0
+        val target = value
         var bondStarted = false
         var sawBonding = false
         val callback = object : BluetoothGattCallback() {
@@ -177,9 +188,16 @@ class BleCapabilityClient(private val context: Context) {
                     return
                 }
                 if (!writeSent) {
+                    if (opcode == 2 && !extended) return fail("Gauge does not support saved rotation")
+                    if (extended) baseRevision = (4..7).fold(0L) { acc, offset ->
+                        acc or ((value[offset].toLong() and 0xff) shl ((offset - 4) * 8))
+                    }
                     writeSent = true
                     val control = controlCharacteristic ?: return fail("Control characteristic missing")
-                    val bytes = byteArrayOf(1, index.toByte())
+                    val bytes = if (opcode == 1) byteArrayOf(1, target.toByte()) else byteArrayOf(
+                        2, target.toByte(), baseRevision.toByte(), (baseRevision shr 8).toByte(),
+                        (baseRevision shr 16).toByte(), (baseRevision shr 24).toByte(),
+                    )
                     val started = if (Build.VERSION.SDK_INT >= 33)
                         gatt.writeCharacteristic(control, bytes, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothGatt.GATT_SUCCESS
                     else {
@@ -189,10 +207,24 @@ class BleCapabilityClient(private val context: Context) {
                         gatt.writeCharacteristic(control)
                     }
                     if (!started) fail("Could not start secure selection write")
-                } else if (value[1].toInt() == index) {
-                    result.complete(index)
-                } else if (++readAttempts >= 10) {
-                    fail("Gauge did not confirm the new reading")
+                } else if (extended) {
+                    val revision = (4..7).fold(0L) { acc, offset ->
+                        acc or ((value[offset].toLong() and 0xff) shl ((offset - 4) * 8))
+                    }
+                    val snapshot = GaugeSavedSnapshot(value[2].toInt() and 0xff,
+                        value[3].toInt() and 0xff, revision)
+                    val confirmed = if (opcode == 1) value[1].toInt() == target &&
+                        snapshot.readingIndex == target
+                        else snapshot.rotation == target && revision > baseRevision
+                    if (confirmed) result.complete(snapshot)
+                    else retryState(gatt)
+                } else if (opcode == 1 && value[1].toInt() == target) {
+                    result.complete(GaugeSavedSnapshot(target, 0, 0))
+                } else retryState(gatt)
+            }
+            private fun retryState(gatt: BluetoothGatt) {
+                if (++readAttempts >= 10) {
+                    fail("Gauge did not confirm the new setting")
                 } else {
                     handler.postDelayed({
                         if (!result.isCompleted && !gatt.readCharacteristic(stateCharacteristic))
@@ -356,6 +388,7 @@ class BleCapabilityClient(private val context: Context) {
             configWrite = configWrite,
             savedStateRead = objectValue.optBoolean("savedStateRead", false),
             quickSelect = objectValue.optBoolean("quickSelect", false),
+            displayRotationWrite = objectValue.optBoolean("displayRotationWrite", false),
             ota = ota,
         )
     }

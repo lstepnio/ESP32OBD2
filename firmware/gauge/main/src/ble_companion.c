@@ -38,7 +38,7 @@ static const ble_uuid128_t state_uuid = BLE_UUID128_INIT(
     0x45, 0x4f, 0x3b, 0x9e, 0x03, 0x00, 0x1a, 0x6f);
 
 static ui_t *g_ui;
-static QueueHandle_t g_selection_queue;
+static QueueHandle_t g_command_queue;
 static atomic_uchar g_selected_index;
 static ble_addr_t g_owner;
 static atomic_bool g_has_owner;
@@ -91,7 +91,8 @@ static bool save_owner(const ble_addr_t *owner)
 static const char capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
     "\"maxAdapterLinks\":2,\"simultaneousAdapterLinksVerified\":false,"
-    "\"savedStateRead\":true,\"configWrite\":false,\"quickSelect\":true,\"ota\":false}";
+    "\"savedStateRead\":true,\"displayRotationWrite\":true,"
+    "\"configWrite\":false,\"quickSelect\":true,\"ota\":false}";
 
 /* Protocol 0 quick-select request: byte 0 = 1, byte 1 = built-in PID index 0..4.
  * A successful ATT write queues a request; the authenticated state read confirms apply. */
@@ -102,11 +103,23 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
     (void)arg;
     if (ctxt->op != BLE_GATT_ACCESS_OP_WRITE_CHR) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
     if (!authorized(conn_handle)) return BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
-    if (OS_MBUF_PKTLEN(ctxt->om) != 2) return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
-    uint8_t request[2];
-    if (os_mbuf_copydata(ctxt->om, 0, 2, request) != 0 ||
-        request[0] != 1 || request[1] > 4) return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
-    if (g_selection_queue == NULL || xQueueSend(g_selection_queue, &request[1], 0) != pdTRUE)
+    size_t length = OS_MBUF_PKTLEN(ctxt->om);
+    if (length != 2 && length != 6) return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    uint8_t request[6] = {0};
+    if (os_mbuf_copydata(ctxt->om, 0, length, request) != 0)
+        return BLE_ATT_ERR_UNLIKELY;
+    companion_command_t command = {.opcode = request[0], .value = request[1]};
+    if (command.opcode == 1 && (length != 2 || command.value > 4))
+        return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+    if (command.opcode == 2 && (length != 6 || command.value > 3))
+        return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+    if (command.opcode != 1 && command.opcode != 2)
+        return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+    if (command.opcode == 2) {
+        command.base_revision = (uint32_t)request[2] | ((uint32_t)request[3] << 8) |
+                                ((uint32_t)request[4] << 16) | ((uint32_t)request[5] << 24);
+    }
+    if (g_command_queue == NULL || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
         return BLE_ATT_ERR_UNLIKELY;
     return 0;
 }
@@ -279,10 +292,10 @@ void ble_companion_reset(void)
     atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
 }
 
-void ble_companion_set_control(ui_t *ui, QueueHandle_t selection_queue, uint8_t selected_index)
+void ble_companion_set_control(ui_t *ui, QueueHandle_t command_queue, uint8_t selected_index)
 {
     g_ui = ui;
-    g_selection_queue = selection_queue;
+    g_command_queue = command_queue;
     atomic_store(&g_selected_index, selected_index);
 }
 

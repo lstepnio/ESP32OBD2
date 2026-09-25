@@ -69,6 +69,7 @@ data class CapabilitySnapshot(
     val configWrite: Boolean,
     val savedStateRead: Boolean,
     val quickSelect: Boolean,
+    val displayRotationWrite: Boolean,
     val ota: Boolean,
 )
 

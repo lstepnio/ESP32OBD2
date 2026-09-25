@@ -119,7 +119,7 @@ static config_t g_config = {
     .cfg_idx  = 0,
     .disp_rot = LV_DISPLAY_ROTATION_0,
 };
-static QueueHandle_t g_phone_selection_queue;
+static QueueHandle_t g_phone_command_queue;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Private Function Definitions
@@ -353,9 +353,9 @@ void app_main(void)
 
     bsp_display_on_off(true);
 
-    g_phone_selection_queue = xQueueCreate(4, sizeof(uint8_t));
-    ESP_NULL_CHECK(g_phone_selection_queue, TAG, "Phone selection queue creation failed");
-    ble_companion_set_control(ui, g_phone_selection_queue, g_config.cfg_idx % ARRAY_SIZE(g_obd_pids));
+    g_phone_command_queue = xQueueCreate(4, sizeof(companion_command_t));
+    ESP_NULL_CHECK(g_phone_command_queue, TAG, "Phone command queue creation failed");
+    ble_companion_set_control(ui, g_phone_command_queue, g_config.cfg_idx % ARRAY_SIZE(g_obd_pids));
 
     ESP_NULL_CHECK(ble_mgr_init(0, 2000), TAG, "BLE ECM slot initialization failed");
     ESP_NULL_CHECK(ble_mgr_init(1, 2000), TAG, "BLE TCM slot initialization failed");
@@ -377,20 +377,34 @@ void app_main(void)
 
     while (true)
     {
-        uint8_t selected_index;
-        if (xQueueReceive(g_phone_selection_queue, &selected_index, pdMS_TO_TICKS(10)) == pdTRUE &&
-            selected_index < ARRAY_SIZE(g_obd_pids)) {
+        companion_command_t command;
+        if (xQueueReceive(g_phone_command_queue, &command, pdMS_TO_TICKS(10)) != pdTRUE)
+            continue;
+        if (command.opcode == 1 && command.value < ARRAY_SIZE(g_obd_pids)) {
             config_t updated = g_config;
-            updated.cfg_idx = selected_index;
+            updated.cfg_idx = command.value;
             if (config_save(&updated) == ESP_OK) {
                 g_config = updated;
-                g_current_obd_cfg = &g_obd_pids[selected_index];
+                g_current_obd_cfg = &g_obd_pids[command.value];
                 if (lvgl_port_lock(portMAX_DELAY)) {
                     ui_set_obd_cfg(ui, g_current_obd_cfg);
                     lvgl_port_unlock();
-                    ble_companion_selection_applied(selected_index);
+                    ble_companion_selection_applied(command.value);
                 }
             }
+        } else if (command.opcode == 2 && command.value <= LV_DISPLAY_ROTATION_270) {
+            config_t saved;
+            uint32_t revision;
+            if (config_read_snapshot(&saved, &revision) != ESP_OK ||
+                revision != command.base_revision) continue;
+            saved.disp_rot = (lv_display_rotation_t)command.value;
+            if (config_save(&saved) != ESP_OK) continue;
+            g_config = saved;
+            if (lvgl_port_lock(portMAX_DELAY)) {
+                bsp_lv_disp_set_rotation(saved.disp_rot);
+                lvgl_port_unlock();
+            }
+            ESP_LOGI(TAG, "Display rotation saved: %u", (unsigned)command.value * 90);
         }
     }
 }

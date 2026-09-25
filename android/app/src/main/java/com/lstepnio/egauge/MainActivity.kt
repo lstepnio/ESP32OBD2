@@ -103,7 +103,7 @@ class MainActivity : ComponentActivity() {
                 ),
             ) {
                 CompanionApp(model, onFindGauge = ::requestGauge, onSelectReading = ::requestSelection,
-                    onReadSaved = ::requestSavedSnapshot)
+                    onReadSaved = ::requestSavedSnapshot, onRotate = ::requestRotation)
             }
         }
     }
@@ -170,6 +170,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun requestRotation(rotation: Int) {
+        if (model.capabilities?.displayRotationWrite != true) {
+            model.selectionError("Gauge does not offer display rotation control")
+            return
+        }
+        model.markScanning(true)
+        lifecycleScope.launch {
+            try {
+                model.snapshotRead(model.bleClient.rotateNearby(rotation))
+            } catch (error: CancellationException) {
+                model.snapshotError("Display rotation was interrupted; read saved state before retrying")
+                throw error
+            } catch (error: Exception) {
+                model.snapshotError(error.message ?: "Gauge did not confirm display rotation")
+            }
+        }
+    }
+
     private fun requestSavedSnapshot() {
         model.markScanning(true)
         lifecycleScope.launch {
@@ -187,7 +205,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
-                         onSelectReading: () -> Unit, onReadSaved: () -> Unit) {
+                         onSelectReading: () -> Unit, onReadSaved: () -> Unit,
+                         onRotate: (Int) -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 720.dp
         if (wide) {
@@ -203,7 +222,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                         )
                     }
                 }
-                AppBody(model, onFindGauge, onSelectReading, onReadSaved, Modifier.weight(1f))
+                AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, Modifier.weight(1f))
             }
         } else {
             Scaffold(containerColor = CanvasColor, bottomBar = {
@@ -217,7 +236,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                         )
                     }
                 }
-            }) { padding -> AppBody(model, onFindGauge, onSelectReading, onReadSaved, Modifier.padding(padding)) }
+            }) { padding -> AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, Modifier.padding(padding)) }
         }
     }
 }
@@ -225,7 +244,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
 @Composable
 private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                     onSelectReading: () -> Unit, onReadSaved: () -> Unit,
-                    modifier: Modifier = Modifier) {
+                    onRotate: (Int) -> Unit, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 840.dp).fillMaxWidth().fillMaxHeight().padding(horizontal = 20.dp)) {
             Header(model)
@@ -233,7 +252,7 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                 Destination.Garage -> GarageScreen(model, onFindGauge)
                 Destination.Design -> DesignScreen(model)
                 Destination.Pids -> PidsScreen(model)
-                Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved)
+                Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved, onRotate)
             }
         }
     }
@@ -679,7 +698,8 @@ private fun PidsScreen(model: AppViewModel) {
 
 @Composable
 private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
-                         onSelectReading: () -> Unit, onReadSaved: () -> Unit) {
+                         onSelectReading: () -> Unit, onReadSaved: () -> Unit,
+                         onRotate: (Int) -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("03 / Device", "Know what is ready.",
             "Capabilities come from the gauge. Other panels show the planned workflow without vehicle actions.")
@@ -692,7 +712,11 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                 InfoLine("Board", caps.board)
                 InfoLine("Protocol", "${caps.protocolMajor} • ${if (caps.quickSelect) "paired quick select" else "discovery only"}")
                 InfoLine("Adapter slots", "${caps.maxAdapterLinks} • coexistence unverified")
-                InfoLine("Configuration", if (caps.quickSelect) "Built-in reading only" else "Read only")
+                InfoLine("Configuration", when {
+                    caps.displayRotationWrite -> "Built-in reading and display rotation"
+                    caps.quickSelect -> "Built-in reading only"
+                    else -> "Read only"
+                })
                 model.savedGauge?.let { saved ->
                     Spacer(Modifier.height(12.dp))
                     InfoLine("Saved reading", listOf("RPM", "Speed", "Engine load", "Coolant", "Fuel")[saved.readingIndex])
@@ -719,6 +743,19 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(onClick = onReadSaved, enabled = !model.scanning) {
                         Text("Read saved gauge state")
+                    }
+                    if (caps.displayRotationWrite && model.savedGauge != null) {
+                        Spacer(Modifier.height(12.dp))
+                        Text("Display rotation", color = TextColor, fontSize = 14.sp)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            (0..3).forEach { rotation ->
+                                FilterChip(selected = model.savedGauge?.rotation == rotation,
+                                    onClick = { onRotate(rotation) },
+                                    enabled = !model.scanning,
+                                    label = { Text("${rotation * 90}°") })
+                            }
+                        }
                     }
                 }
             }

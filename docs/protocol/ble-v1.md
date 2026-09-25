@@ -1,10 +1,10 @@
 # Companion BLE protocol, draft v1
 
-**Draft v1, not implemented.** Freeze only after the dual-link vertical slice. M1 exposes an experimental public capability characteristic at UUID `6f1a0001-9e3b-4f45-a714-69c9d23b6c00`. The integration branch adds the bounded protocol 0 quick-selection operation described below. Full configuration writes and OTA remain disabled.
+**Draft v1, not implemented.** Freeze only after the dual-link vertical slice. M1 exposes an experimental public capability characteristic at UUID `6f1a0001-9e3b-4f45-a714-69c9d23b6c00`. The integration branch adds bounded protocol 0 reading selection and display rotation controls described below. Full configuration writes and OTA remain disabled.
 
 ## Implemented protocol 0 quick selection
 
-The capability JSON advertises `quickSelect: true`, `savedStateRead: true`, `configWrite: false` and `ota: false`. The app must check these flags. The saved-state read reports only the built-in selection and rotation. It does not implement full `config.get`, custom PIDs, threshold writes, diagnostics, OTA, or arbitrary OBD requests.
+The capability JSON advertises `quickSelect: true`, `savedStateRead: true`, `displayRotationWrite: true`, `configWrite: false` and `ota: false`. The app must check these flags. The saved-state read reports only the built-in selection and rotation. It does not implement full `config.get`, custom PIDs, threshold writes, diagnostics, OTA, or arbitrary OBD requests.
 
 The device uses LE Secure Connections, authenticated passkey entry, encryption and bonding. A gauge long press opens a 120-second association window. The six-digit passkey appears on its LCD and Android shows the system pairing prompt. The first authenticated bonded phone identity is stored in NVS as owner. Protected GATT access also checks that identity. A 12-second physical hold erases the owner association and bond, then restarts the gauge. This reset is intentionally local.
 
@@ -14,14 +14,16 @@ Protocol 0 uses two extra characteristics under the service UUID below:
 
 | Prefix | Access | Value |
 | --- | --- | --- |
-| `6f1a0002` | Authenticated write with response | Exactly two bytes: opcode `01`, built-in reading index `00`..`04` |
+| `6f1a0002` | Authenticated write with response | Opcode `01`: two bytes with built-in reading index `00`..`04`. Opcode `02`: six bytes with rotation enum `00`..`03` and little-endian `u32` base legacy revision. |
 | `6f1a0003` | Authenticated read | Legacy version `01`: four bytes with applied index and volatile session revision `u16`. Current version `02`: eight bytes with applied index, saved index, display rotation enum `00`..`03`, and little-endian durable legacy revision `u32` |
 
 Indices are RPM, speed, engine load, coolant temperature, and fuel level. A successful ATT write means the bounded request entered the firmware queue. Android reads state after the write and reports success only when the applied index matches. Firmware saves the choice in existing NVS before publishing it. The old session revision resets on reboot. The version `02` legacy revision persists in NVS, starts at zero for an older saved selection, and increments on each successful legacy save. It is not a v1 full-document revision. A retry of the same index is safe. A failed or ambiguous readback must not be displayed as applied. Android shows the saved snapshot separately from the phone's design draft. Version `02` reuses the existing characteristic so bonded Android devices with a cached GATT database can still read it after an app update.
 
+Rotation writes require the owner and the revision read immediately before the request. Firmware discards a queued rotation if a local touch or another command changed that revision first. Android confirms the requested saved rotation and a higher revision after the write. On the connected development gauge, the Pixel selected 90 degrees and read it back at revision 26; after a firmware monitor reset, an authenticated read still reported 90 degrees. The revision had advanced to 41 during the intervening period, so the exact source of those additional legacy saves remains to be inspected. A saved rotation readback does not by itself prove that every on-screen element or touch coordinate is correctly oriented; visual review is still needed.
+
 This is a development slice requiring phone pairing and LCD review before a production security claim. The pairing UI, Android system dialog behavior, bond recovery, and simultaneous OBD-adapter compatibility need hardware evidence. Runtime Secure Connections-only policy may exclude adapters that require legacy pairing; verify actual adapters before relying on dual-link operation.
 
-The current development image has neither secure boot nor NVS encryption enabled. Bond and owner records therefore need a production storage-protection decision before distributing trusted update or vehicle-changing operations. The bounded quick selector is the only enabled owner write in this image. See [Espressif's ESP32-S3 security guide](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/security/security.html).
+The current development image has neither secure boot nor NVS encryption enabled. Bond and owner records therefore need a production storage-protection decision before distributing trusted update or vehicle-changing operations. Bounded reading selection and display rotation are the only enabled owner writes in this image. See [Espressif's ESP32-S3 security guide](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/security/security.html).
 
 The implementation follows the ESP-IDF NimBLE security settings and Android's system-managed bonding API. See [Espressif's security option reference](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/api-reference/kconfig.html) and [Android `BluetoothDevice.createBond`](https://developer.android.com/reference/android/bluetooth/BluetoothDevice#createBond()). Those references describe platform behavior; they do not prove this exact phone/gauge exchange until observed.
 
@@ -67,7 +69,7 @@ Serialize control requests, wait for semantic result beyond the ATT write acknow
 
 Android keeps a draft tied to `baseRevision`. Begin supplies total JSON UTF-8 length, SHA-256 and schema version. Device rejects >64 KiB or incompatible version before allocation. Chunks use accepted offset and bounded credits. Commit is allowed only after complete hash, schema, semantic references, poll budget, alert units, renderer limits and device capability validation. Stage a new generation, read it back, atomically switch active generation, then emit `APPLIED` with new revision and content hash. A repeat token returns the same result. Revision mismatch returns `CONFLICT` with active revision; app offers reload/rebase, never silent overwrite. Disconnect before commit leaves active config intact; stage expires after 10 minutes. After ambiguous commit, query revision/hash.
 
-The existing 24 KiB NVS partition cannot hold this staged 64 KiB document. [Configuration storage](../architecture/config-storage.md) defines the required custom partition migration and dual-generation apply path. Keep `configWrite: false` until that migration and recovery behavior are implemented.
+The original 24 KiB NVS partition could not hold a staged 64 KiB document. The development board has been migrated to the custom dual-generation [configuration storage](../architecture/config-storage.md) layout, but schema validation, transfer, activation, and recovery are still pending. Keep `configWrite: false` until those paths are implemented and observed.
 
 The app's full Apply state is explicit:
 

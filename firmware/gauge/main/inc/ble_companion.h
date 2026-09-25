@@ -3,6 +3,12 @@
 #include <stdint.h>
 #include "freertos/queue.h"
 
+typedef struct {
+    uint8_t opcode;
+    uint8_t value;
+    uint32_t base_revision;
+} companion_command_t;
+
 typedef struct _ui_t ui_t;
 
 /* Experimental public discovery endpoint. Register before NimBLE host starts. */
@@ -12,8 +18,8 @@ void ble_companion_start(void);
 /* Forget a phone handle after a host reset. */
 void ble_companion_reset(void);
 
-/* Call before BLE host startup. Selection requests are applied by app_main. */
-void ble_companion_set_control(ui_t *ui, QueueHandle_t selection_queue, uint8_t selected_index);
+/* Call before BLE host startup. Owner commands are applied by app_main. */
+void ble_companion_set_control(ui_t *ui, QueueHandle_t command_queue, uint8_t selected_index);
 void ble_companion_open_pairing_window(void);
 void ble_companion_selection_applied(uint8_t selected_index);
 void ble_companion_tick(void);
