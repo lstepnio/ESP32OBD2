@@ -2,7 +2,7 @@
 
 A standalone round OBD-II gauge and native Android companion for vehicle telemetry, flexible PID discovery, dashboard configuration, and recoverable firmware updates.
 
-**Status: design foundation plus a working upstream firmware baseline.** The Waveshare display and touch work on the connected device. Live vehicle communication has not been verified. The companion app, new gauge renderers, custom PID runtime, configuration service, and OTA are specified here but are not implemented in the baseline.
+**Status: design foundation, an Android app foundation, and a working upstream firmware baseline.** The Waveshare display and touch work on the connected device. The Android app builds with simulated data, local dashboard drafts, an offline PID decoder, and a read-only BLE capability reader. Live vehicle communication, configuration transfer, firmware updates, and Android BLE operation on a physical phone have not been verified.
 
 ## Start here
 
@@ -34,13 +34,13 @@ python3 -m venv .venv
 | Path | Purpose |
 | --- | --- |
 | `firmware/gauge/` | Imported ESP-IDF baseline, upstream MIT notice retained; not yet the new architecture |
-| `android/` | Native Android architecture and screen contracts; no APK yet |
+| `android/` | Native Jetpack Compose app, offline demo flows, build instructions, and screen contracts |
 | `contracts/` | Draft JSON Schemas and examples, versioned alongside documentation |
 | `design/` | Shared visual tokens and a dependency-free interaction prototype |
 | `docs/` | Requirements, decisions, protocols, quality gates, sources, and roadmap |
 | `tools/` | Documentation, schema, and semantic validation |
 
-The browser prototype is a review tool, not a WebView implementation strategy. Production UI is planned in Jetpack Compose and LVGL. The gauge operates without a phone after configuration. No account or cloud connection is needed for normal operation.
+The browser prototype is a review tool. The Android app uses Jetpack Compose; gauge UI is planned in LVGL. The gauge operates without a phone after configuration. No account or cloud connection is needed for normal operation.
 
 ## Contribution and licensing
 

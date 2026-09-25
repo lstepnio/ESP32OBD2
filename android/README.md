@@ -1,8 +1,24 @@
 # Android companion architecture
 
-**Design only. There is no Android build or APK in this milestone.** The interactive [browser prototype](../design/prototype/index.html) reviews flows and visual language; production is native Kotlin and Jetpack Compose.
+**Implementation status, 2026-09-25:** a native Kotlin/Jetpack Compose debug app builds. It includes Garage, Design, PIDs, and Device screens, a locally persisted draft, five simulated round renderers, searchable example PID catalog, Mode 01 decoder lab, coolant threshold preview, and a BLE reader for the gauge's experimental public capability characteristic. No adapter, live telemetry, firmware update, code clearing, or device configuration write is implemented. The [browser prototype](../design/prototype/index.html) remains a separate design review artifact.
 
-Use Compose Material 3 primitives with eGauge color/type/spacing tokens, ViewModel + StateFlow, structured coroutines, immutable UI state, Room, DataStore, and constructor injection. Choose and lock stable AGP/Kotlin/Compose versions when creating the first build; no floating dependencies. Proposed minSdk 29; target current stable SDK at implementation, checked against Play requirements if distributing there. [Android architecture recommendations](https://developer.android.com/topic/architecture/recommendations) support separation between UI and repositories.
+## Build and run
+
+Install JDK 17 and Android SDK platform 36. From `android/` run `./gradlew :app:assembleDebug :app:testDebugUnitTest`. Set `ANDROID_HOME` or create an ignored `local.properties` with `sdk.dir` for your machine. The debug APK is `app/build/outputs/apk/debug/app-debug.apk`. Open `android/` in Android Studio, or install with `adb install -r app/build/outputs/apk/debug/app-debug.apk`. No signing or store release is configured.
+
+Gradle 8.13, AGP 8.13.2, Kotlin/Compose compiler 2.3.21 and Compose BOM 2026.05.00 are pinned. The Gradle wrapper checksum and dependency verification metadata are checked in. AGP 8.13.2 supports Kotlin 2.3 and API 36.1; this app compiles and targets API 36 using the installed SDK. [AGP compatibility](https://developer.android.com/build/releases/agp-8-13-0-release-notes), [Compose compiler setup](https://developer.android.com/develop/ui/compose/setup-compose-dependencies-and-compiler).
+
+## Current behavior
+
+The app opens in demo mode. Every synthetic value is labeled. Layout, selected example PID, and coolant warning/critical numbers are saved locally; the disabled Apply button explains that the firmware only exposes read-only protocol 0. "Find nearby gauge" requests the platform BLE permissions, filters for the eGauge service UUID, connects, reads capabilities, and closes the discovery link. Android 10/11 request location for BLE scanning; Android 12+ request Nearby Devices. A missing gauge, disabled Bluetooth, denied permission, timeout, or unsupported protocol remains an explicit state.
+
+The PID explorer searches sample standard requests by name, source, category and hex request. Decoder lab accepts a pasted Mode 01 response for the selected example and rejects malformed, mismatched, overlong, or vehicle-specific input. It sends no OBD request. CEL and update panels show their intended location and unavailable status, without pretend data or active clear/update controls. The firmware branch with this capability characteristic is [M1 transport PR](https://github.com/lstepnio/ESP32OBD2/pull/1); the app can run without it in demo mode.
+
+## Implementation boundary
+
+The current source packages in `:app` are model/state, local draft, BLE capability client, PID decoder, and Compose UI. This avoids premature Gradle module overhead while their contracts settle. The package/module plan below remains the target for the authenticated configuration slice. SharedPreferences holds only a small non-secret draft; migrate to DataStore/Room with schema migration before durable vehicle profiles and catalog evidence. The public BLE read closes immediately after the capability response. Owner association, identity/bond storage, serialized GATT operations, authenticated control, atomic apply, and OTA are still required. A phone or tablet emulator is needed for final layout/accessibility signoff; the current render check used an Android TV emulator because that is the installed image.
+
+Use Compose Material 3 primitives with eGauge color/type/spacing tokens, ViewModel + StateFlow, structured coroutines, immutable UI state, Room, DataStore, and constructor injection as the authenticated app grows. Current local state uses Compose snapshot state in a ViewModel; repositories and persistent profile storage are next. The initial minSdk is 29 and targetSdk is 36; recheck Play requirements before distribution. [Android architecture recommendations](https://developer.android.com/topic/architecture/recommendations) support separation between UI and repositories.
 
 ## Package boundaries
 
