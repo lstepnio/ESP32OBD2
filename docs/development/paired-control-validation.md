@@ -1,6 +1,6 @@
 # Paired control hardware review
 
-Status: pending Android phone access. An integration image was uploaded to the USB gauge, and both source targets build. The latest pairing-window expiry change has been built but not uploaded. None of the pairing or control cases below has been observed yet.
+Status: Android phone is available. On 2026-09-25, commit `cc5641f` was built and uploaded to the USB gauge with three flash image hashes verified, and the current debug APK was installed on a Pixel 10 Pro. The Pixel discovered the gauge and read protocol 0 capabilities with `quickSelect: true`, `configWrite: false`, and `ota: false`. This is public discovery evidence only. Pairing, owner authorization, control write, and applied-state readback remain pending the physical pairing review below.
 
 ## Preparation
 
