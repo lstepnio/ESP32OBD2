@@ -42,6 +42,7 @@
 #include "ota_transfer.h"
 #include "esp_ota_ops.h"
 #include "transfer_gate.h"
+#include "diagnostics_state.h"
 #include "esp_heap_caps.h"
 #include "config_document.h"
 #include "obd.h"
@@ -195,6 +196,7 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
             g_mil_on = (data[0] & 0x80) != 0;
             g_dtc_count = data[0] & 0x7f;
             g_mil_at_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+            diagnostics_state_mil(g_mil_on, g_dtc_count, g_mil_at_ms);
             show_diagnostics(ui);
         }
         return;
@@ -264,7 +266,8 @@ static void obd_task(void *arg)
     const uint32_t period_ms  = 100;
     const uint32_t timeout_ms = 300;
     uint32_t last_mil_poll = 0;
-    uint32_t last_dtc_poll = 0;
+    uint32_t last_dtc_poll[3] = {0};
+    const uint8_t dtc_modes[3] = {3, 7, 10};
 
     while (true)
     {
@@ -283,6 +286,7 @@ static void obd_task(void *arg)
         {
             ui_set_value(ui, NULL);
             g_mil_known = false;
+            diagnostics_state_disconnected();
             show_diagnostics(ui);
             continue;
         }
@@ -292,13 +296,21 @@ static void obd_task(void *arg)
             last_mil_poll = now_ms;
             ble_obd_rxtx(obd, 1, 0x01, 700);
         }
-        if (last_dtc_poll == 0 || now_ms - last_dtc_poll >= 30000) {
-            last_dtc_poll = now_ms;
-            uint8_t codes[64];
-            size_t code_length = sizeof(codes);
-            if (ble_obd_read_service(obd, 3, 1500, codes, &code_length) == 0) {
-                decode_first_dtc(codes, code_length);
-                show_diagnostics(ui);
+        for (unsigned category = 0; category < 3; ++category) {
+            if (last_dtc_poll[category] == 0 ||
+                now_ms - last_dtc_poll[category] >= 30000) {
+                last_dtc_poll[category] = now_ms;
+                uint8_t codes[64];
+                size_t code_length = sizeof(codes);
+                if (ble_obd_read_service(obd, dtc_modes[category], 1500,
+                                         codes, &code_length) == 0) {
+                    diagnostics_state_codes(dtc_modes[category], codes, code_length,
+                                            pdTICKS_TO_MS(xTaskGetTickCount()));
+                    if (category == 0 && (code_length & 1U) == 0) {
+                        decode_first_dtc(codes, code_length);
+                        show_diagnostics(ui);
+                    }
+                }
             }
         }
 
@@ -394,6 +406,7 @@ static void init_config(void)
     ESP_ERROR_CHECK(config_store_init());
     ESP_ERROR_CHECK(config_transfer_init());
     ESP_ERROR_CHECK(ota_transfer_init());
+    ESP_ERROR_CHECK(diagnostics_state_init());
 
     g_runtime = heap_caps_malloc(sizeof(*g_runtime), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (g_runtime && config_runtime_load(g_runtime) == ESP_OK) {

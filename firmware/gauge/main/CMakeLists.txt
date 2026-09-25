@@ -16,6 +16,7 @@ idf_component_register(
         "src/alert_engine.c"
         "src/ota_transfer.c"
         "src/transfer_gate.c"
+        "src/diagnostics_state.c"
         "src/config_document.c"
         "src/pid_decoder.c"
         "src/ui.c"
