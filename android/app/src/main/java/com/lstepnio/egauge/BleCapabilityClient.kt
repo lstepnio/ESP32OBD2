@@ -123,7 +123,12 @@ class BleCapabilityClient(private val context: Context) {
         val gatt = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
             ?: error("Could not connect to the gauge")
         return try { withTimeout(60_000) { result.await() } }
-        finally { gatt.disconnect(); gatt.close() }
+        finally {
+            result.cancel()
+            handler.removeCallbacksAndMessages(null)
+            gatt.disconnect()
+            gatt.close()
+        }
     }
 
     @SuppressLint("MissingPermission")
