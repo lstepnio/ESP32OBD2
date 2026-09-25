@@ -1,0 +1,133 @@
+package com.lstepnio.egauge
+
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattService
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
+import android.content.Context
+import android.os.Build
+import android.os.ParcelUuid
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeout
+import org.json.JSONObject
+import java.util.UUID
+
+/** Only the firmware's public protocol-0 characteristic is read. */
+class BleCapabilityClient(private val context: Context) {
+    private val serviceId = UUID.fromString("6f1a0000-9e3b-4f45-a714-69c9d23b6c00")
+    private val capabilityId = UUID.fromString("6f1a0001-9e3b-4f45-a714-69c9d23b6c00")
+
+    @SuppressLint("MissingPermission")
+    suspend fun readNearby(): CapabilitySnapshot {
+        val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
+            ?: error("This phone has no Bluetooth adapter")
+        if (!adapter.isEnabled) error("Turn on Bluetooth to find the gauge")
+        val scanner = adapter.bluetoothLeScanner ?: error("BLE scanning is unavailable")
+        val found = CompletableDeferred<BluetoothDevice>()
+        val callback = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: ScanResult) {
+                if (!found.isCompleted) {
+                    found.complete(result.device)
+                }
+            }
+            override fun onScanFailed(errorCode: Int) {
+                if (!found.isCompleted) found.completeExceptionally(
+                    IllegalStateException("BLE scan failed ($errorCode)"))
+            }
+        }
+        val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(serviceId)).build()
+        scanner.startScan(
+            listOf(filter),
+            ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),
+            callback,
+        )
+        val device = try {
+            withTimeout(15_000) { found.await() }
+        } finally {
+            scanner.stopScan(callback)
+        }
+        return readCapabilities(device)
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun readCapabilities(device: BluetoothDevice): CapabilitySnapshot {
+        val result = CompletableDeferred<ByteArray>()
+        val callback = object : BluetoothGattCallback() {
+            override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+                if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    if (!result.isCompleted) result.completeExceptionally(
+                        IllegalStateException("Gauge disconnected ($status)"))
+                } else if (newState == BluetoothProfile.STATE_CONNECTED && !gatt.requestMtu(185)) {
+                    discover(gatt)
+                }
+            }
+            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+                discover(gatt)
+            }
+            private fun discover(gatt: BluetoothGatt) {
+                if (!gatt.discoverServices() && !result.isCompleted) {
+                    result.completeExceptionally(IllegalStateException("Could not discover gauge services"))
+                }
+            }
+            override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                val value = if (status == BluetoothGatt.GATT_SUCCESS)
+                    gatt.getService(serviceId)?.getCharacteristic(capabilityId) else null
+                if (value == null || !gatt.readCharacteristic(value)) {
+                    if (!result.isCompleted) result.completeExceptionally(
+                        IllegalStateException("Gauge capability read is unavailable"))
+                }
+            }
+            @Deprecated("Required for Android 10 through 12")
+            override fun onCharacteristicRead(
+                gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int,
+            ) {
+                if (Build.VERSION.SDK_INT < 33) finish(characteristic.uuid, characteristic.value, status)
+            }
+            override fun onCharacteristicRead(
+                gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic,
+                value: ByteArray, status: Int,
+            ) {
+                finish(characteristic.uuid, value, status)
+            }
+            private fun finish(uuid: UUID, bytes: ByteArray, status: Int) {
+                if (result.isCompleted || uuid != capabilityId) return
+                if (status == BluetoothGatt.GATT_SUCCESS) result.complete(bytes.copyOf())
+                else result.completeExceptionally(IllegalStateException("Gauge read failed ($status)"))
+            }
+        }
+        val gatt = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
+            ?: error("Could not connect to the gauge")
+        return try {
+            val bytes = withTimeout(15_000) { result.await() }
+            parseCapabilities(bytes)
+        } finally {
+            gatt.disconnect()
+            gatt.close()
+        }
+    }
+
+    private fun parseCapabilities(bytes: ByteArray): CapabilitySnapshot {
+        val objectValue = JSONObject(bytes.toString(Charsets.UTF_8))
+        val protocol = objectValue.getInt("protocolMajor")
+        if (protocol != 0) error("Unsupported gauge protocol $protocol")
+        val configWrite = objectValue.getBoolean("configWrite")
+        val ota = objectValue.getBoolean("ota")
+        if (configWrite || ota) error("Unexpected experimental capability flags")
+        return CapabilitySnapshot(
+            board = objectValue.getString("board"),
+            protocolMajor = protocol,
+            maxAdapterLinks = objectValue.getInt("maxAdapterLinks").coerceIn(0, 2),
+            simultaneousVerified = objectValue.getBoolean("simultaneousAdapterLinksVerified"),
+            configWrite = configWrite,
+            ota = ota,
+        )
+    }
+}

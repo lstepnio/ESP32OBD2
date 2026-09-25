@@ -226,7 +226,9 @@ function gaugeSvg(mini = false) {
     scenario = state.scenario,
     v = valueFor(p),
     unit = unitFor(p),
-    label = p.name.toUpperCase();
+    label = ({rpm: "ENGINE RPM", coolant: "COOLANT", speed: "SPEED", load: "ENGINE LOAD",
+      intake: "INTAKE AIR", voltage: "ECU VOLTAGE", throttle: "THROTTLE", fuel: "FUEL LEVEL",
+      "tcm-speed": "INPUT SPEED"})[p.id] || p.name.toUpperCase();
   if (scenario === "warning")
     v = valueFor(catalog[1], Math.max(state.coolant, state.warning + 1));
   const color =
@@ -241,15 +243,15 @@ function gaugeSvg(mini = false) {
       ? "STALE · 8s old"
       : scenario === "offline"
         ? "ADAPTER OFFLINE"
-        : "SIMULATED";
+        : "DEMO";
   const text = (x, y, t, size, fill = "#F2F5EF", weight = 500) =>
-    `<text x="${x}" y="${y}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${size}" font-weight="${weight}" fill="${fill}">${t}</text>`;
+    `<text x="${x}" y="${y}" text-anchor="middle" font-family="Noto Sans, Arial, sans-serif" font-size="${size}" font-weight="${weight}" font-variant-numeric="tabular-nums" fill="${fill}">${t}</text>`;
   if (state.updateStarted && !state.updateDone) {
     body = `${text(120, 62, "FIRMWARE UPDATE", 15, "#B7F36B")}${text(120, 130, Math.round(state.update) + "%", 56)}${text(120, 163, state.updatePaused ? "Transfer paused" : "Demo maintenance", 15, "#A9BABD")}${text(120, 189, "READINGS PAUSED", 11, "#FFCB66")}`;
   } else if (scenario === "critical" && !state.ack) {
     body = `<circle cx="120" cy="120" r="111" fill="none" stroke="#FF7E79" stroke-width="5"/>${text(120, 62, "HIGH COOLANT", 16, "#FF7E79", 700)}${text(120, 134, valueFor(catalog[1], Math.max(state.coolant, state.critical + 3)), 62)}${text(120, 159, unitFor(catalog[1]), 18)}${text(120, 187, "Tap to acknowledge", 13, "#FF7E79")}`;
   } else if (scenario === "cel") {
-    body = `${text(120, 56, "CHECK ENGINE", 16, "#FFCB66", 700)}${text(120, 113, state.cleared ? "P0420" : "P0300", 40)}${text(120, 146, state.cleared ? "Permanent code" : "Random misfire", 16)}${text(120, 170, state.cleared ? "ECU must verify repair" : "Confirmed · ECU 7E8", 13, "#A9BABD")}${text(120, 192, "DEMO DIAGNOSTICS", 10, "#A9BABD")}`;
+    body = `${text(120, 56, "CHECK ENGINE", 16, "#FFCB66", 700)}${text(120, 113, state.cleared ? "P0420" : "P0300", 40)}${text(120, 146, state.cleared ? "Permanent code" : "Random misfire", 16)}${text(120, 170, state.cleared ? "ECU must verify repair" : "Confirmed · ECU 7E8", 13, "#A9BABD")}${text(120, 192, "DEMO DATA", 11, "#A9BABD")}`;
   } else {
     const value = scenario === "offline" ? "--" : fmt(v);
     const valueColor = scenario === "stale" ? "#A9BABD" : "#F2F5EF";
@@ -262,7 +264,7 @@ function gaugeSvg(mini = false) {
     else if (state.layout === "trend")
       body = `${text(120, 61, label, 13, "#A9BABD")}${text(120, 108, value, 44, valueColor)}${text(120, 130, unit, 16, "#A9BABD")}<path d="M43 175H197" stroke="#344247"/>${scenario === "offline" ? "" : `<path d="M43 168 58 162 72 166 88 150 102 153 117 149 132 140 147 149 162 141 178 142 196 135" fill="none" stroke="${color}" stroke-width="2"/>`}${text(120, 193, "LAST 60 SECONDS · DEMO", 10, "#A9BABD")}`;
     else
-      body = `${text(120, 56, label, 12, "#A9BABD")}${text(120, 93, value, 39, valueColor)}${text(120, 114, unit, 16, "#A9BABD")}<path d="M57 126H183" stroke="#344247"/>${text(120, 151, (catalog.find((p) => p.id === state.secondary).sourceId.toUpperCase() + " · " + (state.secondary === "tcm-speed" ? "INPUT SPEED" : catalog.find((p) => p.id === state.secondary).name)).toUpperCase(), 12, "#A9BABD")}${text(120, 184, scenario === "offline" ? "--" : valueFor(catalog.find((p) => p.id === state.secondary)) + " " + unitFor(catalog.find((p) => p.id === state.secondary)), 31, color)}`;
+      body = `${text(120, 56, label, 12, "#A9BABD")}${text(120, 93, value, 39, valueColor)}${text(120, 114, unit, 16, "#A9BABD")}<path d="M57 126H183" stroke="#344247"/>${text(120, 151, catalog.find((p) => p.id === state.secondary).sourceId.toUpperCase() + " · " + (state.secondary === "tcm-speed" ? "INPUT SPEED" : catalog.find((p) => p.id === state.secondary).name.toUpperCase().slice(0, 14)), 12, "#A9BABD")}${text(120, 184, scenario === "offline" ? "--" : valueFor(catalog.find((p) => p.id === state.secondary)) + " " + unitFor(catalog.find((p) => p.id === state.secondary)), 31, color)}`;
     if (scenario === "warning") {
       body +=
         '<circle cx="120" cy="120" r="111" fill="none" stroke="#FFCB66" stroke-width="3"/>';
@@ -270,10 +272,11 @@ function gaugeSvg(mini = false) {
     }
     body += text(
       120,
-      215,
+      199,
       state.ack ? "ALERT ACTIVE" : status,
-      9,
+      11,
       state.ack ? "#FF7E79" : "#A9BABD",
+      700,
     );
   }
   return `<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="120" cy="120" r="120" fill="#0C1114"/>${body}</svg>`;
