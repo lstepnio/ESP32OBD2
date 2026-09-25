@@ -327,6 +327,15 @@ private fun DesignScreen(model: AppViewModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("01 / Your dashboard", "Make every signal count.",
             "Editing ${model.profileCollection.active.name}. Choose a reading and a layout; values are simulated.")
+        if (model.profileError != null) {
+            Panel {
+                Text("Local profile editing paused", color = CriticalColor,
+                    fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text("The saved profile format could not be opened. Your data has not been replaced.",
+                    color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
+            }
+            return@Column
+        }
         RoundPreview(pid, model.draft.layout)
         Spacer(Modifier.height(22.dp))
         SectionHeading("Renderer")
@@ -550,7 +559,8 @@ private fun PidsScreen(model: AppViewModel) {
                     Spacer(Modifier.height(8.dp))
                     Text(pid.evidence, color = WarningColor, fontSize = 12.sp)
                     Spacer(Modifier.height(8.dp))
-                    OutlinedButton(onClick = { model.selectPid(pid); model.navigate(Destination.Design) }) {
+                    OutlinedButton(onClick = { model.selectPid(pid); model.navigate(Destination.Design) },
+                        enabled = model.profileError == null) {
                         Text("Use in preview")
                     }
                 }
