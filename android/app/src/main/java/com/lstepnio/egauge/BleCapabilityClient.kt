@@ -354,7 +354,7 @@ class BleCapabilityClient(private val context: Context) {
             maxAdapterLinks = objectValue.getInt("maxAdapterLinks").coerceIn(0, 2),
             simultaneousVerified = objectValue.getBoolean("simultaneousAdapterLinksVerified"),
             configWrite = configWrite,
-            configRead = objectValue.optBoolean("configRead", false),
+            savedStateRead = objectValue.optBoolean("savedStateRead", false),
             quickSelect = objectValue.optBoolean("quickSelect", false),
             ota = ota,
         )

@@ -147,7 +147,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 model.selectionApplied(model.bleClient.selectNearby(index))
-                if (model.capabilities?.configRead == true) {
+                if (model.capabilities?.savedStateRead == true) {
                     model.markScanning(true)
                     delay(350)
                     try {
@@ -715,7 +715,7 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                     Text(if (model.scanning) "Connecting…" else if (model.draft.pidId == "tcm")
                         "No built-in TCM reading" else "Set preview reading on gauge")
                 }
-                if (caps.configRead) {
+                if (caps.savedStateRead) {
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(onClick = onReadSaved, enabled = !model.scanning) {
                         Text("Read saved gauge state")

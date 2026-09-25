@@ -4,7 +4,7 @@
 
 ## Implemented protocol 0 quick selection
 
-The capability JSON advertises `quickSelect: true`, `configRead: true`, `configWrite: false` and `ota: false`. The app must check these flags. This operation does not enable custom PIDs, threshold writes, diagnostics, OTA, or arbitrary OBD requests.
+The capability JSON advertises `quickSelect: true`, `savedStateRead: true`, `configWrite: false` and `ota: false`. The app must check these flags. The saved-state read reports only the built-in selection and rotation. It does not implement full `config.get`, custom PIDs, threshold writes, diagnostics, OTA, or arbitrary OBD requests.
 
 The device uses LE Secure Connections, authenticated passkey entry, encryption and bonding. A gauge long press opens a 120-second association window. The six-digit passkey appears on its LCD and Android shows the system pairing prompt. The first authenticated bonded phone identity is stored in NVS as owner. Protected GATT access also checks that identity. A 12-second physical hold erases the owner association and bond, then restarts the gauge. This reset is intentionally local.
 

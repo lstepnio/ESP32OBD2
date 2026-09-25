@@ -91,7 +91,7 @@ static bool save_owner(const ble_addr_t *owner)
 static const char capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
     "\"maxAdapterLinks\":2,\"simultaneousAdapterLinksVerified\":false,"
-    "\"configRead\":true,\"configWrite\":false,\"quickSelect\":true,\"ota\":false}";
+    "\"savedStateRead\":true,\"configWrite\":false,\"quickSelect\":true,\"ota\":false}";
 
 /* Protocol 0 quick-select request: byte 0 = 1, byte 1 = built-in PID index 0..4.
  * A successful ATT write queues a request; the authenticated state read confirms apply. */

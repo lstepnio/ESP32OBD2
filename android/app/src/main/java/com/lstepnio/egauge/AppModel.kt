@@ -67,7 +67,7 @@ data class CapabilitySnapshot(
     val maxAdapterLinks: Int,
     val simultaneousVerified: Boolean,
     val configWrite: Boolean,
-    val configRead: Boolean,
+    val savedStateRead: Boolean,
     val quickSelect: Boolean,
     val ota: Boolean,
 )
