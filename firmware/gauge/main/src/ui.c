@@ -81,12 +81,14 @@ struct _ui_t
 // ---------------------------------------------------------------------------------------------------------------------
 
 extern const lv_font_t notosans_semibold_64;
+extern const lv_font_t notosans_semibold_32;
 extern const lv_font_t notosans_medium_16;
 extern const lv_font_t notosans_medium_24;
 
 static const lv_font_t *const font_title    = &notosans_semibold_64;
-static const lv_font_t *const font_subtitle = &notosans_medium_24;
-static const lv_font_t *const font_unit     = &notosans_medium_16;
+static const lv_font_t *const font_compact  = &notosans_semibold_32;
+static const lv_font_t *const font_subtitle = &notosans_medium_16;
+static const lv_font_t *const font_unit     = &notosans_medium_24;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Private Function Definitions
@@ -123,14 +125,16 @@ static void ui_align_labels(ui_t *ui)
 {
     lv_obj_t *scr = lv_screen_active();
     ESP_NULL_CHECK(scr, TAG, "Current screen is NULL");
-
-    // info label
-    lv_obj_align_to(ui->widgets.info_lbl, ui->widgets.value_lbl, LV_ALIGN_OUT_BOTTOM_MID, 0, 12);
-
-    // unit label
-    lv_obj_set_x(ui->widgets.unit_lbl, lv_obj_get_width(scr) - 44);
-    lv_obj_set_y(ui->widgets.unit_lbl, lv_obj_get_y(ui->widgets.value_lbl) + lv_obj_get_height(ui->widgets.value_lbl) -
-                                           lv_obj_get_height(ui->widgets.unit_lbl) - 10);
+    // Essential text stays inside the circle's 104 px safe radius. Its lower
+    // corners disappear well before the 240 x 240 frame ends.
+    int32_t safe_width = lv_obj_get_width(scr) - 74;
+    if (safe_width < 80) safe_width = lv_obj_get_width(scr);
+    lv_obj_set_width(ui->widgets.info_lbl, safe_width);
+    lv_obj_set_width(ui->widgets.value_lbl, safe_width);
+    lv_obj_set_width(ui->widgets.unit_lbl, safe_width);
+    lv_obj_align(ui->widgets.info_lbl, LV_ALIGN_TOP_MID, 0, 48);
+    lv_obj_align(ui->widgets.value_lbl, LV_ALIGN_TOP_MID, 0, 78);
+    lv_obj_align(ui->widgets.unit_lbl, LV_ALIGN_TOP_MID, 0, 158);
 }
 
 static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, const char *unit)
@@ -140,10 +144,14 @@ static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, c
     if (value != NULL)
     {
         lv_label_set_text_fmt(ui->widgets.value_lbl, "%" PRId32, *value);
+        lv_obj_set_style_text_font(ui->widgets.value_lbl,
+                                   strlen(lv_label_get_text(ui->widgets.value_lbl)) > 4 ? font_compact : font_title,
+                                   LV_PART_MAIN);
     }
     else
     {
         lv_label_set_text(ui->widgets.value_lbl, "...");
+        lv_obj_set_style_text_font(ui->widgets.value_lbl, font_title, LV_PART_MAIN);
     }
 
     if (info != NULL)
@@ -217,7 +225,7 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     lv_obj_set_style_text_color(value_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(value_lbl, font_title, LV_PART_MAIN);
     lv_obj_set_style_text_align(value_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_center(value_lbl);
+    lv_label_set_long_mode(value_lbl, LV_LABEL_LONG_DOT);
 
     // Info label
     lv_obj_t *info_lbl = lv_label_create(scr);
@@ -226,15 +234,16 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     lv_obj_set_style_text_color(info_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(info_lbl, font_subtitle, LV_PART_MAIN);
     lv_obj_set_style_text_align(info_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(info_lbl, LV_LABEL_LONG_DOT);
 
-    // Unit label (bottom-aligned with widgets.value_lbl, right edge)
+    // Unit label centered below the number, away from the curved right edge.
     lv_obj_t *unit_lbl = lv_label_create(scr);
     ESP_NULL_CHECK(unit_lbl, TAG, "Failed to create unit label");
     lv_label_set_text(unit_lbl, cfg->unit ? cfg->unit : "");
     lv_obj_set_style_text_color(unit_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(unit_lbl, font_unit, LV_PART_MAIN);
-    lv_obj_set_style_text_align(unit_lbl, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
-    lv_obj_align_to(info_lbl, value_lbl, LV_ALIGN_OUT_RIGHT_BOTTOM, 0, 0);
+    lv_obj_set_style_text_align(unit_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(unit_lbl, LV_LABEL_LONG_DOT);
 
     ui->widgets.value_lbl = value_lbl;
     ui->widgets.info_lbl  = info_lbl;
