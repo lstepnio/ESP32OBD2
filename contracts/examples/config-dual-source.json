@@ -1,0 +1,245 @@
+{
+  "schemaVersion": 1,
+  "baseRevision": 0,
+  "vehicleProfileId": "example.vehicle",
+  "units": "metric",
+  "rotation": 0,
+  "brightness": 80,
+  "reducedMotion": false,
+  "definitions": [
+    {
+      "schemaVersion": 1,
+      "id": "engine.rpm",
+      "revision": 1,
+      "name": "Engine RPM",
+      "unit": "rpm",
+      "request": {
+        "service": "01",
+        "identifier": "0C",
+        "route": "functional",
+        "responseId": "7E8"
+      },
+      "response": {
+        "prefix": "410C",
+        "minPayloadBytes": 2
+      },
+      "decoder": {
+        "byteOffset": 0,
+        "byteLength": 2,
+        "endian": "big",
+        "signed": false,
+        "numerator": 1,
+        "denominator": 4,
+        "offset": 0
+      },
+      "range": {
+        "min": 0,
+        "max": 16383.75
+      },
+      "pollIntervalMs": 500,
+      "staleAfterMs": 2000,
+      "provenance": {
+        "source": "Standard OBD-II numeric example; sample is synthetic",
+        "license": "Project-authored example",
+        "vehicleScope": "Example CAN ECU 7E8 only; discover actual responder",
+        "evidence": "synthetic"
+      },
+      "vectors": [
+        {
+          "payloadHex": "1AF8",
+          "expected": 1726
+        }
+      ],
+      "sourceId": "ecm"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "engine.coolant",
+      "revision": 1,
+      "name": "Coolant temperature",
+      "unit": "degC",
+      "request": {
+        "service": "01",
+        "identifier": "05",
+        "route": "functional",
+        "responseId": "7E8"
+      },
+      "response": {
+        "prefix": "4105",
+        "minPayloadBytes": 1
+      },
+      "decoder": {
+        "byteOffset": 0,
+        "byteLength": 1,
+        "endian": "big",
+        "signed": false,
+        "numerator": 1,
+        "denominator": 1,
+        "offset": -40
+      },
+      "range": {
+        "min": -40,
+        "max": 215
+      },
+      "pollIntervalMs": 500,
+      "staleAfterMs": 2000,
+      "provenance": {
+        "source": "Standard OBD-II numeric example; sample is synthetic",
+        "license": "Project-authored example",
+        "vehicleScope": "Example CAN ECU 7E8 only; discover actual responder",
+        "evidence": "synthetic"
+      },
+      "vectors": [
+        {
+          "payloadHex": "7B",
+          "expected": 83
+        }
+      ],
+      "sourceId": "ecm"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "vehicle.speed",
+      "revision": 1,
+      "name": "Vehicle speed",
+      "unit": "kph",
+      "request": {
+        "service": "01",
+        "identifier": "0D",
+        "route": "functional",
+        "responseId": "7E8"
+      },
+      "response": {
+        "prefix": "410D",
+        "minPayloadBytes": 1
+      },
+      "decoder": {
+        "byteOffset": 0,
+        "byteLength": 1,
+        "endian": "big",
+        "signed": false,
+        "numerator": 1,
+        "denominator": 1,
+        "offset": 0
+      },
+      "range": {
+        "min": 0,
+        "max": 255
+      },
+      "pollIntervalMs": 500,
+      "staleAfterMs": 2000,
+      "provenance": {
+        "source": "Standard OBD-II numeric example; sample is synthetic",
+        "license": "Project-authored example",
+        "vehicleScope": "Example CAN ECU 7E8 only; discover actual responder",
+        "evidence": "synthetic"
+      },
+      "vectors": [
+        {
+          "payloadHex": "32",
+          "expected": 50
+        }
+      ],
+      "sourceId": "ecm"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "tcm.example-speed",
+      "revision": 1,
+      "name": "Synthetic TCM speed",
+      "unit": "rpm",
+      "request": {
+        "service": "01",
+        "identifier": "0C",
+        "route": "functional",
+        "responseId": "7E8"
+      },
+      "response": {
+        "prefix": "410C",
+        "minPayloadBytes": 2
+      },
+      "decoder": {
+        "byteOffset": 0,
+        "byteLength": 2,
+        "endian": "big",
+        "signed": false,
+        "numerator": 1,
+        "denominator": 4,
+        "offset": 0
+      },
+      "range": {
+        "min": 0,
+        "max": 16383.75
+      },
+      "pollIntervalMs": 500,
+      "staleAfterMs": 2000,
+      "provenance": {
+        "source": "Synthetic fixture with overlapping CAN responder and PID",
+        "license": "Project-authored example",
+        "vehicleScope": "Synthetic second source example only; not a real TCM compatibility claim",
+        "evidence": "synthetic"
+      },
+      "vectors": [
+        {
+          "payloadHex": "1AF8",
+          "expected": 1726
+        }
+      ],
+      "sourceId": "tcm"
+    }
+  ],
+  "pages": [
+    {
+      "id": "page.engine",
+      "name": "Engine",
+      "renderer": "arc",
+      "pidIds": [
+        "engine.rpm"
+      ]
+    },
+    {
+      "id": "page.thermal",
+      "name": "Thermal",
+      "renderer": "dual",
+      "pidIds": [
+        "engine.coolant",
+        "vehicle.speed"
+      ]
+    },
+    {
+      "id": "page.dual-source",
+      "name": "ECM and TCM example",
+      "renderer": "dual",
+      "pidIds": [
+        "engine.rpm",
+        "tcm.example-speed"
+      ]
+    }
+  ],
+  "alerts": [
+    {
+      "id": "alert.coolant",
+      "pidId": "engine.coolant",
+      "direction": "above",
+      "warning": 105,
+      "critical": 115,
+      "hysteresis": 3,
+      "triggerDwellMs": 2000,
+      "clearDwellMs": 5000,
+      "snoozeMs": 30000,
+      "priority": 8
+    }
+  ],
+  "sources": [
+    {
+      "id": "ecm",
+      "label": "Engine adapter",
+      "role": "ecm"
+    },
+    {
+      "id": "tcm",
+      "label": "Transmission adapter",
+      "role": "tcm"
+    }
+  ]
+}

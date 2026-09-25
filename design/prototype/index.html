@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>eGauge · Companion design studio</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <a class="brand" href="./" aria-label="eGauge design home"
+        ><span class="brand-mark">e</span>eGauge<span class="brand-sub"
+          >COMPANION STUDIO</span
+        ></a
+      ><span class="prototype-badge"
+        ><i></i> Interactive concept · simulated data</span
+      ><a class="doc-link" href="../../docs/design/design-system.md"
+        >Design specification ↗</a
+      >
+    </header>
+    <div class="workspace">
+      <aside class="sidebar">
+        <div>
+          <p class="eyebrow">THE EXPERIENCE</p>
+          <nav aria-label="Design sections" id="studio-nav"></nav>
+        </div>
+        <div class="sidebar-bottom">
+          <span class="tiny-orbit">◉</span>
+          <p>One system.<br />Every signal.</p>
+          <small>ESP32-S3 · Android<br />Design draft 0.1</small
+          ><a href="../../README.md">Project documentation ↗</a>
+        </div>
+      </aside>
+      <main>
+        <div class="heading">
+          <div>
+            <p class="eyebrow" id="section-number">01 / YOUR DASHBOARD</p>
+            <h1 id="headline">Your vehicle.<br />In clear view.</h1>
+          </div>
+          <p class="intro" id="intro">
+            The data you need. The way you see it.<br />Build a view that feels
+            like your own.
+          </p>
+        </div>
+        <div class="stage">
+          <section class="gauge-column" aria-label="ESP32 gauge preview">
+            <div class="section-label">
+              <span>ON THE GAUGE</span><span>240 × 240</span>
+            </div>
+            <div class="hardware-wrap">
+              <div class="hardware">
+                <div
+                  id="gauge"
+                  role="img"
+                  aria-label="Simulated gauge reading"
+                ></div>
+              </div>
+              <div class="hardware-shadow"></div>
+            </div>
+            <div class="gauge-description">
+              <h2 id="gauge-title">Arc / Engine RPM</h2>
+              <p id="gauge-subtitle">
+                A clear reading, with context at a glance.
+              </p>
+            </div>
+            <div class="scenario-block">
+              <label for="scenario">PREVIEW A STATE</label
+              ><select id="scenario">
+                <option value="live">Fresh data</option>
+                <option value="stale">Stale reading</option>
+                <option value="offline">Adapter disconnected</option>
+                <option value="warning">Warning temperature threshold</option>
+                <option value="critical">Critical temperature alert</option>
+                <option value="cel">Check engine light</option>
+              </select>
+            </div>
+            <div id="gauge-action"></div>
+            <div class="connection-story">
+              <span class="story-dot"></span>
+              <div>
+                <strong>Runs independently.</strong>
+                <p>
+                  Your pages and warnings stay on the gauge.<br />The phone can
+                  leave the vehicle.
+                </p>
+              </div>
+            </div>
+            <p class="simulation-note">
+              Preview only. No vehicle or device is connected.
+            </p>
+          </section>
+          <section
+            class="phone-column"
+            aria-label="Android companion prototype"
+          >
+            <div class="section-label">
+              <span>IN THE COMPANION APP</span><span>ANDROID</span>
+            </div>
+            <div class="phone">
+              <div class="phone-status" aria-hidden="true">
+                <span>9:41</span><span class="camera"></span
+                ><span>▂▄▆ &nbsp; ▰</span>
+              </div>
+              <div class="app-bar">
+                <span class="app-wordmark"
+                  >eGauge<span class="accent-dot">.</span></span
+                ><span class="demo-pill">DEMO</span>
+              </div>
+              <div id="phone-content" class="phone-content"></div>
+              <nav
+                id="phone-nav"
+                class="phone-nav"
+                aria-label="Companion navigation"
+              ></nav>
+            </div>
+          </section>
+        </div>
+        <footer class="studio-footer">
+          <span>Designed for a glance. Built around your vehicle.</span
+          ><span>01 / PRODUCT EXPLORATION</span>
+        </footer>
+      </main>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <dialog id="clear-dialog">
+      <form method="dialog">
+        <p class="eyebrow">DEMO DIAGNOSTICS</p>
+        <h2>Clear emissions codes?</h2>
+        <p>
+          This simulates a Mode 04 request to the selected ECU. It can erase
+          diagnostic information and reset readiness monitors. It does not
+          repair the fault.
+        </p>
+        <p>Permanent codes may remain until the vehicle verifies the repair.</p>
+        <label class="confirm-check"
+          ><input type="checkbox" id="clear-confirm" /> I confirm the example
+          vehicle is parked, ignition on, engine off.</label
+        >
+        <div class="dialog-actions">
+          <button value="cancel" class="secondary">Cancel</button
+          ><button type="button" id="confirm-clear" class="danger" disabled>
+            Simulate clear &amp; read back
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

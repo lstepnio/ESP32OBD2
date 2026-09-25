@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "version": "0.1.0-development",
+  "releaseSequence": 1,
+  "boardId": "waveshare-esp32-s3-touch-lcd-1.28",
+  "boardRevisions": [
+    "example-unverified"
+  ],
+  "chip": "esp32s3",
+  "partitionLayout": "egauge-16m-ab-v1",
+  "imageBytes": 1048576,
+  "imageSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "releaseNotesSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "protocolMajor": 1,
+  "configSchemaMin": 1,
+  "configSchemaMax": 1,
+  "minimumBootloader": "0.1.0",
+  "channel": "development",
+  "keyId": "example-not-trusted",
+  "metadataSignatureAlgorithm": "ecdsa-p256-sha256-jcs",
+  "imageSignature": "esp-idf-signed-app"
+}

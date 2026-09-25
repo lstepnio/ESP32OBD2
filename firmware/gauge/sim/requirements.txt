@@ -1,0 +1,2 @@
+bluezero==0.9.1
+pydbus==0.6.0

@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lstepnio.github.io/ESP32OBD2/contracts/config.schema.json",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "baseRevision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "vehicleProfileId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9._-]*$"
+    },
+    "units": {
+      "enum": [
+        "metric",
+        "imperial"
+      ]
+    },
+    "rotation": {
+      "enum": [
+        0,
+        90,
+        180,
+        270
+      ]
+    },
+    "brightness": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 100
+    },
+    "reducedMotion": {
+      "type": "boolean"
+    },
+    "definitions": {
+      "type": "array",
+      "items": {
+        "$ref": "pid-definition.schema.json"
+      },
+      "minItems": 1,
+      "maxItems": 32
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9._-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "renderer": {
+            "enum": [
+              "numeric",
+              "arc",
+              "bar",
+              "trend",
+              "dual"
+            ]
+          },
+          "pidIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9._-]*$"
+            },
+            "minItems": 1,
+            "maxItems": 2,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "renderer",
+          "pidIds"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 8
+    },
+    "alerts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9._-]*$"
+          },
+          "pidId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9._-]*$"
+          },
+          "direction": {
+            "enum": [
+              "above",
+              "below"
+            ]
+          },
+          "warning": {
+            "type": "number",
+            "minimum": -1000000000000.0,
+            "maximum": 1000000000000.0
+          },
+          "critical": {
+            "type": "number",
+            "minimum": -1000000000000.0,
+            "maximum": 1000000000000.0
+          },
+          "hysteresis": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000000.0
+          },
+          "triggerDwellMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 60000
+          },
+          "clearDwellMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 60000
+          },
+          "snoozeMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 600000
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "id",
+          "pidId",
+          "direction",
+          "hysteresis",
+          "triggerDwellMs",
+          "clearDwellMs",
+          "snoozeMs",
+          "priority"
+        ],
+        "additionalProperties": false,
+        "anyOf": [
+          {
+            "required": [
+              "warning"
+            ]
+          },
+          {
+            "required": [
+              "critical"
+            ]
+          }
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 32
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
+            "pattern": "^[a-z][a-z0-9._-]*$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "role": {
+            "enum": [
+              "ecm",
+              "tcm",
+              "other"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "baseRevision",
+    "vehicleProfileId",
+    "units",
+    "rotation",
+    "brightness",
+    "reducedMotion",
+    "definitions",
+    "pages",
+    "alerts",
+    "sources"
+  ],
+  "additionalProperties": false
+}

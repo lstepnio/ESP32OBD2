@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "vehicle.speed",
+  "revision": 1,
+  "name": "Vehicle speed",
+  "unit": "kph",
+  "request": {
+    "service": "01",
+    "identifier": "0D",
+    "route": "functional",
+    "responseId": "7E8"
+  },
+  "response": {
+    "prefix": "410D",
+    "minPayloadBytes": 1
+  },
+  "decoder": {
+    "byteOffset": 0,
+    "byteLength": 1,
+    "endian": "big",
+    "signed": false,
+    "numerator": 1,
+    "denominator": 1,
+    "offset": 0
+  },
+  "range": {
+    "min": 0,
+    "max": 255
+  },
+  "pollIntervalMs": 500,
+  "staleAfterMs": 2000,
+  "provenance": {
+    "source": "Standard OBD-II numeric example; sample is synthetic",
+    "license": "Project-authored example",
+    "vehicleScope": "Example CAN ECU 7E8 only; discover actual responder",
+    "evidence": "synthetic"
+  },
+  "vectors": [
+    {
+      "payloadHex": "32",
+      "expected": 50
+    }
+  ],
+  "sourceId": "ecm"
+}

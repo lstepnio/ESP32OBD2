@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lstepnio.github.io/ESP32OBD2/contracts/pid-definition.schema.json",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9._-]*$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "service": {
+          "enum": [
+            "01",
+            "22"
+          ]
+        },
+        "identifier": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4,
+          "pattern": "^[0-9A-F]{2}([0-9A-F]{2})?$"
+        },
+        "route": {
+          "enum": [
+            "functional",
+            "can11_physical"
+          ]
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 3,
+          "pattern": "^[0-7][0-9A-F]{2}$"
+        },
+        "responseId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 3,
+          "pattern": "^[0-7][0-9A-F]{2}$"
+        }
+      },
+      "required": [
+        "service",
+        "identifier",
+        "route",
+        "responseId"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "prefix": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 6,
+          "pattern": "^[0-9A-F]{4}([0-9A-F]{2})?$"
+        },
+        "minPayloadBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        }
+      },
+      "required": [
+        "prefix",
+        "minPayloadBytes"
+      ],
+      "additionalProperties": false
+    },
+    "decoder": {
+      "type": "object",
+      "properties": {
+        "byteOffset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4095
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "endian": {
+          "enum": [
+            "big",
+            "little"
+          ]
+        },
+        "signed": {
+          "type": "boolean"
+        },
+        "numerator": {
+          "type": "integer",
+          "minimum": -1000000,
+          "maximum": 1000000
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "offset": {
+          "type": "number",
+          "minimum": -1000000000.0,
+          "maximum": 1000000000.0
+        }
+      },
+      "required": [
+        "byteOffset",
+        "byteLength",
+        "endian",
+        "signed",
+        "numerator",
+        "denominator",
+        "offset"
+      ],
+      "additionalProperties": false
+    },
+    "range": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": "number",
+          "minimum": -1000000000000.0,
+          "maximum": 1000000000000.0
+        },
+        "max": {
+          "type": "number",
+          "minimum": -1000000000000.0,
+          "maximum": 1000000000000.0
+        }
+      },
+      "required": [
+        "min",
+        "max"
+      ],
+      "additionalProperties": false
+    },
+    "pollIntervalMs": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 60000
+    },
+    "staleAfterMs": {
+      "type": "integer",
+      "minimum": 200,
+      "maximum": 180000
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "vehicleScope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "evidence": {
+          "enum": [
+            "synthetic",
+            "documented",
+            "vehicle_observed"
+          ]
+        }
+      },
+      "required": [
+        "source",
+        "license",
+        "vehicleScope",
+        "evidence"
+      ],
+      "additionalProperties": false
+    },
+    "vectors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "payloadHex": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192,
+            "pattern": "^([0-9A-F]{2})+$"
+          },
+          "expected": {
+            "type": "number",
+            "minimum": -1000000000000.0,
+            "maximum": 1000000000000.0
+          }
+        },
+        "required": [
+          "payloadHex",
+          "expected"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 16
+    },
+    "sourceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32,
+      "pattern": "^[a-z][a-z0-9._-]*$"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "revision",
+    "name",
+    "unit",
+    "request",
+    "response",
+    "decoder",
+    "range",
+    "pollIntervalMs",
+    "staleAfterMs",
+    "provenance",
+    "vectors",
+    "sourceId"
+  ],
+  "additionalProperties": false
+}

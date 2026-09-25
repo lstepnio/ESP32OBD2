@@ -1,0 +1,19 @@
+# Local reference and retired hardware bring-up sketches
+/references/
+/firmware/ESP32-S3-Touch-LCD-1.28-Test/
+/firmware/hello_serial/
+.DS_Store
+**/build/
+**/managed_components/
+**/sdkconfig.old
+**/dependencies.lock
+.venv/
+__pycache__/
+*.pyc
+.gradle/
+local.properties
+.idea/
+*.jks
+*.keystore
+*.pem
+artifacts/

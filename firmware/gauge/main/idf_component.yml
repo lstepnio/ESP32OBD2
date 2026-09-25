@@ -1,0 +1,11 @@
+dependencies:
+  idf:
+    version: '>=4.1.0'
+  lvgl/lvgl: 9.2.2
+  espressif/esp_lvgl_port: 2.7.2
+  janos/waveshare_lcd_128_round_touch:
+    path: ../bsp/waveshare_lcd_128_round_touch
+  espressif/cmake_utilities: 0.5.3
+  espressif/esp_lcd_gc9a01: 2.0.4
+  espressif/esp_lcd_touch: 1.2.1
+  espressif/esp_lcd_touch_cst816s: 1.1.2

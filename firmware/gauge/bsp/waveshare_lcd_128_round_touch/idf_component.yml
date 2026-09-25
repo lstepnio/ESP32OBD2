@@ -1,0 +1,10 @@
+description: BSP for Waveshare ESP32-S3 with 1.28" round touch LCD
+targets:
+  - esp32s3
+version: "0.1.0"
+dependencies:
+  idf: ">=5.0"
+  espressif/esp_lvgl_port: ^2.5.0
+  espressif/esp_lcd_gc9a01: ^2.0.2
+  espressif/esp_lcd_touch: '*'
+  espressif/esp_lcd_touch_cst816s: ^1.0.6
