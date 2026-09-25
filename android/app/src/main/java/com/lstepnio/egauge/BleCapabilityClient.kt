@@ -15,18 +15,124 @@ import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Build
 import android.os.ParcelUuid
+import android.os.Handler
+import android.os.Looper
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.util.UUID
 
-/** Only the firmware's public protocol-0 characteristic is read. */
+/** Protocol-0 public discovery and bounded paired reading selection. */
 class BleCapabilityClient(private val context: Context) {
     private val serviceId = UUID.fromString("6f1a0000-9e3b-4f45-a714-69c9d23b6c00")
     private val capabilityId = UUID.fromString("6f1a0001-9e3b-4f45-a714-69c9d23b6c00")
+    private val controlId = UUID.fromString("6f1a0002-9e3b-4f45-a714-69c9d23b6c00")
+    private val stateId = UUID.fromString("6f1a0003-9e3b-4f45-a714-69c9d23b6c00")
+
+    /** Protocol-0 paired quick selection. ATT write is followed by state readback. */
+    @SuppressLint("MissingPermission")
+    suspend fun selectNearby(index: Int): Int {
+        require(index in 0..4)
+        val device = scanNearby()
+        if (device.bondState != BluetoothDevice.BOND_BONDED) {
+            if (!device.createBond()) error("Android could not start gauge pairing")
+            withTimeout(90_000) {
+                while (device.bondState != BluetoothDevice.BOND_BONDED) delay(250)
+            }
+        }
+        val result = CompletableDeferred<Int>()
+        val handler = Handler(Looper.getMainLooper())
+        var stateCharacteristic: BluetoothGattCharacteristic? = null
+        var controlCharacteristic: BluetoothGattCharacteristic? = null
+        var writeSent = false
+        var readAttempts = 0
+        val callback = object : BluetoothGattCallback() {
+            private fun fail(message: String) {
+                if (!result.isCompleted) result.completeExceptionally(IllegalStateException(message))
+            }
+            override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+                if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED)
+                    fail("Gauge disconnected during selection ($status)")
+                else if (newState == BluetoothProfile.STATE_CONNECTED && !gatt.requestMtu(185))
+                    discover(gatt)
+            }
+            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) { discover(gatt) }
+            private fun discover(gatt: BluetoothGatt) {
+                if (!gatt.discoverServices()) fail("Could not discover gauge control service")
+            }
+            override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                val service = if (status == BluetoothGatt.GATT_SUCCESS) gatt.getService(serviceId) else null
+                stateCharacteristic = service?.getCharacteristic(stateId)
+                controlCharacteristic = service?.getCharacteristic(controlId)
+                if (stateCharacteristic == null || controlCharacteristic == null)
+                    fail("Gauge firmware does not support paired selection")
+                else if (!gatt.readCharacteristic(stateCharacteristic)) fail("Could not start secure state read")
+            }
+            @Deprecated("Required for Android 10 through 12")
+            override fun onCharacteristicRead(
+                gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int,
+            ) {
+                if (Build.VERSION.SDK_INT < 33) onStateRead(gatt, characteristic.uuid, characteristic.value, status)
+            }
+            override fun onCharacteristicRead(
+                gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic,
+                value: ByteArray, status: Int,
+            ) { onStateRead(gatt, characteristic.uuid, value, status) }
+            private fun onStateRead(gatt: BluetoothGatt, uuid: UUID, value: ByteArray, status: Int) {
+                if (result.isCompleted || uuid != stateId) return
+                if (status != BluetoothGatt.GATT_SUCCESS || value.size != 4 || value[0].toInt() != 1) {
+                    fail("Secure gauge state read failed ($status). Open pairing on the gauge and accept Android's prompt.")
+                    return
+                }
+                if (!writeSent) {
+                    writeSent = true
+                    val control = controlCharacteristic ?: return fail("Control characteristic missing")
+                    val bytes = byteArrayOf(1, index.toByte())
+                    val started = if (Build.VERSION.SDK_INT >= 33)
+                        gatt.writeCharacteristic(control, bytes, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothGatt.GATT_SUCCESS
+                    else {
+                        @Suppress("DEPRECATION")
+                        control.value = bytes
+                        @Suppress("DEPRECATION")
+                        gatt.writeCharacteristic(control)
+                    }
+                    if (!started) fail("Could not start secure selection write")
+                } else if (value[1].toInt() == index) {
+                    result.complete(index)
+                } else if (++readAttempts >= 10) {
+                    fail("Gauge did not confirm the new reading")
+                } else {
+                    handler.postDelayed({
+                        if (!result.isCompleted && !gatt.readCharacteristic(stateCharacteristic))
+                            fail("Could not read applied gauge state")
+                    }, 200)
+                }
+            }
+            override fun onCharacteristicWrite(
+                gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int,
+            ) {
+                if (characteristic.uuid != controlId || result.isCompleted) return
+                if (status != BluetoothGatt.GATT_SUCCESS) fail("Gauge rejected selection ($status)")
+                else handler.postDelayed({
+                    if (!result.isCompleted && !gatt.readCharacteristic(stateCharacteristic))
+                        fail("Could not confirm applied gauge state")
+                }, 200)
+            }
+        }
+        val gatt = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
+            ?: error("Could not connect to the gauge")
+        return try { withTimeout(60_000) { result.await() } }
+        finally { gatt.disconnect(); gatt.close() }
+    }
 
     @SuppressLint("MissingPermission")
     suspend fun readNearby(): CapabilitySnapshot {
+        return readCapabilities(scanNearby())
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun scanNearby(): BluetoothDevice {
         val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
             ?: error("This phone has no Bluetooth adapter")
         if (!adapter.isEnabled) error("Turn on Bluetooth to find the gauge")
@@ -54,7 +160,7 @@ class BleCapabilityClient(private val context: Context) {
         } finally {
             scanner.stopScan(callback)
         }
-        return readCapabilities(device)
+        return device
     }
 
     @SuppressLint("MissingPermission")
@@ -127,6 +233,7 @@ class BleCapabilityClient(private val context: Context) {
             maxAdapterLinks = objectValue.getInt("maxAdapterLinks").coerceIn(0, 2),
             simultaneousVerified = objectValue.getBoolean("simultaneousAdapterLinksVerified"),
             configWrite = configWrite,
+            quickSelect = objectValue.optBoolean("quickSelect", false),
             ota = ota,
         )
     }

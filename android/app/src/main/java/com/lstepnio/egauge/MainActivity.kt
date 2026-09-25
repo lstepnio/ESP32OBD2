@@ -99,7 +99,7 @@ class MainActivity : ComponentActivity() {
                     error = CriticalColor,
                 ),
             ) {
-                CompanionApp(model, onFindGauge = ::requestGauge)
+                CompanionApp(model, onFindGauge = ::requestGauge, onSelectReading = ::requestSelection)
             }
         }
     }
@@ -120,10 +120,29 @@ class MainActivity : ComponentActivity() {
                 .onFailure { model.connectionError(it.message ?: "Could not read the gauge") }
         }
     }
+
+    private fun requestSelection() {
+        if (Build.VERSION.SDK_INT >= 31 &&
+            (checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
+             checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED)) {
+            model.connectionError("Grant nearby device permission, then try again")
+            return
+        }
+        val index = when (model.draft.pidId) {
+            "rpm" -> 0; "speed" -> 1; "load" -> 2; "coolant" -> 3; "fuel" -> 4
+            else -> { model.connectionError("This example has no built-in gauge reading"); return }
+        }
+        model.markScanning(true)
+        lifecycleScope.launch {
+            runCatching { BleCapabilityClient(applicationContext).selectNearby(index) }
+                .onSuccess(model::selectionApplied)
+                .onFailure { model.connectionError(it.message ?: "Could not select gauge reading") }
+        }
+    }
 }
 
 @Composable
-private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit) {
+private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onSelectReading: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 720.dp
         if (wide) {
@@ -139,7 +158,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit) {
                         )
                     }
                 }
-                AppBody(model, onFindGauge, Modifier.weight(1f))
+                AppBody(model, onFindGauge, onSelectReading, Modifier.weight(1f))
             }
         } else {
             Scaffold(containerColor = CanvasColor, bottomBar = {
@@ -153,13 +172,14 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit) {
                         )
                     }
                 }
-            }) { padding -> AppBody(model, onFindGauge, Modifier.padding(padding)) }
+            }) { padding -> AppBody(model, onFindGauge, onSelectReading, Modifier.padding(padding)) }
         }
     }
 }
 
 @Composable
-private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit, modifier: Modifier = Modifier) {
+private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
+                    onSelectReading: () -> Unit, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 840.dp).fillMaxWidth().fillMaxHeight().padding(horizontal = 20.dp)) {
             Header(model)
@@ -167,7 +187,7 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit, modifier: Modi
                 Destination.Garage -> GarageScreen(model, onFindGauge)
                 Destination.Design -> DesignScreen(model)
                 Destination.Pids -> PidsScreen(model)
-                Destination.Device -> DeviceScreen(model, onFindGauge)
+                Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading)
             }
         }
     }
@@ -582,7 +602,7 @@ private fun PidsScreen(model: AppViewModel) {
 }
 
 @Composable
-private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit) {
+private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit, onSelectReading: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("03 / Device", "Know what is ready.",
             "Capabilities come from the gauge. Other panels show the planned workflow without vehicle actions.")
@@ -593,13 +613,21 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit) {
             if (caps != null) {
                 Spacer(Modifier.height(14.dp))
                 InfoLine("Board", caps.board)
-                InfoLine("Protocol", "${caps.protocolMajor} • discovery only")
+                InfoLine("Protocol", "${caps.protocolMajor} • ${if (caps.quickSelect) "paired quick select" else "discovery only"}")
                 InfoLine("Adapter slots", "${caps.maxAdapterLinks} • coexistence unverified")
-                InfoLine("Configuration", "Read only")
+                InfoLine("Configuration", if (caps.quickSelect) "Built-in reading only" else "Read only")
             }
             Spacer(Modifier.height(14.dp))
             OutlinedButton(onClick = onFindGauge, enabled = !model.scanning) {
                 Text(if (model.scanning) "Finding gauge…" else "Read gauge capabilities")
+            }
+            if (caps?.quickSelect == true) {
+                Spacer(Modifier.height(10.dp))
+                Text("First setup: long press the gauge to open pairing, then enter its code in Android. A 12-second hold resets the owner bond.",
+                    color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+                OutlinedButton(onClick = onSelectReading, enabled = !model.scanning && model.profileError == null) {
+                    Text(if (model.scanning) "Connecting…" else "Set preview reading on gauge")
+                }
             }
         }
         Spacer(Modifier.height(18.dp))

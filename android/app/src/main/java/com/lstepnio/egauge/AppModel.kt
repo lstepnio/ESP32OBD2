@@ -62,6 +62,7 @@ data class CapabilitySnapshot(
     val maxAdapterLinks: Int,
     val simultaneousVerified: Boolean,
     val configWrite: Boolean,
+    val quickSelect: Boolean,
     val ota: Boolean,
 )
 
@@ -143,7 +144,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun connected(value: CapabilitySnapshot) {
         scanning = false
         capabilities = value
-        deviceMessage = "Gauge identified. Discovery link closed; protocol ${value.protocolMajor} is read only."
+        deviceMessage = if (value.quickSelect)
+            "Gauge identified. Built-in reading selection is available after pairing."
+        else "Gauge identified. Discovery link closed; protocol ${value.protocolMajor} is read only."
+    }
+    fun selectionApplied(index: Int) {
+        scanning = false
+        deviceMessage = "Gauge confirmed built-in reading ${index + 1} of 5."
     }
     fun selectPid(pid: PidExample) = save(draft.copy(pidId = pid.id, source = pid.source))
     fun selectLayout(layout: GaugeLayout) = save(draft.copy(layout = layout))

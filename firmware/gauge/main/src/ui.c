@@ -57,17 +57,20 @@ struct _ui_t
 {
     ui_touch_callback_t touch_cb;
     bool                long_press_handled;
+    TickType_t          pressed_at;
 
     struct
     {
         QueueHandle_t value_que;
         QueueHandle_t touch_ev_que;
+        QueueHandle_t pairing_que;
     } rtos;
     struct
     {
         lv_obj_t *value_lbl;
         lv_obj_t *info_lbl;
         lv_obj_t *unit_lbl;
+        lv_obj_t *pairing_lbl;
     } widgets;
 
     struct
@@ -104,6 +107,7 @@ static void ui_touch_callback(lv_event_t *e)
     {
     case LV_EVENT_PRESSED:
         ui->long_press_handled = false;
+        ui->pressed_at = xTaskGetTickCount();
         break;
     case LV_EVENT_LONG_PRESSED:
         ui->long_press_handled = true;
@@ -112,6 +116,11 @@ static void ui_touch_callback(lv_event_t *e)
     case LV_EVENT_CLICKED:
         if (!ui->long_press_handled)
         {
+            xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+        }
+        break;
+    case LV_EVENT_RELEASED:
+        if (xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
             xQueueSend(ui->rtos.touch_ev_que, &code, 0);
         }
         break;
@@ -172,6 +181,16 @@ static void ui_task(lv_timer_t *timer)
     ESP_NULL_CHECK(timer, TAG, "timer is NULL");
     ui_t *ui = (ui_t *)lv_timer_get_user_data(timer);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
+
+    uint32_t pairing_code;
+    if (xQueueReceive(ui->rtos.pairing_que, &pairing_code, 0) == pdTRUE) {
+        if (pairing_code == 0) lv_obj_add_flag(ui->widgets.pairing_lbl, LV_OBJ_FLAG_HIDDEN);
+        else {
+            if (pairing_code == UINT32_MAX) lv_label_set_text(ui->widgets.pairing_lbl, "PAIR\nREADY");
+            else lv_label_set_text_fmt(ui->widgets.pairing_lbl, "PAIR\n%06" PRIu32, pairing_code);
+            lv_obj_remove_flag(ui->widgets.pairing_lbl, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
 
     // get latest value (non-blocking). Continue with previous value if queue is empty
     ui_sample_t sample = {.value = DISPLAY_VALUE_INVALID};
@@ -249,6 +268,18 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     ui->widgets.info_lbl  = info_lbl;
     ui->widgets.unit_lbl  = unit_lbl;
 
+    lv_obj_t *pairing_lbl = lv_label_create(scr);
+    lv_obj_set_size(pairing_lbl, 190, 100);
+    lv_obj_align(pairing_lbl, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(pairing_lbl, lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(pairing_lbl, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(pairing_lbl, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_font(pairing_lbl, font_compact, LV_PART_MAIN);
+    lv_obj_set_style_text_align(pairing_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_add_flag(pairing_lbl, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_add_flag(pairing_lbl, LV_OBJ_FLAG_HIDDEN);
+    ui->widgets.pairing_lbl = pairing_lbl;
+
     lv_refr_now(NULL);  // force refresh to apply styles immediately
     ui_align_labels(ui);
 
@@ -277,6 +308,7 @@ ui_t *ui_init(obd_pid_cfg_t const *cfg, uint32_t interval_ms, ui_touch_callback_
 
     ui->rtos.value_que    = xQueueCreate(1, sizeof(ui_sample_t));
     ui->rtos.touch_ev_que = xQueueCreate(4, sizeof(lv_event_code_t));
+    ui->rtos.pairing_que = xQueueCreate(1, sizeof(uint32_t));
     ui->touch_cb          = touch_cb;
 
     if (!lvgl_port_lock(portMAX_DELAY))
@@ -318,4 +350,9 @@ void ui_set_obd_cfg(ui_t *ui, obd_pid_cfg_t const *cfg)
     ui_set_value(ui, NULL);
     ui_update_screen(ui, NULL, cfg->name, cfg->unit);
     ESP_LOGI(TAG, "Updated OBD PID config: 0x%02X (%s)", cfg->pid, cfg->name);
+}
+
+void ui_show_pairing_code(ui_t *ui, uint32_t passkey)
+{
+    if (ui != NULL) xQueueOverwrite(ui->rtos.pairing_que, &passkey);
 }

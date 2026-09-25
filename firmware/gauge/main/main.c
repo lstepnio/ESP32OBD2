@@ -19,6 +19,7 @@
 #include "lvgl.h"               // IWYU pragma: keep
 
 #include "freertos/projdefs.h"
+#include "freertos/queue.h"
 #include "freertos/task.h"
 #include "portmacro.h"
 
@@ -28,8 +29,10 @@
 #include "bsp_init.h"
 #include "bsp_lcd.h"
 #include "bsp_lvgl.h"
+#include "esp_lvgl_port.h"
 
 #include "ble_obd.h"
+#include "ble_companion.h"
 #include "ble_mgr.h"
 #include "config.h"
 #include "obd.h"
@@ -115,6 +118,7 @@ static config_t g_config = {
     .cfg_idx  = 0,
     .disp_rot = LV_DISPLAY_ROTATION_0,
 };
+static QueueHandle_t g_phone_selection_queue;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Private Function Definitions
@@ -185,6 +189,7 @@ static void obd_task(void *arg)
 
     while (true)
     {
+        ble_companion_tick();
         obd = ble_obd_connect(0, CONFIG_EGAUGE_ECM_ADAPTER_MAC, obd_response_cb, ui);
         if (obd != NULL)
         {
@@ -261,11 +266,13 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         ESP_LOGI(TAG, "Switched to PID: 0x%02X (%s)", g_current_obd_cfg->pid, g_current_obd_cfg->name);
         ui_set_obd_cfg(ui, g_current_obd_cfg);
         config_save(&g_config);
+        ble_companion_selection_applied(g_config.cfg_idx);
         break;
     case LV_EVENT_LONG_PRESSED:
-        g_config.disp_rot = (g_config.disp_rot + LV_DISPLAY_ROTATION_MAX) % (LV_DISPLAY_ROTATION_MAX + 1);
-        bsp_lv_disp_set_rotation(g_config.disp_rot);
-        config_save(&g_config);
+        ble_companion_open_pairing_window();
+        break;
+    case LV_EVENT_RELEASED:
+        ble_companion_forget_owner();
         break;
     default:
         // ignore
@@ -332,6 +339,10 @@ void app_main(void)
 
     bsp_display_on_off(true);
 
+    g_phone_selection_queue = xQueueCreate(4, sizeof(uint8_t));
+    ESP_NULL_CHECK(g_phone_selection_queue, TAG, "Phone selection queue creation failed");
+    ble_companion_set_control(ui, g_phone_selection_queue, g_config.cfg_idx % ARRAY_SIZE(g_obd_pids));
+
     ESP_NULL_CHECK(ble_mgr_init(0, 2000), TAG, "BLE ECM slot initialization failed");
     ESP_NULL_CHECK(ble_mgr_init(1, 2000), TAG, "BLE TCM slot initialization failed");
     if (CONFIG_EGAUGE_ECM_ADAPTER_MAC[0] && !adapter_mac_valid(CONFIG_EGAUGE_ECM_ADAPTER_MAC)) {
@@ -352,6 +363,20 @@ void app_main(void)
 
     while (true)
     {
-        vTaskDelay(pdMS_TO_TICKS(10));
+        uint8_t selected_index;
+        if (xQueueReceive(g_phone_selection_queue, &selected_index, pdMS_TO_TICKS(10)) == pdTRUE &&
+            selected_index < ARRAY_SIZE(g_obd_pids)) {
+            config_t updated = g_config;
+            updated.cfg_idx = selected_index;
+            if (config_save(&updated) == ESP_OK) {
+                g_config = updated;
+                g_current_obd_cfg = &g_obd_pids[selected_index];
+                if (lvgl_port_lock(portMAX_DELAY)) {
+                    ui_set_obd_cfg(ui, g_current_obd_cfg);
+                    lvgl_port_unlock();
+                    ble_companion_selection_applied(selected_index);
+                }
+            }
+        }
     }
 }

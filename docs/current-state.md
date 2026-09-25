@@ -13,6 +13,8 @@ Recorded 2026-09-25. This separates observed behavior from design targets.
 | Updates | Factory app partition, no OTA slots or rollback enabled | One USB migration to an OTA-capable image/partition layout |
 | UI/app | Upstream single value display; design prototype is a browser simulation; experimental public BLE capability endpoint was read from macOS | Compose app, authenticated companion operations, and new LVGL pages |
 
+The integration branch now builds an authenticated protocol 0 quick-selection path in firmware and Android. Its firmware image was uploaded to the USB gauge and esptool verified the flash hashes. Phone pairing, physical passkey display, owner reset, and applied-state readback are still unobserved. Full configuration transactions remain unimplemented.
+
 ## Baseline provenance
 
 `firmware/gauge` imports board support, firmware sources, fonts, simulator, CMake and sdkconfig from [Janos Kutscherauer's repository](https://gitlab.com/janoskut/esp32-obd2-meter) at the commit above. The main branch initially preserved upstream source behavior. The M1 branch changes response handling and freshness; see [M1 implementation status](development/m1-transport-status.md). Local dependency changes pin esp_lvgl_port 2.7.2 alongside LVGL 9.2.2 and the other registry components resolved during the successful build. The initially resolved display port 2.9.0 referenced `LV_COLOR_FORMAT_RGB565_SWAPPED`, which is absent from LVGL 9.2.2.

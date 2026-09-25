@@ -1,6 +1,23 @@
 # Companion BLE protocol, draft v1
 
-**Draft v1, not implemented.** Freeze only after the dual-link vertical slice. M1 exposes a separate experimental, public, read-only capability characteristic at UUID `6f1a0001-9e3b-4f45-a714-69c9d23b6c00`. It advertises the service and name `eGauge`, reports `protocolMajor: 0`, and sets configuration writes and OTA to false. This is a connection/coexistence probe, not v1 ownership or control. The local reference client is `tools/ble_probe.py`.
+**Draft v1, not implemented.** Freeze only after the dual-link vertical slice. M1 exposes an experimental public capability characteristic at UUID `6f1a0001-9e3b-4f45-a714-69c9d23b6c00`. The integration branch adds the bounded protocol 0 quick-selection operation described below. Full configuration writes and OTA remain disabled.
+
+## Implemented protocol 0 quick selection
+
+The capability JSON advertises `quickSelect: true`, `configWrite: false` and `ota: false`. The app must check this flag. This operation does not enable custom PIDs, threshold writes, diagnostics, OTA, or arbitrary OBD requests.
+
+The device uses LE Secure Connections, authenticated passkey entry, encryption and bonding. A gauge long press opens a 120-second association window. The six-digit passkey appears on its LCD and Android shows the system pairing prompt. The first authenticated bonded phone identity is stored in NVS as owner. Protected GATT access also checks that identity. A 12-second physical hold erases the owner association and bond, then restarts the gauge. This reset is intentionally local.
+
+Protocol 0 uses two extra characteristics under the service UUID below:
+
+| Prefix | Access | Value |
+| --- | --- | --- |
+| `6f1a0002` | Authenticated write with response | Exactly two bytes: opcode `01`, built-in reading index `00`..`04` |
+| `6f1a0003` | Authenticated read | Four bytes: version `01`, applied index, little-endian volatile session revision `u16` |
+
+Indices are RPM, speed, engine load, coolant temperature, and fuel level. A successful ATT write means the bounded request entered the firmware queue. Android reads state after the write and reports success only when the applied index matches. Firmware saves the choice in existing NVS before publishing it. The session revision resets on reboot and is not a durable config revision. A retry of the same index is safe. A failed or ambiguous readback must not be displayed as applied.
+
+This is a development slice requiring phone pairing and LCD review before a production security claim. The pairing UI, Android system dialog behavior, bond recovery, and simultaneous OBD-adapter compatibility need hardware evidence. Runtime Secure Connections-only policy may exclude adapters that require legacy pairing; verify actual adapters before relying on dual-link operation.
 
 In v1, firmware is peripheral to the Android central and central to the OBD adapter. One authorized phone session initially. A bonded device identity, not a changing BLE MAC address, identifies the gauge.
 
