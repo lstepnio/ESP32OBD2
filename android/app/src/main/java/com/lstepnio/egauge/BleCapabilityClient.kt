@@ -187,10 +187,21 @@ class BleCapabilityClient(private val context: Context) {
                     fail("Secure gauge state read failed ($status). Open pairing on the gauge and accept Android's prompt.")
                     return
                 }
+                if (extended && ((value[1].toInt() and 0xff) > 4 ||
+                                 (value[2].toInt() and 0xff) > 4 ||
+                                 (value[3].toInt() and 0xff) > 3)) {
+                    fail("Gauge returned invalid saved state")
+                    return
+                }
                 if (!writeSent) {
                     if (opcode == 2 && !extended) return fail("Gauge does not support saved rotation")
                     if (extended) baseRevision = (4..7).fold(0L) { acc, offset ->
                         acc or ((value[offset].toLong() and 0xff) shl ((offset - 4) * 8))
+                    }
+                    if (opcode == 2 && (value[3].toInt() and 0xff) == target) {
+                        result.complete(GaugeSavedSnapshot(value[2].toInt() and 0xff,
+                            target, baseRevision))
+                        return
                     }
                     writeSent = true
                     val control = controlCharacteristic ?: return fail("Control characteristic missing")
@@ -217,6 +228,8 @@ class BleCapabilityClient(private val context: Context) {
                         snapshot.readingIndex == target
                         else snapshot.rotation == target && revision > baseRevision
                     if (confirmed) result.complete(snapshot)
+                    else if (opcode == 2 && revision > baseRevision)
+                        fail("Gauge state changed before rotation was applied. Read saved state and retry")
                     else retryState(gatt)
                 } else if (opcode == 1 && value[1].toInt() == target) {
                     result.complete(GaugeSavedSnapshot(target, 0, 0))
