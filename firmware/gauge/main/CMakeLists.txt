@@ -4,6 +4,7 @@ idf_component_register(
     SRCS
         "main.c"
         "src/ble_init.c"
+        "src/ble_companion.c"
         "src/ble_mgr.c"
         "src/ble_obd.c"
         "src/elm_response.c"

@@ -11,7 +11,7 @@ Recorded 2026-09-25. This separates observed behavior from design targets.
 | PIDs | Fixed RPM, speed, engine load, coolant, fuel list in `main/main.c` | Capability discovery, per-ECU attribution, custom decoders |
 | Configuration | NVS stores selected PID and display rotation | Transactional versioned configuration service |
 | Updates | Factory app partition, no OTA slots or rollback enabled | One USB migration to an OTA-capable image/partition layout |
-| UI/app | Upstream single value display; new design is a browser simulation | Compose app and new LVGL pages |
+| UI/app | Upstream single value display; design prototype is a browser simulation; experimental public BLE capability endpoint was read from macOS | Compose app, authenticated companion operations, and new LVGL pages |
 
 ## Baseline provenance
 

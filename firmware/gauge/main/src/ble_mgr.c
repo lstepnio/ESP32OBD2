@@ -28,6 +28,7 @@
 #include "os/os_mbuf.h"
 
 #include "ble_init.h"
+#include "ble_companion.h"
 #include "ble_mgr.h"
 #include "ble_util.h"
 
@@ -185,6 +186,7 @@ static inline __attribute__((always_inline)) void API_QUEUE_SEND(ble_mgr_ctx_t c
 static void ble_mgr_gap_stack_reset_cb(int reason)
 {
     ESP_LOGW(TAG, "NimBLE stack reset, reset reason: %d", reason);
+    ble_companion_reset();
     for (size_t i = 0; i < ARRAY_SIZE(BLE_MGR_CTX); i++) {
         ble_mgr_ctx_t *ctx = &BLE_MGR_CTX[i];
         if (atomic_exchange(&ctx->connecting, false))
@@ -200,6 +202,7 @@ static void ble_mgr_gap_stack_reset_cb(int reason)
 static void ble_mgr_gap_stack_sync_cb(void)
 {
     ESP_LOGD(TAG, "NimBLE stack synced");
+    ble_companion_start();
     if (stack_ready) xSemaphoreGive(stack_ready);
 }
 
@@ -620,6 +623,7 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
     }
     xSemaphoreGive(mgr_ctx->api.lock_mtx);
     xSemaphoreGive(scan_lock);
+    ble_companion_start();
     return status;
 }
 

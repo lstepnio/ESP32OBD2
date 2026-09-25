@@ -12,7 +12,7 @@ UI labels all ambiguous signals with source/ECU. Garage shows ECM adapter and TC
 
 ## Feasibility TODO: MULTI-001
 
-**Unresolved hardware feasibility.** M1 now has two independently owned central connection contexts and serialized discovery, with TCM link activation gated by an explicit MAC. No simultaneous two-adapter operation has been measured. Baseline `sdkconfig` enables three NimBLE connections and both roles, but configuration capacity is not evidence of working multiple links or a phone peripheral service.
+**Unresolved hardware feasibility.** M1 now has two independently owned central connection contexts and serialized discovery, with TCM link activation gated by an explicit MAC. No simultaneous two-adapter operation has been measured. Baseline `sdkconfig` enables three NimBLE connections and both roles, but configuration capacity is not evidence of working multiple links or three-link coexistence. A read-only phone discovery endpoint is implemented and was read from macOS while ECM discovery ran; it does not implement authenticated companion control.
 
 1. Independent central contexts are implemented. Validate controller and host connection counts for ESP-IDF 5.4.1, buffer pools, heap/stack and session cleanup on two powered adapters.
 2. Bench scenario: two independently powered adapters/emulated radios, continuous ECM + TCM polling, phone connected/subscribed, LVGL rendering and local alerts. Record achieved per-source rates, P95 response latency, missed deadlines, reconnect behavior, radio parameters and minimum free memory.
