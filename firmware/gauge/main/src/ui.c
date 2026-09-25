@@ -15,6 +15,7 @@
 
 #include "freertos/projdefs.h"
 #include "freertos/queue.h"
+#include "freertos/task.h"
 #include "portmacro.h"
 
 #include "core/lv_obj.h"
@@ -44,6 +45,13 @@ static const char *TAG = "UI";
 // ---------------------------------------------------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------------------------------------------------
+
+typedef struct {
+    int32_t value;
+    TickType_t received_at;
+} ui_sample_t;
+
+#define UI_SAMPLE_FRESH_MS 1500
 
 struct _ui_t
 {
@@ -158,15 +166,18 @@ static void ui_task(lv_timer_t *timer)
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
     // get latest value (non-blocking). Continue with previous value if queue is empty
-    int32_t target = DISPLAY_VALUE_INVALID;
-    xQueuePeek(ui->rtos.value_que, &target, 0);
-    if (target == DISPLAY_VALUE_INVALID)
+    ui_sample_t sample = {.value = DISPLAY_VALUE_INVALID};
+    bool received = xQueuePeek(ui->rtos.value_que, &sample, 0) == pdTRUE;
+    bool fresh = received && sample.value != DISPLAY_VALUE_INVALID &&
+                 xTaskGetTickCount() - sample.received_at <= pdMS_TO_TICKS(UI_SAMPLE_FRESH_MS);
+    if (!fresh)
     {
         ui->display.current_value = 0.0f;
         ui_update_screen(ui, NULL, NULL, NULL);
     }
     else
     {
+        int32_t target = sample.value;
         ui->display.current_value += (target - ui->display.current_value) * 0.4f;
         int32_t rounded = (int32_t)(ui->display.current_value >= 0.0f ? ui->display.current_value + 0.5f
                                                                       : ui->display.current_value - 0.5f);
@@ -255,7 +266,7 @@ ui_t *ui_init(obd_pid_cfg_t const *cfg, uint32_t interval_ms, ui_touch_callback_
     memset(ui, 0, sizeof(ui_t));
     ESP_LOGI(TAG, "ui pointer2: %p (addr: %p)", ui, (void *)&ui);
 
-    ui->rtos.value_que    = xQueueCreate(1, sizeof(uint32_t));
+    ui->rtos.value_que    = xQueueCreate(1, sizeof(ui_sample_t));
     ui->rtos.touch_ev_que = xQueueCreate(4, sizeof(lv_event_code_t));
     ui->touch_cb          = touch_cb;
 
@@ -279,9 +290,12 @@ void ui_set_value(ui_t *ui, int32_t const *value)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
-    int32_t set_value = value != NULL ? *value : DISPLAY_VALUE_INVALID;
+    ui_sample_t sample = {
+        .value = value != NULL ? *value : DISPLAY_VALUE_INVALID,
+        .received_at = xTaskGetTickCount(),
+    };
 
-    if (xQueueOverwrite(ui->rtos.value_que, &set_value) != pdTRUE)
+    if (xQueueOverwrite(ui->rtos.value_que, &sample) != pdTRUE)
     {
         ESP_LOGE(TAG, "Failed to overwrite value in queue");
     }
@@ -292,6 +306,7 @@ void ui_set_obd_cfg(ui_t *ui, obd_pid_cfg_t const *cfg)
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     ESP_NULL_CHECK(cfg, TAG, "OBD PID config is NULL");
 
+    ui_set_value(ui, NULL);
     ui_update_screen(ui, NULL, cfg->name, cfg->unit);
     ESP_LOGI(TAG, "Updated OBD PID config: 0x%02X (%s)", cfg->pid, cfg->name);
 }

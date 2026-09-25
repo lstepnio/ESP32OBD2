@@ -6,6 +6,7 @@ idf_component_register(
         "src/ble_init.c"
         "src/ble_mgr.c"
         "src/ble_obd.c"
+        "src/elm_response.c"
         "src/ble_util.c"
         "src/config.c"
         "src/ui.c"

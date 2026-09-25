@@ -17,7 +17,15 @@ jobs:
       - run: pip install -r tools/requirements.txt
       - run: python tools/validate.py
       - run: node --check design/prototype/app.js
-  firmware-baseline:
+      - name: ELM parser fixtures with sanitizers
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -Ifirmware/gauge/main/inc \
+            firmware/gauge/tests/elm_response_test.c \
+            firmware/gauge/main/src/elm_response.c \
+            -o /tmp/elm_response_test
+          /tmp/elm_response_test
+  firmware-build:
     runs-on: ubuntu-24.04
     container: espressif/idf:v5.4.1
     timeout-minutes: 15
@@ -25,7 +33,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Build imported baseline
+      - name: Build gauge firmware
         shell: bash
         working-directory: firmware/gauge
         run: |

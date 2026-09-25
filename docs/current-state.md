@@ -5,7 +5,7 @@ Recorded 2026-09-25. This separates observed behavior from design targets.
 | Component | Observed state | Remaining evidence |
 | --- | --- | --- |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28; GC9A01, 240 × 240; CST816S touch; esptool reported S3 rev 0.2 and 2 MB embedded PSRAM | Confirm enclosure, power behavior, daylight legibility |
-| Firmware | Exact-board upstream commit `e1f4d8ffbb2bfe0fb38369e44d532319770ddc00`; built/flashed with IDF 5.4.1; user confirmed display works | Vehicle/adapter session not verified |
+| Firmware | Exact-board upstream commit `e1f4d8ffbb2bfe0fb38369e44d532319770ddc00`; built/flashed with IDF 5.4.1; user confirmed display works | M1 branch flashed and UI observed on serial; vehicle/adapter session not verified |
 | Board startup | Serial showed LCD, LVGL, touch, UI, and BLE controller startup; touch changed PID | No simultaneous phone and adapter session observed |
 | BLE adapter | Baseline filters advertised service `18F0`, writes `2AF1`, receives `2AF0`; accepts first matching device | Adapter selection, identity storage, alternate GATT profiles |
 | PIDs | Fixed RPM, speed, engine load, coolant, fuel list in `main/main.c` | Capability discovery, per-ECU attribution, custom decoders |
@@ -15,7 +15,7 @@ Recorded 2026-09-25. This separates observed behavior from design targets.
 
 ## Baseline provenance
 
-`firmware/gauge` imports board support, firmware sources, fonts, simulator, CMake and sdkconfig from [Janos Kutscherauer's repository](https://gitlab.com/janoskut/esp32-obd2-meter) at the commit above. Source behavior is unchanged. Local dependency changes pin esp_lvgl_port 2.7.2 alongside LVGL 9.2.2 and the other registry components resolved during the successful build. The initially resolved display port 2.9.0 referenced `LV_COLOR_FORMAT_RGB565_SWAPPED`, which is absent from LVGL 9.2.2.
+`firmware/gauge` imports board support, firmware sources, fonts, simulator, CMake and sdkconfig from [Janos Kutscherauer's repository](https://gitlab.com/janoskut/esp32-obd2-meter) at the commit above. The main branch initially preserved upstream source behavior. The M1 branch changes response handling and freshness; see [M1 implementation status](development/m1-transport-status.md). Local dependency changes pin esp_lvgl_port 2.7.2 alongside LVGL 9.2.2 and the other registry components resolved during the successful build. The initially resolved display port 2.9.0 referenced `LV_COLOR_FORMAT_RGB565_SWAPPED`, which is absent from LVGL 9.2.2.
 
 The earlier display-test firmware has been replaced. It is not a recovery dependency for this project. The previous Arduino instructions are superseded by [ESP-IDF setup](development/setup.md). The reference clone and retired sketches are local ignored files.
 
