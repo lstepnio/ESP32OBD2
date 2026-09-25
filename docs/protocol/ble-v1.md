@@ -69,6 +69,21 @@ Android keeps a draft tied to `baseRevision`. Begin supplies total JSON UTF-8 le
 
 The existing 24 KiB NVS partition cannot hold this staged 64 KiB document. [Configuration storage](../architecture/config-storage.md) defines the required custom partition migration and dual-generation apply path. Keep `configWrite: false` until that migration and recovery behavior are implemented.
 
+The app's full Apply state is explicit:
+
+| State | Entered when | Allowed next step |
+| --- | --- | --- |
+| Local draft | User edits or restores a profile | Run local and negotiated capability preflight |
+| Blocked | Schema, source evidence, revision, or firmware capability is missing | Keep draft; show the exact blocker |
+| Staging | `config.begin` returns a transfer ID | Send bounded chunks from the accepted offset; cancel safely |
+| Validating | All bytes are accepted | Wait for typed firmware validation result |
+| Committing | Validated document is submitted with an idempotency token | Wait for semantic result; do not infer success from ATT acknowledgment |
+| Result unknown | Link drops or response times out after commit | Reconnect as owner, query revision and digest, reconcile |
+| Applied | Device reports matching revision and digest | Mark the local revision as applied |
+| Conflict or rolled back | Device reports newer base or fallback generation | Retain local draft and last known active document; offer reload/rebase |
+
+The app may resume staging only when transfer ID, owner, schema, length, hash, and base revision all match the firmware's current staging record. Any mismatch starts a new explicit transaction after the old stage is aborted or expires. This avoids treating a partial upload as a complete configuration.
+
 ## Bulk flow control
 
 Negotiate a 1 KiB initial chunk ceiling and a credit window of 1..8 chunks. An accepted chunk reports transfer ID, next contiguous offset and rolling progress. Sender stops when credits are exhausted; do not confuse Android write-without-response return with device flash acceptance. Retransmit from device's accepted offset, validate chunk CRC32 and complete SHA-256; CRC is corruption detection, not authentication. On disconnect resume only via the authenticated owner and matching artifact ID/hash. After device reboot the v1 OTA design restarts transfer, as documented in the OTA spec.

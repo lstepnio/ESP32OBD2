@@ -25,3 +25,5 @@ Firmware must keep the previous generation until the new one has booted and rend
 ## Gate before implementation
 
 Confirm actual flash geometry on the exact board, image size on the release toolchain, partition offsets/alignment, NVS owner/bond migration behavior, and power-loss recovery. Keep full `configWrite` capability false until this layout and transaction are implemented and exercised. The quick-selection path remains explicitly separate so no 64 KiB document is promised by the current firmware.
+
+Android must map legacy local profile UUIDs to schema-conforming `vehicleProfileId` values without silently renaming the user's local profile or losing its draft. New local IDs already use a `vehicle-` prefix. This mapping belongs in the explicit configuration export layer, with a stable persisted association before full Apply is enabled.
