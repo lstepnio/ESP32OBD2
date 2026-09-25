@@ -20,6 +20,7 @@
 #include "nimble/nimble_port.h"
 
 #include "ble_init.h"
+#include "ble_companion.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Forward Declarations
@@ -74,6 +75,10 @@ void ble_init_stack(ble_init_config_t const *config)
     ESP_LOGD(TAG, "NimBLE stack initialized successfully");
 
     nimble_host_config_init(config);
+    if (ble_companion_register() != 0) {
+        ESP_LOGE(TAG, "Companion service registration failed");
+        return;
+    }
     ESP_LOGD(TAG, "NimBLE host initialized successfully");
 
     /* Start NimBLE host task */

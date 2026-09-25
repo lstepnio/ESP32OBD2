@@ -8,6 +8,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
+#include "sdkconfig.h"
+#include <stdatomic.h>
+#include "elm_response.h"
+
 
 #include "util.h"
 
@@ -15,6 +20,8 @@
 #include "esp_log_color.h"
 
 #include "freertos/FreeRTOS.h"  // IWYU pragma: keep
+#include "freertos/queue.h"
+#include "freertos/task.h"
 #include "freertos/projdefs.h"
 #include "freertos/semphr.h"
 
@@ -36,137 +43,70 @@ static void ble_obd_notify_cb(const uint8_t *data, size_t len, uint16_t attr_han
 
 static const char *TAG = "OBD";
 
-static ble_gatt_char_def_t obd_svc_chars1[] __attribute__((unused)) = {
-    /* TX */ {.uuid = "0x2af1", .notify_cb = NULL},
-    /* RX */ {.uuid = "0x2af0", .notify_cb = ble_obd_notify_cb},
-};
-
-static const ble_mgr_svc_def_t obd_svc_def1 __attribute__((unused)) = {
-    .service_uuid = "0x18f0",
-    .chars        = obd_svc_chars1,
-    .num_chars    = ARRAY_SIZE(obd_svc_chars1),
-};
-
-static const ble_mgr_svc_def_t *const   obd_svc_def = &obd_svc_def1;
-static const ble_gatt_char_def_t *const obd_tx_char = &obd_svc_chars1[0];
-
 // ---------------------------------------------------------------------------------------------------------------------
 // Global Variables
 // ---------------------------------------------------------------------------------------------------------------------
 
+typedef struct {
+    uint32_t generation;
+    uint8_t byte;
+} rx_byte_t;
+
 struct ble_obd_ctx
 {
-    ble_mgr_ctx_t        *mgr_ctx;
+    ble_mgr_ctx_t *mgr_ctx;
+    unsigned source_id;
+    char peer_mac[18];
+    ble_gatt_char_def_t chars[2];
+    ble_mgr_svc_def_t svc_def;
+    ble_mgr_disc_cfg_t disc_cfg;
     ble_obd_response_cb_t response_cb;
-
-    struct
-    {
-        SemaphoreHandle_t mutex;
-        SemaphoreHandle_t response_sem;
-    } api;
-
-    struct
-    {
-        char     buf[BLE_OBD_MAX_DATA_LEN];
-        uint16_t mode;
-        uint16_t pid;
-    } tx_data;
+    SemaphoreHandle_t mutex;
+    QueueHandle_t rx;
+    atomic_uint generation;
+    atomic_bool rx_overflow;
+    uint32_t active_generation;
+    bool awaiting_prompt;
+    unsigned consecutive_timeouts;
+    elm_response_t response;
     void *usr_ctx;
 };
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Private Function Definitions
-// ---------------------------------------------------------------------------------------------------------------------
-
-static void ble_obd_process_obd_data(ble_obd_ctx_t *obd, char *data, size_t len)
-{
-    ESP_NULL_CHECK(obd, TAG, "context is NULL");
-    ESP_NULL_CHECK(data, TAG, "data is NULL");
-    ESP_NULL_CHECK(obd->response_cb, TAG, "response callback is NULL");
-
-    // Parse into hex values
-    char   *saveptr;
-    char   *tok = strtok_r(data, " \r", &saveptr);
-    uint8_t values[BLE_OBD_MAX_DATA_LEN];
-    int     count = 0;
-
-    while (tok && count < BLE_OBD_MAX_DATA_LEN)
-    {
-        char *cur_tok = tok;  // Save current token for logging
-        long  val     = strtol(tok, NULL, 16);
-        tok           = strtok_r(NULL, " \r", &saveptr);
-        if (val < 0 || val > 255)
-        {
-            ESP_LOGW(TAG, "Invalid hex value: %s", cur_tok);
-            continue;
-        }
-        values[count++] = (uint8_t)val;
-    }
-
-    if (count < 2)
-    {
-        ESP_LOGW(TAG, "Received invalid OBD response: %.*s", (int)len, data);
-        return;
-    }
-
-    if (values[0] == (obd->tx_data.mode + 0x40) && values[1] == obd->tx_data.pid)
-    {
-        obd->response_cb(obd->tx_data.pid, values + 2, count - 2, obd->usr_ctx);
-    }
-    else
-    {
-        ESP_LOGW(TAG, "Received unexpected OBD response: mode=%02X, pid=%02X, data=%.*s", values[0], values[1],
-                 (int)(len - 6), data + 6);
-        obd->response_cb(-1, NULL, 0, obd->usr_ctx);
-    }
-}
+/* The baseline manager is a singleton. Keep its callback target alive for the
+ * lifetime of the host, including discovery timeouts and background reconnects. */
+static ble_obd_ctx_t sources[2];
 
 static void ble_obd_notify_cb(const uint8_t *data, size_t len, uint16_t attr_handle, void *usr_ctx)
 {
-    ble_obd_ctx_t *obd = (ble_obd_ctx_t *)usr_ctx;
-    ESP_NULL_CHECK(obd, TAG, "context is NULL");
-    ESP_NULL_CHECK(obd->response_cb, TAG, "response callback is NULL");
-    ESP_NULL_CHECK(obd->api.response_sem, TAG, "response semaphore is NULL");
-
-    ESP_LOGD(TAG, "Received notification on handle 0x%04x (len=%zu): %.*s", attr_handle, len, (int)len,
-             (char const *)data);
-
-    if (len == 0)
-    {
-        ESP_LOGW(TAG, "Received empty notification, ignoring.");
-        return;
-    }
-
-    char   copy[BLE_OBD_MAX_DATA_LEN];
-    size_t copy_len = len < sizeof(copy) - 1 ? len : sizeof(copy) - 1;
-    memcpy(copy, data, copy_len);
-    copy[copy_len] = '\0';
-
-    if (strncmp(copy, ">\r", sizeof(">\r")) == 0 || strncmp(copy, "\r", sizeof("\r")) == 0)
-    {
-        ESP_LOGD(TAG, "Received prompt, releasing API caller.");
-        if (xSemaphoreGive(obd->api.response_sem) != pdTRUE)
-        {
-            ESP_LOGW(TAG, "Failed to give response semaphore");
+    (void)attr_handle;
+    ble_obd_ctx_t *obd = usr_ctx;
+    if (!obd || !obd->rx) return;
+    rx_byte_t item = {.generation = atomic_load(&obd->generation)};
+    for (size_t i = 0; i < len; i++) {
+        item.byte = data[i];
+        if (xQueueSend(obd->rx, &item, 0) != pdTRUE) {
+            atomic_store(&obd->rx_overflow, true);
         }
-        return;
     }
+}
 
-    if (strncmp(copy, "?\r", sizeof("?\r")) == 0)
-    {
-        ESP_LOGW(TAG, "Received error response: %.*s", (int)len, copy);
-        obd->response_cb(-1, NULL, 0, obd->usr_ctx);
-        return;
+/* Only the polling task owns the assembler. A timeout leaves it waiting for
+ * the old command's prompt; no subsequent request may consume that reply. */
+static bool wait_for_prompt(ble_obd_ctx_t *obd, TickType_t budget)
+{
+    TickType_t start = xTaskGetTickCount();
+    rx_byte_t item;
+    while (xTaskGetTickCount() - start < budget) {
+        TickType_t remaining = budget - (xTaskGetTickCount() - start);
+        if (atomic_load(&obd->generation) != obd->active_generation) return false;
+        if (xQueueReceive(obd->rx, &item, remaining) != pdTRUE) break;
+        if (item.generation != obd->active_generation) continue;
+        if (elm_response_push(&obd->response, item.byte)) {
+            obd->awaiting_prompt = false;
+            return true;
+        }
     }
-
-    if (strcmp(copy, obd->tx_data.buf) == 0 || strcmp(copy, obd->tx_data.buf) == 0)
-    {
-        ESP_LOGD(TAG, "Received echo of sent command, ignoring.");
-        return;
-    }
-
-    ESP_LOGD(TAG, "Processing received data: %.*s", (int)len, copy);
-    ble_obd_process_obd_data(obd, copy, len);
+    return false;
 }
 
 static bool ble_obd_dev_filter_cb(ble_mgr_ctx_t *mgr_ctx, const ble_addr_t *addr, void *ctx)
@@ -178,54 +118,67 @@ static bool ble_obd_dev_filter_cb(ble_mgr_ctx_t *mgr_ctx, const ble_addr_t *addr
     ble_addr_to_str(addr, addr_str);
     ESP_LOGI(TAG, "Found device: %s", addr_str);
 
-    return true;  // connect to this device
+    if (obd->peer_mac[0]) return strcasecmp(addr_str, obd->peer_mac) == 0;
+    if (obd->source_id == 0 && CONFIG_EGAUGE_TCM_ADAPTER_MAC[0] &&
+        strcasecmp(addr_str, CONFIG_EGAUGE_TCM_ADAPTER_MAC) == 0) return false;
+    return true;
 }
 
 static bool ble_obd_dev_disconnected_cb_t(ble_mgr_ctx_t *mgr_ctx, void *usr_ctx)
 {
-    ESP_LOGW(TAG, "Disconnected from device. Restarting discovery.");
-    return true;
+    (void)mgr_ctx;
+    ble_obd_ctx_t *obd = usr_ctx;
+    atomic_store(&obd->rx_overflow, false);
+    atomic_fetch_add(&obd->generation, 1);
+    ESP_LOGW(TAG, "Source %u disconnected", obd->source_id);
+    return false;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Public Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
-ble_obd_ctx_t *ble_obd_connect(ble_obd_response_cb_t response_cb, void *usr_ctx)
+ble_obd_ctx_t *ble_obd_connect(unsigned source_id, const char *peer_mac,
+                               ble_obd_response_cb_t response_cb, void *usr_ctx)
 {
     ESP_LOGD(TAG, "Connecting to BLE RX/TX service...");
 
-    ble_obd_ctx_t *obd = malloc(sizeof(ble_obd_ctx_t));
-    ESP_NULL_CHECK(obd, TAG, "Failed to allocate memory for OBD context");
-    memset(obd, 0, sizeof(ble_obd_ctx_t));
+    if (source_id >= 2 || !peer_mac || strlen(peer_mac) >= sizeof(sources[0].peer_mac)) return NULL;
+    ble_obd_ctx_t *obd = &sources[source_id];
+    if (!obd->rx) {
+        obd->source_id = source_id;
+        strcpy(obd->peer_mac, peer_mac);
+        obd->chars[0] = (ble_gatt_char_def_t){.uuid = "0x2af1"};
+        obd->chars[1] = (ble_gatt_char_def_t){.uuid = "0x2af0", .notify_cb = ble_obd_notify_cb};
+        obd->svc_def = (ble_mgr_svc_def_t){.service_uuid = "0x18f0", .chars = obd->chars, .num_chars = 2};
+        obd->disc_cfg = (ble_mgr_disc_cfg_t){.svc_def = &obd->svc_def,
+            .dev_filter_cb = ble_obd_dev_filter_cb,
+            .disconnected_cb = ble_obd_dev_disconnected_cb_t};
+        obd->rx = xQueueCreate(ELM_RESPONSE_CAPACITY, sizeof(rx_byte_t));
+        obd->mutex = xSemaphoreCreateMutex();
+        if (!obd->rx || !obd->mutex) {
+            if (obd->rx) vQueueDelete(obd->rx);
+            if (obd->mutex) vSemaphoreDelete(obd->mutex);
+            obd->rx = NULL;
+            obd->mutex = NULL;
+            return NULL;
+        }
+        obd->response_cb = response_cb;
+        obd->usr_ctx = usr_ctx;
+        elm_response_reset(&obd->response);
+    }
+    if (!obd->mgr_ctx) obd->mgr_ctx = ble_mgr_init(source_id, 1000U);
+    if (!obd->mgr_ctx) return NULL;
+    if (ble_mgr_is_connected(obd->mgr_ctx)) return obd;
 
-    obd->mgr_ctx = ble_mgr_init(1000U);
-    ESP_NULL_CHECK(obd->mgr_ctx, TAG, "Failed to initialize BLE manager");
-    ESP_LOGD(TAG, "BLE manager initialized successfully");
-
-    obd->api.mutex        = xSemaphoreCreateMutex();
-    obd->api.response_sem = xSemaphoreCreateBinary();
-    ESP_NULL_CHECK(obd->api.mutex, TAG, "Failed to create API mutex");
-    ESP_NULL_CHECK(obd->api.response_sem, TAG, "Failed to create API response semaphore");
-
-    obd->response_cb = response_cb;
-    obd->usr_ctx     = usr_ctx;
-
-    static const ble_mgr_disc_cfg_t disc_cfg = {
-        .svc_def         = obd_svc_def,
-        .dev_filter_cb   = ble_obd_dev_filter_cb,
-        .disconnected_cb = ble_obd_dev_disconnected_cb_t,
-    };
-
-    ESP_LOGD(TAG, "Connecting to RX/TX service...");
-    ble_mgr_status_t status = ble_mgr_connect_service(obd->mgr_ctx, &disc_cfg, 10000U, obd);
+    ESP_LOGD(TAG, "Connecting source %u to RX/TX service...", source_id);
+    atomic_fetch_add(&obd->generation, 1);
+    ble_mgr_status_t status = ble_mgr_connect_service(obd->mgr_ctx, &obd->disc_cfg, 12000U, obd);
 
     if (status != BLE_MGR_E_OK)
     {
         ESP_LOGE(TAG, "Failed to connect to RX/TX service: %s", BLE_MGR_STATUS_STR(status));
-        vSemaphoreDelete(obd->api.mutex);
-        vSemaphoreDelete(obd->api.response_sem);
-        free(obd);
+        /* Callbacks may still arrive after the discovery timeout. */
         return NULL;
     }
     ESP_LOGD(TAG, "Connected to RX/TX service");
@@ -235,49 +188,52 @@ ble_obd_ctx_t *ble_obd_connect(ble_obd_response_cb_t response_cb, void *usr_ctx)
 
 int ble_obd_rxtx(ble_obd_ctx_t *obd, uint8_t mode, uint8_t pid, uint32_t timeout_ms)
 {
-    ESP_NULL_CHECK(obd, TAG, "context is NULL");
-    ESP_NULL_CHECK(obd->mgr_ctx, TAG, "manager context is NULL");
-    ESP_NULL_CHECK(obd->response_cb, TAG, "response callback is NULL");
-    ESP_NULL_CHECK(obd->api.mutex, TAG, "mutex is NULL");
-    ESP_NULL_CHECK(obd->api.response_sem, TAG, "response semaphore is NULL");
-
-    // take API mutex
-    if (xSemaphoreTake(obd->api.mutex, pdMS_TO_TICKS(timeout_ms)) != pdTRUE)
-    {
-        ESP_LOGW(TAG, "OBD busy, try again later");
-        return -1;
+    if (!obd || mode != 1 || !timeout_ms) return -1;
+    TickType_t budget = pdMS_TO_TICKS(timeout_ms);
+    if (!budget) budget = 1;
+    if (xSemaphoreTake(obd->mutex, budget) != pdTRUE) return -1;
+    int result = -1;
+    uint32_t generation = atomic_load(&obd->generation);
+    if (generation != obd->active_generation) {
+        obd->active_generation = generation;
+        obd->awaiting_prompt = false;
+        obd->consecutive_timeouts = 0;
+        elm_response_reset(&obd->response);
     }
-
-    while (xSemaphoreTake(obd->api.response_sem, 0) == pdTRUE)
-    {
-        // Drain semaphore before sending (in case of late response)
+    if (!ble_mgr_is_connected(obd->mgr_ctx)) goto done;
+    if (obd->awaiting_prompt && !wait_for_prompt(obd, budget)) {
+        if (++obd->consecutive_timeouts >= 5) ble_mgr_disconnect(obd->mgr_ctx);
+        goto done;
     }
-
-    obd->tx_data.mode = mode;
-    obd->tx_data.pid  = pid;
-    snprintf(obd->tx_data.buf, sizeof(obd->tx_data.buf), "%02X%02X\r", mode, pid);
-    ESP_LOGD(TAG, "TX: %s", obd->tx_data.buf);
-    ble_mgr_status_t status =
-        ble_mgr_send(obd->mgr_ctx, obd_tx_char->handle, obd->tx_data.buf, strlen(obd->tx_data.buf));
-
-    if (status != BLE_MGR_E_OK)
-    {
-        ESP_LOGE(TAG, "Failed to send command: %s", BLE_MGR_STATUS_STR(status));
-        xSemaphoreGive(obd->api.mutex);
-        return -1;
+    /* After dropped RX bytes the boundary is untrustworthy. Fail closed until
+     * a reconnect; do not reinterpret the remaining bytes as a new response. */
+    if (atomic_load(&obd->rx_overflow)) {
+        ble_mgr_disconnect(obd->mgr_ctx);
+        goto done;
     }
-
-    // Wait for response or timeout
-    int result = 0;
-    if (xSemaphoreTake(obd->api.response_sem, pdMS_TO_TICKS(timeout_ms)) != pdTRUE)
-    {
-        ESP_LOGW(TAG, "OBD response timeout");
-        result = -1;
+    rx_byte_t ignored;
+    while (xQueueReceive(obd->rx, &ignored, 0) == pdTRUE) {}
+    elm_response_reset(&obd->response);
+    char command[6];
+    snprintf(command, sizeof(command), "%02X%02X\r", mode, pid);
+    obd->awaiting_prompt = true;
+    if (ble_mgr_send(obd->mgr_ctx, obd->chars[0].handle, command, strlen(command)) != BLE_MGR_E_OK) goto done;
+    if (!wait_for_prompt(obd, budget)) {
+        obd->consecutive_timeouts = 1;
+        goto done;
     }
-
-    // release API mutex
-    xSemaphoreGive(obd->api.mutex);
-
+    obd->consecutive_timeouts = 0;
+    elm_payload_t payload;
+    elm_result_t decoded = elm_response_decode(&obd->response, mode, pid, &payload);
+    if (decoded == ELM_OK && !atomic_load(&obd->rx_overflow) &&
+        atomic_load(&obd->generation) == obd->active_generation) {
+        obd->response_cb(pid, payload.bytes, payload.length, obd->usr_ctx);
+        result = 0;
+    } else {
+        ESP_LOGW(TAG, "Rejected PID %02X response (status=%d)", pid, decoded);
+    }
+done:
+    xSemaphoreGive(obd->mutex);
     return result;
 }
 

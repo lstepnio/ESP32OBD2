@@ -559,6 +559,13 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
+# eGauge adapter selection
+#
+CONFIG_EGAUGE_ECM_ADAPTER_MAC=""
+CONFIG_EGAUGE_TCM_ADAPTER_MAC=""
+# end of eGauge adapter selection
+
+#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEBUG=y
