@@ -14,9 +14,21 @@ data class PidExample(
     val request: String,
     val unit: String,
     val demoValue: String,
-    val evidence: String,
+    val exampleKind: String,
     val category: String,
     val gaugeLabel: String,
+)
+
+/** Populated only from an adapter session with a known vehicle and ECU source. */
+enum class VehiclePidStatus { Responding, NoResponse }
+
+data class VehiclePidObservation(
+    val profileId: String,
+    val adapterId: String,
+    val pidId: String,
+    val source: String,
+    val status: VehiclePidStatus,
+    val observedAtMillis: Long,
 )
 
 val demoCatalog = listOf(
@@ -70,6 +82,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var query by mutableStateOf("")
         private set
     var sourceFilter by mutableStateOf("All")
+        private set
+    // Capability reads from the gauge do not populate vehicle PID observations.
+    var vehicleObservations by mutableStateOf<List<VehiclePidObservation>>(emptyList())
         private set
     var deviceMessage by mutableStateOf("No gauge connected")
         private set

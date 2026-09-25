@@ -353,7 +353,7 @@ private fun DesignScreen(model: AppViewModel) {
         SectionHeading("Primary reading")
         Panel {
             Text(pid.name, color = TextColor, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            Text("${pid.source}  •  ${pid.request}  •  ${pid.evidence}",
+            Text("${pid.source}  •  ${pid.request}  •  ${pid.exampleKind}; support unknown",
                 color = MutedColor, fontSize = 13.sp)
             Spacer(Modifier.height(14.dp))
             OutlinedButton(onClick = { model.navigate(Destination.Pids) }) { Text("Browse PID catalog") }
@@ -477,8 +477,14 @@ private fun PidsScreen(model: AppViewModel) {
         }
         if (model.discoveryPreview) {
             Spacer(Modifier.height(8.dp))
-            Text("Example only: Supported → Querying → Responding / No response. A real scan will keep partial results and source evidence.",
-                color = WarningColor, fontSize = 13.sp, lineHeight = 19.sp)
+            Panel {
+                Text("Discovery state preview", color = TextColor,
+                    fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text("Simulated path: queued, querying, responding or no response. Each real result will need a vehicle profile, adapter, ECU source and time.",
+                    color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+                Spacer(Modifier.height(8.dp))
+                Text("Current vehicle evidence: none", color = WarningColor, fontSize = 13.sp)
+            }
         }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = { model.showLab(!model.labOpen) },
@@ -543,7 +549,8 @@ private fun PidsScreen(model: AppViewModel) {
             }
         }
         Spacer(Modifier.height(12.dp))
-        Text("${results.size} example signals", color = MutedColor, fontSize = 13.sp)
+        Text("${results.size} catalog examples • ${model.vehicleObservations.size} vehicle observations",
+            color = MutedColor, fontSize = 13.sp)
         Spacer(Modifier.height(8.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize().padding(bottom = 16.dp)) {
@@ -557,7 +564,8 @@ private fun PidsScreen(model: AppViewModel) {
                         Text(pid.unit, color = AccentColor, fontSize = 14.sp)
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text(pid.evidence, color = WarningColor, fontSize = 12.sp)
+                    Text("Catalog: ${pid.exampleKind}  •  Vehicle support: unknown",
+                        color = WarningColor, fontSize = 12.sp, lineHeight = 17.sp)
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(onClick = { model.selectPid(pid); model.navigate(Destination.Design) },
                         enabled = model.profileError == null) {
