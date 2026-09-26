@@ -48,12 +48,16 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
     private var frameSequence = 0L
 
     suspend fun ota(command: ByteArray): ByteArray = frame(2, command)
+    suspend fun otaBatch(commands: List<ByteArray>): ByteArray {
+        val response = frame(4, WifiOtaBatchCodec.encode(commands))
+        return WifiOtaBatchCodec.decode(response, commands.size)
+    }
     suspend fun otaStatus(): ByteArray = frame(3, byteArrayOf(2))
     suspend fun configuration(command: ByteArray): ByteArray = frame(1, command)
     suspend fun configurationStatus(): ByteArray = frame(3, byteArrayOf(1))
 
     private suspend fun frame(kind: Int, plaintext: ByteArray): ByteArray = withContext(Dispatchers.IO) {
-        require(kind in 1..3 && plaintext.isNotEmpty() && plaintext.size <= 1040)
+        require(kind in 1..4 && plaintext.isNotEmpty() && plaintext.size <= 8448)
         val active = socket ?: connect().also { socket = it }
         val sequence = ++frameSequence
         val header = ByteArray(16)
@@ -181,5 +185,32 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
         private fun u32(value: ByteArray, offset: Int) = (0..3).fold(0L) { result, index ->
             result or ((value[offset + index].toLong() and 255) shl (index * 8))
         }
+    }
+}
+
+internal object WifiOtaBatchCodec {
+    private const val MAX_COMMANDS = 8
+    private const val MAX_COMMAND_SIZE = 1040
+
+    fun encode(commands: List<ByteArray>): ByteArray {
+        require(commands.size in 1..MAX_COMMANDS)
+        require(commands.all { it.size in 13..MAX_COMMAND_SIZE && it[0].toInt() == 0x23 })
+        val result = ByteArray(1 + commands.sumOf { 2 + it.size })
+        result[0] = commands.size.toByte()
+        var offset = 1
+        commands.forEach { command ->
+            result[offset] = command.size.toByte()
+            result[offset + 1] = (command.size ushr 8).toByte()
+            command.copyInto(result, offset + 2)
+            offset += 2 + command.size
+        }
+        return result
+    }
+
+    fun decode(response: ByteArray, expectedCount: Int): ByteArray {
+        require(response.size == 57 && (response[0].toInt() and 255) == expectedCount) {
+            "Gauge returned an invalid Wi-Fi OTA batch response"
+        }
+        return response.copyOfRange(1, response.size)
     }
 }

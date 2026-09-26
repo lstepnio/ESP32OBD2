@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "esp_event.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_netif.h"
@@ -27,7 +28,8 @@
 #define SESSION_MS 600000U
 #define FRAME_HEADER 16U
 #define FRAME_TAG 16U
-#define FRAME_MAX_PLAINTEXT OTA_TRANSFER_MAX_REQUEST
+#define OTA_BATCH_MAX_COMMANDS 8U
+#define FRAME_MAX_PLAINTEXT 8448U
 #define COMMAND_STATUS_POLL_TICKS 1U
 #define COMMAND_STATUS_TIMEOUT_TICKS pdMS_TO_TICKS(60000)
 
@@ -261,17 +263,49 @@ static bool wait_status(uint8_t kind, const uint8_t *command, size_t command_len
     return false;
 }
 
-static bool handle_frame(int client)
+static bool validate_ota_batch(const uint8_t *batch, size_t length)
+{
+    if (length < 1 || batch[0] == 0 || batch[0] > OTA_BATCH_MAX_COMMANDS) return false;
+    size_t offset = 1;
+    for (uint8_t i = 0; i < batch[0]; ++i) {
+        if (offset + 2 > length) return false;
+        size_t command_length = read_u16(batch + offset);
+        offset += 2;
+        if (command_length < 13 || command_length > OTA_TRANSFER_MAX_REQUEST ||
+            offset + command_length > length || batch[offset] != 0x23) return false;
+        offset += command_length;
+    }
+    return offset == length;
+}
+
+static bool run_ota_batch(const uint8_t *batch, uint8_t *response, size_t *response_length)
+{
+    size_t offset = 1;
+    uint8_t status[OTA_TRANSFER_STATUS_SIZE];
+    size_t status_length = 0;
+    for (uint8_t i = 0; i < batch[0]; ++i) {
+        size_t command_length = read_u16(batch + offset);
+        offset += 2;
+        if (!wait_status(2, batch + offset, command_length, status, &status_length)) return false;
+        if (status_length != OTA_TRANSFER_STATUS_SIZE || status[2] != RESULT_OK) return false;
+        offset += command_length;
+    }
+    response[0] = batch[0];
+    memcpy(response + 1, status, status_length);
+    *response_length = status_length + 1;
+    return true;
+}
+
+static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext)
 {
     uint8_t header[FRAME_HEADER], tag[FRAME_TAG];
-    uint8_t ciphertext[FRAME_MAX_PLAINTEXT], plaintext[FRAME_MAX_PLAINTEXT];
     if (receive_all(client, header, sizeof(header)) != 0 ||
         memcmp(header, "EGW1", 4) != 0) return false;
     uint32_t session_id = read_u32(header + 4);
     uint32_t sequence = read_u32(header + 8);
     uint8_t kind = header[12];
     uint16_t length = read_u16(header + 14);
-    if ((kind < 1 || kind > 3) || length == 0 || length > sizeof(ciphertext) ||
+    if ((kind < 1 || kind > 4) || length == 0 || length > FRAME_MAX_PLAINTEXT ||
         receive_all(client, tag, sizeof(tag)) != 0 ||
         receive_all(client, ciphertext, length) != 0) return false;
 
@@ -316,6 +350,8 @@ static bool handle_frame(int client)
         response_length = plaintext[0] == 1
             ? config_transfer_status(response) : ota_transfer_status(response);
         ok = true;
+    } else if (kind == 4 && validate_ota_batch(plaintext, length)) {
+        ok = run_ota_batch(plaintext, response, &response_length);
     } else if ((kind == 1 && plaintext[0] >= 0x10 && plaintext[0] <= 0x17) ||
                (kind == 2 && plaintext[0] >= 0x20 && plaintext[0] <= 0x28)) {
         ok = wait_status(kind, plaintext, length, response, &response_length);
@@ -342,6 +378,17 @@ static bool handle_frame(int client)
 static void server_task(void *arg)
 {
     (void)arg;
+    uint8_t *ciphertext = heap_caps_malloc(FRAME_MAX_PLAINTEXT,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    uint8_t *plaintext = heap_caps_malloc(FRAME_MAX_PLAINTEXT,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!ciphertext || !plaintext) {
+        ESP_LOGE(TAG, "Could not allocate Wi-Fi frame buffers in PSRAM");
+        heap_caps_free(ciphertext);
+        heap_caps_free(plaintext);
+        vTaskDelete(NULL);
+        return;
+    }
     for (;;) {
         while (!atomic_load(&wifi_active)) vTaskDelay(pdMS_TO_TICKS(250));
         int server = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
@@ -367,7 +414,7 @@ static void server_task(void *arg)
             struct timeval io_timeout = {.tv_sec = 65};
             setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &io_timeout, sizeof(io_timeout));
             setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &io_timeout, sizeof(io_timeout));
-            while (handle_frame(client)) {}
+            while (handle_frame(client, ciphertext, plaintext)) {}
             close(client);
         }
         close(server);

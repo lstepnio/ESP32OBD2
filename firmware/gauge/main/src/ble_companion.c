@@ -138,7 +138,7 @@ static void owner_save_worker(void *arg)
 /* Public protocol-0 capabilities advertise one bounded, protected selection
  * operation. Full configuration, diagnostics, and updates remain disabled. */
 #if CONFIG_EGAUGE_WIFI_BULK_ENABLED
-#define WIFI_BULK_CAPABILITY ",\"wifiBulk\":\"experimental-softap-aead-v1\""
+#define WIFI_BULK_CAPABILITY ",\"wifiBulk\":\"experimental-softap-aead-v2\""
 #else
 #define WIFI_BULK_CAPABILITY ""
 #endif

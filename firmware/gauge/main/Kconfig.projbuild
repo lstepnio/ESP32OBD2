@@ -5,7 +5,7 @@ config EGAUGE_WIFI_BULK_ENABLED
     default n
     help
         Enables the owner-only temporary SoftAP negotiation commands and
-        advertises experimental-softap-aead-v1. Keep disabled until the exact
+        advertises experimental-softap-aead-v2. Keep disabled until the exact
         firmware and Android build complete a live encrypted transfer.
 
 config EGAUGE_ECM_ADAPTER_MAC

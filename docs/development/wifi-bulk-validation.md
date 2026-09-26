@@ -33,6 +33,24 @@ The optimized access-point-ready-to-restart interval was about 142 seconds, a 56
 
 The Pixel sometimes rejected the first `WifiNetworkSpecifier` request after associating without completing the WPA handshake. Retrying from the app succeeded without entering credentials. This Android consent and association behavior needs a clearer retry state before release.
 
+## Bounded batch qualification
+
+Protocol v2 groups up to eight unchanged 1 KiB OTA chunk commands into one authenticated Wi-Fi frame. Firmware validates the complete batch before its first write and then processes every chunk through the existing OTA worker, including its transfer ID, command sequence, exact accepted offset, status result, digest, signature, activation and rollback checks. Two 8,448-byte frame buffers are allocated from PSRAM rather than the constrained internal heap.
+
+The v2 bootstrap image `0.2.0-dev.7` was written to `ota_0` over USB while retaining NVS and both configuration slots. The updated Android app then transferred the signed `0.2.0-dev.8` image over the automatic private network. This run did not require a Wi-Fi password or a new Android consent interaction.
+
+| Event | Gauge uptime |
+| --- | ---: |
+| Access point ready | 284.828 s |
+| Pixel joined | 294.658 s |
+| Image verification began | 333.858 s |
+| Pixel left after transfer | 334.658 s |
+| Restart initiated | 339.388 s |
+
+Access-point-ready-to-restart was 54.6 seconds, 61.6 percent faster than the prior 142-second result and 82.9 percent faster than the original 319-second result. The station join-to-leave transfer interval was 40.0 seconds. The Android operation took about 65 seconds from tapping Install through confirmed health, including BLE setup, Wi-Fi association, image verification, reboot, and post-boot BLE confirmation.
+
+The gauge booted `0.2.0-dev.8` from `ota_1` at `0x360000`, reported ELF SHA-256 `779cb7cb99521ab9602e2c7fe728fb8549e3ef82986b4a23008768e313451fe7`, retained configuration revision 2 with three PIDs, three pages and one alert, and confirmed the trial after UI, BLE and application progress. Android independently reported 100 percent, the same partition, and the matching hash. During the transfer the observed minimum free internal heap was 13,303 bytes and minimum free PSRAM was 2,060,808 bytes.
+
 ## Boundaries still open
 
-This evidence validates the successful encrypted transport and signed activation path. It does not validate a wrong application key, replayed frame, expired session, power loss during transfer, automatic resumption, or concurrent vehicle traffic. Those cases retain the experimental capability label. Live OBD polling and dual-adapter coexistence were not exercised.
+This evidence validates the successful encrypted transport, bounded batch path and signed activation path. It does not validate a malformed authenticated batch on hardware, wrong application key, replayed frame, expired session, power loss during transfer, automatic resumption, or concurrent vehicle traffic. Those cases retain the experimental capability label. Live OBD polling and dual-adapter coexistence were not exercised.

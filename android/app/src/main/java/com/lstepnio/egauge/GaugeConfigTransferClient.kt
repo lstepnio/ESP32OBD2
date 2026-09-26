@@ -370,6 +370,7 @@ class GaugeConfigTransferClient(private val context: Context) {
 
     /** Uses Wi-Fi only for signed image transfer. BLE remains the trust bootstrap and boot check. */
     suspend fun installUpdateWifi(device: BluetoothDevice, bundle: DevUpdateBundle,
+                                  batchChunks: Boolean,
                                   progress: (Int) -> Unit): UpdateResult {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         val before = readBootIdentity(device)
@@ -412,12 +413,24 @@ class GaugeConfigTransferClient(private val context: Context) {
                 var offset = 0
                 var lastProgress = 0
                 while (offset < bundle.image.size) {
-                    val chunk = bundle.image.copyOfRange(offset, minOf(offset + 1024, bundle.image.size))
-                    val status = command(0x23, id + le32(offset.toLong()) + chunk)
-                    check(status.accepted == offset.toLong() + chunk.size) {
+                    val commands = mutableListOf<ByteArray>()
+                    var expectedOffset = offset
+                    do {
+                        val chunk = bundle.image.copyOfRange(expectedOffset,
+                            minOf(expectedOffset + 1024, bundle.image.size))
+                        val commandSequence = sequence++
+                        commands += byteArrayOf(0x23) + le32(commandSequence) + id +
+                            le32(expectedOffset.toLong()) + chunk
+                        expectedOffset += chunk.size
+                    } while (batchChunks && commands.size < 8 && expectedOffset < bundle.image.size)
+                    val response = if (batchChunks) wifi.otaBatch(commands) else wifi.ota(commands.single())
+                    val status = otaStatus(response)
+                    val finalSequence = u32(commands.last(), 1)
+                    check(status.sequence == finalSequence && status.opcode == 0x23 &&
+                        status.result == 0 && status.accepted == expectedOffset.toLong()) {
                         "Gauge accepted an unexpected Wi-Fi update offset"
                     }
-                    offset += chunk.size
+                    offset = expectedOffset
                     val percent = offset * 100 / bundle.image.size
                     if (percent > lastProgress) {
                         lastProgress = percent

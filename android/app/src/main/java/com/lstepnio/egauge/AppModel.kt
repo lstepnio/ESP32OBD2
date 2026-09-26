@@ -468,8 +468,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                                     "Sending firmware over private gauge Wi-Fi" else
                                     "Sending firmware over Bluetooth", progressPercent = percent)
                         }
-                    val result = if (capabilities?.wifiBulk == "experimental-softap-aead-v1")
-                        client.installUpdateWifi(bleClient.selectedGauge(), bundle, reportProgress)
+                    val wifiVersion = capabilities?.wifiBulk
+                    val result = if (wifiVersion == "experimental-softap-aead-v1" ||
+                        wifiVersion == "experimental-softap-aead-v2")
+                        client.installUpdateWifi(bleClient.selectedGauge(), bundle,
+                            wifiVersion == "experimental-softap-aead-v2", reportProgress)
                     else client.installUpdate(bleClient.selectedGauge(), bundle, reportProgress)
                     updateSucceeded(result)
                     operation = OperationState(id, OperationKind.UPDATE, OperationStage.ACTIVE,
