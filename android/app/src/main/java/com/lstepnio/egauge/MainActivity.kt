@@ -1,6 +1,7 @@
 package com.lstepnio.egauge
 
 import android.Manifest
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -105,9 +106,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val keepAwakeInDebug = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+        if (keepAwakeInDebug) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent {
             SideEffect {
-                if (model.updateInProgress) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                if (keepAwakeInDebug || model.updateInProgress)
+                    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
             MaterialTheme(
