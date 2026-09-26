@@ -12,6 +12,7 @@ A standalone round OBD-II gauge and native Android companion for vehicle telemet
 - [PID discovery and custom definitions](docs/protocol/pid-discovery.md), [BLE contract](docs/protocol/ble-v1.md), and [firmware updates](docs/protocol/firmware-update.md).
 - [CEL/DTC diagnostics and threshold alerts](docs/protocol/diagnostics-and-alerts.md).
 - [Visual and interaction specification](docs/design/design-system.md).
+- [Android core and UX execution plan](docs/development/android-core-ux-review-plan.md): usability, reliability, optional dual adapters, and GitHub-hosted firmware updates for supported boards.
 - [Foundation validation report](docs/development/validation-report.md).
 - [Quality and release gates](docs/development/quality.md), [implementation roadmap](docs/roadmap.md), and [development setup](docs/development/setup.md).
 - [Current hardware/firmware evidence](docs/current-state.md) and [research sources](docs/sources.md).

@@ -68,6 +68,6 @@ jobs:
           packages: platform-tools
       - name: Install Android SDK platform
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
-      - name: Build Android app and run decoder fixtures
+      - name: Build, lint, and test Android app
         working-directory: android
-        run: ./gradlew :app:assembleDebug :app:testDebugUnitTest --no-daemon
+        run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:compileDebugAndroidTestKotlin :app:lintDebug --no-daemon

@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
@@ -22,6 +23,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+
+class GaugeCandidate internal constructor(
+    val id: String,
+    val name: String,
+    val signalDbm: Int,
+    internal val device: BluetoothDevice,
+)
 
 /** Protocol-0 public discovery and bounded paired reading selection. */
 class BleCapabilityClient(private val context: Context) {
@@ -212,7 +221,7 @@ class BleCapabilityClient(private val context: Context) {
                         (baseRevision shr 16).toByte(), (baseRevision shr 24).toByte(),
                     )
                     val started = if (Build.VERSION.SDK_INT >= 33)
-                        gatt.writeCharacteristic(control, bytes, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothGatt.GATT_SUCCESS
+                        gatt.writeCharacteristic(control, bytes, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothStatusCodes.SUCCESS
                     else {
                         @Suppress("DEPRECATION")
                         control.value = bytes
@@ -293,7 +302,17 @@ class BleCapabilityClient(private val context: Context) {
     @SuppressLint("MissingPermission")
     suspend fun readNearby(): CapabilitySnapshot {
         selectedDevice = null
-        val device = scanNearby()
+        val candidates = scanNearbyCandidates()
+        if (candidates.size != 1) {
+            error("More than one gauge is nearby. Choose the gauge you want to manage.")
+        }
+        return readCandidate(candidates.single())
+    }
+
+    @SuppressLint("MissingPermission")
+    suspend fun readCandidate(candidate: GaugeCandidate): CapabilitySnapshot {
+        selectedDevice = null
+        val device = candidate.device
         val capabilities = try {
             readCapabilities(device)
         } catch (error: IllegalStateException) {
@@ -306,17 +325,24 @@ class BleCapabilityClient(private val context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    private suspend fun scanNearby(): BluetoothDevice {
+    suspend fun scanNearbyCandidates(): List<GaugeCandidate> {
         val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
             ?: error("This phone has no Bluetooth adapter")
         if (!adapter.isEnabled) error("Turn on Bluetooth to find the gauge")
         val scanner = adapter.bluetoothLeScanner ?: error("BLE scanning is unavailable")
-        val found = CompletableDeferred<BluetoothDevice>()
+        val found = CompletableDeferred<Unit>()
+        val candidates = ConcurrentHashMap<String, GaugeCandidate>()
         val callback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
-                if (!found.isCompleted) {
-                    found.complete(result.device)
-                }
+                val device = result.device
+                val id = device.address
+                candidates[id] = GaugeCandidate(
+                    id = id,
+                    name = device.name?.takeIf(String::isNotBlank) ?: "eGauge",
+                    signalDbm = result.rssi,
+                    device = device,
+                )
+                if (!found.isCompleted) found.complete(Unit)
             }
             override fun onScanFailed(errorCode: Int) {
                 if (!found.isCompleted) found.completeExceptionally(
@@ -329,12 +355,13 @@ class BleCapabilityClient(private val context: Context) {
             ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),
             callback,
         )
-        val device = try {
+        try {
             withTimeout(15_000) { found.await() }
+            delay(1_200)
         } finally {
             scanner.stopScan(callback)
         }
-        return device
+        return candidates.values.sortedByDescending(GaugeCandidate::signalDbm)
     }
 
     @SuppressLint("MissingPermission")
@@ -387,31 +414,11 @@ class BleCapabilityClient(private val context: Context) {
             ?: error("Could not connect to the gauge")
         return try {
             val bytes = withTimeout(15_000) { result.await() }
-            parseCapabilities(bytes)
+            GaugeProtocolCodec.capabilities(bytes)
         } finally {
             gatt.disconnect()
             gatt.close()
         }
     }
 
-    private fun parseCapabilities(bytes: ByteArray): CapabilitySnapshot {
-        val objectValue = JSONObject(bytes.toString(Charsets.UTF_8))
-        val protocol = objectValue.getInt("protocolMajor")
-        if (protocol != 0) error("Unsupported gauge protocol $protocol")
-        val configWrite = objectValue.getBoolean("configWrite")
-        val ota = objectValue.getBoolean("ota")
-        if (configWrite || ota) error("Unexpected experimental capability flags")
-        return CapabilitySnapshot(
-            board = objectValue.getString("board"),
-            protocolMajor = protocol,
-            maxAdapterLinks = objectValue.getInt("maxAdapterLinks").coerceIn(0, 2),
-            simultaneousVerified = objectValue.getBoolean("simultaneousAdapterLinksVerified"),
-            configWrite = configWrite,
-            experimentalNumericConfig = objectValue.optBoolean("experimentalNumericConfig", false),
-            savedStateRead = objectValue.optBoolean("savedStateRead", false),
-            quickSelect = objectValue.optBoolean("quickSelect", false),
-            displayRotationWrite = objectValue.optBoolean("displayRotationWrite", false),
-            ota = ota,
-        )
-    }
 }

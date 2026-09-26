@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lstepnio.github.io/ESP32OBD2/contracts/release-catalog.schema.json",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "repository": { "const": "lstepnio/ESP32OBD2" },
+    "generation": { "type": "integer", "minimum": 1, "maximum": 4294967295 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "releases": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.]+)?$",
+            "maxLength": 40
+          },
+          "releaseSequence": { "type": "integer", "minimum": 1, "maximum": 4294967295 },
+          "channel": { "enum": ["development", "beta", "stable"] },
+          "boardId": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "boardRevisions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": { "type": "string", "minLength": 1, "maxLength": 32 }
+          },
+          "partitionLayout": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "transferProtocol": { "type": "integer", "minimum": 0, "maximum": 255 },
+          "bundleBytes": { "type": "integer", "minimum": 1024, "maximum": 3407872 },
+          "bundleSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "bundleUrl": {
+            "type": "string",
+            "pattern": "^https://github\\.com/lstepnio/ESP32OBD2/releases/download/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+            "maxLength": 300
+          },
+          "releaseNotes": { "type": "string", "maxLength": 2000 },
+          "sourceTag": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" }
+        },
+        "required": ["version", "releaseSequence", "channel", "boardId", "boardRevisions",
+          "partitionLayout", "transferProtocol", "bundleBytes", "bundleSha256", "bundleUrl",
+          "releaseNotes", "sourceTag"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["schemaVersion", "repository", "generation", "generatedAt", "expiresAt", "releases"],
+  "additionalProperties": false
+}

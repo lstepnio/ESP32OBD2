@@ -47,16 +47,18 @@ val demoCatalog = listOf(
 )
 
 enum class Destination(val label: String, val glyph: String) {
-    Garage("Garage", "⌂"), Design("Design", "◉"), Pids("PIDs", "≡"), Device("Device", "▣")
+    Gauge("Gauge", "◉"), Readings("Readings", "≡"), Vehicle("Vehicle", "⌂"), Settings("Settings", "⚙")
 }
 
 enum class GaugeLayout(val label: String) {
     Numeric("Numeric"), Arc("Arc"), Bar("Bar"), Trend("Trend"), Dual("Dual")
 }
 
+enum class OwnerAccess { UNKNOWN, DISCOVERED, AUTHENTICATED }
+
 data class Draft(
     val pidId: String = "rpm",
-    val layout: GaugeLayout = GaugeLayout.Arc,
+    val layout: GaugeLayout = GaugeLayout.Numeric,
     val warning: Int = 105,
     val critical: Int = 115,
     val hysteresis: Int = 3,
@@ -82,10 +84,13 @@ data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revi
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     val bleClient = BleCapabilityClient(application)
+    private val operationCoordinator = OperationCoordinator()
     private val profileStore = ProfileStore(application)
+    private val associationStore = GaugeAssociationStore(application)
+    private val updateJournal = UpdateRecoveryJournal(application)
     private val loadedProfiles = profileStore.load()
 
-    var destination by mutableStateOf(Destination.Garage)
+    var destination by mutableStateOf(Destination.Gauge)
         private set
     var profileCollection by mutableStateOf(loadedProfiles.collection)
         private set
@@ -108,9 +113,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var capabilities by mutableStateOf<CapabilitySnapshot?>(null)
         private set
+    var gaugeCandidates by mutableStateOf<List<GaugeCandidate>>(emptyList())
+        private set
+    var ownerAccess by mutableStateOf(OwnerAccess.UNKNOWN)
+        private set
     var savedGauge by mutableStateOf<GaugeSavedSnapshot?>(null)
         private set
     var diagnostics by mutableStateOf<GaugeConfigTransferClient.Diagnostics?>(null)
+        private set
+    var diagnosticsObservedAtElapsedMs by mutableStateOf<Long?>(null)
         private set
     var bootIdentity by mutableStateOf<GaugeConfigTransferClient.BootIdentity?>(null)
         private set
@@ -121,7 +132,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun updateBundle(): DevUpdateBundle = selectedUpdate ?: error("Select a signed update package first")
     var updateInProgress by mutableStateOf(false)
         private set
-    var updatePackageMessage by mutableStateOf("No update package selected")
+    var updatePackageMessage by mutableStateOf(updateJournal.read()?.let {
+        "A previous update was interrupted. Reconnect and check running firmware before retrying."
+    } ?: "No update package selected")
+        private set
+    var hostedUpdate by mutableStateOf<HostedUpdate?>(null)
+        private set
+    var hostedUpdateMessage by mutableStateOf("Hosted development updates have not been checked")
+        private set
+    var hostedUpdateBusy by mutableStateOf(false)
         private set
     var activeConfigRevision by mutableStateOf<Long?>(null)
         private set
@@ -180,6 +199,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var customSource by mutableStateOf("ECM")
         private set
+    var advancedReadingsOpen by mutableStateOf(false)
+        private set
+    var technicalDetailsOpen by mutableStateOf(false)
+        private set
+    var advancedConnectionsOpen by mutableStateOf(false)
+        private set
+    var operation by mutableStateOf(OperationState.Idle)
+        private set
 
     fun navigate(value: Destination) { destination = value }
     fun search(value: String) { query = value }
@@ -188,6 +215,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun showLab(value: Boolean) { labOpen = value }
     fun editLabInput(value: String) { labInput = value.take(128) }
     fun showCustomLab(value: Boolean) { customLabOpen = value }
+    fun showAdvancedReadings(value: Boolean) { advancedReadingsOpen = value }
+    fun showTechnicalDetails(value: Boolean) { technicalDetailsOpen = value }
+    fun showAdvancedConnections(value: Boolean) { advancedConnectionsOpen = value }
     fun editCustomRequest(value: String) { customRequestInput = value.take(32) }
     fun selectCustomSource(value: String) { if (value == "ECM" || value == "TCM") customSource = value }
     fun editProfileName(value: String) { profileNameInput = value.take(32) }
@@ -195,29 +225,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (profileError != null || profileCollection.profiles.none { it.id == id }) return
         profileCollection = profileCollection.copy(activeId = id)
         draft = profileCollection.active.draft
-        profileStore.save(profileCollection)
+        if (!profileStore.save(profileCollection)) profileError = "Could not save the selected vehicle profile"
     }
     fun createProfile() {
         val name = profileNameInput.trim()
         if (profileError != null || name.isEmpty() || profileCollection.profiles.size >= 8 ||
             profileCollection.profiles.any { it.name.equals(name, ignoreCase = true) }) return
-        val profile = VehicleProfile(ProfileStore.newId(), name, Draft())
+        val profile = VehicleProfile(ProfileStore.newId(), name, Draft(), secondAdapterEnabled = false)
         profileCollection = profileCollection.copy(
             activeId = profile.id,
             profiles = profileCollection.profiles + profile,
         )
         draft = profile.draft
         profileNameInput = ""
-        profileStore.save(profileCollection)
+        if (!profileStore.save(profileCollection)) profileError = "Could not save the new vehicle profile"
     }
     fun markScanning(value: Boolean) { scanning = value }
     fun connectionError(message: String) {
         scanning = false
         deviceMessage = message
         capabilities = null
+        gaugeCandidates = emptyList()
+        ownerAccess = OwnerAccess.UNKNOWN
         savedGauge = null
         diagnostics = null
+        diagnosticsObservedAtElapsedMs = null
+        bootIdentity = null
         runtimeIdentity = null
+        activeConfigRevision = null
         activeDocument = null
         verifiedConfigHash = null
         documentMessage = null
@@ -226,8 +261,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun connected(value: CapabilitySnapshot) {
         scanning = false
         capabilities = value
+        gaugeCandidates = emptyList()
+        ownerAccess = OwnerAccess.DISCOVERED
         savedGauge = null
         diagnostics = null
+        diagnosticsObservedAtElapsedMs = null
+        bootIdentity = null
         runtimeIdentity = null
         activeConfigRevision = null
         activeDocument = null
@@ -238,7 +277,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         sentProfileId = null
         sentDigest = null
         deviceMessage = if (value.experimentalNumericConfig)
-            "Gauge identified. Experimental numeric ECM transfer requires the paired owner."
+            "Gauge found. Pair this phone as owner to send supported numeric pages."
         else if (value.quickSelect)
             "Gauge identified. Built-in reading selection is available after pairing."
         else "Gauge identified. Discovery link closed; protocol ${value.protocolMajor} is read only."
@@ -246,11 +285,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun selectionApplied(index: Int) {
         scanning = false
         savedGauge = null
+        ownerAccess = OwnerAccess.AUTHENTICATED
         deviceMessage = "Gauge confirmed built-in reading ${index + 1} of 5."
     }
     fun snapshotRead(value: GaugeSavedSnapshot) {
         scanning = false
         savedGauge = value
+        ownerAccess = OwnerAccess.AUTHENTICATED
         deviceMessage = "Gauge saved state read at revision ${value.revision}."
     }
     fun configApplied(value: GaugeConfigTransferClient.Applied, profileId: String, appliedDraft: Draft) {
@@ -264,9 +305,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         sentProfileId = profileId
         sentDigest = value.sha256
         savedGauge = null
-        capabilities = capabilities?.copy(quickSelect = false, savedStateRead = false,
-            displayRotationWrite = false)
-        deviceMessage = "Numeric ECM profile active at revision ${value.revision}. SHA-256 ${value.sha256.take(12)}…"
+        runtimeIdentity = value.runtime
+        ownerAccess = OwnerAccess.AUTHENTICATED
+        deviceMessage = "Configuration revision ${value.revision} is healthy and running on the gauge."
     }
     fun configStatusRead(value: GaugeConfigTransferClient.ActiveStatus) {
         scanning = false
@@ -284,6 +325,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             sentDigest = null
         }
         activeConfigRevision = value.revision.takeIf { it > 0 }
+        ownerAccess = OwnerAccess.AUTHENTICATED
         deviceMessage = if (value.revision == 0L)
             "Gauge is using built-in readings. Transfer phase ${value.transferPhase}."
         else "Gauge active config revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…; " +
@@ -292,6 +334,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun runtimeIdentityRead(value: GaugeConfigTransferClient.RuntimeIdentity) {
         scanning = false
         runtimeIdentity = value
+        ownerAccess = OwnerAccess.AUTHENTICATED
         deviceMessage = when {
             !value.running -> "Gauge is running built-in readings; no custom configuration is active."
             value.usedPreviousGeneration ->
@@ -304,6 +347,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun activeDocumentRead(value: GaugeConfigTransferClient.ActiveDocument?) {
         scanning = false
         activeDocument = value
+        ownerAccess = OwnerAccess.AUTHENTICATED
         activeConfigRevision = value?.revision ?: 0L
         verifiedConfigHash = value?.sha256 ?: "0".repeat(64)
         if (sentDigest != value?.sha256) {
@@ -337,12 +381,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun diagnosticsRead(value: GaugeConfigTransferClient.Diagnostics) {
         scanning = false
         diagnostics = value
+        ownerAccess = OwnerAccess.AUTHENTICATED
+        diagnosticsObservedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
         deviceMessage = "Protected diagnostic snapshot read. Vehicle evidence is shown below."
+    }
+
+    fun diagnosticsCurrent(nowElapsedMs: Long = android.os.SystemClock.elapsedRealtime()): Boolean {
+        val observed = diagnosticsObservedAtElapsedMs ?: return false
+        return nowElapsedMs >= observed && nowElapsedMs - observed <= 30_000
     }
     fun bootIdentityRead(value: GaugeConfigTransferClient.BootIdentity) {
         scanning = false
         bootIdentity = value
-        deviceMessage = "Protected running firmware identity read."
+        ownerAccess = OwnerAccess.AUTHENTICATED
+        val pending = updateJournal.read()
+        if (pending != null) updateJournal.clear()
+        deviceMessage = if (pending == null) "Protected running firmware identity read."
+        else "Interrupted update reconciled. The running firmware identity is shown below."
     }
     fun updatePackageLoaded(value: DevUpdateBundle) {
         selectedUpdate = value
@@ -352,45 +407,283 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun updateStarted() {
         updateInProgress = true
         scanning = true
+        val bundle = updateBundle()
+        updateJournal.write(
+            associationStore.rememberedId() ?: "unknown",
+            bundle.sha256.joinToString("") { "%02x".format(it) },
+            "preparing",
+        )
         updatePackageMessage = "Connecting to gauge for signed update…"
     }
     fun updateProgress(percent: Int) {
+        if (percent == 0) {
+            val bundle = updateBundle()
+            updateJournal.write(
+                associationStore.rememberedId() ?: "unknown",
+                bundle.sha256.joinToString("") { "%02x".format(it) },
+                "transferring",
+            )
+        }
         updatePackageMessage = "Sending signed image to gauge • $percent%"
     }
     fun updateSucceeded(value: GaugeConfigTransferClient.UpdateResult) {
         updateInProgress = false
         scanning = false
+        updateJournal.clear()
         updatePackageMessage = "Gauge confirmed new image at 0x${value.partitionAddress.toString(16)} • ELF SHA-256 ${value.elfSha256.take(12)}…"
     }
     fun updateFailed(message: String) {
         updateInProgress = false
         scanning = false
+        selectedUpdate?.let { bundle ->
+            updateJournal.write(
+                associationStore.rememberedId() ?: "unknown",
+                bundle.sha256.joinToString("") { "%02x".format(it) },
+                "needs-reconciliation",
+            )
+        }
         updatePackageMessage = message
     }
     fun installSelectedUpdate() {
         if (updateInProgress) return
         val bundle = updateBundle()
-        updateStarted()
         viewModelScope.launch {
             try {
-                val result = GaugeConfigTransferClient(getApplication())
-                    .installUpdate(bleClient.selectedGauge(), bundle, ::updateProgress)
-                updateSucceeded(result)
+                operationCoordinator.run(OperationKind.UPDATE) { id ->
+                    updateStarted()
+                    operation = OperationState(id, OperationKind.UPDATE, OperationStage.CONNECTING,
+                        "Installing firmware", "Connecting to the gauge")
+                    val result = GaugeConfigTransferClient(getApplication())
+                        .installUpdate(bleClient.selectedGauge(), bundle) { percent ->
+                            updateProgress(percent)
+                            operation = operation.copy(stage = OperationStage.SENDING,
+                                detail = "Sending firmware to the gauge", progressPercent = percent)
+                        }
+                    updateSucceeded(result)
+                    operation = OperationState(id, OperationKind.UPDATE, OperationStage.ACTIVE,
+                        "Firmware installed", "The new image is healthy and running", 100, true)
+                }
+            } catch (_: OperationBusyException) {
+                deviceMessage = "Finish the current gauge operation before installing firmware"
             } catch (error: TimeoutCancellationException) {
                 updateFailed("Gauge update timed out. Reconnect and read running firmware before retrying.")
+                operationFailed("Firmware update timed out", outcomeUnknown = true)
             } catch (error: CancellationException) {
                 updateFailed("Update interrupted. Reconnect and read the running firmware before retrying.")
+                operationFailed("Firmware update was interrupted", outcomeUnknown = true)
                 throw error
             } catch (error: GaugeLinkException) {
                 updateFailed("Gauge connection interrupted during update. Reconnect and read running firmware before retrying. ${error.message}")
+                operationFailed("Gauge connection was interrupted", outcomeUnknown = true)
             } catch (error: Exception) {
                 updateFailed(error.message ?: "Signed update did not complete")
+                operationFailed(error.message ?: "Signed update did not complete")
             }
         }
+    }
+
+    fun discoverGauge() = launchGaugeOperation(OperationKind.DISCOVERY, "Finding your gauge") { id ->
+        operation = OperationState(id, OperationKind.DISCOVERY, OperationStage.FINDING_GAUGE,
+            "Finding your gauge", "Keep the gauge powered and nearby")
+        val candidates = bleClient.scanNearbyCandidates()
+        val remembered = associationStore.rememberedId()?.let { id ->
+            candidates.singleOrNull { it.id == id }
+        }
+        when {
+            remembered != null -> connectCandidate(id, remembered)
+            candidates.size == 1 -> connectCandidate(id, candidates.single())
+            else -> {
+                gaugeCandidates = candidates
+                scanning = false
+                operation = OperationState(id, OperationKind.DISCOVERY, OperationStage.ACTIVE,
+                    "Choose your gauge", "${candidates.size} compatible gauges are nearby", terminal = true)
+            }
+        }
+    }
+
+    fun selectGaugeCandidate(candidate: GaugeCandidate) =
+        launchGaugeOperation(OperationKind.DISCOVERY, "Connecting to your gauge") { id ->
+            connectCandidate(id, candidate)
+        }
+
+    private suspend fun connectCandidate(operationId: Long, candidate: GaugeCandidate) {
+        operation = OperationState(operationId, OperationKind.DISCOVERY, OperationStage.CONNECTING,
+            "Connecting to your gauge", candidate.name)
+        connected(bleClient.readCandidate(candidate))
+        associationStore.remember(candidate.id)
+        operation = OperationState(operationId, OperationKind.DISCOVERY, OperationStage.ACTIVE,
+            "Gauge found", "Ready for owner access and supported settings", terminal = true)
+    }
+
+    fun selectReadingOnGauge() = launchGaugeOperation(OperationKind.CONFIGURATION, "Changing gauge reading") { id ->
+        val index = when (draft.pidId) {
+            "rpm" -> 0; "speed" -> 1; "load" -> 2; "coolant" -> 3; "fuel" -> 4
+            else -> error("This reading is not available in the built-in gauge set")
+        }
+        operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
+            "Changing gauge reading", "Waiting for authenticated readback")
+        selectionApplied(bleClient.selectNearby(index))
+        if (capabilities?.savedStateRead == true) {
+            kotlinx.coroutines.delay(350)
+            snapshotRead(bleClient.readSavedSnapshot())
+        }
+        operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
+            "Reading changed", "The gauge confirmed its saved selection", terminal = true)
+    }
+
+    fun rotateGauge(rotation: Int) = launchGaugeOperation(OperationKind.CONFIGURATION, "Rotating display") { id ->
+        require(capabilities?.displayRotationWrite == true) { "Gauge does not offer display rotation control" }
+        operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
+            "Rotating display", "Waiting for saved-state confirmation")
+        snapshotRead(bleClient.rotateNearby(rotation))
+        operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
+            "Display rotation saved", "The gauge confirmed ${rotation * 90}°", terminal = true)
+    }
+
+    fun readSavedGauge() = launchGaugeOperation(OperationKind.READ, "Checking gauge settings") { id ->
+        snapshotRead(bleClient.readSavedSnapshot())
+        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
+            "Gauge settings checked", "Saved revision ${savedGauge?.revision ?: 0}", terminal = true)
+    }
+
+    fun sendNumericConfiguration() = launchGaugeOperation(OperationKind.CONFIGURATION, "Sending gauge setup") { id ->
+        require(capabilities?.experimentalNumericConfig == true) { "Gauge does not offer numeric configuration" }
+        val profileId = profileCollection.activeId
+        val capturedDraft = draft
+        val baseRevision = activeConfigRevision ?: error("Refresh gauge settings before sending")
+        val baseHash = verifiedConfigHash ?: error("Refresh gauge settings before sending")
+        operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.PREPARING,
+            "Sending gauge setup", "Checking the current saved revision")
+        val applied = GaugeConfigTransferClient(getApplication()).apply(
+            bleClient.selectedGauge(), capturedDraft, profileId, baseRevision, baseHash,
+        ) { stage -> operation = operation.copy(stage = stage, detail = operationDetail(stage)) }
+        configApplied(applied, profileId, capturedDraft)
+        operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
+            "Setup running on gauge", "Revision ${applied.revision} is healthy and active", 100, true)
+    }
+
+    fun readConfiguration() = launchGaugeOperation(OperationKind.READ, "Checking running setup") { id ->
+        val client = GaugeConfigTransferClient(getApplication())
+        configStatusRead(client.readActive(bleClient.selectedGauge()))
+        operation = OperationState(id, OperationKind.READ, OperationStage.CHECKING_RUNNING,
+            "Checking running setup", "Comparing saved and running revisions")
+        runtimeIdentityRead(client.readRuntimeIdentity(bleClient.selectedGauge()))
+        operation = OperationState(id, OperationKind.READ,
+            if (runtimeIdentity?.usedPreviousGeneration == true) OperationStage.RECOVERED else OperationStage.ACTIVE,
+            if (runtimeIdentity?.usedPreviousGeneration == true) "Gauge recovered an earlier setup" else "Running setup checked",
+            deviceMessage, terminal = true)
+    }
+
+    fun readConfigurationDocument() = launchGaugeOperation(OperationKind.READ, "Reading saved setup") { id ->
+        activeDocumentRead(GaugeConfigTransferClient(getApplication())
+            .readActiveDocument(bleClient.selectedGauge()))
+        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
+            "Saved setup checked", documentMessage, terminal = true)
+    }
+
+    fun readGaugeDiagnostics() = launchGaugeOperation(OperationKind.READ, "Checking vehicle faults") { id ->
+        diagnosticsRead(GaugeConfigTransferClient(getApplication()).readDiagnostics(bleClient.selectedGauge()))
+        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
+            "Vehicle fault snapshot checked", "Fresh when read from the gauge", terminal = true)
+    }
+
+    fun readRunningFirmware() = launchGaugeOperation(OperationKind.READ, "Checking firmware") { id ->
+        bootIdentityRead(GaugeConfigTransferClient(getApplication()).readBootIdentity(bleClient.selectedGauge()))
+        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
+            "Firmware checked", bootIdentity?.version, terminal = true)
+    }
+
+    private fun launchGaugeOperation(kind: OperationKind, title: String, block: suspend (Long) -> Unit) {
+        viewModelScope.launch {
+            try {
+                operationCoordinator.run(kind) { id ->
+                    scanning = true
+                    operation = OperationState(id, kind, OperationStage.CONNECTING, title)
+                    block(id)
+                    scanning = false
+                }
+            } catch (_: OperationBusyException) {
+                deviceMessage = "Finish the current gauge operation before starting another"
+            } catch (error: CancellationException) {
+                scanning = false
+                operationFailed("$title was interrupted", outcomeUnknown = kind != OperationKind.READ)
+                throw error
+            } catch (error: Exception) {
+                scanning = false
+                val message = error.message ?: "$title did not complete"
+                deviceMessage = message
+                operationFailed(message, outcomeUnknown = kind == OperationKind.CONFIGURATION)
+            }
+        }
+    }
+
+    private fun operationFailed(message: String, outcomeUnknown: Boolean = false) {
+        operation = operation.copy(
+            stage = if (outcomeUnknown) OperationStage.OUTCOME_UNKNOWN else OperationStage.FAILED,
+            detail = message,
+            terminal = true,
+        )
+    }
+
+    private fun operationDetail(stage: OperationStage): String = when (stage) {
+        OperationStage.PREPARING -> "Checking the current saved revision"
+        OperationStage.SENDING -> "Sending the exact reviewed pages and alert"
+        OperationStage.VERIFYING -> "Verifying the complete setup"
+        OperationStage.SAVED -> "Setup saved; waiting for restart"
+        OperationStage.RESTARTING -> "Gauge is restarting"
+        OperationStage.CHECKING_RUNNING -> "Checking that the new setup is healthy and running"
+        else -> stage.name.lowercase().replace('_', ' ')
     }
     fun updatePackageError(message: String) {
         selectedUpdate = null
         updatePackageMessage = message
+    }
+
+    fun checkHostedFirmware() {
+        if (hostedUpdateBusy) return
+        val caps = capabilities ?: run {
+            hostedUpdateMessage = "Find the gauge before checking firmware compatibility"
+            return
+        }
+        viewModelScope.launch {
+            hostedUpdateBusy = true
+            hostedUpdate = null
+            try {
+                val update = GitHubFirmwareSource(getApplication()).check(caps)
+                hostedUpdate = update
+                hostedUpdateMessage = "Compatible development firmware ${update.release.version} is available"
+            } catch (error: CancellationException) {
+                hostedUpdateMessage = "Hosted update check was interrupted"
+                throw error
+            } catch (error: Exception) {
+                hostedUpdateMessage = error.message ?: "Could not check hosted firmware"
+            } finally {
+                hostedUpdateBusy = false
+            }
+        }
+    }
+
+    fun downloadHostedFirmware() {
+        if (hostedUpdateBusy) return
+        val available = hostedUpdate ?: return
+        viewModelScope.launch {
+            hostedUpdateBusy = true
+            hostedUpdateMessage = "Downloading and verifying ${available.release.version}"
+            try {
+                val downloaded = GitHubFirmwareSource(getApplication()).download(available)
+                hostedUpdate = downloaded
+                selectedUpdate = requireNotNull(downloaded.bundle)
+                updatePackageMessage = "GitHub development firmware ${downloaded.release.version} verified and ready"
+                hostedUpdateMessage = "Download verified. Review and install when the gauge has stable power."
+            } catch (error: CancellationException) {
+                hostedUpdateMessage = "Firmware download was interrupted"
+                throw error
+            } catch (error: Exception) {
+                hostedUpdateMessage = error.message ?: "Hosted firmware download failed"
+            } finally {
+                hostedUpdateBusy = false
+            }
+        }
     }
     fun selectionError(message: String) {
         scanning = false
@@ -409,6 +702,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun setTriggerDwell(value: Int) = save(draft.copy(triggerDwellMs = value.coerceIn(0, 60000)))
     fun setClearDwell(value: Int) = save(draft.copy(clearDwellMs = value.coerceIn(0, 60000)))
     fun setSource(value: String) = save(draft.copy(source = value))
+    fun setSecondAdapterEnabled(value: Boolean) {
+        if (profileError != null) return
+        val active = profileCollection.active
+        if (!value && active.draft.source == "TCM") {
+            profileError = "Move the selected transmission reading to the primary adapter before disabling the second adapter"
+            return
+        }
+        profileCollection = profileCollection.copy(profiles = profileCollection.profiles.map { profile ->
+            if (profile.id == active.id) profile.copy(secondAdapterEnabled = value) else profile
+        })
+        if (!profileStore.save(profileCollection)) profileError = "Could not save advanced connection settings"
+    }
 
     private fun save(value: Draft) {
         if (profileError != null) return
@@ -416,6 +721,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         profileCollection = profileCollection.copy(profiles = profileCollection.profiles.map { profile ->
             if (profile.id == profileCollection.activeId) profile.copy(draft = value) else profile
         })
-        profileStore.save(profileCollection)
+        if (!profileStore.save(profileCollection)) profileError = "Could not save changes on this phone"
     }
 }

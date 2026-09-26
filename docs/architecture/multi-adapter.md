@@ -8,7 +8,9 @@ Gauge maintains **two central-role adapter links plus one peripheral-role phone 
 
 Keys are `(vehicleProfileId, sourceId, ECU identity, service, identifier, definition revision)`. ECM and TCM may both reply as `7E8`; address alone is never a unique vehicle-wide key. Stable source aliases such as `ecm` and `tcm` belong to the configuration. Adapter identity/bond data stays on the gauge and is bound to those aliases during setup, not copied as credentials in profile exports.
 
-UI labels all ambiguous signals with source/ECU. Garage shows ECM adapter and TCM adapter as separate rows with connection, protocol, age, and signal quality. Discovery can target one source or both. A dual-value page can bind ECM coolant and a documented TCM temperature definition. A threshold binds one definition/source; losing TCM must not interrupt ECM polling or silently disable a TCM alert.
+New vehicle profiles default to one adapter. Separate ECM/TCM setup is an explicit per-profile advanced option, as specified in the [Android core and UX plan](../development/android-core-ux-review-plan.md). Standard setup does not show a disconnected TCM placeholder. Existing profiles with multiple sources preserve their bindings and remain visibly configured for advanced connections. Disabling the second adapter requires resolving dependent pages and alerts before applying changes.
+
+In advanced profiles, UI labels all ambiguous signals with source/ECU and shows separate adapter connection, age, and availability. Technical details expose protocol and signal quality. Discovery can target one source or both when supported. A dual-value page can bind ECM coolant and a documented TCM temperature definition, but does not itself require two adapters. A threshold binds one definition/source; losing TCM must not interrupt ECM polling or silently disable a TCM alert.
 
 ## Feasibility TODO: MULTI-001
 

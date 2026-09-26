@@ -26,6 +26,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--bundle", type=Path,
                         help="also write a bounded .egauge-dev-update ZIP for Android import")
+    parser.add_argument("--expected-version",
+                        help="require the ESP app descriptor version to match the release version")
     args = parser.parse_args()
 
     image = args.image.read_bytes()
@@ -33,6 +35,13 @@ def main() -> None:
         parser.error("image must fit the inactive 3 MiB OTA slot")
     if not args.key.is_file():
         parser.error(f"signing key is missing: {args.key}")
+    if len(image) < 208 or image[0] != 0xE9 or image[32:36] != bytes.fromhex("3254cdab"):
+        parser.error("image has no supported ESP app descriptor")
+    app_version = image[48:80].split(b"\0", 1)[0].decode("ascii", errors="strict")
+    if args.expected_version is not None and app_version != args.expected_version:
+        parser.error(
+            f"image version {app_version!r} does not match release version {args.expected_version!r}"
+        )
     digest = hashlib.sha256(image).digest()
     signed_bytes = struct.pack("<II", BOARD_TAG, len(image)) + digest
     with tempfile.NamedTemporaryFile(mode="wb", delete=False) as message:

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "repository": "lstepnio/ESP32OBD2",
+  "generation": 1,
+  "generatedAt": "2026-09-26T00:00:00Z",
+  "expiresAt": "2027-03-25T00:00:00Z",
+  "releases": [
+    {
+      "version": "0.2.0-dev.3",
+      "releaseSequence": 3,
+      "channel": "development",
+      "boardId": "waveshare-esp32-s3-touch-lcd-1.28",
+      "boardRevisions": ["all"],
+      "partitionLayout": "egauge-16m-ab-v1",
+      "transferProtocol": 0,
+      "bundleBytes": 1048576,
+      "bundleSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "bundleUrl": "https://github.com/lstepnio/ESP32OBD2/releases/download/dev-v0.2.0-dev.3/egauge-waveshare-esp32-s3-touch-lcd-1.28-0.2.0-dev.3.egauge-dev-update",
+      "releaseNotes": "Development firmware for authenticated integration testing.",
+      "sourceTag": "dev-v0.2.0-dev.3"
+    }
+  ]
+}

@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -59,6 +60,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -149,19 +151,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun readGauge() {
-        model.markScanning(true)
-        lifecycleScope.launch {
-            try {
-                model.connected(model.bleClient.readNearby())
-            } catch (error: TimeoutCancellationException) {
-                model.connectionError("Gauge discovery timed out. Keep the gauge powered and try again")
-            } catch (error: CancellationException) {
-                model.connectionError("Gauge discovery was interrupted")
-                throw error
-            } catch (error: Exception) {
-                model.connectionError(error.message ?: "Could not read the gauge")
-            }
-        }
+        model.discoverGauge()
     }
 
     private fun requestSelection() {
@@ -171,152 +161,35 @@ class MainActivity : ComponentActivity() {
             model.selectionError("Grant nearby device permission, then try again")
             return
         }
-        val index = when (model.draft.pidId) {
-            "rpm" -> 0; "speed" -> 1; "load" -> 2; "coolant" -> 3; "fuel" -> 4
-            else -> { model.selectionError("This example has no built-in gauge reading"); return }
-        }
-        model.markScanning(true)
-        lifecycleScope.launch {
-            try {
-                model.selectionApplied(model.bleClient.selectNearby(index))
-                if (model.capabilities?.savedStateRead == true) {
-                    model.markScanning(true)
-                    delay(350)
-                    try {
-                        model.snapshotRead(model.bleClient.readSavedSnapshot())
-                    } catch (error: CancellationException) {
-                        model.snapshotError("Saved gauge state refresh was interrupted")
-                        throw error
-                    } catch (error: Exception) {
-                        model.snapshotError("Reading changed on gauge; saved state refresh failed. Tap Read saved gauge state to retry.")
-                    }
-                }
-            } catch (error: TimeoutCancellationException) {
-                model.selectionError("Pairing or gauge confirmation timed out. Open pairing on the gauge and retry")
-            } catch (error: CancellationException) {
-                model.selectionError("Gauge selection was interrupted; read its state before retrying")
-                throw error
-            } catch (error: Exception) {
-                model.selectionError(error.message ?: "Could not select gauge reading")
-            }
-        }
+        model.selectReadingOnGauge()
     }
 
     private fun requestRotation(rotation: Int) {
-        if (model.capabilities?.displayRotationWrite != true) {
-            model.selectionError("Gauge does not offer display rotation control")
-            return
-        }
-        model.markScanning(true)
-        lifecycleScope.launch {
-            try {
-                model.snapshotRead(model.bleClient.rotateNearby(rotation))
-            } catch (error: CancellationException) {
-                model.snapshotError("Display rotation was interrupted; read saved state before retrying")
-                throw error
-            } catch (error: Exception) {
-                model.snapshotError(error.message ?: "Gauge did not confirm display rotation")
-            }
-        }
+        model.rotateGauge(rotation)
     }
 
     private fun requestSavedSnapshot() {
-        model.markScanning(true)
-        lifecycleScope.launch {
-            try {
-                model.snapshotRead(model.bleClient.readSavedSnapshot())
-            } catch (error: CancellationException) {
-                model.snapshotError("Saved gauge state read was interrupted")
-                throw error
-            } catch (error: Exception) {
-                model.snapshotError(error.message ?: "Could not read saved gauge state")
-            }
-        }
+        model.readSavedGauge()
     }
 
     private fun requestNumericConfiguration() {
-        if (model.capabilities?.experimentalNumericConfig != true) return
-        model.markScanning(true)
-        lifecycleScope.launch {
-            try {
-                val profileId = model.profileCollection.activeId
-                val draft = model.draft
-                val baseRevision = model.activeConfigRevision
-                    ?: error("Refresh the saved gauge configuration before sending")
-                val baseHash = model.verifiedConfigHash
-                    ?: error("Refresh the saved gauge configuration before sending")
-                val applied = GaugeConfigTransferClient(this@MainActivity).apply(
-                    model.bleClient.selectedGauge(), draft, profileId, baseRevision, baseHash)
-                model.configApplied(applied, profileId, draft)
-            } catch (error: CancellationException) {
-                model.selectionError("Configuration transfer interrupted; read gauge status before retrying")
-                throw error
-            } catch (error: Exception) {
-                model.selectionError(error.message ?: "Gauge did not confirm configuration")
-            }
-        }
+        model.sendNumericConfiguration()
     }
 
     private fun requestActiveConfiguration() {
-        model.markScanning(true)
-        lifecycleScope.launch {
-            try {
-                val client = GaugeConfigTransferClient(this@MainActivity)
-                model.configStatusRead(client.readActive(model.bleClient.selectedGauge()))
-                model.runtimeIdentityRead(client.readRuntimeIdentity(model.bleClient.selectedGauge()))
-            } catch (error: CancellationException) {
-                model.selectionError("Configuration status read was interrupted")
-                throw error
-            } catch (error: Exception) {
-                model.selectionError(error.message ?: "Could not read active configuration")
-            }
-        }
+        model.readConfiguration()
     }
 
     private fun requestActiveDocument() {
-        if (model.capabilities?.experimentalNumericConfig != true) return
-        model.markScanning(true)
-        lifecycleScope.launch {
-            try {
-                model.activeDocumentRead(GaugeConfigTransferClient(this@MainActivity)
-                    .readActiveDocument(model.bleClient.selectedGauge()))
-            } catch (error: CancellationException) {
-                model.activeDocumentError("Configuration document read was interrupted")
-                throw error
-            } catch (error: Exception) {
-                model.activeDocumentError(error.message ?: "Could not verify saved configuration document")
-            }
-        }
+        model.readConfigurationDocument()
     }
 
     private fun requestDiagnostics() {
-        model.markScanning(true)
-        lifecycleScope.launch {
-            try {
-                model.diagnosticsRead(GaugeConfigTransferClient(this@MainActivity)
-                    .readDiagnostics(model.bleClient.selectedGauge()))
-            } catch (error: CancellationException) {
-                model.selectionError("Diagnostic read was interrupted")
-                throw error
-            } catch (error: Exception) {
-                model.selectionError(error.message ?: "Could not read gauge diagnostics")
-            }
-        }
+        model.readGaugeDiagnostics()
     }
 
     private fun requestBootIdentity() {
-        model.markScanning(true)
-        lifecycleScope.launch {
-            try {
-                model.bootIdentityRead(GaugeConfigTransferClient(this@MainActivity)
-                    .readBootIdentity(model.bleClient.selectedGauge()))
-            } catch (error: CancellationException) {
-                model.selectionError("Firmware identity read was interrupted")
-                throw error
-            } catch (error: Exception) {
-                model.selectionError(error.message ?: "Could not read running firmware identity")
-            }
-        }
+        model.readRunningFirmware()
     }
 
     private fun requestInstallUpdate() {
@@ -382,11 +255,12 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 840.dp).fillMaxWidth().fillMaxHeight().padding(horizontal = 20.dp)) {
             Header(model)
+            if (model.operation.stage != OperationStage.IDLE) OperationBanner(model.operation)
             when (model.destination) {
-                Destination.Garage -> GarageScreen(model, onFindGauge)
-                Destination.Design -> DesignScreen(model, onApplyNumeric, onReadDocument)
-                Destination.Pids -> PidsScreen(model)
-                Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved,
+                Destination.Gauge -> DesignScreen(model, onApplyNumeric, onReadDocument)
+                Destination.Readings -> PidsScreen(model)
+                Destination.Vehicle -> GarageScreen(model, onFindGauge)
+                Destination.Settings -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved,
                     onRotate, onReadConfig, onReadDocument, onReadDiagnostics, onReadBootIdentity, onInstallUpdate, onSelectUpdate)
             }
         }
@@ -406,7 +280,12 @@ private fun Header(model: AppViewModel) {
         Spacer(Modifier.width(10.dp))
         Text("eGauge", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = TextColor)
         Spacer(Modifier.weight(1f))
-        StatusPill("DEMO DATA", WarningColor)
+        val operationActive = model.operation.stage != OperationStage.IDLE && !model.operation.terminal
+        StatusPill(when {
+            operationActive -> model.operation.stage.name.replace('_', ' ')
+            model.capabilities != null -> "GAUGE FOUND"
+            else -> "OFFLINE PREVIEW"
+        }, if (model.capabilities != null && !operationActive) AccentColor else WarningColor)
     }
 }
 
@@ -447,15 +326,31 @@ private fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScop
 
 @Composable
 private fun SectionHeading(text: String) {
-    Text(text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = TextColor)
+    Text(text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = TextColor,
+        modifier = Modifier.semantics { heading() })
     Spacer(Modifier.height(12.dp))
+}
+
+@Composable
+private fun OperationBanner(state: OperationState) {
+    val tint = when (state.stage) {
+        OperationStage.FAILED, OperationStage.OUTCOME_UNKNOWN -> CriticalColor
+        OperationStage.RECOVERED -> WarningColor
+        OperationStage.ACTIVE -> AccentColor
+        else -> WarningColor
+    }
+    Panel(Modifier.padding(bottom = 14.dp)) {
+        Text(state.title, color = tint, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        state.detail?.let { Text(it, color = TextColor, fontSize = 14.sp, lineHeight = 20.sp) }
+        state.progressPercent?.let { Text("$it%", color = tint, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+    }
 }
 
 @Composable
 private fun GarageScreen(model: AppViewModel, onFindGauge: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
-        Intro("00 / Your garage", "Ready for your next drive.",
-            "Build your view now. Connect the gauge to see which features its firmware supports.")
+        Intro("Vehicle", model.profileCollection.active.name,
+            "Manage this vehicle profile, its gauge, and its OBD connection.")
         Panel {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(48.dp).clip(CircleShape).background(AccentColor.copy(alpha = .14f)),
@@ -467,9 +362,11 @@ private fun GarageScreen(model: AppViewModel, onFindGauge: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(18.dp))
-            Button(onClick = onFindGauge, enabled = !model.scanning, modifier = Modifier.fillMaxWidth().height(50.dp)) {
+            Button(onClick = onFindGauge, enabled = !model.scanning,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
                 Text(if (model.scanning) "Finding gauge…" else "Find nearby gauge")
             }
+            GaugeCandidateChooser(model)
         }
         Spacer(Modifier.height(16.dp))
         Panel {
@@ -514,16 +411,35 @@ private fun GarageScreen(model: AppViewModel, onFindGauge: () -> Unit) {
             Spacer(Modifier.height(14.dp))
             Text("${model.profileCollection.active.name} dashboard", color = TextColor,
                 fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Text("The current preview stays on this phone. Device configuration needs a future secure firmware operation.",
+            Text("Edits stay on this phone until you review and send a supported setup to the gauge.",
                 color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
             Spacer(Modifier.height(16.dp))
-            OutlinedButton(onClick = { model.navigate(Destination.Design) }) { Text("Open design studio") }
+            OutlinedButton(onClick = { model.navigate(Destination.Gauge) }) { Text("Edit gauge") }
         }
         Spacer(Modifier.height(24.dp))
-        SectionHeading("Sources")
-        SourceRow("ECM", "Engine adapter", "Not connected to the app")
+        SectionHeading("Vehicle connection")
+        SourceRow("OBD", "Vehicle adapter", "Adapter setup will use this profile when discovery is available")
         Spacer(Modifier.height(10.dp))
-        SourceRow("TCM", "Transmission adapter", "Add when the second adapter is available")
+        OutlinedButton(onClick = { model.showAdvancedConnections(!model.advancedConnectionsOpen) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text(if (model.advancedConnectionsOpen) "Hide advanced connections" else "Advanced connections")
+        }
+        if (model.advancedConnectionsOpen) {
+            Spacer(Modifier.height(10.dp))
+            Panel {
+                Text("Second OBD adapter", color = TextColor, fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold)
+                Text("For swapped vehicles with separate engine and transmission interfaces. Enabling this keeps source bindings separate; simultaneous operation still requires compatible gauge firmware and hardware validation.",
+                    color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
+                Spacer(Modifier.height(10.dp))
+                FilterChip(
+                    selected = model.profileCollection.active.secondAdapterEnabled,
+                    onClick = { model.setSecondAdapterEnabled(!model.profileCollection.active.secondAdapterEnabled) },
+                    label = { Text(if (model.profileCollection.active.secondAdapterEnabled)
+                        "Second adapter enabled" else "Enable second adapter") },
+                )
+            }
+        }
     }
 }
 
@@ -546,8 +462,8 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
                          onReadDocument: () -> Unit) {
     val pid = demoCatalog.first { it.id == model.draft.pidId }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
-        Intro("01 / Your dashboard", "Make every signal count.",
-            "Editing ${model.profileCollection.active.name}. Choose a reading and a layout; values are simulated.")
+        Intro("Gauge", "Build a glanceable dashboard.",
+            "Editing ${model.profileCollection.active.name}. Preview values are examples until vehicle data is observed.")
         if (model.profileError != null) {
             Panel {
                 Text("Local profile editing paused", color = CriticalColor,
@@ -559,14 +475,15 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
         }
         RoundPreview(pid, model.draft.layout)
         Spacer(Modifier.height(22.dp))
-        SectionHeading("Renderer")
+        SectionHeading("Layout")
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             GaugeLayout.entries.forEach { layout ->
                 FilterChip(
                     selected = model.draft.layout == layout,
                     onClick = { model.selectLayout(layout) },
-                    label = { Text(layout.label, fontSize = 12.sp, maxLines = 1) },
+                    label = { Text(if (layout == GaugeLayout.Numeric) layout.label else "${layout.label} preview",
+                        fontSize = 14.sp, maxLines = 1) },
                 )
             }
         }
@@ -574,10 +491,10 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
         SectionHeading("Primary reading")
         Panel {
             Text(pid.name, color = TextColor, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            Text("${pid.source}  •  ${pid.request}  •  ${pid.exampleKind}; support unknown",
-                color = MutedColor, fontSize = 13.sp)
+            Text("${pid.unit} • Example only; vehicle support has not been observed",
+                color = MutedColor, fontSize = 14.sp)
             Spacer(Modifier.height(14.dp))
-            OutlinedButton(onClick = { model.navigate(Destination.Pids) }) { Text("Browse PID catalog") }
+            OutlinedButton(onClick = { model.navigate(Destination.Readings) }) { Text("Choose a reading") }
         }
         Spacer(Modifier.height(22.dp))
         SectionHeading("Coolant alert preview")
@@ -703,30 +620,44 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
             }
         }
         Spacer(Modifier.height(20.dp))
-        Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().height(50.dp)) {
-            Text("Apply to gauge")
+        val projectionBlockers = ConfigurationProjector.blockers(model.draft)
+        Panel {
+            SectionHeading("Review what will be sent")
+            Text("The current sender installs three Numeric pages in this order:",
+                color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
+            val ordered = when (model.draft.pidId) {
+                "coolant" -> listOf("Coolant temperature", "Engine RPM", "Vehicle speed")
+                "speed" -> listOf("Vehicle speed", "Coolant temperature", "Engine RPM")
+                else -> listOf("Engine RPM", "Coolant temperature", "Vehicle speed")
+            }
+            ordered.forEachIndexed { index, label ->
+                Text("${index + 1}. $label • Numeric", color = TextColor, fontSize = 14.sp)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("Coolant warning ${model.draft.warning} °C • critical ${model.draft.critical} °C",
+                color = TextColor, fontSize = 14.sp)
+            if (projectionBlockers.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                projectionBlockers.forEach { reason ->
+                    Text(reason, color = WarningColor, fontSize = 14.sp, lineHeight = 20.sp)
+                }
+            }
         }
-        val numericReady = model.capabilities?.experimentalNumericConfig == true &&
-            !model.scanning && model.profileError == null && model.draft.source == "ECM" &&
-            model.draft.pidId in listOf("rpm", "coolant", "speed") &&
-            model.draft.warning in -40..215 && model.draft.critical in -40..215 &&
-            model.draft.warning + model.draft.hysteresis < model.draft.critical &&
-            model.draft.warning - model.draft.hysteresis >= -40 &&
+        val numericReady = model.capabilities?.experimentalNumericConfig == true && !model.scanning &&
+            model.profileError == null && projectionBlockers.isEmpty() &&
             model.activeConfigRevision != null && model.verifiedConfigHash != null
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onApplyNumeric, enabled = numericReady,
-            modifier = Modifier.fillMaxWidth().height(50.dp)) {
-            Text(if (model.scanning) "Sending numeric profile…" else "Send experimental numeric profile")
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = onApplyNumeric, enabled = numericReady,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+            Text(if (model.scanning) "Sending setup…" else "Review complete • Send numeric pages")
         }
-        Text("Sends RPM, coolant and speed numeric pages plus your coolant thresholds. " +
-            "The selected page opens first. Refresh saved configuration first; a changed gauge revision blocks the write. " +
-            "Requires the owner bond; vehicle support is unverified.",
-            color = MutedColor, fontSize = 13.sp, lineHeight = 18.sp)
-        Spacer(Modifier.height(8.dp))
-        Text("Full configuration is pending:", color = MutedColor, fontSize = 13.sp)
-        model.configurationBlockers.forEach { reason ->
-            Text("• $reason", color = MutedColor, fontSize = 13.sp, lineHeight = 18.sp)
-        }
+        Text(when {
+            model.capabilities == null -> "Find the gauge in Vehicle before sending."
+            model.activeConfigRevision == null || model.verifiedConfigHash == null ->
+                "Refresh saved configuration before sending so changes cannot overwrite a newer revision."
+            projectionBlockers.isNotEmpty() -> "Adjust the items above before sending. Preview-only layouts stay on this phone."
+            else -> "Requires the paired owner. The app confirms the saved setup is healthy and running after restart."
+        }, color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
     }
 }
 
@@ -734,11 +665,13 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
 private fun ThresholdRow(label: String, value: Int, tint: Color, onDecrease: () -> Unit, onIncrease: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Text(label, color = tint, modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
-        OutlinedButton(onClick = onDecrease, modifier = Modifier.size(48.dp),
+        OutlinedButton(onClick = onDecrease, modifier = Modifier.size(48.dp)
+                .semantics { contentDescription = "Decrease coolant ${label.lowercase()} temperature" },
             contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) { Text("−", fontSize = 20.sp) }
         Text("$value°", color = TextColor, modifier = Modifier.width(58.dp),
             textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
-        OutlinedButton(onClick = onIncrease, modifier = Modifier.size(48.dp),
+        OutlinedButton(onClick = onIncrease, modifier = Modifier.size(48.dp)
+                .semantics { contentDescription = "Increase coolant ${label.lowercase()} temperature" },
             contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) { Text("+", fontSize = 20.sp) }
     }
 }
@@ -803,44 +736,52 @@ private fun RoundPreview(pid: PidExample, layout: GaugeLayout) {
 @Composable
 private fun PidsScreen(model: AppViewModel) {
     val results = demoCatalog.filter { pid ->
-        (model.sourceFilter == "All" || pid.source == model.sourceFilter) &&
+        (model.advancedReadingsOpen || pid.source != "TCM") &&
+            (model.sourceFilter == "All" || pid.source == model.sourceFilter) &&
             (model.query.isBlank() || "${pid.name} ${pid.request} ${pid.category} ${pid.source}"
                 .contains(model.query.trim(), ignoreCase = true))
     }
     Column(Modifier.fillMaxSize()) {
-        Intro("02 / Explore data", "Find what matters.",
-            "Search example PIDs by name, request or source. Real support requires an adapter session.")
+        Intro("Readings", "Choose familiar vehicle data.",
+            "Search by name or category. Every result says whether it is an example or observed on your vehicle.")
         OutlinedTextField(value = model.query, onValueChange = model::search,
-            label = { Text("Search PIDs") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            label = { Text("Search readings") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("All", "ECM", "TCM").forEach { source ->
-                FilterChip(selected = model.sourceFilter == source,
-                    onClick = { model.filter(source) }, label = { Text(source) })
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = { model.showDiscoveryPreview(!model.discoveryPreview) },
+        OutlinedButton(onClick = { model.showAdvancedReadings(!model.advancedReadingsOpen) },
             modifier = Modifier.fillMaxWidth()) {
-            Text(if (model.discoveryPreview) "Hide discovery preview" else "Preview discovery states")
+            Text(if (model.advancedReadingsOpen) "Hide technical tools" else "Technical details and custom PIDs")
         }
-        if (model.discoveryPreview) {
+        if (model.advancedReadingsOpen) {
             Spacer(Modifier.height(8.dp))
-            Panel {
-                Text("Discovery state preview", color = TextColor,
-                    fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Text("Simulated path: queued, querying, responding or no response. Each real result will need a vehicle profile, adapter, ECU source and time.",
-                    color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("All", "ECM", "TCM").forEach { source ->
+                    FilterChip(selected = model.sourceFilter == source,
+                        onClick = { model.filter(source) }, label = { Text(source) })
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = { model.showDiscoveryPreview(!model.discoveryPreview) },
+                modifier = Modifier.fillMaxWidth()) {
+                Text(if (model.discoveryPreview) "Hide discovery preview" else "Preview discovery states")
+            }
+            if (model.discoveryPreview) {
                 Spacer(Modifier.height(8.dp))
-                Text("Current vehicle evidence: none", color = WarningColor, fontSize = 13.sp)
+                Panel {
+                    Text("Discovery state preview", color = TextColor,
+                        fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Simulated path only. Real evidence requires a vehicle profile, adapter, ECU source and observation time.",
+                        color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Current vehicle evidence: none", color = WarningColor, fontSize = 14.sp)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = { model.showLab(!model.labOpen) },
+                modifier = Modifier.fillMaxWidth()) {
+                Text(if (model.labOpen) "Close decoder lab" else "Open decoder lab")
             }
         }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = { model.showLab(!model.labOpen) },
-            modifier = Modifier.fillMaxWidth()) {
-            Text(if (model.labOpen) "Close decoder lab" else "Open decoder lab")
-        }
-        if (model.labOpen) {
+        if (model.advancedReadingsOpen && model.labOpen) {
             Spacer(Modifier.height(10.dp))
             Panel {
                 Text("Mode 01 response lab", color = TextColor,
@@ -861,11 +802,11 @@ private fun PidsScreen(model: AppViewModel) {
             }
         }
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = { model.showCustomLab(!model.customLabOpen) },
+        if (model.advancedReadingsOpen) OutlinedButton(onClick = { model.showCustomLab(!model.customLabOpen) },
             modifier = Modifier.fillMaxWidth()) {
             Text(if (model.customLabOpen) "Close custom request lab" else "Draft a custom read request")
         }
-        if (model.customLabOpen) {
+        if (model.advancedReadingsOpen && model.customLabOpen) {
             Spacer(Modifier.height(10.dp))
             Panel {
                 Text("Offline request check", color = TextColor,
@@ -916,9 +857,9 @@ private fun PidsScreen(model: AppViewModel) {
                     Text("Catalog: ${pid.exampleKind}  •  Vehicle support: unknown",
                         color = WarningColor, fontSize = 12.sp, lineHeight = 17.sp)
                     Spacer(Modifier.height(8.dp))
-                    OutlinedButton(onClick = { model.selectPid(pid); model.navigate(Destination.Design) },
+                    OutlinedButton(onClick = { model.selectPid(pid); model.navigate(Destination.Gauge) },
                         enabled = model.profileError == null) {
-                        Text("Use in preview")
+                        Text("Use on gauge draft")
                     }
                 }
             }
@@ -935,49 +876,62 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                          onInstallUpdate: () -> Unit,
                          onSelectUpdate: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
-        Intro("03 / Device", "Know what is ready.",
-            "Capabilities come from the gauge. Other panels show the planned workflow without vehicle actions.")
+        Intro("Settings", "Gauge connection and maintenance.",
+            "Manage owner access, display rotation, firmware, and technical details.")
         Panel {
             SectionHeading("Connection")
             Text(model.deviceMessage, color = MutedColor, fontSize = 15.sp)
             val caps = model.capabilities
             if (caps != null) {
                 Spacer(Modifier.height(14.dp))
-                InfoLine("Board", caps.board)
-                InfoLine("Protocol", "${caps.protocolMajor} • ${when {
-                    model.activeConfigRevision != null -> "numeric owner control"
-                    caps.quickSelect -> "paired quick select"
-                    caps.experimentalNumericConfig -> "owner control available"
-                    else -> "discovery only"
-                }}")
-                InfoLine("Adapter slots", "${caps.maxAdapterLinks} • coexistence unverified")
-                InfoLine("Configuration", when {
+                InfoLine("Owner controls", when {
                     caps.experimentalNumericConfig -> "Experimental numeric ECM profile transfer"
                     caps.displayRotationWrite -> "Built-in reading and display rotation"
                     caps.quickSelect -> "Built-in reading only"
                     else -> "Read only"
+                })
+                InfoLine("Owner access", when (model.ownerAccess) {
+                    OwnerAccess.UNKNOWN -> "Not checked"
+                    OwnerAccess.DISCOVERED -> "Checked when a protected action starts"
+                    OwnerAccess.AUTHENTICATED -> "Authenticated on this connection"
                 })
                 model.savedGauge?.let { saved ->
                     Spacer(Modifier.height(12.dp))
                     InfoLine("Saved reading", listOf("RPM", "Speed", "Engine load", "Coolant", "Fuel")[saved.readingIndex])
                     InfoLine("Saved revision", saved.revision.toString())
                     InfoLine("Display rotation", "${saved.rotation * 90}°")
-                    Text("This is the gauge's persisted selection. The design studio remains a phone-only draft.",
+                    Text("This is the gauge's saved selection. Edits in Gauge remain on this phone until sent.",
                         color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+                }
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = { model.showTechnicalDetails(!model.technicalDetailsOpen) }) {
+                    Text(if (model.technicalDetailsOpen) "Hide technical details" else "Technical details")
+                }
+                if (model.technicalDetailsOpen) {
+                    Spacer(Modifier.height(10.dp))
+                    InfoLine("Board", caps.board)
+                    InfoLine("Protocol", caps.protocolMajor.toString())
+                    InfoLine("Adapter links", "${caps.maxAdapterLinks}; simultaneous use ${if (caps.simultaneousVerified) "verified" else "unverified"}")
+                    model.runtimeIdentity?.let { runtime ->
+                        InfoLine("Running revision", runtime.revision.toString())
+                        InfoLine("Stored revision", runtime.storedRevision.toString())
+                        InfoLine("Config SHA-256", runtime.sha256)
+                    }
                 }
             }
             Spacer(Modifier.height(14.dp))
             OutlinedButton(onClick = onFindGauge, enabled = !model.scanning) {
-                Text(if (model.scanning) "Finding gauge…" else "Read gauge capabilities")
+                Text(if (model.scanning) "Finding gauge…" else "Find or refresh gauge")
             }
+            GaugeCandidateChooser(model)
             if (caps?.experimentalNumericConfig == true) {
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = onReadConfig, enabled = !model.scanning) {
-                    Text("Read active configuration status")
+                    Text("Check running setup")
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = onReadDocument, enabled = !model.scanning) {
-                    Text("Verify saved configuration document")
+                    Text("Refresh saved setup")
                 }
                 model.activeDocument?.let { document ->
                     Spacer(Modifier.height(12.dp))
@@ -990,8 +944,8 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                     Text("Read from the gauge and SHA-256 verified. This does not establish vehicle PID support.",
                         color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
                     Spacer(Modifier.height(8.dp))
-                    OutlinedButton(onClick = { model.navigate(Destination.Design) }) {
-                        Text("Compare with phone draft")
+                    OutlinedButton(onClick = { model.navigate(Destination.Gauge) }) {
+                        Text("Review changes in Gauge")
                     }
                 }
             }
@@ -1027,20 +981,22 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
         }
         Spacer(Modifier.height(18.dp))
         Panel {
-            SectionHeading("Diagnostics")
+            SectionHeading("Check-engine and fault information")
             val diagnostics = model.diagnostics
+            val diagnosticsCurrent = model.diagnosticsCurrent()
             StatusPill(when {
-                diagnostics?.milFresh == true && diagnostics.milOn -> "MIL ON"
-                diagnostics?.milFresh == true -> "MIL OFF"
-                else -> "NO FRESH VEHICLE EVIDENCE"
+                diagnosticsCurrent && diagnostics?.milFresh == true && diagnostics.milOn -> "CHECK-ENGINE ON"
+                diagnosticsCurrent && diagnostics?.milFresh == true -> "CHECK-ENGINE OFF"
+                diagnostics != null -> "LAST READ IS STALE"
+                else -> "NO RECENT VEHICLE DATA"
             }, when {
-                diagnostics?.milFresh == true && diagnostics.milOn -> CriticalColor
-                diagnostics?.milFresh == true -> AccentColor
+                diagnosticsCurrent && diagnostics?.milFresh == true && diagnostics.milOn -> CriticalColor
+                diagnosticsCurrent && diagnostics?.milFresh == true -> AccentColor
                 else -> WarningColor
             })
             Spacer(Modifier.height(12.dp))
-            if (diagnostics != null) {
-                if (diagnostics.milFresh) InfoLine("ECU reported count", diagnostics.reportedCount.toString())
+            if (diagnostics != null && diagnosticsCurrent) {
+                if (diagnostics.milFresh) InfoLine("Reported fault count", diagnostics.reportedCount.toString())
                 listOf(
                     Triple("Confirmed", diagnostics.confirmedFresh, diagnostics.confirmedCount to diagnostics.confirmedFirst),
                     Triple("Pending", diagnostics.pendingFresh, diagnostics.pendingCount to diagnostics.pendingFirst),
@@ -1049,18 +1005,18 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                     InfoLine(label, if (fresh) "${data.first} code(s)${data.second?.let { ", first $it" } ?: ""}"
                         else "No fresh response")
                 }
-                Text("Counts and first codes are a read-only snapshot from headerless adapter replies. " +
-                    "No ECU identity or complete code list is available yet.",
-                    color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
-            } else Text("Read the gauge's protected snapshot to check MIL and available code categories. " +
-                "No adapter session has been verified.",
+                Text("This snapshot may include only counts and the first code in each category. Open technical details for current limitations.",
+                    color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
+            } else Text(if (diagnostics != null)
+                "The previous snapshot is older than 30 seconds. Refresh before relying on it."
+                else "Read the gauge to check current check-engine status and available fault categories.",
                 color = MutedColor, fontSize = 15.sp, lineHeight = 21.sp)
             Spacer(Modifier.height(10.dp))
             OutlinedButton(onClick = onReadDiagnostics,
                 enabled = !model.scanning && model.capabilities?.experimentalNumericConfig == true) {
-                Text("Read gauge diagnostics")
+                Text("Refresh fault information")
             }
-            Text("Code clearing requires a fresh, explicit confirmation on the real ECU.",
+            Text("Clearing codes is not available yet. It will require a fresh reading and explicit vehicle-scoped confirmation.",
                 color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
         }
         Spacer(Modifier.height(18.dp))
@@ -1077,18 +1033,43 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                     4 -> "Aborted"
                     else -> "Unavailable (${boot.otaState})"
                 })
-                InfoLine("Partition", "0x${boot.partitionAddress.toString(16)}")
-                InfoLine("ELF SHA-256", boot.elfSha256.take(16) + "…")
+                if (model.technicalDetailsOpen) {
+                    InfoLine("Partition", "0x${boot.partitionAddress.toString(16)}")
+                    InfoLine("ELF SHA-256", boot.elfSha256)
+                }
             }
             OutlinedButton(onClick = onReadBootIdentity,
                 enabled = !model.scanning && model.capabilities?.experimentalNumericConfig == true) {
-                Text("Read running firmware")
+                Text("Check installed firmware")
             }
             Spacer(Modifier.height(12.dp))
-            Text("Import a locally signed development package to check its board, size, SHA-256 and P-256 signature.",
+            Text("Check GitHub Releases for a signed development image that matches this gauge.",
                 color = MutedColor, fontSize = 15.sp, lineHeight = 21.sp)
             Spacer(Modifier.height(12.dp))
-            OutlinedButton(onClick = onSelectUpdate, enabled = !model.updateInProgress) { Text("Choose signed package") }
+            OutlinedButton(onClick = model::checkHostedFirmware,
+                enabled = model.capabilities != null && !model.hostedUpdateBusy && !model.updateInProgress) {
+                Text(if (model.hostedUpdateBusy) "Checking GitHub…" else "Check GitHub for update")
+            }
+            model.hostedUpdate?.let { update ->
+                Spacer(Modifier.height(10.dp))
+                Text("Version ${update.release.version} • ${update.release.channel.name.lowercase()}",
+                    color = TextColor, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(update.release.releaseNotes, color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
+                if (update.bundle == null) {
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = model::downloadHostedFirmware,
+                        enabled = !model.hostedUpdateBusy && !model.updateInProgress) {
+                        Text("Download and verify")
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(model.hostedUpdateMessage, color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
+            Spacer(Modifier.height(16.dp))
+            Text("Advanced development package", color = TextColor, fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onSelectUpdate, enabled = !model.updateInProgress) { Text("Choose development package") }
             Spacer(Modifier.height(8.dp))
             Text(model.updatePackageMessage, color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
             Spacer(Modifier.height(8.dp))
@@ -1104,8 +1085,38 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
 
 @Composable
 private fun InfoLine(label: String, value: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-        Text(label, color = MutedColor, modifier = Modifier.width(112.dp), fontSize = 14.sp)
-        Text(value, color = TextColor, fontSize = 14.sp, lineHeight = 18.sp)
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+        if (maxWidth < 360.dp) {
+            Column {
+                Text(label, color = MutedColor, fontSize = 13.sp)
+                Text(value, color = TextColor, fontSize = 14.sp, lineHeight = 19.sp)
+            }
+        } else {
+            Row {
+                Text(label, color = MutedColor, modifier = Modifier.width(128.dp), fontSize = 14.sp)
+                Text(value, color = TextColor, fontSize = 14.sp, lineHeight = 19.sp,
+                    modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun GaugeCandidateChooser(model: AppViewModel) {
+    if (model.gaugeCandidates.isEmpty()) return
+    Spacer(Modifier.height(14.dp))
+    Text("Choose a gauge", color = TextColor, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+    Text("Your choice is remembered for future connections.", color = MutedColor,
+        fontSize = 13.sp, lineHeight = 18.sp)
+    Spacer(Modifier.height(8.dp))
+    model.gaugeCandidates.forEach { candidate ->
+        OutlinedButton(
+            onClick = { model.selectGaugeCandidate(candidate) },
+            enabled = !model.scanning,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("${candidate.name}  •  …${candidate.id.takeLast(5)}  •  ${candidate.signalDbm} dBm")
+        }
+        Spacer(Modifier.height(6.dp))
     }
 }

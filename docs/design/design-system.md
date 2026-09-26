@@ -31,7 +31,7 @@ Tap advances page, left/right swipe is an optional shortcut, long press opens a 
 
 ## Android information architecture
 
-Garage (vehicles, gauge, connection), Design (pages, renderers, units), PIDs (discovery, catalog, lab), Device (firmware, diagnostics, alerts, pairing, settings). Diagnostics and Alerts get prominent contextual shortcuts rather than being hidden in a settings overflow. On a tablet, editor and round preview appear side by side. A phone uses a persistent preview above controls where space allows, otherwise an explicit preview action.
+The implemented app uses Gauge, Readings, Vehicle, and Settings. Gauge holds the primary preview, exact supported configuration review, and send action. Readings starts with catalog search and keeps decoder/custom PID labs under technical details. Vehicle owns profiles and a single adapter by default; a second adapter is an advanced opt-in. Settings owns gauge association, protected status, diagnostics, display rotation, and updates. A tablet uses a navigation rail while a phone uses bottom navigation.
 
 Reusable components: connection pill with text/icon; reading tile with quality/age; renderer selector; round preview; PID row with ECU and evidence badge; threshold editor with unit/hysteresis; code card with category; transfer progress with stage; persistent operation banner; empty/error panel with one useful next action; revision/apply bar. Each has default, focus, disabled, loading, success and error states. Busy controls retain readable labels and do not masquerade as applied changes.
 
