@@ -108,6 +108,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var activeConfigRevision by mutableStateOf<Long?>(null)
         private set
+    var sentDraft by mutableStateOf<Draft?>(null)
+        private set
+    var sentProfileId by mutableStateOf<String?>(null)
+        private set
+    private var sentDigest: String? = null
     val configurationBlockers: List<String>
         get() = buildList {
             if (profileError != null) add("Local profile data needs recovery before applying")
@@ -201,9 +206,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         savedGauge = value
         deviceMessage = "Gauge saved state read at revision ${value.revision}."
     }
-    fun configApplied(value: GaugeConfigTransferClient.Applied) {
+    fun configApplied(value: GaugeConfigTransferClient.Applied, profileId: String, appliedDraft: Draft) {
         scanning = false
         activeConfigRevision = value.revision
+        sentDraft = appliedDraft
+        sentProfileId = profileId
+        sentDigest = value.sha256
         savedGauge = null
         capabilities = capabilities?.copy(quickSelect = false, savedStateRead = false,
             displayRotationWrite = false)
@@ -211,6 +219,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun configStatusRead(value: GaugeConfigTransferClient.ActiveStatus) {
         scanning = false
+        if (value.revision != activeConfigRevision || value.sha256 != sentDigest) {
+            sentDraft = null
+            sentProfileId = null
+            sentDigest = null
+        }
         activeConfigRevision = value.revision.takeIf { it > 0 }
         deviceMessage = if (value.revision == 0L)
             "Gauge is using built-in readings. Transfer phase ${value.transferPhase}."

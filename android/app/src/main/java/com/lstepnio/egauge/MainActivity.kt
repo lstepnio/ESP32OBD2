@@ -209,9 +209,11 @@ class MainActivity : ComponentActivity() {
         model.markScanning(true)
         lifecycleScope.launch {
             try {
+                val profileId = model.profileCollection.activeId
+                val draft = model.draft
                 val applied = GaugeConfigTransferClient(this@MainActivity).apply(
-                    model.bleClient.selectedGauge(), model.draft, model.profileCollection.activeId)
-                model.configApplied(applied)
+                    model.bleClient.selectedGauge(), draft, profileId)
+                model.configApplied(applied, profileId, draft)
             } catch (error: CancellationException) {
                 model.selectionError("Configuration transfer interrupted; read gauge status before retrying")
                 throw error
@@ -523,7 +525,11 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit) {
                 model.draft.critical in -40..215 && model.draft.warning < model.draft.critical &&
                 model.draft.warning - model.draft.hysteresis >= -40 &&
                 model.draft.hysteresis < model.draft.critical - model.draft.warning
-            Text(if (limitsValid) "Saved in local draft; gauge alerts are not enabled"
+            val sent = model.sentProfileId == model.profileCollection.activeId &&
+                model.sentDraft == model.draft && model.activeConfigRevision != null
+            Text(if (limitsValid && sent)
+                "Sent to gauge in revision ${model.activeConfigRevision}; alert action awaits live coolant data"
+                else if (limitsValid) "Saved in local draft; current settings have not been sent to the gauge"
                 else "Check warning, critical and hysteresis spacing",
                 color = if (limitsValid) MutedColor else CriticalColor, fontSize = 14.sp)
         }
@@ -763,7 +769,12 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
             if (caps != null) {
                 Spacer(Modifier.height(14.dp))
                 InfoLine("Board", caps.board)
-                InfoLine("Protocol", "${caps.protocolMajor} • ${if (caps.quickSelect) "paired quick select" else "discovery only"}")
+                InfoLine("Protocol", "${caps.protocolMajor} • ${when {
+                    model.activeConfigRevision != null -> "numeric owner control"
+                    caps.quickSelect -> "paired quick select"
+                    caps.experimentalNumericConfig -> "owner control available"
+                    else -> "discovery only"
+                }}")
                 InfoLine("Adapter slots", "${caps.maxAdapterLinks} • coexistence unverified")
                 InfoLine("Configuration", when {
                     caps.experimentalNumericConfig -> "Experimental numeric ECM profile transfer"
