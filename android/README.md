@@ -18,7 +18,7 @@ The PID explorer searches sample standard requests by name, source, category and
 
 ## Experimental numeric configuration
 
-On a paired owner phone, read gauge capabilities, open Design, and use **Send experimental numeric profile**. The app derives a version 1 document from the bundled template: RPM, coolant, and speed on numeric pages, with the selected supported reading first and the local coolant thresholds. It reads the active revision, sends the SHA-256 digest and bounded chunks, requests verification and commit, then reconnects after reboot to compare active revision and hash. The full **Apply to gauge** remains disabled because nonnumeric layouts, TCM routing, broad PID discovery, and vehicle evidence are still missing. One Pixel transfer and a separate durable status readback succeeded; see [hardware evidence](../docs/development/numeric-config-transfer-validation.md).
+On a paired owner phone, read gauge capabilities, open Design, and use **Send experimental numeric profile**. The app derives a version 1 document from the bundled template: RPM, coolant, and speed on numeric pages, with the selected supported reading first and the local coolant thresholds. It reads the active revision, sends the SHA-256 digest and bounded chunks, requests verification and commit, then reconnects after reboot to compare active revision and hash. The full **Apply to gauge** remains disabled because nonnumeric layouts, TCM routing, broad PID discovery, and vehicle evidence are still missing. Two Pixel transfers and separate durable status readbacks succeeded; see [hardware evidence](../docs/development/numeric-config-transfer-validation.md).
 
 ## Implementation boundary
 

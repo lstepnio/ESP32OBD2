@@ -2,7 +2,7 @@
 
 A standalone round OBD-II gauge and native Android companion for vehicle telemetry, flexible PID discovery, dashboard configuration, and recoverable firmware updates.
 
-**Status: working gauge and Android foundations with one authenticated numeric configuration transfer observed.** The Waveshare display and touch work on the connected device. A paired Pixel 10 Pro sent a restricted RPM, coolant, and speed configuration, confirmed its active revision and hash after reboot, and the user confirmed numeric page navigation on the gauge. The Android app also offers local drafts, a simulated design preview, and an offline PID decoder. Live vehicle communication, adapter coexistence, DTC behavior on a vehicle, alert transitions, and OTA delivery have not been verified. General configuration and update capability flags remain disabled.
+**Status: working gauge and Android foundations with two authenticated numeric configuration transfers observed.** The Waveshare display and touch work on the connected device. A paired Pixel 10 Pro sent a restricted RPM, coolant, and speed configuration twice, confirmed active revisions and hashes after each reboot, and the user confirmed numeric page navigation on the gauge. The Android app also offers local drafts, a simulated design preview, an offline PID decoder, and read-only protected diagnostics. Live vehicle communication, adapter coexistence, DTC behavior on a vehicle, alert transitions, and OTA delivery have not been verified. General configuration and update capability flags remain disabled.
 
 ## Start here
 

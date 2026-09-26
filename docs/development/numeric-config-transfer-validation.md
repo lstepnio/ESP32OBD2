@@ -14,7 +14,9 @@
 4. The app reported commit and reboot readback at revision 1, SHA-256 prefix `7aec9b1f886b`.
 5. A separate owner-only `STATUS` read returned active revision 1, the same SHA-256 prefix, phase 0, and result 0. Phase 0 indicates a fresh transfer session after reboot.
 6. The user confirmed that the gauge displayed the numeric RPM page and that one touch navigated to coolant or speed.
+7. After the owner-link read handshake fix was flashed and installed, the first protected status read after discovery succeeded. Android read the protected diagnostic snapshot and displayed no fresh vehicle evidence in all three code categories. With no adapter connected, this is a successful transport read, not a vehicle all-clear.
+8. The app sent the same numeric pages and thresholds again. It reported active revision 2 and SHA-256 prefix `6689a8922875` after reboot. A separate status read returned the same revision and hash, phase 0 and result 0. Design labeled the local draft as sent in revision 2.
 
 ## Evidence boundary
 
-The phone and gauge completed one authenticated configuration transfer and durable status readback. The user confirmed numeric page display and touch navigation. No live PID values, local alert transitions, DTC responses, dual-adapter behavior, or OTA transfer were exercised. The sender remains limited to numeric ECM Mode 01 pages; the public general `configWrite` capability stays false.
+The phone and gauge completed two authenticated configuration transfers and durable status readbacks. The user confirmed numeric page display and touch navigation. A protected diagnostic snapshot read worked with no adapter, so it carried no fresh vehicle evidence. No live PID values, local alert transitions, DTC responses, dual-adapter behavior, or OTA transfer were exercised. The sender remains limited to numeric ECM Mode 01 pages; the public general `configWrite` capability stays false.
