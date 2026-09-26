@@ -23,3 +23,5 @@ typedef struct
 esp_err_t config_init(void);
 esp_err_t config_save(config_t const *cfg);
 esp_err_t config_load(config_t *cfg);
+/* Read the last committed legacy selection and its durable revision. */
+esp_err_t config_read_snapshot(config_t *cfg, uint32_t *revision);

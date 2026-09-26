@@ -4,6 +4,7 @@
 
 #include <inttypes.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -15,6 +16,7 @@
 
 #include "freertos/projdefs.h"
 #include "freertos/queue.h"
+#include "freertos/task.h"
 #include "portmacro.h"
 
 #include "core/lv_obj.h"
@@ -45,26 +47,54 @@ static const char *TAG = "UI";
 // Types
 // ---------------------------------------------------------------------------------------------------------------------
 
+typedef struct {
+    int32_t value;
+    TickType_t received_at;
+} ui_sample_t;
+
+typedef struct {
+    uint8_t severity;
+    bool unavailable;
+    char label[32];
+} ui_alert_t;
+
+typedef struct {
+    bool valid;
+    bool mil_on;
+    uint8_t count;
+    char first_code[6];
+} ui_diagnostics_t;
+
+#define UI_SAMPLE_FRESH_MS 1500
+
 struct _ui_t
 {
     ui_touch_callback_t touch_cb;
     bool                long_press_handled;
+    TickType_t          pressed_at;
 
     struct
     {
         QueueHandle_t value_que;
         QueueHandle_t touch_ev_que;
+        QueueHandle_t pairing_que;
+        QueueHandle_t alert_que;
+        QueueHandle_t diagnostics_que;
     } rtos;
     struct
     {
         lv_obj_t *value_lbl;
         lv_obj_t *info_lbl;
         lv_obj_t *unit_lbl;
+        lv_obj_t *pairing_lbl;
+        lv_obj_t *alert_lbl;
+        lv_obj_t *diagnostics_lbl;
     } widgets;
 
     struct
     {
         float current_value;
+        uint32_t stale_after_ms;
     } display;
 };
 
@@ -73,12 +103,14 @@ struct _ui_t
 // ---------------------------------------------------------------------------------------------------------------------
 
 extern const lv_font_t notosans_semibold_64;
+extern const lv_font_t notosans_semibold_32;
 extern const lv_font_t notosans_medium_16;
 extern const lv_font_t notosans_medium_24;
 
 static const lv_font_t *const font_title    = &notosans_semibold_64;
-static const lv_font_t *const font_subtitle = &notosans_medium_24;
-static const lv_font_t *const font_unit     = &notosans_medium_16;
+static const lv_font_t *const font_compact  = &notosans_semibold_32;
+static const lv_font_t *const font_subtitle = &notosans_medium_16;
+static const lv_font_t *const font_unit     = &notosans_medium_24;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Private Function Definitions
@@ -94,6 +126,7 @@ static void ui_touch_callback(lv_event_t *e)
     {
     case LV_EVENT_PRESSED:
         ui->long_press_handled = false;
+        ui->pressed_at = xTaskGetTickCount();
         break;
     case LV_EVENT_LONG_PRESSED:
         ui->long_press_handled = true;
@@ -102,6 +135,11 @@ static void ui_touch_callback(lv_event_t *e)
     case LV_EVENT_CLICKED:
         if (!ui->long_press_handled)
         {
+            xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+        }
+        break;
+    case LV_EVENT_RELEASED:
+        if (xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
             xQueueSend(ui->rtos.touch_ev_que, &code, 0);
         }
         break;
@@ -115,14 +153,16 @@ static void ui_align_labels(ui_t *ui)
 {
     lv_obj_t *scr = lv_screen_active();
     ESP_NULL_CHECK(scr, TAG, "Current screen is NULL");
-
-    // info label
-    lv_obj_align_to(ui->widgets.info_lbl, ui->widgets.value_lbl, LV_ALIGN_OUT_BOTTOM_MID, 0, 12);
-
-    // unit label
-    lv_obj_set_x(ui->widgets.unit_lbl, lv_obj_get_width(scr) - 44);
-    lv_obj_set_y(ui->widgets.unit_lbl, lv_obj_get_y(ui->widgets.value_lbl) + lv_obj_get_height(ui->widgets.value_lbl) -
-                                           lv_obj_get_height(ui->widgets.unit_lbl) - 10);
+    // Essential text stays inside the circle's 104 px safe radius. Its lower
+    // corners disappear well before the 240 x 240 frame ends.
+    int32_t safe_width = lv_obj_get_width(scr) - 74;
+    if (safe_width < 80) safe_width = lv_obj_get_width(scr);
+    lv_obj_set_width(ui->widgets.info_lbl, safe_width);
+    lv_obj_set_width(ui->widgets.value_lbl, safe_width);
+    lv_obj_set_width(ui->widgets.unit_lbl, safe_width);
+    lv_obj_align(ui->widgets.info_lbl, LV_ALIGN_TOP_MID, 0, 48);
+    lv_obj_align(ui->widgets.value_lbl, LV_ALIGN_TOP_MID, 0, 78);
+    lv_obj_align(ui->widgets.unit_lbl, LV_ALIGN_TOP_MID, 0, 158);
 }
 
 static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, const char *unit)
@@ -132,10 +172,14 @@ static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, c
     if (value != NULL)
     {
         lv_label_set_text_fmt(ui->widgets.value_lbl, "%" PRId32, *value);
+        lv_obj_set_style_text_font(ui->widgets.value_lbl,
+                                   strlen(lv_label_get_text(ui->widgets.value_lbl)) > 4 ? font_compact : font_title,
+                                   LV_PART_MAIN);
     }
     else
     {
         lv_label_set_text(ui->widgets.value_lbl, "...");
+        lv_obj_set_style_text_font(ui->widgets.value_lbl, font_title, LV_PART_MAIN);
     }
 
     if (info != NULL)
@@ -157,16 +201,59 @@ static void ui_task(lv_timer_t *timer)
     ui_t *ui = (ui_t *)lv_timer_get_user_data(timer);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
+    uint32_t pairing_code;
+    if (xQueueReceive(ui->rtos.pairing_que, &pairing_code, 0) == pdTRUE) {
+        if (pairing_code == 0) lv_obj_add_flag(ui->widgets.pairing_lbl, LV_OBJ_FLAG_HIDDEN);
+        else {
+            if (pairing_code == UINT32_MAX) lv_label_set_text(ui->widgets.pairing_lbl, "PAIR\nREADY");
+            else lv_label_set_text_fmt(ui->widgets.pairing_lbl, "PAIR\n%06" PRIu32, pairing_code);
+            lv_obj_remove_flag(ui->widgets.pairing_lbl, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    ui_alert_t alert;
+    if (xQueueReceive(ui->rtos.alert_que, &alert, 0) == pdTRUE) {
+        if (alert.severity == 0) lv_obj_add_flag(ui->widgets.alert_lbl, LV_OBJ_FLAG_HIDDEN);
+        else {
+            lv_obj_set_style_text_color(ui->widgets.alert_lbl,
+                alert.severity == 2 ? lv_color_hex(0xFF5656) : lv_color_hex(0xFFC247),
+                LV_PART_MAIN);
+            lv_label_set_text_fmt(ui->widgets.alert_lbl, "%s %s%s",
+                alert.severity == 2 ? "CRITICAL" : "WARNING", alert.label,
+                alert.unavailable ? " DATA LOST" : "");
+            lv_obj_remove_flag(ui->widgets.alert_lbl, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    ui_diagnostics_t diagnostics;
+    if (xQueueReceive(ui->rtos.diagnostics_que, &diagnostics, 0) == pdTRUE) {
+        if (!diagnostics.valid || (!diagnostics.mil_on && diagnostics.count == 0 &&
+                                   diagnostics.first_code[0] == 0))
+            lv_obj_add_flag(ui->widgets.diagnostics_lbl, LV_OBJ_FLAG_HIDDEN);
+        else {
+            lv_obj_set_style_text_color(ui->widgets.diagnostics_lbl,
+                diagnostics.mil_on ? lv_color_hex(0xFFC247) : lv_color_white(), LV_PART_MAIN);
+            lv_label_set_text_fmt(ui->widgets.diagnostics_lbl, "%s %u%s%s",
+                diagnostics.mil_on ? "CEL" : "DTC", diagnostics.count,
+                diagnostics.first_code[0] ? "  " : "", diagnostics.first_code);
+            lv_obj_remove_flag(ui->widgets.diagnostics_lbl, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
     // get latest value (non-blocking). Continue with previous value if queue is empty
-    int32_t target = DISPLAY_VALUE_INVALID;
-    xQueuePeek(ui->rtos.value_que, &target, 0);
-    if (target == DISPLAY_VALUE_INVALID)
+    ui_sample_t sample = {.value = DISPLAY_VALUE_INVALID};
+    bool received = xQueuePeek(ui->rtos.value_que, &sample, 0) == pdTRUE;
+    bool fresh = received && sample.value != DISPLAY_VALUE_INVALID &&
+                 xTaskGetTickCount() - sample.received_at <=
+                 pdMS_TO_TICKS(ui->display.stale_after_ms);
+    if (!fresh)
     {
         ui->display.current_value = 0.0f;
         ui_update_screen(ui, NULL, NULL, NULL);
     }
     else
     {
+        int32_t target = sample.value;
         ui->display.current_value += (target - ui->display.current_value) * 0.4f;
         int32_t rounded = (int32_t)(ui->display.current_value >= 0.0f ? ui->display.current_value + 0.5f
                                                                       : ui->display.current_value - 0.5f);
@@ -206,7 +293,7 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     lv_obj_set_style_text_color(value_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(value_lbl, font_title, LV_PART_MAIN);
     lv_obj_set_style_text_align(value_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_center(value_lbl);
+    lv_label_set_long_mode(value_lbl, LV_LABEL_LONG_DOT);
 
     // Info label
     lv_obj_t *info_lbl = lv_label_create(scr);
@@ -215,19 +302,50 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     lv_obj_set_style_text_color(info_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(info_lbl, font_subtitle, LV_PART_MAIN);
     lv_obj_set_style_text_align(info_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(info_lbl, LV_LABEL_LONG_DOT);
 
-    // Unit label (bottom-aligned with widgets.value_lbl, right edge)
+    // Unit label centered below the number, away from the curved right edge.
     lv_obj_t *unit_lbl = lv_label_create(scr);
     ESP_NULL_CHECK(unit_lbl, TAG, "Failed to create unit label");
     lv_label_set_text(unit_lbl, cfg->unit ? cfg->unit : "");
     lv_obj_set_style_text_color(unit_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(unit_lbl, font_unit, LV_PART_MAIN);
-    lv_obj_set_style_text_align(unit_lbl, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
-    lv_obj_align_to(info_lbl, value_lbl, LV_ALIGN_OUT_RIGHT_BOTTOM, 0, 0);
+    lv_obj_set_style_text_align(unit_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(unit_lbl, LV_LABEL_LONG_DOT);
 
     ui->widgets.value_lbl = value_lbl;
     ui->widgets.info_lbl  = info_lbl;
     ui->widgets.unit_lbl  = unit_lbl;
+
+    lv_obj_t *pairing_lbl = lv_label_create(scr);
+    lv_obj_set_size(pairing_lbl, 190, 100);
+    lv_obj_align(pairing_lbl, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(pairing_lbl, lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(pairing_lbl, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(pairing_lbl, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_font(pairing_lbl, font_compact, LV_PART_MAIN);
+    lv_obj_set_style_text_align(pairing_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_add_flag(pairing_lbl, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_add_flag(pairing_lbl, LV_OBJ_FLAG_HIDDEN);
+    ui->widgets.pairing_lbl = pairing_lbl;
+
+    lv_obj_t *alert_lbl = lv_label_create(scr);
+    lv_obj_set_size(alert_lbl, 150, 24);
+    lv_obj_align(alert_lbl, LV_ALIGN_TOP_MID, 0, 18);
+    lv_obj_set_style_text_font(alert_lbl, font_subtitle, LV_PART_MAIN);
+    lv_obj_set_style_text_align(alert_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(alert_lbl, LV_LABEL_LONG_DOT);
+    lv_obj_add_flag(alert_lbl, LV_OBJ_FLAG_HIDDEN);
+    ui->widgets.alert_lbl = alert_lbl;
+
+    lv_obj_t *diagnostics_lbl = lv_label_create(scr);
+    lv_obj_set_size(diagnostics_lbl, 150, 24);
+    lv_obj_align(diagnostics_lbl, LV_ALIGN_BOTTOM_MID, 0, -22);
+    lv_obj_set_style_text_font(diagnostics_lbl, font_subtitle, LV_PART_MAIN);
+    lv_obj_set_style_text_align(diagnostics_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(diagnostics_lbl, LV_LABEL_LONG_DOT);
+    lv_obj_add_flag(diagnostics_lbl, LV_OBJ_FLAG_HIDDEN);
+    ui->widgets.diagnostics_lbl = diagnostics_lbl;
 
     lv_refr_now(NULL);  // force refresh to apply styles immediately
     ui_align_labels(ui);
@@ -255,9 +373,13 @@ ui_t *ui_init(obd_pid_cfg_t const *cfg, uint32_t interval_ms, ui_touch_callback_
     memset(ui, 0, sizeof(ui_t));
     ESP_LOGI(TAG, "ui pointer2: %p (addr: %p)", ui, (void *)&ui);
 
-    ui->rtos.value_que    = xQueueCreate(1, sizeof(uint32_t));
+    ui->rtos.value_que    = xQueueCreate(1, sizeof(ui_sample_t));
     ui->rtos.touch_ev_que = xQueueCreate(4, sizeof(lv_event_code_t));
+    ui->rtos.pairing_que = xQueueCreate(1, sizeof(uint32_t));
+    ui->rtos.alert_que = xQueueCreate(1, sizeof(ui_alert_t));
+    ui->rtos.diagnostics_que = xQueueCreate(1, sizeof(ui_diagnostics_t));
     ui->touch_cb          = touch_cb;
+    ui->display.stale_after_ms = UI_SAMPLE_FRESH_MS;
 
     if (!lvgl_port_lock(portMAX_DELAY))
     {
@@ -279,9 +401,12 @@ void ui_set_value(ui_t *ui, int32_t const *value)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
-    int32_t set_value = value != NULL ? *value : DISPLAY_VALUE_INVALID;
+    ui_sample_t sample = {
+        .value = value != NULL ? *value : DISPLAY_VALUE_INVALID,
+        .received_at = xTaskGetTickCount(),
+    };
 
-    if (xQueueOverwrite(ui->rtos.value_que, &set_value) != pdTRUE)
+    if (xQueueOverwrite(ui->rtos.value_que, &sample) != pdTRUE)
     {
         ESP_LOGE(TAG, "Failed to overwrite value in queue");
     }
@@ -292,6 +417,35 @@ void ui_set_obd_cfg(ui_t *ui, obd_pid_cfg_t const *cfg)
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     ESP_NULL_CHECK(cfg, TAG, "OBD PID config is NULL");
 
+    ui_set_value(ui, NULL);
     ui_update_screen(ui, NULL, cfg->name, cfg->unit);
     ESP_LOGI(TAG, "Updated OBD PID config: 0x%02X (%s)", cfg->pid, cfg->name);
+}
+
+void ui_show_pairing_code(ui_t *ui, uint32_t passkey)
+{
+    if (ui != NULL) xQueueOverwrite(ui->rtos.pairing_que, &passkey);
+}
+
+void ui_set_alert(ui_t *ui, uint8_t severity, bool unavailable, const char *label)
+{
+    if (!ui || !ui->rtos.alert_que) return;
+    ui_alert_t alert = {.severity = severity, .unavailable = unavailable};
+    if (label) snprintf(alert.label, sizeof(alert.label), "%s", label);
+    xQueueOverwrite(ui->rtos.alert_que, &alert);
+}
+
+void ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on,
+                        uint8_t count, const char *first_code)
+{
+    if (!ui || !ui->rtos.diagnostics_que) return;
+    ui_diagnostics_t diagnostics = {.valid = valid, .mil_on = mil_on, .count = count};
+    if (first_code) snprintf(diagnostics.first_code, sizeof(diagnostics.first_code),
+                             "%s", first_code);
+    xQueueOverwrite(ui->rtos.diagnostics_que, &diagnostics);
+}
+
+void ui_set_freshness(ui_t *ui, uint32_t stale_after_ms)
+{
+    if (ui) ui->display.stale_after_ms = stale_after_ms;
 }

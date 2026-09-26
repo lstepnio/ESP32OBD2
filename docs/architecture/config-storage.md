@@ -1,0 +1,35 @@
+# Configuration storage and apply boundary
+
+Status: the 16 MB partition layout has been installed on the development gauge. The firmware now contains an authenticated, bounded transfer to two configuration partitions and can compile a restricted executable document after commit. The paired protocol 0 quick selection still uses the small NVS `config_t` blob. Android Apply and a complete configuration capability are pending.
+
+## Capacity evidence
+
+On 2026-09-25, `esptool.py flash_id` on the USB-connected ESP32-S3 reported a 16 MB flash chip (manufacturer `20`, device `4018`). A read of the board's partition table at `0x8000`, decoded with ESP-IDF 5.4.1 `gen_esp32part.py`, showed NVS at `0x9000` for 24 KiB, `phy_init` at `0xf000` for 4 KiB, and a factory app at `0x10000` for 1 MiB. The first 3072 bytes of the board read matched the local build's partition binary; the remaining bytes in the 4096-byte read were erased padding. The current app image is about 954 KiB. The [configuration contract](../../contracts/config.schema.json) and [BLE transaction draft](../protocol/ble-v1.md) allow a 64 KiB JSON document. A 64 KiB staged document plus an active generation cannot fit safely in the existing NVS partition. The existing app slot also leaves little growth room.
+
+## Migration layout
+
+The [active 16 MB table](../../firmware/gauge/partitions.csv) keeps the current NVS and PHY offsets, reserves two 128 KiB configuration data partitions, and allocates two 3 MiB OTA application slots. The first OTA slot starts at `0x60000`; the old factory app started at `0x10000`, where this layout places OTA metadata and configuration storage. Its unused upper flash remains unassigned until requirements for logs or catalog cache are measured. The migration used a private, verified 1 MiB USB backup and the ordered procedure in the [USB migration runbook](../development/usb-partition-migration.md).
+
+The generated table parsed with ESP-IDF 5.4.1 tooling. After USB migration, the boot log listed both configuration and OTA slots and loaded the app from `0x60000`. The old NVS partition was not erased, and the app read its existing configuration. The already bonded Pixel then completed a protected saved-state read without another pairing prompt, confirming owner access survived this migration. Bootloader OTA rollback is enabled in the later firmware flash; a trial OTA and configuration power interruption remain unverified.
+
+The config partitions hold bounded bytes, not executable code. Each generation has a header with magic, schema version, document length, SHA-256, revision, header CRC32, and commit marker. The low-level `config_store` module scans committed generations at boot, streams at most 64 KiB into the inactive slot, checks SHA-256, requires validation before writing the commit marker, and reads back the committed record. It never erases the current active slot during a transfer. The document validator rejects malformed JSON, duplicate or unknown fields, invalid types and bounds, broken source or PID references, inconsistent request/response definitions, invalid decoder vectors, and invalid alert thresholds. The runtime compiler rejects operations that the installed ELM transport and display cannot execute. The authenticated [experimental transfer](../protocol/experimental-firmware-transfers.md) stages and commits from the existing owner control handle. Android Apply and trial configuration rollback remain pending.
+
+The development board's 2 MB Quad PSRAM is now enabled at 40 MHz. The flashed image logged device detection, a successful boot memory check, a 2048 KiB heap pool, and normal display and BLE startup. The allocator reserves 32 KiB of internal memory for DMA and internal allocations; NimBLE remains configured to allocate its buffers internally. The validator reads at most 64 KiB plus one terminator into PSRAM and directs cJSON allocations to PSRAM. It runs outside the steady-state renderer path. Its schema and semantic rules need independent fixture coverage before accepting app writes.
+
+The five built-in Mode 01 readings use a shared, allocation-free numeric decoder with explicit byte width, byte order, signedness, scale, offset, and value range. The request loop now rotates through all built-ins or a compiled active document, using per-definition intervals. Live scheduling behavior awaits an adapter.
+
+## Atomic apply
+
+1. `config.begin` checks authenticated owner, `baseRevision`, declared schema, length at most 64 KiB, and expected SHA-256. It reserves an inactive generation and returns a transfer ID and accepted offset.
+2. `config.chunk` accepts only the next bounded offset. A disconnect leaves the active generation unchanged; a resumed owner must present the same transfer ID and hash before continuing.
+3. `config.validate` checks the complete digest and every referenced source, PID definition, renderer, unit, threshold, and rate. No custom request becomes active merely because it is syntactically valid.
+4. `config.commit` writes and rereads the inactive generation, records its commit marker, then changes the active pointer. Acknowledgment includes new revision and digest. Repeating a request ID returns the original outcome.
+5. Boot selects the last valid committed generation. If active metadata is damaged, inspect both generation headers and digests, choose the newest valid committed generation, and report recovery to the app. Never boot an unvalidated staged document.
+
+Firmware must keep the previous generation until the new one has booted and rendered successfully. Mark the newly selected generation as trial and clear that marker only after scheduler and display initialization complete; repeated early boots or validation failure choose the previous valid generation and report rollback. A trial marker must never cause a loop between generations. If commit succeeds but the BLE response is lost, Android queries revision and digest instead of sending a second blind commit. If the base revision changed, Android retains its local draft and offers reload/rebase. The app never labels a draft as applied based on an ATT write acknowledgment.
+
+## Gate before full configuration
+
+The flash layout, `ota_0` boot path, and existing owner-bond access are observed. The next gates are schema and semantic validation, BLE transfer with revision conflicts and readback, trial activation with power-loss recovery, and Android presentation of the accepted revision and digest. Keep full `configWrite` capability false until the transaction is implemented and exercised. The quick-selection path remains explicitly separate so no 64 KiB document is promised by the current firmware.
+
+Android must map legacy local profile UUIDs to schema-conforming `vehicleProfileId` values without silently renaming the user's local profile or losing its draft. New local IDs already use a `vehicle-` prefix. This mapping belongs in the explicit configuration export layer, with a stable persisted association before full Apply is enabled.

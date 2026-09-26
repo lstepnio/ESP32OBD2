@@ -10,6 +10,10 @@ App body 16 sp, secondary labels 14 sp, section titles 28 sp, display reading 44
 
 Minimum phone target 48 dp with accessible contrast: normal text >=4.5:1, large text/icons >=3:1 against background. Gauge controls use broad tap regions and a deliberate long press. Never shrink text indefinitely to fit. Gauge is a true circular clip; keep essential content within radius 104 around (120,120), and test long negative values and units there. Arc scale marks are secondary and can use the outer ring; important status text cannot.
 
+The 240 px panel is circular even though its pixel buffer is square. At the bottom of glyphs whose baseline sits near y=215, the safe chord is only about 70 px wide, so a status such as SIMULATED can lose its outer letters. Put bottom status text around y=195-200 with a short label and at least 10-11 px type; reserve y>205 for nonessential marks. Use short gauge labels such as COOLANT and INPUT SPEED while retaining full names in the app and accessibility text. Center units under the primary number, keep the number within the central 166 px, and select from measured font sizes rather than scaling arbitrary strings to the rim. The Android preview and browser concept use these bounds; final LVGL layouts require physical screenshot and daylight legibility review.
+
+The Compose preview uses fixed vertical bands in its 238 dp circle: label top 48, value top 77, unit top 141, optional bar/trend/second value at 158-169, and the short DEMO badge near the lower safe chord. This keeps extra renderer content from pushing the main reading toward the rim. These are preview layout coordinates, not measured LCD pixels. A future font-scale and long-value review should include negative values, five digits, degrees, and a DTC code on the physical gauge.
+
 ## Gauge renderers
 
 | Renderer | Visual hierarchy | Best use |

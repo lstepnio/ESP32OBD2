@@ -1,12 +1,12 @@
 # Implementation roadmap
 
-Status: all milestones below are planned except the existing upstream baseline and this design foundation. Complete vertical slices with documentation and evidence before expanding the catalog.
+Status: M0 is complete. An initial M1 transport increment is implemented on `feat/m1-transport-core`; the remaining M1 acceptance criteria are open. Complete vertical slices with documentation and evidence before expanding the catalog.
 
 | Milestone | Deliverables | Exit criteria |
 | --- | --- | --- |
 | M0: design foundation | Repository, baseline provenance, architecture, UI prototype, schemas, quality gates | Prototype review and contract/example checks; user priorities recorded |
 | M1: transport and autonomy | Board module extraction, ELM stream parser, per-ECU samples, two-adapter-plus-phone BLE spike, stale data, local alert engine | ECM + TCM + phone links coexist, or measured limits and fallback decision are documented while LVGL renders; parser fixtures; stale/alert behavior verified without phone |
-| M2: configuration vertical slice | Native Android project, association, capabilities, read/edit/apply one page, versioned durable config | Restart phone/gauge; revision/hash reconcile; interrupted apply retains old config; one real supported reading configured end to end |
+| M2: configuration vertical slice | Native Android project started: demo UI, versioned local vehicle profiles, read-only capabilities; association, read/edit/apply one page and durable gauge config remain | Restart phone/gauge; revision/hash reconcile; interrupted apply retains old config; one real supported reading configured end to end |
 | M3: discovery and diagnostics | Standard per-ECU discovery, catalog UI, scoped manufacturer packs, numeric decoder lab, MIL/DTC/readiness, guarded clear flow | Partial/cancelled discovery; sample provenance; invalid definition rejection; clear semantics verified with emulator before explicit vehicle action |
 | M4: dashboard and alerts | Five LVGL renderers, Android editor, page sets, units/rotation/brightness, warning/critical rules and history, on-gauge DTC page | Pixel/physical readability; hidden-page alerts; hysteresis/dwell/stale/acknowledgment tests; all three use-case templates |
 | M5: updates and recovery | USB partition migration, signed bundle workflow, BLE transfer plus negotiated Wi-Fi spike, A/B rollback, Android foreground operation | Power-loss/phone-loss matrix; wrong image rejection; recovery to known working version; no false success |
