@@ -2,7 +2,7 @@
 
 A standalone round OBD-II gauge and native Android companion for vehicle telemetry, flexible PID discovery, dashboard configuration, and recoverable firmware updates.
 
-**Status: design foundation, an Android app foundation, and a working upstream firmware baseline.** The Waveshare display and touch work on the connected device. The Android app builds with simulated data, local dashboard drafts, an offline PID decoder, and a read-only BLE capability reader. A Pixel 10 Pro found the gauge and read protocol 0 capabilities over BLE. Live vehicle communication, configuration transfer, and firmware updates have not been verified.
+**Status: working gauge and Android foundations with one authenticated numeric configuration transfer observed.** The Waveshare display and touch work on the connected device. A paired Pixel 10 Pro sent a restricted RPM, coolant, and speed configuration, confirmed its active revision and hash after reboot, and the user confirmed numeric page navigation on the gauge. The Android app also offers local drafts, a simulated design preview, and an offline PID decoder. Live vehicle communication, adapter coexistence, DTC behavior on a vehicle, alert transitions, and OTA delivery have not been verified. General configuration and update capability flags remain disabled.
 
 ## Start here
 
@@ -15,6 +15,7 @@ A standalone round OBD-II gauge and native Android companion for vehicle telemet
 - [Foundation validation report](docs/development/validation-report.md).
 - [Quality and release gates](docs/development/quality.md), [implementation roadmap](docs/roadmap.md), and [development setup](docs/development/setup.md).
 - [Current hardware/firmware evidence](docs/current-state.md) and [research sources](docs/sources.md).
+- [Numeric configuration transfer evidence](docs/development/numeric-config-transfer-validation.md).
 
 ## Preview and validate
 
@@ -33,14 +34,14 @@ python3 -m venv .venv
 
 | Path | Purpose |
 | --- | --- |
-| `firmware/gauge/` | Imported ESP-IDF baseline, upstream MIT notice retained; not yet the new architecture |
-| `android/` | Native Jetpack Compose app, offline demo flows, build instructions, and screen contracts |
+| `firmware/gauge/` | ESP-IDF gauge firmware with LVGL display, BLE owner control, numeric configuration runtime, and experimental signed update receiver |
+| `android/` | Native Jetpack Compose app with local drafts, offline examples, paired controls, and restricted numeric configuration sender |
 | `contracts/` | Draft JSON Schemas and examples, versioned alongside documentation |
 | `design/` | Shared visual tokens and a dependency-free interaction prototype |
 | `docs/` | Requirements, decisions, protocols, quality gates, sources, and roadmap |
 | `tools/` | Documentation, schema, and semantic validation |
 
-The browser prototype is a review tool. The Android app uses Jetpack Compose; gauge UI is planned in LVGL. The gauge operates without a phone after configuration. No account or cloud connection is needed for normal operation.
+The browser prototype is a review tool. The Android app uses Jetpack Compose and the gauge UI uses LVGL. The gauge operates without a phone after configuration. No account or cloud connection is needed for normal operation.
 
 ## Contribution and licensing
 
