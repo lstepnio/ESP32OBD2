@@ -30,6 +30,10 @@ class GaugeConfigTransferClient(private val context: Context) {
     data class Applied(val revision: Long, val sha256: String)
     data class ActiveStatus(val revision: Long, val sha256: String, val transferPhase: Int,
                             val lastResult: Int)
+    data class Diagnostics(val milFresh: Boolean, val milOn: Boolean, val reportedCount: Int,
+                           val confirmedFresh: Boolean, val confirmedCount: Int, val confirmedFirst: String?,
+                           val pendingFresh: Boolean, val pendingCount: Int, val pendingFirst: String?,
+                           val permanentFresh: Boolean, val permanentCount: Int, val permanentFirst: String?)
     private data class Status(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
                               val transferId: Long, val accepted: Long, val revision: Long, val hash: ByteArray)
 
@@ -89,20 +93,22 @@ class GaugeConfigTransferClient(private val context: Context) {
             if (it is Event.Failed) error(it.reason)
         }
         @SuppressLint("MissingPermission")
-        suspend fun read(): Status {
+        suspend fun readRaw(): ByteArray {
             check(gatt.readCharacteristic(state)) { "Could not request transfer status" }
             val event = next()
             require(event is Event.Read && event.status == BluetoothGatt.GATT_SUCCESS) {
-                "Owner status read failed; check the gauge bond"
+                "Owner gauge read failed; check the gauge bond"
             }
-            val bytes = event.bytes
+            return event.bytes
+        }
+        suspend fun read(): Status {
+            val bytes = readRaw()
             require(bytes.size == 64 && bytes[0].toInt() == 3) { "Gauge returned an unsupported status version" }
             return Status(bytes[1].toInt() and 255, bytes[2].toInt() and 255, bytes[3].toInt() and 255,
                 u32(bytes, 4), u32(bytes, 8), u32(bytes, 12), u32(bytes, 20), bytes.copyOfRange(32, 64))
         }
         @SuppressLint("MissingPermission")
-        suspend fun command(opcode: Int, sequence: Long, payload: ByteArray = byteArrayOf()): Status {
-            val bytes = byteArrayOf(opcode.toByte()) + le32(sequence) + payload
+        suspend fun writeRaw(bytes: ByteArray) {
             val started = if (Build.VERSION.SDK_INT >= 33)
                 gatt.writeCharacteristic(control, bytes, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothGatt.GATT_SUCCESS
             else {
@@ -111,11 +117,14 @@ class GaugeConfigTransferClient(private val context: Context) {
                 @Suppress("DEPRECATION")
                 gatt.writeCharacteristic(control)
             }
-            check(started) { "Could not queue configuration command $opcode" }
+            check(started) { "Could not queue protected gauge command" }
             val write = next()
             require(write is Event.Write && write.status == BluetoothGatt.GATT_SUCCESS) {
-                "Gauge rejected configuration command $opcode"
+                "Gauge rejected protected command"
             }
+        }
+        suspend fun command(opcode: Int, sequence: Long, payload: ByteArray = byteArrayOf()): Status {
+            writeRaw(byteArrayOf(opcode.toByte()) + le32(sequence) + payload)
             if (opcode == 0x17) return read()
             repeat(80) {
                 val status = read()
@@ -162,6 +171,28 @@ class GaugeConfigTransferClient(private val context: Context) {
         val status = withGauge(device) { command(0x17, 1) }
         return ActiveStatus(status.revision, status.hash.joinToString("") { "%02x".format(it) },
             status.phase, status.result)
+    }
+
+    suspend fun readDiagnostics(device: BluetoothDevice): Diagnostics {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        val bytes = withGauge(device) {
+            writeRaw(byteArrayOf(0x30) + le32(1))
+            readRaw()
+        }
+        require(bytes.size == 32 && bytes[0].toInt() == 5) { "Gauge returned an unsupported diagnostic snapshot" }
+        val flags = bytes[1].toInt() and 255
+        fun code(offset: Int): String? {
+            val first = bytes[offset].toInt() and 255
+            val second = bytes[offset + 1].toInt() and 255
+            if (first == 0 && second == 0) return null
+            val system = "PCBU"[first ushr 6]
+            return "$system${(first ushr 4) and 3}${(first and 15).toString(16).uppercase()}" +
+                "${(second ushr 4).toString(16).uppercase()}${(second and 15).toString(16).uppercase()}"
+        }
+        return Diagnostics(flags and 1 != 0, flags and 2 != 0, bytes[2].toInt() and 255,
+            flags and 4 != 0, bytes[3].toInt() and 255, code(6),
+            flags and 8 != 0, bytes[4].toInt() and 255, code(8),
+            flags and 16 != 0, bytes[5].toInt() and 255, code(10))
     }
 
     suspend fun apply(device: BluetoothDevice, draft: Draft, profileId: String): Applied {

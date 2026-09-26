@@ -1,6 +1,6 @@
 # Android companion architecture
 
-**Implementation status, 2026-09-25:** a native Kotlin/Jetpack Compose debug app builds. It includes Garage, Design, PIDs, and Device screens, versioned local vehicle profiles with separate drafts, five simulated round renderers, searchable example PID catalog, Mode 01 decoder lab, coolant threshold preview, a public BLE capability reader, bounded authenticated built-in reading selection, and an experimental owner-only numeric ECM configuration sender. No adapter, live telemetry, firmware update, code clearing, or general configuration transfer is implemented. The [browser prototype](../design/prototype/index.html) remains a separate design review artifact.
+**Implementation status, 2026-09-25:** a native Kotlin/Jetpack Compose debug app builds. It includes Garage, Design, PIDs, and Device screens, versioned local vehicle profiles with separate drafts, five simulated round renderers, searchable example PID catalog, Mode 01 decoder lab, coolant threshold preview, a public BLE capability reader, bounded authenticated built-in reading selection, an experimental owner-only numeric ECM configuration sender, and a read-only protected MIL/DTC snapshot viewer. No adapter, live telemetry, firmware update, code clearing, or general configuration transfer is implemented. The [browser prototype](../design/prototype/index.html) remains a separate design review artifact.
 
 ## Build and run
 

@@ -106,6 +106,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var savedGauge by mutableStateOf<GaugeSavedSnapshot?>(null)
         private set
+    var diagnostics by mutableStateOf<GaugeConfigTransferClient.Diagnostics?>(null)
+        private set
     var activeConfigRevision by mutableStateOf<Long?>(null)
         private set
     var sentDraft by mutableStateOf<Draft?>(null)
@@ -185,11 +187,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         deviceMessage = message
         capabilities = null
         savedGauge = null
+        diagnostics = null
     }
     fun connected(value: CapabilitySnapshot) {
         scanning = false
         capabilities = value
         savedGauge = null
+        diagnostics = null
+        activeConfigRevision = null
+        sentDraft = null
+        sentProfileId = null
+        sentDigest = null
         deviceMessage = if (value.experimentalNumericConfig)
             "Gauge identified. Experimental numeric ECM transfer requires the paired owner."
         else if (value.quickSelect)
@@ -229,6 +237,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Gauge is using built-in readings. Transfer phase ${value.transferPhase}."
         else "Gauge active config revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…; " +
             "transfer phase ${value.transferPhase}, last result ${value.lastResult}."
+    }
+    fun diagnosticsRead(value: GaugeConfigTransferClient.Diagnostics) {
+        scanning = false
+        diagnostics = value
+        deviceMessage = "Protected diagnostic snapshot read. Vehicle evidence is shown below."
     }
     fun selectionError(message: String) {
         scanning = false

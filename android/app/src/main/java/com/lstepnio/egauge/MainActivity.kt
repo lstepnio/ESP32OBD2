@@ -105,7 +105,8 @@ class MainActivity : ComponentActivity() {
                 CompanionApp(model, onFindGauge = ::requestGauge, onSelectReading = ::requestSelection,
                     onReadSaved = ::requestSavedSnapshot, onRotate = ::requestRotation,
                     onApplyNumeric = ::requestNumericConfiguration,
-                    onReadConfig = ::requestActiveConfiguration)
+                    onReadConfig = ::requestActiveConfiguration,
+                    onReadDiagnostics = ::requestDiagnostics)
             }
         }
     }
@@ -237,13 +238,28 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun requestDiagnostics() {
+        model.markScanning(true)
+        lifecycleScope.launch {
+            try {
+                model.diagnosticsRead(GaugeConfigTransferClient(this@MainActivity)
+                    .readDiagnostics(model.bleClient.selectedGauge()))
+            } catch (error: CancellationException) {
+                model.selectionError("Diagnostic read was interrupted")
+                throw error
+            } catch (error: Exception) {
+                model.selectionError(error.message ?: "Could not read gauge diagnostics")
+            }
+        }
+    }
 }
 
 @Composable
 private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                          onSelectReading: () -> Unit, onReadSaved: () -> Unit,
                          onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit,
-                         onReadConfig: () -> Unit) {
+                         onReadConfig: () -> Unit, onReadDiagnostics: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 720.dp
         if (wide) {
@@ -260,7 +276,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                     }
                 }
                 AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, onApplyNumeric,
-                    onReadConfig, Modifier.weight(1f))
+                    onReadConfig, onReadDiagnostics, Modifier.weight(1f))
             }
         } else {
             Scaffold(containerColor = CanvasColor, bottomBar = {
@@ -275,7 +291,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                     }
                 }
             }) { padding -> AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate,
-                onApplyNumeric, onReadConfig, Modifier.padding(padding)) }
+                onApplyNumeric, onReadConfig, onReadDiagnostics, Modifier.padding(padding)) }
         }
     }
 }
@@ -284,7 +300,8 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
 private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                     onSelectReading: () -> Unit, onReadSaved: () -> Unit,
                     onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit,
-                    onReadConfig: () -> Unit, modifier: Modifier = Modifier) {
+                    onReadConfig: () -> Unit, onReadDiagnostics: () -> Unit,
+                    modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 840.dp).fillMaxWidth().fillMaxHeight().padding(horizontal = 20.dp)) {
             Header(model)
@@ -293,7 +310,7 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                 Destination.Design -> DesignScreen(model, onApplyNumeric)
                 Destination.Pids -> PidsScreen(model)
                 Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved,
-                    onRotate, onReadConfig)
+                    onRotate, onReadConfig, onReadDiagnostics)
             }
         }
     }
@@ -758,7 +775,8 @@ private fun PidsScreen(model: AppViewModel) {
 @Composable
 private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                          onSelectReading: () -> Unit, onReadSaved: () -> Unit,
-                         onRotate: (Int) -> Unit, onReadConfig: () -> Unit) {
+                         onRotate: (Int) -> Unit, onReadConfig: () -> Unit,
+                         onReadDiagnostics: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("03 / Device", "Know what is ready.",
             "Capabilities come from the gauge. Other panels show the planned workflow without vehicle actions.")
@@ -834,10 +852,38 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
         Spacer(Modifier.height(18.dp))
         Panel {
             SectionHeading("Diagnostics")
-            StatusPill("NO VEHICLE SESSION", WarningColor)
+            val diagnostics = model.diagnostics
+            StatusPill(when {
+                diagnostics?.milFresh == true && diagnostics.milOn -> "MIL ON"
+                diagnostics?.milFresh == true -> "MIL OFF"
+                else -> "NO FRESH VEHICLE EVIDENCE"
+            }, when {
+                diagnostics?.milFresh == true && diagnostics.milOn -> CriticalColor
+                diagnostics?.milFresh == true -> AccentColor
+                else -> WarningColor
+            })
             Spacer(Modifier.height(12.dp))
-            Text("CEL and trouble codes will be shown by source and status after vehicle discovery.",
+            if (diagnostics != null) {
+                if (diagnostics.milFresh) InfoLine("ECU reported count", diagnostics.reportedCount.toString())
+                listOf(
+                    Triple("Confirmed", diagnostics.confirmedFresh, diagnostics.confirmedCount to diagnostics.confirmedFirst),
+                    Triple("Pending", diagnostics.pendingFresh, diagnostics.pendingCount to diagnostics.pendingFirst),
+                    Triple("Permanent", diagnostics.permanentFresh, diagnostics.permanentCount to diagnostics.permanentFirst),
+                ).forEach { (label, fresh, data) ->
+                    InfoLine(label, if (fresh) "${data.first} code(s)${data.second?.let { ", first $it" } ?: ""}"
+                        else "No fresh response")
+                }
+                Text("Counts and first codes are a read-only snapshot from headerless adapter replies. " +
+                    "No ECU identity or complete code list is available yet.",
+                    color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+            } else Text("Read the gauge's protected snapshot to check MIL and available code categories. " +
+                "No adapter session has been verified.",
                 color = MutedColor, fontSize = 15.sp, lineHeight = 21.sp)
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(onClick = onReadDiagnostics,
+                enabled = !model.scanning && model.capabilities?.experimentalNumericConfig == true) {
+                Text("Read gauge diagnostics")
+            }
             Text("Code clearing requires a fresh, explicit confirmation on the real ECU.",
                 color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
         }
