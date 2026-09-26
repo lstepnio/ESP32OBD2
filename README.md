@@ -2,7 +2,7 @@
 
 A standalone round OBD-II gauge and native Android companion for vehicle telemetry, flexible PID discovery, dashboard configuration, and recoverable firmware updates.
 
-**Status: working gauge and Android foundations with authenticated numeric configuration and one signed development update observed.** The Waveshare display and touch work on the connected device. A paired Pixel 10 Pro sent a restricted RPM, coolant, and speed configuration twice, confirmed active revisions and hashes after each reboot, and the user confirmed numeric page navigation on the gauge. The Pixel also delivered a signed development image over BLE and read back a valid boot in the opposite OTA slot. The Android app offers local drafts, a simulated design preview, an offline PID decoder, and read-only protected diagnostics. Live vehicle communication, adapter coexistence, DTC behavior on a vehicle, alert transitions, update interruption recovery, and rollback remain unverified. General configuration and update capability flags remain disabled.
+**Status: working gauge and Android foundations with authenticated numeric configuration and signed development updates observed.** The Waveshare display and touch work on the connected device. A paired Pixel 10 Pro sent a restricted RPM, coolant, and speed configuration twice, confirmed active revisions and hashes after each reboot, and the user confirmed numeric page navigation on the gauge. The Pixel delivered a signed development image over BLE, then installed a changed build after a deliberately interrupted transfer and read back its valid identity. The Android app offers local drafts, a simulated design preview, an offline PID decoder, and read-only protected diagnostics. Live vehicle communication, adapter coexistence, DTC behavior on a vehicle, alert transitions, and OTA rollback remain unverified. General configuration and update capability flags remain disabled.
 
 ## Start here
 
@@ -16,7 +16,7 @@ A standalone round OBD-II gauge and native Android companion for vehicle telemet
 - [Quality and release gates](docs/development/quality.md), [implementation roadmap](docs/roadmap.md), and [development setup](docs/development/setup.md).
 - [Current hardware/firmware evidence](docs/current-state.md) and [research sources](docs/sources.md).
 - [Numeric configuration transfer evidence](docs/development/numeric-config-transfer-validation.md).
-- [Signed development update evidence](docs/development/update-live-validation.md).
+- [Signed development update evidence](docs/development/update-live-validation.md) and [changed-build recovery check](docs/development/update-recovery-validation.md).
 
 ## Preview and validate
 

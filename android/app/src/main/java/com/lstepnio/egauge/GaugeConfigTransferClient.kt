@@ -318,12 +318,17 @@ class GaugeConfigTransferClient(private val context: Context) {
             val activated = otaCommand(0x25, sequence++, id)
             check(activated.phase == 4) { "Gauge did not select the update for boot" }
         }
-        delay(6500)
+        // Firmware schedules the restart five seconds after activation. Allow its boot and
+        // health confirmation to finish before treating the prior slot as a rollback.
+        delay(10000)
         repeat(8) {
             val observed = runCatching { readBootIdentity(device) }.getOrNull()
             if (observed != null && observed.partitionAddress != before.partitionAddress &&
                 observed.elfSha256 == expectedElf && observed.otaState == 2)
                 return UpdateResult(observed.partitionAddress, observed.elfSha256)
+            if (observed != null && observed.partitionAddress == before.partitionAddress &&
+                observed.elfSha256 == before.elfSha256 && observed.otaState == 2)
+                error("Gauge is running the previous valid firmware after the update attempt. The trial image was not confirmed.")
             delay(1500)
         }
         error("Update was sent, but the new image was not confirmed as running. Check the gauge before retrying.")

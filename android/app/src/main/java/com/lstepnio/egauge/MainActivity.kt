@@ -49,6 +49,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -105,6 +106,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            SideEffect {
+                if (model.updateInProgress) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
             MaterialTheme(
                 colorScheme = darkColorScheme(
                     primary = AccentColor,
@@ -289,24 +294,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestInstallUpdate() {
-        if (model.updateInProgress) return
-        val bundle = model.updateBundle()
-        model.updateStarted()
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        lifecycleScope.launch {
-            try {
-                val result = GaugeConfigTransferClient(this@MainActivity)
-                    .installUpdate(model.bleClient.selectedGauge(), bundle, model::updateProgress)
-                model.updateSucceeded(result)
-            } catch (error: CancellationException) {
-                model.updateFailed("Update interrupted. The gauge retains its previous valid image.")
-                throw error
-            } catch (error: Exception) {
-                model.updateFailed(error.message ?: "Signed update did not complete")
-            } finally {
-                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            }
-        }
+        model.installSelectedUpdate()
     }
 }
 

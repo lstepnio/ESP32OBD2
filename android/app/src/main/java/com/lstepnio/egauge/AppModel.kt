@@ -5,6 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 /** All catalog rows below are examples, never vehicle capability evidence. */
 data class PidExample(
@@ -279,6 +282,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         updateInProgress = false
         scanning = false
         updatePackageMessage = message
+    }
+    fun installSelectedUpdate() {
+        if (updateInProgress) return
+        val bundle = updateBundle()
+        updateStarted()
+        viewModelScope.launch {
+            try {
+                val result = GaugeConfigTransferClient(getApplication())
+                    .installUpdate(bleClient.selectedGauge(), bundle, ::updateProgress)
+                updateSucceeded(result)
+            } catch (error: CancellationException) {
+                updateFailed("Update interrupted. Reconnect and read the running firmware before retrying.")
+                throw error
+            } catch (error: Exception) {
+                updateFailed(error.message ?: "Signed update did not complete")
+            }
+        }
     }
     fun updatePackageError(message: String) {
         selectedUpdate = null
