@@ -123,6 +123,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var activeConfigRevision by mutableStateOf<Long?>(null)
         private set
+    var activeDocument by mutableStateOf<GaugeConfigTransferClient.ActiveDocument?>(null)
+        private set
     var sentDraft by mutableStateOf<Draft?>(null)
         private set
     var sentProfileId by mutableStateOf<String?>(null)
@@ -201,6 +203,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         capabilities = null
         savedGauge = null
         diagnostics = null
+        activeDocument = null
     }
     fun connected(value: CapabilitySnapshot) {
         scanning = false
@@ -208,6 +211,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         savedGauge = null
         diagnostics = null
         activeConfigRevision = null
+        activeDocument = null
         sentDraft = null
         sentProfileId = null
         sentDigest = null
@@ -230,6 +234,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun configApplied(value: GaugeConfigTransferClient.Applied, profileId: String, appliedDraft: Draft) {
         scanning = false
         activeConfigRevision = value.revision
+        activeDocument = null
         sentDraft = appliedDraft
         sentProfileId = profileId
         sentDigest = value.sha256
@@ -240,6 +245,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun configStatusRead(value: GaugeConfigTransferClient.ActiveStatus) {
         scanning = false
+        if (activeDocument?.revision != value.revision || activeDocument?.sha256 != value.sha256)
+            activeDocument = null
         if (value.revision != activeConfigRevision || value.sha256 != sentDigest) {
             sentDraft = null
             sentProfileId = null
@@ -250,6 +257,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Gauge is using built-in readings. Transfer phase ${value.transferPhase}."
         else "Gauge active config revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…; " +
             "transfer phase ${value.transferPhase}, last result ${value.lastResult}."
+    }
+    fun activeDocumentRead(value: GaugeConfigTransferClient.ActiveDocument?) {
+        scanning = false
+        activeDocument = value
+        activeConfigRevision = value?.revision
+        if (sentDigest != value?.sha256) {
+            sentDraft = null
+            sentProfileId = null
+            sentDigest = null
+        }
+        deviceMessage = if (value == null) "Gauge is using built-in readings. No custom document is saved."
+        else "Saved configuration revision ${value.revision} verified against SHA-256 ${value.sha256.take(12)}…"
     }
     fun diagnosticsRead(value: GaugeConfigTransferClient.Diagnostics) {
         scanning = false

@@ -21,6 +21,7 @@
 #include "services/gatt/ble_svc_gatt.h"
 #include "ble_companion.h"
 #include "config.h"
+#include "config_store.h"
 #include "config_transfer.h"
 #include "ota_transfer.h"
 #include "diagnostics_state.h"
@@ -49,8 +50,22 @@ static atomic_uint g_pairing_until;
 static atomic_bool g_ready;
 static uint8_t extended_status_mode;
 static bool document_active;
-static uint8_t status_snapshot[CONFIG_TRANSFER_STATUS_SIZE];
+#define ACTIVE_DOCUMENT_HEADER_SIZE 52U
+#define ACTIVE_DOCUMENT_CHUNK_SIZE 128U
+static uint8_t status_snapshot[ACTIVE_DOCUMENT_HEADER_SIZE + ACTIVE_DOCUMENT_CHUNK_SIZE];
 static size_t status_snapshot_length;
+static uint32_t active_document_offset;
+
+static uint32_t read_u32(const uint8_t *data)
+{
+    return (uint32_t)data[0] | ((uint32_t)data[1] << 8) |
+           ((uint32_t)data[2] << 16) | ((uint32_t)data[3] << 24);
+}
+
+static void write_u32(uint8_t *data, uint32_t value)
+{
+    for (unsigned i = 0; i < 4; ++i) data[i] = (uint8_t)(value >> (8 * i));
+}
 
 static bool address_equal(const ble_addr_t *a, const ble_addr_t *b)
 {
@@ -146,6 +161,12 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
         status_snapshot_length = 0;
         return 0;
     }
+    if (request[0] == 0x32 && length == 9) {
+        active_document_offset = read_u32(request + 5);
+        extended_status_mode = 5;
+        status_snapshot_length = 0;
+        return 0;
+    }
     if (document_active) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
     if (length != 2 && length != 6) return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     companion_command_t command = {.opcode = request[0], .value = request[1]};
@@ -200,6 +221,40 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     if (extended_status_mode == 4) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = ota_transfer_boot_identity(status_snapshot);
+        if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
+                              status_snapshot_length - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+    if (extended_status_mode == 5) {
+        if (ctxt->offset == 0 || status_snapshot_length == 0) {
+            memset(status_snapshot, 0, ACTIVE_DOCUMENT_HEADER_SIZE);
+            status_snapshot[0] = 7;
+            config_store_record_t record;
+            esp_err_t err = config_store_active(&record);
+            if (err == ESP_OK) {
+                if (active_document_offset > record.length) return BLE_ATT_ERR_INVALID_OFFSET;
+                size_t count = record.length - active_document_offset;
+                if (count > ACTIVE_DOCUMENT_CHUNK_SIZE) count = ACTIVE_DOCUMENT_CHUNK_SIZE;
+                status_snapshot[1] = 1;
+                write_u32(status_snapshot + 4, record.revision);
+                write_u32(status_snapshot + 8, record.length);
+                write_u32(status_snapshot + 12, active_document_offset);
+                status_snapshot[16] = (uint8_t)count;
+                memcpy(status_snapshot + 20, record.sha256, sizeof(record.sha256));
+                if (count > 0 && config_store_read_active(active_document_offset,
+                        status_snapshot + ACTIVE_DOCUMENT_HEADER_SIZE, count) != ESP_OK)
+                    return BLE_ATT_ERR_UNLIKELY;
+                config_store_record_t after;
+                if (config_store_active(&after) != ESP_OK ||
+                    after.revision != record.revision ||
+                    memcmp(after.sha256, record.sha256, sizeof(record.sha256)) != 0)
+                    return BLE_ATT_ERR_UNLIKELY;
+                status_snapshot_length = ACTIVE_DOCUMENT_HEADER_SIZE + count;
+            } else if (err == ESP_ERR_NOT_FOUND && active_document_offset == 0) {
+                status_snapshot_length = ACTIVE_DOCUMENT_HEADER_SIZE;
+            } else return BLE_ATT_ERR_UNLIKELY;
+        }
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -306,6 +361,7 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
             phone_conn = BLE_HS_CONN_HANDLE_NONE;
             extended_status_mode = 0;
             status_snapshot_length = 0;
+            active_document_offset = 0;
             config_transfer_disconnect();
             atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
             ESP_LOGI(TAG, "Phone discovery link disconnected");

@@ -131,6 +131,7 @@ class MainActivity : ComponentActivity() {
                     onReadSaved = ::requestSavedSnapshot, onRotate = ::requestRotation,
                     onApplyNumeric = ::requestNumericConfiguration,
                     onReadConfig = ::requestActiveConfiguration,
+                    onReadDocument = ::requestActiveDocument,
                     onReadDiagnostics = ::requestDiagnostics,
                     onReadBootIdentity = ::requestBootIdentity,
                     onInstallUpdate = ::requestInstallUpdate,
@@ -267,6 +268,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun requestActiveDocument() {
+        if (model.capabilities?.experimentalNumericConfig != true) return
+        model.markScanning(true)
+        lifecycleScope.launch {
+            try {
+                model.activeDocumentRead(GaugeConfigTransferClient(this@MainActivity)
+                    .readActiveDocument(model.bleClient.selectedGauge()))
+            } catch (error: CancellationException) {
+                model.selectionError("Configuration document read was interrupted")
+                throw error
+            } catch (error: Exception) {
+                model.selectionError(error.message ?: "Could not verify saved configuration document")
+            }
+        }
+    }
+
     private fun requestDiagnostics() {
         model.markScanning(true)
         lifecycleScope.launch {
@@ -306,7 +323,8 @@ class MainActivity : ComponentActivity() {
 private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                          onSelectReading: () -> Unit, onReadSaved: () -> Unit,
                          onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit,
-                         onReadConfig: () -> Unit, onReadDiagnostics: () -> Unit,
+                         onReadConfig: () -> Unit, onReadDocument: () -> Unit,
+                         onReadDiagnostics: () -> Unit,
                          onReadBootIdentity: () -> Unit,
                          onInstallUpdate: () -> Unit,
                          onSelectUpdate: () -> Unit) {
@@ -326,7 +344,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                     }
                 }
                 AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, onApplyNumeric,
-                    onReadConfig, onReadDiagnostics, onReadBootIdentity, onInstallUpdate, onSelectUpdate, Modifier.weight(1f))
+                    onReadConfig, onReadDocument, onReadDiagnostics, onReadBootIdentity, onInstallUpdate, onSelectUpdate, Modifier.weight(1f))
             }
         } else {
             Scaffold(containerColor = CanvasColor, bottomBar = {
@@ -341,7 +359,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                     }
                 }
             }) { padding -> AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate,
-                onApplyNumeric, onReadConfig, onReadDiagnostics, onReadBootIdentity, onInstallUpdate, onSelectUpdate, Modifier.padding(padding)) }
+                onApplyNumeric, onReadConfig, onReadDocument, onReadDiagnostics, onReadBootIdentity, onInstallUpdate, onSelectUpdate, Modifier.padding(padding)) }
         }
     }
 }
@@ -350,7 +368,8 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
 private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                     onSelectReading: () -> Unit, onReadSaved: () -> Unit,
                     onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit,
-                    onReadConfig: () -> Unit, onReadDiagnostics: () -> Unit,
+                    onReadConfig: () -> Unit, onReadDocument: () -> Unit,
+                    onReadDiagnostics: () -> Unit,
                     onReadBootIdentity: () -> Unit,
                     onInstallUpdate: () -> Unit,
                     onSelectUpdate: () -> Unit,
@@ -363,7 +382,7 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                 Destination.Design -> DesignScreen(model, onApplyNumeric)
                 Destination.Pids -> PidsScreen(model)
                 Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved,
-                    onRotate, onReadConfig, onReadDiagnostics, onReadBootIdentity, onInstallUpdate, onSelectUpdate)
+                    onRotate, onReadConfig, onReadDocument, onReadDiagnostics, onReadBootIdentity, onInstallUpdate, onSelectUpdate)
             }
         }
     }
@@ -829,6 +848,7 @@ private fun PidsScreen(model: AppViewModel) {
 private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                          onSelectReading: () -> Unit, onReadSaved: () -> Unit,
                          onRotate: (Int) -> Unit, onReadConfig: () -> Unit,
+                         onReadDocument: () -> Unit,
                          onReadDiagnostics: () -> Unit, onReadBootIdentity: () -> Unit,
                          onInstallUpdate: () -> Unit,
                          onSelectUpdate: () -> Unit) {
@@ -872,6 +892,21 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = onReadConfig, enabled = !model.scanning) {
                     Text("Read active configuration status")
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = onReadDocument, enabled = !model.scanning) {
+                    Text("Verify saved configuration document")
+                }
+                model.activeDocument?.let { document ->
+                    Spacer(Modifier.height(12.dp))
+                    InfoLine("Document revision", document.revision.toString())
+                    InfoLine("Document bytes", document.length.toString())
+                    InfoLine("Profile ID", document.vehicleProfileId)
+                    InfoLine("Definitions", document.definitionCount.toString())
+                    InfoLine("Pages", document.pageCount.toString())
+                    InfoLine("Alerts", document.alertCount.toString())
+                    Text("Read from the gauge and SHA-256 verified. This does not establish vehicle PID support.",
+                        color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
                 }
             }
             if (caps?.quickSelect == true) {

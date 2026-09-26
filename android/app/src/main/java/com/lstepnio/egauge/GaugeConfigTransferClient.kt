@@ -33,6 +33,9 @@ class GaugeConfigTransferClient(private val context: Context) {
     data class Applied(val revision: Long, val sha256: String)
     data class ActiveStatus(val revision: Long, val sha256: String, val transferPhase: Int,
                             val lastResult: Int)
+    data class ActiveDocument(val revision: Long, val sha256: String, val length: Int,
+                              val vehicleProfileId: String, val definitionCount: Int,
+                              val pageCount: Int, val alertCount: Int, val json: String)
     data class Diagnostics(val milFresh: Boolean, val milOn: Boolean, val reportedCount: Int,
                            val confirmedFresh: Boolean, val confirmedCount: Int, val confirmedFirst: String?,
                            val pendingFresh: Boolean, val pendingCount: Int, val pendingFirst: String?,
@@ -122,7 +125,8 @@ class GaugeConfigTransferClient(private val context: Context) {
                      (result.bytes.size == 64 && result.bytes[0].toInt() == 3) ||
                      (result.bytes.size == 56 && result.bytes[0].toInt() == 4) ||
                      (result.bytes.size == 32 && result.bytes[0].toInt() == 5) ||
-                     (result.bytes.size == 60 && result.bytes[0].toInt() == 6))) return
+                     (result.bytes.size == 60 && result.bytes[0].toInt() == 6) ||
+                     (result.bytes.size in 52..180 && result.bytes[0].toInt() == 7))) return
                 if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
                     result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
                     error("Gauge owner state read failed (${result.status})")
@@ -229,6 +233,64 @@ class GaugeConfigTransferClient(private val context: Context) {
         val status = withGauge(device) { command(0x17, 1) }
         return ActiveStatus(status.revision, status.hash.joinToString("") { "%02x".format(it) },
             status.phase, status.result)
+    }
+
+    /** Read only the currently committed document over the authenticated owner link. */
+    suspend fun readActiveDocument(device: BluetoothDevice): ActiveDocument? {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        return withGauge(device, operationTimeoutMs = 600_000) {
+            var offset = 0
+            var revision = 0L
+            var digest: ByteArray? = null
+            var document: ByteArray? = null
+            do {
+                writeRaw(byteArrayOf(0x32) + le32((offset + 1).toLong()) + le32(offset.toLong()))
+                val response = readRaw()
+                require(response.size in 52..180 && response[0].toInt() == 7) {
+                    "Gauge returned an unsupported active document chunk"
+                }
+                val present = response[1].toInt() and 255
+                if (present == 0) {
+                    require(offset == 0 && response.size == 52) { "Gauge document disappeared during read" }
+                    return@withGauge null
+                }
+                require(present == 1 && response.sliceArray(2..3).all { it == 0.toByte() } &&
+                    response.sliceArray(17..19).all { it == 0.toByte() }) {
+                    "Gauge returned malformed document metadata"
+                }
+                val receivedRevision = u32(response, 4)
+                val length = u32(response, 8)
+                val receivedOffset = u32(response, 12)
+                val count = response[16].toInt() and 255
+                val receivedDigest = response.copyOfRange(20, 52)
+                require(receivedRevision > 0 && length in 1..65536 && receivedOffset == offset.toLong() &&
+                    count in 1..128 && count <= length - offset && response.size == 52 + count) {
+                    "Gauge returned an invalid document range"
+                }
+                if (document == null) {
+                    revision = receivedRevision
+                    digest = receivedDigest
+                    document = ByteArray(length.toInt())
+                } else require(receivedRevision == revision && document.size == length.toInt() &&
+                    receivedDigest.contentEquals(requireNotNull(digest))) {
+                    "Gauge configuration changed during read"
+                }
+                response.copyInto(requireNotNull(document), offset, 52, 52 + count)
+                offset += count
+            } while (offset < requireNotNull(document).size)
+            val bytes = requireNotNull(document)
+            val hash = MessageDigest.getInstance("SHA-256").digest(bytes)
+            check(hash.contentEquals(requireNotNull(digest))) { "Gauge document failed SHA-256 readback" }
+            val jsonText = bytes.toString(Charsets.UTF_8)
+            val json = JSONObject(jsonText)
+            require(json.getInt("schemaVersion") == 1 &&
+                json.getLong("baseRevision") == revision - 1) {
+                "Gauge returned an unsupported document schema"
+            }
+            ActiveDocument(revision, hash.joinToString("") { "%02x".format(it) }, bytes.size,
+                json.getString("vehicleProfileId"), json.getJSONArray("definitions").length(),
+                json.getJSONArray("pages").length(), json.getJSONArray("alerts").length(), jsonText)
+        }
     }
 
     suspend fun readDiagnostics(device: BluetoothDevice): Diagnostics {
