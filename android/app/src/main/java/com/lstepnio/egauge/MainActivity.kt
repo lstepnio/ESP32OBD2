@@ -276,10 +276,10 @@ class MainActivity : ComponentActivity() {
                 model.activeDocumentRead(GaugeConfigTransferClient(this@MainActivity)
                     .readActiveDocument(model.bleClient.selectedGauge()))
             } catch (error: CancellationException) {
-                model.selectionError("Configuration document read was interrupted")
+                model.activeDocumentError("Configuration document read was interrupted")
                 throw error
             } catch (error: Exception) {
-                model.selectionError(error.message ?: "Could not verify saved configuration document")
+                model.activeDocumentError(error.message ?: "Could not verify saved configuration document")
             }
         }
     }
@@ -379,7 +379,7 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
             Header(model)
             when (model.destination) {
                 Destination.Garage -> GarageScreen(model, onFindGauge)
-                Destination.Design -> DesignScreen(model, onApplyNumeric)
+                Destination.Design -> DesignScreen(model, onApplyNumeric, onReadDocument)
                 Destination.Pids -> PidsScreen(model)
                 Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved,
                     onRotate, onReadConfig, onReadDocument, onReadDiagnostics, onReadBootIdentity, onInstallUpdate, onSelectUpdate)
@@ -537,7 +537,8 @@ private fun SourceRow(source: String, title: String, detail: String) {
 }
 
 @Composable
-private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit) {
+private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
+                         onReadDocument: () -> Unit) {
     val pid = demoCatalog.first { it.id == model.draft.pidId }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("01 / Your dashboard", "Make every signal count.",
@@ -616,11 +617,76 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit) {
                 model.draft.hysteresis < model.draft.critical - model.draft.warning
             val sent = model.sentProfileId == model.profileCollection.activeId &&
                 model.sentDraft == model.draft && model.activeConfigRevision != null
-            Text(if (limitsValid && sent)
-                "Sent to gauge in revision ${model.activeConfigRevision}; alert action awaits live coolant data"
+            Text(if (limitsValid && model.activeDocument != null)
+                "Compare this phone draft with the last verified gauge readback below. Alert action awaits live coolant data."
+                else if (limitsValid && sent)
+                "Numeric pages and coolant thresholds were sent in revision ${model.activeConfigRevision}; the renderer preview stays local. Read back the gauge to compare."
                 else if (limitsValid) "Saved in local draft; current settings have not been sent to the gauge"
                 else "Check warning, critical and hysteresis spacing",
                 color = if (limitsValid) MutedColor else CriticalColor, fontSize = 14.sp)
+        }
+        Spacer(Modifier.height(18.dp))
+        Panel {
+            SectionHeading("Phone draft vs gauge")
+            Text("Compare the current local profile with the last authenticated document readback. Editing the draft updates this comparison without writing to the gauge.",
+                color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(onClick = onReadDocument,
+                enabled = !model.scanning && model.capabilities?.experimentalNumericConfig == true) {
+                Text(if (model.scanning) "Reading gauge…" else "Refresh saved configuration")
+            }
+            model.documentMessage?.let { message ->
+                Spacer(Modifier.height(8.dp))
+                Text(message, color = if (model.documentReadFailed) WarningColor else MutedColor,
+                    fontSize = 13.sp, lineHeight = 19.sp)
+            }
+            val comparison = model.draftComparison
+            if (comparison == null) {
+                Spacer(Modifier.height(12.dp))
+                Text("No verified document loaded. Read the gauge to compare saved settings.",
+                    color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+            } else {
+                Spacer(Modifier.height(14.dp))
+                Text("Revision ${comparison.revision} • ${comparison.matchingCount} match • " +
+                    "${comparison.differingCount} differ • ${comparison.unknownCount} unavailable",
+                    color = when {
+                        comparison.differingCount > 0 -> WarningColor
+                        comparison.unknownCount > 0 -> MutedColor
+                        else -> AccentColor
+                    },
+                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                comparison.fields.forEach { field ->
+                    Spacer(Modifier.height(14.dp))
+                    Text(field.label, color = TextColor, fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text("PHONE DRAFT", color = MutedColor, fontSize = 10.sp)
+                            Text(field.phone, color = TextColor, fontSize = 13.sp)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text("GAUGE SAVED", color = MutedColor, fontSize = 10.sp)
+                            Text(field.gauge ?: "Unavailable", color = when (field.matches) {
+                                true -> AccentColor
+                                false -> WarningColor
+                                null -> MutedColor
+                            }, fontSize = 13.sp)
+                        }
+                    }
+                    Text(when (field.matches) {
+                        true -> "Matches"
+                        false -> "Different"
+                        null -> "Unavailable for comparison"
+                    }, color = when (field.matches) {
+                        true -> AccentColor
+                        false -> WarningColor
+                        null -> MutedColor
+                    }, fontSize = 11.sp)
+                }
+                Spacer(Modifier.height(12.dp))
+                Text("A match describes saved settings only. It does not confirm a live vehicle value or PID support.",
+                    color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+            }
         }
         Spacer(Modifier.height(20.dp))
         Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().height(50.dp)) {
@@ -907,6 +973,10 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                     InfoLine("Alerts", document.alertCount.toString())
                     Text("Read from the gauge and SHA-256 verified. This does not establish vehicle PID support.",
                         color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = { model.navigate(Destination.Design) }) {
+                        Text("Compare with phone draft")
+                    }
                 }
             }
             if (caps?.quickSelect == true) {
