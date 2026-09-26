@@ -34,7 +34,6 @@ Core regression fixtures cover runtime trial/recovery, evidence aging, operation
 
 No Android device was connected during the final offline validation pass. Run the instrumentation journey and capture large-text, landscape, RTL, TalkBack, cold-start, and frame evidence on the Pixel when available. The current environment also had no OBD adapter, so live PID evidence, DTCs, and one- or two-adapter behavior were not exercised.
 
-The development-release environment and signing secret are configured on GitHub. Publishing the first prerelease waits for the implementation commit to exist on GitHub, after which the workflow output must be exercised on the phone and gauge. Stable OTA remains blocked on production trust, per-board qualification, and recovery evidence.
+The development-release environment and signing secret are configured on GitHub. Prerelease `dev-v0.2.0-dev.3` is published with a signed catalog and the Waveshare bundle. A clean download verified the catalog signature, exact bundle size/hash, ZIP members, board, protocol, image length, and image SHA-256. The release targets this integration branch because GitHub workflow dispatch cannot use a workflow absent from the default branch; after merge, subsequent releases use the protected workflow. The published package still needs the fresh-install phone-to-gauge journey. Stable OTA remains blocked on production trust, per-board qualification, and recovery evidence.
 
 The app icon is intentionally deferred until product naming and branding are decided.
-
