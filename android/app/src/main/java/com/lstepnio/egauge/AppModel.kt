@@ -111,6 +111,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var bootIdentity by mutableStateOf<GaugeConfigTransferClient.BootIdentity?>(null)
         private set
     private var selectedUpdate: DevUpdateBundle? = null
+    val updateReady: Boolean get() = selectedUpdate != null
+    fun updateBundle(): DevUpdateBundle = selectedUpdate ?: error("Select a signed update package first")
+    var updateInProgress by mutableStateOf(false)
+        private set
     var updatePackageMessage by mutableStateOf("No update package selected")
         private set
     var activeConfigRevision by mutableStateOf<Long?>(null)
@@ -257,6 +261,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         selectedUpdate = value
         val hash = value.sha256.joinToString("") { "%02x".format(it) }
         updatePackageMessage = "Development signature valid • ${value.image.size} bytes • SHA-256 ${hash.take(12)}…"
+    }
+    fun updateStarted() {
+        updateInProgress = true
+        scanning = true
+        updatePackageMessage = "Connecting to gauge for signed update…"
+    }
+    fun updateProgress(percent: Int) {
+        updatePackageMessage = "Sending signed image to gauge • $percent%"
+    }
+    fun updateSucceeded(value: GaugeConfigTransferClient.UpdateResult) {
+        updateInProgress = false
+        scanning = false
+        updatePackageMessage = "Gauge confirmed new image at 0x${value.partitionAddress.toString(16)} • ELF SHA-256 ${value.elfSha256.take(12)}…"
+    }
+    fun updateFailed(message: String) {
+        updateInProgress = false
+        scanning = false
+        updatePackageMessage = message
     }
     fun updatePackageError(message: String) {
         selectedUpdate = null

@@ -15,6 +15,7 @@ import org.json.JSONObject
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Experimental protocol-0 owner transaction for the firmware's numeric ECM subset. */
 class GaugeConfigTransferClient(private val context: Context) {
@@ -36,13 +37,19 @@ class GaugeConfigTransferClient(private val context: Context) {
                            val permanentFresh: Boolean, val permanentCount: Int, val permanentFirst: String?)
     data class BootIdentity(val otaState: Int, val partitionSubtype: Int, val secureVersion: Long,
                             val elfSha256: String, val version: String, val partitionAddress: Long)
+    data class UpdateResult(val partitionAddress: Long, val elfSha256: String)
     private data class Status(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
                               val transferId: Long, val accepted: Long, val revision: Long, val hash: ByteArray)
+    private data class OtaStatus(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
+                                 val transferId: Long, val accepted: Long, val total: Long,
+                                 val digest: ByteArray)
 
     @SuppressLint("MissingPermission")
-    private suspend fun <T> withGauge(device: BluetoothDevice, action: suspend Session.() -> T): T {
+    private suspend fun <T> withGauge(device: BluetoothDevice, operationTimeoutMs: Long = 240_000,
+                                      action: suspend Session.() -> T): T {
         val events = Channel<Event>(Channel.UNLIMITED)
         var requestedMtu = 23
+        val readySent = AtomicBoolean(false)
         val callback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED)
@@ -59,7 +66,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                     gatt.getService(serviceId)?.getCharacteristic(controlId) == null ||
                     gatt.getService(serviceId)?.getCharacteristic(stateId) == null)
                     events.trySend(Event.Failed("Gauge transfer service is unavailable"))
-                else events.trySend(Event.Ready(requestedMtu))
+                else if (readySent.compareAndSet(false, true)) events.trySend(Event.Ready(requestedMtu))
             }
             @Deprecated("Required for Android 10 through 12")
             override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
@@ -80,7 +87,7 @@ class GaugeConfigTransferClient(private val context: Context) {
             val ready = withTimeout(20_000) { events.receive() }
             if (ready is Event.Failed) error(ready.reason)
             require(ready is Event.Ready)
-            withTimeout(240_000) {
+            withTimeout(operationTimeoutMs) {
                 val session = Session(gatt, events, ready.mtu)
                 session.establishOwner()
                 session.action()
@@ -102,7 +109,7 @@ class GaugeConfigTransferClient(private val context: Context) {
         private suspend fun readEvent(): Event.Read {
             check(gatt.readCharacteristic(state)) { "Could not request transfer status" }
             val event = next()
-            require(event is Event.Read) { "Gauge returned an unexpected GATT event" }
+            require(event is Event.Read) { "Expected GATT read, received ${event.javaClass.simpleName}" }
             return event
         }
         suspend fun establishOwner() {
@@ -110,7 +117,10 @@ class GaugeConfigTransferClient(private val context: Context) {
                 val result = readEvent()
                 if (result.status == BluetoothGatt.GATT_SUCCESS &&
                     ((result.bytes.size == 8 && result.bytes[0].toInt() == 2) ||
-                     (result.bytes.size == 64 && result.bytes[0].toInt() == 3))) return
+                     (result.bytes.size == 64 && result.bytes[0].toInt() == 3) ||
+                     (result.bytes.size == 56 && result.bytes[0].toInt() == 4) ||
+                     (result.bytes.size == 32 && result.bytes[0].toInt() == 5) ||
+                     (result.bytes.size == 60 && result.bytes[0].toInt() == 6))) return
                 if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
                     result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
                     error("Gauge owner state read failed (${result.status})")
@@ -144,7 +154,7 @@ class GaugeConfigTransferClient(private val context: Context) {
             check(started) { "Could not queue protected gauge command" }
             val write = next()
             require(write is Event.Write && write.status == BluetoothGatt.GATT_SUCCESS) {
-                "Gauge rejected protected command (${(write as? Event.Write)?.status})"
+                "Expected successful GATT write, received ${write.javaClass.simpleName} (${(write as? Event.Write)?.status})"
             }
         }
         suspend fun command(opcode: Int, sequence: Long, payload: ByteArray = byteArrayOf()): Status {
@@ -159,6 +169,29 @@ class GaugeConfigTransferClient(private val context: Context) {
                 delay(75)
             }
             error("Gauge did not confirm configuration command $opcode")
+        }
+        suspend fun readOta(): OtaStatus {
+            val bytes = readRaw()
+            require(bytes.size == 56 && bytes[0].toInt() == 4) { "Gauge returned an unsupported update status" }
+            return OtaStatus(bytes[1].toInt() and 255, bytes[2].toInt() and 255,
+                bytes[3].toInt() and 255, u32(bytes, 4), u32(bytes, 8), u32(bytes, 12),
+                u32(bytes, 16), bytes.copyOfRange(24, 56))
+        }
+        suspend fun otaCommand(opcode: Int, sequence: Long, payload: ByteArray = byteArrayOf(),
+                               attempts: Int = 80): OtaStatus {
+            writeRaw(byteArrayOf(opcode.toByte()) + le32(sequence) + payload)
+            if (opcode == 0x27) return readOta()
+            repeat(attempts) {
+                val status = readOta()
+                if (status.sequence == sequence && status.opcode == opcode) {
+                    check(status.result == 0) {
+                        "Gauge update command $opcode failed (result ${status.result}, phase ${status.phase}, transfer ${status.transferId})"
+                    }
+                    return status
+                }
+                delay(75)
+            }
+            error("Gauge did not confirm update command $opcode")
         }
     }
 
@@ -231,6 +264,69 @@ class GaugeConfigTransferClient(private val context: Context) {
         return BootIdentity(bytes[1].toInt() and 255, bytes[2].toInt() and 255,
             u32(bytes, 4), bytes.copyOfRange(8, 40).joinToString("") { "%02x".format(it) },
             versionBytes.copyOfRange(0, versionEnd).toString(Charsets.UTF_8), u32(bytes, 56))
+    }
+
+    /** Development-only update path. The gauge independently verifies the signed image. */
+    suspend fun installUpdate(device: BluetoothDevice, bundle: DevUpdateBundle,
+                              progress: (Int) -> Unit): UpdateResult {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        val before = readBootIdentity(device)
+        val random = SecureRandom()
+        val transferId = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
+        var sequence = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
+        val id = le32(transferId)
+        val expectedElf = bundle.elfSha256.joinToString("") { "%02x".format(it) }
+        check(before.elfSha256 != expectedElf) { "This signed firmware image is already running on the gauge" }
+        progress(0)
+        withGauge(device, 1_200_000) {
+            val current = otaCommand(0x27, sequence++)
+            if (current.phase in 1..3 && current.transferId != 0L)
+                otaCommand(0x26, sequence++, le32(current.transferId))
+            else check(current.phase == 0) { "Gauge is already activating an update" }
+            otaCommand(0x20, sequence++, id + le32(bundle.image.size.toLong()) + le32(0x31534745))
+            try {
+                for (part in 0..3) otaCommand(0x21, sequence++, id + byteArrayOf(part.toByte()) +
+                    bundle.sha256.copyOfRange(part * 8, part * 8 + 8))
+                for (part in 0 until (bundle.signatureDer.size + 7) / 8) {
+                    val start = part * 8
+                    otaCommand(0x28, sequence++, id + byteArrayOf(part.toByte(), bundle.signatureDer.size.toByte()) +
+                        bundle.signatureDer.copyOfRange(start, minOf(start + 8, bundle.signatureDer.size)))
+                }
+                otaCommand(0x22, sequence++, id)
+                val chunkSize = minOf(160, mtu - 16)
+                check(chunkSize > 0) { "Gauge MTU is too small for firmware chunks" }
+                var offset = 0
+                var lastProgress = 0
+                while (offset < bundle.image.size) {
+                    val chunk = bundle.image.copyOfRange(offset, minOf(offset + chunkSize, bundle.image.size))
+                    val status = otaCommand(0x23, sequence++, id + le32(offset.toLong()) + chunk)
+                    check(status.accepted == offset.toLong() + chunk.size) { "Gauge accepted an unexpected update offset" }
+                    offset += chunk.size
+                    val percent = offset * 100 / bundle.image.size
+                    if (percent > lastProgress) {
+                        lastProgress = percent
+                        progress(percent)
+                    }
+                }
+                val verified = otaCommand(0x24, sequence++, id, attempts = 600)
+                check(verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
+                    verified.digest.contentEquals(bundle.sha256)) { "Gauge did not verify the signed image" }
+            } catch (error: Exception) {
+                runCatching { otaCommand(0x26, sequence++, id) }
+                throw error
+            }
+            val activated = otaCommand(0x25, sequence++, id)
+            check(activated.phase == 4) { "Gauge did not select the update for boot" }
+        }
+        delay(6500)
+        repeat(8) {
+            val observed = runCatching { readBootIdentity(device) }.getOrNull()
+            if (observed != null && observed.partitionAddress != before.partitionAddress &&
+                observed.elfSha256 == expectedElf && observed.otaState == 2)
+                return UpdateResult(observed.partitionAddress, observed.elfSha256)
+            delay(1500)
+        }
+        error("Update was sent, but the new image was not confirmed as running. Check the gauge before retrying.")
     }
 
     suspend fun apply(device: BluetoothDevice, draft: Draft, profileId: String): Applied {

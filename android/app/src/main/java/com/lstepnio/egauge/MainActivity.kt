@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -123,6 +124,7 @@ class MainActivity : ComponentActivity() {
                     onReadConfig = ::requestActiveConfiguration,
                     onReadDiagnostics = ::requestDiagnostics,
                     onReadBootIdentity = ::requestBootIdentity,
+                    onInstallUpdate = ::requestInstallUpdate,
                     onSelectUpdate = { updatePicker.launch(arrayOf("application/zip", "application/octet-stream")) })
             }
         }
@@ -285,6 +287,27 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun requestInstallUpdate() {
+        if (model.updateInProgress) return
+        val bundle = model.updateBundle()
+        model.updateStarted()
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        lifecycleScope.launch {
+            try {
+                val result = GaugeConfigTransferClient(this@MainActivity)
+                    .installUpdate(model.bleClient.selectedGauge(), bundle, model::updateProgress)
+                model.updateSucceeded(result)
+            } catch (error: CancellationException) {
+                model.updateFailed("Update interrupted. The gauge retains its previous valid image.")
+                throw error
+            } catch (error: Exception) {
+                model.updateFailed(error.message ?: "Signed update did not complete")
+            } finally {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        }
+    }
 }
 
 @Composable
@@ -293,6 +316,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                          onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit,
                          onReadConfig: () -> Unit, onReadDiagnostics: () -> Unit,
                          onReadBootIdentity: () -> Unit,
+                         onInstallUpdate: () -> Unit,
                          onSelectUpdate: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 720.dp
@@ -310,7 +334,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                     }
                 }
                 AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, onApplyNumeric,
-                    onReadConfig, onReadDiagnostics, onReadBootIdentity, onSelectUpdate, Modifier.weight(1f))
+                    onReadConfig, onReadDiagnostics, onReadBootIdentity, onInstallUpdate, onSelectUpdate, Modifier.weight(1f))
             }
         } else {
             Scaffold(containerColor = CanvasColor, bottomBar = {
@@ -325,7 +349,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                     }
                 }
             }) { padding -> AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate,
-                onApplyNumeric, onReadConfig, onReadDiagnostics, onReadBootIdentity, onSelectUpdate, Modifier.padding(padding)) }
+                onApplyNumeric, onReadConfig, onReadDiagnostics, onReadBootIdentity, onInstallUpdate, onSelectUpdate, Modifier.padding(padding)) }
         }
     }
 }
@@ -336,6 +360,7 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                     onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit,
                     onReadConfig: () -> Unit, onReadDiagnostics: () -> Unit,
                     onReadBootIdentity: () -> Unit,
+                    onInstallUpdate: () -> Unit,
                     onSelectUpdate: () -> Unit,
                     modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -346,7 +371,7 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                 Destination.Design -> DesignScreen(model, onApplyNumeric)
                 Destination.Pids -> PidsScreen(model)
                 Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved,
-                    onRotate, onReadConfig, onReadDiagnostics, onReadBootIdentity, onSelectUpdate)
+                    onRotate, onReadConfig, onReadDiagnostics, onReadBootIdentity, onInstallUpdate, onSelectUpdate)
             }
         }
     }
@@ -813,6 +838,7 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                          onSelectReading: () -> Unit, onReadSaved: () -> Unit,
                          onRotate: (Int) -> Unit, onReadConfig: () -> Unit,
                          onReadDiagnostics: () -> Unit, onReadBootIdentity: () -> Unit,
+                         onInstallUpdate: () -> Unit,
                          onSelectUpdate: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("03 / Device", "Know what is ready.",
@@ -949,12 +975,15 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
             Text("Import a locally signed development package to check its board, size, SHA-256 and P-256 signature.",
                 color = MutedColor, fontSize = 15.sp, lineHeight = 21.sp)
             Spacer(Modifier.height(12.dp))
-            OutlinedButton(onClick = onSelectUpdate) { Text("Choose signed package") }
+            OutlinedButton(onClick = onSelectUpdate, enabled = !model.updateInProgress) { Text("Choose signed package") }
             Spacer(Modifier.height(8.dp))
             Text(model.updatePackageMessage, color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
             Spacer(Modifier.height(8.dp))
-            Button(onClick = {}, enabled = false) { Text("Install on gauge") }
-            Text("BLE delivery, boot confirmation and recovery checks remain under development.",
+            Button(onClick = onInstallUpdate,
+                enabled = model.updateReady && !model.scanning && model.capabilities?.experimentalNumericConfig == true) {
+                Text(if (model.updateInProgress) "Installing…" else "Install development update")
+            }
+            Text("Keep the app open and gauge powered until the new image is confirmed. Interrupted transfers can be retried.",
                 color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
         }
     }

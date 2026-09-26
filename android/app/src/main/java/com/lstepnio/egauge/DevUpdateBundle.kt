@@ -14,7 +14,8 @@ import java.util.Base64
 import java.util.zip.ZipInputStream
 
 /** Bounded prototype update package. Signature validation here complements firmware verification. */
-data class DevUpdateBundle(val image: ByteArray, val sha256: ByteArray, val signatureDer: ByteArray) {
+data class DevUpdateBundle(val image: ByteArray, val sha256: ByteArray, val signatureDer: ByteArray,
+                           val elfSha256: ByteArray) {
     companion object {
         private const val board = "ESP32-S3-Touch-LCD-1.28"
         private const val boardTag = 0x31534745
@@ -65,7 +66,11 @@ data class DevUpdateBundle(val image: ByteArray, val sha256: ByteArray, val sign
             verifier.initVerify(key)
             verifier.update(signed)
             require(verifier.verify(signature)) { "Development update signature is invalid" }
-            return DevUpdateBundle(bytes, digest, signature)
+            require(bytes.size >= 208 && (bytes[0].toInt() and 255) == 0xe9 &&
+                ByteBuffer.wrap(bytes, 32, 4).order(ByteOrder.LITTLE_ENDIAN).int == 0xABCD5432.toInt()) {
+                "Firmware image has no supported ESP app descriptor"
+            }
+            return DevUpdateBundle(bytes, digest, signature, bytes.copyOfRange(176, 208))
         }
 
         private fun bounded(input: InputStream, maximum: Int): ByteArray {

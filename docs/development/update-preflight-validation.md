@@ -8,4 +8,4 @@
 
 ## Limits
 
-The ELF SHA-256 is an identity for the running build, while the package SHA-256 covers the raw `.bin` file. They are intentionally different digests. This observation verifies an authenticated identity read and on-phone package import with integrity and development signature checks. The Android install action remains disabled. BLE image delivery, image activation, reboot identity correlation, power interruption, and rollback recovery were not exercised. No OBD adapters were present.
+The ELF SHA-256 is an identity for the running build, while the package SHA-256 covers the raw `.bin` file. They are intentionally different digests. This observation verified an authenticated identity read and on-phone package import with integrity and development signature checks. At this preflight stage the Android install action was disabled. The later live update is recorded in [live update validation](update-live-validation.md). No OBD adapters were present.
