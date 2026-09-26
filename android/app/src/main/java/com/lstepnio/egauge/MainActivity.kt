@@ -241,8 +241,12 @@ class MainActivity : ComponentActivity() {
             try {
                 val profileId = model.profileCollection.activeId
                 val draft = model.draft
+                val baseRevision = model.activeConfigRevision
+                    ?: error("Refresh the saved gauge configuration before sending")
+                val baseHash = model.verifiedConfigHash
+                    ?: error("Refresh the saved gauge configuration before sending")
                 val applied = GaugeConfigTransferClient(this@MainActivity).apply(
-                    model.bleClient.selectedGauge(), draft, profileId)
+                    model.bleClient.selectedGauge(), draft, profileId, baseRevision, baseHash)
                 model.configApplied(applied, profileId, draft)
             } catch (error: CancellationException) {
                 model.selectionError("Configuration transfer interrupted; read gauge status before retrying")
@@ -686,6 +690,15 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
                 Spacer(Modifier.height(12.dp))
                 Text("A match describes saved settings only. It does not confirm a live vehicle value or PID support.",
                     color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = model::adoptGaugeDraft,
+                    enabled = model.canAdoptGaugeDraft && !model.scanning) {
+                    Text("Use saved settings in phone draft")
+                }
+                if (!model.canAdoptGaugeDraft) {
+                    Text("Import is available when the saved profile and all mapped editor fields are compatible.",
+                        color = MutedColor, fontSize = 12.sp, lineHeight = 18.sp)
+                }
             }
         }
         Spacer(Modifier.height(20.dp))
@@ -697,14 +710,16 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
             model.draft.pidId in listOf("rpm", "coolant", "speed") &&
             model.draft.warning in -40..215 && model.draft.critical in -40..215 &&
             model.draft.warning + model.draft.hysteresis < model.draft.critical &&
-            model.draft.warning - model.draft.hysteresis >= -40
+            model.draft.warning - model.draft.hysteresis >= -40 &&
+            model.activeConfigRevision != null && model.verifiedConfigHash != null
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onApplyNumeric, enabled = numericReady,
             modifier = Modifier.fillMaxWidth().height(50.dp)) {
             Text(if (model.scanning) "Sending numeric profile…" else "Send experimental numeric profile")
         }
         Text("Sends RPM, coolant and speed numeric pages plus your coolant thresholds. " +
-            "The selected page opens first. Requires the owner bond; vehicle support is unverified.",
+            "The selected page opens first. Refresh saved configuration first; a changed gauge revision blocks the write. " +
+            "Requires the owner bond; vehicle support is unverified.",
             color = MutedColor, fontSize = 13.sp, lineHeight = 18.sp)
         Spacer(Modifier.height(8.dp))
         Text("Full configuration is pending:", color = MutedColor, fontSize = 13.sp)

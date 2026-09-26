@@ -125,12 +125,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var activeDocument by mutableStateOf<GaugeConfigTransferClient.ActiveDocument?>(null)
         private set
+    var verifiedConfigHash by mutableStateOf<String?>(null)
+        private set
     var documentMessage by mutableStateOf<String?>(null)
         private set
     var documentReadFailed by mutableStateOf(false)
         private set
     val draftComparison: GaugeDraftComparison?
         get() = activeDocument?.let { GaugeDraftComparison.from(it, profileCollection.activeId, draft) }
+    val canAdoptGaugeDraft: Boolean
+        get() = activeDocument?.let {
+            GaugeDraftComparison.savedDraft(it, profileCollection.activeId) != null
+        } == true
     var sentDraft by mutableStateOf<Draft?>(null)
         private set
     var sentProfileId by mutableStateOf<String?>(null)
@@ -210,6 +216,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         savedGauge = null
         diagnostics = null
         activeDocument = null
+        verifiedConfigHash = null
         documentMessage = null
         documentReadFailed = false
     }
@@ -220,6 +227,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         diagnostics = null
         activeConfigRevision = null
         activeDocument = null
+        verifiedConfigHash = null
         documentMessage = null
         documentReadFailed = false
         sentDraft = null
@@ -245,6 +253,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         scanning = false
         activeConfigRevision = value.revision
         activeDocument = null
+        verifiedConfigHash = null
         documentMessage = null
         documentReadFailed = false
         sentDraft = appliedDraft
@@ -257,8 +266,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun configStatusRead(value: GaugeConfigTransferClient.ActiveStatus) {
         scanning = false
-        if (activeDocument?.revision != value.revision || activeDocument?.sha256 != value.sha256)
+        if (activeDocument?.revision != value.revision || activeDocument?.sha256 != value.sha256) {
             activeDocument = null
+            verifiedConfigHash = null
+        }
         if (activeDocument == null) {
             documentMessage = null
             documentReadFailed = false
@@ -277,7 +288,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun activeDocumentRead(value: GaugeConfigTransferClient.ActiveDocument?) {
         scanning = false
         activeDocument = value
-        activeConfigRevision = value?.revision
+        activeConfigRevision = value?.revision ?: 0L
+        verifiedConfigHash = value?.sha256 ?: "0".repeat(64)
         if (sentDigest != value?.sha256) {
             sentDraft = null
             sentProfileId = null
@@ -287,6 +299,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         else "Saved configuration revision ${value.revision} verified against SHA-256 ${value.sha256.take(12)}…"
         documentMessage = if (value == null) "No custom document is saved on the gauge."
         else "Verified saved revision ${value.revision}. Compare it with this phone draft below."
+        documentReadFailed = false
+    }
+    fun adoptGaugeDraft() {
+        val document = activeDocument ?: return
+        val imported = GaugeDraftComparison.savedDraft(document, profileCollection.activeId) ?: run {
+            documentMessage = "Saved settings cannot be mapped safely into this phone profile."
+            documentReadFailed = true
+            return
+        }
+        save(imported)
+        documentMessage = "Saved revision ${document.revision} copied into the phone draft. The gauge was not changed."
         documentReadFailed = false
     }
     fun activeDocumentError(message: String) {

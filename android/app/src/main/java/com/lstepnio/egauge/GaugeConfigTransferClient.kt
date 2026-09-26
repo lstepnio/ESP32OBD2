@@ -397,8 +397,12 @@ class GaugeConfigTransferClient(private val context: Context) {
         error("Update was sent, but the new image was not confirmed as running. Check the gauge before retrying.")
     }
 
-    suspend fun apply(device: BluetoothDevice, draft: Draft, profileId: String): Applied {
+    suspend fun apply(device: BluetoothDevice, draft: Draft, profileId: String,
+                      expectedBaseRevision: Long, expectedBaseSha256: String): Applied {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(expectedBaseRevision >= 0 && expectedBaseSha256.matches(Regex("[0-9a-f]{64}"))) {
+            "Refresh the saved gauge configuration before sending"
+        }
         val random = SecureRandom()
         val transferId = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         var sequence = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
@@ -407,6 +411,11 @@ class GaugeConfigTransferClient(private val context: Context) {
         withGauge(device) {
             val current = command(0x17, sequence++)
             check(current.phase == 0) { "A gauge configuration transfer is already in progress" }
+            val currentHash = current.hash.joinToString("") { "%02x".format(it) }
+            check(current.revision == expectedBaseRevision && currentHash == expectedBaseSha256) {
+                "Gauge configuration changed from verified revision $expectedBaseRevision to ${current.revision}. " +
+                    "Refresh and review the differences before sending."
+            }
             val bytes = document(draft, profileId, current.revision)
             expectedRevision = current.revision + 1
             digest = MessageDigest.getInstance("SHA-256").digest(bytes)

@@ -12,6 +12,46 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
     val unknownCount: Int get() = fields.count { it.matches == null }
 
     companion object {
+        fun savedDraft(document: GaugeConfigTransferClient.ActiveDocument,
+                       profileId: String): Draft? = runCatching {
+            require(document.vehicleProfileId == profileId)
+            val saved = JSONObject(document.json)
+            val primary = saved.getJSONArray("pages").getJSONObject(0)
+            val definitionId = primary.getJSONArray("pidIds").getString(0)
+            val pidId = when (definitionId) {
+                "engine.rpm" -> "rpm"
+                "engine.coolant" -> "coolant"
+                "vehicle.speed" -> "speed"
+                "engine.load" -> "load"
+                "vehicle.fuel" -> "fuel"
+                else -> error("Saved primary PID is not available in the phone editor")
+            }
+            val layout = GaugeLayout.entries.firstOrNull {
+                it.name.equals(primary.getString("renderer"), ignoreCase = true)
+            } ?: error("Saved renderer is not available in the phone editor")
+            val definitions = saved.getJSONArray("definitions")
+            val definition = (0 until definitions.length()).map { definitions.getJSONObject(it) }
+                .first { it.getString("id") == definitionId }
+            val sourceId = definition.getString("sourceId")
+            val sources = saved.getJSONArray("sources")
+            val source = (0 until sources.length()).map { sources.getJSONObject(it) }
+                .first { it.getString("id") == sourceId }.getString("role").uppercase(Locale.ROOT)
+            require(source == "ECM" || source == "TCM")
+            val alerts = saved.getJSONArray("alerts")
+            val alert = (0 until alerts.length()).map { alerts.getJSONObject(it) }
+                .first { it.getString("pidId") == "engine.coolant" &&
+                    it.getString("direction") == "above" }
+            val draft = Draft(pidId, layout, alert.getInt("warning"), alert.getInt("critical"),
+                alert.getInt("hysteresis"), alert.getInt("triggerDwellMs"),
+                alert.getInt("clearDwellMs"), source)
+            require(draft.warning in -40..215 && draft.critical in -40..215 &&
+                draft.warning < draft.critical && draft.hysteresis in 0..20 &&
+                draft.warning - draft.hysteresis >= -40 &&
+                draft.hysteresis < draft.critical - draft.warning &&
+                draft.triggerDwellMs in 0..60000 && draft.clearDwellMs in 0..60000)
+            draft
+        }.getOrNull()
+
         fun from(document: GaugeConfigTransferClient.ActiveDocument,
                  profileId: String, draft: Draft): GaugeDraftComparison {
             val saved = JSONObject(document.json)
