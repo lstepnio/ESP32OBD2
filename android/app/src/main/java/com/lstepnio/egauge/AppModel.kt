@@ -108,6 +108,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var diagnostics by mutableStateOf<GaugeConfigTransferClient.Diagnostics?>(null)
         private set
+    var bootIdentity by mutableStateOf<GaugeConfigTransferClient.BootIdentity?>(null)
+        private set
     private var selectedUpdate: DevUpdateBundle? = null
     var updatePackageMessage by mutableStateOf("No update package selected")
         private set
@@ -245,6 +247,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         scanning = false
         diagnostics = value
         deviceMessage = "Protected diagnostic snapshot read. Vehicle evidence is shown below."
+    }
+    fun bootIdentityRead(value: GaugeConfigTransferClient.BootIdentity) {
+        scanning = false
+        bootIdentity = value
+        deviceMessage = "Protected running firmware identity read."
     }
     fun updatePackageLoaded(value: DevUpdateBundle) {
         selectedUpdate = value

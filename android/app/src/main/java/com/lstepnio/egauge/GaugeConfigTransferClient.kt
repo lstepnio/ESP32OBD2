@@ -34,6 +34,8 @@ class GaugeConfigTransferClient(private val context: Context) {
                            val confirmedFresh: Boolean, val confirmedCount: Int, val confirmedFirst: String?,
                            val pendingFresh: Boolean, val pendingCount: Int, val pendingFirst: String?,
                            val permanentFresh: Boolean, val permanentCount: Int, val permanentFirst: String?)
+    data class BootIdentity(val otaState: Int, val partitionSubtype: Int, val secureVersion: Long,
+                            val elfSha256: String, val version: String, val partitionAddress: Long)
     private data class Status(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
                               val transferId: Long, val accepted: Long, val revision: Long, val hash: ByteArray)
 
@@ -215,6 +217,20 @@ class GaugeConfigTransferClient(private val context: Context) {
             flags and 4 != 0, bytes[3].toInt() and 255, code(6),
             flags and 8 != 0, bytes[4].toInt() and 255, code(8),
             flags and 16 != 0, bytes[5].toInt() and 255, code(10))
+    }
+
+    suspend fun readBootIdentity(device: BluetoothDevice): BootIdentity {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        val bytes = withGauge(device) {
+            writeRaw(byteArrayOf(0x31) + le32(1))
+            readRaw()
+        }
+        require(bytes.size == 60 && bytes[0].toInt() == 6) { "Gauge returned an unsupported boot identity" }
+        val versionBytes = bytes.copyOfRange(40, 56)
+        val versionEnd = versionBytes.indexOf(0).let { if (it < 0) versionBytes.size else it }
+        return BootIdentity(bytes[1].toInt() and 255, bytes[2].toInt() and 255,
+            u32(bytes, 4), bytes.copyOfRange(8, 40).joinToString("") { "%02x".format(it) },
+            versionBytes.copyOfRange(0, versionEnd).toString(Charsets.UTF_8), u32(bytes, 56))
     }
 
     suspend fun apply(device: BluetoothDevice, draft: Draft, profileId: String): Applied {

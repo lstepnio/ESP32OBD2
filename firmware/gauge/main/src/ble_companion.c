@@ -141,6 +141,11 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
         status_snapshot_length = 0;
         return 0;
     }
+    if (request[0] == 0x31 && length == 5) {
+        extended_status_mode = 4;
+        status_snapshot_length = 0;
+        return 0;
+    }
     if (document_active) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
     if (length != 2 && length != 6) return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     companion_command_t command = {.opcode = request[0], .value = request[1]};
@@ -187,6 +192,14 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     if (extended_status_mode == 3) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = diagnostics_state_status(status_snapshot);
+        if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
+                              status_snapshot_length - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+    if (extended_status_mode == 4) {
+        if (ctxt->offset == 0 || status_snapshot_length == 0)
+            status_snapshot_length = ota_transfer_boot_identity(status_snapshot);
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0

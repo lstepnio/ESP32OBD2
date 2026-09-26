@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "esp_ota_ops.h"
+#include "esp_app_desc.h"
 #include "esp_partition.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
@@ -266,4 +267,25 @@ size_t ota_transfer_status(uint8_t out[OTA_TRANSFER_STATUS_SIZE])
     memcpy(out + 24, state.digest, 32);
     xSemaphoreGive(lock);
     return OTA_TRANSFER_STATUS_SIZE;
+}
+
+size_t ota_transfer_boot_identity(uint8_t out[OTA_BOOT_IDENTITY_SIZE])
+{
+    memset(out, 0, OTA_BOOT_IDENTITY_SIZE);
+    out[0] = 6;
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    const esp_app_desc_t *description = esp_app_get_description();
+    esp_ota_img_states_t image_state;
+    out[1] = running && esp_ota_get_state_partition(running, &image_state) == ESP_OK
+        ? (uint8_t)image_state : 0xff;
+    if (running) {
+        out[2] = running->subtype;
+        put_u32(out + 56, running->address);
+    }
+    if (description) {
+        put_u32(out + 4, description->secure_version);
+        memcpy(out + 8, description->app_elf_sha256, 32);
+        memcpy(out + 40, description->version, 16);
+    }
+    return OTA_BOOT_IDENTITY_SIZE;
 }

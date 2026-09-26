@@ -122,6 +122,7 @@ class MainActivity : ComponentActivity() {
                     onApplyNumeric = ::requestNumericConfiguration,
                     onReadConfig = ::requestActiveConfiguration,
                     onReadDiagnostics = ::requestDiagnostics,
+                    onReadBootIdentity = ::requestBootIdentity,
                     onSelectUpdate = { updatePicker.launch(arrayOf("application/zip", "application/octet-stream")) })
             }
         }
@@ -269,6 +270,21 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun requestBootIdentity() {
+        model.markScanning(true)
+        lifecycleScope.launch {
+            try {
+                model.bootIdentityRead(GaugeConfigTransferClient(this@MainActivity)
+                    .readBootIdentity(model.bleClient.selectedGauge()))
+            } catch (error: CancellationException) {
+                model.selectionError("Firmware identity read was interrupted")
+                throw error
+            } catch (error: Exception) {
+                model.selectionError(error.message ?: "Could not read running firmware identity")
+            }
+        }
+    }
 }
 
 @Composable
@@ -276,6 +292,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                          onSelectReading: () -> Unit, onReadSaved: () -> Unit,
                          onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit,
                          onReadConfig: () -> Unit, onReadDiagnostics: () -> Unit,
+                         onReadBootIdentity: () -> Unit,
                          onSelectUpdate: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 720.dp
@@ -293,7 +310,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                     }
                 }
                 AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, onApplyNumeric,
-                    onReadConfig, onReadDiagnostics, onSelectUpdate, Modifier.weight(1f))
+                    onReadConfig, onReadDiagnostics, onReadBootIdentity, onSelectUpdate, Modifier.weight(1f))
             }
         } else {
             Scaffold(containerColor = CanvasColor, bottomBar = {
@@ -308,7 +325,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                     }
                 }
             }) { padding -> AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate,
-                onApplyNumeric, onReadConfig, onReadDiagnostics, onSelectUpdate, Modifier.padding(padding)) }
+                onApplyNumeric, onReadConfig, onReadDiagnostics, onReadBootIdentity, onSelectUpdate, Modifier.padding(padding)) }
         }
     }
 }
@@ -318,6 +335,7 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                     onSelectReading: () -> Unit, onReadSaved: () -> Unit,
                     onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit,
                     onReadConfig: () -> Unit, onReadDiagnostics: () -> Unit,
+                    onReadBootIdentity: () -> Unit,
                     onSelectUpdate: () -> Unit,
                     modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -328,7 +346,7 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                 Destination.Design -> DesignScreen(model, onApplyNumeric)
                 Destination.Pids -> PidsScreen(model)
                 Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved,
-                    onRotate, onReadConfig, onReadDiagnostics, onSelectUpdate)
+                    onRotate, onReadConfig, onReadDiagnostics, onReadBootIdentity, onSelectUpdate)
             }
         }
     }
@@ -794,7 +812,8 @@ private fun PidsScreen(model: AppViewModel) {
 private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                          onSelectReading: () -> Unit, onReadSaved: () -> Unit,
                          onRotate: (Int) -> Unit, onReadConfig: () -> Unit,
-                         onReadDiagnostics: () -> Unit, onSelectUpdate: () -> Unit) {
+                         onReadDiagnostics: () -> Unit, onReadBootIdentity: () -> Unit,
+                         onSelectUpdate: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("03 / Device", "Know what is ready.",
             "Capabilities come from the gauge. Other panels show the planned workflow without vehicle actions.")
@@ -908,6 +927,25 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
         Spacer(Modifier.height(18.dp))
         Panel {
             SectionHeading("Firmware update")
+            val boot = model.bootIdentity
+            if (boot != null) {
+                InfoLine("Running", boot.version.ifBlank { "unknown" })
+                InfoLine("OTA state", when (boot.otaState) {
+                    0 -> "New image"
+                    1 -> "Pending boot check"
+                    2 -> "Confirmed valid"
+                    3 -> "Invalid"
+                    4 -> "Aborted"
+                    else -> "Unavailable (${boot.otaState})"
+                })
+                InfoLine("Partition", "0x${boot.partitionAddress.toString(16)}")
+                InfoLine("ELF SHA-256", boot.elfSha256.take(16) + "…")
+            }
+            OutlinedButton(onClick = onReadBootIdentity,
+                enabled = !model.scanning && model.capabilities?.experimentalNumericConfig == true) {
+                Text("Read running firmware")
+            }
+            Spacer(Modifier.height(12.dp))
             Text("Import a locally signed development package to check its board, size, SHA-256 and P-256 signature.",
                 color = MutedColor, fontSize = 15.sp, lineHeight = 21.sp)
             Spacer(Modifier.height(12.dp))
