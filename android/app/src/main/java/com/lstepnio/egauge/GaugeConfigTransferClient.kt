@@ -78,7 +78,11 @@ class GaugeConfigTransferClient(private val context: Context) {
             val ready = withTimeout(20_000) { events.receive() }
             if (ready is Event.Failed) error(ready.reason)
             require(ready is Event.Ready)
-            withTimeout(240_000) { Session(gatt, events, ready.mtu).action() }
+            withTimeout(240_000) {
+                val session = Session(gatt, events, ready.mtu)
+                session.establishOwner()
+                session.action()
+            }
         } finally {
             gatt.disconnect()
             gatt.close()
@@ -93,11 +97,29 @@ class GaugeConfigTransferClient(private val context: Context) {
             if (it is Event.Failed) error(it.reason)
         }
         @SuppressLint("MissingPermission")
-        suspend fun readRaw(): ByteArray {
+        private suspend fun readEvent(): Event.Read {
             check(gatt.readCharacteristic(state)) { "Could not request transfer status" }
             val event = next()
-            require(event is Event.Read && event.status == BluetoothGatt.GATT_SUCCESS) {
-                "Owner gauge read failed; check the gauge bond"
+            require(event is Event.Read) { "Gauge returned an unexpected GATT event" }
+            return event
+        }
+        suspend fun establishOwner() {
+            repeat(4) {
+                val result = readEvent()
+                if (result.status == BluetoothGatt.GATT_SUCCESS &&
+                    ((result.bytes.size == 8 && result.bytes[0].toInt() == 2) ||
+                     (result.bytes.size == 64 && result.bytes[0].toInt() == 3))) return
+                if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
+                    result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
+                    error("Gauge owner state read failed (${result.status})")
+                delay(250)
+            }
+            error("Gauge owner link did not become authenticated")
+        }
+        suspend fun readRaw(): ByteArray {
+            val event = readEvent()
+            require(event.status == BluetoothGatt.GATT_SUCCESS) {
+                "Owner gauge read failed (${event.status})"
             }
             return event.bytes
         }
@@ -120,7 +142,7 @@ class GaugeConfigTransferClient(private val context: Context) {
             check(started) { "Could not queue protected gauge command" }
             val write = next()
             require(write is Event.Write && write.status == BluetoothGatt.GATT_SUCCESS) {
-                "Gauge rejected protected command"
+                "Gauge rejected protected command (${(write as? Event.Write)?.status})"
             }
         }
         suspend fun command(opcode: Int, sequence: Long, payload: ByteArray = byteArrayOf()): Status {

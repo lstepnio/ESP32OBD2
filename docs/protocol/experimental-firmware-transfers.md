@@ -4,6 +4,8 @@ This document records experimental code on `feat/owned-gauge-control`, not a rel
 
 Every command begins with an opcode and little-endian `u32 sequence`. Transfer commands then include a nonzero little-endian `u32 transferId`. The ATT write confirms queueing only. Read state until its sequence and last opcode match the command, then inspect result and accepted offset. `STATUS` reopens extended read mode after reconnect without replacing the prior operation result. A legacy quick-selection write returns reads to the legacy eight-byte state. Only one configuration or update transfer can own the flash operation gate at a time.
 
+The owner client reads the protected state characteristic before its first write on each GATT connection. This lets Android restore encryption for the saved bond. With a custom document active, the default state read returns the 64-byte configuration status; with built-in readings it returns the legacy eight-byte state. Unauthenticated reads remain rejected. A transient public discovery disconnect is retried once on the same discovered device.
+
 | Config opcode | Payload after opcode + sequence | Effect |
 | --- | --- | --- |
 | `10` BEGIN | transferId, baseRevision, totalLength, all `u32` | Reserve metadata for 1..65536 bytes; compare active document revision |

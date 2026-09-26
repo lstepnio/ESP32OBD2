@@ -192,7 +192,16 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
                               status_snapshot_length - ctxt->offset) == 0
             ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     }
-    if (document_active) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
+    if (document_active) {
+        /* Keep a protected state read available after custom activation so
+         * Android can restore link encryption before its first owner write. */
+        if (ctxt->offset == 0 || status_snapshot_length == 0)
+            status_snapshot_length = config_transfer_status(status_snapshot);
+        if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
+                              status_snapshot_length - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
     config_t saved;
     uint32_t revision;
     if (config_read_snapshot(&saved, &revision) != ESP_OK || saved.cfg_idx > 4 ||
