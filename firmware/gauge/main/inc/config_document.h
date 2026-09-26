@@ -11,7 +11,6 @@ typedef struct {
 
 /* Call once at startup, before any cJSON users start. JSON nodes use PSRAM. */
 void config_document_init(void);
-
 /* Callback for config_store_commit. Validation never executes PID expressions or
  * changes active state. The caller supplies the revision accepted at begin. */
 esp_err_t config_document_validate(const esp_partition_t *partition,

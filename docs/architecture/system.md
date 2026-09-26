@@ -66,7 +66,7 @@ Design tradeoff: BLE updates avoid mandatory network setup; negotiated Wi-Fi bul
 
 ## Dual-source extension
 
-The diagram shows one representative adapter path; instantiate it independently for ECM and TCM. The current BLE manager is a singleton and must be replaced with explicit session ownership. Proposed v1 supports two source slots with capability negotiation; see [MULTI-001 and MULTI-002](multi-adapter.md).
+The diagram shows one representative adapter path. Firmware now has two explicit central connection contexts with independent service definitions, RX state, transaction locks, and connection generations. ECM polling and the optional TCM link task remain separate implementations, and simultaneous operation is unverified. Proposed v1 supports two source slots with capability negotiation; see [MULTI-001 and MULTI-002](multi-adapter.md).
 
 ## Hardware-aware transport extension
 

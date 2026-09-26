@@ -1,9 +1,27 @@
 #include <stdlib.h>
+#include <stdatomic.h>
 #include <string.h>
 #include "cJSON.h"
 #include "esp_heap_caps.h"
 #include "config_runtime.h"
 #include "config_store.h"
+#include "config_trial.h"
+#include "config_document.h"
+#include "json_guard.h"
+
+typedef struct {
+    bool valid;
+    bool previous;
+    uint32_t stored_revision;
+    config_store_record_t record;
+} running_identity_t;
+static running_identity_t running_identity;
+static atomic_bool running_trial;
+
+static void put_u32(uint8_t *p, uint32_t value)
+{
+    for (unsigned i = 0; i < 4; ++i) p[i] = value >> (8 * i);
+}
 
 static const cJSON *field(const cJSON *item, const char *name)
 {
@@ -34,16 +52,11 @@ static int pid_index(const config_runtime_t *runtime, const char *id)
     return -1;
 }
 
-static esp_err_t compile(const esp_partition_t *partition, uint32_t offset,
-                         uint32_t length, config_runtime_t *out)
+static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *out)
 {
-    char *bytes = heap_caps_malloc((size_t)length + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!bytes) return ESP_ERR_NO_MEM;
-    esp_err_t err = esp_partition_read(partition, offset, bytes, length);
-    if (err != ESP_OK) { heap_caps_free(bytes); return err; }
     bytes[length] = 0;
+    if (!json_guard_shape(bytes, length, 16)) return ESP_ERR_INVALID_ARG;
     cJSON *root = cJSON_ParseWithLength(bytes, length);
-    heap_caps_free(bytes);
     if (!root) return ESP_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     const cJSON *sources = field(root, "sources");
@@ -51,11 +64,11 @@ static esp_err_t compile(const esp_partition_t *partition, uint32_t offset,
     const cJSON *pages = field(root, "pages");
     const cJSON *alerts = field(root, "alerts");
     const cJSON *rotation = field(root, "rotation");
-    err = ESP_ERR_NOT_SUPPORTED;
+    esp_err_t err = ESP_ERR_NOT_SUPPORTED;
     if (cJSON_GetArraySize(sources) != 1 ||
         strcmp(field(cJSON_GetArrayItem(sources, 0), "role")->valuestring, "ecm") != 0 ||
         cJSON_GetArraySize(definitions) > EGAUGE_RUNTIME_PIDS ||
-        cJSON_GetArraySize(pages) > 5 ||
+        cJSON_GetArraySize(pages) > EGAUGE_RUNTIME_PAGES ||
         cJSON_GetArraySize(alerts) > EGAUGE_RUNTIME_ALERTS) goto done;
     if (strcmp(field(root, "units")->valuestring, "metric") != 0 ||
         field(root, "brightness")->valueint != 80 ||
@@ -73,6 +86,7 @@ static esp_err_t compile(const esp_partition_t *partition, uint32_t offset,
             strcmp(field(request, "route")->valuestring, "functional") != 0 ||
             strcmp(field(request, "responseId")->valuestring, "7E8") != 0 ||
             strlen(identifier) != 2 ||
+            strcmp(identifier, "01") == 0 ||
             field(decoder, "byteOffset")->valueint != 0 ||
             field(response, "minPayloadBytes")->valueint != field(decoder, "byteLength")->valueint)
             goto done;
@@ -132,6 +146,17 @@ done:
     return err;
 }
 
+static esp_err_t compile_partition(const esp_partition_t *partition, uint32_t offset,
+                                   uint32_t length, config_runtime_t *out)
+{
+    char *bytes = heap_caps_malloc((size_t)length + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!bytes) return ESP_ERR_NO_MEM;
+    esp_err_t err = esp_partition_read(partition, offset, bytes, length);
+    if (err == ESP_OK) err = compile_bytes(bytes, length, out);
+    heap_caps_free(bytes);
+    return err;
+}
+
 esp_err_t config_runtime_validate(const esp_partition_t *partition,
                                   uint32_t document_offset, uint32_t length,
                                   void *context)
@@ -140,33 +165,80 @@ esp_err_t config_runtime_validate(const esp_partition_t *partition,
     config_runtime_t *candidate = heap_caps_malloc(sizeof(config_runtime_t),
                                                    MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!candidate) return ESP_ERR_NO_MEM;
-    esp_err_t err = compile(partition, document_offset, length, candidate);
+    esp_err_t err = compile_partition(partition, document_offset, length, candidate);
     heap_caps_free(candidate);
     return err;
 }
 
-esp_err_t config_runtime_load(config_runtime_t *out)
+static esp_err_t compile_record(const config_store_record_t *record, config_runtime_t *out)
 {
-    if (!out) return ESP_ERR_INVALID_ARG;
+    char *bytes = heap_caps_malloc((size_t)record->length + 1,
+                                   MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!bytes) return ESP_ERR_NO_MEM;
+    esp_err_t err = config_store_read_record(record, 0, bytes, record->length);
+    if (err == ESP_OK) err = compile_bytes(bytes, record->length, out);
+    heap_caps_free(bytes);
+    return err;
+}
+
+esp_err_t config_runtime_load(config_runtime_t *out, config_store_record_t *running,
+                              bool *used_previous)
+{
+    if (!out || !running || !used_previous) return ESP_ERR_INVALID_ARG;
+    *used_previous = false;
     config_store_record_t active;
+    config_store_record_t previous;
     esp_err_t err = config_store_active(&active);
     if (err != ESP_OK) return err;
-    const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,
-        (esp_partition_subtype_t)0x40, "config_a");
-    const esp_partition_t *other = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,
-        (esp_partition_subtype_t)0x41, "config_b");
-    if (!partition || !other) return ESP_ERR_NOT_FOUND;
-    /* The store keeps active slot private. Read its header revision to select
-     * the exact committed generation that config_store_active reported. */
-    uint32_t revision_a = 0, revision_b = 0;
-    uint8_t hash_a[32] = {0}, hash_b[32] = {0};
-    esp_partition_read(partition, 8, &revision_a, sizeof(revision_a));
-    esp_partition_read(other, 8, &revision_b, sizeof(revision_b));
-    esp_partition_read(partition, 16, hash_a, sizeof(hash_a));
-    esp_partition_read(other, 16, hash_b, sizeof(hash_b));
-    bool a = revision_a == active.revision && memcmp(hash_a, active.sha256, 32) == 0;
-    bool b = revision_b == active.revision && memcmp(hash_b, active.sha256, 32) == 0;
-    if (!a && !b) return ESP_ERR_INVALID_STATE;
-    return compile(a ? partition : other, 0x1000,
-                   active.length, out);
+    running_identity = (running_identity_t){.stored_revision = active.revision};
+    atomic_store(&running_trial, false);
+    config_trial_decision_t decision;
+    err = config_trial_decide(active.revision, &decision);
+    if (err != ESP_OK) decision = CONFIG_TRIAL_USE_PREVIOUS;
+    if (decision == CONFIG_TRIAL_USE_PREVIOUS) goto previous;
+    err = compile_record(&active, out);
+    if (err == ESP_OK) {
+        *running = active;
+        running_identity = (running_identity_t){
+            .valid = true,
+            .stored_revision = active.revision,
+            .record = active,
+        };
+        atomic_store(&running_trial, decision == CONFIG_TRIAL_USE_ACTIVE_TRIAL);
+        return ESP_OK;
+    }
+    config_trial_reject(active.revision);
+previous:
+    esp_err_t previous_err = config_store_previous(&previous);
+    if (previous_err != ESP_OK) return err == ESP_OK ? previous_err : err;
+    previous_err = compile_record(&previous, out);
+    if (previous_err != ESP_OK) return err == ESP_OK ? previous_err : err;
+    previous_err = config_store_select(&previous);
+    if (previous_err != ESP_OK) return previous_err;
+    *running = previous;
+    *used_previous = true;
+    running_identity = (running_identity_t){
+        .valid = true, .previous = true, .stored_revision = active.revision,
+        .record = previous,
+    };
+    return ESP_OK;
+}
+
+size_t config_runtime_status(uint8_t out[CONFIG_RUNTIME_STATUS_SIZE])
+{
+    if (!out) return 0;
+    memset(out, 0, CONFIG_RUNTIME_STATUS_SIZE);
+    out[0] = 8;
+    if (running_identity.valid) out[1] |= 1;
+    if (running_identity.previous) out[1] |= 2;
+    if (atomic_load(&running_trial)) out[1] |= 4;
+    put_u32(out + 4, running_identity.record.revision);
+    put_u32(out + 8, running_identity.stored_revision);
+    if (running_identity.valid) memcpy(out + 12, running_identity.record.sha256, 32);
+    return CONFIG_RUNTIME_STATUS_SIZE;
+}
+
+void config_runtime_mark_confirmed(void)
+{
+    atomic_store(&running_trial, false);
 }

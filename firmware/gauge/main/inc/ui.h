@@ -31,7 +31,10 @@ typedef void (*ui_touch_callback_t)(ui_t *ui, lv_event_code_t event_code);
 // ---------------------------------------------------------------------------------------------------------------------
 
 ui_t *ui_init(obd_pid_cfg_t const *cfg, uint32_t interval_ms, ui_touch_callback_t touch_cb);
-void  ui_set_value(ui_t *ui, int32_t const *value);
+/* Thread-safe presentation mailbox. Samples are accepted only when their PID
+ * still matches the selected page, preventing late replies from crossing a
+ * page change. Passing NULL publishes an unavailable sample for that PID. */
+void  ui_set_value(ui_t *ui, uint8_t pid, int32_t const *value);
 void  ui_set_obd_cfg(ui_t *ui, obd_pid_cfg_t const *cfg);
 /* Thread-safe: displays a temporary six-digit pairing code. Zero clears it. */
 void  ui_show_pairing_code(ui_t *ui, uint32_t passkey);

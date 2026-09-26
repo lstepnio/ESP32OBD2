@@ -13,12 +13,16 @@ idf_component_register(
         "src/config_store.c"
         "src/config_transfer.c"
         "src/config_runtime.c"
+        "src/config_trial.c"
+        "src/config_trial_policy.c"
         "src/alert_engine.c"
         "src/ota_transfer.c"
         "src/transfer_gate.c"
         "src/diagnostics_state.c"
         "src/config_document.c"
+        "src/json_guard.c"
         "src/pid_decoder.c"
+        "src/poll_scheduler.c"
         "src/ui.c"
         ${FONT_SOURCES}
     INCLUDE_DIRS

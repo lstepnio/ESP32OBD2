@@ -6,7 +6,7 @@ Quality is demonstrated with reproducible evidence for the behavior being claime
 
 `tools/validate.py`: validates schema definitions and all example documents; checks semantic references, layouts, units/ranges, alert ordering, decoder vector results and invalid-case rejection; verifies repository Markdown local link targets and documented visual token parity. The schemas are draft shape contracts, not a secure production parser. Example release hashes are intentionally zeros and not trusted artifacts.
 
-CI runs these checks and builds the imported firmware with ESP-IDF 5.4.1. Jobs use read-only repository permission. Toolchain/container and action provenance should be locked/reviewed for releases; source-level component versions are pinned. No Android build exists yet, so CI must not show an invented Android success badge.
+CI runs these checks, host sanitizer fixtures, the firmware build with ESP-IDF 5.4.1, and the Android debug build plus unit tests. Jobs use read-only repository permission. Toolchain/container and action provenance should be locked and reviewed for releases; source-level component versions are pinned. Firmware version identity comes from `firmware/gauge/version.txt`.
 
 ## Required implementation checks
 

@@ -114,6 +114,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var bootIdentity by mutableStateOf<GaugeConfigTransferClient.BootIdentity?>(null)
         private set
+    var runtimeIdentity by mutableStateOf<GaugeConfigTransferClient.RuntimeIdentity?>(null)
+        private set
     private var selectedUpdate: DevUpdateBundle? = null
     val updateReady: Boolean get() = selectedUpdate != null
     fun updateBundle(): DevUpdateBundle = selectedUpdate ?: error("Select a signed update package first")
@@ -215,6 +217,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         capabilities = null
         savedGauge = null
         diagnostics = null
+        runtimeIdentity = null
         activeDocument = null
         verifiedConfigHash = null
         documentMessage = null
@@ -225,6 +228,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         capabilities = value
         savedGauge = null
         diagnostics = null
+        runtimeIdentity = null
         activeConfigRevision = null
         activeDocument = null
         verifiedConfigHash = null
@@ -284,6 +288,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Gauge is using built-in readings. Transfer phase ${value.transferPhase}."
         else "Gauge active config revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…; " +
             "transfer phase ${value.transferPhase}, last result ${value.lastResult}."
+    }
+    fun runtimeIdentityRead(value: GaugeConfigTransferClient.RuntimeIdentity) {
+        scanning = false
+        runtimeIdentity = value
+        deviceMessage = when {
+            !value.running -> "Gauge is running built-in readings; no custom configuration is active."
+            value.usedPreviousGeneration ->
+                "Gauge stored revision ${value.storedRevision}, but recovered with executable revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…."
+            value.trial ->
+                "Gauge is validating configuration revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…."
+            else -> "Gauge stored and running configuration revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…."
+        }
     }
     fun activeDocumentRead(value: GaugeConfigTransferClient.ActiveDocument?) {
         scanning = false

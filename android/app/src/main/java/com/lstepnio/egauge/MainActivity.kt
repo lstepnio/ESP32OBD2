@@ -261,8 +261,9 @@ class MainActivity : ComponentActivity() {
         model.markScanning(true)
         lifecycleScope.launch {
             try {
-                model.configStatusRead(GaugeConfigTransferClient(this@MainActivity)
-                    .readActive(model.bleClient.selectedGauge()))
+                val client = GaugeConfigTransferClient(this@MainActivity)
+                model.configStatusRead(client.readActive(model.bleClient.selectedGauge()))
+                model.runtimeIdentityRead(client.readRuntimeIdentity(model.bleClient.selectedGauge()))
             } catch (error: CancellationException) {
                 model.selectionError("Configuration status read was interrupted")
                 throw error

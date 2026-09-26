@@ -47,7 +47,10 @@ void alert_engine_sample(uint8_t pid_index, double value, uint32_t now_ms)
         if (rule->has_critical && crosses(rule, value, rule->critical)) target = 2;
         else if (rule->has_warning && crosses(rule, value, rule->warning)) target = 1;
         if (target > state->severity) {
-            if (state->pending != target) {
+            if (rule->trigger_dwell_ms == 0) {
+                state->severity = target;
+                state->pending = 0;
+            } else if (state->pending != target) {
                 state->pending = target;
                 state->pending_since = now_ms;
             } else if (now_ms - state->pending_since >= rule->trigger_dwell_ms) {
@@ -57,6 +60,9 @@ void alert_engine_sample(uint8_t pid_index, double value, uint32_t now_ms)
         } else if (target < state->severity) {
             double active_limit = state->severity == 2 ? rule->critical : rule->warning;
             if (!releases(rule, value, active_limit)) {
+                state->pending = 0;
+            } else if (rule->clear_dwell_ms == 0) {
+                state->severity = target;
                 state->pending = 0;
             } else if (state->pending != 3) {
                 state->pending = 3;

@@ -9,6 +9,7 @@
 #include "esp_log.h"
 #include "config_document.h"
 #include "config_store.h"
+#include "json_guard.h"
 
 #define ARRAY_COUNT(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -407,6 +408,10 @@ esp_err_t config_document_validate(const esp_partition_t *partition,
     if (memchr(buffer, 0, length) != NULL) { heap_caps_free(buffer); return ESP_ERR_INVALID_ARG; }
     buffer[length] = 0;
     const char *end = NULL;
+    if (!json_guard_shape(buffer, length, 16)) {
+        heap_caps_free(buffer);
+        return ESP_ERR_INVALID_ARG;
+    }
     cJSON *root = cJSON_ParseWithLengthOpts(buffer, length + 1, &end, 1);
     bool valid = root != NULL && end == buffer + length && document_valid(root, limits);
     cJSON_Delete(root);

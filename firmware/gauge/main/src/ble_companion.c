@@ -25,6 +25,7 @@
 #include "config_transfer.h"
 #include "ota_transfer.h"
 #include "diagnostics_state.h"
+#include "config_runtime.h"
 #include "ui.h"
 
 static const char *TAG = "COMPANION";
@@ -50,6 +51,11 @@ static atomic_uint g_pairing_until;
 static atomic_bool g_ready;
 static uint8_t extended_status_mode;
 static bool document_active;
+typedef struct {
+    ble_addr_t owner;
+    uint16_t conn_handle;
+} owner_save_request_t;
+static QueueHandle_t owner_save_queue;
 #define ACTIVE_DOCUMENT_HEADER_SIZE 52U
 #define ACTIVE_DOCUMENT_CHUNK_SIZE 128U
 static uint8_t status_snapshot[ACTIVE_DOCUMENT_HEADER_SIZE + ACTIVE_DOCUMENT_CHUNK_SIZE];
@@ -109,6 +115,23 @@ static bool save_owner(const ble_addr_t *owner)
     return true;
 }
 
+static void owner_save_worker(void *arg)
+{
+    (void)arg;
+    owner_save_request_t request;
+    for (;;) {
+        if (xQueueReceive(owner_save_queue, &request, portMAX_DELAY) != pdTRUE) continue;
+        if (!save_owner(&request.owner)) {
+            ESP_LOGE(TAG, "Owner identity persistence failed");
+            ble_gap_terminate(request.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+            continue;
+        }
+        atomic_store(&g_pairing_until, 0);
+        ui_show_pairing_code(g_ui, 0);
+        ESP_LOGI(TAG, "Owner identity persisted");
+    }
+}
+
 /* Public protocol-0 capabilities advertise one bounded, protected selection
  * operation. Full configuration, diagnostics, and updates remain disabled. */
 static const char capabilities[] =
@@ -164,6 +187,11 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
     if (request[0] == 0x32 && length == 9) {
         active_document_offset = read_u32(request + 5);
         extended_status_mode = 5;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x33 && length == 5) {
+        extended_status_mode = 6;
         status_snapshot_length = 0;
         return 0;
     }
@@ -255,6 +283,14 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
                 status_snapshot_length = ACTIVE_DOCUMENT_HEADER_SIZE;
             } else return BLE_ATT_ERR_UNLIKELY;
         }
+        if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
+                              status_snapshot_length - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+    if (extended_status_mode == 6) {
+        if (ctxt->offset == 0 || status_snapshot_length == 0)
+            status_snapshot_length = config_runtime_status(status_snapshot);
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -402,8 +438,14 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
             if (ble_gap_conn_find(event->enc_change.conn_handle, &desc) == 0 &&
                 desc.sec_state.encrypted && desc.sec_state.authenticated && desc.sec_state.bonded) {
                 if (!atomic_load(&g_has_owner)) {
-                    if (!pairing_open() || event->enc_change.conn_handle != atomic_load(&pairing_conn) ||
-                        !save_owner(&desc.peer_id_addr))
+                    owner_save_request_t request = {
+                        .owner = desc.peer_id_addr,
+                        .conn_handle = event->enc_change.conn_handle,
+                    };
+                    if (!pairing_open() ||
+                        event->enc_change.conn_handle != atomic_load(&pairing_conn) ||
+                        !owner_save_queue ||
+                        xQueueSend(owner_save_queue, &request, 0) != pdTRUE)
                         ble_gap_terminate(event->enc_change.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
                 } else if (atomic_load(&g_has_owner) && !address_equal(&desc.peer_id_addr, &g_owner)) {
                     ble_gap_terminate(event->enc_change.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
@@ -411,7 +453,7 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
                 if (atomic_load(&g_has_owner)) atomic_store(&g_pairing_until, 0);
             }
         }
-        ui_show_pairing_code(g_ui, 0);
+        if (atomic_load(&g_has_owner)) ui_show_pairing_code(g_ui, 0);
         break;
     default:
         break;
@@ -422,6 +464,14 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
 int ble_companion_register(void)
 {
     load_owner();
+    if (!owner_save_queue) {
+        owner_save_queue = xQueueCreate(1, sizeof(owner_save_request_t));
+        if (!owner_save_queue ||
+            xTaskCreate(owner_save_worker, "owner_store", 3072, NULL, 4, NULL) != pdPASS) {
+            ESP_LOGE(TAG, "Owner persistence worker creation failed");
+            return BLE_HS_ENOMEM;
+        }
+    }
     ble_svc_gap_init();
     ble_svc_gatt_init();
     int rc = ble_svc_gap_device_name_set("eGauge");

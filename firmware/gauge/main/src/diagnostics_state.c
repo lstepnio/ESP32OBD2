@@ -21,6 +21,20 @@ static int category(uint8_t mode)
     return mode == 3 ? 0 : mode == 7 ? 1 : mode == 10 ? 2 : -1;
 }
 
+static void format_code(uint16_t code, char out[6])
+{
+    static const char classes[] = "PCBU";
+    static const char digits[] = "0123456789ABCDEF";
+    uint8_t high = code >> 8, low = code;
+    if (!code) { out[0] = 0; return; }
+    out[0] = classes[high >> 6];
+    out[1] = digits[(high >> 4) & 3];
+    out[2] = digits[high & 15];
+    out[3] = digits[low >> 4];
+    out[4] = digits[low & 15];
+    out[5] = 0;
+}
+
 static void put_u32(uint8_t *p, uint32_t value)
 {
     for (unsigned i = 0; i < 4; ++i) p[i] = value >> (8 * i);
@@ -70,6 +84,27 @@ void diagnostics_state_disconnected(void)
     xSemaphoreTake(lock, portMAX_DELAY);
     snapshot.mil_valid = false;
     for (unsigned i = 0; i < 3; ++i) snapshot.known[i] = false;
+    xSemaphoreGive(lock);
+}
+
+void diagnostics_state_snapshot(uint32_t now_ms, diagnostics_snapshot_t *out)
+{
+    if (!out) return;
+    memset(out, 0, sizeof(*out));
+    if (!lock) return;
+    xSemaphoreTake(lock, portMAX_DELAY);
+    bool mil_fresh = snapshot.mil_valid && now_ms - snapshot.mil_at <= 60000;
+    if (mil_fresh) {
+        out->mil_on = snapshot.mil_on;
+        out->reported_count = snapshot.reported_count;
+    }
+    bool codes_fresh = snapshot.known[0] && now_ms - snapshot.observed_at[0] <= 120000;
+    if (codes_fresh) {
+        out->stored_count = snapshot.count[0];
+        if (!mil_fresh) out->reported_count = snapshot.count[0];
+        format_code(snapshot.first[0], out->first_code);
+    }
+    out->valid = mil_fresh || codes_fresh;
     xSemaphoreGive(lock);
 }
 

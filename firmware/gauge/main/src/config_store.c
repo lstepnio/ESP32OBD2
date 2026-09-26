@@ -89,6 +89,7 @@ static bool valid_slot(int index, config_store_record_t *record)
     record->revision = header.revision;
     record->length = header.length;
     memcpy(record->sha256, actual, sizeof(actual));
+    record->slot = index;
     return true;
 }
 
@@ -121,7 +122,7 @@ esp_err_t config_store_init(void)
 esp_err_t config_store_active(config_store_record_t *record)
 {
     if (store_lock == NULL || record == NULL) return ESP_ERR_INVALID_ARG;
-    xSemaphoreTake(store_lock, portMAX_DELAY);
+    if (xSemaphoreTake(store_lock, 0) != pdTRUE) return ESP_ERR_TIMEOUT;
     esp_err_t err = active_slot < 0 ? ESP_ERR_NOT_FOUND : ESP_OK;
     if (err == ESP_OK) *record = active_record;
     xSemaphoreGive(store_lock);
@@ -131,15 +132,59 @@ esp_err_t config_store_active(config_store_record_t *record)
 esp_err_t config_store_read_active(uint32_t offset, void *data, size_t length)
 {
     if (store_lock == NULL || data == NULL) return ESP_ERR_INVALID_ARG;
-    xSemaphoreTake(store_lock, portMAX_DELAY);
-    esp_err_t err = ESP_ERR_NOT_FOUND;
-    if (active_slot >= 0) {
-        err = offset <= active_record.length && length <= active_record.length - offset
-            ? esp_partition_read(slots[active_slot], DOCUMENT_OFFSET + offset, data, length)
-            : ESP_ERR_INVALID_SIZE;
-    }
+    if (xSemaphoreTake(store_lock, 0) != pdTRUE) return ESP_ERR_TIMEOUT;
+    const esp_partition_t *partition = active_slot >= 0 ? slots[active_slot] : NULL;
+    uint32_t active_length = active_record.length;
     xSemaphoreGive(store_lock);
-    return err;
+    if (!partition) return ESP_ERR_NOT_FOUND;
+    if (offset > active_length || length > active_length - offset)
+        return ESP_ERR_INVALID_SIZE;
+    return esp_partition_read(partition, DOCUMENT_OFFSET + offset, data, length);
+}
+
+esp_err_t config_store_previous(config_store_record_t *record)
+{
+    if (!record || !store_lock) return ESP_ERR_INVALID_ARG;
+    if (xSemaphoreTake(store_lock, 0) != pdTRUE) return ESP_ERR_TIMEOUT;
+    int candidate_slot = active_slot < 0 ? -1 : 1 - active_slot;
+    xSemaphoreGive(store_lock);
+    if (candidate_slot < 0) return ESP_ERR_NOT_FOUND;
+    return valid_slot(candidate_slot, record) ? ESP_OK : ESP_ERR_NOT_FOUND;
+}
+
+esp_err_t config_store_select(const config_store_record_t *record)
+{
+    if (!record || !store_lock || record->slot >= 2) return ESP_ERR_INVALID_ARG;
+    config_store_record_t verified;
+    if (!valid_slot(record->slot, &verified) ||
+        verified.revision != record->revision || verified.length != record->length ||
+        memcmp(verified.sha256, record->sha256, sizeof(verified.sha256)) != 0)
+        return ESP_ERR_INVALID_STATE;
+    xSemaphoreTake(store_lock, portMAX_DELAY);
+    if (transfer.open) {
+        xSemaphoreGive(store_lock);
+        return ESP_ERR_INVALID_STATE;
+    }
+    active_slot = record->slot;
+    active_record = verified;
+    xSemaphoreGive(store_lock);
+    return ESP_OK;
+}
+
+esp_err_t config_store_read_record(const config_store_record_t *record,
+                                   uint32_t offset, void *data, size_t length)
+{
+    if (!record || !data || record->slot >= 2 || !slots[record->slot])
+        return ESP_ERR_INVALID_ARG;
+    if (offset > record->length || length > record->length - offset)
+        return ESP_ERR_INVALID_SIZE;
+    slot_header_t header;
+    esp_err_t err = esp_partition_read(slots[record->slot], 0, &header, sizeof(header));
+    if (err != ESP_OK) return err;
+    if (header.revision != record->revision || header.length != record->length ||
+        memcmp(header.sha256, record->sha256, sizeof(record->sha256)) != 0 ||
+        header.committed != COMMIT_MAGIC) return ESP_ERR_INVALID_STATE;
+    return esp_partition_read(slots[record->slot], DOCUMENT_OFFSET + offset, data, length);
 }
 
 esp_err_t config_store_begin(uint32_t base_revision, uint32_t length,
@@ -152,15 +197,23 @@ esp_err_t config_store_begin(uint32_t base_revision, uint32_t length,
     if (transfer.open || base_revision != active_record.revision ||
         active_record.revision == UINT32_MAX) goto done;
     int target = active_slot == 0 ? 1 : 0;
-    err = esp_partition_erase_range(slots[target], 0, slots[target]->size);
-    if (err != ESP_OK) goto done;
     transfer.open = true;
     transfer.slot = target;
     transfer.length = length;
     transfer.written = 0;
     memcpy(transfer.sha256, expected_sha256, 32);
+    err = ESP_OK;
 done:
     xSemaphoreGive(store_lock);
+    if (err == ESP_OK) {
+        err = esp_partition_erase_range(slots[target], 0, slots[target]->size);
+        if (err != ESP_OK) {
+            xSemaphoreTake(store_lock, portMAX_DELAY);
+            if (transfer.open && transfer.slot == target)
+                memset(&transfer, 0, sizeof(transfer));
+            xSemaphoreGive(store_lock);
+        }
+    }
     return err;
 }
 
@@ -191,14 +244,19 @@ esp_err_t config_store_verify(void)
 {
     if (store_lock == NULL) return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(store_lock, portMAX_DELAY);
-    esp_err_t err = ESP_ERR_INVALID_STATE;
-    if (!transfer.open || transfer.written != transfer.length) goto done;
-    uint8_t actual[32];
-    err = hash_document(slots[transfer.slot], transfer.length, actual);
-    if (err == ESP_OK && memcmp(actual, transfer.sha256, sizeof(actual)) != 0)
-        err = ESP_ERR_INVALID_CRC;
-done:
+    if (!transfer.open || transfer.written != transfer.length) {
+        xSemaphoreGive(store_lock);
+        return ESP_ERR_INVALID_STATE;
+    }
+    const esp_partition_t *partition = slots[transfer.slot];
+    uint32_t length = transfer.length;
+    uint8_t expected[32];
+    memcpy(expected, transfer.sha256, sizeof(expected));
     xSemaphoreGive(store_lock);
+    uint8_t actual[32];
+    esp_err_t err = hash_document(partition, length, actual);
+    if (err == ESP_OK && memcmp(actual, expected, sizeof(actual)) != 0)
+        err = ESP_ERR_INVALID_CRC;
     return err;
 }
 
@@ -206,24 +264,25 @@ esp_err_t config_store_validate(void)
 {
     if (store_lock == NULL) return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(store_lock, portMAX_DELAY);
-    esp_err_t err = ESP_ERR_INVALID_STATE;
-    if (!transfer.open || transfer.written != transfer.length) goto done;
-    uint8_t actual[32];
-    err = hash_document(slots[transfer.slot], transfer.length, actual);
-    if (err != ESP_OK) goto done;
-    if (memcmp(actual, transfer.sha256, sizeof(actual)) != 0) {
-        err = ESP_ERR_INVALID_CRC;
-        goto done;
+    if (!transfer.open || transfer.written != transfer.length) {
+        xSemaphoreGive(store_lock);
+        return ESP_ERR_INVALID_STATE;
     }
+    const esp_partition_t *partition = slots[transfer.slot];
+    uint32_t length = transfer.length;
+    uint32_t revision = active_record.revision;
+    uint8_t expected[32];
+    memcpy(expected, transfer.sha256, sizeof(expected));
+    xSemaphoreGive(store_lock);
+    uint8_t actual[32];
+    esp_err_t err = hash_document(partition, length, actual);
+    if (err != ESP_OK) return err;
+    if (memcmp(actual, expected, sizeof(actual)) != 0) return ESP_ERR_INVALID_CRC;
     config_document_context_t limits = {
-        .base_revision = active_record.revision,
+        .base_revision = revision,
         .max_adapter_links = 2,
     };
-    err = config_document_validate(slots[transfer.slot], DOCUMENT_OFFSET,
-                                   transfer.length, &limits);
-done:
-    xSemaphoreGive(store_lock);
-    return err;
+    return config_document_validate(partition, DOCUMENT_OFFSET, length, &limits);
 }
 
 void config_store_abort(void)
@@ -240,48 +299,58 @@ esp_err_t config_store_commit(config_store_validator_t validator, void *context,
     if (store_lock == NULL || validator == NULL || committed == NULL)
         return ESP_ERR_INVALID_ARG;
     xSemaphoreTake(store_lock, portMAX_DELAY);
-    esp_err_t err = ESP_ERR_INVALID_STATE;
-    if (!transfer.open || transfer.written != transfer.length) goto done;
-    const esp_partition_t *partition = slots[transfer.slot];
-    uint8_t actual[32];
-    err = hash_document(partition, transfer.length, actual);
-    if (err != ESP_OK) goto done;
-    if (memcmp(actual, transfer.sha256, sizeof(actual)) != 0) {
-        err = ESP_ERR_INVALID_CRC;
-        goto done;
+    if (!transfer.open || transfer.written != transfer.length) {
+        xSemaphoreGive(store_lock);
+        return ESP_ERR_INVALID_STATE;
     }
+    int transfer_slot = transfer.slot;
+    const esp_partition_t *partition = slots[transfer_slot];
+    uint32_t length = transfer.length;
+    uint32_t revision = active_record.revision;
+    uint8_t expected[32];
+    memcpy(expected, transfer.sha256, sizeof(expected));
+    xSemaphoreGive(store_lock);
+    uint8_t actual[32];
+    esp_err_t err = hash_document(partition, length, actual);
+    if (err != ESP_OK) return err;
+    if (memcmp(actual, expected, sizeof(actual)) != 0) return ESP_ERR_INVALID_CRC;
     config_document_context_t limits = {
-        .base_revision = active_record.revision,
+        .base_revision = revision,
         .max_adapter_links = 2,
     };
-    err = config_document_validate(partition, DOCUMENT_OFFSET, transfer.length, &limits);
-    if (err != ESP_OK) goto done;
-    err = validator(partition, DOCUMENT_OFFSET, transfer.length, context);
-    if (err != ESP_OK) goto done;
+    err = config_document_validate(partition, DOCUMENT_OFFSET, length, &limits);
+    if (err != ESP_OK) return err;
+    err = validator(partition, DOCUMENT_OFFSET, length, context);
+    if (err != ESP_OK) return err;
     slot_header_t header = {
         .magic = HEADER_MAGIC,
         .schema_version = 1,
-        .revision = active_record.revision + 1,
-        .length = transfer.length,
+        .revision = revision + 1,
+        .length = length,
         .committed = UINT32_MAX,
     };
     memcpy(header.sha256, actual, sizeof(actual));
     header.header_crc32 = header_crc32(&header);
     err = esp_partition_write(partition, 0, &header, offsetof(slot_header_t, committed));
-    if (err != ESP_OK) goto done;
+    if (err != ESP_OK) return err;
     slot_header_t readback;
     err = esp_partition_read(partition, 0, &readback, sizeof(readback));
-    if (err != ESP_OK) goto done;
-    if (memcmp(&readback, &header, sizeof(header)) != 0) { err = ESP_FAIL; goto done; }
+    if (err != ESP_OK) return err;
+    if (memcmp(&readback, &header, sizeof(header)) != 0) return ESP_FAIL;
     uint32_t marker = COMMIT_MAGIC;
     err = esp_partition_write(partition, offsetof(slot_header_t, committed),
                               &marker, sizeof(marker));
-    if (err != ESP_OK) goto done;
-    if (!valid_slot(transfer.slot, committed)) { err = ESP_FAIL; goto done; }
-    active_slot = transfer.slot;
+    if (err != ESP_OK) return err;
+    if (!valid_slot(transfer_slot, committed)) return ESP_FAIL;
+    xSemaphoreTake(store_lock, portMAX_DELAY);
+    if (!transfer.open || transfer.slot != transfer_slot ||
+        transfer.length != length || active_record.revision != revision) {
+        xSemaphoreGive(store_lock);
+        return ESP_ERR_INVALID_STATE;
+    }
+    active_slot = transfer_slot;
     active_record = *committed;
     memset(&transfer, 0, sizeof(transfer));
-done:
     xSemaphoreGive(store_lock);
-    return err;
+    return ESP_OK;
 }

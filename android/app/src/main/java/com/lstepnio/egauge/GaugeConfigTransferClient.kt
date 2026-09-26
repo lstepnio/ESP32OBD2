@@ -42,6 +42,9 @@ class GaugeConfigTransferClient(private val context: Context) {
                            val permanentFresh: Boolean, val permanentCount: Int, val permanentFirst: String?)
     data class BootIdentity(val otaState: Int, val partitionSubtype: Int, val secureVersion: Long,
                             val elfSha256: String, val version: String, val partitionAddress: Long)
+    data class RuntimeIdentity(val running: Boolean, val usedPreviousGeneration: Boolean,
+                               val trial: Boolean, val revision: Long, val storedRevision: Long,
+                               val sha256: String)
     data class UpdateResult(val partitionAddress: Long, val elfSha256: String)
     private data class Status(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
                               val transferId: Long, val accepted: Long, val revision: Long, val hash: ByteArray)
@@ -126,7 +129,8 @@ class GaugeConfigTransferClient(private val context: Context) {
                      (result.bytes.size == 56 && result.bytes[0].toInt() == 4) ||
                      (result.bytes.size == 32 && result.bytes[0].toInt() == 5) ||
                      (result.bytes.size == 60 && result.bytes[0].toInt() == 6) ||
-                     (result.bytes.size in 52..180 && result.bytes[0].toInt() == 7))) return
+                     (result.bytes.size in 52..180 && result.bytes[0].toInt() == 7) ||
+                     (result.bytes.size == 44 && result.bytes[0].toInt() == 8))) return
                 if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
                     result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
                     error("Gauge owner state read failed (${result.status})")
@@ -327,6 +331,32 @@ class GaugeConfigTransferClient(private val context: Context) {
         return BootIdentity(bytes[1].toInt() and 255, bytes[2].toInt() and 255,
             u32(bytes, 4), bytes.copyOfRange(8, 40).joinToString("") { "%02x".format(it) },
             versionBytes.copyOfRange(0, versionEnd).toString(Charsets.UTF_8), u32(bytes, 56))
+    }
+
+    /** Reports the configuration generation that this boot actually compiled and activated. */
+    suspend fun readRuntimeIdentity(device: BluetoothDevice): RuntimeIdentity {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        val bytes = withGauge(device) {
+            writeRaw(byteArrayOf(0x33) + le32(1))
+            readRaw()
+        }
+        require(bytes.size == 44 && bytes[0].toInt() == 8 &&
+            bytes.sliceArray(2..3).all { it == 0.toByte() }) {
+            "Gauge returned an unsupported runtime identity"
+        }
+        val flags = bytes[1].toInt() and 255
+        require(flags and 0xf8 == 0) { "Gauge returned malformed runtime identity flags" }
+        val running = flags and 1 != 0
+        val revision = u32(bytes, 4)
+        val storedRevision = u32(bytes, 8)
+        val digest = bytes.copyOfRange(12, 44)
+        require((running && revision > 0 && storedRevision >= revision) ||
+            (!running && revision == 0L && digest.all { it == 0.toByte() })) {
+            "Gauge returned inconsistent runtime identity"
+        }
+        return RuntimeIdentity(running, flags and 2 != 0, flags and 4 != 0, revision,
+            storedRevision,
+            digest.joinToString("") { "%02x".format(it) })
     }
 
     /** Development-only update path. The gauge independently verifies the signed image. */

@@ -52,6 +52,10 @@ struct ble_mgr_ctx
         bool svc_disc_completed;
         bool chr_disc_completed;
         bool chr_disc_started;
+        bool dsc_disc_started;
+        bool subscription_started;
+        uint16_t service_end_handle;
+        size_t notify_index;
     } svc_disc_ctx;
 
     struct
@@ -77,6 +81,13 @@ static void ble_mgr_gap_notification_cb(ble_mgr_ctx_t  *mgr_ctx,
 
 static void ble_mgr_gap_connected_cb(ble_mgr_ctx_t *mgr_ctx, uint16_t conn_handle, int status);
 static void ble_mgr_connect_complete(ble_mgr_ctx_t *mgr_ctx, ble_mgr_status_t status);
+static int ble_mgr_gatt_dsc_discovered_cb(uint16_t conn_handle,
+                                         const struct ble_gatt_error *error,
+                                         uint16_t chr_val_handle,
+                                         const struct ble_gatt_dsc *dsc, void *arg);
+static int ble_mgr_gatt_subscription_cb(uint16_t conn_handle,
+                                        const struct ble_gatt_error *error,
+                                        struct ble_gatt_attr *attr, void *arg);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Constants
@@ -405,31 +416,121 @@ static void ble_mgr_gatt_svc_chr_disc_completed_check(ble_mgr_ctx_t *mgr_ctx, co
         return;
     }
 
-    // If characteristic discovery has started but not completed, do not call the callback yet
-    if (mgr_ctx->svc_disc_ctx.chr_disc_started && !mgr_ctx->svc_disc_ctx.chr_disc_completed)
-    {
-        return;
-    }
-
-    // If both characteristic and service discovery have completed, call the callback
-    if (mgr_ctx->svc_disc_ctx.svc_disc_completed && mgr_ctx->svc_disc_ctx.chr_disc_completed)
-    {
-        for (size_t i = 0; i < mgr_ctx->disc_cfg->svc_def->num_chars; i++) {
-            if (!mgr_ctx->disc_cfg->svc_def->chars[i].handle) {
-                ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
-                return;
-            }
-        }
-        ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_OK);
-        return;
-    }
-
-    // If characteristic discovery has not started, but service discovery has completed, call the callback
-    if (!mgr_ctx->svc_disc_ctx.chr_disc_started && mgr_ctx->svc_disc_ctx.svc_disc_completed)
-    {
+    if (!mgr_ctx->svc_disc_ctx.chr_disc_started && mgr_ctx->svc_disc_ctx.svc_disc_completed) {
         ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
         return;
     }
+    if (!mgr_ctx->svc_disc_ctx.chr_disc_completed ||
+        mgr_ctx->svc_disc_ctx.dsc_disc_started ||
+        mgr_ctx->svc_disc_ctx.subscription_started) return;
+
+    ble_mgr_svc_def_t *service = (ble_mgr_svc_def_t *)mgr_ctx->disc_cfg->svc_def;
+    for (size_t i = mgr_ctx->svc_disc_ctx.notify_index; i < service->num_chars; ++i) {
+        ble_gatt_char_def_t *chr = &service->chars[i];
+        if (!chr->notify_cb) continue;
+        if (!chr->handle || !(chr->properties & BLE_GATT_CHR_PROP_NOTIFY)) {
+            ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+            return;
+        }
+        uint16_t end_handle = mgr_ctx->svc_disc_ctx.service_end_handle;
+        for (size_t next = 0; next < service->num_chars; ++next)
+            if (service->chars[next].def_handle > chr->def_handle &&
+                service->chars[next].def_handle - 1 < end_handle)
+                end_handle = service->chars[next].def_handle - 1;
+        mgr_ctx->svc_disc_ctx.notify_index = i;
+        mgr_ctx->svc_disc_ctx.dsc_disc_started = true;
+        int rc = ble_gattc_disc_all_dscs(mgr_ctx->conn_handle, chr->handle, end_handle,
+                                         ble_mgr_gatt_dsc_discovered_cb, mgr_ctx);
+        if (rc != 0) {
+            mgr_ctx->svc_disc_ctx.dsc_disc_started = false;
+            ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        }
+        return;
+    }
+
+    for (size_t i = 0; i < service->num_chars; ++i) {
+        ble_gatt_char_def_t *chr = &service->chars[i];
+        if (!chr->handle ||
+            (!chr->notify_cb && !(chr->properties &
+                (BLE_GATT_CHR_PROP_WRITE | BLE_GATT_CHR_PROP_WRITE_NO_RSP))) ||
+            (chr->notify_cb && !chr->cccd_handle)) {
+            ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+            return;
+        }
+    }
+    mgr_ctx->svc_disc_ctx.notify_index = 0;
+    for (size_t i = 0; i < service->num_chars; ++i) {
+        ble_gatt_char_def_t *chr = &service->chars[i];
+        if (!chr->notify_cb) continue;
+        mgr_ctx->svc_disc_ctx.notify_index = i;
+        mgr_ctx->svc_disc_ctx.subscription_started = true;
+        int rc = ble_gattc_write_flat(mgr_ctx->conn_handle, chr->cccd_handle,
+                                      cccd_notify_enable_cfg, sizeof(cccd_notify_enable_cfg),
+                                      ble_mgr_gatt_subscription_cb, mgr_ctx);
+        if (rc != 0) {
+            mgr_ctx->svc_disc_ctx.subscription_started = false;
+            ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        }
+        return;
+    }
+    ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_OK);
+}
+
+static int ble_mgr_gatt_dsc_discovered_cb(uint16_t conn_handle,
+                                         const struct ble_gatt_error *error,
+                                         uint16_t chr_val_handle,
+                                         const struct ble_gatt_dsc *dsc, void *arg)
+{
+    ble_mgr_ctx_t *mgr_ctx = arg;
+    if (!mgr_ctx || !atomic_load(&mgr_ctx->connecting) ||
+        conn_handle != mgr_ctx->conn_handle) return 0;
+    ble_mgr_svc_def_t *service = (ble_mgr_svc_def_t *)mgr_ctx->disc_cfg->svc_def;
+    ble_gatt_char_def_t *chr = &service->chars[mgr_ctx->svc_disc_ctx.notify_index];
+    if (chr->handle != chr_val_handle) {
+        ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        return 0;
+    }
+    if (error->status == 0 && dsc) {
+        if (ble_uuid_u16(&dsc->uuid.u) == BLE_GATT_DSC_CLT_CFG_UUID16)
+            chr->cccd_handle = dsc->handle;
+        return 0;
+    }
+    mgr_ctx->svc_disc_ctx.dsc_disc_started = false;
+    if (error->status != BLE_HS_EDONE || !chr->cccd_handle) {
+        ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        return 0;
+    }
+    mgr_ctx->svc_disc_ctx.notify_index++;
+    ble_mgr_gatt_svc_chr_disc_completed_check(mgr_ctx, error);
+    return 0;
+}
+
+static int ble_mgr_gatt_subscription_cb(uint16_t conn_handle,
+                                        const struct ble_gatt_error *error,
+                                        struct ble_gatt_attr *attr, void *arg)
+{
+    (void)attr;
+    ble_mgr_ctx_t *mgr_ctx = arg;
+    if (!mgr_ctx || !atomic_load(&mgr_ctx->connecting) ||
+        conn_handle != mgr_ctx->conn_handle) return 0;
+    if (error->status != 0) {
+        ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        return 0;
+    }
+    ble_mgr_svc_def_t *service = (ble_mgr_svc_def_t *)mgr_ctx->disc_cfg->svc_def;
+    for (size_t i = mgr_ctx->svc_disc_ctx.notify_index + 1; i < service->num_chars; ++i) {
+        ble_gatt_char_def_t *chr = &service->chars[i];
+        if (!chr->notify_cb) continue;
+        mgr_ctx->svc_disc_ctx.notify_index = i;
+        int rc = ble_gattc_write_flat(conn_handle, chr->cccd_handle,
+                                      cccd_notify_enable_cfg, sizeof(cccd_notify_enable_cfg),
+                                      ble_mgr_gatt_subscription_cb, mgr_ctx);
+        if (rc != 0) ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        return 0;
+    }
+    mgr_ctx->svc_disc_ctx.subscription_started = false;
+    ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_OK);
+    return 0;
 }
 
 static int ble_mgr_gatt_chr_discovered_cb(uint16_t                     conn_handle,
@@ -453,19 +554,9 @@ static int ble_mgr_gatt_chr_discovered_cb(uint16_t                     conn_hand
             if (strcmp(uuid_str, mgr_ctx->disc_cfg->svc_def->chars[i].uuid) == 0)
             {
                 ESP_LOGD(TAG, "Found matching characteristic: %s", uuid_str);
+                mgr_ctx->disc_cfg->svc_def->chars[i].def_handle = chr->def_handle;
                 mgr_ctx->disc_cfg->svc_def->chars[i].handle = chr->val_handle;
-
-                if (mgr_ctx->disc_cfg->svc_def->chars[i].notify_cb != NULL)
-                {
-                    ESP_LOGD(TAG, "Setting up notification callback for characteristic: %s", uuid_str);
-                    int rc = ble_gattc_write_flat(conn_handle,
-                                                  chr->val_handle + 1,  // CCCD handle is usually handle+1
-                                                  cccd_notify_enable_cfg, sizeof(cccd_notify_enable_cfg), NULL, NULL);
-                    if (rc != 0)
-                    {
-                        ESP_LOGE(TAG, "Failed to subscribe to TX notifications: %d", rc);
-                    }
-                }
+                mgr_ctx->disc_cfg->svc_def->chars[i].properties = chr->properties;
                 break;
             }
         }
@@ -503,6 +594,7 @@ static int ble_mgr_gatt_svc_discovered_cb(uint16_t                     conn_hand
             ESP_LOGD(TAG, "Starting characteristic discovery...");
 
             mgr_ctx->svc_disc_ctx.chr_disc_started = true;
+            mgr_ctx->svc_disc_ctx.service_end_handle = service->end_handle;
 
             int rc = ble_gattc_disc_all_chrs(conn_handle, service->start_handle, service->end_handle,
                                              ble_mgr_gatt_chr_discovered_cb, mgr_ctx);
@@ -542,6 +634,10 @@ static void ble_mgr_gap_connected_cb(ble_mgr_ctx_t *mgr_ctx, uint16_t conn_handl
     mgr_ctx->svc_disc_ctx.svc_disc_completed = false;
     mgr_ctx->svc_disc_ctx.chr_disc_completed = false;
     mgr_ctx->svc_disc_ctx.chr_disc_started   = false;
+    mgr_ctx->svc_disc_ctx.dsc_disc_started = false;
+    mgr_ctx->svc_disc_ctx.subscription_started = false;
+    mgr_ctx->svc_disc_ctx.notify_index = 0;
+    mgr_ctx->svc_disc_ctx.service_end_handle = 0;
 
     int rc = ble_gattc_disc_all_svcs(mgr_ctx->conn_handle, ble_mgr_gatt_svc_discovered_cb, mgr_ctx);
     if (rc != 0)
@@ -605,7 +701,12 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
     mgr_ctx->conn_handle = BLE_HS_CONN_HANDLE_NONE;
     mgr_ctx->scanning = true;
     mgr_ctx->connecting = true;
-    for (size_t i = 0; i < disc_cfg->svc_def->num_chars; i++) disc_cfg->svc_def->chars[i].handle = 0;
+    for (size_t i = 0; i < disc_cfg->svc_def->num_chars; i++) {
+        disc_cfg->svc_def->chars[i].def_handle = 0;
+        disc_cfg->svc_def->chars[i].handle = 0;
+        disc_cfg->svc_def->chars[i].cccd_handle = 0;
+        disc_cfg->svc_def->chars[i].properties = 0;
+    }
     mgr_ctx->disc_cfg = disc_cfg;
     mgr_ctx->usr_ctx = usr_ctx;
     int rc = ble_gap_disc(0, BLE_DISCOVERY_TIMEOUT_MS, &disc_params, ble_mgr_gap_event_cb, mgr_ctx);

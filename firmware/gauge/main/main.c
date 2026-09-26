@@ -46,7 +46,9 @@
 #include "diagnostics_state.h"
 #include "esp_heap_caps.h"
 #include "config_document.h"
+#include "config_trial.h"
 #include "obd.h"
+#include "poll_scheduler.h"
 #include "ui.h"
 #include "util.h"
 
@@ -86,40 +88,10 @@ static const obd_pid_cfg_t g_obd_pids[] = {
 
 static obd_pid_cfg_t const *g_current_obd_cfg = &g_obd_pids[0];
 static atomic_uchar g_displayed_pid;
+static atomic_uchar g_selected_page;
 static config_runtime_t *g_runtime;
-static uint32_t g_last_poll[32];
-static uint8_t g_poll_cursor;
-static bool g_mil_known;
-static bool g_mil_on;
-static uint8_t g_dtc_count;
-static char g_first_dtc[6];
-static uint32_t g_mil_at_ms;
-
-static void show_diagnostics(ui_t *ui)
-{
-    uint32_t now = pdTICKS_TO_MS(xTaskGetTickCount());
-    bool fresh = g_mil_known && now - g_mil_at_ms <= 60000;
-    ui_set_diagnostics(ui, fresh, g_mil_on, g_dtc_count, g_first_dtc);
-}
-
-static void decode_first_dtc(const uint8_t *data, size_t length)
-{
-    static const char classes[] = "PCBU";
-    static const char digits[] = "0123456789ABCDEF";
-    g_first_dtc[0] = 0;
-    if (length & 1U) return;
-    for (size_t i = 0; i + 1 < length; i += 2) {
-        uint8_t high = data[i], low = data[i + 1];
-        if ((high | low) == 0) continue;
-        g_first_dtc[0] = classes[high >> 6];
-        g_first_dtc[1] = digits[(high >> 4) & 3];
-        g_first_dtc[2] = digits[high & 15];
-        g_first_dtc[3] = digits[low >> 4];
-        g_first_dtc[4] = digits[low & 15];
-        g_first_dtc[5] = 0;
-        break;
-    }
-}
+static config_store_record_t g_running_config_record;
+static bool g_running_previous_config;
 
 static unsigned page_count(void)
 {
@@ -153,21 +125,57 @@ static config_t g_config = {
     .disp_rot = LV_DISPLAY_ROTATION_0,
 };
 static QueueHandle_t g_phone_command_queue;
+typedef struct {
+    uint8_t pid_index;
+    double value;
+    uint32_t observed_at_ms;
+} alert_sample_event_t;
+static QueueHandle_t g_alert_sample_queue;
+static atomic_uint g_app_tick_count;
+static atomic_uint g_alert_sample_drops;
 
-static void ota_trial_health_task(void *arg)
+static bool ota_trial_pending(void)
+{
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    esp_ota_img_states_t state;
+    return running && esp_ota_get_state_partition(running, &state) == ESP_OK &&
+           state == ESP_OTA_IMG_PENDING_VERIFY;
+}
+
+static void boot_health_task(void *arg)
 {
     (void)arg;
+    uint32_t initial_ticks = atomic_load(&g_app_tick_count);
     for (unsigned i = 0; i < 60; ++i) {
-        if (ble_companion_ready()) {
-            esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
-            if (err == ESP_OK) ESP_LOGI(TAG, "Trial firmware confirmed after UI and BLE startup");
-            else ESP_LOGE(TAG, "Failed to confirm trial firmware: %s", esp_err_to_name(err));
+        if (ble_companion_ready() &&
+            atomic_load(&g_app_tick_count) - initial_ticks >= 50) {
+            if (g_runtime && config_trial_needs_confirmation(g_running_config_record.revision)) {
+                esp_err_t err = config_trial_confirm(g_running_config_record.revision);
+                if (err != ESP_OK) {
+                    ESP_LOGE(TAG, "Failed to confirm configuration trial: %s",
+                             esp_err_to_name(err));
+                    if (ota_trial_pending()) esp_ota_mark_app_invalid_rollback_and_reboot();
+                    else esp_restart();
+                }
+                config_runtime_mark_confirmed();
+                ESP_LOGI(TAG, "Configuration revision %" PRIu32 " confirmed healthy",
+                         g_running_config_record.revision);
+            }
+            if (ota_trial_pending()) {
+                esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
+                if (err != ESP_OK) {
+                    ESP_LOGE(TAG, "Failed to confirm trial firmware: %s", esp_err_to_name(err));
+                    esp_ota_mark_app_invalid_rollback_and_reboot();
+                }
+                ESP_LOGI(TAG, "Trial firmware confirmed after UI, BLE, and application progress");
+            }
             vTaskDelete(NULL);
         }
         vTaskDelay(pdMS_TO_TICKS(500));
     }
-    ESP_LOGE(TAG, "Trial BLE startup timed out; requesting rollback");
-    esp_ota_mark_app_invalid_rollback_and_reboot();
+    ESP_LOGE(TAG, "Boot health confirmation timed out");
+    if (ota_trial_pending()) esp_ota_mark_app_invalid_rollback_and_reboot();
+    else esp_restart();
     vTaskDelete(NULL);
 }
 
@@ -194,13 +202,11 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
 
     if (pid == 0x01) {
         if (len >= 4) {
-            g_mil_known = true;
-            g_mil_on = (data[0] & 0x80) != 0;
-            g_dtc_count = data[0] & 0x7f;
-            g_mil_at_ms = pdTICKS_TO_MS(xTaskGetTickCount());
-            diagnostics_state_mil(g_mil_on, g_dtc_count, g_mil_at_ms);
-            show_diagnostics(ui);
+            diagnostics_state_mil((data[0] & 0x80) != 0, data[0] & 0x7f,
+                                  pdTICKS_TO_MS(xTaskGetTickCount()));
         }
+        /* PID 01 is reserved for the diagnostics monitor and cannot be a
+         * runtime-configured gauge definition. */
         return;
     }
 
@@ -215,23 +221,62 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
     }
 
     double decoded;
-    if (!pid_decoder_eval(&definition->decoder, data, len, &decoded) ||
-        decoded < INT32_MIN || decoded > INT32_MAX) {
+    if (!pid_decoder_eval(&definition->decoder, data, len, &decoded)) {
         ESP_LOGW(TAG, "Rejected invalid value for PID 0x%02X", pid);
         return;
     }
-    int32_t value = (int32_t)decoded;
 
     if (g_runtime) {
         for (unsigned i = 0; i < g_runtime->pid_count; ++i)
             if (g_runtime->pids[i].obd.pid == pid) {
-                alert_engine_sample(i, decoded, pdTICKS_TO_MS(xTaskGetTickCount()));
+                alert_sample_event_t event = {
+                    .pid_index = i,
+                    .value = decoded,
+                    .observed_at_ms = pdTICKS_TO_MS(xTaskGetTickCount()),
+                };
+                if (g_alert_sample_queue &&
+                    xQueueSend(g_alert_sample_queue, &event, 0) != pdTRUE)
+                    atomic_fetch_add(&g_alert_sample_drops, 1);
                 break;
             }
     }
 
+    if (decoded < INT32_MIN || decoded > INT32_MAX) {
+        ESP_LOGW(TAG, "PID 0x%02X is valid but outside numeric display range", pid);
+        return;
+    }
+    int32_t value = (int32_t)decoded;
     ESP_LOGI(TAG, "Received PID 0x%02X (%s): %" PRId32, pid, definition->name, value);
-    if (pid == atomic_load(&g_displayed_pid)) ui_set_value(ui, &value);
+    if (pid == atomic_load(&g_displayed_pid)) ui_set_value(ui, pid, &value);
+}
+
+static void app_tick_task(void *arg)
+{
+    ui_t *ui = arg;
+    TickType_t last_wake = xTaskGetTickCount();
+    for (;;) {
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(100));
+        uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        ble_companion_tick();
+        alert_sample_event_t event;
+        while (xQueueReceive(g_alert_sample_queue, &event, 0) == pdTRUE)
+            alert_engine_sample(event.pid_index, event.value, event.observed_at_ms);
+        alert_summary_t alert = alert_engine_tick(now_ms);
+        ui_set_alert(ui, alert.severity, alert.unavailable, alert.label);
+        diagnostics_snapshot_t diagnostics;
+        diagnostics_state_snapshot(now_ms, &diagnostics);
+        ui_set_diagnostics(ui, diagnostics.valid, diagnostics.mil_on,
+                           diagnostics.reported_count, diagnostics.first_code);
+        uint32_t ticks = atomic_fetch_add(&g_app_tick_count, 1) + 1;
+        if (ticks % 600 == 0) {
+            ESP_LOGI(TAG, "health app_stack=%u internal_min=%u psram_min=%u alert_free=%u alert_drops=%u",
+                     (unsigned)uxTaskGetStackHighWaterMark(NULL),
+                     (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
+                     (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM),
+                     (unsigned)uxQueueSpacesAvailable(g_alert_sample_queue),
+                     (unsigned)atomic_load(&g_alert_sample_drops));
+        }
+    }
 }
 
 static void obd_task(void *arg)
@@ -242,95 +287,64 @@ static void obd_task(void *arg)
     ESP_LOGI(TAG, "RX/TX task started");
 
     ble_obd_ctx_t *obd = NULL;
-
-    while (true)
-    {
-        ble_companion_tick();
-        alert_summary_t alert = alert_engine_tick(pdTICKS_TO_MS(xTaskGetTickCount()));
-        ui_set_alert(ui, alert.severity, alert.unavailable, alert.label);
-        if (transfer_gate_current() == 2) {
-            ui_set_value(ui, NULL);
-            vTaskDelay(pdMS_TO_TICKS(250));
-            continue;
-        }
-        obd = ble_obd_connect(0, CONFIG_EGAUGE_ECM_ADAPTER_MAC, obd_response_cb, ui);
-        if (obd != NULL)
-        {
-            break;
-        }
-        ESP_LOGW(TAG, "Failed to connect to RX/TX service. Retrying...");
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-    ESP_LOGI(TAG, "RX/TX BLE service connected");
+    uint32_t reconnect_delay_ms = 500;
 
     TickType_t last_wake = xTaskGetTickCount();
 
     const uint32_t period_ms  = 100;
     const uint32_t timeout_ms = 300;
-    uint32_t last_mil_poll = 0;
-    uint32_t last_dtc_poll[3] = {0};
     const uint8_t dtc_modes[3] = {3, 7, 10};
+    poll_scheduler_t scheduler;
+    poll_scheduler_init(&scheduler);
 
     while (true)
     {
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(period_ms));
-        ble_companion_tick();
-        alert_summary_t current_alert = alert_engine_tick(pdTICKS_TO_MS(xTaskGetTickCount()));
-        ui_set_alert(ui, current_alert.severity, current_alert.unavailable,
-                     current_alert.label);
-
         if (transfer_gate_current() == 2) {
-            ui_set_value(ui, NULL);
+            ui_set_value(ui, atomic_load(&g_displayed_pid), NULL);
             continue;
         }
 
-        if (!ble_obd_is_connected(obd))
-        {
-            ui_set_value(ui, NULL);
-            g_mil_known = false;
+        if (obd == NULL || !ble_obd_is_connected(obd)) {
+            ui_set_value(ui, atomic_load(&g_displayed_pid), NULL);
             diagnostics_state_disconnected();
-            show_diagnostics(ui);
+            obd = ble_obd_connect(0, CONFIG_EGAUGE_ECM_ADAPTER_MAC, obd_response_cb, ui);
+            if (!obd) {
+                ESP_LOGW(TAG, "ECM adapter unavailable; retrying in %" PRIu32 " ms",
+                         reconnect_delay_ms);
+                vTaskDelay(pdMS_TO_TICKS(reconnect_delay_ms));
+                if (reconnect_delay_ms < 8000) reconnect_delay_ms *= 2;
+                last_wake = xTaskGetTickCount();
+                continue;
+            }
+            ESP_LOGI(TAG, "ECM adapter link ready");
+            reconnect_delay_ms = 500;
+            poll_scheduler_init(&scheduler);
             continue;
         }
 
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
-        if (last_mil_poll == 0 || now_ms - last_mil_poll >= 10000) {
-            last_mil_poll = now_ms;
+        uint32_t intervals[POLL_SCHEDULER_MAX_PIDS];
+        uint8_t count = poll_count();
+        for (uint8_t i = 0; i < count; ++i)
+            intervals[i] = g_runtime ? g_runtime->pids[i].poll_ms : 500;
+        poll_job_t job = poll_scheduler_next(&scheduler, now_ms, intervals, count);
+        if (job.kind == POLL_JOB_NONE) continue;
+        if (job.kind == POLL_JOB_MIL) {
             ble_obd_rxtx(obd, 1, 0x01, 700);
+            continue;
         }
-        for (unsigned category = 0; category < 3; ++category) {
-            if (last_dtc_poll[category] == 0 ||
-                now_ms - last_dtc_poll[category] >= 30000) {
-                last_dtc_poll[category] = now_ms;
-                uint8_t codes[64];
-                size_t code_length = sizeof(codes);
-                if (ble_obd_read_service(obd, dtc_modes[category], 1500,
-                                         codes, &code_length) == 0) {
-                    diagnostics_state_codes(dtc_modes[category], codes, code_length,
-                                            pdTICKS_TO_MS(xTaskGetTickCount()));
-                    if (category == 0 && (code_length & 1U) == 0) {
-                        decode_first_dtc(codes, code_length);
-                        show_diagnostics(ui);
-                    }
-                }
-            }
+        if (job.kind == POLL_JOB_DTC) {
+            uint8_t codes[64];
+            size_t code_length = sizeof(codes);
+            if (ble_obd_read_service(obd, dtc_modes[job.index], 1500,
+                                     codes, &code_length) == 0)
+                diagnostics_state_codes(dtc_modes[job.index], codes, code_length,
+                                        pdTICKS_TO_MS(xTaskGetTickCount()));
+            continue;
         }
 
-        unsigned chosen = poll_count();
-        uint32_t now = xTaskGetTickCount();
-        for (unsigned step = 0; step < poll_count(); ++step) {
-            unsigned index = (g_poll_cursor + step) % poll_count();
-            uint32_t interval = g_runtime ? g_runtime->pids[index].poll_ms : 500;
-            if (g_last_poll[index] == 0 ||
-                now - g_last_poll[index] >= pdMS_TO_TICKS(interval)) {
-                chosen = index;
-                break;
-            }
-        }
-        if (chosen == poll_count()) continue;
-        g_poll_cursor = (chosen + 1) % poll_count();
-        g_last_poll[chosen] = now;
-        const obd_pid_cfg_t *requested = poll_cfg(chosen);
+        const obd_pid_cfg_t *requested = poll_cfg(job.index);
         const uint8_t obd_mode = 0x01;  // OBD-II mode
 
         int status = ble_obd_rxtx(obd, obd_mode, requested->pid, timeout_ms);
@@ -377,24 +391,22 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
     {
     case LV_EVENT_CLICKED:
     {
-        config_t updated = g_config;
-        updated.cfg_idx = (updated.cfg_idx + 1) % page_count();
-        if (config_save(&updated) != ESP_OK) break;
-        g_config = updated;
-        g_current_obd_cfg = page_cfg(g_config.cfg_idx);
-        ESP_LOGI(TAG, "Switched to PID: 0x%02X (%s)", g_current_obd_cfg->pid, g_current_obd_cfg->name);
-        ui_set_obd_cfg(ui, g_current_obd_cfg);
-        atomic_store(&g_displayed_pid, g_current_obd_cfg->pid);
-        ui_set_freshness(ui, page_stale_ms(g_config.cfg_idx));
-        ble_companion_selection_applied(g_config.cfg_idx);
+        companion_command_t command = {
+            .opcode = 1,
+            .value = (atomic_load(&g_selected_page) + 1) % page_count(),
+        };
+        if (g_phone_command_queue) xQueueSend(g_phone_command_queue, &command, 0);
         break;
     }
     case LV_EVENT_LONG_PRESSED:
         ble_companion_open_pairing_window();
         break;
     case LV_EVENT_RELEASED:
-        ble_companion_forget_owner();
+    {
+        companion_command_t command = {.opcode = 3};
+        if (g_phone_command_queue) xQueueSend(g_phone_command_queue, &command, 0);
         break;
+    }
     default:
         // ignore
         break;
@@ -407,18 +419,22 @@ static void init_config(void)
 
     ESP_ERROR_CHECK(config_init());
     ESP_ERROR_CHECK(config_store_init());
-    ESP_ERROR_CHECK(config_transfer_init());
+    ESP_ERROR_CHECK(config_trial_init());
     ESP_ERROR_CHECK(ota_transfer_init());
     ESP_ERROR_CHECK(diagnostics_state_init());
 
     g_runtime = heap_caps_malloc(sizeof(*g_runtime), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (g_runtime && config_runtime_load(g_runtime) == ESP_OK) {
-        ESP_LOGI(TAG, "Activated document with %u PIDs, %u pages, %u alerts",
+    if (g_runtime && config_runtime_load(g_runtime, &g_running_config_record,
+                                         &g_running_previous_config) == ESP_OK) {
+        ESP_LOGI(TAG, "Running configuration revision %" PRIu32 "%s with %u PIDs, %u pages, %u alerts",
+                 g_running_config_record.revision,
+                 g_running_previous_config ? " (previous compatible generation)" : "",
                  g_runtime->pid_count, g_runtime->page_count, g_runtime->alert_count);
     } else {
         if (g_runtime) heap_caps_free(g_runtime);
         g_runtime = NULL;
     }
+    ESP_ERROR_CHECK(config_transfer_init());
 
     esp_err_t err = config_load(&g_config);
 
@@ -451,6 +467,7 @@ static void init_config(void)
     if (g_runtime) g_config.disp_rot = (lv_display_rotation_t)g_runtime->rotation;
     g_current_obd_cfg = page_cfg(g_config.cfg_idx);
     atomic_store(&g_displayed_pid, g_current_obd_cfg->pid);
+    atomic_store(&g_selected_page, g_config.cfg_idx);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -491,6 +508,8 @@ void app_main(void)
 
     g_phone_command_queue = xQueueCreate(4, sizeof(companion_command_t));
     ESP_NULL_CHECK(g_phone_command_queue, TAG, "Phone command queue creation failed");
+    g_alert_sample_queue = xQueueCreate(16, sizeof(alert_sample_event_t));
+    ESP_NULL_CHECK(g_alert_sample_queue, TAG, "Alert sample queue creation failed");
     ble_companion_set_control(ui, g_phone_command_queue, g_config.cfg_idx, g_runtime != NULL);
 
     ESP_NULL_CHECK(ble_mgr_init(0, 2000), TAG, "BLE ECM slot initialization failed");
@@ -500,13 +519,14 @@ void app_main(void)
         return;
     }
     init_obd_task(ui);
-    const esp_partition_t *running = esp_ota_get_running_partition();
-    esp_ota_img_states_t image_state;
-    if (esp_ota_get_state_partition(running, &image_state) == ESP_OK &&
-        image_state == ESP_OTA_IMG_PENDING_VERIFY) {
-        BaseType_t started = xTaskCreate(ota_trial_health_task, "ota_health", 3072,
+    BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 3072, ui, 5, NULL);
+    ESP_CHECK(tick_started == pdPASS, TAG, "Application tick task creation failed");
+    bool config_trial = g_runtime &&
+        config_trial_needs_confirmation(g_running_config_record.revision);
+    if (ota_trial_pending() || config_trial) {
+        BaseType_t started = xTaskCreate(boot_health_task, "boot_health", 3072,
                                          NULL, 5, NULL);
-        ESP_CHECK(started == pdPASS, TAG, "OTA health task creation failed");
+        ESP_CHECK(started == pdPASS, TAG, "Boot health task creation failed");
     }
     if (CONFIG_EGAUGE_TCM_ADAPTER_MAC[0]) {
         if (!adapter_mac_valid(CONFIG_EGAUGE_TCM_ADAPTER_MAC) ||
@@ -533,6 +553,7 @@ void app_main(void)
                 if (lvgl_port_lock(portMAX_DELAY)) {
                     ui_set_obd_cfg(ui, g_current_obd_cfg);
                     atomic_store(&g_displayed_pid, g_current_obd_cfg->pid);
+                    atomic_store(&g_selected_page, command.value);
                     ui_set_freshness(ui, page_stale_ms(command.value));
                     lvgl_port_unlock();
                     ble_companion_selection_applied(command.value);
@@ -541,16 +562,15 @@ void app_main(void)
         } else if (command.opcode == 2 && command.value <= LV_DISPLAY_ROTATION_270) {
             config_t saved;
             uint32_t revision;
-            if (config_read_snapshot(&saved, &revision) != ESP_OK ||
-                revision != command.base_revision) continue;
+            if (config_read_snapshot(&saved, &revision) != ESP_OK) continue;
             saved.disp_rot = (lv_display_rotation_t)command.value;
-            if (config_save(&saved) != ESP_OK) continue;
+            if (config_save_if_revision(&saved, command.base_revision, NULL) != ESP_OK) continue;
             g_config = saved;
             if (lvgl_port_lock(portMAX_DELAY)) {
                 bsp_lv_disp_set_rotation(saved.disp_rot);
                 lvgl_port_unlock();
             }
             ESP_LOGI(TAG, "Display rotation saved: %u", (unsigned)command.value * 90);
-        }
+        } else if (command.opcode == 3) ble_companion_forget_owner();
     }
 }

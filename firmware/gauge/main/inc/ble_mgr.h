@@ -62,7 +62,10 @@ struct ble_mgr_disc_cfg
 typedef struct
 {
     const char         *uuid;
+    uint16_t            def_handle;
     uint16_t            handle;
+    uint16_t            cccd_handle;
+    uint8_t             properties;
     ble_mgr_notify_cb_t notify_cb;
 } ble_gatt_char_def_t;
 

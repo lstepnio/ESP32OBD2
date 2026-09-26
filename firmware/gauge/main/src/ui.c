@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdatomic.h>
 
 #include "esp_log.h"
 #include "esp_log_color.h"
@@ -48,6 +49,7 @@ static const char *TAG = "UI";
 // ---------------------------------------------------------------------------------------------------------------------
 
 typedef struct {
+    uint8_t pid;
     int32_t value;
     TickType_t received_at;
 } ui_sample_t;
@@ -95,6 +97,10 @@ struct _ui_t
     {
         float current_value;
         uint32_t stale_after_ms;
+        atomic_uchar selected_pid;
+        int32_t rendered_value;
+        bool rendered_available;
+        bool rendered_once;
     } display;
 };
 
@@ -172,9 +178,12 @@ static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, c
     if (value != NULL)
     {
         lv_label_set_text_fmt(ui->widgets.value_lbl, "%" PRId32, *value);
-        lv_obj_set_style_text_font(ui->widgets.value_lbl,
-                                   strlen(lv_label_get_text(ui->widgets.value_lbl)) > 4 ? font_compact : font_title,
-                                   LV_PART_MAIN);
+        const char *text = lv_label_get_text(ui->widgets.value_lbl);
+        int32_t safe_width = lv_obj_get_width(lv_screen_active()) - 74;
+        const lv_font_t *font = font_title;
+        if (lv_text_get_width(text, strlen(text), font, 0) > safe_width) font = font_compact;
+        if (lv_text_get_width(text, strlen(text), font, 0) > safe_width) font = font_subtitle;
+        lv_obj_set_style_text_font(ui->widgets.value_lbl, font, LV_PART_MAIN);
     }
     else
     {
@@ -213,14 +222,18 @@ static void ui_task(lv_timer_t *timer)
 
     ui_alert_t alert;
     if (xQueueReceive(ui->rtos.alert_que, &alert, 0) == pdTRUE) {
-        if (alert.severity == 0) lv_obj_add_flag(ui->widgets.alert_lbl, LV_OBJ_FLAG_HIDDEN);
+        if (alert.severity == 0) {
+            lv_obj_add_flag(ui->widgets.alert_lbl, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_remove_flag(ui->widgets.info_lbl, LV_OBJ_FLAG_HIDDEN);
+        }
         else {
             lv_obj_set_style_text_color(ui->widgets.alert_lbl,
                 alert.severity == 2 ? lv_color_hex(0xFF5656) : lv_color_hex(0xFFC247),
                 LV_PART_MAIN);
-            lv_label_set_text_fmt(ui->widgets.alert_lbl, "%s %s%s",
+            lv_label_set_text_fmt(ui->widgets.alert_lbl, "%s\n%s%s",
                 alert.severity == 2 ? "CRITICAL" : "WARNING", alert.label,
-                alert.unavailable ? " DATA LOST" : "");
+                alert.unavailable ? " LOST" : "");
+            lv_obj_add_flag(ui->widgets.info_lbl, LV_OBJ_FLAG_HIDDEN);
             lv_obj_remove_flag(ui->widgets.alert_lbl, LV_OBJ_FLAG_HIDDEN);
         }
     }
@@ -246,10 +259,14 @@ static void ui_task(lv_timer_t *timer)
     bool fresh = received && sample.value != DISPLAY_VALUE_INVALID &&
                  xTaskGetTickCount() - sample.received_at <=
                  pdMS_TO_TICKS(ui->display.stale_after_ms);
-    if (!fresh)
+    if (!fresh || sample.pid != atomic_load(&ui->display.selected_pid))
     {
         ui->display.current_value = 0.0f;
-        ui_update_screen(ui, NULL, NULL, NULL);
+        if (!ui->display.rendered_once || ui->display.rendered_available) {
+            ui_update_screen(ui, NULL, NULL, NULL);
+            ui->display.rendered_available = false;
+            ui->display.rendered_once = true;
+        }
     }
     else
     {
@@ -258,7 +275,13 @@ static void ui_task(lv_timer_t *timer)
         int32_t rounded = (int32_t)(ui->display.current_value >= 0.0f ? ui->display.current_value + 0.5f
                                                                       : ui->display.current_value - 0.5f);
         ESP_LOGD(TAG, "Current value: %" PRId32 " (target: %" PRId32 ")", rounded, target);
-        ui_update_screen(ui, &rounded, NULL, NULL);
+        if (!ui->display.rendered_once || !ui->display.rendered_available ||
+            rounded != ui->display.rendered_value) {
+            ui_update_screen(ui, &rounded, NULL, NULL);
+            ui->display.rendered_value = rounded;
+            ui->display.rendered_available = true;
+            ui->display.rendered_once = true;
+        }
     }
 
     lv_event_code_t event_code;
@@ -318,7 +341,7 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     ui->widgets.unit_lbl  = unit_lbl;
 
     lv_obj_t *pairing_lbl = lv_label_create(scr);
-    lv_obj_set_size(pairing_lbl, 190, 100);
+    lv_obj_set_size(pairing_lbl, 176, 100);
     lv_obj_align(pairing_lbl, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_bg_color(pairing_lbl, lv_color_black(), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(pairing_lbl, LV_OPA_COVER, LV_PART_MAIN);
@@ -330,8 +353,8 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     ui->widgets.pairing_lbl = pairing_lbl;
 
     lv_obj_t *alert_lbl = lv_label_create(scr);
-    lv_obj_set_size(alert_lbl, 150, 24);
-    lv_obj_align(alert_lbl, LV_ALIGN_TOP_MID, 0, 18);
+    lv_obj_set_size(alert_lbl, 104, 40);
+    lv_obj_align(alert_lbl, LV_ALIGN_TOP_MID, 0, 30);
     lv_obj_set_style_text_font(alert_lbl, font_subtitle, LV_PART_MAIN);
     lv_obj_set_style_text_align(alert_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_label_set_long_mode(alert_lbl, LV_LABEL_LONG_DOT);
@@ -339,7 +362,7 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     ui->widgets.alert_lbl = alert_lbl;
 
     lv_obj_t *diagnostics_lbl = lv_label_create(scr);
-    lv_obj_set_size(diagnostics_lbl, 150, 24);
+    lv_obj_set_size(diagnostics_lbl, 132, 24);
     lv_obj_align(diagnostics_lbl, LV_ALIGN_BOTTOM_MID, 0, -22);
     lv_obj_set_style_text_font(diagnostics_lbl, font_subtitle, LV_PART_MAIN);
     lv_obj_set_style_text_align(diagnostics_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
@@ -380,6 +403,19 @@ ui_t *ui_init(obd_pid_cfg_t const *cfg, uint32_t interval_ms, ui_touch_callback_
     ui->rtos.diagnostics_que = xQueueCreate(1, sizeof(ui_diagnostics_t));
     ui->touch_cb          = touch_cb;
     ui->display.stale_after_ms = UI_SAMPLE_FRESH_MS;
+    atomic_store(&ui->display.selected_pid, cfg->pid);
+
+    if (!ui->rtos.value_que || !ui->rtos.touch_ev_que || !ui->rtos.pairing_que ||
+        !ui->rtos.alert_que || !ui->rtos.diagnostics_que) {
+        ESP_LOGE(TAG, "Failed to allocate UI mailboxes");
+        if (ui->rtos.value_que) vQueueDelete(ui->rtos.value_que);
+        if (ui->rtos.touch_ev_que) vQueueDelete(ui->rtos.touch_ev_que);
+        if (ui->rtos.pairing_que) vQueueDelete(ui->rtos.pairing_que);
+        if (ui->rtos.alert_que) vQueueDelete(ui->rtos.alert_que);
+        if (ui->rtos.diagnostics_que) vQueueDelete(ui->rtos.diagnostics_que);
+        free(ui);
+        return NULL;
+    }
 
     if (!lvgl_port_lock(portMAX_DELAY))
     {
@@ -397,11 +433,12 @@ ui_t *ui_init(obd_pid_cfg_t const *cfg, uint32_t interval_ms, ui_touch_callback_
     return ui;
 }
 
-void ui_set_value(ui_t *ui, int32_t const *value)
+void ui_set_value(ui_t *ui, uint8_t pid, int32_t const *value)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
     ui_sample_t sample = {
+        .pid = pid,
         .value = value != NULL ? *value : DISPLAY_VALUE_INVALID,
         .received_at = xTaskGetTickCount(),
     };
@@ -417,7 +454,9 @@ void ui_set_obd_cfg(ui_t *ui, obd_pid_cfg_t const *cfg)
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     ESP_NULL_CHECK(cfg, TAG, "OBD PID config is NULL");
 
-    ui_set_value(ui, NULL);
+    atomic_store(&ui->display.selected_pid, cfg->pid);
+    ui_set_value(ui, cfg->pid, NULL);
+    ui->display.rendered_once = false;
     ui_update_screen(ui, NULL, cfg->name, cfg->unit);
     ESP_LOGI(TAG, "Updated OBD PID config: 0x%02X (%s)", cfg->pid, cfg->name);
 }

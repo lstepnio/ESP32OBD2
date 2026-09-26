@@ -9,6 +9,7 @@
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "portmacro.h"
 #include "mbedtls/sha256.h"
 #include "mbedtls/pk.h"
 #include "ota_transfer.h"
@@ -46,11 +47,14 @@ static struct {
     uint32_t length;
     uint32_t accepted;
     uint32_t last_activity;
+    uint32_t activation_deadline;
     uint8_t digest[32];
     uint8_t signature[72];
     uint8_t signature_length;
     uint16_t signature_parts;
 } state;
+static uint8_t status_cache[OTA_TRANSFER_STATUS_SIZE];
+static portMUX_TYPE status_mux = portMUX_INITIALIZER_UNLOCKED;
 
 static uint32_t u32(const uint8_t *p)
 {
@@ -61,6 +65,27 @@ static uint32_t u32(const uint8_t *p)
 static void put_u32(uint8_t *p, uint32_t value)
 {
     for (unsigned i = 0; i < 4; ++i) p[i] = value >> (8 * i);
+}
+
+static void publish_status_locked(void)
+{
+    uint8_t next[OTA_TRANSFER_STATUS_SIZE] = {0};
+    next[0] = 4;
+    next[1] = state.phase;
+    next[2] = state.result;
+    next[3] = state.last_op;
+    put_u32(next + 4, state.sequence);
+    put_u32(next + 8, state.id);
+    put_u32(next + 12, state.accepted);
+    put_u32(next + 16, state.length);
+    next[20] = state.digest_parts;
+    next[21] = state.signature_length;
+    next[22] = state.signature_parts;
+    next[23] = state.signature_parts >> 8;
+    memcpy(next + 24, state.digest, 32);
+    portENTER_CRITICAL(&status_mux);
+    memcpy(status_cache, next, sizeof(status_cache));
+    portEXIT_CRITICAL(&status_mux);
 }
 
 static void abort_transfer(void)
@@ -123,15 +148,20 @@ static void process(const request_t *request)
     uint8_t op = p[0];
     xSemaphoreTake(lock, portMAX_DELAY);
     if (op == OP_STATUS) {
-        state.last_activity = xTaskGetTickCount();
+        xSemaphoreGive(lock);
+        return;
+    }
+    uint32_t request_sequence = u32(p + 1);
+    uint32_t id = request->length >= 9 ? u32(p + 5) : 0;
+    if (request->length >= 9 && state.sequence == request_sequence &&
+        state.last_op == op && state.id == id) {
         xSemaphoreGive(lock);
         return;
     }
     state.last_op = op;
-    state.sequence = u32(p + 1);
+    state.sequence = request_sequence;
     state.last_activity = xTaskGetTickCount();
     state.result = 2;
-    uint32_t id = request->length >= 9 ? u32(p + 5) : 0;
     if (op == OP_BEGIN && request->length == 17 && id != 0) {
         const esp_partition_t *next = esp_ota_get_next_update_partition(NULL);
         uint32_t length = u32(p + 9);
@@ -200,13 +230,14 @@ static void process(const request_t *request)
             if (esp_ota_set_boot_partition(target) == ESP_OK) {
                 state.phase = 4;
                 state.result = 0;
-                transfer_gate_release(2);
+                state.activation_deadline = xTaskGetTickCount() + pdMS_TO_TICKS(5000);
             } else state.result = 4;
         } else if (op == OP_ABORT && request->length == 9 && state.phase != 4) {
             abort_transfer();
             state.result = 0;
         }
     } else state.result = 3;
+    publish_status_locked();
     xSemaphoreGive(lock);
 }
 
@@ -222,9 +253,10 @@ static void worker(void *arg)
             xTaskGetTickCount() - state.last_activity > pdMS_TO_TICKS(600000)) {
             abort_transfer();
             state.result = 3;
+            publish_status_locked();
         }
         bool restart = state.phase == 4 &&
-            xTaskGetTickCount() - state.last_activity > pdMS_TO_TICKS(5000);
+            (int32_t)(xTaskGetTickCount() - state.activation_deadline) >= 0;
         xSemaphoreGive(lock);
         if (restart) esp_restart();
     }
@@ -235,6 +267,9 @@ esp_err_t ota_transfer_init(void)
     lock = xSemaphoreCreateMutex();
     queue = xQueueCreate(4, sizeof(request_t));
     if (!lock || !queue) return ESP_ERR_NO_MEM;
+    xSemaphoreTake(lock, portMAX_DELAY);
+    publish_status_locked();
+    xSemaphoreGive(lock);
     return xTaskCreate(worker, "ota_transfer", 6144, NULL, 4, NULL) == pdPASS
         ? ESP_OK : ESP_ERR_NO_MEM;
 }
@@ -250,22 +285,10 @@ bool ota_transfer_command(const uint8_t *bytes, size_t length)
 
 size_t ota_transfer_status(uint8_t out[OTA_TRANSFER_STATUS_SIZE])
 {
-    memset(out, 0, OTA_TRANSFER_STATUS_SIZE);
-    xSemaphoreTake(lock, portMAX_DELAY);
-    out[0] = 4;
-    out[1] = state.phase;
-    out[2] = state.result;
-    out[3] = state.last_op;
-    put_u32(out + 4, state.sequence);
-    put_u32(out + 8, state.id);
-    put_u32(out + 12, state.accepted);
-    put_u32(out + 16, state.length);
-    out[20] = state.digest_parts;
-    out[21] = state.signature_length;
-    out[22] = state.signature_parts;
-    out[23] = state.signature_parts >> 8;
-    memcpy(out + 24, state.digest, 32);
-    xSemaphoreGive(lock);
+    if (!out) return 0;
+    portENTER_CRITICAL(&status_mux);
+    memcpy(out, status_cache, sizeof(status_cache));
+    portEXIT_CRITICAL(&status_mux);
     return OTA_TRANSFER_STATUS_SIZE;
 }
 

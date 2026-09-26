@@ -12,7 +12,9 @@ import sys
 
 
 SETTINGS = (
-    ("system", "screen_off_timeout", "1800000"),
+    # Wi-Fi ADB does not count as external power, so stay_on_while_plugged_in
+    # alone is insufficient. Use a one-day timeout for the bounded debug session.
+    ("system", "screen_off_timeout", "86400000"),
     ("global", "stay_on_while_plugged_in", "7"),
 )
 

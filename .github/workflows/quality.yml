@@ -25,6 +25,18 @@ jobs:
             firmware/gauge/main/src/elm_response.c \
             -o /tmp/elm_response_test
           /tmp/elm_response_test
+      - name: Core firmware logic fixtures with sanitizers
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -Ifirmware/gauge/tests/stubs -Ifirmware/gauge/main/inc \
+            firmware/gauge/tests/core_logic_test.c \
+            firmware/gauge/main/src/alert_engine.c \
+            firmware/gauge/main/src/config_trial_policy.c \
+            firmware/gauge/main/src/json_guard.c \
+            firmware/gauge/main/src/pid_decoder.c \
+            firmware/gauge/main/src/poll_scheduler.c \
+            -lm -o /tmp/core_logic_test
+          /tmp/core_logic_test
   firmware-build:
     runs-on: ubuntu-24.04
     container: espressif/idf:v5.4.1
@@ -38,7 +50,7 @@ jobs:
         working-directory: firmware/gauge
         run: |
           . /opt/esp/idf/export.sh
-          idf.py -D PROJECT_VER=0.1.0-baseline build
+          idf.py build
 
   android-app:
     runs-on: ubuntu-24.04

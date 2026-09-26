@@ -6,8 +6,10 @@
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "portmacro.h"
 #include "config_store.h"
 #include "config_runtime.h"
+#include "config_trial.h"
 #include "config_transfer.h"
 #include "esp_system.h"
 #include "transfer_gate.h"
@@ -51,8 +53,13 @@ static struct {
     uint32_t total_length;
     uint32_t accepted;
     uint32_t last_activity;
+    uint32_t activation_deadline;
     uint8_t digest[32];
 } session;
+static config_store_record_t active_record;
+static bool has_active_record;
+static uint8_t status_cache[CONFIG_TRANSFER_STATUS_SIZE];
+static portMUX_TYPE status_mux = portMUX_INITIALIZER_UNLOCKED;
 static const char *TAG = "config_transfer";
 
 static uint32_t u32(const uint8_t *data)
@@ -75,6 +82,26 @@ static uint8_t result_for_error(esp_err_t err)
     return RESULT_STORAGE;
 }
 
+static void publish_status_locked(void)
+{
+    uint8_t next[CONFIG_TRANSFER_STATUS_SIZE] = {0};
+    next[0] = 3;
+    next[1] = session.phase;
+    next[2] = session.result;
+    next[3] = session.last_op;
+    put_u32(next + 4, session.sequence);
+    put_u32(next + 8, session.transfer_id);
+    put_u32(next + 12, session.accepted);
+    put_u32(next + 16, session.total_length);
+    put_u32(next + 20, has_active_record ? active_record.revision : 0);
+    put_u32(next + 24, session.base_revision);
+    next[28] = session.digest_parts;
+    if (has_active_record) memcpy(next + 32, active_record.sha256, 32);
+    portENTER_CRITICAL(&status_mux);
+    memcpy(status_cache, next, sizeof(status_cache));
+    portEXIT_CRITICAL(&status_mux);
+}
+
 static void process(const request_t *request)
 {
     const uint8_t *p = request->data;
@@ -84,7 +111,11 @@ static void process(const request_t *request)
     xSemaphoreTake(lock, portMAX_DELAY);
     if (op == OP_STATUS) {
         /* Rejoin must preserve the previous operation result. */
-        session.last_activity = xTaskGetTickCount();
+        xSemaphoreGive(lock);
+        return;
+    }
+    if (request->length >= 9 && session.sequence == seq &&
+        session.last_op == op && session.transfer_id == id) {
         xSemaphoreGive(lock);
         return;
     }
@@ -142,13 +173,25 @@ static void process(const request_t *request)
         } else if (op == OP_COMMIT && request->length == 9 &&
                    session.phase == PHASE_VERIFIED) {
             config_store_record_t committed;
-            esp_err_t err = config_store_commit(config_runtime_validate, NULL, &committed);
+            uint32_t candidate_revision = session.base_revision + 1;
+            esp_err_t err = config_trial_prepare(candidate_revision);
+            if (err == ESP_OK)
+                err = config_store_commit(config_runtime_validate, NULL, &committed);
+            if (err != ESP_OK) {
+                esp_err_t cancel_err = config_trial_cancel(candidate_revision);
+                if (cancel_err != ESP_OK)
+                    ESP_LOGE(TAG, "Failed to cancel configuration trial: %s",
+                             esp_err_to_name(cancel_err));
+            }
             session.result = result_for_error(err);
             if (err == ESP_OK) {
                 session.phase = PHASE_APPLIED;
-                transfer_gate_release(1);
+                active_record = committed;
+                has_active_record = true;
+                session.activation_deadline = xTaskGetTickCount() + pdMS_TO_TICKS(5000);
             }
-        } else if (op == OP_ABORT && request->length == 9) {
+        } else if (op == OP_ABORT && request->length == 9 &&
+                   session.phase != PHASE_APPLIED) {
             config_store_abort();
             session.phase = PHASE_IDLE;
             transfer_gate_release(1);
@@ -157,6 +200,7 @@ static void process(const request_t *request)
     } else if (op == OP_COMMIT) session.result = RESULT_UNAVAILABLE;
     ESP_LOGI(TAG, "op=%u seq=%lu result=%u offset=%lu", op, (unsigned long)seq,
              session.result, (unsigned long)session.accepted);
+    publish_status_locked();
     xSemaphoreGive(lock);
 }
 
@@ -174,9 +218,10 @@ static void worker(void *arg)
             session.phase = PHASE_IDLE;
             transfer_gate_release(1);
             session.result = RESULT_CONFLICT;
+            publish_status_locked();
         }
         bool restart = session.phase == PHASE_APPLIED &&
-            xTaskGetTickCount() - session.last_activity > pdMS_TO_TICKS(5000);
+            (int32_t)(xTaskGetTickCount() - session.activation_deadline) >= 0;
         xSemaphoreGive(lock);
         if (restart) esp_restart();
     }
@@ -187,6 +232,10 @@ esp_err_t config_transfer_init(void)
     lock = xSemaphoreCreateMutex();
     requests = xQueueCreate(4, sizeof(request_t));
     if (!lock || !requests) return ESP_ERR_NO_MEM;
+    has_active_record = config_store_active(&active_record) == ESP_OK;
+    xSemaphoreTake(lock, portMAX_DELAY);
+    publish_status_locked();
+    xSemaphoreGive(lock);
     return xTaskCreate(worker, "cfg_transfer", 6144, NULL, 4, NULL) == pdPASS
         ? ESP_OK : ESP_ERR_NO_MEM;
 }
@@ -202,24 +251,10 @@ bool config_transfer_command(const uint8_t *bytes, size_t length)
 
 size_t config_transfer_status(uint8_t out[CONFIG_TRANSFER_STATUS_SIZE])
 {
-    config_store_record_t active;
-    bool has_active = config_store_active(&active) == ESP_OK;
-    uint32_t revision = has_active ? active.revision : 0;
-    memset(out, 0, CONFIG_TRANSFER_STATUS_SIZE);
-    xSemaphoreTake(lock, portMAX_DELAY);
-    out[0] = 3;
-    out[1] = session.phase;
-    out[2] = session.result;
-    out[3] = session.last_op;
-    put_u32(out + 4, session.sequence);
-    put_u32(out + 8, session.transfer_id);
-    put_u32(out + 12, session.accepted);
-    put_u32(out + 16, session.total_length);
-    put_u32(out + 20, revision);
-    put_u32(out + 24, session.base_revision);
-    out[28] = session.digest_parts;
-    if (has_active) memcpy(out + 32, active.sha256, 32);
-    xSemaphoreGive(lock);
+    if (!out) return 0;
+    portENTER_CRITICAL(&status_mux);
+    memcpy(out, status_cache, sizeof(status_cache));
+    portEXIT_CRITICAL(&status_mux);
     return CONFIG_TRANSFER_STATUS_SIZE;
 }
 
