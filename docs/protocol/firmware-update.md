@@ -49,3 +49,5 @@ Power interruption before/after every erase/write/boot-selection boundary must r
 ## Hardware-aware transport extension
 
 BLE provides association/control and a universal update path; Wi-Fi is designed as a negotiated faster bulk transport sharing the same operation state, trust checks and recovery semantics. Two-adapter radio coexistence, board sensors, PSRAM, USB and power management are covered in the [hardware and transport strategy](../architecture/hardware-and-transports.md). Preferred production update transport remains subject to WIFI-001/RADIO-001 measurements.
+
+The implemented experimental transport uses an automatic temporary gauge network and application-layer AEAD. Its wire contract, capability gate and remaining qualification work are documented in [Wi-Fi bulk transport](wifi-bulk-v1.md).

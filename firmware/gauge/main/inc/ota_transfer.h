@@ -7,6 +7,7 @@
 
 #define OTA_TRANSFER_STATUS_SIZE 56
 #define OTA_BOOT_IDENTITY_SIZE 60
+#define OTA_TRANSFER_MAX_REQUEST 1040
 
 esp_err_t ota_transfer_init(void);
 /* Nonblocking queue admission from the authenticated GATT callback. */

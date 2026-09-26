@@ -17,6 +17,7 @@ idf_component_register(
         "src/config_trial_policy.c"
         "src/alert_engine.c"
         "src/ota_transfer.c"
+        "src/wifi_bulk.c"
         "src/transfer_gate.c"
         "src/diagnostics_state.c"
         "src/config_document.c"
@@ -30,7 +31,7 @@ idf_component_register(
         "inc"
     EMBED_TXTFILES "certs/dev-update-public.pem"
     REQUIRES lvgl esp_lvgl_port bt
-    PRIV_REQUIRES nvs_flash spi_flash mbedtls json app_update
+    PRIV_REQUIRES nvs_flash spi_flash mbedtls json app_update esp_wifi esp_netif esp_event lwip
 )
 
 target_compile_options(${COMPONENT_TARGET} PRIVATE -Wall -Wextra -Wshadow -Werror)

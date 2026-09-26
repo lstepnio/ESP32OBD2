@@ -137,7 +137,8 @@ class GaugeConfigTransferClient(private val context: Context) {
                      (result.bytes.size == 32 && result.bytes[0].toInt() == 5) ||
                      (result.bytes.size == 60 && result.bytes[0].toInt() == 6) ||
                      (result.bytes.size in 52..180 && result.bytes[0].toInt() == 7) ||
-                     (result.bytes.size == 44 && result.bytes[0].toInt() == 8))) return
+                     (result.bytes.size == 44 && result.bytes[0].toInt() == 8) ||
+                     (result.bytes.size == 112 && result.bytes[0].toInt() == 9))) return
                 if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
                     result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
                     error("Gauge owner state read failed (${result.status})")
@@ -187,11 +188,7 @@ class GaugeConfigTransferClient(private val context: Context) {
             error("Gauge did not confirm configuration command $opcode")
         }
         suspend fun readOta(): OtaStatus {
-            val bytes = readRaw()
-            require(bytes.size == 56 && bytes[0].toInt() == 4) { "Gauge returned an unsupported update status" }
-            return OtaStatus(bytes[1].toInt() and 255, bytes[2].toInt() and 255,
-                bytes[3].toInt() and 255, u32(bytes, 4), u32(bytes, 8), u32(bytes, 12),
-                u32(bytes, 16), bytes.copyOfRange(24, 56))
+            return otaStatus(readRaw())
         }
         suspend fun otaCommand(opcode: Int, sequence: Long, payload: ByteArray = byteArrayOf(),
                                attempts: Int = 80): OtaStatus {
@@ -315,6 +312,135 @@ class GaugeConfigTransferClient(private val context: Context) {
         return GaugeProtocolCodec.runtimeIdentity(bytes)
     }
 
+    /** Opens a random, time-limited gauge access point through the authenticated BLE owner link. */
+    suspend fun openWifiBulk(device: BluetoothDevice): WifiBulkSession {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        val sequence = (SecureRandom().nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
+        return withGauge(device, 90_000) {
+            writeRaw(byteArrayOf(0x40) + le32(sequence))
+            repeat(120) {
+                val bytes = readRaw()
+                require(bytes.size == 112 && bytes[0].toInt() == 9) {
+                    "Gauge returned an unsupported Wi-Fi status"
+                }
+                if (u32(bytes, 4) == sequence && (bytes[3].toInt() and 255) == 0x40) {
+                    val phase = bytes[1].toInt() and 255
+                    val result = bytes[2].toInt() and 255
+                    if (phase == 3) error("Gauge could not start its temporary Wi-Fi network (result $result)")
+                    if (phase == 2 && result == 0) {
+                        val ssidLength = bytes[56].toInt() and 255
+                        val passwordLength = bytes[57].toInt() and 255
+                        require(ssidLength in 1..32 && passwordLength in 8..16) {
+                            "Gauge returned invalid temporary network credentials"
+                        }
+                        return@withGauge WifiBulkSession(
+                            bytes.copyOfRange(8, 12),
+                            (bytes[12].toInt() and 255) or ((bytes[13].toInt() and 255) shl 8),
+                            u32(bytes, 16),
+                            bytes.copyOfRange(20, 52),
+                            u32(bytes, 52),
+                            bytes.copyOfRange(58, 58 + ssidLength).toString(Charsets.UTF_8),
+                            bytes.copyOfRange(90, 90 + passwordLength).toString(Charsets.UTF_8),
+                        )
+                    }
+                }
+                delay(250)
+            }
+            error("Gauge did not make its temporary Wi-Fi network ready")
+        }
+    }
+
+    suspend fun closeWifiBulk(device: BluetoothDevice) {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        val sequence = (SecureRandom().nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
+        withGauge(device) {
+            writeRaw(byteArrayOf(0x42) + le32(sequence))
+            repeat(40) {
+                val bytes = readRaw()
+                require(bytes.size == 112 && bytes[0].toInt() == 9) {
+                    "Gauge returned an unsupported Wi-Fi status"
+                }
+                if (u32(bytes, 4) == sequence && (bytes[3].toInt() and 255) == 0x42 &&
+                    bytes[1].toInt() == 0) return@withGauge
+                delay(100)
+            }
+            error("Gauge did not close its temporary Wi-Fi network")
+        }
+    }
+
+    /** Uses Wi-Fi only for signed image transfer. BLE remains the trust bootstrap and boot check. */
+    suspend fun installUpdateWifi(device: BluetoothDevice, bundle: DevUpdateBundle,
+                                  progress: (Int) -> Unit): UpdateResult {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        val before = readBootIdentity(device)
+        val expectedElf = bundle.elfSha256.joinToString("") { "%02x".format(it) }
+        check(before.elfSha256 != expectedElf) { "This signed firmware image is already running on the gauge" }
+        val random = SecureRandom()
+        val transferId = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
+        var sequence = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
+        val id = le32(transferId)
+        val wifiSession = openWifiBulk(device)
+        progress(0)
+        try {
+            WifiBulkClient(context, wifiSession).use { wifi ->
+            suspend fun command(opcode: Int, payload: ByteArray = byteArrayOf()): OtaStatus {
+                val commandSequence = sequence++
+                val response = if (opcode == 0x27) wifi.otaStatus()
+                    else wifi.ota(byteArrayOf(opcode.toByte()) + le32(commandSequence) + payload)
+                val status = otaStatus(response)
+                if (opcode != 0x27) {
+                    check(status.sequence == commandSequence && status.opcode == opcode && status.result == 0) {
+                        "Gauge update command $opcode failed over Wi-Fi (result ${status.result}, phase ${status.phase})"
+                    }
+                }
+                return status
+            }
+            val current = command(0x27)
+            if (current.phase in 1..3 && current.transferId != 0L)
+                command(0x26, le32(current.transferId))
+            else check(current.phase == 0) { "Gauge is already activating an update" }
+            command(0x20, id + le32(bundle.image.size.toLong()) + le32(0x31534745))
+            try {
+                for (part in 0..3) command(0x21, id + byteArrayOf(part.toByte()) +
+                    bundle.sha256.copyOfRange(part * 8, part * 8 + 8))
+                for (part in 0 until (bundle.signatureDer.size + 7) / 8) {
+                    val start = part * 8
+                    command(0x28, id + byteArrayOf(part.toByte(), bundle.signatureDer.size.toByte()) +
+                        bundle.signatureDer.copyOfRange(start, minOf(start + 8, bundle.signatureDer.size)))
+                }
+                command(0x22, id)
+                var offset = 0
+                var lastProgress = 0
+                while (offset < bundle.image.size) {
+                    val chunk = bundle.image.copyOfRange(offset, minOf(offset + 1024, bundle.image.size))
+                    val status = command(0x23, id + le32(offset.toLong()) + chunk)
+                    check(status.accepted == offset.toLong() + chunk.size) {
+                        "Gauge accepted an unexpected Wi-Fi update offset"
+                    }
+                    offset += chunk.size
+                    val percent = offset * 100 / bundle.image.size
+                    if (percent > lastProgress) {
+                        lastProgress = percent
+                        progress(percent)
+                    }
+                }
+                val verified = command(0x24, id)
+                check(verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
+                    verified.digest.contentEquals(bundle.sha256)) { "Gauge did not verify the signed image" }
+            } catch (error: Exception) {
+                runCatching { command(0x26, id) }
+                throw error
+            }
+                val activated = command(0x25, id)
+                check(activated.phase == 4) { "Gauge did not select the update for boot" }
+            }
+        } catch (error: Exception) {
+            runCatching { closeWifiBulk(device) }
+            throw error
+        }
+        return confirmUpdatedBoot(device, before, expectedElf)
+    }
+
     /** Development-only update path. The gauge independently verifies the signed image. */
     suspend fun installUpdate(device: BluetoothDevice, bundle: DevUpdateBundle,
                               progress: (Int) -> Unit): UpdateResult {
@@ -369,6 +495,11 @@ class GaugeConfigTransferClient(private val context: Context) {
         }
         // Firmware schedules the restart five seconds after activation. Allow its boot and
         // health confirmation to finish before treating the prior slot as a rollback.
+        return confirmUpdatedBoot(device, before, expectedElf)
+    }
+
+    private suspend fun confirmUpdatedBoot(device: BluetoothDevice, before: BootIdentity,
+                                           expectedElf: String): UpdateResult {
         delay(10000)
         repeat(8) {
                 val observed = try {
@@ -494,6 +625,14 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
 
     companion object {
+        private fun otaStatus(bytes: ByteArray): OtaStatus {
+            require(bytes.size == 56 && bytes[0].toInt() == 4) {
+                "Gauge returned an unsupported update status"
+            }
+            return OtaStatus(bytes[1].toInt() and 255, bytes[2].toInt() and 255,
+                bytes[3].toInt() and 255, u32(bytes, 4), u32(bytes, 8), u32(bytes, 12),
+                u32(bytes, 16), bytes.copyOfRange(24, 56))
+        }
         private fun le32(value: Long) = ByteArray(4) { ((value ushr (it * 8)) and 255).toByte() }
         private fun u32(value: ByteArray, offset: Int) = (0..3).fold(0L) { result, index ->
             result or ((value[offset + index].toLong() and 255) shl (index * 8))

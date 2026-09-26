@@ -78,6 +78,7 @@ data class CapabilitySnapshot(
     val quickSelect: Boolean,
     val displayRotationWrite: Boolean,
     val ota: Boolean,
+    val wifiBulk: String?,
 )
 
 data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revision: Long)
@@ -457,13 +458,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 operationCoordinator.run(OperationKind.UPDATE) { id ->
                     updateStarted()
                     operation = OperationState(id, OperationKind.UPDATE, OperationStage.CONNECTING,
-                        "Installing firmware", "Connecting to the gauge")
-                    val result = GaugeConfigTransferClient(getApplication())
-                        .installUpdate(bleClient.selectedGauge(), bundle) { percent ->
+                        "Installing firmware", if (capabilities?.wifiBulk != null)
+                            "Preparing a private gauge Wi-Fi connection" else "Connecting to the gauge")
+                    val client = GaugeConfigTransferClient(getApplication())
+                    val reportProgress: (Int) -> Unit = { percent ->
                             updateProgress(percent)
                             operation = operation.copy(stage = OperationStage.SENDING,
-                                detail = "Sending firmware to the gauge", progressPercent = percent)
+                                detail = if (capabilities?.wifiBulk != null)
+                                    "Sending firmware over private gauge Wi-Fi" else
+                                    "Sending firmware over Bluetooth", progressPercent = percent)
                         }
+                    val result = if (capabilities?.wifiBulk == "experimental-softap-aead-v1")
+                        client.installUpdateWifi(bleClient.selectedGauge(), bundle, reportProgress)
+                    else client.installUpdate(bleClient.selectedGauge(), bundle, reportProgress)
                     updateSucceeded(result)
                     operation = OperationState(id, OperationKind.UPDATE, OperationStage.ACTIVE,
                         "Firmware installed", "The new image is healthy and running", 100, true)

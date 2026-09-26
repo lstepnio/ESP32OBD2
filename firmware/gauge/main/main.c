@@ -41,6 +41,7 @@
 #include "config_runtime.h"
 #include "alert_engine.h"
 #include "ota_transfer.h"
+#include "wifi_bulk.h"
 #include "esp_ota_ops.h"
 #include "transfer_gate.h"
 #include "diagnostics_state.h"
@@ -435,6 +436,9 @@ static void init_config(void)
         g_runtime = NULL;
     }
     ESP_ERROR_CHECK(config_transfer_init());
+#if CONFIG_EGAUGE_WIFI_BULK_ENABLED
+    ESP_ERROR_CHECK(wifi_bulk_init());
+#endif
 
     esp_err_t err = config_load(&g_config);
 

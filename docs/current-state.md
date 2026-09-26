@@ -18,6 +18,8 @@ The integration branch runs authenticated protocol 0 reading selection and displ
 
 The 2026-09-26 core hardening work is documented in [firmware runtime ownership](architecture/firmware-runtime.md) and its [validation record](development/firmware-core-hardening-validation.md). These source, sanitizer, build, and Android checks do not replace a flash and live regression of the new image.
 
+An authenticated Wi-Fi bulk transport is implemented behind `CONFIG_EGAUGE_WIFI_BULK_ENABLED`. The owner BLE link negotiates a random temporary WPA2 SoftAP and AES-256-GCM session; Android joins it without asking the user for network credentials and can send signed OTA commands through the existing update state machine. Firmware and Android builds pass. Capability advertisement remains disabled until a live gauge and Pixel transfer, expiry, replay, interruption and recovery run is recorded in [the protocol document](protocol/wifi-bulk-v1.md).
+
 The Android core and UX work is documented in [Android runtime ownership](architecture/android-runtime.md), its [review plan](development/android-core-ux-review-plan.md), and [validation record](development/android-core-ux-validation.md). Its deterministic software evidence does not replace phone accessibility/performance, published update, participant, or OBD hardware qualification.
 
 ## Baseline provenance

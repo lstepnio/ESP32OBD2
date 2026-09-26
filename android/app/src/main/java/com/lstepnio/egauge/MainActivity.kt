@@ -92,6 +92,12 @@ class MainActivity : ComponentActivity() {
         if (grants.values.all { it }) readGauge()
         else model.connectionError("Nearby device permission is required to find the gauge")
     }
+    private val wifiPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) model.installSelectedUpdate()
+        else model.updateFailed("Nearby Wi-Fi permission is required for automatic fast transfer")
+    }
     private val updatePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) lifecycleScope.launch {
             try {
@@ -193,7 +199,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestInstallUpdate() {
-        model.installSelectedUpdate()
+        val permission = when {
+            model.capabilities?.wifiBulk == null -> null
+            Build.VERSION.SDK_INT >= 33 -> Manifest.permission.NEARBY_WIFI_DEVICES
+            else -> Manifest.permission.ACCESS_FINE_LOCATION
+        }
+        if (permission != null && checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED)
+            wifiPermissionLauncher.launch(permission)
+        else model.installSelectedUpdate()
     }
 }
 
@@ -912,6 +925,8 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                     InfoLine("Board", caps.board)
                     InfoLine("Protocol", caps.protocolMajor.toString())
                     InfoLine("Adapter links", "${caps.maxAdapterLinks}; simultaneous use ${if (caps.simultaneousVerified) "verified" else "unverified"}")
+                    InfoLine("Firmware transfer", if (caps.wifiBulk != null)
+                        "Automatic private Wi-Fi" else "Bluetooth")
                     model.runtimeIdentity?.let { runtime ->
                         InfoLine("Running revision", runtime.revision.toString())
                         InfoLine("Stored revision", runtime.storedRevision.toString())
@@ -1077,7 +1092,9 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                 enabled = model.updateReady && !model.scanning && model.capabilities?.experimentalNumericConfig == true) {
                 Text(if (model.updateInProgress) "Installing…" else "Install development update")
             }
-            Text("Keep the app open and gauge powered until the new image is confirmed. Interrupted transfers can be retried.",
+            Text(if (model.capabilities?.wifiBulk != null)
+                "Android may ask once to join the gauge's temporary network. No Wi-Fi password is required. Keep the app open and gauge powered until the new image is confirmed."
+                else "Keep the app open and gauge powered until the new image is confirmed. Interrupted transfers can be retried.",
                 color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
         }
     }

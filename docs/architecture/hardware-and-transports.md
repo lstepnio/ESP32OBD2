@@ -33,7 +33,7 @@ The following order maximizes driver value and reliability while keeping unverif
 | P0 | Device power awareness | Report device battery/source health, reject unsafe updates and perform graceful low-power shutdown | Calibrate GPIO1 ADC, distinguish USB/device battery/vehicle states and measure update current margins |
 | P1 | IMU-assisted setup and events | Guide mounting orientation, verify installation movement and create bounded impact/movement event markers | Add shared-I2C ownership, low-rate sampling, interrupt handling, calibration and health reporting |
 | P1 | Haptic feedback | Confirm touch actions and reinforce critical alerts when the display is outside the driver's direct view | Inspect output circuitry and current limits; prototype on GPIO4 first because GPIO5 conflicts with touch interrupt |
-| P1 | Wi-Fi maintenance transport | Faster OTA, diagnostic export and PID catalog/profile transfer after BLE-authenticated provisioning | Measure Wi-Fi/BLE coexistence and use station mode first; avoid an always-open access point |
+| P1 | Wi-Fi maintenance transport | Faster OTA, diagnostic export and PID catalog/profile transfer through an automatic private gauge network authorized by BLE | Measure Wi-Fi/BLE coexistence; use one random WPA2 SoftAP session with application-layer AEAD and a short expiry |
 | P1 | Bounded event storage | Store alert transitions, resets, update results and redacted support records in unused flash | Allocate a versioned wear-leveled partition with retention and privacy limits |
 | P1 | PSRAM-backed trends | Smooth graphs, short bounded histories and richer rendering without starving protocol tasks | Set memory budgets and keep BLE, DMA and critical queues in internal memory |
 | P2 | Protected accessory interface | Optional ambient light, ignition sense or external haptic/buzzer module | Define a protected connector contract and validate voltage, ESD, transients and pin ownership |
@@ -47,7 +47,7 @@ The IMU is not a trustworthy source for vehicle speed, crash detection or perfor
 2. Deliver PWM brightness, manual/night presets, the round-display-safe night palette and a local hardware self-test page.
 3. Add bounded event storage and export for alert transitions, resets, update outcomes and hardware faults.
 4. Prototype the IMU installation assistant and GPIO4 haptic feedback, with a compile-time board-revision gate until electrical limits are verified.
-5. Add Wi-Fi station provisioning and authenticated bulk transfer, then measure OBD BLE latency while transferring firmware and logs.
+5. Qualify the automatic private Wi-Fi bulk transport, then measure OBD BLE latency while transferring firmware and logs.
 6. Define production key provisioning, encrypted storage, secure boot and rollback policy before manufacturing builds.
 7. Treat direct CAN and automotive power/ignition sensing as a future board variant with its own schematic, protection and validation plan.
 
@@ -67,13 +67,13 @@ The IMU is not a trustworthy source for vehicle speed, crash detection or perfor
 The application protocol owns capabilities, request IDs, operation tokens, config hashes and OTA state. BLE and Wi-Fi are transports of the same authenticated operations. Keep BLE as the universal bootstrap/recovery control path. Negotiate `bulkTransports` and transport/session capabilities. Prefer Wi-Fi for a large firmware image only after preflight confirms a usable local path; keep BLE as fallback. Never require an internet connection for an already downloaded update.
 
 1. Associate and establish ownership through authenticated BLE.
-2. Owner selects home/local Wi-Fi station mode or an explicit temporary device access point. Verify the provisioning transport can share the chosen NimBLE lifecycle; do not use example cleanup handlers that release Bluetooth memory required by the gauge. Use a device-specific access credential and time-limited enrollment; no open permanent AP.
-3. Provision over the authenticated session using established Espressif provisioning security primitives, reviewed for the actual implementation. Do not log network credentials. Store only where needed with a production storage-protection policy.
-4. Exchange local endpoint and its device certificate/public-key fingerprint over the trusted BLE channel. Android validates that identity on the TLS connection; never accept arbitrary self-signed certificates or disable hostname/trust checks globally.
-5. Bind each bulk transfer token to owner, artifact/config hash and current operation. Switch transports only at an acknowledged offset after closing the previous writer. One writer lease prevents BLE/Wi-Fi races.
-6. On Wi-Fi loss, query accepted offset through BLE and resume if the same device boot/session remains alive. If device rebooted, follow the v1 restart-from-zero OTA policy. Do not implement separate conflicting OTA state machines.
+2. Owner starts a bulk operation. The gauge creates a one-client WPA2 SoftAP with random credentials and a separate AES-256-GCM session key. It returns them only over the protected BLE owner characteristic.
+3. Android requests the temporary network with `WifiNetworkSpecifier` and binds only the bulk socket to it. No user-entered network credentials, permanent device access point or phone-wide route change is required.
+4. Bind every encrypted frame to the random session ID, a strictly increasing sequence, direction and authenticated header. The session expires after ten minutes and all secrets remain in RAM.
+5. Send the existing configuration or OTA commands through the encrypted socket. The existing transfer gate, hashes, signatures, offsets and activation state remain authoritative and prevent BLE/Wi-Fi writer races.
+6. On Wi-Fi loss, query accepted offset through BLE and open a fresh Wi-Fi session before continuing the same safe transfer policy. If the device rebooted, follow the v1 restart-from-zero OTA policy.
 
-Android local Wi-Fi/SoftAP routing must respect OS consent and lifecycle. A local-only network may lack internet; bind only the transfer socket/client to that network and retain any available internet route for unrelated downloads. Resolve background/foreground behavior and permission changes on target Android versions during the spike.
+Android local Wi-Fi routing must respect OS consent and lifecycle. The network intentionally lacks internet; bind only the transfer socket to it and retain any available internet route for unrelated downloads. The app may trigger Android's standard network approval sheet, but it does not ask the user for an SSID or password.
 
 ## Integrations and limits
 
@@ -85,7 +85,7 @@ Power saving: use bounded reconnect scans, optional screen dimming and explicit 
 
 - **HW-001:** exact board revision, flash, QSPI PSRAM allocation, sensor identity, battery ADC calibration and available pin map.
 - **RADIO-001:** ECM + TCM + phone coexistence with Wi-Fi off/on and in maintenance, including power measurements.
-- **WIFI-001:** station/temporary-AP secure provisioning, Android network routing, measured transfer throughput and recovery; choose preferred production transport from evidence.
+- **WIFI-001:** automatic temporary-AP authorization, Android network routing, measured transfer throughput and recovery; promote the capability only from device evidence.
 - **POWER-001:** sleep/dimming/wake policy, ignition inference limits, permanent automotive power design.
 
-These are implementation gates. No Wi-Fi service, provisioning credentials, extra sensors or radio mode changes are installed by this design milestone.
+These are implementation gates. The Wi-Fi source path is implemented behind a disabled capability gate; qualification is still required. No extra sensors or permanent radio mode changes are installed by this design milestone.

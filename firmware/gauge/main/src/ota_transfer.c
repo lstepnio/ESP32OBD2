@@ -28,7 +28,7 @@
 
 typedef struct {
     uint16_t length;
-    uint8_t data[173];
+    uint8_t data[OTA_TRANSFER_MAX_REQUEST];
 } request_t;
 
 static QueueHandle_t queue;
@@ -219,7 +219,7 @@ static void process(const request_t *request)
                     state.result = 0;
                 } else state.result = 4;
             } else if (offset < state.accepted && count <= state.accepted - offset) {
-                uint8_t previous[160];
+                uint8_t previous[OTA_TRANSFER_MAX_REQUEST - 13];
                 if (esp_partition_read(target, offset, previous, count) == ESP_OK &&
                     memcmp(previous, p + 13, count) == 0) state.result = 0;
                 else state.result = 3;
@@ -276,7 +276,7 @@ esp_err_t ota_transfer_init(void)
 
 bool ota_transfer_command(const uint8_t *bytes, size_t length)
 {
-    if (!queue || !bytes || length < 5 || length > 173 ||
+    if (!queue || !bytes || length < 5 || length > OTA_TRANSFER_MAX_REQUEST ||
         bytes[0] < OP_BEGIN || bytes[0] > OP_SIGNATURE) return false;
     request_t request = {.length = length};
     memcpy(request.data, bytes, length);

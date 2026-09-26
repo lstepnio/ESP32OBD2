@@ -23,6 +23,7 @@ object GaugeProtocolCodec {
             quickSelect = json.optBoolean("quickSelect", false),
             displayRotationWrite = json.optBoolean("displayRotationWrite", false),
             ota = ota,
+            wifiBulk = json.optString("wifiBulk").takeIf { it.isNotBlank() },
         )
     }
 
@@ -85,4 +86,3 @@ object GaugeProtocolCodec {
         result or ((value[offset + index].toLong() and 255) shl (index * 8))
     }
 }
-

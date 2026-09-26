@@ -1,4 +1,12 @@
-menu "eGauge adapter selection"
+menu "eGauge configuration"
+
+config EGAUGE_WIFI_BULK_ENABLED
+    bool "Advertise experimental authenticated Wi-Fi bulk transfer"
+    default n
+    help
+        Enables the owner-only temporary SoftAP negotiation commands and
+        advertises experimental-softap-aead-v1. Keep disabled until the exact
+        firmware and Android build complete a live encrypted transfer.
 
 config EGAUGE_ECM_ADAPTER_MAC
     string "ECM BLE adapter MAC address (blank discovers first compatible adapter)"
