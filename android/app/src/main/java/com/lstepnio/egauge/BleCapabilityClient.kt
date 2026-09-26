@@ -18,6 +18,7 @@ import android.os.ParcelUuid
 import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.util.UUID
@@ -293,7 +294,13 @@ class BleCapabilityClient(private val context: Context) {
     suspend fun readNearby(): CapabilitySnapshot {
         selectedDevice = null
         val device = scanNearby()
-        val capabilities = readCapabilities(device)
+        val capabilities = try {
+            readCapabilities(device)
+        } catch (error: IllegalStateException) {
+            if (error.message?.startsWith("Gauge disconnected (") != true) throw error
+            delay(400)
+            readCapabilities(device)
+        }
         selectedDevice = device
         return capabilities
     }
