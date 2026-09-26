@@ -2,6 +2,8 @@
 
 The development gauge now runs the two-slot layout and a rollback-enabled bootloader. Firmware has an experimental owner-only BLE transfer and activation path described in [experimental firmware transfers](experimental-firmware-transfers.md). Android delivery and signed release enforcement are not implemented. Public `ota` remains false. BLE updates do not change the bootloader or partition table.
 
+For local integration work, `python3 tools/sign_dev_update.py firmware/gauge/build/esp32-idf-project.bin --bundle /tmp/egauge-dev-update.zip` creates a development ZIP with exactly `metadata.json` and `firmware.bin`. The metadata carries board tag, image length, SHA-256, and a DER P-256 signature over the firmware transfer's 40 signed bytes. The private key remains outside Git. This package is an input to a future Android importer; creating it does not activate or verify an update on the device, and it is not a production release manifest.
+
 ## Proposed 16 MiB layout
 
 | Partition | Offset | Size | Purpose |

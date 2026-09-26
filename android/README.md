@@ -20,6 +20,10 @@ The PID explorer searches sample standard requests by name, source, category and
 
 On a paired owner phone, read gauge capabilities, open Design, and use **Send experimental numeric profile**. The app derives a version 1 document from the bundled template: RPM, coolant, and speed on numeric pages, with the selected supported reading first and the local coolant thresholds. It reads the active revision, sends the SHA-256 digest and bounded chunks, requests verification and commit, then reconnects after reboot to compare active revision and hash. The full **Apply to gauge** remains disabled because nonnumeric layouts, TCM routing, broad PID discovery, and vehicle evidence are still missing. Two Pixel transfers and separate durable status readbacks succeeded; see [hardware evidence](../docs/development/numeric-config-transfer-validation.md).
 
+## Signed development update import
+
+The Device screen can choose a `.egauge-dev-update` ZIP from Android's system document picker. The importer requires exactly `metadata.json` and `firmware.bin`, bounds the image to the 3 MiB OTA slot, checks board tag, protocol and SHA-256, and verifies the P-256 signature against the pinned development public key. The development bundle can be made with `tools/sign_dev_update.py --bundle`. Import only validates a local package: **Install on gauge** remains disabled until BLE delivery, reboot identity, rollback and recovery are implemented and observed. The private development key stays outside Git and the APK.
+
 ## Implementation boundary
 
 The future Apply gate requires an active vehicle session and an observed responding PID tied to the active local profile, adapter, and ECU. The current app has no vehicle session, so example catalog entries never satisfy this gate. This is a UI preflight, not a substitute for firmware validation or authenticated commit.

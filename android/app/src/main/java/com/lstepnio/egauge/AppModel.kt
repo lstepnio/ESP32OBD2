@@ -108,6 +108,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var diagnostics by mutableStateOf<GaugeConfigTransferClient.Diagnostics?>(null)
         private set
+    private var selectedUpdate: DevUpdateBundle? = null
+    var updatePackageMessage by mutableStateOf("No update package selected")
+        private set
     var activeConfigRevision by mutableStateOf<Long?>(null)
         private set
     var sentDraft by mutableStateOf<Draft?>(null)
@@ -242,6 +245,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         scanning = false
         diagnostics = value
         deviceMessage = "Protected diagnostic snapshot read. Vehicle evidence is shown below."
+    }
+    fun updatePackageLoaded(value: DevUpdateBundle) {
+        selectedUpdate = value
+        val hash = value.sha256.joinToString("") { "%02x".format(it) }
+        updatePackageMessage = "Development signature valid • ${value.image.size} bytes • SHA-256 ${hash.take(12)}…"
+    }
+    fun updatePackageError(message: String) {
+        selectedUpdate = null
+        updatePackageMessage = message
     }
     fun selectionError(message: String) {
         scanning = false

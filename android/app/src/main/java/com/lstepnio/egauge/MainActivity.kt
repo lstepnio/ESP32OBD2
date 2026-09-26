@@ -67,6 +67,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val CanvasColor = Color(0xFF0C1114)
 private val SurfaceColor = Color(0xFF172025)
@@ -84,6 +86,19 @@ class MainActivity : ComponentActivity() {
     ) { grants ->
         if (grants.values.all { it }) readGauge()
         else model.connectionError("Nearby device permission is required to find the gauge")
+    }
+    private val updatePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) lifecycleScope.launch {
+            try {
+                val bundle = withContext(Dispatchers.IO) {
+                    contentResolver.openInputStream(uri)?.use { DevUpdateBundle.read(this@MainActivity, it) }
+                        ?: error("Could not open selected update package")
+                }
+                model.updatePackageLoaded(bundle)
+            } catch (error: Exception) {
+                model.updatePackageError(error.message ?: "Update package is invalid")
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,7 +121,8 @@ class MainActivity : ComponentActivity() {
                     onReadSaved = ::requestSavedSnapshot, onRotate = ::requestRotation,
                     onApplyNumeric = ::requestNumericConfiguration,
                     onReadConfig = ::requestActiveConfiguration,
-                    onReadDiagnostics = ::requestDiagnostics)
+                    onReadDiagnostics = ::requestDiagnostics,
+                    onSelectUpdate = { updatePicker.launch(arrayOf("application/zip", "application/octet-stream")) })
             }
         }
     }
@@ -259,7 +275,8 @@ class MainActivity : ComponentActivity() {
 private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                          onSelectReading: () -> Unit, onReadSaved: () -> Unit,
                          onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit,
-                         onReadConfig: () -> Unit, onReadDiagnostics: () -> Unit) {
+                         onReadConfig: () -> Unit, onReadDiagnostics: () -> Unit,
+                         onSelectUpdate: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 720.dp
         if (wide) {
@@ -276,7 +293,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                     }
                 }
                 AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate, onApplyNumeric,
-                    onReadConfig, onReadDiagnostics, Modifier.weight(1f))
+                    onReadConfig, onReadDiagnostics, onSelectUpdate, Modifier.weight(1f))
             }
         } else {
             Scaffold(containerColor = CanvasColor, bottomBar = {
@@ -291,7 +308,7 @@ private fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit,
                     }
                 }
             }) { padding -> AppBody(model, onFindGauge, onSelectReading, onReadSaved, onRotate,
-                onApplyNumeric, onReadConfig, onReadDiagnostics, Modifier.padding(padding)) }
+                onApplyNumeric, onReadConfig, onReadDiagnostics, onSelectUpdate, Modifier.padding(padding)) }
         }
     }
 }
@@ -301,6 +318,7 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                     onSelectReading: () -> Unit, onReadSaved: () -> Unit,
                     onRotate: (Int) -> Unit, onApplyNumeric: () -> Unit,
                     onReadConfig: () -> Unit, onReadDiagnostics: () -> Unit,
+                    onSelectUpdate: () -> Unit,
                     modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 840.dp).fillMaxWidth().fillMaxHeight().padding(horizontal = 20.dp)) {
@@ -310,7 +328,7 @@ private fun AppBody(model: AppViewModel, onFindGauge: () -> Unit,
                 Destination.Design -> DesignScreen(model, onApplyNumeric)
                 Destination.Pids -> PidsScreen(model)
                 Destination.Device -> DeviceScreen(model, onFindGauge, onSelectReading, onReadSaved,
-                    onRotate, onReadConfig, onReadDiagnostics)
+                    onRotate, onReadConfig, onReadDiagnostics, onSelectUpdate)
             }
         }
     }
@@ -776,7 +794,7 @@ private fun PidsScreen(model: AppViewModel) {
 private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                          onSelectReading: () -> Unit, onReadSaved: () -> Unit,
                          onRotate: (Int) -> Unit, onReadConfig: () -> Unit,
-                         onReadDiagnostics: () -> Unit) {
+                         onReadDiagnostics: () -> Unit, onSelectUpdate: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("03 / Device", "Know what is ready.",
             "Capabilities come from the gauge. Other panels show the planned workflow without vehicle actions.")
@@ -890,10 +908,16 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
         Spacer(Modifier.height(18.dp))
         Panel {
             SectionHeading("Firmware update")
-            Text("Transfer, verification, reboot and recovery will appear here when signed OTA is supported.",
+            Text("Import a locally signed development package to check its board, size, SHA-256 and P-256 signature.",
                 color = MutedColor, fontSize = 15.sp, lineHeight = 21.sp)
             Spacer(Modifier.height(12.dp))
-            Button(onClick = {}, enabled = false) { Text("Check for updates") }
+            OutlinedButton(onClick = onSelectUpdate) { Text("Choose signed package") }
+            Spacer(Modifier.height(8.dp))
+            Text(model.updatePackageMessage, color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = {}, enabled = false) { Text("Install on gauge") }
+            Text("BLE delivery, boot confirmation and recovery checks remain under development.",
+                color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
         }
     }
 }
