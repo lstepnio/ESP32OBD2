@@ -31,7 +31,7 @@ The catalog expires after 180 days. A newer release publishes a new catalog cont
 
 For a bad development release, mark it withdrawn in the next signed catalog by omitting it and publish a higher generation. Also edit the GitHub prerelease notes to say withdrawn. Do not replace its assets. Devices already running it recover through normal signed upgrade or the documented USB partition procedure. Keep the last known-good bundle and its factory recovery artifacts.
 
-The companion currently searches published GitHub releases for the first signed catalog, verifies its signature and freshness, then selects the highest compatible sequence for the exact board, hardware range, layout, channel, and transfer protocol. A wrong board or layout cannot enter the updater. GitHub availability does not bypass the gauge's independent signature and image checks.
+The companion currently searches published GitHub releases for the first signed catalog, verifies its signature and freshness, rejects a generation older than one previously trusted on the phone, then selects the highest compatible sequence for the exact board, hardware range, layout, channel, and transfer protocol. A wrong board or layout cannot enter the updater. GitHub availability does not bypass the gauge's independent signature and image checks.
 
 ## Qualification gates
 

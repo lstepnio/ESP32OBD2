@@ -167,6 +167,16 @@ class GitHubFirmwareSource(private val context: Context) {
         val pem = context.assets.open("dev-update-public.pem").bufferedReader().use { it.readText() }
         val catalog = HostedFirmwareCatalogCodec.verifyAndParse(catalogBytes, signatureBytes,
             HostedFirmwareCatalogCodec.publicKey(pem), Instant.now().epochSecond)
+        val catalogState = context.getSharedPreferences("firmware-catalog", Context.MODE_PRIVATE)
+        val highestGeneration = catalogState.getLong("highest-generation", 0)
+        require(catalog.generation >= highestGeneration) {
+            "Firmware catalog is older than one this app has already trusted"
+        }
+        if (catalog.generation > highestGeneration) {
+            check(catalogState.edit().putLong("highest-generation", catalog.generation).commit()) {
+                "Could not save firmware catalog state"
+            }
+        }
         val compatible = HostedFirmwareCatalogCodec.select(catalog, boardId, "all",
             "egauge-16m-ab-v1", FirmwareChannel.DEVELOPMENT, 0)
             ?: error("No compatible development firmware is published for this gauge")

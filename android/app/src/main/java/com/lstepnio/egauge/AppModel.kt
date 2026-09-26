@@ -128,6 +128,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var runtimeIdentity by mutableStateOf<GaugeConfigTransferClient.RuntimeIdentity?>(null)
         private set
     private var selectedUpdate: DevUpdateBundle? = null
+    private var updateMayHaveChangedGauge = false
     val updateReady: Boolean get() = selectedUpdate != null
     fun updateBundle(): DevUpdateBundle = selectedUpdate ?: error("Select a signed update package first")
     var updateInProgress by mutableStateOf(false)
@@ -406,6 +407,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun updateStarted() {
         updateInProgress = true
+        updateMayHaveChangedGauge = false
         scanning = true
         val bundle = updateBundle()
         updateJournal.write(
@@ -416,6 +418,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         updatePackageMessage = "Connecting to gauge for signed update…"
     }
     fun updateProgress(percent: Int) {
+        updateMayHaveChangedGauge = true
         if (percent == 0) {
             val bundle = updateBundle()
             updateJournal.write(
@@ -428,6 +431,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun updateSucceeded(value: GaugeConfigTransferClient.UpdateResult) {
         updateInProgress = false
+        updateMayHaveChangedGauge = false
         scanning = false
         updateJournal.clear()
         updatePackageMessage = "Gauge confirmed new image at 0x${value.partitionAddress.toString(16)} • ELF SHA-256 ${value.elfSha256.take(12)}…"
@@ -435,13 +439,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun updateFailed(message: String) {
         updateInProgress = false
         scanning = false
-        selectedUpdate?.let { bundle ->
+        if (updateMayHaveChangedGauge) selectedUpdate?.let { bundle ->
             updateJournal.write(
                 associationStore.rememberedId() ?: "unknown",
                 bundle.sha256.joinToString("") { "%02x".format(it) },
                 "needs-reconciliation",
             )
-        }
+        } else updateJournal.clear()
+        updateMayHaveChangedGauge = false
         updatePackageMessage = message
     }
     fun installSelectedUpdate() {
