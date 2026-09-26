@@ -28,6 +28,8 @@
 #define FRAME_HEADER 16U
 #define FRAME_TAG 16U
 #define FRAME_MAX_PLAINTEXT OTA_TRANSFER_MAX_REQUEST
+#define COMMAND_STATUS_POLL_TICKS 1U
+#define COMMAND_STATUS_TIMEOUT_TICKS pdMS_TO_TICKS(60000)
 
 enum { PHASE_OFF, PHASE_STARTING, PHASE_READY, PHASE_FAILED };
 enum { RESULT_OK, RESULT_PENDING, RESULT_INVALID, RESULT_NETWORK };
@@ -249,11 +251,12 @@ static bool wait_status(uint8_t kind, const uint8_t *command, size_t command_len
         : ota_transfer_command(command, command_length);
     if (!admitted) return false;
     uint32_t sequence = read_u32(command + 1);
-    for (unsigned attempt = 0; attempt < 600; ++attempt) {
+    TickType_t started = xTaskGetTickCount();
+    while (xTaskGetTickCount() - started < COMMAND_STATUS_TIMEOUT_TICKS) {
         *out_length = kind == 1 ? config_transfer_status(out) : ota_transfer_status(out);
         if (*out_length >= 8 && out[3] == command[0] && read_u32(out + 4) == sequence)
             return true;
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(COMMAND_STATUS_POLL_TICKS);
     }
     return false;
 }

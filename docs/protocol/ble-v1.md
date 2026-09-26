@@ -43,7 +43,7 @@ Service UUID: `6f1a0000-9e3b-4f45-a714-69c9d23b6c00`. Characteristics share the 
 | `6f1a0004` | Telemetry | Notify | Encrypted authenticated owner |
 | `6f1a0005` | Bulk | Write without response / Notify | Encrypted authenticated owner, active transfer |
 
-Capabilities report protocol major/minor, schema versions, board/revision, firmware version/build, supported renderers/services/decoder operators, limits, actual maximum frame size, maxAdapterLinks, simultaneousAdapterLinks, OTA availability, bulkTransports, config revision and optional feature flags (DTC_CLEAR, ALERT_RULES). Standard Device Information can be exposed separately. App gates unavailable features instead of assuming a firmware version implies a capability.
+Capabilities report protocol major/minor, schema versions, board/revision, firmware version/build, supported renderers/services/decoder operators, limits, actual maximum frame size, maxAdapterLinks, simultaneousAdapterLinks, OTA availability, bulkTransports, config revision and optional feature flags (DTC_CLEAR, ALERT_RULES). An omitted boolean capability means false. Standard Device Information can be exposed separately. App gates unavailable features instead of assuming a firmware version implies a capability.
 
 ## Framing and message envelope
 

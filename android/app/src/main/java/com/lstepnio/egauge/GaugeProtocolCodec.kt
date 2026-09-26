@@ -16,7 +16,7 @@ object GaugeProtocolCodec {
             board = json.getString("board"),
             protocolMajor = protocol,
             maxAdapterLinks = links,
-            simultaneousVerified = json.getBoolean("simultaneousAdapterLinksVerified"),
+            simultaneousVerified = json.optBoolean("simultaneousAdapterLinksVerified", false),
             configWrite = configWrite,
             experimentalNumericConfig = json.optBoolean("experimentalNumericConfig", false),
             savedStateRead = json.optBoolean("savedStateRead", false),

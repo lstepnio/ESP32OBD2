@@ -1,6 +1,6 @@
 # Experimental authenticated Wi-Fi bulk transport
 
-Status: implemented behind `CONFIG_EGAUGE_WIFI_BULK_ENABLED`; capability advertisement remains disabled until a live firmware and Pixel transfer succeeds.
+Status: enabled in the development build after live Pixel and gauge qualification on 2026-09-26. The capability remains explicitly experimental while the negative security and interruption matrix is completed.
 
 ## User experience
 
@@ -45,4 +45,5 @@ The encrypted payload is the unchanged transfer command. Firmware queues it in t
 - Android requests at most one local network and releases it when the operation closes.
 - Application-layer AEAD protects the local socket independently of WPA2.
 - BLE remains the ownership bootstrap, capability source and post-reboot health channel.
-- Public support remains disabled until encrypted transfer, interruption, expiry, wrong-key, replay and BLE recovery behavior are observed on the device and Pixel.
+- Live encrypted transfer, signed activation, alternate-partition boot, health confirmation and BLE readback are recorded in [Wi-Fi bulk validation](../development/wifi-bulk-validation.md).
+- Expiry, wrong-key, replay, power-loss interruption and recovery still require live negative-path qualification before removing the experimental label.

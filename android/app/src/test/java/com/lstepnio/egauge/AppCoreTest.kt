@@ -84,10 +84,12 @@ class AppCoreTest {
 
     @Test fun protocolCodecRejectsMalformedBoundsAndParsesRuntime() {
         val capabilities = """{"board":"board","protocolMajor":0,"maxAdapterLinks":2,
-          "simultaneousAdapterLinksVerified":false,"configWrite":false,"ota":false,
-          "experimentalNumericConfig":true,"savedStateRead":true,"quickSelect":true,
+          "configWrite":false,"ota":false,"experimentalNumericConfig":true,
+          "savedStateRead":true,"quickSelect":true,
           "displayRotationWrite":true}""".trimIndent().toByteArray()
-        assertEquals(2, GaugeProtocolCodec.capabilities(capabilities).maxAdapterLinks)
+        val parsedCapabilities = GaugeProtocolCodec.capabilities(capabilities)
+        assertEquals(2, parsedCapabilities.maxAdapterLinks)
+        assertFalse(parsedCapabilities.simultaneousVerified)
         val invalid = capabilities.toString(Charsets.UTF_8).replace("\"maxAdapterLinks\":2", "\"maxAdapterLinks\":3")
         assertThrows { GaugeProtocolCodec.capabilities(invalid.toByteArray()) }
 
