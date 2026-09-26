@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 
 /** All catalog rows below are examples, never vehicle capability evidence. */
@@ -292,9 +293,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val result = GaugeConfigTransferClient(getApplication())
                     .installUpdate(bleClient.selectedGauge(), bundle, ::updateProgress)
                 updateSucceeded(result)
+            } catch (error: TimeoutCancellationException) {
+                updateFailed("Gauge update timed out. Reconnect and read running firmware before retrying.")
             } catch (error: CancellationException) {
                 updateFailed("Update interrupted. Reconnect and read the running firmware before retrying.")
                 throw error
+            } catch (error: GaugeLinkException) {
+                updateFailed("Gauge connection interrupted during update. Reconnect and read running firmware before retrying. ${error.message}")
             } catch (error: Exception) {
                 updateFailed(error.message ?: "Signed update did not complete")
             }

@@ -17,6 +17,8 @@ import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
+internal class GaugeLinkException(message: String) : IllegalStateException(message)
+
 /** Experimental protocol-0 owner transaction for the firmware's numeric ECM subset. */
 class GaugeConfigTransferClient(private val context: Context) {
     private val serviceId = UUID.fromString("6f1a0000-9e3b-4f45-a714-69c9d23b6c00")
@@ -85,7 +87,7 @@ class GaugeConfigTransferClient(private val context: Context) {
             ?: error("Could not connect to the gauge")
         return try {
             val ready = withTimeout(20_000) { events.receive() }
-            if (ready is Event.Failed) error(ready.reason)
+            if (ready is Event.Failed) throw GaugeLinkException(ready.reason)
             require(ready is Event.Ready)
             withTimeout(operationTimeoutMs) {
                 val session = Session(gatt, events, ready.mtu)
@@ -103,7 +105,7 @@ class GaugeConfigTransferClient(private val context: Context) {
         private val control = gatt.getService(serviceId).getCharacteristic(controlId)
         private val state = gatt.getService(serviceId).getCharacteristic(stateId)
         private suspend fun next(): Event = withTimeout(12_000) { events.receive() }.also {
-            if (it is Event.Failed) error(it.reason)
+            if (it is Event.Failed) throw GaugeLinkException(it.reason)
         }
         @SuppressLint("MissingPermission")
         private suspend fun readEvent(): Event.Read {
@@ -130,9 +132,8 @@ class GaugeConfigTransferClient(private val context: Context) {
         }
         suspend fun readRaw(): ByteArray {
             val event = readEvent()
-            require(event.status == BluetoothGatt.GATT_SUCCESS) {
-                "Owner gauge read failed (${event.status})"
-            }
+            if (event.status != BluetoothGatt.GATT_SUCCESS)
+                throw GaugeLinkException("Protected read failed (GATT ${event.status})")
             return event.bytes
         }
         suspend fun read(): Status {
@@ -153,9 +154,9 @@ class GaugeConfigTransferClient(private val context: Context) {
             }
             check(started) { "Could not queue protected gauge command" }
             val write = next()
-            require(write is Event.Write && write.status == BluetoothGatt.GATT_SUCCESS) {
-                "Expected successful GATT write, received ${write.javaClass.simpleName} (${(write as? Event.Write)?.status})"
-            }
+            if (write !is Event.Write) throw GaugeLinkException("Unexpected gauge response during write")
+            if (write.status != BluetoothGatt.GATT_SUCCESS)
+                throw GaugeLinkException("Protected write failed (GATT ${write.status})")
         }
         suspend fun command(opcode: Int, sequence: Long, payload: ByteArray = byteArrayOf()): Status {
             writeRaw(byteArrayOf(opcode.toByte()) + le32(sequence) + payload)
