@@ -134,7 +134,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun updateBundle(): DevUpdateBundle = selectedUpdate ?: error("Select a signed update package first")
     var updateInProgress by mutableStateOf(false)
         private set
-    var updatePackageMessage by mutableStateOf(updateJournal.read()?.let {
+    private var pendingUpdateRecovery = updateJournal.read()
+    var updateRecoveryResult by mutableStateOf(pendingUpdateRecovery?.let {
+        UpdateRecoveryResult(UpdateRecoveryState.CHECK_REQUIRED,
+            "A previous update was interrupted. Check installed firmware before retrying.", false)
+    })
+        private set
+    var updatePackageMessage by mutableStateOf(pendingUpdateRecovery?.let {
         "A previous update was interrupted. Reconnect and check running firmware before retrying."
     } ?: "No update package selected")
         private set
@@ -396,10 +402,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         scanning = false
         bootIdentity = value
         ownerAccess = OwnerAccess.AUTHENTICATED
-        val pending = updateJournal.read()
-        if (pending != null) updateJournal.clear()
-        deviceMessage = if (pending == null) "Protected running firmware identity read."
-        else "Interrupted update reconciled. The running firmware identity is shown below."
+        val pending = pendingUpdateRecovery ?: updateJournal.read()
+        val recovery = pending?.let {
+            reconcilePendingUpdate(it, associationStore.rememberedId(), value.elfSha256, value.otaState)
+        }
+        updateRecoveryResult = recovery
+        if (recovery?.terminal == true) {
+            updateJournal.clear()
+            pendingUpdateRecovery = null
+        }
+        deviceMessage = recovery?.message ?: "Protected running firmware identity read."
     }
     fun updatePackageLoaded(value: DevUpdateBundle) {
         selectedUpdate = value
@@ -414,8 +426,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         updateJournal.write(
             associationStore.rememberedId() ?: "unknown",
             bundle.sha256.joinToString("") { "%02x".format(it) },
+            bundle.elfSha256.joinToString("") { "%02x".format(it) },
             "preparing",
         )
+        pendingUpdateRecovery = updateJournal.read()
+        updateRecoveryResult = UpdateRecoveryResult(UpdateRecoveryState.CHECK_REQUIRED,
+            "Update started. Running identity will be checked if the operation is interrupted.", false)
         updatePackageMessage = "Connecting to gauge for signed update…"
     }
     fun updateProgress(percent: Int) {
@@ -425,8 +441,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             updateJournal.write(
                 associationStore.rememberedId() ?: "unknown",
                 bundle.sha256.joinToString("") { "%02x".format(it) },
+                bundle.elfSha256.joinToString("") { "%02x".format(it) },
                 "transferring",
             )
+            pendingUpdateRecovery = updateJournal.read()
         }
         updatePackageMessage = "Sending signed image to gauge • $percent%"
     }
@@ -435,6 +453,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         updateMayHaveChangedGauge = false
         scanning = false
         updateJournal.clear()
+        pendingUpdateRecovery = null
+        updateRecoveryResult = UpdateRecoveryResult(UpdateRecoveryState.INSTALLED,
+            "The new firmware is confirmed healthy.", true)
         updatePackageMessage = "Gauge confirmed new image at 0x${value.partitionAddress.toString(16)} • ELF SHA-256 ${value.elfSha256.take(12)}…"
     }
     fun updateFailed(message: String) {
@@ -444,9 +465,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             updateJournal.write(
                 associationStore.rememberedId() ?: "unknown",
                 bundle.sha256.joinToString("") { "%02x".format(it) },
+                bundle.elfSha256.joinToString("") { "%02x".format(it) },
                 "needs-reconciliation",
             )
-        } else updateJournal.clear()
+            pendingUpdateRecovery = updateJournal.read()
+            updateRecoveryResult = UpdateRecoveryResult(UpdateRecoveryState.CHECK_REQUIRED,
+                "The update outcome is unknown. Check installed firmware before retrying.", false)
+        } else {
+            updateJournal.clear()
+            pendingUpdateRecovery = null
+            updateRecoveryResult = null
+        }
         updateMayHaveChangedGauge = false
         updatePackageMessage = message
     }

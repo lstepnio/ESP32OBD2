@@ -74,6 +74,23 @@ class AppCoreTest {
             confirmRuntime(4, hash, runtime(revision = 3, stored = 3, hash = hash)))
     }
 
+    @Test fun interruptedUpdateRequiresExactAuthenticatedIdentity() {
+        val expected = "ab".repeat(32)
+        val pending = PendingUpdateRecovery("gauge-a", "cd".repeat(32), expected,
+            "needs-reconciliation", 1)
+        assertEquals(UpdateRecoveryState.CHECK_REQUIRED,
+            reconcilePendingUpdate(pending, "gauge-b", expected, 2).state)
+        assertEquals(UpdateRecoveryState.WAITING_FOR_CONFIRMATION,
+            reconcilePendingUpdate(pending, "gauge-a", expected, 1).state)
+        assertEquals(UpdateRecoveryState.INSTALLED,
+            reconcilePendingUpdate(pending, "gauge-a", expected, 2).state)
+        assertEquals(UpdateRecoveryState.PREVIOUS_FIRMWARE,
+            reconcilePendingUpdate(pending, "gauge-a", "ef".repeat(32), 2).state)
+        assertEquals(UpdateRecoveryState.IDENTITY_CHECKED,
+            reconcilePendingUpdate(pending.copy(expectedElfSha256 = null),
+                "gauge-a", "ef".repeat(32), 2).state)
+    }
+
     @Test fun observationsAgeAndNeverBecomeFreshAcrossClockReset() {
         val observed = Observed("gauge-a", 7, 1_000, "value")
         assertTrue(observed.isFresh(31_000, 30_000))
