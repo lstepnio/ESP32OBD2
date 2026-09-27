@@ -48,3 +48,5 @@ The companion currently searches published GitHub releases for the first signed 
 - USB recovery from both app slots and preservation expectations for NVS and configuration slots.
 
 Until these are recorded for the published asset, keep the release in the development channel and keep public OTA capability false.
+
+Use the [GitHub OTA recovery matrix](ota-recovery-matrix.md) for repeatable percentage-triggered resets and the evidence required after each attempt.
