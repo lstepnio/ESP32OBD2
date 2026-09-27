@@ -8,6 +8,8 @@ The user never enters a Wi-Fi network name or password. An authenticated owner o
 
 The gauge allows one Wi-Fi station, expires the session after ten minutes, and stops the access point on close, expiry, or reboot. Network credentials and session keys are generated in RAM and are never persisted or logged.
 
+Android may retry the initial temporary-network request once when the platform rejects or loses it before the first encrypted frame. Once any frame has been sent, loss of that network terminates the operation immediately. The client does not request the same vanished network again or misreport a gauge reboot as a new Android consent failure.
+
 ## BLE negotiation
 
 Commands use the existing authenticated control characteristic. Every command contains an opcode and little-endian `u32 sequence`.

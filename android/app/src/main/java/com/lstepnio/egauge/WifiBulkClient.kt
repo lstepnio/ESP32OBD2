@@ -149,7 +149,11 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
 
     private suspend fun selectedNetwork(): Network {
         val manager = context.getSystemService(ConnectivityManager::class.java)
-        return network ?: requestMaintenanceNetworkWithRetry(manager).also { network = it }
+        network?.let { return it }
+        check(frameSequence == 0L) {
+            "Gauge maintenance network was lost during transfer"
+        }
+        return requestMaintenanceNetworkWithRetry(manager).also { network = it }
     }
 
     private fun connectSocket(selected: Network, timeoutMs: Int) = Socket().also { value ->
