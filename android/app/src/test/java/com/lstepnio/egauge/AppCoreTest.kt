@@ -32,6 +32,18 @@ class AppCoreTest {
         assertFalse(isTrustedGitHubDownloadUrl(URL("https://githubusercontent.com.example.org/file")))
     }
 
+    @Test fun catalogGenerationIsImmutableAndCannotRollBack() {
+        val first = "12".repeat(32)
+        val changed = "34".repeat(32)
+        assertTrue(evaluateCatalogTrust(2, first, 1, "ab".repeat(32)).persist)
+        assertFalse(evaluateCatalogTrust(2, first, 2, first).persist)
+        assertTrue(evaluateCatalogTrust(2, first, 2, null).persist)
+        assertThrows { evaluateCatalogTrust(2, changed, 2, first) }
+        assertThrows { evaluateCatalogTrust(1, first, 2, first) }
+        assertThrows { evaluateCatalogTrust(0, first, 0, null) }
+        assertThrows { evaluateCatalogTrust(2, "not-a-digest", 1, null) }
+    }
+
     @Test fun runtimeMustMatchAndCompleteTrialBeforeActive() {
         val hash = "ab".repeat(32)
         assertEquals(RuntimeConfirmation.WAITING,
@@ -145,8 +157,19 @@ class AppCoreTest {
             FirmwareChannel.DEVELOPMENT, 0)?.version)
         assertEquals(null, HostedFirmwareCatalogCodec.select(catalog,
             "another-board", "all", "egauge-16m-ab-v1", FirmwareChannel.DEVELOPMENT, 0))
+        assertEquals(null, HostedFirmwareCatalogCodec.select(catalog,
+            "waveshare-esp32-s3-touch-lcd-1.28", "all", "wrong-layout",
+            FirmwareChannel.DEVELOPMENT, 0))
+        assertEquals(null, HostedFirmwareCatalogCodec.select(catalog,
+            "waveshare-esp32-s3-touch-lcd-1.28", "all", "egauge-16m-ab-v1",
+            FirmwareChannel.STABLE, 0))
+        assertEquals(null, HostedFirmwareCatalogCodec.select(catalog,
+            "waveshare-esp32-s3-touch-lcd-1.28", "all", "egauge-16m-ab-v1",
+            FirmwareChannel.DEVELOPMENT, 1))
         val tampered = raw.copyOf().also { it[it.lastIndex - 10] = 'X'.code.toByte() }
         assertThrows { HostedFirmwareCatalogCodec.verifyAndParse(tampered, signature, keyPair.public, 1_796_000_000) }
+        assertThrows { HostedFirmwareCatalogCodec.verifyAndParse(raw, signature, keyPair.public, 1_900_000_000) }
+        assertThrows { HostedFirmwareCatalogCodec.verifyAndParse(raw, signature, keyPair.public, 1_700_000_000) }
     }
 
     private fun runtime(revision: Long, stored: Long, hash: String, trial: Boolean = false,

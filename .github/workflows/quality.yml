@@ -37,6 +37,7 @@ jobs:
             firmware/gauge/main/src/json_guard.c \
             firmware/gauge/main/src/pid_decoder.c \
             firmware/gauge/main/src/poll_scheduler.c \
+            firmware/gauge/main/src/wifi_bulk_policy.c \
             -lm -o /tmp/core_logic_test
           /tmp/core_logic_test
   firmware-build:

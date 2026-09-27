@@ -18,6 +18,7 @@ idf_component_register(
         "src/alert_engine.c"
         "src/ota_transfer.c"
         "src/wifi_bulk.c"
+        "src/wifi_bulk_policy.c"
         "src/transfer_gate.c"
         "src/diagnostics_state.c"
         "src/config_document.c"

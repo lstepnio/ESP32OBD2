@@ -72,6 +72,24 @@ internal fun isTrustedGitHubDownloadUrl(url: URL): Boolean =
     url.protocol == "https" && (url.host == "github.com" || url.host == "api.github.com" ||
         url.host.endsWith(".githubusercontent.com"))
 
+internal data class CatalogTrustDecision(val persist: Boolean)
+
+internal fun evaluateCatalogTrust(generation: Long, digest: String, highestGeneration: Long,
+                                  trustedDigest: String?): CatalogTrustDecision {
+    require(generation in 1..0xffffffffL && digest.matches(Regex("[a-f0-9]{64}"))) {
+        "Firmware catalog identity is invalid"
+    }
+    require(generation >= highestGeneration) {
+        "Firmware catalog is older than one this app has already trusted"
+    }
+    if (generation == highestGeneration && !trustedDigest.isNullOrEmpty()) {
+        require(digest == trustedDigest) {
+            "Firmware catalog generation was republished with different content"
+        }
+    }
+    return CatalogTrustDecision(generation > highestGeneration || trustedDigest.isNullOrEmpty())
+}
+
 data class HostedFirmwareRelease(
     val version: String,
     val releaseSequence: Long,
@@ -119,11 +137,13 @@ object HostedFirmwareCatalogCodec {
         }
         val array = root.getJSONArray("releases")
         require(array.length() in 1..100) { "Firmware catalog has an invalid release count" }
+        val generation = root.getLong("generation")
+        require(generation in 1..0xffffffffL) { "Firmware catalog generation is invalid" }
         val releases = (0 until array.length()).map { parseRelease(array.getJSONObject(it)) }
         require(releases.map { it.releaseSequence }.distinct().size == releases.size) {
             "Firmware catalog has duplicate release sequences"
         }
-        return HostedFirmwareCatalog(root.getLong("generation"), generated, expires, releases)
+        return HostedFirmwareCatalog(generation, generated, expires, releases)
     }
 
     fun select(catalog: HostedFirmwareCatalog, boardId: String, boardRevision: String,
@@ -220,19 +240,23 @@ class GitHubFirmwareSource(private val context: Context) {
         val pem = context.assets.open("dev-update-public.pem").bufferedReader().use { it.readText() }
         val catalog = HostedFirmwareCatalogCodec.verifyAndParse(catalogBytes, signatureBytes,
             HostedFirmwareCatalogCodec.publicKey(pem), Instant.now().epochSecond)
-        val catalogState = context.getSharedPreferences("firmware-catalog", Context.MODE_PRIVATE)
-        val highestGeneration = catalogState.getLong("highest-generation", 0)
-        require(catalog.generation >= highestGeneration) {
-            "Firmware catalog is older than one this app has already trusted"
-        }
-        if (catalog.generation > highestGeneration) {
-            check(catalogState.edit().putLong("highest-generation", catalog.generation).commit()) {
-                "Could not save firmware catalog state"
-            }
-        }
+        val catalogDigest = MessageDigest.getInstance("SHA-256").digest(catalogBytes)
+            .joinToString("") { "%02x".format(it) }
         val compatible = HostedFirmwareCatalogCodec.select(catalog, boardId, "all",
             "egauge-16m-ab-v1", FirmwareChannel.DEVELOPMENT, 0)
             ?: error("No compatible development firmware is published for this gauge")
+        val catalogState = context.getSharedPreferences("firmware-catalog", Context.MODE_PRIVATE)
+        val highestGeneration = catalogState.getLong("highest-generation", 0)
+        val decision = evaluateCatalogTrust(catalog.generation, catalogDigest, highestGeneration,
+            catalogState.getString("highest-generation-sha256", null))
+        if (decision.persist) {
+            check(catalogState.edit()
+                .putLong("highest-generation", catalog.generation)
+                .putString("highest-generation-sha256", catalogDigest)
+                .commit()) {
+                "Could not save firmware catalog state"
+            }
+        }
         HostedUpdate(compatible)
     }
 

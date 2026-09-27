@@ -8,6 +8,7 @@
 #include "json_guard.h"
 #include "pid_decoder.h"
 #include "poll_scheduler.h"
+#include "wifi_bulk_policy.h"
 
 static void test_json_guard(void)
 {
@@ -148,6 +149,19 @@ static void test_scheduler(void)
     assert(job.kind == POLL_JOB_PID && job.index == 0);
 }
 
+static void test_wifi_bulk_policy(void)
+{
+    assert(wifi_bulk_policy_accept(true, 7, 7, 0, 1, 200, 100));
+    assert(!wifi_bulk_policy_accept(false, 7, 7, 0, 1, 200, 100));
+    assert(!wifi_bulk_policy_accept(true, 0, 0, 0, 1, 200, 100));
+    assert(!wifi_bulk_policy_accept(true, 7, 8, 0, 1, 200, 100));
+    assert(!wifi_bulk_policy_accept(true, 7, 7, 1, 1, 200, 100));
+    assert(!wifi_bulk_policy_accept(true, 7, 7, 2, 1, 200, 100));
+    assert(!wifi_bulk_policy_accept(true, 7, 7, 0, 1, 100, 100));
+    assert(!wifi_bulk_policy_accept(true, 7, 7, 0, 1, 99, 100));
+    assert(wifi_bulk_policy_accept(true, 7, 7, 0, 1, 5, UINT32_MAX - 5));
+}
+
 static void test_config_trial_policy(void)
 {
     config_trial_policy_t state = {0};
@@ -189,6 +203,7 @@ int main(void)
     test_decoder();
     test_alert_edges();
     test_scheduler();
+    test_wifi_bulk_policy();
     test_config_trial_policy();
     puts("Core firmware logic fixtures passed");
     return 0;

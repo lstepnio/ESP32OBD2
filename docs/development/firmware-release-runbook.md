@@ -16,7 +16,7 @@ The development app and firmware pin the public half of the development P-256 ke
 
 The workflow is `.github/workflows/development-release.yml`. Actions are pinned to commit SHAs. The build uses the same ESP-IDF version as quality CI, requires the ESP app descriptor version to equal the requested release version, signs the application-only image, creates a bounded `.egauge-dev-update` bundle, creates and signs `egauge-release-catalog.json`, and publishes an immutable prerelease.
 
-The workflow becomes dispatchable after it exists on the default branch. Prerelease `dev-v0.2.0-dev.9` was the final bootstrap release from the integration branch: the same documented commands built it locally with ESP-IDF 5.4.1, signed it with the development key, and uploaded immutable assets to a release targeting commit `1bcb8fb`. A clean GitHub download was compared byte for byte and its catalog signature was independently verified. Future releases should use the protected workflow after merge; do not normalize manual publication as the operating path.
+The workflow becomes dispatchable after it exists on the default branch. Until this integration branch is merged, a release may be bootstrapped with the exact workflow commands and uploaded as immutable GitHub release assets targeting the reviewed commit. A clean GitHub download must be compared byte for byte and its catalog signature independently verified before the app can install it. After merge, all releases use the protected workflow. Device installation and validation always start from GitHub Releases; local bundles are limited to explicit recovery engineering and are not a release path.
 
 ## Publish
 
@@ -33,7 +33,7 @@ The catalog expires after 180 days. A newer release publishes a new catalog cont
 
 For a bad development release, mark it withdrawn in the next signed catalog by omitting it and publish a higher generation. Also edit the GitHub prerelease notes to say withdrawn. Do not replace its assets. Devices already running it recover through normal signed upgrade or the documented USB partition procedure. Keep the last known-good bundle and its factory recovery artifacts.
 
-The companion currently searches published GitHub releases for the first signed catalog, verifies its signature and freshness, rejects a generation older than one previously trusted on the phone, then selects the highest compatible sequence for the exact board, hardware range, layout, channel, and transfer protocol. A wrong board or layout cannot enter the updater. GitHub availability does not bypass the gauge's independent signature and image checks.
+The companion currently searches published GitHub releases for the first signed catalog, verifies its signature and freshness, rejects a generation older than one previously trusted on the phone, and rejects different content reused under the same generation. It then selects the highest compatible sequence for the exact board, hardware range, layout, channel, and transfer protocol. A wrong board or layout cannot enter the updater. GitHub availability does not bypass the gauge's independent signature and image checks.
 
 ## Qualification gates
 

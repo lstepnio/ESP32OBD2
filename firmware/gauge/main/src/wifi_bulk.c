@@ -21,6 +21,7 @@
 #include "config_transfer.h"
 #include "ota_transfer.h"
 #include "wifi_bulk.h"
+#include "wifi_bulk_policy.h"
 
 #define OP_OPEN 0x40
 #define OP_CLOSE 0x42
@@ -312,9 +313,8 @@ static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext)
     uint8_t key[32];
     bool authorized = false;
     xSemaphoreTake(state_lock, portMAX_DELAY);
-    if (state.phase == PHASE_READY && state.session_id == session_id &&
-        sequence > state.last_frame_sequence &&
-        (int32_t)(state.expires_at - xTaskGetTickCount()) > 0) {
+    if (wifi_bulk_policy_accept(state.phase == PHASE_READY, state.session_id, session_id,
+        state.last_frame_sequence, sequence, state.expires_at, xTaskGetTickCount())) {
         memcpy(key, state.key, sizeof(key));
         authorized = true;
     }
@@ -334,8 +334,8 @@ static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext)
         return false;
     }
     xSemaphoreTake(state_lock, portMAX_DELAY);
-    if (state.session_id != session_id || sequence <= state.last_frame_sequence ||
-        (int32_t)(state.expires_at - xTaskGetTickCount()) <= 0) {
+    if (!wifi_bulk_policy_accept(state.phase == PHASE_READY, state.session_id, session_id,
+        state.last_frame_sequence, sequence, state.expires_at, xTaskGetTickCount())) {
         xSemaphoreGive(state_lock);
         mbedtls_gcm_free(&gcm);
         return false;

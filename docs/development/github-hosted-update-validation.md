@@ -42,6 +42,12 @@ With those fixes installed and bounded retry enabled, the app sent the hosted im
 
 A subsequent hosted check read the authenticated running identity and reported `Installed 0.2.0-dev.9 is up to date`. It did not offer the equal release for download or installation. This provides physical evidence for discovery, signed download, compatibility filtering, Wi-Fi transfer, activation, post-reboot confirmation and equal-version suppression on the development channel.
 
+## Catalog and session policy hardening
+
+The follow-up release-integrity pass stores the SHA-256 of the accepted catalog alongside its highest generation. It rejects a lower generation and rejects different content reused under the same generation, while migrating the earlier generation-only preference on its next successful check. Compatibility selection happens before advancing stored trust state, so a valid catalog without an entry for this gauge cannot consume a generation locally.
+
+Android unit fixtures cover invalid signatures, expired and future-dated catalogs, wrong board, layout, channel and transfer protocol, HTTP and lookalike hosts, generation rollback, changed content under one generation, and invalid generation or digest bounds. Firmware now routes its session binding, strictly increasing frame sequence, expiry and tick-wrap decisions through a pure policy function exercised under AddressSanitizer and UndefinedBehaviorSanitizer. AES-GCM authentication still rejects wrong keys in the live implementation; a wrong-key frame on physical hardware remains an explicit qualification item.
+
 ## Release automation boundary
 
 The protected GitHub workflow and signing environment are present on the integration branch. GitHub only registers a manually dispatched workflow after the workflow file reaches the default branch, so dev.9 was published as a documented bootstrap using the same local signing tools. After merge, future development releases should be built and published by `.github/workflows/development-release.yml`.
