@@ -23,7 +23,7 @@ object GaugeProtocolCodec {
         require(links in 0..2) { "Gauge returned an invalid adapter-link limit" }
         val configWrite = json.getBoolean("configWrite")
         val ota = json.getBoolean("ota")
-        val hardwareCapacity = json.optInt("hardwareCapacity", 0)
+        val hardwareCapacity = json.optInt("hardwareCapacity", json.optInt("hw", 0))
         require(hardwareCapacity in 0..1) { "Gauge returned an invalid hardware-capacity version" }
         require(!configWrite && !ota) { "Unexpected experimental capability flags" }
         return CapabilitySnapshot(

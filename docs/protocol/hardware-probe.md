@@ -6,7 +6,7 @@ Status: implemented in source as a read-only protocol-0 owner operation. Physica
 
 The snapshot lets the companion app inspect actual runtime capacity without parsing logs or inferring hardware from a firmware version. It reports live memory availability, low watermarks, flash size, processor details, uptime, reset reason, Wi-Fi initialization state, and initialized board subsystems.
 
-The public capability characteristic advertises `hardwareCapacity: 1` so older firmware remains safely distinguishable. Detailed hardware state is available only through the encrypted, authenticated owner control and state characteristics.
+The public capability characteristic advertises the compact wire field `hw: 1` so older firmware remains safely distinguishable while the complete JSON stays below Android's observed 256-byte characteristic-read boundary. Android also accepts the descriptive `hardwareCapacity` alias for future protocol versions. Detailed hardware state is available only through the encrypted, authenticated owner control and state characteristics.
 
 ## Request
 
