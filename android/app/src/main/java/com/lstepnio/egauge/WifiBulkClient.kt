@@ -99,7 +99,7 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
         val selected = network ?: requestMaintenanceNetworkWithRetry(manager).also { network = it }
         return Socket().also { value ->
             selected.bindSocket(value)
-            value.soTimeout = 70_000
+            value.soTimeout = READ_TIMEOUT_MS
             value.tcpNoDelay = true
             value.connect(InetSocketAddress(InetAddress.getByAddress(session.address), session.port), 12_000)
         }
@@ -191,6 +191,10 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
     }
 
     companion object {
+        // Healthy hardware responds to an eight-command OTA batch within a few seconds.
+        // Bound a lost gauge reset without making the foreground operation appear stuck.
+        private const val READ_TIMEOUT_MS = 20_000
+
         private fun putU16(value: ByteArray, offset: Int, number: Int) {
             value[offset] = number.toByte()
             value[offset + 1] = (number ushr 8).toByte()

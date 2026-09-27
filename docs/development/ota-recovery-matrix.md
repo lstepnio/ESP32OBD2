@@ -42,3 +42,15 @@ Repeat with targets 50 and 90. The tool reads the visible Android progress and i
 6. Start a fresh GitHub update attempt only after reconciliation completes.
 
 Physical removal of USB power remains a separate final case because a serial reset does not remove rail power or reproduce brownout behavior.
+
+## Observed GitHub dev13 run, 2026-09-26
+
+The Pixel downloaded and verified `0.2.0-dev.13` from GitHub Releases. The gauge began each case on confirmed `0.2.0-dev.12` at `0x60000`. The harness triggered ESP32-S3 serial resets at 12, 50, and 90 percent. Android's last visible progress values were 17, 55, and 94 percent because an in-flight Wi-Fi batch can complete after the UI observation and before reset propagation.
+
+After every reset, the app reported the closed socket and required an authenticated firmware identity read. Each read reported confirmed `0.2.0-dev.12`; no interrupted candidate was reported as installed. Authenticated configuration readback reported running and stored revision 2 with SHA-256 `6689a89228758d4bbe43cb772ed4902db447b1f68a3980ab1502b0d11c0bfba9` after all three cases.
+
+The uninterrupted retry completed over the private Wi-Fi transport. The gauge confirmed `0.2.0-dev.13` at `0x360000` with OTA state valid and ELF SHA-256 `a318ff2001dd156e79ea4e05186479d7cb5da1bea9db331ce9ab7bad2657a73b`. A fresh protected configuration read showed the same revision and hash, and a new GitHub check reported `Installed 0.2.0-dev.13 is up to date`.
+
+The reset cases exposed a usability issue: Android waited for the 70-second socket read timeout before reporting loss. The client timeout is now 20 seconds, which remains above the observed healthy batch response interval and makes reset recovery visible sooner. This shorter timeout still needs one live interrupted transfer check.
+
+These results qualify early, middle, and late serial reset interruptions plus a complete GitHub-hosted installation. Physical power removal, reset after completed transfer but before activation, and reset during the trial health window remain open cases.
