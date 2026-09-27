@@ -1,6 +1,6 @@
 # Configurable pages and renderers
 
-Status: implemented in source on 2026-09-27. Android and ESP-IDF builds complete. Physical display, authenticated transfer, reboot readback, and live vehicle sampling remain to be recorded for this revision.
+Status: implemented and transferred to the development gauge on 2026-09-27. Android sent a five-page dashboard through the authenticated owner path, firmware restarted into revision 3, and a fresh bounded document read reported zero differences. Physical renderer inspection and live vehicle sampling remain to be recorded.
 
 ## Executable configuration
 
@@ -30,4 +30,4 @@ The editor selects a renderer per page, a primary reading, and a second reading 
 
 ## Evidence boundaries
 
-Successful source builds show that the firmware and Android application compile together. They do not establish circular-display readability, touch navigation behavior, renderer frame timing, BLE transfer success, persistence after reboot, alert presentation on every renderer, or real OBD values. Those observations belong in a follow-up physical validation record.
+The five-page transfer, firmware activation, persistence after restart, and authenticated document readback are recorded in [configurable-pages-live-validation.md](configurable-pages-live-validation.md). That evidence does not establish circular-display readability for every renderer, renderer frame timing under live traffic, alert presentation on every renderer, or real OBD values.

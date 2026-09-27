@@ -138,6 +138,27 @@ class AppCoreTest {
         assertTrue(ConfigurationProjector.blockers(draft.copy(source = "TCM")).isNotEmpty())
     }
 
+    @Test fun draftComparisonChecksEveryPageRendererAndReading() {
+        val draft = Draft(pages = listOf(
+            GaugePageDraft("page.speed", "SPEED", GaugeLayout.Trend, listOf("speed")),
+            GaugePageDraft("page.engine", "ENGINE", GaugeLayout.Dual, listOf("rpm", "coolant")),
+        ))
+        val (_, bytes) = ConfigurationProjector.project(template, draft, "default", 2)
+        fun document(json: String) = GaugeConfigTransferClient.ActiveDocument(
+            revision = 3, sha256 = "ab".repeat(32), length = json.length,
+            vehicleProfileId = "default", definitionCount = 3, pageCount = 2,
+            alertCount = 1, json = json,
+        )
+        val matching = GaugeDraftComparison.from(document(bytes.toString(Charsets.UTF_8)), "default", draft)
+        assertTrue(matching.fields.single { it.label == "All page settings" }.matches == true)
+
+        val changed = JSONObject(bytes.toString(Charsets.UTF_8)).apply {
+            getJSONArray("pages").getJSONObject(1).put("renderer", "bar")
+        }.toString()
+        val differing = GaugeDraftComparison.from(document(changed), "default", draft)
+        assertTrue(differing.fields.single { it.label == "All page settings" }.matches == false)
+    }
+
     @Test fun legacyTransmissionProfileMigratesToAdvancedTopologyWithoutChangingDraft() {
         val legacy = """{
           "schemaVersion":1,"activeId":"v1","profiles":[{

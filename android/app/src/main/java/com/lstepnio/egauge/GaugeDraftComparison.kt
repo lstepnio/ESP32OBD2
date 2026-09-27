@@ -94,6 +94,32 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
 
             fun field(label: String, phone: String, gauge: String?): GaugeDraftField =
                 GaugeDraftField(label, phone, gauge, gauge?.let { it == phone })
+            fun localPid(id: String): String? = when (id) {
+                "engine.rpm" -> "rpm"
+                "engine.coolant" -> "coolant"
+                "vehicle.speed" -> "speed"
+                "engine.load" -> "load"
+                "vehicle.fuel" -> "fuel"
+                else -> null
+            }
+            fun draftPageSettings(): String = draft.pages.mapIndexed { index, page ->
+                "${index + 1}. ${page.name} / ${page.layout.label} / ${page.pidIds.joinToString(" + ")}"
+            }.joinToString("\n")
+            fun rendererLabel(renderer: String): String = GaugeLayout.entries.firstOrNull {
+                it.name.equals(renderer, ignoreCase = true)
+            }?.label ?: renderer
+            fun savedPageSettings(): String? = pages?.let { value ->
+                (0 until value.length()).map { index ->
+                    val page = value.optJSONObject(index) ?: return@let null
+                    val name = page.optString("name").takeIf { it.isNotBlank() } ?: return@let null
+                    val renderer = page.optString("renderer").takeIf { it.isNotBlank() } ?: return@let null
+                    val ids = page.optJSONArray("pidIds") ?: return@let null
+                    val mapped = (0 until ids.length()).map { pidIndex ->
+                        localPid(ids.optString(pidIndex)) ?: return@let null
+                    }
+                    "${index + 1}. $name / ${rendererLabel(renderer)} / ${mapped.joinToString(" + ")}"
+                }.joinToString("\n")
+            }
             fun alertField(label: String, phone: Int, key: String, unit: String): GaugeDraftField {
                 val raw = coolantAlert?.opt(key)
                 val value = (raw as? Number)?.takeIf { it.toDouble() == it.toInt().toDouble() }
@@ -115,6 +141,7 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                     pages?.let { value -> (0 until value.length()).joinToString(" | ") {
                         value.optJSONObject(it)?.optString("id").orEmpty()
                     } }),
+                field("All page settings", draftPageSettings(), savedPageSettings()),
                 field("Primary PID", draftDefinition, primaryPid),
                 field("Renderer", draft.pages.first().layout.name.lowercase(Locale.ROOT),
                     primary?.optString("renderer")?.takeIf { it.isNotBlank() }),
