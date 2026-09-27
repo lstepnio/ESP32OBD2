@@ -48,6 +48,8 @@ The follow-up release-integrity pass stores the SHA-256 of the accepted catalog 
 
 Android unit fixtures cover invalid signatures, expired and future-dated catalogs, wrong board, layout, channel and transfer protocol, HTTP and lookalike hosts, generation rollback, changed content under one generation, and invalid generation or digest bounds. Firmware now routes its session binding, strictly increasing frame sequence, expiry and tick-wrap decisions through a pure policy function exercised under AddressSanitizer and UndefinedBehaviorSanitizer. AES-GCM authentication still rejects wrong keys in the live implementation; a wrong-key frame on physical hardware remains an explicit qualification item.
 
+GitHub does not guarantee that the first release returned by its API contains the highest catalog generation. The companion now examines every bounded release candidate, verifies each catalog independently, and selects the highest compatible generation. A live check exposed a reused generation in dev.11 because the historical dev.3 release had already consumed generation 3. The companion rejected the conflict before bundle download. Dev.11 was marked withdrawn without replacing its assets, the release workflow gained a published-maximum preflight, and dev.12 advances to generation 4.
+
 ## Release automation boundary
 
 The protected GitHub workflow and signing environment are present on the integration branch. GitHub only registers a manually dispatched workflow after the workflow file reaches the default branch, so dev.9 was published as a documented bootstrap using the same local signing tools. After merge, future development releases should be built and published by `.github/workflows/development-release.yml`.

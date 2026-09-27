@@ -202,6 +202,22 @@ object HostedFirmwareCatalogCodec {
 
 data class HostedUpdate(val release: HostedFirmwareRelease, val bundle: DevUpdateBundle? = null)
 
+internal data class HostedCatalogCandidate(
+    val catalog: HostedFirmwareCatalog,
+    val digest: String,
+    val release: HostedFirmwareRelease,
+)
+
+internal fun selectHighestHostedCatalog(candidates: List<HostedCatalogCandidate>): HostedCatalogCandidate {
+    require(candidates.isNotEmpty()) { "No compatible development firmware is published for this gauge" }
+    val highestGeneration = candidates.maxOf { it.catalog.generation }
+    val newest = candidates.filter { it.catalog.generation == highestGeneration }
+    require(newest.map { it.digest }.distinct().size == 1) {
+        "Firmware catalog generation has conflicting signed content"
+    }
+    return newest.maxBy { it.release.releaseSequence }
+}
+
 class GitHubFirmwareSource(private val context: Context) {
     private val releasesUrl = "https://api.github.com/repos/lstepnio/ESP32OBD2/releases?per_page=20"
 
@@ -211,7 +227,9 @@ class GitHubFirmwareSource(private val context: Context) {
             else -> error("This gauge board is not registered for hosted updates")
         }
         val releases = JSONArray(download(URL(releasesUrl), 1_048_576).toString(Charsets.UTF_8))
-        var selectedCatalog: Pair<URL, URL>? = null
+        val pem = context.assets.open("dev-update-public.pem").bufferedReader().use { it.readText() }
+        val publicKey = HostedFirmwareCatalogCodec.publicKey(pem)
+        val candidates = mutableListOf<HostedCatalogCandidate>()
         for (index in 0 until releases.length()) {
             val release = releases.getJSONObject(index)
             if (release.getBoolean("draft")) continue
@@ -226,38 +244,40 @@ class GitHubFirmwareSource(private val context: Context) {
                 }
             }
             if (catalog != null && signature != null) {
-                selectedCatalog = catalog to signature
-                break
+                runCatching {
+                    require(HostedFirmwareCatalogCodec.isTrustedAssetUrl(catalog.toString()) &&
+                        HostedFirmwareCatalogCodec.isTrustedAssetUrl(signature.toString())) {
+                        "GitHub returned an untrusted catalog location"
+                    }
+                    val catalogBytes = download(catalog, 131_072)
+                    val signatureBytes = download(signature, 256)
+                    val parsed = HostedFirmwareCatalogCodec.verifyAndParse(catalogBytes, signatureBytes,
+                        publicKey, Instant.now().epochSecond)
+                    val compatible = HostedFirmwareCatalogCodec.select(parsed, boardId, "all",
+                        "egauge-16m-ab-v1", FirmwareChannel.DEVELOPMENT, 0)
+                    if (compatible != null) {
+                        val digest = MessageDigest.getInstance("SHA-256").digest(catalogBytes)
+                            .joinToString("") { "%02x".format(it) }
+                        candidates += HostedCatalogCandidate(parsed, digest, compatible)
+                    }
+                }
             }
         }
-        val urls = selectedCatalog ?: error("No signed eGauge firmware catalog is published on GitHub")
-        require(HostedFirmwareCatalogCodec.isTrustedAssetUrl(urls.first.toString()) &&
-            HostedFirmwareCatalogCodec.isTrustedAssetUrl(urls.second.toString())) {
-            "GitHub returned an untrusted catalog location"
-        }
-        val catalogBytes = download(urls.first, 131_072)
-        val signatureBytes = download(urls.second, 256)
-        val pem = context.assets.open("dev-update-public.pem").bufferedReader().use { it.readText() }
-        val catalog = HostedFirmwareCatalogCodec.verifyAndParse(catalogBytes, signatureBytes,
-            HostedFirmwareCatalogCodec.publicKey(pem), Instant.now().epochSecond)
-        val catalogDigest = MessageDigest.getInstance("SHA-256").digest(catalogBytes)
-            .joinToString("") { "%02x".format(it) }
-        val compatible = HostedFirmwareCatalogCodec.select(catalog, boardId, "all",
-            "egauge-16m-ab-v1", FirmwareChannel.DEVELOPMENT, 0)
-            ?: error("No compatible development firmware is published for this gauge")
+        val selected = selectHighestHostedCatalog(candidates)
+        val catalog = selected.catalog
         val catalogState = context.getSharedPreferences("firmware-catalog", Context.MODE_PRIVATE)
         val highestGeneration = catalogState.getLong("highest-generation", 0)
-        val decision = evaluateCatalogTrust(catalog.generation, catalogDigest, highestGeneration,
+        val decision = evaluateCatalogTrust(catalog.generation, selected.digest, highestGeneration,
             catalogState.getString("highest-generation-sha256", null))
         if (decision.persist) {
             check(catalogState.edit()
                 .putLong("highest-generation", catalog.generation)
-                .putString("highest-generation-sha256", catalogDigest)
+                .putString("highest-generation-sha256", selected.digest)
                 .commit()) {
                 "Could not save firmware catalog state"
             }
         }
-        HostedUpdate(compatible)
+        HostedUpdate(selected.release)
     }
 
     suspend fun download(update: HostedUpdate): HostedUpdate = withContext(Dispatchers.IO) {

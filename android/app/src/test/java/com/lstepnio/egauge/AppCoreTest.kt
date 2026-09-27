@@ -44,6 +44,24 @@ class AppCoreTest {
         assertThrows { evaluateCatalogTrust(2, "not-a-digest", 1, null) }
     }
 
+    @Test fun hostedDiscoverySelectsHighestGenerationAndRejectsConflicts() {
+        val oldRelease = hostedRelease("0.2.0-dev.9", 2)
+        val newRelease = hostedRelease("0.2.0-dev.11", 3)
+        val oldCatalog = HostedFirmwareCatalog(2, 1, 2, listOf(oldRelease))
+        val newCatalog = HostedFirmwareCatalog(3, 1, 2, listOf(newRelease))
+        val selected = selectHighestHostedCatalog(listOf(
+            HostedCatalogCandidate(oldCatalog, "12".repeat(32), oldRelease),
+            HostedCatalogCandidate(newCatalog, "34".repeat(32), newRelease),
+        ))
+        assertEquals("0.2.0-dev.11", selected.release.version)
+        assertThrows {
+            selectHighestHostedCatalog(listOf(
+                HostedCatalogCandidate(newCatalog, "34".repeat(32), newRelease),
+                HostedCatalogCandidate(newCatalog, "56".repeat(32), newRelease),
+            ))
+        }
+    }
+
     @Test fun runtimeMustMatchAndCompleteTrialBeforeActive() {
         val hash = "ab".repeat(32)
         assertEquals(RuntimeConfirmation.WAITING,
@@ -191,6 +209,21 @@ class AppCoreTest {
     private fun putU32(bytes: ByteArray, offset: Int, value: Int) {
         repeat(4) { bytes[offset + it] = (value ushr (it * 8)).toByte() }
     }
+
+    private fun hostedRelease(version: String, sequence: Long) = HostedFirmwareRelease(
+        version = version,
+        releaseSequence = sequence,
+        channel = FirmwareChannel.DEVELOPMENT,
+        boardId = "waveshare-esp32-s3-touch-lcd-1.28",
+        boardRevisions = listOf("all"),
+        partitionLayout = "egauge-16m-ab-v1",
+        transferProtocol = 0,
+        bundleBytes = 2048,
+        bundleSha256 = "12".repeat(32),
+        bundleUrl = "https://github.com/lstepnio/ESP32OBD2/releases/download/dev-v$version/fw.egauge-dev-update",
+        releaseNotes = "Test",
+        sourceTag = "dev-v$version",
+    )
 
     private val template = """{
       "schemaVersion":1,"baseRevision":0,"vehicleProfileId":"default",

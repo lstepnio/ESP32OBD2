@@ -29,9 +29,13 @@ The workflow becomes dispatchable after it exists on the default branch. Until t
 
 The catalog expires after 180 days. A newer release publishes a new catalog containing the supported set. Published versions are not edited in place.
 
+The protected workflow queries every published `egauge-release-catalog.json` asset and requires the requested sequence to exceed the maximum generation already present. This check includes withdrawn releases because their generations remain consumed. The companion independently searches all bounded release candidates, verifies their signatures and freshness, selects the highest compatible generation, and rejects conflicting signed content under one generation. GitHub API ordering is not treated as release order.
+
 ## Withdrawal and recovery
 
 For a bad development release, mark it withdrawn in the next signed catalog by omitting it and publish a higher generation. Also edit the GitHub prerelease notes to say withdrawn. Do not replace its assets. Devices already running it recover through normal signed upgrade or the documented USB partition procedure. Keep the last known-good bundle and its factory recovery artifacts.
+
+`dev-v0.2.0-dev.11` is the first recorded withdrawal. Its catalog accidentally reused generation 3, which had already been consumed by dev.3. The companion's conflicting-generation guard rejected it before download or installation. Its assets remain immutable, its release notes identify the withdrawal, and dev.12 consumes generation 4.
 
 The companion currently searches published GitHub releases for the first signed catalog, verifies its signature and freshness, rejects a generation older than one previously trusted on the phone, and rejects different content reused under the same generation. It then selects the highest compatible sequence for the exact board, hardware range, layout, channel, and transfer protocol. A wrong board or layout cannot enter the updater. GitHub availability does not bypass the gauge's independent signature and image checks.
 
