@@ -83,7 +83,7 @@ Power saving: use bounded reconnect scans, optional screen dimming and explicit 
 
 ## Tracked work
 
-- **HW-001:** authenticated runtime capacity polling is implemented in source. Exact board revision, live phone/gauge evidence, sensor identity, battery ADC calibration and available pin map remain open.
+- **HW-001:** authenticated runtime capacity polling is implemented and [observed on the Pixel and gauge](../development/hardware-capacity-validation.md). Exact board revision, sensor identity, battery ADC calibration and available pin map remain open.
 - **RADIO-001:** ECM + TCM + phone coexistence with Wi-Fi off/on and in maintenance, including power measurements.
 - **WIFI-001:** automatic temporary-AP authorization, Android network routing, measured transfer throughput and recovery; promote the capability only from device evidence.
 - **POWER-001:** sleep/dimming/wake policy, ignition inference limits, permanent automotive power design.
