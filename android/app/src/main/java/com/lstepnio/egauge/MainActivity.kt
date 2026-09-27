@@ -946,6 +946,36 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                         InfoLine("Stored revision", runtime.storedRevision.toString())
                         InfoLine("Config SHA-256", runtime.sha256)
                     }
+                    model.hardwareSnapshot?.let { hardware ->
+                        Spacer(Modifier.height(10.dp))
+                        Text("Hardware capacity", color = TextColor, fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold)
+                        InfoLine("Processor", "${hardware.cores} cores at ${hardware.cpuMhz} MHz")
+                        InfoLine("Chip revision", hardware.chipRevision.toString())
+                        InfoLine("Flash", formatCapacity(hardware.flashBytes))
+                        InfoLine("Internal RAM", "${formatCapacity(hardware.internalFreeBytes)} free of ${formatCapacity(hardware.internalTotalBytes)}")
+                        InfoLine("Internal low watermark", formatCapacity(hardware.internalMinimumFreeBytes))
+                        InfoLine("Largest internal block", formatCapacity(hardware.internalLargestBlockBytes))
+                        InfoLine("PSRAM", if (hardware.psramTotalBytes > 0)
+                            "${formatCapacity(hardware.psramFreeBytes)} free of ${formatCapacity(hardware.psramTotalBytes)}"
+                            else "Unavailable")
+                        InfoLine("PSRAM low watermark", if (hardware.psramTotalBytes > 0)
+                            formatCapacity(hardware.psramMinimumFreeBytes) else "Unavailable")
+                        InfoLine("Uptime", formatUptime(hardware.uptimeSeconds))
+                        InfoLine("Last reset", resetReasonLabel(hardware.resetReason))
+                        InfoLine("Wi-Fi state", wifiModeLabel(hardware.wifiMode))
+                        InfoLine("Initialized", hardwareFeatureLabels(hardware.initializedFeatures)
+                            .ifEmpty { listOf("No reported subsystems") }.joinToString())
+                        Text("Board inventory also declares ${hardwareFeatureLabels(hardware.declaredFeatures).joinToString()}. Sensor identity and ADC calibration require their own probes.",
+                            color = MutedColor, fontSize = 13.sp, lineHeight = 19.sp)
+                    }
+                    if (caps.hardwareCapacityVersion == 1) {
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick = model::readHardwareCapacity,
+                            enabled = !model.scanning) {
+                            Text(if (model.hardwareSnapshot == null) "Read hardware capacity" else "Refresh hardware capacity")
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(14.dp))
@@ -1128,6 +1158,65 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
         }
     }
 }
+
+private fun formatCapacity(bytes: Long): String = when {
+    bytes >= 1024L * 1024L -> "%.1f MiB".format(bytes / (1024.0 * 1024.0))
+    bytes >= 1024L -> "%.1f KiB".format(bytes / 1024.0)
+    else -> "$bytes B"
+}
+
+private fun formatUptime(seconds: Long): String {
+    val days = seconds / 86_400
+    val hours = (seconds % 86_400) / 3_600
+    val minutes = (seconds % 3_600) / 60
+    return when {
+        days > 0 -> "${days}d ${hours}h ${minutes}m"
+        hours > 0 -> "${hours}h ${minutes}m"
+        else -> "${minutes}m ${seconds % 60}s"
+    }
+}
+
+private fun resetReasonLabel(reason: Int) = when (reason) {
+    0 -> "Unknown"
+    1 -> "Power on"
+    2 -> "External reset"
+    3 -> "Software restart"
+    4 -> "Software panic"
+    5 -> "Interrupt watchdog"
+    6 -> "Task watchdog"
+    7 -> "Watchdog"
+    8 -> "Deep sleep wake"
+    9 -> "Brownout"
+    10 -> "SDIO"
+    11 -> "USB peripheral"
+    12 -> "JTAG"
+    13 -> "eFuse error"
+    14 -> "Power glitch"
+    15 -> "CPU lockup"
+    else -> "Reason $reason"
+}
+
+private fun wifiModeLabel(mode: Int) = when (mode) {
+    0 -> "Initialized, radio idle"
+    1 -> "Station"
+    2 -> "Temporary access point"
+    3 -> "Station and access point"
+    255 -> "Stack not initialized"
+    else -> "Unknown mode $mode"
+}
+
+private fun hardwareFeatureLabels(flags: Long) = listOfNotNull(
+    "Wi-Fi".takeIf { flags and GaugeProtocolCodec.HARDWARE_WIFI != 0L },
+    "BLE".takeIf { flags and GaugeProtocolCodec.HARDWARE_BLE != 0L },
+    "PSRAM".takeIf { flags and GaugeProtocolCodec.HARDWARE_PSRAM != 0L },
+    "display".takeIf { flags and GaugeProtocolCodec.HARDWARE_DISPLAY != 0L },
+    "touch".takeIf { flags and GaugeProtocolCodec.HARDWARE_TOUCH != 0L },
+    "backlight".takeIf { flags and GaugeProtocolCodec.HARDWARE_BACKLIGHT != 0L },
+    "IMU".takeIf { flags and GaugeProtocolCodec.HARDWARE_IMU != 0L },
+    "battery ADC".takeIf { flags and GaugeProtocolCodec.HARDWARE_BATTERY_ADC != 0L },
+    "expansion".takeIf { flags and GaugeProtocolCodec.HARDWARE_EXPANSION != 0L },
+    "USB to UART".takeIf { flags and GaugeProtocolCodec.HARDWARE_USB_UART != 0L },
+)
 
 @Composable
 private fun InfoLine(label: String, value: String) {

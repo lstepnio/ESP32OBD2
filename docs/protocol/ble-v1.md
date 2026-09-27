@@ -4,7 +4,7 @@
 
 ## Implemented protocol 0 quick selection
 
-The capability JSON advertises `quickSelect: true`, `savedStateRead: true`, `displayRotationWrite: true`, `configWrite: false` and `ota: false`. The app must check these flags. The saved-state read reports only the built-in selection and rotation. It does not implement full `config.get`, custom PIDs, threshold writes, diagnostics, OTA, or arbitrary OBD requests.
+The capability JSON advertises `quickSelect: true`, `savedStateRead: true`, `displayRotationWrite: true`, `hardwareCapacity: 1`, `configWrite: false` and `ota: false`. The app must check these flags and versions. The saved-state read reports only the built-in selection and rotation. It does not implement full `config.get`, custom PIDs, threshold writes, diagnostics, OTA, or arbitrary OBD requests.
 
 The device uses LE Secure Connections, authenticated passkey entry, encryption and bonding. A gauge long press opens a 120-second association window. The six-digit passkey appears on its LCD and Android shows the system pairing prompt. The first authenticated bonded phone identity is stored in NVS as owner. Protected GATT access also checks that identity. A 12-second physical hold erases the owner association and bond, then restarts the gauge. This reset is intentionally local.
 
@@ -62,6 +62,7 @@ Serialize control requests, wait for semantic result beyond the ATT write acknow
 | Discovery | `discovery.start`, `discovery.status`, `discovery.pause`, `discovery.cancel`, `discovery.results` | Job ID, sourceIds, scope, continuation cursor, per-ECU evidence |
 | Telemetry | `telemetry.subscribe`, `telemetry.unsubscribe` | Negotiated PID/rate budget; dropped samples allowed with sequence/age |
 | Diagnostics | `dtc.read`, `dtc.clear.prepare`, `dtc.clear.confirm`, `dtc.operation` | Fresh, scoped consent and reconciliation; see diagnostics spec |
+| Hardware | `hardware.capacity.get` | Authenticated read-only runtime capacity and initialized-subsystem snapshot; see [hardware probe](hardware-probe.md) |
 | Alerts | `alerts.list`, `alerts.acknowledge` | Rule configuration is part of config transaction; acknowledgment does not modify threshold |
 | Update | `ota.begin`, `ota.status`, `ota.finish`, `ota.abort`, `ota.activate` | Manifest-bound stream; boot confirmation is separate |
 

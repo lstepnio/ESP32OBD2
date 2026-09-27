@@ -80,6 +80,7 @@ data class CapabilitySnapshot(
     val displayRotationWrite: Boolean,
     val ota: Boolean,
     val wifiBulk: String?,
+    val hardwareCapacityVersion: Int?,
 )
 
 data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revision: Long)
@@ -135,6 +136,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var bootIdentity by mutableStateOf<GaugeConfigTransferClient.BootIdentity?>(null)
         private set
     var runtimeIdentity by mutableStateOf<GaugeConfigTransferClient.RuntimeIdentity?>(null)
+        private set
+    var hardwareSnapshot by mutableStateOf<GaugeConfigTransferClient.HardwareSnapshot?>(null)
         private set
     private var selectedUpdate: DevUpdateBundle? = null
     private var updateMayHaveChangedGauge = false
@@ -234,7 +237,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun editLabInput(value: String) { labInput = value.take(128) }
     fun showCustomLab(value: Boolean) { customLabOpen = value }
     fun showAdvancedReadings(value: Boolean) { advancedReadingsOpen = value }
-    fun showTechnicalDetails(value: Boolean) { technicalDetailsOpen = value }
+    fun showTechnicalDetails(value: Boolean) {
+        technicalDetailsOpen = value
+        if (value && capabilities?.hardwareCapacityVersion == 1 &&
+            hardwareSnapshot == null && !scanning)
+            readHardwareCapacity()
+    }
     fun showAdvancedConnections(value: Boolean) { advancedConnectionsOpen = value }
     fun editCustomRequest(value: String) { customRequestInput = value.take(32) }
     fun selectCustomSource(value: String) { if (value == "ECM" || value == "TCM") customSource = value }
@@ -270,6 +278,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         diagnosticsObservedAtElapsedMs = null
         bootIdentity = null
         runtimeIdentity = null
+        hardwareSnapshot = null
         activeConfigRevision = null
         activeDocument = null
         verifiedConfigHash = null
@@ -286,6 +295,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         diagnosticsObservedAtElapsedMs = null
         bootIdentity = null
         runtimeIdentity = null
+        hardwareSnapshot = null
         activeConfigRevision = null
         activeDocument = null
         verifiedConfigHash = null
@@ -682,6 +692,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         bootIdentityRead(GaugeConfigTransferClient(getApplication()).readBootIdentity(bleClient.selectedGauge()))
         operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
             "Firmware checked", bootIdentity?.version, terminal = true)
+    }
+
+    fun readHardwareCapacity() = launchGaugeOperation(OperationKind.READ, "Checking hardware") { id ->
+        require(capabilities?.hardwareCapacityVersion == 1) {
+            "Gauge firmware does not offer hardware capacity polling"
+        }
+        hardwareSnapshot = GaugeConfigTransferClient(getApplication())
+            .readHardwareSnapshot(bleClient.selectedGauge())
+        ownerAccess = OwnerAccess.AUTHENTICATED
+        deviceMessage = "Protected hardware capacity snapshot read."
+        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
+            "Hardware checked", "Live memory, flash, processor, and subsystem state", terminal = true)
     }
 
     fun runWifiTransportSecurityCheck() = launchGaugeOperation(OperationKind.READ,

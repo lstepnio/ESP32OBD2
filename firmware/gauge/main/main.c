@@ -45,6 +45,7 @@
 #include "esp_ota_ops.h"
 #include "transfer_gate.h"
 #include "diagnostics_state.h"
+#include "hardware_probe.h"
 #include "esp_heap_caps.h"
 #include "config_document.h"
 #include "config_trial.h"
@@ -497,6 +498,8 @@ void app_main(void)
     bsp_display_start();
     bsp_lvgl_init();
     bsp_touch_init();
+    hardware_probe_set_ready(HARDWARE_FEATURE_DISPLAY | HARDWARE_FEATURE_TOUCH |
+                             HARDWARE_FEATURE_BACKLIGHT, true);
 
     bsp_lv_disp_set_rotation(g_config.disp_rot);
 

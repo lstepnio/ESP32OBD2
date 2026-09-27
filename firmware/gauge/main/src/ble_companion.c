@@ -28,6 +28,7 @@
 #include "wifi_bulk.h"
 #include "diagnostics_state.h"
 #include "config_runtime.h"
+#include "hardware_probe.h"
 #include "ui.h"
 
 static const char *TAG = "COMPANION";
@@ -148,13 +149,15 @@ static const char capabilities[] =
     "\"maxAdapterLinks\":2,"
     "\"savedStateRead\":true,\"displayRotationWrite\":true,"
     "\"configWrite\":false,\"experimentalNumericConfig\":true,"
-    "\"quickSelect\":true,\"ota\":false" WIFI_BULK_CAPABILITY "}";
+    "\"quickSelect\":true,\"ota\":false,\"hardwareCapacity\":1"
+    WIFI_BULK_CAPABILITY "}";
 static const char document_capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
     "\"maxAdapterLinks\":2,"
     "\"savedStateRead\":false,\"displayRotationWrite\":false,"
     "\"configWrite\":false,\"experimentalNumericConfig\":true,"
-    "\"quickSelect\":false,\"ota\":false" WIFI_BULK_CAPABILITY "}";
+    "\"quickSelect\":false,\"ota\":false,\"hardwareCapacity\":1"
+    WIFI_BULK_CAPABILITY "}";
 
 /* Protocol 0 quick-select request: byte 0 = 1, byte 1 = built-in PID index 0..4.
  * A successful ATT write queues a request; the authenticated state read confirms apply. */
@@ -201,6 +204,11 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
     }
     if (request[0] == 0x33 && length == 5) {
         extended_status_mode = 6;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x34 && length == 5) {
+        extended_status_mode = 8;
         status_snapshot_length = 0;
         return 0;
     }
@@ -326,6 +334,15 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
 #else
         return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
 #endif
+    }
+    if (extended_status_mode == 8) {
+        hardware_probe_set_ready(HARDWARE_FEATURE_BLE, ble_companion_ready());
+        if (ctxt->offset == 0 || status_snapshot_length == 0)
+            status_snapshot_length = hardware_probe_status(status_snapshot);
+        if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
+                              status_snapshot_length - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     }
     if (document_active) {
         /* Keep a protected state read available after custom activation so
