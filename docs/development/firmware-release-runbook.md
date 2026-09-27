@@ -16,6 +16,8 @@ The development app and firmware pin the public half of the development P-256 ke
 
 The workflow is `.github/workflows/development-release.yml`. Actions are pinned to commit SHAs. The build uses the same ESP-IDF version as quality CI, requires the ESP app descriptor version to equal the requested release version, signs the application-only image, creates a bounded `.egauge-dev-update` bundle, creates and signs `egauge-release-catalog.json`, and publishes an immutable prerelease.
 
+The workflow becomes dispatchable after it exists on the default branch. Prerelease `dev-v0.2.0-dev.9` was the final bootstrap release from the integration branch: the same documented commands built it locally with ESP-IDF 5.4.1, signed it with the development key, and uploaded immutable assets to a release targeting commit `1bcb8fb`. A clean GitHub download was compared byte for byte and its catalog signature was independently verified. Future releases should use the protected workflow after merge; do not normalize manual publication as the operating path.
+
 ## Publish
 
 1. Merge or select the exact reviewed commit. Confirm quality CI is green.
