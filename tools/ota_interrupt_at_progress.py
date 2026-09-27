@@ -47,8 +47,8 @@ def main() -> None:
     parser.add_argument("--poll-seconds", type=float, default=1.0)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    if args.target_percent not in range(1, 100):
-        parser.error("--target-percent must be between 1 and 99")
+    if args.target_percent not in range(1, 101):
+        parser.error("--target-percent must be between 1 and 100")
 
     run([args.adb, "get-state"])
     started = time.monotonic()
@@ -60,7 +60,7 @@ def main() -> None:
         if progress is not None:
             observations.append({"elapsedSeconds": elapsed, "percent": progress})
             print(f"{elapsed:7.3f}s {progress:3d}%", flush=True)
-            if progress >= 100:
+            if progress >= 100 and args.target_percent < 100:
                 raise SystemExit("Update reached 100% before the requested reset threshold")
             if progress >= args.target_percent:
                 reset_at = progress

@@ -30,7 +30,7 @@ python3 tools/ota_interrupt_at_progress.py \
   --output /tmp/egauge-ota-early.json
 ```
 
-Repeat with targets 50 and 90. The tool reads the visible Android progress and invokes an ESP32-S3 hard reset through esptool. It does not select a package or initiate an update. A skipped threshold that reaches 100 percent fails without resetting the gauge.
+Repeat with targets 50 and 90. A target of 100 resets on the first visible complete-transfer state to exercise the verification and activation boundary. The tool reads the visible Android progress and invokes an ESP32-S3 hard reset through esptool. It does not select a package or initiate an update. For targets below 100, a skipped threshold that reaches 100 percent fails without resetting the gauge.
 
 ## Evidence after every case
 
