@@ -88,8 +88,6 @@ static const obd_pid_cfg_t g_obd_pids[] = {
 // Global Variables
 // ---------------------------------------------------------------------------------------------------------------------
 
-static obd_pid_cfg_t const *g_current_obd_cfg = &g_obd_pids[0];
-static atomic_uchar g_displayed_pid;
 static atomic_uchar g_selected_page;
 static config_runtime_t *g_runtime;
 static config_store_record_t g_running_config_record;
@@ -100,16 +98,60 @@ static unsigned page_count(void)
     return g_runtime ? g_runtime->page_count : ARRAY_SIZE(g_obd_pids);
 }
 
-static const obd_pid_cfg_t *page_cfg(unsigned index)
+static ui_renderer_t ui_renderer(runtime_renderer_t renderer)
 {
-    if (!g_runtime) return &g_obd_pids[index % ARRAY_SIZE(g_obd_pids)];
-    return &g_runtime->pids[g_runtime->page_pids[index % g_runtime->page_count]].obd;
+    _Static_assert((int)RUNTIME_RENDERER_NUMERIC == (int)UI_RENDERER_NUMERIC &&
+                   (int)RUNTIME_RENDERER_ARC == (int)UI_RENDERER_ARC &&
+                   (int)RUNTIME_RENDERER_BAR == (int)UI_RENDERER_BAR &&
+                   (int)RUNTIME_RENDERER_TREND == (int)UI_RENDERER_TREND &&
+                   (int)RUNTIME_RENDERER_DUAL == (int)UI_RENDERER_DUAL,
+                   "Runtime and UI renderer values must remain aligned");
+    return (ui_renderer_t)renderer;
 }
 
-static uint32_t page_stale_ms(unsigned index)
+static int32_t display_bound(double value)
 {
-    return g_runtime ? g_runtime->pids[g_runtime->page_pids[index % g_runtime->page_count]].stale_ms
-                     : 1500;
+    if (value < INT32_MIN) return INT32_MIN;
+    if (value > INT32_MAX) return INT32_MAX;
+    return (int32_t)value;
+}
+
+static void page_ui(unsigned index, ui_page_t *out)
+{
+    memset(out, 0, sizeof(*out));
+    if (!g_runtime) {
+        const obd_pid_cfg_t *pid = &g_obd_pids[index % ARRAY_SIZE(g_obd_pids)];
+        out->name = pid->name;
+        out->renderer = UI_RENDERER_NUMERIC;
+        out->metric_count = 1;
+        out->metrics[0] = (ui_metric_t){
+            .pid = pid->pid, .name = pid->name, .unit = pid->unit,
+            .minimum = display_bound(pid->decoder.minimum),
+            .maximum = display_bound(pid->decoder.maximum), .stale_after_ms = 1500,
+        };
+        return;
+    }
+    const runtime_page_t *page = &g_runtime->pages[index % g_runtime->page_count];
+    out->name = page->name;
+    out->renderer = ui_renderer(page->renderer);
+    out->metric_count = page->pid_count;
+    for (unsigned i = 0; i < page->pid_count; ++i) {
+        const runtime_pid_t *pid = &g_runtime->pids[page->pid_indices[i]];
+        out->metrics[i] = (ui_metric_t){
+            .pid = pid->obd.pid, .name = pid->name, .unit = pid->unit,
+            .minimum = display_bound(pid->obd.decoder.minimum),
+            .maximum = display_bound(pid->obd.decoder.maximum),
+            .stale_after_ms = pid->stale_ms,
+        };
+    }
+}
+
+static void clear_current_page(ui_t *ui)
+{
+    ui_page_t page;
+    page_ui(atomic_load(&g_selected_page), &page);
+    for (unsigned i = 0; i < page.metric_count; ++i)
+        ui_set_value(ui, page.metrics[i].pid, NULL);
 }
 
 static const obd_pid_cfg_t *poll_cfg(unsigned index)
@@ -249,7 +291,7 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
     }
     int32_t value = (int32_t)decoded;
     ESP_LOGI(TAG, "Received PID 0x%02X (%s): %" PRId32, pid, definition->name, value);
-    if (pid == atomic_load(&g_displayed_pid)) ui_set_value(ui, pid, &value);
+    ui_set_value(ui, pid, &value);
 }
 
 static void app_tick_task(void *arg)
@@ -303,12 +345,12 @@ static void obd_task(void *arg)
     {
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(period_ms));
         if (transfer_gate_current() == 2) {
-            ui_set_value(ui, atomic_load(&g_displayed_pid), NULL);
+            clear_current_page(ui);
             continue;
         }
 
         if (obd == NULL || !ble_obd_is_connected(obd)) {
-            ui_set_value(ui, atomic_load(&g_displayed_pid), NULL);
+            clear_current_page(ui);
             diagnostics_state_disconnected();
             obd = ble_obd_connect(0, CONFIG_EGAUGE_ECM_ADAPTER_MAC, obd_response_cb, ui);
             if (!obd) {
@@ -467,11 +509,8 @@ static void init_config(void)
     else
     {
         ESP_LOGI(TAG, "Configuration loaded successfully: idx=%d, disp_rot=%d", g_config.cfg_idx, g_config.disp_rot);
-        g_current_obd_cfg = page_cfg(g_config.cfg_idx);
     }
     if (g_runtime) g_config.disp_rot = (lv_display_rotation_t)g_runtime->rotation;
-    g_current_obd_cfg = page_cfg(g_config.cfg_idx);
-    atomic_store(&g_displayed_pid, g_current_obd_cfg->pid);
     atomic_store(&g_selected_page, g_config.cfg_idx);
 }
 
@@ -504,13 +543,10 @@ void app_main(void)
     bsp_lv_disp_set_rotation(g_config.disp_rot);
 
     const uint32_t ui_interval_ms = 50;
-    ui_t          *ui             = ui_init(g_current_obd_cfg, ui_interval_ms, ui_touch_callback);
+    ui_page_t initial_page;
+    page_ui(g_config.cfg_idx, &initial_page);
+    ui_t          *ui             = ui_init(&initial_page, ui_interval_ms, ui_touch_callback);
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
-    if (lvgl_port_lock(portMAX_DELAY)) {
-        ui_set_freshness(ui, page_stale_ms(g_config.cfg_idx));
-        lvgl_port_unlock();
-    }
-
     bsp_display_on_off(true);
 
     g_phone_command_queue = xQueueCreate(4, sizeof(companion_command_t));
@@ -556,12 +592,11 @@ void app_main(void)
             updated.cfg_idx = command.value;
             if (config_save(&updated) == ESP_OK) {
                 g_config = updated;
-                g_current_obd_cfg = page_cfg(command.value);
                 if (lvgl_port_lock(portMAX_DELAY)) {
-                    ui_set_obd_cfg(ui, g_current_obd_cfg);
-                    atomic_store(&g_displayed_pid, g_current_obd_cfg->pid);
+                    ui_page_t page;
+                    page_ui(command.value, &page);
+                    ui_set_page(ui, &page);
                     atomic_store(&g_selected_page, command.value);
-                    ui_set_freshness(ui, page_stale_ms(command.value));
                     lvgl_port_unlock();
                     ble_companion_selection_applied(command.value);
                 }

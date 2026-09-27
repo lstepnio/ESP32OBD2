@@ -13,6 +13,22 @@
 #define EGAUGE_RUNTIME_ALERTS 32
 #define CONFIG_RUNTIME_STATUS_SIZE 44
 
+typedef enum {
+    RUNTIME_RENDERER_NUMERIC = 0,
+    RUNTIME_RENDERER_ARC,
+    RUNTIME_RENDERER_BAR,
+    RUNTIME_RENDERER_TREND,
+    RUNTIME_RENDERER_DUAL,
+} runtime_renderer_t;
+
+typedef struct {
+    char id[65];
+    char name[33];
+    runtime_renderer_t renderer;
+    uint8_t pid_count;
+    uint8_t pid_indices[2];
+} runtime_page_t;
+
 typedef struct {
     char id[65];
     char name[65];
@@ -40,9 +56,9 @@ typedef struct {
     uint8_t pid_count;
     uint8_t page_count;
     uint8_t alert_count;
-    uint8_t page_pids[EGAUGE_RUNTIME_PAGES];
     uint8_t rotation;
     runtime_pid_t pids[EGAUGE_RUNTIME_PIDS];
+    runtime_page_t pages[EGAUGE_RUNTIME_PAGES];
     runtime_alert_t alerts[EGAUGE_RUNTIME_ALERTS];
 } config_runtime_t;
 

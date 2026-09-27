@@ -4,7 +4,7 @@
 
 ## Implemented protocol 0 quick selection
 
-The capability JSON advertises `quickSelect: true`, `savedStateRead: true`, `displayRotationWrite: true`, compact wire field `hw: 1`, `configWrite: false` and `ota: false`. The app maps `hw` to the descriptive hardware-capacity version and must check these flags and versions. The saved-state read reports only the built-in selection and rotation. It does not implement full `config.get`, custom PIDs, threshold writes, diagnostics, OTA, or arbitrary OBD requests.
+The capability JSON advertises `quickSelect: true`, `savedStateRead: true`, `displayRotationWrite: true`, compact wire fields `hw: 1` and `cfg: 2`, `configWrite: false` and `ota: false`. The app maps `hw` to the hardware-capacity version and `cfg` to the restricted configuration version. Version 2 means at most eight ordered pages using numeric, arc, bar, trend, or dual renderers. The saved-state read reports only the built-in selection and rotation. The protected experimental path separately implements document readback, threshold writes, diagnostics and development OTA. It does not implement general v1 operations, arbitrary OBD requests, Mode 22, or source routing.
 
 The device uses LE Secure Connections, authenticated passkey entry, encryption and bonding. A gauge long press opens a 120-second association window. The six-digit passkey appears on its LCD and Android shows the system pairing prompt. The first authenticated bonded phone identity is stored in NVS as owner. Protected GATT access also checks that identity. A 12-second physical hold erases the owner association and bond, then restarts the gauge. This reset is intentionally local.
 

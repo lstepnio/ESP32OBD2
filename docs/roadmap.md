@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-Status: M0 is complete. M1 firmware transport, recovery, scheduler, alert, and ownership foundations are implemented on `feat/owned-gauge-control`; real adapter and three-link acceptance criteria remain open. M2 has an experimental authenticated numeric configuration slice with prior Pixel evidence and needs a post-hardening regression before promotion. Complete vertical slices with documentation and evidence before expanding the catalog.
+Status: M0 is complete. M1 firmware transport, recovery, scheduler, alert, and ownership foundations are implemented on `feat/owned-gauge-control`; real adapter and three-link acceptance criteria remain open. M2 has an experimental authenticated configuration slice with prior numeric-page evidence. The eight-page and five-renderer expansion is source-built and needs physical transfer, display, touch, and reboot validation before promotion. Complete vertical slices with documentation and evidence before expanding the catalog.
 
 | Milestone | Deliverables | Exit criteria |
 | --- | --- | --- |

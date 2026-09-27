@@ -33,6 +33,9 @@
 #include "misc/lv_timer.h"
 #include "misc/lv_types.h"
 #include "widgets/label/lv_label.h"
+#include "widgets/arc/lv_arc.h"
+#include "widgets/bar/lv_bar.h"
+#include "widgets/line/lv_line.h"
 
 #include "obd.h"
 #include "ui.h"
@@ -67,7 +70,11 @@ typedef struct {
     char first_code[6];
 } ui_diagnostics_t;
 
-#define UI_SAMPLE_FRESH_MS 1500
+typedef struct {
+    bool present;
+    int32_t value;
+    TickType_t received_at;
+} ui_metric_sample_t;
 
 struct _ui_t
 {
@@ -91,16 +98,23 @@ struct _ui_t
         lv_obj_t *pairing_lbl;
         lv_obj_t *alert_lbl;
         lv_obj_t *diagnostics_lbl;
+        lv_obj_t *arc;
+        lv_obj_t *bar;
+        lv_obj_t *trend;
+        lv_obj_t *dual_value[2];
+        lv_obj_t *dual_info[2];
     } widgets;
 
     struct
     {
-        float current_value;
-        uint32_t stale_after_ms;
-        atomic_uchar selected_pid;
-        int32_t rendered_value;
-        bool rendered_available;
+        ui_page_t page;
+        ui_metric_sample_t samples[2];
+        int32_t rendered_values[2];
+        bool rendered_available[2];
         bool rendered_once;
+        lv_point_precise_t trend_points[60];
+        uint8_t trend_count;
+        TickType_t trend_recorded_at;
     } display;
 };
 
@@ -117,6 +131,44 @@ static const lv_font_t *const font_title    = &notosans_semibold_64;
 static const lv_font_t *const font_compact  = &notosans_semibold_32;
 static const lv_font_t *const font_subtitle = &notosans_medium_16;
 static const lv_font_t *const font_unit     = &notosans_medium_24;
+
+static int32_t bounded_range(int32_t minimum, int32_t maximum)
+{
+    int64_t range = (int64_t)maximum - minimum;
+    return range > 0 && range <= INT32_MAX ? (int32_t)range : 1;
+}
+
+static bool metric_value(ui_t *ui, unsigned index, int32_t *value)
+{
+    if (index >= ui->display.page.metric_count || !ui->display.samples[index].present) return false;
+    TickType_t age = xTaskGetTickCount() - ui->display.samples[index].received_at;
+    if (age > pdMS_TO_TICKS(ui->display.page.metrics[index].stale_after_ms)) return false;
+    *value = ui->display.samples[index].value;
+    return true;
+}
+
+static void show(lv_obj_t *object, bool visible)
+{
+    if (!object) return;
+    if (visible) lv_obj_remove_flag(object, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void select_renderer_widgets(ui_t *ui)
+{
+    ui_renderer_t renderer = ui->display.page.renderer;
+    bool dual = renderer == UI_RENDERER_DUAL;
+    show(ui->widgets.value_lbl, !dual);
+    show(ui->widgets.info_lbl, !dual);
+    show(ui->widgets.unit_lbl, !dual);
+    show(ui->widgets.arc, renderer == UI_RENDERER_ARC);
+    show(ui->widgets.bar, renderer == UI_RENDERER_BAR);
+    show(ui->widgets.trend, renderer == UI_RENDERER_TREND);
+    for (unsigned i = 0; i < 2; ++i) {
+        show(ui->widgets.dual_value[i], dual);
+        show(ui->widgets.dual_info[i], dual);
+    }
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Private Function Definitions
@@ -204,6 +256,60 @@ static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, c
     ui_align_labels(ui);
 }
 
+static void render_page(ui_t *ui)
+{
+    int32_t values[2] = {0};
+    bool available[2] = {
+        metric_value(ui, 0, &values[0]),
+        metric_value(ui, 1, &values[1]),
+    };
+    ui_renderer_t renderer = ui->display.page.renderer;
+    const ui_metric_t *primary = &ui->display.page.metrics[0];
+
+    if (renderer == UI_RENDERER_DUAL) {
+        for (unsigned i = 0; i < 2; ++i) {
+            const ui_metric_t *metric = &ui->display.page.metrics[i];
+            if (!ui->display.rendered_once || available[i] != ui->display.rendered_available[i] ||
+                (available[i] && values[i] != ui->display.rendered_values[i])) {
+                if (available[i]) lv_label_set_text_fmt(ui->widgets.dual_value[i], "%" PRId32, values[i]);
+                else lv_label_set_text(ui->widgets.dual_value[i], "...");
+                lv_label_set_text_fmt(ui->widgets.dual_info[i], "%s  %s",
+                                      metric->name ? metric->name : "VALUE",
+                                      metric->unit ? metric->unit : "");
+            }
+        }
+    } else if (!ui->display.rendered_once || available[0] != ui->display.rendered_available[0] ||
+               (available[0] && values[0] != ui->display.rendered_values[0])) {
+        ui_update_screen(ui, available[0] ? &values[0] : NULL,
+                         ui->display.page.name ? ui->display.page.name : primary->name,
+                         primary->unit);
+        if (available[0] && renderer == UI_RENDERER_ARC) lv_arc_set_value(ui->widgets.arc, values[0]);
+        if (available[0] && renderer == UI_RENDERER_BAR) lv_bar_set_value(ui->widgets.bar, values[0], LV_ANIM_OFF);
+    }
+
+    if (renderer == UI_RENDERER_TREND && available[0] &&
+        xTaskGetTickCount() - ui->display.trend_recorded_at >= pdMS_TO_TICKS(500)) {
+        ui->display.trend_recorded_at = xTaskGetTickCount();
+        if (ui->display.trend_count < 60) ui->display.trend_count++;
+        memmove(&ui->display.trend_points[0], &ui->display.trend_points[1],
+                59 * sizeof(ui->display.trend_points[0]));
+        int32_t range = bounded_range(primary->minimum, primary->maximum);
+        int64_t normalized = ((int64_t)(values[0] - primary->minimum) * 76) / range;
+        if (normalized < 0) normalized = 0;
+        if (normalized > 76) normalized = 76;
+        for (unsigned i = 0; i < 60; ++i)
+            ui->display.trend_points[i].x = (int32_t)i * 144 / 59;
+        ui->display.trend_points[59].y = 76 - (int32_t)normalized;
+        lv_line_set_points(ui->widgets.trend, ui->display.trend_points, 60);
+    }
+
+    for (unsigned i = 0; i < 2; ++i) {
+        ui->display.rendered_values[i] = values[i];
+        ui->display.rendered_available[i] = available[i];
+    }
+    ui->display.rendered_once = true;
+}
+
 static void ui_task(lv_timer_t *timer)
 {
     ESP_NULL_CHECK(timer, TAG, "timer is NULL");
@@ -222,9 +328,15 @@ static void ui_task(lv_timer_t *timer)
 
     ui_alert_t alert;
     if (xQueueReceive(ui->rtos.alert_que, &alert, 0) == pdTRUE) {
+        lv_color_t indicator = alert.severity == 2 ? lv_color_hex(0xFF5656) :
+                               alert.severity == 1 ? lv_color_hex(0xFFC247) :
+                                                     lv_color_hex(0x38D39F);
+        lv_obj_set_style_arc_color(ui->widgets.arc, indicator, LV_PART_INDICATOR);
+        lv_obj_set_style_bg_color(ui->widgets.bar, indicator, LV_PART_INDICATOR);
+        lv_obj_set_style_line_color(ui->widgets.trend, indicator, LV_PART_MAIN);
         if (alert.severity == 0) {
             lv_obj_add_flag(ui->widgets.alert_lbl, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(ui->widgets.info_lbl, LV_OBJ_FLAG_HIDDEN);
+            select_renderer_widgets(ui);
         }
         else {
             lv_obj_set_style_text_color(ui->widgets.alert_lbl,
@@ -253,41 +365,20 @@ static void ui_task(lv_timer_t *timer)
         }
     }
 
-    // get latest value (non-blocking). Continue with previous value if queue is empty
-    ui_sample_t sample = {.value = DISPLAY_VALUE_INVALID};
-    bool received = xQueuePeek(ui->rtos.value_que, &sample, 0) == pdTRUE;
-    bool fresh = received && sample.value != DISPLAY_VALUE_INVALID &&
-                 xTaskGetTickCount() - sample.received_at <=
-                 pdMS_TO_TICKS(ui->display.stale_after_ms);
-    if (!fresh || sample.pid != atomic_load(&ui->display.selected_pid))
-    {
-        ui->display.current_value = 0.0f;
-        if (!ui->display.rendered_once || ui->display.rendered_available) {
-            ui_update_screen(ui, NULL, NULL, NULL);
-            ui->display.rendered_available = false;
-            ui->display.rendered_once = true;
+    ui_sample_t sample;
+    while (xQueueReceive(ui->rtos.value_que, &sample, 0) == pdTRUE) {
+        for (unsigned i = 0; i < ui->display.page.metric_count; ++i) {
+            if (ui->display.page.metrics[i].pid != sample.pid) continue;
+            ui->display.samples[i].present = sample.value != DISPLAY_VALUE_INVALID;
+            ui->display.samples[i].value = sample.value;
+            ui->display.samples[i].received_at = sample.received_at;
         }
     }
-    else
-    {
-        int32_t target = sample.value;
-        ui->display.current_value += (target - ui->display.current_value) * 0.4f;
-        int32_t rounded = (int32_t)(ui->display.current_value >= 0.0f ? ui->display.current_value + 0.5f
-                                                                      : ui->display.current_value - 0.5f);
-        ESP_LOGD(TAG, "Current value: %" PRId32 " (target: %" PRId32 ")", rounded, target);
-        if (!ui->display.rendered_once || !ui->display.rendered_available ||
-            rounded != ui->display.rendered_value) {
-            ui_update_screen(ui, &rounded, NULL, NULL);
-            ui->display.rendered_value = rounded;
-            ui->display.rendered_available = true;
-            ui->display.rendered_once = true;
-        }
-    }
+    render_page(ui);
 
     lv_event_code_t event_code;
     if (xQueueReceive(ui->rtos.touch_ev_que, &event_code, 0) == pdTRUE)
     {
-        ui->display.current_value = 0.0f;  // Reset current value on touch
         if (ui->touch_cb != NULL)
         {
             ui->touch_cb(ui, event_code);
@@ -295,10 +386,10 @@ static void ui_task(lv_timer_t *timer)
     }
 }
 
-static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval_ms)
+static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
-    ESP_NULL_CHECK(cfg, TAG, "OBD PID config is NULL");
+    ESP_NULL_CHECK(page, TAG, "Page config is NULL");
 
     ESP_LOGI(TAG, "Initializing screen ...");
 
@@ -321,7 +412,7 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     // Info label
     lv_obj_t *info_lbl = lv_label_create(scr);
     ESP_NULL_CHECK(info_lbl, TAG, "Failed to create info label");
-    lv_label_set_text(info_lbl, cfg->name ? cfg->name : "???");
+    lv_label_set_text(info_lbl, page->name ? page->name : "???");
     lv_obj_set_style_text_color(info_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(info_lbl, font_subtitle, LV_PART_MAIN);
     lv_obj_set_style_text_align(info_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
@@ -330,7 +421,7 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     // Unit label centered below the number, away from the curved right edge.
     lv_obj_t *unit_lbl = lv_label_create(scr);
     ESP_NULL_CHECK(unit_lbl, TAG, "Failed to create unit label");
-    lv_label_set_text(unit_lbl, cfg->unit ? cfg->unit : "");
+    lv_label_set_text(unit_lbl, page->metrics[0].unit ? page->metrics[0].unit : "");
     lv_obj_set_style_text_color(unit_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(unit_lbl, font_unit, LV_PART_MAIN);
     lv_obj_set_style_text_align(unit_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
@@ -339,6 +430,56 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     ui->widgets.value_lbl = value_lbl;
     ui->widgets.info_lbl  = info_lbl;
     ui->widgets.unit_lbl  = unit_lbl;
+
+    lv_obj_t *arc = lv_arc_create(scr);
+    lv_obj_set_size(arc, 202, 202);
+    lv_obj_align(arc, LV_ALIGN_CENTER, 0, 0);
+    lv_arc_set_bg_angles(arc, 135, 45);
+    lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
+    lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_arc_width(arc, 10, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(arc, 10, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(arc, lv_color_hex(0x2B3440), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(arc, lv_color_hex(0x38D39F), LV_PART_INDICATOR);
+    ui->widgets.arc = arc;
+
+    lv_obj_t *bar = lv_bar_create(scr);
+    lv_obj_set_size(bar, 142, 12);
+    lv_obj_align(bar, LV_ALIGN_CENTER, 0, 52);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(0x2B3440), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(0x38D39F), LV_PART_INDICATOR);
+    ui->widgets.bar = bar;
+
+    lv_obj_t *trend = lv_line_create(scr);
+    lv_obj_set_size(trend, 150, 80);
+    lv_obj_align(trend, LV_ALIGN_CENTER, 0, 24);
+    lv_obj_set_style_line_color(trend, lv_color_hex(0x38D39F), LV_PART_MAIN);
+    lv_obj_set_style_line_width(trend, 3, LV_PART_MAIN);
+    for (unsigned i = 0; i < 60; ++i) {
+        ui->display.trend_points[i].x = (int32_t)i * 144 / 59;
+        ui->display.trend_points[i].y = 76;
+    }
+    lv_line_set_points(trend, ui->display.trend_points, 60);
+    ui->widgets.trend = trend;
+
+    for (unsigned i = 0; i < 2; ++i) {
+        lv_obj_t *dual_value = lv_label_create(scr);
+        lv_obj_set_width(dual_value, 132);
+        lv_obj_align(dual_value, LV_ALIGN_TOP_MID, 0, i == 0 ? 42 : 124);
+        lv_obj_set_style_text_color(dual_value, lv_color_white(), LV_PART_MAIN);
+        lv_obj_set_style_text_font(dual_value, font_compact, LV_PART_MAIN);
+        lv_obj_set_style_text_align(dual_value, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+        lv_label_set_text(dual_value, "...");
+        ui->widgets.dual_value[i] = dual_value;
+
+        lv_obj_t *dual_info = lv_label_create(scr);
+        lv_obj_set_width(dual_info, 156);
+        lv_obj_align(dual_info, LV_ALIGN_TOP_MID, 0, i == 0 ? 20 : 102);
+        lv_obj_set_style_text_color(dual_info, lv_color_hex(0xAEB8C4), LV_PART_MAIN);
+        lv_obj_set_style_text_font(dual_info, font_subtitle, LV_PART_MAIN);
+        lv_obj_set_style_text_align(dual_info, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+        ui->widgets.dual_info[i] = dual_info;
+    }
 
     lv_obj_t *pairing_lbl = lv_label_create(scr);
     lv_obj_set_size(pairing_lbl, 176, 100);
@@ -370,6 +511,13 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
     lv_obj_add_flag(diagnostics_lbl, LV_OBJ_FLAG_HIDDEN);
     ui->widgets.diagnostics_lbl = diagnostics_lbl;
 
+    int32_t minimum = page->metrics[0].minimum;
+    int32_t maximum = page->metrics[0].maximum;
+    if (maximum <= minimum) maximum = minimum + 1;
+    lv_arc_set_range(arc, minimum, maximum);
+    lv_bar_set_range(bar, minimum, maximum);
+    select_renderer_widgets(ui);
+
     lv_refr_now(NULL);  // force refresh to apply styles immediately
     ui_align_labels(ui);
 
@@ -384,9 +532,9 @@ static void ui_init_screen(ui_t *ui, obd_pid_cfg_t const *cfg, uint32_t interval
 // Public Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
-ui_t *ui_init(obd_pid_cfg_t const *cfg, uint32_t interval_ms, ui_touch_callback_t touch_cb)
+ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t touch_cb)
 {
-    ESP_NULL_CHECK(cfg, TAG, "OBD PID config is NULL");
+    ESP_NULL_CHECK(page, TAG, "Page config is NULL");
     ESP_NULL_CHECK(touch_cb, TAG, "touch callback is NULL");
 
     ESP_LOGI(TAG, "Initializing UI...");
@@ -396,14 +544,13 @@ ui_t *ui_init(obd_pid_cfg_t const *cfg, uint32_t interval_ms, ui_touch_callback_
     memset(ui, 0, sizeof(ui_t));
     ESP_LOGI(TAG, "ui pointer2: %p (addr: %p)", ui, (void *)&ui);
 
-    ui->rtos.value_que    = xQueueCreate(1, sizeof(ui_sample_t));
+    ui->rtos.value_que    = xQueueCreate(32, sizeof(ui_sample_t));
     ui->rtos.touch_ev_que = xQueueCreate(4, sizeof(lv_event_code_t));
     ui->rtos.pairing_que = xQueueCreate(1, sizeof(uint32_t));
     ui->rtos.alert_que = xQueueCreate(1, sizeof(ui_alert_t));
     ui->rtos.diagnostics_que = xQueueCreate(1, sizeof(ui_diagnostics_t));
     ui->touch_cb          = touch_cb;
-    ui->display.stale_after_ms = UI_SAMPLE_FRESH_MS;
-    atomic_store(&ui->display.selected_pid, cfg->pid);
+    ui->display.page = *page;
 
     if (!ui->rtos.value_que || !ui->rtos.touch_ev_que || !ui->rtos.pairing_que ||
         !ui->rtos.alert_que || !ui->rtos.diagnostics_que) {
@@ -424,7 +571,7 @@ ui_t *ui_init(obd_pid_cfg_t const *cfg, uint32_t interval_ms, ui_touch_callback_
         return NULL;
     }
 
-    ui_init_screen(ui, cfg, interval_ms);
+    ui_init_screen(ui, page, interval_ms);
 
     lvgl_port_unlock();
 
@@ -443,22 +590,31 @@ void ui_set_value(ui_t *ui, uint8_t pid, int32_t const *value)
         .received_at = xTaskGetTickCount(),
     };
 
-    if (xQueueOverwrite(ui->rtos.value_que, &sample) != pdTRUE)
+    if (xQueueSend(ui->rtos.value_que, &sample, 0) != pdTRUE)
     {
-        ESP_LOGE(TAG, "Failed to overwrite value in queue");
+        ESP_LOGW(TAG, "Dropped UI sample for PID 0x%02X", pid);
     }
 }
 
-void ui_set_obd_cfg(ui_t *ui, obd_pid_cfg_t const *cfg)
+void ui_set_page(ui_t *ui, ui_page_t const *page)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
-    ESP_NULL_CHECK(cfg, TAG, "OBD PID config is NULL");
+    ESP_NULL_CHECK(page, TAG, "Page config is NULL");
 
-    atomic_store(&ui->display.selected_pid, cfg->pid);
-    ui_set_value(ui, cfg->pid, NULL);
+    xQueueReset(ui->rtos.value_que);
+    ui->display.page = *page;
+    memset(ui->display.samples, 0, sizeof(ui->display.samples));
     ui->display.rendered_once = false;
-    ui_update_screen(ui, NULL, cfg->name, cfg->unit);
-    ESP_LOGI(TAG, "Updated OBD PID config: 0x%02X (%s)", cfg->pid, cfg->name);
+    ui->display.trend_count = 0;
+    for (unsigned i = 0; i < 60; ++i) ui->display.trend_points[i].y = 76;
+    int32_t minimum = page->metrics[0].minimum;
+    int32_t maximum = page->metrics[0].maximum;
+    if (maximum <= minimum) maximum = minimum + 1;
+    lv_arc_set_range(ui->widgets.arc, minimum, maximum);
+    lv_bar_set_range(ui->widgets.bar, minimum, maximum);
+    select_renderer_widgets(ui);
+    ui_update_screen(ui, NULL, page->name, page->metrics[0].unit);
+    ESP_LOGI(TAG, "Updated page: %s renderer=%u", page->name, page->renderer);
 }
 
 void ui_show_pairing_code(ui_t *ui, uint32_t passkey)
@@ -482,9 +638,4 @@ void ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on,
     if (first_code) snprintf(diagnostics.first_code, sizeof(diagnostics.first_code),
                              "%s", first_code);
     xQueueOverwrite(ui->rtos.diagnostics_que, &diagnostics);
-}
-
-void ui_set_freshness(ui_t *ui, uint32_t stale_after_ms)
-{
-    if (ui) ui->display.stale_after_ms = stale_after_ms;
 }
