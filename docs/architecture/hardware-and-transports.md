@@ -10,15 +10,46 @@ Owner direction: exploit Wi-Fi and other ESP32/board capabilities where they imp
 | BLE central + peripheral | One/two OBD adapters; phone association/config/control/telemetry | Three-link feasibility is unresolved; limits advertised |
 | Dual-core CPU / RTOS | Isolate rendering from transaction/parser work; measured task priorities | Do not fix core affinity without workload measurement |
 | 16 MB flash configuration | A/B app slots, bounded profiles, diagnostic records | Verify actual flash geometry before migration; firmware files currently use 16 MB |
-| 2 MB embedded QSPI PSRAM | Frame buffers, bounded trends, larger profile cache | esptool observed memory; baseline disables PSRAM; capability/allocation must be measured |
+| 2 MB embedded QSPI PSRAM | Frame buffers, bounded trends, larger profile cache | Enabled in the current build; keep radio, DMA and latency-critical allocations in internal RAM |
 | 240 × 240 GC9A01 SPI LCD | Bright readable templates, attention overlays, update/recovery status | Board pins/bus bandwidth and partial DMA buffer constraints |
 | CST816S touch | Page navigation, owner confirmation, alert acknowledgment and local diagnostics | Small circular area; broad targets and deliberate destructive-action confirmation |
-| QMI8658 IMU from board demo | Optional installation orientation helper and wake gesture experiment | Check sensor/revision and calibration; no automatic in-motion rotation or claim of accurate vehicle dynamics |
-| Board battery/ADC support | Device battery display and power diagnostics where physically fitted | Not a substitute for vehicle voltage or proof of stable update power; calibration/source labels required |
-| USB | Flash/recovery, serial logs, deterministic bench development | Actual board USB routing/mode must be checked; no assumption of arbitrary USB host/OTG use through this connector |
-| Exposed GPIO/I2C/SPI | Future ambient-light input, external sensor gateway or buzzer | Check occupied pins, level/power budget and protection before hardware design |
+| QMI8658 IMU | Installation orientation assistant, wake/tap experiments and parked-movement event markers | Shares I2C with touch; verify identity, interrupt routing and enclosure calibration before use |
+| LiPo connector, charger and GPIO1 battery ADC | Battery-backed shutdown, parked mode, update preflight and device-power diagnostics | Measures the attached device battery, not vehicle voltage; calibrate the 200 kΩ/100 kΩ divider per unit/revision |
+| GPIO2 LCD backlight control | Smooth brightness, manual night mode and alert emphasis | Implement PWM with a safe visible minimum; validate flicker, thermal behavior and boot state |
+| GPIO4/GPIO5 switched contacts | Candidate low-current haptic or indicator output | Exact board population and load limits require inspection. GPIO5 is already the touch interrupt in the current BSP, so it is not available without a verified pin/revision change |
+| USB-C through CH343P USB-to-UART | Flash/recovery, serial logs and deterministic bench development | The fitted connector is routed as USB-to-UART. ESP32-S3 native USB features are not exposed through this connector as a product interface |
+| Six-pin SH1.0 expansion connector | Future ambient-light input, ignition sense, protected external sensor or future accessory | Verify the exact revision pinout, occupied pins, voltage, current and automotive protection before connecting hardware |
 
-ESP32-S3 feature reference: [Espressif datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf). Board-level parts beyond serial-observed LCD/touch/memory are derived from the existing Waveshare demo and require exact revision verification. Native Bluetooth Classic is not a fallback for this S3 design. An onboard CAN transceiver, GNSS, ambient light sensor, buzzer and vehicle-grade power protection are not assumed present.
+ESP32-S3 feature reference: [Espressif datasheet](https://documentation.espressif.com/esp32_s3_datasheet_en.pdf). Board details are from the [Waveshare board documentation](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.28), its linked Rev3 schematic and the checked-out BSP. The product must still record and probe the exact assembled revision because Waveshare lists two SKUs and more than one schematic. Native Bluetooth Classic is not a fallback for this S3 design. An onboard CAN transceiver, GNSS, ambient light sensor, buzzer and vehicle-grade power protection are not present in the documented design.
+
+## Product opportunity review
+
+The following order maximizes driver value and reliability while keeping unverified hardware claims out of the product.
+
+| Priority | Capability | Product behavior | Implementation gate |
+| --- | --- | --- | --- |
+| P0 | PWM backlight and night mode | App-configurable brightness, smooth local dimming, night palette and visible alert emphasis | Characterize GPIO2 PWM range, flicker, current and boot behavior on the exact board |
+| P0 | Production security hardware | Secure Boot v2, flash/NVS encryption, signed OTA, anti-rollback and device identity backed by ESP32-S3 security primitives | Design manufacturing keys, recovery and irreversible eFuse procedure before enabling production fuses |
+| P0 | Device power awareness | Report device battery/source health, reject unsafe updates and perform graceful low-power shutdown | Calibrate GPIO1 ADC, distinguish USB/device battery/vehicle states and measure update current margins |
+| P1 | IMU-assisted setup and events | Guide mounting orientation, verify installation movement and create bounded impact/movement event markers | Add shared-I2C ownership, low-rate sampling, interrupt handling, calibration and health reporting |
+| P1 | Haptic feedback | Confirm touch actions and reinforce critical alerts when the display is outside the driver's direct view | Inspect output circuitry and current limits; prototype on GPIO4 first because GPIO5 conflicts with touch interrupt |
+| P1 | Wi-Fi maintenance transport | Faster OTA, diagnostic export and PID catalog/profile transfer through an automatic private gauge network authorized by BLE | Measure Wi-Fi/BLE coexistence; use one random WPA2 SoftAP session with application-layer AEAD and a short expiry |
+| P1 | Bounded event storage | Store alert transitions, resets, update results and redacted support records in unused flash | Allocate a versioned wear-leveled partition with retention and privacy limits |
+| P1 | PSRAM-backed trends | Smooth graphs, short bounded histories and richer rendering without starving protocol tasks | Set memory budgets and keep BLE, DMA and critical queues in internal memory |
+| P2 | Protected accessory interface | Optional ambient light, ignition sense or external haptic/buzzer module | Define a protected connector contract and validate voltage, ESD, transients and pin ownership |
+| Future hardware | Direct vehicle CAN | A Pro model can avoid third-party BLE adapter variability and improve transport diagnostics | Requires an external automotive CAN transceiver, protected power front end, harness and vehicle validation |
+
+The IMU is not a trustworthy source for vehicle speed, crash detection or performance timing without a separately validated sensing design. GPIO1 must never be labeled as vehicle voltage. Bare ESP32 pins must never connect directly to OBD CAN or vehicle 12 V. The current USB-C connector should remain a development and recovery serial path.
+
+## Recommended delivery slices
+
+1. Add a read-only hardware capability probe: firmware/board identity, QMI8658 identity and health, calibrated battery ADC samples, PSRAM/flash totals, backlight capability and occupied-pin report. Expose the result through authenticated diagnostics in the app.
+2. Deliver PWM brightness, manual/night presets, the round-display-safe night palette and a local hardware self-test page.
+3. Add bounded event storage and export for alert transitions, resets, update outcomes and hardware faults.
+4. Prototype the IMU installation assistant and GPIO4 haptic feedback, with a compile-time board-revision gate until electrical limits are verified.
+5. Qualify the automatic private Wi-Fi bulk transport, then measure OBD BLE latency while transferring firmware and logs.
+6. Define production key provisioning, encrypted storage, secure boot and rollback policy before manufacturing builds.
+7. Treat direct CAN and automotive power/ignition sensing as a future board variant with its own schematic, protection and validation plan.
 
 ## Operating modes
 
@@ -36,13 +67,13 @@ ESP32-S3 feature reference: [Espressif datasheet](https://www.espressif.com/site
 The application protocol owns capabilities, request IDs, operation tokens, config hashes and OTA state. BLE and Wi-Fi are transports of the same authenticated operations. Keep BLE as the universal bootstrap/recovery control path. Negotiate `bulkTransports` and transport/session capabilities. Prefer Wi-Fi for a large firmware image only after preflight confirms a usable local path; keep BLE as fallback. Never require an internet connection for an already downloaded update.
 
 1. Associate and establish ownership through authenticated BLE.
-2. Owner selects home/local Wi-Fi station mode or an explicit temporary device access point. Verify the provisioning transport can share the chosen NimBLE lifecycle; do not use example cleanup handlers that release Bluetooth memory required by the gauge. Use a device-specific access credential and time-limited enrollment; no open permanent AP.
-3. Provision over the authenticated session using established Espressif provisioning security primitives, reviewed for the actual implementation. Do not log network credentials. Store only where needed with a production storage-protection policy.
-4. Exchange local endpoint and its device certificate/public-key fingerprint over the trusted BLE channel. Android validates that identity on the TLS connection; never accept arbitrary self-signed certificates or disable hostname/trust checks globally.
-5. Bind each bulk transfer token to owner, artifact/config hash and current operation. Switch transports only at an acknowledged offset after closing the previous writer. One writer lease prevents BLE/Wi-Fi races.
-6. On Wi-Fi loss, query accepted offset through BLE and resume if the same device boot/session remains alive. If device rebooted, follow the v1 restart-from-zero OTA policy. Do not implement separate conflicting OTA state machines.
+2. Owner starts a bulk operation. The gauge creates a one-client WPA2 SoftAP with random credentials and a separate AES-256-GCM session key. It returns them only over the protected BLE owner characteristic.
+3. Android requests the temporary network with `WifiNetworkSpecifier` and binds only the bulk socket to it. No user-entered network credentials, permanent device access point or phone-wide route change is required.
+4. Bind every encrypted frame to the random session ID, a strictly increasing sequence, direction and authenticated header. The session expires after ten minutes and all secrets remain in RAM.
+5. Send the existing configuration or OTA commands through the encrypted socket. The existing transfer gate, hashes, signatures, offsets and activation state remain authoritative and prevent BLE/Wi-Fi writer races.
+6. On Wi-Fi loss, query accepted offset through BLE and open a fresh Wi-Fi session before continuing the same safe transfer policy. If the device rebooted, follow the v1 restart-from-zero OTA policy.
 
-Android local Wi-Fi/SoftAP routing must respect OS consent and lifecycle. A local-only network may lack internet; bind only the transfer socket/client to that network and retain any available internet route for unrelated downloads. Resolve background/foreground behavior and permission changes on target Android versions during the spike.
+Android local Wi-Fi routing must respect OS consent and lifecycle. The network intentionally lacks internet; bind only the transfer socket to it and retain any available internet route for unrelated downloads. The app may trigger Android's standard network approval sheet, but it does not ask the user for an SSID or password.
 
 ## Integrations and limits
 
@@ -54,7 +85,7 @@ Power saving: use bounded reconnect scans, optional screen dimming and explicit 
 
 - **HW-001:** exact board revision, flash, QSPI PSRAM allocation, sensor identity, battery ADC calibration and available pin map.
 - **RADIO-001:** ECM + TCM + phone coexistence with Wi-Fi off/on and in maintenance, including power measurements.
-- **WIFI-001:** station/temporary-AP secure provisioning, Android network routing, measured transfer throughput and recovery; choose preferred production transport from evidence.
+- **WIFI-001:** automatic temporary-AP authorization, Android network routing, measured transfer throughput and recovery; promote the capability only from device evidence.
 - **POWER-001:** sleep/dimming/wake policy, ignition inference limits, permanent automotive power design.
 
-These are implementation gates. No Wi-Fi service, provisioning credentials, extra sensors or radio mode changes are installed by this design milestone.
+These are implementation gates. The Wi-Fi source path is implemented behind a disabled capability gate; qualification is still required. No extra sensors or permanent radio mode changes are installed by this design milestone.

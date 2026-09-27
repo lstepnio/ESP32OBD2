@@ -4,6 +4,7 @@
 
 #include <inttypes.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -27,6 +28,7 @@
 #include "os/os_mbuf.h"
 
 #include "ble_init.h"
+#include "ble_companion.h"
 #include "ble_mgr.h"
 #include "ble_util.h"
 
@@ -37,7 +39,9 @@
 struct ble_mgr_ctx
 {
     uint16_t conn_handle;
-    bool     is_connected;
+    atomic_bool is_connected;
+    atomic_bool connecting;
+    bool scanning;
 
     ble_mgr_disc_cfg_t const *disc_cfg;
 
@@ -48,6 +52,10 @@ struct ble_mgr_ctx
         bool svc_disc_completed;
         bool chr_disc_completed;
         bool chr_disc_started;
+        bool dsc_disc_started;
+        bool subscription_started;
+        uint16_t service_end_handle;
+        size_t notify_index;
     } svc_disc_ctx;
 
     struct
@@ -72,6 +80,14 @@ static void ble_mgr_gap_notification_cb(ble_mgr_ctx_t  *mgr_ctx,
                                         bool            indication);
 
 static void ble_mgr_gap_connected_cb(ble_mgr_ctx_t *mgr_ctx, uint16_t conn_handle, int status);
+static void ble_mgr_connect_complete(ble_mgr_ctx_t *mgr_ctx, ble_mgr_status_t status);
+static int ble_mgr_gatt_dsc_discovered_cb(uint16_t conn_handle,
+                                         const struct ble_gatt_error *error,
+                                         uint16_t chr_val_handle,
+                                         const struct ble_gatt_dsc *dsc, void *arg);
+static int ble_mgr_gatt_subscription_cb(uint16_t conn_handle,
+                                        const struct ble_gatt_error *error,
+                                        struct ble_gatt_attr *attr, void *arg);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Constants
@@ -110,14 +126,15 @@ static const uint8_t cccd_notify_enable_cfg[] = {0x01, 0x00};
 // Global Variables
 // ---------------------------------------------------------------------------------------------------------------------
 
-// forward declaration for static mgr_ctx object (unfortunately required for contextless NimBLE callbacks)
-static ble_mgr_ctx_t BLE_MGR_CTX = {
-    .conn_handle  = BLE_HS_CONN_HANDLE_NONE,
-    .disc_cfg     = NULL,
-    .usr_ctx      = NULL,
-    .svc_disc_ctx = {.svc_disc_completed = false, .chr_disc_completed = false, .chr_disc_started = false},
-    .api          = {.result_que = NULL, .lock_mtx = NULL},
+/* One host, two stable central connection contexts. Initialize before tasks start. */
+static ble_mgr_ctx_t BLE_MGR_CTX[2] = {
+    {.conn_handle = BLE_HS_CONN_HANDLE_NONE},
+    {.conn_handle = BLE_HS_CONN_HANDLE_NONE},
 };
+static SemaphoreHandle_t scan_lock;
+static SemaphoreHandle_t stack_ready;
+static bool stack_started;
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Macros
 // ---------------------------------------------------------------------------------------------------------------------
@@ -173,15 +190,6 @@ static inline __attribute__((always_inline)) void API_QUEUE_SEND(ble_mgr_ctx_t c
     }
 }
 
-#define API_QUEUE_CLEAR()                                                                                              \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        if (BLE_MGR_CTX.api.result_que != NULL)                                                                        \
-        {                                                                                                              \
-            xQueueReset(BLE_MGR_CTX.api.result_que);                                                                   \
-        }                                                                                                              \
-    } while (0)
-
 // ---------------------------------------------------------------------------------------------------------------------
 // Private Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
@@ -189,13 +197,24 @@ static inline __attribute__((always_inline)) void API_QUEUE_SEND(ble_mgr_ctx_t c
 static void ble_mgr_gap_stack_reset_cb(int reason)
 {
     ESP_LOGW(TAG, "NimBLE stack reset, reset reason: %d", reason);
-    // FIXME: handle reset, restart discovery if needed
+    ble_companion_reset();
+    for (size_t i = 0; i < ARRAY_SIZE(BLE_MGR_CTX); i++) {
+        ble_mgr_ctx_t *ctx = &BLE_MGR_CTX[i];
+        if (atomic_exchange(&ctx->connecting, false))
+            API_QUEUE_SEND(ctx, BLE_MGR_E_NOT_CONNECTED);
+        bool was_connected = atomic_exchange(&ctx->is_connected, false);
+        ctx->conn_handle = BLE_HS_CONN_HANDLE_NONE;
+        ctx->scanning = false;
+        if (was_connected && ctx->disc_cfg && ctx->disc_cfg->disconnected_cb)
+            ctx->disc_cfg->disconnected_cb(ctx, ctx->usr_ctx);
+    }
 }
 
 static void ble_mgr_gap_stack_sync_cb(void)
 {
     ESP_LOGD(TAG, "NimBLE stack synced");
-    API_QUEUE_SEND(&BLE_MGR_CTX, BLE_MGR_E_OK);
+    ble_companion_start();
+    if (stack_ready) xSemaphoreGive(stack_ready);
 }
 
 static bool ble_mgr_adv_contains_service(const struct ble_hs_adv_fields *adv_fields, const char *target_uuid)
@@ -248,6 +267,7 @@ static int ble_mgr_gap_event_cb(struct ble_gap_event *event, void *arg)
     switch (event->type)
     {
     case BLE_GAP_EVENT_DISC:
+        if (!mgr_ctx->scanning || !atomic_load(&mgr_ctx->connecting)) break;
         ble_addr_to_str(&event->disc.addr, addr_str);
 
         ESP_LOGD(TAG, "Discovered device: addr=%s", addr_str);
@@ -267,17 +287,20 @@ static int ble_mgr_gap_event_cb(struct ble_gap_event *event, void *arg)
             if (connect)
             {
                 ESP_LOGD(TAG, "Connecting to %s...", addr_str);
+                mgr_ctx->scanning = false;
                 ble_gap_disc_cancel();
-                API_QUEUE_CLEAR();
-                ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &event->disc.addr, 30000, &conn_params, ble_mgr_gap_event_cb,
-                                mgr_ctx);
+                int connect_rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &event->disc.addr, 8000,
+                                                 &conn_params, ble_mgr_gap_event_cb, mgr_ctx);
+                if (connect_rc != 0) ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_NOT_CONNECTED);
             }
         }
         break;
 
     case BLE_GAP_EVENT_DISC_COMPLETE:
-        ESP_LOGD(TAG, "Device discovery complete. Restarting...");
-        ble_gap_disc(0, BLE_DISCOVERY_TIMEOUT_MS, &disc_params, ble_mgr_gap_event_cb, mgr_ctx);
+        if (mgr_ctx->scanning) {
+            ESP_LOGD(TAG, "Device discovery window complete. Continuing...");
+            ble_gap_disc(0, BLE_DISCOVERY_TIMEOUT_MS, &disc_params, ble_mgr_gap_event_cb, mgr_ctx);
+        }
         break;
 
     case BLE_GAP_EVENT_CONNECT:
@@ -287,24 +310,18 @@ static int ble_mgr_gap_event_cb(struct ble_gap_event *event, void *arg)
         }
         else
         {
-            ESP_LOGW(TAG, "Connection to %s failed: %d", addr_str, event->connect.status);
+            ESP_LOGW(TAG, "Connection attempt failed: %d", event->connect.status);
         }
         ble_mgr_gap_connected_cb(mgr_ctx, event->connect.conn_handle, event->connect.status);
         break;
 
     case BLE_GAP_EVENT_DISCONNECT:
+        if (event->disconnect.conn.conn_handle != mgr_ctx->conn_handle) break;
         mgr_ctx->conn_handle  = BLE_HS_CONN_HANDLE_NONE;
         mgr_ctx->is_connected = false;
-
-        if (mgr_ctx->disc_cfg->disconnected_cb != NULL)
-        {
-            bool restart = mgr_ctx->disc_cfg->disconnected_cb(mgr_ctx, mgr_ctx->usr_ctx);
-            if (restart)
-            {
-                ESP_LOGD(TAG, "Restarting discovery...");
-                ble_gap_disc(0, BLE_DISCOVERY_TIMEOUT_MS, &disc_params, ble_mgr_gap_event_cb, mgr_ctx);
-            }
-        }
+        ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_NOT_CONNECTED);
+        if (mgr_ctx->disc_cfg && mgr_ctx->disc_cfg->disconnected_cb)
+            mgr_ctx->disc_cfg->disconnected_cb(mgr_ctx, mgr_ctx->usr_ctx);
         break;
 
     case BLE_GAP_EVENT_NOTIFY_RX:
@@ -337,7 +354,7 @@ static void ble_mgr_gap_notification_cb(ble_mgr_ctx_t  *mgr_ctx,
 {
     ESP_NULL_CHECK(mgr_ctx, TAG, "context is NULL");
 
-    if (om != NULL)
+    if (om != NULL && conn_handle == mgr_ctx->conn_handle)
     {
         ESP_LOGD(TAG, "Notify Rx on handle 0x%04x: %.*s", attr_handle, om->om_len, (char const *)om->om_data);
 
@@ -351,7 +368,9 @@ static void ble_mgr_gap_notification_cb(ble_mgr_ctx_t  *mgr_ctx,
             {
                 if ((svc_def->chars[i].handle == attr_handle) && (svc_def->chars[i].notify_cb != NULL))
                 {
-                    svc_def->chars[i].notify_cb(om->om_data, om->om_len, attr_handle, mgr_ctx->usr_ctx);
+                    for (struct os_mbuf *part = om; part; part = SLIST_NEXT(part, om_next)) {
+                        svc_def->chars[i].notify_cb(part->om_data, part->om_len, attr_handle, mgr_ctx->usr_ctx);
+                    }
                     break;
                 }
             }
@@ -371,6 +390,7 @@ static void ble_mgr_connect_complete(ble_mgr_ctx_t *mgr_ctx, ble_mgr_status_t st
 {
     ESP_NULL_CHECK(mgr_ctx, TAG, "context is NULL");
 
+    if (!atomic_exchange(&mgr_ctx->connecting, false)) return;
     mgr_ctx->is_connected = (status == BLE_MGR_E_OK);
     API_QUEUE_SEND(mgr_ctx, status);
 }
@@ -396,25 +416,121 @@ static void ble_mgr_gatt_svc_chr_disc_completed_check(ble_mgr_ctx_t *mgr_ctx, co
         return;
     }
 
-    // If characteristic discovery has started but not completed, do not call the callback yet
-    if (mgr_ctx->svc_disc_ctx.chr_disc_started && !mgr_ctx->svc_disc_ctx.chr_disc_completed)
-    {
+    if (!mgr_ctx->svc_disc_ctx.chr_disc_started && mgr_ctx->svc_disc_ctx.svc_disc_completed) {
+        ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        return;
+    }
+    if (!mgr_ctx->svc_disc_ctx.chr_disc_completed ||
+        mgr_ctx->svc_disc_ctx.dsc_disc_started ||
+        mgr_ctx->svc_disc_ctx.subscription_started) return;
+
+    ble_mgr_svc_def_t *service = (ble_mgr_svc_def_t *)mgr_ctx->disc_cfg->svc_def;
+    for (size_t i = mgr_ctx->svc_disc_ctx.notify_index; i < service->num_chars; ++i) {
+        ble_gatt_char_def_t *chr = &service->chars[i];
+        if (!chr->notify_cb) continue;
+        if (!chr->handle || !(chr->properties & BLE_GATT_CHR_PROP_NOTIFY)) {
+            ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+            return;
+        }
+        uint16_t end_handle = mgr_ctx->svc_disc_ctx.service_end_handle;
+        for (size_t next = 0; next < service->num_chars; ++next)
+            if (service->chars[next].def_handle > chr->def_handle &&
+                service->chars[next].def_handle - 1 < end_handle)
+                end_handle = service->chars[next].def_handle - 1;
+        mgr_ctx->svc_disc_ctx.notify_index = i;
+        mgr_ctx->svc_disc_ctx.dsc_disc_started = true;
+        int rc = ble_gattc_disc_all_dscs(mgr_ctx->conn_handle, chr->handle, end_handle,
+                                         ble_mgr_gatt_dsc_discovered_cb, mgr_ctx);
+        if (rc != 0) {
+            mgr_ctx->svc_disc_ctx.dsc_disc_started = false;
+            ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        }
         return;
     }
 
-    // If both characteristic and service discovery have completed, call the callback
-    if (mgr_ctx->svc_disc_ctx.svc_disc_completed && mgr_ctx->svc_disc_ctx.chr_disc_completed)
-    {
-        ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_OK);
+    for (size_t i = 0; i < service->num_chars; ++i) {
+        ble_gatt_char_def_t *chr = &service->chars[i];
+        if (!chr->handle ||
+            (!chr->notify_cb && !(chr->properties &
+                (BLE_GATT_CHR_PROP_WRITE | BLE_GATT_CHR_PROP_WRITE_NO_RSP))) ||
+            (chr->notify_cb && !chr->cccd_handle)) {
+            ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+            return;
+        }
+    }
+    mgr_ctx->svc_disc_ctx.notify_index = 0;
+    for (size_t i = 0; i < service->num_chars; ++i) {
+        ble_gatt_char_def_t *chr = &service->chars[i];
+        if (!chr->notify_cb) continue;
+        mgr_ctx->svc_disc_ctx.notify_index = i;
+        mgr_ctx->svc_disc_ctx.subscription_started = true;
+        int rc = ble_gattc_write_flat(mgr_ctx->conn_handle, chr->cccd_handle,
+                                      cccd_notify_enable_cfg, sizeof(cccd_notify_enable_cfg),
+                                      ble_mgr_gatt_subscription_cb, mgr_ctx);
+        if (rc != 0) {
+            mgr_ctx->svc_disc_ctx.subscription_started = false;
+            ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        }
         return;
     }
+    ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_OK);
+}
 
-    // If characteristic discovery has not started, but service discovery has completed, call the callback
-    if (!mgr_ctx->svc_disc_ctx.chr_disc_started && mgr_ctx->svc_disc_ctx.svc_disc_completed)
-    {
-        ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_OK);
-        return;
+static int ble_mgr_gatt_dsc_discovered_cb(uint16_t conn_handle,
+                                         const struct ble_gatt_error *error,
+                                         uint16_t chr_val_handle,
+                                         const struct ble_gatt_dsc *dsc, void *arg)
+{
+    ble_mgr_ctx_t *mgr_ctx = arg;
+    if (!mgr_ctx || !atomic_load(&mgr_ctx->connecting) ||
+        conn_handle != mgr_ctx->conn_handle) return 0;
+    ble_mgr_svc_def_t *service = (ble_mgr_svc_def_t *)mgr_ctx->disc_cfg->svc_def;
+    ble_gatt_char_def_t *chr = &service->chars[mgr_ctx->svc_disc_ctx.notify_index];
+    if (chr->handle != chr_val_handle) {
+        ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        return 0;
     }
+    if (error->status == 0 && dsc) {
+        if (ble_uuid_u16(&dsc->uuid.u) == BLE_GATT_DSC_CLT_CFG_UUID16)
+            chr->cccd_handle = dsc->handle;
+        return 0;
+    }
+    mgr_ctx->svc_disc_ctx.dsc_disc_started = false;
+    if (error->status != BLE_HS_EDONE || !chr->cccd_handle) {
+        ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        return 0;
+    }
+    mgr_ctx->svc_disc_ctx.notify_index++;
+    ble_mgr_gatt_svc_chr_disc_completed_check(mgr_ctx, error);
+    return 0;
+}
+
+static int ble_mgr_gatt_subscription_cb(uint16_t conn_handle,
+                                        const struct ble_gatt_error *error,
+                                        struct ble_gatt_attr *attr, void *arg)
+{
+    (void)attr;
+    ble_mgr_ctx_t *mgr_ctx = arg;
+    if (!mgr_ctx || !atomic_load(&mgr_ctx->connecting) ||
+        conn_handle != mgr_ctx->conn_handle) return 0;
+    if (error->status != 0) {
+        ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        return 0;
+    }
+    ble_mgr_svc_def_t *service = (ble_mgr_svc_def_t *)mgr_ctx->disc_cfg->svc_def;
+    for (size_t i = mgr_ctx->svc_disc_ctx.notify_index + 1; i < service->num_chars; ++i) {
+        ble_gatt_char_def_t *chr = &service->chars[i];
+        if (!chr->notify_cb) continue;
+        mgr_ctx->svc_disc_ctx.notify_index = i;
+        int rc = ble_gattc_write_flat(conn_handle, chr->cccd_handle,
+                                      cccd_notify_enable_cfg, sizeof(cccd_notify_enable_cfg),
+                                      ble_mgr_gatt_subscription_cb, mgr_ctx);
+        if (rc != 0) ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
+        return 0;
+    }
+    mgr_ctx->svc_disc_ctx.subscription_started = false;
+    ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_OK);
+    return 0;
 }
 
 static int ble_mgr_gatt_chr_discovered_cb(uint16_t                     conn_handle,
@@ -425,6 +541,7 @@ static int ble_mgr_gatt_chr_discovered_cb(uint16_t                     conn_hand
     ESP_NULL_CHECK(error, TAG, "error is NULL");
     ble_mgr_ctx_t *mgr_ctx = (ble_mgr_ctx_t *)arg;
     ESP_NULL_CHECK(mgr_ctx, TAG, "context is NULL");
+    if (!atomic_load(&mgr_ctx->connecting) || conn_handle != mgr_ctx->conn_handle) return 0;
 
     if (error->status == 0 && chr != NULL)
     {
@@ -437,19 +554,9 @@ static int ble_mgr_gatt_chr_discovered_cb(uint16_t                     conn_hand
             if (strcmp(uuid_str, mgr_ctx->disc_cfg->svc_def->chars[i].uuid) == 0)
             {
                 ESP_LOGD(TAG, "Found matching characteristic: %s", uuid_str);
+                mgr_ctx->disc_cfg->svc_def->chars[i].def_handle = chr->def_handle;
                 mgr_ctx->disc_cfg->svc_def->chars[i].handle = chr->val_handle;
-
-                if (mgr_ctx->disc_cfg->svc_def->chars[i].notify_cb != NULL)
-                {
-                    ESP_LOGD(TAG, "Setting up notification callback for characteristic: %s", uuid_str);
-                    int rc = ble_gattc_write_flat(conn_handle,
-                                                  chr->val_handle + 1,  // CCCD handle is usually handle+1
-                                                  cccd_notify_enable_cfg, sizeof(cccd_notify_enable_cfg), NULL, NULL);
-                    if (rc != 0)
-                    {
-                        ESP_LOGE(TAG, "Failed to subscribe to TX notifications: %d", rc);
-                    }
-                }
+                mgr_ctx->disc_cfg->svc_def->chars[i].properties = chr->properties;
                 break;
             }
         }
@@ -472,6 +579,7 @@ static int ble_mgr_gatt_svc_discovered_cb(uint16_t                     conn_hand
     ESP_NULL_CHECK(error, TAG, "error is NULL");
     ble_mgr_ctx_t *mgr_ctx = (ble_mgr_ctx_t *)arg;
     ESP_NULL_CHECK(mgr_ctx, TAG, "context is NULL");
+    if (!atomic_load(&mgr_ctx->connecting) || conn_handle != mgr_ctx->conn_handle) return 0;
 
     char uuid_str[BLE_UUID_STR_LEN];
 
@@ -486,6 +594,7 @@ static int ble_mgr_gatt_svc_discovered_cb(uint16_t                     conn_hand
             ESP_LOGD(TAG, "Starting characteristic discovery...");
 
             mgr_ctx->svc_disc_ctx.chr_disc_started = true;
+            mgr_ctx->svc_disc_ctx.service_end_handle = service->end_handle;
 
             int rc = ble_gattc_disc_all_chrs(conn_handle, service->start_handle, service->end_handle,
                                              ble_mgr_gatt_chr_discovered_cb, mgr_ctx);
@@ -516,11 +625,19 @@ static void ble_mgr_gap_connected_cb(ble_mgr_ctx_t *mgr_ctx, uint16_t conn_handl
         return;
     }
 
+    if (!atomic_load(&mgr_ctx->connecting)) {
+        ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+        return;
+    }
     mgr_ctx->conn_handle = conn_handle;
 
     mgr_ctx->svc_disc_ctx.svc_disc_completed = false;
     mgr_ctx->svc_disc_ctx.chr_disc_completed = false;
     mgr_ctx->svc_disc_ctx.chr_disc_started   = false;
+    mgr_ctx->svc_disc_ctx.dsc_disc_started = false;
+    mgr_ctx->svc_disc_ctx.subscription_started = false;
+    mgr_ctx->svc_disc_ctx.notify_index = 0;
+    mgr_ctx->svc_disc_ctx.service_end_handle = 0;
 
     int rc = ble_gattc_disc_all_svcs(mgr_ctx->conn_handle, ble_mgr_gatt_svc_discovered_cb, mgr_ctx);
     if (rc != 0)
@@ -536,40 +653,27 @@ static void ble_mgr_gap_connected_cb(ble_mgr_ctx_t *mgr_ctx, uint16_t conn_handl
 // Public Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
-ble_mgr_ctx_t *ble_mgr_init(int timeout_ms)
+ble_mgr_ctx_t *ble_mgr_init(unsigned source_id, int timeout_ms)
 {
-    ble_mgr_ctx_t *mgr_ctx = &BLE_MGR_CTX;
-
-    if (mgr_ctx->api.lock_mtx != NULL)
-    {
-        ESP_LOGD(TAG, "BLE stack already initialized");
-        return mgr_ctx;
+    if (source_id >= ARRAY_SIZE(BLE_MGR_CTX)) return NULL;
+    /* app_main initializes both slots before starting the polling tasks. */
+    if (!stack_started) {
+        stack_ready = xSemaphoreCreateBinary();
+        scan_lock = xSemaphoreCreateMutex();
+        if (!stack_ready || !scan_lock) return NULL;
+        ble_init_stack(&ble_init_cfg);
+        stack_started = true;
+        if (xSemaphoreTake(stack_ready, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
+            ESP_LOGE(TAG, "NimBLE host did not synchronize");
+            return NULL;
+        }
     }
-    ESP_LOGD(TAG, "Initializing BLE stack...");
-
-    mgr_ctx->api.lock_mtx = xSemaphoreCreateMutex();
-    ESP_NULL_CHECK(mgr_ctx->api.lock_mtx, TAG, "Failed to create mutex");
-
-    API_LOCK_OR_RETURN(mgr_ctx, NULL);
-
-    mgr_ctx->api.result_que = xQueueCreate(1, sizeof(ble_mgr_status_t));
-    ESP_NULL_CHECK(mgr_ctx->api.result_que, TAG, "Failed to create result queue");
-
-    ble_init_stack(&ble_init_cfg);
-
-    if (!API_QUEUE_WAIT(mgr_ctx, NULL, timeout_ms))
-    {
-        ESP_LOGE(TAG, "Failed to initialize BLE stack (timeout=%u ms)", timeout_ms);
-        vSemaphoreDelete(mgr_ctx->api.lock_mtx);
-        vQueueDelete(mgr_ctx->api.result_que);
-        mgr_ctx->api.lock_mtx   = NULL;
-        mgr_ctx->api.result_que = NULL;
-        API_UNLOCK(mgr_ctx, BLE_MGR_E_NULL);
-        return NULL;
+    ble_mgr_ctx_t *mgr_ctx = &BLE_MGR_CTX[source_id];
+    if (!mgr_ctx->api.lock_mtx) {
+        mgr_ctx->api.lock_mtx = xSemaphoreCreateMutex();
+        mgr_ctx->api.result_que = xQueueCreate(1, sizeof(ble_mgr_status_t));
+        if (!mgr_ctx->api.lock_mtx || !mgr_ctx->api.result_que) return NULL;
     }
-    ESP_LOGD(TAG, "BLE stack initialized successfully");
-
-    API_UNLOCK(mgr_ctx, BLE_MGR_E_NULL);
     return mgr_ctx;
 }
 
@@ -583,34 +687,45 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
     ESP_NULL_CHECK(disc_cfg->dev_filter_cb, TAG, "discovery config device filter callback is NULL");
     ESP_NULL_CHECK(disc_cfg->svc_def, TAG, "discovery config service is NULL");
 
-    API_LOCK_OR_RETURN(mgr_ctx, BLE_MGR_E_NULL);
-
-    mgr_ctx->conn_handle  = 0;
-    mgr_ctx->is_connected = false;
-    mgr_ctx->disc_cfg     = disc_cfg;
-    mgr_ctx->usr_ctx      = usr_ctx;
-
-    ESP_LOGD(TAG, "Scanning and connecting to service: %s", disc_cfg->svc_def->service_uuid);
-    ble_gap_disc(0, BLE_DISCOVERY_TIMEOUT_MS, &disc_params, ble_mgr_gap_event_cb, (void *)mgr_ctx);
-
-    ble_mgr_status_t status = BLE_MGR_E_OK;
-    if (!API_QUEUE_WAIT(mgr_ctx, &status, timeout_ms))
-    {
-        ESP_LOGE(TAG, "Failed to connect to service (timeout=%" PRIu32 " ms)", timeout_ms);
+    if (xSemaphoreTake(scan_lock, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) return BLE_MGR_E_TIMEOUT;
+    if (xSemaphoreTake(mgr_ctx->api.lock_mtx, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
+        xSemaphoreGive(scan_lock);
+        return BLE_MGR_E_API_LOCK_ERROR;
+    }
+    if (atomic_load(&mgr_ctx->is_connected)) {
+        xSemaphoreGive(mgr_ctx->api.lock_mtx);
+        xSemaphoreGive(scan_lock);
+        return BLE_MGR_E_OK;
+    }
+    xQueueReset(mgr_ctx->api.result_que);
+    mgr_ctx->conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    mgr_ctx->scanning = true;
+    mgr_ctx->connecting = true;
+    for (size_t i = 0; i < disc_cfg->svc_def->num_chars; i++) {
+        disc_cfg->svc_def->chars[i].def_handle = 0;
+        disc_cfg->svc_def->chars[i].handle = 0;
+        disc_cfg->svc_def->chars[i].cccd_handle = 0;
+        disc_cfg->svc_def->chars[i].properties = 0;
+    }
+    mgr_ctx->disc_cfg = disc_cfg;
+    mgr_ctx->usr_ctx = usr_ctx;
+    int rc = ble_gap_disc(0, BLE_DISCOVERY_TIMEOUT_MS, &disc_params, ble_mgr_gap_event_cb, mgr_ctx);
+    ble_mgr_status_t status = BLE_MGR_E_DISCOVERY_FAILED;
+    if (rc == 0) {
+        if (!API_QUEUE_WAIT(mgr_ctx, &status, timeout_ms)) status = BLE_MGR_E_TIMEOUT;
+    }
+    mgr_ctx->scanning = false;
+    if (status != BLE_MGR_E_OK) {
+        atomic_store(&mgr_ctx->connecting, false);
         ble_gap_disc_cancel();
-        return API_UNLOCK(mgr_ctx, BLE_MGR_E_TIMEOUT);
+        ble_gap_conn_cancel();
+        if (mgr_ctx->conn_handle != BLE_HS_CONN_HANDLE_NONE)
+            ble_gap_terminate(mgr_ctx->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
     }
-
-    if (status != BLE_MGR_E_OK)
-    {
-        ESP_LOGE(TAG, "Failed to connect to service: %s", BLE_MGR_STATUS_STR(status));
-        return API_UNLOCK(mgr_ctx, status);
-    }
-
-    mgr_ctx->is_connected = true;
-    ESP_LOGD(TAG, "Connected to service: %s", disc_cfg->svc_def->service_uuid);
-
-    return API_UNLOCK(mgr_ctx, BLE_MGR_E_OK);
+    xSemaphoreGive(mgr_ctx->api.lock_mtx);
+    xSemaphoreGive(scan_lock);
+    ble_companion_start();
+    return status;
 }
 
 ble_mgr_status_t ble_mgr_send(ble_mgr_ctx_t *mgr_ctx, uint16_t chr_handle, const char *data, size_t len)
@@ -644,4 +759,10 @@ bool ble_mgr_is_connected(ble_mgr_ctx_t *mgr_ctx)
     ESP_NULL_CHECK(mgr_ctx, TAG, "context is NULL");
 
     return mgr_ctx->is_connected;
+}
+
+void ble_mgr_disconnect(ble_mgr_ctx_t *mgr_ctx)
+{
+    if (!mgr_ctx || !atomic_load(&mgr_ctx->is_connected)) return;
+    ble_gap_terminate(mgr_ctx->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
 }

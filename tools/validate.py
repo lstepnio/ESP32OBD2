@@ -83,10 +83,16 @@ def release(doc):
     shape('release-manifest.schema.json', doc)
     check(doc['configSchemaMin'] <= doc['configSchemaMax'], 'Config compatibility order')
 
+def release_catalog(doc):
+    shape('release-catalog.schema.json', doc)
+    check(doc['generatedAt'] < doc['expiresAt'], 'Catalog expiry order')
+    unique(doc['releases'], 'releaseSequence')
+
 count = 0
 for p in (ROOT / 'contracts/examples').glob('*.json'):
     d = json.loads(p.read_text())
-    (pid if p.name.startswith('pid-') else config if p.name.startswith('config') else release)(d)
+    (pid if p.name.startswith('pid-') else config if p.name.startswith('config')
+     else release_catalog if p.name.startswith('release-catalog') else release)(d)
     count += 1
 
 base = json.loads((ROOT / 'contracts/examples/config-dual-source.json').read_text())

@@ -34,8 +34,14 @@ typedef void (*ble_obd_response_cb_t)(int pid, uint8_t const *data, size_t len, 
 // Public Function Declarations
 // ---------------------------------------------------------------------------------------------------------------------
 
-ble_obd_ctx_t *ble_obd_connect(ble_obd_response_cb_t response_cb, void *usr_ctx);
+ble_obd_ctx_t *ble_obd_connect(unsigned source_id, const char *peer_mac,
+                               ble_obd_response_cb_t response_cb, void *usr_ctx);
 
-int ble_obd_rxtx(ble_obd_ctx_t *obd, uint8_t pid, uint8_t cmd, uint32_t timeout_ms);
+/* Blocking adapter-worker APIs. Connect includes discovery, subscription, and
+ * bounded ELM initialization. Request calls permit one outstanding transaction
+ * per context and invoke response_cb before returning on a decoded PID reply. */
+int ble_obd_rxtx(ble_obd_ctx_t *obd, uint8_t mode, uint8_t pid, uint32_t timeout_ms);
 
 bool ble_obd_is_connected(ble_obd_ctx_t *ctx);
+int ble_obd_read_service(ble_obd_ctx_t *obd, uint8_t mode, uint32_t timeout_ms,
+                         uint8_t *data, size_t *length);

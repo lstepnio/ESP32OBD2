@@ -1,0 +1,104 @@
+name: Publish development firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic development version, such as 0.2.0-dev.4
+        required: true
+        type: string
+      release_sequence:
+        description: Monotonically increasing positive integer
+        required: true
+        type: number
+      release_notes:
+        description: Short development release notes
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    container: espressif/idf:v5.4.1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build Waveshare ESP32-S3-Touch-LCD-1.28 firmware
+        shell: bash
+        working-directory: firmware/gauge
+        run: |
+          . /opt/esp/idf/export.sh
+          idf.py build
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: waveshare-esp32-s3-touch-lcd-1.28
+          path: firmware/gauge/build/esp32-idf-project.bin
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: development-release
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_SEQUENCE: ${{ inputs.release_sequence }}
+      RELEASE_NOTES: ${{ inputs.release_notes }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: waveshare-esp32-s3-touch-lcd-1.28
+          path: release-input
+      - name: Validate release inputs
+        shell: bash
+        run: |
+          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-dev\.[0-9]+$ ]]
+          [[ "$RELEASE_SEQUENCE" =~ ^[1-9][0-9]*$ ]]
+          MAX_SEQUENCE="$(
+            gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              --jq '.[] | .assets[] | select(.name == "egauge-release-catalog.json") | .browser_download_url' |
+            while IFS= read -r asset_url; do
+              curl -fsSL -H "Authorization: Bearer $GH_TOKEN" "$asset_url" | jq -r '.generation'
+            done | sort -n | tail -1
+          )"
+          MAX_SEQUENCE="${MAX_SEQUENCE:-0}"
+          if (( RELEASE_SEQUENCE <= MAX_SEQUENCE )); then
+            echo "Release sequence $RELEASE_SEQUENCE must be greater than published maximum $MAX_SEQUENCE" >&2
+            exit 1
+          fi
+      - name: Load development signing key
+        shell: bash
+        env:
+          DEVELOPMENT_UPDATE_SIGNING_KEY: ${{ secrets.DEVELOPMENT_UPDATE_SIGNING_KEY }}
+        run: |
+          test -n "$DEVELOPMENT_UPDATE_SIGNING_KEY"
+          install -m 600 /dev/null "$RUNNER_TEMP/dev-update-key.pem"
+          printf '%s\n' "$DEVELOPMENT_UPDATE_SIGNING_KEY" > "$RUNNER_TEMP/dev-update-key.pem"
+      - name: Create signed bundle and catalog
+        shell: bash
+        run: |
+          TAG="dev-v$RELEASE_VERSION"
+          BUNDLE="egauge-waveshare-esp32-s3-touch-lcd-1.28-$RELEASE_VERSION.egauge-dev-update"
+          python3 tools/sign_dev_update.py release-input/esp32-idf-project.bin \
+            --key "$RUNNER_TEMP/dev-update-key.pem" --output "$RUNNER_TEMP/update-metadata.json" \
+            --bundle "$BUNDLE" --expected-version "$RELEASE_VERSION"
+          python3 tools/make_dev_release_catalog.py "$BUNDLE" --version "$RELEASE_VERSION" \
+            --sequence "$RELEASE_SEQUENCE" --tag "$TAG" --notes "$RELEASE_NOTES" \
+            --key "$RUNNER_TEMP/dev-update-key.pem" --output egauge-release-catalog.json \
+            --signature egauge-release-catalog.sig
+          printf '%s' "$TAG" > "$RUNNER_TEMP/release-tag"
+      - name: Publish immutable development prerelease
+        shell: bash
+        run: |
+          TAG="$(cat "$RUNNER_TEMP/release-tag")"
+          BUNDLE="egauge-waveshare-esp32-s3-touch-lcd-1.28-$RELEASE_VERSION.egauge-dev-update"
+          gh release create "$TAG" "$BUNDLE" egauge-release-catalog.json egauge-release-catalog.sig \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "eGauge development firmware $RELEASE_VERSION" --notes "$RELEASE_NOTES"

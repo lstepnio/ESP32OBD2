@@ -62,7 +62,10 @@ struct ble_mgr_disc_cfg
 typedef struct
 {
     const char         *uuid;
+    uint16_t            def_handle;
     uint16_t            handle;
+    uint16_t            cccd_handle;
+    uint8_t             properties;
     ble_mgr_notify_cb_t notify_cb;
 } ble_gatt_char_def_t;
 
@@ -99,7 +102,7 @@ static_assert(ARRAY_SIZE(ble_mgr_status_strs) == BLE_MGR_E_API_LOCK_ERROR + 1,
 // Public Function Declarations
 // ---------------------------------------------------------------------------------------------------------------------
 
-ble_mgr_ctx_t *ble_mgr_init(int timeout_ms);
+ble_mgr_ctx_t *ble_mgr_init(unsigned source_id, int timeout_ms);
 
 ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
                                          ble_mgr_disc_cfg_t const *disc_cfg,
@@ -109,3 +112,4 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
 ble_mgr_status_t ble_mgr_send(ble_mgr_ctx_t *mgr_ctx, uint16_t chr_handle, const char *data, size_t len);
 
 bool ble_mgr_is_connected(ble_mgr_ctx_t *mgr_ctx);
+void ble_mgr_disconnect(ble_mgr_ctx_t *mgr_ctx);

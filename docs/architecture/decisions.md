@@ -14,7 +14,9 @@ Status is **proposed**, except the existing firmware toolchain baseline. Each de
 | ADR-008 | JSON documents + versioned CBOR command envelope | Reviewable imports and schemas with compact radio transport; two representations need parity checks | Transport measurements favor a simpler encoding |
 | ADR-009 | Offline local data, no mandatory backend | Vehicle setup works in garage/trail without connectivity; catalogs/releases downloaded separately | Signed community distribution needs hosted indexing |
 | ADR-010 | Freeze contracts after a two-device vertical slice | Avoid premature protocol permanence; draft versions can change | Bond/read/apply/reboot slice passes |
+| ADR-011 | Source-aware multi-adapter data model | Prefer simultaneous ECM and TCM links with explicit fallback if three-link measurements fail | Three-link hardware spike completes |
+| ADR-012 | Dedicated dual config slots before full writes | Existing 24 KiB NVS cannot stage and retain a 64 KiB document; inactive-slot validation protects active config | Flash geometry, image growth, and USB migration are measured |
 
 [System architecture](system.md) records module boundaries. [Roadmap](../roadmap.md) defines the evidence needed to accept these decisions.
 
-ADR-011 (proposed): source-aware multi-adapter data model from v1. Prefer simultaneous ECM + TCM links; measure three-link feasibility and retain explicit fallback TODOs. See [multi-adapter design](multi-adapter.md).
+[Multi-adapter design](multi-adapter.md) details ADR-011. [Configuration storage](config-storage.md) details ADR-012 and its migration gate.

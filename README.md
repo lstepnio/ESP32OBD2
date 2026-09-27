@@ -2,7 +2,7 @@
 
 A standalone round OBD-II gauge and native Android companion for vehicle telemetry, flexible PID discovery, dashboard configuration, and recoverable firmware updates.
 
-**Status: design foundation plus a working upstream firmware baseline.** The Waveshare display and touch work on the connected device. Live vehicle communication has not been verified. The companion app, new gauge renderers, custom PID runtime, configuration service, and OTA are specified here but are not implemented in the baseline.
+**Status: working gauge and Android foundations with authenticated numeric configuration and signed development updates observed.** The Waveshare display and touch work on the connected device. A paired Pixel 10 Pro sent a restricted RPM, coolant, and speed configuration twice, confirmed active revisions and hashes after each reboot, and the user confirmed numeric page navigation on the gauge. The Pixel installed signed development images over BLE and authenticated private Wi-Fi, including GitHub-hosted dev.12 with post-reboot identity confirmation. Catalog discovery verifies all bounded GitHub release candidates, rejects generation rollback or conflicting immutable content, and does not trust API ordering. An isolated unconfirmed trial was marked aborted; the bootloader loaded the previous valid image and Android reported the result. The Android app offers local drafts, a simulated design preview, an offline PID decoder, and read-only protected diagnostics. Live vehicle communication, adapter coexistence, DTC behavior on a vehicle, alert transitions, and physical power-loss recovery remain unverified. General configuration and update capability flags remain disabled.
 
 ## Start here
 
@@ -12,9 +12,12 @@ A standalone round OBD-II gauge and native Android companion for vehicle telemet
 - [PID discovery and custom definitions](docs/protocol/pid-discovery.md), [BLE contract](docs/protocol/ble-v1.md), and [firmware updates](docs/protocol/firmware-update.md).
 - [CEL/DTC diagnostics and threshold alerts](docs/protocol/diagnostics-and-alerts.md).
 - [Visual and interaction specification](docs/design/design-system.md).
+- [Android core and UX execution plan](docs/development/android-core-ux-review-plan.md): usability, reliability, optional dual adapters, and GitHub-hosted firmware updates for supported boards.
 - [Foundation validation report](docs/development/validation-report.md).
 - [Quality and release gates](docs/development/quality.md), [implementation roadmap](docs/roadmap.md), and [development setup](docs/development/setup.md).
 - [Current hardware/firmware evidence](docs/current-state.md) and [research sources](docs/sources.md).
+- [Numeric configuration transfer evidence](docs/development/numeric-config-transfer-validation.md).
+- [Signed development update evidence](docs/development/update-live-validation.md) and [changed-build recovery check](docs/development/update-recovery-validation.md).
 
 ## Preview and validate
 
@@ -33,14 +36,14 @@ python3 -m venv .venv
 
 | Path | Purpose |
 | --- | --- |
-| `firmware/gauge/` | Imported ESP-IDF baseline, upstream MIT notice retained; not yet the new architecture |
-| `android/` | Native Android architecture and screen contracts; no APK yet |
+| `firmware/gauge/` | ESP-IDF gauge firmware with LVGL display, BLE owner control, numeric configuration runtime, and experimental signed update receiver |
+| `android/` | Native Jetpack Compose app with local drafts, offline examples, paired controls, and restricted numeric configuration sender |
 | `contracts/` | Draft JSON Schemas and examples, versioned alongside documentation |
 | `design/` | Shared visual tokens and a dependency-free interaction prototype |
 | `docs/` | Requirements, decisions, protocols, quality gates, sources, and roadmap |
 | `tools/` | Documentation, schema, and semantic validation |
 
-The browser prototype is a review tool, not a WebView implementation strategy. Production UI is planned in Jetpack Compose and LVGL. The gauge operates without a phone after configuration. No account or cloud connection is needed for normal operation.
+The browser prototype is a review tool. The Android app uses Jetpack Compose and the gauge UI uses LVGL. The gauge operates without a phone after configuration. No account or cloud connection is needed for normal operation.
 
 ## Contribution and licensing
 

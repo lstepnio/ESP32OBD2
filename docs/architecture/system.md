@@ -38,7 +38,7 @@ The gauge owns the adapter connection. Android is a central for the gauge's peri
 | config_store | Validate/stage/commit, active revision, migrations | Partial active configuration |
 | ota | Inactive-slot writes, image validation, boot confirmation | Normal diagnostic polling during maintenance |
 
-Use one serialized adapter transaction worker, a UI owner task, and bounded event queues. BLE callbacks enqueue bytes/events and return promptly. UI reads snapshots. Backpressure drops old telemetry notifications, never configuration acknowledgments. Allocation and parser length limits are explicit. No dynamic allocation in the steady-state renderer hot path. Enable QSPI PSRAM only after board allocation/latency checks; BLE buffers remain in suitable internal memory.
+Use one serialized adapter transaction worker, a UI owner task, and bounded event queues. BLE callbacks enqueue bytes/events and return promptly. UI reads snapshots. Backpressure drops old telemetry notifications, never configuration acknowledgments. Allocation and parser length limits are explicit. No dynamic allocation in the steady-state renderer hot path. The board's 2 MB Quad PSRAM initialized and passed its boot memory check at 40 MHz on the development gauge; reserve internal memory for DMA and BLE buffers. Configuration parsing can use PSRAM with explicit size limits after parser and latency checks.
 
 ## Data ownership
 
@@ -66,7 +66,7 @@ Design tradeoff: BLE updates avoid mandatory network setup; negotiated Wi-Fi bul
 
 ## Dual-source extension
 
-The diagram shows one representative adapter path; instantiate it independently for ECM and TCM. The current BLE manager is a singleton and must be replaced with explicit session ownership. Proposed v1 supports two source slots with capability negotiation; see [MULTI-001 and MULTI-002](multi-adapter.md).
+The diagram shows one representative adapter path. Firmware now has two explicit central connection contexts with independent service definitions, RX state, transaction locks, and connection generations. ECM polling and the optional TCM link task remain separate implementations, and simultaneous operation is unverified. Proposed v1 supports two source slots with capability negotiation; see [MULTI-001 and MULTI-002](multi-adapter.md).
 
 ## Hardware-aware transport extension
 
