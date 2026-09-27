@@ -115,7 +115,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val keepAwakeInDebug = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
-        if (keepAwakeInDebug) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (keepAwakeInDebug) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            model.setDebugOtaPauseBeforeActivationMs(
+                intent.getLongExtra("debug_ota_pause_before_activation_ms", 0L),
+            )
+        }
         setContent {
             SideEffect {
                 if (keepAwakeInDebug || model.updateInProgress)

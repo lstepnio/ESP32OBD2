@@ -22,6 +22,15 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 internal class GaugeLinkException(message: String) : IllegalStateException(message)
 
+enum class FirmwareUpdateStage {
+    PREPARING,
+    TRANSFERRING,
+    VERIFYING,
+    READY_TO_ACTIVATE,
+    RESTARTING,
+    CONFIRMING,
+}
+
 /** Experimental protocol-0 owner transaction for the firmware's numeric ECM subset. */
 @SuppressLint("MissingPermission")
 class GaugeConfigTransferClient(private val context: Context) {
@@ -372,8 +381,12 @@ class GaugeConfigTransferClient(private val context: Context) {
     /** Uses Wi-Fi only for signed image transfer. BLE remains the trust bootstrap and boot check. */
     suspend fun installUpdateWifi(device: BluetoothDevice, bundle: DevUpdateBundle,
                                   batchChunks: Boolean,
-                                  progress: (Int) -> Unit): UpdateResult {
+                                  progress: (Int) -> Unit,
+                                  stage: (FirmwareUpdateStage) -> Unit = {},
+                                  pauseBeforeActivationMs: Long = 0): UpdateResult {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(pauseBeforeActivationMs in 0..60_000)
+        stage(FirmwareUpdateStage.PREPARING)
         val before = readBootIdentity(device)
         val expectedElf = bundle.elfSha256.joinToString("") { "%02x".format(it) }
         check(before.elfSha256 != expectedElf) { "This signed firmware image is already running on the gauge" }
@@ -382,6 +395,7 @@ class GaugeConfigTransferClient(private val context: Context) {
         var sequence = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         val id = le32(transferId)
         val wifiSession = openWifiBulk(device)
+        stage(FirmwareUpdateStage.TRANSFERRING)
         progress(0)
         try {
             WifiBulkClient(context, wifiSession).use { wifi ->
@@ -438,6 +452,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                         progress(percent)
                     }
                 }
+                stage(FirmwareUpdateStage.VERIFYING)
                 val verified = command(0x24, id)
                 check(verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
                     verified.digest.contentEquals(bundle.sha256)) { "Gauge did not verify the signed image" }
@@ -447,8 +462,11 @@ class GaugeConfigTransferClient(private val context: Context) {
                 }
                 throw error
             }
+                stage(FirmwareUpdateStage.READY_TO_ACTIVATE)
+                if (pauseBeforeActivationMs > 0) delay(pauseBeforeActivationMs)
                 val activated = command(0x25, id)
                 check(activated.phase == 4) { "Gauge did not select the update for boot" }
+                stage(FirmwareUpdateStage.RESTARTING)
             }
         } catch (error: Exception) {
             withTimeoutOrNull(WIFI_CLOSE_CLEANUP_TIMEOUT_MS) {
@@ -456,13 +474,18 @@ class GaugeConfigTransferClient(private val context: Context) {
             }
             throw error
         }
+        stage(FirmwareUpdateStage.CONFIRMING)
         return confirmUpdatedBoot(device, before, expectedElf)
     }
 
     /** Development-only update path. The gauge independently verifies the signed image. */
     suspend fun installUpdate(device: BluetoothDevice, bundle: DevUpdateBundle,
-                              progress: (Int) -> Unit): UpdateResult {
+                              progress: (Int) -> Unit,
+                              stage: (FirmwareUpdateStage) -> Unit = {},
+                              pauseBeforeActivationMs: Long = 0): UpdateResult {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(pauseBeforeActivationMs in 0..60_000)
+        stage(FirmwareUpdateStage.PREPARING)
         val before = readBootIdentity(device)
         val random = SecureRandom()
         val transferId = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
@@ -477,6 +500,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 otaCommand(0x26, sequence++, le32(current.transferId))
             else check(current.phase == 0) { "Gauge is already activating an update" }
             otaCommand(0x20, sequence++, id + le32(bundle.image.size.toLong()) + le32(0x31534745))
+            stage(FirmwareUpdateStage.TRANSFERRING)
             try {
                 for (part in 0..3) otaCommand(0x21, sequence++, id + byteArrayOf(part.toByte()) +
                     bundle.sha256.copyOfRange(part * 8, part * 8 + 8))
@@ -501,6 +525,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                         progress(percent)
                     }
                 }
+                stage(FirmwareUpdateStage.VERIFYING)
                 val verified = otaCommand(0x24, sequence++, id, attempts = 600)
                 check(verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
                     verified.digest.contentEquals(bundle.sha256)) { "Gauge did not verify the signed image" }
@@ -508,11 +533,15 @@ class GaugeConfigTransferClient(private val context: Context) {
                 runCatching { otaCommand(0x26, sequence++, id) }
                 throw error
             }
+            stage(FirmwareUpdateStage.READY_TO_ACTIVATE)
+            if (pauseBeforeActivationMs > 0) delay(pauseBeforeActivationMs)
             val activated = otaCommand(0x25, sequence++, id)
             check(activated.phase == 4) { "Gauge did not select the update for boot" }
+            stage(FirmwareUpdateStage.RESTARTING)
         }
         // Firmware schedules the restart five seconds after activation. Allow its boot and
         // health confirmation to finish before treating the prior slot as a rollback.
+        stage(FirmwareUpdateStage.CONFIRMING)
         return confirmUpdatedBoot(device, before, expectedElf)
     }
 
