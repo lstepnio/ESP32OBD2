@@ -8,6 +8,8 @@ import android.net.NetworkRequest
 import android.net.wifi.WifiNetworkSpecifier
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.EOFException
 import java.net.InetAddress
@@ -94,13 +96,28 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
 
     private suspend fun connect(): Socket {
         val manager = context.getSystemService(ConnectivityManager::class.java)
-        val selected = network ?: requestMaintenanceNetwork(manager).also { network = it }
+        val selected = network ?: requestMaintenanceNetworkWithRetry(manager).also { network = it }
         return Socket().also { value ->
             selected.bindSocket(value)
             value.soTimeout = 70_000
             value.tcpNoDelay = true
             value.connect(InetSocketAddress(InetAddress.getByAddress(session.address), session.port), 12_000)
         }
+    }
+
+    private suspend fun requestMaintenanceNetworkWithRetry(manager: ConnectivityManager): Network {
+        var lastFailure: Exception? = null
+        repeat(2) { attempt ->
+            try {
+                return requestMaintenanceNetwork(manager)
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                lastFailure = error
+                releaseNetworkRequest(manager)
+                if (attempt == 0) delay(500)
+            }
+        }
+        throw requireNotNull(lastFailure)
     }
 
     private suspend fun requestMaintenanceNetwork(manager: ConnectivityManager): Network =
@@ -163,13 +180,14 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
     override fun close() {
         runCatching { socket?.close() }
         socket = null
-        networkCallback?.let { callback ->
-            runCatching { context.getSystemService(ConnectivityManager::class.java)
-                .unregisterNetworkCallback(callback) }
-        }
-        networkCallback = null
+        releaseNetworkRequest(context.getSystemService(ConnectivityManager::class.java))
         network = null
         session.key.fill(0)
+    }
+
+    private fun releaseNetworkRequest(manager: ConnectivityManager) {
+        networkCallback?.let { callback -> runCatching { manager.unregisterNetworkCallback(callback) } }
+        networkCallback = null
     }
 
     companion object {

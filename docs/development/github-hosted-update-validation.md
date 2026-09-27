@@ -1,6 +1,6 @@
 # GitHub hosted firmware validation
 
-Recorded 2026-09-26 against integration commit `1bcb8fb`. This record distinguishes published artifact evidence from the remaining phone operation.
+Recorded 2026-09-26 against the `feat/owned-gauge-control` integration branch. This record covers the published artifacts and the complete owner-app installation on physical hardware.
 
 ## Published development release
 
@@ -28,7 +28,19 @@ OpenSSL verified the downloaded catalog signature with `firmware/gauge/main/cert
 
 Before offering a hosted release, the app now reads the authenticated running image identity and applies semantic version precedence. Equal and older hosted versions are reported as up to date and cannot populate the install selection. Unit fixtures cover increasing development versions, equal versions, older versions, stable-over-prerelease precedence, a higher major version, and unparseable values.
 
-The final debug APK is installed on the owner-bonded Pixel 10 Pro. The phone locked before the hosted discovery/download/install interaction completed. No claim is made yet that the Pixel selected dev.9 from GitHub or installed it on the gauge. The gauge remains confirmed on dev.8 until that final journey is observed.
+The final debug APK was installed on the owner-bonded Pixel 10 Pro. The app authenticated to the gauge, read running version `0.2.0-dev.8`, discovered prerelease `0.2.0-dev.9` through the GitHub API, downloaded all three release assets, and reported `GitHub development firmware 0.2.0-dev.9 verified and ready` only after catalog, signature, board, layout, channel, image-version and digest checks passed.
+
+The first manual attempt exposed two integration defects before image transfer: the GitHub API endpoint was missing from the HTTPS host allowlist, and Android rejected its first local-only `WifiNetworkSpecifier` request after a brief association. The downloader now explicitly permits `api.github.com` alongside GitHub release and GitHub content hosts. The Wi-Fi client unregisters a failed callback and makes one bounded retry with a fresh network request. Unit fixtures reject HTTP and lookalike hostnames.
+
+With those fixes installed and bounded retry enabled, the app sent the hosted image over the temporary authenticated gauge Wi-Fi network. The successful run did not expose whether Android used the first or second network request. Android reported 100 percent and independently confirmed the restarted image. Serial boot evidence showed:
+
+- application partition `ota_0` at `0x60000`
+- version `0.2.0-dev.9`
+- ELF SHA-256 `1948f04c9088382b6d61aab42b13fbf435b30cf7669da24b142a54c707623d97`
+- configuration revision 2 with three PIDs, three pages and one alert retained
+- trial image confirmed after UI, BLE and application progress
+
+A subsequent hosted check read the authenticated running identity and reported `Installed 0.2.0-dev.9 is up to date`. It did not offer the equal release for download or installation. This provides physical evidence for discovery, signed download, compatibility filtering, Wi-Fi transfer, activation, post-reboot confirmation and equal-version suppression on the development channel.
 
 ## Release automation boundary
 

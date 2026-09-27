@@ -10,6 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.security.KeyPairGenerator
 import java.security.Signature
+import java.net.URL
 
 class AppCoreTest {
     @Test fun hostedFirmwareComparisonFollowsSemanticVersionPrecedence() {
@@ -20,6 +21,15 @@ class AppCoreTest {
         assertFalse(isFirmwareNewer("0.2.0-dev.7", "0.2.0-dev.8"))
         assertThrows { isFirmwareNewer("unknown", "0.2.0-dev.8") }
         assertThrows { isFirmwareNewer("0.2.0-dev.9", "unknown") }
+    }
+
+    @Test fun hostedDownloadsAcceptOnlyGitHubHttpsEndpoints() {
+        assertTrue(isTrustedGitHubDownloadUrl(URL("https://api.github.com/repos/lstepnio/ESP32OBD2/releases")))
+        assertTrue(isTrustedGitHubDownloadUrl(URL("https://github.com/lstepnio/ESP32OBD2/releases/download/x/y")))
+        assertTrue(isTrustedGitHubDownloadUrl(URL("https://release-assets.githubusercontent.com/file")))
+        assertFalse(isTrustedGitHubDownloadUrl(URL("http://api.github.com/repos/x")))
+        assertFalse(isTrustedGitHubDownloadUrl(URL("https://github.com.example.org/file")))
+        assertFalse(isTrustedGitHubDownloadUrl(URL("https://githubusercontent.com.example.org/file")))
     }
 
     @Test fun runtimeMustMatchAndCompleteTrialBeforeActive() {

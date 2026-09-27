@@ -68,6 +68,10 @@ internal fun isFirmwareNewer(candidate: String, running: String): Boolean {
     return candidateVersion > runningVersion
 }
 
+internal fun isTrustedGitHubDownloadUrl(url: URL): Boolean =
+    url.protocol == "https" && (url.host == "github.com" || url.host == "api.github.com" ||
+        url.host.endsWith(".githubusercontent.com"))
+
 data class HostedFirmwareRelease(
     val version: String,
     val releaseSequence: Long,
@@ -257,8 +261,7 @@ class GitHubFirmwareSource(private val context: Context) {
                 else "GitHub download failed (${connection.responseCode})"
             }
             val finalUrl = connection.url
-            require(finalUrl.protocol == "https" && (finalUrl.host == "github.com" ||
-                finalUrl.host.endsWith(".githubusercontent.com"))) { "GitHub redirected to an untrusted host" }
+            require(isTrustedGitHubDownloadUrl(finalUrl)) { "GitHub redirected to an untrusted host" }
             val declared = connection.contentLengthLong
             require(declared < 0 || declared <= maximumBytes) { "GitHub asset is larger than allowed" }
             connection.inputStream.use { input ->
