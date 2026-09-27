@@ -15,6 +15,8 @@ import java.io.EOFException
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.net.SocketException
+import java.net.SocketTimeoutException
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -38,6 +40,14 @@ data class WifiBulkSession(
     val addressText: String get() = address.joinToString(".") { (it.toInt() and 255).toString() }
 }
 
+data class WifiBulkSecurityResult(
+    val wrongSessionRejected: Boolean,
+    val wrongKeyRejected: Boolean,
+    val replayRejected: Boolean,
+) {
+    val passed: Boolean get() = wrongSessionRejected && wrongKeyRejected && replayRejected
+}
+
 /**
  * Short-lived local transport authorized through the encrypted owner BLE link.
  * Frames use AES-256-GCM with separate request and response nonces. Transfer
@@ -58,6 +68,45 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
     suspend fun configuration(command: ByteArray): ByteArray = frame(1, command)
     suspend fun configurationStatus(): ByteArray = frame(3, byteArrayOf(1))
 
+    /**
+     * Live, read-only negative check for the short-lived maintenance transport.
+     * It consumes sequence one in this session, so callers must close the session
+     * after the check rather than attempting a configuration or update.
+     */
+    suspend fun securitySelfCheck(): WifiBulkSecurityResult = withContext(Dispatchers.IO) {
+        val selected = selectedNetwork()
+        val sequence = 1L
+        val request = byteArrayOf(2)
+        val wrongSessionId = session.sessionId xor 0x80000000L
+        val wrongSession = encodedFrame(3, request, wrongSessionId, sequence, session.key)
+        val wrongSessionRejected = rejectedByGauge(selected, wrongSession)
+
+        val wrongKey = session.key.copyOf().also { it[0] = (it[0].toInt() xor 0x80).toByte() }
+        val wrongKeyFrame = encodedFrame(3, request, session.sessionId, sequence, wrongKey)
+        val wrongKeyRejected = rejectedByGauge(selected, wrongKeyFrame)
+        wrongKey.fill(0)
+
+        val validFrame = encodedFrame(3, request, session.sessionId, sequence, session.key)
+        connectSocket(selected, SECURITY_PROBE_TIMEOUT_MS).use { probe ->
+            probe.getOutputStream().apply { write(validFrame); flush() }
+            val responseHeader = readExactly(probe, 16)
+            require(responseHeader.copyOfRange(0, 4)
+                .contentEquals("EGW1".toByteArray(Charsets.US_ASCII)) &&
+                u32(responseHeader, 4) == session.sessionId &&
+                u32(responseHeader, 8) == sequence &&
+                (responseHeader[12].toInt() and 255) == 0x83 &&
+                responseHeader[13].toInt() == 0) { "Gauge rejected the valid security probe" }
+            val length = u16(responseHeader, 14)
+            require(length in 1..1040) { "Gauge returned an invalid security probe length" }
+            val responseTag = readExactly(probe, 16)
+            val responseCiphertext = readExactly(probe, length)
+            crypt(Cipher.DECRYPT_MODE, responseHeader, responseCiphertext + responseTag,
+                nonce(sequence, 1), session.key)
+        }
+        val replayRejected = rejectedByGauge(selected, validFrame)
+        WifiBulkSecurityResult(wrongSessionRejected, wrongKeyRejected, replayRejected)
+    }
+
     private suspend fun frame(kind: Int, plaintext: ByteArray): ByteArray = withContext(Dispatchers.IO) {
         require(kind in 1..4 && plaintext.isNotEmpty() && plaintext.size <= 8448)
         val active = socket ?: connect().also { socket = it }
@@ -68,7 +117,7 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
         putU32(header, 8, sequence)
         header[12] = kind.toByte()
         putU16(header, 14, plaintext.size)
-        val encrypted = crypt(Cipher.ENCRYPT_MODE, header, plaintext, nonce(sequence, 0))
+        val encrypted = crypt(Cipher.ENCRYPT_MODE, header, plaintext, nonce(sequence, 0), session.key)
         val ciphertext = encrypted.copyOfRange(0, encrypted.size - 16)
         val tag = encrypted.copyOfRange(encrypted.size - 16, encrypted.size)
         active.getOutputStream().apply {
@@ -89,21 +138,52 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
         val responseTag = readExactly(active, 16)
         val responseCiphertext = readExactly(active, length)
         val combined = responseCiphertext + responseTag
-        val response = crypt(Cipher.DECRYPT_MODE, responseHeader, combined, nonce(sequence, 1))
+        val response = crypt(Cipher.DECRYPT_MODE, responseHeader, combined, nonce(sequence, 1), session.key)
         check(responseHeader[13].toInt() == 0) { "Gauge rejected the Wi-Fi bulk command" }
         response
     }
 
     private suspend fun connect(): Socket {
-        val manager = context.getSystemService(ConnectivityManager::class.java)
-        val selected = network ?: requestMaintenanceNetworkWithRetry(manager).also { network = it }
-        return Socket().also { value ->
-            selected.bindSocket(value)
-            value.soTimeout = READ_TIMEOUT_MS
-            value.tcpNoDelay = true
-            value.connect(InetSocketAddress(InetAddress.getByAddress(session.address), session.port), 12_000)
-        }
+        return connectSocket(selectedNetwork(), READ_TIMEOUT_MS)
     }
+
+    private suspend fun selectedNetwork(): Network {
+        val manager = context.getSystemService(ConnectivityManager::class.java)
+        return network ?: requestMaintenanceNetworkWithRetry(manager).also { network = it }
+    }
+
+    private fun connectSocket(selected: Network, timeoutMs: Int) = Socket().also { value ->
+        selected.bindSocket(value)
+        value.soTimeout = timeoutMs
+        value.tcpNoDelay = true
+        value.connect(InetSocketAddress(InetAddress.getByAddress(session.address), session.port), 12_000)
+    }
+
+    private fun encodedFrame(kind: Int, plaintext: ByteArray, sessionId: Long,
+                             sequence: Long, key: ByteArray): ByteArray {
+        val header = ByteArray(16)
+        "EGW1".toByteArray(Charsets.US_ASCII).copyInto(header)
+        putU32(header, 4, sessionId)
+        putU32(header, 8, sequence)
+        header[12] = kind.toByte()
+        putU16(header, 14, plaintext.size)
+        val encrypted = crypt(Cipher.ENCRYPT_MODE, header, plaintext,
+            nonce(sessionId, sequence, 0), key)
+        return header + encrypted.copyOfRange(encrypted.size - 16, encrypted.size) +
+            encrypted.copyOfRange(0, encrypted.size - 16)
+    }
+
+    private fun rejectedByGauge(selected: Network, request: ByteArray): Boolean =
+        connectSocket(selected, SECURITY_PROBE_TIMEOUT_MS).use { probe ->
+            probe.getOutputStream().apply { write(request); flush() }
+            try {
+                probe.getInputStream().read() == -1
+            } catch (_: SocketTimeoutException) {
+                false
+            } catch (_: SocketException) {
+                true
+            }
+        }
 
     private suspend fun requestMaintenanceNetworkWithRetry(manager: ConnectivityManager): Network {
         var lastFailure: Exception? = null
@@ -153,15 +233,22 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
             manager.requestNetwork(request, callback, 30_000)
         }
 
-    private fun crypt(mode: Int, header: ByteArray, input: ByteArray, nonce: ByteArray): ByteArray {
+    private fun crypt(mode: Int, header: ByteArray, input: ByteArray, nonce: ByteArray,
+                      key: ByteArray): ByteArray {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(mode, SecretKeySpec(session.key, "AES"), GCMParameterSpec(128, nonce))
+        cipher.init(mode, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
         cipher.updateAAD(header)
         return cipher.doFinal(input)
     }
 
     private fun nonce(sequence: Long, direction: Int) = ByteArray(12).also {
         putU32(it, 0, session.sessionId)
+        putU32(it, 4, sequence)
+        it[8] = direction.toByte()
+    }
+
+    private fun nonce(sessionId: Long, sequence: Long, direction: Int) = ByteArray(12).also {
+        putU32(it, 0, sessionId)
         putU32(it, 4, sequence)
         it[8] = direction.toByte()
     }
@@ -194,6 +281,7 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
         // Healthy hardware responds to an eight-command OTA batch within a few seconds.
         // Bound a lost gauge reset without making the foreground operation appear stuck.
         private const val READ_TIMEOUT_MS = 20_000
+        private const val SECURITY_PROBE_TIMEOUT_MS = 4_000
 
         private fun putU16(value: ByteArray, offset: Int, number: Int) {
             value[offset] = number.toByte()

@@ -927,6 +927,15 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
                     InfoLine("Adapter links", "${caps.maxAdapterLinks}; simultaneous use ${if (caps.simultaneousVerified) "verified" else "unverified"}")
                     InfoLine("Firmware transfer", if (caps.wifiBulk != null)
                         "Automatic private Wi-Fi" else "Bluetooth")
+                    if (caps.wifiBulk == "experimental-softap-aead-v2") {
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick = model::runWifiTransportSecurityCheck,
+                            enabled = !model.scanning) {
+                            Text("Run Wi-Fi security self-check")
+                        }
+                        Text(model.wifiSecurityMessage, color = MutedColor,
+                            fontSize = 13.sp, lineHeight = 19.sp)
+                    }
                     model.runtimeIdentity?.let { runtime ->
                         InfoLine("Running revision", runtime.revision.toString())
                         InfoLine("Stored revision", runtime.storedRevision.toString())
