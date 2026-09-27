@@ -22,8 +22,18 @@ The board configuration already matched the vendor example in two other importan
 
 The current configuration contract still accepts brightness 80 only. General app-controlled brightness remains gated until the physical panel's usable range and low-light behavior are characterized.
 
-## Evidence status
+## Installation and runtime evidence
 
-Source review and an ESP-IDF 5.4.1 firmware build confirm the corrected transport path compiles for the target. Physical confirmation requires installing the GitHub-hosted development image and comparing the same gauge page on the panel. Until that check is complete, the correction is not recorded as physically validated.
+PR #24 passed the contract, documentation, Android and firmware jobs. The protected release workflow published signed catalog generation 12 and `0.2.0-dev.20`. A clean GitHub download passed catalog and image-signature verification, and its image descriptor reported the expected version.
+
+The owner-authenticated Pixel discovered the compatible release, downloaded and verified it, transferred it through the automatic private Wi-Fi path, and reported the new image healthy at `ota_0` offset `0x60000`. A subsequent serial reboot confirmed:
+
+- application version `0.2.0-dev.20` and the expected ELF SHA-256 prefix;
+- confirmed boot from `ota_0`;
+- retained configuration revision 4 with five PIDs, five pages and one alert;
+- initialized display, CST816S touch and BLE;
+- GPIO2 backlight PWM applied at 80%.
+
+These are hosted-update and runtime observations. Physical color and uniformity confirmation still requires comparing the corrected page on the panel. Until that check is complete, the display-quality result is not recorded as physically validated.
 
 If the new image still shows incorrect primary colors, the next diagnostic is a full-screen red, green, blue, gray and gradient test page. Panel gamma or initialization tuning should be based on that evidence rather than changing RGB order or inversion speculatively.
