@@ -132,6 +132,14 @@ static const lv_font_t *const font_compact  = &notosans_semibold_32;
 static const lv_font_t *const font_subtitle = &notosans_medium_16;
 static const lv_font_t *const font_unit     = &notosans_medium_24;
 
+static const uint32_t color_background = 0x05080A;
+static const uint32_t color_text_primary = 0xE4EAED;
+static const uint32_t color_text_secondary = 0x9CAAB2;
+static const uint32_t color_track = 0x202A30;
+static const uint32_t color_accent = 0x26B895;
+static const uint32_t color_warning = 0xE0A63A;
+static const uint32_t color_critical = 0xE75A5A;
+
 static int32_t bounded_range(int32_t minimum, int32_t maximum)
 {
     int64_t range = (int64_t)maximum - minimum;
@@ -328,9 +336,9 @@ static void ui_task(lv_timer_t *timer)
 
     ui_alert_t alert;
     if (xQueueReceive(ui->rtos.alert_que, &alert, 0) == pdTRUE) {
-        lv_color_t indicator = alert.severity == 2 ? lv_color_hex(0xFF5656) :
-                               alert.severity == 1 ? lv_color_hex(0xFFC247) :
-                                                     lv_color_hex(0x38D39F);
+        lv_color_t indicator = alert.severity == 2 ? lv_color_hex(color_critical) :
+                               alert.severity == 1 ? lv_color_hex(color_warning) :
+                                                     lv_color_hex(color_accent);
         lv_obj_set_style_arc_color(ui->widgets.arc, indicator, LV_PART_INDICATOR);
         lv_obj_set_style_bg_color(ui->widgets.bar, indicator, LV_PART_INDICATOR);
         lv_obj_set_style_line_color(ui->widgets.trend, indicator, LV_PART_MAIN);
@@ -340,7 +348,7 @@ static void ui_task(lv_timer_t *timer)
         }
         else {
             lv_obj_set_style_text_color(ui->widgets.alert_lbl,
-                alert.severity == 2 ? lv_color_hex(0xFF5656) : lv_color_hex(0xFFC247),
+                alert.severity == 2 ? lv_color_hex(color_critical) : lv_color_hex(color_warning),
                 LV_PART_MAIN);
             lv_label_set_text_fmt(ui->widgets.alert_lbl, "%s\n%s%s",
                 alert.severity == 2 ? "CRITICAL" : "WARNING", alert.label,
@@ -357,7 +365,8 @@ static void ui_task(lv_timer_t *timer)
             lv_obj_add_flag(ui->widgets.diagnostics_lbl, LV_OBJ_FLAG_HIDDEN);
         else {
             lv_obj_set_style_text_color(ui->widgets.diagnostics_lbl,
-                diagnostics.mil_on ? lv_color_hex(0xFFC247) : lv_color_white(), LV_PART_MAIN);
+                diagnostics.mil_on ? lv_color_hex(color_warning) : lv_color_hex(color_text_primary),
+                LV_PART_MAIN);
             lv_label_set_text_fmt(ui->widgets.diagnostics_lbl, "%s %u%s%s",
                 diagnostics.mil_on ? "CEL" : "DTC", diagnostics.count,
                 diagnostics.first_code[0] ? "  " : "", diagnostics.first_code);
@@ -396,15 +405,15 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_t *scr = lv_screen_active();
     ESP_NULL_CHECK(scr, TAG, "current screen is NULL");
 
-    // Set the screen background to black and fully opaque
-    lv_obj_set_style_bg_color(scr, lv_color_black(), LV_PART_MAIN);
+    // Near-black reduces backlight haze while preserving shadow detail on the IPS panel.
+    lv_obj_set_style_bg_color(scr, lv_color_hex(color_background), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, LV_PART_MAIN);
 
     // Main number label
     lv_obj_t *value_lbl = lv_label_create(scr);
     ESP_NULL_CHECK(value_lbl, TAG, "Failed to create main label");
     lv_label_set_text(value_lbl, "...");
-    lv_obj_set_style_text_color(value_lbl, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_color(value_lbl, lv_color_hex(color_text_primary), LV_PART_MAIN);
     lv_obj_set_style_text_font(value_lbl, font_title, LV_PART_MAIN);
     lv_obj_set_style_text_align(value_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_label_set_long_mode(value_lbl, LV_LABEL_LONG_DOT);
@@ -413,7 +422,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_t *info_lbl = lv_label_create(scr);
     ESP_NULL_CHECK(info_lbl, TAG, "Failed to create info label");
     lv_label_set_text(info_lbl, page->name ? page->name : "???");
-    lv_obj_set_style_text_color(info_lbl, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_color(info_lbl, lv_color_hex(color_text_secondary), LV_PART_MAIN);
     lv_obj_set_style_text_font(info_lbl, font_subtitle, LV_PART_MAIN);
     lv_obj_set_style_text_align(info_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_label_set_long_mode(info_lbl, LV_LABEL_LONG_DOT);
@@ -422,7 +431,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_t *unit_lbl = lv_label_create(scr);
     ESP_NULL_CHECK(unit_lbl, TAG, "Failed to create unit label");
     lv_label_set_text(unit_lbl, page->metrics[0].unit ? page->metrics[0].unit : "");
-    lv_obj_set_style_text_color(unit_lbl, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_color(unit_lbl, lv_color_hex(color_text_secondary), LV_PART_MAIN);
     lv_obj_set_style_text_font(unit_lbl, font_unit, LV_PART_MAIN);
     lv_obj_set_style_text_align(unit_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_label_set_long_mode(unit_lbl, LV_LABEL_LONG_DOT);
@@ -432,28 +441,30 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     ui->widgets.unit_lbl  = unit_lbl;
 
     lv_obj_t *arc = lv_arc_create(scr);
-    lv_obj_set_size(arc, 202, 202);
+    lv_obj_set_size(arc, 198, 198);
     lv_obj_align(arc, LV_ALIGN_CENTER, 0, 0);
     lv_arc_set_bg_angles(arc, 135, 45);
     lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
     lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_arc_width(arc, 10, LV_PART_MAIN);
-    lv_obj_set_style_arc_width(arc, 10, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(arc, lv_color_hex(0x2B3440), LV_PART_MAIN);
-    lv_obj_set_style_arc_color(arc, lv_color_hex(0x38D39F), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(arc, 7, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(arc, 7, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
+    lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(arc, lv_color_hex(color_track), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(arc, lv_color_hex(color_accent), LV_PART_INDICATOR);
     ui->widgets.arc = arc;
 
     lv_obj_t *bar = lv_bar_create(scr);
     lv_obj_set_size(bar, 142, 12);
     lv_obj_align(bar, LV_ALIGN_CENTER, 0, 52);
-    lv_obj_set_style_bg_color(bar, lv_color_hex(0x2B3440), LV_PART_MAIN);
-    lv_obj_set_style_bg_color(bar, lv_color_hex(0x38D39F), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(color_track), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(color_accent), LV_PART_INDICATOR);
     ui->widgets.bar = bar;
 
     lv_obj_t *trend = lv_line_create(scr);
     lv_obj_set_size(trend, 150, 80);
     lv_obj_align(trend, LV_ALIGN_CENTER, 0, 24);
-    lv_obj_set_style_line_color(trend, lv_color_hex(0x38D39F), LV_PART_MAIN);
+    lv_obj_set_style_line_color(trend, lv_color_hex(color_accent), LV_PART_MAIN);
     lv_obj_set_style_line_width(trend, 3, LV_PART_MAIN);
     for (unsigned i = 0; i < 60; ++i) {
         ui->display.trend_points[i].x = (int32_t)i * 144 / 59;
@@ -466,7 +477,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
         lv_obj_t *dual_value = lv_label_create(scr);
         lv_obj_set_width(dual_value, 132);
         lv_obj_align(dual_value, LV_ALIGN_TOP_MID, 0, i == 0 ? 42 : 124);
-        lv_obj_set_style_text_color(dual_value, lv_color_white(), LV_PART_MAIN);
+        lv_obj_set_style_text_color(dual_value, lv_color_hex(color_text_primary), LV_PART_MAIN);
         lv_obj_set_style_text_font(dual_value, font_compact, LV_PART_MAIN);
         lv_obj_set_style_text_align(dual_value, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
         lv_label_set_text(dual_value, "...");
@@ -475,7 +486,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
         lv_obj_t *dual_info = lv_label_create(scr);
         lv_obj_set_width(dual_info, 156);
         lv_obj_align(dual_info, LV_ALIGN_TOP_MID, 0, i == 0 ? 20 : 102);
-        lv_obj_set_style_text_color(dual_info, lv_color_hex(0xAEB8C4), LV_PART_MAIN);
+        lv_obj_set_style_text_color(dual_info, lv_color_hex(color_text_secondary), LV_PART_MAIN);
         lv_obj_set_style_text_font(dual_info, font_subtitle, LV_PART_MAIN);
         lv_obj_set_style_text_align(dual_info, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
         ui->widgets.dual_info[i] = dual_info;
@@ -484,9 +495,9 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_t *pairing_lbl = lv_label_create(scr);
     lv_obj_set_size(pairing_lbl, 176, 100);
     lv_obj_align(pairing_lbl, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_color(pairing_lbl, lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(pairing_lbl, lv_color_hex(color_background), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(pairing_lbl, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_text_color(pairing_lbl, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_color(pairing_lbl, lv_color_hex(color_text_primary), LV_PART_MAIN);
     lv_obj_set_style_text_font(pairing_lbl, font_compact, LV_PART_MAIN);
     lv_obj_set_style_text_align(pairing_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_obj_add_flag(pairing_lbl, LV_OBJ_FLAG_EVENT_BUBBLE);

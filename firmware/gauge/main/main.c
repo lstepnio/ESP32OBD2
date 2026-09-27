@@ -548,6 +548,7 @@ void app_main(void)
     ui_t          *ui             = ui_init(&initial_page, ui_interval_ms, ui_touch_callback);
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
     bsp_display_on_off(true);
+    if (g_runtime) ESP_ERROR_CHECK(bsp_display_backlight_set_percent(g_runtime->brightness));
 
     g_phone_command_queue = xQueueCreate(4, sizeof(companion_command_t));
     ESP_NULL_CHECK(g_phone_command_queue, TAG, "Phone command queue creation failed");
