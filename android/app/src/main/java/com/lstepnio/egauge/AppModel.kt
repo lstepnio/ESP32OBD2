@@ -664,9 +664,27 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             hostedUpdateBusy = true
             hostedUpdate = null
             try {
-                val update = GitHubFirmwareSource(getApplication()).check(caps)
-                hostedUpdate = update
-                hostedUpdateMessage = "Compatible development firmware ${update.release.version} is available"
+                operationCoordinator.run(OperationKind.READ) { id ->
+                    operation = OperationState(id, OperationKind.READ, OperationStage.CONNECTING,
+                        "Checking for firmware", "Reading the installed gauge version")
+                    val running = GaugeConfigTransferClient(getApplication())
+                        .readBootIdentity(bleClient.selectedGauge())
+                    bootIdentityRead(running)
+                    operation = operation.copy(stage = OperationStage.PREPARING,
+                        detail = "Checking signed GitHub releases")
+                    val update = GitHubFirmwareSource(getApplication()).check(caps)
+                    if (isFirmwareNewer(update.release.version, running.version)) {
+                        hostedUpdate = update
+                        hostedUpdateMessage =
+                            "Compatible development firmware ${update.release.version} is available"
+                    } else {
+                        hostedUpdateMessage = "Installed ${running.version} is up to date"
+                    }
+                    operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
+                        "Firmware check complete", hostedUpdateMessage, terminal = true)
+                }
+            } catch (_: OperationBusyException) {
+                hostedUpdateMessage = "Finish the current gauge operation before checking for firmware"
             } catch (error: CancellationException) {
                 hostedUpdateMessage = "Hosted update check was interrupted"
                 throw error

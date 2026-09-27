@@ -19,6 +19,55 @@ import java.util.Base64
 
 enum class FirmwareChannel { DEVELOPMENT, BETA, STABLE }
 
+internal data class FirmwareVersion(
+    val major: Long,
+    val minor: Long,
+    val patch: Long,
+    val prerelease: List<String>?,
+) : Comparable<FirmwareVersion> {
+    override fun compareTo(other: FirmwareVersion): Int {
+        compareValues(major, other.major).takeIf { it != 0 }?.let { return it }
+        compareValues(minor, other.minor).takeIf { it != 0 }?.let { return it }
+        compareValues(patch, other.patch).takeIf { it != 0 }?.let { return it }
+        if (prerelease == null) return if (other.prerelease == null) 0 else 1
+        if (other.prerelease == null) return -1
+        for (index in 0 until minOf(prerelease.size, other.prerelease.size)) {
+            val left = prerelease[index]
+            val right = other.prerelease[index]
+            val leftNumber = left.toLongOrNull()
+            val rightNumber = right.toLongOrNull()
+            val comparison = when {
+                leftNumber != null && rightNumber != null -> compareValues(leftNumber, rightNumber)
+                leftNumber != null -> -1
+                rightNumber != null -> 1
+                else -> left.compareTo(right)
+            }
+            if (comparison != 0) return comparison
+        }
+        return compareValues(prerelease.size, other.prerelease.size)
+    }
+
+    companion object {
+        private val pattern = Regex("([0-9]+)\\.([0-9]+)\\.([0-9]+)(?:-([0-9A-Za-z.-]+))?")
+
+        fun parse(value: String): FirmwareVersion? {
+            val match = pattern.matchEntire(value) ?: return null
+            val core = (1..3).map { match.groupValues[it].toLongOrNull() ?: return null }
+            val prerelease = match.groupValues[4].takeIf { it.isNotEmpty() }?.split('.')
+            if (prerelease?.any { it.isEmpty() } == true) return null
+            return FirmwareVersion(core[0], core[1], core[2], prerelease)
+        }
+    }
+}
+
+internal fun isFirmwareNewer(candidate: String, running: String): Boolean {
+    val candidateVersion = FirmwareVersion.parse(candidate)
+        ?: error("Hosted firmware version is invalid")
+    val runningVersion = FirmwareVersion.parse(running)
+        ?: error("Running firmware version cannot be compared safely")
+    return candidateVersion > runningVersion
+}
+
 data class HostedFirmwareRelease(
     val version: String,
     val releaseSequence: Long,
@@ -91,7 +140,7 @@ object HostedFirmwareCatalogCodec {
     private fun parseRelease(value: JSONObject): HostedFirmwareRelease {
         require(value.keys().asSequence().toSet() == releaseFields) { "Unsupported release fields" }
         val version = value.getString("version")
-        require(version.matches(Regex("[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.]+)?"))) {
+        require(FirmwareVersion.parse(version) != null) {
             "Firmware version is invalid"
         }
         val revisions = value.getJSONArray("boardRevisions").strings()

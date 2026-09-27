@@ -12,6 +12,16 @@ import java.security.KeyPairGenerator
 import java.security.Signature
 
 class AppCoreTest {
+    @Test fun hostedFirmwareComparisonFollowsSemanticVersionPrecedence() {
+        assertTrue(isFirmwareNewer("0.2.0-dev.9", "0.2.0-dev.8"))
+        assertTrue(isFirmwareNewer("0.2.0", "0.2.0-dev.99"))
+        assertTrue(isFirmwareNewer("1.0.0-beta.1", "0.99.99"))
+        assertFalse(isFirmwareNewer("0.2.0-dev.8", "0.2.0-dev.8"))
+        assertFalse(isFirmwareNewer("0.2.0-dev.7", "0.2.0-dev.8"))
+        assertThrows { isFirmwareNewer("unknown", "0.2.0-dev.8") }
+        assertThrows { isFirmwareNewer("0.2.0-dev.9", "unknown") }
+    }
+
     @Test fun runtimeMustMatchAndCompleteTrialBeforeActive() {
         val hash = "ab".repeat(32)
         assertEquals(RuntimeConfirmation.WAITING,
