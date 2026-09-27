@@ -58,6 +58,14 @@ class GaugeConfigTransferClient(private val context: Context) {
     data class RuntimeIdentity(val running: Boolean, val usedPreviousGeneration: Boolean,
                                val trial: Boolean, val revision: Long, val storedRevision: Long,
                                val sha256: String)
+    data class HardwareSnapshot(val chipModel: Int, val cores: Int, val chipRevision: Int,
+                                val cpuMhz: Int, val resetReason: Int, val wifiMode: Int,
+                                val declaredFeatures: Long, val initializedFeatures: Long,
+                                val flashBytes: Long, val internalTotalBytes: Long,
+                                val internalFreeBytes: Long, val internalMinimumFreeBytes: Long,
+                                val internalLargestBlockBytes: Long, val psramTotalBytes: Long,
+                                val psramFreeBytes: Long, val psramMinimumFreeBytes: Long,
+                                val uptimeSeconds: Long)
     data class UpdateResult(val partitionAddress: Long, val elfSha256: String)
     private data class Status(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
                               val transferId: Long, val accepted: Long, val revision: Long, val hash: ByteArray)
@@ -320,6 +328,16 @@ class GaugeConfigTransferClient(private val context: Context) {
             readRaw()
         }
         return GaugeProtocolCodec.runtimeIdentity(bytes)
+    }
+
+    /** Reads capacities and initialized board subsystems without changing gauge state. */
+    suspend fun readHardwareSnapshot(device: BluetoothDevice): HardwareSnapshot {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        val bytes = withGauge(device) {
+            writeRaw(byteArrayOf(0x34) + le32(1))
+            readRaw()
+        }
+        return GaugeProtocolCodec.hardwareSnapshot(bytes)
     }
 
     /** Opens a random, time-limited gauge access point through the authenticated BLE owner link. */

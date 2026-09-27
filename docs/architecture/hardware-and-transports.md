@@ -43,7 +43,7 @@ The IMU is not a trustworthy source for vehicle speed, crash detection or perfor
 
 ## Recommended delivery slices
 
-1. Add a read-only hardware capability probe: firmware/board identity, QMI8658 identity and health, calibrated battery ADC samples, PSRAM/flash totals, backlight capability and occupied-pin report. Expose the result through authenticated diagnostics in the app.
+1. Complete the read-only hardware capability probe. The authenticated capacity snapshot now reports processor, reset, uptime, Wi-Fi state, flash, internal RAM, PSRAM, and initialized display/touch/backlight/BLE state. QMI8658 identity and health, calibrated battery ADC samples, and the occupied-pin report remain open. See the [hardware probe protocol](../protocol/hardware-probe.md).
 2. Deliver PWM brightness, manual/night presets, the round-display-safe night palette and a local hardware self-test page.
 3. Add bounded event storage and export for alert transitions, resets, update outcomes and hardware faults.
 4. Prototype the IMU installation assistant and GPIO4 haptic feedback, with a compile-time board-revision gate until electrical limits are verified.
@@ -83,7 +83,7 @@ Power saving: use bounded reconnect scans, optional screen dimming and explicit 
 
 ## Tracked work
 
-- **HW-001:** exact board revision, flash, QSPI PSRAM allocation, sensor identity, battery ADC calibration and available pin map.
+- **HW-001:** authenticated runtime capacity polling is implemented in source. Exact board revision, live phone/gauge evidence, sensor identity, battery ADC calibration and available pin map remain open.
 - **RADIO-001:** ECM + TCM + phone coexistence with Wi-Fi off/on and in maintenance, including power measurements.
 - **WIFI-001:** automatic temporary-AP authorization, Android network routing, measured transfer throughput and recovery; promote the capability only from device evidence.
 - **POWER-001:** sleep/dimming/wake policy, ignition inference limits, permanent automotive power design.
