@@ -1,6 +1,6 @@
 # Experimental authenticated Wi-Fi bulk transport
 
-Status: enabled in the development build after live Pixel and gauge qualification on 2026-09-26. The capability remains explicitly experimental while the negative security and interruption matrix is completed.
+Status: enabled in the development build after live Pixel and gauge qualification on 2026-09-26. The capability remains explicitly experimental while session-expiry, physical power-loss, and precisely timed activation interruption cases are completed.
 
 ## User experience
 
@@ -50,4 +50,5 @@ The larger request and plaintext buffers are allocated once from PSRAM. The OTA 
 - Application-layer AEAD protects the local socket independently of WPA2.
 - BLE remains the ownership bootstrap, capability source and post-reboot health channel.
 - Live encrypted transfer, signed activation, alternate-partition boot, health confirmation and BLE readback are recorded in [Wi-Fi bulk validation](../development/wifi-bulk-validation.md).
-- Expiry, wrong-key, replay, power-loss interruption and recovery still require live negative-path qualification before removing the experimental label.
+- A live owner-authenticated check rejected wrong-session, wrong-key, and replay frames; see [Wi-Fi transport security validation](../development/wifi-transport-security-validation.md).
+- Session expiry, active attack testing, physical power-loss interruption, and recovery still require live qualification before removing the experimental label.
