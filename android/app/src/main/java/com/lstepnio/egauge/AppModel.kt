@@ -407,6 +407,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             reconcilePendingUpdate(it, associationStore.rememberedId(), value.elfSha256, value.otaState)
         }
         updateRecoveryResult = recovery
+        if (recovery != null) updatePackageMessage = recovery.message
         if (recovery?.terminal == true) {
             updateJournal.clear()
             pendingUpdateRecovery = null

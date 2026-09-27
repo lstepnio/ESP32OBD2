@@ -13,6 +13,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -441,14 +442,18 @@ class GaugeConfigTransferClient(private val context: Context) {
                 check(verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
                     verified.digest.contentEquals(bundle.sha256)) { "Gauge did not verify the signed image" }
             } catch (error: Exception) {
-                runCatching { command(0x26, id) }
+                withTimeoutOrNull(WIFI_ABORT_CLEANUP_TIMEOUT_MS) {
+                    runCatching { command(0x26, id) }
+                }
                 throw error
             }
                 val activated = command(0x25, id)
                 check(activated.phase == 4) { "Gauge did not select the update for boot" }
             }
         } catch (error: Exception) {
-            runCatching { closeWifiBulk(device) }
+            withTimeoutOrNull(WIFI_CLOSE_CLEANUP_TIMEOUT_MS) {
+                runCatching { closeWifiBulk(device) }
+            }
             throw error
         }
         return confirmUpdatedBoot(device, before, expectedElf)
@@ -638,6 +643,8 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
 
     companion object {
+        private const val WIFI_ABORT_CLEANUP_TIMEOUT_MS = 3_000L
+        private const val WIFI_CLOSE_CLEANUP_TIMEOUT_MS = 5_000L
         private fun otaStatus(bytes: ByteArray): OtaStatus {
             require(bytes.size == 56 && bytes[0].toInt() == 4) {
                 "Gauge returned an unsupported update status"
