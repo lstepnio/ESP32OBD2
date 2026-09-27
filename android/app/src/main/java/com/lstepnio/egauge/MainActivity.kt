@@ -1037,6 +1037,21 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
         Spacer(Modifier.height(18.dp))
         Panel {
             SectionHeading("Firmware update")
+            model.updateRecoveryResult?.let { recovery ->
+                Text(when (recovery.state) {
+                    UpdateRecoveryState.CHECK_REQUIRED -> "Recovery check required"
+                    UpdateRecoveryState.INSTALLED -> "Update confirmed"
+                    UpdateRecoveryState.PREVIOUS_FIRMWARE -> "Previous firmware recovered"
+                    UpdateRecoveryState.WAITING_FOR_CONFIRMATION -> "Health check still pending"
+                    UpdateRecoveryState.IDENTITY_CHECKED -> "Recovery check complete"
+                }, color = when (recovery.state) {
+                    UpdateRecoveryState.INSTALLED, UpdateRecoveryState.IDENTITY_CHECKED -> AccentColor
+                    UpdateRecoveryState.PREVIOUS_FIRMWARE -> WarningColor
+                    else -> AccentColor
+                }, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(recovery.message, color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
+                Spacer(Modifier.height(12.dp))
+            }
             val boot = model.bootIdentity
             if (boot != null) {
                 InfoLine("Running", boot.version.ifBlank { "unknown" })
