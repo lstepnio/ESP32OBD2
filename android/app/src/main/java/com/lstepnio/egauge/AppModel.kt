@@ -55,6 +55,22 @@ enum class GaugeLayout(val label: String) {
     Numeric("Numeric"), Arc("Arc"), Bar("Bar"), Trend("Trend"), Dual("Dual")
 }
 
+data class GaugePageDraft(
+    val id: String,
+    val name: String,
+    val layout: GaugeLayout,
+    val pidIds: List<String>,
+)
+
+fun defaultGaugePages(primary: String = "rpm", layout: GaugeLayout = GaugeLayout.Numeric): List<GaugePageDraft> {
+    val ordered = listOf(primary, "rpm", "coolant", "speed").distinct().take(3)
+    return ordered.mapIndexed { index, pidId ->
+        val definition = demoCatalog.first { it.id == pidId }
+        GaugePageDraft("page.${index + 1}.${pidId}", definition.gaugeLabel, if (index == 0) layout else GaugeLayout.Numeric,
+            listOf(pidId))
+    }
+}
+
 enum class OwnerAccess { UNKNOWN, DISCOVERED, AUTHENTICATED }
 
 data class Draft(
@@ -66,6 +82,7 @@ data class Draft(
     val triggerDwellMs: Int = 1000,
     val clearDwellMs: Int = 2000,
     val source: String = "ECM",
+    val pages: List<GaugePageDraft> = defaultGaugePages(pidId, layout),
 )
 
 data class CapabilitySnapshot(
@@ -81,6 +98,9 @@ data class CapabilitySnapshot(
     val ota: Boolean,
     val wifiBulk: String?,
     val hardwareCapacityVersion: Int?,
+    val configurationVersion: Int = 0,
+    val maxPages: Int = 0,
+    val supportedRenderers: Set<GaugeLayout> = emptySet(),
 )
 
 data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revision: Long)
@@ -109,6 +129,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var profileNameInput by mutableStateOf("")
         private set
     var draft by mutableStateOf(profileCollection.active.draft)
+        private set
+    var editingPageIndex by mutableStateOf(0)
         private set
     var query by mutableStateOf("")
         private set
@@ -251,6 +273,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (profileError != null || profileCollection.profiles.none { it.id == id }) return
         profileCollection = profileCollection.copy(activeId = id)
         draft = profileCollection.active.draft
+        editingPageIndex = 0
         if (!profileStore.save(profileCollection)) profileError = "Could not save the selected vehicle profile"
     }
     fun createProfile() {
@@ -263,6 +286,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             profiles = profileCollection.profiles + profile,
         )
         draft = profile.draft
+        editingPageIndex = 0
         profileNameInput = ""
         if (!profileStore.save(profileCollection)) profileError = "Could not save the new vehicle profile"
     }
@@ -305,7 +329,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         sentProfileId = null
         sentDigest = null
         deviceMessage = if (value.experimentalNumericConfig)
-            "Gauge found. Pair this phone as owner to send supported numeric pages."
+            "Gauge found. Pair this phone as owner to send a supported dashboard."
         else if (value.quickSelect)
             "Gauge identified. Built-in reading selection is available after pairing."
         else "Gauge identified. Discovery link closed; protocol ${value.protocolMajor} is read only."
@@ -396,6 +420,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             documentReadFailed = true
             return
         }
+        editingPageIndex = 0
         save(imported)
         documentMessage = "Saved revision ${document.revision} copied into the phone draft. The gauge was not changed."
         documentReadFailed = false
@@ -648,7 +673,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendNumericConfiguration() = launchGaugeOperation(OperationKind.CONFIGURATION, "Sending gauge setup") { id ->
-        require(capabilities?.experimentalNumericConfig == true) { "Gauge does not offer numeric configuration" }
+        require((capabilities?.configurationVersion ?: 0) > 0) {
+            "Gauge does not offer dashboard configuration"
+        }
         val profileId = profileCollection.activeId
         val capturedDraft = draft
         val baseRevision = activeConfigRevision ?: error("Refresh gauge settings before sending")
@@ -855,8 +882,76 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         savedGauge = null
         deviceMessage = message
     }
-    fun selectPid(pid: PidExample) = save(draft.copy(pidId = pid.id, source = pid.source))
-    fun selectLayout(layout: GaugeLayout) = save(draft.copy(layout = layout))
+    fun selectPage(index: Int) {
+        if (index !in draft.pages.indices) return
+        editingPageIndex = index
+        val page = draft.pages[index]
+        save(draft.copy(pidId = page.pidIds[0], layout = page.layout, source = "ECM"))
+    }
+
+    fun addPage() {
+        if (draft.pages.size >= 8) return
+        val used = draft.pages.map { it.id }.toSet()
+        val sequence = (1..99).first { "page.custom.$it" !in used }
+        val page = GaugePageDraft("page.custom.$sequence", "ENGINE RPM", GaugeLayout.Numeric,
+            listOf("rpm"))
+        editingPageIndex = draft.pages.size
+        save(draft.copy(pidId = "rpm", layout = GaugeLayout.Numeric, source = "ECM",
+            pages = draft.pages + page))
+    }
+
+    fun removePage(index: Int) {
+        if (draft.pages.size <= 1 || index !in draft.pages.indices) return
+        val pages = draft.pages.toMutableList().also { it.removeAt(index) }
+        editingPageIndex = editingPageIndex.coerceAtMost(pages.lastIndex)
+        val selected = pages[editingPageIndex]
+        save(draft.copy(pidId = selected.pidIds[0], layout = selected.layout, pages = pages))
+    }
+
+    fun movePage(index: Int, delta: Int) {
+        val destination = index + delta
+        if (index !in draft.pages.indices || destination !in draft.pages.indices) return
+        val pages = draft.pages.toMutableList()
+        val page = pages.removeAt(index)
+        pages.add(destination, page)
+        editingPageIndex = destination
+        save(draft.copy(pages = pages))
+    }
+
+    fun selectPid(pid: PidExample) {
+        if (editingPageIndex !in draft.pages.indices) return
+        val pages = draft.pages.toMutableList()
+        val current = pages[editingPageIndex]
+        val ids = if (current.layout == GaugeLayout.Dual) {
+            val second = current.pidIds.getOrNull(1)?.takeIf { it != pid.id }
+                ?: ConfigurationProjector.supportedPidIds.first { it != pid.id }
+            listOf(pid.id, second)
+        } else listOf(pid.id)
+        pages[editingPageIndex] = current.copy(name = pid.gaugeLabel, pidIds = ids)
+        save(draft.copy(pidId = pid.id, source = pid.source, pages = pages))
+    }
+
+    fun selectSecondaryPid(pid: PidExample) {
+        if (editingPageIndex !in draft.pages.indices || pid.id !in ConfigurationProjector.supportedPidIds) return
+        val pages = draft.pages.toMutableList()
+        val current = pages[editingPageIndex]
+        if (current.layout != GaugeLayout.Dual || current.pidIds.first() == pid.id) return
+        pages[editingPageIndex] = current.copy(pidIds = listOf(current.pidIds.first(), pid.id))
+        save(draft.copy(pages = pages))
+    }
+
+    fun selectLayout(layout: GaugeLayout) {
+        if (editingPageIndex !in draft.pages.indices) return
+        val pages = draft.pages.toMutableList()
+        val current = pages[editingPageIndex]
+        val ids = if (layout == GaugeLayout.Dual) {
+            val secondary = current.pidIds.getOrNull(1)
+                ?: ConfigurationProjector.supportedPidIds.first { it != current.pidIds.first() }
+            listOf(current.pidIds.first(), secondary)
+        } else listOf(current.pidIds.first())
+        pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids)
+        save(draft.copy(layout = layout, pages = pages))
+    }
     fun setWarning(value: Int) = save(draft.copy(warning = value))
     fun setCritical(value: Int) = save(draft.copy(critical = value))
     fun setHysteresis(value: Int) = save(draft.copy(hysteresis = value.coerceIn(0, 20)))

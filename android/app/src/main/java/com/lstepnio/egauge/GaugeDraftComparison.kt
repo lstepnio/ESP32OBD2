@@ -16,7 +16,8 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                        profileId: String): Draft? = runCatching {
             require(document.vehicleProfileId == profileId)
             val saved = JSONObject(document.json)
-            val primary = saved.getJSONArray("pages").getJSONObject(0)
+            val savedPages = saved.getJSONArray("pages")
+            val primary = savedPages.getJSONObject(0)
             val definitionId = primary.getJSONArray("pidIds").getString(0)
             val pidId = when (definitionId) {
                 "engine.rpm" -> "rpm"
@@ -37,13 +38,30 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
             val source = (0 until sources.length()).map { sources.getJSONObject(it) }
                 .first { it.getString("id") == sourceId }.getString("role").uppercase(Locale.ROOT)
             require(source == "ECM" || source == "TCM")
+            fun phonePid(id: String): String = when (id) {
+                "engine.rpm" -> "rpm"
+                "engine.coolant" -> "coolant"
+                "vehicle.speed" -> "speed"
+                "engine.load" -> "load"
+                "vehicle.fuel" -> "fuel"
+                else -> error("Saved PID is not available in the phone editor")
+            }
+            val pages = (0 until savedPages.length()).map { index ->
+                val page = savedPages.getJSONObject(index)
+                val pageLayout = GaugeLayout.entries.firstOrNull {
+                    it.name.equals(page.getString("renderer"), ignoreCase = true)
+                } ?: error("Saved renderer is not available in the phone editor")
+                val ids = page.getJSONArray("pidIds")
+                GaugePageDraft(page.getString("id"), page.getString("name"), pageLayout,
+                    (0 until ids.length()).map { phonePid(ids.getString(it)) })
+            }
             val alerts = saved.getJSONArray("alerts")
             val alert = (0 until alerts.length()).map { alerts.getJSONObject(it) }
                 .first { it.getString("pidId") == "engine.coolant" &&
                     it.getString("direction") == "above" }
             val draft = Draft(pidId, layout, alert.getInt("warning"), alert.getInt("critical"),
                 alert.getInt("hysteresis"), alert.getInt("triggerDwellMs"),
-                alert.getInt("clearDwellMs"), source)
+                alert.getInt("clearDwellMs"), source, pages)
             require(draft.warning in -40..215 && draft.critical in -40..215 &&
                 draft.warning < draft.critical && draft.hysteresis in 0..20 &&
                 draft.warning - draft.hysteresis >= -40 &&
@@ -82,18 +100,23 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                     ?.toInt()
                 return field(label, "$phone $unit", value?.let { "$it $unit" })
             }
-            val draftDefinition = when (draft.pidId) {
+            val draftDefinition = when (draft.pages.first().pidIds.first()) {
                 "rpm" -> "engine.rpm"
                 "coolant" -> "engine.coolant"
                 "speed" -> "vehicle.speed"
                 "load" -> "engine.load"
                 "fuel" -> "vehicle.fuel"
-                else -> draft.pidId
+                else -> draft.pages.first().pidIds.first()
             }
             return GaugeDraftComparison(document.revision, listOf(
                 field("Vehicle profile ID", profileId, document.vehicleProfileId),
+                field("Page count", draft.pages.size.toString(), pages?.length()?.toString()),
+                field("Page order", draft.pages.joinToString(" | ") { it.id },
+                    pages?.let { value -> (0 until value.length()).joinToString(" | ") {
+                        value.optJSONObject(it)?.optString("id").orEmpty()
+                    } }),
                 field("Primary PID", draftDefinition, primaryPid),
-                field("Renderer", draft.layout.name.lowercase(Locale.ROOT),
+                field("Renderer", draft.pages.first().layout.name.lowercase(Locale.ROOT),
                     primary?.optString("renderer")?.takeIf { it.isNotBlank() }),
                 field("Primary source", draft.source, sourceRole),
                 alertField("Coolant warning", draft.warning, "warning", "°C"),

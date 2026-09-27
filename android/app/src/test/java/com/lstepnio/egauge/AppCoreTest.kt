@@ -131,7 +131,10 @@ class AppCoreTest {
             .getJSONArray("pidIds").getString(0))
         assertTrue(projection.pages.all { it.renderer == "numeric" })
         assertEquals(104, json.getJSONArray("alerts").getJSONObject(0).getInt("warning"))
-        assertTrue(ConfigurationProjector.blockers(draft.copy(layout = GaugeLayout.Arc)).isNotEmpty())
+        assertTrue(ConfigurationProjector.blockers(draft.copy(
+            pages = draft.pages.mapIndexed { index, page ->
+                if (index == 0) page.copy(layout = GaugeLayout.Arc) else page
+            })).isEmpty())
         assertTrue(ConfigurationProjector.blockers(draft.copy(source = "TCM")).isNotEmpty())
     }
 

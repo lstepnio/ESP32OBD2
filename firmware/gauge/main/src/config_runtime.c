@@ -52,6 +52,27 @@ static int pid_index(const config_runtime_t *runtime, const char *id)
     return -1;
 }
 
+static bool renderer_value(const char *name, runtime_renderer_t *out)
+{
+    static const struct {
+        const char *name;
+        runtime_renderer_t value;
+    } values[] = {
+        {"numeric", RUNTIME_RENDERER_NUMERIC},
+        {"arc", RUNTIME_RENDERER_ARC},
+        {"bar", RUNTIME_RENDERER_BAR},
+        {"trend", RUNTIME_RENDERER_TREND},
+        {"dual", RUNTIME_RENDERER_DUAL},
+    };
+    for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); ++i) {
+        if (strcmp(name, values[i].name) == 0) {
+            *out = values[i].value;
+            return true;
+        }
+    }
+    return false;
+}
+
 static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *out)
 {
     bytes[length] = 0;
@@ -116,10 +137,19 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
     for (const cJSON *item = pages->child; item; item = item->next) {
         const cJSON *ids = field(item, "pidIds");
         const char *renderer = field(item, "renderer")->valuestring;
-        if (cJSON_GetArraySize(ids) != 1 || strcmp(renderer, "numeric") != 0) goto done;
-        int index = pid_index(out, cJSON_GetArrayItem(ids, 0)->valuestring);
-        if (index < 0) goto done;
-        out->page_pids[out->page_count++] = index;
+        int count = cJSON_GetArraySize(ids);
+        runtime_page_t *page = &out->pages[out->page_count];
+        if (!copy_text(page->id, sizeof(page->id), field(item, "id")) ||
+            !copy_text(page->name, sizeof(page->name), field(item, "name")) ||
+            !renderer_value(renderer, &page->renderer) || count < 1 || count > 2 ||
+            (page->renderer == RUNTIME_RENDERER_DUAL) != (count == 2)) goto done;
+        page->pid_count = count;
+        for (int i = 0; i < count; ++i) {
+            int index = pid_index(out, cJSON_GetArrayItem(ids, i)->valuestring);
+            if (index < 0) goto done;
+            page->pid_indices[i] = index;
+        }
+        out->page_count++;
     }
     for (const cJSON *item = alerts->child; item; item = item->next) {
         int index = pid_index(out, field(item, "pidId")->valuestring);

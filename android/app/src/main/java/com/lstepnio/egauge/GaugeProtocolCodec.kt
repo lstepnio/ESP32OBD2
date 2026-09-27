@@ -24,6 +24,9 @@ object GaugeProtocolCodec {
         val configWrite = json.getBoolean("configWrite")
         val ota = json.getBoolean("ota")
         val hardwareCapacity = json.optInt("hardwareCapacity", json.optInt("hw", 0))
+        val configurationVersion = json.optInt("cfg",
+            if (json.optBoolean("experimentalNumericConfig", false)) 1 else 0)
+        require(configurationVersion in 0..2) { "Gauge returned an invalid configuration version" }
         require(hardwareCapacity in 0..1) { "Gauge returned an invalid hardware-capacity version" }
         require(!configWrite && !ota) { "Unexpected experimental capability flags" }
         return CapabilitySnapshot(
@@ -32,13 +35,20 @@ object GaugeProtocolCodec {
             maxAdapterLinks = links,
             simultaneousVerified = json.optBoolean("simultaneousAdapterLinksVerified", false),
             configWrite = configWrite,
-            experimentalNumericConfig = json.optBoolean("experimentalNumericConfig", false),
+            experimentalNumericConfig = configurationVersion > 0,
             savedStateRead = json.optBoolean("savedStateRead", false),
             quickSelect = json.optBoolean("quickSelect", false),
             displayRotationWrite = json.optBoolean("displayRotationWrite", false),
             ota = ota,
             wifiBulk = json.optString("wifiBulk").takeIf { it.isNotBlank() },
             hardwareCapacityVersion = hardwareCapacity.takeIf { it > 0 },
+            configurationVersion = configurationVersion,
+            maxPages = if (configurationVersion >= 2) 8 else if (configurationVersion == 1) 3 else 0,
+            supportedRenderers = when (configurationVersion) {
+                2 -> GaugeLayout.entries.toSet()
+                1 -> setOf(GaugeLayout.Numeric)
+                else -> emptySet()
+            },
         )
     }
 

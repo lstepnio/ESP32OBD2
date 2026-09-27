@@ -478,7 +478,9 @@ private fun SourceRow(source: String, title: String, detail: String) {
 @Composable
 private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
                          onReadDocument: () -> Unit) {
-    val pid = demoCatalog.first { it.id == model.draft.pidId }
+    val selectedPage = model.draft.pages.getOrNull(model.editingPageIndex) ?: model.draft.pages.first()
+    val pid = demoCatalog.first { it.id == selectedPage.pidIds.first() }
+    val secondaryPid = selectedPage.pidIds.getOrNull(1)?.let { id -> demoCatalog.first { it.id == id } }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Intro("Gauge", "Build a glanceable dashboard.",
             "Editing ${model.profileCollection.active.name}. Preview values are examples until vehicle data is observed.")
@@ -491,17 +493,42 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
             }
             return@Column
         }
-        RoundPreview(pid, model.draft.layout)
+        RoundPreview(pid, selectedPage.layout, secondaryPid)
+        Spacer(Modifier.height(22.dp))
+        SectionHeading("Pages")
+        Panel {
+            Text("${model.draft.pages.size} of 8 pages", color = MutedColor, fontSize = 13.sp)
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                model.draft.pages.forEachIndexed { index, page ->
+                    FilterChip(selected = model.editingPageIndex == index,
+                        onClick = { model.selectPage(index) },
+                        label = { Text("${index + 1}. ${page.name}", maxLines = 1) })
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedButton(onClick = model::addPage, enabled = model.draft.pages.size < 8,
+                    modifier = Modifier.weight(1f)) { Text("Add") }
+                OutlinedButton(onClick = { model.movePage(model.editingPageIndex, -1) },
+                    enabled = model.editingPageIndex > 0, modifier = Modifier.weight(1f)) { Text("Earlier") }
+                OutlinedButton(onClick = { model.movePage(model.editingPageIndex, 1) },
+                    enabled = model.editingPageIndex < model.draft.pages.lastIndex,
+                    modifier = Modifier.weight(1f)) { Text("Later") }
+                OutlinedButton(onClick = { model.removePage(model.editingPageIndex) },
+                    enabled = model.draft.pages.size > 1, modifier = Modifier.weight(1f)) { Text("Remove") }
+            }
+        }
         Spacer(Modifier.height(22.dp))
         SectionHeading("Layout")
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             GaugeLayout.entries.forEach { layout ->
                 FilterChip(
-                    selected = model.draft.layout == layout,
+                    selected = selectedPage.layout == layout,
                     onClick = { model.selectLayout(layout) },
-                    label = { Text(if (layout == GaugeLayout.Numeric) layout.label else "${layout.label} preview",
-                        fontSize = 14.sp, maxLines = 1) },
+                    label = { Text(layout.label, fontSize = 14.sp, maxLines = 1) },
                 )
             }
         }
@@ -513,6 +540,19 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
                 color = MutedColor, fontSize = 14.sp)
             Spacer(Modifier.height(14.dp))
             OutlinedButton(onClick = { model.navigate(Destination.Readings) }) { Text("Choose a reading") }
+            if (selectedPage.layout == GaugeLayout.Dual) {
+                Spacer(Modifier.height(14.dp))
+                Text("Second reading", color = MutedColor, fontSize = 13.sp)
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    demoCatalog.filter { it.id in ConfigurationProjector.supportedPidIds && it.id != pid.id }
+                        .forEach { candidate ->
+                            FilterChip(selected = selectedPage.pidIds.getOrNull(1) == candidate.id,
+                                onClick = { model.selectSecondaryPid(candidate) },
+                                label = { Text(candidate.name, maxLines = 1) })
+                        }
+                }
+            }
         }
         Spacer(Modifier.height(22.dp))
         SectionHeading("Coolant alert preview")
@@ -560,7 +600,7 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
             Text(if (limitsValid && model.activeDocument != null)
                 "Compare this phone draft with the last verified gauge readback below. Alert action awaits live coolant data."
                 else if (limitsValid && sent)
-                "Numeric pages and coolant thresholds were sent in revision ${model.activeConfigRevision}; the renderer preview stays local. Read back the gauge to compare."
+                "Dashboard pages and coolant thresholds were sent in revision ${model.activeConfigRevision}. Read back the gauge to compare."
                 else if (limitsValid) "Saved in local draft; current settings have not been sent to the gauge"
                 else "Check warning, critical and hysteresis spacing",
                 color = if (limitsValid) MutedColor else CriticalColor, fontSize = 14.sp)
@@ -638,18 +678,26 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
             }
         }
         Spacer(Modifier.height(20.dp))
-        val projectionBlockers = ConfigurationProjector.blockers(model.draft)
+        val projectionBlockers = ConfigurationProjector.blockers(model.draft) + buildList {
+            model.capabilities?.let { capabilities ->
+                if (model.draft.pages.size > capabilities.maxPages)
+                    add("Connected firmware supports at most ${capabilities.maxPages} pages")
+                val unavailable = model.draft.pages.map { it.layout }.distinct()
+                    .filter { it !in capabilities.supportedRenderers }
+                if (unavailable.isNotEmpty())
+                    add("Connected firmware does not support: ${unavailable.joinToString { it.label }}")
+            }
+        }
         Panel {
             SectionHeading("Review what will be sent")
-            Text("The current sender installs three Numeric pages in this order:",
+            Text("The gauge will install these pages in order:",
                 color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
-            val ordered = when (model.draft.pidId) {
-                "coolant" -> listOf("Coolant temperature", "Engine RPM", "Vehicle speed")
-                "speed" -> listOf("Vehicle speed", "Coolant temperature", "Engine RPM")
-                else -> listOf("Engine RPM", "Coolant temperature", "Vehicle speed")
-            }
-            ordered.forEachIndexed { index, label ->
-                Text("${index + 1}. $label • Numeric", color = TextColor, fontSize = 14.sp)
+            model.draft.pages.forEachIndexed { index, page ->
+                val readings = page.pidIds.joinToString(" + ") { id ->
+                    demoCatalog.first { it.id == id }.name
+                }
+                Text("${index + 1}. ${page.name} • ${page.layout.label} • $readings",
+                    color = TextColor, fontSize = 14.sp)
             }
             Spacer(Modifier.height(8.dp))
             Text("Coolant warning ${model.draft.warning} °C • critical ${model.draft.critical} °C",
@@ -663,17 +711,19 @@ private fun DesignScreen(model: AppViewModel, onApplyNumeric: () -> Unit,
         }
         val numericReady = model.capabilities?.experimentalNumericConfig == true && !model.scanning &&
             model.profileError == null && projectionBlockers.isEmpty() &&
+            model.draft.pages.all { it.layout in (model.capabilities?.supportedRenderers ?: emptySet()) } &&
+            model.draft.pages.size <= (model.capabilities?.maxPages ?: 0) &&
             model.activeConfigRevision != null && model.verifiedConfigHash != null
         Spacer(Modifier.height(12.dp))
         Button(onClick = onApplyNumeric, enabled = numericReady,
             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-            Text(if (model.scanning) "Sending setup…" else "Review complete • Send numeric pages")
+            Text(if (model.scanning) "Sending setup…" else "Review complete • Send dashboard")
         }
         Text(when {
             model.capabilities == null -> "Find the gauge in Vehicle before sending."
             model.activeConfigRevision == null || model.verifiedConfigHash == null ->
                 "Refresh saved configuration before sending so changes cannot overwrite a newer revision."
-            projectionBlockers.isNotEmpty() -> "Adjust the items above before sending. Preview-only layouts stay on this phone."
+            projectionBlockers.isNotEmpty() -> "Adjust the items above before sending."
             else -> "Requires the paired owner. The app confirms the saved setup is healthy and running after restart."
         }, color = MutedColor, fontSize = 14.sp, lineHeight = 20.sp)
     }
@@ -695,7 +745,7 @@ private fun ThresholdRow(label: String, value: Int, tint: Color, onDecrease: () 
 }
 
 @Composable
-private fun RoundPreview(pid: PidExample, layout: GaugeLayout) {
+private fun RoundPreview(pid: PidExample, layout: GaugeLayout, secondary: PidExample? = null) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Box(
             Modifier.size(238.dp).clip(CircleShape).background(Color(0xFF060A0C))
@@ -710,18 +760,20 @@ private fun RoundPreview(pid: PidExample, layout: GaugeLayout) {
                     drawArc(AccentColor, 145f, 160f, false, style = Stroke(10.dp.toPx(), cap = StrokeCap.Round))
                 }
             }
-            Text(pid.gaugeLabel, color = MutedColor, fontSize = 13.sp,
-                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 48.dp).width(166.dp))
-            Text(pid.demoValue, color = TextColor,
-                fontSize = if (pid.demoValue.length > 4) 42.sp else 48.sp,
-                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 77.dp).width(166.dp))
-            Text(pid.unit, color = AccentColor, fontSize = 17.sp,
-                textAlign = TextAlign.Center, maxLines = 1,
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 141.dp).width(140.dp))
+            if (layout != GaugeLayout.Dual) {
+                Text(pid.gaugeLabel, color = MutedColor, fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 48.dp).width(166.dp))
+                Text(pid.demoValue, color = TextColor,
+                    fontSize = if (pid.demoValue.length > 4) 42.sp else 48.sp,
+                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 77.dp).width(166.dp))
+                Text(pid.unit, color = AccentColor, fontSize = 17.sp,
+                    textAlign = TextAlign.Center, maxLines = 1,
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 141.dp).width(140.dp))
+            }
             if (layout == GaugeLayout.Bar) {
                 Box(Modifier.align(Alignment.TopCenter).padding(top = 169.dp)
                     .width(120.dp).height(6.dp).clip(CircleShape).background(RaisedColor)) {
@@ -729,9 +781,17 @@ private fun RoundPreview(pid: PidExample, layout: GaugeLayout) {
                 }
             }
             if (layout == GaugeLayout.Dual) {
-                Text("92 °C  /  coolant", color = MutedColor, fontSize = 13.sp,
-                    textAlign = TextAlign.Center, maxLines = 1,
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 165.dp).width(166.dp))
+                Column(Modifier.align(Alignment.TopCenter).padding(top = 38.dp).width(166.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${pid.gaugeLabel}  ${pid.unit}", color = MutedColor, fontSize = 12.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(pid.demoValue, color = TextColor, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text("${secondary?.gaugeLabel ?: "COOLANT"}  ${secondary?.unit ?: "°C"}",
+                        color = MutedColor, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(secondary?.demoValue ?: "92", color = TextColor, fontSize = 34.sp,
+                        fontWeight = FontWeight.Bold)
+                }
             }
             if (layout == GaugeLayout.Trend) {
                 Canvas(Modifier.align(Alignment.TopCenter).padding(top = 158.dp)
@@ -903,6 +963,7 @@ private fun DeviceScreen(model: AppViewModel, onFindGauge: () -> Unit,
             if (caps != null) {
                 Spacer(Modifier.height(14.dp))
                 InfoLine("Owner controls", when {
+                    caps.configurationVersion >= 2 -> "Experimental 8-page dashboard transfer with five renderers"
                     caps.experimentalNumericConfig -> "Experimental numeric ECM profile transfer"
                     caps.displayRotationWrite -> "Built-in reading and display rotation"
                     caps.quickSelect -> "Built-in reading only"
