@@ -88,6 +88,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val bleClient = BleCapabilityClient(application)
     private val operationCoordinator = OperationCoordinator()
     private val profileStore = ProfileStore(application)
+    private var debugOtaPauseBeforeActivationMs = 0L
+
+    fun setDebugOtaPauseBeforeActivationMs(value: Long) {
+        val debuggable = getApplication<Application>().applicationInfo.flags and
+            android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+        debugOtaPauseBeforeActivationMs = if (debuggable) value.coerceIn(0, 60_000) else 0
+    }
     private val associationStore = GaugeAssociationStore(application)
     private val updateJournal = UpdateRecoveryJournal(application)
     private val loadedProfiles = profileStore.load()
@@ -452,6 +459,40 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         updatePackageMessage = "Sending signed image to gauge • $percent%"
     }
+    fun updateStageChanged(stage: FirmwareUpdateStage) {
+        operation = when (stage) {
+            FirmwareUpdateStage.PREPARING -> operation.copy(stage = OperationStage.PREPARING,
+                title = "Preparing firmware update", detail = "Authenticating the gauge and opening the transfer path",
+                progressPercent = null)
+            FirmwareUpdateStage.TRANSFERRING -> operation.copy(stage = OperationStage.SENDING,
+                title = "Sending firmware", detail = if (capabilities?.wifiBulk != null)
+                    "Sending the signed image over private gauge Wi-Fi" else
+                    "Sending the signed image over Bluetooth")
+            FirmwareUpdateStage.VERIFYING -> operation.copy(stage = OperationStage.VERIFYING,
+                title = "Verifying firmware", detail = "The gauge is checking the complete signed image",
+                progressPercent = 100)
+            FirmwareUpdateStage.READY_TO_ACTIVATE -> operation.copy(stage = OperationStage.VERIFYING,
+                title = "Firmware verified", detail = if (debugOtaPauseBeforeActivationMs > 0)
+                    "Debug activation pause active" else "Preparing the alternate image for boot",
+                progressPercent = 100)
+            FirmwareUpdateStage.RESTARTING -> operation.copy(stage = OperationStage.RESTARTING,
+                title = "Restarting gauge", detail = "Booting the verified alternate image",
+                progressPercent = 100)
+            FirmwareUpdateStage.CONFIRMING -> operation.copy(stage = OperationStage.CHECKING_RUNNING,
+                title = "Confirming firmware", detail = "Waiting for the gauge health check and authenticated identity",
+                progressPercent = 100)
+        }
+        updatePackageMessage = when (stage) {
+            FirmwareUpdateStage.PREPARING -> "Preparing the authenticated update path…"
+            FirmwareUpdateStage.TRANSFERRING -> "Sending the signed image to the gauge…"
+            FirmwareUpdateStage.VERIFYING -> "Transfer complete. Verifying the signed image on the gauge…"
+            FirmwareUpdateStage.READY_TO_ACTIVATE -> if (debugOtaPauseBeforeActivationMs > 0)
+                "Firmware verified. Debug activation pause active."
+                else "Firmware verified. Preparing activation…"
+            FirmwareUpdateStage.RESTARTING -> "Firmware activated. The gauge is restarting…"
+            FirmwareUpdateStage.CONFIRMING -> "Gauge restarted. Confirming the healthy running image…"
+        }
+    }
     fun updateSucceeded(value: GaugeConfigTransferClient.UpdateResult) {
         updateInProgress = false
         updateMayHaveChangedGauge = false
@@ -505,8 +546,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     val result = if (wifiVersion == "experimental-softap-aead-v1" ||
                         wifiVersion == "experimental-softap-aead-v2")
                         client.installUpdateWifi(bleClient.selectedGauge(), bundle,
-                            wifiVersion == "experimental-softap-aead-v2", reportProgress)
-                    else client.installUpdate(bleClient.selectedGauge(), bundle, reportProgress)
+                            wifiVersion == "experimental-softap-aead-v2", reportProgress,
+                            ::updateStageChanged, debugOtaPauseBeforeActivationMs)
+                    else client.installUpdate(bleClient.selectedGauge(), bundle, reportProgress,
+                        ::updateStageChanged, debugOtaPauseBeforeActivationMs)
                     updateSucceeded(result)
                     operation = OperationState(id, OperationKind.UPDATE, OperationStage.ACTIVE,
                         "Firmware installed", "The new image is healthy and running", 100, true)
