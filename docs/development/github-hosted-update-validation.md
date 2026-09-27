@@ -50,6 +50,18 @@ Android unit fixtures cover invalid signatures, expired and future-dated catalog
 
 GitHub does not guarantee that the first release returned by its API contains the highest catalog generation. The companion now examines every bounded release candidate, verifies each catalog independently, and selects the highest compatible generation. A live check exposed a reused generation in dev.11 because the historical dev.3 release had already consumed generation 3. The companion rejected the conflict before bundle download. Dev.11 was marked withdrawn without replacing its assets, the release workflow gained a published-maximum preflight, and dev.12 advances to generation 4.
 
+## Corrected GitHub-only release
+
+Prerelease [`dev-v0.2.0-dev.12`](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.12) targets commit `f0173c6` and consumes catalog generation and release sequence 4. A clean GitHub download matched the publishing inputs and OpenSSL verified its catalog signature. Published asset SHA-256 values are:
+
+| Asset | SHA-256 |
+| --- | --- |
+| Catalog | `d96ac6a51ed1f672045e6a211c26e0b7581875785c38fa9e68bc6916413400da` |
+| Catalog signature | `ee77534bcbbfa7d168b106723cf5c9c00d483e576cc179b1dad62d8d1a2bd9a6` |
+| Update bundle | `4a38b0dab723efdb4a6355ed42a255ce0af6825d1a9dd9bce8a3b25cc3744aba` |
+
+The Pixel enumerated the GitHub catalogs, advanced its pinned catalog identity from generation 2 to generation 4, downloaded and verified dev.12, and installed it over the authenticated private Wi-Fi transport. Android confirmed the healthy image at `ota_0` offset `0x60000` with ELF SHA-256 `383a71f7919d36e561bc7c800bc44f8b72b343492afb845ebed3011a69c94683`. A subsequent GitHub check reported `Installed 0.2.0-dev.12 is up to date`. Local update bundles were removed from the phone after this validation so routine development installations start from GitHub Releases.
+
 ## Release automation boundary
 
 The protected GitHub workflow and signing environment are present on the integration branch. GitHub only registers a manually dispatched workflow after the workflow file reaches the default branch, so dev.9 was published as a documented bootstrap using the same local signing tools. After merge, future development releases should be built and published by `.github/workflows/development-release.yml`.
