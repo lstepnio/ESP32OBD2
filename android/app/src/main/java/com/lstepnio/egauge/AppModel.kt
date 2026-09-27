@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** All catalog rows below are examples, never vehicle capability evidence. */
 data class PidExample(
@@ -149,6 +150,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var hostedUpdateMessage by mutableStateOf("Hosted development updates have not been checked")
         private set
     var hostedUpdateBusy by mutableStateOf(false)
+        private set
+    var wifiSecurityMessage by mutableStateOf("Not run on this connection")
         private set
     var activeConfigRevision by mutableStateOf<Long?>(null)
         private set
@@ -636,6 +639,36 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         bootIdentityRead(GaugeConfigTransferClient(getApplication()).readBootIdentity(bleClient.selectedGauge()))
         operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
             "Firmware checked", bootIdentity?.version, terminal = true)
+    }
+
+    fun runWifiTransportSecurityCheck() = launchGaugeOperation(OperationKind.READ,
+        "Checking Wi-Fi transport security") { id ->
+        try {
+            require(capabilities?.wifiBulk == "experimental-softap-aead-v2") {
+                "Gauge does not offer the authenticated Wi-Fi transport"
+            }
+            val device = bleClient.selectedGauge()
+            val client = GaugeConfigTransferClient(getApplication())
+            operation = OperationState(id, OperationKind.READ, OperationStage.PREPARING,
+                "Checking Wi-Fi transport security", "Opening an owner-authenticated temporary session")
+            wifiSecurityMessage = "Running wrong-session, wrong-key, and replay checks"
+            val session = client.openWifiBulk(device)
+            val result = try {
+                operation = operation.copy(stage = OperationStage.VERIFYING,
+                    detail = "Confirming rejected frames cannot reach a protected command")
+                WifiBulkClient(getApplication(), session).use { it.securitySelfCheck() }
+            } finally {
+                withTimeoutOrNull(8_000) { runCatching { client.closeWifiBulk(device) } }
+            }
+            check(result.passed) { "Gauge did not reject every negative Wi-Fi transport probe" }
+            ownerAccess = OwnerAccess.AUTHENTICATED
+            wifiSecurityMessage = "Passed: wrong session, wrong key, and replay were rejected"
+            operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
+                "Wi-Fi security check passed", wifiSecurityMessage, terminal = true)
+        } catch (error: Exception) {
+            wifiSecurityMessage = "Failed: ${error.message ?: "security check did not complete"}"
+            throw error
+        }
     }
 
     private fun launchGaugeOperation(kind: OperationKind, title: String, block: suspend (Long) -> Unit) {
