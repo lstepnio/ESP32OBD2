@@ -9,6 +9,7 @@
 #include "driver/gpio.h"
 #include "driver/i2c_master.h"
 #include "driver/i2c_types.h"
+#include "driver/ledc.h"
 #include "driver/spi_common.h"
 #include "esp_lcd_gc9a01.h"
 #include "esp_lcd_io_i2c.h"
@@ -66,6 +67,13 @@
 #define BSP_LCD_V_RES 240
 #define BSP_LCD_BUFFER_SIZE (BSP_LCD_H_RES * BSP_LCD_V_RES * (BSP_LCD_BIT_PER_PIXEL / 8))
 #define BSP_LCD_BUFFER_HEIGHT 10
+#define BSP_LCD_BACKLIGHT_DEFAULT_PERCENT 80
+#define BSP_LCD_BACKLIGHT_TIMER LEDC_TIMER_0
+#define BSP_LCD_BACKLIGHT_CHANNEL LEDC_CHANNEL_0
+#define BSP_LCD_BACKLIGHT_MODE LEDC_LOW_SPEED_MODE
+#define BSP_LCD_BACKLIGHT_FREQUENCY_HZ 20000
+#define BSP_LCD_BACKLIGHT_DUTY_BITS LEDC_TIMER_11_BIT
+#define BSP_LCD_BACKLIGHT_MAX_DUTY ((1U << 11) - 1U)
 
 // ------------------------------------------------------------------------------------------------------------------ //
 // Global Variables
@@ -164,6 +172,10 @@ esp_err_t bsp_lvgl_init(void)
                 .mirror_x = true,
                 .mirror_y = false,
             },
+        .flags = {
+            // GC9A01 SPI transactions carry each RGB565 pixel most-significant byte first.
+            .swap_bytes = true,
+        },
     };
     ESP_LOGI(TAG, "Creating LVGL display (HRES=%d, VRES=%d)", BSP_LCD_H_RES, BSP_LCD_V_RES);
     disp_handle = lvgl_port_add_disp(&disp_cfg);
@@ -208,14 +220,34 @@ esp_err_t bsp_display_start(void)
 
 esp_err_t bsp_init(void)
 {
-    // Initialize GPIOs
+    // Hold the backlight off while the panel and PWM peripheral start.
     gpio_config_t bl_gpio_config = {
         .pin_bit_mask = 1ULL << BSP_LCD_GPIO_BL,
         .mode         = GPIO_MODE_OUTPUT,
     };
     ESP_LOGI(TAG, "Configuring backlight GPIO_%d", BSP_LCD_GPIO_BL);
     ESP_ERROR_CHECK(gpio_config(&bl_gpio_config));
-    ESP_ERROR_CHECK(bsp_display_backlight_set(false));
+    ESP_ERROR_CHECK(gpio_set_level(BSP_LCD_GPIO_BL, 0));
+
+    const ledc_timer_config_t backlight_timer = {
+        .speed_mode = BSP_LCD_BACKLIGHT_MODE,
+        .duty_resolution = BSP_LCD_BACKLIGHT_DUTY_BITS,
+        .timer_num = BSP_LCD_BACKLIGHT_TIMER,
+        .freq_hz = BSP_LCD_BACKLIGHT_FREQUENCY_HZ,
+        .clk_cfg = LEDC_AUTO_CLK,
+    };
+    ESP_ERROR_CHECK(ledc_timer_config(&backlight_timer));
+    const ledc_channel_config_t backlight_channel = {
+        .gpio_num = BSP_LCD_GPIO_BL,
+        .speed_mode = BSP_LCD_BACKLIGHT_MODE,
+        .channel = BSP_LCD_BACKLIGHT_CHANNEL,
+        .intr_type = LEDC_INTR_DISABLE,
+        .timer_sel = BSP_LCD_BACKLIGHT_TIMER,
+        .duty = 0,
+        .hpoint = 0,
+        .flags.output_invert = 0,
+    };
+    ESP_ERROR_CHECK(ledc_channel_config(&backlight_channel));
 
     ESP_LOGI(TAG, "BSP initialized successfully");
 
@@ -227,7 +259,7 @@ esp_err_t bsp_display_on_off(bool on)
     if (on)
     {
         ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(lcd_panel_handle, true));
-        ESP_ERROR_CHECK(bsp_display_backlight_set(true));
+        ESP_ERROR_CHECK(bsp_display_backlight_set_percent(BSP_LCD_BACKLIGHT_DEFAULT_PERCENT));
     }
     else
     {
@@ -239,7 +271,17 @@ esp_err_t bsp_display_on_off(bool on)
 
 esp_err_t bsp_display_backlight_set(bool on)
 {
-    return gpio_set_level(BSP_LCD_GPIO_BL, on ? 1 : 0);
+    return bsp_display_backlight_set_percent(on ? BSP_LCD_BACKLIGHT_DEFAULT_PERCENT : 0);
+}
+
+esp_err_t bsp_display_backlight_set_percent(uint8_t percent)
+{
+    if (percent > 100) return ESP_ERR_INVALID_ARG;
+    uint32_t duty = ((uint32_t)percent * BSP_LCD_BACKLIGHT_MAX_DUTY + 50U) / 100U;
+    esp_err_t err = ledc_set_duty(BSP_LCD_BACKLIGHT_MODE, BSP_LCD_BACKLIGHT_CHANNEL, duty);
+    if (err == ESP_OK) err = ledc_update_duty(BSP_LCD_BACKLIGHT_MODE, BSP_LCD_BACKLIGHT_CHANNEL);
+    if (err == ESP_OK) ESP_LOGI(TAG, "Backlight set to %u%%", percent);
+    return err;
 }
 
 esp_err_t bsp_lv_disp_set_rotation(lv_display_rotation_t rotation)

@@ -96,6 +96,7 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         cJSON_IsTrue(field(root, "reducedMotion"))) goto done;
     const char *source_id = field(cJSON_GetArrayItem(sources, 0), "id")->valuestring;
     out->rotation = rotation->valueint / 90;
+    out->brightness = field(root, "brightness")->valueint;
     for (const cJSON *item = definitions->child; item; item = item->next) {
         const cJSON *request = field(item, "request");
         const cJSON *decoder = field(item, "decoder");

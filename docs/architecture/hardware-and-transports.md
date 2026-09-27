@@ -15,7 +15,7 @@ Owner direction: exploit Wi-Fi and other ESP32/board capabilities where they imp
 | CST816S touch | Page navigation, owner confirmation, alert acknowledgment and local diagnostics | Small circular area; broad targets and deliberate destructive-action confirmation |
 | QMI8658 IMU | Installation orientation assistant, wake/tap experiments and parked-movement event markers | Shares I2C with touch; verify identity, interrupt routing and enclosure calibration before use |
 | LiPo connector, charger and GPIO1 battery ADC | Battery-backed shutdown, parked mode, update preflight and device-power diagnostics | Measures the attached device battery, not vehicle voltage; calibrate the 200 kΩ/100 kΩ divider per unit/revision |
-| GPIO2 LCD backlight control | Smooth brightness, manual night mode and alert emphasis | Implement PWM with a safe visible minimum; validate flicker, thermal behavior and boot state |
+| GPIO2 LCD backlight control | Smooth brightness, manual night mode and alert emphasis | A 20 kHz PWM baseline now applies the validated configuration value of 80%; app control, safe-minimum characterization, flicker, thermal behavior and boot-state qualification remain open |
 | GPIO4/GPIO5 switched contacts | Candidate low-current haptic or indicator output | Exact board population and load limits require inspection. GPIO5 is already the touch interrupt in the current BSP, so it is not available without a verified pin/revision change |
 | USB-C through CH343P USB-to-UART | Flash/recovery, serial logs and deterministic bench development | The fitted connector is routed as USB-to-UART. ESP32-S3 native USB features are not exposed through this connector as a product interface |
 | Six-pin SH1.0 expansion connector | Future ambient-light input, ignition sense, protected external sensor or future accessory | Verify the exact revision pinout, occupied pins, voltage, current and automotive protection before connecting hardware |
@@ -28,7 +28,7 @@ The following order maximizes driver value and reliability while keeping unverif
 
 | Priority | Capability | Product behavior | Implementation gate |
 | --- | --- | --- | --- |
-| P0 | PWM backlight and night mode | App-configurable brightness, smooth local dimming, night palette and visible alert emphasis | Characterize GPIO2 PWM range, flicker, current and boot behavior on the exact board |
+| P0 | PWM backlight and night mode | Controlled backlight, a low-bloom night palette and visible alert emphasis | The 20 kHz PWM path and baseline night palette are implemented; characterize the usable range, flicker, current and boot behavior before exposing app control |
 | P0 | Production security hardware | Secure Boot v2, flash/NVS encryption, signed OTA, anti-rollback and device identity backed by ESP32-S3 security primitives | Design manufacturing keys, recovery and irreversible eFuse procedure before enabling production fuses |
 | P0 | Device power awareness | Report device battery/source health, reject unsafe updates and perform graceful low-power shutdown | Calibrate GPIO1 ADC, distinguish USB/device battery/vehicle states and measure update current margins |
 | P1 | IMU-assisted setup and events | Guide mounting orientation, verify installation movement and create bounded impact/movement event markers | Add shared-I2C ownership, low-rate sampling, interrupt handling, calibration and health reporting |
@@ -44,7 +44,7 @@ The IMU is not a trustworthy source for vehicle speed, crash detection or perfor
 ## Recommended delivery slices
 
 1. Complete the read-only hardware capability probe. The authenticated capacity snapshot now reports processor, reset, uptime, Wi-Fi state, flash, internal RAM, PSRAM, and initialized display/touch/backlight/BLE state. QMI8658 identity and health, calibrated battery ADC samples, and the occupied-pin report remain open. See the [hardware probe protocol](../protocol/hardware-probe.md).
-2. Deliver PWM brightness, manual/night presets, the round-display-safe night palette and a local hardware self-test page.
+2. Qualify the implemented PWM baseline and round-display-safe night palette, then add app-controlled presets and a local color/backlight self-test page.
 3. Add bounded event storage and export for alert transitions, resets, update outcomes and hardware faults.
 4. Prototype the IMU installation assistant and GPIO4 haptic feedback, with a compile-time board-revision gate until electrical limits are verified.
 5. Qualify the automatic private Wi-Fi bulk transport, then measure OBD BLE latency while transferring firmware and logs.
