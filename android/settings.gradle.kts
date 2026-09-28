@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "eGauge"
-include(":app")
+include(":app", ":core:designsystem")
