@@ -18,12 +18,12 @@ Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp i
 
 ## Trust and status
 
-- An unchecked session says **Not connected**. A short Bluetooth read is labelled **Last checked**, not a continuous live connection.
+- Foreground discovery and owner reconnection are automatic. **Gauge ready** requires a recent protected check; it does not claim a persistent connection or live readings. Searching, reconnecting, Bluetooth-off and permission states remain explicit. Only initial code association and ambiguous gauge selection require a choice.
 - Example values and histories always say **Preview** or **Example** next to that content.
 - **Saved & running on gauge** requires the expected running revision and hash, trial cleared and no previous-generation recovery. A stored readback or 100% transfer cannot claim this.
 - Sending, restarting and checking remain distinct stages. The operation stays visible across destinations.
 - Critical alerts, stale/offline readings, errors, rollback and unknown outcomes remain in the default path.
-- Reconnect and check before retrying an unknown result. Never replay a commit automatically.
+- Automatic reconnection may refresh the protected readback before reviewing an unknown result. Never replay a commit automatically.
 - A changed page, layout or limit returns to unsent status. Browsing the page carousel must not create an edit.
 - Unimplemented adapter setup, live data, code clearing and public updates use truthful empty states.
 

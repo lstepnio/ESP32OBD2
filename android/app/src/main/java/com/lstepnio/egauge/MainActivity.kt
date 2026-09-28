@@ -31,9 +31,16 @@ import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
     private val model: AppViewModel by viewModels()
     private var fold by mutableStateOf<FoldingFeature?>(null)
+    private val automaticConnectionEnabled: Boolean get() =
+        !(applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+            intent.getBooleanExtra("debug_disable_auto_connect", false))
+    private val gaugePermissions: Array<String> get() = if (Build.VERSION.SDK_INT >= 31)
+        arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
+        else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
-        if (grants.isNotEmpty() && grants.values.all { it }) model.discoverGauge()
-        else model.connectionError("Nearby device permission is required. Allow it in Android settings, then reconnect.")
+        if (grants.isNotEmpty() && grants.values.all { it }) {
+            if (automaticConnectionEnabled) model.retryConnection() else model.discoverGauge()
+        } else model.retryConnection()
     }
     private val wifiPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) installUpdate()
@@ -76,12 +83,37 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (automaticConnectionEnabled) {
+            model.setConnectionForeground(true)
+            val preferences = getSharedPreferences("connection-permissions", MODE_PRIVATE)
+            if (gaugePermissions.any { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED } &&
+                !preferences.getBoolean("nearby-requested", false)) {
+                preferences.edit().putBoolean("nearby-requested", true).apply()
+                permissionLauncher.launch(gaugePermissions)
+            }
+        }
+    }
+
+    override fun onStop() {
+        model.setConnectionForeground(false)
+        super.onStop()
+    }
+
     private fun requestGauge() {
-        val required = if (Build.VERSION.SDK_INT >= 31)
-            arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
-        else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
-        if (required.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) model.discoverGauge()
-        else permissionLauncher.launch(required)
+        if (gaugePermissions.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
+            if (automaticConnectionEnabled) {
+                if (model.connection.phase == com.lstepnio.egauge.connection.ConnectionPhase.BluetoothOff)
+                    startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+                else model.retryConnection()
+            } else model.discoverGauge()
+        } else {
+            val asked = getSharedPreferences("connection-permissions", MODE_PRIVATE).getBoolean("nearby-requested", false)
+            if (asked && gaugePermissions.none { shouldShowRequestPermissionRationale(it) })
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName")))
+            else permissionLauncher.launch(gaugePermissions)
+        }
     }
 
     private fun requestSelection() {

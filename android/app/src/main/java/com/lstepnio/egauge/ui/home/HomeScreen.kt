@@ -23,7 +23,7 @@ fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Uni
     val pager = rememberPagerState(pageCount = { state.pages.size })
     val scope = rememberCoroutineScope()
     ScreenContent {
-        ScreenTitle(state.gaugeName, trailing = { ConnectionPill(state.connection, state.found) })
+        ScreenTitle(state.gaugeName, trailing = { ConnectionPill(state.connection, state.connectionVerified) })
         ResponsivePanels(first = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 HorizontalPager(pager, modifier = Modifier.fillMaxWidth().testTag("page-carousel")) { index ->

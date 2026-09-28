@@ -32,9 +32,9 @@ Compact windows use a bottom navigation bar. Medium (600 dp) and expanded window
 
 | Journey | Steps | Success and recovery |
 | --- | --- | --- |
-| First run | Set up gauge → Find gauge → Choose named device → Open pairing on display → enter physical code in Android → Check gauge → Adapter → Choose readings | Owner success requires a protected response. Adapter unavailable is explicit; continue designing without fabricated telemetry. Never reset an existing bond to demonstrate first run. |
+| First run | Open app → Automatic discovery → Choose only if multiple gauges → Open pairing on display → enter physical code in Android → Automatic protected check → Adapter → Choose readings | Owner success requires a protected response. Adapter unavailable is explicit; continue designing without fabricated telemetry. Never reset an existing bond to demonstrate first run. |
 | Customize | Choose up to eight pages → arrange readings → choose each layout → coolant limits → preview four states → review all pages and alert → Send to gauge | The reviewed `Draft` is the sender's captured input. Unsupported page/source/layout blocks send. Current protocol supports coolant alerts only; other alerts show unavailable. |
-| Send preflight | Find gauge if needed → authenticate → check saved settings → compare with local settings → Send to gauge | Keep optimistic concurrency guard. A newer remote revision requires another review. Do not silently rebase and immediately send. |
+| Send preflight | Automatic owner reconnect → check saved settings → compare with local settings → Send to gauge | Keep optimistic concurrency guard. A newer remote revision requires another review. Do not silently rebase and immediately send. |
 | Confirmation | Sending → Checking → Restarting → Checking gauge → Saved & running on gauge | Requires exact running revision + digest + cleared trial, with no previous-generation recovery. Storage confirmation alone is insufficient. |
 | Unknown / failed send | Persistent “We could not confirm your changes” → Check gauge → compare saved and running → review → explicit retry | No auto retry, no automatic commit replay, no success toast based on elapsed time. Rollback remains visible. |
 | Update | Check for updates → Update available → Install → Downloading → Sending to gauge → Restarting → Done | Current release source is development-only and public OTA is disabled. Default Updates explains unavailable; Expert retains the signed development path. Never relabel a development package as a stable update. |
@@ -45,7 +45,7 @@ Compact windows use a bottom navigation bar. Medium (600 dp) and expanded window
 | Component | Required behaviour |
 | --- | --- |
 | Status card | One human sentence + named icon; warning/error/unknown always visible; one recovery action |
-| Connection pill | Discovered, last checked, or offline; never imply a persistent live connection after a short read |
+| Connection pill | Searching, connecting, Gauge ready after a recent protected read, or reconnecting; never imply live telemetry |
 | Round preview | All five layouts, normal/warning/critical/stale/offline states, visible Preview label; separate scalable text equivalent |
 | Reading tile | Familiar name, unit, selection state; technical IDs only in Details |
 | Page carousel | Named accessible pages, current position; swipe or tap without changing stored editor intent |
@@ -72,3 +72,7 @@ Prior UX review A01-A10 remains a regression checklist, especially A01 runtime c
 ## Android foundation dependency
 
 The design-system module uses `MaterialExpressiveTheme` from Material 3 `1.5.0-alpha13`, pinned to keep the existing Android API 36 / AGP 8.13 toolchain. The stable 1.4.0 artifact makes the expressive APIs internal; newer 1.5 alphas require a wider toolchain upgrade. Dependency verification remains enabled with checked hashes. This is a deliberate prerelease UI dependency and should be reviewed before production distribution. [Official Material 3 release notes](https://developer.android.com/jetpack/androidx/releases/compose-material3).
+
+## Foreground connection behaviour
+
+Discovery starts on entry after Android permission. The remembered target is never silently replaced by another advertiser. Initial owner association still requires the physical code. Existing owner access is checked automatically; entering the background cancels automatic work, and a user transaction waits for its cleanup before taking the operation lease. Reads refresh about every 20 seconds; failure delays grow from 2 to 30 seconds and rediscover the same gauge. No automatic send or update replay is allowed. Offline state and unresolved transaction outcomes remain independently visible.

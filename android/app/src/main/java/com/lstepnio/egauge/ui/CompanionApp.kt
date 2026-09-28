@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.layout.FoldingFeature
 import com.lstepnio.egauge.*
+import com.lstepnio.egauge.connection.ConnectionPhase
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.car.CarScreen
 import com.lstepnio.egauge.ui.customize.*
@@ -55,6 +56,10 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
         }
         LaunchedEffect(state.settings.advanced) {
             if (!state.settings.advanced && route in setOf(Route.Expert, Route.DevelopmentUpdates)) route = Route.Settings
+        }
+        LaunchedEffect(state.connection.phase) {
+            if (route == Route.Gauge && state.connection.phase in setOf(ConnectionPhase.PairRequired, ConnectionPhase.ChooseGauge))
+                route = Route.Setup
         }
         PredictiveBackHandler(enabled = route != Route.Gauge && !detailsOpen && !progressOpen) { events ->
             try { events.collect { backProgress = it.progress }; back() }
@@ -118,7 +123,9 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                             when (route) {
                                 Route.Gauge -> HomeScreen(state.home, {
                                     when (state.home.primaryAction) {
-                                        HomeAction.SetUp -> if (model.rememberedGaugeId != null) onFindGauge() else route = Route.Setup
+                                        HomeAction.SetUp -> if (state.connection.phase in setOf(ConnectionPhase.PairRequired, ConnectionPhase.ChooseGauge)) route = Route.Setup
+                                            else if (model.rememberedGaugeId != null || state.connection.phase == ConnectionPhase.PermissionRequired ||
+                                                state.connection.phase == ConnectionPhase.BluetoothOff) onFindGauge() else route = Route.Setup
                                         HomeAction.Check -> model.checkGaugeForReview()
                                         HomeAction.Review -> { customizeStep = 3; route = Route.Customize }
                                         HomeAction.Customize -> { customizeStep = 0; route = Route.Customize }

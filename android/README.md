@@ -31,7 +31,9 @@ For physical debugging, run `python3 tools/adb_debug_awake.py start` before the 
 | Updates | Check installed version and recover an uncertain update | Production OTA is unavailable; development releases stay in Expert |
 | Expert | PID examples, Mode 01 decoder, bounded Mode 01/09/22 request check, second-adapter preference, diagnostics, self-check, signed development packages | Custom definition execution, vehicle discovery and simultaneous adapters remain unverified/unavailable |
 
-Phone restart initially says **Not connected**, which makes no claim about gauge power. A completed short read says **Last checked**, because the app closes that connection. Ordinary screens show human sentences and icons. Technical facts are available through Details, with a fixed **Copy details** button and selectable text. No hidden gestures reveal advanced tools.
+Opening or returning to the app starts foreground discovery automatically after Nearby devices permission. A remembered gauge is selected exclusively; otherwise one discovered gauge opens physical-code pairing and multiple gauges require a choice. Unbonded devices never receive an automatic configuration read. Existing owner bonds reconnect without a tap.
+
+The controller makes bounded reads, closes each connection and refreshes about every 20 seconds. **Gauge ready** means a recent protected check, not continuous telemetry. Failures rediscover the same target with 2, 5, 10, 20 and then 30 second pauses; Bluetooth-off and permission states stay visible. Leaving the foreground cancels automatic work. A user read/send/update preempts and awaits automatic cleanup before taking the existing operation lease. Automatic work never retries a configuration send or update. Persistent unknown/rollback outcomes survive reconnects. New-pair and permission-denied UX still require physical qualification. Ordinary screens show human sentences and icons. Technical facts are available through Details, with a fixed **Copy details** button and selectable text. No hidden gestures reveal advanced tools.
 
 Compact windows use a navigation bar; windows of at least 600 dp use a rail. Wider content uses two panes where space permits, and large text stacks it. A separating hinge is excluded from the content area. Edge-to-edge insets and predictive Back are handled by the app shell. Physical foldable and gesture-navigation qualification are still separate checks.
 
@@ -44,6 +46,7 @@ Compact windows use a navigation bar; windows of at least 600 dp use a rail. Wid
 | `ui/home`, `ui/customize`, `ui/car`, `ui/settings`, `ui/expert`, `ui/setup` | Stateless feature composables and UI callbacks |
 | `ui/state` | Immutable per-screen contracts, presentation mapping, central transaction copy, allowlisted technical details and appearance preferences |
 | `:core:designsystem` | Generated tokens, Expressive theme, semantic colours, components and shared preview fixtures |
+| `connection/ForegroundConnectionController` | Foreground-only read loop, bounded retry cadence and preemption for user operations |
 | `AppViewModel` | Existing device operations and profile methods, bridged to a lifecycle-collected `StateFlow<CompanionUiState>` |
 | Existing codec, projection, storage and transport classes | Unchanged wire/security/data rules |
 
@@ -51,7 +54,7 @@ Compact windows use a navigation bar; windows of at least 600 dp use a rail. Wid
 
 ## Configuration trust
 
-The existing typed transaction states remain authoritative. **Saved & running on gauge** requires the expected running revision and SHA-256, `running=true`, the trial flag cleared and no previous-generation recovery. A storage acknowledgement, completed upload or generic successful read cannot show that confirmation. The update stepper cannot reach Done while restart confirmation is pending.
+The existing typed transaction states remain authoritative. **Saved & running on gauge** requires the expected running revision and SHA-256, `running=true`, the trial flag cleared and no previous-generation recovery. A storage acknowledgement, completed upload or generic successful read cannot show that confirmation. The update stepper cannot reach Done while restart confirmation is pending. After app recreation, the same confirmation may be recovered only if the complete locally projected bytes match the verified saved digest and the strict running proof also matches; comparing visible fields alone is insufficient.
 
 Review lists every transmitted page, binding, layout and coolant alert setting. A protected read supplies the base revision and digest; the existing sender checks both again before beginning. Conflict, rejection, rollback and unknown outcomes remain visible, and recovery requires a fresh check plus explicit review before another send. Page browsing alone does not change the transmitted settings. The existing signed-update interruption journal and reconciliation rules are retained.
 
@@ -82,3 +85,16 @@ Manual APK installation preserves local app data during these checks. To deliber
 No account or analytics. Android owns the BLE bond; the app stores no pairing code or bond secret. Backup remains disabled. Appearance preferences and profiles are local, and signed package verification is unchanged. Keep public capabilities disabled until the complete path is implemented and physically verified.
 
 The two-minute first-time setup target remains unverified because adapter setup is not implemented. Fresh-owner code association, live OBD data, real code clearing, dual adapters, new update/rollback hardware runs, physical foldables, full RTL, performance measurements and participant usability testing remain separate qualification work. See the validation record for the checks actually performed in this change.
+
+## Automatic connection verification
+
+Regular activity tests pass the debug-only `debug_disable_auto_connect` intent extra, so screenshots never discover nearby hardware. Release builds ignore this extra. To run the separate paired-bench read-only journey after installing both APKs:
+
+```bash
+adb shell am instrument -w \
+  -e class com.lstepnio.egauge.AutomaticConnectionJourneyTest \
+  -e allowGaugeRead true -e toggleBluetooth true \
+  com.lstepnio.egauge.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+This opt-in test checks opening, activity stop/start and recovery after temporarily turning phone Bluetooth off/on. It restores Bluetooth in `finally`, verifies the same configuration revision/digest, and never calls configuration, firmware or car operations. Its screenshots and result are saved under app external files in `automatic-connection/`.

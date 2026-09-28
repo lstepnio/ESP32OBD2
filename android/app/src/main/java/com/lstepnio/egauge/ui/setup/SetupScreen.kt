@@ -31,13 +31,12 @@ fun SetupScreen(state: SetupUiState, onFind: () -> Unit, onPair: () -> Unit,
         }
         when (step) {
             0 -> {
-                Text("Power on your gauge and keep it near your phone.", style = MaterialTheme.typography.bodyLarge)
                 state.candidates.forEachIndexed { index, item ->
                     ReadingTile("${item.name} · ${index + 1}", "Confirm its code next", candidate == item.id,
                         { candidate = item.id }, enabled = !state.busy)
                 }
-                if (!state.busy) StatusCard(state.status)
-                PrimaryAction(if (state.candidates.isEmpty()) "Find gauge" else "Connect to gauge",
+                StatusCard(state.status)
+                PrimaryAction(if (state.busy) "Finding gauge" else if (state.candidates.isEmpty()) "Find gauge" else "Connect to gauge",
                     { if (state.candidates.isEmpty()) onFind() else candidate?.let(onChoose) },
                     enabled = !state.busy && (state.candidates.isEmpty() || candidate != null))
                 TextButton(onCustomize, Modifier.fillMaxWidth()) { Text("Explore the preview") }
@@ -46,7 +45,7 @@ fun SetupScreen(state: SetupUiState, onFind: () -> Unit, onPair: () -> Unit,
                 Text("Open pairing on your gauge", style = MaterialTheme.typography.headlineSmall)
                 Text("Long press the display, then enter the code shown on it when Android asks. Keep the gauge nearby until pairing finishes.",
                     style = MaterialTheme.typography.bodyLarge)
-                if (!state.busy) StatusCard(state.status)
+                StatusCard(state.status)
                 PrimaryAction("Pair gauge", onPair, enabled = !state.busy)
             }
             else -> {

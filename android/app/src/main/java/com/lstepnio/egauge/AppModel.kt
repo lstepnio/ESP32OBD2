@@ -1,6 +1,13 @@
 package com.lstepnio.egauge
 
 import android.app.Application
+import android.Manifest
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.content.pm.PackageManager
+import android.os.Build
+import com.lstepnio.egauge.connection.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -14,6 +21,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeout
 
 /** All catalog rows below are examples, never vehicle capability evidence. */
 data class PidExample(
@@ -112,6 +120,108 @@ data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revi
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     val bleClient = BleCapabilityClient(application)
     private val operationCoordinator = OperationCoordinator()
+    var connection by mutableStateOf(ConnectionState())
+        private set
+    private var currentGaugeId: String? = null
+    private var rediscoverGauge = true
+    private val foregroundConnection by lazy {
+        ForegroundConnectionController(viewModelScope, operationCoordinator, ::automaticConnectionAttempt)
+    }
+
+    fun setConnectionForeground(value: Boolean) = foregroundConnection.setForeground(value)
+    fun retryConnection() = foregroundConnection.retrySoon()
+
+    @SuppressLint("MissingPermission")
+    private suspend fun automaticConnectionAttempt(): Long {
+        val app = getApplication<Application>()
+        val permissions = if (Build.VERSION.SDK_INT >= 31)
+            listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
+        else listOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        if (permissions.any { app.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }) {
+            connection = ConnectionState(ConnectionPhase.PermissionRequired)
+            rediscoverGauge = true
+            ownerAccess = OwnerAccess.UNKNOWN
+            return 15_000
+        }
+        if (app.getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled != true) {
+            connection = ConnectionState(ConnectionPhase.BluetoothOff)
+            rediscoverGauge = true
+            ownerAccess = OwnerAccess.UNKNOWN
+            return 5_000
+        }
+        try {
+            return withTimeout(35_000) {
+                if (rediscoverGauge || capabilities == null || currentGaugeId == null) {
+                    connection = connection.copy(phase = ConnectionPhase.Searching, checkedAtElapsedMs = null)
+                    val candidates = bleClient.scanNearbyCandidates()
+                    val id = automaticCandidateId(candidates.map { it.id }, rememberedGaugeId)
+                    if (id == null) {
+                        gaugeCandidates = candidates
+                        connection = ConnectionState(if (rememberedGaugeId == null)
+                            ConnectionPhase.ChooseGauge else ConnectionPhase.Retrying,
+                            attempts = connection.attempts + 1)
+                        return@withTimeout reconnectDelayMs(connection.attempts)
+                    }
+                    connection = connection.copy(phase = ConnectionPhase.Checking)
+                    connectDiscoveredCandidate(candidates.single { it.id == id })
+                }
+                val device = bleClient.selectedGauge()
+                if (device.bondState != BluetoothDevice.BOND_BONDED) {
+                    ownerAccess = OwnerAccess.DISCOVERED
+                    connection = ConnectionState(ConnectionPhase.PairRequired)
+                    return@withTimeout 5_000L
+                }
+                connection = connection.copy(phase = ConnectionPhase.Checking)
+                val client = GaugeConfigTransferClient(app)
+                // Public discovery never establishes ownership. Only read an already bonded target.
+                if (capabilities?.experimentalNumericConfig == true) {
+                    val runtime = client.readRuntimeIdentity(device)
+                    if (activeDocument == null || activeDocument?.revision != runtime.storedRevision ||
+                        activeDocument?.sha256 != runtime.sha256 || ownerAccess != OwnerAccess.AUTHENTICATED)
+                        activeDocumentRead(client.readActiveDocument(device))
+                    runtimeIdentityRead(runtime)
+                    if (configurationNeedsReview) configurationRecoveryRead = true
+                } else if (capabilities?.savedStateRead == true) {
+                    snapshotRead(bleClient.readSavedSnapshot())
+                } else {
+                    connection = ConnectionState(ConnectionPhase.Unavailable)
+                    return@withTimeout 30_000L
+                }
+                connectionChecked()
+                rediscoverGauge = false
+                // Clear transient read failures only. Never erase a send/update recovery outcome.
+                if (operation.terminal && operation.kind in setOf(OperationKind.READ, OperationKind.DISCOVERY) &&
+                    operation.stage != OperationStage.RECOVERED) operation = OperationState.Idle
+                20_000L
+            }
+        } catch (error: TimeoutCancellationException) {
+            return connectionRetry("Gauge connection check timed out")
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            return connectionRetry(error.message ?: "Could not check the gauge")
+        }
+    }
+
+    private fun connectionRetry(message: String): Long {
+        rediscoverGauge = true
+        ownerAccess = OwnerAccess.UNKNOWN
+        connection = ConnectionState(ConnectionPhase.Retrying, attempts = connection.attempts + 1, detail = message)
+        return reconnectDelayMs(connection.attempts)
+    }
+
+    private fun connectionChecked() {
+        connection = ConnectionState(ConnectionPhase.Ready, android.os.SystemClock.elapsedRealtime())
+    }
+
+    private suspend fun connectDiscoveredCandidate(candidate: GaugeCandidate) {
+        val sameGauge = currentGaugeId == candidate.id
+        val value = bleClient.readCandidate(candidate)
+        connected(value, preserveSent = sameGauge)
+        currentGaugeId = candidate.id
+        associationStore.remember(candidate.id)
+        rediscoverGauge = false
+    }
     private val profileStore = ProfileStore(application)
     private var debugOtaPauseBeforeActivationMs = 0L
 
@@ -341,27 +451,28 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         documentMessage = null
         documentReadFailed = false
     }
-    fun connected(value: CapabilitySnapshot) {
-        presentationError = null
+    fun connected(value: CapabilitySnapshot, preserveSent: Boolean = false) {
         configurationRecoveryRead = false
         scanning = false
         capabilities = value
         gaugeCandidates = emptyList()
         ownerAccess = OwnerAccess.DISCOVERED
-        savedGauge = null
-        diagnostics = null
-        diagnosticsObservedAtElapsedMs = null
-        bootIdentity = null
-        runtimeIdentity = null
-        hardwareSnapshot = null
-        activeConfigRevision = null
-        activeDocument = null
-        verifiedConfigHash = null
-        documentMessage = null
-        documentReadFailed = false
-        sentDraft = null
-        sentProfileId = null
-        sentDigest = null
+        if (!preserveSent) {
+            savedGauge = null
+            diagnostics = null
+            diagnosticsObservedAtElapsedMs = null
+            bootIdentity = null
+            runtimeIdentity = null
+            hardwareSnapshot = null
+            activeConfigRevision = null
+            activeDocument = null
+            verifiedConfigHash = null
+            documentMessage = null
+            documentReadFailed = false
+            sentDraft = null
+            sentProfileId = null
+            sentDigest = null
+        }
         deviceMessage = if (value.experimentalNumericConfig)
             "Gauge found. Pair this phone as owner to send a supported dashboard."
         else if (value.quickSelect)
@@ -397,6 +508,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         runtimeIdentity = value.runtime
         ownerAccess = OwnerAccess.AUTHENTICATED
         deviceMessage = "Configuration revision ${value.revision} is healthy and running on the gauge."
+        connectionChecked()
     }
     fun configStatusRead(value: GaugeConfigTransferClient.ActiveStatus) {
         scanning = false
@@ -424,6 +536,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         scanning = false
         runtimeIdentity = value
         ownerAccess = OwnerAccess.AUTHENTICATED
+        connectionChecked()
+        recognizeRunningPhoneSettings()
         deviceMessage = when {
             !value.running -> "Gauge is running built-in readings; no custom configuration is active."
             value.usedPreviousGeneration ->
@@ -433,6 +547,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             else -> "Gauge stored and running configuration revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…."
         }
     }
+    /** Reopening the app need not prompt another send when every expected byte is already running. */
+    private fun recognizeRunningPhoneSettings() {
+        if (configurationNeedsReview || profileError != null) return
+        val document = activeDocument ?: return
+        if (document.sha256 != verifiedConfigHash) return
+        val expected = runCatching {
+            val template = getApplication<Application>().assets.open("numeric_config_template.json")
+                .bufferedReader().use { it.readText() }
+            ConfigurationProjector.project(template, draft, profileCollection.activeId, document.revision - 1).second
+        }.getOrNull()
+        if (matchesRunningPayload(expected, document.revision, document.sha256, runtimeIdentity)) {
+            sentDraft = draft
+            sentProfileId = profileCollection.activeId
+            sentDigest = document.sha256
+        }
+    }
+
     fun activeDocumentRead(value: GaugeConfigTransferClient.ActiveDocument?) {
         scanning = false
         activeDocument = value
@@ -601,7 +732,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val bundle = updateBundle()
         viewModelScope.launch {
             try {
-                operationCoordinator.run(OperationKind.UPDATE) { id ->
+                foregroundConnection.runUserOperation(OperationKind.UPDATE) { id ->
                     updateStarted()
                     operation = OperationState(id, OperationKind.UPDATE, OperationStage.CONNECTING,
                         "Installing firmware", if (capabilities?.wifiBulk != null)
@@ -649,14 +780,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         operation = OperationState(id, OperationKind.DISCOVERY, OperationStage.FINDING_GAUGE,
             "Finding your gauge", "Keep the gauge powered and nearby")
         val candidates = bleClient.scanNearbyCandidates()
-        val remembered = associationStore.rememberedId()?.let { id ->
-            candidates.singleOrNull { it.id == id }
-        }
+        val selected = automaticCandidateId(candidates.map { it.id }, rememberedGaugeId)
         when {
-            remembered != null -> connectCandidate(id, remembered)
-            candidates.size == 1 -> connectCandidate(id, candidates.single())
+            selected != null -> connectCandidate(id, candidates.single { it.id == selected })
             else -> {
                 gaugeCandidates = candidates
+                connection = ConnectionState(ConnectionPhase.ChooseGauge)
                 scanning = false
                 operation = OperationState(id, OperationKind.DISCOVERY, OperationStage.ACTIVE,
                     "Choose your gauge", "${candidates.size} compatible gauges are nearby", terminal = true)
@@ -672,8 +801,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun connectCandidate(operationId: Long, candidate: GaugeCandidate) {
         operation = OperationState(operationId, OperationKind.DISCOVERY, OperationStage.CONNECTING,
             "Connecting to your gauge", candidate.name)
-        connected(bleClient.readCandidate(candidate))
-        associationStore.remember(candidate.id)
+        connectDiscoveredCandidate(candidate)
+        connection = ConnectionState(ConnectionPhase.PairRequired)
         operation = OperationState(operationId, OperationKind.DISCOVERY, OperationStage.ACTIVE,
             "Gauge found", "Ready for owner access and supported settings", terminal = true)
     }
@@ -803,7 +932,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private fun launchGaugeOperation(kind: OperationKind, title: String, block: suspend (Long) -> Unit) {
         viewModelScope.launch {
             try {
-                operationCoordinator.run(kind) { id ->
+                foregroundConnection.runUserOperation(kind) { id ->
                     presentationError = null
                     scanning = true
                     operation = OperationState(id, kind, OperationStage.CONNECTING, title)
@@ -864,7 +993,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             updatePreparation = "checking"
             hostedUpdate = null
             try {
-                operationCoordinator.run(OperationKind.READ) { id ->
+                foregroundConnection.runUserOperation(OperationKind.READ) { id ->
                     operation = OperationState(id, OperationKind.READ, OperationStage.CONNECTING,
                         "Checking for firmware", "Reading the installed gauge version")
                     val running = GaugeConfigTransferClient(getApplication())
@@ -912,7 +1041,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             hostedUpdateMessage = "Downloading and verifying ${available.release.version}"
             var downloadedSuccessfully = false
             try {
-                operationCoordinator.run(OperationKind.UPDATE) { id ->
+                foregroundConnection.runUserOperation(OperationKind.UPDATE) { id ->
                     operation = OperationState(id, OperationKind.UPDATE, OperationStage.PREPARING,
                         "Downloading update", "Verifying the signed package")
                     val downloaded = GitHubFirmwareSource(getApplication()).download(available)
@@ -1071,7 +1200,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             emit(android.os.SystemClock.elapsedRealtime())
             delay(1_000)
         }
-    }.flatMapLatest { now -> snapshotFlow { presentationState(now) } }
+    }.flatMapLatest { snapshotFlow { presentationState(android.os.SystemClock.elapsedRealtime()) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000),
             presentationState(android.os.SystemClock.elapsedRealtime()))
 

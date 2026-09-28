@@ -1,6 +1,6 @@
 "use strict";
 const screens = {
-  setup: "01 · Find your gauge",
+  setup: "01 · Automatic discovery",
   pair: "02 · Pair securely",
   gauge: "03 · Your gauge",
   readings: "04 · Choose readings",
@@ -62,11 +62,11 @@ const nav = (active) =>
 function content(id) {
   switch (id) {
     case "setup":
-      return `${head("Set up gauge", true)}<div class="flow-main"><div class="intro-icon">${icon("gauge")}</div><h2 class="lead">Your display.<br>Your way.</h2><p class="body-copy">Power on your gauge and keep it near your phone.</p>${status("Your phone is the remote", "The gauge works on its own when you drive.")}${button("Find gauge", "pair")}${button("Explore the preview", "gauge", "secondary")}</div>`;
+      return `${head("Set up gauge", true)}<div class="flow-main"><div class="intro-icon">${icon("gauge")}</div><h2 class="lead">Gauge found</h2><p class="body-copy">eGauge is nearby.</p>${status("Ready to pair", "Confirm the code shown on your gauge.")}${button("Pair gauge", "pair")}${button("Explore the preview", "gauge", "secondary")}</div>`;
     case "pair":
       return `${head("Pair your gauge", true)}<div class="flow-main"><div class="intro-icon">${icon("shield")}</div><h2 class="lead">Check your display</h2><p class="body-copy">Open pairing on your gauge. Enter the code shown on its screen when Android asks.</p><div class="code">482 196</div><div class="example-note">Example code · Android handles real pairing</div>${status("Only your phone can make changes", "Keep the code private.")}${button("Continue example", "gauge")}${button("Find a different gauge", "setup", "secondary")}</div>`;
     case "gauge":
-      return `${head("Your gauge", false, "Last checked")}<div class="split"><div class="hero">${gauge(preview)}<div class="pages">${["Engine", "Coolant", "Speed"].map((n, i) => `<button data-page="${i}" class="page ${i === page ? "selected" : ""}">${n}</button>`).join("")}</div></div><div>${status("Changes ready to send", "3 pages · Coolant warnings included")}${button("Send to gauge", "send")}${button("Customize", "readings", "secondary")}<div class="card"><div class="row"><span>My car<small>Adapter not connected</small></span>${icon("car")}</div></div>${button("Details", "details", "secondary")}</div></div>`;
+      return `${head("Your gauge", false, "Gauge ready")}<div class="split"><div class="hero">${gauge(preview)}<div class="pages">${["Engine", "Coolant", "Speed"].map((n, i) => `<button data-page="${i}" class="page ${i === page ? "selected" : ""}">${n}</button>`).join("")}</div></div><div>${status("Changes ready to send", "3 pages · Coolant warnings included")}${button("Send to gauge", "send")}${button("Customize", "readings", "secondary")}<div class="card"><div class="row"><span>My car<small>Adapter not connected</small></span>${icon("car")}</div></div>${button("Details", "details", "secondary")}</div></div>`;
     case "readings":
       return `${flow(1, "Choose readings")}<div class="split"><div><input class="search" type="search" placeholder="Search readings" aria-label="Search readings">${[
         ["Engine speed", "rpm"],

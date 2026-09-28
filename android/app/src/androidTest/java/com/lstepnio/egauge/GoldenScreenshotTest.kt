@@ -66,6 +66,9 @@ class GoldenScreenshotTest {
             compose.runOnIdle { selected = shot }
             compose.mainClock.advanceTimeBy(500)
             compose.waitForIdle()
+            val foregroundPackage = instrumentation.uiAutomation.rootInActiveWindow?.packageName?.toString()
+            assertTrue("Keep the fixture app in the foreground during screenshot checks",
+                foregroundPackage in setOf(instrumentation.targetContext.packageName, instrumentation.context.packageName))
             val actual = compose.onNodeWithTag("golden").captureToImage().asAndroidBitmap()
             File(output, "${shot.id}.png").outputStream().use { actual.compress(Bitmap.CompressFormat.PNG, 100, it) }
             if (!record) {

@@ -1,7 +1,6 @@
 package com.lstepnio.egauge
 
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import android.graphics.Bitmap
 import androidx.test.platform.app.InstrumentationRegistry
@@ -13,7 +12,7 @@ import org.junit.runner.RunWith
 /** Real activity, no device writes and no vehicle queries. Local pages are only viewed. */
 @RunWith(AndroidJUnit4::class)
 class PrimaryJourneyTest {
-    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule val compose = activityTestRule()
 
     @Test fun primaryNavigationKeepsTechnicalTermsOutOfDefaultFlow() {
         compose.onNodeWithText("Gauge", useUnmergedTree = true).assertIsDisplayed()

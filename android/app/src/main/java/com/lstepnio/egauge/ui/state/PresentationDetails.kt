@@ -7,6 +7,9 @@ import com.lstepnio.egauge.core.designsystem.DetailUi
 fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
     fun fact(name: String, value: Any?) { if (value != null) add(DetailUi(name, value.toString())) }
     fact("Gauge identifier", rememberedGaugeId)
+    fact("Connection check", connection.phase.name)
+    fact("Connection retries", connection.attempts.toString())
+    fact("Connection detail", connection.detail)
     fact("Owner access", ownerAccess.name)
     fact("Last device response", deviceMessage)
     fact("Profile identifier", profileCollection.activeId)

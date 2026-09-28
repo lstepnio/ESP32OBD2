@@ -1,12 +1,12 @@
 # Android companion redesign validation
 
-Date: 2026-09-27. Review stack: design foundation, presentation core, feature journeys, verification. The [prior A01+ review](android-core-ux-review-plan.md) remains a historical trust checklist; its original navigation/visual guidance is superseded by the [new design system](../design/design-system.md).
+Date: 2026-09-27. Review stack: design foundation, presentation core, feature journeys, verification, automatic connection. The [prior A01+ review](android-core-ux-review-plan.md) remains a historical trust checklist; its original navigation/visual guidance is superseded by the [new design system](../design/design-system.md).
 
 ## Software checks
 
-The four required Gradle tasks pass: `:app:assembleDebug`, `:app:testDebugUnitTest`, `:app:compileDebugAndroidTestKotlin`, `:app:lintDebug`. The 28 unit tests include the existing protocol, projection, migration, operation and signed-release checks plus strict success copy, stepper gating, exact preview bindings and plain-language blockers. `tools/validate.py` verifies 4 schemas, 7 examples, 15 rejection cases, the signed vector, 55 document link sets and generated token parity.
+The four required Gradle tasks pass: `:app:assembleDebug`, `:app:testDebugUnitTest`, `:app:compileDebugAndroidTestKotlin`, `:app:lintDebug`. The 34 unit tests include the existing protocol, projection, migration, operation and signed-release checks plus strict success copy, stepper gating, exact preview bindings, plain-language blockers and foreground connection scheduling. Six connection cases cover target selection, retry delay bounds, freshness, exact payload recognition, lifecycle cancellation and user-operation priority. `tools/validate.py` verifies 4 schemas, 7 examples, 15 rejection cases, the signed vector, 55 document link sets and generated token parity.
 
-On the Pixel, `GoldenScreenshotTest`, the two `PrimaryJourneyTest` cases and three `PresentationAccessibilityTest` cases passed. The golden test compares 64 images against checked-in baselines. The accessibility cases cover one reachable primary action on all 12 fixture screens at 200% font scale, copying the last of 50 Details fields without scrolling to the copy button, and the explicitly labelled example clear-code consequence dialog. The clear callback is test-only and sends no command.
+On the Pixel, `GoldenScreenshotTest`, the two `PrimaryJourneyTest` cases and three `PresentationAccessibilityTest` cases passed. The golden test compares 64 images against checked-in baselines. Capture checks reject a run if another app takes the foreground, so interrupted captures cannot become baselines. The accessibility cases cover one reachable primary action on all 12 fixture screens at 200% font scale, copying the last of 50 Details fields without scrolling to the copy button, and the explicitly labelled example clear-code consequence dialog. The clear callback is test-only and sends no command.
 
 The image baselines and Compose previews share `design/fixtures/ui-states.json` and debug `ScreenFixtures`. These are simulations, never observations of a vehicle. [Native gallery](../../design/prototype/native.html), [interactive concept](../../design/prototype/index.html), [IA and flows](../design/redesign/concept.md), [audit](../design/redesign/audit.md), [baseline string inventory](../design/redesign/strings.csv).
 
@@ -17,12 +17,17 @@ Device: Pixel 10 Pro, Android 17 / API 37, 1280×2856 physical pixels, existing 
 | Observation | Result | Scope |
 | --- | --- | --- |
 | Native navigation and Customize | Passed on the Pixel | Gauge, Car, Settings, four Customize steps and honest unavailable states |
-| Powered gauge connection | Protected settings read succeeded | An initial “Offline” label was misleading because no session had been checked. It now says “Not connected”; a completed short read says “Last checked.” |
+| Powered gauge connection | Protected settings read succeeded | An initial “Offline” label was misleading because no session had been checked. Foreground discovery now starts automatically, with “Gauge ready” only after a recent protected check. |
 | Three-reading send | Passed | Engine speed, coolant temperature and engine load selected through the UI, with numeric, arc and bar layouts |
 | Running confirmation | Passed | Revision 7 matched digest `741d6c17b03d4b2411a1dede001b1cd06f7f94215dd65d584f8aa7c24d1d1542`, running flag set and trial cleared |
 | Restore original setup | Passed | Original revision 6's five pages, bindings, layouts and limits were restored as revision 8, then read and compared again |
 | Phone choices | Restored | The pre-test local profile choices were preserved separately, including any unsent changes |
+| Automatic connection on launch | Passed, 3.827 seconds | Same remembered owner gauge, protected saved/runtime confirmation, no Connect tap |
+| Return to the app | Passed | Activity stop/start refreshed protected confirmation without a tap |
+| Bluetooth interruption | Passed | Phone Bluetooth off/on caused a visible offline state, then automatic rediscovery and owner reconnect; revision 8 and its digest remained unchanged |
 | End-to-end bench test duration | 56.245 seconds | Includes discovery, protected reads, UI editing, send and restoration. This is not a first-time setup or participant timing result. |
+
+The [automatic connection record](../design/redesign/screenshots/physical/automatic-connection/result.txt) and its real Pixel captures cover launch, resume and Bluetooth recovery. This separate read-only run took 35.937 seconds in total, including the interruption. A screenshot check caught a one-frame timestamp mismatch between the card and connection pill; state mapping now samples the current monotonic clock, and the physical test also asserts the visible **Gauge ready** label. The same gauge configuration remained intact. Both the connection pill and status card expire their ready state after 30 seconds; boundary checks cover stale and future timestamps. Fresh pairing, multi-gauge radio environments and permission denial were not re-created on the bonded bench phone; deterministic selection and scheduling are covered by unit tests.
 
 The [physical run record](../design/redesign/screenshots/physical/result.txt) contains exact before/sent/restored identities. The [confirmed screen](../design/redesign/screenshots/physical/configuration-confirmed.png) is a real Pixel capture after protected gauge confirmation. Its displayed reading value is still visibly labelled Preview. No live RPM or other vehicle value was obtained.
 
@@ -43,9 +48,9 @@ These are physical phone observations and authenticated responses from the power
 | Finding | Retained or improved safeguard | Evidence / limit |
 | --- | --- | --- |
 | A01: success strength | Exact running revision + digest + cleared trial; stored/100%/generic read cannot claim active | Unit fixtures and physical revision 7 then restoration 8 |
-| A02: operation ownership | Existing coordinator retained; shared banner across destinations; new download/install presentation uses the same operation lease | Existing overlap tests; in-flight and unknown fixture states; no background-delivery claim |
+| A02: operation ownership | Existing coordinator retained; shared banner across destinations; new download/install presentation uses the same operation lease | Existing overlap tests plus automatic read cancellation/cleanup before a user lease; background stops automatic work without cancelling a user transaction; no background-delivery claim |
 | A03: scope and freshness | Target changes still clear target-specific observations; diagnostics expire after 30 seconds; prior check-engine-on status remains explicit when stale | Existing codec/state tests; no live OBD session |
-| A04: association | Remembered candidate plus real owner-authenticated reads; no invented pairing code or owner success | Physical protected reconnect; fresh-owner pairing not repeated |
+| A04: association | Automatic discovery chooses only the remembered target; a different advertiser cannot replace it. Real owner-authenticated reads remain required; no invented pairing code or owner success | Physical protected reconnect; fresh-owner pairing not repeated |
 | A05: ordinary terminology | Gauge/Car/Settings, opt-in Expert, exact technical facts in Details | Default-journey jargon assertions, audit and 601-string baseline inventory |
 | A06: intent vs payload | Existing typed projector retained; every page/binding/layout/alert reviewed; unsupported values blocked | Exact-binding tests and physical send/restoration; no renderer fallback |
 | A07: accessibility | Tokens, readable hierarchy, scroll reset per Customize step, one primary action, named controls and scalable preview equivalent | Compose tests, goldens and physical captures; audio qualification is separately bounded below |
