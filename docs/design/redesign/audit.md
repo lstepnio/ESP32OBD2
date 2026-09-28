@@ -23,16 +23,16 @@ The new Android design supersedes previous Android visual and navigation guidanc
 | Second-adapter preference, ECM/TCM binding | Configure a swapped vehicle | Expert / Second adapter | Move, keep source-loss warnings visible | Advanced topology exposed alongside routine work |
 | Reading search and example results | Pick readings | Customize / Readings, default | Merge into flow | Request hex, ECM, catalog/evidence counts |
 | Source filters, discovery-state simulation | Explore supported data | Expert / PID explorer | Move; visibly Example | Discovery evidence |
-| Mode 01 decoder, pasted response, errors | Inspect a response | Expert / Decoder lab | Keep, copyable Details | Mode 01 response lab, response bytes |
+| Mode 01 decoder, pasted response, errors | Inspect a response | Expert / Decoder lab | Keep, selectable Details | Mode 01 response lab, response bytes |
 | Custom Mode 01/09/22 read request and prefix | Validate a definition | Expert / Custom PIDs | Keep read-only syntax checks; no fabricated support | Read request bytes, ECU, local draft |
 | Connection, board, protocol, link slots, simultaneous flag | Inspect device capability | Settings / Details | Move, copy all values | Protocol identity, experimental control inventory |
 | Hardware memory, processor, reset, Wi-Fi, subsystem flags | Troubleshoot hardware | Expert / Diagnostics; Settings Details | Keep every field | Internal RAM watermarks and subsystem inventory |
 | Wi-Fi security self-check | Check transport protection | Expert / Security | Keep existing authenticated implementation | Session/key/replay terminology |
 | Saved reading and display rotation | Set up the display | Settings / Gauge, default | Keep confirmed rotation; built-in selection in Details | Saved revision |
-| Stored/running setup and document readback | Verify configuration | Details, plus default recovery card | Keep separate facts and full copyable JSON | Hash, revision, definition counts |
+| Stored/running setup and document readback | Verify configuration | Details, plus default recovery card | Keep separate facts and selectable JSON | Hash, revision, definition counts |
 | Check-engine, code categories/counts/first code | Check the car | Car, default + Details | Move; explain known standard codes and incomplete results | MIL, DTC, source freshness internals |
 | Clear-code unavailable notice | Clear faults safely | Car empty state; prototype consequence dialog | Keep unavailable; no live clear command | “Vehicle-scoped confirmation” |
-| Firmware identity, OTA state, partition, ELF digest | Know installed version | Settings / Updates + Details | Version default; all identity details copyable | OTA state, partition and digest |
+| Firmware identity, OTA state, partition, ELF digest | Know installed version | Settings / Updates + Details | Version default; all identity details selectable | OTA state, partition and digest |
 | GitHub catalog check, download/verify, release channel | Keep current | Settings / Updates, default; development source in Expert | Merge Install stages, gate stable availability honestly | GitHub, catalog generation, development release channel |
 | Local signed development package | Test a development release | Expert / Development updates | Move; preserve signed checks | Package selection in ordinary settings |
 | Interrupted update journal and reconciliation | Recover safely | Persistent status + Updates, default | Keep unknown / rolled back / checking outcomes visible | Running image identity |

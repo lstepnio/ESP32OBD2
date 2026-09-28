@@ -14,7 +14,6 @@ import com.lstepnio.egauge.ui.state.CarUiState
 fun CarScreen(state: CarUiState, onCheck: () -> Unit, onSetup: () -> Unit, onDetails: () -> Unit,
               onSelectProfile: (String) -> Unit, onCreateProfile: (String) -> Unit) {
     var profilesOpen by rememberSaveable { mutableStateOf(false) }
-    var clearInfo by rememberSaveable { mutableStateOf(false) }
     ScreenContent {
         ScreenTitle(state.name)
         ResponsivePanels(first = {
@@ -39,13 +38,11 @@ fun CarScreen(state: CarUiState, onCheck: () -> Unit, onSetup: () -> Unit, onDet
                 EmptyState("Vehicle adapter", "Adapter setup is not available in this app yet.")
                 PrimaryAction(if (state.canCheck) "Check car" else "Set up gauge",
                     if (state.canCheck) onCheck else onSetup)
-                TextButton({ clearInfo = true }, Modifier.fillMaxWidth()) { Text("About clearing codes") }
                 TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
             }
         })
     }
     if (profilesOpen) ProfileDialog(state, { profilesOpen = false }, onSelectProfile, onCreateProfile)
-    if (clearInfo) ClearCodesDialog({ clearInfo = false })
 }
 
 @Composable

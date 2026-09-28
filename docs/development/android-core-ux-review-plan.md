@@ -45,7 +45,7 @@ Use two presentation levels within a task:
 | Check-engine status, available code counts and age | Code categories, first-code limitation, responder information, raw snapshot |
 | Update version, compatibility, progress, recovery action | Signature identity, hash, partition, trial state, bounded event log |
 
-Critical alerts, stale data, rejected changes, rollback, incomplete diagnostic results, and unresolved transfer outcomes stay visible in the default view. Technical details are expandable and copyable. Expert tools have predictable named destinations, not hidden gestures or an undocumented global developer switch.
+Critical alerts, stale data, rejected changes, rollback, incomplete diagnostic results, and unresolved transfer outcomes stay visible in the default view. Technical details are expandable and selectable. Expert tools have predictable named destinations, not hidden gestures or an undocumented global developer switch.
 
 ## Findings and required changes
 
@@ -179,7 +179,7 @@ The Gauge screen has one dominant next action for its state: connect, edit, revi
 
 ### Keep technical detail useful
 
-Each status/error panel has a **Technical details** disclosure containing time, target, operation stage, full identifiers, and copyable error facts. Use readable labels such as **Gauge saved settings**, **Running settings**, and **Last checked**. Raw result numbers, hashes, partition addresses, and hex requests do not dominate the summary.
+Each status/error panel has a **Technical details** disclosure containing time, target, operation stage, full identifiers, and selectable error facts. Use readable labels such as **Gauge saved settings**, **Running settings**, and **Last checked**. Raw result numbers, hashes, partition addresses, and hex requests do not dominate the summary.
 
 Vehicle fault diagnostics are a normal feature, not hidden in developer settings. Say **Check-engine light**, with MIL as an explanation in detail. Distinguish no fresh data from no faults. Show partial-code coverage clearly; the current snapshot supplies counts and first codes, not a complete list or identified responder. Future clearing remains a separate capability with explicit ECU scope, consequences, user confirmation, and post-action readback. Never replay a pending clear automatically after reconnect or process death.
 

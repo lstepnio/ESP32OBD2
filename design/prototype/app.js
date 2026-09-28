@@ -247,7 +247,7 @@ document.addEventListener("click", (e) => {
     case "update-details":
       modal(
         "Update details",
-        "<p>Example · Signed package<br>Board, partition, signature identity and full digest are copyable in the native Details sheet.</p>",
+        "<p>Example · Signed package<br>Board, partition, signature identity and full digest are available in the native Details sheet.</p>",
       );
       break;
     case "stable-update":
