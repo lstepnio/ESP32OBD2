@@ -13,11 +13,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -171,12 +169,9 @@ fun ProgressStepper(stages: List<String>, current: Int, progress: Int? = null, f
 
 /** Details are non-secret presentation facts only. Transport credentials must never enter this model. */
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("DEPRECATION")
 @Composable
 fun DetailsSheet(title: String, details: List<DetailUi>, onDismiss: () -> Unit,
                  actions: @Composable ColumnScope.() -> Unit = {}) {
-    val clipboard = LocalClipboardManager.current
-    var copied by remember { mutableStateOf(false) }
     ModalBottomSheet(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).padding(horizontal = 24.dp)
@@ -185,10 +180,6 @@ fun DetailsSheet(title: String, details: List<DetailUi>, onDismiss: () -> Unit,
                 Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).semantics { heading() })
                 IconButton(onDismiss) { EGaugeIcon(GaugeIcon.Close, "Close details") }
             }
-            PrimaryAction(if (copied) "Copied" else "Copy details", {
-                clipboard.setText(AnnotatedString(details.joinToString("\n\n") { "${it.label}\n${it.value}" }))
-                copied = true
-            })
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 DetailContent(details)

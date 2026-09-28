@@ -104,14 +104,19 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                         }
                     }
                     Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        state.notice?.let { notice ->
+                        state.notice?.takeIf { it.tone in setOf(StatusTone.Error, StatusTone.Critical, StatusTone.Stale) }?.let { notice ->
                             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                                 StatusCard(notice)
                                 TextButton({ detailsOpen = true }) { Text("Details") }
                             }
                         }
                         val op = state.operation
-                        if (op.visible && (op.busy || op.needsCheck || op.status.tone == StatusTone.Success))
+                        // Discovery and reconnecting are routine background work. The compact gauge pill
+                        // reports them without interrupting the current screen. Transfers remain visible
+                        // until the gauge has proved their result, including recovery-required outcomes.
+                        val transferInProgress = op.kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
+                            (op.busy || op.needsCheck || op.status.tone == StatusTone.Success)
+                        if (op.visible && transferInProgress)
                             OperationBanner(op, { progressOpen = true }, {
                                 if (op.update) route = if (state.settings.advanced) Route.DevelopmentUpdates else Route.Updates
                                 else if (model.configurationRecoveryRead) { customizeStep = 3; route = Route.Customize }
@@ -135,8 +140,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                     customizeStep = 0
                                     route = Route.Customize
                                 },
-                                    statusInBanner = state.notice == state.home.status || (state.operation.visible && state.home.status == state.operation.status &&
-                                        (state.operation.busy || state.operation.needsCheck || state.operation.status.tone == StatusTone.Success)))
+                                    statusInBanner = transferInProgress || state.connection.phase !in setOf(ConnectionPhase.Idle, ConnectionPhase.Ready))
                                 Route.Setup -> SetupScreen(state.setup, onFindGauge,
                                     { if (model.capabilities?.experimentalNumericConfig == true) model.checkGaugeForReview() else model.readSavedGauge() },
                                     { id -> model.gaugeCandidates.firstOrNull { it.id == id }?.let(model::selectGaugeCandidate) },

@@ -12,7 +12,7 @@ Body text is 16 sp; labels are 14 sp; titles are 32 sp. Reading values are 64 sp
 
 ## Navigation and tasks
 
-Gauge, Car and Settings are the default destinations. Settings has one **Show advanced tools** toggle, revealing Expert and advanced fields. Customize is a nested flow: readings and page order, layouts, limits, then a full send review. Setup walks through discovery, physical-code association and adapter availability. Details is a named, copyable sheet reachable from every feature.
+Gauge, Car and Settings are the default destinations. Settings has one **Show advanced tools** toggle, revealing Expert and advanced fields. Customize is a nested flow: readings and page order, layouts, limits, then a full send review. Setup walks through discovery, physical-code association and adapter availability. Details is a named sheet with selectable text, reachable from every feature.
 
 Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp it can show preview and controls side by side; large text returns content to a stack. Respect system bars, keyboard insets, fold hinges and predictive back.
 
@@ -31,7 +31,7 @@ Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp i
 
 Status card, connection pill, round preview, reading tile, page carousel, limit editor, progress stepper, Details sheet, empty/error panel and primary action share the eight-state [fixtures](../../design/fixtures/ui-states.json). Component previews cover default, loading, disabled, error, success, stale, offline and critical states.
 
-Buttons use verbs: **Find gauge**, **Pair gauge**, **Customize**, **Send to gauge**, **Check gauge**, **Install**. Default copy never exposes revision, hash, PID, ECU, transport phase or source-model terminology. Errors finish with one next step. Detailed facts remain exact and selectable with a fixed **Copy details** control above the scrollable sheet. Settings switches and radio options use the entire named row as a target. No account, analytics or secrets in logs/export/backup.
+Buttons use verbs: **Find gauge**, **Pair gauge**, **Customize**, **Send to gauge**, **Check gauge**, **Install**. Default copy never exposes revision, hash, PID, ECU, transport phase or source-model terminology. Errors finish with one next step. Detailed facts remain exact and selectable in the scrollable sheet. Settings switches and radio options use the entire named row as a target. No account, analytics or secrets in logs/export/backup.
 
 Only coolant limits are currently transmitted. Default labels are **Warn above** and **Critical above**. Reset margin and timing remain inspectable in Details and editable with advanced tools enabled. Unsupported layouts or sources stay preview-only with an explanation before send. All transmitted pages and alert settings are included in review.
 

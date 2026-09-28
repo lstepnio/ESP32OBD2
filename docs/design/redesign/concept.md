@@ -22,7 +22,7 @@ flowchart TD
   Advanced --> Expert[Expert]
   Expert --> Labs[PID explorer, custom requests, decoder]
   Expert --> Diagnostics[Second adapter, diagnostics, security, development updates]
-  Gauge & Car & Settings & Customize & Expert --> Details[Copyable Details]
+  Gauge & Car & Settings & Customize & Expert --> Details[Details]
   Send & Updates --> Operation[Persistent operation and recovery status]
 ```
 
@@ -51,7 +51,7 @@ Compact windows use a bottom navigation bar. Medium (600 dp) and expanded window
 | Page carousel | Named accessible pages, current position; swipe or tap without changing stored editor intent |
 | Limit editor | Warn above / Critical above, explicit °C, validation; reset margin and timing in Details/Expert |
 | Progress stepper | Named stages; transfer 100% is not “Done”; operation survives navigation |
-| Details sheet | Selectable full text + Copy details; revision, digest, IDs, raw bytes/JSON, board, partition, signature; no secrets |
+| Details sheet | Selectable full text; revision, digest, IDs, raw bytes/JSON, board, partition, signature; no secrets |
 | Empty/error panel | Honest unavailable or stale state, one next step; never a fake disabled working feature |
 | Primary action | One filled action per screen; other actions are text/outline/list rows; 48 dp minimum target |
 

@@ -6,7 +6,8 @@ import com.lstepnio.egauge.core.designsystem.*
 
 @Immutable
 data class OperationUi(
-    val id: Long = 0, val status: StatusUi = StatusUi(""), val visible: Boolean = false,
+    val id: Long = 0, val kind: OperationKind = OperationKind.READ,
+    val status: StatusUi = StatusUi(""), val visible: Boolean = false,
     val busy: Boolean = false, val progress: Int? = null, val step: Int = 0,
     val needsCheck: Boolean = false, val update: Boolean = false,
 )
@@ -45,7 +46,7 @@ fun operationUi(state: OperationState, confirmedSetup: Boolean = false): Operati
         OperationStage.OUTCOME_UNKNOWN -> StatusUi(if (update) "Update outcome is unknown" else "Your changes are unconfirmed",
             "The connection ended before confirmation. Check your gauge before trying again.", StatusTone.Error)
     }
-    return OperationUi(state.id, copy, state.stage != OperationStage.IDLE,
+    return OperationUi(state.id, state.kind, copy, state.stage != OperationStage.IDLE,
         !state.terminal && state.stage != OperationStage.IDLE, state.progressPercent,
         when (state.stage) {
             OperationStage.SENDING, OperationStage.VERIFYING -> 1
