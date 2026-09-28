@@ -431,6 +431,10 @@ static void init_obd_task(ui_t *ui)
 
 static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
 {
+#if CONFIG_EGAUGE_DISPLAY_CALIBRATION
+    if (event_code == LV_EVENT_CLICKED) ui_next_display_calibration(ui);
+    return;
+#endif
     switch (event_code)
     {
     case LV_EVENT_CLICKED:
@@ -549,6 +553,12 @@ void app_main(void)
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
     bsp_display_on_off(true);
     if (g_runtime) ESP_ERROR_CHECK(bsp_display_backlight_set_percent(g_runtime->brightness));
+
+#if CONFIG_EGAUGE_DISPLAY_CALIBRATION
+    ui_start_display_calibration(ui);
+    ESP_LOGW(TAG, "Display calibration build active; BLE and OBD tasks are disabled");
+    return;
+#endif
 
     g_phone_command_queue = xQueueCreate(4, sizeof(companion_command_t));
     ESP_NULL_CHECK(g_phone_command_queue, TAG, "Phone command queue creation failed");
