@@ -55,7 +55,7 @@ class PresentationAccessibilityTest {
         assertEquals(1, clearCount)
     }
 
-    @Test fun holdingAPageThumbnailOpensThatPageForEditing() {
+    @Test fun holdingTheVisiblePreviewOpensThatPageForEditing() {
         val pages = listOf(
             GaugePageDraft("one", "Engine speed", GaugeLayout.Arc, listOf("rpm")),
             GaugePageDraft("two", "Coolant temperature", GaugeLayout.Numeric, listOf("coolant")),
@@ -66,7 +66,8 @@ class PresentationAccessibilityTest {
                 StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success),
                 pages, false, "Customize", HomeAction.Customize, false, emptyList()), {}, {}, {}, { edited = it })
         } } }
-        compose.onNodeWithContentDescription("Page 2 of 2, Coolant temperature. Tap to preview. Hold to edit.")
+        compose.onNodeWithTag("page-carousel").performTouchInput { swipeLeft() }
+        compose.onNodeWithContentDescription("Page 2 of 2, Coolant temperature. Swipe to change page. Hold to edit.")
             .performTouchInput { longClick(center) }
         compose.runOnIdle { assertEquals(1, edited) }
     }
