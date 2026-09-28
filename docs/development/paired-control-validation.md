@@ -26,6 +26,12 @@ The 2026-09-25 physical observations above predate this update. The startup and 
 
 Software validation: the ESP-IDF 5.4.1 firmware build passed, as did the repository contract and documentation validator and the whitespace check. Source review confirmed that LVGL 9.2.2 suppresses child rendering when a parent is hidden. These checks do not establish physical startup, touch, or phone-pairing behavior.
 
+### Hosted dev.22 attempt and startup correction
+
+The signed `0.2.0-dev.22` release (catalog generation 14) passed independent catalog and image-signature verification. The owner-paired Pixel downloaded it from GitHub and sent the complete image over the gauge's temporary Wi-Fi network. Serial evidence showed the new image booting from `ota_1` at `0x360000`, then a `main` task stack overflow during UI initialization. The trial image automatically rolled back to `0.2.0-dev.21` at `0x60000`. Configuration revision 9, four PIDs, five pages, and one alert were reported before the update attempt and after rollback.
+
+Dev.22 is withdrawn. The startup path called `lv_refr_now()` while still on the main task's stack. The corrected dev.23 source leaves the first draw to the LVGL task after releasing its port lock, retaining the hidden gauge parent before any draw. Physical validation of that correction is pending its GitHub-to-app installation.
+
 ## Preparation
 
 1. Keep the gauge powered by USB and open the latest Android debug APK.

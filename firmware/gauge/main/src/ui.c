@@ -692,7 +692,8 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     show_pairing(ui, ui->pairing_visible ? UI_PAIRING_WAITING : UI_PAIRING_HIDDEN);
 
     ui_align_labels(ui);
-    lv_refr_now(NULL);  // force refresh to apply styles immediately
+    // Let the LVGL task draw after ui_init releases the port lock. Rendering
+    // the nested gauge view here can overflow app_main's smaller task stack.
 
     // add handlers
     lv_obj_add_event_cb(lv_screen_active(), ui_touch_callback, LV_EVENT_ALL, ui);
