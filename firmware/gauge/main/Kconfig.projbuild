@@ -8,6 +8,14 @@ config EGAUGE_WIFI_BULK_ENABLED
         advertises experimental-softap-aead-v2. Keep disabled until the exact
         firmware and Android build complete a live encrypted transfer.
 
+config EGAUGE_DISPLAY_CALIBRATION
+    bool "Boot into the physical display calibration sequence"
+    default n
+    help
+        Replaces the gauge runtime with touch-cycled panel test patterns for
+        bench characterization. This mode does not start BLE or OBD tasks and
+        must remain disabled in release firmware.
+
 config EGAUGE_ECM_ADAPTER_MAC
     string "ECM BLE adapter MAC address (blank discovers first compatible adapter)"
     default ""

@@ -203,7 +203,8 @@ esp_err_t bsp_display_start(void)
     ESP_LOGI(TAG, "Install gc9a01 panel driver: RST=GPIO_%d", BSP_LCD_GPIO_RST);
     const esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = BSP_LCD_GPIO_RST,
-        .rgb_ele_order  = LCD_RGB_ELEMENT_ORDER_RGB,
+        // Physical calibration on this board shows red/blue channel reversal in RGB mode.
+        .rgb_ele_order  = LCD_RGB_ELEMENT_ORDER_BGR,
         .bits_per_pixel = BSP_LCD_BIT_PER_PIXEL,
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_gc9a01(lcd_panel_io_handle, &panel_config, &lcd_panel_handle));

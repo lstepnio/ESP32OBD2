@@ -80,6 +80,8 @@ struct _ui_t
 {
     ui_touch_callback_t touch_cb;
     bool                long_press_handled;
+    bool                calibration_mode;
+    uint8_t             calibration_page;
     TickType_t          pressed_at;
 
     struct
@@ -140,6 +142,11 @@ static const uint32_t color_accent = 0x26B895;
 static const uint32_t color_warning = 0xE0A63A;
 static const uint32_t color_critical = 0xE75A5A;
 
+#define CALIBRATION_PAGE_COUNT 5
+#define PRIMARY_LABEL_WIDTH 160
+#define PRIMARY_VALUE_WIDTH 176
+#define PRIMARY_UNIT_WIDTH 156
+
 static int32_t bounded_range(int32_t minimum, int32_t maximum)
 {
     int64_t range = (int64_t)maximum - minimum;
@@ -160,6 +167,135 @@ static void show(lv_obj_t *object, bool visible)
     if (!object) return;
     if (visible) lv_obj_remove_flag(object, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
+}
+
+static lv_obj_t *calibration_box(lv_obj_t *parent, int32_t x, int32_t y,
+                                 int32_t width, int32_t height, uint32_t color)
+{
+    lv_obj_t *box = lv_obj_create(parent);
+    lv_obj_remove_style_all(box);
+    lv_obj_set_pos(box, x, y);
+    lv_obj_set_size(box, width, height);
+    lv_obj_set_style_bg_color(box, lv_color_hex(color), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(box, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_clear_flag(box, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(box, LV_OBJ_FLAG_EVENT_BUBBLE);
+    return box;
+}
+
+static lv_obj_t *calibration_label(lv_obj_t *parent, const char *text, int32_t y,
+                                   int32_t width, const lv_font_t *font, uint32_t color)
+{
+    lv_obj_t *label = lv_label_create(parent);
+    lv_obj_remove_style_all(label);
+    lv_obj_set_width(label, width);
+    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, y);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(label, font, LV_PART_MAIN);
+    lv_obj_set_style_text_color(label, lv_color_hex(color), LV_PART_MAIN);
+    lv_label_set_text(label, text);
+    lv_obj_clear_flag(label, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
+    return label;
+}
+
+static void calibration_ring(lv_obj_t *parent, int32_t diameter, uint32_t color)
+{
+    lv_obj_t *ring = lv_obj_create(parent);
+    lv_obj_remove_style_all(ring);
+    lv_obj_set_size(ring, diameter, diameter);
+    lv_obj_center(ring);
+    lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_border_width(ring, 1, LV_PART_MAIN);
+    lv_obj_set_style_border_color(ring, lv_color_hex(color), LV_PART_MAIN);
+    lv_obj_set_style_border_opa(ring, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(ring, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_clear_flag(ring, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(ring, LV_OBJ_FLAG_EVENT_BUBBLE);
+}
+
+static void render_calibration_page(ui_t *ui)
+{
+    lv_obj_t *screen = lv_screen_active();
+    lv_obj_clean(screen);
+    lv_obj_set_style_bg_color(screen, lv_color_hex(color_background), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, LV_PART_MAIN);
+
+    switch (ui->calibration_page) {
+    case 0: {
+        static const uint32_t colors[6] = {
+            0xE53935, 0x43A047, 0x1E88E5, 0x00ACC1, 0x8E24AA, 0xFDD835,
+        };
+        for (unsigned i = 0; i < 3; ++i) {
+            calibration_box(screen, (int32_t)i * 80, 0, 80, 120, colors[i]);
+            calibration_box(screen, (int32_t)i * 80, 120, 80, 120, colors[i + 3]);
+        }
+        lv_obj_t *disc = calibration_box(screen, 77, 77, 86, 86, color_background);
+        lv_obj_set_style_radius(disc, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+        calibration_label(screen, "1/5\nCOLOR", 91, 96, font_subtitle, color_text_primary);
+        break;
+    }
+    case 1:
+        calibration_box(screen, 0, 0, 240, 48, 0x000000);
+        calibration_box(screen, 0, 48, 240, 48, 0x101820);
+        calibration_box(screen, 0, 96, 240, 48, 0x40505A);
+        calibration_box(screen, 0, 144, 240, 48, 0x9CAAB2);
+        calibration_box(screen, 0, 192, 240, 48, 0xE4EAED);
+        calibration_label(screen, "2/5  NEUTRAL", 106, 150, font_subtitle, 0xFFFFFF);
+        break;
+    case 2:
+        calibration_ring(screen, 236, 0xE75A5A);  // radius 118, physical edge reference
+        calibration_ring(screen, 224, 0xE0A63A);  // radius 112
+        calibration_ring(screen, 208, 0x26B895);  // radius 104, content candidate
+        calibration_ring(screen, 192, 0x4AA3DF);  // radius 96
+        calibration_box(screen, 119, 12, 2, 216, color_text_secondary);
+        calibration_box(screen, 12, 119, 216, 2, color_text_secondary);
+        calibration_label(screen, "3/5  RINGS", 71, 150, font_subtitle, color_text_primary);
+        calibration_label(screen, "118 112 104 96", 145, 160, font_subtitle, color_text_primary);
+        break;
+    case 3: {
+        calibration_ring(screen, 208, color_accent);
+        lv_obj_t *safe = lv_obj_create(screen);
+        lv_obj_remove_style_all(safe);
+        lv_obj_set_size(safe, 147, 147);
+        lv_obj_center(safe);
+        lv_obj_set_style_border_width(safe, 1, LV_PART_MAIN);
+        lv_obj_set_style_border_color(safe, lv_color_hex(color_warning), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(safe, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_clear_flag(safe, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_add_flag(safe, LV_OBJ_FLAG_EVENT_BUBBLE);
+        calibration_label(screen, "ENGINE RPM", 44, 160, font_subtitle, color_text_secondary);
+        calibration_label(screen, "16,383", 78, 160, font_compact, color_text_primary);
+        calibration_label(screen, "rpm", 126, 160, font_unit, color_text_secondary);
+        calibration_label(screen, "4/5 TYPE SAFE", 180, 150, font_subtitle, color_accent);
+        break;
+    }
+    default: {
+        lv_obj_t *arc = lv_arc_create(screen);
+        lv_obj_set_size(arc, 198, 198);
+        lv_obj_center(arc);
+        lv_arc_set_bg_angles(arc, 135, 45);
+        lv_arc_set_range(arc, 0, 8000);
+        lv_arc_set_value(arc, 2840);
+        lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
+        lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_flag(arc, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_style_arc_width(arc, 7, LV_PART_MAIN);
+        lv_obj_set_style_arc_width(arc, 7, LV_PART_INDICATOR);
+        lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
+        lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
+        lv_obj_set_style_arc_color(arc, lv_color_hex(color_track), LV_PART_MAIN);
+        lv_obj_set_style_arc_color(arc, lv_color_hex(color_accent), LV_PART_INDICATOR);
+        calibration_label(screen, "ENGINE RPM", 48, 166, font_subtitle, color_text_secondary);
+        calibration_label(screen, "2840", 78, 166, font_title, color_text_primary);
+        calibration_label(screen, "rpm", 158, 166, font_unit, color_text_secondary);
+        calibration_label(screen, "5/5", 198, 60, font_subtitle, color_accent);
+        break;
+    }
+    }
+    lv_refr_now(NULL);
+    ESP_LOGI(TAG, "Display calibration page %u/%u", ui->calibration_page + 1,
+             CALIBRATION_PAGE_COUNT);
 }
 
 static void select_renderer_widgets(ui_t *ui)
@@ -217,15 +353,11 @@ static void ui_touch_callback(lv_event_t *e)
 
 static void ui_align_labels(ui_t *ui)
 {
-    lv_obj_t *scr = lv_screen_active();
-    ESP_NULL_CHECK(scr, TAG, "Current screen is NULL");
-    // Essential text stays inside the circle's 104 px safe radius. Its lower
-    // corners disappear well before the 240 x 240 frame ends.
-    int32_t safe_width = lv_obj_get_width(scr) - 74;
-    if (safe_width < 80) safe_width = lv_obj_get_width(scr);
-    lv_obj_set_width(ui->widgets.info_lbl, safe_width);
-    lv_obj_set_width(ui->widgets.value_lbl, safe_width);
-    lv_obj_set_width(ui->widgets.unit_lbl, safe_width);
+    // These row-specific widths were physically verified inside the 104 px
+    // essential-content radius on the 240 x 240 round panel.
+    lv_obj_set_width(ui->widgets.info_lbl, PRIMARY_LABEL_WIDTH);
+    lv_obj_set_width(ui->widgets.value_lbl, PRIMARY_VALUE_WIDTH);
+    lv_obj_set_width(ui->widgets.unit_lbl, PRIMARY_UNIT_WIDTH);
     lv_obj_align(ui->widgets.info_lbl, LV_ALIGN_TOP_MID, 0, 48);
     lv_obj_align(ui->widgets.value_lbl, LV_ALIGN_TOP_MID, 0, 78);
     lv_obj_align(ui->widgets.unit_lbl, LV_ALIGN_TOP_MID, 0, 158);
@@ -239,7 +371,7 @@ static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, c
     {
         lv_label_set_text_fmt(ui->widgets.value_lbl, "%" PRId32, *value);
         const char *text = lv_label_get_text(ui->widgets.value_lbl);
-        int32_t safe_width = lv_obj_get_width(lv_screen_active()) - 74;
+        int32_t safe_width = lv_obj_get_width(ui->widgets.value_lbl);
         const lv_font_t *font = font_title;
         if (lv_text_get_width(text, strlen(text), font, 0) > safe_width) font = font_compact;
         if (lv_text_get_width(text, strlen(text), font, 0) > safe_width) font = font_subtitle;
@@ -323,6 +455,13 @@ static void ui_task(lv_timer_t *timer)
     ESP_NULL_CHECK(timer, TAG, "timer is NULL");
     ui_t *ui = (ui_t *)lv_timer_get_user_data(timer);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
+
+    if (ui->calibration_mode) {
+        lv_event_code_t event_code;
+        if (xQueueReceive(ui->rtos.touch_ev_que, &event_code, 0) == pdTRUE && ui->touch_cb)
+            ui->touch_cb(ui, event_code);
+        return;
+    }
 
     uint32_t pairing_code;
     if (xQueueReceive(ui->rtos.pairing_que, &pairing_code, 0) == pdTRUE) {
@@ -649,4 +788,20 @@ void ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on,
     if (first_code) snprintf(diagnostics.first_code, sizeof(diagnostics.first_code),
                              "%s", first_code);
     xQueueOverwrite(ui->rtos.diagnostics_que, &diagnostics);
+}
+
+void ui_start_display_calibration(ui_t *ui)
+{
+    if (!ui || !lvgl_port_lock(portMAX_DELAY)) return;
+    ui->calibration_mode = true;
+    ui->calibration_page = 0;
+    render_calibration_page(ui);
+    lvgl_port_unlock();
+}
+
+void ui_next_display_calibration(ui_t *ui)
+{
+    if (!ui || !ui->calibration_mode) return;
+    ui->calibration_page = (ui->calibration_page + 1) % CALIBRATION_PAGE_COUNT;
+    render_calibration_page(ui);
 }
