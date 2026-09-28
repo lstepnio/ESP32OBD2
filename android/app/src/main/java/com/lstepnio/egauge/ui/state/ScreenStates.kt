@@ -53,4 +53,4 @@ data class UpdatesUiState(val status: StatusUi, val availableVersion: String?, v
 @Immutable
 data class CompanionUiState(val home: HomeUiState, val customize: CustomizeUiState, val car: CarUiState,
     val settings: SettingsUiState, val expert: ExpertUiState, val setup: SetupUiState,
-    val updates: UpdatesUiState, val operation: OperationUi)
+    val updates: UpdatesUiState, val operation: OperationUi, val notice: StatusUi? = null)

@@ -1,39 +1,62 @@
-# Android core and UX implementation validation
+# Android companion redesign validation
 
-Date: 2026-09-26. Branch: `feat/owned-gauge-control`.
+Date: 2026-09-27. Review stack: design foundation, presentation core, feature journeys, verification. The [prior A01+ review](android-core-ux-review-plan.md) remains a historical trust checklist; its original navigation/visual guidance is superseded by the [new design system](../design/design-system.md).
 
-## Implemented software evidence
+## Software checks
 
-- One ViewModel-owned operation coordinator prevents competing discovery, read, configuration, and update sessions.
-- Configuration success waits for matching runtime revision/hash with trial cleared. Previous-generation recovery is a distinct outcome.
-- Capability, diagnostics, and runtime parsing use bounded pure codecs. Transfer callback queues are bounded.
-- Diagnostics expire after 30 seconds. Target changes clear device-specific state.
-- Nearby discovery collects compatible gauges, asks when ambiguous, remembers the choice, and distinguishes public discovery from authenticated owner access.
-- Profile format version 2 preserves the optional second-adapter preference. Version 1 TCM profiles migrate into advanced topology without source rebinding.
-- Numeric review and payload share one typed projection. Unsupported renderer or source is blocked rather than converted silently.
-- Default navigation is Gauge, Readings, Vehicle, and Settings. PID labs, raw details, and second-adapter controls use progressive disclosure.
-- A signed, fresh, multi-entry GitHub release catalog selects by board, hardware revision, partition layout, channel, and transfer protocol. HTTPS downloads are bounded and rechecked by catalog hash plus the existing bundle signature.
-- Firmware update stages have one visible operation model and an interruption journal. Debug builds keep the screen awake while visible.
-- Narrow technical rows stack, threshold controls have descriptive semantics, headings are marked, and default navigation has a Compose instrumentation journey.
+The four required Gradle tasks pass: `:app:assembleDebug`, `:app:testDebugUnitTest`, `:app:compileDebugAndroidTestKotlin`, `:app:lintDebug`. The 28 unit tests include the existing protocol, projection, migration, operation and signed-release checks plus strict success copy, stepper gating, exact preview bindings and plain-language blockers. `tools/validate.py` verifies 4 schemas, 7 examples, 15 rejection cases, the signed vector, 55 document link sets and generated token parity.
 
-## Automated checks
+On the Pixel, `GoldenScreenshotTest`, the two `PrimaryJourneyTest` cases and three `PresentationAccessibilityTest` cases passed. The golden test compares 64 images against checked-in baselines. The accessibility cases cover one reachable primary action on all 12 fixture screens at 200% font scale, copying the last of 50 Details fields without scrolling to the copy button, and the explicitly labelled example clear-code consequence dialog. The clear callback is test-only and sends no command.
 
-Run from the repository root:
+The image baselines and Compose previews share `design/fixtures/ui-states.json` and debug `ScreenFixtures`. These are simulations, never observations of a vehicle. [Native gallery](../../design/prototype/native.html), [interactive concept](../../design/prototype/index.html), [IA and flows](../design/redesign/concept.md), [audit](../design/redesign/audit.md), [baseline string inventory](../design/redesign/strings.csv).
 
-```bash
-.venv/bin/python tools/validate.py
-cd android
-ANDROID_HOME="$HOME/Library/Android/sdk" ./gradlew \
-  :app:assembleDebug :app:testDebugUnitTest \
-  :app:compileDebugAndroidTestKotlin :app:lintDebug --no-daemon
-```
+## Physically observed phone and gauge behaviour
 
-Core regression fixtures cover runtime trial/recovery, evidence aging, operation overlap, exact projection, legacy TCM migration, malformed protocol data, catalog signature, and exact compatibility. `PrimaryJourneyTest` checks primary navigation and verifies that TCM terminology is absent from the default Vehicle path. Quality CI runs all deterministic checks plus Android lint.
+Device: Pixel 10 Pro, Android 17 / API 37, 1280×2856 physical pixels, existing density override 532 dpi. The app was installed over Wi-Fi ADB. The awake-session helper was used; phone settings are restored at the end of verification.
 
-## Current limitations and pending external gates
+| Observation | Result | Scope |
+| --- | --- | --- |
+| Native navigation and Customize | Passed on the Pixel | Gauge, Car, Settings, four Customize steps and honest unavailable states |
+| Powered gauge connection | Protected settings read succeeded | An initial “Offline” label was misleading because no session had been checked. It now says “Not connected”; a completed short read says “Last checked.” |
+| Three-reading send | Passed | Engine speed, coolant temperature and engine load selected through the UI, with numeric, arc and bar layouts |
+| Running confirmation | Passed | Revision 7 matched digest `741d6c17b03d4b2411a1dede001b1cd06f7f94215dd65d584f8aa7c24d1d1542`, running flag set and trial cleared |
+| Restore original setup | Passed | Original revision 6's five pages, bindings, layouts and limits were restored as revision 8, then read and compared again |
+| Phone choices | Restored | The pre-test local profile choices were preserved separately, including any unsent changes |
+| End-to-end bench test duration | 56.245 seconds | Includes discovery, protected reads, UI editing, send and restoration. This is not a first-time setup or participant timing result. |
 
-The final debug APK, SHA-256 `cf90ed00261b561d4648fd5cbcc5af3f5b58b68324a33ec79ccc07afd26c3095`, was installed successfully on the Pixel 10 Pro over Wi-Fi ADB. The phone was at the secure lock screen, so Android could not resume the activity and the connected Compose test reported no app hierarchy. Its deterministic compilation passed, but this is not a device journey result. Run the journey and capture large-text, landscape, RTL, TalkBack, cold-start, and frame evidence after the phone is unlocked. The current environment also had no OBD adapter, so live PID evidence, DTCs, and one- or two-adapter behavior were not exercised.
+The [physical run record](../design/redesign/screenshots/physical/result.txt) contains exact before/sent/restored identities. The [confirmed screen](../design/redesign/screenshots/physical/configuration-confirmed.png) is a real Pixel capture after protected gauge confirmation. Its displayed reading value is still visibly labelled Preview. No live RPM or other vehicle value was obtained.
 
-The development-release environment and signing secret are configured on GitHub. Prerelease `dev-v0.2.0-dev.3` is published with a signed catalog and the Waveshare bundle. A clean download verified the catalog signature, exact bundle size/hash, ZIP members, board, protocol, image length, and image SHA-256. The release targets this integration branch because GitHub workflow dispatch cannot use a workflow absent from the default branch; after merge, subsequent releases use the protected workflow. The published package still needs the fresh-install phone-to-gauge journey. Stable OTA remains blocked on production trust, per-board qualification, and recovery evidence.
+These are physical phone observations and authenticated responses from the powered gauge. No camera-based observation of the physical gauge's pixels was made. First-owner code association was not repeated because the existing owner bond was retained. The hardware run used the redesign debug build before the final accessibility-only refinements; the unchanged transport/codec and confirmation checks were retained throughout.
 
-The app icon is intentionally deferred until product naming and branding are decided.
+## Accessibility and adaptive layout
+
+- Real Pixel system font scale 2.0: both primary-journey tests passed; all four Customize steps and default destinations were captured. Large content scrolls and the primary action remains reachable.
+- Light and dark physical-phone journeys passed. A temporary 1100×880 dp window on the Pixel exercised rail navigation and side-by-side layouts; both journey tests passed. This is a resized phone window, not physical tablet or foldable qualification.
+- TalkBack 17 was enabled on the Pixel. Navigation focus outlines and activation were observed on Gauge, Customize, Car and Settings, including a change to the dynamic-colour switch. Round-preview semantics are covered by the Compose checks; touch-exploration accuracy was not independently established. The service was confirmed bound and touch exploration enabled. Captures are in `docs/design/redesign/screenshots/after/talkback/`. Spoken audio was not monitored, so pronunciation and audio timing are not claimed as passed. Existing accessibility services were preserved and TalkBack was removed from the enabled list afterward.
+- Source and fixture checks: 48 dp minimum action targets; headings and selection/disabled states; a single full round-preview announcement; a visible scalable equivalent at large text; whole-row named switches; explicit status text and icons; no colour-only critical state.
+- Dynamic colour is optional. Warning/critical/success colours and the round preview use fixed semantic tokens.
+- Compact navigation uses a bar, medium/expanded navigation uses a rail. Separating fold bounds are excluded from controls. Physical foldable hardware has not been tested.
+- The paired Pixel uses three-button system navigation. Predictive Back is implemented through the Android API and manifest opt-in; a gesture-navigation hardware pass remains unperformed.
+
+## A01+ regression record
+
+| Finding | Retained or improved safeguard | Evidence / limit |
+| --- | --- | --- |
+| A01: success strength | Exact running revision + digest + cleared trial; stored/100%/generic read cannot claim active | Unit fixtures and physical revision 7 then restoration 8 |
+| A02: operation ownership | Existing coordinator retained; shared banner across destinations; new download/install presentation uses the same operation lease | Existing overlap tests; in-flight and unknown fixture states; no background-delivery claim |
+| A03: scope and freshness | Target changes still clear target-specific observations; diagnostics expire after 30 seconds; prior check-engine-on status remains explicit when stale | Existing codec/state tests; no live OBD session |
+| A04: association | Remembered candidate plus real owner-authenticated reads; no invented pairing code or owner success | Physical protected reconnect; fresh-owner pairing not repeated |
+| A05: ordinary terminology | Gauge/Car/Settings, opt-in Expert, exact technical facts in Details | Default-journey jargon assertions, audit and 601-string baseline inventory |
+| A06: intent vs payload | Existing typed projector retained; every page/binding/layout/alert reviewed; unsupported values blocked | Exact-binding tests and physical send/restoration; no renderer fallback |
+| A07: accessibility | Tokens, readable hierarchy, scroll reset per Customize step, one primary action, named controls and scalable preview equivalent | Compose tests, goldens and physical captures; audio qualification is separately bounded below |
+| A08/A09: persistence and protocol | Existing profile migration, codecs, repository and GATT implementation unchanged | Existing tests pass; no secret enters Details or appearance preferences |
+| A10/A13: updates | Existing signed package/catalog checks and durable interruption reconciliation retained; no Done before running proof | Unit tests and simulated stage/recovery screens; no new firmware installation in this task |
+| A11/A12: coverage/documentation | Shared image fixtures, physical bench journey and updated docs | No participant study, startup/jank benchmark, broad device matrix or release qualification claimed |
+
+## Screenshots and remaining gates
+
+[Before screenshots](../design/redesign/screenshots/before/) were captured from the original engineering-oriented UI. New native captures, physical transfer captures and explicitly labelled simulated error/update screens are linked from the final verification PR. Before/after comparisons must not label a simulated failure or transfer as a hardware result.
+
+No live OBD telemetry, actual fault-code clearing, firmware flashing, LVGL changes, public capability enablement, real power-loss injection or deliberate broken-signature installation was performed. Adapter setup, custom-definition execution, second-adapter connection, brightness control and production updates show honest unavailable states. Existing expert tools remain reachable.
+
+The first-time setup under two minutes acceptance target cannot be established with the current missing adapter path. A fresh-owner participant run, real vehicle qualification, physical foldables, gesture Back, full RTL, update interruption/rollback, performance and full spoken-audio accessibility qualification remain separate work. This redesign does not claim those paths are implemented or verified.

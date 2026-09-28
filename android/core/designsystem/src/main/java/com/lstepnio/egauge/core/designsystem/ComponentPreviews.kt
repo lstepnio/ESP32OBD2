@@ -46,7 +46,7 @@ fun ComponentFixtureGallery(fixture: ComponentFixture) {
 @Preview(name = "Light states", showBackground = true, heightDp = 1400)
 @Composable
 private fun ComponentsPreview(@PreviewParameter(ComponentFixtureProvider::class) fixture: ComponentFixture) {
-    EGaugeTheme { Surface { ComponentFixtureGallery(fixture) } }
+    EGaugeTheme { Surface(color = MaterialTheme.colorScheme.background) { ComponentFixtureGallery(fixture) } }
 }
 
 class LayoutPreviewProvider : PreviewParameterProvider<ReadingPreviewUi> {

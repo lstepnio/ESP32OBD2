@@ -1,13 +1,13 @@
 package com.lstepnio.egauge.ui.expert
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.ScreenContent
@@ -76,10 +76,10 @@ fun ExpertScreen(state: ExpertUiState, tool: String, onTool: (String) -> Unit, o
             "Second adapter" -> {
                 StatusCard(StatusUi("Second-adapter connection is not available yet", "This preference keeps engine and transmission sources separate on this phone. It does not connect another adapter.", StatusTone.Disabled))
                 Panel {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().toggleable(state.secondAdapter, role = Role.Switch, onValueChange = actions.secondAdapter),
+                        verticalAlignment = Alignment.CenterVertically) {
                         Text("Use a second adapter", modifier = Modifier.weight(1f))
-                        Switch(state.secondAdapter, actions.secondAdapter,
-                            modifier = Modifier.semantics { contentDescription = "Use a second adapter" })
+                        Switch(state.secondAdapter, null)
                     }
                     Text("Engine (ECM) and transmission (TCM) bindings are preserved. Simultaneous operation is unverified.")
                 }

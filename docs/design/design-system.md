@@ -18,7 +18,7 @@ Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp i
 
 ## Trust and status
 
-- A short Bluetooth read is labelled **Last checked**, not a continuous live connection.
+- An unchecked session says **Not connected**. A short Bluetooth read is labelled **Last checked**, not a continuous live connection.
 - Example values and histories always say **Preview** or **Example** next to that content.
 - **Saved & running on gauge** requires the expected running revision and hash, trial cleared and no previous-generation recovery. A stored readback or 100% transfer cannot claim this.
 - Sending, restarting and checking remain distinct stages. The operation stays visible across destinations.
@@ -31,7 +31,7 @@ Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp i
 
 Status card, connection pill, round preview, reading tile, page carousel, limit editor, progress stepper, Details sheet, empty/error panel and primary action share the eight-state [fixtures](../../design/fixtures/ui-states.json). Component previews cover default, loading, disabled, error, success, stale, offline and critical states.
 
-Buttons use verbs: **Find gauge**, **Pair gauge**, **Customize**, **Send to gauge**, **Check gauge**, **Install**. Default copy never exposes revision, hash, PID, ECU, transport phase or source-model terminology. Errors finish with one next step. Detailed facts remain exact and selectable with **Copy details**. No account, analytics or secrets in logs/export/backup.
+Buttons use verbs: **Find gauge**, **Pair gauge**, **Customize**, **Send to gauge**, **Check gauge**, **Install**. Default copy never exposes revision, hash, PID, ECU, transport phase or source-model terminology. Errors finish with one next step. Detailed facts remain exact and selectable with a fixed **Copy details** control above the scrollable sheet. Settings switches and radio options use the entire named row as a target. No account, analytics or secrets in logs/export/backup.
 
 Only coolant limits are currently transmitted. Default labels are **Warn above** and **Critical above**. Reset margin and timing remain inspectable in Details and editable with advanced tools enabled. Unsupported layouts or sources stay preview-only with an explanation before send. All transmitted pages and alert settings are included in review.
 
@@ -39,7 +39,7 @@ Only coolant limits are currently transmitted. Default labels are **Warn above**
 
 See the [audit](redesign/audit.md), [complete baseline string inventory](redesign/strings.csv), [IA and flows](redesign/concept.md), and [interactive prototype](../../design/prototype/index.html). Eight key concept screens have light/dark and compact/expanded captures in `docs/design/redesign/mockups/`.
 
-The prototype is a simulation. Native software tests, physical phone observations and physical gauge observations are separate evidence categories. The two-minute setup target requires a timed participant test and working adapter setup; it is not established by a mockup.
+The [native gallery](../../design/prototype/native.html) shows 64 reviewed screenshot fixtures across light/dark, compact/expanded and component states. Both galleries are simulations. Native software tests, physical phone observations and physical gauge observations are separate evidence categories. The two-minute setup target requires a timed participant test and working adapter setup; it is not established by a mockup.
 
 Android implementation uses [Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3), [adaptive navigation](https://developer.android.com/develop/adaptive-apps/guides/build-adaptive-navigation) and [predictive back](https://developer.android.com/develop/ui/compose/system/predictive-back). See the [validation record](../development/android-core-ux-validation.md) for the current measured result.
 

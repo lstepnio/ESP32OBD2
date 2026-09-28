@@ -99,6 +99,12 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                         }
                     }
                     Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        state.notice?.let { notice ->
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                StatusCard(notice)
+                                TextButton({ detailsOpen = true }) { Text("Details") }
+                            }
+                        }
                         val op = state.operation
                         if (op.visible && (op.busy || op.needsCheck || op.status.tone == StatusTone.Success))
                             OperationBanner(op, { progressOpen = true }, {
@@ -112,14 +118,14 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                             when (route) {
                                 Route.Gauge -> HomeScreen(state.home, {
                                     when (state.home.primaryAction) {
-                                        HomeAction.SetUp -> route = Route.Setup
+                                        HomeAction.SetUp -> if (model.rememberedGaugeId != null) onFindGauge() else route = Route.Setup
                                         HomeAction.Check -> model.checkGaugeForReview()
                                         HomeAction.Review -> { customizeStep = 3; route = Route.Customize }
                                         HomeAction.Customize -> { customizeStep = 0; route = Route.Customize }
                                     }
                                 }, { customizeStep = 0; route = Route.Customize }, { detailsOpen = true },
-                                    statusInBanner = state.operation.visible && state.home.status == state.operation.status &&
-                                        (state.operation.busy || state.operation.needsCheck || state.operation.status.tone == StatusTone.Success))
+                                    statusInBanner = state.notice == state.home.status || (state.operation.visible && state.home.status == state.operation.status &&
+                                        (state.operation.busy || state.operation.needsCheck || state.operation.status.tone == StatusTone.Success)))
                                 Route.Setup -> SetupScreen(state.setup, onFindGauge,
                                     { if (model.capabilities?.experimentalNumericConfig == true) model.checkGaugeForReview() else model.readSavedGauge() },
                                     { id -> model.gaugeCandidates.firstOrNull { it.id == id }?.let(model::selectGaugeCandidate) },

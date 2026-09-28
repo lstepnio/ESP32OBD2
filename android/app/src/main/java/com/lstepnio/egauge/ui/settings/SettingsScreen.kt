@@ -1,14 +1,15 @@
 package com.lstepnio.egauge.ui.settings
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.contentDescription
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.*
 import com.lstepnio.egauge.ui.state.SettingsUiState
@@ -62,9 +63,10 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
         AlertDialog(onDismissRequest = { rotationOpen = false }, title = { Text("Rotate your display") }, text = {
             Column {
                 (0..3).forEach { value ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(rotation == value, { rotation = value })
-                        TextButton({ rotation = value }) { Text("${value * 90}°") }
+                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(rotation == value, role = Role.RadioButton, onClick = { rotation = value }),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(rotation == value, null)
+                        Text("${value * 90}°")
                     }
                 }
                 if (!state.canRotate) Text("Rotation is not available on this gauge.")
@@ -84,10 +86,10 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
 @Composable
 private fun PreferenceToggle(label: String, checked: Boolean, onChecked: (Boolean) -> Unit) {
     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
-        Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically,
+        Row(Modifier.fillMaxWidth().toggleable(checked, role = Role.Switch, onValueChange = onChecked).padding(18.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            Switch(checked, onChecked, modifier = Modifier.semantics { contentDescription = label })
+            Switch(checked, null)
         }
     }
 }

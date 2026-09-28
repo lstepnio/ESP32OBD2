@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>eGauge · Native screen review</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #141717;
+        color: #f2f4ef;
+        font:
+          16px/1.5 system-ui,
+          sans-serif;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        background: #141717f5;
+        padding: 20px 28px;
+        border-bottom: 1px solid #394036;
+        z-index: 1;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      h1 {
+        font-size: 24px;
+        margin: 0;
+      }
+      p {
+        margin: 0;
+        color: #b8c0b5;
+      }
+      a {
+        color: #d4ff62;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      select {
+        padding: 12px;
+        border-radius: 12px;
+        background: #272b2c;
+        color: white;
+        font: inherit;
+        border: 1px solid #63705d;
+      }
+      .gallery {
+        padding: 28px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 28px;
+        align-items: start;
+      }
+      figure {
+        margin: 0;
+      }
+      figure[hidden] {
+        display: none;
+      }
+      figcaption {
+        font-weight: 600;
+        padding-bottom: 10px;
+      }
+      img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border: 1px solid #63705d;
+        border-radius: 18px;
+      }
+      body.expanded .gallery {
+        grid-template-columns: repeat(auto-fit, minmax(580px, 1fr));
+      }
+      @media (max-width: 640px) {
+        body.expanded .gallery {
+          grid-template-columns: 1fr;
+        }
+        header {
+          position: relative;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Native screen review</h1>
+        <p>
+          Example fixtures rendered by the Android app. No car or gauge data.
+        </p>
+      </div>
+      <a href="index.html">Interactive concept</a
+      ><label
+        >Theme<select id="theme">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select></label
+      ><label
+        >Layout<select id="layout">
+          <option value="390">Compact</option>
+          <option value="1000">Expanded</option>
+          <option value="360">Components</option>
+        </select></label
+      >
+    </header>
+    <main class="gallery">
+      <figure data-theme="dark" data-width="1000" data-kind="screens">
+        <figcaption>Car · dark · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/car-dark-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/car-dark-1000.png"
+            alt="Example car in dark theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="390" data-kind="screens">
+        <figcaption>Car · dark · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/car-dark-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/car-dark-390.png"
+            alt="Example car in dark theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="1000" data-kind="screens">
+        <figcaption>Car · light · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/car-light-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/car-light-1000.png"
+            alt="Example car in light theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="390" data-kind="screens">
+        <figcaption>Car · light · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/car-light-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/car-light-390.png"
+            alt="Example car in light theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="360" data-kind="components">
+        <figcaption>Component Critical · dark · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-critical-dark-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-critical-dark-360.png"
+            alt="Example component-critical in dark theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="360" data-kind="components">
+        <figcaption>Component Critical · light · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-critical-light-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-critical-light-360.png"
+            alt="Example component-critical in light theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="360" data-kind="components">
+        <figcaption>Component Default · dark · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-default-dark-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-default-dark-360.png"
+            alt="Example component-default in dark theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="360" data-kind="components">
+        <figcaption>Component Default · light · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-default-light-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-default-light-360.png"
+            alt="Example component-default in light theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="360" data-kind="components">
+        <figcaption>Component Disabled · dark · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-disabled-dark-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-disabled-dark-360.png"
+            alt="Example component-disabled in dark theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="360" data-kind="components">
+        <figcaption>Component Disabled · light · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-disabled-light-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-disabled-light-360.png"
+            alt="Example component-disabled in light theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="360" data-kind="components">
+        <figcaption>Component Error · dark · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-error-dark-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-error-dark-360.png"
+            alt="Example component-error in dark theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="360" data-kind="components">
+        <figcaption>Component Error · light · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-error-light-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-error-light-360.png"
+            alt="Example component-error in light theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="360" data-kind="components">
+        <figcaption>Component Loading · dark · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-loading-dark-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-loading-dark-360.png"
+            alt="Example component-loading in dark theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="360" data-kind="components">
+        <figcaption>Component Loading · light · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-loading-light-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-loading-light-360.png"
+            alt="Example component-loading in light theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="360" data-kind="components">
+        <figcaption>Component Offline · dark · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-offline-dark-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-offline-dark-360.png"
+            alt="Example component-offline in dark theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="360" data-kind="components">
+        <figcaption>Component Offline · light · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-offline-light-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-offline-light-360.png"
+            alt="Example component-offline in light theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="360" data-kind="components">
+        <figcaption>Component Stale · dark · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-stale-dark-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-stale-dark-360.png"
+            alt="Example component-stale in dark theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="360" data-kind="components">
+        <figcaption>Component Stale · light · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-stale-light-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-stale-light-360.png"
+            alt="Example component-stale in light theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="360" data-kind="components">
+        <figcaption>Component Success · dark · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-success-dark-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-success-dark-360.png"
+            alt="Example component-success in dark theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="360" data-kind="components">
+        <figcaption>Component Success · light · 360 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/component-success-light-360.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/component-success-light-360.png"
+            alt="Example component-success in light theme at 360 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="1000" data-kind="screens">
+        <figcaption>Expert · dark · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/expert-dark-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/expert-dark-1000.png"
+            alt="Example expert in dark theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="390" data-kind="screens">
+        <figcaption>Expert · dark · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/expert-dark-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/expert-dark-390.png"
+            alt="Example expert in dark theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="1000" data-kind="screens">
+        <figcaption>Expert · light · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/expert-light-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/expert-light-1000.png"
+            alt="Example expert in light theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="390" data-kind="screens">
+        <figcaption>Expert · light · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/expert-light-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/expert-light-390.png"
+            alt="Example expert in light theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="1000" data-kind="screens">
+        <figcaption>Gauge · dark · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/gauge-dark-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/gauge-dark-1000.png"
+            alt="Example gauge in dark theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="390" data-kind="screens">
+        <figcaption>Gauge · dark · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/gauge-dark-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/gauge-dark-390.png"
+            alt="Example gauge in dark theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="1000" data-kind="screens">
+        <figcaption>Gauge · light · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/gauge-light-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/gauge-light-1000.png"
+            alt="Example gauge in light theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="390" data-kind="screens">
+        <figcaption>Gauge · light · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/gauge-light-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/gauge-light-390.png"
+            alt="Example gauge in light theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="1000" data-kind="screens">
+        <figcaption>Layouts · dark · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/layouts-dark-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/layouts-dark-1000.png"
+            alt="Example layouts in dark theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="390" data-kind="screens">
+        <figcaption>Layouts · dark · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/layouts-dark-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/layouts-dark-390.png"
+            alt="Example layouts in dark theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="1000" data-kind="screens">
+        <figcaption>Layouts · light · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/layouts-light-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/layouts-light-1000.png"
+            alt="Example layouts in light theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="390" data-kind="screens">
+        <figcaption>Layouts · light · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/layouts-light-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/layouts-light-390.png"
+            alt="Example layouts in light theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="1000" data-kind="screens">
+        <figcaption>Limits · dark · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/limits-dark-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/limits-dark-1000.png"
+            alt="Example limits in dark theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="390" data-kind="screens">
+        <figcaption>Limits · dark · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/limits-dark-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/limits-dark-390.png"
+            alt="Example limits in dark theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="1000" data-kind="screens">
+        <figcaption>Limits · light · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/limits-light-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/limits-light-1000.png"
+            alt="Example limits in light theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="390" data-kind="screens">
+        <figcaption>Limits · light · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/limits-light-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/limits-light-390.png"
+            alt="Example limits in light theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="1000" data-kind="screens">
+        <figcaption>Pair · dark · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/pair-dark-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/pair-dark-1000.png"
+            alt="Example pair in dark theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="390" data-kind="screens">
+        <figcaption>Pair · dark · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/pair-dark-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/pair-dark-390.png"
+            alt="Example pair in dark theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="1000" data-kind="screens">
+        <figcaption>Pair · light · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/pair-light-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/pair-light-1000.png"
+            alt="Example pair in light theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="390" data-kind="screens">
+        <figcaption>Pair · light · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/pair-light-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/pair-light-390.png"
+            alt="Example pair in light theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="1000" data-kind="screens">
+        <figcaption>Readings · dark · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/readings-dark-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/readings-dark-1000.png"
+            alt="Example readings in dark theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="390" data-kind="screens">
+        <figcaption>Readings · dark · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/readings-dark-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/readings-dark-390.png"
+            alt="Example readings in dark theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="1000" data-kind="screens">
+        <figcaption>Readings · light · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/readings-light-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/readings-light-1000.png"
+            alt="Example readings in light theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="390" data-kind="screens">
+        <figcaption>Readings · light · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/readings-light-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/readings-light-390.png"
+            alt="Example readings in light theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="1000" data-kind="screens">
+        <figcaption>Recovery · dark · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/recovery-dark-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/recovery-dark-1000.png"
+            alt="Example recovery in dark theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="390" data-kind="screens">
+        <figcaption>Recovery · dark · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/recovery-dark-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/recovery-dark-390.png"
+            alt="Example recovery in dark theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="1000" data-kind="screens">
+        <figcaption>Recovery · light · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/recovery-light-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/recovery-light-1000.png"
+            alt="Example recovery in light theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="390" data-kind="screens">
+        <figcaption>Recovery · light · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/recovery-light-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/recovery-light-390.png"
+            alt="Example recovery in light theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="1000" data-kind="screens">
+        <figcaption>Review · dark · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/review-dark-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/review-dark-1000.png"
+            alt="Example review in dark theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="390" data-kind="screens">
+        <figcaption>Review · dark · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/review-dark-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/review-dark-390.png"
+            alt="Example review in dark theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="1000" data-kind="screens">
+        <figcaption>Review · light · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/review-light-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/review-light-1000.png"
+            alt="Example review in light theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="390" data-kind="screens">
+        <figcaption>Review · light · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/review-light-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/review-light-390.png"
+            alt="Example review in light theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="1000" data-kind="screens">
+        <figcaption>Settings · dark · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/settings-dark-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/settings-dark-1000.png"
+            alt="Example settings in dark theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="390" data-kind="screens">
+        <figcaption>Settings · dark · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/settings-dark-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/settings-dark-390.png"
+            alt="Example settings in dark theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="1000" data-kind="screens">
+        <figcaption>Settings · light · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/settings-light-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/settings-light-1000.png"
+            alt="Example settings in light theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="390" data-kind="screens">
+        <figcaption>Settings · light · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/settings-light-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/settings-light-390.png"
+            alt="Example settings in light theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="1000" data-kind="screens">
+        <figcaption>Setup · dark · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/setup-dark-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/setup-dark-1000.png"
+            alt="Example setup in dark theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="390" data-kind="screens">
+        <figcaption>Setup · dark · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/setup-dark-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/setup-dark-390.png"
+            alt="Example setup in dark theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="1000" data-kind="screens">
+        <figcaption>Setup · light · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/setup-light-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/setup-light-1000.png"
+            alt="Example setup in light theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="390" data-kind="screens">
+        <figcaption>Setup · light · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/setup-light-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/setup-light-390.png"
+            alt="Example setup in light theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="1000" data-kind="screens">
+        <figcaption>Updates · dark · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/updates-dark-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/updates-dark-1000.png"
+            alt="Example updates in dark theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="dark" data-width="390" data-kind="screens">
+        <figcaption>Updates · dark · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/updates-dark-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/updates-dark-390.png"
+            alt="Example updates in dark theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="1000" data-kind="screens">
+        <figcaption>Updates · light · 1000 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/updates-light-1000.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/updates-light-1000.png"
+            alt="Example updates in light theme at 1000 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+      <figure data-theme="light" data-width="390" data-kind="screens">
+        <figcaption>Updates · light · 390 dp</figcaption>
+        <a
+          href="../../android/app/src/androidTest/assets/goldens/updates-light-390.png"
+          ><img
+            src="../../android/app/src/androidTest/assets/goldens/updates-light-390.png"
+            alt="Example updates in light theme at 390 dp"
+            loading="lazy"
+        /></a>
+      </figure>
+    </main>
+    <script>
+      const theme = document.querySelector("#theme"),
+        layout = document.querySelector("#layout");
+      function filter() {
+        document.body.classList.toggle("expanded", layout.value === "1000");
+        document
+          .querySelectorAll("figure")
+          .forEach(
+            (f) =>
+              (f.hidden =
+                f.dataset.theme !== theme.value ||
+                f.dataset.width !== layout.value),
+          );
+      }
+      theme.addEventListener("change", filter);
+      layout.addEventListener("change", filter);
+      filter();
+    </script>
+  </body>
+</html>
