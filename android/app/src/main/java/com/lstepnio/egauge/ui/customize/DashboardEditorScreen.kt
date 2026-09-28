@@ -12,7 +12,16 @@ import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.*
 import com.lstepnio.egauge.ui.state.*
 
-/** Preview-led editor. The previous guided editor remains in source as a simple rollback point. */
+/** Actions supplied by the existing ViewModel. */
+data class CustomizeActions(
+    val selectPage: (Int) -> Unit, val selectReading: (String) -> Unit, val selectSecondary: (String) -> Unit,
+    val addPage: () -> Unit, val removePage: (Int) -> Unit, val movePage: (Int, Int) -> Unit,
+    val layout: (GaugeLayout) -> Unit, val warning: (Int) -> Unit, val critical: (Int) -> Unit,
+    val resetMargin: (Int) -> Unit, val trigger: (Int) -> Unit, val clear: (Int) -> Unit,
+    val check: () -> Unit, val send: () -> Unit, val setup: () -> Unit,
+)
+
+/** Preview-led editor for configuring the gauge. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestination: (Int) -> Unit,

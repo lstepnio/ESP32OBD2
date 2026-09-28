@@ -1,6 +1,6 @@
 # Android companion
 
-The companion opens around the round gauge preview. Gauge, Car and Settings are the default destinations. **Show advanced tools** in Settings reveals Expert. Customize is a guided flow, not a tab. This presentation redesign supersedes the previous Android screen guidance.
+The companion opens around the round gauge preview. Gauge, Car and Settings are the default destinations. **Show advanced tools** in Settings reveals Expert. Customize opens a preview-led dashboard for editing pages, their order, and alerts.
 
 The [design audit](../docs/design/redesign/audit.md), [interactive concept](../design/prototype/index.html), [native fixture gallery](../design/prototype/native.html) and [validation record](../docs/development/android-core-ux-validation.md) distinguish implemented software, example screens, physical phone observations and protected gauge readback.
 
