@@ -62,7 +62,8 @@ fun EGaugeTheme(dark: Boolean = isSystemInDarkTheme(), dynamicColor: Boolean = f
     )
     CompositionLocalProvider(LocalSemanticColors provides semantic) {
         MaterialExpressiveTheme(colorScheme = colors, typography = typography,
-            shapes = Shapes(medium = RoundedCornerShape(EGaugeTokens.Radius.control.dp),
+            shapes = Shapes(extraSmall = RoundedCornerShape(16.dp), small = RoundedCornerShape(20.dp),
+                medium = RoundedCornerShape(EGaugeTokens.Radius.control.dp),
                 large = RoundedCornerShape(EGaugeTokens.Radius.card.dp),
                 extraLarge = RoundedCornerShape(EGaugeTokens.Radius.hero.dp)), content = content)
     }

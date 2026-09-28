@@ -179,18 +179,21 @@ fun DetailsSheet(title: String, details: List<DetailUi>, onDismiss: () -> Unit,
     var copied by remember { mutableStateOf(false) }
     ModalBottomSheet(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)
-            .navigationBarsPadding().padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).padding(horizontal = 24.dp)
+            .navigationBarsPadding().padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).semantics { heading() })
                 IconButton(onDismiss) { EGaugeIcon(GaugeIcon.Close, "Close details") }
             }
-            DetailContent(details)
-            actions()
             PrimaryAction(if (copied) "Copied" else "Copy details", {
                 clipboard.setText(AnnotatedString(details.joinToString("\n\n") { "${it.label}\n${it.value}" }))
                 copied = true
             })
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                DetailContent(details)
+                actions()
+            }
         }
     }
 }

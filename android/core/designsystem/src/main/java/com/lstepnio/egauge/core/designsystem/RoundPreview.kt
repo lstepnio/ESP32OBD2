@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
@@ -20,7 +21,7 @@ import androidx.compose.ui.unit.dp
 
 /** A mock physical display, with a separate font-scalable accessible equivalent. Always synthetic. */
 @Composable
-fun RoundPreview(state: ReadingPreviewUi, modifier: Modifier = Modifier, showDescription: Boolean = true) {
+fun RoundPreview(state: ReadingPreviewUi, modifier: Modifier = Modifier, showDescription: Boolean = LocalDensity.current.fontScale > 1.3f) {
     val accent = when (state.condition) {
         PreviewCondition.Critical -> EGaugeTokens.Dark.critical
         PreviewCondition.Warning, PreviewCondition.Stale -> EGaugeTokens.Dark.warning
