@@ -67,3 +67,19 @@ After calibration, the default-off calibration option and BGR correction were bu
 - no calibration-mode warning.
 
 The six-color mapping, neutral bands, boundary rings and typography are physical observations from the temporary calibration build. The normal-runtime startup list is serial evidence. A final physical photo of the normal build is useful for presentation review but is not needed to establish the corrected channel mapping.
+
+## Hosted artifact verification
+
+PR #26 passed the contract, documentation, Android and firmware jobs and was merged. The protected development release workflow then published `0.2.0-dev.21` as catalog generation 13. A clean GitHub download was checked independently from the workflow:
+
+- catalog signature verified with the pinned development public key;
+- catalog generation and release version matched 13 and `0.2.0-dev.21`;
+- bundle size and SHA-256 matched the signed catalog;
+- bundle contained only `metadata.json` and `firmware.bin`;
+- image length and SHA-256 matched the bundle metadata;
+- ESP application descriptor reported `0.2.0-dev.21`;
+- image signature verified with the pinned development public key.
+
+The verified hosted image SHA-256 is `0516abab1baaaa12cd8f5355302b1ef1ab8405ea0e0461e857911c8aa78a921f`. The bundle SHA-256 is `8b9cc577ef654939c6bdd59807d8ccab04fbb0e48a4b339045c4ae3fdc06888f`.
+
+That exact downloaded `firmware.bin` was written over USB to `ota_0` and passed a separate flash digest comparison. Its subsequent serial boot reported application version `0.2.0-dev.21`, ELF SHA-256 prefix `2afea7191`, retained configuration revision 4, successful display and touch initialization, 80% backlight and normal RX/TX task startup.
