@@ -47,7 +47,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
         var backProgress by remember { mutableFloatStateOf(0f) }
         fun back() {
             when {
-                route == Route.Customize && customizeStep > 0 -> customizeStep--
+                route == Route.Customize && customizeStep > 0 -> customizeStep = 0
                 route == Route.Expert && expertTool.isNotBlank() -> expertTool = ""
                 route == Route.Updates -> route = Route.Settings
                 route == Route.DevelopmentUpdates -> route = Route.Expert
@@ -119,7 +119,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                         if (op.visible && transferInProgress)
                             OperationBanner(op, { progressOpen = true }, {
                                 if (op.update) route = if (state.settings.advanced) Route.DevelopmentUpdates else Route.Updates
-                                else if (model.configurationRecoveryRead) { customizeStep = 3; route = Route.Customize }
+                                else if (model.configurationRecoveryRead) { customizeStep = 4; route = Route.Customize }
                                 else model.checkGaugeForReview()
                             })
                         Box(Modifier.weight(1f).widthIn(max = EGaugeTokens.Layout.contentMax.dp).fillMaxWidth()
@@ -132,7 +132,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                             else if (model.rememberedGaugeId != null || state.connection.phase == ConnectionPhase.PermissionRequired ||
                                                 state.connection.phase == ConnectionPhase.BluetoothOff) onFindGauge() else route = Route.Setup
                                         HomeAction.Check -> model.checkGaugeForReview()
-                                        HomeAction.Review -> { customizeStep = 3; route = Route.Customize }
+                                        HomeAction.Review -> { customizeStep = 4; route = Route.Customize }
                                         HomeAction.Customize -> { customizeStep = 0; route = Route.Customize }
                                     }
                                 }, { customizeStep = 0; route = Route.Customize }, { detailsOpen = true }, { index ->
@@ -145,7 +145,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                     { if (model.capabilities?.experimentalNumericConfig == true) model.checkGaugeForReview() else model.readSavedGauge() },
                                     { id -> model.gaugeCandidates.firstOrNull { it.id == id }?.let(model::selectGaugeCandidate) },
                                     { customizeStep = 0; route = Route.Customize }, ::back, { detailsOpen = true })
-                                Route.Customize -> CustomizeScreen(state.customize, customizeStep, { customizeStep = it }, ::back,
+                                Route.Customize -> DashboardEditorScreen(state.customize, customizeStep, { customizeStep = it }, ::back,
                                     { detailsOpen = true }, CustomizeActions(
                                         model::selectPage, { id -> model.selectPid(demoCatalog.first { it.id == id }) },
                                         { id -> model.selectSecondaryPid(demoCatalog.first { it.id == id }) },

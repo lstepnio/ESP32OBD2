@@ -65,8 +65,8 @@ object ScreenFixtures {
                     "gauge" -> HomeScreen(home, {}, {}, {})
                     "recovery" -> HomeScreen(home.copy(status = recovery.status, pendingChanges = true,
                         primaryLabel = "Check gauge", primaryAction = HomeAction.Check), {}, {}, {})
-                    "readings", "layouts", "limits", "review" -> CustomizeScreen(customize,
-                        listOf("readings", "layouts", "limits", "review").indexOf(name), {}, {}, {}, customizeActions)
+                    "readings", "layouts", "limits", "review" -> DashboardEditorScreen(customize,
+                        mapOf("readings" to 0, "layouts" to 1, "limits" to 3, "review" to 4).getValue(name), {}, {}, {}, customizeActions)
                     "car" -> CarScreen(car, {}, {}, {}, {}, {})
                     "updates" -> UpdatesScreen(updates, update, true, {}, {}, {}, {}, {}, {})
                     "settings" -> SettingsScreen(settings, {}, {}, {}, {}, {}, {}, {}, {}, {})
