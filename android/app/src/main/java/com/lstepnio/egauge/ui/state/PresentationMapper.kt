@@ -147,6 +147,9 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             updateReady, busy,
             updateRecovery?.state in setOf(UpdateRecoveryState.CHECK_REQUIRED, UpdateRecoveryState.WAITING_FOR_CONFIRMATION), details),
         op,
+        if (profileError != null) StatusUi("Your saved profiles need attention",
+            "Editing is paused to protect your settings. Open Details to review the problem.", StatusTone.Error)
+        else presentationError?.let { friendlyFailure(it) },
     )
 }
 
@@ -155,7 +158,9 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
     val current = diagnosticsCurrent(now)
     val status = when {
         data == null -> StatusUi("No car readings yet", "Adapter setup is not available in this app yet. You can still customize your gauge.", StatusTone.Disabled)
-        !current -> StatusUi("Car readings are out of date", "The last check is more than 30 seconds old. Check again before relying on it.", StatusTone.Stale)
+        !current -> StatusUi("Car readings are out of date",
+            if (data.milOn) "The check-engine light was on at the last check. Check again before relying on this status."
+            else "The last check is more than 30 seconds old. Check again before relying on it.", StatusTone.Stale)
         !data.milFresh -> StatusUi("Check-engine status is unavailable", "Your gauge has no recent response from the car. Check the adapter connection.", StatusTone.Stale)
         data.milOn -> StatusUi("Check-engine light is on", "${data.reportedCount} fault codes reported. Review the available codes.", StatusTone.Critical)
         else -> StatusUi("Check-engine light is off", "This is the last checked status, not a live reading.", StatusTone.Success)

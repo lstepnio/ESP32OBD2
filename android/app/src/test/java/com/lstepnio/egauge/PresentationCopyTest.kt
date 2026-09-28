@@ -50,6 +50,16 @@ class PresentationCopyTest {
         }
     }
 
+    @Test fun updateStepperDoesNotReachDoneWhileCheckingTheRestart() {
+        listOf(OperationStage.SENDING, OperationStage.VERIFYING, OperationStage.SAVED,
+            OperationStage.RESTARTING, OperationStage.CHECKING_RUNNING).forEach { stage ->
+            val ui = operationUi(OperationState(1, OperationKind.UPDATE, stage, "raw", progressPercent = 100))
+            assertTrue("Done must wait for running proof: $stage", ui.step < 3)
+        }
+        assertEquals(3, operationUi(OperationState(1, OperationKind.UPDATE, OperationStage.ACTIVE,
+            "raw", terminal = true)).step)
+    }
+
     @Test fun pendingAndRolledBackUpdatesNeverClaimSuccess() {
         UpdateRecoveryState.entries.filter { it != UpdateRecoveryState.INSTALLED }.forEach {
             assertNotEquals(StatusTone.Success, updateRecoveryUi(UpdateRecoveryResult(it, "raw", false)).tone)

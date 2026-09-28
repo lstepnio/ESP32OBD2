@@ -143,7 +143,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (name.isNotEmpty()) savePresentation(presentationPreferences.copy(gaugeName = name))
     }
     private fun savePresentation(value: PresentationPreferences) {
-        if (presentationStore.write(value)) presentationPreferences = value
+        if (presentationStore.write(value)) { presentationPreferences = value; presentationError = null }
         else presentationError = "Could not save appearance settings. Try again."
     }
 

@@ -48,9 +48,11 @@ fun operationUi(state: OperationState, confirmedSetup: Boolean = false): Operati
     return OperationUi(state.id, copy, state.stage != OperationStage.IDLE,
         !state.terminal && state.stage != OperationStage.IDLE, state.progressPercent,
         when (state.stage) {
-            OperationStage.SENDING -> 1
-            OperationStage.VERIFYING, OperationStage.SAVED, OperationStage.RESTARTING -> 2
-            OperationStage.CHECKING_RUNNING, OperationStage.ACTIVE -> 3
+            OperationStage.SENDING, OperationStage.VERIFYING -> 1
+            OperationStage.SAVED -> if (update) 1 else 2
+            OperationStage.RESTARTING -> 2
+            OperationStage.CHECKING_RUNNING -> if (update) 2 else 3
+            OperationStage.ACTIVE -> 3
             else -> 0
         }, state.stage in setOf(OperationStage.OUTCOME_UNKNOWN, OperationStage.RECOVERED, OperationStage.FAILED), update)
 }

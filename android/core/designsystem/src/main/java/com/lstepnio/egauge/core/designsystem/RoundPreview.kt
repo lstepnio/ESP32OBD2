@@ -82,8 +82,14 @@ fun RoundPreview(state: ReadingPreviewUi, modifier: Modifier = Modifier, showDes
                 }
             }
         }
-        if (showDescription) Text("Preview · ${state.name} · ${state.shownValue} ${state.unit}" +
-            if (state.condition == PreviewCondition.Normal) "" else " · ${state.stateLabel}",
-            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (showDescription) {
+            val summary = "Preview · ${state.name} · ${state.shownValue} ${state.unit}" +
+                (if (state.condition == PreviewCondition.Normal) "" else " · ${state.stateLabel}") +
+                if (state.layout == PreviewLayout.Dual) "\n${state.secondaryName.orEmpty()} · " +
+                    "${if (state.shownValue == "--") "--" else state.secondaryValue.orEmpty()} ${state.secondaryUnit.orEmpty()}" else ""
+            // The canvas already provides one complete announcement, including the secondary reading.
+            Text(summary, modifier = Modifier.clearAndSetSemantics {},
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
