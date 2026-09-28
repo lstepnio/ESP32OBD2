@@ -35,7 +35,7 @@ object ScreenFixtures {
     private val success = StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success)
     private val recovery = operationUi(OperationState(1, OperationKind.CONFIGURATION, OperationStage.OUTCOME_UNKNOWN,
         "Example", "Example disconnect", terminal = true))
-    private val home = HomeUiState("eGauge", "Last checked", true, success, pages, false,
+    private val home = HomeUiState("eGauge", "Gauge ready", true, success, pages, false,
         "Customize", HomeAction.Customize, false, details)
     private val settings = SettingsUiState("eGauge", true, 0, true, false, false, false, "Example 1.0", details)
     private val car = CarUiState("My car", listOf(VehicleUi("one", "My car")), "one",
@@ -59,9 +59,9 @@ object ScreenFixtures {
             }
             Box(Modifier.weight(1f)) {
                 when (name) {
-                    "setup", "pair" -> SetupScreen(SetupUiState(name == "pair", OwnerAccess.DISCOVERED, false,
-                        emptyList(), StatusUi(if (name == "pair") "Gauge found" else "Ready to find your gauge",
-                            "Keep your gauge powered and nearby."), details), {}, {}, {}, {}, {}, {})
+                    "setup", "pair" -> SetupScreen(SetupUiState(name == "pair", OwnerAccess.DISCOVERED, name == "setup",
+                        emptyList(), StatusUi(if (name == "pair") "Gauge found" else "Looking for your gauge",
+                            "Keep your gauge powered and nearby.", if (name == "setup") StatusTone.Loading else StatusTone.Neutral), details), {}, {}, {}, {}, {}, {})
                     "gauge" -> HomeScreen(home, {}, {}, {})
                     "recovery" -> HomeScreen(home.copy(status = recovery.status, pendingChanges = true,
                         primaryLabel = "Check gauge", primaryAction = HomeAction.Check), {}, {}, {})

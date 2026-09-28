@@ -3,6 +3,7 @@ package com.lstepnio.egauge.ui.state
 import androidx.compose.runtime.Immutable
 import com.lstepnio.egauge.GaugeLayout
 import com.lstepnio.egauge.OwnerAccess
+import com.lstepnio.egauge.connection.ConnectionState
 import com.lstepnio.egauge.core.designsystem.*
 
 /** Immutable screen contracts. Feature composables do not read transport or repository objects. */
@@ -13,7 +14,7 @@ data class PageUi(val id: String, val name: String, val readingId: String, val r
 @Immutable
 data class ReadingUi(val id: String, val name: String, val unit: String, val details: List<DetailUi>)
 @Immutable
-data class HomeUiState(val gaugeName: String, val connection: String, val found: Boolean,
+data class HomeUiState(val gaugeName: String, val connection: String, val connectionVerified: Boolean,
     val status: StatusUi, val pages: List<PageUi>, val pendingChanges: Boolean,
     val primaryLabel: String, val primaryAction: HomeAction, val busy: Boolean, val details: List<DetailUi>)
 enum class HomeAction { SetUp, Check, Review, Customize }
@@ -53,4 +54,5 @@ data class UpdatesUiState(val status: StatusUi, val availableVersion: String?, v
 @Immutable
 data class CompanionUiState(val home: HomeUiState, val customize: CustomizeUiState, val car: CarUiState,
     val settings: SettingsUiState, val expert: ExpertUiState, val setup: SetupUiState,
-    val updates: UpdatesUiState, val operation: OperationUi, val notice: StatusUi? = null)
+    val updates: UpdatesUiState, val operation: OperationUi, val notice: StatusUi? = null,
+    val connection: ConnectionState = ConnectionState())

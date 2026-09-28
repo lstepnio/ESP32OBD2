@@ -34,7 +34,7 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                 SettingsRow("Rotation", state.rotation?.let { "${it * 90}°" } ?: "Check current settings", state.found && !state.busy) {
                     if (state.rotation == null) onReadSaved() else rotationOpen = true
                 }
-                TextButton(onSetup) { Text(if (state.found) "Reconnect gauge" else "Set up gauge") }
+                if (!state.found) TextButton(onSetup) { Text("Set up gauge") }
                 TextButton({ forgetOpen = true }) { Text("Forget gauge") }
             }
         }, second = {

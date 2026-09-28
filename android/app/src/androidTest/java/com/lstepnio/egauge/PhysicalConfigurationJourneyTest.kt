@@ -2,7 +2,6 @@ package com.lstepnio.egauge
 
 import android.graphics.Bitmap
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -19,7 +18,7 @@ import java.io.File
 /** Explicitly opt-in bench validation. Never reads OBD data, clears codes or installs firmware. */
 @RunWith(AndroidJUnit4::class)
 class PhysicalConfigurationJourneyTest {
-    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule val compose = activityTestRule()
 
     @Test fun threeReadingSendWaitsForRunningProofAndRestoresTheOriginalGaugeLayout() {
         assumeTrue("Physical writes require an explicit bench run",
@@ -52,6 +51,7 @@ class PhysicalConfigurationJourneyTest {
         val report = StringBuilder("Physical gauge configuration journey\n")
             .append("Original revision: ${original.revision}\nOriginal digest: ${original.sha256}\n")
         try {
+            compose.onNodeWithText("Gauge", useUnmergedTree = true).performClick()
             compose.onNodeWithText("Customize").performScrollTo().performClick()
             while (model.draft.pages.size > 3) compose.onNodeWithText("Remove page").performScrollTo().performClick()
             while (model.draft.pages.size < 3) compose.onNodeWithText("Add page").performScrollTo().performClick()

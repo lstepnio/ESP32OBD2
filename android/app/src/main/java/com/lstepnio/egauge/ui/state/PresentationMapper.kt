@@ -1,6 +1,7 @@
 package com.lstepnio.egauge.ui.state
 
 import com.lstepnio.egauge.*
+import com.lstepnio.egauge.connection.ConnectionPhase
 import com.lstepnio.egauge.core.designsystem.*
 
 fun readingName(id: String): String = when (id) {
@@ -57,16 +58,18 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
 
 fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val prefs = presentationPreferences
-    val found = capabilities != null
+    val freshConnection = connection.fresh(nowElapsedMs)
+    val disconnected = connection.phase in setOf(ConnectionPhase.Retrying, ConnectionPhase.BluetoothOff, ConnectionPhase.PermissionRequired)
+    val found = capabilities != null && !disconnected && connection.phase != ConnectionPhase.Searching
     val busy = scanning || hostedUpdateBusy || updateInProgress ||
         (operation.stage != OperationStage.IDLE && !operation.terminal)
     val pages = draft.pages.map(::pageUi)
-    val confirmed = sentProfileId == profileCollection.activeId && sameSettings(sentDraft, draft) &&
+    val confirmed = !disconnected && ownerAccess == OwnerAccess.AUTHENTICATED && sentProfileId == profileCollection.activeId && sameSettings(sentDraft, draft) &&
         isConfirmedSetup(activeConfigRevision, expectedSentDigest, runtimeIdentity)
     val blockers = presentationBlockers(draft, capabilities) +
         if (runtimeIdentity?.trial == true) listOf("Your gauge is still checking its settings. Wait, then check again.") else emptyList()
     val needsCheck = activeConfigRevision == null || verifiedConfigHash == null || ownerAccess != OwnerAccess.AUTHENTICATED ||
-        (configurationNeedsReview && !configurationRecoveryRead)
+        (configurationNeedsReview && !configurationRecoveryRead) || disconnected
     val details = presentationDetails()
     var op = operationUi(operation, confirmed)
     if (updatePreparation == "downloading") op = op.copy(status = StatusUi("Downloading update",
@@ -89,13 +92,18 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         op.visible && (op.busy || op.needsCheck) -> op.status
         runtimeIdentity?.usedPreviousGeneration == true -> StatusUi("Earlier settings are running", "Your gauge restored an earlier setup. Review your pages before sending again.", StatusTone.Stale)
         runtimeIdentity?.trial == true -> StatusUi("Your gauge is still checking these settings", "Keep it powered and check again.", StatusTone.Stale)
+        !freshConnection && connection.phase != ConnectionPhase.Idle -> connectionStatus(connection, nowElapsedMs)
         confirmed -> StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success)
         !found -> StatusUi("Your gauge is not connected", "Connect to check its current settings.", StatusTone.Neutral)
         needsCheck -> StatusUi("Check your gauge before sending", "We will read its current settings so newer changes are protected.")
         blockers.isNotEmpty() -> StatusUi("A page needs attention", blockers.first(), StatusTone.Stale)
         else -> StatusUi("Changes ready to send", "${pages.size} pages · Coolant warnings included")
     }
-    val homeAction = when { !found -> HomeAction.SetUp; confirmed -> HomeAction.Customize
+    val homeAction = when {
+        connection.phase in setOf(ConnectionPhase.PermissionRequired, ConnectionPhase.BluetoothOff,
+            ConnectionPhase.PairRequired, ConnectionPhase.ChooseGauge) -> HomeAction.SetUp
+        !freshConnection && connection.phase != ConnectionPhase.Idle -> HomeAction.Customize
+        !found -> HomeAction.SetUp; confirmed -> HomeAction.Customize
         needsCheck -> HomeAction.Check; else -> HomeAction.Review }
     val canSend = found && !busy && profileError == null && !needsCheck && blockers.isEmpty() &&
         capabilities?.experimentalNumericConfig == true
@@ -119,26 +127,34 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         else -> StatusUi("Development updates", "Signed test releases are available here.")
     }
     return CompanionUiState(
-        HomeUiState(prefs.gaugeName, if (found) "Last checked" else "Not connected", found, status, pages,
-            !confirmed, when (homeAction) { HomeAction.SetUp -> if (rememberedGaugeId != null) "Connect gauge" else "Set up gauge"; HomeAction.Check -> "Check gauge"
+        HomeUiState(prefs.gaugeName, if (connection.phase == ConnectionPhase.Idle && found) "Last checked"
+            else connectionLabel(connection, nowElapsedMs), freshConnection, status, pages,
+            !confirmed, when (homeAction) { HomeAction.SetUp -> when (connection.phase) {
+                ConnectionPhase.PermissionRequired -> "Allow nearby devices"
+                ConnectionPhase.BluetoothOff -> "Turn on Bluetooth"
+                ConnectionPhase.PairRequired -> "Pair gauge"
+                ConnectionPhase.ChooseGauge -> "Choose gauge"
+                else -> if (rememberedGaugeId != null) "Connect gauge" else "Set up gauge"
+            }; HomeAction.Check -> "Check gauge"
                 HomeAction.Review -> "Review and send"; HomeAction.Customize -> "Customize" }, homeAction, busy, details),
         CustomizeUiState(pages, editingPageIndex, demoCatalog.filter { it.id in ConfigurationProjector.supportedPidIds }.map(::readingUi),
             draft.warning, draft.critical, draft.hysteresis, draft.triggerDwellMs / 1000f, draft.clearDwellMs / 1000f,
             blockers, canSend, needsCheck, found, busy, profileError == null && !busy, prefs.advanced,
             capabilities?.supportedRenderers.orEmpty(), details),
         car,
-        SettingsUiState(prefs.gaugeName, found, savedGauge?.rotation, capabilities?.displayRotationWrite == true,
+        SettingsUiState(prefs.gaugeName, found, savedGauge?.rotation, found && capabilities?.displayRotationWrite == true,
             busy, prefs.advanced, prefs.dynamicColor, bootIdentity?.version ?: "Not checked", details),
         ExpertUiState(demoCatalog.filter { pid -> (sourceFilter == "All" || pid.source == sourceFilter) &&
             (query.isBlank() || "${pid.name} ${pid.request} ${pid.category} ${pid.source}".contains(query, true)) }.map(::readingUi),
-            found && !busy, capabilities?.hardwareCapacityVersion == 1 && !busy,
-            capabilities?.wifiBulk == "experimental-softap-aead-v2" && !busy,
+            found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
+            found && capabilities?.wifiBulk == "experimental-softap-aead-v2" && !busy,
             profileCollection.active.secondAdapterEnabled, details, query, sourceFilter, draft.pidId, labInput,
             decoded, customRequestInput, customSource, request, wifiSecurityMessage, busy),
-        SetupUiState(found, ownerAccess, busy, gaugeCandidates.mapIndexed { index, candidate ->
+        SetupUiState(found, ownerAccess, busy || connection.phase in setOf(ConnectionPhase.Searching, ConnectionPhase.Checking), gaugeCandidates.mapIndexed { index, candidate ->
             CandidateUi(candidate.id, candidate.name.ifBlank { "Gauge ${index + 1}" }, listOf(
                 DetailUi("Gauge identifier", candidate.id), DetailUi("Signal", "${candidate.signalDbm} dBm")))
         }, if (presentationError != null) friendlyFailure(presentationError) else if (op.needsCheck || op.busy) op.status
+            else if (connection.phase != ConnectionPhase.Idle) connectionStatus(connection, nowElapsedMs)
             else StatusUi(if (ownerAccess == OwnerAccess.AUTHENTICATED) "Your phone is paired" else if (found) "Gauge found" else "Ready to find your gauge",
                 if (ownerAccess == OwnerAccess.AUTHENTICATED) "Your gauge confirmed access." else "Keep your gauge powered and nearby."), details),
         UpdatesUiState(updateStatus, hostedUpdate?.release?.version, bootIdentity?.version ?: "Not checked",
@@ -149,7 +165,9 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         op,
         if (profileError != null) StatusUi("Your saved profiles need attention",
             "Editing is paused to protect your settings. Open Details to review the problem.", StatusTone.Error)
-        else presentationError?.let { friendlyFailure(it) },
+        else presentationError?.let { friendlyFailure(it) }
+            ?: if (disconnected) connectionStatus(connection, nowElapsedMs) else null,
+        connection,
     )
 }
 
