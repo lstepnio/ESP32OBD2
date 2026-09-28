@@ -66,6 +66,7 @@ class PresentationAccessibilityTest {
                 StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success),
                 pages, false, "Customize", HomeAction.Customize, false, emptyList()), {}, {}, {}, { edited = it })
         } } }
+        compose.onNodeWithText("Swipe between pages · Hold to edit").assertIsDisplayed()
         compose.onNodeWithTag("page-carousel").performTouchInput { swipeLeft() }
         compose.onNodeWithContentDescription("Page 2 of 2, Coolant temperature. Swipe to change page. Hold to edit.")
             .performTouchInput { longClick(center) }

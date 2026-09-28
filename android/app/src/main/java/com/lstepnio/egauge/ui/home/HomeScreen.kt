@@ -29,6 +29,8 @@ fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Uni
                         PreviewPage(state.pages[index], index, state.pages.size, onEditPage)
                     }
                 }
+                Text("Swipe between pages · Hold to edit", modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
