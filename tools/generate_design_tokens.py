@@ -33,7 +33,17 @@ def outputs():
         css += [f"  --{group}-{key}: {value}{'ms' if group == 'motion' else 'px'};"
                 for key, value in android[group].items()]
     css += ["}", ""]
+    fixtures = json.loads((ROOT / "design/fixtures/ui-states.json").read_text())
+    fixture_lines = ["// Generated from design/fixtures/ui-states.json. Do not edit.",
+        "package com.lstepnio.egauge.core.designsystem", "", "object ComponentFixtures {", "    val all = listOf("]
+    for fixture in fixtures:
+        tone = fixture["id"].title()
+        if tone == "Default": tone = "Neutral"
+        args = ", ".join(json.dumps(fixture[key], ensure_ascii=False) for key in ("id", "title", "detail", "value"))
+        fixture_lines.append(f"        ComponentFixture({args}, StatusTone.{tone}),")
+    fixture_lines += ["    )", "}", ""]
     return {
+        ROOT / "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/GeneratedFixtures.kt": "\n".join(fixture_lines),
         ROOT / "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/GeneratedTokens.kt": "\n".join(kotlin),
         ROOT / "design/prototype/tokens.css": "\n".join(css),
     }

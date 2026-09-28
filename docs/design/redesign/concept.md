@@ -68,3 +68,7 @@ Open [the interactive prototype](../../../design/prototype/index.html). The scre
 3. Verification: screenshot goldens, journey/accessibility checks, Pixel captures and documentation. Each PR runs build, unit tests, instrumentation compilation, lint and repository validation.
 
 Prior UX review A01-A10 remains a regression checklist, especially A01 runtime confirmation, A02 operation ownership, A03 age/scoping, A04 association, A06 exact review/payload and A07 accessibility. Firmware, LVGL, transport codecs, security gates and public flags are outside this redesign.
+
+## Android foundation dependency
+
+The design-system module uses `MaterialExpressiveTheme` from Material 3 `1.5.0-alpha13`, pinned to keep the existing Android API 36 / AGP 8.13 toolchain. The stable 1.4.0 artifact makes the expressive APIs internal; newer 1.5 alphas require a wider toolchain upgrade. Dependency verification remains enabled with checked hashes. This is a deliberate prerelease UI dependency and should be reviewed before production distribution. [Official Material 3 release notes](https://developer.android.com/jetpack/androidx/releases/compose-material3).
