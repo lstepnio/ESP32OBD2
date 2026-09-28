@@ -96,14 +96,16 @@ static bool authorized(uint16_t conn_handle)
            desc.sec_state.bonded && address_equal(&desc.peer_id_addr, &g_owner);
 }
 
-static void load_owner(void)
+bool ble_companion_load_owner(void)
 {
+    atomic_store(&g_has_owner, false);
     nvs_handle_t handle;
-    if (nvs_open("eg_owner", NVS_READONLY, &handle) != ESP_OK) return;
+    if (nvs_open("eg_owner", NVS_READONLY, &handle) != ESP_OK) return false;
     size_t size = sizeof(g_owner);
     atomic_store(&g_has_owner,
                  nvs_get_blob(handle, "peer", &g_owner, &size) == ESP_OK && size == sizeof(g_owner));
     nvs_close(handle);
+    return atomic_load(&g_has_owner);
 }
 
 static bool save_owner(const ble_addr_t *owner)
@@ -131,7 +133,7 @@ static void owner_save_worker(void *arg)
             continue;
         }
         atomic_store(&g_pairing_until, 0);
-        ui_show_pairing_code(g_ui, 0);
+        ui_show_pairing_code(g_ui, UI_PAIRING_HIDDEN);
         ESP_LOGI(TAG, "Owner identity persisted");
     }
 }
@@ -453,7 +455,8 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
             config_transfer_disconnect();
             atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
             ESP_LOGI(TAG, "Phone discovery link disconnected");
-            ui_show_pairing_code(g_ui, pairing_open() ? UINT32_MAX : 0);
+            ui_show_pairing_code(g_ui, atomic_load(&g_has_owner) ? UI_PAIRING_HIDDEN :
+                                pairing_open() ? UI_PAIRING_READY : UI_PAIRING_WAITING);
             advertise();
         }
         break;
@@ -461,8 +464,8 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
         advertise();
         break;
     case BLE_GAP_EVENT_REPEAT_PAIRING: {
-        /* Android may have forgotten a bond that NimBLE still stores. Only a
-         * fresh physical window with no owner may replace that stale bond. */
+        /* Android may have forgotten a bond that NimBLE still stores. Only an
+         * open pairing window with no owner may replace that stale bond. */
         struct ble_gap_conn_desc desc;
         if (atomic_load(&g_has_owner) || !pairing_open() ||
             ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc) != 0)
@@ -505,7 +508,7 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
                 if (atomic_load(&g_has_owner)) atomic_store(&g_pairing_until, 0);
             }
         }
-        if (atomic_load(&g_has_owner)) ui_show_pairing_code(g_ui, 0);
+        if (atomic_load(&g_has_owner)) ui_show_pairing_code(g_ui, UI_PAIRING_HIDDEN);
         break;
     default:
         break;
@@ -515,7 +518,6 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
 
 int ble_companion_register(void)
 {
-    load_owner();
     if (!owner_save_queue) {
         owner_save_queue = xQueueCreate(1, sizeof(owner_save_request_t));
         if (!owner_save_queue ||
@@ -530,6 +532,7 @@ int ble_companion_register(void)
     if (rc == 0) rc = ble_gatts_count_cfg(services);
     if (rc == 0) rc = ble_gatts_add_svcs(services);
     if (rc != 0) ESP_LOGE(TAG, "GATT registration failed: %d", rc);
+    else ble_companion_open_pairing_window();
     return rc;
 }
 
@@ -561,8 +564,8 @@ void ble_companion_open_pairing_window(void)
     if (atomic_load(&g_has_owner)) return;
     atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
     atomic_store(&g_pairing_until, xTaskGetTickCount() + pdMS_TO_TICKS(120000));
-    ESP_LOGI(TAG, "Physical owner pairing window opened");
-    ui_show_pairing_code(g_ui, UINT32_MAX);
+    ESP_LOGI(TAG, "Owner pairing window opened");
+    ui_show_pairing_code(g_ui, UI_PAIRING_READY);
 }
 
 void ble_companion_selection_applied(uint8_t selected_index)
@@ -574,7 +577,8 @@ void ble_companion_tick(void)
 {
     if (atomic_load(&g_pairing_until) && !pairing_open()) {
         atomic_store(&g_pairing_until, 0);
-        ui_show_pairing_code(g_ui, 0);
+        ui_show_pairing_code(g_ui, atomic_load(&g_has_owner) ?
+                            UI_PAIRING_HIDDEN : UI_PAIRING_WAITING);
     }
 }
 
