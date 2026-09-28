@@ -535,6 +535,7 @@ void app_main(void)
 
     config_document_init();
     init_config();
+    bool pairing_required = !ble_companion_load_owner();
     alert_engine_init(g_runtime);
 
     bsp_init();
@@ -549,7 +550,8 @@ void app_main(void)
     const uint32_t ui_interval_ms = 50;
     ui_page_t initial_page;
     page_ui(g_config.cfg_idx, &initial_page);
-    ui_t          *ui             = ui_init(&initial_page, ui_interval_ms, ui_touch_callback);
+    ui_t          *ui             = ui_init(&initial_page, ui_interval_ms, ui_touch_callback,
+                                            pairing_required);
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
     bsp_display_on_off(true);
     if (g_runtime) ESP_ERROR_CHECK(bsp_display_backlight_set_percent(g_runtime->brightness));

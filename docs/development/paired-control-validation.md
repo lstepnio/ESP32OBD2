@@ -16,6 +16,16 @@ After enabling 2 MB PSRAM and adding a revision-checked rotation opcode to proto
 
 After the document validator image was flashed, the Pixel read RPM, 90 degrees, and legacy revision 58 through the existing owner bond. An idle serial observation for 30 seconds showed adapter connection timeouts because no adapter was present, but no configuration saves. A following authenticated phone read still reported RPM, 90 degrees, and revision 58. This rules out continuous autonomous legacy writes during that observed interval; it does not attribute the earlier revision changes.
 
+## Pairing startup update, 2026-09-28
+
+Implemented in source: ownership is restored before the first UI frame. A gauge with no saved owner starts on the pairing view and opens a 120-second association window during BLE initialization. Expiry keeps the exclusive pairing view visible with **HOLD TO PAIR**; long press reopens the window. A saved owner starts on the selected gauge page, including when that phone is disconnected.
+
+All gauge renderers, reading labels, units, alerts, and diagnostic badges share a hidden parent while pairing is visible. Incoming samples, alert changes, diagnostic updates, and page changes cannot reveal those children. Short taps during pairing do not select or persist hidden gauge pages. Successful owner persistence restores the gauge view. Public capability flags and passkey authentication requirements are unchanged.
+
+The 2026-09-25 physical observations above predate this update. The startup and exclusive pairing behavior have not yet been flashed or observed on the physical gauge or phone. The cases below describe the current acceptance expectations.
+
+Software validation: the ESP-IDF 5.4.1 firmware build passed, as did the repository contract and documentation validator and the whitespace check. Source review confirmed that LVGL 9.2.2 suppresses child rendering when a parent is hidden. These checks do not establish physical startup, touch, or phone-pairing behavior.
+
 ## Preparation
 
 1. Keep the gauge powered by USB and open the latest Android debug APK.
@@ -27,12 +37,15 @@ After the document validator image was flashed, the Pixel read RPM, 90 degrees, 
 
 | Case | Action | Expected evidence |
 | --- | --- | --- |
-| First owner | Long press gauge, then tap Set preview reading on gauge | Round LCD shows a six-digit code; Android system pairing prompt accepts it; app reports success only after authenticated state readback; gauge shows the chosen built-in label |
-| Window expiry | Long press gauge without pairing and wait more than 120 seconds | PAIR READY clears from the LCD and a new owner cannot bond until another physical long press |
-| Without physical window | Forget Android bond and try a fresh pairing without a gauge long press | New pairing fails and no selected reading changes |
+| First owner | Boot an unowned gauge, then tap Set preview reading on gauge within 120 seconds | PAIR READY appears without a long press or a gauge-page flash; round LCD then shows only the six-digit pairing prompt; Android accepts the code; saved ownership restores the gauge view |
+| Window expiry | Leave an unowned gauge without pairing for more than 120 seconds | HOLD TO PAIR remains on the LCD with every gauge widget hidden; a new owner cannot bond until another physical long press |
+| Closed window | Let the startup window expire, then try a fresh pairing without a gauge long press | New pairing fails and no selected reading changes |
+| Exclusive pairing | While ready, displaying a passkey, and waiting after expiry, exercise all five renderers and deliver samples, alerts, and diagnostic updates | Only pairing content is visible; no numbers, units, arcs, bars, trends, dual values, alert banners, or diagnostic badges appear |
+| Pairing touch | Tap during pairing, then long press after expiry | Short taps do not change or save the hidden page; long press returns to PAIR READY |
+| Owned startup | Boot a gauge with a saved owner while the phone is disconnected | Selected gauge page appears without opening a new association window |
 | Reconnect | Close app, reopen, choose another built-in reading | Previously bonded phone reconnects without a new passkey; applied label and app confirmation agree |
 | Rejected input | Attempt an unsupported index or malformed control payload using an authenticated development client | GATT rejects it, saved selection is unchanged |
-| Lost phone | Hold gauge touch for 12 seconds, forget eGauge in Android Bluetooth settings, pair again | Owner bond is removed, gauge restarts, and a new physical pairing window allows association |
+| Lost phone | Hold gauge touch for 12 seconds, forget eGauge in Android Bluetooth settings, pair again | Owner bond is removed, gauge restarts on PAIR READY, and its startup pairing window allows association |
 | Stale bond after reset | Reconnect an old bonded phone before entering a fresh passkey | It cannot regain owner status or change a reading; a fresh physical passkey exchange is required |
 | Reboot persistence | Restart gauge after a confirmed selection, then select again from the same bonded phone | Observed: no new passkey prompt; authenticated selection and readback succeeded. Independent display confirmation of the preexisting reading is still needed |
 | Rotation persistence | Select 90 degrees on the phone and restart the gauge | Observed: authenticated readback reported 90 degrees before and after restart, and the user confirmed the rotated display and touch behavior |
