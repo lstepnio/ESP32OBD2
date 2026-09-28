@@ -4,6 +4,10 @@ import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import com.lstepnio.egauge.ui.state.*
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.delay
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
@@ -116,6 +120,33 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
         debugOtaPauseBeforeActivationMs = if (debuggable) value.coerceIn(0, 60_000) else 0
     }
+    private val presentationStore = PresentationPreferenceStore(application)
+    var presentationPreferences by mutableStateOf(presentationStore.read())
+        private set
+    var presentationError by mutableStateOf<String?>(null)
+        private set
+    var configurationNeedsReview by mutableStateOf(false)
+        private set
+    var configurationRecoveryRead by mutableStateOf(false)
+        private set
+    var lastConfigurationOutcome by mutableStateOf<OperationState?>(null)
+        private set
+    var updatePreparation by mutableStateOf("idle")
+        private set
+    val expectedSentDigest: String? get() = sentDigest
+    val rememberedGaugeId: String? get() = associationStore.rememberedId()
+
+    fun setAdvancedTools(value: Boolean) = savePresentation(presentationPreferences.copy(advanced = value))
+    fun setDynamicColor(value: Boolean) = savePresentation(presentationPreferences.copy(dynamicColor = value))
+    fun renameGauge(value: String) {
+        val name = value.trim().take(32)
+        if (name.isNotEmpty()) savePresentation(presentationPreferences.copy(gaugeName = name))
+    }
+    private fun savePresentation(value: PresentationPreferences) {
+        if (presentationStore.write(value)) presentationPreferences = value
+        else presentationError = "Could not save appearance settings. Try again."
+    }
+
     private val associationStore = GaugeAssociationStore(application)
     private val updateJournal = UpdateRecoveryJournal(application)
     private val loadedProfiles = profileStore.load()
@@ -292,6 +323,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun markScanning(value: Boolean) { scanning = value }
     fun connectionError(message: String) {
+        presentationError = message
         scanning = false
         deviceMessage = message
         capabilities = null
@@ -310,6 +342,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         documentReadFailed = false
     }
     fun connected(value: CapabilitySnapshot) {
+        presentationError = null
+        configurationRecoveryRead = false
         scanning = false
         capabilities = value
         gaugeCandidates = emptyList()
@@ -347,6 +381,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         deviceMessage = "Gauge saved state read at revision ${value.revision}."
     }
     fun configApplied(value: GaugeConfigTransferClient.Applied, profileId: String, appliedDraft: Draft) {
+        configurationNeedsReview = false
+        configurationRecoveryRead = false
+        lastConfigurationOutcome = null
         scanning = false
         activeConfigRevision = value.revision
         activeDocument = null
@@ -767,6 +804,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 operationCoordinator.run(kind) { id ->
+                    presentationError = null
                     scanning = true
                     operation = OperationState(id, kind, OperationStage.CONNECTING, title)
                     block(id)
@@ -793,6 +831,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             detail = message,
             terminal = true,
         )
+        if (operation.kind == OperationKind.CONFIGURATION) {
+            configurationNeedsReview = true
+            configurationRecoveryRead = false
+            lastConfigurationOutcome = operation
+        }
     }
 
     private fun operationDetail(stage: OperationStage): String = when (stage) {
@@ -805,6 +848,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         else -> stage.name.lowercase().replace('_', ' ')
     }
     fun updatePackageError(message: String) {
+        presentationError = message
         selectedUpdate = null
         updatePackageMessage = message
     }
@@ -817,6 +861,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             hostedUpdateBusy = true
+            updatePreparation = "checking"
             hostedUpdate = null
             try {
                 operationCoordinator.run(OperationKind.READ) { id ->
@@ -830,50 +875,76 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     val update = GitHubFirmwareSource(getApplication()).check(caps)
                     if (isFirmwareNewer(update.release.version, running.version)) {
                         hostedUpdate = update
+                        updatePreparation = "available"
                         hostedUpdateMessage =
                             "Compatible development firmware ${update.release.version} is available"
                     } else {
+                        updatePreparation = "current"
                         hostedUpdateMessage = "Installed ${running.version} is up to date"
                     }
                     operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
                         "Firmware check complete", hostedUpdateMessage, terminal = true)
                 }
             } catch (_: OperationBusyException) {
+                updatePreparation = "failed"
                 hostedUpdateMessage = "Finish the current gauge operation before checking for firmware"
             } catch (error: CancellationException) {
                 hostedUpdateMessage = "Hosted update check was interrupted"
+                updatePreparation = "failed"
+                operationFailed(hostedUpdateMessage)
                 throw error
             } catch (error: Exception) {
+                updatePreparation = "failed"
                 hostedUpdateMessage = error.message ?: "Could not check hosted firmware"
+                operationFailed(hostedUpdateMessage)
             } finally {
                 hostedUpdateBusy = false
             }
         }
     }
 
-    fun downloadHostedFirmware() {
+    fun downloadHostedFirmware(installWhenReady: Boolean = false) {
         if (hostedUpdateBusy) return
         val available = hostedUpdate ?: return
         viewModelScope.launch {
             hostedUpdateBusy = true
+            updatePreparation = "downloading"
             hostedUpdateMessage = "Downloading and verifying ${available.release.version}"
+            var downloadedSuccessfully = false
             try {
-                val downloaded = GitHubFirmwareSource(getApplication()).download(available)
-                hostedUpdate = downloaded
-                selectedUpdate = requireNotNull(downloaded.bundle)
-                updatePackageMessage = "GitHub development firmware ${downloaded.release.version} verified and ready"
-                hostedUpdateMessage = "Download verified. Review and install when the gauge has stable power."
+                operationCoordinator.run(OperationKind.UPDATE) { id ->
+                    operation = OperationState(id, OperationKind.UPDATE, OperationStage.PREPARING,
+                        "Downloading update", "Verifying the signed package")
+                    val downloaded = GitHubFirmwareSource(getApplication()).download(available)
+                    hostedUpdate = downloaded
+                    selectedUpdate = requireNotNull(downloaded.bundle)
+                    updatePackageMessage = "GitHub development firmware ${downloaded.release.version} verified and ready"
+                    hostedUpdateMessage = "Download verified. Review and install when the gauge has stable power."
+                    updatePreparation = "ready"
+                    downloadedSuccessfully = true
+                    operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
+                        "Update ready", terminal = true)
+                }
+            } catch (_: OperationBusyException) {
+                updatePreparation = "failed"
+                hostedUpdateMessage = "Finish the current gauge operation before downloading an update"
             } catch (error: CancellationException) {
                 hostedUpdateMessage = "Firmware download was interrupted"
+                updatePreparation = "failed"
+                operationFailed(hostedUpdateMessage)
                 throw error
             } catch (error: Exception) {
                 hostedUpdateMessage = error.message ?: "Hosted firmware download failed"
+                updatePreparation = "failed"
+                operationFailed(hostedUpdateMessage)
             } finally {
                 hostedUpdateBusy = false
             }
+            if (downloadedSuccessfully && installWhenReady) installSelectedUpdate()
         }
     }
     fun selectionError(message: String) {
+        presentationError = message
         scanning = false
         deviceMessage = message
     }
@@ -979,4 +1050,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         })
         if (!profileStore.save(profileCollection)) profileError = "Could not save changes on this phone"
     }
+    fun checkGaugeForReview() = launchGaugeOperation(OperationKind.READ, "Checking gauge settings") { id ->
+        val client = GaugeConfigTransferClient(getApplication())
+        if (ownerAccess != OwnerAccess.AUTHENTICATED && capabilities?.savedStateRead == true)
+            snapshotRead(bleClient.readSavedSnapshot())
+        operation = OperationState(id, OperationKind.READ, OperationStage.CHECKING_RUNNING,
+            "Checking gauge settings")
+        activeDocumentRead(client.readActiveDocument(bleClient.selectedGauge()))
+        runtimeIdentityRead(client.readRuntimeIdentity(bleClient.selectedGauge()))
+        configurationRecoveryRead = true
+        operation = OperationState(id, OperationKind.READ,
+            if (runtimeIdentity?.usedPreviousGeneration == true) OperationStage.RECOVERED else OperationStage.ACTIVE,
+            "Gauge settings checked", terminal = true)
+    }
+
+    /** Changes to existing snapshot state are observed without moving protocol ownership into the UI. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<CompanionUiState> = flow {
+        while (true) {
+            emit(android.os.SystemClock.elapsedRealtime())
+            delay(1_000)
+        }
+    }.flatMapLatest { now -> snapshotFlow { presentationState(now) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000),
+            presentationState(android.os.SystemClock.elapsedRealtime()))
+
 }

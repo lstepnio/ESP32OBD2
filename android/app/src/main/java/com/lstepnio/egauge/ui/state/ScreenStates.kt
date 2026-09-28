@@ -42,7 +42,10 @@ data class SetupUiState(val found: Boolean, val owner: OwnerAccess, val busy: Bo
     val candidates: List<CandidateUi>, val status: StatusUi, val details: List<DetailUi>)
 @Immutable
 data class ExpertUiState(val readings: List<ReadingUi>, val canRead: Boolean, val canReadHardware: Boolean,
-    val canCheckWifi: Boolean, val secondAdapter: Boolean, val details: List<DetailUi>)
+    val canCheckWifi: Boolean, val secondAdapter: Boolean, val details: List<DetailUi>,
+    val query: String, val sourceFilter: String, val selectedReadingId: String, val labInput: String,
+    val decoded: StatusUi, val customInput: String, val customSource: String, val customResult: StatusUi,
+    val wifiStatus: String, val busy: Boolean)
 @Immutable
 data class UpdatesUiState(val status: StatusUi, val availableVersion: String?, val installedVersion: String,
     val canCheck: Boolean, val canInstall: Boolean, val ready: Boolean, val busy: Boolean,

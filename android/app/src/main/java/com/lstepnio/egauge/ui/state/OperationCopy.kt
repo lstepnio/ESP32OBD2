@@ -58,6 +58,7 @@ fun operationUi(state: OperationState, confirmedSetup: Boolean = false): Operati
 fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
     val message = reason.orEmpty().lowercase()
     return when {
+        "appearance settings" in message -> StatusUi("Your preference was not saved", "Try changing it again.", StatusTone.Error)
         "permission" in message -> StatusUi("Nearby devices permission is needed", "Allow Nearby devices in Android settings, then reconnect.", StatusTone.Error)
         "bluetooth" in message && ("off" in message || "disabled" in message) ->
             StatusUi("Bluetooth is turned off", "Turn on Bluetooth, then find your gauge.", StatusTone.Offline)
