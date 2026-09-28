@@ -130,7 +130,11 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                         HomeAction.Review -> { customizeStep = 3; route = Route.Customize }
                                         HomeAction.Customize -> { customizeStep = 0; route = Route.Customize }
                                     }
-                                }, { customizeStep = 0; route = Route.Customize }, { detailsOpen = true },
+                                }, { customizeStep = 0; route = Route.Customize }, { detailsOpen = true }, { index ->
+                                    model.selectPage(index)
+                                    customizeStep = 0
+                                    route = Route.Customize
+                                },
                                     statusInBanner = state.notice == state.home.status || (state.operation.visible && state.home.status == state.operation.status &&
                                         (state.operation.busy || state.operation.needsCheck || state.operation.status.tone == StatusTone.Success)))
                                 Route.Setup -> SetupScreen(state.setup, onFindGauge,

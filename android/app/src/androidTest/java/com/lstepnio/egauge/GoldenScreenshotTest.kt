@@ -64,7 +64,9 @@ class GoldenScreenshotTest {
         val failures = mutableListOf<String>()
         for (shot in shots) {
             compose.runOnIdle { selected = shot }
-            compose.mainClock.advanceTimeBy(500)
+            // Pager and thumbnail rows complete their first layout on separate frames.
+            // Capture after both have settled so an intermediate canvas is never reviewed.
+            compose.mainClock.advanceTimeBy(1_000)
             compose.waitForIdle()
             val foregroundPackage = instrumentation.uiAutomation.rootInActiveWindow?.packageName?.toString()
             assertTrue("Keep the fixture app in the foreground during screenshot checks",
