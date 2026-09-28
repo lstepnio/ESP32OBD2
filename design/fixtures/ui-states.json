@@ -1,0 +1,50 @@
+[
+  {
+    "id": "default",
+    "title": "Ready to customize",
+    "detail": "Choose the readings you want to see.",
+    "value": "2,840"
+  },
+  {
+    "id": "loading",
+    "title": "Sending to gauge",
+    "detail": "Keep your gauge powered and nearby.",
+    "value": "2,840"
+  },
+  {
+    "id": "disabled",
+    "title": "Not available yet",
+    "detail": "You can still preview your display.",
+    "value": "--"
+  },
+  {
+    "id": "error",
+    "title": "Your changes were not sent",
+    "detail": "Check your gauge, then try again.",
+    "value": "--"
+  },
+  {
+    "id": "success",
+    "title": "Saved & running on gauge",
+    "detail": "Your gauge confirmed these settings.",
+    "value": "2,840"
+  },
+  {
+    "id": "stale",
+    "title": "Readings are out of date",
+    "detail": "Check your adapter connection.",
+    "value": "--"
+  },
+  {
+    "id": "offline",
+    "title": "Your gauge is offline",
+    "detail": "Keep your gauge powered and reconnect.",
+    "value": "--"
+  },
+  {
+    "id": "critical",
+    "title": "Coolant is too hot",
+    "detail": "Stop safely and check your engine.",
+    "value": "118"
+  }
+]
