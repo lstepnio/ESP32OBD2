@@ -180,6 +180,15 @@ class CustomizeJourneyTest {
         compose.onNodeWithText("Review and send").assertIsNotEnabled()
     }
 
+    @Test fun anUnavailableLegacyReadingCanBeReplacedWithoutOpeningItsAlertEditor() {
+        state = state.copy(pages = listOf(pageUi(GaugePageDraft("legacy", "Transmission", GaugeLayout.Numeric, listOf("tcm")))),
+            blockers = listOf("This reading cannot be sent from the second adapter. Choose a main-adapter reading."))
+        launch()
+        compose.onNodeWithText("Choose an available reading first").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Reading").performScrollTo().performClick()
+        compose.onNodeWithText("Engine speed").performScrollTo().assertIsEnabled()
+    }
+
     private fun capture(name: String) {
         val variant = InstrumentationRegistry.getArguments().getString("captureScreens") ?: return
         val instrumentation = InstrumentationRegistry.getInstrumentation()

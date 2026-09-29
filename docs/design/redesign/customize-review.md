@@ -55,7 +55,7 @@ When opened from All alerts, the alert editor returns there. A reading has one a
 
 ## Scope and truthful behavior
 
-The picker exposes the readings the existing configuration path can send: engine speed, coolant temperature, vehicle speed, engine load and fuel level. Each uses the same alert workflow. This review does not implement arbitrary custom-PID transmission, live vehicle discovery or telemetry. Those remain subject to the existing verified capabilities. Examples and previews stay labelled.
+The picker exposes the readings the existing configuration path can send: engine speed, coolant temperature, vehicle speed, engine load and fuel level. Each uses the same alert workflow. Older pages with an unavailable reading remain editable and explain how to choose an available one. This review does not implement arbitrary custom-PID transmission, live vehicle discovery or telemetry. Those remain subject to the existing verified capabilities. Examples and previews stay labelled.
 
 Authentication, physical-code association, signed updates, wire formats, transfer outcomes and the running-revision/hash/trial confirmation rule are unchanged. The whole-number RPM ceiling now respects the decoder's 16383.75 maximum. Profiles saved with the former 16384 ceiling remain readable so the user can correct them before sending. Critical and unknown operation outcomes remain visible in the existing app-level status UI. No clipboard action is introduced.
 

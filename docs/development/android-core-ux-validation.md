@@ -8,9 +8,9 @@ The [review and before/after images](../design/redesign/customize-review.md) cov
 | --- | --- |
 | Required Android build, unit tests, Android-test compilation and lint | Passed; 42 app unit tests, including seven form/range/legacy-profile checks |
 | `tools/validate.py` | Passed: schema examples, rejection cases, signed vector, document links and design-token parity |
-| USB Pixel 10 Pro, Android instrumented suite | 15 passed; two opt-in bench tests skipped. Includes nine stateful Customize examples, two read-only activity journeys, three accessibility checks and the image comparison |
+| USB Pixel 10 Pro, Android instrumented suite | 16 passed; two opt-in bench tests skipped. Includes ten stateful Customize examples, two read-only activity journeys, three accessibility checks and the image comparison |
 | Shared screenshots | All 72 baselines matched after visual review: 16 component/theme examples and 56 screen/theme/width examples. Compact 390 dp and expanded 1000 dp, light and dark |
-| Physical Pixel font scale 2.0 | All 11 Customize and activity journeys passed. Fields scroll into reach; the fixed action stays above the keyboard. Original font scale restored |
+| Physical Pixel font scale 2.0 | All 12 Customize and activity journeys passed, including a separate run of the unavailable-reading recovery case. Fields scroll into reach; the fixed action stays above the keyboard. Original font scale restored |
 | TalkBack | Service bound and touch exploration enabled; focus outlines observed on Back and the sheet handle, and the reading picker operated. Original accessibility services restored. Spoken output and touch-exploration accuracy were not independently qualified |
 | Real gauge/vehicle | No gauge configuration write, firmware update, live OBD request or DTC clear was run for this review. No new gauge-side behavior is claimed |
 

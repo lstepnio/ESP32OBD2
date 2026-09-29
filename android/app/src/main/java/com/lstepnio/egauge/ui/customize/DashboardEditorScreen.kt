@@ -69,7 +69,8 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
                             EditorRow("Layout", current.layout.label, state.editingEnabled) { picker = "layout" }
                             current.secondaryId?.let { id ->
                                 HorizontalDivider(Modifier.padding(horizontal = 18.dp))
-                                EditorRow("Second reading", state.readings.first { it.id == id }.name, state.editingEnabled) { picker = "secondary" }
+                                EditorRow("Second reading", state.readings.firstOrNull { it.id == id }?.name ?: readingName(id),
+                                    state.editingEnabled) { picker = "secondary" }
                             }
                         }
                     }
@@ -77,9 +78,11 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
                         Column {
                             listOfNotNull(current.readingId, current.secondaryId).forEachIndexed { index, id ->
                                 if (index > 0) HorizontalDivider(Modifier.padding(horizontal = 18.dp))
-                                val reading = state.readings.first { it.id == id }
+                                val reading = state.readings.firstOrNull { it.id == id }
                                 val alert = state.alerts.firstOrNull { it.readingId == id }
-                                EditorRow("${reading.name} alert", alert?.summary() ?: "Off", state.editingEnabled) { editAlert(id) }
+                                EditorRow("${reading?.name ?: readingName(id)} alert",
+                                    if (reading == null) "Choose an available reading first" else alert?.summary() ?: "Off",
+                                    state.editingEnabled && reading != null) { editAlert(id) }
                             }
                         }
                     }
