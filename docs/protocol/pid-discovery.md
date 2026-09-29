@@ -2,6 +2,8 @@
 
 The app makes discovery approachable while retaining evidence for advanced users. The gauge performs requests using the same serialized engine as live polling. “Discover” never implies every manufacturer identifier can be enumerated.
 
+Vehicle-specific research and compatibility gaps are organized in the [vehicle knowledge section](../vehicles/README.md), beginning with the [Wrangler JK](../vehicles/jeep/wrangler-jk.md).
+
 ## Standard discovery
 
 1. Select adapter and confirm its GATT capabilities and ELM handshake. An advertised name or `ATI` banner alone is not proof of compatibility. Record tested profile, protocol, prompt/echo behavior and observed transaction latency.

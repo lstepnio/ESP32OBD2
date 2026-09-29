@@ -1,0 +1,675 @@
+{
+  "status": "static handler inventory; commands and vehicle behavior unverified",
+  "assembly_sha256": "aa3b31566a772781149a0c4b65d12e3d5180da6ebba866829739237bc30289df",
+  "types": [
+    {
+      "name": "ABSTCKillAdaptationViewModel",
+      "methods": [
+        {
+          "name": ".ctor",
+          "instruction_count": 6,
+          "calls": [
+            ".ctor"
+          ],
+          "string_literals": [
+            "747",
+            "4C7",
+            "31 03 30 46"
+          ]
+        },
+        {
+          "name": "LoadPossibleAdaptationValues",
+          "instruction_count": 32,
+          "calls": [
+            ".ctor",
+            "set_Value",
+            "set_Text",
+            "Add"
+          ],
+          "string_literals": [
+            "ABS + TC - Disable for 1 key Cycle(s)",
+            "ABS + TC - Disable for 5 key Cycle(s)",
+            "ABS + TC - Restore - Key Cycle required"
+          ]
+        },
+        {
+          "name": "DoAdaptation",
+          "instruction_count": 17,
+          "calls": [
+            "Create",
+            "Start",
+            "get_Task"
+          ],
+          "string_literals": []
+        }
+      ],
+      "nested_types": [
+        {
+          "name": "<DoAdaptation>d__2",
+          "methods": [
+            {
+              "name": "MoveNext",
+              "instruction_count": 417,
+              "calls": [
+                "get_Text",
+                "IsNullOrEmpty",
+                "GetTranslation",
+                ".ctor",
+                "get_Value",
+                "op_Equality",
+                "get_CommunicationProtocol",
+                "SendProtocolServiceCommandAsync",
+                "GetAwaiter",
+                "get_IsCompleted",
+                "AwaitUnsafeOnCompleted",
+                "GetResult",
+                "SendCommandAsync",
+                "SetException",
+                "SetResult"
+              ],
+              "string_literals": [
+                "GenericInvalidOrMissingSelectedValue",
+                "31 01 30 46 01",
+                "31 01 30 46 05",
+                "31 02 30 46 00"
+              ]
+            },
+            {
+              "name": "SetStateMachine",
+              "instruction_count": 5,
+              "calls": [
+                "SetStateMachine"
+              ],
+              "string_literals": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ABSTCKillTIPMAdaptationViewModel",
+      "methods": [
+        {
+          "name": ".ctor",
+          "instruction_count": 6,
+          "calls": [
+            ".ctor"
+          ],
+          "string_literals": [
+            "620",
+            "504",
+            "1A 87"
+          ]
+        },
+        {
+          "name": "LoadPossibleAdaptationValues",
+          "instruction_count": 21,
+          "calls": [
+            ".ctor",
+            "set_Value",
+            "set_Text",
+            "Add"
+          ],
+          "string_literals": [
+            "ABS + TC - Disable",
+            "ABS + TC - Enable"
+          ]
+        },
+        {
+          "name": "DoAdaptation",
+          "instruction_count": 17,
+          "calls": [
+            "Create",
+            "Start",
+            "get_Task"
+          ],
+          "string_literals": []
+        }
+      ],
+      "nested_types": [
+        {
+          "name": "<DoAdaptation>d__2",
+          "methods": [
+            {
+              "name": "MoveNext",
+              "instruction_count": 292,
+              "calls": [
+                "get_Text",
+                "IsNullOrEmpty",
+                "GetTranslation",
+                ".ctor",
+                "get_Value",
+                "op_Equality",
+                "get_CommunicationProtocol",
+                "SendProtocolServiceCommandAsync",
+                "GetAwaiter",
+                "get_IsCompleted",
+                "AwaitUnsafeOnCompleted",
+                "GetResult",
+                "SendCommandAsync",
+                "SetException",
+                "SetResult"
+              ],
+              "string_literals": [
+                "GenericInvalidOrMissingSelectedValue",
+                "31 A4",
+                "32 A4"
+              ]
+            },
+            {
+              "name": "SetStateMachine",
+              "instruction_count": 5,
+              "calls": [
+                "SetStateMachine"
+              ],
+              "string_literals": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rpm28CRDAdaptationViewModel",
+      "methods": [
+        {
+          "name": ".ctor",
+          "instruction_count": 12,
+          "calls": [
+            ".ctor",
+            "set_IsStopButtonVisible"
+          ],
+          "string_literals": [
+            "7E0",
+            "7E8",
+            "30 10 07"
+          ]
+        },
+        {
+          "name": "LoadPossibleAdaptationValues",
+          "instruction_count": 49,
+          "calls": [
+            "LoadPossibleAdaptationValues",
+            "get_Values",
+            "GetEnumerator",
+            "get_Current",
+            "get_Text",
+            "get_Value",
+            "get_InvariantCulture",
+            "Parse",
+            ".ctor",
+            "set_Value",
+            "set_Text",
+            "Add",
+            "MoveNext",
+            "Dispose",
+            "get_Item",
+            "set_CurrentValue"
+          ],
+          "string_literals": [
+            "Not Started"
+          ]
+        },
+        {
+          "name": "DoAdaptation",
+          "instruction_count": 17,
+          "calls": [
+            "Create",
+            "Start",
+            "get_Task"
+          ],
+          "string_literals": []
+        },
+        {
+          "name": "OnNavigatedFrom",
+          "instruction_count": 20,
+          "calls": [
+            "Create",
+            "Start",
+            "get_Task"
+          ],
+          "string_literals": []
+        },
+        {
+          "name": "StopAdaptation",
+          "instruction_count": 13,
+          "calls": [
+            "StopAdaptation",
+            "set_CurrentValue",
+            "ShowMessageDialog"
+          ],
+          "string_literals": [
+            "Not Started",
+            "Completed",
+            "RPM should drop in few seconds"
+          ]
+        },
+        {
+          "name": "KeepAdaptationWorking",
+          "instruction_count": 17,
+          "calls": [
+            "Create",
+            "Start",
+            "get_Task"
+          ],
+          "string_literals": []
+        },
+        {
+          "name": "<>n__0",
+          "instruction_count": 4,
+          "calls": [
+            "OnNavigatedFrom"
+          ],
+          "string_literals": []
+        }
+      ],
+      "nested_types": [
+        {
+          "name": "<DoAdaptation>d__2",
+          "methods": [
+            {
+              "name": "MoveNext",
+              "instruction_count": 560,
+              "calls": [
+                "get_Value",
+                ".ctor",
+                "op_Division",
+                "op_Explicit",
+                "op_Implicit",
+                "op_Subtraction",
+                "SendSetModuleCommandAsync",
+                "GetAwaiter",
+                "get_IsCompleted",
+                "AwaitUnsafeOnCompleted",
+                "GetResult",
+                "SendCommandAsync",
+                "get_CommunicationProtocol",
+                "SendProtocolServiceCommandAsync",
+                "ToString",
+                "Format",
+                "get_Factory",
+                "StartNew",
+                "set_CurrentValue",
+                "SetException",
+                "SetResult"
+              ],
+              "string_literals": [
+                "01C",
+                "7DF",
+                "AT R0",
+                "AT R1",
+                "7DF",
+                "7DF",
+                "AT R0",
+                "AT R1",
+                "30 10 07",
+                "30 10 07 {0} {1}",
+                "X2",
+                "X2",
+                "Started"
+              ]
+            },
+            {
+              "name": "SetStateMachine",
+              "instruction_count": 5,
+              "calls": [
+                "SetStateMachine"
+              ],
+              "string_literals": []
+            }
+          ]
+        },
+        {
+          "name": "<KeepAdaptationWorking>d__6",
+          "methods": [
+            {
+              "name": "MoveNext",
+              "instruction_count": 105,
+              "calls": [
+                "Delay",
+                "GetAwaiter",
+                "get_IsCompleted",
+                "AwaitUnsafeOnCompleted",
+                "GetResult",
+                "SendCommandAsync",
+                "SetException",
+                "SetResult"
+              ],
+              "string_literals": [
+                "30 10 01"
+              ]
+            },
+            {
+              "name": "SetStateMachine",
+              "instruction_count": 5,
+              "calls": [
+                "SetStateMachine"
+              ],
+              "string_literals": []
+            }
+          ]
+        },
+        {
+          "name": "<OnNavigatedFrom>d__3",
+          "methods": [
+            {
+              "name": "MoveNext",
+              "instruction_count": 63,
+              "calls": [
+                "<>n__0",
+                "GetAwaiter",
+                "get_IsCompleted",
+                "AwaitUnsafeOnCompleted",
+                "GetResult",
+                "StopAdaptation",
+                "SetException",
+                "SetResult"
+              ],
+              "string_literals": []
+            },
+            {
+              "name": "SetStateMachine",
+              "instruction_count": 5,
+              "calls": [
+                "SetStateMachine"
+              ],
+              "string_literals": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RpmPbKWPAdaptationViewModel",
+      "methods": [
+        {
+          "name": ".ctor",
+          "instruction_count": 12,
+          "calls": [
+            ".ctor",
+            "set_IsStopButtonVisible"
+          ],
+          "string_literals": [
+            "7E0",
+            "7E8",
+            "33 05"
+          ]
+        },
+        {
+          "name": "LoadPossibleAdaptationValues",
+          "instruction_count": 188,
+          "calls": [
+            "LoadPossibleAdaptationValues",
+            ".ctor",
+            "set_Value",
+            "set_Text",
+            "Add",
+            "get_Item",
+            "set_CurrentValue"
+          ],
+          "string_literals": [
+            "800 RPM",
+            "900 RPM",
+            "950 RPM",
+            "1000 RPM",
+            "1050 RPM",
+            "1100 RPM",
+            "1150 RPM",
+            "1200 RPM",
+            "1250 RPM",
+            "1300 RPM",
+            "1350 RPM",
+            "1400 RPM",
+            "1450 RPM",
+            "1500 RPM",
+            "1600 RPM",
+            "2000 RPM",
+            "Not Started"
+          ]
+        },
+        {
+          "name": "DoAdaptation",
+          "instruction_count": 17,
+          "calls": [
+            "Create",
+            "Start",
+            "get_Task"
+          ],
+          "string_literals": []
+        },
+        {
+          "name": "OnNavigatedFrom",
+          "instruction_count": 20,
+          "calls": [
+            "Create",
+            "Start",
+            "get_Task"
+          ],
+          "string_literals": []
+        },
+        {
+          "name": "StopAdaptation",
+          "instruction_count": 13,
+          "calls": [
+            "StopAdaptation",
+            "set_CurrentValue",
+            "ShowMessageDialog"
+          ],
+          "string_literals": [
+            "Not Started",
+            "Completed",
+            "RPM should drop in few seconds"
+          ]
+        },
+        {
+          "name": "KeepAdaptationWorking",
+          "instruction_count": 17,
+          "calls": [
+            "Create",
+            "Start",
+            "get_Task"
+          ],
+          "string_literals": []
+        },
+        {
+          "name": "<>n__0",
+          "instruction_count": 4,
+          "calls": [
+            "OnNavigatedFrom"
+          ],
+          "string_literals": []
+        }
+      ],
+      "nested_types": [
+        {
+          "name": "<DoAdaptation>d__2",
+          "methods": [
+            {
+              "name": "MoveNext",
+              "instruction_count": 286,
+              "calls": [
+                "get_Value",
+                ".ctor",
+                "op_Division",
+                "op_Explicit",
+                "op_Implicit",
+                "op_Subtraction",
+                "SendSetModuleCommandAsync",
+                "GetAwaiter",
+                "get_IsCompleted",
+                "AwaitUnsafeOnCompleted",
+                "GetResult",
+                "get_CommunicationProtocol",
+                "SendProtocolServiceCommandAsync",
+                "SendCommandAsync",
+                "ToString",
+                "Format",
+                "get_Factory",
+                "StartNew",
+                "set_CurrentValue",
+                "SetException",
+                "SetResult"
+              ],
+              "string_literals": [
+                "33 05",
+                "31 05 {0} {1}",
+                "X2",
+                "X2",
+                "Started"
+              ]
+            },
+            {
+              "name": "SetStateMachine",
+              "instruction_count": 5,
+              "calls": [
+                "SetStateMachine"
+              ],
+              "string_literals": []
+            }
+          ]
+        },
+        {
+          "name": "<KeepAdaptationWorking>d__6",
+          "methods": [
+            {
+              "name": "MoveNext",
+              "instruction_count": 142,
+              "calls": [
+                "SendCommandAsync",
+                "GetAwaiter",
+                "get_IsCompleted",
+                "AwaitUnsafeOnCompleted",
+                "GetResult",
+                "get_CommunicationProtocol",
+                "SendProtocolServiceCommandAsync",
+                "Delay",
+                "SetException",
+                "SetResult"
+              ],
+              "string_literals": [
+                "33 05"
+              ]
+            },
+            {
+              "name": "SetStateMachine",
+              "instruction_count": 5,
+              "calls": [
+                "SetStateMachine"
+              ],
+              "string_literals": []
+            }
+          ]
+        },
+        {
+          "name": "<OnNavigatedFrom>d__3",
+          "methods": [
+            {
+              "name": "MoveNext",
+              "instruction_count": 63,
+              "calls": [
+                "<>n__0",
+                "GetAwaiter",
+                "get_IsCompleted",
+                "AwaitUnsafeOnCompleted",
+                "GetResult",
+                "StopAdaptation",
+                "SetException",
+                "SetResult"
+              ],
+              "string_literals": []
+            },
+            {
+              "name": "SetStateMachine",
+              "instruction_count": 5,
+              "calls": [
+                "SetStateMachine"
+              ],
+              "string_literals": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ZTestStepsRoutineViewModel",
+      "methods": [
+        {
+          "name": ".ctor",
+          "instruction_count": 39,
+          "calls": [
+            ".ctor",
+            "set_Name",
+            "set_Mode",
+            "set_PID",
+            "set_Formula",
+            "set_Position",
+            "set_Faktor",
+            "set_KalibratingF",
+            "get_Instance",
+            "set_ComunicationProtocol",
+            "set_EnableTesterPresent",
+            "set_TesterPresentSilentRequest"
+          ],
+          "string_literals": [
+            "Fail description",
+            "31",
+            "030311",
+            "F101",
+            "40",
+            "0=TX_Function Not Working:1=TX_All Condition Ok:2=TX_STADA Successful Done:3=TX_Transmission Oil Temperature Exceeds Lower Threshold:4=TX_Transmission Oil Temperature Exceeds Upper Threshold:5=TX_Brake Condition Not Fulfilled:6=TX_No Position D:7=TX_Throttle Paddle Condition Not Fulfilled:8=TX_Output Speed Condition Not Fulfilled:9=TX_Idle Speed Condition Not Fulfilled:10=TX_Park Lock System Not Activated:11=TX_Common Interrupt Criteria For Adaptation Functions are Fulfilled:12=TX_Adaptation Could Not been Finished for All Clutches",
+            "8"
+          ]
+        },
+        {
+          "name": "Prepare",
+          "instruction_count": 4,
+          "calls": [
+            "Prepare"
+          ],
+          "string_literals": []
+        },
+        {
+          "name": "LoadRoutineSteps",
+          "instruction_count": 17,
+          "calls": [
+            "Create",
+            "Start",
+            "get_Task"
+          ],
+          "string_literals": []
+        }
+      ],
+      "nested_types": [
+        {
+          "name": "<LoadRoutineSteps>d__3",
+          "methods": [
+            {
+              "name": "MoveNext",
+              "instruction_count": 51,
+              "calls": [
+                "set_Command",
+                "get_RoutineStepCollection",
+                ".ctor",
+                "Add",
+                "SetException",
+                "SetResult"
+              ],
+              "string_literals": [
+                "S1_BCM_PN_Sup00C6_Var42_AlgID0014",
+                "Test routine steps",
+                "NO"
+              ]
+            },
+            {
+              "name": "SetStateMachine",
+              "instruction_count": 5,
+              "calls": [
+                "SetStateMachine"
+              ],
+              "string_literals": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
