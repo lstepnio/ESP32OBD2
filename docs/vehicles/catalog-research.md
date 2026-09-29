@@ -23,10 +23,10 @@ This is a complete inventory of decoded embedded JSON resources, not a complete 
 
 ## Rebuild and inspect
 
-Install `dnfile` and `json5` in a research Python environment, then run the exporter with the local data assemblies:
+Install the research Python dependencies. The [assembly extractor](../../tools/research/extract_managed_assemblies.py) can reproduce the inputs from a locally held package split; the manifest records hashes to confirm the exact version. Then run the exporter with the extracted data assemblies:
 
 ```sh
-python3 -m pip install dnfile json5
+python3 -m pip install -r tools/research/requirements.txt
 python3 tools/research/export_vehicle_catalog.py /path/to/Common.dll /path/to/DataStorage.dll
 ```
 

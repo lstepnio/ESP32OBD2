@@ -44,6 +44,8 @@ Static analysis found approximately 5,697 activation resources and 4,324 write r
 
 High idle is an active ECU operation, not a PID read. An ABS/traction-control shutoff affects braking and stability behavior and is restricted to off-road validation. Do not present either action as supported by eGauge today. A future action implementation needs an allowlisted vehicle and ECU version, preconditions, explicit owner initiation, a bounded lifetime, cancel and disconnect handling, positive status/readback, and physical verification of restoration. Keep vehicle writes out of the general PID editor.
 
+The [action-handler inventory](jk-handler-analysis.md) preserves the current static findings for high idle and ABS/ESC controls, including command literals and candidate routes. It does not establish complete command sequences or target-vehicle support.
+
 ## Catalog and command coverage
 
 The local [catalog research workflow](../catalog-research.md) indexes every bundled vehicle-data resource, including diagnostic routes, reads, DTCs, activations, writes, and vehicle adaptation definitions. It preserves each original record in a Git-ignored database and creates searchable fields for service/mode, PID, module, fault code, and command. A [JK definition report](../../../data/vehicle-definitions/vehicles/jeep/wrangler-jk.json) captures 17 candidate module routes and 332 top-level entries from the 21 referenced adaptation files. Some entries are shared or are group headings. The broad catalog is an inventory for investigation, not a list of commands approved for this Jeep.

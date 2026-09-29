@@ -3,6 +3,18 @@
   "status": "extracted research definitions; not vehicle verified or enabled",
   "redistribution_rights": "Repository owner stated permission for public redistribution on 2026-09-28; documentation of license not independently reviewed",
   "provenance": "JScan Android package net.clever.obd4u, build v21.09.2026.12:45",
+  "source_packages": [
+    {
+      "filename": "base.apk",
+      "bytes": 23579232,
+      "sha256": "6b5f7168ed3373b957b07bc76c0ef7bed29c03712e81e67c9ea616ca855dbc40"
+    },
+    {
+      "filename": "split_config.arm64_v8a.apk",
+      "bytes": 174459086,
+      "sha256": "36119315287d3a851937b83c98465771db07574e621f4c8d846871438450ce1a"
+    }
+  ],
   "inputs": [
     {
       "filename": "obd4u.cleversoftware.net.Common.dll",
