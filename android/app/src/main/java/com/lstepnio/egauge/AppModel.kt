@@ -738,6 +738,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         updateInProgress = false
         updateMayHaveChangedGauge = false
         scanning = false
+        // The rebooted image may advertise new controls. Re-read its public capabilities
+        // after the update lease closes instead of keeping the previous image's snapshot.
+        capabilities = null
+        displaySettings = null
+        rediscoverGauge = true
+        foregroundConnection.retrySoon()
         updateJournal.clear()
         pendingUpdateRecovery = null
         updateRecoveryResult = UpdateRecoveryResult(UpdateRecoveryState.INSTALLED,
