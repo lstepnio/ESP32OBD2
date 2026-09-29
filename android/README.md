@@ -1,6 +1,6 @@
 # Android companion
 
-The companion opens around the round gauge preview. Gauge, Car and Settings are the default destinations. **Show advanced tools** in Settings reveals Expert. Customize is a guided flow, not a tab. This presentation redesign supersedes the previous Android screen guidance.
+The companion opens around the round gauge preview. Gauge, Car and Settings are the default destinations. **Show advanced tools** in Settings reveals Expert. Customize opens a preview-led dashboard for editing pages, their order, and alerts.
 
 The [design audit](../docs/design/redesign/audit.md), [interactive concept](../design/prototype/index.html), [native fixture gallery](../design/prototype/native.html) and [validation record](../docs/development/android-core-ux-validation.md) distinguish implemented software, example screens, physical phone observations and protected gauge readback.
 
@@ -25,7 +25,7 @@ For physical debugging, run `python3 tools/adb_debug_awake.py start` before the 
 | --- | --- | --- |
 | Gauge | View pages, customize, review and send | Values and histories are visibly labelled Preview; no live telemetry |
 | Setup | Find a gauge and authenticate this phone using its physical code | Real Android bonding and protected owner readback; adapter setup is unavailable |
-| Customize | Choose readings and page order, numeric/arc/bar/trend/dual layouts, coolant limits, preview states, review, send | Capability and projection checks block unsupported layouts/readings; other reading limits are unavailable |
+| Customize | Choose readings and page order, numeric/arc/bar/trend/dual layouts, add reading-specific alerts, preview states, review, send | Capability and projection checks block unsupported layouts/readings; vehicle support remains unverified until discovery |
 | Car | Choose a local vehicle profile, inspect the last fault snapshot and plain-language explanations | No adapter pairing or code clearing; no vehicle traffic is fabricated; incomplete/stale results remain visible |
 | Settings | Local gauge name, rotation, updates, appearance, advanced toggle, About | Name is local; brightness is unavailable; Forget opens Android's actual Bluetooth settings |
 | Updates | Check installed version and recover an uncertain update | Production OTA is unavailable; development releases stay in Expert |
@@ -56,7 +56,7 @@ Compact windows use a navigation bar; windows of at least 600 dp use a rail. Wid
 
 The existing typed transaction states remain authoritative. **Saved & running on gauge** requires the expected running revision and SHA-256, `running=true`, the trial flag cleared and no previous-generation recovery. A storage acknowledgement, completed upload or generic successful read cannot show that confirmation. The update stepper cannot reach Done while restart confirmation is pending. After app recreation, the same confirmation may be recovered only if the complete locally projected bytes match the verified saved digest and the strict running proof also matches; comparing visible fields alone is insufficient.
 
-Review lists every transmitted page, binding, layout and coolant alert setting. A protected read supplies the base revision and digest; the existing sender checks both again before beginning. Conflict, rejection, rollback and unknown outcomes remain visible, and recovery requires a fresh check plus explicit review before another send. Page browsing alone does not change the transmitted settings. The existing signed-update interruption journal and reconciliation rules are retained.
+Review lists every transmitted page, binding, layout and alert setting. A protected read supplies the base revision and digest; the existing sender checks both again before beginning. Conflict, rejection, rollback and unknown outcomes remain visible, and recovery requires a fresh check plus explicit review before another send. Page browsing alone does not change the transmitted settings. The existing signed-update interruption journal and reconciliation rules are retained.
 
 A verified saved configuration can be copied into the phone through Details only when the existing mapper can represent it safely. Unknown fields never count as matches. Details includes the complete saved JSON, comparison fields, PID/service/source, runtime identity, hardware/partition metadata and package signatures. Its allowlist excludes Wi-Fi sessions, credentials and bond secrets.
 

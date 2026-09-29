@@ -16,7 +16,7 @@ Device: Pixel 10 Pro, Android 17 / API 37, 1280×2856 physical pixels, existing 
 
 | Observation | Result | Scope |
 | --- | --- | --- |
-| Native navigation and Customize | Passed on the Pixel | Gauge, Car, Settings, four Customize steps and honest unavailable states |
+| Native navigation and Customize | Passed on the Pixel | Gauge, Car, Settings, preview-led Customize destinations and honest unavailable states |
 | Powered gauge connection | Protected settings read succeeded | An initial “Offline” label was misleading because no session had been checked. Foreground discovery now starts automatically, with “Gauge ready” only after a recent protected check. |
 | Three-reading send | Passed | Engine speed, coolant temperature and engine load selected through the UI, with numeric, arc and bar layouts |
 | Running confirmation | Passed | Revision 7 matched digest `741d6c17b03d4b2411a1dede001b1cd06f7f94215dd65d584f8aa7c24d1d1542`, running flag set and trial cleared |
@@ -35,7 +35,7 @@ These are physical phone observations and authenticated responses from the power
 
 ## Accessibility and adaptive layout
 
-- Real Pixel system font scale 2.0: both primary-journey tests passed; all four Customize steps and default destinations were captured. Large content scrolls and the primary action remains reachable.
+- Real Pixel system font scale 2.0: both primary-journey tests passed; Customize destinations and default destinations were captured. Large content scrolls and the primary action remains reachable.
 - Light and dark physical-phone journeys passed. A temporary 1100×880 dp window on the Pixel exercised rail navigation and side-by-side layouts; both journey tests passed. This is a resized phone window, not physical tablet or foldable qualification.
 - TalkBack 17 was enabled on the Pixel. Navigation focus outlines and activation were observed on Gauge, Customize, Car and Settings, including a change to the dynamic-colour switch. Round-preview semantics are covered by the Compose checks; touch-exploration accuracy was not independently established. The service was confirmed bound and touch exploration enabled. Captures are in `docs/design/redesign/screenshots/after/talkback/`. Spoken audio was not monitored, so pronunciation and audio timing are not claimed as passed. Existing accessibility services were preserved and TalkBack was removed from the enabled list afterward.
 - Source and fixture checks: 48 dp minimum action targets; headings and selection/disabled states; a single full round-preview announcement; a visible scalable equivalent at large text; whole-row named switches; explicit status text and icons; no colour-only critical state.

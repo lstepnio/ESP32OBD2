@@ -16,9 +16,7 @@ fun readingName(id: String): String = when (id) {
 
 /** Editor cursor fields are not part of the transmitted page/alert payload. */
 fun sameSettings(first: Draft?, second: Draft): Boolean = first != null && first.pages == second.pages &&
-    first.source == second.source && first.warning == second.warning && first.critical == second.critical &&
-    first.hysteresis == second.hysteresis && first.triggerDwellMs == second.triggerDwellMs &&
-    first.clearDwellMs == second.clearDwellMs
+    first.source == second.source && first.alerts == second.alerts
 
 fun pageUi(page: GaugePageDraft): PageUi {
     val reading = demoCatalog.first { it.id == page.pidIds.first() }
@@ -35,14 +33,21 @@ fun readingUi(pid: PidExample) = ReadingUi(pid.id, readingName(pid.id), pid.unit
     DetailUi("Availability", "Example only. Vehicle support has not been checked."),
 ))
 
+fun alertUi(alert: GaugeAlertDraft): AlertUi {
+    val reading = demoCatalog.first { it.id == alert.pidId }
+    return AlertUi(alert.id, alert.pidId, readingName(alert.pidId), reading.unit,
+        if (alert.direction == AlertDirection.Above) "above" else "below", alert.warning, alert.critical,
+        alert.hysteresis, alert.triggerDwellMs / 1000f, alert.clearDwellMs / 1000f, readingRange(alert.pidId))
+}
+
 fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> = buildList {
     ConfigurationProjector.blockers(draft).forEach { raw ->
         add(when {
-            "hysteresis" in raw -> "Leave more space between warning and critical temperatures. Adjust the limits."
+            "reset margin" in raw -> "Leave more space between warning and critical. Adjust the limits."
             "adapter" in raw -> "This reading cannot be sent from the second adapter. Choose a main-adapter reading."
             "cannot execute" in raw -> "A page uses an unavailable reading. Choose a supported reading."
-            "Critical temperature" in raw -> "Critical must be above warning. Raise the critical limit."
-            "limits must" in raw -> "Coolant limits must be between -40 and 215 °C. Adjust the limits."
+            "critical limit" in raw -> "Move the critical limit farther than the warning limit."
+            "outside its supported range" in raw -> "Choose limits within this reading's supported range."
             "timing" in raw -> "The alert delay is out of range. Choose a delay of 60 seconds or less."
             else -> "A page needs a valid reading and layout. Review your pages."
         })
@@ -97,7 +102,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         !found -> StatusUi("Your gauge is not connected", "Connect to check its current settings.", StatusTone.Neutral)
         needsCheck -> StatusUi("Check your gauge before sending", "We will read its current settings so newer changes are protected.")
         blockers.isNotEmpty() -> StatusUi("A page needs attention", blockers.first(), StatusTone.Stale)
-        else -> StatusUi("Changes ready to send", "${pages.size} pages · Coolant warnings included")
+        else -> StatusUi("Changes ready to send", "${pages.size} pages · ${draft.alerts.size} alerts")
     }
     val homeAction = when {
         connection.phase in setOf(ConnectionPhase.PermissionRequired, ConnectionPhase.BluetoothOff,
@@ -138,8 +143,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             }; HomeAction.Check -> "Check gauge"
                 HomeAction.Review -> "Review and send"; HomeAction.Customize -> "Customize" }, homeAction, busy, details),
         CustomizeUiState(pages, editingPageIndex, demoCatalog.filter { it.id in ConfigurationProjector.supportedPidIds }.map(::readingUi),
-            draft.warning, draft.critical, draft.hysteresis, draft.triggerDwellMs / 1000f, draft.clearDwellMs / 1000f,
-            blockers, canSend, needsCheck, found, busy, profileError == null && !busy, prefs.advanced,
+            draft.alerts.map(::alertUi), blockers, canSend, needsCheck, found, busy, profileError == null && !busy, prefs.advanced,
             capabilities?.supportedRenderers.orEmpty(), details),
         car,
         SettingsUiState(prefs.gaugeName, found, savedGauge?.rotation, found && capabilities?.displayRotationWrite == true,

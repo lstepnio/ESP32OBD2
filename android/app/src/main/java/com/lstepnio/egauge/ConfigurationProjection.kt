@@ -12,21 +12,27 @@ data class ProjectedPage(
     val secondaryPidId: String? = null,
 )
 
-data class ConfigurationProjection(
-    val pages: List<ProjectedPage>,
+data class ProjectedAlert(
+    val id: String,
+    val pidId: String,
+    val direction: AlertDirection,
     val warning: Int,
     val critical: Int,
     val hysteresis: Int,
     val triggerDwellMs: Int,
     val clearDwellMs: Int,
+)
+
+data class ConfigurationProjection(
+    val pages: List<ProjectedPage>,
+    val alerts: List<ProjectedAlert>,
 ) {
     fun reviewLines(): List<String> = pages.mapIndexed { index, page ->
         val values = listOfNotNull(page.pidId, page.secondaryPidId).joinToString(" + ")
         "${index + 1}. ${page.label} • ${page.renderer} • $values"
-    } + listOf(
-        "Coolant warning at $warning °C; critical at $critical °C",
-        "Alert after ${triggerDwellMs / 1000.0} s; clear after ${clearDwellMs / 1000.0} s; hysteresis $hysteresis °C",
-    )
+    } + alerts.map { alert ->
+        "${alert.pidId}: warn ${alert.direction.name.lowercase()} ${alert.warning}; critical ${alert.direction.name.lowercase()} ${alert.critical}"
+    }
 }
 
 object ConfigurationProjector {
@@ -53,14 +59,24 @@ object ConfigurationProjector {
             if (page.name.isBlank() || page.name.length > 32)
                 add("Page ${index + 1} needs a name of at most 32 characters")
         }
-        if (draft.warning !in -40..215 || draft.critical !in -40..215)
-            add("Coolant limits must be between -40 and 215 °C")
-        if (draft.warning >= draft.critical) add("Critical temperature must be above warning")
-        if (draft.hysteresis !in 0..20 || draft.warning - draft.hysteresis < -40 ||
-            draft.warning + draft.hysteresis >= draft.critical)
-            add("Coolant hysteresis does not fit the selected limits")
-        if (draft.triggerDwellMs !in 0..60000 || draft.clearDwellMs !in 0..60000)
-            add("Alert timing is outside the supported range")
+        if (draft.alerts.size > 32) add("Choose up to 32 alerts")
+        if (draft.alerts.map { it.id }.distinct().size != draft.alerts.size) add("Every alert needs a unique identity")
+        if (draft.alerts.map { it.pidId }.distinct().size != draft.alerts.size) add("Choose each reading only once for alerts")
+        draft.alerts.forEach { alert ->
+            val range = readingRange(alert.pidId)
+            if (alert.pidId !in supportedPidIds) add("An alert uses a reading this firmware cannot execute")
+            if (alert.warning !in range || alert.critical !in range) add("${alert.pidId} alert limits are outside its supported range")
+            val ordered = if (alert.direction == AlertDirection.Above) alert.warning < alert.critical else alert.warning > alert.critical
+            if (!ordered) add("${alert.pidId} critical limit must be beyond its warning limit")
+            if (alert.hysteresis !in 0..20 || alert.hysteresis >= range.last - range.first)
+                add("${alert.pidId} alert reset margin is outside the supported range")
+            val marginFits = if (alert.direction == AlertDirection.Above)
+                alert.warning + alert.hysteresis < alert.critical
+            else alert.warning - alert.hysteresis > alert.critical
+            if (!marginFits) add("${alert.pidId} alert reset margin needs more space between warning and critical")
+            if (alert.triggerDwellMs !in 0..60000 || alert.clearDwellMs !in 0..60000)
+                add("${alert.pidId} alert timing is outside the supported range")
+        }
     }
 
     fun project(template: String, draft: Draft, profileId: String,
@@ -71,8 +87,8 @@ object ConfigurationProjector {
         json.put("baseRevision", baseRevision)
         json.put("vehicleProfileId", profileId)
         val pages = JSONArray()
-        val requiredDefinitions = draft.pages.flatMap { it.pidIds }
-            .map { definitionIds.getValue(it) }.toMutableSet().apply { add("engine.coolant") }
+        val requiredDefinitions = (draft.pages.flatMap { it.pidIds } + draft.alerts.map { it.pidId })
+            .map { definitionIds.getValue(it) }.toMutableSet()
         val availableDefinitions = json.getJSONArray("definitions")
         val definitions = JSONArray()
         for (index in 0 until availableDefinitions.length()) {
@@ -91,21 +107,29 @@ object ConfigurationProjector {
                 .put("pidIds", JSONArray(page.pidIds.map { definitionIds.getValue(it) })))
         }
         json.put("pages", pages)
-        val alert = json.getJSONArray("alerts").getJSONObject(0)
-        alert.put("warning", draft.warning).put("critical", draft.critical)
-            .put("hysteresis", draft.hysteresis).put("triggerDwellMs", draft.triggerDwellMs)
-            .put("clearDwellMs", draft.clearDwellMs)
+        json.put("alerts", JSONArray().also { alerts ->
+            draft.alerts.forEach { alert ->
+                alerts.put(JSONObject()
+                    .put("id", alert.id)
+                    .put("pidId", definitionIds.getValue(alert.pidId))
+                    .put("direction", alert.direction.name.lowercase(Locale.ROOT))
+                    .put("warning", alert.warning)
+                    .put("critical", alert.critical)
+                    .put("hysteresis", alert.hysteresis)
+                    .put("triggerDwellMs", alert.triggerDwellMs)
+                    .put("clearDwellMs", alert.clearDwellMs)
+                    .put("snoozeMs", 0)
+                    .put("priority", alert.priority))
+            }
+        })
         val projection = ConfigurationProjection(
             pages = draft.pages.map { page ->
                 ProjectedPage(page.id, page.name, definitionIds.getValue(page.pidIds[0]),
                     page.layout.name.lowercase(Locale.ROOT),
                     page.pidIds.getOrNull(1)?.let { definitionIds.getValue(it) })
             },
-            warning = draft.warning,
-            critical = draft.critical,
-            hysteresis = draft.hysteresis,
-            triggerDwellMs = draft.triggerDwellMs,
-            clearDwellMs = draft.clearDwellMs,
+            alerts = draft.alerts.map { alert -> ProjectedAlert(alert.id, definitionIds.getValue(alert.pidId),
+                alert.direction, alert.warning, alert.critical, alert.hysteresis, alert.triggerDwellMs, alert.clearDwellMs) },
         )
         return projection to json.toString().toByteArray(Charsets.UTF_8)
     }

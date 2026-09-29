@@ -12,7 +12,7 @@ Body text is 16 sp; labels are 14 sp; titles are 32 sp. Reading values are 64 sp
 
 ## Navigation and tasks
 
-Gauge, Car and Settings are the default destinations. Settings has one **Show advanced tools** toggle, revealing Expert and advanced fields. Customize is a nested flow: readings and page order, layouts, limits, then a full send review. Setup walks through discovery, physical-code association and adapter availability. Details is a named sheet with selectable text, reachable from every feature.
+Gauge, Car and Settings are the default destinations. Settings has one **Show advanced tools** toggle, revealing Expert and advanced fields. Customize is a preview-led dashboard for pages, layouts and reading-specific alerts, followed by a full send review. Setup walks through discovery, physical-code association and adapter availability. Details is a named sheet with selectable text, reachable from every feature.
 
 Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp it can show preview and controls side by side; large text returns content to a stack. Respect system bars, keyboard insets, fold hinges and predictive back.
 
@@ -33,7 +33,7 @@ Status card, connection pill, round preview, reading tile, page carousel, limit 
 
 Buttons use verbs: **Find gauge**, **Pair gauge**, **Customize**, **Send to gauge**, **Check gauge**, **Install**. Default copy never exposes revision, hash, PID, ECU, transport phase or source-model terminology. Errors finish with one next step. Detailed facts remain exact and selectable in the scrollable sheet. Settings switches and radio options use the entire named row as a target. No account, analytics or secrets in logs/export/backup.
 
-Only coolant limits are currently transmitted. Default labels are **Warn above** and **Critical above**. Reset margin and timing remain inspectable in Details and editable with advanced tools enabled. Unsupported layouts or sources stay preview-only with an explanation before send. All transmitted pages and alert settings are included in review.
+Each supported standard reading can have one transmitted alert. People choose whether it should alert when the value rises above or falls below limits. Default labels are **Warn above**, **Critical above**, **Warn below**, and **Critical below**. Reset margin and timing remain inspectable in Details. Unsupported layouts, readings, or sources stay preview-only with an explanation before send. All transmitted pages and alert settings are included in review.
 
 ## Artifacts and verification
 

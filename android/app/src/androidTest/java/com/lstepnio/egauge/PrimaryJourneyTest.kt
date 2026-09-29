@@ -3,7 +3,9 @@ package com.lstepnio.egauge
 import androidx.compose.ui.test.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import android.graphics.Bitmap
+import androidx.lifecycle.ViewModelProvider
 import androidx.test.platform.app.InstrumentationRegistry
+import com.lstepnio.egauge.ui.state.readingName
 import java.io.File
 import org.junit.Rule
 import org.junit.Test
@@ -34,19 +36,48 @@ class PrimaryJourneyTest {
         capture("updates")
     }
 
-    @Test fun customizeIsAGuidedFlowWithOnePrimaryAction() {
+    @Test fun customizeUsesThePreviewLedEditorWithOnePrimaryAction() {
         compose.onNodeWithText("Customize").performScrollTo().performClick()
-        compose.onNodeWithText("Choose readings").assertIsDisplayed()
-        capture("readings")
+        compose.onNodeWithText("Edit page").assertIsDisplayed()
+        capture("dashboard")
         compose.onAllNodesWithTag("primary-action").assertCountEquals(1)
         assertNoJargon()
-        compose.onNodeWithText("Choose layouts").performScrollTo().performClick()
-        capture("layouts")
-        compose.onNodeWithText("Set limits").performScrollTo().performClick()
-        capture("limits")
+        compose.onNodeWithText("Manage pages").performScrollTo().performClick()
+        compose.onNodeWithText("Add page").assertIsDisplayed()
+        val pageCount = compose.onAllNodesWithText("Remove page").fetchSemanticsNodes().size
+        compose.onNodeWithText("Add page").performClick()
+        compose.onAllNodesWithText("Remove page").assertCountEquals(pageCount + 1)
+        compose.onAllNodesWithText("Remove page").onFirst().performClick()
+        compose.onAllNodesWithText("Remove page").assertCountEquals(pageCount)
+        capture("manage-pages")
+        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.onNodeWithText("Edit page").performScrollTo().performClick()
+        compose.onNodeWithText("Layout").performScrollTo().assertIsDisplayed()
+        capture("page-editor")
+        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.onNodeWithText("Alerts").performScrollTo().performClick()
+        compose.onNodeWithText("Edit alert").performScrollTo().performClick()
         compose.onNodeWithText("Warn above").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Review pages").performScrollTo().performClick()
-        compose.onNodeWithText("Review your gauge").assertIsDisplayed()
+        capture("alerts")
+        compose.onNodeWithText("Save alert").performScrollTo().performClick()
+        val model = ViewModelProvider(compose.activity)[AppViewModel::class.java]
+        val alertCount = model.draft.alerts.size
+        val available = demoCatalog.firstOrNull { it.id in ConfigurationProjector.supportedPidIds &&
+            model.draft.alerts.none { alert -> alert.pidId == it.id } }
+        available?.let { reading ->
+            compose.onNodeWithText("Alerts").performScrollTo().performClick()
+            compose.onNodeWithText("Add alert").performScrollTo().performClick()
+            compose.onNodeWithText(readingName(reading.id)).performScrollTo().performClick()
+            compose.onNodeWithText("${readingName(reading.id)} alert").assertIsDisplayed()
+            compose.onNodeWithText("Save alert").performScrollTo().performClick()
+            compose.onNodeWithText("Alerts").performScrollTo().performClick()
+            compose.onAllNodesWithText("Remove alert").assertCountEquals(alertCount + 1)
+            compose.onAllNodesWithText("Remove alert")[alertCount].performClick()
+            compose.onAllNodesWithText("Remove alert").assertCountEquals(alertCount)
+        }
+        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.onNodeWithText("Review and send").performScrollTo().performClick()
+        compose.onNodeWithText("Review and send").assertIsDisplayed()
         capture("review")
         compose.onAllNodesWithTag("primary-action").assertCountEquals(1)
         assertNoJargon()

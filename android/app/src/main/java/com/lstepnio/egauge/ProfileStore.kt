@@ -41,9 +41,10 @@ class ProfileStore(context: Context) {
         val draft = Draft(
             pidId = legacy.getString("pid", "rpm")?.takeIf { id -> demoCatalog.any { it.id == id } } ?: "rpm",
             layout = layout,
-            warning = legacy.getInt("warning", 105).coerceIn(-40, 250),
-            critical = legacy.getInt("critical", 115).coerceIn(-40, 250),
             source = legacy.getString("source", "ECM")?.takeIf { it == "ECM" || it == "TCM" } ?: "ECM",
+            alerts = listOf(GaugeAlertDraft("alert.coolant", "coolant", AlertDirection.Above,
+                legacy.getInt("warning", 105).coerceIn(readingRange("coolant")),
+                legacy.getInt("critical", 115).coerceIn(readingRange("coolant")))),
         )
         val collection = ProfileCollection("default", listOf(VehicleProfile("default", "My vehicle", draft)))
         save(collection)
