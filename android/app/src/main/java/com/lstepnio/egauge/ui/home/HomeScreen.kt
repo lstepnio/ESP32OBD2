@@ -19,10 +19,15 @@ import com.lstepnio.egauge.ui.state.*
 
 @Composable
 fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Unit,
-               onEditPage: (Int) -> Unit = {}, statusInBanner: Boolean = false) {
+               onEditPage: (Int) -> Unit = {}, onUpdates: () -> Unit = {}) {
     val pager = rememberPagerState(pageCount = { state.pages.size })
     ScreenContent {
-        ScreenTitle(state.gaugeName, trailing = { ConnectionPill(state.connection, state.connectionVerified) })
+        ScreenTitle(state.gaugeName, trailing = { ConnectionPill(state.connection, state.connectionVerified,
+            icon = when (state.updateNotice) {
+                UpdateNotice.Ready -> GaugeIcon.Download
+                UpdateNotice.NeedsCheck -> GaugeIcon.Warning
+                UpdateNotice.None -> null
+            }, onClick = if (state.updateNotice == UpdateNotice.None) null else onUpdates) })
         ResponsivePanels(first = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 HorizontalPager(pager, modifier = Modifier.fillMaxWidth().testTag("page-carousel")) { index ->
@@ -36,7 +41,8 @@ fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Uni
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (!statusInBanner) StatusCard(state.status)
+                if (state.status.tone in setOf(StatusTone.Error, StatusTone.Stale,
+                    StatusTone.Offline, StatusTone.Critical)) StatusCard(state.status)
                 PrimaryAction(state.primaryLabel, onPrimary, enabled = !state.busy)
                 if (state.primaryAction != HomeAction.Customize)
                     OutlinedButton(onCustomize, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Customize") }

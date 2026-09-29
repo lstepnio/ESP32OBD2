@@ -12,6 +12,11 @@ data class OperationUi(
     val needsCheck: Boolean = false, val update: Boolean = false,
 )
 
+/** Only a proven, terminal transfer success may leave the persistent activity area. */
+fun successBannerMayDismiss(state: OperationUi): Boolean =
+    state.visible && state.kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
+        !state.busy && !state.needsCheck && state.status.tone == StatusTone.Success
+
 /** Presentation must be stricter than a generic ACTIVE stage, which also represents successful reads. */
 fun isConfirmedSetup(expectedRevision: Long?, expectedHash: String?,
                      runtime: GaugeConfigTransferClient.RuntimeIdentity?): Boolean =
@@ -39,7 +44,7 @@ fun operationUi(state: OperationState, confirmedSetup: Boolean = false): Operati
                 StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success)
             state.kind == OperationKind.CONFIGURATION ->
                 StatusUi("Gauge response received", "Check your gauge to confirm the change.")
-            else -> StatusUi("Gauge checked", "The latest response is available in Expert > Diagnostics.")
+            else -> StatusUi("Gauge checked", "Your gauge responded to the check.")
         }
         OperationStage.RECOVERED -> StatusUi("Earlier settings are running", "Your gauge restored its previous setup. Review your changes before sending again.", StatusTone.Stale)
         OperationStage.FAILED -> friendlyFailure(state.detail, update)

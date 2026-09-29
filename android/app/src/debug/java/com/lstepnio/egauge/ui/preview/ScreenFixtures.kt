@@ -23,7 +23,7 @@ import com.lstepnio.egauge.ui.state.*
 
 /** Debug-only examples. These render production screens with no device, repository or ViewModel. */
 object ScreenFixtures {
-    val names = listOf("setup", "pair", "gauge", "readings", "layouts", "limits", "pages", "alert", "review", "car", "updates", "recovery", "settings", "expert")
+    val names = listOf("setup", "pair", "gauge", "readings", "layouts", "limits", "pages", "alert", "review", "car", "updates", "recovery", "settings", "expert", "expert-data")
     private val details = listOf(DetailUi("Example identifier", "preview-gauge"),
         DetailUi("Example revision", "7"), DetailUi("Example SHA-256", "a".repeat(64)))
     private val pages = listOf(
@@ -53,10 +53,10 @@ object ScreenFixtures {
         "Example update", progressPercent = 64))
     private val updates = UpdatesUiState(update.status, "Example 1.1", "Example 1.0", false, false,
         true, true, false, details)
-    private val expert = ExpertUiState(demoCatalog.map(::readingUi), true, true, true, false, details,
+    private val expert = ExpertUiState(demoCatalog.map(::readingUi), true, true, true, false, false, details,
         "", "All", "rpm", "41 0C 2C 60", StatusUi("Example result: 2,840 rpm"), "01 0C", "ECM",
         StatusUi("Example request"), "Not run", false)
-    private val expertActions = ExpertActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+    private val expertActions = ExpertActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
 
     @Composable
     fun Screen(name: String) {
@@ -85,7 +85,8 @@ object ScreenFixtures {
                     "car" -> CarScreen(car, {}, {}, {}, {})
                     "updates" -> UpdatesScreen(updates, update, true, {}, {}, {}, {}, {})
                     "settings" -> SettingsScreen(settings, {}, {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {})
-                    "expert" -> ExpertScreen(expert, "", {}, {}, false, expertActions)
+                    "expert" -> ExpertScreen(expert, "", {}, {}, expertActions)
+                    "expert-data" -> ExpertScreen(expert, "Device data", {}, {}, expertActions)
                     else -> error("Unknown screen fixture: $name")
                 }
             }

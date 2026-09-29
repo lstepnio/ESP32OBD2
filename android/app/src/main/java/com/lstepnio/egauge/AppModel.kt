@@ -18,8 +18,11 @@ import kotlinx.coroutines.delay
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withTimeout
 
@@ -167,8 +170,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val foregroundConnection by lazy {
         ForegroundConnectionController(viewModelScope, operationCoordinator, ::automaticConnectionAttempt)
     }
+    private val automaticUpdateHold = AutomaticUpdateHoldStore(application)
+    private var connectionForeground = false
+    private var automaticUpdateJob: Job? = null
+    private var nextAutomaticUpdateCheckAtElapsedMs = 0L
 
-    fun setConnectionForeground(value: Boolean) = foregroundConnection.setForeground(value)
+    fun setConnectionForeground(value: Boolean) {
+        connectionForeground = value
+        foregroundConnection.setForeground(value)
+        if (!value) {
+            automaticUpdateJob?.cancel()
+            nextAutomaticUpdateCheckAtElapsedMs = 0L
+        }
+    }
     fun retryConnection() = foregroundConnection.retrySoon()
 
     @SuppressLint("MissingPermission")
@@ -229,6 +243,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 connectionChecked()
                 rediscoverGauge = false
+                maybeCheckForFirmware(client, device)
                 // Clear transient read failures only. Never erase a send/update recovery outcome.
                 if (operation.terminal && operation.kind in setOf(OperationKind.READ, OperationKind.DISCOVERY) &&
                     operation.stage != OperationStage.RECOVERED) operation = OperationState.Idle
@@ -240,6 +255,79 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             throw cancelled
         } catch (error: Exception) {
             return connectionRetry(error.message ?: "Could not check the gauge")
+        }
+    }
+
+    /** Discovery stays a foreground concern. GitHub work is quiet and never starts an OTA. */
+    @SuppressLint("MissingPermission")
+    private suspend fun maybeCheckForFirmware(client: GaugeConfigTransferClient, device: BluetoothDevice) {
+        val caps = capabilities ?: return
+        val gaugeId = rememberedGaugeId ?: return
+        if (!connectionForeground || ownerAccess != OwnerAccess.AUTHENTICATED ||
+            caps.board != "ESP32-S3-Touch-LCD-1.28" || !caps.experimentalNumericConfig ||
+            updateInProgress || hostedUpdateBusy || automaticUpdateJob?.isActive == true ||
+            updateRecoveryResult?.state !in setOf(null, UpdateRecoveryState.INSTALLED) ||
+            (selectedUpdate != null && hostedUpdate == null)) return
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now < nextAutomaticUpdateCheckAtElapsedMs) return
+        nextAutomaticUpdateCheckAtElapsedMs = now + 15 * 60_000L
+        val running = try {
+            client.readBootIdentity(device)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return
+        }
+        bootIdentity = running
+        if (running.otaState != 2) {
+            updatePreparation = "held"
+            hostedUpdateMessage = "Your gauge is still checking its current update. Check its installed version before trying again."
+            return
+        }
+        automaticUpdateJob = viewModelScope.launch {
+            try {
+                val source = GitHubFirmwareSource(getApplication())
+                val candidate = source.check(caps)
+                currentCoroutineContext().ensureActive()
+                if (!connectionForeground || rememberedGaugeId != gaugeId || updateInProgress) return@launch
+                when (automaticUpdateDecision(running.version, running.otaState,
+                    candidate.release.version, candidate.release.bundleSha256,
+                    automaticUpdateHold.digestFor(gaugeId),
+                    updateRecoveryResult?.state !in setOf(null, UpdateRecoveryState.INSTALLED))) {
+                    AutomaticUpdateDecision.CURRENT -> {
+                        hostedUpdate = null
+                        selectedUpdate = null
+                        updatePreparation = "current"
+                    }
+                    AutomaticUpdateDecision.HELD, AutomaticUpdateDecision.WAIT_FOR_GAUGE -> {
+                        hostedUpdate = null
+                        selectedUpdate = null
+                        updatePreparation = "held"
+                        hostedUpdateMessage = "This update did not finish last time. Check the installed version before trying again."
+                    }
+                    AutomaticUpdateDecision.READY -> {
+                        if (hostedUpdate?.release?.bundleSha256 != candidate.release.bundleSha256 || selectedUpdate == null) {
+                            hostedUpdate = null
+                            selectedUpdate = null
+                            val downloaded = source.download(candidate)
+                            currentCoroutineContext().ensureActive()
+                            if (!connectionForeground || rememberedGaugeId != gaugeId || updateInProgress) return@launch
+                            // The source verifies the signed catalog and complete bundle before either becomes visible.
+                            hostedUpdate = downloaded
+                            selectedUpdate = requireNotNull(downloaded.bundle)
+                            updatePackageMessage = "Signed development update ${downloaded.release.version} is ready"
+                        }
+                        updatePreparation = "ready"
+                    }
+                }
+                nextAutomaticUpdateCheckAtElapsedMs = android.os.SystemClock.elapsedRealtime() + 6 * 60 * 60_000L
+            } catch (cancelled: CancellationException) {
+                nextAutomaticUpdateCheckAtElapsedMs = 0L
+                throw cancelled
+            } catch (_: Exception) {
+                // A background network failure does not change the gauge's connection or show a false update.
+                nextAutomaticUpdateCheckAtElapsedMs = android.os.SystemClock.elapsedRealtime() + 15 * 60_000L
+            }
         }
     }
 
@@ -421,8 +509,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var advancedReadingsOpen by mutableStateOf(false)
         private set
-    var technicalDetailsOpen by mutableStateOf(false)
-        private set
     var advancedConnectionsOpen by mutableStateOf(false)
         private set
     var operation by mutableStateOf(OperationState.Idle)
@@ -436,12 +522,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun editLabInput(value: String) { labInput = value.take(128) }
     fun showCustomLab(value: Boolean) { customLabOpen = value }
     fun showAdvancedReadings(value: Boolean) { advancedReadingsOpen = value }
-    fun showTechnicalDetails(value: Boolean) {
-        technicalDetailsOpen = value
-        if (value && capabilities?.hardwareCapacityVersion == 1 &&
-            hardwareSnapshot == null && !scanning)
-            readHardwareCapacity()
-    }
     fun showAdvancedConnections(value: Boolean) { advancedConnectionsOpen = value }
     fun editCustomRequest(value: String) { customRequestInput = value.take(32) }
     fun selectCustomSource(value: String) { if (value == "ECM" || value == "TCM") customSource = value }
@@ -666,6 +746,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         deviceMessage = recovery?.message ?: "Protected running firmware identity read."
     }
     fun updatePackageLoaded(value: DevUpdateBundle) {
+        automaticUpdateJob?.cancel()
+        hostedUpdate = null
         selectedUpdate = value
         val hash = value.sha256.joinToString("") { "%02x".format(it) }
         updatePackageMessage = "Development signature valid • ${value.image.size} bytes • SHA-256 ${hash.take(12)}…"
@@ -675,6 +757,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         updateMayHaveChangedGauge = false
         scanning = true
         val bundle = updateBundle()
+        val hosted = hostedUpdate
+        val gaugeId = rememberedGaugeId
+        if (hosted?.bundle?.sha256?.contentEquals(bundle.sha256) == true && gaugeId != null)
+            automaticUpdateHold.hold(gaugeId, hosted.release.bundleSha256)
         updateJournal.write(
             associationStore.rememberedId() ?: "unknown",
             bundle.sha256.joinToString("") { "%02x".format(it) },
@@ -744,11 +830,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         displaySettings = null
         rediscoverGauge = true
         foregroundConnection.retrySoon()
+        bootIdentity = value.running
+        hostedUpdate = null
+        selectedUpdate = null
+        updatePreparation = "current"
+        rememberedGaugeId?.let(automaticUpdateHold::clear)
+        nextAutomaticUpdateCheckAtElapsedMs = android.os.SystemClock.elapsedRealtime() + 6 * 60 * 60_000L
         updateJournal.clear()
         pendingUpdateRecovery = null
         updateRecoveryResult = UpdateRecoveryResult(UpdateRecoveryState.INSTALLED,
             "The new firmware is confirmed healthy.", true)
-        updatePackageMessage = "Gauge confirmed new image at 0x${value.partitionAddress.toString(16)} • ELF SHA-256 ${value.elfSha256.take(12)}…"
+        updatePackageMessage = "Gauge confirmed new image at 0x${value.running.partitionAddress.toString(16)} • ELF SHA-256 ${value.running.elfSha256.take(12)}…"
     }
     fun updateFailed(message: String) {
         updateInProgress = false
@@ -769,6 +861,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             updateRecoveryResult = null
         }
         updateMayHaveChangedGauge = false
+        if (hostedUpdate != null) {
+            hostedUpdate = null
+            selectedUpdate = null
+            updatePreparation = "held"
+        }
         updatePackageMessage = message
     }
     fun installSelectedUpdate() {
@@ -1048,6 +1145,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun checkHostedFirmware() {
         if (hostedUpdateBusy) return
+        automaticUpdateJob?.cancel()
+        selectedUpdate = null
         val caps = capabilities ?: run {
             hostedUpdateMessage = "Find the gauge before checking firmware compatibility"
             return

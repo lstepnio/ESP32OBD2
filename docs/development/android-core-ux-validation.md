@@ -85,3 +85,13 @@ These are physical phone observations and authenticated responses from the power
 No live OBD telemetry, actual fault-code clearing, firmware flashing, LVGL changes, public capability enablement, real power-loss injection or deliberate broken-signature installation was performed. Adapter setup, custom-definition execution, second-adapter connection, brightness control and production updates show honest unavailable states. Existing expert tools remain reachable.
 
 The first-time setup under two minutes acceptance target cannot be established with the current missing adapter path. A fresh-owner participant run, real vehicle qualification, physical foldables, gesture Back, full RTL, update interruption/rollback, performance and full spoken-audio accessibility qualification remain separate work. This redesign does not claim those paths are implemented or verified.
+
+## Later navigation change
+
+The generic Details control was removed from Gauge, Setup, Customize, Car, Settings, Updates, Expert, and the global error card. Expert > Device data now contains the allowlisted technical report; Expert diagnostics retains the saved-settings adoption action. The activity sheet shows only human status and stage progress. Earlier screenshots and accessibility observations above record the previous build and are not evidence of this revised navigation.
+
+For this revision, the paired Pixel 10 Pro ran five scoped screenshot and accessibility tests. All 76 light/dark, compact/expanded fixture goldens matched, including four new Expert > Device data images; the changed compact screens were visually reviewed. The default-screen test found no Details control or example digest in the everyday fixtures, and found the digest in Expert. A separate live-app, read-only navigation pass observed the Home screen without Details and opened Expert > Device data with the real gauge identifier and an authenticated status displayed. That pass did not send settings, install firmware, query a vehicle, or test the physical gauge display. The Pixel's wake settings were restored afterward.
+
+## Completed activity banner
+
+A later presentation change keeps the banner visible during a transfer and for outcomes requiring a check. Only a proven successful send or update shows Dismiss and clears automatically after six seconds. Home then returns to its ordinary status card. The Pixel ran three simulated Compose tests for delayed success dismissal, immediate dismissal, and an unknown outcome that remains visible. The unit copy test also rejects dismissal for unconfirmed, in-progress, rolled-back, and unknown states. This change was not timed after a physical send or update; no new gauge operation was performed.

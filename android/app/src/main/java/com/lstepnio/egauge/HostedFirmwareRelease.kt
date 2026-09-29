@@ -2,6 +2,8 @@ package com.lstepnio.egauge
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -231,6 +233,7 @@ class GitHubFirmwareSource(private val context: Context) {
         val publicKey = HostedFirmwareCatalogCodec.publicKey(pem)
         val candidates = mutableListOf<HostedCatalogCandidate>()
         for (index in 0 until releases.length()) {
+            currentCoroutineContext().ensureActive()
             val release = releases.getJSONObject(index)
             if (release.getBoolean("draft")) continue
             val assets = release.getJSONArray("assets")
@@ -281,8 +284,10 @@ class GitHubFirmwareSource(private val context: Context) {
     }
 
     suspend fun download(update: HostedUpdate): HostedUpdate = withContext(Dispatchers.IO) {
+        currentCoroutineContext().ensureActive()
         val release = update.release
         val bytes = download(URL(release.bundleUrl), release.bundleBytes + 1)
+        currentCoroutineContext().ensureActive()
         require(bytes.size == release.bundleBytes) { "Downloaded firmware bundle size does not match the catalog" }
         val digest = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
         require(digest == release.bundleSha256) { "Downloaded firmware bundle failed catalog verification" }
