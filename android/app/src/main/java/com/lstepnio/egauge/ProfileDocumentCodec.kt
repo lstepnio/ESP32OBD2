@@ -66,8 +66,10 @@ object ProfileDocumentCodec {
             )
             require(draft.source == "ECM" || draft.source == "TCM") { "Profile source is invalid" }
             require(draft.alerts.map { it.id }.distinct().size == draft.alerts.size &&
-                draft.alerts.all { alert -> alert.warning in readingRange(alert.pidId) &&
-                    alert.critical in readingRange(alert.pidId) && alert.hysteresis in 0..20 &&
+                draft.alerts.all { alert ->
+                    // Older apps accepted 16384. Keep those profiles readable so the editor can fix the limit.
+                    val storedRange = if (alert.pidId == "rpm") 0..16384 else readingRange(alert.pidId)
+                    alert.warning in storedRange && alert.critical in storedRange && alert.hysteresis in 0..20 &&
                     alert.triggerDwellMs in 0..60000 && alert.clearDwellMs in 0..60000 }) {
                 "Profile alert settings are invalid"
             }

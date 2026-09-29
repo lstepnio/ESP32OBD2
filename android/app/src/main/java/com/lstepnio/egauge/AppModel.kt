@@ -89,7 +89,7 @@ data class GaugeAlertDraft(
 )
 
 fun readingRange(id: String): IntRange = when (id) {
-    "rpm" -> 0..16384
+    "rpm" -> 0..16383 // Largest whole-number threshold within the decoder's 16383.75 maximum.
     "coolant" -> -40..215
     "speed" -> 0..255
     "load", "fuel" -> 0..100
@@ -1123,21 +1123,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         save(draft.copy(pidId = page.pidIds[0], layout = page.layout, source = "ECM"))
     }
 
-    fun addPage() {
-        if (draft.pages.size >= 8) return
+    fun addPage(pidId: String = "rpm") {
+        if (draft.pages.size >= 8 || pidId !in ConfigurationProjector.supportedPidIds) return
         val used = draft.pages.map { it.id }.toSet()
         val sequence = (1..99).first { "page.custom.$it" !in used }
-        val page = GaugePageDraft("page.custom.$sequence", "ENGINE RPM", GaugeLayout.Numeric,
-            listOf("rpm"))
+        val page = GaugePageDraft("page.custom.$sequence", demoCatalog.first { it.id == pidId }.gaugeLabel,
+            GaugeLayout.Numeric, listOf(pidId))
         editingPageIndex = draft.pages.size
-        save(draft.copy(pidId = "rpm", layout = GaugeLayout.Numeric, source = "ECM",
+        save(draft.copy(pidId = pidId, layout = GaugeLayout.Numeric, source = "ECM",
             pages = draft.pages + page))
     }
 
     fun removePage(index: Int) {
         if (draft.pages.size <= 1 || index !in draft.pages.indices) return
+        val selectedId = draft.pages.getOrNull(editingPageIndex)?.id
         val pages = draft.pages.toMutableList().also { it.removeAt(index) }
-        editingPageIndex = editingPageIndex.coerceAtMost(pages.lastIndex)
+        editingPageIndex = pages.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
+            ?: index.coerceAtMost(pages.lastIndex)
         val selected = pages[editingPageIndex]
         save(draft.copy(pidId = selected.pidIds[0], layout = selected.layout, pages = pages))
     }
@@ -1186,21 +1188,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids)
         save(draft.copy(layout = layout, pages = pages))
     }
-    fun addAlert(pidId: String) {
-        if (pidId !in ConfigurationProjector.supportedPidIds || draft.alerts.size >= 32 || draft.alerts.any { it.pidId == pidId }) return
-        save(draft.copy(alerts = draft.alerts + defaultAlert(pidId)))
+    /** Commit a completed form once. Opening or cancelling the editor never creates an alert. */
+    fun saveAlert(alert: GaugeAlertDraft) {
+        if (alert.pidId !in ConfigurationProjector.supportedPidIds) return
+        val previous = draft.alerts.firstOrNull { it.pidId == alert.pidId }
+        if (previous != null && previous.id != alert.id) return
+        val alerts = if (previous == null) draft.alerts + alert else draft.alerts.map {
+            if (it.id == previous.id) alert else it
+        }
+        if (alerts.size > 32 || alerts.map { it.id }.distinct().size != alerts.size ||
+            ConfigurationProjector.blockers(Draft(alerts = listOf(alert))).isNotEmpty()) return
+        save(draft.copy(alerts = alerts))
     }
     fun removeAlert(id: String) = save(draft.copy(alerts = draft.alerts.filterNot { it.id == id }))
-    fun updateAlert(id: String, transform: (GaugeAlertDraft) -> GaugeAlertDraft) {
-        if (draft.alerts.none { it.id == id }) return
-        save(draft.copy(alerts = draft.alerts.map { alert -> if (alert.id == id) transform(alert) else alert }))
-    }
-    fun setAlertWarning(id: String, value: Int) = updateAlert(id) { it.copy(warning = value) }
-    fun setAlertCritical(id: String, value: Int) = updateAlert(id) { it.copy(critical = value) }
-    fun setAlertDirection(id: String, value: AlertDirection) = updateAlert(id) { it.copy(direction = value) }
-    fun setAlertHysteresis(id: String, value: Int) = updateAlert(id) { it.copy(hysteresis = value.coerceIn(0, 20)) }
-    fun setAlertTriggerDwell(id: String, value: Int) = updateAlert(id) { it.copy(triggerDwellMs = value.coerceIn(0, 60000)) }
-    fun setAlertClearDwell(id: String, value: Int) = updateAlert(id) { it.copy(clearDwellMs = value.coerceIn(0, 60000)) }
     fun setSource(value: String) = save(draft.copy(source = value))
     fun setSecondAdapterEnabled(value: Boolean) {
         if (profileError != null) return

@@ -1,6 +1,6 @@
 # Android companion
 
-The companion opens around the round gauge preview. Gauge, Car and Settings are the default destinations. **Show advanced tools** in Settings reveals Expert. Customize opens a preview-led dashboard for editing pages, their order, and alerts.
+The companion opens around the round gauge preview. Gauge, Car and Settings are the default destinations. **Show advanced tools** in Settings reveals Expert. Customize keeps the selected page's preview, reading, layout and alerts in one workspace. Reading and layout choices open in focused sheets. Add page asks for a reading first; Manage pages handles ordering and removal. Alert changes stay in a local form until Save, with correct units and inline validation. Review and send remains in reach at the bottom.
 
 The [design audit](../docs/design/redesign/audit.md), [interactive concept](../design/prototype/index.html), [native fixture gallery](../design/prototype/native.html) and [validation record](../docs/development/android-core-ux-validation.md) distinguish implemented software, example screens, physical phone observations and protected gauge readback.
 
@@ -64,19 +64,19 @@ Historical hardware records remain available: [configuration transfer](../docs/d
 
 ## Previews and image checks
 
-Component `@Previews` use the eight states in `design/fixtures/ui-states.json`. Round-preview parameters cover all five layouts and normal, warning, critical, stale and offline states. Debug-only screen fixtures render 12 production screens in compact/expanded, light/dark and 200% text previews. Every screen fixture says Example and has no device or repository connection.
+Component `@Previews` use the eight states in `design/fixtures/ui-states.json`. Round-preview parameters cover all five layouts and normal, warning, critical, stale and offline states. Debug-only screen fixtures render 14 production screens in compact/expanded, light/dark and 200% text previews. Every screen fixture says Example and has no device or repository connection.
 
-`GoldenScreenshotTest` compares 64 checked-in images: 16 component states and 48 screen/layout/theme combinations. The baseline device is a Pixel 10 Pro, Android 17/API 37, using a fixed density and font scale inside the fixture renderer. Run on that baseline environment; a different font rasterizer or platform may need a separately reviewed baseline. Missing images fail. Differences above 0.05% of pixels, allowing three channel levels of antialias variation, fail and produce a diff image.
+`GoldenScreenshotTest` compares 72 checked-in images: 16 component states and 56 screen/layout/theme combinations. The baseline device is a Pixel 10 Pro, Android 17/API 37, using a fixed density and font scale inside the fixture renderer. Run on that baseline environment; a different font rasterizer or platform may need a separately reviewed baseline. Missing images fail. Differences above 0.05% of pixels, allowing three channel levels of antialias variation, fail and produce a diff image.
 
 Build `:app:assembleDebug :app:assembleDebugAndroidTest`, install both APKs with `adb install -r`, then run:
 
 ```bash
 adb shell am instrument -w -r \
-  -e class com.lstepnio.egauge.GoldenScreenshotTest,com.lstepnio.egauge.PrimaryJourneyTest,com.lstepnio.egauge.PresentationAccessibilityTest \
+  -e class com.lstepnio.egauge.GoldenScreenshotTest,com.lstepnio.egauge.PrimaryJourneyTest,com.lstepnio.egauge.CustomizeJourneyTest,com.lstepnio.egauge.PresentationAccessibilityTest \
   com.lstepnio.egauge.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Manual APK installation preserves local app data during these checks. To deliberately record new goldens, run only `GoldenScreenshotTest` with `-e recordGoldens true`, pull `/sdcard/Android/data/com.lstepnio.egauge/files/screenshots/` into `app/src/androidTest/assets/goldens/`, inspect every changed image, rebuild the test APK, then rerun without that flag. Ordinary test runs never update expected images. `PrimaryJourneyTest` accepts `-e captureScreens light` (or another label) to save physical window captures.
+Manual APK installation preserves local app data during these checks. To deliberately record new goldens, run only `GoldenScreenshotTest` with `-e recordGoldens true`, pull `/sdcard/Android/data/com.lstepnio.egauge/files/screenshots/` into `app/src/androidTest/assets/goldens/`, inspect every changed image, rebuild the test APK, then rerun without that flag. Ordinary test runs never update expected images. The [Customize review](../docs/design/redesign/customize-review.md) includes the revised flow and before/after images. `CustomizeJourneyTest` uses in-memory examples for editing tests; `PrimaryJourneyTest` asserts that viewing Customize leaves the phone's saved choices unchanged. Both accept `-e captureScreens light` (or another label) to save physical window captures.
 
 `PhysicalConfigurationJourneyTest` is skipped unless explicitly run with `-e allowGaugeWrite true`. On a bench gauge it reads and validates a restorable original setup, chooses three readings through the UI, sends them, waits for strict running proof, then restores and verifies the original layout using a fresh protected base. It increments real configuration revisions. An uncertain first write is never retried automatically. Preserve the phone's non-secret local profile choices before this opt-in run and restore them afterward. It never queries a vehicle, clears codes, installs firmware or changes capability flags.
 
