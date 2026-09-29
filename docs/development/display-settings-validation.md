@@ -13,7 +13,7 @@ Date: 2026-09-29. Hardware: Waveshare ESP32-S3-Touch-LCD-1.28 gauge and Pixel 10
 
 ## Public capability gate
 
-Dev.28 enables `ds:1` after the above physical qualification. The repository is private, so the app's anonymous hosted update check returns 404; use the verified GitHub release package through Expert > Development updates > Choose development package.
+Dev.28 enables `ds:1` after the above physical qualification. The repository is private, so the app's anonymous hosted update check returns 404. The Updates screen now explains that the release feed is unavailable and offers a signed package picker in both Settings and Expert. Use a verified GitHub release package saved on the phone; automatic hosted checks require an app-accessible release feed.
 
 ## dev.28 public path
 

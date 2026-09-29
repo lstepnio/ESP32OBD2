@@ -182,7 +182,8 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 updateRecovery?.state !in setOf(UpdateRecoveryState.CHECK_REQUIRED, UpdateRecoveryState.WAITING_FOR_CONFIRMATION),
             updateReady, busy,
             updateRecovery?.state in setOf(UpdateRecoveryState.CHECK_REQUIRED, UpdateRecoveryState.WAITING_FOR_CONFIRMATION), details,
-            updatePreparation == "held"),
+            updatePreparation == "held",
+            updatePreparation == "failed" && hostedUpdateMessage == HOSTED_RELEASE_FEED_UNAVAILABLE),
         op,
         if (profileError != null) StatusUi("Your saved profiles need attention",
             "Editing is paused to protect your settings. Review the problem in Expert > Device data.", StatusTone.Error)

@@ -31,18 +31,23 @@ fun UpdatesScreen(state: UpdatesUiState, operation: OperationUi, development: Bo
         PrimaryAction(when {
             state.recoveryRequired -> "Check installed version"
             state.held -> "Check your gauge"
+            state.feedUnavailable -> "Choose signed package"
             state.ready -> "Install update"
             state.availableVersion != null -> "Download and install"
             else -> "Check for updates"
         }, {
             when {
                 state.recoveryRequired -> onReadInstalled()
+                state.feedUnavailable -> onChoosePackage()
                 state.ready || state.availableVersion != null -> onInstall()
                 else -> onCheck()
             }
-        }, enabled = if (state.ready) state.canInstall else state.canCheck)
-        if (development) {
+        }, enabled = if (state.feedUnavailable) !state.busy else if (state.ready) state.canInstall else state.canCheck)
+        if (state.feedUnavailable) TextButton(onCheck, enabled = state.canCheck) { Text("Try online check") }
+        if (development && !state.feedUnavailable) {
             OutlinedButton(onChoosePackage, Modifier.fillMaxWidth(), enabled = !state.busy) { Text("Choose development package") }
+        }
+        if (development) {
             TextButton(onReadInstalled, enabled = state.canCheck) { Text("Check installed version") }
         }
     }

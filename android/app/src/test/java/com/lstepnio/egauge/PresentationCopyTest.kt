@@ -66,6 +66,13 @@ class PresentationCopyTest {
         }
     }
 
+    @Test fun unavailableReleaseFeedIsNotReportedAsAFailedGaugeUpdate() {
+        val status = friendlyFailure(HOSTED_RELEASE_FEED_UNAVAILABLE, update = true)
+        assertEquals("Online updates unavailable", status.title)
+        assertTrue(status.detail.contains("Choose a signed package"))
+        assertEquals(StatusTone.Stale, status.tone)
+    }
+
     @Test fun onlyConfirmedTransferSuccessCanDismissItsBanner() {
         val saved = operationUi(OperationState(1, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
             "raw", terminal = true), confirmedSetup = true)

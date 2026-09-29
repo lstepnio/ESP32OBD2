@@ -21,6 +21,8 @@ import java.util.Base64
 
 enum class FirmwareChannel { DEVELOPMENT, BETA, STABLE }
 
+internal const val HOSTED_RELEASE_FEED_UNAVAILABLE = "Development release feed unavailable (404)"
+
 internal data class FirmwareVersion(
     val major: Long,
     val minor: Long,
@@ -307,6 +309,8 @@ class GitHubFirmwareSource(private val context: Context) {
         try {
             require(connection.responseCode == HttpURLConnection.HTTP_OK) {
                 if (connection.responseCode == 403) "GitHub update check was rate limited"
+                else if (connection.responseCode == 404 && url.toString() == releasesUrl)
+                    HOSTED_RELEASE_FEED_UNAVAILABLE
                 else "GitHub download failed (${connection.responseCode})"
             }
             val finalUrl = connection.url

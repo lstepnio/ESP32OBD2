@@ -67,6 +67,8 @@ fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
     val message = reason.orEmpty().lowercase()
     return when {
         "appearance settings" in message -> StatusUi("Your preference was not saved", "Try changing it again.", StatusTone.Error)
+        reason == HOSTED_RELEASE_FEED_UNAVAILABLE -> StatusUi("Online updates unavailable",
+            "This app cannot access the development release feed. Choose a signed package saved on your phone.", StatusTone.Stale)
         "permission" in message -> StatusUi("Nearby devices permission is needed", "Allow Nearby devices in Android settings, then reconnect.", StatusTone.Error)
         "bluetooth" in message && ("off" in message || "disabled" in message) ->
             StatusUi("Bluetooth is turned off", "Turn on Bluetooth, then find your gauge.", StatusTone.Offline)

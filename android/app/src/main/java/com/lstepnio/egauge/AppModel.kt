@@ -747,8 +747,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun updatePackageLoaded(value: DevUpdateBundle) {
         automaticUpdateJob?.cancel()
+        if (presentationError == updatePackageMessage) presentationError = null
         hostedUpdate = null
         selectedUpdate = value
+        updatePreparation = "ready"
+        hostedUpdateMessage = "Signed development package ready to install"
         val hash = value.sha256.joinToString("") { "%02x".format(it) }
         updatePackageMessage = "Development signature valid • ${value.image.size} bytes • SHA-256 ${hash.take(12)}…"
     }

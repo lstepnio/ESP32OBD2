@@ -13,10 +13,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.car.ClearCodesDialog
 import com.lstepnio.egauge.ui.home.HomeScreen
+import com.lstepnio.egauge.ui.settings.UpdatesScreen
 import com.lstepnio.egauge.ui.preview.ScreenFixtures
 import com.lstepnio.egauge.ui.state.HomeAction
 import com.lstepnio.egauge.ui.state.HomeUiState
 import com.lstepnio.egauge.ui.state.UpdateNotice
+import com.lstepnio.egauge.ui.state.OperationUi
+import com.lstepnio.egauge.ui.state.UpdatesUiState
 import com.lstepnio.egauge.ui.state.pageUi
 import org.junit.Assert.*
 import org.junit.Rule
@@ -26,6 +29,20 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class PresentationAccessibilityTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test fun unavailableFeedUsesTheSignedPackagePickerOnTheRegularUpdatesScreen() {
+        var picked = 0
+        var onlineChecks = 0
+        val state = UpdatesUiState(StatusUi("Online updates unavailable", "Choose a signed package.", StatusTone.Stale),
+            null, "0.2.0-dev.28", true, false, false, false, false, emptyList(), feedUnavailable = true)
+        compose.setContent { EGaugeTheme { UpdatesScreen(state, OperationUi(), false,
+            {}, { onlineChecks++ }, {}, {}, { picked++ }) } }
+        compose.onNodeWithText("Choose signed package").performClick()
+        assertEquals(1, picked)
+        assertEquals(0, onlineChecks)
+        compose.onNodeWithText("Try online check").performClick()
+        assertEquals(1, onlineChecks)
+    }
 
     @Test fun largeTextKeepsTheSinglePrimaryActionReachableOnEveryScreen() {
         var screen by mutableStateOf(ScreenFixtures.names.first())

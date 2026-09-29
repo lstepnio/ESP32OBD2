@@ -58,7 +58,8 @@ data class ExpertUiState(val readings: List<ReadingUi>, val canRead: Boolean, va
 @Immutable
 data class UpdatesUiState(val status: StatusUi, val availableVersion: String?, val installedVersion: String,
     val canCheck: Boolean, val canInstall: Boolean, val ready: Boolean, val busy: Boolean,
-    val recoveryRequired: Boolean, val details: List<DetailUi>, val held: Boolean = false)
+    val recoveryRequired: Boolean, val details: List<DetailUi>, val held: Boolean = false,
+    val feedUnavailable: Boolean = false)
 @Immutable
 data class CompanionUiState(val home: HomeUiState, val customize: CustomizeUiState, val car: CarUiState,
     val settings: SettingsUiState, val expert: ExpertUiState, val setup: SetupUiState,
