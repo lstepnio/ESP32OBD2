@@ -119,7 +119,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                         if (op.visible && transferInProgress)
                             OperationBanner(op, { progressOpen = true }, {
                                 if (op.update) route = if (state.settings.advanced) Route.DevelopmentUpdates else Route.Updates
-                                else if (model.configurationRecoveryRead) { customizeStep = 4; route = Route.Customize }
+                                else if (model.configurationRecoveryRead) { customizeStep = 5; route = Route.Customize }
                                 else model.checkGaugeForReview()
                             })
                         Box(Modifier.weight(1f).widthIn(max = EGaugeTokens.Layout.contentMax.dp).fillMaxWidth()
@@ -132,7 +132,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                             else if (model.rememberedGaugeId != null || state.connection.phase == ConnectionPhase.PermissionRequired ||
                                                 state.connection.phase == ConnectionPhase.BluetoothOff) onFindGauge() else route = Route.Setup
                                         HomeAction.Check -> model.checkGaugeForReview()
-                                        HomeAction.Review -> { customizeStep = 4; route = Route.Customize }
+                                        HomeAction.Review -> { customizeStep = 5; route = Route.Customize }
                                         HomeAction.Customize -> { customizeStep = 0; route = Route.Customize }
                                     }
                                 }, { customizeStep = 0; route = Route.Customize }, { detailsOpen = true }, { index ->
@@ -150,7 +150,8 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                         model::selectPage, { id -> model.selectPid(demoCatalog.first { it.id == id }) },
                                         { id -> model.selectSecondaryPid(demoCatalog.first { it.id == id }) },
                                         model::addPage, model::removePage, model::movePage, model::selectLayout,
-                                        model::setWarning, model::setCritical, model::setHysteresis, model::setTriggerDwell, model::setClearDwell,
+                                        model::addAlert, model::removeAlert, model::setAlertWarning, model::setAlertCritical,
+                                        model::setAlertDirection, model::setAlertHysteresis, model::setAlertTriggerDwell, model::setAlertClearDwell,
                                         model::checkGaugeForReview, { model.sendNumericConfiguration(); route = Route.Gauge }, { route = Route.Setup }))
                                 Route.Car -> CarScreen(state.car, model::readGaugeDiagnostics, { route = Route.Setup }, { detailsOpen = true },
                                     model::selectProfile, { name -> model.editProfileName(name); model.createProfile() })

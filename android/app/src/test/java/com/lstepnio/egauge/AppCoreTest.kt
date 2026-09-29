@@ -122,8 +122,9 @@ class AppCoreTest {
     }
 
     @Test fun projectionAndPayloadDescribeTheSameNumericPages() {
-        val draft = Draft(pidId = "coolant", layout = GaugeLayout.Numeric, warning = 104,
-            critical = 114, hysteresis = 3, triggerDwellMs = 2000, clearDwellMs = 5000)
+        val draft = Draft(pidId = "coolant", layout = GaugeLayout.Numeric,
+            alerts = listOf(GaugeAlertDraft("alert.coolant", "coolant", AlertDirection.Above,
+                warning = 104, critical = 114, hysteresis = 3, triggerDwellMs = 2000, clearDwellMs = 5000)))
         val (projection, bytes) = ConfigurationProjector.project(template, draft, "vehicle-1", 9)
         val json = JSONObject(bytes.toString(Charsets.UTF_8))
         assertEquals("engine.coolant", projection.pages.first().pidId)
@@ -157,6 +158,18 @@ class AppCoreTest {
         }.toString()
         val differing = GaugeDraftComparison.from(document(changed), "default", draft)
         assertTrue(differing.fields.single { it.label == "All page settings" }.matches == false)
+    }
+
+    @Test fun projectionKeepsAlertsForEachChosenReading() {
+        val draft = Draft(alerts = listOf(
+            defaultAlert("coolant"),
+            defaultAlert("speed").copy(warning = 110, critical = 130),
+        ))
+        val (_, bytes) = ConfigurationProjector.project(template, draft, "default", 2)
+        val alerts = JSONObject(bytes.toString(Charsets.UTF_8)).getJSONArray("alerts")
+        assertEquals(2, alerts.length())
+        assertEquals("engine.coolant", alerts.getJSONObject(0).getString("pidId"))
+        assertEquals("vehicle.speed", alerts.getJSONObject(1).getString("pidId"))
     }
 
     @Test fun legacyTransmissionProfileMigratesToAdvancedTopologyWithoutChangingDraft() {

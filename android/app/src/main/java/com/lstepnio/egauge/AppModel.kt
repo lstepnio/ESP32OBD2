@@ -74,6 +74,49 @@ data class GaugePageDraft(
     val pidIds: List<String>,
 )
 
+enum class AlertDirection { Above, Below }
+
+data class GaugeAlertDraft(
+    val id: String,
+    val pidId: String,
+    val direction: AlertDirection = AlertDirection.Above,
+    val warning: Int,
+    val critical: Int,
+    val hysteresis: Int = 3,
+    val triggerDwellMs: Int = 1000,
+    val clearDwellMs: Int = 2000,
+    val priority: Int = 8,
+)
+
+fun readingRange(id: String): IntRange = when (id) {
+    "rpm" -> 0..16384
+    "coolant" -> -40..215
+    "speed" -> 0..255
+    "load", "fuel" -> 0..100
+    else -> 0..100
+}
+
+fun defaultAlert(pidId: String = "coolant"): GaugeAlertDraft {
+    val range = readingRange(pidId)
+    val span = range.last - range.first
+    val warning = when (pidId) {
+        "coolant" -> 105
+        "rpm" -> 4000
+        "speed" -> 120
+        "load", "fuel" -> 80
+        else -> range.first + (span * 3 / 4)
+    }.coerceIn(range)
+    val critical = when (pidId) {
+        "coolant" -> 115
+        "rpm" -> 5000
+        "speed" -> 140
+        "load", "fuel" -> 90
+        else -> warning + (span / 10).coerceAtLeast(1)
+    }.coerceIn(range)
+    return GaugeAlertDraft("alert.$pidId", pidId, AlertDirection.Above, warning,
+        if (critical > warning) critical else warning - 1, hysteresis = (span / 50).coerceIn(1, 20))
+}
+
 fun defaultGaugePages(primary: String = "rpm", layout: GaugeLayout = GaugeLayout.Numeric): List<GaugePageDraft> {
     val ordered = listOf(primary, "rpm", "coolant", "speed").distinct().take(3)
     return ordered.mapIndexed { index, pidId ->
@@ -88,13 +131,9 @@ enum class OwnerAccess { UNKNOWN, DISCOVERED, AUTHENTICATED }
 data class Draft(
     val pidId: String = "rpm",
     val layout: GaugeLayout = GaugeLayout.Numeric,
-    val warning: Int = 105,
-    val critical: Int = 115,
-    val hysteresis: Int = 3,
-    val triggerDwellMs: Int = 1000,
-    val clearDwellMs: Int = 2000,
     val source: String = "ECM",
     val pages: List<GaugePageDraft> = defaultGaugePages(pidId, layout),
+    val alerts: List<GaugeAlertDraft> = listOf(defaultAlert()),
 )
 
 data class CapabilitySnapshot(
@@ -350,12 +389,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val configurationBlockers: List<String>
         get() = buildList {
             if (profileError != null) add("Local profile data needs recovery before applying")
-            if (draft.warning >= draft.critical) add("Coolant critical limit must exceed warning")
-            if (draft.warning !in -40..215 || draft.critical !in -40..215)
-                add("Coolant limits must be within -40 to 215 °C")
-            if (draft.warning - draft.hysteresis < -40 ||
-                draft.hysteresis >= draft.critical - draft.warning)
-                add("Coolant hysteresis does not fit the selected limits")
+            addAll(ConfigurationProjector.blockers(draft))
             if (capabilities == null) add("Read gauge capabilities first")
             else if (capabilities?.configWrite != true) add("Gauge does not offer full configuration writes")
             val observed = activeVehicleSessionId != null && vehicleObservations.any { observation ->
@@ -1152,11 +1186,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids)
         save(draft.copy(layout = layout, pages = pages))
     }
-    fun setWarning(value: Int) = save(draft.copy(warning = value))
-    fun setCritical(value: Int) = save(draft.copy(critical = value))
-    fun setHysteresis(value: Int) = save(draft.copy(hysteresis = value.coerceIn(0, 20)))
-    fun setTriggerDwell(value: Int) = save(draft.copy(triggerDwellMs = value.coerceIn(0, 60000)))
-    fun setClearDwell(value: Int) = save(draft.copy(clearDwellMs = value.coerceIn(0, 60000)))
+    fun addAlert(pidId: String) {
+        if (pidId !in ConfigurationProjector.supportedPidIds || draft.alerts.size >= 32 || draft.alerts.any { it.pidId == pidId }) return
+        save(draft.copy(alerts = draft.alerts + defaultAlert(pidId)))
+    }
+    fun removeAlert(id: String) = save(draft.copy(alerts = draft.alerts.filterNot { it.id == id }))
+    fun updateAlert(id: String, transform: (GaugeAlertDraft) -> GaugeAlertDraft) {
+        if (draft.alerts.none { it.id == id }) return
+        save(draft.copy(alerts = draft.alerts.map { alert -> if (alert.id == id) transform(alert) else alert }))
+    }
+    fun setAlertWarning(id: String, value: Int) = updateAlert(id) { it.copy(warning = value) }
+    fun setAlertCritical(id: String, value: Int) = updateAlert(id) { it.copy(critical = value) }
+    fun setAlertDirection(id: String, value: AlertDirection) = updateAlert(id) { it.copy(direction = value) }
+    fun setAlertHysteresis(id: String, value: Int) = updateAlert(id) { it.copy(hysteresis = value.coerceIn(0, 20)) }
+    fun setAlertTriggerDwell(id: String, value: Int) = updateAlert(id) { it.copy(triggerDwellMs = value.coerceIn(0, 60000)) }
+    fun setAlertClearDwell(id: String, value: Int) = updateAlert(id) { it.copy(clearDwellMs = value.coerceIn(0, 60000)) }
     fun setSource(value: String) = save(draft.copy(source = value))
     fun setSecondAdapterEnabled(value: Boolean) {
         if (profileError != null) return

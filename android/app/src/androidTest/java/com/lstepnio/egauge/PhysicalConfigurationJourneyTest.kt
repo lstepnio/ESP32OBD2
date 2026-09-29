@@ -74,9 +74,10 @@ class PhysicalConfigurationJourneyTest {
                     compose.onNodeWithText("Edit page").performScrollTo().performClick()
                 }
             }
-            compose.onNodeWithText("Coolant alerts").performScrollTo().performClick()
+            compose.onNodeWithText("Alerts").performScrollTo().performClick()
+            compose.onNodeWithText("Edit alert").performScrollTo().performClick()
             capture("customize-limits")
-            compose.onNodeWithText("Done").performScrollTo().performClick()
+            compose.onNodeWithText("Save alert").performScrollTo().performClick()
             compose.onNodeWithText("Review and send").performScrollTo().performClick()
             capture("customize-review")
             compose.onNodeWithText("Send to gauge").performScrollTo().assertIsEnabled()

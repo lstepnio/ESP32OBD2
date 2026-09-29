@@ -9,12 +9,14 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.lstepnio.egauge.AlertDirection
 import com.lstepnio.egauge.GaugeLayout
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.*
@@ -24,8 +26,10 @@ import com.lstepnio.egauge.ui.state.*
 data class CustomizeActions(
     val selectPage: (Int) -> Unit, val selectReading: (String) -> Unit, val selectSecondary: (String) -> Unit,
     val addPage: () -> Unit, val removePage: (Int) -> Unit, val movePage: (Int, Int) -> Unit,
-    val layout: (GaugeLayout) -> Unit, val warning: (Int) -> Unit, val critical: (Int) -> Unit,
-    val resetMargin: (Int) -> Unit, val trigger: (Int) -> Unit, val clear: (Int) -> Unit,
+    val layout: (GaugeLayout) -> Unit, val addAlert: (String) -> Unit, val removeAlert: (String) -> Unit,
+    val warning: (String, Int) -> Unit, val critical: (String, Int) -> Unit,
+    val direction: (String, AlertDirection) -> Unit, val resetMargin: (String, Int) -> Unit,
+    val trigger: (String, Int) -> Unit, val clear: (String, Int) -> Unit,
     val check: () -> Unit, val send: () -> Unit, val setup: () -> Unit,
 )
 
@@ -35,13 +39,17 @@ data class CustomizeActions(
 fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestination: (Int) -> Unit,
                           onBack: () -> Unit, onDetails: () -> Unit, actions: CustomizeActions) {
     val current = state.pages.getOrNull(state.editingPage) ?: state.pages.first()
+    var editingAlertId by rememberSaveable { mutableStateOf<String?>(null) }
     fun done() = onDestination(0)
     ScreenContent(scrollKey = destination) {
         when (destination) {
             0 -> Dashboard(state, current, onDestination, onBack, actions)
             1 -> PageEditor(state, current, ::done, actions)
             2 -> PageManager(state, current, ::done, actions)
-            3 -> AlertEditor(state, ::done, actions)
+            3 -> AlertManager(state, ::done, { id -> editingAlertId = id; onDestination(4) },
+                { editingAlertId = null; onDestination(4) }, actions)
+            4 -> AlertEditor(state, state.alerts.firstOrNull { it.id == editingAlertId }, ::done,
+                { id -> editingAlertId = id }, actions)
             else -> SendReview(state, current, ::done, actions)
         }
         TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
@@ -75,9 +83,9 @@ private fun Dashboard(state: CustomizeUiState, current: PageUi, onDestination: (
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SettingsRow("Edit page", "${current.readingName} · ${current.layout.label}", state.editingEnabled) { onDestination(1) }
             SettingsRow("Manage pages", "${state.pages.size} pages · Add, remove, or reorder", state.editingEnabled) { onDestination(2) }
-            SettingsRow("Coolant alerts", "Warn above ${state.warning} °C · Critical above ${state.critical} °C", state.editingEnabled) { onDestination(3) }
+            SettingsRow("Alerts", if (state.alerts.isEmpty()) "No alerts" else "${state.alerts.size} alert${if (state.alerts.size == 1) "" else "s"}", state.editingEnabled) { onDestination(3) }
             state.blockers.firstOrNull()?.let { StatusCard(StatusUi("Check your settings", it, StatusTone.Error)) }
-            PrimaryAction("Review and send", { onDestination(4) }, enabled = state.editingEnabled)
+            PrimaryAction("Review and send", { onDestination(5) }, enabled = state.editingEnabled)
         }
     })
 }
@@ -154,22 +162,67 @@ private fun PageManager(state: CustomizeUiState, current: PageUi, onDone: () -> 
 }
 
 @Composable
-private fun AlertEditor(state: CustomizeUiState, onDone: () -> Unit, actions: CustomizeActions) {
-    var preview by remember { mutableStateOf(PreviewCondition.Normal) }
-    ScreenTitle("Coolant alerts", onBack = onDone)
-    RoundPreview(ReadingPreviewUi("Coolant temperature", when (preview) {
-        PreviewCondition.Warning -> "${state.warning + 1}"; PreviewCondition.Critical -> "${state.critical + 1}"; else -> "92"
-    }, "°C", PreviewLayout.Arc, preview))
-    Text("These alerts apply to coolant temperature.", style = MaterialTheme.typography.bodyMedium,
+private fun AlertManager(state: CustomizeUiState, onDone: () -> Unit, onEdit: (String) -> Unit,
+                         onAdd: () -> Unit, actions: CustomizeActions) {
+    ScreenTitle("Alerts", onBack = onDone)
+    Text("Choose readings to watch and the limits that matter to you.", style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant)
-    LimitEditor("Warn above", state.warning, false, actions.warning, state.editingEnabled)
-    LimitEditor("Critical above", state.critical, true, actions.critical, state.editingEnabled)
+    OutlinedButton(onAdd, enabled = state.editingEnabled && state.alerts.size < state.readings.size,
+        modifier = Modifier.fillMaxWidth()) { Text("Add alert") }
+    if (state.alerts.isEmpty()) EmptyState("No alerts yet", "Add an alert for a reading on your gauge.")
+    state.alerts.forEach { alert ->
+        Panel {
+            Text(alert.readingName, style = MaterialTheme.typography.titleMedium)
+            Text("Warn ${alert.direction} ${alert.warning} ${alert.unit} · Critical ${alert.direction} ${alert.critical} ${alert.unit}",
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton({ onEdit(alert.id) }) { Text("Edit alert") }
+                TextButton({ actions.removeAlert(alert.id) }, enabled = state.editingEnabled) { Text("Remove alert") }
+            }
+        }
+    }
+    PrimaryAction("Done", onDone)
+}
+
+@Composable
+private fun AlertEditor(state: CustomizeUiState, alert: AlertUi?, onDone: () -> Unit,
+                        onAlertAdded: (String) -> Unit, actions: CustomizeActions) {
+    if (alert == null) {
+        ScreenTitle("Choose a reading", onBack = onDone)
+        Text("Add an alert for a reading you want to keep an eye on.", style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        state.readings.filter { reading -> state.alerts.none { it.readingId == reading.id } }.forEach { reading ->
+            ReadingTile(reading.name, reading.unit, false, {
+                actions.addAlert(reading.id)
+                onAlertAdded("alert.${reading.id}")
+            }, enabled = state.editingEnabled)
+        }
+        return
+    }
+    var preview by remember(alert.id) { mutableStateOf(PreviewCondition.Normal) }
+    ScreenTitle("${alert.readingName} alert", onBack = onDone)
+    val normalValue = if (alert.direction == "above")
+        (alert.warning - ((alert.range.last - alert.range.first) / 10).coerceAtLeast(1)).coerceAtLeast(alert.range.first)
+    else (alert.warning + ((alert.range.last - alert.range.first) / 10).coerceAtLeast(1)).coerceAtMost(alert.range.last)
+    val warningValue = if (alert.direction == "above") alert.warning + 1 else alert.warning - 1
+    val criticalValue = if (alert.direction == "above") alert.critical + 1 else alert.critical - 1
+    RoundPreview(ReadingPreviewUi(alert.readingName, when (preview) {
+        PreviewCondition.Warning -> "$warningValue"; PreviewCondition.Critical -> "$criticalValue"; else -> "$normalValue"
+    }, alert.unit, PreviewLayout.Arc, preview))
+    Text("Alert me when this reading ${if (alert.direction == "above") "rises above" else "falls below"} these limits.",
+        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(alert.direction == "above", { actions.direction(alert.id, AlertDirection.Above) }, label = { Text("Rises above") })
+        FilterChip(alert.direction == "below", { actions.direction(alert.id, AlertDirection.Below) }, label = { Text("Falls below") })
+    }
+    LimitEditor("Warn ${alert.direction}", alert.warning, false, { actions.warning(alert.id, it) }, state.editingEnabled)
+    LimitEditor("Critical ${alert.direction}", alert.critical, true, { actions.critical(alert.id, it) }, state.editingEnabled)
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(PreviewCondition.Normal, PreviewCondition.Warning, PreviewCondition.Critical).forEach { condition ->
             FilterChip(preview == condition, { preview = condition }, label = { Text(condition.name.lowercase().replaceFirstChar(Char::titlecase)) })
         }
     }
-    PrimaryAction("Done", onDone, enabled = state.editingEnabled)
+    PrimaryAction("Save alert", onDone, enabled = state.editingEnabled)
 }
 
 @Composable
@@ -179,7 +232,8 @@ private fun SendReview(state: CustomizeUiState, current: PageUi, onDone: () -> U
     Panel {
         SectionTitle("Your gauge")
         state.pages.forEachIndexed { index, page -> Text("${index + 1}. ${page.readingName} · ${page.layout.label}") }
-        Text("Coolant alerts: warn above ${state.warning} °C, critical above ${state.critical} °C.")
+        Text(if (state.alerts.isEmpty()) "No alerts set." else state.alerts.joinToString("\n") { alert ->
+            "${alert.readingName}: warn ${alert.direction} ${alert.warning} ${alert.unit}; critical ${alert.direction} ${alert.critical} ${alert.unit}." })
     }
     state.blockers.forEach { StatusCard(StatusUi("Check your settings", it, StatusTone.Error)) }
     if (state.needsCheck && state.found) StatusCard(StatusUi("Check your gauge first",

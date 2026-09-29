@@ -49,8 +49,12 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
         }
     }
     fact("Stored read response", documentMessage)
-    fact("Coolant alert", "Warn above ${draft.warning} °C; critical above ${draft.critical} °C. Reset ${draft.hysteresis} °C below limit. Trigger after ${draft.triggerDwellMs} ms; clear after ${draft.clearDwellMs} ms.")
-    fact("Alert technical fields", "Hysteresis=${draft.hysteresis}; triggerDwellMs=${draft.triggerDwellMs}; clearDwellMs=${draft.clearDwellMs}; source=${draft.source}")
+    draft.alerts.forEach { alert ->
+        val reading = demoCatalog.firstOrNull { it.id == alert.pidId }
+        fact("${reading?.let { readingName(it.id) } ?: alert.pidId} alert",
+            "Warn ${alert.direction.name.lowercase()} ${alert.warning} ${reading?.unit.orEmpty()}; critical ${alert.direction.name.lowercase()} ${alert.critical} ${reading?.unit.orEmpty()}. Reset margin ${alert.hysteresis}. Trigger after ${alert.triggerDwellMs} ms; clear after ${alert.clearDwellMs} ms.")
+        fact("${alert.id} technical fields", "Direction=${alert.direction}; hysteresis=${alert.hysteresis}; triggerDwellMs=${alert.triggerDwellMs}; clearDwellMs=${alert.clearDwellMs}; priority=${alert.priority}")
+    }
     draft.pages.forEachIndexed { index, page ->
         fact("Page ${index + 1}", "${page.id} · ${page.name} · ${page.layout}\n${page.pidIds.joinToString()}")
     }

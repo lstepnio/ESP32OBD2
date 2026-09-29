@@ -29,9 +29,16 @@ object ScreenFixtures {
         GaugePageDraft("two", "Coolant temperature", GaugeLayout.Numeric, listOf("coolant")),
         GaugePageDraft("three", "Engine load", GaugeLayout.Bar, listOf("load")),
     ).map(::pageUi)
-    private val customize = CustomizeUiState(pages, 0, demoCatalog.filter { it.id != "tcm" }.map(::readingUi),
-        105, 115, 3, 1f, 2f, emptyList(), true, false, true, false, true, false, GaugeLayout.entries.toSet(), details)
-    private val customizeActions = CustomizeActions({}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {})
+    private val customize = CustomizeUiState(pages = pages, editingPage = 0,
+        readings = demoCatalog.filter { it.id != "tcm" }.map(::readingUi),
+        alerts = listOf(alertUi(defaultAlert())), blockers = emptyList(), canSend = true, needsCheck = false,
+        found = true, busy = false, editingEnabled = true, advanced = false,
+        supportedLayouts = GaugeLayout.entries.toSet(), details = details)
+    private val customizeActions = CustomizeActions(
+        selectPage = {}, selectReading = {}, selectSecondary = {}, addPage = {}, removePage = {}, movePage = { _, _ -> },
+        layout = {}, addAlert = {}, removeAlert = {}, warning = { _, _ -> }, critical = { _, _ -> },
+        direction = { _, _ -> }, resetMargin = { _, _ -> }, trigger = { _, _ -> }, clear = { _, _ -> },
+        check = {}, send = {}, setup = {})
     private val success = StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success)
     private val recovery = operationUi(OperationState(1, OperationKind.CONFIGURATION, OperationStage.OUTCOME_UNKNOWN,
         "Example", "Example disconnect", terminal = true))
@@ -66,7 +73,7 @@ object ScreenFixtures {
                     "recovery" -> HomeScreen(home.copy(status = recovery.status, pendingChanges = true,
                         primaryLabel = "Check gauge", primaryAction = HomeAction.Check), {}, {}, {})
                     "readings", "layouts", "limits", "review" -> DashboardEditorScreen(customize,
-                        mapOf("readings" to 0, "layouts" to 1, "limits" to 3, "review" to 4).getValue(name), {}, {}, {}, customizeActions)
+                        mapOf("readings" to 0, "layouts" to 1, "limits" to 3, "review" to 5).getValue(name), {}, {}, {}, customizeActions)
                     "car" -> CarScreen(car, {}, {}, {}, {}, {})
                     "updates" -> UpdatesScreen(updates, update, true, {}, {}, {}, {}, {}, {})
                     "settings" -> SettingsScreen(settings, {}, {}, {}, {}, {}, {}, {}, {}, {})
