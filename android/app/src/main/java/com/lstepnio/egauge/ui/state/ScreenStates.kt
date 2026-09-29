@@ -19,9 +19,12 @@ data class AlertUi(val id: String, val readingId: String, val readingName: Strin
                    val triggerSeconds: Float, val clearSeconds: Float, val range: IntRange,
                    val priority: Int = 8)
 @Immutable
+enum class UpdateNotice { None, Ready, NeedsCheck }
+@Immutable
 data class HomeUiState(val gaugeName: String, val connection: String, val connectionVerified: Boolean,
     val status: StatusUi, val pages: List<PageUi>, val pendingChanges: Boolean,
-    val primaryLabel: String, val primaryAction: HomeAction, val busy: Boolean, val details: List<DetailUi>)
+    val primaryLabel: String, val primaryAction: HomeAction, val busy: Boolean, val details: List<DetailUi>,
+    val updateNotice: UpdateNotice = UpdateNotice.None)
 enum class HomeAction { SetUp, Check, Review, Customize }
 @Immutable
 data class CustomizeUiState(val pages: List<PageUi>, val editingPage: Int, val readings: List<ReadingUi>,
@@ -55,7 +58,7 @@ data class ExpertUiState(val readings: List<ReadingUi>, val canRead: Boolean, va
 @Immutable
 data class UpdatesUiState(val status: StatusUi, val availableVersion: String?, val installedVersion: String,
     val canCheck: Boolean, val canInstall: Boolean, val ready: Boolean, val busy: Boolean,
-    val recoveryRequired: Boolean, val details: List<DetailUi>)
+    val recoveryRequired: Boolean, val details: List<DetailUi>, val held: Boolean = false)
 @Immutable
 data class CompanionUiState(val home: HomeUiState, val customize: CustomizeUiState, val car: CarUiState,
     val settings: SettingsUiState, val expert: ExpertUiState, val setup: SetupUiState,

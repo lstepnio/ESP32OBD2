@@ -138,8 +138,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                     model.selectPage(index)
                                     customizeStep = 0
                                     route = Route.Customize
-                                },
-                                    statusInBanner = banner.visible || state.connection.phase !in setOf(ConnectionPhase.Idle, ConnectionPhase.Ready))
+                                }, onUpdates = { route = Route.Updates })
                                 Route.Setup -> SetupScreen(state.setup, onFindGauge,
                                     { if (model.capabilities?.experimentalNumericConfig == true) model.checkGaugeForReview() else model.readSavedGauge() },
                                     { id -> model.gaugeCandidates.firstOrNull { it.id == id }?.let(model::selectGaugeCandidate) },

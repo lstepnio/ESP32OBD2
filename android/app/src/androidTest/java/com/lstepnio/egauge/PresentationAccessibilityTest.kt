@@ -16,6 +16,7 @@ import com.lstepnio.egauge.ui.home.HomeScreen
 import com.lstepnio.egauge.ui.preview.ScreenFixtures
 import com.lstepnio.egauge.ui.state.HomeAction
 import com.lstepnio.egauge.ui.state.HomeUiState
+import com.lstepnio.egauge.ui.state.UpdateNotice
 import com.lstepnio.egauge.ui.state.pageUi
 import org.junit.Assert.*
 import org.junit.Rule
@@ -86,5 +87,27 @@ class PresentationAccessibilityTest {
         compose.onNodeWithContentDescription("Page 2 of 2, Coolant temperature. Swipe to change page. Hold to edit.")
             .performTouchInput { longClick(center) }
         compose.runOnIdle { assertEquals(1, edited) }
+    }
+
+    @Test fun routineSuccessStaysInThePillWhileWarningsRemainVisible() {
+        val pages = listOf(GaugePageDraft("one", "Engine speed", GaugeLayout.Arc, listOf("rpm"))).map(::pageUi)
+        var status by mutableStateOf(StatusUi("Saved & running on gauge", "Confirmed.", StatusTone.Success))
+        var notice by mutableStateOf(UpdateNotice.None)
+        var openedUpdates = 0
+        compose.setContent { EGaugeTheme { Surface(Modifier.requiredSize(390.dp, 844.dp)) {
+            HomeScreen(HomeUiState("eGauge", if (notice == UpdateNotice.Ready) "Update ready" else "Gauge ready", true,
+                status, pages, false, "Customize", HomeAction.Customize, false, emptyList(), notice),
+                {}, {}, onUpdates = { openedUpdates++ })
+        } } }
+        compose.onNodeWithText("Gauge ready").assertIsDisplayed()
+        compose.onAllNodesWithText("Saved & running on gauge").assertCountEquals(0)
+        compose.runOnIdle { notice = UpdateNotice.Ready }
+        compose.onNodeWithText("Update ready").performClick()
+        compose.runOnIdle { assertEquals(1, openedUpdates) }
+        compose.runOnIdle {
+            status = StatusUi("Update needs attention", "Check your gauge before trying again.", StatusTone.Stale)
+            notice = UpdateNotice.NeedsCheck
+        }
+        compose.onNodeWithText("Update needs attention").assertIsDisplayed()
     }
 }
