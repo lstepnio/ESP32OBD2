@@ -82,3 +82,5 @@ The Android app read back version `0.2.0-dev.24`, valid OTA state `2`, partition
 A fresh GitHub check after installation reported that dev.24 was up to date and did not offer the equal version for installation.
 
 The first APK exposed a presentation bug after the confirmed update: the screen still showed the previously read dev.23 version and an Install action until the user checked the installed version again. The follow-up Android change carries the already authenticated post-restart identity into screen state and clears the downloaded selection. It passed build, unit tests, Android test compilation, lint, and repository checks. No second OTA was performed solely to retest this UI cleanup.
+
+Pixel captures: [sending after network setup](screenshots/wifi-dev24-sending.png), [confirmed update with stale selection before the UI fix](screenshots/wifi-dev24-confirmed.png), and [dev.24 current after a fresh signed-release check](screenshots/wifi-dev24-current.png).
