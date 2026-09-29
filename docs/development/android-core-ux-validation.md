@@ -1,5 +1,25 @@
 # Android companion redesign validation
 
+## Customize workspace review, 2026-09-28
+
+The [review and before/after images](../design/redesign/customize-review.md) cover the replacement of the nested page editor with one preview-led workspace, focused pickers, compact page management and a locally saved alert form.
+
+| Check | Result and boundary |
+| --- | --- |
+| Required Android build, unit tests, Android-test compilation and lint | Passed; 42 app unit tests, including seven form/range/legacy-profile checks |
+| `tools/validate.py` | Passed: schema examples, rejection cases, signed vector, document links and design-token parity |
+| USB Pixel 10 Pro, Android instrumented suite | 15 passed; two opt-in bench tests skipped. Includes nine stateful Customize examples, two read-only activity journeys, three accessibility checks and the image comparison |
+| Shared screenshots | All 72 baselines matched after visual review: 16 component/theme examples and 56 screen/theme/width examples. Compact 390 dp and expanded 1000 dp, light and dark |
+| Physical Pixel font scale 2.0 | All 11 Customize and activity journeys passed. Fields scroll into reach; the fixed action stays above the keyboard. Original font scale restored |
+| TalkBack | Service bound and touch exploration enabled; focus outlines observed on Back and the sheet handle, and the reading picker operated. Original accessibility services restored. Spoken output and touch-exploration accuracy were not independently qualified |
+| Real gauge/vehicle | No gauge configuration write, firmware update, live OBD request or DTC clear was run for this review. No new gauge-side behavior is claimed |
+
+Physical phone captures are under `docs/design/redesign/customize-review/physical/`. `pixel` and `font200` editing images use visibly labelled in-memory examples; the activity captures show the installed app with Preview values and automatic connection disabled. The TalkBack check briefly selected Vehicle speed on the first page and restored its original Engine speed reading; no Send action was used. The pre-existing bottom-navigation Settings label wraps at 200% text, outside the Customize content; its destination remains reachable.
+
+The screenshot suite never overwrites baselines during comparison. `PrimaryJourneyTest` now asserts that viewing Customize leaves the complete saved configuration unchanged. All editing mutations use `CustomizeJourneyTest`'s in-memory state, preventing the previous test from deleting a saved user page. The physical bench journey was adapted to the new controls but intentionally not run.
+
+Older evidence below predates this scoped review and retains its original verification boundaries.
+
 Date: 2026-09-27. Review stack: design foundation, presentation core, feature journeys, verification, automatic connection. The [prior A01+ review](android-core-ux-review-plan.md) remains a historical trust checklist; its original navigation/visual guidance is superseded by the [new design system](../design/design-system.md).
 
 ## Software checks

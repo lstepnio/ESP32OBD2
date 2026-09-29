@@ -1,0 +1,8 @@
+Pixel 10 Pro, USB debugging, 2026-09-28
+TalkBack service bound: yes
+Touch exploration enabled: true
+Observed accessibility focus: Customize Back control and reading-sheet handle
+Reading picker opened and operated while TalkBack was enabled.
+The first page was returned to its original Engine speed reading afterward.
+Original font size and enabled accessibility services restored.
+Spoken output and touch-exploration accuracy were not independently qualified.
