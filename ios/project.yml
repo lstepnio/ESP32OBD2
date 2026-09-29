@@ -1,0 +1,42 @@
+name: eGauge
+options:
+  bundleIdPrefix: com.lstepnio
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+packages:
+  EGaugeCore:
+    path: EGaugeCore
+targets:
+  eGauge:
+    type: application
+    platform: iOS
+    sources:
+      - path: EGaugeApp
+    dependencies:
+      - package: EGaugeCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lstepnio.egauge.ios
+        PRODUCT_NAME: eGauge
+        INFOPLIST_FILE: EGaugeApp/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        SUPPORTS_MACCATALYST: NO
+      configs:
+        Debug:
+          DEBUG_INFORMATION_FORMAT: dwarf
+  eGaugeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: EGaugeUITests
+    dependencies:
+      - target: eGauge
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lstepnio.egauge.ios.uitests
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES

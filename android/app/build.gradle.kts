@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.io.File
 
 plugins {
     id("com.android.application")
@@ -19,7 +20,28 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val uploadStore = providers.environmentVariable("EGAUGE_UPLOAD_STORE_FILE").orNull
+    val uploadStorePassword = providers.environmentVariable("EGAUGE_UPLOAD_STORE_PASSWORD").orNull
+    val uploadKeyAlias = providers.environmentVariable("EGAUGE_UPLOAD_KEY_ALIAS").orNull
+    val uploadKeyPassword = providers.environmentVariable("EGAUGE_UPLOAD_KEY_PASSWORD").orNull
+    val uploadCredentials = listOf(uploadStore, uploadStorePassword, uploadKeyAlias, uploadKeyPassword)
+    require(uploadCredentials.all { it == null } || uploadCredentials.all { !it.isNullOrBlank() }) {
+        "Set all four EGAUGE_UPLOAD_* environment variables to sign a release"
+    }
+    if (uploadCredentials.all { !it.isNullOrBlank() }) {
+        signingConfigs {
+            create("upload") {
+                storeFile = File(uploadStore!!)
+                storePassword = uploadStorePassword!!
+                keyAlias = uploadKeyAlias!!
+                keyPassword = uploadKeyPassword!!
+            }
+        }
+        buildTypes.getByName("release").signingConfig = signingConfigs.getByName("upload")
+    }
+
     buildFeatures { compose = true }
+    sourceSets.getByName("test").resources.srcDir("../../contracts/parity")
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

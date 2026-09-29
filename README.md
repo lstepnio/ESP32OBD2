@@ -6,6 +6,7 @@ A standalone round OBD-II gauge and native Android companion for vehicle telemet
 
 ## Start here
 
+- [iOS foundation and companion parity](ios/README.md): Android review, platform differences, shared tests and local simulator setup.
 - [Interactive design](design/prototype/index.html): Android companion concept and 240 × 240 gauge preview. All readings, discovery, configuration transfers, and updates are simulated.
 - [Product requirements](docs/requirements.md): everyday driving, off-road/thermal monitoring, performance, and diagnostics receive equal priority.
 - [Architecture](docs/architecture/system.md), [Android design](android/README.md), and [decisions](docs/architecture/decisions.md).

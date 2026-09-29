@@ -1,0 +1,472 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		230B34593DE9F4B00F2F6DCE /* EGaugeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF5D4444EA2D3C1D2D0A9C0 /* EGaugeApp.swift */; };
+		554811254FFBA2897158EE0B /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2671C0BEE6C1CBE86A90332 /* Theme.swift */; };
+		59A7B994669D6FAFBC75329A /* AlertEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8862AA9BEBC2F30237A95EB4 /* AlertEditorView.swift */; };
+		8F6782092D7F5C6DC057DED4 /* GaugeConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2133E4744E8D98385C264D09 /* GaugeConnection.swift */; };
+		9F4EF79079C15E61B404BFC6 /* EGaugeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 24A7C4D09E7FCB44A82E5A84 /* EGaugeCore */; };
+		B8112C5D1B2D441271EE52FF /* CustomizeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76DB045B31BF90FC6ED777B8 /* CustomizeView.swift */; };
+		BCA0ABC708F0491C9813B644 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1A5E8D481EC2F791E6F2A7 /* RootView.swift */; };
+		CD71CD90BA29681AD94BF9D7 /* GaugePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0688B2E5F4069F2A9C81579E /* GaugePreview.swift */; };
+		E2E4B9BA2728885629E987E2 /* DesignTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = A212AD4EF445458F8ACD803E /* DesignTokens.generated.swift */; };
+		EF5A07C98182C5DC8B2D995F /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB39AB46EEC27E8274EACA01 /* AppStore.swift */; };
+		FC94D8A1EE3BB0C6955120EC /* PrimaryJourneyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD88B6EB90D769BA08BBB6B /* PrimaryJourneyTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D25D1A27BAB52283A97BD19A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = ACBD11ABA169DB28134F0AAA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 58C645CF63E3A296198DB2A4;
+			remoteInfo = eGauge;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0688B2E5F4069F2A9C81579E /* GaugePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GaugePreview.swift; sourceTree = "<group>"; };
+		07CAED206F701B8723C20F76 /* eGauge.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = eGauge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1CF5D4444EA2D3C1D2D0A9C0 /* EGaugeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EGaugeApp.swift; sourceTree = "<group>"; };
+		2133E4744E8D98385C264D09 /* GaugeConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GaugeConnection.swift; sourceTree = "<group>"; };
+		76DB045B31BF90FC6ED777B8 /* CustomizeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizeView.swift; sourceTree = "<group>"; };
+		8862AA9BEBC2F30237A95EB4 /* AlertEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertEditorView.swift; sourceTree = "<group>"; };
+		9689F39AEF1457E5FF444E5A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		A212AD4EF445458F8ACD803E /* DesignTokens.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.generated.swift; sourceTree = "<group>"; };
+		A2671C0BEE6C1CBE86A90332 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		AA1A5E8D481EC2F791E6F2A7 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		C2EAE73DBE32A838920D2FDA /* eGaugeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = eGaugeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CB39AB46EEC27E8274EACA01 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
+		DB342B8DDD18E6887AD2CF25 /* EGaugeCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = EGaugeCore; path = EGaugeCore; sourceTree = SOURCE_ROOT; };
+		DDD88B6EB90D769BA08BBB6B /* PrimaryJourneyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryJourneyTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6CFEAA1E293B8089CA1D472F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9F4EF79079C15E61B404BFC6 /* EGaugeCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		5551CEFD3FA1CE67A6F8D65B /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				DB342B8DDD18E6887AD2CF25 /* EGaugeCore */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		6622090FBBF99F3C31EFF3F9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				07CAED206F701B8723C20F76 /* eGauge.app */,
+				C2EAE73DBE32A838920D2FDA /* eGaugeUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		77BEE85F3683E16074EBE82F /* EGaugeUITests */ = {
+			isa = PBXGroup;
+			children = (
+				DDD88B6EB90D769BA08BBB6B /* PrimaryJourneyTests.swift */,
+			);
+			path = EGaugeUITests;
+			sourceTree = "<group>";
+		};
+		8D56F022161E65658D866291 = {
+			isa = PBXGroup;
+			children = (
+				B3D363E59C024BA6ECB1DF83 /* EGaugeApp */,
+				77BEE85F3683E16074EBE82F /* EGaugeUITests */,
+				5551CEFD3FA1CE67A6F8D65B /* Packages */,
+				6622090FBBF99F3C31EFF3F9 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B3D363E59C024BA6ECB1DF83 /* EGaugeApp */ = {
+			isa = PBXGroup;
+			children = (
+				8862AA9BEBC2F30237A95EB4 /* AlertEditorView.swift */,
+				CB39AB46EEC27E8274EACA01 /* AppStore.swift */,
+				76DB045B31BF90FC6ED777B8 /* CustomizeView.swift */,
+				A212AD4EF445458F8ACD803E /* DesignTokens.generated.swift */,
+				1CF5D4444EA2D3C1D2D0A9C0 /* EGaugeApp.swift */,
+				2133E4744E8D98385C264D09 /* GaugeConnection.swift */,
+				0688B2E5F4069F2A9C81579E /* GaugePreview.swift */,
+				9689F39AEF1457E5FF444E5A /* Info.plist */,
+				AA1A5E8D481EC2F791E6F2A7 /* RootView.swift */,
+				A2671C0BEE6C1CBE86A90332 /* Theme.swift */,
+			);
+			path = EGaugeApp;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		58C645CF63E3A296198DB2A4 /* eGauge */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F0E676FEE56948CDBABA1504 /* Build configuration list for PBXNativeTarget "eGauge" */;
+			buildPhases = (
+				BA294DBFC33C641D1502F2E5 /* Sources */,
+				6CFEAA1E293B8089CA1D472F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = eGauge;
+			packageProductDependencies = (
+				24A7C4D09E7FCB44A82E5A84 /* EGaugeCore */,
+			);
+			productName = eGauge;
+			productReference = 07CAED206F701B8723C20F76 /* eGauge.app */;
+			productType = "com.apple.product-type.application";
+		};
+		9EE28A147529D041CB72A425 /* eGaugeUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 506EFD609599A190A30B456D /* Build configuration list for PBXNativeTarget "eGaugeUITests" */;
+			buildPhases = (
+				04287DE8932A99A4E307B47B /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C69B2D4797664C344DD520E6 /* PBXTargetDependency */,
+			);
+			name = eGaugeUITests;
+			packageProductDependencies = (
+			);
+			productName = eGaugeUITests;
+			productReference = C2EAE73DBE32A838920D2FDA /* eGaugeUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		ACBD11ABA169DB28134F0AAA /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					9EE28A147529D041CB72A425 = {
+						TestTargetID = 58C645CF63E3A296198DB2A4;
+					};
+				};
+			};
+			buildConfigurationList = 43A7D7F65997B0DFAC038575 /* Build configuration list for PBXProject "eGauge" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 8D56F022161E65658D866291;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5E0FA59DCA348D1306563F10 /* XCLocalSwiftPackageReference "EGaugeCore" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 6622090FBBF99F3C31EFF3F9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				58C645CF63E3A296198DB2A4 /* eGauge */,
+				9EE28A147529D041CB72A425 /* eGaugeUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		04287DE8932A99A4E307B47B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FC94D8A1EE3BB0C6955120EC /* PrimaryJourneyTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BA294DBFC33C641D1502F2E5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				59A7B994669D6FAFBC75329A /* AlertEditorView.swift in Sources */,
+				EF5A07C98182C5DC8B2D995F /* AppStore.swift in Sources */,
+				B8112C5D1B2D441271EE52FF /* CustomizeView.swift in Sources */,
+				E2E4B9BA2728885629E987E2 /* DesignTokens.generated.swift in Sources */,
+				230B34593DE9F4B00F2F6DCE /* EGaugeApp.swift in Sources */,
+				8F6782092D7F5C6DC057DED4 /* GaugeConnection.swift in Sources */,
+				CD71CD90BA29681AD94BF9D7 /* GaugePreview.swift in Sources */,
+				BCA0ABC708F0491C9813B644 /* RootView.swift in Sources */,
+				554811254FFBA2897158EE0B /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C69B2D4797664C344DD520E6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 58C645CF63E3A296198DB2A4 /* eGauge */;
+			targetProxy = D25D1A27BAB52283A97BD19A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		38E48D81F9D4FD9F49B40575 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		4886DC139CBA411336752E7D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lstepnio.egauge.ios.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = eGauge;
+			};
+			name = Debug;
+		};
+		8539F9F11D9DECE1DF7C03B2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = EGaugeApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lstepnio.egauge.ios;
+				PRODUCT_NAME = eGauge;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		BDCAC781DE3C3138FDC3E49E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lstepnio.egauge.ios.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = eGauge;
+			};
+			name = Release;
+		};
+		C53E3711D35447AA8F54BBC2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = EGaugeApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lstepnio.egauge.ios;
+				PRODUCT_NAME = eGauge;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		C5BD03F6DD6F66268F4EC8CE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		43A7D7F65997B0DFAC038575 /* Build configuration list for PBXProject "eGauge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				38E48D81F9D4FD9F49B40575 /* Debug */,
+				C5BD03F6DD6F66268F4EC8CE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		506EFD609599A190A30B456D /* Build configuration list for PBXNativeTarget "eGaugeUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4886DC139CBA411336752E7D /* Debug */,
+				BDCAC781DE3C3138FDC3E49E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F0E676FEE56948CDBABA1504 /* Build configuration list for PBXNativeTarget "eGauge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C53E3711D35447AA8F54BBC2 /* Debug */,
+				8539F9F11D9DECE1DF7C03B2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5E0FA59DCA348D1306563F10 /* XCLocalSwiftPackageReference "EGaugeCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = EGaugeCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		24A7C4D09E7FCB44A82E5A84 /* EGaugeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EGaugeCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = ACBD11ABA169DB28134F0AAA /* Project object */;
+}

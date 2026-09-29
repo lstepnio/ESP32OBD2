@@ -1,5 +1,7 @@
 # Android companion architecture
 
+**Parity baseline, 2026-09-29:** the [companion review and matrix](../docs/development/companion-parity.md) records this checkout's version-3 profiles, capability-gated multi-page/multi-renderer sender, and actual foreground update behavior. Historical descriptions below still include the earlier numeric-only implementation and future lifecycle architecture.
+
 **Current execution record, 2026-09-26:** [Android core and UX review](../docs/development/android-core-ux-review-plan.md) and [validation](../docs/development/android-core-ux-validation.md) cover the implemented Gauge, Readings, Vehicle, and Settings navigation, progressive disclosure, single-adapter default, optional second-adapter preference, truthful operation state, and signed GitHub development update discovery.
 
 **Implementation status:** the native Kotlin/Jetpack Compose app builds, tests, and lints. The routine path focuses on selecting readings, reviewing the exact supported numeric configuration, sending it, and confirming the running revision. Technical PID labs, protocol identity, and the optional second adapter are contextual details. No adapter, live telemetry, code clearing, or general renderer transfer is implemented. The [browser prototype](../design/prototype/index.html) remains a separate design review artifact.

@@ -55,6 +55,20 @@ jobs:
           . /opt/esp/idf/export.sh
           idf.py build
 
+  ios-core-parity:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test Swift against shared runtime fixtures
+        run: swift test --package-path ios/EGaugeCore
+      - name: Check iOS design colors
+        run: python3 tools/generate_ios_tokens.py --check
+      - name: Build native iOS app for Simulator
+        run: xcodebuild -project ios/eGauge.xcodeproj -scheme eGauge -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+
   android-app:
     runs-on: ubuntu-24.04
     timeout-minutes: 20

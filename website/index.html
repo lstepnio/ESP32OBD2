@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#151a17">
+  <meta name="description" content="Meet eGauge, a configurable round automotive gauge and Android companion in development. Explore the interactive display concept.">
+  <meta name="robots" content="noindex, nofollow">
+  <title>eGauge | Your vehicle. Your view.</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="header wrap">
+    <a class="brand" href="#" aria-label="eGauge home"><span class="brand-symbol" aria-hidden="true"></span>eGauge<span class="brand-dot">.</span></a>
+    <nav aria-label="Main navigation"><a href="#experience">The experience</a><a href="#roadmap">What comes next</a><a href="#preview">Try the display</a></nav>
+    <a class="nav-cta" href="#availability">Preorder updates <span aria-hidden="true">↗</span></a>
+  </header>
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="status-dot"></span> A NEW PERSPECTIVE ON YOUR DRIVE</p>
+        <h1 id="hero-title">Your vehicle.<br>Your <span class="serif">view.</span></h1>
+        <p class="hero-description">The readings you care about. A display that feels like yours. Meet eGauge, starting with a familiar round gauge form factor and a simple idea: make vehicle data personal.</p>
+        <a class="button primary" href="#preview">Find your view <span aria-hidden="true">↗</span></a>
+        <p class="quiet hero-note">In development. Made for the way you drive.</p>
+      </div>
+      <div class="hero-art" aria-label="Illustration of the eGauge display concept showing sample engine speed">
+        <span class="art-orbit orbit-one" aria-hidden="true"></span><span class="art-orbit orbit-two" aria-hidden="true"></span>
+        <div class="art-label"><span class="tiny-cross" aria-hidden="true">+</span> ONE GAUGE. YOUR PERSPECTIVE.</div>
+        <div class="gauge-shell hero-gauge">
+          <div class="gauge-screen">
+            <svg class="gauge-arc" viewBox="0 0 300 300" aria-hidden="true"><circle class="arc-track" cx="150" cy="150" r="122" pathLength="100"/><circle class="arc-fill" cx="150" cy="150" r="122" pathLength="100"/></svg>
+            <div class="dial-ticks" aria-hidden="true"></div>
+            <div class="dial-content"><span class="dial-label">ENGINE SPEED</span><strong class="dial-value">2,450</strong><span class="dial-unit">RPM</span><span class="dial-divider"></span><span class="dial-brand">eGauge</span></div>
+          </div>
+        </div>
+        <div class="art-bottom"><span>DESIGNED AROUND YOU</span><span class="art-caption">Display concept · Sample data</span></div>
+      </div>
+    </section>
+    <div class="principles"><div class="wrap principles-inner"><span>STANDARD GAUGE SIZE FIRST</span><span aria-hidden="true">+</span><span>YOUR CHOICE OF READINGS</span><span aria-hidden="true">+</span><span>AN ANDROID COMPANION</span></div></div>
+    <section id="experience" class="experience wrap section-space" aria-labelledby="experience-title">
+      <div class="section-heading"><p class="eyebrow">01 / THE IDEA</p><h2 id="experience-title">More connected.<br>Less complicated.</h2><p>From your daily commute to the long way home, the right information should feel right at home on your dash.</p></div>
+      <div class="feature-grid">
+        <article class="feature"><div class="feature-art art-pages" aria-hidden="true"><span class="mini-circle back-circle"></span><span class="mini-circle front-circle">90<span>°C</span></span><span class="feature-plus">+</span></div><span class="feature-number">01</span><h3>Your readings.</h3><p>Choose what matters to you. The product is being developed around configurable pages for supported vehicle readings.</p></article>
+        <article class="feature"><div class="feature-art art-layout" aria-hidden="true"><span class="layout-circle"><i></i><b>2,450</b><small>RPM</small></span><span class="layout-swatch"></span></div><span class="feature-number">02</span><h3>Your style.</h3><p>A bold number or an expressive arc. Explore different ways to see the same data, with a look that suits your interior.</p></article>
+        <article class="feature"><div class="feature-art art-phone" aria-hidden="true"><span class="mini-phone"><span class="phone-top"></span><span class="phone-dial"></span><span class="phone-lines"></span><span class="phone-button"></span></span><span class="connection-dot"></span><span class="connection-dot"></span><span class="connection-ring"></span></div><span class="feature-number">03</span><h3>Your setup.</h3><p>The Android companion brings display design and gauge setup to your phone, with configuration and update workflows already in development.</p></article>
+      </div>
+    </section>
+    <section class="preview-section" id="preview" aria-labelledby="preview-title">
+      <div class="wrap preview-grid">
+        <div class="preview-copy"><p class="eyebrow">02 / MAKE IT YOURS</p><h2 id="preview-title">A little circle.<br>A lot of possibility.</h2><p>Pick a reading. Change the layout. Find the view you would put on your dashboard.</p>
+          <fieldset><legend>Choose a reading</legend><div class="choice-row" id="reading-options"><button type="button" data-reading="rpm" aria-pressed="true">Engine speed</button><button type="button" data-reading="coolant" aria-pressed="false">Coolant</button><button type="button" data-reading="speed" aria-pressed="false">Speed</button></div></fieldset>
+          <fieldset><legend>Choose a layout</legend><div class="choice-row" id="layout-options"><button type="button" data-layout="arc" aria-pressed="true">Arc</button><button type="button" data-layout="number" aria-pressed="false">Number</button></div></fieldset>
+          <p class="preview-note">Interactive design concept with sample readings. Available data will depend on the vehicle and adapter. Final hardware and features may change.</p>
+          <noscript><p>The sample gauge is visible below. Enable JavaScript to change its reading and layout.</p></noscript>
+        </div>
+        <div class="preview-stage"><div class="stage-top"><span class="status-dot"></span> DISPLAY EXPLORER <span>SAMPLE DATA</span></div>
+          <div class="gauge-shell demo-gauge" id="demo-gauge"><div class="gauge-screen">
+            <svg class="gauge-arc" viewBox="0 0 300 300" aria-hidden="true"><circle class="arc-track" cx="150" cy="150" r="122" pathLength="100"/><circle class="arc-fill" id="demo-arc" cx="150" cy="150" r="122" pathLength="100"/></svg>
+            <div class="dial-ticks" aria-hidden="true"></div><div class="dial-content" aria-live="polite" aria-atomic="true"><span class="dial-label" id="demo-label">ENGINE SPEED</span><strong class="dial-value" id="demo-value">2,450</strong><span class="dial-unit" id="demo-unit">RPM</span><span class="dial-divider"></span><span class="dial-brand">eGauge</span></div>
+          </div></div>
+          <p class="stage-caption">A view for every kind of drive.</p>
+        </div>
+      </div>
+    </section>
+    <section class="roadmap wrap section-space" id="roadmap" aria-labelledby="roadmap-title">
+      <div class="section-heading"><p class="eyebrow">03 / THE ROAD AHEAD</p><h2 id="roadmap-title">Start with the gauge.<br>Grow with the build.</h2><p>The platform is being designed to grow across vehicles. Development begins with stock Jeep JKs and Hemi-swapped Jeep JKs, then expands to other enthusiast platforms as interfaces and vehicle-specific behavior are validated.</p></div>
+      <p class="roadmap-priority">Current priority, subject to engineering results and customer input:</p><ol class="vehicle-priorities"><li><strong>Initial target</strong><span>Stock Jeep JK and Hemi-swapped Jeep JK</span></li><li><strong>Adjacent platform work</strong><span>Broader Mopar vehicles, building on JK and Hemi overlap</span></li><li><strong>Evaluation vehicles</strong><span>Volvo C30 and Porsche 718, which we can access for research and testing</span></li><li><strong>Lower priority candidates</strong><span>Lexus GX470 and Toyota FJ Cruiser</span></li></ol><div class="roadmap-grid">
+        <article><span class="roadmap-status">FIRST PRODUCT</span><h3>Standard gauge size</h3><p>A configurable, multi-page display designed for a conventional round gauge location, paired with an Android setup experience. Final dimensions, fitment, and compatibility are still being defined.</p></article>
+        <article><span class="roadmap-status future">FUTURE DIRECTION</span><h3>More ways to fit</h3><p>Larger dials, OLED displays, and custom dashboard designs for vehicles that call for a different shape or installation.</p></article>
+        <article><span class="roadmap-status future">FUTURE DIRECTION</span><h3>Deeper vehicle data</h3><p>A flexible data architecture for OBD-II and CAN interfaces, including multiple interfaces in swap applications. Direct CAN integration and each vehicle-specific data path will be validated separately.</p></article>
+        <article><span class="roadmap-status future">EXPLORATORY</span><h3>Advanced control and customization</h3><p>Potential vehicle-specific controls include raising idle for onboard air or winching, and managing traction control or ABS behavior where supported. We also plan to study existing vehicle knowledge and use AI to help discover, publish, and prioritize a roadmap that prospective customers can influence. Every control will require platform-specific engineering and validation.</p></article>
+        <article><span class="roadmap-status future">EXPLORATORY</span><h3>Shared road awareness</h3><p>Future integrations could bring opt-in, crowdsourced alerts for road hazards and police presence, plus a touch flow for reporting hazards when safe. Report accuracy, freshness, coverage, privacy, and safe presentation would need to be worked through before release.</p></article>
+      </div>
+    </section>
+    <section class="alert-concept" aria-labelledby="alert-concept-title">
+      <div class="wrap alert-concept-inner">
+        <div class="alert-concept-copy"><p class="eyebrow">FUTURE CONCEPT / ROAD AWARENESS</p><h2 id="alert-concept-title">See what matters.<br><span class="serif">Share what you see.</span></h2><p>Imagine a simple community alert on the same gauge you use for vehicle data. A future touch flow could also let you report a hazard when it is safe to interact. Police presence and road hazards are possibilities we are exploring for a connected experience.</p><p class="alert-concept-note">Illustrative concept with sample data. Crowdsourced alerts and touch reporting are not available in the current gauge; accuracy, coverage, privacy, and safe interaction need validation.</p></div>
+        <div class="alert-gallery"><figure class="alert-concept-art"><img src="/police-alert-concept.png" width="1536" height="1024" loading="lazy" alt="Future eGauge interface concept: a round speed display with a sample police-presence alert reported 1.2 miles ahead"><figcaption>01 / See a community report</figcaption></figure><figure class="alert-concept-art"><img src="/report-hazard-concept.png" width="1536" height="1024" loading="lazy" alt="Future eGauge touch concept: a finger selects Road debris on a simple Report hazard screen"><figcaption>02 / Report a hazard by touch when safe</figcaption></figure></div>
+      </div>
+    </section>
+    <section class="availability wrap section-space" id="availability" aria-labelledby="availability-title">
+      <div class="availability-copy"><p class="eyebrow">04 / PREORDER PLANS</p><h2 id="availability-title">First in line.<br><span class="serif">When it is ready.</span></h2><p>We are preparing preorders for the standard-size round gauge. Price, launch timing, final specifications, supported vehicles, and terms will be published before any payment is accepted. The full experience still needs real vehicle testing.</p><form class="interest-form" id="interest-form" action="/api/interest" method="post"><label for="interest-email">Get the first preorder update</label><div class="interest-options"><label><input type="checkbox" name="deposit_interest" value="yes"> Tell me when refundable first-unit deposits open</label><label><input type="checkbox" name="vip_interest" value="yes"> Tell me about VIP roadmap input</label></div><label for="roadmap-idea" class="optional-label">What should we prioritize? <span>(optional)</span></label><textarea id="roadmap-idea" name="roadmap_idea" maxlength="500" rows="3" placeholder="Your vehicle, swap, or feature idea"></textarea><div class="form-row"><input id="interest-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required maxlength="254"><button type="submit">Keep me posted</button></div><div class="trap" aria-hidden="true"><label for="interest-website">Website</label><input id="interest-website" name="website" type="text" tabindex="-1" autocomplete="off"></div><p class="form-note">We will email you about eGauge preorder availability and the options you select. This signup takes no payment or reservation. You can request removal at any time.</p><p class="form-message" id="form-message" role="status" aria-live="polite"></p></form><span class="availability-tag"><span class="status-dot"></span> Interest list open · deposits coming later</span><div class="custom-work"><h3>Have a specific build in mind?</h3><p>Tell us about a larger display, custom dash, engine swap, CAN integration, or another vehicle project. We will review the request, discuss feasibility and scope, then provide a proposal before any paid work begins.</p><form id="custom-form" action="/api/custom" method="post"><label for="custom-email">Email</label><input id="custom-email" name="email" type="email" autocomplete="email" required maxlength="254"><label for="custom-details">What are you building?</label><textarea id="custom-details" name="details" required minlength="20" maxlength="3000" rows="5" placeholder="Vehicle, hardware, data sources, and what you want the gauge to do"></textarea><div class="trap" aria-hidden="true"><label for="custom-website">Website</label><input id="custom-website" name="website" type="text" tabindex="-1" autocomplete="off"></div><button type="submit">Send project request</button><p class="form-note">We will use these details only to respond to your request. Submitting does not create an order or commit us to a project.</p><p class="form-message" id="custom-message" role="status" aria-live="polite"></p></form></div></div>
+      <div class="faq"><details open><summary>When can I buy one?<span aria-hidden="true">+</span></summary><p>Preorders are being prepared for the standard-size round gauge. No price or date has been announced, and checkout is not open yet. This page will show the final offer and terms before orders begin.</p></details><details><summary>How is my contact information used?<span aria-hidden="true">+</span></summary><p>We store your email and selected interests to contact you about eGauge preorder plans. Custom project details are used to review and respond to that request. We do not sell this information. To request removal, use the project request form and say you want your information removed.</p></details><details><summary>How will deposits and VIP input work?<span aria-hidden="true">+</span></summary><p>We are exploring refundable deposits for the first units and a VIP path for people who want to help shape the roadmap. Amounts, benefits, refund terms, and limits will be published before either opens. Joining the interest list is free and does not reserve a unit.</p></details><details><summary>Will it work with my vehicle?<span aria-hidden="true">+</span></summary><p>The long-term goal is a platform that can work across vehicles through appropriate OBD-II or CAN hardware. Development starts with stock Jeep JKs and Hemi-swapped Jeep JKs. Data access and control functions vary by vehicle, so we will publish tested compatibility and supported features for each platform before making those claims.</p></details><details><summary>What is working today?<span aria-hidden="true">+</span></summary><p>The round display and touch controls have been tested on prototype hardware. An Android phone has configured the gauge and installed development firmware. Complete vehicle communication and driving behavior still need validation.</p></details><details><summary>Are the future features part of the first gauge?<span aria-hidden="true">+</span></summary><p>No. Larger and OLED displays, custom dash designs, direct CAN integration, multiple interfaces, vehicle controls, crowdsourced road alerts, and AI-assisted customization are future directions. Stock and Hemi-swapped Jeep JK work is the starting platform; broader vehicle support will be built and validated in stages.</p></details><details><summary>Is this the final design?<span aria-hidden="true">+</span></summary><p>No. The displays on this page are interactive concepts using sample readings. The enclosure, final feature set, and production specifications are still being developed.</p></details></div>
+    </section>
+  </main>
+  <footer class="footer wrap"><a class="brand" href="#" aria-label="Back to eGauge home">eGauge<span class="brand-dot">.</span></a><p>Your vehicle. Your view.</p><span>© <span id="year">2026</span> Majjix · eGauge project</span></footer>
+</body>
+</html>

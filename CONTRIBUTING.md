@@ -1,5 +1,7 @@
 # Contributing
 
+Companion changes follow the [Android/iOS parity process](docs/development/companion-parity.md). Identify affected PAR IDs in the PR, update shared fixtures for changed rules, and record any deferred platform with an owner and release gate.
+
 Design status must remain explicit. Mark proposed behavior, simulation, hardware-observed evidence, and implemented behavior separately. Link every feature to a requirement and acceptance gate. Keep diagrams, contracts, examples, and release notes in the same change as behavior.
 
 Before a pull request: run `python tools/validate.py` in the documented environment; run the relevant firmware or Android build when that implementation changes; add focused tests for parser boundaries, schema changes, migration, security decisions and lifecycle state. Do not treat a screenshot, a firmware compilation, or a simulator result as vehicle compatibility evidence.

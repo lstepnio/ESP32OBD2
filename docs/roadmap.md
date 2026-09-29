@@ -12,6 +12,17 @@ Status: M0 is complete. M1 firmware transport, recovery, scheduler, alert, and o
 | M5: updates and recovery | USB partition migration, signed bundle and GitHub catalog workflows, exact-board hosted selection, BLE transfer plus negotiated Wi-Fi spike, A/B rollback, Android foreground operation and recovery journal | Run the [GitHub OTA recovery matrix](development/ota-recovery-matrix.md); wrong image rejection; recovery to known working version; no false success |
 | M6: beta hardening | Hardware/phone matrix, soak, accessibility, performance budgets, maintenance docs | Quality gates in [quality strategy](development/quality.md) recorded with artifacts |
 
+## External crowd-sourced road alerts, proposed extension
+
+**ALERT-EXT-001, discovery after M4.** Explore a phone-supplied road-alert layer inspired by JBV1's crowd-sourced alerts. This is separate from the gauge's autonomous OBD threshold and MIL/DTC alerts. The [architecture and feasibility note](architecture/external-road-alerts.md) compares direct BLE, Android/iOS companion, cloud microservice, and hybrid paths, with source access, licensing, phone lifecycle, privacy, radio coexistence, and stale-data gates. JBV1 integration itself is conditional on a documented, permitted alert export or agreement with its developer; no such interface has been verified.
+
+| Phase | Scope | Exit criteria |
+| --- | --- | --- |
+| A: source and experience discovery | Confirm what JBV1 exposes, seek developer permission/API details, assess licensed alternatives, and prototype labeled road-alert states with synthetic data | Written source-rights decision; driver-reviewed hierarchy and expiration behavior; no public live-feed claim |
+| B: local phone-to-gauge slice | Versioned, owner-authenticated external-alert GATT messages; Android first, then iOS parity, from a fixture or authorized source | Physical phone/gauge latency, reconnect, lock/background, stale/expiry, two-adapter coexistence, and local-alert precedence evidence |
+| C: authorized live feed pilot | Phone fetches a permitted feed, filters by route/location and sends bounded nearby events; optional backend adapter only if source terms and operations justify it | Source agreement, measured availability/cost, privacy review, offline degradation, and road testing on both platforms |
+| D: product decision | Evaluate phone-only versus hybrid service and supported regions/sources | Release gate passes without weakening M1/M4 autonomous alerts; otherwise retain as experimental |
+
 ## First engineering slice, completed in source
 
 The branch contains bounded ELM response assembly, independent adapter contexts, owner-authenticated companion control, atomic configuration, local warnings, callback-safe status, reconnect recovery, and an independent application tick. The remaining part of this slice is hardware measurement with one and two real adapters plus the phone and display.

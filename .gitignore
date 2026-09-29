@@ -15,5 +15,10 @@ local.properties
 .idea/
 *.jks
 *.keystore
+*.p12
+signing.env
 *.pem
 artifacts/
+.build/
+.swiftpm/
+xcuserdata/

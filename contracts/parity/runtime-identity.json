@@ -1,0 +1,119 @@
+[
+  {
+    "id": "confirmed-target",
+    "hex": "080100000700000007000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": true,
+    "expectedRevision": 7,
+    "expectedSha256": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "confirmation": "ACTIVE",
+    "storedRevision": 7
+  },
+  {
+    "id": "trial-is-not-complete",
+    "hex": "080500000700000007000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": true,
+    "expectedRevision": 7,
+    "expectedSha256": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "confirmation": "WAITING",
+    "storedRevision": 7
+  },
+  {
+    "id": "rollback-precedes-target-match",
+    "hex": "080300000700000007000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": true,
+    "expectedRevision": 7,
+    "expectedSha256": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "confirmation": "RECOVERED",
+    "storedRevision": 7
+  },
+  {
+    "id": "different-running-revision",
+    "hex": "080100000600000007000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": true,
+    "expectedRevision": 7,
+    "expectedSha256": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "confirmation": "REJECTED",
+    "storedRevision": 7
+  },
+  {
+    "id": "different-digest",
+    "hex": "080100000700000007000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": true,
+    "expectedRevision": 7,
+    "expectedSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "confirmation": "REJECTED",
+    "storedRevision": 7
+  },
+  {
+    "id": "inactive",
+    "hex": "0800000000000000090000000000000000000000000000000000000000000000000000000000000000000000",
+    "accepted": true,
+    "expectedRevision": 7,
+    "expectedSha256": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "confirmation": "REJECTED",
+    "storedRevision": 9
+  },
+  {
+    "id": "unsigned-u32-boundary",
+    "hex": "08010000ffffffffffffffff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": true,
+    "expectedRevision": 4294967295,
+    "expectedSha256": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "confirmation": "ACTIVE",
+    "storedRevision": 4294967295
+  },
+  {
+    "id": "stored-ahead-of-running",
+    "hex": "080100000700000008000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": true,
+    "expectedRevision": 7,
+    "expectedSha256": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "confirmation": "ACTIVE",
+    "storedRevision": 8
+  },
+  {
+    "id": "short-packet",
+    "hex": "080100000700000007000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e",
+    "accepted": false
+  },
+  {
+    "id": "overlong-packet",
+    "hex": "080100000700000007000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f00",
+    "accepted": false
+  },
+  {
+    "id": "unknown-version",
+    "hex": "090100000700000007000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": false
+  },
+  {
+    "id": "reserved-byte",
+    "hex": "080101000700000007000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": false
+  },
+  {
+    "id": "unknown-flags",
+    "hex": "088100000700000007000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": false
+  },
+  {
+    "id": "running-with-zero-revision",
+    "hex": "080100000000000007000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": false
+  },
+  {
+    "id": "stored-behind-running",
+    "hex": "080100000700000006000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": false
+  },
+  {
+    "id": "inactive-with-digest",
+    "hex": "080000000000000007000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "accepted": false
+  },
+  {
+    "id": "inactive-with-revision",
+    "hex": "0800000007000000070000000000000000000000000000000000000000000000000000000000000000000000",
+    "accepted": false
+  }
+]
