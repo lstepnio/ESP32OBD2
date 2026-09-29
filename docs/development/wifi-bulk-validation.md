@@ -59,8 +59,26 @@ The owner-bonded Pixel discovered and verified prerelease `dev-v0.2.0-dev.9` dir
 
 This evidence validates the successful encrypted transport, bounded batch path and signed activation path. It does not validate a malformed authenticated batch on hardware, wrong application key, replayed frame, expired session, power loss during transfer, automatic resumption, or concurrent vehicle traffic. Those cases retain the experimental capability label. Live OBD polling and dual-adapter coexistence were not exercised.
 
-## Android startup optimization pending physical timing
+## Android startup optimization physical check
 
 The Android update path now reads the running firmware identity and opens the temporary Wi-Fi network in one owner-authenticated BLE connection. Previously it closed the first GATT connection and repeated the MTU exchange, service discovery, and owner check before opening Wi-Fi. Android now reports transfer progress only after the private network and TCP socket are ready. The signed image verification, owner association, private-network credentials, and post-restart running-image confirmation are unchanged.
 
-This is source-level and build validation only. The revised app has not yet performed a physical OTA, so startup time saved is unmeasured. On the next authorized hardware update, separately record Install tap, package download completion if applicable, private AP ready, Pixel association, first OTA byte, and confirmed running image. Compare tap-to-first-byte with the prior app on the same gauge and Pixel before claiming a measured speedup.
+On 2026-09-29, the owner-bonded Pixel 10 Pro used the optimized debug app and USB debugging to discover signed GitHub prerelease [`dev-v0.2.0-dev.24`](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.24). The new firmware differs from the known-good dev.23 source only in `firmware/gauge/version.txt`. The GitHub workflow built and signed it. A clean download independently passed catalog and image signature verification, catalog generation 16, bundle size and SHA-256 checks, and the embedded dev.24 version check before installation.
+
+A Pixel screen recording at one-frame-per-second resolution showed these approximate UI timings from the Install tap:
+
+| Event | Elapsed |
+| --- | ---: |
+| Install tapped, GitHub download started | 0 s |
+| App displayed Sending to gauge, after the private network and TCP socket were ready | 17 s |
+| App displayed 100% sent | 56 s |
+| App displayed Checking your gauge | 57 s |
+| App displayed Update installed after confirmed running-image readback | 71 s |
+
+The hosted download, BLE owner check, temporary AP startup, Android association, and TCP connection are included in the first 17 seconds. Their individual timestamps and the first accepted OTA byte were not captured. This single run establishes a current tap-to-transfer-ready and tap-to-confirmation observation. The earlier approximately 65-second run started from a locally loaded signed bundle, used different firmware, and did not isolate startup stages, so it is not a valid controlled speedup comparison.
+
+The Android app read back version `0.2.0-dev.24`, valid OTA state `2`, partition `0x60000`, and ELF SHA-256 `24d277bce7d2e13fd8a727ad8fd7657c652e65fc371fcd07f9a018ffa7d3da24`, equal to the hosted image descriptor. Device data showed stored and running configuration revision 15, matching SHA-256 values, two definitions, two pages, zero alerts, and no configuration trial flag. This is physical Pixel-to-gauge evidence. The user separately confirmed that the physical display renders normally and page taps work. No live OBD telemetry or code clearing was attempted.
+
+A fresh GitHub check after installation reported that dev.24 was up to date and did not offer the equal version for installation.
+
+The first APK exposed a presentation bug after the confirmed update: the screen still showed the previously read dev.23 version and an Install action until the user checked the installed version again. The follow-up Android change carries the already authenticated post-restart identity into screen state and clears the downloaded selection. It passed build, unit tests, Android test compilation, lint, and repository checks. No second OTA was performed solely to retest this UI cleanup.
