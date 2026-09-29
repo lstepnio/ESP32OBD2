@@ -12,6 +12,11 @@ data class OperationUi(
     val needsCheck: Boolean = false, val update: Boolean = false,
 )
 
+/** Only a proven, terminal transfer success may leave the persistent activity area. */
+fun successBannerMayDismiss(state: OperationUi): Boolean =
+    state.visible && state.kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
+        !state.busy && !state.needsCheck && state.status.tone == StatusTone.Success
+
 /** Presentation must be stricter than a generic ACTIVE stage, which also represents successful reads. */
 fun isConfirmedSetup(expectedRevision: Long?, expectedHash: String?,
                      runtime: GaugeConfigTransferClient.RuntimeIdentity?): Boolean =
