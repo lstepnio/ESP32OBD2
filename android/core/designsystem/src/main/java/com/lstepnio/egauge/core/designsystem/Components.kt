@@ -2,6 +2,7 @@ package com.lstepnio.egauge.core.designsystem
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -64,13 +65,16 @@ fun StatusCard(state: StatusUi, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun ConnectionPill(label: String, checked: Boolean, modifier: Modifier = Modifier) {
-    Surface(modifier, shape = CircleShape,
+fun ConnectionPill(label: String, checked: Boolean, modifier: Modifier = Modifier,
+    icon: GaugeIcon? = null, onClick: (() -> Unit)? = null) {
+    Surface(modifier.then(if (onClick != null) Modifier.clickable(role = Role.Button,
+        onClickLabel = "Open updates", onClick = onClick) else Modifier), shape = CircleShape,
         color = if (checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
         contentColor = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+        Row(Modifier.heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            EGaugeIcon(if (checked) GaugeIcon.Check else GaugeIcon.Bluetooth, modifier = Modifier.size(16.dp))
+            EGaugeIcon(icon ?: if (checked) GaugeIcon.Check else GaugeIcon.Bluetooth,
+                modifier = Modifier.size(16.dp))
             Text(label, style = MaterialTheme.typography.labelMedium)
         }
     }

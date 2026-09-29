@@ -66,7 +66,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                                 val internalLargestBlockBytes: Long, val psramTotalBytes: Long,
                                 val psramFreeBytes: Long, val psramMinimumFreeBytes: Long,
                                 val uptimeSeconds: Long)
-    data class UpdateResult(val partitionAddress: Long, val elfSha256: String)
+    data class UpdateResult(val running: BootIdentity)
     private data class Status(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
                               val transferId: Long, val accepted: Long, val revision: Long, val hash: ByteArray)
     private data class OtaStatus(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
@@ -576,7 +576,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 }
             if (observed != null && observed.partitionAddress != before.partitionAddress &&
                 observed.elfSha256 == expectedElf && observed.otaState == 2)
-                return UpdateResult(observed.partitionAddress, observed.elfSha256)
+                return UpdateResult(observed)
             if (observed != null && observed.partitionAddress == before.partitionAddress &&
                 observed.elfSha256 == before.elfSha256 && observed.otaState == 2)
                 error("Gauge is running the previous valid firmware after the update attempt. The trial image was not confirmed.")

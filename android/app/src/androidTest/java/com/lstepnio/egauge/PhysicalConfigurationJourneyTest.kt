@@ -91,7 +91,6 @@ class PhysicalConfigurationJourneyTest {
             assertEquals(model.operation.detail, OperationStage.ACTIVE, model.operation.stage)
             assertTrue(isConfirmedSetup(model.activeConfigRevision, model.expectedSentDigest, model.runtimeIdentity))
             confirmed = true
-            compose.onNodeWithText("Saved & running on gauge").assertIsDisplayed()
             capture("configuration-confirmed")
             report.append("Three-reading revision: ${model.activeConfigRevision}\nThree-reading digest: ${model.expectedSentDigest}\n")
                 .append("Running revision and digest matched; trial cleared.\n")

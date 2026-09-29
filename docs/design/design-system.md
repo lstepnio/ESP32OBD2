@@ -19,9 +19,11 @@ Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp i
 ## Trust and status
 
 - Foreground discovery and owner reconnection are automatic. **Gauge ready** requires a recent protected check; it does not claim a persistent connection or live readings. Searching, reconnecting, Bluetooth-off and permission states remain explicit. Only initial code association and ambiguous gauge selection require a choice.
+- The Gauge pill carries routine ready status and opens Updates when a newer signed package is verified. Routine connection checks do not add or remove a saved-status card. Warning, offline, stale, critical and error cards remain visible.
 - Example values and histories always say **Preview** or **Example** next to that content.
 - **Saved & running on gauge** requires the expected running revision and hash, trial cleared and no previous-generation recovery. A stored readback or 100% transfer cannot claim this.
 - Sending, restarting and checking remain distinct stages. The operation stays visible across destinations. Only a gauge-confirmed success can be dismissed, manually or after six seconds; failures, rollbacks and unknown outcomes remain until the user checks them.
+- Signed development packages may be checked and downloaded during an authenticated foreground session. Installation always requires a tap. A failed release is held for that gauge to avoid repeated prompts.
 - Critical alerts, stale/offline readings, errors, rollback and unknown outcomes remain in the default path.
 - Automatic reconnection may refresh the protected readback before reviewing an unknown result. Never replay a commit automatically.
 - A changed page, layout or limit returns to unsent status. Browsing the page carousel must not create an edit.
