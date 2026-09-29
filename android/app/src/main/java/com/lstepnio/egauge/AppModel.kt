@@ -734,11 +734,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         updateInProgress = false
         updateMayHaveChangedGauge = false
         scanning = false
+        bootIdentity = value.running
+        hostedUpdate = null
+        selectedUpdate = null
+        updatePreparation = "current"
         updateJournal.clear()
         pendingUpdateRecovery = null
         updateRecoveryResult = UpdateRecoveryResult(UpdateRecoveryState.INSTALLED,
             "The new firmware is confirmed healthy.", true)
-        updatePackageMessage = "Gauge confirmed new image at 0x${value.partitionAddress.toString(16)} • ELF SHA-256 ${value.elfSha256.take(12)}…"
+        updatePackageMessage = "Gauge confirmed new image at 0x${value.running.partitionAddress.toString(16)} • ELF SHA-256 ${value.running.elfSha256.take(12)}…"
     }
     fun updateFailed(message: String) {
         updateInProgress = false

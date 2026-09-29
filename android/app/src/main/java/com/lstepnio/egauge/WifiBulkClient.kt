@@ -68,6 +68,11 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
     suspend fun configuration(command: ByteArray): ByteArray = frame(1, command)
     suspend fun configurationStatus(): ByteArray = frame(3, byteArrayOf(1))
 
+    /** Complete Android's network request and TCP connection before reporting transfer progress. */
+    suspend fun prepare() = withContext(Dispatchers.IO) {
+        if (socket == null) socket = connect()
+    }
+
     /**
      * Live, read-only negative check for the short-lived maintenance transport.
      * It consumes sequence one in this session, so callers must close the session

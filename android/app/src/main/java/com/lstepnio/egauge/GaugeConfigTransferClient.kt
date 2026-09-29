@@ -66,7 +66,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                                 val internalLargestBlockBytes: Long, val psramTotalBytes: Long,
                                 val psramFreeBytes: Long, val psramMinimumFreeBytes: Long,
                                 val uptimeSeconds: Long)
-    data class UpdateResult(val partitionAddress: Long, val elfSha256: String)
+    data class UpdateResult(val running: BootIdentity)
     private data class Status(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
                               val transferId: Long, val accepted: Long, val revision: Long, val hash: ByteArray)
     private data class OtaStatus(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
@@ -308,10 +308,12 @@ class GaugeConfigTransferClient(private val context: Context) {
 
     suspend fun readBootIdentity(device: BluetoothDevice): BootIdentity {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
-        val bytes = withGauge(device) {
-            writeRaw(byteArrayOf(0x31) + le32(1))
-            readRaw()
-        }
+        return withGauge(device) { readBootIdentityInSession() }
+    }
+
+    private suspend fun Session.readBootIdentityInSession(): BootIdentity {
+        writeRaw(byteArrayOf(0x31) + le32(1))
+        val bytes = readRaw()
         require(bytes.size == 60 && bytes[0].toInt() == 6) { "Gauge returned an unsupported boot identity" }
         val versionBytes = bytes.copyOfRange(40, 56)
         val versionEnd = versionBytes.indexOf(0).let { if (it < 0) versionBytes.size else it }
@@ -343,39 +345,41 @@ class GaugeConfigTransferClient(private val context: Context) {
     /** Opens a random, time-limited gauge access point through the authenticated BLE owner link. */
     suspend fun openWifiBulk(device: BluetoothDevice): WifiBulkSession {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        return withGauge(device, 90_000) { openWifiBulkInSession() }
+    }
+
+    private suspend fun Session.openWifiBulkInSession(): WifiBulkSession {
         val sequence = (SecureRandom().nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
-        return withGauge(device, 90_000) {
-            writeRaw(byteArrayOf(0x40) + le32(sequence))
-            repeat(120) {
-                val bytes = readRaw()
-                require(bytes.size == 112 && bytes[0].toInt() == 9) {
-                    "Gauge returned an unsupported Wi-Fi status"
-                }
-                if (u32(bytes, 4) == sequence && (bytes[3].toInt() and 255) == 0x40) {
-                    val phase = bytes[1].toInt() and 255
-                    val result = bytes[2].toInt() and 255
-                    if (phase == 3) error("Gauge could not start its temporary Wi-Fi network (result $result)")
-                    if (phase == 2 && result == 0) {
-                        val ssidLength = bytes[56].toInt() and 255
-                        val passwordLength = bytes[57].toInt() and 255
-                        require(ssidLength in 1..32 && passwordLength in 8..16) {
-                            "Gauge returned invalid temporary network credentials"
-                        }
-                        return@withGauge WifiBulkSession(
-                            bytes.copyOfRange(8, 12),
-                            (bytes[12].toInt() and 255) or ((bytes[13].toInt() and 255) shl 8),
-                            u32(bytes, 16),
-                            bytes.copyOfRange(20, 52),
-                            u32(bytes, 52),
-                            bytes.copyOfRange(58, 58 + ssidLength).toString(Charsets.UTF_8),
-                            bytes.copyOfRange(90, 90 + passwordLength).toString(Charsets.UTF_8),
-                        )
-                    }
-                }
-                delay(250)
+        writeRaw(byteArrayOf(0x40) + le32(sequence))
+        repeat(120) {
+            val bytes = readRaw()
+            require(bytes.size == 112 && bytes[0].toInt() == 9) {
+                "Gauge returned an unsupported Wi-Fi status"
             }
-            error("Gauge did not make its temporary Wi-Fi network ready")
+            if (u32(bytes, 4) == sequence && (bytes[3].toInt() and 255) == 0x40) {
+                val phase = bytes[1].toInt() and 255
+                val result = bytes[2].toInt() and 255
+                if (phase == 3) error("Gauge could not start its temporary Wi-Fi network (result $result)")
+                if (phase == 2 && result == 0) {
+                    val ssidLength = bytes[56].toInt() and 255
+                    val passwordLength = bytes[57].toInt() and 255
+                    require(ssidLength in 1..32 && passwordLength in 8..16) {
+                        "Gauge returned invalid temporary network credentials"
+                    }
+                    return WifiBulkSession(
+                        bytes.copyOfRange(8, 12),
+                        (bytes[12].toInt() and 255) or ((bytes[13].toInt() and 255) shl 8),
+                        u32(bytes, 16),
+                        bytes.copyOfRange(20, 52),
+                        u32(bytes, 52),
+                        bytes.copyOfRange(58, 58 + ssidLength).toString(Charsets.UTF_8),
+                        bytes.copyOfRange(90, 90 + passwordLength).toString(Charsets.UTF_8),
+                    )
+                }
+            }
+            delay(250)
         }
+        error("Gauge did not make its temporary Wi-Fi network ready")
     }
 
     suspend fun closeWifiBulk(device: BluetoothDevice) {
@@ -405,18 +409,25 @@ class GaugeConfigTransferClient(private val context: Context) {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         require(pauseBeforeActivationMs in 0..60_000)
         stage(FirmwareUpdateStage.PREPARING)
-        val before = readBootIdentity(device)
         val expectedElf = bundle.elfSha256.joinToString("") { "%02x".format(it) }
-        check(before.elfSha256 != expectedElf) { "This signed firmware image is already running on the gauge" }
+        // Keep the owner-authenticated identity check and AP opening on one GATT connection.
+        // Separate connections add a second MTU exchange, service discovery and owner handshake.
+        val (before, wifiSession) = withGauge(device, 90_000) {
+            val running = readBootIdentityInSession()
+            check(running.elfSha256 != expectedElf) {
+                "This signed firmware image is already running on the gauge"
+            }
+            running to openWifiBulkInSession()
+        }
         val random = SecureRandom()
         val transferId = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         var sequence = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         val id = le32(transferId)
-        val wifiSession = openWifiBulk(device)
-        stage(FirmwareUpdateStage.TRANSFERRING)
-        progress(0)
         try {
             WifiBulkClient(context, wifiSession).use { wifi ->
+            wifi.prepare()
+            stage(FirmwareUpdateStage.TRANSFERRING)
+            progress(0)
             suspend fun command(opcode: Int, payload: ByteArray = byteArrayOf()): OtaStatus {
                 val commandSequence = sequence++
                 val response = if (opcode == 0x27) wifi.otaStatus()
@@ -576,7 +587,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 }
             if (observed != null && observed.partitionAddress != before.partitionAddress &&
                 observed.elfSha256 == expectedElf && observed.otaState == 2)
-                return UpdateResult(observed.partitionAddress, observed.elfSha256)
+                return UpdateResult(observed)
             if (observed != null && observed.partitionAddress == before.partitionAddress &&
                 observed.elfSha256 == before.elfSha256 && observed.otaState == 2)
                 error("Gauge is running the previous valid firmware after the update attempt. The trial image was not confirmed.")
