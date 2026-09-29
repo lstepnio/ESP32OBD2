@@ -31,6 +31,8 @@ def main() -> None:
                         help="Exact source package and version for the manifest")
     parser.add_argument("--redistribution-rights", default="unconfirmed",
                         help="Human-reviewed rights status for the manifest")
+    parser.add_argument("--source-package", type=Path, action="append", default=[],
+                        help="Source APK file to record by size and SHA-256; repeat as needed")
     args = parser.parse_args()
     if args.output.exists() and any(args.output.iterdir()):
         parser.error(f"Output directory is not empty: {args.output}")
@@ -40,6 +42,9 @@ def main() -> None:
         parser.error("zstd is required")
     if args.chunk_mib < 1:
         parser.error("--chunk-mib must be positive")
+    for path in args.source_package:
+        if not path.is_file():
+            parser.error(f"Source package does not exist: {path}")
 
     args.output.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(f"file:{args.database}?mode=ro", uri=True)
@@ -110,6 +115,10 @@ def main() -> None:
             "status": "extracted research definitions; not vehicle verified or enabled",
             "redistribution_rights": args.redistribution_rights,
             "provenance": args.provenance,
+            "source_packages": [
+                {"filename": path.name, "bytes": path.stat().st_size, "sha256": digest(path)}
+                for path in args.source_package
+            ],
             "inputs": inputs,
             "resources": sum(shard["resources"] for shard in shards),
             "top_level_items": sum(shard["top_level_items"] for shard in shards),
