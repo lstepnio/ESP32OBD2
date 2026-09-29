@@ -23,6 +23,14 @@ config EGAUGE_DISPLAY_CALIBRATION
         bench characterization. This mode does not start BLE or OBD tasks and
         must remain disabled in release firmware.
 
+config EGAUGE_UI_PERFORMANCE_LOG
+    bool "Log touch-to-render timing and LVGL stack headroom"
+    default n
+    help
+        Bench-only timing summaries every 30 seconds after touches. Measures
+        LVGL click dispatch through the next render submission, not physical
+        contact or final panel scanout. Does not generate touches or car data.
+
 config EGAUGE_ECM_ADAPTER_MAC
     string "ECM BLE adapter MAC address (blank discovers first compatible adapter)"
     default ""
