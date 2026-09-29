@@ -419,8 +419,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var advancedReadingsOpen by mutableStateOf(false)
         private set
-    var technicalDetailsOpen by mutableStateOf(false)
-        private set
     var advancedConnectionsOpen by mutableStateOf(false)
         private set
     var operation by mutableStateOf(OperationState.Idle)
@@ -434,12 +432,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun editLabInput(value: String) { labInput = value.take(128) }
     fun showCustomLab(value: Boolean) { customLabOpen = value }
     fun showAdvancedReadings(value: Boolean) { advancedReadingsOpen = value }
-    fun showTechnicalDetails(value: Boolean) {
-        technicalDetailsOpen = value
-        if (value && capabilities?.hardwareCapacityVersion == 1 &&
-            hardwareSnapshot == null && !scanning)
-            readHardwareCapacity()
-    }
     fun showAdvancedConnections(value: Boolean) { advancedConnectionsOpen = value }
     fun editCustomRequest(value: String) { customRequestInput = value.take(32) }
     fun selectCustomSource(value: String) { if (value == "ECM" || value == "TCM") customSource = value }

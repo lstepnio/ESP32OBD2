@@ -17,7 +17,7 @@ import com.lstepnio.egauge.ui.state.SettingsUiState
 @Composable
 fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDynamic: (Boolean) -> Unit,
     onRename: (String) -> Unit, onRotate: (Int) -> Unit, onReadSaved: () -> Unit, onUpdates: () -> Unit,
-    onSetup: () -> Unit, onDetails: () -> Unit, onBluetoothSettings: () -> Unit) {
+    onSetup: () -> Unit, onBluetoothSettings: () -> Unit) {
     var nameOpen by rememberSaveable { mutableStateOf(false) }
     var rotationOpen by rememberSaveable { mutableStateOf(false) }
     var aboutOpen by rememberSaveable { mutableStateOf(false) }
@@ -44,7 +44,6 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                 PreferenceToggle("Show advanced tools", state.advanced, onAdvanced)
                 SettingsRow("About eGauge", "No account. No analytics.") { aboutOpen = true }
                 PrimaryAction("Check updates", onUpdates)
-                TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
             }
         })
     }

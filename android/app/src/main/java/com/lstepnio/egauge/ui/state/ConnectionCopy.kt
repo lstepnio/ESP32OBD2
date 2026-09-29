@@ -16,7 +16,7 @@ fun connectionStatus(value: ConnectionState, nowElapsedMs: Long): StatusUi = whe
     ConnectionPhase.Ready -> if (value.fresh(nowElapsedMs))
         StatusUi("Your gauge is ready", "Its current settings have been checked.", StatusTone.Success)
     else StatusUi("Gauge check is out of date", "Keep your gauge powered and nearby. We'll check again automatically.", StatusTone.Stale)
-    ConnectionPhase.Unavailable -> StatusUi("Gauge found", "Automatic checks are not available on this gauge. Open Details to check compatibility.", StatusTone.Disabled)
+    ConnectionPhase.Unavailable -> StatusUi("Gauge found", "Automatic checks are not available on this gauge. You can still explore the preview.", StatusTone.Disabled)
     ConnectionPhase.Idle -> StatusUi("Your gauge is not connected", "Connect to check its current settings.")
 }
 

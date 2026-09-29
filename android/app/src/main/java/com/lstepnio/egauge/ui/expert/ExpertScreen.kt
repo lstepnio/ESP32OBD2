@@ -19,13 +19,14 @@ data class ExpertActions(
     val secondAdapter: (Boolean) -> Unit, val checkWifi: () -> Unit, val readHardware: () -> Unit,
     val readSaved: () -> Unit, val readConfig: () -> Unit, val readDocument: () -> Unit,
     val readDiagnostics: () -> Unit, val readFirmware: () -> Unit, val selectBuiltIn: () -> Unit,
-    val developmentUpdates: () -> Unit,
+    val developmentUpdates: () -> Unit, val refreshSettings: () -> Unit,
+    val adoptGaugeSettings: () -> Unit,
 )
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ExpertScreen(state: ExpertUiState, tool: String, onTool: (String) -> Unit, onBack: () -> Unit,
-    onDetails: () -> Unit, actions: ExpertActions) {
+    actions: ExpertActions) {
     var discovery by rememberSaveable { mutableStateOf(false) }
     var selected by rememberSaveable { mutableStateOf(state.selectedReadingId) }
     ScreenContent(scrollKey = tool) {
@@ -33,7 +34,7 @@ fun ExpertScreen(state: ExpertUiState, tool: String, onTool: (String) -> Unit, o
         when (tool) {
             "" -> {
                 PrimaryAction("Explore readings", { onTool("PID explorer") })
-                listOf("Decoder lab", "Custom PIDs", "Second adapter", "Diagnostics", "Wi-Fi security self-check").forEach { name ->
+                listOf("Decoder lab", "Custom PIDs", "Second adapter", "Diagnostics", "Device data", "Wi-Fi security self-check").forEach { name ->
                     SettingsRow(name, onClick = { onTool(name) })
                 }
                 SettingsRow("Development updates", onClick = actions.developmentUpdates)
@@ -98,9 +99,13 @@ fun ExpertScreen(state: ExpertUiState, tool: String, onTool: (String) -> Unit, o
                 OutlinedButton(actions.readDiagnostics, enabled = state.canRead) { Text("Read fault snapshot") }
                 OutlinedButton(actions.readFirmware, enabled = state.canRead) { Text("Read installed firmware") }
                 OutlinedButton(actions.selectBuiltIn, enabled = state.canRead) { Text("Set selected built-in reading") }
-                Text("Results and raw responses are in Details.", style = MaterialTheme.typography.bodyMedium)
+                if (state.canAdoptGaugeSettings) OutlinedButton(actions.adoptGaugeSettings) { Text("Use gauge settings") }
+                Text("Results and raw responses are in Device data.", style = MaterialTheme.typography.bodyMedium)
+            }
+            "Device data" -> {
+                PrimaryAction("Check gauge settings", actions.refreshSettings, enabled = state.canRead)
+                DetailContent(state.details)
             }
         }
-        TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
     }
 }

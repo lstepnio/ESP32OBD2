@@ -12,7 +12,7 @@ import com.lstepnio.egauge.ui.state.*
 @Composable
 fun UpdatesScreen(state: UpdatesUiState, operation: OperationUi, development: Boolean,
     onBack: () -> Unit, onCheck: () -> Unit, onInstall: () -> Unit,
-    onReadInstalled: () -> Unit, onChoosePackage: () -> Unit, onDetails: () -> Unit) {
+    onReadInstalled: () -> Unit, onChoosePackage: () -> Unit) {
     ScreenContent {
         ScreenTitle(if (development) "Development updates" else "Updates", onBack)
         Text("Installed version: ${state.installedVersion}", style = MaterialTheme.typography.bodyLarge)
@@ -36,6 +36,5 @@ fun UpdatesScreen(state: UpdatesUiState, operation: OperationUi, development: Bo
             OutlinedButton(onChoosePackage, Modifier.fillMaxWidth(), enabled = !state.busy) { Text("Choose development package") }
             TextButton(onReadInstalled, enabled = state.canCheck) { Text("Check installed version") }
         }
-        TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
     }
 }

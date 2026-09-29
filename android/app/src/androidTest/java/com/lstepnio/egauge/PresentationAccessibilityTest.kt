@@ -58,6 +58,18 @@ class PresentationAccessibilityTest {
         assertEquals(1, clearCount)
     }
 
+    @Test fun everydayScreensHideTechnicalFactsButExpertKeepsThemReachable() {
+        var screen by mutableStateOf("gauge")
+        compose.setContent { key(screen) { EGaugeTheme { ScreenFixtures.Screen(screen) } } }
+        listOf("setup", "gauge", "readings", "review", "car", "updates", "settings").forEach { name ->
+            compose.runOnIdle { screen = name }
+            compose.onAllNodesWithText("Details").assertCountEquals(0)
+            compose.onAllNodesWithText("Example SHA-256").assertCountEquals(0)
+        }
+        compose.runOnIdle { screen = "expert-data" }
+        compose.onNodeWithText("Example SHA-256").assertExists()
+    }
+
     @Test fun holdingTheVisiblePreviewOpensThatPageForEditing() {
         val pages = listOf(
             GaugePageDraft("one", "Engine speed", GaugeLayout.Arc, listOf("rpm")),
@@ -67,7 +79,7 @@ class PresentationAccessibilityTest {
         compose.setContent { EGaugeTheme { Surface(Modifier.requiredSize(390.dp, 844.dp)) {
             HomeScreen(HomeUiState("eGauge", "Gauge ready", true,
                 StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success),
-                pages, false, "Customize", HomeAction.Customize, false, emptyList()), {}, {}, {}, { edited = it })
+                pages, false, "Customize", HomeAction.Customize, false, emptyList()), {}, {}, { edited = it })
         } } }
         compose.onNodeWithText("Swipe between pages · Hold to edit").assertIsDisplayed()
         compose.onNodeWithTag("page-carousel").performTouchInput { swipeLeft() }

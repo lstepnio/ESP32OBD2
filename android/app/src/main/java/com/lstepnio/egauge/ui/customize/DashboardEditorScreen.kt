@@ -33,7 +33,7 @@ data class CustomizeActions(
 
 @Composable
 fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestination: (Int) -> Unit,
-                          onBack: () -> Unit, onDetails: () -> Unit, actions: CustomizeActions) {
+                          onBack: () -> Unit, actions: CustomizeActions) {
     var picker by rememberSaveable { mutableStateOf<String?>(null) }
     var alertReading by rememberSaveable { mutableStateOf<String?>(null) }
     var alertReturn by rememberSaveable { mutableIntStateOf(0) }
@@ -46,7 +46,7 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
     }
     when {
         current == null -> EditorScaffold("Customize", onBack, "Add page", { picker = "add" },
-            state.editingEnabled, onDetails) { EmptyState("No pages yet", "Add a reading to start your gauge.") }
+            state.editingEnabled) { EmptyState("No pages yet", "Add a reading to start your gauge.") }
         destination == 2 -> PageManager(state, ::done, { picker = "add" }, actions)
         destination == 3 -> AlertManager(state, ::done, ::editAlert, actions)
         destination == 4 -> {
@@ -54,9 +54,9 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
             AlertEditor(state, reading, state.alerts.firstOrNull { it.readingId == reading.id },
                 { onDestination(alertReturn) }, actions)
         }
-        destination == 5 -> SendReview(state, ::done, onDetails, actions)
+        destination == 5 -> SendReview(state, ::done, actions)
         else -> EditorScaffold("Customize", onBack, "Review and send", { onDestination(5) },
-            state.editingEnabled, onDetails) {
+            state.editingEnabled) {
             ResponsivePanels(first = {
                 PagePreview(state, { actions.selectPage(it) }, { picker = "reading" })
             }, second = {
@@ -113,14 +113,13 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
 /** Keep the one primary action in reach, including with the keyboard or large text. */
 @Composable
 internal fun EditorScaffold(title: String, onBack: () -> Unit, primary: String, onPrimary: () -> Unit,
-                            enabled: Boolean = true, onDetails: (() -> Unit)? = null,
+                            enabled: Boolean = true,
                             content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxSize().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically) {
             IconButton(onBack) { EGaugeIcon(GaugeIcon.Back, "Go back") }
             Text(title, Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
-            if (onDetails != null) IconButton(onDetails) { EGaugeIcon(GaugeIcon.Info, "Details") }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
@@ -201,11 +200,11 @@ internal fun EditorRow(title: String, detail: String, enabled: Boolean = true, o
 internal fun AlertUi.summary() = "Warn $direction $warning $unit · Critical $direction $critical $unit"
 
 @Composable
-private fun SendReview(state: CustomizeUiState, onBack: () -> Unit, onDetails: () -> Unit, actions: CustomizeActions) {
+private fun SendReview(state: CustomizeUiState, onBack: () -> Unit, actions: CustomizeActions) {
     EditorScaffold("Review and send", onBack,
         when { !state.found -> "Set up gauge"; state.needsCheck -> "Check gauge"; else -> "Send to gauge" },
         { when { !state.found -> actions.setup(); state.needsCheck -> actions.check(); else -> actions.send() } },
-        !state.busy && (!state.found || state.needsCheck || state.canSend), onDetails) {
+        !state.busy && (!state.found || state.needsCheck || state.canSend)) {
         SectionTitle("${state.pages.size} pages")
         Panel {
             state.pages.forEachIndexed { index, page ->

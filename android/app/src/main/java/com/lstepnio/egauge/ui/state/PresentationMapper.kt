@@ -92,7 +92,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         op = op.copy(status = updateRecoveryUi(updateRecovery), visible = true, needsCheck = true, update = true)
     }
     val status = when {
-        profileError != null -> StatusUi("Your saved profiles need attention", "Editing is paused to protect your settings. Open Details to review the problem.", StatusTone.Error)
+        profileError != null -> StatusUi("Your saved profiles need attention", "Editing is paused to protect your settings. Restart the app and check your profiles.", StatusTone.Error)
         presentationError != null -> friendlyFailure(presentationError)
         op.visible && (op.busy || op.needsCheck) -> op.status
         runtimeIdentity?.usedPreviousGeneration == true -> StatusUi("Earlier settings are running", "Your gauge restored an earlier setup. Review your pages before sending again.", StatusTone.Stale)
@@ -152,7 +152,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             (query.isBlank() || "${pid.name} ${pid.request} ${pid.category} ${pid.source}".contains(query, true)) }.map(::readingUi),
             found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
             found && capabilities?.wifiBulk == "experimental-softap-aead-v2" && !busy,
-            profileCollection.active.secondAdapterEnabled, details, query, sourceFilter, draft.pidId, labInput,
+            profileCollection.active.secondAdapterEnabled, canAdoptGaugeDraft, details, query, sourceFilter, draft.pidId, labInput,
             decoded, customRequestInput, customSource, request, wifiSecurityMessage, busy),
         SetupUiState(found, ownerAccess, busy || connection.phase in setOf(ConnectionPhase.Searching, ConnectionPhase.Checking), gaugeCandidates.mapIndexed { index, candidate ->
             CandidateUi(candidate.id, candidate.name.ifBlank { "Gauge ${index + 1}" }, listOf(
@@ -168,7 +168,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             updateRecovery?.state in setOf(UpdateRecoveryState.CHECK_REQUIRED, UpdateRecoveryState.WAITING_FOR_CONFIRMATION), details),
         op,
         if (profileError != null) StatusUi("Your saved profiles need attention",
-            "Editing is paused to protect your settings. Open Details to review the problem.", StatusTone.Error)
+            "Editing is paused to protect your settings. Restart the app and check your profiles.", StatusTone.Error)
         else presentationError?.let { friendlyFailure(it) }
             ?: if (disconnected) connectionStatus(connection, nowElapsedMs) else null,
         connection,

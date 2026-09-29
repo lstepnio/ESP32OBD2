@@ -33,6 +33,7 @@ private enum class Route(val title: String, val icon: GaugeIcon) {
     DevelopmentUpdates("Development updates", GaugeIcon.Tools),
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: () -> Unit,
     onSelectUpdate: () -> Unit, onSelectBuiltIn: () -> Unit, onBluetoothSettings: () -> Unit,
@@ -42,7 +43,6 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
         var route by rememberSaveable { mutableStateOf(Route.Gauge) }
         var customizeStep by rememberSaveable { mutableIntStateOf(0) }
         var expertTool by rememberSaveable { mutableStateOf("") }
-        var detailsOpen by rememberSaveable { mutableStateOf(false) }
         var progressOpen by rememberSaveable { mutableStateOf(false) }
         var backProgress by remember { mutableFloatStateOf(0f) }
         fun back() {
@@ -61,7 +61,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
             if (route == Route.Gauge && state.connection.phase in setOf(ConnectionPhase.PairRequired, ConnectionPhase.ChooseGauge))
                 route = Route.Setup
         }
-        PredictiveBackHandler(enabled = route != Route.Gauge && !detailsOpen && !progressOpen) { events ->
+        PredictiveBackHandler(enabled = route != Route.Gauge && !progressOpen) { events ->
             try { events.collect { backProgress = it.progress }; back() }
             catch (_: CancellationException) { /* A cancelled gesture keeps the current step. */ }
             finally { backProgress = 0f }
@@ -107,7 +107,6 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                         state.notice?.takeIf { it.tone in setOf(StatusTone.Error, StatusTone.Critical, StatusTone.Stale) }?.let { notice ->
                             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                                 StatusCard(notice)
-                                TextButton({ detailsOpen = true }) { Text("Details") }
                             }
                         }
                         val op = state.operation
@@ -135,7 +134,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                         HomeAction.Review -> { customizeStep = 5; route = Route.Customize }
                                         HomeAction.Customize -> { customizeStep = 0; route = Route.Customize }
                                     }
-                                }, { customizeStep = 0; route = Route.Customize }, { detailsOpen = true }, { index ->
+                                }, { customizeStep = 0; route = Route.Customize }, { index ->
                                     model.selectPage(index)
                                     customizeStep = 0
                                     route = Route.Customize
@@ -144,46 +143,44 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                 Route.Setup -> SetupScreen(state.setup, onFindGauge,
                                     { if (model.capabilities?.experimentalNumericConfig == true) model.checkGaugeForReview() else model.readSavedGauge() },
                                     { id -> model.gaugeCandidates.firstOrNull { it.id == id }?.let(model::selectGaugeCandidate) },
-                                    { customizeStep = 0; route = Route.Customize }, ::back, { detailsOpen = true })
+                                    { customizeStep = 0; route = Route.Customize }, ::back)
                                 Route.Customize -> DashboardEditorScreen(state.customize, customizeStep, { customizeStep = it }, ::back,
-                                    { detailsOpen = true }, CustomizeActions(
+                                    CustomizeActions(
                                         model::selectPage, { id -> model.selectPid(demoCatalog.first { it.id == id }) },
                                         { id -> model.selectSecondaryPid(demoCatalog.first { it.id == id }) },
                                         model::addPage, model::removePage, model::movePage, model::selectLayout,
                                         model::saveAlert, model::removeAlert,
                                         model::checkGaugeForReview, { model.sendNumericConfiguration(); route = Route.Gauge }, { route = Route.Setup }))
-                                Route.Car -> CarScreen(state.car, model::readGaugeDiagnostics, { route = Route.Setup }, { detailsOpen = true },
+                                Route.Car -> CarScreen(state.car, model::readGaugeDiagnostics, { route = Route.Setup },
                                     model::selectProfile, { name -> model.editProfileName(name); model.createProfile() })
                                 Route.Settings -> SettingsScreen(state.settings, model::setAdvancedTools, model::setDynamicColor,
                                     model::renameGauge, model::rotateGauge, model::readSavedGauge, { route = Route.Updates },
-                                    { route = Route.Setup }, { detailsOpen = true }, onBluetoothSettings)
+                                    { route = Route.Setup }, onBluetoothSettings)
                                 Route.Updates, Route.DevelopmentUpdates -> UpdatesScreen(state.updates, state.operation, route == Route.DevelopmentUpdates,
-                                    ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate, { detailsOpen = true })
-                                Route.Expert -> ExpertScreen(state.expert, expertTool, { expertTool = it }, ::back, { detailsOpen = true }, ExpertActions(
+                                    ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate)
+                                Route.Expert -> ExpertScreen(state.expert, expertTool, { expertTool = it }, ::back, ExpertActions(
                                     model::search, model::filter, { id -> model.selectPid(demoCatalog.first { it.id == id }); customizeStep = 0; route = Route.Customize },
                                     model::editLabInput, model::editCustomRequest, model::selectCustomSource, model::setSecondAdapterEnabled,
                                     model::runWifiTransportSecurityCheck, model::readHardwareCapacity, model::readSavedGauge,
                                     model::readConfiguration, model::readConfigurationDocument, model::readGaugeDiagnostics,
-                                    model::readRunningFirmware, onSelectBuiltIn, { route = Route.DevelopmentUpdates }))
+                                    model::readRunningFirmware, onSelectBuiltIn, { route = Route.DevelopmentUpdates },
+                                    model::checkGaugeForReview, model::adoptGaugeDraft))
                             }
                         }
                     }
                 }
             }
         }
-        if (detailsOpen) DetailsSheet("Details", state.home.details, { detailsOpen = false }) {
-            if (model.capabilities != null) {
-                OutlinedButton(model::checkGaugeForReview, enabled = !state.home.busy) { Text("Refresh gauge settings") }
-                if (model.canAdoptGaugeDraft) OutlinedButton(model::adoptGaugeDraft, enabled = !state.home.busy) { Text("Use gauge settings") }
-                if (model.capabilities?.hardwareCapacityVersion == 1)
-                    OutlinedButton(model::readHardwareCapacity, enabled = !state.home.busy) { Text("Read hardware details") }
+        if (progressOpen) ModalBottomSheet(onDismissRequest = { progressOpen = false }) {
+            Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("Gauge activity", style = MaterialTheme.typography.headlineSmall)
+                StatusCard(state.operation.status)
+                ProgressStepper(if (state.operation.update) listOf("Downloading", "Sending to gauge", "Restarting", "Done")
+                    else listOf("Preparing", "Sending", "Restarting", "Checking gauge"), state.operation.step,
+                    state.operation.progress, finished = state.operation.status.tone == StatusTone.Success)
+                TextButton({ progressOpen = false }, Modifier.align(Alignment.End)) { Text("Close") }
             }
-        }
-        if (progressOpen) DetailsSheet("Gauge activity", listOf(DetailUi(state.operation.status.title, state.operation.status.detail)) +
-            state.home.details.filter { it.label.startsWith("Operation") }, { progressOpen = false }) {
-            ProgressStepper(if (state.operation.update) listOf("Downloading", "Sending to gauge", "Restarting", "Done")
-                else listOf("Preparing", "Sending", "Restarting", "Checking gauge"), state.operation.step,
-                state.operation.progress, finished = state.operation.status.tone == StatusTone.Success)
         }
     }
 }

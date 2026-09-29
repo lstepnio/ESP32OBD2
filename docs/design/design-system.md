@@ -12,7 +12,7 @@ Body text is 16 sp; labels are 14 sp; titles are 32 sp. Reading values are 64 sp
 
 ## Navigation and tasks
 
-Gauge, Car and Settings are the default destinations. Settings has one **Show advanced tools** toggle, revealing Expert and advanced fields. Customize is one workspace with a swipeable page preview and contextual reading, layout and alert rows. Choices open focused sheets; Add page chooses a reading before creating a page. Manage pages uses compact numbered rows with named move/remove options. The alert form commits only on Save. Its unit-aware fields validate range, ordering, reset distance and delays. The primary action stays in a fixed footer. See the [Customize review](redesign/customize-review.md) for the audit, workflow and images. Setup walks through discovery, physical-code association and adapter availability. Details is a named sheet with selectable text, reachable from every feature.
+Gauge, Car and Settings are the default destinations. Settings has one **Show advanced tools** toggle, revealing Expert and advanced fields. Customize is one workspace with a swipeable page preview and contextual reading, layout and alert rows. Choices open focused sheets; Add page chooses a reading before creating a page. Manage pages uses compact numbered rows with named move/remove options. The alert form commits only on Save. Its unit-aware fields validate range, ordering, reset distance and delays. The primary action stays in a fixed footer. See the [Customize review](redesign/customize-review.md) for the audit, workflow and images. Setup walks through discovery, physical-code association and adapter availability. Technical facts live in Expert > Device data. Everyday screens have no generic details control.
 
 Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp it can show preview and controls side by side; large text returns content to a stack. Respect system bars, keyboard insets, fold hinges and predictive back.
 
@@ -29,11 +29,11 @@ Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp i
 
 ## Components and copy
 
-Status card, connection pill, round preview, reading tile, page carousel, unit-aware limit field, progress stepper, Details sheet, empty/error panel and primary action share the eight-state [fixtures](../../design/fixtures/ui-states.json). Component previews cover default, loading, disabled, error, success, stale, offline and critical states.
+Status card, connection pill, round preview, reading tile, page carousel, unit-aware limit field, progress stepper, empty/error panel and primary action share the eight-state [fixtures](../../design/fixtures/ui-states.json). Component previews cover default, loading, disabled, error, success, stale, offline and critical states.
 
-Buttons use verbs: **Find gauge**, **Pair gauge**, **Customize**, **Send to gauge**, **Check gauge**, **Install**. Default copy never exposes revision, hash, PID, ECU, transport phase or source-model terminology. Errors finish with one next step. Detailed facts remain exact and selectable in the scrollable sheet. Settings switches and radio options use the entire named row as a target. No account, analytics or secrets in logs/export/backup.
+Buttons use verbs: **Find gauge**, **Pair gauge**, **Customize**, **Send to gauge**, **Check gauge**, **Install**. Default copy never exposes revision, hash, PID, ECU, transport phase or source-model terminology. Errors finish with one next step. Detailed facts remain exact in Expert > Device data. Settings switches and radio options use the entire named row as a target. No account, analytics or secrets in logs/export/backup.
 
-Each supported standard reading can have one transmitted alert. People choose whether it should alert when the value rises above or falls below limits. Default labels are **Warn above**, **Critical above**, **Warn below**, and **Critical below**. Reset margin and timing remain inspectable in Details. Unsupported layouts, readings, or sources stay preview-only with an explanation before send. All transmitted pages and alert settings are included in review.
+Each supported standard reading can have one transmitted alert. People choose whether it should alert when the value rises above or falls below limits. Default labels are **Warn above**, **Critical above**, **Warn below**, and **Critical below**. Reset margin and timing remain inspectable in Expert > Device data. Unsupported layouts, readings, or sources stay preview-only with an explanation before send. All transmitted pages and alert settings are included in review.
 
 ## Artifacts and verification
 

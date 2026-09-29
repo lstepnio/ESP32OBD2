@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -160,28 +159,6 @@ fun ProgressStepper(stages: List<String>, current: Int, progress: Int? = null, f
     }
 }
 
-/** Details are non-secret presentation facts only. Transport credentials must never enter this model. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DetailsSheet(title: String, details: List<DetailUi>, onDismiss: () -> Unit,
-                 actions: @Composable ColumnScope.() -> Unit = {}) {
-    ModalBottomSheet(onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).padding(horizontal = 24.dp)
-            .navigationBarsPadding().padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).semantics { heading() })
-                IconButton(onDismiss) { EGaugeIcon(GaugeIcon.Close, "Close details") }
-            }
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                DetailContent(details)
-                actions()
-            }
-        }
-    }
-}
-
 @Composable
 fun EmptyState(title: String, detail: String, modifier: Modifier = Modifier) {
     StatusCard(StatusUi(title, detail, StatusTone.Disabled), modifier)
@@ -205,14 +182,12 @@ fun SettingsRow(title: String, detail: String? = null, enabled: Boolean = true, 
 
 @Composable
 fun DetailContent(details: List<DetailUi>) {
-    SelectionContainer {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            details.forEach { field ->
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(field.label, style = MaterialTheme.typography.labelLarge)
-                    Text(field.value, style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        details.forEach { field ->
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(field.label, style = MaterialTheme.typography.labelLarge)
+                Text(field.value, style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
