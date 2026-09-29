@@ -17,7 +17,7 @@ The review uses the dev.24 firmware as its baseline. No vehicle requests, simula
 | Page renderer | Dual-page content could wait for the next 50 ms data timer | Prepare the selected renderer immediately, on the LVGL task. First drawing remains on that task. |
 | Logging | Every decoded value and page change generated an info log | Move those messages to debug and restore the application task's normal info level. |
 | Compiler | Firmware used `-Og` | Build with `-O2`; keep assertions and the existing CPU, bus clocks and stack allocation. IDF no longer selects its debug-only task wrapper in this configuration. |
-| Touch driver | The pinned LVGL port already uses the CST816S interrupt to wake its task | Keep this working event-driven path; faster polling would add work without removing the identified queue delays. |
+| Touch driver | The pinned LVGL port uses the CST816S interrupt to wake its task, but leaves the controller's standby defaults unchanged | Keep event-driven input; dev.26 disables automatic standby and redundant gesture interrupts, with readback verification. |
 | Display buffers | One 10-row buffer; a second DMA buffer could overlap drawing and SPI transfer | Defer until heap and frame measurements justify the extra allocation, including during Wi-Fi OTA. |
 | Scheduling | LVGL priority 4, application/OBD workers priority 5 | Keep priorities and affinity until measurements demonstrate contention. |
 
@@ -60,7 +60,17 @@ The pinned CST816S driver resets and reads the controller but leaves its input r
 
 The BSP now sets and reads back `DisAutoSleep` (`0xFE`) to `1`, and `IrqCtl` (`0xFA`) to `0x60` for touch/state-change interrupts. LVGL still handles short and long presses, with no page change on finger-down. Startup logs record original and applied register values. Tuning failure logs a warning and does not prevent display/BLE startup. Driver dependencies, display buffers, clocks and renderer settings are unchanged from dev.25.
 
-This trades controller standby savings for dynamic scanning while powered (datasheet typical dynamic current 1.6 mA versus 6 microamps in standby). Future device sleep support must explicitly revisit this choice. Bench instrumentation adds recognized press/release/click/hold counts, without per-event logging or artificial input. Physical confirmation is pending; no performance improvement is claimed.
+This trades controller standby savings for dynamic scanning while powered (datasheet typical dynamic current 1.6 mA versus 6 microamps in standby). Future device sleep support must explicitly revisit this choice. Bench instrumentation adds recognized press/release/click/hold counts, without per-event logging or artificial input.
+
+The bench image was built from `f33c16b` with performance logging enabled. Its 1,492,528-byte binary SHA-256 is `923fe2d329139ded5e20a0270aab09add93b9fb1883e47a7b3dbaf5c3e849950`; ELF SHA-256 is `26af65461f004e7c8d5757fd84e334b7bfe2af0215fd77d08cc5721a12a7d226`. Application-only USB write and independent flash verification matched. Startup reported dev.26, the matching ELF, retained revision 17/two pages, and successful display/touch initialization.
+
+**Hardware register observation:** `0xFE` changed from `0x00` to `0x01`; `0xFA` changed from `0x70` to `0x60`. This board already enabled touch/change interrupts, so waiting exclusively for completed hardware gestures was not its problem. The second setting removes additional gesture interrupts; disabled standby is the main input-path change under evaluation. Neither successful initialization nor register readback proves normal visible display or improved physical touch response.
+
+**Physical user observation:** after testing a tap following five seconds idle and several quick taps with the phone app closed, the user reported "Normal display, touch is better." This supports keeping the second change; it does not quantify end-to-end latency or independently isolate the two register changes.
+
+**Device instrumentation:** five recognized presses, five releases, five clicks and five rendered frames; no holds in this sample. Click-to-render-submission averaged 65,571 microseconds, maximum 84,135, with 2,988 bytes LVGL stack low-water. Drawing time is similar to dev.25 despite better perceived response, which points toward touch detection as the useful improvement. The controller-to-finger timing was not measured directly and there is no claimed percentage reduction.
+
+Both default and timing-enabled dev.26 ESP-IDF builds passed, as did repository validation and optimized sanitizer host fixtures. No simulated touch or vehicle data was used. Long holds, phone-open contention, Wi-Fi OTA memory headroom, sustained vehicle load and broader device variants remain unqualified by this bench check. The installed image retains timing instrumentation for further observation.
 
 Primary touch references: [CST816S register description](https://files.waveshare.com/wiki/common/CST816S_register_declaration.pdf), [CST816S datasheet](https://files.waveshare.com/wiki/common/CST816S_Datasheet_EN.pdf).
 
