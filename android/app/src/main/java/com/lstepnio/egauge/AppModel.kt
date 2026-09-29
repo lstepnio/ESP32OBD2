@@ -146,6 +146,7 @@ data class CapabilitySnapshot(
     val savedStateRead: Boolean,
     val quickSelect: Boolean,
     val displayRotationWrite: Boolean,
+    val displaySettingsVersion: Int = 0,
     val ota: Boolean,
     val wifiBulk: String?,
     val hardwareCapacityVersion: Int?,
@@ -330,6 +331,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var ownerAccess by mutableStateOf(OwnerAccess.UNKNOWN)
         private set
     var savedGauge by mutableStateOf<GaugeSavedSnapshot?>(null)
+    var displaySettings by mutableStateOf<GaugeConfigTransferClient.DisplaySettings?>(null)
         private set
     var diagnostics by mutableStateOf<GaugeConfigTransferClient.Diagnostics?>(null)
         private set
@@ -474,6 +476,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         gaugeCandidates = emptyList()
         ownerAccess = OwnerAccess.UNKNOWN
         savedGauge = null
+        displaySettings = null
         diagnostics = null
         diagnosticsObservedAtElapsedMs = null
         bootIdentity = null
@@ -493,6 +496,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ownerAccess = OwnerAccess.DISCOVERED
         if (!preserveSent) {
             savedGauge = null
+            displaySettings = null
             diagnostics = null
             diagnosticsObservedAtElapsedMs = null
             bootIdentity = null
@@ -865,6 +869,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
             "Display rotation saved", "The gauge confirmed ${rotation * 90}°", terminal = true)
     }
+
+    fun readDisplaySettings() = launchGaugeOperation(OperationKind.READ, "Checking display settings") { id ->
+        require(capabilities?.displaySettingsVersion == 1) { "Gauge does not offer display settings" }
+        displaySettings = GaugeConfigTransferClient(getApplication()).readDisplaySettings(bleClient.selectedGauge())
+        ownerAccess = OwnerAccess.AUTHENTICATED
+        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
+            "Display settings checked", "Saved on the gauge", terminal = true)
+    }
+
+    fun saveDisplaySettings(rotation: Int, brightness: Int) =
+        launchGaugeOperation(OperationKind.CONFIGURATION, "Saving display settings") { id ->
+            require(capabilities?.displaySettingsVersion == 1) { "Gauge does not offer display settings" }
+            operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
+                "Saving display settings", "Waiting for gauge confirmation")
+            displaySettings = GaugeConfigTransferClient(getApplication()).saveDisplaySettings(
+                bleClient.selectedGauge(), rotation, brightness)
+            ownerAccess = OwnerAccess.AUTHENTICATED
+            operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
+                "Display settings saved", "The gauge confirmed ${rotation * 90}° and $brightness% brightness", terminal = true)
+        }
 
     fun readSavedGauge() = launchGaugeOperation(OperationKind.READ, "Checking gauge settings") { id ->
         snapshotRead(bleClient.readSavedSnapshot())

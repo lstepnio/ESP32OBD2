@@ -1,5 +1,12 @@
 menu "eGauge configuration"
 
+config EGAUGE_DISPLAY_SETTINGS_ENABLED
+    bool "Advertise authenticated display settings"
+    default n
+    help
+        Enables the public display settings capability after a live gauge and
+        phone check confirms read, save, rotation, brightness, and persistence.
+
 config EGAUGE_WIFI_BULK_ENABLED
     bool "Advertise experimental authenticated Wi-Fi bulk transfer"
     default n

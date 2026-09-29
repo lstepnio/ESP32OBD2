@@ -80,6 +80,7 @@ struct _ui_t
 {
     ui_touch_callback_t touch_cb;
     bool                long_press_handled;
+    bool                pairing_visible;
     bool                calibration_mode;
     uint8_t             calibration_page;
     TickType_t          pressed_at;
@@ -94,6 +95,7 @@ struct _ui_t
     } rtos;
     struct
     {
+        lv_obj_t *gauge_content;
         lv_obj_t *value_lbl;
         lv_obj_t *info_lbl;
         lv_obj_t *unit_lbl;
@@ -167,6 +169,21 @@ static void show(lv_obj_t *object, bool visible)
     if (!object) return;
     if (visible) lv_obj_remove_flag(object, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void show_pairing(ui_t *ui, uint32_t pairing_code)
+{
+    ui->pairing_visible = pairing_code != UI_PAIRING_HIDDEN;
+    if (ui->pairing_visible) {
+        if (pairing_code == UI_PAIRING_READY)
+            lv_label_set_text(ui->widgets.pairing_lbl, "PAIR\nREADY");
+        else if (pairing_code == UI_PAIRING_WAITING)
+            lv_label_set_text(ui->widgets.pairing_lbl, "HOLD TO\nPAIR");
+        else
+            lv_label_set_text_fmt(ui->widgets.pairing_lbl, "PAIR\n%06" PRIu32, pairing_code);
+    }
+    show(ui->widgets.gauge_content, !ui->pairing_visible);
+    show(ui->widgets.pairing_lbl, ui->pairing_visible);
 }
 
 static lv_obj_t *calibration_box(lv_obj_t *parent, int32_t x, int32_t y,
@@ -465,12 +482,7 @@ static void ui_task(lv_timer_t *timer)
 
     uint32_t pairing_code;
     if (xQueueReceive(ui->rtos.pairing_que, &pairing_code, 0) == pdTRUE) {
-        if (pairing_code == 0) lv_obj_add_flag(ui->widgets.pairing_lbl, LV_OBJ_FLAG_HIDDEN);
-        else {
-            if (pairing_code == UINT32_MAX) lv_label_set_text(ui->widgets.pairing_lbl, "PAIR\nREADY");
-            else lv_label_set_text_fmt(ui->widgets.pairing_lbl, "PAIR\n%06" PRIu32, pairing_code);
-            lv_obj_remove_flag(ui->widgets.pairing_lbl, LV_OBJ_FLAG_HIDDEN);
-        }
+        show_pairing(ui, pairing_code);
     }
 
     ui_alert_t alert;
@@ -527,7 +539,8 @@ static void ui_task(lv_timer_t *timer)
     lv_event_code_t event_code;
     if (xQueueReceive(ui->rtos.touch_ev_que, &event_code, 0) == pdTRUE)
     {
-        if (ui->touch_cb != NULL)
+        if (ui->touch_cb != NULL &&
+            !(ui->pairing_visible && event_code == LV_EVENT_CLICKED))
         {
             ui->touch_cb(ui, event_code);
         }
@@ -548,8 +561,17 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_set_style_bg_color(scr, lv_color_hex(color_background), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, LV_PART_MAIN);
 
+    // Hide the whole gauge view during pairing so renderer and status updates
+    // cannot reveal individual widgets behind the pairing prompt.
+    lv_obj_t *gauge_content = lv_obj_create(scr);
+    lv_obj_remove_style_all(gauge_content);
+    lv_obj_set_size(gauge_content, LV_PCT(100), LV_PCT(100));
+    lv_obj_clear_flag(gauge_content, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(gauge_content, LV_OBJ_FLAG_EVENT_BUBBLE);
+    ui->widgets.gauge_content = gauge_content;
+
     // Main number label
-    lv_obj_t *value_lbl = lv_label_create(scr);
+    lv_obj_t *value_lbl = lv_label_create(gauge_content);
     ESP_NULL_CHECK(value_lbl, TAG, "Failed to create main label");
     lv_label_set_text(value_lbl, "...");
     lv_obj_set_style_text_color(value_lbl, lv_color_hex(color_text_primary), LV_PART_MAIN);
@@ -558,7 +580,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_label_set_long_mode(value_lbl, LV_LABEL_LONG_DOT);
 
     // Info label
-    lv_obj_t *info_lbl = lv_label_create(scr);
+    lv_obj_t *info_lbl = lv_label_create(gauge_content);
     ESP_NULL_CHECK(info_lbl, TAG, "Failed to create info label");
     lv_label_set_text(info_lbl, page->name ? page->name : "???");
     lv_obj_set_style_text_color(info_lbl, lv_color_hex(color_text_secondary), LV_PART_MAIN);
@@ -567,7 +589,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_label_set_long_mode(info_lbl, LV_LABEL_LONG_DOT);
 
     // Unit label centered below the number, away from the curved right edge.
-    lv_obj_t *unit_lbl = lv_label_create(scr);
+    lv_obj_t *unit_lbl = lv_label_create(gauge_content);
     ESP_NULL_CHECK(unit_lbl, TAG, "Failed to create unit label");
     lv_label_set_text(unit_lbl, page->metrics[0].unit ? page->metrics[0].unit : "");
     lv_obj_set_style_text_color(unit_lbl, lv_color_hex(color_text_secondary), LV_PART_MAIN);
@@ -579,7 +601,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     ui->widgets.info_lbl  = info_lbl;
     ui->widgets.unit_lbl  = unit_lbl;
 
-    lv_obj_t *arc = lv_arc_create(scr);
+    lv_obj_t *arc = lv_arc_create(gauge_content);
     lv_obj_set_size(arc, 198, 198);
     lv_obj_align(arc, LV_ALIGN_CENTER, 0, 0);
     lv_arc_set_bg_angles(arc, 135, 45);
@@ -593,14 +615,14 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_set_style_arc_color(arc, lv_color_hex(color_accent), LV_PART_INDICATOR);
     ui->widgets.arc = arc;
 
-    lv_obj_t *bar = lv_bar_create(scr);
+    lv_obj_t *bar = lv_bar_create(gauge_content);
     lv_obj_set_size(bar, 142, 12);
     lv_obj_align(bar, LV_ALIGN_CENTER, 0, 52);
     lv_obj_set_style_bg_color(bar, lv_color_hex(color_track), LV_PART_MAIN);
     lv_obj_set_style_bg_color(bar, lv_color_hex(color_accent), LV_PART_INDICATOR);
     ui->widgets.bar = bar;
 
-    lv_obj_t *trend = lv_line_create(scr);
+    lv_obj_t *trend = lv_line_create(gauge_content);
     lv_obj_set_size(trend, 150, 80);
     lv_obj_align(trend, LV_ALIGN_CENTER, 0, 24);
     lv_obj_set_style_line_color(trend, lv_color_hex(color_accent), LV_PART_MAIN);
@@ -613,7 +635,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     ui->widgets.trend = trend;
 
     for (unsigned i = 0; i < 2; ++i) {
-        lv_obj_t *dual_value = lv_label_create(scr);
+        lv_obj_t *dual_value = lv_label_create(gauge_content);
         lv_obj_set_width(dual_value, 132);
         lv_obj_align(dual_value, LV_ALIGN_TOP_MID, 0, i == 0 ? 42 : 124);
         lv_obj_set_style_text_color(dual_value, lv_color_hex(color_text_primary), LV_PART_MAIN);
@@ -622,7 +644,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
         lv_label_set_text(dual_value, "...");
         ui->widgets.dual_value[i] = dual_value;
 
-        lv_obj_t *dual_info = lv_label_create(scr);
+        lv_obj_t *dual_info = lv_label_create(gauge_content);
         lv_obj_set_width(dual_info, 156);
         lv_obj_align(dual_info, LV_ALIGN_TOP_MID, 0, i == 0 ? 20 : 102);
         lv_obj_set_style_text_color(dual_info, lv_color_hex(color_text_secondary), LV_PART_MAIN);
@@ -643,7 +665,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_add_flag(pairing_lbl, LV_OBJ_FLAG_HIDDEN);
     ui->widgets.pairing_lbl = pairing_lbl;
 
-    lv_obj_t *alert_lbl = lv_label_create(scr);
+    lv_obj_t *alert_lbl = lv_label_create(gauge_content);
     lv_obj_set_size(alert_lbl, 104, 40);
     lv_obj_align(alert_lbl, LV_ALIGN_TOP_MID, 0, 30);
     lv_obj_set_style_text_font(alert_lbl, font_subtitle, LV_PART_MAIN);
@@ -652,7 +674,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_add_flag(alert_lbl, LV_OBJ_FLAG_HIDDEN);
     ui->widgets.alert_lbl = alert_lbl;
 
-    lv_obj_t *diagnostics_lbl = lv_label_create(scr);
+    lv_obj_t *diagnostics_lbl = lv_label_create(gauge_content);
     lv_obj_set_size(diagnostics_lbl, 132, 24);
     lv_obj_align(diagnostics_lbl, LV_ALIGN_BOTTOM_MID, 0, -22);
     lv_obj_set_style_text_font(diagnostics_lbl, font_subtitle, LV_PART_MAIN);
@@ -667,9 +689,11 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_arc_set_range(arc, minimum, maximum);
     lv_bar_set_range(bar, minimum, maximum);
     select_renderer_widgets(ui);
+    show_pairing(ui, ui->pairing_visible ? UI_PAIRING_WAITING : UI_PAIRING_HIDDEN);
 
-    lv_refr_now(NULL);  // force refresh to apply styles immediately
     ui_align_labels(ui);
+    // Let the LVGL task draw after ui_init releases the port lock. Rendering
+    // the nested gauge view here can overflow app_main's smaller task stack.
 
     // add handlers
     lv_obj_add_event_cb(lv_screen_active(), ui_touch_callback, LV_EVENT_ALL, ui);
@@ -682,7 +706,8 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
 // Public Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
-ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t touch_cb)
+ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t touch_cb,
+              bool pairing_required)
 {
     ESP_NULL_CHECK(page, TAG, "Page config is NULL");
     ESP_NULL_CHECK(touch_cb, TAG, "touch callback is NULL");
@@ -701,6 +726,7 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     ui->rtos.diagnostics_que = xQueueCreate(1, sizeof(ui_diagnostics_t));
     ui->touch_cb          = touch_cb;
     ui->display.page = *page;
+    ui->pairing_visible = pairing_required;
 
     if (!ui->rtos.value_que || !ui->rtos.touch_ev_que || !ui->rtos.pairing_que ||
         !ui->rtos.alert_que || !ui->rtos.diagnostics_que) {

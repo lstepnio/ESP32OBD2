@@ -146,8 +146,10 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             draft.alerts.map(::alertUi), blockers, canSend, needsCheck, found, busy, profileError == null && !busy, prefs.advanced,
             capabilities?.supportedRenderers.orEmpty(), details),
         car,
-        SettingsUiState(prefs.gaugeName, found, savedGauge?.rotation, found && capabilities?.displayRotationWrite == true,
-            busy, prefs.advanced, prefs.dynamicColor, bootIdentity?.version ?: "Not checked", details),
+        SettingsUiState(prefs.gaugeName, found, displaySettings?.rotation ?: savedGauge?.rotation,
+            found && (capabilities?.displaySettingsVersion == 1 || capabilities?.displayRotationWrite == true),
+            busy, prefs.advanced, prefs.dynamicColor, bootIdentity?.version ?: "Not checked", details,
+            capabilities?.displaySettingsVersion ?: 0, displaySettings?.brightness),
         ExpertUiState(demoCatalog.filter { pid -> (sourceFilter == "All" || pid.source == sourceFilter) &&
             (query.isBlank() || "${pid.name} ${pid.request} ${pid.category} ${pid.source}".contains(query, true)) }.map(::readingUi),
             found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,

@@ -7,11 +7,15 @@
 typedef struct {
     uint8_t opcode;
     uint8_t value;
+    uint8_t brightness;
     uint32_t base_revision;
 } companion_command_t;
 
 typedef struct _ui_t ui_t;
 
+/* Restore ownership after NVS initialization, before UI and BLE startup.
+ * Returns true when an owner is saved, even if that phone is disconnected. */
+bool ble_companion_load_owner(void);
 /* Experimental public discovery endpoint. Register before NimBLE host starts. */
 int ble_companion_register(void);
 /* Called on the NimBLE host thread after controller synchronization. */

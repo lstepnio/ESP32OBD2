@@ -38,7 +38,7 @@ data class CarUiState(val name: String, val profiles: List<VehicleUi>, val activ
 @Immutable
 data class SettingsUiState(val name: String, val found: Boolean, val rotation: Int?, val canRotate: Boolean,
     val busy: Boolean, val advanced: Boolean, val dynamicColor: Boolean, val version: String,
-    val details: List<DetailUi>)
+    val details: List<DetailUi>, val displaySettingsVersion: Int = 0, val brightness: Int? = null)
 @Immutable
 data class CandidateUi(val id: String, val name: String, val details: List<DetailUi>)
 @Immutable

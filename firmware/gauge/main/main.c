@@ -36,6 +36,7 @@
 #include "ble_companion.h"
 #include "ble_mgr.h"
 #include "config.h"
+#include "display_settings.h"
 #include "config_store.h"
 #include "config_transfer.h"
 #include "config_runtime.h"
@@ -514,7 +515,10 @@ static void init_config(void)
     {
         ESP_LOGI(TAG, "Configuration loaded successfully: idx=%d, disp_rot=%d", g_config.cfg_idx, g_config.disp_rot);
     }
-    if (g_runtime) g_config.disp_rot = (lv_display_rotation_t)g_runtime->rotation;
+    uint8_t default_rotation = g_runtime ? g_runtime->rotation : (uint8_t)g_config.disp_rot;
+    uint8_t default_brightness = g_runtime ? g_runtime->brightness : 80;
+    ESP_ERROR_CHECK(display_settings_init(default_rotation, default_brightness));
+    g_config.disp_rot = (lv_display_rotation_t)display_settings_snapshot().rotation;
     atomic_store(&g_selected_page, g_config.cfg_idx);
 }
 
@@ -535,6 +539,7 @@ void app_main(void)
 
     config_document_init();
     init_config();
+    bool pairing_required = !ble_companion_load_owner();
     alert_engine_init(g_runtime);
 
     bsp_init();
@@ -549,10 +554,11 @@ void app_main(void)
     const uint32_t ui_interval_ms = 50;
     ui_page_t initial_page;
     page_ui(g_config.cfg_idx, &initial_page);
-    ui_t          *ui             = ui_init(&initial_page, ui_interval_ms, ui_touch_callback);
+    ui_t          *ui             = ui_init(&initial_page, ui_interval_ms, ui_touch_callback,
+                                            pairing_required);
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
     bsp_display_on_off(true);
-    if (g_runtime) ESP_ERROR_CHECK(bsp_display_backlight_set_percent(g_runtime->brightness));
+    ESP_ERROR_CHECK(bsp_display_backlight_set_percent(display_settings_snapshot().brightness));
 
 #if CONFIG_EGAUGE_DISPLAY_CALIBRATION
     ui_start_display_calibration(ui);
@@ -618,12 +624,29 @@ void app_main(void)
             if (config_read_snapshot(&saved, &revision) != ESP_OK) continue;
             saved.disp_rot = (lv_display_rotation_t)command.value;
             if (config_save_if_revision(&saved, command.base_revision, NULL) != ESP_OK) continue;
+            display_settings_t display = display_settings_snapshot();
+            if (display.rotation != command.value &&
+                display_settings_save(command.value, display.brightness, display.revision,
+                                      NULL) != ESP_OK)
+                ESP_LOGW(TAG, "Legacy rotation saved but display preference update failed");
             g_config = saved;
             if (lvgl_port_lock(portMAX_DELAY)) {
                 bsp_lv_disp_set_rotation(saved.disp_rot);
                 lvgl_port_unlock();
             }
             ESP_LOGI(TAG, "Display rotation saved: %u", (unsigned)command.value * 90);
+        } else if (command.opcode == 0x36) {
+            display_settings_t saved;
+            if (display_settings_save(command.value, command.brightness,
+                                      command.base_revision, &saved) != ESP_OK) continue;
+            g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
+            if (lvgl_port_lock(portMAX_DELAY)) {
+                bsp_lv_disp_set_rotation(g_config.disp_rot);
+                lvgl_port_unlock();
+            }
+            ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
+            ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%%",
+                     (unsigned)saved.rotation * 90, (unsigned)saved.brightness);
         } else if (command.opcode == 3) ble_companion_forget_owner();
     }
 }

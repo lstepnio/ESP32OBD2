@@ -80,7 +80,6 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
         fact("Declared subsystems", hardwareLabels(h.declaredFeatures))
         fact("Hardware raw snapshot", h)
     }
-    fact("Wi-Fi security self-check", wifiSecurityMessage)
     fact("Hosted update response", hostedUpdateMessage)
     hostedUpdate?.let { fact("Release metadata", it.release) }
     if (updateReady) updateBundle().let { bundle ->

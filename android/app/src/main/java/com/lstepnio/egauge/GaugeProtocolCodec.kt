@@ -39,6 +39,9 @@ object GaugeProtocolCodec {
             savedStateRead = json.optBoolean("savedStateRead", false),
             quickSelect = json.optBoolean("quickSelect", false),
             displayRotationWrite = json.optBoolean("displayRotationWrite", false),
+            displaySettingsVersion = json.optInt("ds", 0).also {
+                require(it in 0..1) { "Unsupported display settings version" }
+            },
             ota = ota,
             wifiBulk = json.optString("wifiBulk").takeIf { it.isNotBlank() },
             hardwareCapacityVersion = hardwareCapacity.takeIf { it > 0 },
@@ -50,6 +53,16 @@ object GaugeProtocolCodec {
                 else -> emptySet()
             },
         )
+    }
+
+    fun displaySettings(bytes: ByteArray): GaugeConfigTransferClient.DisplaySettings {
+        require(bytes.size == 8 && bytes[0].toInt() == 10 && bytes[3].toInt() == 0) {
+            "Gauge returned unsupported display settings"
+        }
+        val rotation = bytes[1].toInt() and 255
+        val brightness = bytes[2].toInt() and 255
+        require(rotation in 0..3 && brightness in 5..100) { "Gauge returned invalid display settings" }
+        return GaugeConfigTransferClient.DisplaySettings(rotation, brightness, u32(bytes, 4))
     }
 
     fun diagnostics(bytes: ByteArray): GaugeConfigTransferClient.Diagnostics {

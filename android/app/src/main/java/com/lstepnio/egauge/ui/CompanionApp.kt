@@ -156,14 +156,15 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                 Route.Car -> CarScreen(state.car, model::readGaugeDiagnostics, { route = Route.Setup }, { detailsOpen = true },
                                     model::selectProfile, { name -> model.editProfileName(name); model.createProfile() })
                                 Route.Settings -> SettingsScreen(state.settings, model::setAdvancedTools, model::setDynamicColor,
-                                    model::renameGauge, model::rotateGauge, model::readSavedGauge, { route = Route.Updates },
+                                    model::renameGauge, model::rotateGauge, model::readSavedGauge,
+                                    model::readDisplaySettings, model::saveDisplaySettings, { route = Route.Updates },
                                     { route = Route.Setup }, { detailsOpen = true }, onBluetoothSettings)
                                 Route.Updates, Route.DevelopmentUpdates -> UpdatesScreen(state.updates, state.operation, route == Route.DevelopmentUpdates,
                                     ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate, { detailsOpen = true })
                                 Route.Expert -> ExpertScreen(state.expert, expertTool, { expertTool = it }, ::back, { detailsOpen = true }, ExpertActions(
                                     model::search, model::filter, { id -> model.selectPid(demoCatalog.first { it.id == id }); customizeStep = 1; route = Route.Customize },
                                     model::editLabInput, model::editCustomRequest, model::selectCustomSource, model::setSecondAdapterEnabled,
-                                    model::runWifiTransportSecurityCheck, model::readHardwareCapacity, model::readSavedGauge,
+                                    model::readHardwareCapacity, model::readSavedGauge,
                                     model::readConfiguration, model::readConfigurationDocument, model::readGaugeDiagnostics,
                                     model::readRunningFirmware, onSelectBuiltIn, { route = Route.DevelopmentUpdates }))
                             }

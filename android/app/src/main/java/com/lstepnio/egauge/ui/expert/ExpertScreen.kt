@@ -16,7 +16,7 @@ import com.lstepnio.egauge.ui.state.ExpertUiState
 data class ExpertActions(
     val query: (String) -> Unit, val filter: (String) -> Unit, val selectReading: (String) -> Unit,
     val editLab: (String) -> Unit, val editRequest: (String) -> Unit, val selectSource: (String) -> Unit,
-    val secondAdapter: (Boolean) -> Unit, val checkWifi: () -> Unit, val readHardware: () -> Unit,
+    val secondAdapter: (Boolean) -> Unit, val readHardware: () -> Unit,
     val readSaved: () -> Unit, val readConfig: () -> Unit, val readDocument: () -> Unit,
     val readDiagnostics: () -> Unit, val readFirmware: () -> Unit, val selectBuiltIn: () -> Unit,
     val developmentUpdates: () -> Unit,
@@ -33,7 +33,7 @@ fun ExpertScreen(state: ExpertUiState, tool: String, onTool: (String) -> Unit, o
         when (tool) {
             "" -> {
                 PrimaryAction("Explore readings", { onTool("PID explorer") })
-                listOf("Decoder lab", "Custom PIDs", "Second adapter", "Diagnostics", "Wi-Fi security self-check").forEach { name ->
+                listOf("Decoder lab", "Custom PIDs", "Second adapter", "Diagnostics").forEach { name ->
                     SettingsRow(name, onClick = { onTool(name) })
                 }
                 SettingsRow("Development updates", onClick = actions.developmentUpdates)
@@ -84,11 +84,6 @@ fun ExpertScreen(state: ExpertUiState, tool: String, onTool: (String) -> Unit, o
                     Text("Engine (ECM) and transmission (TCM) bindings are preserved. Simultaneous operation is unverified.")
                 }
                 PrimaryAction("Explore readings", { onTool("PID explorer") })
-            }
-            "Wi-Fi security self-check" -> {
-                Text("Checks that wrong-session, wrong-key and replayed messages are rejected. The temporary network closes after the check.")
-                StatusCard(StatusUi(state.wifiStatus, if (state.canCheckWifi) "This is a read-only security check." else "Connect a supported gauge to run this check."))
-                PrimaryAction("Run security check", actions.checkWifi, enabled = state.canCheckWifi)
             }
             "Diagnostics" -> {
                 PrimaryAction("Check running setup", actions.readConfig, enabled = state.canRead)

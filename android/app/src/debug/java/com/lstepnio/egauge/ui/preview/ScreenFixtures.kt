@@ -55,7 +55,7 @@ object ScreenFixtures {
     private val expert = ExpertUiState(demoCatalog.map(::readingUi), true, true, true, false, details,
         "", "All", "rpm", "41 0C 2C 60", StatusUi("Example result: 2,840 rpm"), "01 0C", "ECM",
         StatusUi("Example request"), "Not run", false)
-    private val expertActions = ExpertActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+    private val expertActions = ExpertActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
 
     @Composable
     fun Screen(name: String) {
@@ -76,7 +76,7 @@ object ScreenFixtures {
                         mapOf("readings" to 0, "layouts" to 1, "limits" to 3, "review" to 5).getValue(name), {}, {}, {}, customizeActions)
                     "car" -> CarScreen(car, {}, {}, {}, {}, {})
                     "updates" -> UpdatesScreen(updates, update, true, {}, {}, {}, {}, {}, {})
-                    "settings" -> SettingsScreen(settings, {}, {}, {}, {}, {}, {}, {}, {}, {})
+                    "settings" -> SettingsScreen(settings, {}, {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, {})
                     "expert" -> ExpertScreen(expert, "", {}, {}, {}, expertActions)
                     else -> error("Unknown screen fixture: $name")
                 }

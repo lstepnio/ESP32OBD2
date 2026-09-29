@@ -208,6 +208,21 @@ class AppCoreTest {
         assertThrows { GaugeProtocolCodec.runtimeIdentity(runtimeBytes) }
     }
 
+    @Test fun displaySettingsCodecChecksCapabilityAndSavedStateBounds() {
+        val capability = """{"board":"board","protocolMajor":0,"maxAdapterLinks":2,
+            "configWrite":false,"ota":false,"ds":1}""".trimIndent().toByteArray()
+        assertEquals(1, GaugeProtocolCodec.capabilities(capability).displaySettingsVersion)
+        assertThrows { GaugeProtocolCodec.capabilities(
+            capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":2").toByteArray()) }
+
+        val state = byteArrayOf(10, 1, 55, 0, 7, 0, 0, 0)
+        assertEquals(GaugeConfigTransferClient.DisplaySettings(1, 55, 7),
+            GaugeProtocolCodec.displaySettings(state))
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf(7)) }
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[1] = 4 }) }
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[2] = 4 }) }
+    }
+
     @Test fun hostedCatalogRequiresValidSignatureAndExactCompatibility() {
         val keyPair = KeyPairGenerator.getInstance("EC").apply { initialize(256) }.generateKeyPair()
         val raw = """{"schemaVersion":1,"repository":"lstepnio/ESP32OBD2","generation":9,
