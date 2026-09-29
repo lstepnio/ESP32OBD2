@@ -51,6 +51,7 @@
 #include "config_trial.h"
 #include "obd.h"
 #include "poll_scheduler.h"
+#include "page_save_policy.h"
 #include "ui.h"
 #include "util.h"
 
@@ -89,6 +90,7 @@ static const obd_pid_cfg_t g_obd_pids[] = {
 // ---------------------------------------------------------------------------------------------------------------------
 
 static atomic_uchar g_selected_page;
+static atomic_uint g_local_page_generation;
 static config_runtime_t *g_runtime;
 static config_store_record_t g_running_config_record;
 static bool g_running_previous_config;
@@ -290,7 +292,7 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
         return;
     }
     int32_t value = (int32_t)decoded;
-    ESP_LOGI(TAG, "Received PID 0x%02X (%s): %" PRId32, pid, definition->name, value);
+    ESP_LOGD(TAG, "Received PID 0x%02X (%s): %" PRId32, pid, definition->name, value);
     ui_set_value(ui, pid, &value);
 }
 
@@ -439,11 +441,15 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
     {
     case LV_EVENT_CLICKED:
     {
-        companion_command_t command = {
-            .opcode = 1,
-            .value = (atomic_load(&g_selected_page) + 1) % page_count(),
-        };
-        if (g_phone_command_queue) xQueueSend(g_phone_command_queue, &command, 0);
+        /* Already on the LVGL task with its lock held. Browsing must not wait
+         * for app_main, a flash commit, or another UI mailbox interval. */
+        uint8_t selected = (atomic_load(&g_selected_page) + 1) % page_count();
+        ui_page_t page;
+        page_ui(selected, &page);
+        ui_set_page(ui, &page);
+        atomic_store(&g_selected_page, selected);
+        ble_companion_selection_applied(selected);
+        atomic_fetch_add(&g_local_page_generation, 1);
         break;
     }
     case LV_EVENT_LONG_PRESSED:
@@ -531,7 +537,7 @@ void app_main(void)
     // esp_log_level_set("BLE_GATT", ESP_LOG_DEBUG);
     // esp_log_level_set("OBD", ESP_LOG_DEBUG);
     // esp_log_level_set("UI", ESP_LOG_DEBUG);
-    esp_log_level_set("main", ESP_LOG_DEBUG);
+    esp_log_level_set("main", ESP_LOG_INFO);
 
     config_document_init();
     init_config();
@@ -595,12 +601,12 @@ void app_main(void)
         }
     }
 
+    page_save_policy_t page_save = {0};
     while (true)
     {
         companion_command_t command;
-        if (xQueueReceive(g_phone_command_queue, &command, pdMS_TO_TICKS(10)) != pdTRUE)
-            continue;
-        if (command.opcode == 1 && command.value < page_count()) {
+        bool has_command = xQueueReceive(g_phone_command_queue, &command, pdMS_TO_TICKS(20)) == pdTRUE;
+        if (has_command && command.opcode == 1 && command.value < page_count()) {
             config_t updated = g_config;
             updated.cfg_idx = command.value;
             if (config_save(&updated) == ESP_OK) {
@@ -614,7 +620,7 @@ void app_main(void)
                     ble_companion_selection_applied(command.value);
                 }
             }
-        } else if (command.opcode == 2 && command.value <= LV_DISPLAY_ROTATION_270) {
+        } else if (has_command && command.opcode == 2 && command.value <= LV_DISPLAY_ROTATION_270) {
             config_t saved;
             uint32_t revision;
             if (config_read_snapshot(&saved, &revision) != ESP_OK) continue;
@@ -626,6 +632,26 @@ void app_main(void)
                 lvgl_port_unlock();
             }
             ESP_LOGI(TAG, "Display rotation saved: %u", (unsigned)command.value * 90);
-        } else if (command.opcode == 3) ble_companion_forget_owner();
+        } else if (has_command && command.opcode == 3) ble_companion_forget_owner();
+
+        uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        page_save_observe(&page_save, atomic_load(&g_local_page_generation), now_ms);
+        if (page_save_due(&page_save, now_ms) && transfer_gate_current() == 0) {
+            config_t updated = g_config;
+            uint32_t generation;
+            /* Snapshot the page and generation together, then release LVGL
+             * before any flash access. A tap during the save stays pending. */
+            if (!lvgl_port_lock(0)) continue;
+            generation = atomic_load(&g_local_page_generation);
+            updated.cfg_idx = atomic_load(&g_selected_page);
+            lvgl_port_unlock();
+            if (generation != page_save.generation) {
+                page_save_observe(&page_save, generation, pdTICKS_TO_MS(xTaskGetTickCount()));
+                continue;
+            }
+            bool saved = updated.cfg_idx == g_config.cfg_idx || config_save(&updated) == ESP_OK;
+            if (saved) g_config = updated;
+            page_save_finished(&page_save, generation, saved, now_ms);
+        }
     }
 }

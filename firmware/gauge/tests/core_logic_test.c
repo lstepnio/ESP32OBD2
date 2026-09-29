@@ -8,6 +8,7 @@
 #include "json_guard.h"
 #include "pid_decoder.h"
 #include "poll_scheduler.h"
+#include "page_save_policy.h"
 #include "wifi_bulk_policy.h"
 
 static void test_json_guard(void)
@@ -197,6 +198,38 @@ static void test_config_trial_policy(void)
     assert(!config_trial_policy_cancel(&state, 5));
 }
 
+static void test_page_save_policy(void)
+{
+    page_save_policy_t state = {0};
+    assert(!page_save_due(&state, 10000));
+    /* A burst of browsing needs one save after it settles, not a write per tap. */
+    for (uint32_t tap = 1; tap <= 100; ++tap) {
+        page_save_observe(&state, tap, tap * 100);
+        assert(!page_save_due(&state, tap * 100 + 99));
+    }
+    assert(!page_save_due(&state, 10749));
+    assert(page_save_due(&state, 10750));
+    page_save_finished(&state, 100, true, 10750);
+    assert(!page_save_due(&state, 20000));
+
+    /* A tap arriving while an older selection is saved must stay pending. */
+    page_save_observe(&state, 101, 20000);
+    page_save_observe(&state, 102, 20750);
+    page_save_finished(&state, 101, true, 20751);
+    assert(!page_save_due(&state, 21499));
+    assert(page_save_due(&state, 21500));
+    page_save_finished(&state, 102, false, 21500);
+    assert(!page_save_due(&state, 22249));
+    assert(page_save_due(&state, 22250));
+    page_save_finished(&state, 102, true, 22250);
+    assert(!page_save_due(&state, 30000));
+
+    /* The millisecond counter wrapping does not lose a pending save. */
+    page_save_observe(&state, 103, UINT32_MAX - 500);
+    assert(!page_save_due(&state, 248));
+    assert(page_save_due(&state, 249));
+}
+
 int main(void)
 {
     test_json_guard();
@@ -205,6 +238,7 @@ int main(void)
     test_scheduler();
     test_wifi_bulk_policy();
     test_config_trial_policy();
+    test_page_save_policy();
     puts("Core firmware logic fixtures passed");
     return 0;
 }
