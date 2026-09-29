@@ -64,7 +64,7 @@ class PresentationAccessibilityTest {
         compose.setContent { EGaugeTheme { Surface(Modifier.requiredSize(390.dp, 844.dp)) {
             HomeScreen(HomeUiState("eGauge", "Gauge ready", true,
                 StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success),
-                pages, false, "Customize", HomeAction.Customize, false, emptyList()), {}, {}, {}, { edited = it })
+                pages, false, "Customize", HomeAction.Customize, false, emptyList()), {}, {}, { edited = it })
         } } }
         compose.onNodeWithText("Swipe between pages · Hold to edit").assertIsDisplayed()
         compose.onNodeWithTag("page-carousel").performTouchInput { swipeLeft() }
