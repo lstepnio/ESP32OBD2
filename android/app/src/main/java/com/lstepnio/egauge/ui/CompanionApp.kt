@@ -25,6 +25,7 @@ import com.lstepnio.egauge.ui.settings.*
 import com.lstepnio.egauge.ui.setup.SetupScreen
 import com.lstepnio.egauge.ui.state.*
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 
 private enum class Route(val title: String, val icon: GaugeIcon) {
     Gauge("Gauge", GaugeIcon.Gauge), Car("Car", GaugeIcon.Car), Settings("Settings", GaugeIcon.Settings),
@@ -113,14 +114,13 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                         // Discovery and reconnecting are routine background work. The compact gauge pill
                         // reports them without interrupting the current screen. Transfers remain visible
                         // until the gauge has proved their result, including recovery-required outcomes.
-                        val transferInProgress = op.kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
-                            (op.busy || op.needsCheck || op.status.tone == StatusTone.Success)
-                        if (op.visible && transferInProgress)
+                        val banner = rememberTransferBannerState(op)
+                        if (banner.visible)
                             OperationBanner(op, { progressOpen = true }, {
                                 if (op.update) route = if (state.settings.advanced) Route.DevelopmentUpdates else Route.Updates
                                 else if (model.configurationRecoveryRead) { customizeStep = 5; route = Route.Customize }
                                 else model.checkGaugeForReview()
-                            })
+                            }, banner.dismiss)
                         Box(Modifier.weight(1f).widthIn(max = EGaugeTokens.Layout.contentMax.dp).fillMaxWidth()
                             .graphicsLayer { scaleX = 1f - backProgress * .035f; scaleY = 1f - backProgress * .035f
                                 alpha = 1f - backProgress * .15f }) {
@@ -139,7 +139,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                     customizeStep = 0
                                     route = Route.Customize
                                 },
-                                    statusInBanner = transferInProgress || state.connection.phase !in setOf(ConnectionPhase.Idle, ConnectionPhase.Ready))
+                                    statusInBanner = banner.visible || state.connection.phase !in setOf(ConnectionPhase.Idle, ConnectionPhase.Ready))
                                 Route.Setup -> SetupScreen(state.setup, onFindGauge,
                                     { if (model.capabilities?.experimentalNumericConfig == true) model.checkGaugeForReview() else model.readSavedGauge() },
                                     { id -> model.gaugeCandidates.firstOrNull { it.id == id }?.let(model::selectGaugeCandidate) },
@@ -185,8 +185,28 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
     }
 }
 
+internal class TransferBannerState(val visible: Boolean, val dismiss: () -> Unit)
+
 @Composable
-private fun OperationBanner(state: OperationUi, onExpand: () -> Unit, onRecover: () -> Unit) {
+internal fun rememberTransferBannerState(operation: OperationUi): TransferBannerState {
+    var dismissedSuccessId by remember { mutableLongStateOf(-1L) }
+    LaunchedEffect(operation.id, operation.visible, operation.busy, operation.needsCheck, operation.status.tone) {
+        if (successBannerMayDismiss(operation)) {
+            delay(6_000)
+            dismissedSuccessId = operation.id
+        }
+    }
+    val transfer = operation.kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
+        (operation.busy || operation.needsCheck || successBannerMayDismiss(operation))
+    return TransferBannerState(operation.visible && transfer &&
+        !(successBannerMayDismiss(operation) && dismissedSuccessId == operation.id)) {
+        if (successBannerMayDismiss(operation)) dismissedSuccessId = operation.id
+    }
+}
+
+@Composable
+private fun OperationBanner(state: OperationUi, onExpand: () -> Unit, onRecover: () -> Unit,
+    onDismiss: () -> Unit) {
     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).semantics {
             liveRegion = LiveRegionMode.Polite
@@ -198,8 +218,10 @@ private fun OperationBanner(state: OperationUi, onExpand: () -> Unit, onRecover:
                 Text(state.status.title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             }
             if (state.needsCheck) Text(state.status.detail, style = MaterialTheme.typography.bodyMedium)
-            TextButton(if (state.needsCheck) onRecover else onExpand, contentPadding = PaddingValues(0.dp)) {
-                Text(if (state.needsCheck) "Review gauge status" else "View progress")
+            TextButton(when { state.needsCheck -> onRecover; successBannerMayDismiss(state) -> onDismiss
+                else -> onExpand }, contentPadding = PaddingValues(0.dp)) {
+                Text(when { state.needsCheck -> "Review gauge status"; successBannerMayDismiss(state) -> "Dismiss"
+                    else -> "View progress" })
             }
         }
     }

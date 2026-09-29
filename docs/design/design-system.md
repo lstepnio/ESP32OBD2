@@ -21,7 +21,7 @@ Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp i
 - Foreground discovery and owner reconnection are automatic. **Gauge ready** requires a recent protected check; it does not claim a persistent connection or live readings. Searching, reconnecting, Bluetooth-off and permission states remain explicit. Only initial code association and ambiguous gauge selection require a choice.
 - Example values and histories always say **Preview** or **Example** next to that content.
 - **Saved & running on gauge** requires the expected running revision and hash, trial cleared and no previous-generation recovery. A stored readback or 100% transfer cannot claim this.
-- Sending, restarting and checking remain distinct stages. The operation stays visible across destinations.
+- Sending, restarting and checking remain distinct stages. The operation stays visible across destinations. Only a gauge-confirmed success can be dismissed, manually or after six seconds; failures, rollbacks and unknown outcomes remain until the user checks them.
 - Critical alerts, stale/offline readings, errors, rollback and unknown outcomes remain in the default path.
 - Automatic reconnection may refresh the protected readback before reviewing an unknown result. Never replay a commit automatically.
 - A changed page, layout or limit returns to unsent status. Browsing the page carousel must not create an edit.
