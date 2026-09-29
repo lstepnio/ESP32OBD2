@@ -148,8 +148,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                         model::selectPage, { id -> model.selectPid(demoCatalog.first { it.id == id }) },
                                         { id -> model.selectSecondaryPid(demoCatalog.first { it.id == id }) },
                                         model::addPage, model::removePage, model::movePage, model::selectLayout,
-                                        model::addAlert, model::removeAlert, model::setAlertWarning, model::setAlertCritical,
-                                        model::setAlertDirection, model::setAlertHysteresis, model::setAlertTriggerDwell, model::setAlertClearDwell,
+                                        model::saveAlert, model::removeAlert,
                                         model::checkGaugeForReview, { model.sendNumericConfiguration(); route = Route.Gauge }, { route = Route.Setup }))
                                 Route.Car -> CarScreen(state.car, model::readGaugeDiagnostics, { route = Route.Setup },
                                     model::selectProfile, { name -> model.editProfileName(name); model.createProfile() })
@@ -161,7 +160,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                     ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate)
                                 Route.Expert -> ExpertScreen(state.expert, expertTool, { expertTool = it }, ::back,
                                     model.canAdoptGaugeDraft, ExpertActions(
-                                    model::search, model::filter, { id -> model.selectPid(demoCatalog.first { it.id == id }); customizeStep = 1; route = Route.Customize },
+                                    model::search, model::filter, { id -> model.selectPid(demoCatalog.first { it.id == id }); customizeStep = 0; route = Route.Customize },
                                     model::editLabInput, model::editCustomRequest, model::selectCustomSource, model::setSecondAdapterEnabled,
                                     model::readHardwareCapacity, model::readSavedGauge,
                                     model::readConfiguration, model::readConfigurationDocument, model::readGaugeDiagnostics,

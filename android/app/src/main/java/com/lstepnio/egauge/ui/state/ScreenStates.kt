@@ -16,7 +16,8 @@ data class ReadingUi(val id: String, val name: String, val unit: String, val det
 @Immutable
 data class AlertUi(val id: String, val readingId: String, val readingName: String, val unit: String,
                    val direction: String, val warning: Int, val critical: Int, val resetMargin: Int,
-                   val triggerSeconds: Float, val clearSeconds: Float, val range: IntRange)
+                   val triggerSeconds: Float, val clearSeconds: Float, val range: IntRange,
+                   val priority: Int = 8)
 @Immutable
 data class HomeUiState(val gaugeName: String, val connection: String, val connectionVerified: Boolean,
     val status: StatusUi, val pages: List<PageUi>, val pendingChanges: Boolean,

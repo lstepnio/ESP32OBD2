@@ -38,7 +38,10 @@ class PresentationAccessibilityTest {
         ScreenFixtures.names.forEach { name ->
             compose.runOnIdle { screen = name }
             compose.onAllNodesWithTag("primary-action").assertCountEquals(1)
-            compose.onNodeWithTag("primary-action").performScrollTo().assertIsDisplayed()
+            val primary = compose.onNodeWithTag("primary-action")
+            if (compose.onAllNodes(hasTestTag("primary-action") and hasAnyAncestor(hasScrollAction()))
+                    .fetchSemanticsNodes().isNotEmpty()) primary.performScrollTo()
+            primary.assertIsDisplayed()
             val bounds = compose.onNodeWithTag("primary-action").fetchSemanticsNode().boundsInRoot
             assertTrue("$name primary target is too small", bounds.height >= 48 && bounds.width >= 48)
         }

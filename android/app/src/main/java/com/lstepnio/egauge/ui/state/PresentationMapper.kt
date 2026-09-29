@@ -37,7 +37,7 @@ fun alertUi(alert: GaugeAlertDraft): AlertUi {
     val reading = demoCatalog.first { it.id == alert.pidId }
     return AlertUi(alert.id, alert.pidId, readingName(alert.pidId), reading.unit,
         if (alert.direction == AlertDirection.Above) "above" else "below", alert.warning, alert.critical,
-        alert.hysteresis, alert.triggerDwellMs / 1000f, alert.clearDwellMs / 1000f, readingRange(alert.pidId))
+        alert.hysteresis, alert.triggerDwellMs / 1000f, alert.clearDwellMs / 1000f, readingRange(alert.pidId), alert.priority)
 }
 
 fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> = buildList {

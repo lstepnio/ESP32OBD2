@@ -33,7 +33,8 @@ fun ComponentFixtureGallery(fixture: ComponentFixture) {
         RoundPreview(ReadingPreviewUi(value = fixture.value, layout = PreviewLayout.Arc, condition = condition),
             modifier = Modifier.width(232.dp), showDescription = false)
         ReadingTile("Engine speed", "rpm", fixture.tone == StatusTone.Success, {}, enabled = enabled)
-        LimitEditor("Warn above", 105, false, {}, enabled)
+        LimitField("Warning", if (fixture.tone == StatusTone.Error) "4000x" else "4000", "rpm", {}, enabled,
+            error = if (fixture.tone == StatusTone.Error) "Enter a whole number from 0 to 16383." else null)
         ProgressStepper(listOf("Sending", "Checking", "Done"),
             if (fixture.tone == StatusTone.Success) 2 else 0, finished = fixture.tone == StatusTone.Success)
         EmptyState("No car readings yet", "Check your adapter connection.")

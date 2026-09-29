@@ -2,6 +2,8 @@ package com.lstepnio.egauge.ui.preview
 
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -21,7 +23,7 @@ import com.lstepnio.egauge.ui.state.*
 
 /** Debug-only examples. These render production screens with no device, repository or ViewModel. */
 object ScreenFixtures {
-    val names = listOf("setup", "pair", "gauge", "readings", "layouts", "limits", "review", "car", "updates", "recovery", "settings", "expert")
+    val names = listOf("setup", "pair", "gauge", "readings", "layouts", "limits", "pages", "alert", "review", "car", "updates", "recovery", "settings", "expert")
     private val details = listOf(DetailUi("Example identifier", "preview-gauge"),
         DetailUi("Example revision", "7"), DetailUi("Example SHA-256", "a".repeat(64)))
     private val pages = listOf(
@@ -29,15 +31,14 @@ object ScreenFixtures {
         GaugePageDraft("two", "Coolant temperature", GaugeLayout.Numeric, listOf("coolant")),
         GaugePageDraft("three", "Engine load", GaugeLayout.Bar, listOf("load")),
     ).map(::pageUi)
-    private val customize = CustomizeUiState(pages = pages, editingPage = 0,
+    val customize = CustomizeUiState(pages = pages, editingPage = 0,
         readings = demoCatalog.filter { it.id != "tcm" }.map(::readingUi),
         alerts = listOf(alertUi(defaultAlert())), blockers = emptyList(), canSend = true, needsCheck = false,
         found = true, busy = false, editingEnabled = true, advanced = false,
         supportedLayouts = GaugeLayout.entries.toSet(), details = details)
-    private val customizeActions = CustomizeActions(
+    val customizeActions = CustomizeActions(
         selectPage = {}, selectReading = {}, selectSecondary = {}, addPage = {}, removePage = {}, movePage = { _, _ -> },
-        layout = {}, addAlert = {}, removeAlert = {}, warning = { _, _ -> }, critical = { _, _ -> },
-        direction = { _, _ -> }, resetMargin = { _, _ -> }, trigger = { _, _ -> }, clear = { _, _ -> },
+        layout = {}, saveAlert = {}, removeAlert = {},
         check = {}, send = {}, setup = {})
     private val success = StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success)
     private val recovery = operationUi(OperationState(1, OperationKind.CONFIGURATION, OperationStage.OUTCOME_UNKNOWN,
@@ -72,8 +73,15 @@ object ScreenFixtures {
                     "gauge" -> HomeScreen(home, {}, {})
                     "recovery" -> HomeScreen(home.copy(status = recovery.status, pendingChanges = true,
                         primaryLabel = "Check gauge", primaryAction = HomeAction.Check), {}, {})
-                    "readings", "layouts", "limits", "review" -> DashboardEditorScreen(customize,
-                        mapOf("readings" to 0, "layouts" to 1, "limits" to 3, "review" to 5).getValue(name), {}, {}, customizeActions)
+                    "readings", "limits", "pages", "review" -> DashboardEditorScreen(customize,
+                        mapOf("readings" to 0, "limits" to 3, "pages" to 2, "review" to 5).getValue(name), {}, {}, customizeActions)
+                    "layouts" -> Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        SectionTitle("Choose layout")
+                        Box(Modifier.weight(1f).verticalScroll(rememberScrollState())) { LayoutChoices(customize, pages.first(), {}) }
+                        PrimaryAction("Done", {})
+                    }
+                    "alert" -> AlertEditor(customize, readingUi(demoCatalog.first { it.id == "rpm" }),
+                        alertUi(defaultAlert("rpm")), {}, customizeActions)
                     "car" -> CarScreen(car, {}, {}, {}, {})
                     "updates" -> UpdatesScreen(updates, update, true, {}, {}, {}, {}, {})
                     "settings" -> SettingsScreen(settings, {}, {}, {}, {}, {}, {}, { _, _ -> }, {}, {}, {})
