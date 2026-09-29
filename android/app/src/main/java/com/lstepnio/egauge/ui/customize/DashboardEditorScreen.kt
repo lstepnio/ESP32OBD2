@@ -1,11 +1,19 @@
 package com.lstepnio.egauge.ui.customize
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.GaugeLayout
 import com.lstepnio.egauge.core.designsystem.*
@@ -40,30 +48,56 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun Dashboard(state: CustomizeUiState, current: PageUi, onDestination: (Int) -> Unit, onBack: () -> Unit,
                       actions: CustomizeActions) {
+    val pager = rememberPagerState(initialPage = state.editingPage.coerceIn(0, state.pages.lastIndex), pageCount = { state.pages.size })
+    LaunchedEffect(state.editingPage, state.pages.size) {
+        val selected = state.editingPage.coerceIn(0, state.pages.lastIndex)
+        if (pager.currentPage != selected) pager.scrollToPage(selected)
+    }
+    LaunchedEffect(pager.currentPage) {
+        if (pager.currentPage != state.editingPage) actions.selectPage(pager.currentPage)
+    }
     ScreenTitle("Customize", onBack = onBack)
     ResponsivePanels(first = {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            RoundPreview(current.preview)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Page ${state.editingPage + 1} of ${state.pages.size}", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedButton({ actions.selectPage(state.editingPage - 1) }, enabled = state.editingPage > 0) { Text("Previous") }
-                    OutlinedButton({ actions.selectPage(state.editingPage + 1) }, enabled = state.editingPage < state.pages.lastIndex) { Text("Next") }
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            HorizontalPager(pager, modifier = Modifier.fillMaxWidth().testTag("page-carousel")) { index ->
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CustomizePreviewPage(state.pages[index], index, state.pages.size) { onDestination(1) }
                 }
             }
+            Text("Swipe between pages · Hold to edit", modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }, second = {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SettingsRow("Edit page", "${current.readingName} · ${current.layout.label}", state.editingEnabled) { onDestination(1) }
-            SettingsRow("Manage pages", "${state.pages.size} pages", state.editingEnabled) { onDestination(2) }
+            SettingsRow("Manage pages", "${state.pages.size} pages · Add, remove, or reorder", state.editingEnabled) { onDestination(2) }
             SettingsRow("Coolant alerts", "Warn above ${state.warning} °C · Critical above ${state.critical} °C", state.editingEnabled) { onDestination(3) }
             state.blockers.firstOrNull()?.let { StatusCard(StatusUi("Check your settings", it, StatusTone.Error)) }
             PrimaryAction("Review and send", { onDestination(4) }, enabled = state.editingEnabled)
         }
     })
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CustomizePreviewPage(page: PageUi, index: Int, total: Int, onEdit: () -> Unit) {
+    Box(Modifier.widthIn(max = 280.dp).fillMaxWidth().combinedClickable(
+        onClick = {}, onLongClick = onEdit, onLongClickLabel = "Edit ${page.name}"
+    ).semantics(mergeDescendants = true) {
+        contentDescription = "Page ${index + 1} of $total, ${page.name}. Swipe to change page. Hold to edit."
+    }) {
+        RoundPreview(page.preview, Modifier.fillMaxWidth())
+        Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surface.copy(alpha = .9f),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.align(Alignment.TopStart).padding(12.dp)) {
+            Text("${index + 1}/$total", style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -96,21 +130,26 @@ private fun PageEditor(state: CustomizeUiState, current: PageUi, onDone: () -> U
 @Composable
 private fun PageManager(state: CustomizeUiState, current: PageUi, onDone: () -> Unit, actions: CustomizeActions) {
     ScreenTitle("Manage pages", onBack = onDone)
-    Text("Choose a page to edit or change the order.", style = MaterialTheme.typography.bodyMedium,
+    Text("Add a page, remove one, or put them in the order you want.", style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant)
+    OutlinedButton(actions.addPage, enabled = state.editingEnabled && state.pages.size < 8, modifier = Modifier.fillMaxWidth()) {
+        Text("Add page")
+    }
+    SectionTitle("Pages")
     state.pages.forEachIndexed { index, page ->
         Panel {
             Text("${index + 1}. ${page.readingName}", style = MaterialTheme.typography.titleMedium)
             Text(page.layout.label, style = MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton({ actions.selectPage(index); onDone() }) { Text("Edit") }
-                TextButton({ actions.movePage(index, -1) }, enabled = index > 0) { Text("Move earlier") }
-                TextButton({ actions.movePage(index, 1) }, enabled = index < state.pages.lastIndex) { Text("Move later") }
-                TextButton({ actions.removePage(index) }, enabled = state.pages.size > 1) { Text("Remove") }
+                TextButton({ actions.selectPage(index); onDone() }) { Text("Edit page") }
+                TextButton({ actions.removePage(index) }, enabled = state.editingEnabled && state.pages.size > 1) { Text("Remove page") }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton({ actions.movePage(index, -1) }, enabled = state.editingEnabled && index > 0) { Text("Move earlier") }
+                OutlinedButton({ actions.movePage(index, 1) }, enabled = state.editingEnabled && index < state.pages.lastIndex) { Text("Move later") }
             }
         }
     }
-    OutlinedButton(actions.addPage, enabled = state.editingEnabled && state.pages.size < 8, modifier = Modifier.fillMaxWidth()) { Text("Add page") }
     PrimaryAction("Done", onDone)
 }
 

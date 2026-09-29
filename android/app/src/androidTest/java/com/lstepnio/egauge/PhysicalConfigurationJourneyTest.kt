@@ -53,24 +53,31 @@ class PhysicalConfigurationJourneyTest {
         try {
             compose.onNodeWithText("Gauge", useUnmergedTree = true).performClick()
             compose.onNodeWithText("Customize").performScrollTo().performClick()
-            while (model.draft.pages.size > 3) compose.onNodeWithText("Remove page").performScrollTo().performClick()
+            compose.onNodeWithText("Manage pages").performScrollTo().performClick()
+            while (model.draft.pages.size > 3) compose.onAllNodesWithText("Remove page").onFirst().performScrollTo().performClick()
             while (model.draft.pages.size < 3) compose.onNodeWithText("Add page").performScrollTo().performClick()
+            compose.onNodeWithText("Done").performScrollTo().performClick()
             listOf("rpm", "coolant", "load").forEachIndexed { index, id ->
-                val label = "${index + 1}. ${readingName(model.draft.pages[index].pidIds.first())}"
-                compose.onNodeWithText(label).performScrollTo().performClick()
+                compose.onNodeWithText("Edit page").performScrollTo().performClick()
                 compose.onNodeWithText(readingName(id)).performScrollTo().performClick()
+                compose.onNodeWithText("Done").performScrollTo().performClick()
+                if (index < 2) compose.onNodeWithTag("page-carousel").performTouchInput { swipeLeft() }
             }
-            compose.onNodeWithText("Choose readings").performScrollTo()
+            compose.onNodeWithText("Edit page").performScrollTo()
             capture("customize-readings")
-            compose.onNodeWithText("Choose layouts").performScrollTo().performClick()
+            compose.onNodeWithText("Edit page").performScrollTo().performClick()
             listOf(GaugeLayout.Numeric, GaugeLayout.Arc, GaugeLayout.Bar).forEachIndexed { index, layout ->
-                val label = "${index + 1}. ${readingName(model.draft.pages[index].pidIds.first())}"
-                compose.onNodeWithText(label).performScrollTo().performClick()
                 compose.onNodeWithText(layout.label).performScrollTo().performClick()
+                compose.onNodeWithText("Done").performScrollTo().performClick()
+                if (index < 2) {
+                    compose.onNodeWithTag("page-carousel").performTouchInput { swipeLeft() }
+                    compose.onNodeWithText("Edit page").performScrollTo().performClick()
+                }
             }
-            compose.onNodeWithText("Set limits").performScrollTo().performClick()
+            compose.onNodeWithText("Coolant alerts").performScrollTo().performClick()
             capture("customize-limits")
-            compose.onNodeWithText("Review pages").performScrollTo().performClick()
+            compose.onNodeWithText("Done").performScrollTo().performClick()
+            compose.onNodeWithText("Review and send").performScrollTo().performClick()
             capture("customize-review")
             compose.onNodeWithText("Send to gauge").performScrollTo().assertIsEnabled()
             capture("customize-send")
