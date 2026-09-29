@@ -19,13 +19,13 @@ data class ExpertActions(
     val secondAdapter: (Boolean) -> Unit, val readHardware: () -> Unit,
     val readSaved: () -> Unit, val readConfig: () -> Unit, val readDocument: () -> Unit,
     val readDiagnostics: () -> Unit, val readFirmware: () -> Unit, val selectBuiltIn: () -> Unit,
-    val developmentUpdates: () -> Unit,
+    val developmentUpdates: () -> Unit, val adoptGaugeDraft: () -> Unit,
 )
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ExpertScreen(state: ExpertUiState, tool: String, onTool: (String) -> Unit, onBack: () -> Unit,
-    onDetails: () -> Unit, actions: ExpertActions) {
+    canAdoptGaugeDraft: Boolean, actions: ExpertActions) {
     var discovery by rememberSaveable { mutableStateOf(false) }
     var selected by rememberSaveable { mutableStateOf(state.selectedReadingId) }
     ScreenContent(scrollKey = tool) {
@@ -93,9 +93,12 @@ fun ExpertScreen(state: ExpertUiState, tool: String, onTool: (String) -> Unit, o
                 OutlinedButton(actions.readDiagnostics, enabled = state.canRead) { Text("Read fault snapshot") }
                 OutlinedButton(actions.readFirmware, enabled = state.canRead) { Text("Read installed firmware") }
                 OutlinedButton(actions.selectBuiltIn, enabled = state.canRead) { Text("Set selected built-in reading") }
-                Text("Results and raw responses are in Details.", style = MaterialTheme.typography.bodyMedium)
+                if (canAdoptGaugeDraft) OutlinedButton(actions.adoptGaugeDraft, enabled = !state.busy) {
+                    Text("Use gauge settings")
+                }
+                SectionTitle("Technical data")
+                DetailContent(state.details)
             }
         }
-        TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
     }
 }

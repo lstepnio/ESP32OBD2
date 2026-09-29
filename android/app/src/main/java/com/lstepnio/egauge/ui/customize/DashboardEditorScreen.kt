@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -37,7 +38,7 @@ data class CustomizeActions(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestination: (Int) -> Unit,
-                          onBack: () -> Unit, onDetails: () -> Unit, actions: CustomizeActions) {
+                          onBack: () -> Unit, actions: CustomizeActions) {
     val current = state.pages.getOrNull(state.editingPage) ?: state.pages.first()
     var editingAlertId by rememberSaveable { mutableStateOf<String?>(null) }
     fun done() = onDestination(0)
@@ -52,7 +53,6 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
                 { id -> editingAlertId = id }, actions)
             else -> SendReview(state, current, ::done, actions)
         }
-        TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
     }
 }
 
@@ -77,7 +77,8 @@ private fun Dashboard(state: CustomizeUiState, current: PageUi, onDestination: (
                 }
             }
             Text("Swipe between pages · Hold to edit", modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center)
         }
     }, second = {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -18,7 +18,7 @@ import com.lstepnio.egauge.ui.state.SettingsUiState
 fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDynamic: (Boolean) -> Unit,
     onRename: (String) -> Unit, onRotate: (Int) -> Unit, onReadSaved: () -> Unit,
     onReadDisplay: () -> Unit, onSaveDisplay: (Int, Int) -> Unit, onUpdates: () -> Unit,
-    onSetup: () -> Unit, onDetails: () -> Unit, onBluetoothSettings: () -> Unit) {
+    onSetup: () -> Unit, onBluetoothSettings: () -> Unit) {
     var nameOpen by rememberSaveable { mutableStateOf(false) }
     var rotationOpen by rememberSaveable { mutableStateOf(false) }
     var brightnessOpen by rememberSaveable { mutableStateOf(false) }
@@ -47,7 +47,6 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                 PreferenceToggle("Use phone colours", state.dynamicColor, onDynamic)
                 PreferenceToggle("Show advanced tools", state.advanced, onAdvanced)
                 PrimaryAction("Check updates", onUpdates)
-                TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
             }
         })
     }

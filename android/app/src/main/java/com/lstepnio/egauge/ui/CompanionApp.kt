@@ -42,7 +42,6 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
         var route by rememberSaveable { mutableStateOf(Route.Gauge) }
         var customizeStep by rememberSaveable { mutableIntStateOf(0) }
         var expertTool by rememberSaveable { mutableStateOf("") }
-        var detailsOpen by rememberSaveable { mutableStateOf(false) }
         var progressOpen by rememberSaveable { mutableStateOf(false) }
         var backProgress by remember { mutableFloatStateOf(0f) }
         fun back() {
@@ -61,7 +60,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
             if (route == Route.Gauge && state.connection.phase in setOf(ConnectionPhase.PairRequired, ConnectionPhase.ChooseGauge))
                 route = Route.Setup
         }
-        PredictiveBackHandler(enabled = route != Route.Gauge && !detailsOpen && !progressOpen) { events ->
+        PredictiveBackHandler(enabled = route != Route.Gauge && !progressOpen) { events ->
             try { events.collect { backProgress = it.progress }; back() }
             catch (_: CancellationException) { /* A cancelled gesture keeps the current step. */ }
             finally { backProgress = 0f }
@@ -107,7 +106,6 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                         state.notice?.takeIf { it.tone in setOf(StatusTone.Error, StatusTone.Critical, StatusTone.Stale) }?.let { notice ->
                             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                                 StatusCard(notice)
-                                TextButton({ detailsOpen = true }) { Text("Details") }
                             }
                         }
                         val op = state.operation
@@ -135,7 +133,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                         HomeAction.Review -> { customizeStep = 5; route = Route.Customize }
                                         HomeAction.Customize -> { customizeStep = 0; route = Route.Customize }
                                     }
-                                }, { customizeStep = 0; route = Route.Customize }, { detailsOpen = true }, { index ->
+                                }, { customizeStep = 0; route = Route.Customize }, { index ->
                                     model.selectPage(index)
                                     customizeStep = 0
                                     route = Route.Customize
@@ -144,41 +142,35 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                 Route.Setup -> SetupScreen(state.setup, onFindGauge,
                                     { if (model.capabilities?.experimentalNumericConfig == true) model.checkGaugeForReview() else model.readSavedGauge() },
                                     { id -> model.gaugeCandidates.firstOrNull { it.id == id }?.let(model::selectGaugeCandidate) },
-                                    { customizeStep = 0; route = Route.Customize }, ::back, { detailsOpen = true })
+                                    { customizeStep = 0; route = Route.Customize }, ::back)
                                 Route.Customize -> DashboardEditorScreen(state.customize, customizeStep, { customizeStep = it }, ::back,
-                                    { detailsOpen = true }, CustomizeActions(
+                                    CustomizeActions(
                                         model::selectPage, { id -> model.selectPid(demoCatalog.first { it.id == id }) },
                                         { id -> model.selectSecondaryPid(demoCatalog.first { it.id == id }) },
                                         model::addPage, model::removePage, model::movePage, model::selectLayout,
                                         model::addAlert, model::removeAlert, model::setAlertWarning, model::setAlertCritical,
                                         model::setAlertDirection, model::setAlertHysteresis, model::setAlertTriggerDwell, model::setAlertClearDwell,
                                         model::checkGaugeForReview, { model.sendNumericConfiguration(); route = Route.Gauge }, { route = Route.Setup }))
-                                Route.Car -> CarScreen(state.car, model::readGaugeDiagnostics, { route = Route.Setup }, { detailsOpen = true },
+                                Route.Car -> CarScreen(state.car, model::readGaugeDiagnostics, { route = Route.Setup },
                                     model::selectProfile, { name -> model.editProfileName(name); model.createProfile() })
                                 Route.Settings -> SettingsScreen(state.settings, model::setAdvancedTools, model::setDynamicColor,
                                     model::renameGauge, model::rotateGauge, model::readSavedGauge,
                                     model::readDisplaySettings, model::saveDisplaySettings, { route = Route.Updates },
-                                    { route = Route.Setup }, { detailsOpen = true }, onBluetoothSettings)
+                                    { route = Route.Setup }, onBluetoothSettings)
                                 Route.Updates, Route.DevelopmentUpdates -> UpdatesScreen(state.updates, state.operation, route == Route.DevelopmentUpdates,
-                                    ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate, { detailsOpen = true })
-                                Route.Expert -> ExpertScreen(state.expert, expertTool, { expertTool = it }, ::back, { detailsOpen = true }, ExpertActions(
+                                    ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate)
+                                Route.Expert -> ExpertScreen(state.expert, expertTool, { expertTool = it }, ::back,
+                                    model.canAdoptGaugeDraft, ExpertActions(
                                     model::search, model::filter, { id -> model.selectPid(demoCatalog.first { it.id == id }); customizeStep = 1; route = Route.Customize },
                                     model::editLabInput, model::editCustomRequest, model::selectCustomSource, model::setSecondAdapterEnabled,
                                     model::readHardwareCapacity, model::readSavedGauge,
                                     model::readConfiguration, model::readConfigurationDocument, model::readGaugeDiagnostics,
-                                    model::readRunningFirmware, onSelectBuiltIn, { route = Route.DevelopmentUpdates }))
+                                    model::readRunningFirmware, onSelectBuiltIn, { route = Route.DevelopmentUpdates },
+                                    model::adoptGaugeDraft))
                             }
                         }
                     }
                 }
-            }
-        }
-        if (detailsOpen) DetailsSheet("Details", state.home.details, { detailsOpen = false }) {
-            if (model.capabilities != null) {
-                OutlinedButton(model::checkGaugeForReview, enabled = !state.home.busy) { Text("Refresh gauge settings") }
-                if (model.canAdoptGaugeDraft) OutlinedButton(model::adoptGaugeDraft, enabled = !state.home.busy) { Text("Use gauge settings") }
-                if (model.capabilities?.hardwareCapacityVersion == 1)
-                    OutlinedButton(model::readHardwareCapacity, enabled = !state.home.busy) { Text("Read hardware details") }
             }
         }
         if (progressOpen) DetailsSheet("Gauge activity", listOf(DetailUi(state.operation.status.title, state.operation.status.detail)) +

@@ -92,7 +92,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         op = op.copy(status = updateRecoveryUi(updateRecovery), visible = true, needsCheck = true, update = true)
     }
     val status = when {
-        profileError != null -> StatusUi("Your saved profiles need attention", "Editing is paused to protect your settings. Open Details to review the problem.", StatusTone.Error)
+        profileError != null -> StatusUi("Your saved profiles need attention", "Editing is paused to protect your settings. Review the problem in Expert > Diagnostics.", StatusTone.Error)
         presentationError != null -> friendlyFailure(presentationError)
         op.visible && (op.busy || op.needsCheck) -> op.status
         runtimeIdentity?.usedPreviousGeneration == true -> StatusUi("Earlier settings are running", "Your gauge restored an earlier setup. Review your pages before sending again.", StatusTone.Stale)
@@ -170,7 +170,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             updateRecovery?.state in setOf(UpdateRecoveryState.CHECK_REQUIRED, UpdateRecoveryState.WAITING_FOR_CONFIRMATION), details),
         op,
         if (profileError != null) StatusUi("Your saved profiles need attention",
-            "Editing is paused to protect your settings. Open Details to review the problem.", StatusTone.Error)
+            "Editing is paused to protect your settings. Review the problem in Expert > Diagnostics.", StatusTone.Error)
         else presentationError?.let { friendlyFailure(it) }
             ?: if (disconnected) connectionStatus(connection, nowElapsedMs) else null,
         connection,

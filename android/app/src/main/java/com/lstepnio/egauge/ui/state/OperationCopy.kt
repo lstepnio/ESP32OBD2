@@ -39,7 +39,7 @@ fun operationUi(state: OperationState, confirmedSetup: Boolean = false): Operati
                 StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success)
             state.kind == OperationKind.CONFIGURATION ->
                 StatusUi("Gauge response received", "Check your gauge to confirm the change.")
-            else -> StatusUi("Gauge checked", "The latest response is available in Details.")
+            else -> StatusUi("Gauge checked", "The latest response is available in Expert > Diagnostics.")
         }
         OperationStage.RECOVERED -> StatusUi("Earlier settings are running", "Your gauge restored its previous setup. Review your changes before sending again.", StatusTone.Stale)
         OperationStage.FAILED -> friendlyFailure(state.detail, update)

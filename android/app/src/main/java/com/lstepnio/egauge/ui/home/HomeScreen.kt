@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
@@ -17,7 +18,7 @@ import com.lstepnio.egauge.ui.*
 import com.lstepnio.egauge.ui.state.*
 
 @Composable
-fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Unit, onDetails: () -> Unit,
+fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Unit,
                onEditPage: (Int) -> Unit = {}, statusInBanner: Boolean = false) {
     val pager = rememberPagerState(pageCount = { state.pages.size })
     ScreenContent {
@@ -30,7 +31,8 @@ fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Uni
                     }
                 }
                 Text("Swipe between pages · Hold to edit", modifier = Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center)
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -38,7 +40,6 @@ fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Uni
                 PrimaryAction(state.primaryLabel, onPrimary, enabled = !state.busy)
                 if (state.primaryAction != HomeAction.Customize)
                     OutlinedButton(onCustomize, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Customize") }
-                TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
             }
         })
     }
