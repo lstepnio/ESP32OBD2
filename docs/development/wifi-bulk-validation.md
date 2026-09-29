@@ -58,3 +58,9 @@ The owner-bonded Pixel discovered and verified prerelease `dev-v0.2.0-dev.9` dir
 ## Boundaries still open
 
 This evidence validates the successful encrypted transport, bounded batch path and signed activation path. It does not validate a malformed authenticated batch on hardware, wrong application key, replayed frame, expired session, power loss during transfer, automatic resumption, or concurrent vehicle traffic. Those cases retain the experimental capability label. Live OBD polling and dual-adapter coexistence were not exercised.
+
+## Android startup optimization pending physical timing
+
+The Android update path now reads the running firmware identity and opens the temporary Wi-Fi network in one owner-authenticated BLE connection. Previously it closed the first GATT connection and repeated the MTU exchange, service discovery, and owner check before opening Wi-Fi. Android now reports transfer progress only after the private network and TCP socket are ready. The signed image verification, owner association, private-network credentials, and post-restart running-image confirmation are unchanged.
+
+This is source-level and build validation only. The revised app has not yet performed a physical OTA, so startup time saved is unmeasured. On the next authorized hardware update, separately record Install tap, package download completion if applicable, private AP ready, Pixel association, first OTA byte, and confirmed running image. Compare tap-to-first-byte with the prior app on the same gauge and Pixel before claiming a measured speedup.
