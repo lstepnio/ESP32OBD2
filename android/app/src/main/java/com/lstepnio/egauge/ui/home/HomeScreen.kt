@@ -17,7 +17,7 @@ import com.lstepnio.egauge.ui.*
 import com.lstepnio.egauge.ui.state.*
 
 @Composable
-fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Unit, onDetails: () -> Unit,
+fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Unit,
                onEditPage: (Int) -> Unit = {}, statusInBanner: Boolean = false) {
     val pager = rememberPagerState(pageCount = { state.pages.size })
     ScreenContent {
@@ -38,7 +38,6 @@ fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Uni
                 PrimaryAction(state.primaryLabel, onPrimary, enabled = !state.busy)
                 if (state.primaryAction != HomeAction.Customize)
                     OutlinedButton(onCustomize, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Customize") }
-                TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
             }
         })
     }

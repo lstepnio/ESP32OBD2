@@ -58,7 +58,7 @@ class CustomizeJourneyTest {
         compose.setContent { EGaugeTheme { Surface {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Text("Example · UI preview")
-                DashboardEditorScreen(state, route, { route = it }, {}, {}, actions)
+                DashboardEditorScreen(state, route, { route = it }, {}, actions)
             }
         } } }
     }

@@ -23,7 +23,7 @@ import com.lstepnio.egauge.ui.state.*
 
 /** Debug-only examples. These render production screens with no device, repository or ViewModel. */
 object ScreenFixtures {
-    val names = listOf("setup", "pair", "gauge", "readings", "layouts", "limits", "pages", "alert", "review", "car", "updates", "recovery", "settings", "expert")
+    val names = listOf("setup", "pair", "gauge", "readings", "layouts", "limits", "pages", "alert", "review", "car", "updates", "recovery", "settings", "expert", "expert-data")
     private val details = listOf(DetailUi("Example identifier", "preview-gauge"),
         DetailUi("Example revision", "7"), DetailUi("Example SHA-256", "a".repeat(64)))
     private val pages = listOf(
@@ -53,10 +53,10 @@ object ScreenFixtures {
         "Example update", progressPercent = 64))
     private val updates = UpdatesUiState(update.status, "Example 1.1", "Example 1.0", false, false,
         true, true, false, details)
-    private val expert = ExpertUiState(demoCatalog.map(::readingUi), true, true, true, false, details,
+    private val expert = ExpertUiState(demoCatalog.map(::readingUi), true, true, true, false, false, details,
         "", "All", "rpm", "41 0C 2C 60", StatusUi("Example result: 2,840 rpm"), "01 0C", "ECM",
         StatusUi("Example request"), "Not run", false)
-    private val expertActions = ExpertActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+    private val expertActions = ExpertActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
 
     @Composable
     fun Screen(name: String) {
@@ -69,12 +69,12 @@ object ScreenFixtures {
                 when (name) {
                     "setup", "pair" -> SetupScreen(SetupUiState(name == "pair", OwnerAccess.DISCOVERED, name == "setup",
                         emptyList(), StatusUi(if (name == "pair") "Gauge found" else "Looking for your gauge",
-                            "Keep your gauge powered and nearby.", if (name == "setup") StatusTone.Loading else StatusTone.Neutral), details), {}, {}, {}, {}, {}, {})
-                    "gauge" -> HomeScreen(home, {}, {}, {})
+                        "Keep your gauge powered and nearby.", if (name == "setup") StatusTone.Loading else StatusTone.Neutral), details), {}, {}, {}, {}, {})
+                    "gauge" -> HomeScreen(home, {}, {})
                     "recovery" -> HomeScreen(home.copy(status = recovery.status, pendingChanges = true,
-                        primaryLabel = "Check gauge", primaryAction = HomeAction.Check), {}, {}, {})
+                        primaryLabel = "Check gauge", primaryAction = HomeAction.Check), {}, {})
                     "readings", "limits", "pages", "review" -> DashboardEditorScreen(customize,
-                        mapOf("readings" to 0, "limits" to 3, "pages" to 2, "review" to 5).getValue(name), {}, {}, {}, customizeActions)
+                        mapOf("readings" to 0, "limits" to 3, "pages" to 2, "review" to 5).getValue(name), {}, {}, customizeActions)
                     "layouts" -> Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         SectionTitle("Choose layout")
                         Box(Modifier.weight(1f).verticalScroll(rememberScrollState())) { LayoutChoices(customize, pages.first(), {}) }
@@ -82,10 +82,11 @@ object ScreenFixtures {
                     }
                     "alert" -> AlertEditor(customize, readingUi(demoCatalog.first { it.id == "rpm" }),
                         alertUi(defaultAlert("rpm")), {}, customizeActions)
-                    "car" -> CarScreen(car, {}, {}, {}, {}, {})
-                    "updates" -> UpdatesScreen(updates, update, true, {}, {}, {}, {}, {}, {})
-                    "settings" -> SettingsScreen(settings, {}, {}, {}, {}, {}, {}, {}, {}, {})
-                    "expert" -> ExpertScreen(expert, "", {}, {}, {}, expertActions)
+                    "car" -> CarScreen(car, {}, {}, {}, {})
+                    "updates" -> UpdatesScreen(updates, update, true, {}, {}, {}, {}, {})
+                    "settings" -> SettingsScreen(settings, {}, {}, {}, {}, {}, {}, {}, {})
+                    "expert" -> ExpertScreen(expert, "", {}, {}, expertActions)
+                    "expert-data" -> ExpertScreen(expert, "Device data", {}, {}, expertActions)
                     else -> error("Unknown screen fixture: $name")
                 }
             }
