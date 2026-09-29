@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,6 +18,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -122,23 +125,13 @@ fun ReadingTile(name: String, unit: String, selected: Boolean, onClick: () -> Un
 }
 
 @Composable
-fun LimitEditor(label: String, value: Int, critical: Boolean, onChange: (Int) -> Unit,
-                enabled: Boolean = true) {
-    Panel {
-        Text(label, style = MaterialTheme.typography.titleMedium,
-            color = if (critical) LocalSemanticColors.current.critical else MaterialTheme.colorScheme.onSurface)
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween) {
-            OutlinedIconButton(onClick = { onChange((value - 1).coerceAtLeast(-40)) }, enabled = enabled) {
-                EGaugeIcon(GaugeIcon.Remove, "Decrease ${label.lowercase()}")
-            }
-            Text("$value °C", style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.semantics { contentDescription = "$label $value degrees Celsius" })
-            OutlinedIconButton(onClick = { onChange((value + 1).coerceAtMost(215)) }, enabled = enabled) {
-                EGaugeIcon(GaugeIcon.Add, "Increase ${label.lowercase()}")
-            }
-        }
-    }
+fun LimitField(label: String, value: String, unit: String, onChange: (String) -> Unit,
+               enabled: Boolean = true, error: String? = null, hint: String? = null) {
+    OutlinedTextField(value, onChange, label = { Text(label) }, suffix = { Text(unit) },
+        enabled = enabled, singleLine = true, isError = error != null,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+        supportingText = if (error != null || hint != null) ({ Text(error ?: hint.orEmpty()) }) else null,
+        modifier = Modifier.fillMaxWidth().semantics { if (error != null) error(error) })
 }
 
 @Composable

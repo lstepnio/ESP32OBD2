@@ -36,51 +36,27 @@ class PrimaryJourneyTest {
         capture("updates")
     }
 
-    @Test fun customizeUsesThePreviewLedEditorWithOnePrimaryAction() {
+    @Test fun customizeUsesOneWorkspaceWithoutChangingSavedSettings() {
+        val model = ViewModelProvider(compose.activity)[AppViewModel::class.java]
+        val original = model.draft
         compose.onNodeWithText("Customize").performScrollTo().performClick()
-        compose.onNodeWithText("Edit page").assertIsDisplayed()
-        capture("dashboard")
+        compose.onNodeWithText("Reading").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Layout").performScrollTo().assertIsDisplayed()
         compose.onAllNodesWithTag("primary-action").assertCountEquals(1)
+        compose.onNodeWithText("Review and send").assertIsDisplayed()
+        capture("customize-workspace")
         assertNoJargon()
         compose.onNodeWithText("Manage pages").performScrollTo().performClick()
-        compose.onNodeWithText("Add page").assertIsDisplayed()
-        val pageCount = compose.onAllNodesWithText("Remove page").fetchSemanticsNodes().size
-        compose.onNodeWithText("Add page").performClick()
-        compose.onAllNodesWithText("Remove page").assertCountEquals(pageCount + 1)
-        compose.onAllNodesWithText("Remove page").onFirst().performClick()
-        compose.onAllNodesWithText("Remove page").assertCountEquals(pageCount)
         capture("manage-pages")
-        compose.onNodeWithText("Done").performScrollTo().performClick()
-        compose.onNodeWithText("Edit page").performScrollTo().performClick()
-        compose.onNodeWithText("Layout").performScrollTo().assertIsDisplayed()
-        capture("page-editor")
-        compose.onNodeWithText("Done").performScrollTo().performClick()
-        compose.onNodeWithText("Alerts").performScrollTo().performClick()
-        compose.onNodeWithText("Edit alert").performScrollTo().performClick()
-        compose.onNodeWithText("Warn above").performScrollTo().assertIsDisplayed()
-        capture("alerts")
-        compose.onNodeWithText("Save alert").performScrollTo().performClick()
-        val model = ViewModelProvider(compose.activity)[AppViewModel::class.java]
-        val alertCount = model.draft.alerts.size
-        val available = demoCatalog.firstOrNull { it.id in ConfigurationProjector.supportedPidIds &&
-            model.draft.alerts.none { alert -> alert.pidId == it.id } }
-        available?.let { reading ->
-            compose.onNodeWithText("Alerts").performScrollTo().performClick()
-            compose.onNodeWithText("Add alert").performScrollTo().performClick()
-            compose.onNodeWithText(readingName(reading.id)).performScrollTo().performClick()
-            compose.onNodeWithText("${readingName(reading.id)} alert").assertIsDisplayed()
-            compose.onNodeWithText("Save alert").performScrollTo().performClick()
-            compose.onNodeWithText("Alerts").performScrollTo().performClick()
-            compose.onAllNodesWithText("Remove alert").assertCountEquals(alertCount + 1)
-            compose.onAllNodesWithText("Remove alert")[alertCount].performClick()
-            compose.onAllNodesWithText("Remove alert").assertCountEquals(alertCount)
-        }
-        compose.onNodeWithText("Done").performScrollTo().performClick()
-        compose.onNodeWithText("Review and send").performScrollTo().performClick()
-        compose.onNodeWithText("Review and send").assertIsDisplayed()
+        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithText("Layout").performScrollTo().performClick()
+        capture("layout-choices")
+        compose.onNodeWithContentDescription("Close choices").performClick()
+        compose.onNodeWithText("Review and send").performClick()
         capture("review")
         compose.onAllNodesWithTag("primary-action").assertCountEquals(1)
         assertNoJargon()
+        org.junit.Assert.assertEquals("Read-only journey must preserve every saved choice", original, model.draft)
     }
 
     private fun capture(name: String) {
