@@ -97,6 +97,10 @@ struct _ui_t
         uint32_t count;
         uint32_t maximum_us;
         uint64_t total_us;
+        uint32_t presses;
+        uint32_t releases;
+        uint32_t clicks;
+        uint32_t holds;
     } timing;
 #endif
 
@@ -371,6 +375,12 @@ static void ui_touch_callback(lv_event_t *e)
     ui_t *ui = (ui_t *)lv_event_get_user_data(e);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     lv_event_code_t code = lv_event_get_code(e);
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+    if (code == LV_EVENT_PRESSED) ui->timing.presses++;
+    if (code == LV_EVENT_RELEASED) ui->timing.releases++;
+    if (code == LV_EVENT_CLICKED) ui->timing.clicks++;
+    if (code == LV_EVENT_LONG_PRESSED) ui->timing.holds++;
+#endif
     switch (code)
     {
     case LV_EVENT_PRESSED:
@@ -518,14 +528,20 @@ static void ui_task(lv_timer_t *timer)
 
 #if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
     int64_t now_us = esp_timer_get_time();
-    if (ui->timing.count && now_us - ui->timing.reported_at_us >= 30000000) {
+    if ((ui->timing.presses || ui->timing.count) && now_us - ui->timing.reported_at_us >= 30000000) {
         ESP_LOGI(TAG, "performance touch_frames=%" PRIu32 " mean_submit_us=%" PRIu64
-                 " max_submit_us=%" PRIu32 " stack_free=%u",
-                 ui->timing.count, ui->timing.total_us / ui->timing.count,
-                 ui->timing.maximum_us, (unsigned)uxTaskGetStackHighWaterMark(NULL));
+                 " max_submit_us=%" PRIu32 " stack_free=%u"
+                 " presses=%" PRIu32 " releases=%" PRIu32 " clicks=%" PRIu32 " holds=%" PRIu32,
+                 ui->timing.count, ui->timing.count ? ui->timing.total_us / ui->timing.count : 0,
+                 ui->timing.maximum_us, (unsigned)uxTaskGetStackHighWaterMark(NULL),
+                 ui->timing.presses, ui->timing.releases, ui->timing.clicks, ui->timing.holds);
         ui->timing.count = 0;
         ui->timing.total_us = 0;
         ui->timing.maximum_us = 0;
+        ui->timing.presses = 0;
+        ui->timing.releases = 0;
+        ui->timing.clicks = 0;
+        ui->timing.holds = 0;
         ui->timing.reported_at_us = now_us;
     }
 #endif

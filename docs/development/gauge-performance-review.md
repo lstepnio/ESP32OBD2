@@ -35,4 +35,33 @@ Source-level validation:
 
 Physical acceptance still requires page changes with the phone closed and open, quick successive taps, reboot after the save interval, normal pairing/long-hold behavior, and stable display/stack headroom. An OTA and concurrent vehicle workload are separate performance checks. No latency improvement percentage is claimed from source inspection or compilation.
 
+## Physical bench image, 2026-09-29
+
+The dev.24 running slot was identified from valid OTA metadata as `ota_0` at `0x60000`. A complete 3 MB recovery copy was read before writing. During that read the user observed a black screen and no BLE connection, which is expected in the USB bootloader; the user confirmed that the display returned when dev.24 restarted. The reliable serial rate for this session was 115200 baud.
+
+The application-only dev.25 test image is built from commit `57be6f9` with `CONFIG_EGAUGE_UI_PERFORMANCE_LOG=y` in a separate bench configuration. The tracked default leaves that instrumentation disabled.
+
+| Image identity | Value |
+| --- | --- |
+| Version | `0.2.0-dev.25` |
+| Image size | 1,492,016 bytes |
+| Binary SHA-256 | `f89296ccdd06b7ef42b7cd18154826450f8a1f594e82c8c2b0338c01e3e16c21` |
+| ELF SHA-256 | `2bbd0fb591d22900aad276707a32614b145c2af0867d2f8cfbf18e008c9998e7` |
+
+The USB write and independent `verify_flash` both matched the image digest. Startup reported dev.25, the matching ELF prefix, configuration revision 17, two pages, no alerts, and successful display/touch initialization. NVS, configuration partitions, bootloader and OTA metadata were not written. This was a USB bench installation, not a signed OTA qualification.
+
+**Physical user observation:** normal display, little or no improvement in touch response with the phone app closed. The first pass has not resolved the reported problem.
+
+**Device instrumentation:** one frame measured 53,794 microseconds from click callback to drawing submission. A later four-frame group averaged 66,268 microseconds, maximum 81,643. LVGL stack low-water was 2,988 bytes; application stack 1,308 bytes, internal heap minimum 81,027 bytes. These are small samples, exclude touch detection and final panel completion, and do not establish an improvement over dev.24.
+
+## Second touch-input experiment: dev.26
+
+The pinned CST816S driver resets and reads the controller but leaves its input registers at their defaults. Waveshare documents automatic standby after two seconds and a slower scan rate in standby. This is a hypothesis for idle-to-touch delay, not an established root cause.
+
+The BSP now sets and reads back `DisAutoSleep` (`0xFE`) to `1`, and `IrqCtl` (`0xFA`) to `0x60` for touch/state-change interrupts. LVGL still handles short and long presses, with no page change on finger-down. Startup logs record original and applied register values. Tuning failure logs a warning and does not prevent display/BLE startup. Driver dependencies, display buffers, clocks and renderer settings are unchanged from dev.25.
+
+This trades controller standby savings for dynamic scanning while powered (datasheet typical dynamic current 1.6 mA versus 6 microamps in standby). Future device sleep support must explicitly revisit this choice. Bench instrumentation adds recognized press/release/click/hold counts, without per-event logging or artificial input. Physical confirmation is pending; no performance improvement is claimed.
+
+Primary touch references: [CST816S register description](https://files.waveshare.com/wiki/common/CST816S_register_declaration.pdf), [CST816S datasheet](https://files.waveshare.com/wiki/common/CST816S_Datasheet_EN.pdf).
+
 Primary references: [LVGL 9.2 display buffers](https://lvgl.io/docs/open/9.2/porting/display), [ESP-IDF performance guidance](https://docs.espressif.com/projects/esp-idf/en/v5.4.1/esp32s3/api-guides/performance/speed.html), and the pinned component sources under `firmware/gauge/managed_components/` after dependency resolution.
