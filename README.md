@@ -10,6 +10,7 @@ A standalone round OBD-II gauge and native Android companion for vehicle telemet
 - [Product requirements](docs/requirements.md): everyday driving, off-road/thermal monitoring, performance, and diagnostics receive equal priority.
 - [Architecture](docs/architecture/system.md), [Android design](android/README.md), and [decisions](docs/architecture/decisions.md).
 - [PID discovery and custom definitions](docs/protocol/pid-discovery.md), [BLE contract](docs/protocol/ble-v1.md), and [firmware updates](docs/protocol/firmware-update.md).
+- [Vehicle knowledge](docs/vehicles/README.md): model-specific research and validation status, starting with the Jeep Wrangler JK.
 - [CEL/DTC diagnostics and threshold alerts](docs/protocol/diagnostics-and-alerts.md).
 - [Visual and interaction specification](docs/design/design-system.md).
 - [Android core and UX execution plan](docs/development/android-core-ux-review-plan.md): usability, reliability, optional dual adapters, and GitHub-hosted firmware updates for supported boards.
@@ -41,6 +42,7 @@ python3 -m venv .venv
 | `contracts/` | Draft JSON Schemas and examples, versioned alongside documentation |
 | `design/` | Shared visual tokens and a dependency-free interaction prototype |
 | `docs/` | Requirements, decisions, protocols, quality gates, sources, and roadmap |
+| `docs/vehicles/` | Vehicle-specific diagnostic knowledge and validation gaps |
 | `tools/` | Documentation, schema, and semantic validation |
 
 The browser prototype is a review tool. The Android app uses Jetpack Compose and the gauge UI uses LVGL. The gauge operates without a phone after configuration. No account or cloud connection is needed for normal operation.

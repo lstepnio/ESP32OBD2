@@ -1,0 +1,328 @@
+{
+  "format": "diagnostic-resource-jsonl-zstd-v1",
+  "status": "extracted research definitions; not vehicle verified or enabled",
+  "redistribution_rights": "Repository owner stated permission for public redistribution on 2026-09-28; documentation of license not independently reviewed",
+  "provenance": "JScan Android package net.clever.obd4u, build v21.09.2026.12:45",
+  "inputs": [
+    {
+      "filename": "obd4u.cleversoftware.net.Common.dll",
+      "sha256": "aa3b31566a772781149a0c4b65d12e3d5180da6ebba866829739237bc30289df",
+      "resources": 125
+    },
+    {
+      "filename": "obd4u.cleversoftware.net.DataStorage.dll",
+      "sha256": "38ff21a691fae457cf9b5b0050d817be7acce7bfd0d73248fe2c96643279aeb6",
+      "resources": 29967
+    }
+  ],
+  "resources": 30092,
+  "top_level_items": 13711439,
+  "shards": [
+    {
+      "file": "activation-001.jsonl.zst",
+      "category": "Activation",
+      "sha256": "6d9ca9b23cb81ab0df1967af57f8c957d1f680b9236eab424e96e2d0013697a6",
+      "bytes": 190385,
+      "uncompressed_bytes": 24658183,
+      "resources": 5697,
+      "top_level_items": 132767
+    },
+    {
+      "file": "dtc-002.jsonl.zst",
+      "category": "DTC",
+      "sha256": "45ca7af7d3fea4238868f8b9309a1e09b32df4e4d51e25f3533e702c4eca3b9a",
+      "bytes": 718323,
+      "uncompressed_bytes": 67042828,
+      "resources": 2999,
+      "top_level_items": 1645441
+    },
+    {
+      "file": "dtc-003.jsonl.zst",
+      "category": "DTC",
+      "sha256": "ad1891da95aef5791e6292fcbb22c6bae7859c4c51b2077a2a943d90315f9049",
+      "bytes": 266931,
+      "uncompressed_bytes": 41017070,
+      "resources": 1333,
+      "top_level_items": 1035810
+    },
+    {
+      "file": "descriptions-004.jsonl.zst",
+      "category": "Descriptions",
+      "sha256": "701665050435d069146b48cd64c8a1497c48e832a1bb281b2c2db9be24e5dab7",
+      "bytes": 6926517,
+      "uncompressed_bytes": 54755373,
+      "resources": 231,
+      "top_level_items": 942436
+    },
+    {
+      "file": "genericcan11module-005.jsonl.zst",
+      "category": "GenericCAN11Module",
+      "sha256": "e53c2eaab9f17c862be6c20217dafc928eb7ec215fb9895296ee4ee4b50af930",
+      "bytes": 445,
+      "uncompressed_bytes": 812,
+      "resources": 1,
+      "top_level_items": 1
+    },
+    {
+      "file": "genericcan29module-006.jsonl.zst",
+      "category": "GenericCAN29Module",
+      "sha256": "42d2c31ca1bf77c5cd1e4b0c7456795e1f5ed6eb9de7a644edcc9aceb72aa491",
+      "bytes": 455,
+      "uncompressed_bytes": 822,
+      "resources": 1,
+      "top_level_items": 1
+    },
+    {
+      "file": "identyfication-007.jsonl.zst",
+      "category": "Identyfication",
+      "sha256": "89b9629a86f54fc35cd722a186866219b77c28842a46803955f7a934213175a1",
+      "bytes": 1487,
+      "uncompressed_bytes": 13485,
+      "resources": 5,
+      "top_level_items": 47
+    },
+    {
+      "file": "livedata-008.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "5aa2ccfa27c1fe1be0e2a9c609ae49f8dabea4565edcdcd934422661233352e8",
+      "bytes": 1131493,
+      "uncompressed_bytes": 67099215,
+      "resources": 1668,
+      "top_level_items": 449714
+    },
+    {
+      "file": "livedata-009.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "b52aae76a5e33a07569a47d83a132f1ad2f85c1ebd88b3141b75a35eac2d4470",
+      "bytes": 992235,
+      "uncompressed_bytes": 66990000,
+      "resources": 801,
+      "top_level_items": 460052
+    },
+    {
+      "file": "livedata-010.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "00940b383e23b6e5b6e9c0193bf84c43cd88339a299f69bf95723e3cf3a9f2e8",
+      "bytes": 1069132,
+      "uncompressed_bytes": 66982391,
+      "resources": 1803,
+      "top_level_items": 437335
+    },
+    {
+      "file": "livedata-011.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "c0dcf9d5cc441df9291e38d063c90b647ea401ec3b96f7c6693fe9b71db9fadd",
+      "bytes": 633609,
+      "uncompressed_bytes": 67082863,
+      "resources": 780,
+      "top_level_items": 446816
+    },
+    {
+      "file": "livedata-012.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "6c1b9a85202aff91c479ac405bfd959dac23fc7dc52eefa7740f0b4eea8cdd57",
+      "bytes": 948978,
+      "uncompressed_bytes": 67101420,
+      "resources": 2134,
+      "top_level_items": 408449
+    },
+    {
+      "file": "livedata-013.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "2150b84eb2bbf1718a87d075d36826eaf3394c3af009a40686096f7461fe32e7",
+      "bytes": 1279605,
+      "uncompressed_bytes": 67098503,
+      "resources": 2004,
+      "top_level_items": 421275
+    },
+    {
+      "file": "livedata-014.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "ccf792bfd4e7b37783d17a3b46c60073d25d3be361c4a91fad221e926696a26d",
+      "bytes": 1029419,
+      "uncompressed_bytes": 66938936,
+      "resources": 724,
+      "top_level_items": 451884
+    },
+    {
+      "file": "livedata-015.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "61225ccc8d6e5b63b90fea8bafb1373aefcbdb13220496e47acbd02dde0b3660",
+      "bytes": 1042902,
+      "uncompressed_bytes": 66999453,
+      "resources": 275,
+      "top_level_items": 444973
+    },
+    {
+      "file": "livedata-016.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "216e33f2f6b8d5def45f30f5cf12eaeda97a689e0568eeb67d90117575aa8519",
+      "bytes": 734306,
+      "uncompressed_bytes": 67010696,
+      "resources": 165,
+      "top_level_items": 445234
+    },
+    {
+      "file": "livedata-017.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "9c5b673958be3e2bcbe8c56a3843c7aefebf0a61fb5832cb817f66d02c013ab4",
+      "bytes": 1362738,
+      "uncompressed_bytes": 66542173,
+      "resources": 144,
+      "top_level_items": 454384
+    },
+    {
+      "file": "livedata-018.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "726159a5a5e5da434ac13bbc7465db830d17d1b37fa5e66e5ee9a5f38c1e9f88",
+      "bytes": 739764,
+      "uncompressed_bytes": 66681668,
+      "resources": 148,
+      "top_level_items": 455551
+    },
+    {
+      "file": "livedata-019.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "36f597da3fa712da3c7dfd68bd34938a5b6e33c9fa111a1b2ea5cd2e7cd9bc41",
+      "bytes": 1656749,
+      "uncompressed_bytes": 65083821,
+      "resources": 119,
+      "top_level_items": 458552
+    },
+    {
+      "file": "livedata-020.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "d4d686df75daf07da4e56eb6fa3104c7f4dc22c0439e723c5a2276100ab512d3",
+      "bytes": 1609325,
+      "uncompressed_bytes": 65966465,
+      "resources": 139,
+      "top_level_items": 473279
+    },
+    {
+      "file": "livedata-021.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "9493cc50cf8da68745b4914fc05c08900366e3e6dd2cbafc7f7ac2d2d0cf01a4",
+      "bytes": 2204905,
+      "uncompressed_bytes": 67034101,
+      "resources": 264,
+      "top_level_items": 464910
+    },
+    {
+      "file": "livedata-022.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "87ed6d7423bd8a92b3995d243bf418766cb3650cac0fe5e8825b72c431ed2145",
+      "bytes": 984788,
+      "uncompressed_bytes": 66508294,
+      "resources": 279,
+      "top_level_items": 436771
+    },
+    {
+      "file": "livedata-023.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "d8aea33fa2d4335c5a8747121854af54f280c8fbce6492a20c3521ac4e8be528",
+      "bytes": 1120738,
+      "uncompressed_bytes": 67083857,
+      "resources": 234,
+      "top_level_items": 447207
+    },
+    {
+      "file": "livedata-024.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "9541dee5ae27d31e85be6371fec1f56b8e7d3e998dad4d03dfa7fd1d2ee64586",
+      "bytes": 731988,
+      "uncompressed_bytes": 66777027,
+      "resources": 168,
+      "top_level_items": 443566
+    },
+    {
+      "file": "livedata-025.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "63125e953cfcc79ac41aeb4c5cdef6075fff3ea9bc73b9dac019f39afabeeda4",
+      "bytes": 1559235,
+      "uncompressed_bytes": 66710068,
+      "resources": 172,
+      "top_level_items": 467850
+    },
+    {
+      "file": "livedata-026.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "23be72967f69d890283a3360626e54acddcd93123ecd5dbcbe3a0a3ef221a56e",
+      "bytes": 1909350,
+      "uncompressed_bytes": 65830961,
+      "resources": 68,
+      "top_level_items": 467492
+    },
+    {
+      "file": "livedata-027.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "9b2fd3e58cbdab519211b0ff40a20dee1e5a74c03220473e4c1b6637a1eed381",
+      "bytes": 1158012,
+      "uncompressed_bytes": 67017646,
+      "resources": 2037,
+      "top_level_items": 415808
+    },
+    {
+      "file": "livedata-028.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "9521e850bde6f571de4225457c953fd835e1d55a970be4bf67f1e52884819947",
+      "bytes": 1310415,
+      "uncompressed_bytes": 67070853,
+      "resources": 771,
+      "top_level_items": 452291
+    },
+    {
+      "file": "livedata-029.jsonl.zst",
+      "category": "LiveData",
+      "sha256": "fb53ffa4067680580836c23fe88eecc82b0cf0bda0095fe2b6c0d8ca041c21c1",
+      "bytes": 254161,
+      "uncompressed_bytes": 7731758,
+      "resources": 463,
+      "top_level_items": 43310
+    },
+    {
+      "file": "moduleindex-030.jsonl.zst",
+      "category": "ModuleIndex",
+      "sha256": "1d341ab4437707b34039d3a29817c6d264e463876a06687e4f319ef87d68db5b",
+      "bytes": 13046,
+      "uncompressed_bytes": 308143,
+      "resources": 16,
+      "top_level_items": 766
+    },
+    {
+      "file": "settings-031.jsonl.zst",
+      "category": "Settings",
+      "sha256": "58a2246ff19179357e7577eb47d570cf4f4568068ad6b702f28e330c9e030299",
+      "bytes": 555,
+      "uncompressed_bytes": 1666,
+      "resources": 1,
+      "top_level_items": 18
+    },
+    {
+      "file": "vehicleadaptations-032.jsonl.zst",
+      "category": "VehicleAdaptations",
+      "sha256": "a1042a1d2493950bce2ab42127d8b55d75c2b0f1fa66715baaccb29295d6e1b4",
+      "bytes": 127068,
+      "uncompressed_bytes": 2354114,
+      "resources": 123,
+      "top_level_items": 4752
+    },
+    {
+      "file": "vehicles-033.jsonl.zst",
+      "category": "Vehicles",
+      "sha256": "ad72d88913c153144fab5f3364f5f6d5110c48e6fccc679717afc324935d46b6",
+      "bytes": 4325,
+      "uncompressed_bytes": 68075,
+      "resources": 1,
+      "top_level_items": 67
+    },
+    {
+      "file": "write-034.jsonl.zst",
+      "category": "Write",
+      "sha256": "acb787dd55233562cf0783b1d9c4419056cc030f4d6d0efa311e74f35bfcf039",
+      "bytes": 57049,
+      "uncompressed_bytes": 9166486,
+      "resources": 4324,
+      "top_level_items": 502630
+    }
+  ]
+}
