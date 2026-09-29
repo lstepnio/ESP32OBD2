@@ -13,4 +13,10 @@ Date: 2026-09-29. Hardware: Waveshare ESP32-S3-Touch-LCD-1.28 gauge and Pixel 10
 
 ## Public capability gate
 
-Dev.28 enables `ds:1` after the above physical qualification. Before calling that release installed, verify its signed hosted image, transfer it through the Pixel app, read the running version after restart, then use the normal Settings controls to save and read back both values. Check the physical display and touch behavior. The repository is private, so the app's anonymous hosted update check returns 404; use the verified GitHub release package through Expert > Development updates > Choose development package.
+Dev.28 enables `ds:1` after the above physical qualification. The repository is private, so the app's anonymous hosted update check returns 404; use the verified GitHub release package through Expert > Development updates > Choose development package.
+
+## dev.28 public path
+
+- PR #49 CI passed Android build, lint, unit tests, firmware build, and contract checks. The signed `dev-v0.2.0-dev.28` release targeted commit `d93cdc6554488c39b1112a02f5a87f0868fb593b`. Its downloaded catalog signature, generation 18, bundle hash, board and partition identity, embedded version, and image signature were independently verified. Bundle SHA-256: `8ee85961d46263f6afbb060c624affdea7e59e87728760d7bf736650bedd9d6e`. Image SHA-256: `d231e8e74821c7db36f67943eefc1dcf3224949057f8eef98f87e91cac8cc6e4`.
+- The package copied to the Pixel had the same SHA-256 as the verified download. The normal app accepted it and transferred it over the gauge Wi-Fi path. The app reported gauge confirmation, then a separate installed-version read returned `0.2.0-dev.28`.
+- After restarting the app to refresh BLE capabilities, Settings showed both controls. A protected read returned the user's 100% brightness and original 0-degree rotation. The normal Settings screen saved 61% brightness and 90-degree rotation and reported gauge readback for each. It then restored 100% and 0 degrees with protected readback. Direct physical display and touch observation on dev.28 is pending; the user had already observed dimming and rotation on dev.27.
