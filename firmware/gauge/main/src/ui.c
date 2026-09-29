@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdatomic.h>
+#include "sdkconfig.h"
+#include "esp_timer.h"
 
 #include "esp_log.h"
 #include "esp_log_color.h"
@@ -84,6 +86,19 @@ struct _ui_t
     bool                calibration_mode;
     uint8_t             calibration_page;
     TickType_t          pressed_at;
+    ui_alert_t          rendered_alert;
+    ui_diagnostics_t    rendered_diagnostics;
+    bool                alert_rendered;
+    bool                diagnostics_rendered;
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+    struct {
+        int64_t click_at_us;
+        int64_t reported_at_us;
+        uint32_t count;
+        uint32_t maximum_us;
+        uint64_t total_us;
+    } timing;
+#endif
 
     struct
     {
@@ -335,6 +350,21 @@ static void select_renderer_widgets(ui_t *ui)
 // Private Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
+static void dispatch_touch(ui_t *ui, lv_event_code_t code)
+{
+    /* Calibration replaces screen objects, so defer that callback until the
+     * current input event has finished. Normal navigation keeps its objects. */
+    if (ui->calibration_mode) {
+        xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+    } else if (ui->touch_cb && !(ui->pairing_visible && code == LV_EVENT_CLICKED)) {
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+        if (code == LV_EVENT_CLICKED && ui->timing.click_at_us == 0)
+            ui->timing.click_at_us = esp_timer_get_time();
+#endif
+        ui->touch_cb(ui, code);
+    }
+}
+
 static void ui_touch_callback(lv_event_t *e)
 {
     ESP_NULL_CHECK(e, TAG, "Event is NULL");
@@ -349,17 +379,17 @@ static void ui_touch_callback(lv_event_t *e)
         break;
     case LV_EVENT_LONG_PRESSED:
         ui->long_press_handled = true;
-        xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+        dispatch_touch(ui, code);
         break;
     case LV_EVENT_CLICKED:
         if (!ui->long_press_handled)
         {
-            xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+            dispatch_touch(ui, code);
         }
         break;
     case LV_EVENT_RELEASED:
         if (xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
-            xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+            dispatch_touch(ui, code);
         }
         break;
     default:
@@ -467,11 +497,38 @@ static void render_page(ui_t *ui)
     ui->display.rendered_once = true;
 }
 
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+static void render_finished(lv_event_t *event)
+{
+    ui_t *ui = lv_event_get_user_data(event);
+    if (!ui->timing.click_at_us) return;
+    uint32_t elapsed = (uint32_t)(esp_timer_get_time() - ui->timing.click_at_us);
+    ui->timing.count++;
+    ui->timing.total_us += elapsed;
+    if (elapsed > ui->timing.maximum_us) ui->timing.maximum_us = elapsed;
+    ui->timing.click_at_us = 0;
+}
+#endif
+
 static void ui_task(lv_timer_t *timer)
 {
     ESP_NULL_CHECK(timer, TAG, "timer is NULL");
     ui_t *ui = (ui_t *)lv_timer_get_user_data(timer);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
+
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+    int64_t now_us = esp_timer_get_time();
+    if (ui->timing.count && now_us - ui->timing.reported_at_us >= 30000000) {
+        ESP_LOGI(TAG, "performance touch_frames=%" PRIu32 " mean_submit_us=%" PRIu64
+                 " max_submit_us=%" PRIu32 " stack_free=%u",
+                 ui->timing.count, ui->timing.total_us / ui->timing.count,
+                 ui->timing.maximum_us, (unsigned)uxTaskGetStackHighWaterMark(NULL));
+        ui->timing.count = 0;
+        ui->timing.total_us = 0;
+        ui->timing.maximum_us = 0;
+        ui->timing.reported_at_us = now_us;
+    }
+#endif
 
     if (ui->calibration_mode) {
         lv_event_code_t event_code;
@@ -486,7 +543,12 @@ static void ui_task(lv_timer_t *timer)
     }
 
     ui_alert_t alert;
-    if (xQueueReceive(ui->rtos.alert_que, &alert, 0) == pdTRUE) {
+    if (xQueueReceive(ui->rtos.alert_que, &alert, 0) == pdTRUE &&
+        (!ui->alert_rendered || alert.severity != ui->rendered_alert.severity ||
+         alert.unavailable != ui->rendered_alert.unavailable ||
+         strcmp(alert.label, ui->rendered_alert.label) != 0)) {
+        ui->rendered_alert = alert;
+        ui->alert_rendered = true;
         lv_color_t indicator = alert.severity == 2 ? lv_color_hex(color_critical) :
                                alert.severity == 1 ? lv_color_hex(color_warning) :
                                                      lv_color_hex(color_accent);
@@ -510,7 +572,13 @@ static void ui_task(lv_timer_t *timer)
     }
 
     ui_diagnostics_t diagnostics;
-    if (xQueueReceive(ui->rtos.diagnostics_que, &diagnostics, 0) == pdTRUE) {
+    if (xQueueReceive(ui->rtos.diagnostics_que, &diagnostics, 0) == pdTRUE &&
+        (!ui->diagnostics_rendered || diagnostics.valid != ui->rendered_diagnostics.valid ||
+         diagnostics.mil_on != ui->rendered_diagnostics.mil_on ||
+         diagnostics.count != ui->rendered_diagnostics.count ||
+         strcmp(diagnostics.first_code, ui->rendered_diagnostics.first_code) != 0)) {
+        ui->rendered_diagnostics = diagnostics;
+        ui->diagnostics_rendered = true;
         if (!diagnostics.valid || (!diagnostics.mil_on && diagnostics.count == 0 &&
                                    diagnostics.first_code[0] == 0))
             lv_obj_add_flag(ui->widgets.diagnostics_lbl, LV_OBJ_FLAG_HIDDEN);
@@ -536,15 +604,6 @@ static void ui_task(lv_timer_t *timer)
     }
     render_page(ui);
 
-    lv_event_code_t event_code;
-    if (xQueueReceive(ui->rtos.touch_ev_que, &event_code, 0) == pdTRUE)
-    {
-        if (ui->touch_cb != NULL &&
-            !(ui->pairing_visible && event_code == LV_EVENT_CLICKED))
-        {
-            ui->touch_cb(ui, event_code);
-        }
-    }
 }
 
 static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms)
@@ -697,6 +756,9 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
 
     // add handlers
     lv_obj_add_event_cb(lv_screen_active(), ui_touch_callback, LV_EVENT_ALL, ui);
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+    lv_display_add_event_cb(lv_display_get_default(), render_finished, LV_EVENT_REFR_READY, ui);
+#endif
     lv_timer_create(ui_task, interval_ms, ui);
 
     ESP_LOGI(TAG, "Screen initialized successfully");
@@ -789,8 +851,12 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     lv_arc_set_range(ui->widgets.arc, minimum, maximum);
     lv_bar_set_range(ui->widgets.bar, minimum, maximum);
     select_renderer_widgets(ui);
-    ui_update_screen(ui, NULL, page->name, page->metrics[0].unit);
-    ESP_LOGI(TAG, "Updated page: %s renderer=%u", page->name, page->renderer);
+    if (ui->alert_rendered && ui->rendered_alert.severity != 0)
+        lv_obj_add_flag(ui->widgets.info_lbl, LV_OBJ_FLAG_HIDDEN);
+    /* Populate all renderer-specific widgets now, including dual values.
+     * Waiting for the data timer adds another 50 ms to a page change. */
+    render_page(ui);
+    ESP_LOGD(TAG, "Updated page: %s renderer=%u", page->name, page->renderer);
 }
 
 void ui_show_pairing_code(ui_t *ui, uint32_t passkey)
