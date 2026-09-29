@@ -3,6 +3,7 @@
 This is design tooling, not the firmware validator or a production decoder.
 """
 from __future__ import annotations
+import sys
 import copy
 import json
 import math
@@ -138,9 +139,11 @@ for p in mds:
         target = unquote(dest.split('#')[0])
         check((p.parent / target).exists(), f'Broken link in {p.relative_to(ROOT)}: {dest}')
 
-# Prototype colors are a checked consumer of the design tokens until codegen exists.
+# Android and prototype tokens are generated; legacy gauge colors stay unchanged.
+import subprocess
+subprocess.run([sys.executable, str(ROOT / 'tools/generate_design_tokens.py'), '--check'], check=True)
 tokens = json.loads((ROOT / 'design/tokens.json').read_text())
-css = (ROOT / 'design/prototype/styles.css').read_text()
+css = (ROOT / 'design/prototype/tokens.css').read_text()
 for name, color in tokens['color'].items():
     match = re.search(r'--' + re.escape(name) + r'\s*:\s*(#[0-9a-fA-F]{6})', css)
     check(match and match.group(1).lower() == color.lower(), f'Prototype token mismatch: {name}')
