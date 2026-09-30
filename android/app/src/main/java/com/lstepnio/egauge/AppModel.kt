@@ -756,6 +756,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             FirmwareUpdateStage.PREPARING -> operation.copy(stage = OperationStage.PREPARING,
                 title = "Preparing firmware update", detail = "Authenticating the gauge and opening the transfer path",
                 progressPercent = null)
+            FirmwareUpdateStage.CONNECTING_WIFI -> operation.copy(stage = OperationStage.PREPARING,
+                title = "Joining gauge Wi-Fi", detail = "Android is connecting to the gauge's temporary network",
+                progressPercent = null)
+            FirmwareUpdateStage.PREPARING_FLASH -> operation.copy(stage = OperationStage.PREPARING,
+                title = "Preparing gauge flash", detail = "Sending the signed image details and clearing space",
+                progressPercent = null)
             FirmwareUpdateStage.TRANSFERRING -> operation.copy(stage = OperationStage.SENDING,
                 title = "Sending firmware", detail = if (capabilities?.wifiBulk != null)
                     "Sending the signed image over private gauge Wi-Fi" else
@@ -776,6 +782,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         updatePackageMessage = when (stage) {
             FirmwareUpdateStage.PREPARING -> "Preparing the authenticated update path…"
+            FirmwareUpdateStage.CONNECTING_WIFI -> "Joining the temporary gauge Wi-Fi network…"
+            FirmwareUpdateStage.PREPARING_FLASH -> "Preparing the gauge to receive the image…"
             FirmwareUpdateStage.TRANSFERRING -> "Sending the signed image to the gauge…"
             FirmwareUpdateStage.VERIFYING -> "Transfer complete. Verifying the signed image on the gauge…"
             FirmwareUpdateStage.READY_TO_ACTIVATE -> if (debugOtaPauseBeforeActivationMs > 0)

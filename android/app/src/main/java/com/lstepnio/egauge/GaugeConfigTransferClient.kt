@@ -9,6 +9,8 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
 import android.os.Build
+import android.os.SystemClock
+import android.util.Log
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -24,6 +26,8 @@ internal class GaugeLinkException(message: String) : IllegalStateException(messa
 
 enum class FirmwareUpdateStage {
     PREPARING,
+    CONNECTING_WIFI,
+    PREPARING_FLASH,
     TRANSFERRING,
     VERIFYING,
     READY_TO_ACTIVATE,
@@ -456,8 +460,10 @@ class GaugeConfigTransferClient(private val context: Context) {
                                   pauseBeforeActivationMs: Long = 0): UpdateResult {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         require(pauseBeforeActivationMs in 0..60_000)
+        val startedAt = SystemClock.elapsedRealtime()
         stage(FirmwareUpdateStage.PREPARING)
         val before = readBootIdentity(device)
+        Log.i("eGaugeUpdate", "Authenticated preflight took ${SystemClock.elapsedRealtime() - startedAt} ms")
         val expectedElf = bundle.elfSha256.joinToString("") { "%02x".format(it) }
         check(before.elfSha256 != expectedElf) { "This signed firmware image is already running on the gauge" }
         val random = SecureRandom()
@@ -465,8 +471,8 @@ class GaugeConfigTransferClient(private val context: Context) {
         var sequence = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         val id = le32(transferId)
         val wifiSession = openWifiBulk(device)
-        stage(FirmwareUpdateStage.TRANSFERRING)
-        progress(0)
+        Log.i("eGaugeUpdate", "Gauge Wi-Fi startup took ${SystemClock.elapsedRealtime() - startedAt} ms total")
+        stage(FirmwareUpdateStage.CONNECTING_WIFI)
         try {
             WifiBulkClient(context, wifiSession).use { wifi ->
             suspend fun command(opcode: Int, payload: ByteArray = byteArrayOf()): OtaStatus {
@@ -482,9 +488,11 @@ class GaugeConfigTransferClient(private val context: Context) {
                 return status
             }
             val current = command(0x27)
+            Log.i("eGaugeUpdate", "First gauge Wi-Fi response took ${SystemClock.elapsedRealtime() - startedAt} ms total")
             if (current.phase in 1..3 && current.transferId != 0L)
                 command(0x26, le32(current.transferId))
             else check(current.phase == 0) { "Gauge is already activating an update" }
+            stage(FirmwareUpdateStage.PREPARING_FLASH)
             command(0x20, id + le32(bundle.image.size.toLong()) + le32(0x31534745))
             try {
                 for (part in 0..3) command(0x21, id + byteArrayOf(part.toByte()) +
@@ -494,7 +502,11 @@ class GaugeConfigTransferClient(private val context: Context) {
                     command(0x28, id + byteArrayOf(part.toByte(), bundle.signatureDer.size.toByte()) +
                         bundle.signatureDer.copyOfRange(start, minOf(start + 8, bundle.signatureDer.size)))
                 }
+                val flashStartedAt = SystemClock.elapsedRealtime()
                 command(0x22, id)
+                Log.i("eGaugeUpdate", "Gauge flash preparation took ${SystemClock.elapsedRealtime() - flashStartedAt} ms")
+                stage(FirmwareUpdateStage.TRANSFERRING)
+                progress(0)
                 var offset = 0
                 var lastProgress = 0
                 while (offset < bundle.image.size) {

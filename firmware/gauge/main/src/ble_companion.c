@@ -101,11 +101,17 @@ bool ble_companion_load_owner(void)
 {
     atomic_store(&g_has_owner, false);
     nvs_handle_t handle;
-    if (nvs_open("eg_owner", NVS_READONLY, &handle) != ESP_OK) return false;
+    esp_err_t opened = nvs_open("eg_owner", NVS_READONLY, &handle);
+    if (opened != ESP_OK) {
+        ESP_LOGI(TAG, "Owner association unavailable at boot: %s", esp_err_to_name(opened));
+        return false;
+    }
     size_t size = sizeof(g_owner);
-    atomic_store(&g_has_owner,
-                 nvs_get_blob(handle, "peer", &g_owner, &size) == ESP_OK && size == sizeof(g_owner));
+    esp_err_t loaded = nvs_get_blob(handle, "peer", &g_owner, &size);
+    atomic_store(&g_has_owner, loaded == ESP_OK && size == sizeof(g_owner));
     nvs_close(handle);
+    ESP_LOGI(TAG, "Owner association at boot: %s (read %s)",
+             atomic_load(&g_has_owner) ? "present" : "absent", esp_err_to_name(loaded));
     return atomic_load(&g_has_owner);
 }
 
@@ -655,6 +661,7 @@ void ble_companion_tick(void)
 void ble_companion_forget_owner(void)
 {
     if (!atomic_load(&g_has_owner)) return;
+    ESP_LOGW(TAG, "Physical 12-second hold requested owner reset");
     int rc = ble_store_util_delete_peer(&g_owner);
     if (rc != 0) {
         ESP_LOGW(TAG, "Owner bond deletion returned %d; clearing owner association", rc);
