@@ -16,6 +16,7 @@ Recorded 2026-09-29 for Android companion commit `2177827` and signed developmen
 - On dev.30, Settings read Metric, 100% brightness, and 90° rotation. Saving Imperial completed with a gauge confirmation. The home coolant preview changed from `92 °C` to `198 °F`.
 - After force stopping and reopening the Android app, a fresh protected display-settings read returned Imperial, 100% brightness, and 90° rotation.
 - Expert device data continued to report stored and running configuration revision 20 after the firmware update.
+- After the Imperial test, the app saved Metric again and confirmed the gauge readback. The gauge was left at its original Metric setting, with brightness 100% and rotation 90°.
 
 ## Physical gauge checks
 
