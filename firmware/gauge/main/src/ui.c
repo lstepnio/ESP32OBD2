@@ -158,10 +158,15 @@ static const lv_font_t *const font_unit     = &notosans_medium_24;
 static const uint32_t color_background = 0x05080A;
 static const uint32_t color_text_primary = 0xE4EAED;
 static const uint32_t color_text_secondary = 0x9CAAB2;
-static const uint32_t color_track = 0x202A30;
-static const uint32_t color_accent = 0x26B895;
-static const uint32_t color_warning = 0xE0A63A;
-static const uint32_t color_critical = 0xE75A5A;
+static const uint32_t color_track = 0x29343A;
+static const uint32_t color_accent = 0x00D6A0;
+static const uint32_t color_warning = 0xFFB000;
+static const uint32_t color_critical = 0xFF4D5A;
+
+// The arc is decorative: its 109 px outer radius stays inside the physically
+// checked 112 px band while essential text remains within the 104 px limit.
+#define GAUGE_ARC_DIAMETER 218
+#define GAUGE_ARC_WIDTH 11
 
 #define CALIBRATION_PAGE_COUNT 5
 #define PRIMARY_LABEL_WIDTH 160
@@ -308,7 +313,7 @@ static void render_calibration_page(ui_t *ui)
     }
     default: {
         lv_obj_t *arc = lv_arc_create(screen);
-        lv_obj_set_size(arc, 198, 198);
+        lv_obj_set_size(arc, GAUGE_ARC_DIAMETER, GAUGE_ARC_DIAMETER);
         lv_obj_center(arc);
         lv_arc_set_bg_angles(arc, 135, 45);
         lv_arc_set_range(arc, 0, 8000);
@@ -316,8 +321,8 @@ static void render_calibration_page(ui_t *ui)
         lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
         lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(arc, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_set_style_arc_width(arc, 7, LV_PART_MAIN);
-        lv_obj_set_style_arc_width(arc, 7, LV_PART_INDICATOR);
+        lv_obj_set_style_arc_width(arc, GAUGE_ARC_WIDTH, LV_PART_MAIN);
+        lv_obj_set_style_arc_width(arc, GAUGE_ARC_WIDTH, LV_PART_INDICATOR);
         lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
         lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
         lv_obj_set_style_arc_color(arc, lv_color_hex(color_track), LV_PART_MAIN);
@@ -677,13 +682,13 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     ui->widgets.unit_lbl  = unit_lbl;
 
     lv_obj_t *arc = lv_arc_create(gauge_content);
-    lv_obj_set_size(arc, 198, 198);
+    lv_obj_set_size(arc, GAUGE_ARC_DIAMETER, GAUGE_ARC_DIAMETER);
     lv_obj_align(arc, LV_ALIGN_CENTER, 0, 0);
     lv_arc_set_bg_angles(arc, 135, 45);
     lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
     lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_arc_width(arc, 7, LV_PART_MAIN);
-    lv_obj_set_style_arc_width(arc, 7, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(arc, GAUGE_ARC_WIDTH, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(arc, GAUGE_ARC_WIDTH, LV_PART_INDICATOR);
     lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
     lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(arc, lv_color_hex(color_track), LV_PART_MAIN);
