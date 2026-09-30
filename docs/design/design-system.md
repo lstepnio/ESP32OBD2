@@ -4,9 +4,9 @@ The Android companion puts the user's display first: a large round preview, simp
 
 ## Visual language
 
-Graphite, neutral surfaces, lime accents, large tabular readings and soft 28 dp cards. Light mode uses warm white surfaces and dark green action text. Android dynamic colour is optional and affects app chrome only. Warning, critical and round-preview colours retain fixed meanings. Colour is always paired with an icon and a human sentence.
+Graphite, neutral surfaces, vivid teal accents, large tabular readings and soft 28 dp cards. The round preview uses the gauge firmware's near-black background, text, track, teal normal state, amber warning and red critical state. Light mode uses warm white surfaces and a darker teal for readable action text. Android dynamic colour is optional and affects app chrome only. Warning, critical and round-preview colours retain fixed meanings. Colour is always paired with an icon and a human sentence.
 
-[Tokens](../../design/tokens.json) have separate `android` roles for light/dark colours, type, spacing, shape, motion and adaptive breakpoints. The existing top-level gauge colours, type and geometry are unchanged. `tools/generate_design_tokens.py` generates Android values and browser CSS; `--check` detects drift. No token rename or firmware change is required.
+[Tokens](../../design/tokens.json) have separate `android` roles for light/dark colours, type, spacing, shape, motion and adaptive breakpoints. `tools/generate_design_tokens.py` generates Android values and browser CSS; `--check` detects drift. The preview arc uses the firmware's thicker stroke and track colour while keeping its own simulated layout. This palette update does not change firmware.
 
 Body text is 16 sp; labels are 14 sp; titles are 32 sp. Reading values are 64 sp in the mock display. Application text honours font scaling. The circular preview has a scalable text equivalent so its simulated device geometry never constrains accessible labels. Controls have at least 48 dp touch targets and grow with content.
 

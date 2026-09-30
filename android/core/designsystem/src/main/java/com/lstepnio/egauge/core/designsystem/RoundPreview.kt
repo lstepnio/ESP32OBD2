@@ -33,12 +33,12 @@ fun RoundPreview(state: ReadingPreviewUi, modifier: Modifier = Modifier, showDes
             .clearAndSetSemantics { contentDescription = state.description }) {
             scale(size.width / 280f, size.height / 280f, pivot = Offset.Zero) {
                 drawCircle(EGaugeTokens.Dark.gauge, 139f, Offset(140f, 140f))
-                drawCircle(Color(0xFF3A4039), 138f, Offset(140f, 140f), style = Stroke(1.4f))
+                drawCircle(EGaugeTokens.Dark.gaugeTrack, 138f, Offset(140f, 140f), style = Stroke(1.4f))
                 val missing = state.condition in setOf(PreviewCondition.Stale, PreviewCondition.Offline)
                 if (state.layout == PreviewLayout.Arc) {
-                    drawArc(Color(0xFF303730), 138f, 264f, false, Offset(16f, 16f), Size(248f, 248f), style = Stroke(5f, cap = StrokeCap.Round))
+                    drawArc(EGaugeTokens.Dark.gaugeTrack, 138f, 264f, false, Offset(19.5f, 19.5f), Size(241f, 241f), style = Stroke(13f, cap = StrokeCap.Round))
                     if (!missing) drawArc(accent, 138f, if (state.condition == PreviewCondition.Critical) 258f else 148f,
-                        false, Offset(16f, 16f), Size(248f, 248f), style = Stroke(5f, cap = StrokeCap.Round))
+                        false, Offset(19.5f, 19.5f), Size(241f, 241f), style = Stroke(13f, cap = StrokeCap.Round))
                 }
                 fun text(value: String, y: Float, size: Float, color: Color = EGaugeTokens.Dark.gaugeText,
                          bold: Boolean = false) {
@@ -50,30 +50,30 @@ fun RoundPreview(state: ReadingPreviewUi, modifier: Modifier = Modifier, showDes
                     val fitted = if (paint.measureText(value) > 220f) value.take(19) + "…" else value
                     drawContext.canvas.nativeCanvas.drawText(fitted, 140f, y, paint)
                 }
-                text("PREVIEW", 55f, 10f, EGaugeTokens.Dark.muted)
+                text("PREVIEW", 55f, 10f, EGaugeTokens.Dark.gaugeMuted)
                 if (state.layout == PreviewLayout.Dual) {
                     text(state.name, 82f, 12f)
                     text(state.shownValue, 121f, 38f, accent, true)
-                    text(state.unit, 141f, 12f, EGaugeTokens.Dark.muted)
-                    drawLine(Color(0xFF454B47), Offset(64f, 153f), Offset(216f, 153f), 1f)
+                    text(state.unit, 141f, 12f, EGaugeTokens.Dark.gaugeMuted)
+                    drawLine(EGaugeTokens.Dark.gaugeTrack, Offset(64f, 153f), Offset(216f, 153f), 1.5f)
                     text(state.secondaryName ?: "Second reading", 177f, 12f)
                     text(if (missing) "--" else state.secondaryValue ?: "--", 212f, 34f, bold = true)
-                    text(state.secondaryUnit ?: "", 232f, 12f, EGaugeTokens.Dark.muted)
+                    text(state.secondaryUnit ?: "", 232f, 12f, EGaugeTokens.Dark.gaugeMuted)
                 } else {
                     text(state.name, 88f, 13f)
                     text(state.shownValue, 151f, 58f, if (state.condition == PreviewCondition.Normal) EGaugeTokens.Dark.gaugeText else accent, true)
-                    text(state.unit, 178f, 14f, EGaugeTokens.Dark.muted)
+                    text(state.unit, 178f, 14f, EGaugeTokens.Dark.gaugeMuted)
                     when (state.layout) {
                         PreviewLayout.Bar -> {
-                            drawRoundRect(Color(0xFF303730), Offset(66f, 201f), Size(148f, 6f), androidx.compose.ui.geometry.CornerRadius(3f))
-                            if (!missing) drawRoundRect(accent, Offset(66f, 201f), Size(90f, 6f), androidx.compose.ui.geometry.CornerRadius(3f))
+                            drawRoundRect(EGaugeTokens.Dark.gaugeTrack, Offset(66f, 201f), Size(148f, 9f), androidx.compose.ui.geometry.CornerRadius(4.5f))
+                            if (!missing) drawRoundRect(accent, Offset(66f, 201f), Size(90f, 9f), androidx.compose.ui.geometry.CornerRadius(4.5f))
                         }
                         PreviewLayout.Trend -> if (!missing) {
                             val path = Path().apply {
                                 moveTo(62f, 216f); lineTo(82f, 207f); lineTo(99f, 210f); lineTo(120f, 195f)
                                 lineTo(145f, 203f); lineTo(164f, 187f); lineTo(190f, 193f); lineTo(215f, 183f)
                             }
-                            drawPath(path, accent, style = Stroke(2f))
+                            drawPath(path, accent, style = Stroke(3f, cap = StrokeCap.Round))
                         }
                         else -> Unit
                     }
