@@ -10,7 +10,7 @@ data class AlertForm(
     val warning: String = "", val critical: String = "", val reset: String = "0",
     val trigger: String = "1", val clear: String = "2",
 ) {
-    fun errors(range: IntRange): Map<String, String> = buildMap {
+    fun errors(range: IntRange, maxReset: Int = 20): Map<String, String> = buildMap {
         val warn = warning.toIntOrNull(); val urgent = critical.toIntOrNull(); val margin = reset.toIntOrNull()
         if (warn == null || warn !in range) put("warning", "Enter a whole number from ${range.first} to ${range.last}.")
         if (urgent == null || urgent !in range) put("critical", "Enter a whole number from ${range.first} to ${range.last}.")
@@ -18,15 +18,15 @@ data class AlertForm(
             (if (direction == AlertDirection.Above) urgent <= warn else urgent >= warn)) {
             put("critical", "Set critical ${if (direction == AlertDirection.Above) "higher" else "lower"} than warning.")
         }
-        if (margin == null || margin !in 0..20) put("reset", "Enter a reset distance from 0 to 20.")
+        if (margin == null || margin !in 0..maxReset) put("reset", "Enter a reset distance from 0 to $maxReset.")
         else if (warn != null && urgent != null && margin >= kotlin.math.abs(urgent.toLong() - warn.toLong()))
             put("reset", "Use a reset distance smaller than the gap between your limits.")
         if (secondsToMillis(trigger) == null) put("trigger", "Enter a delay from 0 to 60 seconds, with up to 3 decimal places.")
         if (secondsToMillis(clear) == null) put("clear", "Enter a delay from 0 to 60 seconds, with up to 3 decimal places.")
     }
 
-    fun saved(readingId: String, range: IntRange, original: AlertUi?): GaugeAlertDraft? {
-        if (errors(range).isNotEmpty()) return null
+    fun saved(readingId: String, range: IntRange, original: AlertUi?, maxReset: Int = 20): GaugeAlertDraft? {
+        if (errors(range, maxReset).isNotEmpty()) return null
         return GaugeAlertDraft(original?.id ?: "alert.$readingId", readingId, direction,
             warning.toInt(), critical.toInt(), reset.toInt(), requireNotNull(secondsToMillis(trigger)),
             requireNotNull(secondsToMillis(clear)), original?.priority ?: 8)

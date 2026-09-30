@@ -2,6 +2,7 @@ package com.lstepnio.egauge.ui.state
 
 import androidx.compose.runtime.Immutable
 import com.lstepnio.egauge.GaugeLayout
+import com.lstepnio.egauge.MeasurementSystem
 import com.lstepnio.egauge.OwnerAccess
 import com.lstepnio.egauge.connection.ConnectionState
 import com.lstepnio.egauge.core.designsystem.*
@@ -17,7 +18,8 @@ data class ReadingUi(val id: String, val name: String, val unit: String, val det
 data class AlertUi(val id: String, val readingId: String, val readingName: String, val unit: String,
                    val direction: String, val warning: Int, val critical: Int, val resetMargin: Int,
                    val triggerSeconds: Float, val clearSeconds: Float, val range: IntRange,
-                   val priority: Int = 8)
+                   val priority: Int = 8, val canonicalWarning: Int = warning,
+                   val canonicalCritical: Int = critical, val canonicalResetMargin: Int = resetMargin)
 @Immutable
 enum class UpdateNotice { None, Ready, NeedsCheck }
 @Immutable
@@ -30,7 +32,8 @@ enum class HomeAction { SetUp, Check, Review, Customize }
 data class CustomizeUiState(val pages: List<PageUi>, val editingPage: Int, val readings: List<ReadingUi>,
     val alerts: List<AlertUi>, val blockers: List<String>, val canSend: Boolean,
     val needsCheck: Boolean, val found: Boolean, val busy: Boolean, val editingEnabled: Boolean,
-    val advanced: Boolean, val supportedLayouts: Set<GaugeLayout>, val details: List<DetailUi>)
+    val advanced: Boolean, val supportedLayouts: Set<GaugeLayout>, val details: List<DetailUi>,
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric)
 @Immutable
 data class VehicleUi(val id: String, val name: String)
 @Immutable
@@ -42,7 +45,8 @@ data class CarUiState(val name: String, val profiles: List<VehicleUi>, val activ
 @Immutable
 data class SettingsUiState(val name: String, val found: Boolean, val rotation: Int?, val canRotate: Boolean,
     val busy: Boolean, val advanced: Boolean, val dynamicColor: Boolean, val version: String,
-    val details: List<DetailUi>, val displaySettingsVersion: Int = 0, val brightness: Int? = null)
+    val details: List<DetailUi>, val displaySettingsVersion: Int = 0, val brightness: Int? = null,
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric)
 @Immutable
 data class CandidateUi(val id: String, val name: String, val details: List<DetailUi>)
 @Immutable

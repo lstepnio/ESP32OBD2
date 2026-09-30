@@ -148,7 +148,7 @@ static void owner_save_worker(void *arg)
 #endif
 
 #if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED
-#define DISPLAY_SETTINGS_CAPABILITY ",\"ds\":1"
+#define DISPLAY_SETTINGS_CAPABILITY ",\"ds\":2"
 #else
 #define DISPLAY_SETTINGS_CAPABILITY ""
 #endif
@@ -237,6 +237,19 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
         };
         if (command.value > 3 || command.brightness < 5 || command.brightness > 100)
             return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+            return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode = 9;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x37 && length == 8) {
+        companion_command_t command = {
+            .opcode = 0x37, .value = request[1], .brightness = request[2],
+            .units = request[3], .base_revision = read_u32(request + 4),
+        };
+        if (command.value > 3 || command.brightness < 5 || command.brightness > 100 ||
+            command.units > 1) return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
         if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
             return BLE_ATT_ERR_UNLIKELY;
         extended_status_mode = 9;
@@ -377,7 +390,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     }
     if (extended_status_mode == 9) {
         display_settings_t settings = display_settings_snapshot();
-        uint8_t state[] = {10, settings.rotation, settings.brightness, 0,
+        uint8_t state[] = {11, settings.rotation, settings.brightness, settings.units,
                            (uint8_t)settings.revision, (uint8_t)(settings.revision >> 8),
                            (uint8_t)(settings.revision >> 16), (uint8_t)(settings.revision >> 24)};
         if (ctxt->offset > sizeof(state)) return BLE_ATT_ERR_INVALID_OFFSET;

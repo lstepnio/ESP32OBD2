@@ -523,7 +523,7 @@ static void init_config(void)
     }
     uint8_t default_rotation = g_runtime ? g_runtime->rotation : (uint8_t)g_config.disp_rot;
     uint8_t default_brightness = g_runtime ? g_runtime->brightness : 80;
-    ESP_ERROR_CHECK(display_settings_init(default_rotation, default_brightness));
+    ESP_ERROR_CHECK(display_settings_init(default_rotation, default_brightness, 0));
     g_config.disp_rot = (lv_display_rotation_t)display_settings_snapshot().rotation;
     atomic_store(&g_selected_page, g_config.cfg_idx);
 }
@@ -561,7 +561,7 @@ void app_main(void)
     ui_page_t initial_page;
     page_ui(g_config.cfg_idx, &initial_page);
     ui_t          *ui             = ui_init(&initial_page, ui_interval_ms, ui_touch_callback,
-                                            pairing_required);
+                                            pairing_required, display_settings_snapshot().units == 1);
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
     bsp_display_on_off(true);
     ESP_ERROR_CHECK(bsp_display_backlight_set_percent(display_settings_snapshot().brightness));
@@ -632,7 +632,7 @@ void app_main(void)
             if (config_save_if_revision(&saved, command.base_revision, NULL) != ESP_OK) continue;
             display_settings_t display = display_settings_snapshot();
             if (display.rotation != command.value &&
-                display_settings_save(command.value, display.brightness, display.revision,
+                display_settings_save(command.value, display.brightness, display.units, display.revision,
                                       NULL) != ESP_OK)
                 ESP_LOGW(TAG, "Legacy rotation saved but display preference update failed");
             g_config = saved;
@@ -643,7 +643,8 @@ void app_main(void)
             ESP_LOGI(TAG, "Display rotation saved: %u", (unsigned)command.value * 90);
         } else if (has_command && command.opcode == 0x36) {
             display_settings_t saved;
-            if (display_settings_save(command.value, command.brightness,
+            display_settings_t before = display_settings_snapshot();
+            if (display_settings_save(command.value, command.brightness, before.units,
                                       command.base_revision, &saved) != ESP_OK) continue;
             g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
             if (lvgl_port_lock(portMAX_DELAY)) {
@@ -653,6 +654,19 @@ void app_main(void)
             ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%%",
                      (unsigned)saved.rotation * 90, (unsigned)saved.brightness);
+        } else if (has_command && command.opcode == 0x37) {
+            display_settings_t saved;
+            if (display_settings_save(command.value, command.brightness, command.units,
+                                      command.base_revision, &saved) != ESP_OK) continue;
+            g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
+            if (lvgl_port_lock(portMAX_DELAY)) {
+                bsp_lv_disp_set_rotation(g_config.disp_rot);
+                ui_set_units(ui, saved.units == 1);
+                lvgl_port_unlock();
+            }
+            ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
+            ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u",
+                     (unsigned)saved.rotation * 90, (unsigned)saved.brightness, (unsigned)saved.units);
         } else if (has_command && command.opcode == 3) ble_companion_forget_owner();
 
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());

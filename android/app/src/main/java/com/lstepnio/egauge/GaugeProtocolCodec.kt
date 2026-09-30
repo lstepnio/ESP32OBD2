@@ -40,7 +40,7 @@ object GaugeProtocolCodec {
             quickSelect = json.optBoolean("quickSelect", false),
             displayRotationWrite = json.optBoolean("displayRotationWrite", false),
             displaySettingsVersion = json.optInt("ds", 0).also {
-                require(it in 0..1) { "Unsupported display settings version" }
+                require(it in 0..2) { "Unsupported display settings version" }
             },
             ota = ota,
             wifiBulk = json.optString("wifiBulk").takeIf { it.isNotBlank() },
@@ -56,13 +56,19 @@ object GaugeProtocolCodec {
     }
 
     fun displaySettings(bytes: ByteArray): GaugeConfigTransferClient.DisplaySettings {
-        require(bytes.size == 8 && bytes[0].toInt() == 10 && bytes[3].toInt() == 0) {
+        val version = if (bytes.isNotEmpty()) bytes[0].toInt() and 255 else -1
+        require(bytes.size == 8 && version in 10..11 &&
+            (version == 11 || bytes[3].toInt() == 0)) {
             "Gauge returned unsupported display settings"
         }
         val rotation = bytes[1].toInt() and 255
         val brightness = bytes[2].toInt() and 255
-        require(rotation in 0..3 && brightness in 5..100) { "Gauge returned invalid display settings" }
-        return GaugeConfigTransferClient.DisplaySettings(rotation, brightness, u32(bytes, 4))
+        val units = bytes[3].toInt() and 255
+        require(rotation in 0..3 && brightness in 5..100 && units in 0..1) {
+            "Gauge returned invalid display settings"
+        }
+        return GaugeConfigTransferClient.DisplaySettings(rotation, brightness, u32(bytes, 4),
+            MeasurementSystem.entries[units], if (version == 11) 2 else 1)
     }
 
     fun diagnostics(bytes: ByteArray): GaugeConfigTransferClient.Diagnostics {

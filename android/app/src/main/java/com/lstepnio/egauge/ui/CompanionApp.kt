@@ -155,7 +155,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                 Route.Settings -> SettingsScreen(state.settings, model::setAdvancedTools, model::setDynamicColor,
                                     model::renameGauge, model::rotateGauge, model::readSavedGauge,
                                     model::readDisplaySettings, model::saveDisplaySettings, { route = Route.Updates },
-                                    { route = Route.Setup }, onBluetoothSettings)
+                                    { route = Route.Setup }, onBluetoothSettings, model::saveMeasurementSystem)
                                 Route.Updates, Route.DevelopmentUpdates -> UpdatesScreen(state.updates, state.operation, route == Route.DevelopmentUpdates,
                                     ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate)
                                 Route.Expert -> ExpertScreen(state.expert, expertTool, { expertTool = it }, ::back, ExpertActions(

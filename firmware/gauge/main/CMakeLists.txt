@@ -11,6 +11,7 @@ idf_component_register(
         "src/ble_util.c"
         "src/config.c"
         "src/display_settings.c"
+        "src/display_units.c"
         "src/config_store.c"
         "src/config_transfer.c"
         "src/config_runtime.c"

@@ -977,8 +977,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun readDisplaySettings() = launchGaugeOperation(OperationKind.READ, "Checking display settings") { id ->
-        require(capabilities?.displaySettingsVersion == 1) { "Gauge does not offer display settings" }
+        require((capabilities?.displaySettingsVersion ?: 0) >= 1) { "Gauge does not offer display settings" }
         displaySettings = GaugeConfigTransferClient(getApplication()).readDisplaySettings(bleClient.selectedGauge())
+        if (displaySettings?.version == 2)
+            savePresentation(presentationPreferences.copy(measurementSystem = requireNotNull(displaySettings).units))
         ownerAccess = OwnerAccess.AUTHENTICATED
         operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
             "Display settings checked", "Saved on the gauge", terminal = true)
@@ -986,14 +988,31 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveDisplaySettings(rotation: Int, brightness: Int) =
         launchGaugeOperation(OperationKind.CONFIGURATION, "Saving display settings") { id ->
-            require(capabilities?.displaySettingsVersion == 1) { "Gauge does not offer display settings" }
+            require((capabilities?.displaySettingsVersion ?: 0) >= 1) { "Gauge does not offer display settings" }
             operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
                 "Saving display settings", "Waiting for gauge confirmation")
             displaySettings = GaugeConfigTransferClient(getApplication()).saveDisplaySettings(
                 bleClient.selectedGauge(), rotation, brightness)
+            if (displaySettings?.version == 2)
+                savePresentation(presentationPreferences.copy(measurementSystem = requireNotNull(displaySettings).units))
             ownerAccess = OwnerAccess.AUTHENTICATED
             operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
                 "Display settings saved", "The gauge confirmed ${rotation * 90}° and $brightness% brightness", terminal = true)
+        }
+
+    fun saveMeasurementSystem(system: MeasurementSystem) =
+        launchGaugeOperation(OperationKind.CONFIGURATION, "Saving measurement units") { id ->
+            require(capabilities?.displaySettingsVersion == 2) { "Gauge does not offer measurement units" }
+            operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
+                "Saving measurement units", "Waiting for gauge confirmation")
+            val client = GaugeConfigTransferClient(getApplication())
+            val current = client.readDisplaySettings(bleClient.selectedGauge())
+            displaySettings = client.saveDisplaySettings(bleClient.selectedGauge(),
+                current.rotation, current.brightness, system)
+            savePresentation(presentationPreferences.copy(measurementSystem = requireNotNull(displaySettings).units))
+            ownerAccess = OwnerAccess.AUTHENTICATED
+            operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
+                "Measurement units saved", "The gauge confirmed ${system.name.lowercase()} units", terminal = true)
         }
 
     fun readSavedGauge() = launchGaugeOperation(OperationKind.READ, "Checking gauge settings") { id ->

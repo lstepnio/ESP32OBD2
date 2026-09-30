@@ -8,6 +8,7 @@ typedef struct {
     uint8_t opcode;
     uint8_t value;
     uint8_t brightness;
+    uint8_t units;
     uint32_t base_revision;
 } companion_command_t;
 

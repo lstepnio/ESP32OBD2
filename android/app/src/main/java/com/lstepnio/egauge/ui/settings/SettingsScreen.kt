@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.core.designsystem.*
+import com.lstepnio.egauge.MeasurementSystem
 import com.lstepnio.egauge.ui.*
 import com.lstepnio.egauge.ui.state.SettingsUiState
 
@@ -18,10 +19,11 @@ import com.lstepnio.egauge.ui.state.SettingsUiState
 fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDynamic: (Boolean) -> Unit,
     onRename: (String) -> Unit, onRotate: (Int) -> Unit, onReadSaved: () -> Unit,
     onReadDisplay: () -> Unit, onSaveDisplay: (Int, Int) -> Unit, onUpdates: () -> Unit,
-    onSetup: () -> Unit, onBluetoothSettings: () -> Unit) {
+    onSetup: () -> Unit, onBluetoothSettings: () -> Unit, onSaveUnits: (MeasurementSystem) -> Unit = {}) {
     var nameOpen by rememberSaveable { mutableStateOf(false) }
     var rotationOpen by rememberSaveable { mutableStateOf(false) }
     var brightnessOpen by rememberSaveable { mutableStateOf(false) }
+    var unitsOpen by rememberSaveable { mutableStateOf(false) }
     var forgetOpen by rememberSaveable { mutableStateOf(false) }
     ScreenContent {
         ScreenTitle("Settings")
@@ -30,13 +32,18 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                 SectionTitle("Gauge")
                 SettingsRow("Gauge name", state.name) { nameOpen = true }
                 SettingsRow("Brightness", state.brightness?.let { "$it%" } ?:
-                    if (state.displaySettingsVersion == 1) "Check current settings" else "Not available on this gauge",
-                    state.displaySettingsVersion == 1 && state.found && !state.busy) {
+                    if (state.displaySettingsVersion >= 1) "Check current settings" else "Not available on this gauge",
+                    state.displaySettingsVersion >= 1 && state.found && !state.busy) {
                     if (state.brightness == null) onReadDisplay() else brightnessOpen = true
                 }
                 SettingsRow("Rotation", state.rotation?.let { "${it * 90}°" } ?: "Check current settings", state.found && !state.busy) {
-                    if (state.displaySettingsVersion == 1 && state.brightness == null) onReadDisplay()
+                    if (state.displaySettingsVersion >= 1 && state.brightness == null) onReadDisplay()
                     else if (state.rotation == null) onReadSaved() else rotationOpen = true
+                }
+                SettingsRow("Units", if (state.displaySettingsVersion < 2) "Not available on this gauge"
+                    else if (state.brightness == null) "Check current settings" else state.measurementSystem.name,
+                    state.displaySettingsVersion >= 2 && state.found && !state.busy) {
+                    if (state.brightness == null) onReadDisplay() else unitsOpen = true
                 }
                 if (!state.found) TextButton(onSetup) { Text("Set up gauge") }
                 TextButton({ forgetOpen = true }) { Text("Forget gauge") }
@@ -74,7 +81,7 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                 if (!state.canRotate) Text("Rotation is not available on this gauge.")
             }
         }, confirmButton = { Button({
-            if (state.displaySettingsVersion == 1) onSaveDisplay(rotation, state.brightness ?: 80)
+            if (state.displaySettingsVersion >= 1) onSaveDisplay(rotation, state.brightness ?: 80)
             else onRotate(rotation)
             rotationOpen = false
         }, enabled = state.canRotate && !state.busy) { Text("Rotate gauge") } },
@@ -93,6 +100,24 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
             brightnessOpen = false
         }, enabled = !state.busy) { Text("Save to gauge") } },
             dismissButton = { TextButton({ brightnessOpen = false }) { Text("Cancel") } })
+    }
+    if (unitsOpen) {
+        var choice by rememberSaveable { mutableStateOf(state.measurementSystem) }
+        AlertDialog(onDismissRequest = { unitsOpen = false }, title = { Text("Display units") }, text = {
+            Column {
+                MeasurementSystem.entries.forEach { system ->
+                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(choice == system,
+                        role = Role.RadioButton, onClick = { choice = system }), verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(choice == system, null)
+                        Text(system.name)
+                    }
+                }
+                Text("Temperature and speed change on the gauge and in app previews.",
+                    style = MaterialTheme.typography.bodyMedium)
+            }
+        }, confirmButton = { Button({ onSaveUnits(choice); unitsOpen = false }, enabled = !state.busy) {
+            Text("Save to gauge")
+        } }, dismissButton = { TextButton({ unitsOpen = false }) { Text("Cancel") } })
     }
     if (forgetOpen) AlertDialog(onDismissRequest = { forgetOpen = false }, title = { Text("Forget this gauge?") },
         text = { Text("Remove eGauge from paired devices in Android Bluetooth settings. You will need the code on your gauge to pair again. Your display settings stay on the gauge.") },

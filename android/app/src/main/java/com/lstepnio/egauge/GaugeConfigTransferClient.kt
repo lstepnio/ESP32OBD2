@@ -66,7 +66,9 @@ class GaugeConfigTransferClient(private val context: Context) {
                                 val internalLargestBlockBytes: Long, val psramTotalBytes: Long,
                                 val psramFreeBytes: Long, val psramMinimumFreeBytes: Long,
                                 val uptimeSeconds: Long)
-    data class DisplaySettings(val rotation: Int, val brightness: Int, val revision: Long)
+    data class DisplaySettings(val rotation: Int, val brightness: Int, val revision: Long,
+                               val units: MeasurementSystem = MeasurementSystem.Metric,
+                               val version: Int = 1)
     data class UpdateResult(val running: BootIdentity)
     private data class Status(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
                               val transferId: Long, val accepted: Long, val revision: Long, val hash: ByteArray)
@@ -158,7 +160,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                      (result.bytes.size in 52..180 && result.bytes[0].toInt() == 7) ||
                      (result.bytes.size == 44 && result.bytes[0].toInt() == 8) ||
                      (result.bytes.size == 112 && result.bytes[0].toInt() == 9) ||
-                     (result.bytes.size == 8 && result.bytes[0].toInt() == 10))) return
+                     (result.bytes.size == 8 && result.bytes[0].toInt() in 10..11))) return
                 if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
                     result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
                     error("Gauge owner state read failed (${result.status})")
@@ -351,19 +353,26 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
 
     suspend fun saveDisplaySettings(device: BluetoothDevice, rotation: Int,
-                                    brightness: Int): DisplaySettings {
+                                    brightness: Int, units: MeasurementSystem? = null): DisplaySettings {
         require(rotation in 0..3 && brightness in 5..100) { "Invalid display setting" }
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         return withGauge(device) {
             writeRaw(byteArrayOf(0x35) + le32(1))
             val before = GaugeProtocolCodec.displaySettings(readRaw())
-            if (before.rotation == rotation && before.brightness == brightness) return@withGauge before
-            writeRaw(byteArrayOf(0x36, rotation.toByte(), brightness.toByte()) + le32(before.revision))
+            val requestedUnits = units ?: before.units
+            require(units == null || before.version >= 2) { "Gauge does not offer measurement units" }
+            if (before.rotation == rotation && before.brightness == brightness && before.units == requestedUnits)
+                return@withGauge before
+            if (before.version >= 2)
+                writeRaw(byteArrayOf(0x37, rotation.toByte(), brightness.toByte(),
+                    requestedUnits.ordinal.toByte()) + le32(before.revision))
+            else writeRaw(byteArrayOf(0x36, rotation.toByte(), brightness.toByte()) + le32(before.revision))
             repeat(20) {
                 val after = GaugeProtocolCodec.displaySettings(readRaw())
                 if (after.revision > before.revision) {
                     check(after.revision == before.revision + 1 &&
-                        after.rotation == rotation && after.brightness == brightness) {
+                        after.rotation == rotation && after.brightness == brightness &&
+                        after.units == requestedUnits) {
                         "Gauge settings changed during save; refresh and retry"
                     }
                     return@withGauge after

@@ -40,6 +40,7 @@
 #include "widgets/line/lv_line.h"
 
 #include "obd.h"
+#include "display_units.h"
 #include "ui.h"
 #include "util.h"
 
@@ -84,6 +85,7 @@ struct _ui_t
     bool                long_press_handled;
     bool                pairing_visible;
     bool                calibration_mode;
+    bool                imperial_units;
     uint8_t             calibration_page;
     TickType_t          pressed_at;
     ui_alert_t          rendered_alert;
@@ -473,18 +475,20 @@ static void render_page(ui_t *ui)
             const ui_metric_t *metric = &ui->display.page.metrics[i];
             if (!ui->display.rendered_once || available[i] != ui->display.rendered_available[i] ||
                 (available[i] && values[i] != ui->display.rendered_values[i])) {
-                if (available[i]) lv_label_set_text_fmt(ui->widgets.dual_value[i], "%" PRId32, values[i]);
+                if (available[i]) lv_label_set_text_fmt(ui->widgets.dual_value[i], "%" PRId32,
+                    display_units_value(values[i], metric->unit, ui->imperial_units));
                 else lv_label_set_text(ui->widgets.dual_value[i], "...");
                 lv_label_set_text_fmt(ui->widgets.dual_info[i], "%s  %s",
                                       metric->name ? metric->name : "VALUE",
-                                      metric->unit ? metric->unit : "");
+                                      display_units_label(metric->unit, ui->imperial_units));
             }
         }
     } else if (!ui->display.rendered_once || available[0] != ui->display.rendered_available[0] ||
                (available[0] && values[0] != ui->display.rendered_values[0])) {
-        ui_update_screen(ui, available[0] ? &values[0] : NULL,
+        int32_t shown = display_units_value(values[0], primary->unit, ui->imperial_units);
+        ui_update_screen(ui, available[0] ? &shown : NULL,
                          ui->display.page.name ? ui->display.page.name : primary->name,
-                         primary->unit);
+                         display_units_label(primary->unit, ui->imperial_units));
         if (available[0] && renderer == UI_RENDERER_ARC) lv_arc_set_value(ui->widgets.arc, values[0]);
         if (available[0] && renderer == UI_RENDERER_BAR) lv_bar_set_value(ui->widgets.bar, values[0], LV_ANIM_OFF);
     }
@@ -671,7 +675,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     // Unit label centered below the number, away from the curved right edge.
     lv_obj_t *unit_lbl = lv_label_create(gauge_content);
     ESP_NULL_CHECK(unit_lbl, TAG, "Failed to create unit label");
-    lv_label_set_text(unit_lbl, page->metrics[0].unit ? page->metrics[0].unit : "");
+    lv_label_set_text(unit_lbl, display_units_label(page->metrics[0].unit, ui->imperial_units));
     lv_obj_set_style_text_color(unit_lbl, lv_color_hex(color_text_secondary), LV_PART_MAIN);
     lv_obj_set_style_text_font(unit_lbl, font_unit, LV_PART_MAIN);
     lv_obj_set_style_text_align(unit_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
@@ -790,7 +794,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
 // ---------------------------------------------------------------------------------------------------------------------
 
 ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t touch_cb,
-              bool pairing_required)
+              bool pairing_required, bool imperial_units)
 {
     ESP_NULL_CHECK(page, TAG, "Page config is NULL");
     ESP_NULL_CHECK(touch_cb, TAG, "touch callback is NULL");
@@ -810,6 +814,7 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     ui->touch_cb          = touch_cb;
     ui->display.page = *page;
     ui->pairing_visible = pairing_required;
+    ui->imperial_units = imperial_units;
 
     if (!ui->rtos.value_que || !ui->rtos.touch_ev_que || !ui->rtos.pairing_que ||
         !ui->rtos.alert_que || !ui->rtos.diagnostics_que) {
@@ -878,6 +883,15 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
      * Waiting for the data timer adds another 50 ms to a page change. */
     render_page(ui);
     ESP_LOGD(TAG, "Updated page: %s renderer=%u", page->name, page->renderer);
+}
+
+void ui_set_units(ui_t *ui, bool imperial_units)
+{
+    ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
+    if (ui->imperial_units == imperial_units) return;
+    ui->imperial_units = imperial_units;
+    ui->display.rendered_once = false;
+    render_page(ui);
 }
 
 void ui_show_pairing_code(ui_t *ui, uint32_t passkey)

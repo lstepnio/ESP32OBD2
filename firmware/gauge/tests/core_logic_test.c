@@ -5,6 +5,7 @@
 
 #include "alert_engine.h"
 #include "config_trial_policy.h"
+#include "display_units.h"
 #include "json_guard.h"
 #include "pid_decoder.h"
 #include "poll_scheduler.h"
@@ -38,6 +39,17 @@ static void test_decoder(void)
     double value = 0;
     assert(pid_decoder_eval(&decoder, payload, sizeof(payload), &value));
     assert(fabs(value + 5.0) < 0.0001);
+}
+
+static void test_display_units(void)
+{
+    assert(display_units_value(92, "°C", true) == 198);
+    assert(display_units_value(-40, "degC", true) == -40);
+    assert(display_units_value(64, "kph", true) == 40);
+    assert(display_units_value(2840, "rpm", true) == 2840);
+    assert(display_units_value(92, "°C", false) == 92);
+    assert(strcmp(display_units_label("°C", true), "°F") == 0);
+    assert(strcmp(display_units_label("km/h", true), "mph") == 0);
 }
 
 static config_runtime_t one_alert_runtime(void)
@@ -234,6 +246,7 @@ int main(void)
 {
     test_json_guard();
     test_decoder();
+    test_display_units();
     test_alert_edges();
     test_scheduler();
     test_wifi_bulk_policy();

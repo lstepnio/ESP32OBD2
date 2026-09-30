@@ -13,6 +13,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.AlertDirection
+import com.lstepnio.egauge.MeasurementUnits
+import com.lstepnio.egauge.demoCatalog
 import com.lstepnio.egauge.readingRange
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.ResponsivePanels
@@ -32,9 +34,21 @@ fun AlertEditor(state: CustomizeUiState, reading: ReadingUi, original: AlertUi?,
     var behavior by rememberSaveable { mutableStateOf(false) }
     var showPreview by rememberSaveable { mutableStateOf(false) }
     var preview by rememberSaveable { mutableStateOf(PreviewCondition.Normal) }
-    val range = readingRange(reading.id)
-    val errors = form.errors(range)
-    val result = form.saved(reading.id, range, original)
+    val canonicalUnit = demoCatalog.first { it.id == reading.id }.unit
+    val range = MeasurementUnits.range(readingRange(reading.id), canonicalUnit, state.measurementSystem)
+    val maxReset = MeasurementUnits.distance(20, canonicalUnit, state.measurementSystem)
+    val errors = form.errors(range, maxReset)
+    val displayedResult = form.saved(reading.id, range, original, maxReset)
+    val result = displayedResult?.let { draft ->
+        draft.copy(
+            warning = if (original != null && draft.warning == original.warning) original.canonicalWarning
+                else MeasurementUnits.canonical(draft.warning, canonicalUnit, state.measurementSystem),
+            critical = if (original != null && draft.critical == original.critical) original.canonicalCritical
+                else MeasurementUnits.canonical(draft.critical, canonicalUnit, state.measurementSystem),
+            hysteresis = if (original != null && draft.hysteresis == original.resetMargin) original.canonicalResetMargin
+                else MeasurementUnits.canonicalDistance(draft.hysteresis, canonicalUnit, state.measurementSystem),
+        ).takeIf { it.warning in readingRange(reading.id) && it.critical in readingRange(reading.id) && it.hysteresis in 0..20 }
+    }
     EditorScaffold("Edit alert", onBack, "Save alert", { result?.let { actions.saveAlert(it); onBack() } },
         state.editingEnabled && result != null) {
         Text(reading.name, style = MaterialTheme.typography.titleLarge)
@@ -59,7 +73,7 @@ fun AlertEditor(state: CustomizeUiState, reading: ReadingUi, original: AlertUi?,
                     LimitField("Show after", form.trigger, "s", { form = form.copy(trigger = it) }, state.editingEnabled, errors["trigger"])
                     LimitField("Clear after", form.clear, "s", { form = form.copy(clear = it) }, state.editingEnabled, errors["clear"])
                     LimitField("Reset distance", form.reset, reading.unit, { form = form.copy(reset = it) }, state.editingEnabled,
-                        errors["reset"], "0 to 20 ${reading.unit}")
+                        errors["reset"], "0 to $maxReset ${reading.unit}")
                     Text("The reading must move back past the limit by this amount before the alert clears.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else if (errors.keys.any { it in setOf("reset", "trigger", "clear") }) {
