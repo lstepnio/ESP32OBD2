@@ -83,6 +83,7 @@ struct _ui_t
 {
     ui_touch_callback_t touch_cb;
     bool                long_press_handled;
+    bool                press_active;
     bool                pairing_visible;
     bool                calibration_mode;
     bool                imperial_units;
@@ -391,6 +392,7 @@ static void ui_touch_callback(lv_event_t *e)
     switch (code)
     {
     case LV_EVENT_PRESSED:
+        ui->press_active = true;
         ui->long_press_handled = false;
         ui->pressed_at = xTaskGetTickCount();
         break;
@@ -405,9 +407,11 @@ static void ui_touch_callback(lv_event_t *e)
         }
         break;
     case LV_EVENT_RELEASED:
-        if (xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
+        /* A release without our matching press must never clear the owner. */
+        if (ui->press_active && xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
             dispatch_touch(ui, code);
         }
+        ui->press_active = false;
         break;
     default:
         // ignore event
