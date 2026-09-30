@@ -2,6 +2,8 @@ package com.lstepnio.egauge
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -18,6 +20,8 @@ import java.time.Instant
 import java.util.Base64
 
 enum class FirmwareChannel { DEVELOPMENT, BETA, STABLE }
+
+internal const val HOSTED_RELEASE_FEED_UNAVAILABLE = "Development release feed unavailable (404)"
 
 internal data class FirmwareVersion(
     val major: Long,
@@ -231,6 +235,7 @@ class GitHubFirmwareSource(private val context: Context) {
         val publicKey = HostedFirmwareCatalogCodec.publicKey(pem)
         val candidates = mutableListOf<HostedCatalogCandidate>()
         for (index in 0 until releases.length()) {
+            currentCoroutineContext().ensureActive()
             val release = releases.getJSONObject(index)
             if (release.getBoolean("draft")) continue
             val assets = release.getJSONArray("assets")
@@ -281,8 +286,10 @@ class GitHubFirmwareSource(private val context: Context) {
     }
 
     suspend fun download(update: HostedUpdate): HostedUpdate = withContext(Dispatchers.IO) {
+        currentCoroutineContext().ensureActive()
         val release = update.release
         val bytes = download(URL(release.bundleUrl), release.bundleBytes + 1)
+        currentCoroutineContext().ensureActive()
         require(bytes.size == release.bundleBytes) { "Downloaded firmware bundle size does not match the catalog" }
         val digest = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
         require(digest == release.bundleSha256) { "Downloaded firmware bundle failed catalog verification" }
@@ -302,6 +309,8 @@ class GitHubFirmwareSource(private val context: Context) {
         try {
             require(connection.responseCode == HttpURLConnection.HTTP_OK) {
                 if (connection.responseCode == 403) "GitHub update check was rate limited"
+                else if (connection.responseCode == 404 && url.toString() == releasesUrl)
+                    HOSTED_RELEASE_FEED_UNAVAILABLE
                 else "GitHub download failed (${connection.responseCode})"
             }
             val finalUrl = connection.url

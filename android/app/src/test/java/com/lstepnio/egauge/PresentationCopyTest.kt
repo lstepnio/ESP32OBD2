@@ -65,4 +65,29 @@ class PresentationCopyTest {
             assertNotEquals(StatusTone.Success, updateRecoveryUi(UpdateRecoveryResult(it, "raw", false)).tone)
         }
     }
+
+    @Test fun unavailableReleaseFeedIsNotReportedAsAFailedGaugeUpdate() {
+        val status = friendlyFailure(HOSTED_RELEASE_FEED_UNAVAILABLE, update = true)
+        assertEquals("Online updates unavailable", status.title)
+        assertTrue(status.detail.contains("Choose a signed package"))
+        assertEquals(StatusTone.Stale, status.tone)
+    }
+
+    @Test fun onlyConfirmedTransferSuccessCanDismissItsBanner() {
+        val saved = operationUi(OperationState(1, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
+            "raw", terminal = true), confirmedSetup = true)
+        val installed = operationUi(OperationState(2, OperationKind.UPDATE, OperationStage.ACTIVE,
+            "raw", terminal = true))
+        assertTrue(successBannerMayDismiss(saved))
+        assertTrue(successBannerMayDismiss(installed))
+        val unsafe = listOf(
+            operationUi(OperationState(3, OperationKind.CONFIGURATION, OperationStage.ACTIVE, "raw", terminal = true)),
+            operationUi(OperationState(4, OperationKind.CONFIGURATION, OperationStage.SENDING, "raw")),
+            operationUi(OperationState(5, OperationKind.UPDATE, OperationStage.CHECKING_RUNNING, "raw")),
+            operationUi(OperationState(6, OperationKind.UPDATE, OperationStage.OUTCOME_UNKNOWN, "raw", terminal = true)),
+            operationUi(OperationState(7, OperationKind.CONFIGURATION, OperationStage.RECOVERED, "raw", terminal = true)),
+            operationUi(OperationState(8, OperationKind.CONFIGURATION, OperationStage.FAILED, "raw", terminal = true)),
+        )
+        unsafe.forEach { assertFalse(successBannerMayDismiss(it)) }
+    }
 }

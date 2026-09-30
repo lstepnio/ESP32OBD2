@@ -9,6 +9,8 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
 import android.os.Build
+import android.os.SystemClock
+import android.util.Log
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -24,6 +26,8 @@ internal class GaugeLinkException(message: String) : IllegalStateException(messa
 
 enum class FirmwareUpdateStage {
     PREPARING,
+    CONNECTING_WIFI,
+    PREPARING_FLASH,
     TRANSFERRING,
     VERIFYING,
     READY_TO_ACTIVATE,
@@ -66,7 +70,10 @@ class GaugeConfigTransferClient(private val context: Context) {
                                 val internalLargestBlockBytes: Long, val psramTotalBytes: Long,
                                 val psramFreeBytes: Long, val psramMinimumFreeBytes: Long,
                                 val uptimeSeconds: Long)
-    data class UpdateResult(val partitionAddress: Long, val elfSha256: String)
+    data class DisplaySettings(val rotation: Int, val brightness: Int, val revision: Long,
+                               val units: MeasurementSystem = MeasurementSystem.Metric,
+                               val version: Int = 1, val cycleSeconds: Int = 0)
+    data class UpdateResult(val running: BootIdentity)
     private data class Status(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
                               val transferId: Long, val accepted: Long, val revision: Long, val hash: ByteArray)
     private data class OtaStatus(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
@@ -156,7 +163,9 @@ class GaugeConfigTransferClient(private val context: Context) {
                      (result.bytes.size == 60 && result.bytes[0].toInt() == 6) ||
                      (result.bytes.size in 52..180 && result.bytes[0].toInt() == 7) ||
                      (result.bytes.size == 44 && result.bytes[0].toInt() == 8) ||
-                     (result.bytes.size == 112 && result.bytes[0].toInt() == 9))) return
+                     (result.bytes.size == 112 && result.bytes[0].toInt() == 9) ||
+                     (result.bytes.size == 8 && result.bytes[0].toInt() in 10..11) ||
+                     (result.bytes.size == 10 && result.bytes[0].toInt() == 12))) return
                 if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
                     result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
                     error("Gauge owner state read failed (${result.status})")
@@ -340,6 +349,53 @@ class GaugeConfigTransferClient(private val context: Context) {
         return GaugeProtocolCodec.hardwareSnapshot(bytes)
     }
 
+    suspend fun readDisplaySettings(device: BluetoothDevice): DisplaySettings {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x35) + le32(1))
+            GaugeProtocolCodec.displaySettings(readRaw())
+        }
+    }
+
+    suspend fun saveDisplaySettings(device: BluetoothDevice, rotation: Int,
+                                    brightness: Int, units: MeasurementSystem? = null,
+                                    cycleSeconds: Int? = null): DisplaySettings {
+        require(rotation in 0..3 && brightness in 5..100 &&
+            (cycleSeconds == null || cycleSeconds in setOf(0, 5, 10, 15, 30, 60))) { "Invalid display setting" }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x35) + le32(1))
+            val before = GaugeProtocolCodec.displaySettings(readRaw())
+            val requestedUnits = units ?: before.units
+            val requestedCycle = cycleSeconds ?: before.cycleSeconds
+            require(units == null || before.version >= 2) { "Gauge does not offer measurement units" }
+            require(cycleSeconds == null || before.version >= 3) { "Gauge does not offer page cycling" }
+            if (before.rotation == rotation && before.brightness == brightness && before.units == requestedUnits &&
+                before.cycleSeconds == requestedCycle)
+                return@withGauge before
+            if (before.version >= 3)
+                writeRaw(byteArrayOf(0x38, rotation.toByte(), brightness.toByte(),
+                    requestedUnits.ordinal.toByte(), requestedCycle.toByte(), 0) + le32(before.revision))
+            else if (before.version >= 2)
+                writeRaw(byteArrayOf(0x37, rotation.toByte(), brightness.toByte(),
+                    requestedUnits.ordinal.toByte()) + le32(before.revision))
+            else writeRaw(byteArrayOf(0x36, rotation.toByte(), brightness.toByte()) + le32(before.revision))
+            repeat(20) {
+                val after = GaugeProtocolCodec.displaySettings(readRaw())
+                if (after.revision > before.revision) {
+                    check(after.revision == before.revision + 1 &&
+                        after.rotation == rotation && after.brightness == brightness &&
+                        after.units == requestedUnits && after.cycleSeconds == requestedCycle) {
+                        "Gauge settings changed during save; refresh and retry"
+                    }
+                    return@withGauge after
+                }
+                delay(100)
+            }
+            error("Gauge did not confirm saved display settings")
+        }
+    }
+
     /** Opens a random, time-limited gauge access point through the authenticated BLE owner link. */
     suspend fun openWifiBulk(device: BluetoothDevice): WifiBulkSession {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
@@ -404,8 +460,10 @@ class GaugeConfigTransferClient(private val context: Context) {
                                   pauseBeforeActivationMs: Long = 0): UpdateResult {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         require(pauseBeforeActivationMs in 0..60_000)
+        val startedAt = SystemClock.elapsedRealtime()
         stage(FirmwareUpdateStage.PREPARING)
         val before = readBootIdentity(device)
+        Log.i("eGaugeUpdate", "Authenticated preflight took ${SystemClock.elapsedRealtime() - startedAt} ms")
         val expectedElf = bundle.elfSha256.joinToString("") { "%02x".format(it) }
         check(before.elfSha256 != expectedElf) { "This signed firmware image is already running on the gauge" }
         val random = SecureRandom()
@@ -413,8 +471,8 @@ class GaugeConfigTransferClient(private val context: Context) {
         var sequence = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         val id = le32(transferId)
         val wifiSession = openWifiBulk(device)
-        stage(FirmwareUpdateStage.TRANSFERRING)
-        progress(0)
+        Log.i("eGaugeUpdate", "Gauge Wi-Fi startup took ${SystemClock.elapsedRealtime() - startedAt} ms total")
+        stage(FirmwareUpdateStage.CONNECTING_WIFI)
         try {
             WifiBulkClient(context, wifiSession).use { wifi ->
             suspend fun command(opcode: Int, payload: ByteArray = byteArrayOf()): OtaStatus {
@@ -430,9 +488,11 @@ class GaugeConfigTransferClient(private val context: Context) {
                 return status
             }
             val current = command(0x27)
+            Log.i("eGaugeUpdate", "First gauge Wi-Fi response took ${SystemClock.elapsedRealtime() - startedAt} ms total")
             if (current.phase in 1..3 && current.transferId != 0L)
                 command(0x26, le32(current.transferId))
             else check(current.phase == 0) { "Gauge is already activating an update" }
+            stage(FirmwareUpdateStage.PREPARING_FLASH)
             command(0x20, id + le32(bundle.image.size.toLong()) + le32(0x31534745))
             try {
                 for (part in 0..3) command(0x21, id + byteArrayOf(part.toByte()) +
@@ -442,7 +502,11 @@ class GaugeConfigTransferClient(private val context: Context) {
                     command(0x28, id + byteArrayOf(part.toByte(), bundle.signatureDer.size.toByte()) +
                         bundle.signatureDer.copyOfRange(start, minOf(start + 8, bundle.signatureDer.size)))
                 }
+                val flashStartedAt = SystemClock.elapsedRealtime()
                 command(0x22, id)
+                Log.i("eGaugeUpdate", "Gauge flash preparation took ${SystemClock.elapsedRealtime() - flashStartedAt} ms")
+                stage(FirmwareUpdateStage.TRANSFERRING)
+                progress(0)
                 var offset = 0
                 var lastProgress = 0
                 while (offset < bundle.image.size) {
@@ -576,7 +640,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 }
             if (observed != null && observed.partitionAddress != before.partitionAddress &&
                 observed.elfSha256 == expectedElf && observed.otaState == 2)
-                return UpdateResult(observed.partitionAddress, observed.elfSha256)
+                return UpdateResult(observed)
             if (observed != null && observed.partitionAddress == before.partitionAddress &&
                 observed.elfSha256 == before.elfSha256 && observed.otaState == 2)
                 error("Gauge is running the previous valid firmware after the update attempt. The trial image was not confirmed.")

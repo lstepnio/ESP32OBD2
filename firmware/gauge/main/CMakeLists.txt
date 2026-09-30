@@ -10,6 +10,8 @@ idf_component_register(
         "src/elm_response.c"
         "src/ble_util.c"
         "src/config.c"
+        "src/display_settings.c"
+        "src/display_units.c"
         "src/config_store.c"
         "src/config_transfer.c"
         "src/config_runtime.c"
@@ -26,6 +28,7 @@ idf_component_register(
         "src/json_guard.c"
         "src/pid_decoder.c"
         "src/poll_scheduler.c"
+        "src/page_save_policy.c"
         "src/ui.c"
         ${FONT_SOURCES}
     INCLUDE_DIRS

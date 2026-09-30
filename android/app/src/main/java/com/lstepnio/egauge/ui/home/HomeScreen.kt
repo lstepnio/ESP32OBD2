@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
@@ -17,11 +18,16 @@ import com.lstepnio.egauge.ui.*
 import com.lstepnio.egauge.ui.state.*
 
 @Composable
-fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Unit, onDetails: () -> Unit,
-               onEditPage: (Int) -> Unit = {}, statusInBanner: Boolean = false) {
+fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Unit,
+               onEditPage: (Int) -> Unit = {}, onUpdates: () -> Unit = {}) {
     val pager = rememberPagerState(pageCount = { state.pages.size })
     ScreenContent {
-        ScreenTitle(state.gaugeName, trailing = { ConnectionPill(state.connection, state.connectionVerified) })
+        ScreenTitle(state.gaugeName, trailing = { ConnectionPill(state.connection, state.connectionVerified,
+            icon = when (state.updateNotice) {
+                UpdateNotice.Ready -> GaugeIcon.Download
+                UpdateNotice.NeedsCheck -> GaugeIcon.Warning
+                UpdateNotice.None -> null
+            }, onClick = if (state.updateNotice == UpdateNotice.None) null else onUpdates) })
         ResponsivePanels(first = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 HorizontalPager(pager, modifier = Modifier.fillMaxWidth().testTag("page-carousel")) { index ->
@@ -30,15 +36,16 @@ fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Uni
                     }
                 }
                 Text("Swipe between pages · Hold to edit", modifier = Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center)
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (!statusInBanner) StatusCard(state.status)
+                if (state.status.tone in setOf(StatusTone.Error, StatusTone.Stale,
+                    StatusTone.Offline, StatusTone.Critical)) StatusCard(state.status)
                 PrimaryAction(state.primaryLabel, onPrimary, enabled = !state.busy)
                 if (state.primaryAction != HomeAction.Customize)
                     OutlinedButton(onCustomize, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Customize") }
-                TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
             }
         })
     }

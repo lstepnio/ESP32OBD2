@@ -12,30 +12,43 @@ import com.lstepnio.egauge.ui.state.*
 @Composable
 fun UpdatesScreen(state: UpdatesUiState, operation: OperationUi, development: Boolean,
     onBack: () -> Unit, onCheck: () -> Unit, onInstall: () -> Unit,
-    onReadInstalled: () -> Unit, onChoosePackage: () -> Unit, onDetails: () -> Unit) {
+    onReadInstalled: () -> Unit, onChoosePackage: () -> Unit) {
     ScreenContent {
         ScreenTitle(if (development) "Development updates" else "Updates", onBack)
-        Text("Installed version: ${state.installedVersion}", style = MaterialTheme.typography.bodyLarge)
-        if (!development) {
-            EmptyState("Updates are not available yet", "This gauge currently supports development updates only. They are available in Expert when advanced tools are on.")
-            if (state.recoveryRequired || operation.update && operation.needsCheck) StatusCard(state.status)
-            PrimaryAction("Check installed version", onReadInstalled, enabled = state.canCheck)
-        } else {
+        if (development) Text("Installed version: ${state.installedVersion}", style = MaterialTheme.typography.bodyLarge)
+        if (!development && state.installedVersion == "Not checked" && !state.ready &&
+            state.availableVersion == null && !state.held && !state.recoveryRequired)
+            EmptyState("Waiting for your gauge", "Connect your paired gauge to check for a signed update.")
+        else
             StatusCard(state.status)
-            if (operation.busy && operation.update) Panel {
-                ProgressStepper(listOf("Downloading", "Sending to gauge", "Restarting", "Done"),
-                    operation.step, operation.progress, finished = false)
-            }
-            Text("Use a signed test release. Keep the app open and your gauge powered until it confirms the update.",
+        if (operation.busy && operation.update) Panel {
+            ProgressStepper(listOf("Downloading", "Sending to gauge", "Restarting", "Done"),
+                operation.step, operation.progress, finished = false)
+        }
+        if (state.ready || state.availableVersion != null)
+            Text("Keep your gauge powered and the app open until it confirms the update.",
                 style = MaterialTheme.typography.bodyLarge)
-            PrimaryAction(when { state.recoveryRequired -> "Check gauge"; state.ready || state.availableVersion != null -> "Install"
-                else -> "Check for updates" },
-                { when { state.recoveryRequired -> onReadInstalled(); state.ready || state.availableVersion != null -> onInstall()
-                    else -> onCheck() } },
-                enabled = if (state.recoveryRequired) state.canCheck else if (state.ready) state.canInstall else state.canCheck)
+        PrimaryAction(when {
+            state.recoveryRequired -> "Check installed version"
+            state.held -> "Check your gauge"
+            state.feedUnavailable -> "Choose signed package"
+            state.ready -> "Install update"
+            state.availableVersion != null -> "Download and install"
+            else -> "Check for updates"
+        }, {
+            when {
+                state.recoveryRequired -> onReadInstalled()
+                state.feedUnavailable -> onChoosePackage()
+                state.ready || state.availableVersion != null -> onInstall()
+                else -> onCheck()
+            }
+        }, enabled = if (state.feedUnavailable) !state.busy else if (state.ready) state.canInstall else state.canCheck)
+        if (state.feedUnavailable) TextButton(onCheck, enabled = state.canCheck) { Text("Try online check") }
+        if (development && !state.feedUnavailable) {
             OutlinedButton(onChoosePackage, Modifier.fillMaxWidth(), enabled = !state.busy) { Text("Choose development package") }
+        }
+        if (development) {
             TextButton(onReadInstalled, enabled = state.canCheck) { Text("Check installed version") }
         }
-        TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
     }
 }

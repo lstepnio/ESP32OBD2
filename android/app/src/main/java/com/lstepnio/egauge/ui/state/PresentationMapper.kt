@@ -18,26 +18,30 @@ fun readingName(id: String): String = when (id) {
 fun sameSettings(first: Draft?, second: Draft): Boolean = first != null && first.pages == second.pages &&
     first.source == second.source && first.alerts == second.alerts
 
-fun pageUi(page: GaugePageDraft): PageUi {
+fun pageUi(page: GaugePageDraft, system: MeasurementSystem = MeasurementSystem.Metric): PageUi {
     val reading = demoCatalog.first { it.id == page.pidIds.first() }
     val secondary = page.pidIds.getOrNull(1)?.let { id -> demoCatalog.first { it.id == id } }
-    return PageUi(page.id, readingName(reading.id), reading.id, readingName(reading.id), reading.unit, page.layout,
-        ReadingPreviewUi(readingName(reading.id), reading.demoValue, reading.unit,
+    return PageUi(page.id, readingName(reading.id), reading.id, readingName(reading.id), MeasurementUnits.label(reading.unit, system), page.layout,
+        ReadingPreviewUi(readingName(reading.id), MeasurementUnits.displayValue(reading.demoValue, reading.unit, system), MeasurementUnits.label(reading.unit, system),
             PreviewLayout.valueOf(page.layout.name), secondaryName = secondary?.let { readingName(it.id) },
-            secondaryValue = secondary?.demoValue, secondaryUnit = secondary?.unit), secondary?.id)
+            secondaryValue = secondary?.let { MeasurementUnits.displayValue(it.demoValue, it.unit, system) },
+            secondaryUnit = secondary?.let { MeasurementUnits.label(it.unit, system) }), secondary?.id)
 }
 
-fun readingUi(pid: PidExample) = ReadingUi(pid.id, readingName(pid.id), pid.unit, listOf(
+fun readingUi(pid: PidExample, system: MeasurementSystem = MeasurementSystem.Metric) = ReadingUi(pid.id, readingName(pid.id), MeasurementUnits.label(pid.unit, system), listOf(
     DetailUi("PID identifier", pid.id), DetailUi("Service / request", pid.request),
     DetailUi("ECU / source", pid.source), DetailUi("Category", pid.category),
     DetailUi("Availability", "Example only. Vehicle support has not been checked."),
 ))
 
-fun alertUi(alert: GaugeAlertDraft): AlertUi {
+fun alertUi(alert: GaugeAlertDraft, system: MeasurementSystem = MeasurementSystem.Metric): AlertUi {
     val reading = demoCatalog.first { it.id == alert.pidId }
-    return AlertUi(alert.id, alert.pidId, readingName(alert.pidId), reading.unit,
-        if (alert.direction == AlertDirection.Above) "above" else "below", alert.warning, alert.critical,
-        alert.hysteresis, alert.triggerDwellMs / 1000f, alert.clearDwellMs / 1000f, readingRange(alert.pidId))
+    return AlertUi(alert.id, alert.pidId, readingName(alert.pidId), MeasurementUnits.label(reading.unit, system),
+        if (alert.direction == AlertDirection.Above) "above" else "below",
+        MeasurementUnits.value(alert.warning, reading.unit, system), MeasurementUnits.value(alert.critical, reading.unit, system),
+        MeasurementUnits.distance(alert.hysteresis, reading.unit, system), alert.triggerDwellMs / 1000f,
+        alert.clearDwellMs / 1000f, MeasurementUnits.range(readingRange(alert.pidId), reading.unit, system),
+        alert.priority, alert.warning, alert.critical, alert.hysteresis)
 }
 
 fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> = buildList {
@@ -68,7 +72,8 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val found = capabilities != null && !disconnected && connection.phase != ConnectionPhase.Searching
     val busy = scanning || hostedUpdateBusy || updateInProgress ||
         (operation.stage != OperationStage.IDLE && !operation.terminal)
-    val pages = draft.pages.map(::pageUi)
+    val system = displaySettings?.takeIf { it.version >= 2 }?.units ?: prefs.measurementSystem
+    val pages = draft.pages.map { pageUi(it, system) }
     val confirmed = !disconnected && ownerAccess == OwnerAccess.AUTHENTICATED && sentProfileId == profileCollection.activeId && sameSettings(sentDraft, draft) &&
         isConfirmedSetup(activeConfigRevision, expectedSentDigest, runtimeIdentity)
     val blockers = presentationBlockers(draft, capabilities) +
@@ -92,12 +97,13 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         op = op.copy(status = updateRecoveryUi(updateRecovery), visible = true, needsCheck = true, update = true)
     }
     val status = when {
-        profileError != null -> StatusUi("Your saved profiles need attention", "Editing is paused to protect your settings. Open Details to review the problem.", StatusTone.Error)
+        profileError != null -> StatusUi("Your saved profiles need attention", "Editing is paused to protect your settings. Review the problem in Expert > Device data.", StatusTone.Error)
         presentationError != null -> friendlyFailure(presentationError)
         op.visible && (op.busy || op.needsCheck) -> op.status
         runtimeIdentity?.usedPreviousGeneration == true -> StatusUi("Earlier settings are running", "Your gauge restored an earlier setup. Review your pages before sending again.", StatusTone.Stale)
         runtimeIdentity?.trial == true -> StatusUi("Your gauge is still checking these settings", "Keep it powered and check again.", StatusTone.Stale)
         !freshConnection && connection.phase != ConnectionPhase.Idle -> connectionStatus(connection, nowElapsedMs)
+        updatePreparation == "held" -> StatusUi("Update needs attention", hostedUpdateMessage, StatusTone.Stale)
         confirmed -> StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success)
         !found -> StatusUi("Your gauge is not connected", "Connect to check its current settings.", StatusTone.Neutral)
         needsCheck -> StatusUi("Check your gauge before sending", "We will read its current settings so newer changes are protected.")
@@ -113,27 +119,30 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val canSend = found && !busy && profileError == null && !needsCheck && blockers.isEmpty() &&
         capabilities?.experimentalNumericConfig == true
     val car = carState(nowElapsedMs, busy, details)
-    val selected = demoCatalog.first { it.id == draft.pidId }
-    val decoded = when (val result = decodeExample(selected, labInput)) {
-        is DecodeResult.Value -> StatusUi("Example result: ${result.display}", "Nothing was sent to the car.")
-        is DecodeResult.Error -> StatusUi("Could not decode this response", "${result.message} Check the response bytes.", StatusTone.Error)
-    }
-    val request = when (val result = previewReadRequest(customRequestInput)) {
-        is ReadRequestPreview.Valid -> StatusUi("Read request is valid", "${result.description}. Expected prefix ${result.responsePrefix}. Example only; nothing was sent.")
-        is ReadRequestPreview.Invalid -> StatusUi("Check the read request", "${result.reason} Edit the bytes and try again.", StatusTone.Error)
-    }
     val updateStatus = when {
         updateInProgress || updatePreparation == "downloading" -> op.status
-        updateRecovery != null -> updateRecoveryUi(updateRecovery)
+        updateRecovery != null && updateRecovery.state != UpdateRecoveryState.INSTALLED -> updateRecoveryUi(updateRecovery)
+        updatePreparation == "held" -> StatusUi("Update needs attention", hostedUpdateMessage, StatusTone.Stale)
         updatePreparation == "failed" -> friendlyFailure(hostedUpdateMessage, true)
-        updateReady -> StatusUi("Update ready to install", "Keep your gauge powered and the app open.")
-        hostedUpdate != null -> StatusUi("Update available", "Version ${hostedUpdate?.release?.version}")
-        updatePreparation == "current" -> StatusUi("Your gauge is up to date", "No newer development update is available.", StatusTone.Success)
+        updateReady -> StatusUi("Update ready to install", "A signed development update is ready. Keep your gauge powered during installation.")
+        hostedUpdate != null -> StatusUi("Update available", "A signed development update is available.")
+        updateRecovery != null -> updateRecoveryUi(updateRecovery)
+        updatePreparation == "current" -> StatusUi("Your gauge is up to date", "No newer signed update is available.", StatusTone.Success)
         else -> StatusUi("Development updates", "Signed test releases are available here.")
     }
+    val updateNotice = when {
+        !freshConnection || !found -> UpdateNotice.None
+        updateRecovery?.state !in setOf(null, UpdateRecoveryState.INSTALLED) || updatePreparation == "held" -> UpdateNotice.NeedsCheck
+        hostedUpdate != null && updateReady -> UpdateNotice.Ready
+        else -> UpdateNotice.None
+    }
     return CompanionUiState(
-        HomeUiState(prefs.gaugeName, if (connection.phase == ConnectionPhase.Idle && found) "Last checked"
-            else connectionLabel(connection, nowElapsedMs), freshConnection, status, pages,
+        HomeUiState(prefs.gaugeName, when (updateNotice) {
+            UpdateNotice.Ready -> "Update ready"
+            UpdateNotice.NeedsCheck -> "Update needs check"
+            UpdateNotice.None -> if (connection.phase == ConnectionPhase.Idle && found) "Last checked"
+                else connectionLabel(connection, nowElapsedMs)
+        }, freshConnection, status, pages,
             !confirmed, when (homeAction) { HomeAction.SetUp -> when (connection.phase) {
                 ConnectionPhase.PermissionRequired -> "Allow nearby devices"
                 ConnectionPhase.BluetoothOff -> "Turn on Bluetooth"
@@ -141,19 +150,18 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 ConnectionPhase.ChooseGauge -> "Choose gauge"
                 else -> if (rememberedGaugeId != null) "Connect gauge" else "Set up gauge"
             }; HomeAction.Check -> "Check gauge"
-                HomeAction.Review -> "Review and send"; HomeAction.Customize -> "Customize" }, homeAction, busy, details),
-        CustomizeUiState(pages, editingPageIndex, demoCatalog.filter { it.id in ConfigurationProjector.supportedPidIds }.map(::readingUi),
-            draft.alerts.map(::alertUi), blockers, canSend, needsCheck, found, busy, profileError == null && !busy, prefs.advanced,
-            capabilities?.supportedRenderers.orEmpty(), details),
+                HomeAction.Review -> "Review and send"; HomeAction.Customize -> "Customize" }, homeAction, busy, details,
+            updateNotice),
+        CustomizeUiState(pages, editingPageIndex, demoCatalog.filter { it.id in ConfigurationProjector.supportedPidIds }.map { readingUi(it, system) },
+            draft.alerts.map { alertUi(it, system) }, blockers, canSend, needsCheck, found, busy, profileError == null && !busy, prefs.advanced,
+            capabilities?.supportedRenderers.orEmpty(), details, system),
         car,
-        SettingsUiState(prefs.gaugeName, found, savedGauge?.rotation, found && capabilities?.displayRotationWrite == true,
-            busy, prefs.advanced, prefs.dynamicColor, bootIdentity?.version ?: "Not checked", details),
-        ExpertUiState(demoCatalog.filter { pid -> (sourceFilter == "All" || pid.source == sourceFilter) &&
-            (query.isBlank() || "${pid.name} ${pid.request} ${pid.category} ${pid.source}".contains(query, true)) }.map(::readingUi),
-            found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
-            found && capabilities?.wifiBulk == "experimental-softap-aead-v2" && !busy,
-            profileCollection.active.secondAdapterEnabled, details, query, sourceFilter, draft.pidId, labInput,
-            decoded, customRequestInput, customSource, request, wifiSecurityMessage, busy),
+        SettingsUiState(prefs.gaugeName, found, displaySettings?.rotation ?: savedGauge?.rotation,
+            found && ((capabilities?.displaySettingsVersion ?: 0) >= 1 || capabilities?.displayRotationWrite == true),
+            busy, prefs.advanced, prefs.dynamicColor, bootIdentity?.version ?: "Not checked", details,
+            capabilities?.displaySettingsVersion ?: 0, displaySettings?.brightness, system, displaySettings?.cycleSeconds),
+        ExpertUiState(found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
+            canAdoptGaugeDraft, details),
         SetupUiState(found, ownerAccess, busy || connection.phase in setOf(ConnectionPhase.Searching, ConnectionPhase.Checking), gaugeCandidates.mapIndexed { index, candidate ->
             CandidateUi(candidate.id, candidate.name.ifBlank { "Gauge ${index + 1}" }, listOf(
                 DetailUi("Gauge identifier", candidate.id), DetailUi("Signal", "${candidate.signalDbm} dBm")))
@@ -165,10 +173,12 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             found && !busy, updateReady && found && !busy && capabilities?.experimentalNumericConfig == true &&
                 updateRecovery?.state !in setOf(UpdateRecoveryState.CHECK_REQUIRED, UpdateRecoveryState.WAITING_FOR_CONFIRMATION),
             updateReady, busy,
-            updateRecovery?.state in setOf(UpdateRecoveryState.CHECK_REQUIRED, UpdateRecoveryState.WAITING_FOR_CONFIRMATION), details),
+            updateRecovery?.state in setOf(UpdateRecoveryState.CHECK_REQUIRED, UpdateRecoveryState.WAITING_FOR_CONFIRMATION), details,
+            updatePreparation == "held",
+            updatePreparation == "failed" && hostedUpdateMessage == HOSTED_RELEASE_FEED_UNAVAILABLE),
         op,
         if (profileError != null) StatusUi("Your saved profiles need attention",
-            "Editing is paused to protect your settings. Open Details to review the problem.", StatusTone.Error)
+            "Editing is paused to protect your settings. Review the problem in Expert > Device data.", StatusTone.Error)
         else presentationError?.let { friendlyFailure(it) }
             ?: if (disconnected) connectionStatus(connection, nowElapsedMs) else null,
         connection,

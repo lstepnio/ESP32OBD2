@@ -54,33 +54,35 @@ class PhysicalConfigurationJourneyTest {
             compose.onNodeWithText("Gauge", useUnmergedTree = true).performClick()
             compose.onNodeWithText("Customize").performScrollTo().performClick()
             compose.onNodeWithText("Manage pages").performScrollTo().performClick()
-            while (model.draft.pages.size > 3) compose.onAllNodesWithText("Remove page").onFirst().performScrollTo().performClick()
-            while (model.draft.pages.size < 3) compose.onNodeWithText("Add page").performScrollTo().performClick()
-            compose.onNodeWithText("Done").performScrollTo().performClick()
+            while (model.draft.pages.size > 3) {
+                compose.onNodeWithContentDescription("Options for page ${model.draft.pages.size}").performScrollTo().performClick()
+                compose.onNodeWithText("Remove page").performClick()
+                compose.onNodeWithText("Remove page").performClick()
+            }
+            compose.onNodeWithText("Done").performClick()
+            while (model.draft.pages.size < 3) {
+                compose.onNodeWithText("Add page").performScrollTo().performClick()
+                compose.onNodeWithText("Engine speed").performScrollTo().performClick()
+            }
             listOf("rpm", "coolant", "load").forEachIndexed { index, id ->
-                compose.onNodeWithText("Edit page").performScrollTo().performClick()
+                compose.onNodeWithText("Manage pages").performScrollTo().performClick()
+                val previousName = readingName(model.draft.pages[index].pidIds.first())
+                compose.onNodeWithContentDescription("Edit page ${index + 1}, $previousName").performScrollTo().performClick()
+                compose.onNodeWithText("Reading").performScrollTo().performClick()
                 compose.onNodeWithText(readingName(id)).performScrollTo().performClick()
-                compose.onNodeWithText("Done").performScrollTo().performClick()
-                if (index < 2) compose.onNodeWithTag("page-carousel").performTouchInput { swipeLeft() }
-            }
-            compose.onNodeWithText("Edit page").performScrollTo()
-            capture("customize-readings")
-            compose.onNodeWithText("Edit page").performScrollTo().performClick()
-            listOf(GaugeLayout.Numeric, GaugeLayout.Arc, GaugeLayout.Bar).forEachIndexed { index, layout ->
+                compose.onNodeWithText("Layout").performScrollTo().performClick()
+                val layout = listOf(GaugeLayout.Numeric, GaugeLayout.Arc, GaugeLayout.Bar)[index]
                 compose.onNodeWithText(layout.label).performScrollTo().performClick()
-                compose.onNodeWithText("Done").performScrollTo().performClick()
-                if (index < 2) {
-                    compose.onNodeWithTag("page-carousel").performTouchInput { swipeLeft() }
-                    compose.onNodeWithText("Edit page").performScrollTo().performClick()
-                }
             }
-            compose.onNodeWithText("Alerts").performScrollTo().performClick()
-            compose.onNodeWithText("Edit alert").performScrollTo().performClick()
+            capture("customize-readings")
+            compose.onNodeWithText("All alerts (${model.draft.alerts.size})").performScrollTo().performClick()
+            compose.onNodeWithText("Coolant temperature").performScrollTo().performClick()
             capture("customize-limits")
-            compose.onNodeWithText("Save alert").performScrollTo().performClick()
-            compose.onNodeWithText("Review and send").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Go back").performClick()
+            compose.onNodeWithText("Done").performClick()
+            compose.onNodeWithText("Review and send").performClick()
             capture("customize-review")
-            compose.onNodeWithText("Send to gauge").performScrollTo().assertIsEnabled()
+            compose.onNodeWithText("Send to gauge").assertIsEnabled()
             capture("customize-send")
             val before = model.operation.id
             sendStarted = true
@@ -89,7 +91,6 @@ class PhysicalConfigurationJourneyTest {
             assertEquals(model.operation.detail, OperationStage.ACTIVE, model.operation.stage)
             assertTrue(isConfirmedSetup(model.activeConfigRevision, model.expectedSentDigest, model.runtimeIdentity))
             confirmed = true
-            compose.onNodeWithText("Saved & running on gauge").assertIsDisplayed()
             capture("configuration-confirmed")
             report.append("Three-reading revision: ${model.activeConfigRevision}\nThree-reading digest: ${model.expectedSentDigest}\n")
                 .append("Running revision and digest matched; trial cleared.\n")

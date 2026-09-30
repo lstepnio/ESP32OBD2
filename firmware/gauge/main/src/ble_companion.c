@@ -28,6 +28,7 @@
 #include "wifi_bulk.h"
 #include "diagnostics_state.h"
 #include "config_runtime.h"
+#include "display_settings.h"
 #include "hardware_probe.h"
 #include "ui.h"
 
@@ -96,14 +97,22 @@ static bool authorized(uint16_t conn_handle)
            desc.sec_state.bonded && address_equal(&desc.peer_id_addr, &g_owner);
 }
 
-static void load_owner(void)
+bool ble_companion_load_owner(void)
 {
+    atomic_store(&g_has_owner, false);
     nvs_handle_t handle;
-    if (nvs_open("eg_owner", NVS_READONLY, &handle) != ESP_OK) return;
+    esp_err_t opened = nvs_open("eg_owner", NVS_READONLY, &handle);
+    if (opened != ESP_OK) {
+        ESP_LOGI(TAG, "Owner association unavailable at boot: %s", esp_err_to_name(opened));
+        return false;
+    }
     size_t size = sizeof(g_owner);
-    atomic_store(&g_has_owner,
-                 nvs_get_blob(handle, "peer", &g_owner, &size) == ESP_OK && size == sizeof(g_owner));
+    esp_err_t loaded = nvs_get_blob(handle, "peer", &g_owner, &size);
+    atomic_store(&g_has_owner, loaded == ESP_OK && size == sizeof(g_owner));
     nvs_close(handle);
+    ESP_LOGI(TAG, "Owner association at boot: %s (read %s)",
+             atomic_load(&g_has_owner) ? "present" : "absent", esp_err_to_name(loaded));
+    return atomic_load(&g_has_owner);
 }
 
 static bool save_owner(const ble_addr_t *owner)
@@ -131,7 +140,7 @@ static void owner_save_worker(void *arg)
             continue;
         }
         atomic_store(&g_pairing_until, 0);
-        ui_show_pairing_code(g_ui, 0);
+        ui_show_pairing_code(g_ui, UI_PAIRING_HIDDEN);
         ESP_LOGI(TAG, "Owner identity persisted");
     }
 }
@@ -144,20 +153,26 @@ static void owner_save_worker(void *arg)
 #define WIFI_BULK_CAPABILITY ""
 #endif
 
+#if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED
+#define DISPLAY_SETTINGS_CAPABILITY ",\"ds\":3"
+#else
+#define DISPLAY_SETTINGS_CAPABILITY ""
+#endif
+
 static const char capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
     "\"maxAdapterLinks\":2,"
     "\"savedStateRead\":true,\"displayRotationWrite\":true,"
     "\"configWrite\":false,\"cfg\":2,"
     "\"quickSelect\":true,\"ota\":false,\"hw\":1"
-    WIFI_BULK_CAPABILITY "}";
+    DISPLAY_SETTINGS_CAPABILITY WIFI_BULK_CAPABILITY "}";
 static const char document_capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
     "\"maxAdapterLinks\":2,"
     "\"savedStateRead\":false,\"displayRotationWrite\":false,"
     "\"configWrite\":false,\"cfg\":2,"
     "\"ota\":false,\"hw\":1"
-    WIFI_BULK_CAPABILITY "}";
+    DISPLAY_SETTINGS_CAPABILITY WIFI_BULK_CAPABILITY "}";
 _Static_assert(sizeof(capabilities) - 1U <= 255U,
                "Public capability JSON exceeds the qualified Android read boundary");
 _Static_assert(sizeof(document_capabilities) - 1U <= 255U,
@@ -213,6 +228,53 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
     }
     if (request[0] == 0x34 && length == 5) {
         extended_status_mode = 8;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x35 && length == 5) {
+        extended_status_mode = 9;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x36 && length == 7) {
+        companion_command_t command = {
+            .opcode = 0x36, .value = request[1], .brightness = request[2],
+            .base_revision = read_u32(request + 3),
+        };
+        if (command.value > 3 || command.brightness < 5 || command.brightness > 100)
+            return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+            return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode = 9;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x37 && length == 8) {
+        companion_command_t command = {
+            .opcode = 0x37, .value = request[1], .brightness = request[2],
+            .units = request[3], .base_revision = read_u32(request + 4),
+        };
+        if (command.value > 3 || command.brightness < 5 || command.brightness > 100 ||
+            command.units > 1) return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+            return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode = 9;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x38 && length == 10) {
+        companion_command_t command = {
+            .opcode = 0x38, .value = request[1], .brightness = request[2],
+            .units = request[3], .cycle_seconds = request[4] | ((uint16_t)request[5] << 8),
+            .base_revision = read_u32(request + 6),
+        };
+        uint16_t interval = command.cycle_seconds;
+        if (command.value > 3 || command.brightness < 5 || command.brightness > 100 ||
+            command.units > 1 || (interval != 0 && interval != 5 && interval != 10 &&
+            interval != 15 && interval != 30 && interval != 60)) return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+            return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode = 9;
         status_snapshot_length = 0;
         return 0;
     }
@@ -348,6 +410,17 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
                               status_snapshot_length - ctxt->offset) == 0
             ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     }
+    if (extended_status_mode == 9) {
+        display_settings_t settings = display_settings_snapshot();
+        uint8_t state[] = {12, settings.rotation, settings.brightness, settings.units,
+                           (uint8_t)settings.revision, (uint8_t)(settings.revision >> 8),
+                           (uint8_t)(settings.revision >> 16), (uint8_t)(settings.revision >> 24),
+                           (uint8_t)settings.cycle_seconds, (uint8_t)(settings.cycle_seconds >> 8)};
+        if (ctxt->offset > sizeof(state)) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, state + ctxt->offset,
+                              sizeof(state) - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
     if (document_active) {
         /* Keep a protected state read available after custom activation so
          * Android can restore link encryption before its first owner write. */
@@ -453,7 +526,8 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
             config_transfer_disconnect();
             atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
             ESP_LOGI(TAG, "Phone discovery link disconnected");
-            ui_show_pairing_code(g_ui, pairing_open() ? UINT32_MAX : 0);
+            ui_show_pairing_code(g_ui, atomic_load(&g_has_owner) ? UI_PAIRING_HIDDEN :
+                                pairing_open() ? UI_PAIRING_READY : UI_PAIRING_WAITING);
             advertise();
         }
         break;
@@ -461,8 +535,8 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
         advertise();
         break;
     case BLE_GAP_EVENT_REPEAT_PAIRING: {
-        /* Android may have forgotten a bond that NimBLE still stores. Only a
-         * fresh physical window with no owner may replace that stale bond. */
+        /* Android may have forgotten a bond that NimBLE still stores. Only an
+         * open pairing window with no owner may replace that stale bond. */
         struct ble_gap_conn_desc desc;
         if (atomic_load(&g_has_owner) || !pairing_open() ||
             ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc) != 0)
@@ -505,7 +579,7 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
                 if (atomic_load(&g_has_owner)) atomic_store(&g_pairing_until, 0);
             }
         }
-        if (atomic_load(&g_has_owner)) ui_show_pairing_code(g_ui, 0);
+        if (atomic_load(&g_has_owner)) ui_show_pairing_code(g_ui, UI_PAIRING_HIDDEN);
         break;
     default:
         break;
@@ -515,7 +589,6 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
 
 int ble_companion_register(void)
 {
-    load_owner();
     if (!owner_save_queue) {
         owner_save_queue = xQueueCreate(1, sizeof(owner_save_request_t));
         if (!owner_save_queue ||
@@ -530,6 +603,7 @@ int ble_companion_register(void)
     if (rc == 0) rc = ble_gatts_count_cfg(services);
     if (rc == 0) rc = ble_gatts_add_svcs(services);
     if (rc != 0) ESP_LOGE(TAG, "GATT registration failed: %d", rc);
+    else ble_companion_open_pairing_window();
     return rc;
 }
 
@@ -547,6 +621,11 @@ bool ble_companion_ready(void)
     return atomic_load(&g_ready);
 }
 
+bool ble_companion_has_owner(void)
+{
+    return atomic_load(&g_has_owner);
+}
+
 void ble_companion_set_control(ui_t *ui, QueueHandle_t command_queue,
                                uint8_t selected_index, bool custom)
 {
@@ -561,8 +640,8 @@ void ble_companion_open_pairing_window(void)
     if (atomic_load(&g_has_owner)) return;
     atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
     atomic_store(&g_pairing_until, xTaskGetTickCount() + pdMS_TO_TICKS(120000));
-    ESP_LOGI(TAG, "Physical owner pairing window opened");
-    ui_show_pairing_code(g_ui, UINT32_MAX);
+    ESP_LOGI(TAG, "Owner pairing window opened");
+    ui_show_pairing_code(g_ui, UI_PAIRING_READY);
 }
 
 void ble_companion_selection_applied(uint8_t selected_index)
@@ -574,13 +653,15 @@ void ble_companion_tick(void)
 {
     if (atomic_load(&g_pairing_until) && !pairing_open()) {
         atomic_store(&g_pairing_until, 0);
-        ui_show_pairing_code(g_ui, 0);
+        ui_show_pairing_code(g_ui, atomic_load(&g_has_owner) ?
+                            UI_PAIRING_HIDDEN : UI_PAIRING_WAITING);
     }
 }
 
 void ble_companion_forget_owner(void)
 {
     if (!atomic_load(&g_has_owner)) return;
+    ESP_LOGW(TAG, "Physical 12-second hold requested owner reset");
     int rc = ble_store_util_delete_peer(&g_owner);
     if (rc != 0) {
         ESP_LOGW(TAG, "Owner bond deletion returned %d; clearing owner association", rc);

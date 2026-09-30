@@ -2,11 +2,12 @@ package com.lstepnio.egauge.core.designsystem
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,6 +18,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -62,13 +65,16 @@ fun StatusCard(state: StatusUi, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun ConnectionPill(label: String, checked: Boolean, modifier: Modifier = Modifier) {
-    Surface(modifier, shape = CircleShape,
+fun ConnectionPill(label: String, checked: Boolean, modifier: Modifier = Modifier,
+    icon: GaugeIcon? = null, onClick: (() -> Unit)? = null) {
+    Surface(modifier.then(if (onClick != null) Modifier.clickable(role = Role.Button,
+        onClickLabel = "Open updates", onClick = onClick) else Modifier), shape = CircleShape,
         color = if (checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
         contentColor = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+        Row(Modifier.heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            EGaugeIcon(if (checked) GaugeIcon.Check else GaugeIcon.Bluetooth, modifier = Modifier.size(16.dp))
+            EGaugeIcon(icon ?: if (checked) GaugeIcon.Check else GaugeIcon.Bluetooth,
+                modifier = Modifier.size(16.dp))
             Text(label, style = MaterialTheme.typography.labelMedium)
         }
     }
@@ -122,23 +128,13 @@ fun ReadingTile(name: String, unit: String, selected: Boolean, onClick: () -> Un
 }
 
 @Composable
-fun LimitEditor(label: String, value: Int, critical: Boolean, onChange: (Int) -> Unit,
-                enabled: Boolean = true) {
-    Panel {
-        Text(label, style = MaterialTheme.typography.titleMedium,
-            color = if (critical) LocalSemanticColors.current.critical else MaterialTheme.colorScheme.onSurface)
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween) {
-            OutlinedIconButton(onClick = { onChange((value - 1).coerceAtLeast(-40)) }, enabled = enabled) {
-                EGaugeIcon(GaugeIcon.Remove, "Decrease ${label.lowercase()}")
-            }
-            Text("$value °C", style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.semantics { contentDescription = "$label $value degrees Celsius" })
-            OutlinedIconButton(onClick = { onChange((value + 1).coerceAtMost(215)) }, enabled = enabled) {
-                EGaugeIcon(GaugeIcon.Add, "Increase ${label.lowercase()}")
-            }
-        }
-    }
+fun LimitField(label: String, value: String, unit: String, onChange: (String) -> Unit,
+               enabled: Boolean = true, error: String? = null, hint: String? = null) {
+    OutlinedTextField(value, onChange, label = { Text(label) }, suffix = { Text(unit) },
+        enabled = enabled, singleLine = true, isError = error != null,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+        supportingText = if (error != null || hint != null) ({ Text(error ?: hint.orEmpty()) }) else null,
+        modifier = Modifier.fillMaxWidth().semantics { if (error != null) error(error) })
 }
 
 @Composable
@@ -167,28 +163,6 @@ fun ProgressStepper(stages: List<String>, current: Int, progress: Int? = null, f
     }
 }
 
-/** Details are non-secret presentation facts only. Transport credentials must never enter this model. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DetailsSheet(title: String, details: List<DetailUi>, onDismiss: () -> Unit,
-                 actions: @Composable ColumnScope.() -> Unit = {}) {
-    ModalBottomSheet(onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).padding(horizontal = 24.dp)
-            .navigationBarsPadding().padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).semantics { heading() })
-                IconButton(onDismiss) { EGaugeIcon(GaugeIcon.Close, "Close details") }
-            }
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                DetailContent(details)
-                actions()
-            }
-        }
-    }
-}
-
 @Composable
 fun EmptyState(title: String, detail: String, modifier: Modifier = Modifier) {
     StatusCard(StatusUi(title, detail, StatusTone.Disabled), modifier)
@@ -212,14 +186,12 @@ fun SettingsRow(title: String, detail: String? = null, enabled: Boolean = true, 
 
 @Composable
 fun DetailContent(details: List<DetailUi>) {
-    SelectionContainer {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            details.forEach { field ->
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(field.label, style = MaterialTheme.typography.labelLarge)
-                    Text(field.value, style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        details.forEach { field ->
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(field.label, style = MaterialTheme.typography.labelLarge)
+                Text(field.value, style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

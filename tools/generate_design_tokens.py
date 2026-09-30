@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Android and browser tokens. Existing gauge tokens are intentionally unchanged."""
+"""Generate Android and browser tokens from the shared design palette."""
 import argparse
 import json
 from pathlib import Path

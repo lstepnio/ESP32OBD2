@@ -11,7 +11,7 @@ import com.lstepnio.egauge.ui.*
 import com.lstepnio.egauge.ui.state.CarUiState
 
 @Composable
-fun CarScreen(state: CarUiState, onCheck: () -> Unit, onSetup: () -> Unit, onDetails: () -> Unit,
+fun CarScreen(state: CarUiState, onCheck: () -> Unit, onSetup: () -> Unit,
               onSelectProfile: (String) -> Unit, onCreateProfile: (String) -> Unit) {
     var profilesOpen by rememberSaveable { mutableStateOf(false) }
     ScreenContent {
@@ -38,7 +38,6 @@ fun CarScreen(state: CarUiState, onCheck: () -> Unit, onSetup: () -> Unit, onDet
                 EmptyState("Vehicle adapter", "Adapter setup is not available in this app yet.")
                 PrimaryAction(if (state.canCheck) "Check car" else "Set up gauge",
                     if (state.canCheck) onCheck else onSetup)
-                TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
             }
         })
     }

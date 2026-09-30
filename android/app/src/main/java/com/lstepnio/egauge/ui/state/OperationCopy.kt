@@ -12,6 +12,11 @@ data class OperationUi(
     val needsCheck: Boolean = false, val update: Boolean = false,
 )
 
+/** Only a proven, terminal transfer success may leave the persistent activity area. */
+fun successBannerMayDismiss(state: OperationUi): Boolean =
+    state.visible && state.kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
+        !state.busy && !state.needsCheck && state.status.tone == StatusTone.Success
+
 /** Presentation must be stricter than a generic ACTIVE stage, which also represents successful reads. */
 fun isConfirmedSetup(expectedRevision: Long?, expectedHash: String?,
                      runtime: GaugeConfigTransferClient.RuntimeIdentity?): Boolean =
@@ -39,7 +44,7 @@ fun operationUi(state: OperationState, confirmedSetup: Boolean = false): Operati
                 StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success)
             state.kind == OperationKind.CONFIGURATION ->
                 StatusUi("Gauge response received", "Check your gauge to confirm the change.")
-            else -> StatusUi("Gauge checked", "The latest response is available in Details.")
+            else -> StatusUi("Gauge checked", "Your gauge responded to the check.")
         }
         OperationStage.RECOVERED -> StatusUi("Earlier settings are running", "Your gauge restored its previous setup. Review your changes before sending again.", StatusTone.Stale)
         OperationStage.FAILED -> friendlyFailure(state.detail, update)
@@ -62,6 +67,8 @@ fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
     val message = reason.orEmpty().lowercase()
     return when {
         "appearance settings" in message -> StatusUi("Your preference was not saved", "Try changing it again.", StatusTone.Error)
+        reason == HOSTED_RELEASE_FEED_UNAVAILABLE -> StatusUi("Online updates unavailable",
+            "This app cannot access the development release feed. Choose a signed package saved on your phone.", StatusTone.Stale)
         "permission" in message -> StatusUi("Nearby devices permission is needed", "Allow Nearby devices in Android settings, then reconnect.", StatusTone.Error)
         "bluetooth" in message && ("off" in message || "disabled" in message) ->
             StatusUi("Bluetooth is turned off", "Turn on Bluetooth, then find your gauge.", StatusTone.Offline)

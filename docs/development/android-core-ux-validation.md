@@ -1,5 +1,25 @@
 # Android companion redesign validation
 
+## Customize workspace review, 2026-09-28
+
+The [review and before/after images](../design/redesign/customize-review.md) cover the replacement of the nested page editor with one preview-led workspace, focused pickers, compact page management and a locally saved alert form.
+
+| Check | Result and boundary |
+| --- | --- |
+| Required Android build, unit tests, Android-test compilation and lint | Passed; 42 app unit tests, including seven form/range/legacy-profile checks |
+| `tools/validate.py` | Passed: schema examples, rejection cases, signed vector, document links and design-token parity |
+| USB Pixel 10 Pro, Android instrumented suite | 16 passed; two opt-in bench tests skipped. Includes ten stateful Customize examples, two read-only activity journeys, three accessibility checks and the image comparison |
+| Shared screenshots | All 72 baselines matched after visual review: 16 component/theme examples and 56 screen/theme/width examples. Compact 390 dp and expanded 1000 dp, light and dark |
+| Physical Pixel font scale 2.0 | All 12 Customize and activity journeys passed, including a separate run of the unavailable-reading recovery case. Fields scroll into reach; the fixed action stays above the keyboard. Original font scale restored |
+| TalkBack | Service bound and touch exploration enabled; focus outlines observed on Back and the sheet handle, and the reading picker operated. Original accessibility services restored. Spoken output and touch-exploration accuracy were not independently qualified |
+| Real gauge/vehicle | No gauge configuration write, firmware update, live OBD request or DTC clear was run for this review. No new gauge-side behavior is claimed |
+
+Physical phone captures are under `docs/design/redesign/customize-review/physical/`. `pixel` and `font200` editing images use visibly labelled in-memory examples; the activity captures show the installed app with Preview values and automatic connection disabled. The TalkBack check briefly selected Vehicle speed on the first page and restored its original Engine speed reading; no Send action was used. The pre-existing bottom-navigation Settings label wraps at 200% text, outside the Customize content; its destination remains reachable.
+
+The screenshot suite never overwrites baselines during comparison. `PrimaryJourneyTest` now asserts that viewing Customize leaves the complete saved configuration unchanged. All editing mutations use `CustomizeJourneyTest`'s in-memory state, preventing the previous test from deleting a saved user page. The physical bench journey was adapted to the new controls but intentionally not run.
+
+Older evidence below predates this scoped review and retains its original verification boundaries.
+
 Date: 2026-09-27. Review stack: design foundation, presentation core, feature journeys, verification, automatic connection. The [prior A01+ review](android-core-ux-review-plan.md) remains a historical trust checklist; its original navigation/visual guidance is superseded by the [new design system](../design/design-system.md).
 
 ## Software checks
@@ -65,3 +85,13 @@ These are physical phone observations and authenticated responses from the power
 No live OBD telemetry, actual fault-code clearing, firmware flashing, LVGL changes, public capability enablement, real power-loss injection or deliberate broken-signature installation was performed. Adapter setup, custom-definition execution, second-adapter connection, brightness control and production updates show honest unavailable states. Existing expert tools remain reachable.
 
 The first-time setup under two minutes acceptance target cannot be established with the current missing adapter path. A fresh-owner participant run, real vehicle qualification, physical foldables, gesture Back, full RTL, update interruption/rollback, performance and full spoken-audio accessibility qualification remain separate work. This redesign does not claim those paths are implemented or verified.
+
+## Later navigation change
+
+The generic Details control was removed from Gauge, Setup, Customize, Car, Settings, Updates, Expert, and the global error card. Expert > Device data now contains the allowlisted technical report; Expert diagnostics retains the saved-settings adoption action. The activity sheet shows only human status and stage progress. Earlier screenshots and accessibility observations above record the previous build and are not evidence of this revised navigation.
+
+For this revision, the paired Pixel 10 Pro ran five scoped screenshot and accessibility tests. All 76 light/dark, compact/expanded fixture goldens matched, including four new Expert > Device data images; the changed compact screens were visually reviewed. The default-screen test found no Details control or example digest in the everyday fixtures, and found the digest in Expert. A separate live-app, read-only navigation pass observed the Home screen without Details and opened Expert > Device data with the real gauge identifier and an authenticated status displayed. That pass did not send settings, install firmware, query a vehicle, or test the physical gauge display. The Pixel's wake settings were restored afterward.
+
+## Completed activity banner
+
+A later presentation change keeps the banner visible during a transfer and for outcomes requiring a check. Only a proven successful send or update shows Dismiss and clears automatically after six seconds. Home then returns to its ordinary status card. The Pixel ran three simulated Compose tests for delayed success dismissal, immediate dismissal, and an unknown outcome that remains visible. The unit copy test also rejects dismissal for unconfirmed, in-progress, rolled-back, and unknown states. This change was not timed after a physical send or update; no new gauge operation was performed.

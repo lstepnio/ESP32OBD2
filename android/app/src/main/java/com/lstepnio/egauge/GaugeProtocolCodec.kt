@@ -39,6 +39,9 @@ object GaugeProtocolCodec {
             savedStateRead = json.optBoolean("savedStateRead", false),
             quickSelect = json.optBoolean("quickSelect", false),
             displayRotationWrite = json.optBoolean("displayRotationWrite", false),
+            displaySettingsVersion = json.optInt("ds", 0).also {
+                require(it in 0..3) { "Unsupported display settings version" }
+            },
             ota = ota,
             wifiBulk = json.optString("wifiBulk").takeIf { it.isNotBlank() },
             hardwareCapacityVersion = hardwareCapacity.takeIf { it > 0 },
@@ -50,6 +53,24 @@ object GaugeProtocolCodec {
                 else -> emptySet()
             },
         )
+    }
+
+    fun displaySettings(bytes: ByteArray): GaugeConfigTransferClient.DisplaySettings {
+        val version = if (bytes.isNotEmpty()) bytes[0].toInt() and 255 else -1
+        require(((bytes.size == 8 && version in 10..11) || (bytes.size == 10 && version == 12)) &&
+            (version >= 11 || bytes[3].toInt() == 0)) {
+            "Gauge returned unsupported display settings"
+        }
+        val rotation = bytes[1].toInt() and 255
+        val brightness = bytes[2].toInt() and 255
+        val units = bytes[3].toInt() and 255
+        require(rotation in 0..3 && brightness in 5..100 && units in 0..1) {
+            "Gauge returned invalid display settings"
+        }
+        val cycleSeconds = if (version == 12) (bytes[8].toInt() and 255) or ((bytes[9].toInt() and 255) shl 8) else 0
+        require(cycleSeconds in setOf(0, 5, 10, 15, 30, 60)) { "Gauge returned invalid page cycle interval" }
+        return GaugeConfigTransferClient.DisplaySettings(rotation, brightness, u32(bytes, 4),
+            MeasurementSystem.entries[units], when (version) { 12 -> 3; 11 -> 2; else -> 1 }, cycleSeconds)
     }
 
     fun diagnostics(bytes: ByteArray): GaugeConfigTransferClient.Diagnostics {

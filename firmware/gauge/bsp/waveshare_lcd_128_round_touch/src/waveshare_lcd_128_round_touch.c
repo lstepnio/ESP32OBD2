@@ -55,6 +55,8 @@
 #define BSP_TOUCH_INT GPIO_NUM_5
 #define BSP_TOUCH_I2C_NUM I2C_NUM_1
 #define BSP_TOUCH_I2C_CLK_HZ (400000)
+#define CST816S_IRQ_CONTROL 0xFA
+#define CST816S_DISABLE_AUTO_SLEEP 0xFE
 
 // ------------------------------------------------------------------------------------------------------------------ //
 // LCD Configuration
@@ -87,6 +89,35 @@ static lv_display_t             *disp_handle         = NULL;
 // ------------------------------------------------------------------------------------------------------------------ //
 // Function Definitions
 // ------------------------------------------------------------------------------------------------------------------ //
+
+static void bsp_touch_configure_input(esp_lcd_panel_io_handle_t io)
+{
+    /* LVGL consumes finger state, not the controller's completed gestures.
+     * Configure immediately after reset while the controller is awake.
+     * Register definitions: Waveshare CST816S_register_declaration.pdf.
+     * Keep the powered gauge responsive after idle; this trades the touch
+     * controller's standby saving for dynamic scanning (typically 1.6 mA).
+     * Optional tuning must never prevent the display/BLE from starting. */
+    const struct { uint8_t reg; uint8_t value; } settings[] = {
+        {CST816S_DISABLE_AUTO_SLEEP, 0x01},
+        {CST816S_IRQ_CONTROL, 0x60}, /* Touch and state change, no gesture wait. */
+    };
+    for (size_t i = 0; i < sizeof(settings) / sizeof(settings[0]); ++i) {
+        uint8_t before = 0, after = 0;
+        esp_err_t err = esp_lcd_panel_io_rx_param(io, settings[i].reg, &before, 1);
+        if (err == ESP_OK)
+            err = esp_lcd_panel_io_tx_param(io, settings[i].reg, &settings[i].value, 1);
+        if (err == ESP_OK)
+            err = esp_lcd_panel_io_rx_param(io, settings[i].reg, &after, 1);
+        if (err == ESP_OK && after == settings[i].value) {
+            ESP_LOGI(TAG, "Touch input register 0x%02x: 0x%02x -> 0x%02x",
+                     settings[i].reg, before, after);
+        } else {
+            ESP_LOGW(TAG, "Touch input tuning unconfirmed at 0x%02x (%s, value=0x%02x)",
+                     settings[i].reg, esp_err_to_name(err), after);
+        }
+    }
+}
 
 esp_err_t bsp_touch_init(void)
 {
@@ -137,6 +168,7 @@ esp_err_t bsp_touch_init(void)
     esp_lcd_touch_handle_t touch_handle = NULL;
     ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_lcd_cfg, &touch_handle));
     BSP_NULL_CHECK(touch_handle, ESP_ERR_NO_MEM);
+    bsp_touch_configure_input(tp_io_handle);
 
     ESP_LOGI(TAG, "Creating LVGL touch panel");
     BSP_NULL_CHECK(disp_handle, ESP_ERR_INVALID_ARG);

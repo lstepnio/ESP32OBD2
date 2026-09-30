@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
             }
             CompanionApp(model, ::requestGauge, ::requestInstallUpdate,
                 { updatePicker.launch(arrayOf("application/zip", "application/octet-stream")) },
-                ::requestSelection, { startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }, fold)
+                { startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }, fold)
         }
     }
 
@@ -114,14 +114,6 @@ class MainActivity : ComponentActivity() {
                 startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName")))
             else permissionLauncher.launch(gaugePermissions)
         }
-    }
-
-    private fun requestSelection() {
-        if (Build.VERSION.SDK_INT >= 31 &&
-            (checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED)) {
-            model.selectionError("Grant nearby device permission, then try again")
-        } else model.selectReadingOnGauge()
     }
 
     private fun requestInstallUpdate() {

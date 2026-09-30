@@ -92,7 +92,6 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         cJSON_GetArraySize(pages) > EGAUGE_RUNTIME_PAGES ||
         cJSON_GetArraySize(alerts) > EGAUGE_RUNTIME_ALERTS) goto done;
     if (strcmp(field(root, "units")->valuestring, "metric") != 0 ||
-        field(root, "brightness")->valueint != 80 ||
         cJSON_IsTrue(field(root, "reducedMotion"))) goto done;
     const char *source_id = field(cJSON_GetArrayItem(sources, 0), "id")->valuestring;
     out->rotation = rotation->valueint / 90;

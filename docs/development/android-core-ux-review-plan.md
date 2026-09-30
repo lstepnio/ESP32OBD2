@@ -131,7 +131,7 @@ Critical alerts, stale data, rejected changes, rollback, incomplete diagnostic r
 
 ### A11. App regression coverage is too narrow for its current responsibility
 
-**P1 coverage gap, confirmed.** [PidLabTest.kt](../../android/app/src/test/java/com/lstepnio/egauge/PidLabTest.kt) has two decoder tests. No app tests cover ownership, transfers, runtime confirmation, profile migration, comparison, update validation, ViewModel state, or Compose journeys.
+**Historical P1 coverage gap.** The offline PID lab and its decoder tests were removed with the Expert cleanup. Current app tests cover profile migration and selected protocol codecs; ownership, transfers, runtime confirmation, update recovery, and Compose journeys still need broader failure-oriented coverage.
 
 **Change:** add failure-oriented tests with each relevant package below. Use pure codec/state-machine tests, a fake gauge transport and clock, repository migration tests, Compose semantics/journey tests, and targeted physical tests. Shared vectors must exercise the actual Android and C parsers separately, not only a Python contract approximation.
 

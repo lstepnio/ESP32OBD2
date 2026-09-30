@@ -80,7 +80,6 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
         fact("Declared subsystems", hardwareLabels(h.declaredFeatures))
         fact("Hardware raw snapshot", h)
     }
-    fact("Wi-Fi security self-check", wifiSecurityMessage)
     fact("Hosted update response", hostedUpdateMessage)
     hostedUpdate?.let { fact("Release metadata", it.release) }
     if (updateReady) updateBundle().let { bundle ->
@@ -92,8 +91,6 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
     }
     fact("Update response", updatePackageMessage)
     fact("Update recovery", updateRecoveryResult)
-    fact("Example decoder input", labInput)
-    fact("Custom request", "$customSource · $customRequestInput")
 }
 private fun ByteArray.hex() = joinToString("") { "%02x".format(it) }
 private fun resetLabel(reason: Int): String {

@@ -139,7 +139,7 @@ for p in mds:
         target = unquote(dest.split('#')[0])
         check((p.parent / target).exists(), f'Broken link in {p.relative_to(ROOT)}: {dest}')
 
-# Android and prototype tokens are generated; legacy gauge colors stay unchanged.
+# Android and prototype tokens are generated from the shared palette.
 import subprocess
 subprocess.run([sys.executable, str(ROOT / 'tools/generate_design_tokens.py'), '--check'], check=True)
 tokens = json.loads((ROOT / 'design/tokens.json').read_text())

@@ -27,6 +27,7 @@ enum class GaugeIcon(val path: String) {
     Shield("M12 2l8 4v7c0 5-8 9-8 9s-8-4-8-9V6l8-4M8 12l3 3 5-6"),
     Tools("M4 20l8-8M14 3a6 6 0 0 0-4 8l3 3a6 6 0 0 0 8-4l-4 2-5-5 2-4"),
     Refresh("M20 8a8 8 0 1 0 0 9M20 3v5h-5"),
+    Download("M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4"),
     Copy("M9 8h12v14H9zM5 17H2V2h13v3"),
     Add("M12 5v14M5 12h14"),
     Remove("M5 12h14"),

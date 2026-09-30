@@ -66,7 +66,7 @@ function content(id) {
     case "pair":
       return `${head("Pair your gauge", true)}<div class="flow-main"><div class="intro-icon">${icon("shield")}</div><h2 class="lead">Check your display</h2><p class="body-copy">Open pairing on your gauge. Enter the code shown on its screen when Android asks.</p><div class="code">482 196</div><div class="example-note">Example code · Android handles real pairing</div>${status("Only your phone can make changes", "Keep the code private.")}${button("Continue example", "gauge")}${button("Find a different gauge", "setup", "secondary")}</div>`;
     case "gauge":
-      return `${head("Your gauge", false, "Gauge ready")}<div class="split"><div class="hero">${gauge(preview)}<div class="pages">${["Engine", "Coolant", "Speed"].map((n, i) => `<button data-page="${i}" class="page ${i === page ? "selected" : ""}">${n}</button>`).join("")}</div></div><div>${status("Changes ready to send", "3 pages · Coolant warnings included")}${button("Send to gauge", "send")}${button("Customize", "readings", "secondary")}<div class="card"><div class="row"><span>My car<small>Adapter not connected</small></span>${icon("car")}</div></div>${button("Details", "details", "secondary")}</div></div>`;
+      return `${head("Your gauge", false, "Gauge ready")}<div class="split"><div class="hero">${gauge(preview)}<div class="pages">${["Engine", "Coolant", "Speed"].map((n, i) => `<button data-page="${i}" class="page ${i === page ? "selected" : ""}">${n}</button>`).join("")}</div></div><div>${status("Changes ready to send", "3 pages · Coolant warnings included")}${button("Send to gauge", "send")}${button("Customize", "readings", "secondary")}<div class="card"><div class="row"><span>My car<small>Adapter not connected</small></span>${icon("car")}</div></div></div></div>`;
     case "readings":
       return `${flow(1, "Choose readings")}<div class="split"><div><input class="search" type="search" placeholder="Search readings" aria-label="Search readings">${[
         ["Engine speed", "rpm"],
@@ -81,11 +81,11 @@ function content(id) {
         )
         .join(
           "",
-        )}</div><div>${gauge("normal", true)}<p class="example-note">Preview · Car compatibility has not been checked</p>${button("Choose layouts", "layout")}${button("Details", "details", "secondary")}</div></div>`;
+        )}</div><div>${gauge("normal", true)}<p class="example-note">Preview · Car compatibility has not been checked</p>${button("Choose layouts", "layout")}</div></div>`;
     case "limits":
-      return `${flow(3, "Set your limits")}<div class="split"><div><p class="section-title">Coolant temperature</p><div class="limit"><div class="limit-header"><label for="warn">Warn above</label><strong id="warn-value">105 °C</strong></div><input id="warn" type="range" min="80" max="114" value="105"></div><div class="limit critical"><div class="limit-header"><label for="crit">Critical above</label><strong id="crit-value">115 °C</strong></div><input id="crit" type="range" min="106" max="130" value="115"></div>${button("Alert details", "limit-details", "secondary")}</div><div>${gauge(preview, true)}<div class="pages">${["normal", "warning", "critical", "stale"].map((v) => `<button class="page ${preview === v ? "selected" : ""}" data-preview="${v}">${v[0].toUpperCase() + v.slice(1)}</button>`).join("")}</div>${button("Review pages", "review")}</div></div>`;
+      return `${flow(3, "Set your limits")}<div class="split"><div><p class="section-title">Coolant temperature</p><div class="limit"><div class="limit-header"><label for="warn">Warn above</label><strong id="warn-value">105 °C</strong></div><input id="warn" type="range" min="80" max="114" value="105"></div><div class="limit critical"><div class="limit-header"><label for="crit">Critical above</label><strong id="crit-value">115 °C</strong></div><input id="crit" type="range" min="106" max="130" value="115"></div></div><div>${gauge(preview, true)}<div class="pages">${["normal", "warning", "critical", "stale"].map((v) => `<button class="page ${preview === v ? "selected" : ""}" data-preview="${v}">${v[0].toUpperCase() + v.slice(1)}</button>`).join("")}</div>${button("Review pages", "review")}</div></div>`;
     case "car":
-      return `${head("My car")}<div class="split"><div><div class="car-drawing"><svg viewBox="0 0 240 95"><path d="M23 61l8-19 36-8 26-19h60l30 22 34 10 5 16-8 7h-15M53 70h119M80 35l19-15h51l22 17-92-2z"/><circle cx="41" cy="68" r="15"/><circle cx="188" cy="68" r="15"/><circle cx="41" cy="68" r="7"/><circle cx="188" cy="68" r="7"/></svg></div>${status("Check-engine light is on", "Example · Last checked just now", "warning")}<div class="card"><div class="row"><span><strong>P0301</strong><small>Engine misfire in cylinder 1</small></span>${icon("warning")}</div><p class="muted">A code points to a problem area. It does not identify the part to replace.</p></div></div><div><div class="card"><div class="row"><span>Vehicle adapter<small>Example · Connected</small></span>${icon("bluetooth")}</div><div class="row"><span>1 fault code<small>Example · Confirmed</small></span>${icon("info")}</div></div>${button("Check again", "example-check")}${button("Clear codes", "clear", "secondary")}${button("Details", "car-details", "secondary")}</div></div>`;
+      return `${head("My car")}<div class="split"><div><div class="car-drawing"><svg viewBox="0 0 240 95"><path d="M23 61l8-19 36-8 26-19h60l30 22 34 10 5 16-8 7h-15M53 70h119M80 35l19-15h51l22 17-92-2z"/><circle cx="41" cy="68" r="15"/><circle cx="188" cy="68" r="15"/><circle cx="41" cy="68" r="7"/><circle cx="188" cy="68" r="7"/></svg></div>${status("Check-engine light is on", "Example · Last checked just now", "warning")}<div class="card"><div class="row"><span><strong>P0301</strong><small>Engine misfire in cylinder 1</small></span>${icon("warning")}</div><p class="muted">A code points to a problem area. It does not identify the part to replace.</p></div></div><div><div class="card"><div class="row"><span>Vehicle adapter<small>Example · Connected</small></span>${icon("bluetooth")}</div><div class="row"><span>1 fault code<small>Example · Confirmed</small></span>${icon("info")}</div></div>${button("Check again", "example-check")}${button("Clear codes", "clear", "secondary")}</div></div>`;
     case "update":
       return `${head("Updating gauge", true)}<div class="split"><div><div class="intro-icon">${icon("gauge")}</div><div class="update-number">64<span>%</span></div><p class="body-copy">Sending to gauge</p><div class="linear"><i style="width:64%"></i></div><p class="example-note">Example progress · No device connected</p></div><div><div class="card">${[
         ["done", "✓", "Downloading"],
@@ -96,13 +96,13 @@ function content(id) {
         .map(([c, n, l]) => `<div class="stage ${c}"><b>${n}</b>${l}</div>`)
         .join(
           "",
-        )}</div><p class="body-copy">Keep your gauge powered and the app open. We will check it after it restarts.</p>${button("View your gauge", "gauge")}${button("Details", "update-details", "secondary")}</div></div>`;
+        )}</div><p class="body-copy">Keep your gauge powered and the app open. We will check it after it restarts.</p>${button("View your gauge", "gauge")}</div></div>`;
     case "recovery":
-      return `${head("Check your gauge", true)}<div class="flow-main"><div class="intro-icon">${icon("refresh")}</div><h2 class="lead">Let’s check what made it across</h2>${status("Your changes are unconfirmed", "The connection ended before your gauge confirmed the new settings.", "warning")}<p class="body-copy">Your choices are still on this phone. Keep your gauge powered and nearby.</p>${button("Check gauge", "recovery-check")}${button("Details", "details", "secondary")}</div>`;
+      return `${head("Check your gauge", true)}<div class="flow-main"><div class="intro-icon">${icon("refresh")}</div><h2 class="lead">Let’s check what made it across</h2>${status("Your changes are unconfirmed", "The connection ended before your gauge confirmed the new settings.", "warning")}<p class="body-copy">Your choices are still on this phone. Keep your gauge powered and nearby.</p>${button("Check gauge", "recovery-check")}</div>`;
     case "settings":
-      return `${head("Settings")}<div class="split"><div><div class="card"><div class="row"><span>Gauge name<small>eGauge · This phone only</small></span>${icon("arrow")}</div><div class="row"><span>Brightness<small>Adjust on the gauge</small></span>${icon("gauge")}</div><div class="row"><span>Rotation<small>0°</small></span>${icon("arrow")}</div></div>${button("Check for updates", "stable-update")}</div><div><div class="card"><div class="row"><span>Use phone colours</span><button class="switch" data-action="dynamic" aria-label="Use phone colours"><i></i></button></div><div class="row"><span>Show advanced tools</span><button class="switch ${advanced ? "on" : ""}" data-action="advanced" aria-label="Show advanced tools" aria-pressed="${advanced}"><i></i></button></div><div class="row"><span>About eGauge<small>No account. No analytics.</small></span>${icon("info")}</div></div>${button("Details", "details", "secondary")}</div></div>`;
+      return `${head("Settings")}<div class="split"><div><div class="card"><div class="row"><span>Gauge name<small>eGauge · This phone only</small></span>${icon("arrow")}</div><div class="row"><span>Brightness<small>Adjust on the gauge</small></span>${icon("gauge")}</div><div class="row"><span>Rotation<small>0°</small></span>${icon("arrow")}</div></div>${button("Check for updates", "stable-update")}</div><div><div class="card"><div class="row"><span>Use phone colours</span><button class="switch" data-action="dynamic" aria-label="Use phone colours"><i></i></button></div><div class="row"><span>Show advanced tools</span><button class="switch ${advanced ? "on" : ""}" data-action="advanced" aria-label="Show advanced tools" aria-pressed="${advanced}"><i></i></button></div><div class="row"><span>About eGauge<small>No account. No analytics.</small></span>${icon("info")}</div></div></div></div>`;
     case "expert":
-      return `${head("Expert")}<p class="body-copy">Tools for exploring and testing.</p>${["PID explorer", "Custom PIDs and decoder lab", "Second adapter", "Diagnostics", "Wi-Fi security self-check", "Development updates"].map((n) => `<button class="row-button" data-expert="${n}"><span>${n}</span><span class="check">${icon("arrow")}</span></button>`).join("")}${button("Open PID explorer", "expert-info")}`;
+      return `${head("Expert")}<p class="body-copy">Tools for exploring and testing.</p>${["PID explorer", "Custom PIDs and decoder lab", "Second adapter", "Diagnostics", "Device data", "Wi-Fi security self-check", "Development updates"].map((n) => `<button class="row-button" data-expert="${n}"><span>${n}</span><span class="check">${icon("arrow")}</span></button>`).join("")}${button("Open PID explorer", "expert-info")}`;
     default:
       return content("gauge");
   }
@@ -183,7 +183,9 @@ document.addEventListener("click", (e) => {
   if (el.dataset.expert) {
     modal(
       el.dataset.expert,
-      "<p>Example tool destination. The native app retains the existing read-only tools and signed development updates here.</p>",
+      el.dataset.expert === "Device data"
+        ? "<p>Example technical report. Gauge identifier, revision, digest, protocol, and update facts live here in Expert in the native app.</p>"
+        : "<p>Example tool destination. The native app retains the existing read-only tools and signed development updates here.</p>",
     );
     return;
   }
@@ -224,30 +226,6 @@ document.addEventListener("click", (e) => {
         "Clear fault codes?",
         '<p>Clearing codes erases diagnostic information and may reset emissions checks. It does not fix the cause. Permanent codes may remain.</p><p class="muted">Example only. Native code clearing is unavailable.</p>',
         "Close example",
-      );
-      break;
-    case "details":
-      modal(
-        "Details",
-        "<p>Example data · These identifiers are not from your gauge.</p><pre>Stored revision: 12\nRunning revision: 12\nTrial: clear\nBoard: Waveshare ESP32-S3\nSHA-256: example only\nSaved settings comparison: 3 pages</pre>",
-      );
-      break;
-    case "limit-details":
-      modal(
-        "Alert behaviour",
-        '<p>Warn when coolant stays above 105 °C for 1 second. Clear after it stays 3 °C below the limit for 2 seconds.</p><p class="muted">Only coolant limits are supported by the current sender.</p>',
-      );
-      break;
-    case "car-details":
-      modal(
-        "Fault details",
-        "<p>Example · P0301 · Confirmed<br>Source: ECM<br>Other categories: not checked</p>",
-      );
-      break;
-    case "update-details":
-      modal(
-        "Update details",
-        "<p>Example · Signed package<br>Board, partition, signature identity and full digest are available in the native Details sheet.</p>",
       );
       break;
     case "stable-update":

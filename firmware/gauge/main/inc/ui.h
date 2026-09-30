@@ -17,6 +17,9 @@
 // ---------------------------------------------------------------------------------------------------------------------
 
 #define DISPLAY_VALUE_INVALID INT32_MAX
+#define UI_PAIRING_HIDDEN 0U
+#define UI_PAIRING_READY UINT32_MAX
+#define UI_PAIRING_WAITING (UINT32_MAX - 1U)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Types
@@ -54,13 +57,17 @@ typedef void (*ui_touch_callback_t)(ui_t *ui, lv_event_code_t event_code);
 // Public Function Declarations
 // ---------------------------------------------------------------------------------------------------------------------
 
-ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t touch_cb);
+ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t touch_cb,
+              bool pairing_required, bool imperial_units);
 /* Thread-safe presentation mailbox. Samples are accepted only when their PID
  * still matches the selected page, preventing late replies from crossing a
  * page change. Passing NULL publishes an unavailable sample for that PID. */
 void  ui_set_value(ui_t *ui, uint8_t pid, int32_t const *value);
 void  ui_set_page(ui_t *ui, ui_page_t const *page);
-/* Thread-safe: displays a temporary six-digit pairing code. Zero clears it. */
+/* Call on the LVGL task or while holding its lock. */
+void  ui_set_units(ui_t *ui, bool imperial_units);
+/* Thread-safe: displays only pairing content. Accepts a six-digit passkey or
+ * UI_PAIRING_READY / UI_PAIRING_WAITING. UI_PAIRING_HIDDEN restores gauges. */
 void  ui_show_pairing_code(ui_t *ui, uint32_t passkey);
 void  ui_set_alert(ui_t *ui, uint8_t severity, bool unavailable, const char *label);
 void  ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on,

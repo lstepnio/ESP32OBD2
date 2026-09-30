@@ -14,7 +14,7 @@ import com.lstepnio.egauge.ui.state.SetupUiState
 
 @Composable
 fun SetupScreen(state: SetupUiState, onFind: () -> Unit, onPair: () -> Unit,
-    onChoose: (String) -> Unit, onCustomize: () -> Unit, onBack: () -> Unit, onDetails: () -> Unit) {
+    onChoose: (String) -> Unit, onCustomize: () -> Unit, onBack: () -> Unit) {
     val step = when { state.owner == OwnerAccess.AUTHENTICATED -> 2; state.found -> 1; else -> 0 }
     var candidate by rememberSaveable { mutableStateOf<String?>(null) }
     ScreenContent(scrollKey = step) {
@@ -54,6 +54,5 @@ fun SetupScreen(state: SetupUiState, onFind: () -> Unit, onPair: () -> Unit,
                 PrimaryAction("Choose readings", onCustomize)
             }
         }
-        TextButton(onDetails, Modifier.fillMaxWidth()) { Text("Details") }
     }
 }

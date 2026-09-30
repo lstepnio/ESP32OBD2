@@ -2,6 +2,7 @@ package com.lstepnio.egauge.ui.state
 
 import androidx.compose.runtime.Immutable
 import com.lstepnio.egauge.GaugeLayout
+import com.lstepnio.egauge.MeasurementSystem
 import com.lstepnio.egauge.OwnerAccess
 import com.lstepnio.egauge.connection.ConnectionState
 import com.lstepnio.egauge.core.designsystem.*
@@ -16,17 +17,23 @@ data class ReadingUi(val id: String, val name: String, val unit: String, val det
 @Immutable
 data class AlertUi(val id: String, val readingId: String, val readingName: String, val unit: String,
                    val direction: String, val warning: Int, val critical: Int, val resetMargin: Int,
-                   val triggerSeconds: Float, val clearSeconds: Float, val range: IntRange)
+                   val triggerSeconds: Float, val clearSeconds: Float, val range: IntRange,
+                   val priority: Int = 8, val canonicalWarning: Int = warning,
+                   val canonicalCritical: Int = critical, val canonicalResetMargin: Int = resetMargin)
+@Immutable
+enum class UpdateNotice { None, Ready, NeedsCheck }
 @Immutable
 data class HomeUiState(val gaugeName: String, val connection: String, val connectionVerified: Boolean,
     val status: StatusUi, val pages: List<PageUi>, val pendingChanges: Boolean,
-    val primaryLabel: String, val primaryAction: HomeAction, val busy: Boolean, val details: List<DetailUi>)
+    val primaryLabel: String, val primaryAction: HomeAction, val busy: Boolean, val details: List<DetailUi>,
+    val updateNotice: UpdateNotice = UpdateNotice.None)
 enum class HomeAction { SetUp, Check, Review, Customize }
 @Immutable
 data class CustomizeUiState(val pages: List<PageUi>, val editingPage: Int, val readings: List<ReadingUi>,
     val alerts: List<AlertUi>, val blockers: List<String>, val canSend: Boolean,
     val needsCheck: Boolean, val found: Boolean, val busy: Boolean, val editingEnabled: Boolean,
-    val advanced: Boolean, val supportedLayouts: Set<GaugeLayout>, val details: List<DetailUi>)
+    val advanced: Boolean, val supportedLayouts: Set<GaugeLayout>, val details: List<DetailUi>,
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric)
 @Immutable
 data class VehicleUi(val id: String, val name: String)
 @Immutable
@@ -38,22 +45,21 @@ data class CarUiState(val name: String, val profiles: List<VehicleUi>, val activ
 @Immutable
 data class SettingsUiState(val name: String, val found: Boolean, val rotation: Int?, val canRotate: Boolean,
     val busy: Boolean, val advanced: Boolean, val dynamicColor: Boolean, val version: String,
-    val details: List<DetailUi>)
+    val details: List<DetailUi>, val displaySettingsVersion: Int = 0, val brightness: Int? = null,
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val cycleSeconds: Int? = null)
 @Immutable
 data class CandidateUi(val id: String, val name: String, val details: List<DetailUi>)
 @Immutable
 data class SetupUiState(val found: Boolean, val owner: OwnerAccess, val busy: Boolean,
     val candidates: List<CandidateUi>, val status: StatusUi, val details: List<DetailUi>)
 @Immutable
-data class ExpertUiState(val readings: List<ReadingUi>, val canRead: Boolean, val canReadHardware: Boolean,
-    val canCheckWifi: Boolean, val secondAdapter: Boolean, val details: List<DetailUi>,
-    val query: String, val sourceFilter: String, val selectedReadingId: String, val labInput: String,
-    val decoded: StatusUi, val customInput: String, val customSource: String, val customResult: StatusUi,
-    val wifiStatus: String, val busy: Boolean)
+data class ExpertUiState(val canRead: Boolean, val canReadHardware: Boolean,
+    val canAdoptGaugeSettings: Boolean, val details: List<DetailUi>)
 @Immutable
 data class UpdatesUiState(val status: StatusUi, val availableVersion: String?, val installedVersion: String,
     val canCheck: Boolean, val canInstall: Boolean, val ready: Boolean, val busy: Boolean,
-    val recoveryRequired: Boolean, val details: List<DetailUi>)
+    val recoveryRequired: Boolean, val details: List<DetailUi>, val held: Boolean = false,
+    val feedUnavailable: Boolean = false)
 @Immutable
 data class CompanionUiState(val home: HomeUiState, val customize: CustomizeUiState, val car: CarUiState,
     val settings: SettingsUiState, val expert: ExpertUiState, val setup: SetupUiState,

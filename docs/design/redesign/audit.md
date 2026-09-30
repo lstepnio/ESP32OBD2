@@ -27,7 +27,6 @@ The new Android design supersedes previous Android visual and navigation guidanc
 | Custom Mode 01/09/22 read request and prefix | Validate a definition | Expert / Custom PIDs | Keep read-only syntax checks; no fabricated support | Read request bytes, ECU, local draft |
 | Connection, board, protocol, link slots, simultaneous flag | Inspect device capability | Settings / Details | Move, copy all values | Protocol identity, experimental control inventory |
 | Hardware memory, processor, reset, Wi-Fi, subsystem flags | Troubleshoot hardware | Expert / Diagnostics; Settings Details | Keep every field | Internal RAM watermarks and subsystem inventory |
-| Wi-Fi security self-check | Check transport protection | Expert / Security | Keep existing authenticated implementation | Session/key/replay terminology |
 | Saved reading and display rotation | Set up the display | Settings / Gauge, default | Keep confirmed rotation; built-in selection in Details | Saved revision |
 | Stored/running setup and document readback | Verify configuration | Details, plus default recovery card | Keep separate facts and selectable JSON | Hash, revision, definition counts |
 | Check-engine, code categories/counts/first code | Check the car | Car, default + Details | Move; explain known standard codes and incomplete results | MIL, DTC, source freshness internals |

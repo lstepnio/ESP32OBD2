@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdatomic.h>
+#include "sdkconfig.h"
+#include "esp_timer.h"
 
 #include "esp_log.h"
 #include "esp_log_color.h"
@@ -38,6 +40,7 @@
 #include "widgets/line/lv_line.h"
 
 #include "obd.h"
+#include "display_units.h"
 #include "ui.h"
 #include "util.h"
 
@@ -80,9 +83,29 @@ struct _ui_t
 {
     ui_touch_callback_t touch_cb;
     bool                long_press_handled;
+    bool                press_active;
+    bool                pairing_visible;
     bool                calibration_mode;
+    bool                imperial_units;
     uint8_t             calibration_page;
     TickType_t          pressed_at;
+    ui_alert_t          rendered_alert;
+    ui_diagnostics_t    rendered_diagnostics;
+    bool                alert_rendered;
+    bool                diagnostics_rendered;
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+    struct {
+        int64_t click_at_us;
+        int64_t reported_at_us;
+        uint32_t count;
+        uint32_t maximum_us;
+        uint64_t total_us;
+        uint32_t presses;
+        uint32_t releases;
+        uint32_t clicks;
+        uint32_t holds;
+    } timing;
+#endif
 
     struct
     {
@@ -94,6 +117,7 @@ struct _ui_t
     } rtos;
     struct
     {
+        lv_obj_t *gauge_content;
         lv_obj_t *value_lbl;
         lv_obj_t *info_lbl;
         lv_obj_t *unit_lbl;
@@ -137,10 +161,15 @@ static const lv_font_t *const font_unit     = &notosans_medium_24;
 static const uint32_t color_background = 0x05080A;
 static const uint32_t color_text_primary = 0xE4EAED;
 static const uint32_t color_text_secondary = 0x9CAAB2;
-static const uint32_t color_track = 0x202A30;
-static const uint32_t color_accent = 0x26B895;
-static const uint32_t color_warning = 0xE0A63A;
-static const uint32_t color_critical = 0xE75A5A;
+static const uint32_t color_track = 0x1B2A30;
+static const uint32_t color_accent = 0x00FF70;
+static const uint32_t color_warning = 0xFF8A00;
+static const uint32_t color_critical = 0xFF1744;
+
+// The arc is decorative: its 109 px outer radius stays inside the physically
+// checked 112 px band while essential text remains within the 104 px limit.
+#define GAUGE_ARC_DIAMETER 218
+#define GAUGE_ARC_WIDTH 11
 
 #define CALIBRATION_PAGE_COUNT 5
 #define PRIMARY_LABEL_WIDTH 160
@@ -167,6 +196,21 @@ static void show(lv_obj_t *object, bool visible)
     if (!object) return;
     if (visible) lv_obj_remove_flag(object, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void show_pairing(ui_t *ui, uint32_t pairing_code)
+{
+    ui->pairing_visible = pairing_code != UI_PAIRING_HIDDEN;
+    if (ui->pairing_visible) {
+        if (pairing_code == UI_PAIRING_READY)
+            lv_label_set_text(ui->widgets.pairing_lbl, "PAIR\nREADY");
+        else if (pairing_code == UI_PAIRING_WAITING)
+            lv_label_set_text(ui->widgets.pairing_lbl, "HOLD TO\nPAIR");
+        else
+            lv_label_set_text_fmt(ui->widgets.pairing_lbl, "PAIR\n%06" PRIu32, pairing_code);
+    }
+    show(ui->widgets.gauge_content, !ui->pairing_visible);
+    show(ui->widgets.pairing_lbl, ui->pairing_visible);
 }
 
 static lv_obj_t *calibration_box(lv_obj_t *parent, int32_t x, int32_t y,
@@ -272,7 +316,7 @@ static void render_calibration_page(ui_t *ui)
     }
     default: {
         lv_obj_t *arc = lv_arc_create(screen);
-        lv_obj_set_size(arc, 198, 198);
+        lv_obj_set_size(arc, GAUGE_ARC_DIAMETER, GAUGE_ARC_DIAMETER);
         lv_obj_center(arc);
         lv_arc_set_bg_angles(arc, 135, 45);
         lv_arc_set_range(arc, 0, 8000);
@@ -280,8 +324,8 @@ static void render_calibration_page(ui_t *ui)
         lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
         lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(arc, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_set_style_arc_width(arc, 7, LV_PART_MAIN);
-        lv_obj_set_style_arc_width(arc, 7, LV_PART_INDICATOR);
+        lv_obj_set_style_arc_width(arc, GAUGE_ARC_WIDTH, LV_PART_MAIN);
+        lv_obj_set_style_arc_width(arc, GAUGE_ARC_WIDTH, LV_PART_INDICATOR);
         lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
         lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
         lv_obj_set_style_arc_color(arc, lv_color_hex(color_track), LV_PART_MAIN);
@@ -318,32 +362,56 @@ static void select_renderer_widgets(ui_t *ui)
 // Private Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
+static void dispatch_touch(ui_t *ui, lv_event_code_t code)
+{
+    /* Calibration replaces screen objects, so defer that callback until the
+     * current input event has finished. Normal navigation keeps its objects. */
+    if (ui->calibration_mode) {
+        xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+    } else if (ui->touch_cb && !(ui->pairing_visible && code == LV_EVENT_CLICKED)) {
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+        if (code == LV_EVENT_CLICKED && ui->timing.click_at_us == 0)
+            ui->timing.click_at_us = esp_timer_get_time();
+#endif
+        ui->touch_cb(ui, code);
+    }
+}
+
 static void ui_touch_callback(lv_event_t *e)
 {
     ESP_NULL_CHECK(e, TAG, "Event is NULL");
     ui_t *ui = (ui_t *)lv_event_get_user_data(e);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     lv_event_code_t code = lv_event_get_code(e);
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+    if (code == LV_EVENT_PRESSED) ui->timing.presses++;
+    if (code == LV_EVENT_RELEASED) ui->timing.releases++;
+    if (code == LV_EVENT_CLICKED) ui->timing.clicks++;
+    if (code == LV_EVENT_LONG_PRESSED) ui->timing.holds++;
+#endif
     switch (code)
     {
     case LV_EVENT_PRESSED:
+        ui->press_active = true;
         ui->long_press_handled = false;
         ui->pressed_at = xTaskGetTickCount();
         break;
     case LV_EVENT_LONG_PRESSED:
         ui->long_press_handled = true;
-        xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+        dispatch_touch(ui, code);
         break;
     case LV_EVENT_CLICKED:
         if (!ui->long_press_handled)
         {
-            xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+            dispatch_touch(ui, code);
         }
         break;
     case LV_EVENT_RELEASED:
-        if (xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
-            xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+        /* A release without our matching press must never clear the owner. */
+        if (ui->press_active && xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
+            dispatch_touch(ui, code);
         }
+        ui->press_active = false;
         break;
     default:
         // ignore event
@@ -411,18 +479,20 @@ static void render_page(ui_t *ui)
             const ui_metric_t *metric = &ui->display.page.metrics[i];
             if (!ui->display.rendered_once || available[i] != ui->display.rendered_available[i] ||
                 (available[i] && values[i] != ui->display.rendered_values[i])) {
-                if (available[i]) lv_label_set_text_fmt(ui->widgets.dual_value[i], "%" PRId32, values[i]);
+                if (available[i]) lv_label_set_text_fmt(ui->widgets.dual_value[i], "%" PRId32,
+                    display_units_value(values[i], metric->unit, ui->imperial_units));
                 else lv_label_set_text(ui->widgets.dual_value[i], "...");
                 lv_label_set_text_fmt(ui->widgets.dual_info[i], "%s  %s",
                                       metric->name ? metric->name : "VALUE",
-                                      metric->unit ? metric->unit : "");
+                                      display_units_label(metric->unit, ui->imperial_units));
             }
         }
     } else if (!ui->display.rendered_once || available[0] != ui->display.rendered_available[0] ||
                (available[0] && values[0] != ui->display.rendered_values[0])) {
-        ui_update_screen(ui, available[0] ? &values[0] : NULL,
+        int32_t shown = display_units_value(values[0], primary->unit, ui->imperial_units);
+        ui_update_screen(ui, available[0] ? &shown : NULL,
                          ui->display.page.name ? ui->display.page.name : primary->name,
-                         primary->unit);
+                         display_units_label(primary->unit, ui->imperial_units));
         if (available[0] && renderer == UI_RENDERER_ARC) lv_arc_set_value(ui->widgets.arc, values[0]);
         if (available[0] && renderer == UI_RENDERER_BAR) lv_bar_set_value(ui->widgets.bar, values[0], LV_ANIM_OFF);
     }
@@ -450,11 +520,44 @@ static void render_page(ui_t *ui)
     ui->display.rendered_once = true;
 }
 
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+static void render_finished(lv_event_t *event)
+{
+    ui_t *ui = lv_event_get_user_data(event);
+    if (!ui->timing.click_at_us) return;
+    uint32_t elapsed = (uint32_t)(esp_timer_get_time() - ui->timing.click_at_us);
+    ui->timing.count++;
+    ui->timing.total_us += elapsed;
+    if (elapsed > ui->timing.maximum_us) ui->timing.maximum_us = elapsed;
+    ui->timing.click_at_us = 0;
+}
+#endif
+
 static void ui_task(lv_timer_t *timer)
 {
     ESP_NULL_CHECK(timer, TAG, "timer is NULL");
     ui_t *ui = (ui_t *)lv_timer_get_user_data(timer);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
+
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+    int64_t now_us = esp_timer_get_time();
+    if ((ui->timing.presses || ui->timing.count) && now_us - ui->timing.reported_at_us >= 30000000) {
+        ESP_LOGI(TAG, "performance touch_frames=%" PRIu32 " mean_submit_us=%" PRIu64
+                 " max_submit_us=%" PRIu32 " stack_free=%u"
+                 " presses=%" PRIu32 " releases=%" PRIu32 " clicks=%" PRIu32 " holds=%" PRIu32,
+                 ui->timing.count, ui->timing.count ? ui->timing.total_us / ui->timing.count : 0,
+                 ui->timing.maximum_us, (unsigned)uxTaskGetStackHighWaterMark(NULL),
+                 ui->timing.presses, ui->timing.releases, ui->timing.clicks, ui->timing.holds);
+        ui->timing.count = 0;
+        ui->timing.total_us = 0;
+        ui->timing.maximum_us = 0;
+        ui->timing.presses = 0;
+        ui->timing.releases = 0;
+        ui->timing.clicks = 0;
+        ui->timing.holds = 0;
+        ui->timing.reported_at_us = now_us;
+    }
+#endif
 
     if (ui->calibration_mode) {
         lv_event_code_t event_code;
@@ -465,16 +568,16 @@ static void ui_task(lv_timer_t *timer)
 
     uint32_t pairing_code;
     if (xQueueReceive(ui->rtos.pairing_que, &pairing_code, 0) == pdTRUE) {
-        if (pairing_code == 0) lv_obj_add_flag(ui->widgets.pairing_lbl, LV_OBJ_FLAG_HIDDEN);
-        else {
-            if (pairing_code == UINT32_MAX) lv_label_set_text(ui->widgets.pairing_lbl, "PAIR\nREADY");
-            else lv_label_set_text_fmt(ui->widgets.pairing_lbl, "PAIR\n%06" PRIu32, pairing_code);
-            lv_obj_remove_flag(ui->widgets.pairing_lbl, LV_OBJ_FLAG_HIDDEN);
-        }
+        show_pairing(ui, pairing_code);
     }
 
     ui_alert_t alert;
-    if (xQueueReceive(ui->rtos.alert_que, &alert, 0) == pdTRUE) {
+    if (xQueueReceive(ui->rtos.alert_que, &alert, 0) == pdTRUE &&
+        (!ui->alert_rendered || alert.severity != ui->rendered_alert.severity ||
+         alert.unavailable != ui->rendered_alert.unavailable ||
+         strcmp(alert.label, ui->rendered_alert.label) != 0)) {
+        ui->rendered_alert = alert;
+        ui->alert_rendered = true;
         lv_color_t indicator = alert.severity == 2 ? lv_color_hex(color_critical) :
                                alert.severity == 1 ? lv_color_hex(color_warning) :
                                                      lv_color_hex(color_accent);
@@ -498,7 +601,13 @@ static void ui_task(lv_timer_t *timer)
     }
 
     ui_diagnostics_t diagnostics;
-    if (xQueueReceive(ui->rtos.diagnostics_que, &diagnostics, 0) == pdTRUE) {
+    if (xQueueReceive(ui->rtos.diagnostics_que, &diagnostics, 0) == pdTRUE &&
+        (!ui->diagnostics_rendered || diagnostics.valid != ui->rendered_diagnostics.valid ||
+         diagnostics.mil_on != ui->rendered_diagnostics.mil_on ||
+         diagnostics.count != ui->rendered_diagnostics.count ||
+         strcmp(diagnostics.first_code, ui->rendered_diagnostics.first_code) != 0)) {
+        ui->rendered_diagnostics = diagnostics;
+        ui->diagnostics_rendered = true;
         if (!diagnostics.valid || (!diagnostics.mil_on && diagnostics.count == 0 &&
                                    diagnostics.first_code[0] == 0))
             lv_obj_add_flag(ui->widgets.diagnostics_lbl, LV_OBJ_FLAG_HIDDEN);
@@ -524,14 +633,6 @@ static void ui_task(lv_timer_t *timer)
     }
     render_page(ui);
 
-    lv_event_code_t event_code;
-    if (xQueueReceive(ui->rtos.touch_ev_que, &event_code, 0) == pdTRUE)
-    {
-        if (ui->touch_cb != NULL)
-        {
-            ui->touch_cb(ui, event_code);
-        }
-    }
 }
 
 static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms)
@@ -548,8 +649,17 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_set_style_bg_color(scr, lv_color_hex(color_background), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, LV_PART_MAIN);
 
+    // Hide the whole gauge view during pairing so renderer and status updates
+    // cannot reveal individual widgets behind the pairing prompt.
+    lv_obj_t *gauge_content = lv_obj_create(scr);
+    lv_obj_remove_style_all(gauge_content);
+    lv_obj_set_size(gauge_content, LV_PCT(100), LV_PCT(100));
+    lv_obj_clear_flag(gauge_content, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(gauge_content, LV_OBJ_FLAG_EVENT_BUBBLE);
+    ui->widgets.gauge_content = gauge_content;
+
     // Main number label
-    lv_obj_t *value_lbl = lv_label_create(scr);
+    lv_obj_t *value_lbl = lv_label_create(gauge_content);
     ESP_NULL_CHECK(value_lbl, TAG, "Failed to create main label");
     lv_label_set_text(value_lbl, "...");
     lv_obj_set_style_text_color(value_lbl, lv_color_hex(color_text_primary), LV_PART_MAIN);
@@ -558,7 +668,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_label_set_long_mode(value_lbl, LV_LABEL_LONG_DOT);
 
     // Info label
-    lv_obj_t *info_lbl = lv_label_create(scr);
+    lv_obj_t *info_lbl = lv_label_create(gauge_content);
     ESP_NULL_CHECK(info_lbl, TAG, "Failed to create info label");
     lv_label_set_text(info_lbl, page->name ? page->name : "???");
     lv_obj_set_style_text_color(info_lbl, lv_color_hex(color_text_secondary), LV_PART_MAIN);
@@ -567,9 +677,9 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_label_set_long_mode(info_lbl, LV_LABEL_LONG_DOT);
 
     // Unit label centered below the number, away from the curved right edge.
-    lv_obj_t *unit_lbl = lv_label_create(scr);
+    lv_obj_t *unit_lbl = lv_label_create(gauge_content);
     ESP_NULL_CHECK(unit_lbl, TAG, "Failed to create unit label");
-    lv_label_set_text(unit_lbl, page->metrics[0].unit ? page->metrics[0].unit : "");
+    lv_label_set_text(unit_lbl, display_units_label(page->metrics[0].unit, ui->imperial_units));
     lv_obj_set_style_text_color(unit_lbl, lv_color_hex(color_text_secondary), LV_PART_MAIN);
     lv_obj_set_style_text_font(unit_lbl, font_unit, LV_PART_MAIN);
     lv_obj_set_style_text_align(unit_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
@@ -579,28 +689,28 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     ui->widgets.info_lbl  = info_lbl;
     ui->widgets.unit_lbl  = unit_lbl;
 
-    lv_obj_t *arc = lv_arc_create(scr);
-    lv_obj_set_size(arc, 198, 198);
+    lv_obj_t *arc = lv_arc_create(gauge_content);
+    lv_obj_set_size(arc, GAUGE_ARC_DIAMETER, GAUGE_ARC_DIAMETER);
     lv_obj_align(arc, LV_ALIGN_CENTER, 0, 0);
     lv_arc_set_bg_angles(arc, 135, 45);
     lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
     lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_arc_width(arc, 7, LV_PART_MAIN);
-    lv_obj_set_style_arc_width(arc, 7, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(arc, GAUGE_ARC_WIDTH, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(arc, GAUGE_ARC_WIDTH, LV_PART_INDICATOR);
     lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
     lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(arc, lv_color_hex(color_track), LV_PART_MAIN);
     lv_obj_set_style_arc_color(arc, lv_color_hex(color_accent), LV_PART_INDICATOR);
     ui->widgets.arc = arc;
 
-    lv_obj_t *bar = lv_bar_create(scr);
+    lv_obj_t *bar = lv_bar_create(gauge_content);
     lv_obj_set_size(bar, 142, 12);
     lv_obj_align(bar, LV_ALIGN_CENTER, 0, 52);
     lv_obj_set_style_bg_color(bar, lv_color_hex(color_track), LV_PART_MAIN);
     lv_obj_set_style_bg_color(bar, lv_color_hex(color_accent), LV_PART_INDICATOR);
     ui->widgets.bar = bar;
 
-    lv_obj_t *trend = lv_line_create(scr);
+    lv_obj_t *trend = lv_line_create(gauge_content);
     lv_obj_set_size(trend, 150, 80);
     lv_obj_align(trend, LV_ALIGN_CENTER, 0, 24);
     lv_obj_set_style_line_color(trend, lv_color_hex(color_accent), LV_PART_MAIN);
@@ -613,7 +723,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     ui->widgets.trend = trend;
 
     for (unsigned i = 0; i < 2; ++i) {
-        lv_obj_t *dual_value = lv_label_create(scr);
+        lv_obj_t *dual_value = lv_label_create(gauge_content);
         lv_obj_set_width(dual_value, 132);
         lv_obj_align(dual_value, LV_ALIGN_TOP_MID, 0, i == 0 ? 42 : 124);
         lv_obj_set_style_text_color(dual_value, lv_color_hex(color_text_primary), LV_PART_MAIN);
@@ -622,7 +732,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
         lv_label_set_text(dual_value, "...");
         ui->widgets.dual_value[i] = dual_value;
 
-        lv_obj_t *dual_info = lv_label_create(scr);
+        lv_obj_t *dual_info = lv_label_create(gauge_content);
         lv_obj_set_width(dual_info, 156);
         lv_obj_align(dual_info, LV_ALIGN_TOP_MID, 0, i == 0 ? 20 : 102);
         lv_obj_set_style_text_color(dual_info, lv_color_hex(color_text_secondary), LV_PART_MAIN);
@@ -643,7 +753,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_add_flag(pairing_lbl, LV_OBJ_FLAG_HIDDEN);
     ui->widgets.pairing_lbl = pairing_lbl;
 
-    lv_obj_t *alert_lbl = lv_label_create(scr);
+    lv_obj_t *alert_lbl = lv_label_create(gauge_content);
     lv_obj_set_size(alert_lbl, 104, 40);
     lv_obj_align(alert_lbl, LV_ALIGN_TOP_MID, 0, 30);
     lv_obj_set_style_text_font(alert_lbl, font_subtitle, LV_PART_MAIN);
@@ -652,7 +762,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_add_flag(alert_lbl, LV_OBJ_FLAG_HIDDEN);
     ui->widgets.alert_lbl = alert_lbl;
 
-    lv_obj_t *diagnostics_lbl = lv_label_create(scr);
+    lv_obj_t *diagnostics_lbl = lv_label_create(gauge_content);
     lv_obj_set_size(diagnostics_lbl, 132, 24);
     lv_obj_align(diagnostics_lbl, LV_ALIGN_BOTTOM_MID, 0, -22);
     lv_obj_set_style_text_font(diagnostics_lbl, font_subtitle, LV_PART_MAIN);
@@ -667,12 +777,17 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_arc_set_range(arc, minimum, maximum);
     lv_bar_set_range(bar, minimum, maximum);
     select_renderer_widgets(ui);
+    show_pairing(ui, ui->pairing_visible ? UI_PAIRING_WAITING : UI_PAIRING_HIDDEN);
 
-    lv_refr_now(NULL);  // force refresh to apply styles immediately
     ui_align_labels(ui);
+    // Let the LVGL task draw after ui_init releases the port lock. Rendering
+    // the nested gauge view here can overflow app_main's smaller task stack.
 
     // add handlers
     lv_obj_add_event_cb(lv_screen_active(), ui_touch_callback, LV_EVENT_ALL, ui);
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+    lv_display_add_event_cb(lv_display_get_default(), render_finished, LV_EVENT_REFR_READY, ui);
+#endif
     lv_timer_create(ui_task, interval_ms, ui);
 
     ESP_LOGI(TAG, "Screen initialized successfully");
@@ -682,7 +797,8 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
 // Public Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
-ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t touch_cb)
+ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t touch_cb,
+              bool pairing_required, bool imperial_units)
 {
     ESP_NULL_CHECK(page, TAG, "Page config is NULL");
     ESP_NULL_CHECK(touch_cb, TAG, "touch callback is NULL");
@@ -701,6 +817,8 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     ui->rtos.diagnostics_que = xQueueCreate(1, sizeof(ui_diagnostics_t));
     ui->touch_cb          = touch_cb;
     ui->display.page = *page;
+    ui->pairing_visible = pairing_required;
+    ui->imperial_units = imperial_units;
 
     if (!ui->rtos.value_que || !ui->rtos.touch_ev_que || !ui->rtos.pairing_que ||
         !ui->rtos.alert_que || !ui->rtos.diagnostics_que) {
@@ -763,8 +881,21 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     lv_arc_set_range(ui->widgets.arc, minimum, maximum);
     lv_bar_set_range(ui->widgets.bar, minimum, maximum);
     select_renderer_widgets(ui);
-    ui_update_screen(ui, NULL, page->name, page->metrics[0].unit);
-    ESP_LOGI(TAG, "Updated page: %s renderer=%u", page->name, page->renderer);
+    if (ui->alert_rendered && ui->rendered_alert.severity != 0)
+        lv_obj_add_flag(ui->widgets.info_lbl, LV_OBJ_FLAG_HIDDEN);
+    /* Populate all renderer-specific widgets now, including dual values.
+     * Waiting for the data timer adds another 50 ms to a page change. */
+    render_page(ui);
+    ESP_LOGD(TAG, "Updated page: %s renderer=%u", page->name, page->renderer);
+}
+
+void ui_set_units(ui_t *ui, bool imperial_units)
+{
+    ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
+    if (ui->imperial_units == imperial_units) return;
+    ui->imperial_units = imperial_units;
+    ui->display.rendered_once = false;
+    render_page(ui);
 }
 
 void ui_show_pairing_code(ui_t *ui, uint32_t passkey)
