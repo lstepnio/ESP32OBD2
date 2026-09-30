@@ -31,32 +31,28 @@ private enum class Route(val title: String, val icon: GaugeIcon) {
     Gauge("Gauge", GaugeIcon.Gauge), Car("Car", GaugeIcon.Car), Settings("Settings", GaugeIcon.Settings),
     Expert("Expert", GaugeIcon.Tools), Customize("Customize", GaugeIcon.Gauge),
     Setup("Set up gauge", GaugeIcon.Bluetooth), Updates("Updates", GaugeIcon.Refresh),
-    DevelopmentUpdates("Development updates", GaugeIcon.Tools),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: () -> Unit,
-    onSelectUpdate: () -> Unit, onSelectBuiltIn: () -> Unit, onBluetoothSettings: () -> Unit,
+    onSelectUpdate: () -> Unit, onBluetoothSettings: () -> Unit,
     fold: FoldingFeature? = null) {
     val state by model.uiState.collectAsStateWithLifecycle()
     EGaugeTheme(dynamicColor = state.settings.dynamicColor) {
         var route by rememberSaveable { mutableStateOf(Route.Gauge) }
         var customizeStep by rememberSaveable { mutableIntStateOf(0) }
-        var expertTool by rememberSaveable { mutableStateOf("") }
         var progressOpen by rememberSaveable { mutableStateOf(false) }
         var backProgress by remember { mutableFloatStateOf(0f) }
         fun back() {
             when {
                 route == Route.Customize && customizeStep > 0 -> customizeStep = 0
-                route == Route.Expert && expertTool.isNotBlank() -> expertTool = ""
                 route == Route.Updates -> route = Route.Settings
-                route == Route.DevelopmentUpdates -> route = Route.Expert
                 else -> route = Route.Gauge
             }
         }
         LaunchedEffect(state.settings.advanced) {
-            if (!state.settings.advanced && route in setOf(Route.Expert, Route.DevelopmentUpdates)) route = Route.Settings
+            if (!state.settings.advanced && route == Route.Expert) route = Route.Settings
         }
         LaunchedEffect(state.connection.phase) {
             if (route == Route.Gauge && state.connection.phase in setOf(ConnectionPhase.PairRequired, ConnectionPhase.ChooseGauge))
@@ -69,7 +65,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
         }
         val destinations = listOf(Route.Gauge, Route.Car, Route.Settings) + if (state.settings.advanced) listOf(Route.Expert) else emptyList()
         val selectedRoute = when (route) { Route.Setup, Route.Customize -> Route.Gauge
-            Route.Updates -> Route.Settings; Route.DevelopmentUpdates -> Route.Expert; else -> route }
+            Route.Updates -> Route.Settings; else -> route }
         val density = LocalDensity.current
         BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             val rail = maxWidth >= EGaugeTokens.Layout.railBreakpoint.dp
@@ -117,7 +113,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                         val banner = rememberTransferBannerState(op)
                         if (banner.visible)
                             OperationBanner(op, { progressOpen = true }, {
-                                if (op.update) route = if (state.settings.advanced) Route.DevelopmentUpdates else Route.Updates
+                                if (op.update) route = Route.Updates
                                 else if (model.configurationRecoveryRead) { customizeStep = 5; route = Route.Customize }
                                 else model.checkGaugeForReview()
                             }, banner.dismiss)
@@ -155,16 +151,13 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                 Route.Settings -> SettingsScreen(state.settings, model::setAdvancedTools, model::setDynamicColor,
                                     model::renameGauge, model::rotateGauge, model::readSavedGauge,
                                     model::readDisplaySettings, model::saveDisplaySettings, { route = Route.Updates },
-                                    { route = Route.Setup }, onBluetoothSettings, model::saveMeasurementSystem)
-                                Route.Updates, Route.DevelopmentUpdates -> UpdatesScreen(state.updates, state.operation, route == Route.DevelopmentUpdates,
+                                    { route = Route.Setup }, onBluetoothSettings, model::saveMeasurementSystem,
+                                    model::savePageCycleSeconds)
+                                Route.Updates -> UpdatesScreen(state.updates, state.operation, false,
                                     ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate)
-                                Route.Expert -> ExpertScreen(state.expert, expertTool, { expertTool = it }, ::back, ExpertActions(
-                                    model::search, model::filter, { id -> model.selectPid(demoCatalog.first { it.id == id }); customizeStep = 0; route = Route.Customize },
-                                    model::editLabInput, model::editCustomRequest, model::selectCustomSource, model::setSecondAdapterEnabled,
-                                    model::readHardwareCapacity, model::readSavedGauge,
-                                    model::readConfiguration, model::readConfigurationDocument, model::readGaugeDiagnostics,
-                                    model::readRunningFirmware, onSelectBuiltIn, { route = Route.DevelopmentUpdates },
-                                    model::checkGaugeForReview, model::adoptGaugeDraft))
+                                Route.Expert -> ExpertScreen(state.expert, ExpertActions(
+                                    model::checkGaugeForReview, model::readGaugeDiagnostics,
+                                    model::readHardwareCapacity, model::readRunningFirmware, model::adoptGaugeDraft))
                             }
                         }
                     }

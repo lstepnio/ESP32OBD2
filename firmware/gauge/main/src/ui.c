@@ -160,10 +160,10 @@ static const lv_font_t *const font_unit     = &notosans_medium_24;
 static const uint32_t color_background = 0x05080A;
 static const uint32_t color_text_primary = 0xE4EAED;
 static const uint32_t color_text_secondary = 0x9CAAB2;
-static const uint32_t color_track = 0x29343A;
-static const uint32_t color_accent = 0x00D6A0;
-static const uint32_t color_warning = 0xFFB000;
-static const uint32_t color_critical = 0xFF4D5A;
+static const uint32_t color_track = 0x1B2A30;
+static const uint32_t color_accent = 0x00FF70;
+static const uint32_t color_warning = 0xFF8A00;
+static const uint32_t color_critical = 0xFF1744;
 
 // The arc is decorative: its 109 px outer radius stays inside the physically
 // checked 112 px band while essential text remains within the 104 px limit.

@@ -181,7 +181,6 @@ class AppCoreTest {
             "clearDwellMs":2000,"source":"TCM"}}]}
         """.trimIndent()
         val migrated = ProfileDocumentCodec.decode(legacy)
-        assertTrue(migrated.active.secondAdapterEnabled)
         assertEquals("TCM", migrated.active.draft.source)
         val roundTrip = ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(migrated))
         assertEquals(migrated, roundTrip)
@@ -215,8 +214,10 @@ class AppCoreTest {
         assertEquals(1, GaugeProtocolCodec.capabilities(capability).displaySettingsVersion)
         assertEquals(2, GaugeProtocolCodec.capabilities(
             capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":2").toByteArray()).displaySettingsVersion)
+        assertEquals(3, GaugeProtocolCodec.capabilities(
+            capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":3").toByteArray()).displaySettingsVersion)
         assertThrows { GaugeProtocolCodec.capabilities(
-            capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":3").toByteArray()) }
+            capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":4").toByteArray()) }
 
         val state = byteArrayOf(10, 1, 55, 0, 7, 0, 0, 0)
         assertEquals(GaugeConfigTransferClient.DisplaySettings(1, 55, 7),
@@ -228,6 +229,10 @@ class AppCoreTest {
         val imperial = state.copyOf().apply { this[0] = 11; this[3] = 1 }
         assertEquals(MeasurementSystem.Imperial, GaugeProtocolCodec.displaySettings(imperial).units)
         assertThrows { GaugeProtocolCodec.displaySettings(imperial.copyOf().apply { this[3] = 2 }) }
+        val cycling = imperial.copyOf(10).apply { this[0] = 12; this[8] = 15 }
+        assertEquals(GaugeConfigTransferClient.DisplaySettings(1, 55, 7, MeasurementSystem.Imperial, 3, 15),
+            GaugeProtocolCodec.displaySettings(cycling))
+        assertThrows { GaugeProtocolCodec.displaySettings(cycling.copyOf().apply { this[8] = 4 }) }
     }
 
     @Test fun imperialDisplayConvertsOnlyKnownUnitsAndRoundTripsAlertValues() {

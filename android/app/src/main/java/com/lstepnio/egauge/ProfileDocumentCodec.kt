@@ -77,8 +77,6 @@ object ProfileDocumentCodec {
                 id,
                 name,
                 draft,
-                secondAdapterEnabled = if (schemaVersion >= 2)
-                    item.optBoolean("secondAdapterEnabled", false) else draft.source == "TCM",
             )
         }
         require(profiles.map { it.id }.distinct().size == profiles.size) { "Profile IDs are duplicated" }
@@ -93,7 +91,6 @@ object ProfileDocumentCodec {
         val items = JSONArray()
         value.profiles.forEach { profile ->
             items.put(JSONObject().put("id", profile.id).put("name", profile.name)
-                .put("secondAdapterEnabled", profile.secondAdapterEnabled)
                 .put("draft", JSONObject()
                     .put("pidId", profile.draft.pidId)
                     .put("layout", profile.draft.layout.name)

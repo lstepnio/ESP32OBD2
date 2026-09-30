@@ -65,6 +65,8 @@ Color must reinforce text or shape. Warning and critical states require a readab
 
 Firmware `0.2.0-dev.29` uses a stronger palette for the track and active data: track `#29343A`, normal `#00D6A0`, warning `#FFB000`, and critical `#FF4D5A`. These are source-level choices pending physical display review. The background and text colors remain as physically verified above.
 
+The next firmware palette increases saturation after the dev.30 gauge appeared washed out in physical review: track `#1B2A30`, normal `#00FF70`, warning `#FF8A00`, and critical `#FF1744`. Android previews and semantic colors use matching shared tokens. Physical review of the new image is still required.
+
 The build, signed release, and Pixel update evidence for this change are recorded in [Arc visual refresh validation](../development/arc-visual-refresh-validation.md).
 
 ## Physical review checklist

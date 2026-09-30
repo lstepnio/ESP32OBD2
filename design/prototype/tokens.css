@@ -5,9 +5,9 @@
   --surfaceRaised: #202C32;
   --text: #F2F5EF;
   --muted: #A9BABD;
-  --accent: #00D6A0;
-  --warning: #FFB000;
-  --critical: #FF4D5A;
+  --accent: #00FF70;
+  --warning: #FF8A00;
+  --critical: #FF1744;
   --paper: #F3F1EA;
   --ink: #13272B;
 }
@@ -17,19 +17,19 @@
   --surfaceRaised: #282C2E;
   --onSurface: #F3F4EF;
   --muted: #B5BCB8;
-  --primary: #00D6A0;
-  --onPrimary: #00291F;
-  --primaryContainer: #003E31;
-  --onPrimaryContainer: #00D6A0;
+  --primary: #00FF70;
+  --onPrimary: #00331B;
+  --primaryContainer: #004B2B;
+  --onPrimaryContainer: #00FF70;
   --outline: #454B47;
-  --warning: #FFB000;
-  --critical: #FF4D5A;
-  --success: #00D6A0;
+  --warning: #FF8A00;
+  --critical: #FF1744;
+  --success: #00FF70;
   --gauge: #05080A;
   --gaugeText: #E4EAED;
   --gaugeMuted: #9CAAB2;
-  --gaugeTrack: #29343A;
-  --gaugeAccent: #00D6A0;
+  --gaugeTrack: #1B2A30;
+  --gaugeAccent: #00FF70;
 }
 [data-theme="light"] {
   --background: #F5F6EF;
@@ -37,19 +37,19 @@
   --surfaceRaised: #E9ECE3;
   --onSurface: #1A1D19;
   --muted: #525A50;
-  --primary: #006C54;
+  --primary: #007A49;
   --onPrimary: #FFFFFF;
-  --primaryContainer: #A5F5DD;
-  --onPrimaryContainer: #003F30;
+  --primaryContainer: #B5FFD2;
+  --onPrimaryContainer: #003E25;
   --outline: #C6CDC0;
-  --warning: #8A4E00;
-  --critical: #B41F2A;
-  --success: #006C54;
+  --warning: #9B3F00;
+  --critical: #B00028;
+  --success: #007A49;
   --gauge: #05080A;
   --gaugeText: #E4EAED;
   --gaugeMuted: #9CAAB2;
-  --gaugeTrack: #29343A;
-  --gaugeAccent: #00D6A0;
+  --gaugeTrack: #1B2A30;
+  --gaugeAccent: #00FF70;
 }
 :root {
   --spacing-xs: 4px;

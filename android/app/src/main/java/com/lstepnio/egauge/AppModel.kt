@@ -401,10 +401,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var editingPageIndex by mutableStateOf(0)
         private set
-    var query by mutableStateOf("")
-        private set
-    var sourceFilter by mutableStateOf("All")
-        private set
     // Capability reads from the gauge do not populate vehicle PID observations.
     var vehicleObservations by mutableStateOf<List<VehiclePidObservation>>(emptyList())
         private set
@@ -453,8 +449,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var hostedUpdateBusy by mutableStateOf(false)
         private set
-    var wifiSecurityMessage by mutableStateOf("Not run on this connection")
-        private set
     var activeConfigRevision by mutableStateOf<Long?>(null)
         private set
     var activeDocument by mutableStateOf<GaugeConfigTransferClient.ActiveDocument?>(null)
@@ -495,36 +489,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     var scanning by mutableStateOf(false)
         private set
-    var discoveryPreview by mutableStateOf(false)
-        private set
-    var labOpen by mutableStateOf(false)
-        private set
-    var labInput by mutableStateOf("41 0C 2C 60")
-        private set
-    var customLabOpen by mutableStateOf(false)
-        private set
-    var customRequestInput by mutableStateOf("22 F1 90")
-        private set
-    var customSource by mutableStateOf("ECM")
-        private set
-    var advancedReadingsOpen by mutableStateOf(false)
-        private set
-    var advancedConnectionsOpen by mutableStateOf(false)
-        private set
     var operation by mutableStateOf(OperationState.Idle)
         private set
 
     fun navigate(value: Destination) { destination = value }
-    fun search(value: String) { query = value }
-    fun filter(value: String) { sourceFilter = value }
-    fun showDiscoveryPreview(value: Boolean) { discoveryPreview = value }
-    fun showLab(value: Boolean) { labOpen = value }
-    fun editLabInput(value: String) { labInput = value.take(128) }
-    fun showCustomLab(value: Boolean) { customLabOpen = value }
-    fun showAdvancedReadings(value: Boolean) { advancedReadingsOpen = value }
-    fun showAdvancedConnections(value: Boolean) { advancedConnectionsOpen = value }
-    fun editCustomRequest(value: String) { customRequestInput = value.take(32) }
-    fun selectCustomSource(value: String) { if (value == "ECM" || value == "TCM") customSource = value }
     fun editProfileName(value: String) { profileNameInput = value.take(32) }
     fun selectProfile(id: String) {
         if (profileError != null || profileCollection.profiles.none { it.id == id }) return
@@ -537,7 +505,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val name = profileNameInput.trim()
         if (profileError != null || name.isEmpty() || profileCollection.profiles.size >= 8 ||
             profileCollection.profiles.any { it.name.equals(name, ignoreCase = true) }) return
-        val profile = VehicleProfile(ProfileStore.newId(), name, Draft(), secondAdapterEnabled = false)
+        val profile = VehicleProfile(ProfileStore.newId(), name, Draft())
         profileCollection = profileCollection.copy(
             activeId = profile.id,
             profiles = profileCollection.profiles + profile,
@@ -596,12 +564,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         else if (value.quickSelect)
             "Gauge identified. Built-in reading selection is available after pairing."
         else "Gauge identified. Discovery link closed; protocol ${value.protocolMajor} is read only."
-    }
-    fun selectionApplied(index: Int) {
-        scanning = false
-        savedGauge = null
-        ownerAccess = OwnerAccess.AUTHENTICATED
-        deviceMessage = "Gauge confirmed built-in reading ${index + 1} of 5."
     }
     fun snapshotRead(value: GaugeSavedSnapshot) {
         scanning = false
@@ -951,22 +913,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Gauge found", "Ready for owner access and supported settings", terminal = true)
     }
 
-    fun selectReadingOnGauge() = launchGaugeOperation(OperationKind.CONFIGURATION, "Changing gauge reading") { id ->
-        val index = when (draft.pidId) {
-            "rpm" -> 0; "speed" -> 1; "load" -> 2; "coolant" -> 3; "fuel" -> 4
-            else -> error("This reading is not available in the built-in gauge set")
-        }
-        operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
-            "Changing gauge reading", "Waiting for authenticated readback")
-        selectionApplied(bleClient.selectNearby(index))
-        if (capabilities?.savedStateRead == true) {
-            kotlinx.coroutines.delay(350)
-            snapshotRead(bleClient.readSavedSnapshot())
-        }
-        operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
-            "Reading changed", "The gauge confirmed its saved selection", terminal = true)
-    }
-
     fun rotateGauge(rotation: Int) = launchGaugeOperation(OperationKind.CONFIGURATION, "Rotating display") { id ->
         require(capabilities?.displayRotationWrite == true) { "Gauge does not offer display rotation control" }
         operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
@@ -979,7 +925,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun readDisplaySettings() = launchGaugeOperation(OperationKind.READ, "Checking display settings") { id ->
         require((capabilities?.displaySettingsVersion ?: 0) >= 1) { "Gauge does not offer display settings" }
         displaySettings = GaugeConfigTransferClient(getApplication()).readDisplaySettings(bleClient.selectedGauge())
-        if (displaySettings?.version == 2)
+        if ((displaySettings?.version ?: 0) >= 2)
             savePresentation(presentationPreferences.copy(measurementSystem = requireNotNull(displaySettings).units))
         ownerAccess = OwnerAccess.AUTHENTICATED
         operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
@@ -993,7 +939,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 "Saving display settings", "Waiting for gauge confirmation")
             displaySettings = GaugeConfigTransferClient(getApplication()).saveDisplaySettings(
                 bleClient.selectedGauge(), rotation, brightness)
-            if (displaySettings?.version == 2)
+            if ((displaySettings?.version ?: 0) >= 2)
                 savePresentation(presentationPreferences.copy(measurementSystem = requireNotNull(displaySettings).units))
             ownerAccess = OwnerAccess.AUTHENTICATED
             operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
@@ -1002,7 +948,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveMeasurementSystem(system: MeasurementSystem) =
         launchGaugeOperation(OperationKind.CONFIGURATION, "Saving measurement units") { id ->
-            require(capabilities?.displaySettingsVersion == 2) { "Gauge does not offer measurement units" }
+            require((capabilities?.displaySettingsVersion ?: 0) >= 2) { "Gauge does not offer measurement units" }
             operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
                 "Saving measurement units", "Waiting for gauge confirmation")
             val client = GaugeConfigTransferClient(getApplication())
@@ -1013,6 +959,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             ownerAccess = OwnerAccess.AUTHENTICATED
             operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
                 "Measurement units saved", "The gauge confirmed ${system.name.lowercase()} units", terminal = true)
+        }
+
+    fun savePageCycleSeconds(seconds: Int) =
+        launchGaugeOperation(OperationKind.CONFIGURATION, "Saving page cycle interval") { id ->
+            require((capabilities?.displaySettingsVersion ?: 0) >= 3) { "Gauge does not offer page cycling" }
+            require(seconds in setOf(0, 5, 10, 15, 30, 60)) { "Invalid page cycle interval" }
+            operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
+                "Saving page cycle interval", "Waiting for gauge confirmation")
+            val client = GaugeConfigTransferClient(getApplication())
+            val current = client.readDisplaySettings(bleClient.selectedGauge())
+            displaySettings = client.saveDisplaySettings(bleClient.selectedGauge(),
+                current.rotation, current.brightness, current.units, seconds)
+            ownerAccess = OwnerAccess.AUTHENTICATED
+            operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
+                "Page cycling saved", if (seconds == 0) "Automatic cycling is off" else "The gauge will cycle pages every $seconds seconds",
+                terminal = true)
         }
 
     fun readSavedGauge() = launchGaugeOperation(OperationKind.READ, "Checking gauge settings") { id ->
@@ -1051,13 +1013,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             deviceMessage, terminal = true)
     }
 
-    fun readConfigurationDocument() = launchGaugeOperation(OperationKind.READ, "Reading saved setup") { id ->
-        activeDocumentRead(GaugeConfigTransferClient(getApplication())
-            .readActiveDocument(bleClient.selectedGauge()))
-        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-            "Saved setup checked", documentMessage, terminal = true)
-    }
-
     fun readGaugeDiagnostics() = launchGaugeOperation(OperationKind.READ, "Checking vehicle faults") { id ->
         diagnosticsRead(GaugeConfigTransferClient(getApplication()).readDiagnostics(bleClient.selectedGauge()))
         operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
@@ -1080,36 +1035,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         deviceMessage = "Protected hardware capacity snapshot read."
         operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
             "Hardware checked", "Live memory, flash, processor, and subsystem state", terminal = true)
-    }
-
-    fun runWifiTransportSecurityCheck() = launchGaugeOperation(OperationKind.READ,
-        "Checking Wi-Fi transport security") { id ->
-        try {
-            require(capabilities?.wifiBulk == "experimental-softap-aead-v2") {
-                "Gauge does not offer the authenticated Wi-Fi transport"
-            }
-            val device = bleClient.selectedGauge()
-            val client = GaugeConfigTransferClient(getApplication())
-            operation = OperationState(id, OperationKind.READ, OperationStage.PREPARING,
-                "Checking Wi-Fi transport security", "Opening an owner-authenticated temporary session")
-            wifiSecurityMessage = "Running wrong-session, wrong-key, and replay checks"
-            val session = client.openWifiBulk(device)
-            val result = try {
-                operation = operation.copy(stage = OperationStage.VERIFYING,
-                    detail = "Confirming rejected frames cannot reach a protected command")
-                WifiBulkClient(getApplication(), session).use { it.securitySelfCheck() }
-            } finally {
-                withTimeoutOrNull(8_000) { runCatching { client.closeWifiBulk(device) } }
-            }
-            check(result.passed) { "Gauge did not reject every negative Wi-Fi transport probe" }
-            ownerAccess = OwnerAccess.AUTHENTICATED
-            wifiSecurityMessage = "Passed: wrong session, wrong key, and replay were rejected"
-            operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-                "Wi-Fi security check passed", wifiSecurityMessage, terminal = true)
-        } catch (error: Exception) {
-            wifiSecurityMessage = "Failed: ${error.message ?: "security check did not complete"}"
-            throw error
-        }
     }
 
     private fun launchGaugeOperation(kind: OperationKind, title: String, block: suspend (Long) -> Unit) {
@@ -1353,19 +1278,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun removeAlert(id: String) = save(draft.copy(alerts = draft.alerts.filterNot { it.id == id }))
     fun setSource(value: String) = save(draft.copy(source = value))
-    fun setSecondAdapterEnabled(value: Boolean) {
-        if (profileError != null) return
-        val active = profileCollection.active
-        if (!value && active.draft.source == "TCM") {
-            profileError = "Move the selected transmission reading to the primary adapter before disabling the second adapter"
-            return
-        }
-        profileCollection = profileCollection.copy(profiles = profileCollection.profiles.map { profile ->
-            if (profile.id == active.id) profile.copy(secondAdapterEnabled = value) else profile
-        })
-        if (!profileStore.save(profileCollection)) profileError = "Could not save advanced connection settings"
-    }
-
     private fun save(value: Draft) {
         if (profileError != null) return
         draft = value

@@ -244,6 +244,14 @@ static void test_page_save_policy(void)
 
 int main(void)
 {
+    assert(!page_cycle_due(0, 3, true, true, 1000, 61000));
+    assert(!page_cycle_due(5, 1, true, true, 1000, 6000));
+    assert(!page_cycle_due(5, 3, false, true, 1000, 6000));
+    assert(!page_cycle_due(5, 3, true, false, 1000, 6000));
+    assert(!page_cycle_due(5, 3, true, true, 1000, 5999));
+    assert(page_cycle_due(5, 3, true, true, 1000, 6000));
+    assert(!page_cycle_due(5, 3, true, true, 6000, 6001)); /* Manual tap restarts the timer. */
+    assert(page_cycle_due(5, 3, true, true, UINT32_MAX - 1000, 3999));
     test_json_guard();
     test_decoder();
     test_display_units();

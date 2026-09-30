@@ -8,7 +8,6 @@ data class VehicleProfile(
     val id: String,
     val name: String,
     val draft: Draft,
-    val secondAdapterEnabled: Boolean = false,
 )
 
 data class ProfileCollection(val activeId: String, val profiles: List<VehicleProfile>) {
@@ -55,7 +54,7 @@ class ProfileStore(context: Context) {
         // Compatible with the future device configuration ID pattern.
         fun newId(): String = "vehicle-${UUID.randomUUID()}"
         private fun defaultCollection() = ProfileCollection(
-            "default", listOf(VehicleProfile("default", "My vehicle", Draft(), false)),
+            "default", listOf(VehicleProfile("default", "My vehicle", Draft())),
         )
     }
 }

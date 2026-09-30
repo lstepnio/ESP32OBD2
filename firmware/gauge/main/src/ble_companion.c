@@ -148,7 +148,7 @@ static void owner_save_worker(void *arg)
 #endif
 
 #if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED
-#define DISPLAY_SETTINGS_CAPABILITY ",\"ds\":2"
+#define DISPLAY_SETTINGS_CAPABILITY ",\"ds\":3"
 #else
 #define DISPLAY_SETTINGS_CAPABILITY ""
 #endif
@@ -250,6 +250,22 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
         };
         if (command.value > 3 || command.brightness < 5 || command.brightness > 100 ||
             command.units > 1) return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+            return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode = 9;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x38 && length == 10) {
+        companion_command_t command = {
+            .opcode = 0x38, .value = request[1], .brightness = request[2],
+            .units = request[3], .cycle_seconds = request[4] | ((uint16_t)request[5] << 8),
+            .base_revision = read_u32(request + 6),
+        };
+        uint16_t interval = command.cycle_seconds;
+        if (command.value > 3 || command.brightness < 5 || command.brightness > 100 ||
+            command.units > 1 || (interval != 0 && interval != 5 && interval != 10 &&
+            interval != 15 && interval != 30 && interval != 60)) return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
         if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
             return BLE_ATT_ERR_UNLIKELY;
         extended_status_mode = 9;
@@ -390,9 +406,10 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     }
     if (extended_status_mode == 9) {
         display_settings_t settings = display_settings_snapshot();
-        uint8_t state[] = {11, settings.rotation, settings.brightness, settings.units,
+        uint8_t state[] = {12, settings.rotation, settings.brightness, settings.units,
                            (uint8_t)settings.revision, (uint8_t)(settings.revision >> 8),
-                           (uint8_t)(settings.revision >> 16), (uint8_t)(settings.revision >> 24)};
+                           (uint8_t)(settings.revision >> 16), (uint8_t)(settings.revision >> 24),
+                           (uint8_t)settings.cycle_seconds, (uint8_t)(settings.cycle_seconds >> 8)};
         if (ctxt->offset > sizeof(state)) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, state + ctxt->offset,
                               sizeof(state) - ctxt->offset) == 0
@@ -596,6 +613,11 @@ void ble_companion_reset(void)
 bool ble_companion_ready(void)
 {
     return atomic_load(&g_ready);
+}
+
+bool ble_companion_has_owner(void)
+{
+    return atomic_load(&g_has_owner);
 }
 
 void ble_companion_set_control(ui_t *ui, QueueHandle_t command_queue,

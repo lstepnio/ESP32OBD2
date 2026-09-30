@@ -19,11 +19,13 @@ import com.lstepnio.egauge.ui.state.SettingsUiState
 fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDynamic: (Boolean) -> Unit,
     onRename: (String) -> Unit, onRotate: (Int) -> Unit, onReadSaved: () -> Unit,
     onReadDisplay: () -> Unit, onSaveDisplay: (Int, Int) -> Unit, onUpdates: () -> Unit,
-    onSetup: () -> Unit, onBluetoothSettings: () -> Unit, onSaveUnits: (MeasurementSystem) -> Unit = {}) {
+    onSetup: () -> Unit, onBluetoothSettings: () -> Unit, onSaveUnits: (MeasurementSystem) -> Unit = {},
+    onSaveCycle: (Int) -> Unit = {}) {
     var nameOpen by rememberSaveable { mutableStateOf(false) }
     var rotationOpen by rememberSaveable { mutableStateOf(false) }
     var brightnessOpen by rememberSaveable { mutableStateOf(false) }
     var unitsOpen by rememberSaveable { mutableStateOf(false) }
+    var cycleOpen by rememberSaveable { mutableStateOf(false) }
     var forgetOpen by rememberSaveable { mutableStateOf(false) }
     ScreenContent {
         ScreenTitle("Settings")
@@ -44,6 +46,11 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                     else if (state.brightness == null) "Check current settings" else state.measurementSystem.name,
                     state.displaySettingsVersion >= 2 && state.found && !state.busy) {
                     if (state.brightness == null) onReadDisplay() else unitsOpen = true
+                }
+                SettingsRow("Auto-cycle pages", if (state.displaySettingsVersion < 3) "Not available on this gauge"
+                    else when (state.cycleSeconds) { null -> "Check current settings"; 0 -> "Off"; else -> "Every ${state.cycleSeconds} seconds" },
+                    state.displaySettingsVersion >= 3 && state.found && !state.busy) {
+                    if (state.cycleSeconds == null) onReadDisplay() else cycleOpen = true
                 }
                 if (!state.found) TextButton(onSetup) { Text("Set up gauge") }
                 TextButton({ forgetOpen = true }) { Text("Forget gauge") }
@@ -118,6 +125,23 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
         }, confirmButton = { Button({ onSaveUnits(choice); unitsOpen = false }, enabled = !state.busy) {
             Text("Save to gauge")
         } }, dismissButton = { TextButton({ unitsOpen = false }) { Text("Cancel") } })
+    }
+    if (cycleOpen) {
+        var choice by rememberSaveable { mutableIntStateOf(state.cycleSeconds ?: 0) }
+        AlertDialog(onDismissRequest = { cycleOpen = false }, title = { Text("Auto-cycle saved pages") }, text = {
+            Column {
+                listOf(0, 5, 10, 15, 30, 60).forEach { seconds ->
+                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(choice == seconds,
+                        role = Role.RadioButton, onClick = { choice = seconds }), verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(choice == seconds, null)
+                        Text(if (seconds == 0) "Off" else "Every $seconds seconds")
+                    }
+                }
+                Text("A tap changes the page and restarts the timer.", style = MaterialTheme.typography.bodyMedium)
+            }
+        }, confirmButton = { Button({ onSaveCycle(choice); cycleOpen = false }, enabled = !state.busy) {
+            Text("Save to gauge")
+        } }, dismissButton = { TextButton({ cycleOpen = false }) { Text("Cancel") } })
     }
     if (forgetOpen) AlertDialog(onDismissRequest = { forgetOpen = false }, title = { Text("Forget this gauge?") },
         text = { Text("Remove eGauge from paired devices in Android Bluetooth settings. You will need the code on your gauge to pair again. Your display settings stay on the gauge.") },

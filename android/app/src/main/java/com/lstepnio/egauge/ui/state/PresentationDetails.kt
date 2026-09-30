@@ -91,8 +91,6 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
     }
     fact("Update response", updatePackageMessage)
     fact("Update recovery", updateRecoveryResult)
-    fact("Example decoder input", labInput)
-    fact("Custom request", "$customSource · $customRequestInput")
 }
 private fun ByteArray.hex() = joinToString("") { "%02x".format(it) }
 private fun resetLabel(reason: Int): String {

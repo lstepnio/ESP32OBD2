@@ -46,19 +46,15 @@ data class CarUiState(val name: String, val profiles: List<VehicleUi>, val activ
 data class SettingsUiState(val name: String, val found: Boolean, val rotation: Int?, val canRotate: Boolean,
     val busy: Boolean, val advanced: Boolean, val dynamicColor: Boolean, val version: String,
     val details: List<DetailUi>, val displaySettingsVersion: Int = 0, val brightness: Int? = null,
-    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric)
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val cycleSeconds: Int? = null)
 @Immutable
 data class CandidateUi(val id: String, val name: String, val details: List<DetailUi>)
 @Immutable
 data class SetupUiState(val found: Boolean, val owner: OwnerAccess, val busy: Boolean,
     val candidates: List<CandidateUi>, val status: StatusUi, val details: List<DetailUi>)
 @Immutable
-data class ExpertUiState(val readings: List<ReadingUi>, val canRead: Boolean, val canReadHardware: Boolean,
-    val canCheckWifi: Boolean, val secondAdapter: Boolean, val canAdoptGaugeSettings: Boolean,
-    val details: List<DetailUi>,
-    val query: String, val sourceFilter: String, val selectedReadingId: String, val labInput: String,
-    val decoded: StatusUi, val customInput: String, val customSource: String, val customResult: StatusUi,
-    val wifiStatus: String, val busy: Boolean)
+data class ExpertUiState(val canRead: Boolean, val canReadHardware: Boolean,
+    val canAdoptGaugeSettings: Boolean, val details: List<DetailUi>)
 @Immutable
 data class UpdatesUiState(val status: StatusUi, val availableVersion: String?, val installedVersion: String,
     val canCheck: Boolean, val canInstall: Boolean, val ready: Boolean, val busy: Boolean,

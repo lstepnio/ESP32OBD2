@@ -16,3 +16,6 @@ void page_save_observe(page_save_policy_t *state, uint32_t generation, uint32_t 
 bool page_save_due(const page_save_policy_t *state, uint32_t now_ms);
 void page_save_finished(page_save_policy_t *state, uint32_t attempted_generation,
                         bool saved, uint32_t now_ms);
+
+bool page_cycle_due(uint16_t interval_seconds, unsigned page_count, bool owner_ready,
+                    bool transfer_idle, uint32_t last_activity_ms, uint32_t now_ms);

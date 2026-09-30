@@ -72,7 +72,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val found = capabilities != null && !disconnected && connection.phase != ConnectionPhase.Searching
     val busy = scanning || hostedUpdateBusy || updateInProgress ||
         (operation.stage != OperationStage.IDLE && !operation.terminal)
-    val system = displaySettings?.takeIf { it.version == 2 }?.units ?: prefs.measurementSystem
+    val system = displaySettings?.takeIf { it.version >= 2 }?.units ?: prefs.measurementSystem
     val pages = draft.pages.map { pageUi(it, system) }
     val confirmed = !disconnected && ownerAccess == OwnerAccess.AUTHENTICATED && sentProfileId == profileCollection.activeId && sameSettings(sentDraft, draft) &&
         isConfirmedSetup(activeConfigRevision, expectedSentDigest, runtimeIdentity)
@@ -119,15 +119,6 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val canSend = found && !busy && profileError == null && !needsCheck && blockers.isEmpty() &&
         capabilities?.experimentalNumericConfig == true
     val car = carState(nowElapsedMs, busy, details)
-    val selected = demoCatalog.first { it.id == draft.pidId }
-    val decoded = when (val result = decodeExample(selected, labInput)) {
-        is DecodeResult.Value -> StatusUi("Example result: ${result.display}", "Nothing was sent to the car.")
-        is DecodeResult.Error -> StatusUi("Could not decode this response", "${result.message} Check the response bytes.", StatusTone.Error)
-    }
-    val request = when (val result = previewReadRequest(customRequestInput)) {
-        is ReadRequestPreview.Valid -> StatusUi("Read request is valid", "${result.description}. Expected prefix ${result.responsePrefix}. Example only; nothing was sent.")
-        is ReadRequestPreview.Invalid -> StatusUi("Check the read request", "${result.reason} Edit the bytes and try again.", StatusTone.Error)
-    }
     val updateStatus = when {
         updateInProgress || updatePreparation == "downloading" -> op.status
         updateRecovery != null && updateRecovery.state != UpdateRecoveryState.INSTALLED -> updateRecoveryUi(updateRecovery)
@@ -168,13 +159,9 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         SettingsUiState(prefs.gaugeName, found, displaySettings?.rotation ?: savedGauge?.rotation,
             found && ((capabilities?.displaySettingsVersion ?: 0) >= 1 || capabilities?.displayRotationWrite == true),
             busy, prefs.advanced, prefs.dynamicColor, bootIdentity?.version ?: "Not checked", details,
-            capabilities?.displaySettingsVersion ?: 0, displaySettings?.brightness, system),
-        ExpertUiState(demoCatalog.filter { pid -> (sourceFilter == "All" || pid.source == sourceFilter) &&
-            (query.isBlank() || "${pid.name} ${pid.request} ${pid.category} ${pid.source}".contains(query, true)) }.map { readingUi(it, system) },
-            found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
-            found && capabilities?.wifiBulk == "experimental-softap-aead-v2" && !busy,
-            profileCollection.active.secondAdapterEnabled, canAdoptGaugeDraft, details, query, sourceFilter, draft.pidId, labInput,
-            decoded, customRequestInput, customSource, request, wifiSecurityMessage, busy),
+            capabilities?.displaySettingsVersion ?: 0, displaySettings?.brightness, system, displaySettings?.cycleSeconds),
+        ExpertUiState(found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
+            canAdoptGaugeDraft, details),
         SetupUiState(found, ownerAccess, busy || connection.phase in setOf(ConnectionPhase.Searching, ConnectionPhase.Checking), gaugeCandidates.mapIndexed { index, candidate ->
             CandidateUi(candidate.id, candidate.name.ifBlank { "Gauge ${index + 1}" }, listOf(
                 DetailUi("Gauge identifier", candidate.id), DetailUi("Signal", "${candidate.signalDbm} dBm")))

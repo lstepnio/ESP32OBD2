@@ -19,3 +19,10 @@ void page_save_finished(page_save_policy_t *state, uint32_t attempted_generation
     if (saved) state->saved_generation = attempted_generation;
     else state->changed_at_ms = now_ms; /* Bound flash retries after a storage failure. */
 }
+
+bool page_cycle_due(uint16_t interval_seconds, unsigned page_count, bool owner_ready,
+                    bool transfer_idle, uint32_t last_activity_ms, uint32_t now_ms)
+{
+    return interval_seconds != 0 && page_count > 1 && owner_ready && transfer_idle &&
+           (uint32_t)(now_ms - last_activity_ms) >= (uint32_t)interval_seconds * 1000;
+}

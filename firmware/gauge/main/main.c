@@ -92,6 +92,7 @@ static const obd_pid_cfg_t g_obd_pids[] = {
 
 static atomic_uchar g_selected_page;
 static atomic_uint g_local_page_generation;
+static atomic_uint g_page_activity_ms;
 static config_runtime_t *g_runtime;
 static config_store_record_t g_running_config_record;
 static bool g_running_previous_config;
@@ -449,6 +450,7 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         page_ui(selected, &page);
         ui_set_page(ui, &page);
         atomic_store(&g_selected_page, selected);
+        atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
         ble_companion_selection_applied(selected);
         atomic_fetch_add(&g_local_page_generation, 1);
         break;
@@ -606,6 +608,7 @@ void app_main(void)
     }
 
     page_save_policy_t page_save = {0};
+    atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
     while (true)
     {
         companion_command_t command;
@@ -620,6 +623,7 @@ void app_main(void)
                     page_ui(command.value, &page);
                     ui_set_page(ui, &page);
                     atomic_store(&g_selected_page, command.value);
+                    atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
                     lvgl_port_unlock();
                     ble_companion_selection_applied(command.value);
                 }
@@ -632,7 +636,7 @@ void app_main(void)
             if (config_save_if_revision(&saved, command.base_revision, NULL) != ESP_OK) continue;
             display_settings_t display = display_settings_snapshot();
             if (display.rotation != command.value &&
-                display_settings_save(command.value, display.brightness, display.units, display.revision,
+                display_settings_save(command.value, display.brightness, display.units, display.cycle_seconds, display.revision,
                                       NULL) != ESP_OK)
                 ESP_LOGW(TAG, "Legacy rotation saved but display preference update failed");
             g_config = saved;
@@ -644,7 +648,7 @@ void app_main(void)
         } else if (has_command && command.opcode == 0x36) {
             display_settings_t saved;
             display_settings_t before = display_settings_snapshot();
-            if (display_settings_save(command.value, command.brightness, before.units,
+            if (display_settings_save(command.value, command.brightness, before.units, before.cycle_seconds,
                                       command.base_revision, &saved) != ESP_OK) continue;
             g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
             if (lvgl_port_lock(portMAX_DELAY)) {
@@ -656,7 +660,8 @@ void app_main(void)
                      (unsigned)saved.rotation * 90, (unsigned)saved.brightness);
         } else if (has_command && command.opcode == 0x37) {
             display_settings_t saved;
-            if (display_settings_save(command.value, command.brightness, command.units,
+            display_settings_t before = display_settings_snapshot();
+            if (display_settings_save(command.value, command.brightness, command.units, before.cycle_seconds,
                                       command.base_revision, &saved) != ESP_OK) continue;
             g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
             if (lvgl_port_lock(portMAX_DELAY)) {
@@ -667,9 +672,40 @@ void app_main(void)
             ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u",
                      (unsigned)saved.rotation * 90, (unsigned)saved.brightness, (unsigned)saved.units);
+        } else if (has_command && command.opcode == 0x38) {
+            display_settings_t saved;
+            if (display_settings_save(command.value, command.brightness, command.units, command.cycle_seconds,
+                                      command.base_revision, &saved) != ESP_OK) continue;
+            g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
+            if (lvgl_port_lock(portMAX_DELAY)) {
+                bsp_lv_disp_set_rotation(g_config.disp_rot);
+                ui_set_units(ui, saved.units == 1);
+                lvgl_port_unlock();
+            }
+            ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
+            atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
+            ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u cycle=%us",
+                     (unsigned)saved.rotation * 90, (unsigned)saved.brightness,
+                     (unsigned)saved.units, (unsigned)saved.cycle_seconds);
         } else if (has_command && command.opcode == 3) ble_companion_forget_owner();
 
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        display_settings_t cycle = display_settings_snapshot();
+        bool owner_ready = ble_companion_has_owner();
+        bool transfer_idle = transfer_gate_current() == 0;
+        if (!owner_ready || !transfer_idle) atomic_store(&g_page_activity_ms, now_ms);
+        if (page_cycle_due(cycle.cycle_seconds, page_count(), owner_ready,
+            transfer_idle, atomic_load(&g_page_activity_ms), now_ms) &&
+            lvgl_port_lock(0)) {
+            uint8_t selected = (atomic_load(&g_selected_page) + 1) % page_count();
+            ui_page_t page;
+            page_ui(selected, &page);
+            ui_set_page(ui, &page);
+            atomic_store(&g_selected_page, selected);
+            ble_companion_selection_applied(selected);
+            atomic_store(&g_page_activity_ms, now_ms);
+            lvgl_port_unlock();
+        }
         page_save_observe(&page_save, atomic_load(&g_local_page_generation), now_ms);
         if (page_save_due(&page_save, now_ms) && transfer_gate_current() == 0) {
             config_t updated = g_config;
