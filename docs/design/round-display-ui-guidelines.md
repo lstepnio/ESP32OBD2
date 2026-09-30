@@ -47,7 +47,7 @@ Use the 64 px title font only when the measured text fits the 176 px value box. 
 
 Use short gauge labels such as `ENGINE RPM`, `COOLANT` and `INPUT SPEED`. Preserve the full descriptive name in the Android app and accessibility text. Units remain centered under the reading.
 
-The physically verified baseline arc was 198 px in diameter with a 7 px stroke. The next firmware revision uses a 218 px diameter and 11 px stroke. Its outer radius is 109 px, within the previously observed decorative band, while the essential reading and alert text remain inside radius 104. Keep rounded ends and avoid using the arc color as the only alert signal. The enlarged arc still needs physical review at normal viewing angles.
+The physically verified baseline arc was 198 px in diameter with a 7 px stroke. Firmware `0.2.0-dev.29` uses a 218 px diameter and 11 px stroke. Its outer radius is 109 px, within the previously observed decorative band, while the essential reading and alert text remain inside radius 104. Keep rounded ends and avoid using the arc color as the only alert signal. The enlarged arc still needs physical review at normal viewing angles.
 
 ## Physically verified baseline palette
 
@@ -63,7 +63,9 @@ The physically verified baseline arc was 198 px in diameter with a 7 px stroke. 
 
 Color must reinforce text or shape. Warning and critical states require a readable label because color perception and sunlight conditions vary.
 
-The next firmware revision uses a stronger palette for the track and active data: track `#29343A`, normal `#00D6A0`, warning `#FFB000`, and critical `#FF4D5A`. These are source-level choices pending physical display review. The background and text colors remain as physically verified above.
+Firmware `0.2.0-dev.29` uses a stronger palette for the track and active data: track `#29343A`, normal `#00D6A0`, warning `#FFB000`, and critical `#FF4D5A`. These are source-level choices pending physical display review. The background and text colors remain as physically verified above.
+
+The build, signed release, and Pixel update evidence for this change are recorded in [Arc visual refresh validation](../development/arc-visual-refresh-validation.md).
 
 ## Physical review checklist
 
