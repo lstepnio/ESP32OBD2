@@ -24,9 +24,15 @@ Firmware enforces authorization and preconditions, not just Android UI. Physical
 
 ## Threshold rules
 
-Threshold rules are part of the atomic configuration document. Each binds a PID definition **and ECU**, canonical unit, comparator (`above` or `below`), warning/critical boundary, hysteresis, trigger dwell, clear dwell, and acknowledgment/snooze duration. Both levels are optional individually but at least one is required. For `above`, critical > warning; for `below`, critical < warning. Validate range and hysteresis so release thresholds remain meaningful. Changing display units converts editor labels and limits, never the canonical stored rule.
+Threshold rules are part of the atomic configuration document. Each binds a PID definition **and ECU**, canonical unit, comparator (`above`, `below`, or named-gear `equals`), warning/critical boundary, hysteresis, trigger dwell, clear dwell, and acknowledgment/snooze duration. Both levels are optional individually but at least one is required. For `above`, critical > warning; for `below`, critical < warning. Validate range and hysteresis so release thresholds remain meaningful. Changing display units converts editor labels and limits, never the canonical stored rule.
 
 The on-gauge alert engine evaluates fresh valid samples independently of the phone and active page. Entry requires threshold violation continuously for trigger dwell. Exit requires samples beyond the release boundary (threshold minus hysteresis for above, plus for below) for clear dwell. Evaluate using monotonic elapsed time, not a fixed sample count. Any stale/invalid interval breaks pending entry/exit dwell and freezes the last active severity with a visible data-unavailable qualifier; stale data must never resolve a warning. On fresh recovery, restart dwell timers. At boot start as unknown until sufficient fresh data exists.
+
+The source dev.46 editor exposes alerts for every selectable catalog reading,
+including the calibration-specific transmission temperature and gear. Gear rules
+match chosen positions and clear after a nonmatch dwell; numeric thresholds accept
+fractions. Full catalog bounds, compatibility, source routing and physical follow-up
+are in [reading catalog and local alerts](../development/reading-catalog-alerts.md).
 
 ## Attention and acknowledgment
 

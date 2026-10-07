@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------------------------------------------------
 
 #include <inttypes.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,7 +58,8 @@ static const char *TAG = "UI";
 
 typedef struct {
     uint16_t pid;
-    int32_t value;
+    bool present;
+    double value;
     TickType_t received_at;
 } ui_sample_t;
 
@@ -77,7 +79,7 @@ typedef struct {
 
 typedef struct {
     bool present;
-    int32_t value;
+    double value;
     TickType_t received_at;
 } ui_metric_sample_t;
 
@@ -152,7 +154,7 @@ struct _ui_t
     {
         ui_page_t page;
         ui_metric_sample_t samples[2];
-        int32_t rendered_values[2];
+        double rendered_values[2];
         bool rendered_available[2];
         bool rendered_once;
         lv_point_precise_t trend_points[60];
@@ -193,13 +195,19 @@ static const uint32_t color_critical = 0xFF1744;
 #define PRIMARY_VALUE_WIDTH 176
 #define PRIMARY_UNIT_WIDTH 156
 
-static int32_t bounded_range(int32_t minimum, int32_t maximum)
+static double bounded_range(double minimum, double maximum)
 {
-    int64_t range = (int64_t)maximum - minimum;
-    return range > 0 && range <= INT32_MAX ? (int32_t)range : 1;
+    double range = maximum - minimum;
+    return isfinite(range) && range > 0 ? range : 1;
 }
 
-static bool metric_value(ui_t *ui, unsigned index, int32_t *value)
+static int32_t normalized_value(double value, const ui_metric_t *metric, int32_t extent)
+{
+    double normalized = (value - metric->minimum) / bounded_range(metric->minimum, metric->maximum);
+    return (int32_t)lround(fmin(1, fmax(0, normalized)) * extent);
+}
+
+static bool metric_value(ui_t *ui, unsigned index, double *value)
 {
     if (index >= ui->display.page.metric_count || !ui->display.samples[index].present) return false;
     TickType_t age = xTaskGetTickCount() - ui->display.samples[index].received_at;
@@ -494,7 +502,7 @@ static void ui_align_labels(ui_t *ui)
     lv_obj_align(ui->widgets.unit_lbl, LV_ALIGN_TOP_MID, 0, 158);
 }
 
-static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, const char *unit)
+static void ui_update_screen(ui_t *ui, double const *value, const char *info, const char *unit)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
@@ -503,7 +511,11 @@ static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, c
         if (!strcmp(ui->display.page.metrics[0].unit, "gear")) {
             const char *gear = transmission_gear_label(*value);
             lv_label_set_text(ui->widgets.value_lbl, gear ? gear : "...");
-        } else lv_label_set_text_fmt(ui->widgets.value_lbl, "%" PRId32, *value);
+        } else {
+            char text[32];
+            display_units_format(text, sizeof(text), *value, ui->display.page.metrics[0].unit, ui->imperial_units);
+            lv_label_set_text(ui->widgets.value_lbl, text);
+        }
         const char *text = lv_label_get_text(ui->widgets.value_lbl);
         int32_t safe_width = lv_obj_get_width(ui->widgets.value_lbl);
         const lv_font_t *font = font_title;
@@ -532,7 +544,7 @@ static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, c
 
 static void render_page(ui_t *ui)
 {
-    int32_t values[2] = {0};
+    double values[2] = {0};
     bool available[2] = {
         metric_value(ui, 0, &values[0]),
         metric_value(ui, 1, &values[1]),
@@ -548,8 +560,11 @@ static void render_page(ui_t *ui)
                 if (available[i] && !strcmp(metric->unit, "gear")) {
                     const char *gear = transmission_gear_label(values[i]);
                     lv_label_set_text(ui->widgets.dual_value[i], gear ? gear : "...");
-                } else if (available[i]) lv_label_set_text_fmt(ui->widgets.dual_value[i], "%" PRId32,
-                    display_units_value(values[i], metric->unit, ui->imperial_units));
+                } else if (available[i]) {
+                    char text[32];
+                    display_units_format(text, sizeof(text), values[i], metric->unit, ui->imperial_units);
+                    lv_label_set_text(ui->widgets.dual_value[i], text);
+                }
                 else lv_label_set_text(ui->widgets.dual_value[i], "...");
                 lv_label_set_text_fmt(ui->widgets.dual_info[i], "%s  %s",
                                       metric->name ? metric->name : "VALUE",
@@ -558,12 +573,11 @@ static void render_page(ui_t *ui)
         }
     } else if (!ui->display.rendered_once || available[0] != ui->display.rendered_available[0] ||
                (available[0] && values[0] != ui->display.rendered_values[0])) {
-        int32_t shown = display_units_value(values[0], primary->unit, ui->imperial_units);
-        ui_update_screen(ui, available[0] ? &shown : NULL,
+        ui_update_screen(ui, available[0] ? &values[0] : NULL,
                          ui->display.page.name ? ui->display.page.name : primary->name,
                          display_units_label(primary->unit, ui->imperial_units));
-        if (available[0] && renderer == UI_RENDERER_ARC) lv_arc_set_value(ui->widgets.arc, values[0]);
-        if (available[0] && renderer == UI_RENDERER_BAR) lv_bar_set_value(ui->widgets.bar, values[0], LV_ANIM_OFF);
+        if (available[0] && renderer == UI_RENDERER_ARC) lv_arc_set_value(ui->widgets.arc, normalized_value(values[0], primary, 1000));
+        if (available[0] && renderer == UI_RENDERER_BAR) lv_bar_set_value(ui->widgets.bar, normalized_value(values[0], primary, 1000), LV_ANIM_OFF);
     }
 
     if (renderer == UI_RENDERER_TREND && available[0] &&
@@ -572,10 +586,7 @@ static void render_page(ui_t *ui)
         if (ui->display.trend_count < 60) ui->display.trend_count++;
         memmove(&ui->display.trend_points[0], &ui->display.trend_points[1],
                 59 * sizeof(ui->display.trend_points[0]));
-        int32_t range = bounded_range(primary->minimum, primary->maximum);
-        int64_t normalized = ((int64_t)(values[0] - primary->minimum) * 76) / range;
-        if (normalized < 0) normalized = 0;
-        if (normalized > 76) normalized = 76;
+        int32_t normalized = normalized_value(values[0], primary, 76);
         for (unsigned i = 0; i < 60; ++i)
             ui->display.trend_points[i].x = (int32_t)i * 144 / 59;
         ui->display.trend_points[59].y = 76 - (int32_t)normalized;
@@ -730,7 +741,7 @@ static void ui_task(lv_timer_t *timer)
     while (xQueueReceive(ui->rtos.value_que, &sample, 0) == pdTRUE) {
         for (unsigned i = 0; i < ui->display.page.metric_count; ++i) {
             if (ui->display.page.metrics[i].pid != sample.pid) continue;
-            ui->display.samples[i].present = sample.value != DISPLAY_VALUE_INVALID;
+            ui->display.samples[i].present = sample.present;
             ui->display.samples[i].value = sample.value;
             ui->display.samples[i].received_at = sample.received_at;
         }
@@ -875,11 +886,8 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_add_flag(diagnostics_lbl, LV_OBJ_FLAG_HIDDEN);
     ui->widgets.diagnostics_lbl = diagnostics_lbl;
 
-    int32_t minimum = page->metrics[0].minimum;
-    int32_t maximum = page->metrics[0].maximum;
-    if (maximum <= minimum) maximum = minimum + 1;
-    lv_arc_set_range(arc, minimum, maximum);
-    lv_bar_set_range(bar, minimum, maximum);
+    lv_arc_set_range(arc, 0, 1000);
+    lv_bar_set_range(bar, 0, 1000);
     select_renderer_widgets(ui);
     show_pairing(ui, ui->pairing_visible ? UI_PAIRING_WAITING : UI_PAIRING_HIDDEN);
 
@@ -963,13 +971,14 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     return ui;
 }
 
-void ui_set_value(ui_t *ui, uint16_t pid, int32_t const *value)
+void ui_set_value(ui_t *ui, uint16_t pid, double const *value)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
     ui_sample_t sample = {
         .pid = pid,
-        .value = value != NULL ? *value : DISPLAY_VALUE_INVALID,
+        .present = value != NULL && isfinite(*value),
+        .value = value != NULL && isfinite(*value) ? *value : 0,
         .received_at = xTaskGetTickCount(),
     };
 
@@ -991,11 +1000,8 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     ui->display.rendered_once = false;
     ui->display.trend_count = 0;
     for (unsigned i = 0; i < 60; ++i) ui->display.trend_points[i].y = 76;
-    int32_t minimum = page->metrics[0].minimum;
-    int32_t maximum = page->metrics[0].maximum;
-    if (maximum <= minimum) maximum = minimum + 1;
-    lv_arc_set_range(ui->widgets.arc, minimum, maximum);
-    lv_bar_set_range(ui->widgets.bar, minimum, maximum);
+    lv_arc_set_range(ui->widgets.arc, 0, 1000);
+    lv_bar_set_range(ui->widgets.bar, 0, 1000);
     select_renderer_widgets(ui);
     if (ui->alert_rendered && ui->rendered_alert.severity != 0)
         lv_obj_add_flag(ui->widgets.info_lbl, LV_OBJ_FLAG_HIDDEN);

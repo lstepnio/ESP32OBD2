@@ -194,10 +194,13 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
     }
     for (const cJSON *item = alerts->child; item; item = item->next) {
         int index = pid_index(out, field(item, "pidId")->valuestring);
-        if (index < 0 || out->pids[index].service == 0x22) goto done;
+        if (index < 0) goto done;
         runtime_alert_t *alert = &out->alerts[out->alert_count++];
         if (!copy_text(alert->id, sizeof(alert->id), field(item, "id"))) goto done;
         alert->pid_index = index;
+        alert->equals = strcmp(field(item, "direction")->valuestring, "equals") == 0;
+        if (alert->equals != (strcmp(out->pids[index].unit, "gear") == 0) ||
+            (alert->equals && (out->pids[index].service != 0x22 || out->pids[index].obd.pid != 0x5503))) goto done;
         alert->above = strcmp(field(item, "direction")->valuestring, "above") == 0;
         const cJSON *warning = field(item, "warning");
         const cJSON *critical = field(item, "critical");

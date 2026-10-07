@@ -14,6 +14,8 @@ from jsonschema import Draft202012Validator, ValidationError
 from referencing import Registry, Resource
 
 ROOT = Path(__file__).resolve().parents[1]
+from generate_reading_catalog import run as check_catalog
+check_catalog(check=True)
 schemas = {p.name: json.loads(p.read_text()) for p in (ROOT / 'contracts').glob('*.schema.json')}
 registry = Registry().with_resources((x['$id'], Resource.from_contents(x)) for x in schemas.values())
 for schema in schemas.values():
@@ -78,6 +80,11 @@ def config(doc):
         d = defs[alert['pidId']]
         levels = [alert[k] for k in ('warning', 'critical') if k in alert]
         check(all(d['range']['min'] <= v <= d['range']['max'] for v in levels), 'Alert threshold outside PID range')
+        if alert['direction'] == 'equals':
+            check(d['unit'] == 'gear' and alert['hysteresis'] == 0, 'Equals requires gear and zero reset distance')
+            check(all(v in [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13] for v in levels), 'Unknown gear position')
+            continue
+        check(d['unit'] != 'gear', 'Gear requires equals')
         if len(levels) == 2:
             check((levels[0] < levels[1]) if alert['direction'] == 'above' else (levels[0] > levels[1]), 'Alert severity order')
         for level in levels:
@@ -93,6 +100,15 @@ def release_catalog(doc):
     check(doc['generatedAt'] < doc['expiresAt'], 'Catalog expiry order')
     unique(doc['releases'], 'releaseSequence')
 
+catalog = json.loads((ROOT / 'contracts/reading-catalog.json').read_text())
+for row in catalog['readings']:
+    pid(row['definition'])
+    check(len(row['gaugeLabel']) <= 32, 'Catalog gauge label too long')
+    # Exercise one selected definition at a time; catalog itself exceeds the runtime selection limit.
+    selected = json.loads((ROOT / 'android/app/src/main/assets/numeric_config_template.json').read_text())
+    definition = copy.deepcopy(row['definition']); definition['sourceId'] = 'ecm'
+    selected.update(schemaVersion=2, definitions=[definition], pages=[dict(id='page.catalog', name=row['gaugeLabel'], renderer='numeric', pidIds=[definition['id']])], alerts=[])
+    config(selected)
 count = 0
 for p in (ROOT / 'contracts/examples').glob('*.json'):
     d = json.loads(p.read_text())

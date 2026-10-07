@@ -20,7 +20,6 @@
 // Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
-#define DISPLAY_VALUE_INVALID INT32_MAX
 #define UI_PAIRING_HIDDEN 0U
 #define UI_PAIRING_READY UINT32_MAX
 #define UI_PAIRING_WAITING (UINT32_MAX - 1U)
@@ -45,8 +44,8 @@ typedef struct {
     uint16_t pid;
     const char *name;
     const char *unit;
-    int32_t minimum;
-    int32_t maximum;
+    double minimum;
+    double maximum;
     uint32_t stale_after_ms;
 } ui_metric_t;
 
@@ -68,7 +67,7 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
 /* Thread-safe presentation mailbox. Samples are accepted only when their PID
  * still matches the selected page, preventing late replies from crossing a
  * page change. Passing NULL publishes an unavailable sample for that PID. */
-void  ui_set_value(ui_t *ui, uint16_t pid, int32_t const *value);
+void  ui_set_value(ui_t *ui, uint16_t pid, double const *value);
 void  ui_set_page(ui_t *ui, ui_page_t const *page);
 /* LVGL owner only for configuration and target access. Context mailbox is thread-safe. */
 void ui_configure_page_action(ui_t *ui, page_action_config_t config);

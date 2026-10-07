@@ -119,7 +119,8 @@
           "direction": {
             "enum": [
               "above",
-              "below"
+              "below",
+              "equals"
             ]
           },
           "warning": {

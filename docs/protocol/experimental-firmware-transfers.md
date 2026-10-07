@@ -102,3 +102,14 @@ all vehicle pages. Configuration schema remains 2. Apps must require this capabi
 before sending the new payload to older firmware. Compact `qs` aliases `quickSelect`
 to keep the discovery capability frame within its 255-byte read boundary. Public
 link/configuration/update qualification flags remain unchanged.
+
+## Expanded local alerts, development `cfg:5`
+
+`cfg:5` retains `cfg:4` operations and bounds and adds decimal-preserving rendering,
+numeric enhanced-PID alerts and gear `equals` conditions. Config schema 2 accepts
+`equals` only for a gear definition, valid integer position codes 0..8/11/13 and
+zero hysteresis. Both numeric comparators retain existing release/dwell behavior.
+The App requires this capability before sending new catalog entries or TCM alerts.
+Install the compatible App first; older Apps reject an unknown capability version.
+No BLE opcode, protocol-major, public OTA/config-write flag or link qualification
+changes. See [catalog maintenance and evidence](../development/reading-catalog-alerts.md).

@@ -12,16 +12,7 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
     val unknownCount: Int get() = fields.count { it.matches == null }
 
     companion object {
-        private fun localPid(id: String): String? = when (id) {
-            "transmission.temperature.experimental" -> "tcmtemp"
-            "transmission.gear" -> "tcmgear"
-            "engine.rpm" -> "rpm"
-            "engine.coolant" -> "coolant"
-            "vehicle.speed" -> "speed"
-            "engine.load" -> "load"
-            "vehicle.fuel" -> "fuel"
-            else -> null
-        }
+        private fun localPid(id: String): String? = readingCatalog.firstOrNull { it.definitionId == id }?.id
 
         fun savedDraft(document: GaugeConfigTransferClient.ActiveDocument,
                        profileId: String): Draft? = runCatching {
@@ -60,8 +51,8 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                 val alert = values.getJSONObject(index)
                 val alertPid = localPid(alert.getString("pidId")) ?: error("Saved alert reading is not available")
                 GaugeAlertDraft(alert.optString("id").ifBlank { "alert.$alertPid" }, alertPid,
-                    if (alert.optString("direction", "above").equals("below", true)) AlertDirection.Below else AlertDirection.Above,
-                    alert.getInt("warning"), alert.getInt("critical"), alert.getInt("hysteresis"),
+                    AlertDirection.entries.single { it.name.equals(alert.getString("direction"), true) },
+                    alert.getDouble("warning"), alert.getDouble("critical"), alert.getDouble("hysteresis"),
                     alert.getInt("triggerDwellMs"), alert.getInt("clearDwellMs"), alert.optInt("priority", 8))
             }
             Draft(pidId = pidId, layout = layout, source = if (saved.getJSONArray("sources").length() == 2) "ECM" else source, pages = pages, alerts = alerts, actions = ProfileActions.decode(saved.optJSONArray("actions"))).also { ProfileActions.validate(it.actions, it.pages) }
@@ -85,12 +76,12 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                     "${index + 1}. ${page.optString("name")} / $renderer / ${mapped.joinToString(" + ")}" }.joinToString("\n")
             }
             fun alertSettings(local: List<GaugeAlertDraft>): String = local.joinToString("\n") { alert ->
-                "${alert.id} / ${alert.pidId} / ${alert.direction.name.lowercase()} / ${alert.warning} / ${alert.critical} / ${alert.hysteresis} / ${alert.triggerDwellMs} / ${alert.clearDwellMs}" }
+                "${alert.id} / ${alert.pidId} / ${alert.direction.name.lowercase()} / ${alertNumber(alert.warning)} / ${alertNumber(alert.critical)} / ${alertNumber(alert.hysteresis)} / ${alert.triggerDwellMs} / ${alert.clearDwellMs}" }
             fun savedAlertSettings(): String? = saved.optJSONArray("alerts")?.let { values ->
                 (0 until values.length()).map { index ->
                     val alert = values.optJSONObject(index) ?: return@let null
                     val pid = localPid(alert.optString("pidId")) ?: return@let null
-                    "${alert.optString("id").ifBlank { "alert.$pid" }} / $pid / ${alert.optString("direction")} / ${alert.optInt("warning")} / ${alert.optInt("critical")} / ${alert.optInt("hysteresis")} / ${alert.optInt("triggerDwellMs")} / ${alert.optInt("clearDwellMs")}" }.joinToString("\n")
+                    "${alert.optString("id").ifBlank { "alert.$pid" }} / $pid / ${alert.optString("direction")} / ${alertNumber(alert.getDouble("warning"))} / ${alertNumber(alert.getDouble("critical"))} / ${alertNumber(alert.getDouble("hysteresis"))} / ${alert.optInt("triggerDwellMs")} / ${alert.optInt("clearDwellMs")}" }.joinToString("\n")
             }
             return GaugeDraftComparison(document.revision, listOf(
                 field("Vehicle profile ID", profileId, document.vehicleProfileId),

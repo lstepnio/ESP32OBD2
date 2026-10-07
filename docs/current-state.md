@@ -6,7 +6,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 
 ## Baseline
 
-- Latest installed Android: `0.2.0-dev.45`; signed gauge firmware dev.45 verified through protected readback, OTA health 2. New display/swipe confirmation is pending. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
+- Latest installed Android: `0.2.0-dev.46`; signed gauge firmware dev.45 verified through protected readback, OTA health 2. New display/swipe confirmation is pending. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
 
 - Board: Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S touch,
   16 MB flash and 2 MB PSRAM. ESP-IDF 5.4.1 with pinned components.
@@ -32,12 +32,22 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 | Dashboards/alerts | Numeric, Arc, Bar, Trend and Dual renderers; bounded page/alert configuration, stronger palette and enlarged arc; host logic tests | Daylight/color review, alert transitions and hidden-page behavior on real vehicle |
 | Configuration | Atomic slots, exact review/projection, revision/hash conflict checks, trial/fallback and stored/running identity | Physical interruption matrix and all supported layouts/alerts on hardware |
 | Updates | Signed development catalog/bundle verification, owner BLE bootstrap, authenticated private Wi-Fi transfer, A/B trial confirmation and recovery journal; App/Wi-Fi installs recorded | Hardware power-loss/expiry matrix, production trust and performance measurements |
-| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 10 in source; remembered gauges retain independent vehicle/source contexts. Firmware dev.45 retains independent ECM/TCM workers; App dev.45 uses one complete vehicle dashboard and independently scoped status/faults | Installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
+| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 11 in source; remembered gauges retain independent vehicle/source contexts. Firmware dev.45 retains independent ECM/TCM workers; App dev.45 uses one complete vehicle dashboard and independently scoped status/faults | Installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
+
+## Expanded readings and alerts
+
+Source candidate dev.46 adds a shared catalog of 55 readings (53 Mode 01 and two
+existing JSS TCM definitions), searchable reading/alert choices, decimal thresholds
+and named gear conditions. Only selected pages/alerts are polled, bounded to 32
+readings. TCM alerts follow the same logical vehicle and optional child routing.
+App dev.46 is installed for native fixture tests; gauge remains dev.45 and sending
+new readings/TCM alerts is gated on development `cfg:5`. This candidate is not yet
+published or physically validated. See [catalog, compatibility and evidence](development/reading-catalog-alerts.md).
 
 ## Public and experimental boundaries
 
 Public capability JSON keeps `configWrite:false` and `ota:false`. The bounded
-extensions (`cfg:4`, `ad:1`, `ds:3`, hardware and optional Wi-Fi features) expose
+extensions (`cfg:5`, `ad:1`, `ds:3`, hardware and optional Wi-Fi features) expose
 specific development paths; they are not general production support claims.
 Public flags must follow implementation and physical evidence.
 

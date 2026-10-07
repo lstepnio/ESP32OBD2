@@ -16,9 +16,9 @@ data class ProjectedAlert(
     val id: String,
     val pidId: String,
     val direction: AlertDirection,
-    val warning: Int,
-    val critical: Int,
-    val hysteresis: Int,
+    val warning: Double,
+    val critical: Double,
+    val hysteresis: Double,
     val triggerDwellMs: Int,
     val clearDwellMs: Int,
 )
@@ -37,29 +37,21 @@ data class ConfigurationProjection(
 }
 
 object ConfigurationProjector {
-    val supportedPidIds = setOf("rpm", "coolant", "speed", "load", "fuel")
-    val transmissionPidIds = setOf("tcmtemp", "tcmgear")
+    val supportedPidIds = readingCatalog.filter { it.source == "ECM" }.map { it.id }.toSet()
+    val transmissionPidIds = readingCatalog.filter { it.source == "TCM" }.map { it.id }.toSet()
     fun pagePidIds(source: String) = when {
         source in setOf("BOTH", "ECM") && BuildConfig.DEBUG -> supportedPidIds + transmissionPidIds
         source == "TCM" && BuildConfig.DEBUG -> transmissionPidIds
         else -> supportedPidIds
     }
-    private val definitionIds = mapOf(
-        "tcmtemp" to "transmission.temperature.experimental",
-        "tcmgear" to "transmission.gear",
-        "rpm" to "engine.rpm",
-        "coolant" to "engine.coolant",
-        "speed" to "vehicle.speed",
-        "load" to "engine.load",
-        "fuel" to "vehicle.fuel",
-    )
+    private val definitionIds = readingCatalog.associate { it.id to it.definitionId }
 
     fun blockers(draft: Draft, allowEmptyPages: Boolean = false): List<String> {
         val actionIssues = runCatching { ProfileActions.validate(draft.actions, draft.pages) }.exceptionOrNull()?.let { listOf(it.message ?: "Invalid actions") } ?: emptyList()
         return actionIssues + buildList {
             if (draft.source == "TCM") {
-                if (!BuildConfig.DEBUG || draft.alerts.isNotEmpty())
-                    add("The TCM setup supports temperature and gear pages without alerts")
+                if (!BuildConfig.DEBUG)
+                    add("The TCM setup requires a development build")
             } else if (draft.source !in setOf("ECM", "BOTH"))
                 add("Vehicle source is invalid")
             if (draft.pages.size !in (if (allowEmptyPages) 0..8 else 1..8)) add("Add a page for the selected adapter before sending")
@@ -76,21 +68,30 @@ object ConfigurationProjector {
                 if (page.name.isBlank() || page.name.length > 32)
                     add("Page ${index + 1} needs a name of at most 32 characters")
             }
+            if ((draft.pages.flatMap { it.pidIds } + draft.alerts.map { it.pidId }).distinct().size > 32)
+                add("Use up to 32 different readings across pages and alerts")
             if (draft.alerts.size > 32) add("Choose up to 32 alerts")
             if (draft.alerts.map { it.id }.distinct().size != draft.alerts.size) add("Every alert needs a unique identity")
             if (draft.alerts.map { it.pidId }.distinct().size != draft.alerts.size) add("Choose each reading only once for alerts")
             draft.alerts.forEach { alert ->
-                val range = readingRange(alert.pidId)
-                if (alert.pidId !in supportedPidIds) add("An alert uses a reading this firmware cannot execute")
+                val range = readingCatalog.firstOrNull { it.id == alert.pidId }?.let { it.minimum..it.maximum } ?: 0.0..100.0
+                if (alert.pidId !in pagePidIds(draft.source)) add("An alert uses a reading this firmware cannot execute")
                 if (alert.warning !in range || alert.critical !in range) add("${alert.pidId} alert limits are outside its supported range")
-                val ordered = if (alert.direction == AlertDirection.Above) alert.warning < alert.critical else alert.warning > alert.critical
-                if (!ordered) add("${alert.pidId} critical limit must be beyond its warning limit")
-                if (alert.hysteresis !in 0..20 || alert.hysteresis >= range.last - range.first)
-                    add("${alert.pidId} alert reset margin is outside the supported range")
-                val marginFits = if (alert.direction == AlertDirection.Above)
-                    alert.warning + alert.hysteresis < alert.critical
-                else alert.warning - alert.hysteresis > alert.critical
-                if (!marginFits) add("${alert.pidId} alert reset margin needs more space between warning and critical")
+                val gear = readingCatalog.firstOrNull { it.id == alert.pidId }?.alertKind == "gear"
+                if (gear || alert.direction == AlertDirection.Equals) {
+                    if (!gear || alert.direction != AlertDirection.Equals ||
+                        alert.warning !in gearPositions || alert.critical !in gearPositions || alert.hysteresis != 0.0)
+                        add("${alert.pidId} alert needs valid gear positions and no reset margin")
+                } else {
+                    val ordered = if (alert.direction == AlertDirection.Above) alert.warning < alert.critical else alert.warning > alert.critical
+                    if (!ordered) add("${alert.pidId} critical limit must be beyond its warning limit")
+                    if (!alert.hysteresis.isFinite() || alert.hysteresis < 0 || alert.hysteresis >= range.endInclusive - range.start)
+                        add("${alert.pidId} alert reset margin is outside the supported range")
+                    val marginFits = if (alert.direction == AlertDirection.Above)
+                        alert.warning + alert.hysteresis < alert.critical && alert.warning - alert.hysteresis >= range.start
+                    else alert.warning - alert.hysteresis > alert.critical && alert.warning + alert.hysteresis <= range.endInclusive
+                    if (!marginFits) add("${alert.pidId} alert reset margin needs more space between warning and critical")
+                }
                 if (alert.triggerDwellMs !in 0..60000 || alert.clearDwellMs !in 0..60000)
                     add("${alert.pidId} alert timing is outside the supported range")
             }

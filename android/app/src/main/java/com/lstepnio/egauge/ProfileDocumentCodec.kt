@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..10) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..11) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -75,7 +75,7 @@ object ProfileDocumentCodec {
                     demoCatalog.any { it.id == alertPid }) { "Profile alert identity is invalid" }
                 GaugeAlertDraft(alertId, alertPid,
                     AlertDirection.valueOf(alert.optString("direction", "above").replaceFirstChar(Char::uppercase)),
-                    alert.getInt("warning"), alert.getInt("critical"), alert.optInt("hysteresis", 3),
+                    alert.getDouble("warning"), alert.getDouble("critical"), alert.optDouble("hysteresis", 3.0),
                     alert.optInt("triggerDwellMs", 1000), alert.optInt("clearDwellMs", 2000), alert.optInt("priority", 8))
             }
         } else listOf(GaugeAlertDraft("alert.coolant", "coolant", AlertDirection.Above,
@@ -95,8 +95,8 @@ object ProfileDocumentCodec {
         require(draft.alerts.map { it.id }.distinct().size == draft.alerts.size &&
             draft.alerts.all { alert ->
                 // Older apps accepted 16384. Keep those profiles readable so the editor can fix the limit.
-                val storedRange = if (alert.pidId == "rpm") 0..16384 else readingRange(alert.pidId)
-                alert.warning in storedRange && alert.critical in storedRange && alert.hysteresis in 0..20 &&
+                val storedRange = if (alert.pidId == "rpm") 0.0..16384.0 else readingBounds(alert.pidId)
+                alert.warning in storedRange && alert.critical in storedRange && alert.hysteresis.isFinite() && alert.hysteresis >= 0 && alert.hysteresis < storedRange.endInclusive - storedRange.start &&
                 alert.triggerDwellMs in 0..60000 && alert.clearDwellMs in 0..60000 }) {
             "Profile alert settings are invalid"
         }
@@ -105,7 +105,7 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 10).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 11).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
             ProfileActions.validate(profile.draft.actions, profile.draft.pages)

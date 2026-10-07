@@ -172,14 +172,14 @@ static const char capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
     "\"maxAdapterLinks\":1,"
     "\"savedStateRead\":true,\"displayRotationWrite\":true,"
-    "\"configWrite\":false,\"cfg\":4,\"ad\":1,\"da\":1,\"va\":1,"
+    "\"configWrite\":false,\"cfg\":5,\"ad\":1,\"da\":1,\"va\":1,"
     "\"qs\":true,\"ota\":false,\"hw\":1"
     DISPLAY_SETTINGS_CAPABILITY WIFI_BULK_CAPABILITY "}";
 static const char document_capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
     "\"maxAdapterLinks\":1,"
     "\"savedStateRead\":false,\"displayRotationWrite\":false,"
-    "\"configWrite\":false,\"cfg\":4,\"ad\":1,\"da\":1,\"va\":1,"
+    "\"configWrite\":false,\"cfg\":5,\"ad\":1,\"da\":1,\"va\":1,"
     "\"ota\":false,\"hw\":1"
     DISPLAY_SETTINGS_CAPABILITY WIFI_BULK_CAPABILITY "}";
 _Static_assert(sizeof(capabilities) - 1U <= 255U,

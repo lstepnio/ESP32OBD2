@@ -46,6 +46,7 @@ typedef struct {
     char id[65];
     uint8_t pid_index;
     bool above;
+    bool equals;
     bool has_warning;
     bool has_critical;
     double warning;

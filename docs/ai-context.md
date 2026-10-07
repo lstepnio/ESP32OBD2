@@ -30,6 +30,7 @@ Do not load all historical reports or third-party catalogs to begin a task.
 | App state and operations | Android `AppModel.kt`, `connection/`, `ui/state/`, `AppOperation.kt` | [Android runtime](architecture/android-runtime.md) |
 | App UI/style | Android `ui/`, `core/designsystem/`, `design/tokens.json` | [Design system](design/design-system.md) |
 | Jeep capture and offline replay | `tools/obd_capture.py`, `obd_explore.py`, `obd_tcm_values.py`, `tools/tests/` | [TCM resume](development/tcm-session-resume.md) |
+| Selectable readings and alerts | `contracts/reading-catalog.json`, `tools/generate_reading_catalog.py`, Android `ReadingCatalog.kt`, `ConfigurationProjection.kt`, `ui/customize/AlertForm.kt`; firmware `src/config_document.c`, `src/config_runtime.c`, `src/alert_engine.c` | [Catalog rules and qualification](development/reading-catalog-alerts.md) |
 | Catalog research | `tools/research/`, `data/vehicle-definitions/` | [Catalog scope/license](vehicles/catalog-research.md) |
 
 Firmware paths in the table are relative to `firmware/gauge/main/`. Android Kotlin

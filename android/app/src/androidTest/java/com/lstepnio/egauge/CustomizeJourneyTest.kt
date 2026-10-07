@@ -109,8 +109,8 @@ class CustomizeJourneyTest {
         compose.onNodeWithText("Save alert").assertIsEnabled().performClick()
         assertEquals(1, saved.size)
         assertEquals("rpm", saved.single().pidId)
-        assertEquals(6000, saved.single().warning)
-        assertEquals(7000, saved.single().critical)
+        assertEquals(6000.0, saved.single().warning, 0.0)
+        assertEquals(7000.0, saved.single().critical, 0.0)
     }
 
     @Test fun lowReadingAlertShowsActionableValidationAndPreviewStates() {
@@ -130,7 +130,7 @@ class CustomizeJourneyTest {
         capture("alert-preview")
         compose.onNodeWithText("Save alert").performClick()
         assertEquals(AlertDirection.Below, saved.single().direction)
-        assertEquals(-10, saved.single().critical)
+        assertEquals(-10.0, saved.single().critical, 0.0)
     }
 
     @Test fun pageLimitAndLastPageRemainProtected() {

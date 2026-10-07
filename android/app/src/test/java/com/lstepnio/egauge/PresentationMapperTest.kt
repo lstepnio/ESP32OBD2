@@ -8,12 +8,12 @@ class PresentationMapperTest {
     @Test fun browsingPagesDoesNotChangeWhatWasSent() {
         val sent = Draft()
         assertTrue(sameSettings(sent, sent.copy(pidId = "coolant", layout = GaugeLayout.Numeric)))
-        assertFalse(sameSettings(sent, sent.copy(alerts = sent.alerts.map { it.copy(warning = 106) })))
+        assertFalse(sameSettings(sent, sent.copy(alerts = sent.alerts.map { it.copy(warning = 106.0) })))
         assertFalse(sameSettings(sent, sent.copy(pages = sent.pages.reversed())))
         assertFalse(sameSettings(sent, sent.copy(source = "TCM")))
     }
     @Test fun unsupportedFieldsBlockSendInPlainLanguage() {
-        val bad = Draft(source = "TCM", alerts = listOf(defaultAlert().copy(warning = 115, critical = 105)))
+        val bad = Draft(source = "TCM", alerts = listOf(defaultAlert().copy(warning = 115.0, critical = 105.0)))
         val blockers = presentationBlockers(bad, null)
         assertFalse(blockers.isEmpty())
         assertTrue(blockers.all { "TCM" !in it && "ECM" !in it && "PID" !in it && "hysteresis" !in it })

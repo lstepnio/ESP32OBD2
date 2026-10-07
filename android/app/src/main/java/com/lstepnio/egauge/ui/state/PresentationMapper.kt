@@ -6,14 +6,8 @@ import com.lstepnio.egauge.core.designsystem.*
 
 fun readingName(id: String): String = when (id) {
     "rpm" -> "Engine speed"
-    "coolant" -> "Coolant temperature"
-    "speed" -> "Vehicle speed"
     "load" -> "Engine load"
-    "fuel" -> "Fuel level"
-    "tcm" -> "Transmission input speed"
-    "tcmtemp" -> "Transmission temperature"
-    "tcmgear" -> "Gear"
-    else -> "Unknown reading"
+    else -> demoCatalog.firstOrNull { it.id == id }?.name ?: "Unknown reading"
 }
 
 /** Editor cursor fields are not part of the transmitted page/alert payload. */
@@ -39,7 +33,7 @@ fun readingUi(pid: PidExample, system: MeasurementSystem = MeasurementSystem.Met
 fun alertUi(alert: GaugeAlertDraft, system: MeasurementSystem = MeasurementSystem.Metric): AlertUi {
     val reading = demoCatalog.first { it.id == alert.pidId }
     return AlertUi(alert.id, alert.pidId, readingName(alert.pidId), MeasurementUnits.label(reading.unit, system),
-        if (alert.direction == AlertDirection.Above) "above" else "below",
+        alert.direction.name.lowercase(),
         MeasurementUnits.value(alert.warning, reading.unit, system), MeasurementUnits.value(alert.critical, reading.unit, system),
         MeasurementUnits.distance(alert.hysteresis, reading.unit, system), alert.triggerDwellMs / 1000f,
         alert.clearDwellMs / 1000f, MeasurementUnits.range(readingRange(alert.pidId), reading.unit, system),
@@ -60,6 +54,8 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
         })
     }
     caps?.let {
+        if (requiresPidCatalogFirmware(draft) && it.pidCatalogVersion != 1)
+            add("Update the gauge before sending the expanded readings and alerts")
         if (draft.actions.isNotEmpty() && it.pageActionsVersion != 1) add("Update the gauge before sending gesture actions")
         if (requiresVehicleDashboardFirmware(draft, false) && it.vehicleDashboardVersion != 1)
             add("Update the gauge before sending the complete vehicle dashboard")

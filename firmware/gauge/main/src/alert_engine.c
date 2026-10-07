@@ -1,4 +1,5 @@
 #include <string.h>
+#include <math.h>
 #include "alert_engine.h"
 
 typedef struct {
@@ -14,12 +15,12 @@ static alert_state_t states[EGAUGE_RUNTIME_ALERTS];
 
 static bool crosses(const runtime_alert_t *rule, double value, double limit)
 {
-    return rule->above ? value >= limit : value <= limit;
+    return rule->equals ? value == limit : rule->above ? value >= limit : value <= limit;
 }
 
 static bool releases(const runtime_alert_t *rule, double value, double limit)
 {
-    return rule->above ? value <= limit - rule->hysteresis
+    return rule->equals ? value != limit : rule->above ? value <= limit - rule->hysteresis
                        : value >= limit + rule->hysteresis;
 }
 
@@ -31,7 +32,8 @@ void alert_engine_init(const config_runtime_t *runtime)
 
 void alert_engine_sample(uint8_t pid_index, double value, uint32_t now_ms)
 {
-    if (!rules) return;
+    if (!rules || pid_index >= rules->pid_count) return;
+    if (!isfinite(value)) { alert_engine_invalidate_pid(pid_index); return; }
     for (unsigned i = 0; i < rules->alert_count; ++i) {
         const runtime_alert_t *rule = &rules->alerts[i];
         if (rule->pid_index != pid_index) continue;
@@ -112,6 +114,17 @@ void alert_engine_invalidate_source(unsigned source)
     if (!rules) { alert_engine_invalidate(); return; }
     for (unsigned i=0; i<rules->alert_count; ++i) {
         if (rules->pids[rules->alerts[i].pid_index].source_index != source) continue;
+        states[i].sampled = false;
+        states[i].pending = 0;
+        states[i].pending_since = 0;
+    }
+}
+
+void alert_engine_invalidate_pid(uint8_t pid_index)
+{
+    if (!rules) return;
+    for (unsigned i=0; i<rules->alert_count; ++i) {
+        if (rules->alerts[i].pid_index != pid_index) continue;
         states[i].sampled = false;
         states[i].pending = 0;
         states[i].pending_since = 0;

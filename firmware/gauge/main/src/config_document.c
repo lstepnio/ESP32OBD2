@@ -335,7 +335,7 @@ static bool alert_valid(const cJSON *item, const cJSON *definitions)
 {
     static const char *const keys[] = {"id", "pidId", "direction", "warning", "critical",
         "hysteresis", "triggerDwellMs", "clearDwellMs", "snoozeMs", "priority"};
-    static const char *const directions[] = {"above", "below"};
+    static const char *const directions[] = {"above", "below", "equals"};
     const cJSON *pid = cJSON_GetObjectItemCaseSensitive(item, "pidId");
     const cJSON *direction = cJSON_GetObjectItemCaseSensitive(item, "direction");
     const cJSON *warning = cJSON_GetObjectItemCaseSensitive(item, "warning");
@@ -365,6 +365,18 @@ static bool alert_valid(const cJSON *item, const cJSON *definitions)
         (critical && (critical->valuedouble < minimum->valuedouble ||
                       critical->valuedouble > maximum->valuedouble)) ||
         hysteresis->valuedouble >= maximum->valuedouble - minimum->valuedouble) return false;
+    bool gear = strcmp(cJSON_GetObjectItemCaseSensitive(definition, "unit")->valuestring, "gear") == 0;
+    if (strcmp(direction->valuestring, "equals") == 0) {
+        if (!gear || hysteresis->valuedouble != 0) return false;
+        const cJSON *targets[] = {warning, critical};
+        for (unsigned i=0; i<ARRAY_COUNT(targets); ++i) {
+            if (!targets[i]) continue;
+            double v = targets[i]->valuedouble;
+            if (!((v >= 0 && v <= 8 && floor(v) == v) || v == 11 || v == 13)) return false;
+        }
+        return true;
+    }
+    if (gear) return false;
     if (strcmp(direction->valuestring, "above") == 0) {
         if ((warning && warning->valuedouble - hysteresis->valuedouble < minimum->valuedouble) ||
             (critical && critical->valuedouble - hysteresis->valuedouble < minimum->valuedouble))

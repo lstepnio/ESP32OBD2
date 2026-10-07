@@ -17,10 +17,10 @@ data class PageUi(val id: String, val name: String, val readingId: String, val r
 data class ReadingUi(val id: String, val name: String, val unit: String, val details: List<DetailUi>, val source: String = "ECM")
 @Immutable
 data class AlertUi(val id: String, val readingId: String, val readingName: String, val unit: String,
-                   val direction: String, val warning: Int, val critical: Int, val resetMargin: Int,
+                   val direction: String, val warning: Double, val critical: Double, val resetMargin: Double,
                    val triggerSeconds: Float, val clearSeconds: Float, val range: IntRange,
-                   val priority: Int = 8, val canonicalWarning: Int = warning,
-                   val canonicalCritical: Int = critical, val canonicalResetMargin: Int = resetMargin)
+                   val priority: Int = 8, val canonicalWarning: Double = warning,
+                   val canonicalCritical: Double = critical, val canonicalResetMargin: Double = resetMargin)
 @Immutable
 enum class UpdateNotice { None, Ready, NeedsCheck }
 @Immutable

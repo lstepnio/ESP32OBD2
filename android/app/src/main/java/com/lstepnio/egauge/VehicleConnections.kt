@@ -4,9 +4,9 @@ package com.lstepnio.egauge
 data class TransmissionConnection(val adapter: AdapterBinding? = null,
                                   val draft: Draft = TransmissionSetup.draft()) {
     init {
-        require(draft.source == "TCM" && draft.alerts.isEmpty() &&
+        require(draft.source == "TCM" && draft.alerts.all { it.pidId in ConfigurationProjector.transmissionPidIds } &&
             draft.pages.flatMap { it.pidIds }.all { it in ConfigurationProjector.transmissionPidIds }) {
-            "Transmission child must use supported TCM pages without alerts"
+            "Transmission child must use supported TCM readings"
         }
     }
 }
@@ -30,7 +30,7 @@ fun VehicleProfile.dashboardDraft(): Draft {
     val child = transmission ?: return draft.copy(source = "ECM")
     val pages = draft.pages + child.draft.pages.map { it.copy(id = "child.${it.id}") }
     val ordered = pageOrder.mapNotNull { id -> pages.firstOrNull { it.id == id } } + pages.filter { it.id !in pageOrder }
-    return draft.copy(source = "BOTH", actions = draft.actions + child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") }, pages = ordered)
+    return draft.copy(source = "BOTH", alerts = draft.alerts + child.draft.alerts, actions = draft.actions + child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") }, pages = ordered)
 }
 
 /** Only execution needs two distinct physical adapters. */

@@ -38,6 +38,11 @@ data class PidExample(
     val exampleKind: String,
     val category: String,
     val gaugeLabel: String,
+    val definitionId: String = "",
+    val minimum: Double = 0.0,
+    val maximum: Double = 100.0,
+    val alertKind: String = "numeric",
+    val configurationVersion: Int = 5,
 )
 
 /** Populated only from an adapter session with a known vehicle and ECU source. */
@@ -54,16 +59,8 @@ data class VehiclePidObservation(
     val observedAtMillis: Long,
 )
 
-val demoCatalog = listOf(
-    PidExample("rpm", "Engine RPM", "ECM", "01 0C", "rpm", "2,840", "Example response", "Engine", "ENGINE RPM"),
-    PidExample("coolant", "Coolant temperature", "ECM", "01 05", "°C", "92", "Example response", "Thermal", "COOLANT"),
-    PidExample("speed", "Vehicle speed", "ECM", "01 0D", "km/h", "64", "Example response", "Driving", "SPEED"),
-    PidExample("load", "Calculated load", "ECM", "01 04", "%", "38", "Example response", "Engine", "ENGINE LOAD"),
-    PidExample("fuel", "Fuel level", "ECM", "01 2F", "%", "73", "Example response", "Fuel", "FUEL LEVEL"),
-    PidExample("tcmtemp", "Transmission temperature", "TCM", "22 04FE", "°C", "45", "Experimental interpretation; sensor meaning unvalidated", "Transmission", "TRANS TEMP"),
-    PidExample("tcmgear", "Gear", "TCM", "22 5503", "", "P", "P/R/N/1 compared on JSS; gears 2–8 use published mapping", "Transmission", "GEAR"),
-    PidExample("tcm", "Transmission input speed", "TCM", "Vehicle specific", "rpm", "2,120", "Synthetic only", "Transmission", "INPUT SPEED"),
-)
+// Preserve legacy local profiles; synthetic input speed cannot be sent.
+val demoCatalog = readingCatalog + PidExample("tcm", "Transmission input speed", "TCM", "Vehicle specific", "rpm", "2,120", "Synthetic only", "Transmission", "INPUT SPEED")
 
 enum class Destination(val label: String, val glyph: String) {
     Gauge("Gauge", "◉"), Readings("Readings", "≡"), Vehicle("Vehicle", "⌂"), Settings("Settings", "⚙")
@@ -80,48 +77,51 @@ data class GaugePageDraft(
     val pidIds: List<String>,
 )
 
-enum class AlertDirection { Above, Below }
+enum class AlertDirection { Above, Below, Equals }
 
 data class GaugeAlertDraft(
     val id: String,
     val pidId: String,
     val direction: AlertDirection = AlertDirection.Above,
-    val warning: Int,
-    val critical: Int,
-    val hysteresis: Int = 3,
+    val warning: Double,
+    val critical: Double,
+    val hysteresis: Double = 3.0,
     val triggerDwellMs: Int = 1000,
     val clearDwellMs: Int = 2000,
     val priority: Int = 8,
-)
+) {
+    constructor(id: String, pidId: String, direction: AlertDirection = AlertDirection.Above,
+                warning: Int, critical: Int, hysteresis: Int = 3, triggerDwellMs: Int = 1000,
+                clearDwellMs: Int = 2000, priority: Int = 8) : this(id, pidId, direction,
+        warning.toDouble(), critical.toDouble(), hysteresis.toDouble(), triggerDwellMs, clearDwellMs, priority)
+}
 
-fun readingRange(id: String): IntRange = when (id) {
-    "rpm" -> 0..16383 // Largest whole-number threshold within the decoder's 16383.75 maximum.
-    "coolant" -> -40..215
-    "tcmtemp" -> 0..180
-    "speed" -> 0..255
-    "load", "fuel" -> 0..100
-    else -> 0..100
+fun readingRange(id: String): IntRange = readingBounds(id).let {
+    kotlin.math.ceil(it.start).toInt()..kotlin.math.floor(it.endInclusive).toInt()
 }
 
 fun defaultAlert(pidId: String = "coolant"): GaugeAlertDraft {
-    val range = readingRange(pidId)
-    val span = range.last - range.first
+    val reading = readingCatalog.first { it.id == pidId }
+    if (reading.alertKind == "gear") return GaugeAlertDraft("alert.$pidId", pidId,
+        AlertDirection.Equals, warning = 11.0, critical = 13.0, hysteresis = 0.0)
+    val span = reading.maximum - reading.minimum
     val warning = when (pidId) {
-        "coolant" -> 105
-        "rpm" -> 4000
-        "speed" -> 120
-        "load", "fuel" -> 80
-        else -> range.first + (span * 3 / 4)
-    }.coerceIn(range)
+        "coolant" -> 105.0
+        "rpm" -> 4000.0
+        "speed" -> 120.0
+        "load", "fuel" -> 80.0
+        else -> reading.minimum + span * .75
+    }
     val critical = when (pidId) {
-        "coolant" -> 115
-        "rpm" -> 5000
-        "speed" -> 140
-        "load", "fuel" -> 90
-        else -> warning + (span / 10).coerceAtLeast(1)
-    }.coerceIn(range)
-    return GaugeAlertDraft("alert.$pidId", pidId, AlertDirection.Above, warning,
-        if (critical > warning) critical else warning - 1, hysteresis = (span / 50).coerceIn(1, 20))
+        "coolant" -> 115.0
+        "rpm" -> 5000.0
+        "speed" -> 140.0
+        "load", "fuel" -> 90.0
+        else -> reading.minimum + span * .9
+    }
+    val margin = if (reading.configurationVersion == 1) (span.toInt() / 50).coerceIn(1, 20).toDouble()
+        else minOf(span * .02, (critical - warning) / 4)
+    return GaugeAlertDraft("alert.$pidId", pidId, AlertDirection.Above, warning, critical, hysteresis = margin)
 }
 
 fun defaultGaugePages(primary: String = "rpm", layout: GaugeLayout = GaugeLayout.Numeric): List<GaugePageDraft> {
@@ -165,6 +165,7 @@ data class CapabilitySnapshot(
     val adapterRegistryVersion: Int = 0,
     val dualAdapterVersion: Int = 0,
     val vehicleDashboardVersion: Int = 0,
+    val pidCatalogVersion: Int = 0,
     val pageActionsVersion: Int = 0,
     val maxPages: Int = 0,
     val supportedRenderers: Set<GaugeLayout> = emptySet(),
@@ -811,6 +812,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private fun configurationBytes(template: String, baseRevision: Long, schemaVersion: Int): ByteArray {
         require(transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) {
             "Update the gauge before sending gesture actions"
+        }
+        require(!requiresPidCatalogFirmware(transmittedDraft) || capabilities?.pidCatalogVersion == 1) {
+            "Update the gauge before sending the expanded readings and alerts"
         }
         require(!requiresVehicleDashboardFirmware(transmittedDraft, bothAdapters) || capabilities?.vehicleDashboardVersion == 1) {
             "Update the gauge before sending the complete vehicle dashboard"
@@ -1862,14 +1866,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /** Commit a completed form once. Opening or cancelling the editor never creates an alert. */
     fun saveAlert(alert: GaugeAlertDraft) {
         val working = editorDraft
-        if (alert.pidId !in ConfigurationProjector.supportedPidIds) return
+        if (alert.pidId !in ConfigurationProjector.pagePidIds(working.source)) return
         val previous = working.alerts.firstOrNull { it.pidId == alert.pidId }
         if (previous != null && previous.id != alert.id) return
         val alerts = if (previous == null) working.alerts + alert else working.alerts.map {
             if (it.id == previous.id) alert else it
         }
         if (alerts.size > 32 || alerts.map { it.id }.distinct().size != alerts.size ||
-            ConfigurationProjector.blockers(Draft(alerts = listOf(alert))).isNotEmpty()) return
+            ConfigurationProjector.blockers(working.copy(alerts = alerts)).isNotEmpty()) return
         save(working.copy(alerts = alerts))
     }
     fun savePageAction(value: PageAction?) {

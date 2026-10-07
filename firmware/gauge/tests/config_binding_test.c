@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "cJSON.h"
 #include "config_document.h"
 #include "config_runtime.h"
@@ -194,6 +195,60 @@ int main(int argc, char **argv)
     cJSON_ReplaceItemInObject(cJSON_GetObjectItem(gear_definition,"response"),"prefix",cJSON_CreateString("625504"));
     set(root); assert(validate()==ESP_OK);
     assert(config_runtime_validate(&partition,0,document_length,NULL)==ESP_ERR_NOT_SUPPORTED);
+    /* Every selectable catalog definition compiles with the production path and its vectors. */
+    unsigned catalog_count = 0;
+    const cJSON *catalog_definition;
+    cJSON_ArrayForEach(catalog_definition,cJSON_GetObjectItem(asset,"definitions")) {
+        cJSON *selected = cJSON_Duplicate(asset,1);
+        cJSON_SetNumberValue(cJSON_GetObjectItem(selected,"baseRevision"),21);
+        cJSON_SetNumberValue(cJSON_GetObjectItem(selected,"schemaVersion"),2);
+        cJSON *one_definition = cJSON_Duplicate(catalog_definition,1);
+        cJSON_ReplaceItemInObject(one_definition,"sourceId",cJSON_CreateString("ecm"));
+        cJSON *selected_defs = cJSON_CreateArray(); cJSON_AddItemToArray(selected_defs,one_definition);
+        cJSON_ReplaceItemInObject(selected,"definitions",selected_defs);
+        cJSON *selected_pages = cJSON_CreateArray();
+        cJSON *selected_page = cJSON_Parse("{\"id\":\"page.catalog\",\"name\":\"CATALOG\",\"renderer\":\"numeric\",\"pidIds\":[]}");
+        const char *id=cJSON_GetObjectItem(one_definition,"id")->valuestring;
+        cJSON_AddItemToArray(cJSON_GetObjectItem(selected_page,"pidIds"),cJSON_CreateString(id));
+        cJSON_AddItemToArray(selected_pages,selected_page);
+        cJSON_ReplaceItemInObject(selected,"pages",selected_pages);
+        bool is_gear = !strcmp(cJSON_GetObjectItem(one_definition,"unit")->valuestring,"gear");
+        const cJSON *bounds = cJSON_GetObjectItem(one_definition,"range");
+        double minimum=cJSON_GetObjectItem(bounds,"min")->valuedouble;
+        double span=cJSON_GetObjectItem(bounds,"max")->valuedouble-minimum;
+        cJSON *selected_alerts=cJSON_CreateArray();
+        cJSON *rule=cJSON_Parse("{\"id\":\"alert.catalog\",\"pidId\":\"placeholder\",\"direction\":\"above\",\"warning\":0,\"critical\":0,\"hysteresis\":0,\"triggerDwellMs\":1000,\"clearDwellMs\":2000,\"snoozeMs\":0,\"priority\":8}");
+        cJSON_ReplaceItemInObject(rule,"pidId",cJSON_CreateString(id));
+        if (is_gear) cJSON_ReplaceItemInObject(rule,"direction",cJSON_CreateString("equals"));
+        cJSON_SetNumberValue(cJSON_GetObjectItem(rule,"warning"),is_gear ? 11 : minimum + span*.6);
+        cJSON_SetNumberValue(cJSON_GetObjectItem(rule,"critical"),is_gear ? 13 : minimum + span*.8);
+        cJSON_SetNumberValue(cJSON_GetObjectItem(rule,"hysteresis"),is_gear ? 0 : span*.05);
+        cJSON_AddItemToArray(selected_alerts,rule);
+        cJSON_ReplaceItemInObject(selected,"alerts",selected_alerts);
+        set(selected); assert(validate()==ESP_OK);
+        assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
+        assert(runtime.pid_count==1 && runtime.alert_count==1 && runtime.alerts[0].equals==is_gear);
+        const cJSON *vector;
+        cJSON_ArrayForEach(vector,cJSON_GetObjectItem(one_definition,"vectors")) {
+            const char *hex=cJSON_GetObjectItem(vector,"payloadHex")->valuestring;
+            uint8_t payload[16]; size_t size=strlen(hex)/2; assert(size<=sizeof(payload));
+            for (size_t i=0; i<size; ++i) { unsigned v; assert(sscanf(hex+2*i,"%2x",&v)==1); payload[i]=v; }
+            double value;
+            assert(pid_decoder_eval(&runtime.pids[0].obd.decoder,payload,size,&value));
+            assert(fabs(value-cJSON_GetObjectItem(vector,"expected")->valuedouble)<1e-8);
+            assert(!pid_decoder_eval(&runtime.pids[0].obd.decoder,payload,runtime.pids[0].obd.decoder.byte_length-1,&value));
+        }
+        if (is_gear) {
+            cJSON_SetNumberValue(cJSON_GetObjectItem(rule,"warning"),12); set(selected); assert(validate()!=ESP_OK);
+            cJSON_SetNumberValue(cJSON_GetObjectItem(rule,"warning"),11);
+            cJSON_SetNumberValue(cJSON_GetObjectItem(rule,"hysteresis"),.1); set(selected); assert(validate()!=ESP_OK);
+        } else {
+            cJSON_ReplaceItemInObject(rule,"direction",cJSON_CreateString("equals")); set(selected); assert(validate()!=ESP_OK);
+        }
+        cJSON_Delete(selected); ++catalog_count;
+    }
+    assert(catalog_count==55);
+    printf("%u catalog definitions and alerts compiled and vectors decoded\n",catalog_count);
     cJSON_Delete(asset);
     free(document); cJSON_Delete(root);
     puts("Production configuration binding validation and runtime fixtures passed");

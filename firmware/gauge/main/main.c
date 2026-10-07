@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------------------------------------------------
 
 #include <inttypes.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -118,12 +119,6 @@ static ui_renderer_t ui_renderer(runtime_renderer_t renderer)
     return (ui_renderer_t)renderer;
 }
 
-static int32_t display_bound(double value)
-{
-    if (value < INT32_MIN) return INT32_MIN;
-    if (value > INT32_MAX) return INT32_MAX;
-    return (int32_t)value;
-}
 
 static void page_ui(unsigned index, ui_page_t *out)
 {
@@ -135,8 +130,8 @@ static void page_ui(unsigned index, ui_page_t *out)
         out->metric_count = 1;
         out->metrics[0] = (ui_metric_t){
             .pid = pid->pid, .name = pid->name, .unit = pid->unit,
-            .minimum = display_bound(pid->decoder.minimum),
-            .maximum = display_bound(pid->decoder.maximum), .stale_after_ms = 1500,
+            .minimum = pid->decoder.minimum,
+            .maximum = pid->decoder.maximum, .stale_after_ms = 1500,
         };
         return;
     }
@@ -148,8 +143,8 @@ static void page_ui(unsigned index, ui_page_t *out)
         const runtime_pid_t *pid = &g_runtime->pids[page->pid_indices[i]];
         out->metrics[i] = (ui_metric_t){
             .pid = pid->obd.pid, .name = pid->name, .unit = pid->unit,
-            .minimum = display_bound(pid->obd.decoder.minimum),
-            .maximum = display_bound(pid->obd.decoder.maximum),
+            .minimum = pid->obd.decoder.minimum,
+            .maximum = pid->obd.decoder.maximum,
             .stale_after_ms = pid->stale_ms,
         };
     }
@@ -202,9 +197,29 @@ typedef struct {
     double value;
     uint32_t observed_at_ms;
 } alert_sample_event_t;
+#define ALERT_SAMPLE_QUEUE_LENGTH 16U
+_Static_assert(EGAUGE_RUNTIME_PIDS <= 32, "Lost PID mask must cover every runtime reading");
 static QueueHandle_t g_alert_sample_queue;
 static atomic_uint g_app_tick_count;
 static atomic_uint g_alert_sample_drops;
+static atomic_uint g_alert_lost_pids;
+
+/* NaN is an internal unavailable marker, never a decoded numeric sample.
+ * The application task owns alert state. Queue loss also breaks pending dwell. */
+static void queue_alert_sample(unsigned source, uint16_t pid, uint32_t generation, double value)
+{
+    if (!g_runtime) return;
+    for (unsigned i=0; i<g_runtime->pid_count; ++i) {
+        if (g_runtime->pids[i].obd.pid != pid || g_runtime->pids[i].source_index != source) continue;
+        alert_sample_event_t event = {.pid_index=i, .generation=generation, .value=value,
+            .observed_at_ms=pdTICKS_TO_MS(xTaskGetTickCount())};
+        if (g_alert_sample_queue && xQueueSend(g_alert_sample_queue,&event,0) != pdTRUE) {
+            atomic_fetch_add(&g_alert_sample_drops,1);
+            atomic_fetch_or(&g_alert_lost_pids,UINT32_C(1)<<i);
+        }
+        return;
+    }
+}
 
 static bool ota_trial_pending(void)
 {
@@ -272,6 +287,8 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     if (data == NULL || len == 0)
     {
         ESP_LOGE(TAG, "Received empty data for PID 0x%02X", pid);
+        queue_alert_sample(source, pid, generation, NAN);
+        ui_set_value(ui, pid, NULL);
         return;
     }
 
@@ -292,43 +309,29 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     if (len != definition->len)
     {
         ESP_LOGW(TAG, "Invalid length for PID 0x%02X: expected %zu, got %zu", pid, definition->len, len);
+        queue_alert_sample(source, pid, generation, NAN);
+        ui_set_value(ui, pid, NULL);
         return;
     }
 
     double decoded;
     if (g_runtime && pid == 0x5503 &&
         !transmission_gear_label(data[0])) {
+        queue_alert_sample(source, pid, generation, NAN);
         ui_set_value(ui, pid, NULL);
         return;
     }
     if (!pid_decoder_eval(&definition->decoder, data, len, &decoded)) {
         ESP_LOGW(TAG, "Rejected invalid value for PID 0x%02X", pid);
+        queue_alert_sample(source, pid, generation, NAN);
+        ui_set_value(ui, pid, NULL);
         return;
     }
 
-    if (g_runtime) {
-        for (unsigned i = 0; i < g_runtime->pid_count; ++i)
-            if (g_runtime->pids[i].obd.pid == pid && g_runtime->pids[i].source_index == source) {
-                alert_sample_event_t event = {
-                    .pid_index = i,
-                    .generation = generation,
-                    .value = decoded,
-                    .observed_at_ms = pdTICKS_TO_MS(xTaskGetTickCount()),
-                };
-                if (g_alert_sample_queue &&
-                    xQueueSend(g_alert_sample_queue, &event, 0) != pdTRUE)
-                    atomic_fetch_add(&g_alert_sample_drops, 1);
-                break;
-            }
-    }
+    queue_alert_sample(source, pid, generation, decoded);
 
-    if (decoded < INT32_MIN || decoded > INT32_MAX) {
-        ESP_LOGW(TAG, "PID 0x%02X is valid but outside numeric display range", pid);
-        return;
-    }
-    int32_t value = (int32_t)decoded;
-    ESP_LOGD(TAG, "Received PID 0x%02X (%s): %" PRId32, pid, definition->name, value);
-    ui_set_value(ui, pid, &value);
+    ESP_LOGD(TAG, "Received PID 0x%02X (%s): %.3f", pid, definition->name, decoded);
+    ui_set_value(ui, pid, &decoded);
 }
 
 static void app_tick_task(void *arg)
@@ -340,11 +343,15 @@ static void app_tick_task(void *arg)
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
         ble_companion_tick();
         alert_sample_event_t event;
-        while (xQueueReceive(g_alert_sample_queue, &event, 0) == pdTRUE) {
+        for (unsigned drained=0; drained<ALERT_SAMPLE_QUEUE_LENGTH && xQueueReceive(g_alert_sample_queue, &event, 0)==pdTRUE; ++drained) {
+            if (!g_runtime || event.pid_index >= g_runtime->pid_count) continue;
             unsigned source = g_runtime ? g_runtime->pids[event.pid_index].source_index : 0;
             if (adapter_status_ready_for(source) && event.generation == adapter_status_generation(source))
                 alert_engine_sample(event.pid_index, event.value, event.observed_at_ms);
         }
+        unsigned lost = atomic_exchange(&g_alert_lost_pids,0);
+        for (unsigned i=0; i<EGAUGE_RUNTIME_PIDS; ++i)
+            if (lost & (UINT32_C(1)<<i)) alert_engine_invalidate_pid(i);
         for (unsigned source=0; source<runtime_source_count(); ++source)
             if (!adapter_status_ready_for(source)) alert_engine_invalidate_source(source);
         alert_summary_t alert = alert_engine_tick(now_ms);
@@ -462,12 +469,15 @@ static void obd_task(void *arg)
         const obd_pid_cfg_t *requested = poll_cfg(pid_indices[job.index]);
         const uint8_t obd_mode = g_runtime ? g_runtime->pids[pid_indices[job.index]].service : 0x01;
 
+        uint32_t poll_generation = adapter_status_generation(source);
         int status = ble_obd_rxtx_ecu(obd, obd_mode, requested->pid,
             g_runtime ? g_runtime->pids[pid_indices[job.index]].responder : ELM_ECU_ANY, timeout_ms);
 
         poll_scheduler_result(&scheduler, job.index, status == 0);
         if (status != 0)
         {
+            queue_alert_sample(source, requested->pid, poll_generation, NAN);
+            ui_set_value(ui, requested->pid, NULL);
             ESP_LOGW(TAG, "Failed to send request: %d", status);
         }
     }
@@ -659,7 +669,7 @@ void app_main(void)
 
     g_phone_command_queue = xQueueCreate(4, sizeof(companion_command_t));
     ESP_NULL_CHECK(g_phone_command_queue, TAG, "Phone command queue creation failed");
-    g_alert_sample_queue = xQueueCreate(16, sizeof(alert_sample_event_t));
+    g_alert_sample_queue = xQueueCreate(ALERT_SAMPLE_QUEUE_LENGTH, sizeof(alert_sample_event_t));
     ESP_NULL_CHECK(g_alert_sample_queue, TAG, "Alert sample queue creation failed");
     ble_companion_set_control(ui, g_phone_command_queue, g_config.cfg_idx, g_runtime != NULL);
 

@@ -12,9 +12,9 @@ fun VehicleProfile.withDashboard(value: Draft): VehicleProfile {
         page.id to if (page in childPages && !page.id.startsWith("child.")) "child.${page.id}" else page.id
     }
     val primary = draft.copy(pages = primaryPages, pidId = primaryPages.firstOrNull()?.pidIds?.first() ?: draft.pidId,
-        layout = primaryPages.firstOrNull()?.layout ?: draft.layout, alerts = value.alerts,
+        layout = primaryPages.firstOrNull()?.layout ?: draft.layout, alerts = value.alerts.filter { it.pidId !in ConfigurationProjector.transmissionPidIds },
         actions = value.actions.filter { action -> primaryPages.any { it.id == action.pageId } })
-    val secondary = child.draft.copy(pages = childPages.map { it.copy(id = it.id.removePrefix("child.")) },
+    val secondary = child.draft.copy(alerts = value.alerts.filter { it.pidId in ConfigurationProjector.transmissionPidIds }, pages = childPages.map { it.copy(id = it.id.removePrefix("child.")) },
         pidId = childPages.firstOrNull()?.pidIds?.first() ?: child.draft.pidId, layout = childPages.firstOrNull()?.layout ?: child.draft.layout,
         actions = value.actions.filter { action -> childPages.any { it.id == action.pageId } }
             .map { it.copy(pageId = mappedIds.getValue(it.pageId).removePrefix("child.")) })
@@ -28,4 +28,10 @@ fun VehicleProfile.withDashboard(value: Draft): VehicleProfile {
 
 /** The older runtime ties request service to an entire adapter instead of each reading. */
 fun requiresVehicleDashboardFirmware(draft: Draft, secondAdapter: Boolean): Boolean =
-    secondAdapter || draft.pages.any { page -> page.pidIds.any { it in ConfigurationProjector.transmissionPidIds } }
+    secondAdapter || (draft.pages.flatMap { it.pidIds } + draft.alerts.map { it.pidId }).any { it in ConfigurationProjector.transmissionPidIds }
+
+/** Additive capability gates new rendering and alert semantics on older firmware. */
+fun requiresPidCatalogFirmware(draft: Draft): Boolean =
+    (draft.pages.flatMap { it.pidIds } + draft.alerts.map { it.pidId }).any {
+        readingCatalog.firstOrNull { row -> row.id == it }?.configurationVersion == 5
+    } || draft.alerts.any { it.pidId in ConfigurationProjector.transmissionPidIds || it.direction == AlertDirection.Equals }

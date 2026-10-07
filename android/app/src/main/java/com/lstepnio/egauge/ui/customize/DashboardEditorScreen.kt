@@ -80,11 +80,11 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
                             }
                         }
                     }
-                    if (state.readings.any { it.id in com.lstepnio.egauge.ConfigurationProjector.supportedPidIds }) {
+                    if (state.readings.any { it.id in com.lstepnio.egauge.ConfigurationProjector.pagePidIds("ECM") }) {
                         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
                             Column {
                                 listOfNotNull(current.readingId, current.secondaryId).filter { id ->
-                                    state.readings.firstOrNull { it.id == id }?.source == "ECM"
+                                    state.readings.any { it.id == id }
                                 }.forEachIndexed { index, id ->
                                     if (index > 0) HorizontalDivider(Modifier.padding(horizontal = 18.dp))
                                     val reading = state.readings.firstOrNull { it.id == id }
@@ -209,7 +209,12 @@ internal fun EditorRow(title: String, detail: String, enabled: Boolean = true, o
     }
 }
 
-internal fun AlertUi.summary() = "Warn $direction $warning $unit · Critical $direction $critical $unit"
+internal fun AlertUi.summary(): String {
+    fun target(value: Double) = if (direction == "equals") com.lstepnio.egauge.gearPositions[value] ?: "Unavailable"
+        else com.lstepnio.egauge.MeasurementUnits.format(value)
+    val condition = if (direction == "equals") "in" else direction
+    return "Warn $condition ${target(warning)} $unit · Critical $condition ${target(critical)} $unit"
+}
 
 @Composable
 private fun SendReview(state: CustomizeUiState, onBack: () -> Unit, actions: CustomizeActions) {

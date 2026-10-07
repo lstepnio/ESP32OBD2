@@ -149,7 +149,12 @@ internal fun AlertManager(state: CustomizeUiState, onBack: () -> Unit, onEdit: (
     EditorScaffold("All alerts", onBack, "Done", onBack) {
         Text("Alerts follow a reading across all pages, even when it is not on the screen.",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        state.readings.filter { it.id in com.lstepnio.egauge.ConfigurationProjector.supportedPidIds }.forEach { reading ->
+        var query by rememberSaveable { mutableStateOf("") }
+        OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Search readings") }, singleLine = true)
+        val matches = state.readings.filter { "${it.name} ${it.unit}".contains(query.trim(), ignoreCase = true) }
+            .sortedByDescending { reading -> state.alerts.any { it.readingId == reading.id } }
+        if (matches.isEmpty()) Text("No matching readings")
+        matches.forEach { reading ->
             Surface(shape = MaterialTheme.shapes.large) {
                 EditorRow(reading.name, state.alerts.firstOrNull { it.readingId == reading.id }?.summary() ?: "Off", state.editingEnabled) {
                     onEdit(reading.id)

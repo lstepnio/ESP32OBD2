@@ -7,7 +7,7 @@ import org.junit.Test
 
 class AlertFormTest {
     @Test fun legacyRpmCeilingRemainsReadableButMustBeCorrectedBeforeSending() {
-        val draft = Draft(alerts = listOf(defaultAlert("rpm").copy(critical = 16384)))
+        val draft = Draft(alerts = listOf(defaultAlert("rpm").copy(critical = 16384.0)))
         val stored = ProfileCollection("default", listOf(VehicleProfile("default", "My vehicle", draft)))
         val restored = ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(stored))
         assertEquals(stored, restored)
@@ -29,14 +29,14 @@ class AlertFormTest {
     @Test fun rpmLimitsUseFullReadingRangeAndPreserveExistingBehavior() {
         val original = defaultAlert("rpm").copy(priority = 12, triggerDwellMs = 1250, clearDwellMs = 2250)
         val form = AlertForm.from(alertUi(original)).copy(warning = "6000", critical = "7000")
-        assertEquals(original.copy(warning = 6000, critical = 7000), form.saved("rpm", readingRange("rpm"), alertUi(original)))
+        assertEquals(original.copy(warning = 6000.0, critical = 7000.0), form.saved("rpm", readingRange("rpm"), alertUi(original)))
     }
 
     @Test fun lowFuelAndNegativeTemperaturesAreValidWithoutClamping() {
         val fuel = AlertForm(AlertDirection.Below, "20", "10")
         assertNotNull(fuel.saved("fuel", readingRange("fuel"), null))
         val cold = AlertForm(AlertDirection.Below, "0", "-10")
-        assertEquals(-10, cold.saved("coolant", readingRange("coolant"), null)!!.critical)
+        assertEquals(-10.0, cold.saved("coolant", readingRange("coolant"), null)!!.critical, 1e-9)
     }
 
     @Test fun invalidLimitsAndDirectionChangesMustBeResolvedBeforeSaving() {
@@ -51,7 +51,7 @@ class AlertFormTest {
     @Test fun formValidationAgreesWithConfigurationValidationForEveryAvailableReading() {
         ConfigurationProjector.supportedPidIds.forEach { id ->
             val range = readingRange(id)
-            AlertDirection.entries.forEach { direction ->
+            AlertDirection.entries.filter { it != AlertDirection.Equals }.forEach { direction ->
                 val form = AlertForm(direction,
                     (if (direction == AlertDirection.Above) range.first else range.last).toString(),
                     (if (direction == AlertDirection.Above) range.last else range.first).toString())
