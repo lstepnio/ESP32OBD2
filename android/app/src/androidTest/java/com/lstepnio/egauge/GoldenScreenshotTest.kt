@@ -35,7 +35,7 @@ class GoldenScreenshotTest {
     }
 
     @Test fun allFixturePixelsMatchReviewedGoldens() {
-        val shots = buildList {
+        val allShots = buildList {
             ComponentFixtures.all.forEach { fixture -> listOf(false, true).forEach { dark ->
                 add(Shot("component-${fixture.id}", dark, 360, 1400, fixture))
             } }
@@ -43,6 +43,9 @@ class GoldenScreenshotTest {
                 listOf(390, 1000).forEach { width -> add(Shot(name, dark, width, if (width == 390) 844 else 800)) }
             } }
         }
+        val fixture = InstrumentationRegistry.getArguments().getString("fixtureName")
+        val shots = allShots.filter { fixture == null || it.name == fixture }
+        require(shots.isNotEmpty()) { "Unknown screenshot fixture" }
         var selected by mutableStateOf(shots.first())
         compose.mainClock.autoAdvance = false
         compose.setContent {
@@ -68,9 +71,10 @@ class GoldenScreenshotTest {
             // Capture after both have settled so an intermediate canvas is never reviewed.
             compose.mainClock.advanceTimeBy(1_000)
             compose.waitForIdle()
-            val foregroundPackage = instrumentation.uiAutomation.rootInActiveWindow?.packageName?.toString()
-            assertTrue("Keep the fixture app in the foreground during screenshot checks",
-                foregroundPackage in setOf(instrumentation.targetContext.packageName, instrumentation.context.packageName))
+            val packages = setOf(instrumentation.targetContext.packageName, instrumentation.context.packageName)
+            compose.waitUntil(timeoutMillis = 5_000) {
+                instrumentation.uiAutomation.rootInActiveWindow?.packageName?.toString() in packages
+            }
             val actual = compose.onNodeWithTag("golden").captureToImage().asAndroidBitmap()
             File(output, "${shot.id}.png").outputStream().use { actual.compress(Bitmap.CompressFormat.PNG, 100, it) }
             if (!record) {

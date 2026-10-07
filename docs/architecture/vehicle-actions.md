@@ -205,3 +205,13 @@ Physical gauge gesture recognition, touch/pairing regression, orientation, autom
 page cycling and restart persistence still need owner observations after an explicitly
 qualified App/Wi-Fi candidate installation. Idle/ABS procedures still lack matching
 controller identity, complete sequences, response semantics and restoration evidence.
+
+The four Car goldens (compact/expanded, light/dark) were refreshed for the Actions
+row and passed strict comparison on the API-36 emulator. GoldenScreenshotTest now
+supports `fixtureName=car` for focused maintenance and waits up to five seconds for
+foreground accessibility state before capture, avoiding a startup-focus race.
+An unchanged Settings control comparison passed expanded references but differed
+by 270/271 pixels around arrow glyphs in the compact references. Those original
+Settings references and the existing tolerance were retained. This is a renderer
+comparison limit, not a claim that the full Pixel golden suite passed; repeat that
+suite on the Pixel before physical UI qualification.

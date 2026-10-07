@@ -127,3 +127,8 @@ increment, not the latest action increment.
 The matching source App is `0.2.0-dev.35` (version code 35). Install it before
 a dev.42 gauge candidate: older Apps reject the new development `cfg:4` version.
 No signed dev.42 release/catalog entry has been published.
+
+Four Car screenshot references were updated and compared successfully on the API-36
+emulator. The full Pixel golden suite remains pending: unchanged compact Settings
+references show small arrow-glyph differences on this emulator. Original Settings
+references and strict comparison tolerance are retained; ADR-013 records the limits.

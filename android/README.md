@@ -112,3 +112,9 @@ connection cannot appear connected and stale settings cannot be edited. Pass
 `-e captureConnectionExamples true` to save its native Car/Settings examples.
 The checked-in examples were rendered on an isolated emulator; review affected
 `GoldenScreenshotTest` baselines separately on the documented Pixel environment.
+
+For a focused native screenshot comparison, pass `-e fixtureName car` to
+`GoldenScreenshotTest` (or another exact fixture name). Recording still requires
+explicit `-e recordGoldens true`; inspect and copy only the intended changed images.
+Keep original references/tolerance when a different renderer changes unchanged
+screens. Emulator evidence does not replace physical Pixel qualification.
