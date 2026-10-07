@@ -91,8 +91,10 @@ protocol/capability flags are unchanged by this increment. 136 JVM tests, 28 nat
 UI tests, 12 navigation/editing journey tests and 76 reviewed screenshot comparisons passed. Pixel/gauge read-only opening,
 resume, Bluetooth off/on and gauge-picker cancellation passed with revision 46 and
 settings retained; phone profile/association/presentation preferences were unchanged.
-The final update-verification copy follow-up is built in source; reinstalling that APK
-and restoring saved debug wake settings await the borrowed phone's return.
+The final APK from `2f5b95e`, including update-verification copy, is installed.
+A second protected opening/resume check passed after unlocking Android; revision 46,
+display settings and phone preferences were retained. Original debug wake settings
+were restored. Implementation GitHub checks passed.
 See the
 [assessment, prioritized backlog and verification](development/product-optimization.md).
 

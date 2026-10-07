@@ -166,10 +166,16 @@ There is no protocol/schema/capability change or new firmware publication in thi
 - Phone profile, gauge-association and presentation preference files were byte-identical
   before/after replacement and the completed recovery check. No configuration,
   vehicle-control or firmware write was invoked.
-- The phone was disconnected after the completed native journeys. A final error-copy
-  follow-up keeps trust failures explicit and distinguishes an empty compatible feed
-  from gauge loss; its rebuilt APK and original wake-setting restoration await the
-  phone's return. The installed App already contains the core UX/polling/HTTP changes.
+- The final APK from implementation commit `2f5b95e` was installed after the phone
+  returned. Its error copy keeps trust failures explicit and distinguishes an empty
+  compatible feed from gauge loss. A second physical read-only opening/resume check
+  passed after the owner unlocked Android: exact firmware identity, healthy OTA state 2,
+  dashboard revision 46/digest and all display settings were retained. Profile,
+  gauge-association and presentation preferences were again byte-identical. Resume
+  confirmed fresh settings in 2.729 s; opening included time awaiting unlock and is
+  excluded from performance comparisons. Original phone wake settings were restored.
+- All three GitHub Foundation quality checks passed for implementation commit
+  `2f5b95e`: contracts/documentation, Android build/lint/tests and firmware build.
 
 ### Measurements
 
