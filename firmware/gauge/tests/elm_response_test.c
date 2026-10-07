@@ -27,6 +27,18 @@ static elm_result_t routed(const char *wire, uint32_t ecu, elm_payload_t *payloa
     return elm_response_decode_for_ecu(&frame, 1, 0x0c, ecu, payload);
 }
 
+static elm_result_t faults(const char *wire, uint8_t mode, uint32_t ecu, size_t fragment,
+                           elm_payload_t *payload)
+{
+    elm_response_t response;
+    elm_response_reset(&response);
+    for (size_t offset = 0; offset < strlen(wire); offset += fragment) {
+        size_t end = offset + fragment < strlen(wire) ? offset + fragment : strlen(wire);
+        for (size_t i = offset; i < end; ++i) elm_response_push(&response, wire[i]);
+    }
+    return elm_response_decode_dtcs_for_ecu(&response, mode, ecu, payload);
+}
+
 int main(void)
 {
     elm_payload_t payload;
@@ -62,5 +74,40 @@ int main(void)
     assert(routed("7E8 0 4 41 0C 0B 3C\r>", 0x7e8, &payload) == ELM_MALFORMED);
     assert(routed("41 0 C 0B 3C\r>", ELM_ECU_ANY, &payload) == ELM_MALFORMED);
     assert(routed("18DAF110 04 41 0C 0B 3C\r>", 0x18daf110, &payload) == ELM_OK);
+    /* Actual TCM fault payloads, excluding adapter/vehicle identity. */
+    for (size_t split = 1; split < 32; ++split) {
+        assert(faults("03\r7E9100A4304C121C140\r7E9211DCA1DF3AAAAAA\r>",
+                      3, 0x7e9, split, &payload) == ELM_OK);
+        assert(payload.length == 8 && payload.bytes[0] == 0xc1 && payload.bytes[1] == 0x21 &&
+               payload.bytes[6] == 0x1d && payload.bytes[7] == 0xf3 && payload.responder == 0x7e9);
+        assert(faults("7E910084703C121C140\r7E9211DCAAAAAAAAAAA\r>",
+                      7, 0x7e9, split, &payload) == ELM_OK);
+        assert(payload.length == 6 && payload.bytes[4] == 0x1d && payload.bytes[5] == 0xca);
+        assert(faults("7E910084A03C121C140\r7E9211DCAAAAAAAAAAA\r>",
+                      10, 0x7e9, split, &payload) == ELM_OK);
+    }
+    assert(faults("7E9024300AAAAAAAAAA\r>", 3, 0x7e9, 1, &payload) == ELM_OK);
+    assert(payload.length == 0 && payload.has_responder);
+    assert(faults("7E80443010133AAAAAA\r>", 3, 0x7e8, 1, &payload) == ELM_OK);
+    assert(payload.length == 2 && payload.bytes[0] == 1 && payload.bytes[1] == 0x33);
+    assert(faults("7E9100A4304C121C140\r7E9211DCA1DF3AAAAAA\r>", 3, 0x7e8, 1, &payload) != ELM_OK);
+    assert(payload.length == 0);
+    const char *bad[] = {
+        "7E9100A4304C121C140\r>", /* missing continuation */
+        "7E9100A4304C121C140\r7E9221DCA1DF3AAAAAA\r>",
+        "7E9100A4304C121C140\r7E8211DCA1DF3AAAAAA\r>",
+        "7E9100A4303C121C140\r7E9211DCA1DF3AAAAAA\r>",
+        "7E9100A4704C121C140\r7E9211DCA1DF3AAAAAA\r>",
+        "7E9100A4304C121C140\r7E9211DCA1DF3AAAAAA\r7E9211DCA1DF3AAAAAA\r>",
+        "7E9211DCA1DF3AAAAAA\r>", "7E910414304C121C140\r>",
+        "7E9 0 2 43 00\r>", "4300\r>", "7E9024300\rNO DATA\r>",
+        "7E9024300\rBUFFER FULL\r>", "7E9037F0311\r>"
+    };
+    for (size_t i = 0; i < sizeof(bad)/sizeof(bad[0]); ++i) {
+        assert(faults(bad[i], 3, 0x7e9, 1, &payload) != ELM_OK);
+        assert(payload.length == 0);
+    }
+    assert(faults("7E9024300\r>", 4, 0x7e9, 1, &payload) == ELM_MALFORMED);
+    assert(faults("NO DATA\r>", 3, 0x7e9, 1, &payload) == ELM_NO_DATA);
     puts("ELM response fixtures passed");
 }

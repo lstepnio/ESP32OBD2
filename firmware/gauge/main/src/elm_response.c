@@ -149,3 +149,93 @@ elm_result_t elm_response_decode_service(const elm_response_t *response, uint8_t
     if (mode != 3 && mode != 7 && mode != 10) { memset(payload, 0, sizeof(*payload)); return ELM_MALFORMED; }
     return elm_response_decode_for_ecu(response, mode, 0, ELM_ECU_ANY, payload);
 }
+
+elm_result_t elm_response_decode_dtcs_for_ecu(const elm_response_t *response, uint8_t mode,
+                                            uint32_t ecu, elm_payload_t *payload)
+{
+    if (!payload) return ELM_MALFORMED;
+    memset(payload, 0, sizeof(*payload));
+    if (!response || ecu > 0x1fffffffU || (mode != 3 && mode != 7 && mode != 10))
+        return ELM_MALFORMED;
+    if (response->overflow) return ELM_OVERFLOW;
+    uint8_t message[ELM_PAYLOAD_CAPACITY];
+    size_t expected = 0, received = 0;
+    unsigned sequence = 1;
+    bool started = false, complete = false, no_data = false;
+    for (size_t offset = 0; offset < response->length;) {
+        const char *line = response->text + offset;
+        size_t len = 0;
+        while (offset + len < response->length && line[len] != '\r' && line[len] != '\n') ++len;
+        offset += len;
+        while (offset < response->length && (response->text[offset] == '\r' || response->text[offset] == '\n')) ++offset;
+        while (len && (*line == ' ' || *line == '\t')) { ++line; --len; }
+        while (len && (line[len-1] == ' ' || line[len-1] == '\t')) --len;
+        if (!len || equals(line, len, "SEARCHING...")) continue;
+        if (equals(line, len, "NO DATA")) { no_data = true; continue; }
+        if (equals(line, len, "?") || equals(line, len, "BUFFER FULL") ||
+            equals(line, len, "STOPPED") || equals(line, len, "CAN ERROR") ||
+            equals(line, len, "BUS ERROR") || equals(line, len, "UNABLE TO CONNECT"))
+            return ELM_ADAPTER_ERROR;
+        if (len == 2 && hex(line[0]) == 0 && hex(line[1]) == mode) continue;
+        char compact[25];
+        size_t digits = 0;
+        /* Discover header width from the first separated token or compact parity. */
+        size_t first = 0;
+        while (first < len && line[first] != ' ' && line[first] != '\t') ++first;
+        size_t width = first < len ? first : 0;
+        if (width && width != 3 && width != 8) return ELM_MALFORMED;
+        for (size_t i = 0; i < len; ++i) {
+            if (line[i] == ' ' || line[i] == '\t') {
+                if (digits < width || ((digits - width) & 1U)) return ELM_MALFORMED;
+                continue;
+            }
+            if (hex(line[i]) < 0 || digits >= sizeof(compact)-1) return ELM_MALFORMED;
+            compact[digits++] = line[i];
+        }
+        if (!width) width = (digits & 1U) ? 3 : 8;
+        if (digits < width + 4 || ((digits-width) & 1U)) return ELM_MALFORMED;
+        uint32_t responder = 0;
+        for (size_t i = 0; i < width; ++i)
+            responder = (responder << 4) | (unsigned)hex(compact[i]);
+        if (responder > (width == 3 ? 0x7ffU : 0x1fffffffU)) return ELM_MALFORMED;
+        uint8_t frame[8];
+        size_t count = (digits-width)/2;
+        if (count > sizeof(frame)) return ELM_MALFORMED;
+        for (size_t i = 0; i < count; ++i)
+            frame[i] = (uint8_t)((hex(compact[width+2*i]) << 4) | hex(compact[width+2*i+1]));
+        if (responder != ecu) continue;
+        if (complete) return ELM_AMBIGUOUS;
+        unsigned type = frame[0] >> 4;
+        size_t start = 1;
+        if (type == 0) {
+            if (started || !frame[0] || frame[0] > 7 || count < 1U+frame[0]) return ELM_MALFORMED;
+            expected = frame[0];
+            started = true;
+        } else if (type == 1) {
+            if (started || count != 8) return ELM_MALFORMED;
+            expected = ((frame[0] & 15U) << 8) | frame[1];
+            if (expected <= 7) return ELM_MALFORMED;
+            if (expected > sizeof(message)) return ELM_OVERFLOW;
+            started = true;
+            start = 2;
+        } else if (type == 2) {
+            if (!started || (frame[0] & 15U) != sequence) return ELM_MALFORMED;
+            sequence = (sequence + 1) & 15U;
+        } else return ELM_MALFORMED;
+        size_t needed = expected-received;
+        if (needed > 7 && type == 2 && count != 8) return ELM_MALFORMED;
+        size_t take = needed < count-start ? needed : count-start;
+        if (!take || (type == 0 && take != needed)) return ELM_MALFORMED;
+        memcpy(message+received, frame+start, take);
+        received += take;
+        complete = received == expected;
+    }
+    if (no_data) return started ? ELM_MALFORMED : ELM_NO_DATA;
+    if (!complete || expected < 2 || message[0] != (uint8_t)(mode+0x40) ||
+        expected != 2U + 2U*message[1]) return ELM_MALFORMED;
+    payload->length = expected-2;
+    memcpy(payload->bytes, message+2, payload->length);
+    payload->has_responder = true;
+    payload->responder = ecu;
+    return ELM_OK;
+}

@@ -41,3 +41,8 @@ elm_result_t elm_response_decode_service(const elm_response_t *response, uint8_t
 /* Explicit routing requires headers and accepts exactly one reply from this ECU. */
 elm_result_t elm_response_decode_for_ecu(const elm_response_t *response, uint8_t mode,
                                          uint8_t pid, uint32_t ecu, elm_payload_t *payload);
+
+/* Headered CAN DTC reads only. Assemble one bounded ISO-TP message for this ECU,
+ * validate its reported DTC count, and return normalized two-byte code pairs. */
+elm_result_t elm_response_decode_dtcs_for_ecu(const elm_response_t *response, uint8_t mode,
+                                            uint32_t ecu, elm_payload_t *payload);

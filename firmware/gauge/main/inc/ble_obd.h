@@ -45,6 +45,8 @@ int ble_obd_rxtx(ble_obd_ctx_t *obd, uint8_t mode, uint8_t pid, uint32_t timeout
 bool ble_obd_is_connected(ble_obd_ctx_t *ctx);
 int ble_obd_read_service(ble_obd_ctx_t *obd, uint8_t mode, uint32_t timeout_ms,
                          uint8_t *data, size_t *length);
+int ble_obd_read_service_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t ecu,
+                            uint32_t timeout_ms, uint8_t *data, size_t *length);
 
 /* Persisted selection includes BLE address type. Changing it invalidates the link. */
 ble_obd_ctx_t *ble_obd_connect_bound(unsigned source_id, const char *peer_mac, uint8_t address_type,

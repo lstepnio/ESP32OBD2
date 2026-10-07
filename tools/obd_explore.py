@@ -27,6 +27,22 @@ def candidate_policy(command):
     return exploration_policy(command) or command in (COMMAND, 'ATSH7E0', 'ATSH7DF')
 
 
+def fault_policy(command):
+    return exploration_policy(command) or command in ('03', '07', '0A', 'ATSH7E1', 'ATSH7DF')
+
+
+async def fault_probe(session, result):
+    """Read emissions-related fault categories from one physical TCM route."""
+    try:
+        await setup(session, ('ATSH7E1',))
+        for command, category in (('03', 'stored'), ('07', 'pending'), ('0A', 'permanent')):
+            reply = await session.request(command, timeout=5)
+            result['samples'].append({'request': command, 'category': category, 'raw_hex': reply.hex()})
+    finally:
+        if not session.waiting_prompt:
+            await setup(session, ('ATSH7DF',))
+
+
 async def temperature_probe(session):
     """One published route, three bounded reads, no alternate identifiers or sessions."""
     samples = []
@@ -122,7 +138,8 @@ async def explore(args):
     from bleak import BleakClient
     device = await choose_adapter(args.adapter)
     recording = Recording(args.output, args.source, 'mac_ble')
-    session = AdapterSession(recording, policy=candidate_policy if args.hemi_temperature else exploration_policy)
+    policy = fault_policy if args.tcm_faults else candidate_policy if args.hemi_temperature else exploration_policy
+    session = AdapterSession(recording, policy=policy)
     result = {'physical_port': args.source, 'identity': {}, 'monitor': [],
               'limit': 'Raw identity and CAN evidence; no enhanced transmission meaning inferred.'}
     monitoring = False
@@ -187,6 +204,14 @@ async def explore(args):
                             await session.request(f'01{pid:02X}', timeout=5)
                             await asyncio.sleep(.15)
                 save_private(recording.directory / 'diagnostic-discovery.json', result)
+                if args.tcm_faults:
+                    selected = bytes.fromhex(result['protocol_number_hex']).strip(b'\r\n >')
+                    if selected not in (b'6', b'A6') or '7E9' not in maps.get(0, {}):
+                        raise ValueError('TCM faults require the observed 7E9 responder on 11-bit 500 kbit/s CAN')
+                    result['tcm_faults'] = {'request_id': '7E1', 'expected_response_id': '7E9',
+                                          'scope': 'Standard emissions-related DTCs only', 'samples': []}
+                    print('Reading TCM stored, pending and permanent faults; no clearing.', flush=True)
+                    await fault_probe(session, result['tcm_faults'])
                 if args.hemi_temperature:
                     selected = bytes.fromhex(result['protocol_number_hex']).strip(b'\r\n >')
                     if selected not in (b'6', b'A6'):
@@ -211,7 +236,7 @@ async def explore(args):
                 result['adapter_restored'] = False
                 if not session.waiting_prompt:
                     try:
-                        restore = ('ATSH7DF', 'ATCAF1', 'ATTP0') if args.hemi_temperature else ('ATCAF1', 'ATTP0')
+                        restore = ('ATSH7DF', 'ATCAF1', 'ATTP0') if args.hemi_temperature or args.tcm_faults else ('ATCAF1', 'ATTP0')
                         await setup(session, restore)
                         result['adapter_restored'] = True
                     except (ValueError, OSError) as error:
@@ -233,9 +258,13 @@ def main():
     parser.add_argument('--monitor', action='store_true', help='Add bounded silent 11/29-bit CAN captures')
     parser.add_argument('--hemi-temperature', action='store_true',
                         help='Opt in to three unqualified published 229110 reads on 7E0 only')
+    parser.add_argument('--tcm-faults', action='store_true',
+                        help='Read standard stored/pending/permanent faults on 7E1 after confirming 7E9')
     args = parser.parse_args()
     if args.hemi_temperature and args.source != 'engine':
         parser.error('--hemi-temperature uses the published engine-controller route; choose --source engine')
+    if args.tcm_faults and (args.source != 'transmission' or args.hemi_temperature):
+        parser.error('--tcm-faults requires --source transmission and excludes --hemi-temperature')
     asyncio.run(explore(args))
 
 
