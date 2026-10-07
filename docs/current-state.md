@@ -233,3 +233,21 @@ recovery journal cleared. Settings remain 100%, 270°, Imperial, cycling Off. Ph
 wake preferences restored. The owner confirmed the physical gauge is on a normal
 page and page swipes work after this update. See the [signed rollout and measured timing limits](development/restart-and-dashboard-rollout.md).
 Public capability flags and hardware radio qualification remain unchanged.
+
+
+## Recovery hardening candidate
+
+Android dev.40 and firmware source dev.44 add cancellation-aware total socket
+deadlines, firmware session-generation invalidation and bounded listener readiness,
+and immediate independent settings/source polling on resume. The shared patterns
+and staged verification are documented in [recovery hardening](development/recovery-hardening.md).
+Installed gauge remains signed dev.43 until a separately authorized release is
+installed and its exact identity confirmed. Protocol/public capability claims are
+unchanged; physical interruption and simultaneous adapters remain open gates.
+
+Offline checks passed: 106 Android unit tests, 74 host tests including sanitized
+production-C socket negatives, debug/instrumentation APK builds, lint, ESP-IDF
+5.4.1 build and repository validation. Pixel disconnected before installation or
+physical testing, so App dev.39 + firmware dev.43 remain the last installed pair.
+Native recovery tests, new firmware transport-loss and interruption checks remain
+pending; source deadlines are not measured hardware latency claims.

@@ -66,12 +66,14 @@ class AutomaticConnectionJourneyTest {
         val verifiedBoot = model.bootIdentity
         val target = model.rememberedGaugeId
         capture("opened")
-        val beforeResume = requireNotNull(model.connection.checkedAtElapsedMs)
         compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        val beforeResume = android.os.SystemClock.elapsedRealtime()
         compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
         readyAfter(beforeResume)
+        val resumeElapsed = android.os.SystemClock.elapsedRealtime() - beforeResume
         capture("resumed")
         val toggle = InstrumentationRegistry.getArguments().getString("toggleBluetooth") == "true"
+        var bluetoothRecoveryElapsed: Long? = null
         if (toggle) {
             try {
                 instrumentation.uiAutomation.executeShellCommand("svc bluetooth disable").close()
@@ -83,6 +85,7 @@ class AutomaticConnectionJourneyTest {
             }
             val retryAfter = android.os.SystemClock.elapsedRealtime()
             readyAfter(retryAfter)
+            bluetoothRecoveryElapsed = android.os.SystemClock.elapsedRealtime() - retryAfter
             capture("reconnected")
         }
         val picker = InstrumentationRegistry.getArguments().getString("checkGaugePickerRecovery") == "true"
@@ -107,8 +110,8 @@ class AutomaticConnectionJourneyTest {
         File(output, "result.txt").writeText("Physical automatic connection validation\n" +
             "Opening to protected confirmation: $elapsed ms\n" +
             "Running firmware version: ${verifiedBoot?.version}; OTA health: ${verifiedBoot?.otaState}\n" +
-            "Resume: protected confirmation refreshed without a tap\n" +
-            "Bluetooth off/on recovery: $toggle\n" +
+            "Resume: protected confirmation and settings refreshed without a tap in $resumeElapsed ms\n" +
+            "Bluetooth off/on recovery: $toggle; recovery duration: $bluetoothRecoveryElapsed ms\n" +
             "Add-gauge cancellation recovery: $picker\n" +
             "Gauge identity unchanged; saved and running revision ${original.revision} retained\n" +
             "Configuration digest unchanged: ${original.sha256}\n" +

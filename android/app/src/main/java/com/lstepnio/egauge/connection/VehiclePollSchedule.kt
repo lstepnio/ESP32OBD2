@@ -5,6 +5,7 @@ class VehiclePollSchedule {
     private var key: String? = null
     private var failures = 0
     private var nextAt = 0L
+    fun reset() { key = null; failures = 0; nextAt = 0 }
     fun due(scope: String, now: Long): Boolean {
         if (key != scope) { key = scope; failures = 0; nextAt = 0 }
         return now >= nextAt

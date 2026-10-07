@@ -56,9 +56,10 @@ data class WifiBulkSecurityResult(
  * hashes, signatures, offsets and activation remain owned by gauge firmware.
  */
 class WifiBulkClient(private val context: Context, private val session: WifiBulkSession) : AutoCloseable {
-    private var socket: Socket? = null
-    private var network: Network? = null
-    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private val transportLock = Any()
+    @Volatile private var socket: Socket? = null
+    @Volatile private var network: Network? = null
+    @Volatile private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var frameSequence = 0L
 
     suspend fun ota(command: ByteArray): ByteArray = frame(2, command)
@@ -90,20 +91,22 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
 
         val validFrame = encodedFrame(3, request, session.sessionId, sequence, session.key)
         connectSocket(selected, SECURITY_PROBE_TIMEOUT_MS).use { probe ->
-            probe.getOutputStream().apply { write(validFrame); flush() }
-            val responseHeader = readExactly(probe, 16)
-            require(responseHeader.copyOfRange(0, 4)
-                .contentEquals("EGW1".toByteArray(Charsets.US_ASCII)) &&
-                u32(responseHeader, 4) == session.sessionId &&
-                u32(responseHeader, 8) == sequence &&
-                (responseHeader[12].toInt() and 255) == 0x83 &&
-                responseHeader[13].toInt() == 0) { "Gauge rejected the valid security probe" }
-            val length = u16(responseHeader, 14)
-            require(length in 1..1040) { "Gauge returned an invalid security probe length" }
-            val responseTag = readExactly(probe, 16)
-            val responseCiphertext = readExactly(probe, length)
-            crypt(Cipher.DECRYPT_MODE, responseHeader, responseCiphertext + responseTag,
-                nonce(sequence, 1), session.key)
+            socketIo(probe, SECURITY_PROBE_TIMEOUT_MS.toLong()) {
+                probe.getOutputStream().apply { write(validFrame); flush() }
+                val responseHeader = readExactly(probe, 16)
+                require(responseHeader.copyOfRange(0, 4)
+                    .contentEquals("EGW1".toByteArray(Charsets.US_ASCII)) &&
+                    u32(responseHeader, 4) == session.sessionId &&
+                    u32(responseHeader, 8) == sequence &&
+                    (responseHeader[12].toInt() and 255) == 0x83 &&
+                    responseHeader[13].toInt() == 0) { "Gauge rejected the valid security probe" }
+                val length = u16(responseHeader, 14)
+                require(length in 1..1040) { "Gauge returned an invalid security probe length" }
+                val responseTag = readExactly(probe, 16)
+                val responseCiphertext = readExactly(probe, length)
+                crypt(Cipher.DECRYPT_MODE, responseHeader, responseCiphertext + responseTag,
+                    nonce(sequence, 1), session.key)
+            }
         }
         val replayRejected = rejectedByGauge(selected, validFrame)
         WifiBulkSecurityResult(wrongSessionRejected, wrongKeyRejected, replayRejected)
@@ -112,37 +115,40 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
     private suspend fun frame(kind: Int, plaintext: ByteArray): ByteArray = withContext(Dispatchers.IO) {
         require(kind in 1..4 && plaintext.isNotEmpty() && plaintext.size <= 8448)
         val active = socket ?: connect().also { socket = it }
-        val sequence = ++frameSequence
-        val header = ByteArray(16)
-        "EGW1".toByteArray(Charsets.US_ASCII).copyInto(header)
-        putU32(header, 4, session.sessionId)
-        putU32(header, 8, sequence)
-        header[12] = kind.toByte()
-        putU16(header, 14, plaintext.size)
-        val encrypted = crypt(Cipher.ENCRYPT_MODE, header, plaintext, nonce(sequence, 0), session.key)
-        val ciphertext = encrypted.copyOfRange(0, encrypted.size - 16)
-        val tag = encrypted.copyOfRange(encrypted.size - 16, encrypted.size)
-        active.getOutputStream().apply {
-            write(header)
-            write(tag)
-            write(ciphertext)
-            flush()
-        }
+        check(!active.isClosed) { "Gauge maintenance connection was interrupted" }
+        socketIo(active, READ_TIMEOUT_MS.toLong()) {
+            val sequence = ++frameSequence
+            val header = ByteArray(16)
+            "EGW1".toByteArray(Charsets.US_ASCII).copyInto(header)
+            putU32(header, 4, session.sessionId)
+            putU32(header, 8, sequence)
+            header[12] = kind.toByte()
+            putU16(header, 14, plaintext.size)
+            val encrypted = crypt(Cipher.ENCRYPT_MODE, header, plaintext, nonce(sequence, 0), session.key)
+            val ciphertext = encrypted.copyOfRange(0, encrypted.size - 16)
+            val tag = encrypted.copyOfRange(encrypted.size - 16, encrypted.size)
+            active.getOutputStream().apply {
+                write(header)
+                write(tag)
+                write(ciphertext)
+                flush()
+            }
 
-        val responseHeader = readExactly(active, 16)
-        require(responseHeader.copyOfRange(0, 4).contentEquals("EGW1".toByteArray(Charsets.US_ASCII)) &&
-            u32(responseHeader, 4) == session.sessionId && u32(responseHeader, 8) == sequence &&
-            (responseHeader[12].toInt() and 255) == (kind or 0x80)) {
-            "Gauge returned an invalid Wi-Fi frame"
+            val responseHeader = readExactly(active, 16)
+            require(responseHeader.copyOfRange(0, 4).contentEquals("EGW1".toByteArray(Charsets.US_ASCII)) &&
+                u32(responseHeader, 4) == session.sessionId && u32(responseHeader, 8) == sequence &&
+                (responseHeader[12].toInt() and 255) == (kind or 0x80)) {
+                "Gauge returned an invalid Wi-Fi frame"
+            }
+            val length = u16(responseHeader, 14)
+            require(length in 1..1040) { "Gauge returned an invalid Wi-Fi payload length" }
+            val responseTag = readExactly(active, 16)
+            val responseCiphertext = readExactly(active, length)
+            val combined = responseCiphertext + responseTag
+            val response = crypt(Cipher.DECRYPT_MODE, responseHeader, combined, nonce(sequence, 1), session.key)
+            check(responseHeader[13].toInt() == 0) { "Gauge rejected the Wi-Fi bulk command" }
+            response
         }
-        val length = u16(responseHeader, 14)
-        require(length in 1..1040) { "Gauge returned an invalid Wi-Fi payload length" }
-        val responseTag = readExactly(active, 16)
-        val responseCiphertext = readExactly(active, length)
-        val combined = responseCiphertext + responseTag
-        val response = crypt(Cipher.DECRYPT_MODE, responseHeader, combined, nonce(sequence, 1), session.key)
-        check(responseHeader[13].toInt() == 0) { "Gauge rejected the Wi-Fi bulk command" }
-        response
     }
 
     private suspend fun connect(): Socket {
@@ -155,16 +161,31 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
         check(frameSequence == 0L) {
             "Gauge maintenance network was lost during transfer"
         }
-        return requestMaintenanceNetworkWithRetry(manager).also { network = it }
+        return requestMaintenanceNetworkWithRetry(manager)
     }
 
-    private fun connectSocket(selected: Network, timeoutMs: Int) = Socket().also { value ->
-        val startedAt = SystemClock.elapsedRealtime()
-        selected.bindSocket(value)
-        value.soTimeout = timeoutMs
-        value.tcpNoDelay = true
-        value.connect(InetSocketAddress(InetAddress.getByAddress(session.address), session.port), 12_000)
-        Log.i("eGaugeUpdate", "Gauge Wi-Fi socket connected after ${SystemClock.elapsedRealtime() - startedAt} ms")
+    private suspend fun connectSocket(selected: Network, timeoutMs: Int): Socket {
+        val value = Socket()
+        // Publish before blocking connect so network loss can close it too.
+        try {
+            synchronized(transportLock) {
+                check(network == selected) { "Gauge maintenance network was lost during connection" }
+                socket = value
+            }
+            socketIo(value, 12_000) {
+                val startedAt = SystemClock.elapsedRealtime()
+                selected.bindSocket(value)
+                value.soTimeout = timeoutMs
+                value.tcpNoDelay = true
+                value.connect(InetSocketAddress(InetAddress.getByAddress(session.address), session.port), 12_000)
+                Log.i("eGaugeUpdate", "Gauge Wi-Fi socket connected after ${SystemClock.elapsedRealtime() - startedAt} ms")
+            }
+            check(network == selected && !value.isClosed) { "Gauge maintenance network was lost during connection" }
+            return value
+        } catch (error: Exception) {
+            runCatching { value.close() }
+            throw error
+        }
     }
 
     private fun encodedFrame(kind: Int, plaintext: ByteArray, sessionId: Long,
@@ -181,15 +202,17 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
             encrypted.copyOfRange(0, encrypted.size - 16)
     }
 
-    private fun rejectedByGauge(selected: Network, request: ByteArray): Boolean =
+    private suspend fun rejectedByGauge(selected: Network, request: ByteArray): Boolean =
         connectSocket(selected, SECURITY_PROBE_TIMEOUT_MS).use { probe ->
-            probe.getOutputStream().apply { write(request); flush() }
-            try {
-                probe.getInputStream().read() == -1
-            } catch (_: SocketTimeoutException) {
-                false
-            } catch (_: SocketException) {
-                true
+            socketIo(probe, SECURITY_PROBE_TIMEOUT_MS.toLong()) {
+                probe.getOutputStream().apply { write(request); flush() }
+                try {
+                    probe.getInputStream().read() == -1
+                } catch (_: SocketTimeoutException) {
+                    false
+                } catch (_: SocketException) {
+                    true
+                }
             }
         }
 
@@ -222,25 +245,32 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
                 .build()
             val callback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(value: Network) {
+                    synchronized(transportLock) {
+                        if (networkCallback !== this || !continuation.isActive) return
+                        network = value
+                        continuation.resume(value)
+                    }
                     Log.i("eGaugeUpdate", "Android gauge Wi-Fi available after ${SystemClock.elapsedRealtime() - requestedAt} ms")
-                    if (continuation.isActive) continuation.resume(value)
                 }
                 override fun onUnavailable() {
-                    Log.w("eGaugeUpdate", "Android gauge Wi-Fi unavailable after ${SystemClock.elapsedRealtime() - requestedAt} ms")
-                    if (continuation.isActive)
+                    synchronized(transportLock) {
+                        if (networkCallback !== this || !continuation.isActive) return
                         continuation.resumeWithException(IllegalStateException(
                             "Android did not approve the temporary gauge network"))
+                    }
+                    Log.w("eGaugeUpdate", "Android gauge Wi-Fi unavailable after ${SystemClock.elapsedRealtime() - requestedAt} ms")
                 }
                 override fun onLost(value: Network) {
-                    if (network == value) {
-                        runCatching { socket?.close() }
-                        socket = null
+                    val lost = synchronized(transportLock) {
+                        if (networkCallback !== this || network != value) return
                         network = null
+                        socket.also { socket = null }
                     }
+                    runCatching { lost?.close() }
                 }
             }
-            networkCallback = callback
-            continuation.invokeOnCancellation { runCatching { manager.unregisterNetworkCallback(callback) } }
+            synchronized(transportLock) { networkCallback = callback }
+            continuation.invokeOnCancellation { releaseNetworkRequest(manager, callback) }
             manager.requestNetwork(request, callback, 30_000)
         }
 
@@ -276,16 +306,22 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
     }
 
     override fun close() {
-        runCatching { socket?.close() }
-        socket = null
         releaseNetworkRequest(context.getSystemService(ConnectivityManager::class.java))
-        network = null
         session.key.fill(0)
     }
 
-    private fun releaseNetworkRequest(manager: ConnectivityManager) {
-        networkCallback?.let { callback -> runCatching { manager.unregisterNetworkCallback(callback) } }
-        networkCallback = null
+    private fun releaseNetworkRequest(manager: ConnectivityManager,
+                                      expected: ConnectivityManager.NetworkCallback? = null) {
+        val retired = synchronized(transportLock) {
+            if (expected != null && networkCallback !== expected) return
+            val result = networkCallback to socket
+            networkCallback = null
+            socket = null
+            network = null
+            result
+        }
+        runCatching { retired.second?.close() }
+        retired.first?.let { callback -> runCatching { manager.unregisterNetworkCallback(callback) } }
     }
 
     companion object {

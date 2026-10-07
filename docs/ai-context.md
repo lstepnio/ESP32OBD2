@@ -53,6 +53,11 @@ catalog writes/activation routines during an exploratory read session.
 - Do not change public capability flags based on compilation or simulations alone.
 - Keep private captures under ignored `artifacts/`; never commit secrets or device IDs.
 
+For recovery work, start with the [focused audit and qualification](development/recovery-hardening.md).
+Reuse `SocketIo.kt`, `VehiclePollSchedule` and firmware `wifi_bulk_io.c` for bounded
+IO/cancellation and independent polling. Their source tests do not replace hardware
+interruption evidence.
+
 ## Choose verification by impact
 
 | Changed area | Minimum meaningful checks |

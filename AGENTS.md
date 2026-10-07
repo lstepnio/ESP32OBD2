@@ -33,6 +33,13 @@ These are the current entry points; historical reports are evidence, not instruc
 - Keep BLE/UI callbacks nonblocking, snapshots short, writes serialized and external waits
   deadline-bounded. Review lock ordering, queue saturation, late replies, disconnect cleanup,
   failed persistence and interruption recovery. Test the relevant negative scenarios.
+- For external IO, use one monotonic operation budget, propagate cancellation to
+  the underlying socket/resource, and await cleanup before releasing the lease.
+  Reject retired callbacks/session generations. Follow the shared patterns in
+  [interaction recovery](docs/architecture/interaction-recovery.md), with qualification
+  recorded in [recovery hardening](docs/development/recovery-hardening.md).
+- Recover routine transient loss through the shared status widget and automatic
+  protected reads; avoid recurring prompts/toasts and arbitrary shorter timeouts.
 - Preserve last committed/last checked state honestly. Never show stale or simulated data
   as current, infer success from queued work, replay uncertain writes blindly, or claim
   deadlock immunity from source inspection or a build alone.

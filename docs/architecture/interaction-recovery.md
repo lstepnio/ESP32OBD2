@@ -34,6 +34,34 @@ claim that every hardware failure scenario has already been qualified.
   have their own retry schedules and must not turn a successful gauge check into a
   false phone-link failure.
 
+## Recovery implementation patterns
+
+- Give each external operation one monotonic budget. A fragmented response, a retry
+  or a cleanup step must not silently renew that budget. Use a single clock sample
+  for remaining time and explicit bounded cleanup sub-budgets.
+- Cancellation must reach the underlying resource. Moving blocking work to an IO
+  thread does not make it cancellable: close its socket to unblock streams, join the
+  child, then release the operation lease. `SocketIo.kt` is the Android pattern;
+  firmware `wifi_bulk_io.c` uses short syscall slices with one total IO budget.
+- A single task owns firmware socket close. Network stop, expiry and reopen
+  invalidate a session generation; old clients and queued batches check it before
+  further admission. Retired Android callbacks cannot modify the current request.
+- Resume immediately schedules settings and each configured source for readback.
+  Success resets the relevant backoff. Scope changes invalidate old completions;
+  repeated foreground signals do not create duplicate workers.
+- Optimize the successful path with existing connection reuse and bounded batches.
+  Do not lower deadlines without measurements of healthy and failure paths. Record
+  time to fresh authenticated state and time to released resources separately.
+- Keep routine loss/retry in the universal status widget, without recurring dialogs
+  or toasts. Explain a persistent failure once when an explicit user action really
+  is needed. Automatic discovery and protected reads can recover silently;
+  ambiguous writes must retain their outcome until identity/readback resolves it.
+- Log diagnostic causes and timings for development without exposing session keys,
+  private adapter identities or raw transport errors in normal user messages.
+
+See [recovery audit and qualification](../development/recovery-hardening.md) for the
+current application of these patterns and the remaining physical gates.
+
 ## Multiple adapters
 
 Each required link has a stable ID, source title and independent status. The pill's

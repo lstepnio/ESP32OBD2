@@ -26,6 +26,7 @@ idf_component_register(
         "src/ota_transfer.c"
         "src/wifi_bulk.c"
         "src/wifi_bulk_policy.c"
+        "src/wifi_bulk_io.c"
         "src/transfer_gate.c"
         "src/diagnostics_state.c"
         "src/hardware_probe.c"

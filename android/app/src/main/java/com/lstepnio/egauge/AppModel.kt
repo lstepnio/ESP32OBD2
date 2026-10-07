@@ -195,6 +195,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private var nextAutomaticUpdateCheckAtElapsedMs = 0L
 
     fun setConnectionForeground(value: Boolean) {
+        if (value && !connectionForeground) {
+            settingsPoll.reset()
+            vehiclePoll.reset()
+            childPoll.reset()
+        }
         connectionForeground = value
         foregroundConnection.setForeground(value)
         if (!value) {
@@ -288,6 +293,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 minOf(settingsPause, pollVehicle(client, device))
             } else gaugePause
         } catch (error: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
             return connectionRetry("Gauge connection check timed out")
         } catch (cancelled: CancellationException) {
             throw cancelled
