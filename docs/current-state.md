@@ -230,6 +230,6 @@ The subsequent protected opening/resume test passed in 12.583 seconds, asserting
 the exact hosted dev.43 ELF hash and healthy OTA state 2. Configuration revision 42,
 full setup, profiles, gauge assignments and display settings were unchanged; update
 recovery journal cleared. Settings remain 100%, 270°, Imperial, cycling Off. Phone
-wake preferences restored. Physical post-update display/swipe check is pending
-separately. See the [signed rollout and measured timing limits](development/restart-and-dashboard-rollout.md).
+wake preferences restored. The owner confirmed the physical gauge is on a normal
+page and page swipes work after this update. See the [signed rollout and measured timing limits](development/restart-and-dashboard-rollout.md).
 Public capability flags and hardware radio qualification remain unchanged.

@@ -187,5 +187,6 @@ Full active document, saved profiles, gauge assignments and presentation prefere
 were byte-for-byte unchanged. Display settings remained 100% brightness, 270°,
 Imperial, cycling Off. The update recovery journal was empty. Bluetooth toggling,
 picker cancellation and power-loss/interruption were not exercised by these tests.
-Physical display/swipe observation is pending separately. Phone wake preferences
-were restored. Public OTA/config-write and radio-capacity claims remain unchanged.
+The owner confirmed normal physical display behavior and working page swipes after
+the dev.43 update. This observation is separate from protected firmware readback
+and the phone tests above. Phone wake preferences were restored. Public OTA/config-write and radio-capacity claims remain unchanged.
