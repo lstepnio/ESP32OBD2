@@ -12,7 +12,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
   iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
 - Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
   verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.40`, configuration revision 29.
+- Latest recorded physical gauge: `0.2.0-dev.42`, configuration revision 31.
   Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
 - The owner has one Vgate, swapped between separate ECM and TCM connectors on a
   2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
@@ -98,7 +98,7 @@ and remaining hardware qualification.
 Source candidate `0.2.0-dev.42` implements simultaneous source workers, independent
 fault/status snapshots and source-scoped recovery. Android uses one atomic combined
 projection behind an explicit per-gauge Expert choice and development `da:1` gate.
-This candidate has not been published, installed or physically qualified. The owner
+This candidate is now published and installed with protected identity/health confirmation. Dual-source operation remains physically unqualified. The owner
 still has one adapter. Software verification: 84 Android unit tests, 73 offline
 host tests, production C compiler/core sanitizer fixtures, firmware/debug builds,
 lint, instrumentation compilation and repository validation passed. Native UI and
@@ -119,16 +119,25 @@ interaction/recovery tests and the remaining execution contract.
 Action foundation verification: 89 Android unit tests, three isolated native emulator
 UI tests, 73 offline host tests, production C configuration/gesture sanitizer fixtures,
 debug/test APK builds, lint, firmware build and contract/link checks passed. The native
-example and exact limits are recorded in ADR-013. Physical gesture tests, signed
-publication and device installation have not occurred; installed dev.40 stays the
-last qualified image. Earlier dual-source test totals describe that development
+example and exact limits are recorded in ADR-013. Signed publication and App/Wi-Fi installation are now recorded below. Physical
+gesture tests have not occurred; dev.40 remains the earlier owner-confirmed display/swipe baseline. Earlier dual-source test totals describe that development
 increment, not the latest action increment.
 
 The matching source App is `0.2.0-dev.35` (version code 35). Install it before
 a dev.42 gauge candidate: older Apps reject the new development `cfg:4` version.
-No signed dev.42 release/catalog entry has been published.
+Signed dev.42 and catalog generation 24 were published and installed on 2026-10-07.
 
 Four Car screenshot references were updated and compared successfully on the API-36
 emulator. The full Pixel golden suite remains pending: unchanged compact Settings
 references show small arrow-glyph differences on this emulator. Original Settings
 references and strict comparison tolerance are retained; ADR-013 records the limits.
+
+## Dev.42 device installation
+
+The physical Pixel installed App dev.35 and transferred signed dev.42 through
+App/private Wi-Fi. Protected readback asserted the exact release ELF and OTA health 2;
+one automatic opening/resume test passed with revision 31 and settings retained.
+Initial post-reboot confirmation timed out, then protected reconciliation succeeded.
+The phone lacks the gauge's matching saved TCM profile, so no shortcut configuration
+was sent. Recover that profile before the gesture check. Owner screen/swipe
+confirmation remains pending. See [rollout evidence](development/profile-actions-rollout.md).
