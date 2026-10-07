@@ -46,7 +46,7 @@ installation, complete six-page dashboard send and protected identity checks pas
 Complete display/swipe observation and single-adapter ECM/TCM port-switch check in the
 [logical vehicle review](development/logical-vehicle-review.md). Two distinct
 adapters are still required for the independent loss/recovery and radio coexistence
-matrix. TCM alerts are implemented in source dev.46 with host/native editor checks;
+matrix. TCM alerts are installed in dev.46 with host/native editor checks;
 physical qualification is pending. Single-transport TCM fault polling remains follow-up work;
 existing calibration-specific values do not establish broader vehicle support.
 
@@ -60,8 +60,9 @@ and independently unavailable child data when simplifying future interfaces.
 
 ## Expanded reading catalog qualification
 
-Source dev.46's [shared catalog and alert work](development/reading-catalog-alerts.md)
-needs authorized App/Wi-Fi publication/installation and physical decimal rendering,
-TCM hidden-page alert/dwell/stale recovery checks. Oxygen-sensor multi-signal and
+Installed dev.46's [shared catalog and alert work](development/reading-catalog-alerts.md)
+passed authorized signed App/Wi-Fi installation, exact healthy identity and setup
+preservation. Physical decimal rendering and TCM hidden-page alert/dwell/stale
+recovery checks remain pending. Oxygen-sensor multi-signal and
 compound status definitions remain future additions, with separate decoding and
 alert semantics instead of generic whole-byte interpretation.

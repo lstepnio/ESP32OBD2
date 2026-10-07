@@ -6,7 +6,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 
 ## Baseline
 
-- Latest installed Android: `0.2.0-dev.46`; signed gauge firmware dev.45 verified through protected readback, OTA health 2. New display/swipe confirmation is pending. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
+- Latest installed Android and signed gauge firmware: `0.2.0-dev.46`. Exact protected firmware identity and OTA health 2 verified; owner confirmed a normal page and working swipes. Dashboard revision 49, phone profiles/assignments and display settings retained. See [catalog rollout evidence](development/reading-catalog-alerts.md#signed-appwi-fi-rollout-2026-10-07) and [recovery evidence](development/recovery-hardening.md) for remaining interruption gates.
 
 - Board: Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S touch,
   16 MB flash and 2 MB PSRAM. ESP-IDF 5.4.1 with pinned components.
@@ -14,7 +14,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
   iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
 - Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
   verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.45`, configuration revision 46, protected running confirmation and cleared trial.
+- Latest recorded physical gauge: `0.2.0-dev.46`, configuration revision 49, protected running confirmation and cleared trial.
   Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
 - The owner has one Vgate, swapped between separate ECM and TCM connectors on a
   2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
@@ -36,13 +36,14 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 
 ## Expanded readings and alerts
 
-Source candidate dev.46 adds a shared catalog of 55 readings (53 Mode 01 and two
+Installed dev.46 adds a shared catalog of 55 readings (53 Mode 01 and two
 existing JSS TCM definitions), searchable reading/alert choices, decimal thresholds
 and named gear conditions. Only selected pages/alerts are polled, bounded to 32
 readings. TCM alerts follow the same logical vehicle and optional child routing.
-App dev.46 is installed for native fixture tests; gauge remains dev.45 and sending
-new readings/TCM alerts is gated on development `cfg:5`. This candidate is not yet
-published or physically validated. See [catalog, compatibility and evidence](development/reading-catalog-alerts.md).
+App and signed firmware dev.46 are installed through App/Wi-Fi. New readings/TCM
+alerts use development `cfg:5`. Exact healthy image, opening/resume, setup/settings
+preservation and owner display/swipe observations passed. New reading rendering
+and real-vehicle alert transitions remain unqualified. See [catalog, compatibility and evidence](development/reading-catalog-alerts.md).
 
 ## Public and experimental boundaries
 
