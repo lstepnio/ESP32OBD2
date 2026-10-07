@@ -14,7 +14,7 @@ data class PageUi(val id: String, val name: String, val readingId: String, val r
                   val unit: String, val layout: GaugeLayout, val preview: ReadingPreviewUi,
                   val secondaryId: String? = null)
 @Immutable
-data class ReadingUi(val id: String, val name: String, val unit: String, val details: List<DetailUi>)
+data class ReadingUi(val id: String, val name: String, val unit: String, val details: List<DetailUi>, val source: String = "ECM")
 @Immutable
 data class AlertUi(val id: String, val readingId: String, val readingName: String, val unit: String,
                    val direction: String, val warning: Int, val critical: Int, val resetMargin: Int,
@@ -34,7 +34,7 @@ data class CustomizeUiState(val pages: List<PageUi>, val editingPage: Int, val r
     val alerts: List<AlertUi>, val blockers: List<String>, val canSend: Boolean,
     val needsCheck: Boolean, val found: Boolean, val busy: Boolean, val editingEnabled: Boolean,
     val advanced: Boolean, val supportedLayouts: Set<GaugeLayout>, val details: List<DetailUi>,
-    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val reviewPages: List<PageUi> = emptyList(), val actionSummary: String? = null)
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val reviewPages: List<PageUi> = emptyList(), val actionSummary: String? = null, val removablePageIds: Set<String>? = null, val editingIssue: String? = null)
 @Immutable
 data class VehicleUi(val id: String, val name: String)
 @Immutable

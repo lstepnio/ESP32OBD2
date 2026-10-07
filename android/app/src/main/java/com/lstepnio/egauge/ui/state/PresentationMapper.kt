@@ -34,7 +34,7 @@ fun readingUi(pid: PidExample, system: MeasurementSystem = MeasurementSystem.Met
     DetailUi("PID identifier", pid.id), DetailUi("Service / request", pid.request),
     DetailUi("ECU / source", pid.source), DetailUi("Category", pid.category),
     DetailUi("Availability", "Example only. Vehicle support has not been checked."),
-))
+), source = pid.source)
 
 fun alertUi(alert: GaugeAlertDraft, system: MeasurementSystem = MeasurementSystem.Metric): AlertUi {
     val reading = demoCatalog.first { it.id == alert.pidId }
@@ -80,7 +80,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val busy = scanning || hostedUpdateBusy || updateInProgress ||
         (operation.stage != OperationStage.IDLE && !operation.terminal)
     val system = displaySettings?.takeIf { it.version >= 2 }?.units ?: prefs.measurementSystem
-    val pages = draft.pages.map { pageUi(it, system) }
+    val pages = editorDraft.pages.map { pageUi(it, system) }
     val confirmed = !disconnected && ownerAccess == OwnerAccess.AUTHENTICATED && sentProfileId == profileCollection.activeId && sameSettings(sentDraft, transmittedDraft) &&
         isConfirmedSetup(activeConfigRevision, expectedSentDigest, runtimeIdentity)
     val blockers = presentationBlockers(transmittedDraft, capabilities) + (if (bothAdapters && runCatching { profileCollection.active.combinedDraft() }.isFailure) listOf("Choose distinct engine and transmission adapters before sending") else emptyList()) +
@@ -159,13 +159,16 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             }; HomeAction.Check -> "Check gauge"
                 HomeAction.Review -> "Review and send"; HomeAction.Customize -> "Customize" }, homeAction, busy, details,
             updateNotice),
-        CustomizeUiState(pages, editingPageIndex, demoCatalog.filter { it.id in ConfigurationProjector.pagePidIds(draft.source) }.map { readingUi(it, system) },
-            draft.alerts.map { alertUi(it, system) }, blockers, canSend, needsCheck, found, busy, profileError == null && !busy, prefs.advanced,
+        CustomizeUiState(pages, editingPageIndex, demoCatalog.filter { it.id in ConfigurationProjector.pagePidIds(editorDraft.source) }.map { readingUi(it, system) },
+            editorDraft.alerts.map { alertUi(it, system) }, blockers, canSend, needsCheck, found, busy, profileError == null && !busy, prefs.advanced,
             capabilities?.supportedRenderers.orEmpty(), details, system, transmittedDraft.pages.map { pageUi(it, system) },
             actionSummary = transmittedDraft.actions.takeIf { it.isNotEmpty() }?.joinToString("\n") { action ->
                 val name = transmittedDraft.pages.firstOrNull { it.id == action.pageId }?.name ?: "Unavailable page"
                 "Jump to $name · ${action.count} swipes up within ${action.windowMs / 1000} seconds"
-            }),
+            }, removablePageIds = if (bothAdapters) editorDraft.pages.filter { page ->
+                val source = demoCatalog.first { it.id == page.pidIds.first() }.source
+                editorDraft.pages.count { demoCatalog.first { pid -> pid.id == it.pidIds.first() }.source == source } > 1
+            }.map { it.id }.toSet() else null, editingIssue = pageEditError),
         car,
         SettingsUiState(currentGaugeName, found, displaySettings?.rotation ?: savedGauge?.rotation,
             found && ((capabilities?.displaySettingsVersion ?: 0) >= 1 || capabilities?.displayRotationWrite == true),

@@ -43,6 +43,5 @@ Keep current status in one place and retire completed planning lists.
 The owner confirmed that the optional TCM belongs to its primary ECM vehicle.
 Present ECM/TCM readings as one vehicle in ordinary UI, with one action picker and
 combined Gauge preview/review when both adapters are enabled. Preserve source routing
-and independent recovery internally; setup details stay in Expert. The combined
-page editor still retains source-scoped drafts and needs a unified reading/page
-editing flow. Do not introduce another vehicle profile for a transmission child.
+and independent recovery internally; setup details stay in Expert. App dev.38 implements one combined reading/page editing flow with saved cross-controller
+page order. Mixed-source readings in one Dual page remain unsupported by firmware. Do not introduce another vehicle profile for a transmission child.

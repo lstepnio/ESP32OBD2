@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..7) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..8) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -25,6 +25,12 @@ object ProfileDocumentCodec {
                     TransmissionConnection(child.optJSONObject("adapter")?.let(AdapterBinding::decode),
                         decodeDraft(child.getJSONObject("draft"), schemaVersion))
                 } else null,
+                item.optJSONArray("pageOrder")?.let { order ->
+                    (0 until order.length()).map { order.getString(it) }.also { ids ->
+                        require(ids.size <= 8 && ids.distinct().size == ids.size &&
+                            ids.all { it.matches(Regex("[a-z][a-z0-9._-]{0,63}")) }) { "Page order is invalid" }
+                    }
+                } ?: emptyList(),
             )
         }
         require(profiles.map { it.id }.distinct().size == profiles.size) { "Profile IDs are duplicated" }
@@ -99,12 +105,13 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 7).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 8).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
             ProfileActions.validate(profile.draft.actions, profile.draft.pages)
             profile.transmission?.draft?.let { ProfileActions.validate(it.actions, it.pages) }
             items.put(JSONObject().put("id", profile.id).put("name", profile.name)
+                .put("pageOrder", JSONArray(profile.pageOrder))
                 .put("primaryAdapter", profile.primaryAdapter?.json())
                 .put("transmission", profile.transmission?.let { child ->
                     JSONObject().put("adapter", child.adapter?.json()).put("draft", draftJson(child.draft))

@@ -122,7 +122,7 @@ internal fun PageManager(state: CustomizeUiState, onBack: () -> Unit, onAdd: () 
                             DropdownMenu(menu, { menu = false }) {
                                 DropdownMenuItem({ Text("Move earlier") }, { actions.movePage(index, -1); menu = false }, enabled = index > 0)
                                 DropdownMenuItem({ Text("Move later") }, { actions.movePage(index, 1); menu = false }, enabled = index < state.pages.lastIndex)
-                                DropdownMenuItem({ Text("Remove page") }, { removeId = page.id; menu = false }, enabled = state.pages.size > 1)
+                                DropdownMenuItem({ Text("Remove page") }, { removeId = page.id; menu = false }, enabled = state.pages.size > 1 && (state.removablePageIds == null || page.id in state.removablePageIds))
                             }
                         }
                     }

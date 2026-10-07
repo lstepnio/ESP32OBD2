@@ -757,6 +757,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var vehicleFailures by mutableStateOf<Set<String>>(emptySet())
         private set
     val bothAdapters: Boolean get() = knownGauges.firstOrNull { it.id == rememberedGaugeId }?.bothAdapters == true
+    var pageEditError by mutableStateOf<String?>(null)
+        private set
+    val editorDraft: Draft get() = transmittedDraft
     val transmittedDraft: Draft get() = if (bothAdapters) runCatching { profileCollection.active.combinedDraft() }.getOrDefault(draft) else draft
     fun setBothAdapters(enabled: Boolean) {
         if (!BuildConfig.DEBUG || modifyingSetupBlocked || gaugeAssociationError != null) return
@@ -1723,91 +1726,100 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         deviceMessage = message
     }
     fun selectPage(index: Int) {
-        if (index !in draft.pages.indices) return
+        val working = editorDraft
+        if (index !in working.pages.indices) return
         editingPageIndex = index
-        val page = draft.pages[index]
-        save(draft.copy(pidId = page.pidIds[0], layout = page.layout, source = demoCatalog.first { it.id == page.pidIds[0] }.source))
+        val page = working.pages[index]
+        save(working.copy(pidId = page.pidIds[0], layout = page.layout, source = working.source))
     }
 
     fun addPage(pidId: String = "rpm") {
-        if (draft.pages.size >= 8 || pidId !in ConfigurationProjector.pagePidIds(draft.source)) return
-        val used = draft.pages.map { it.id }.toSet()
+        val working = editorDraft
+        if (working.pages.size >= 8 || pidId !in ConfigurationProjector.pagePidIds(working.source)) return
+        val used = working.pages.map { it.id.removePrefix("child.") }.toSet()
         val sequence = (1..99).first { "page.custom.$it" !in used }
         val page = GaugePageDraft("page.custom.$sequence", demoCatalog.first { it.id == pidId }.gaugeLabel,
             GaugeLayout.Numeric, listOf(pidId))
-        editingPageIndex = draft.pages.size
-        save(draft.copy(pidId = pidId, layout = GaugeLayout.Numeric,
-            pages = draft.pages + page))
+        editingPageIndex = working.pages.size
+        save(working.copy(pidId = pidId, layout = GaugeLayout.Numeric,
+            pages = working.pages + page))
     }
 
     fun removePage(index: Int) {
-        if (draft.pages.size <= 1 || index !in draft.pages.indices) return
-        val selectedId = draft.pages.getOrNull(editingPageIndex)?.id
-        val pages = draft.pages.toMutableList().also { it.removeAt(index) }
+        val working = editorDraft
+        if (working.pages.size <= 1 || index !in working.pages.indices) return
+        val selectedId = working.pages.getOrNull(editingPageIndex)?.id
+        val pages = working.pages.toMutableList().also { it.removeAt(index) }
         editingPageIndex = pages.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
             ?: index.coerceAtMost(pages.lastIndex)
         val selected = pages[editingPageIndex]
-        save(draft.copy(pidId = selected.pidIds[0], layout = selected.layout, pages = pages,
-            actions = draft.actions.filter { action -> pages.any { it.id == action.pageId } }))
+        save(working.copy(pidId = selected.pidIds[0], layout = selected.layout, pages = pages,
+            actions = working.actions.filter { action -> pages.any { it.id == action.pageId } }))
     }
 
     fun movePage(index: Int, delta: Int) {
+        val working = editorDraft
         val destination = index + delta
-        if (index !in draft.pages.indices || destination !in draft.pages.indices) return
-        val pages = draft.pages.toMutableList()
+        if (index !in working.pages.indices || destination !in working.pages.indices) return
+        val pages = working.pages.toMutableList()
         val page = pages.removeAt(index)
         pages.add(destination, page)
         editingPageIndex = destination
-        save(draft.copy(pages = pages))
+        save(working.copy(pages = pages))
     }
 
     fun selectPid(pid: PidExample) {
-        if (editingPageIndex !in draft.pages.indices) return
-        val pages = draft.pages.toMutableList()
+        val working = editorDraft
+        if (editingPageIndex !in working.pages.indices) return
+        val pages = working.pages.toMutableList()
         val current = pages[editingPageIndex]
         val ids = if (current.layout == GaugeLayout.Dual) {
-            val second = current.pidIds.getOrNull(1)?.takeIf { it != pid.id }
-                ?: ConfigurationProjector.pagePidIds(draft.source).first { it != pid.id }
+            val second = current.pidIds.getOrNull(1)?.takeIf { it != pid.id && it in ConfigurationProjector.pagePidIds(pid.source) }
+                ?: ConfigurationProjector.pagePidIds(pid.source).first { it != pid.id }
             listOf(pid.id, second)
         } else listOf(pid.id)
         val layout = if (pid.id == "tcmgear" && current.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual))
             GaugeLayout.Numeric else current.layout
         pages[editingPageIndex] = current.copy(name = pid.gaugeLabel, pidIds = ids, layout = layout)
-        save(draft.copy(pidId = pid.id, layout = layout, source = pid.source, pages = pages))
+        save(working.copy(pidId = pid.id, layout = layout, source = working.source, pages = pages))
     }
 
     fun selectSecondaryPid(pid: PidExample) {
-        if (editingPageIndex !in draft.pages.indices || pid.id !in ConfigurationProjector.pagePidIds(draft.source)) return
-        val pages = draft.pages.toMutableList()
+        val working = editorDraft
+        if (editingPageIndex !in working.pages.indices || pid.id !in ConfigurationProjector.pagePidIds(working.source)) return
+        val pages = working.pages.toMutableList()
         val current = pages[editingPageIndex]
-        if (current.layout != GaugeLayout.Dual || current.pidIds.first() == pid.id) return
+        if (current.layout != GaugeLayout.Dual || current.pidIds.first() == pid.id ||
+            pid.source != demoCatalog.first { it.id == current.pidIds.first() }.source) return
         pages[editingPageIndex] = current.copy(pidIds = listOf(current.pidIds.first(), pid.id))
-        save(draft.copy(pages = pages))
+        save(working.copy(pages = pages))
     }
 
     fun selectLayout(layout: GaugeLayout) {
-        if (editingPageIndex !in draft.pages.indices) return
-        val pages = draft.pages.toMutableList()
+        val working = editorDraft
+        if (editingPageIndex !in working.pages.indices) return
+        val pages = working.pages.toMutableList()
         val current = pages[editingPageIndex]
         val ids = if (layout == GaugeLayout.Dual) {
             val secondary = current.pidIds.getOrNull(1)
-                ?: ConfigurationProjector.pagePidIds(draft.source).first { it != current.pidIds.first() }
+                ?: ConfigurationProjector.pagePidIds(demoCatalog.first { it.id == current.pidIds.first() }.source).first { it != current.pidIds.first() }
             listOf(current.pidIds.first(), secondary)
         } else listOf(current.pidIds.first())
         pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids)
-        save(draft.copy(layout = layout, pages = pages))
+        save(working.copy(layout = layout, pages = pages))
     }
     /** Commit a completed form once. Opening or cancelling the editor never creates an alert. */
     fun saveAlert(alert: GaugeAlertDraft) {
+        val working = editorDraft
         if (alert.pidId !in ConfigurationProjector.supportedPidIds) return
-        val previous = draft.alerts.firstOrNull { it.pidId == alert.pidId }
+        val previous = working.alerts.firstOrNull { it.pidId == alert.pidId }
         if (previous != null && previous.id != alert.id) return
-        val alerts = if (previous == null) draft.alerts + alert else draft.alerts.map {
+        val alerts = if (previous == null) working.alerts + alert else working.alerts.map {
             if (it.id == previous.id) alert else it
         }
         if (alerts.size > 32 || alerts.map { it.id }.distinct().size != alerts.size ||
             ConfigurationProjector.blockers(Draft(alerts = listOf(alert))).isNotEmpty()) return
-        save(draft.copy(alerts = alerts))
+        save(working.copy(alerts = alerts))
     }
     fun savePageAction(value: PageAction?) {
         if (modifyingSetupBlocked || profileError != null) return
@@ -1824,18 +1836,27 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (runCatching { ProfileActions.validate(actions, draft.pages) }.isFailure) return
         save(draft.copy(actions = actions))
     }
-    fun removeAlert(id: String) = save(draft.copy(alerts = draft.alerts.filterNot { it.id == id }))
+    fun removeAlert(id: String) = save(editorDraft.copy(alerts = editorDraft.alerts.filterNot { it.id == id }))
     fun setSource(value: String) = selectVehicleSource(value)
     private fun save(value: Draft) {
         if (profileError != null) return
         val updated = runCatching { profileCollection.copy(profiles = profileCollection.profiles.map { profile ->
-            if (profile.id == profileCollection.activeId) profile.withDraft(value) else profile
-        }) }.getOrElse { deviceMessage = it.message ?: "Vehicle source is unavailable"; return }
+            if (profile.id == profileCollection.activeId) {
+                if (bothAdapters && value.source == "BOTH") profile.withDashboard(value) else profile.withDraft(value)
+            } else profile
+        }) }.getOrElse {
+            pageEditError = it.message ?: "These readings cannot share this page"
+            editingPageIndex = editingPageIndex.coerceIn(editorDraft.pages.indices)
+            deviceMessage = pageEditError!!
+            return
+        }
+        pageEditError = null
         if (!profileStore.save(updated)) { profileError = "Could not save changes on this phone"; return }
         val previousSource = draft.source
         profileCollection = updated
-        draft = value
-        if (previousSource != value.source) rememberVehicleContext()
+        draft = if (value.source == "BOTH") requireNotNull(updated.active.draftFor(previousSource)) else value
+        editingPageIndex = editingPageIndex.coerceIn(editorDraft.pages.indices)
+        if (previousSource != draft.source) rememberVehicleContext()
     }
     fun checkGaugeForReview() = launchGaugeOperation(OperationKind.READ, "Checking gauge settings") { id ->
         val client = GaugeConfigTransferClient(getApplication())

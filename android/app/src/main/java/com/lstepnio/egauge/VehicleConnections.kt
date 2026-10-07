@@ -30,7 +30,9 @@ fun VehicleProfile.combinedDraft(): Draft {
     require(draft.source == "ECM" && primaryAdapter != null)
     val child = requireNotNull(transmission)
     require(child.adapter != null && !samePhysicalAdapter(primaryAdapter, child.adapter))
-    return draft.copy(source = "BOTH", actions = draft.actions + child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") }, pages = draft.pages + child.draft.pages.map { it.copy(id = "child.${it.id}") })
+    val pages = draft.pages + child.draft.pages.map { it.copy(id = "child.${it.id}") }
+    val ordered = pageOrder.mapNotNull { id -> pages.firstOrNull { it.id == id } } + pages.filter { it.id !in pageOrder }
+    return draft.copy(source = "BOTH", actions = draft.actions + child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") }, pages = ordered)
 }
 
 /** One gesture picker across the vehicle; storage keeps the controller owning its target page. */

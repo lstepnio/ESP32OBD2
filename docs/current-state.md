@@ -12,7 +12,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
   iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
 - Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
   verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.42`, configuration revision 33.
+- Latest recorded physical gauge: `0.2.0-dev.42`, configuration revision 35.
   Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
 - The owner has one Vgate, swapped between separate ECM and TCM connectors on a
   2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
@@ -153,7 +153,7 @@ readback confirmed revision 32 and exact expected running digest with trial clea
 only the action and base revision changed. The owner confirmed normal display and
 horizontal swipes on dev.42. The owner confirmed the upward gesture jumps from GEAR to TRANSMISSION. The initial
 configuration restart confirmation also timed out and later reconciliation passed;
-keep this recovery UX follow-up open. See the rollout evidence above. Recovery unit,
+App dev.38 addresses this recovery UX below. See the rollout evidence above. Recovery unit,
 build/lint and instrumentation compilation passed (92 Android unit tests).
 
 ## One vehicle with a transmission child
@@ -170,7 +170,25 @@ When both adapters are enabled, Car Actions shows one combined page picker and r
 the selected target into its owning draft, clearing the previous gesture binding across
 the vehicle. Off clears both bindings. Invalid targets or ambiguous page identities
 are rejected. Source attribution remains internal to polling, routing and recovery.
-The general page editor still uses source-scoped drafts; its unified editing flow is
-tracked in the roadmap. Verification: 94 Android unit tests, debug/test builds and
+App dev.38 supersedes the source-scoped editor with one combined editing flow
+as recorded below. Verification: 94 Android unit tests, debug/test builds and
 lint passed; one physical protected opening/resume readback test passed in 8.086 seconds.
-Initial post-restart confirmation still needed later reconciliation and remains open.
+Initial post-restart confirmation needed later reconciliation; App dev.38 addresses this below.
+
+## Restart confirmation and unified editor
+
+App dev.38 fixes restart-session timeouts being mistaken for caller cancellation.
+Protected configuration and firmware confirmation reads now retry within bounded
+budgets, while real cancellation propagates and no uncertain write is replayed.
+A physical warm-App setup resend confirmed healthy revision 35 in 15.282 seconds,
+without reopen or refresh. Fresh OTA confirmation with this App remains a separate
+physical check. See [restart/editor rollout](development/restart-and-dashboard-rollout.md).
+
+Customize now presents one combined page list and engine/transmission reading picker
+when both adapters are enabled. Profile schema 8 saves cross-controller page order;
+older schemas retain their existing ordering. Review/projection use the same order,
+internal routing retains parent/child ownership, and compatible second readings are
+filtered for the firmware's current Dual-page limit. 101 unit tests, two isolated
+native Pixel UI tests, debug/test builds and lint passed. Single-adapter vehicle state
+is preserved; combined hardware operation remains unqualified. Physical cooldown,
+cycling and touch behavior after restart still require owner observations.

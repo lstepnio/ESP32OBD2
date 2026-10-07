@@ -683,12 +683,8 @@ class GaugeConfigTransferClient(private val context: Context) {
         var sawNewPartition = false
         var last: BootIdentity? = null
         do {
-            last = try {
+            last = restartRead(minOf(20_000, deadline - SystemClock.elapsedRealtime())) {
                 readBootIdentity(device)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Exception) {
-                null
             }
             when (updateBootDecision(before, last, expectedElf, sawNewPartition, false)) {
                 UpdateBootDecision.CONFIRMED -> return UpdateResult(requireNotNull(last))
@@ -762,15 +758,13 @@ class GaugeConfigTransferClient(private val context: Context) {
         stage(OperationStage.SAVED)
         stage(OperationStage.RESTARTING)
         delay(6500)
+        val confirmationDeadline = SystemClock.elapsedRealtime() + 90_000
+        stage(OperationStage.CHECKING_RUNNING)
         var confirmed: Status? = null
         repeat(5) {
-            if (confirmed == null) {
-                val observed = try {
+            if (confirmed == null && SystemClock.elapsedRealtime() < confirmationDeadline) {
+                val observed = restartRead(minOf(20_000, confirmationDeadline - SystemClock.elapsedRealtime())) {
                     withGauge(device) { command(0x17, sequence++) }
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    null
                 }
                 if (observed?.phase in 1..3 && observed?.transferId == transferId &&
                     observed.opcode == 0x15 && observed.result != 0) {
@@ -791,13 +785,9 @@ class GaugeConfigTransferClient(private val context: Context) {
         var runtime: RuntimeIdentity? = null
         stage(OperationStage.CHECKING_RUNNING)
         repeat(8) {
-            if (runtime == null) {
-                val observed = try {
+            if (runtime == null && SystemClock.elapsedRealtime() < confirmationDeadline) {
+                val observed = restartRead(minOf(20_000, confirmationDeadline - SystemClock.elapsedRealtime())) {
                     readRuntimeIdentity(device)
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    null
                 }
                 when (if (observed == null) null else confirmRuntime(durable.revision, expectedHash, observed)) {
                     null, RuntimeConfirmation.WAITING -> delay(1000)

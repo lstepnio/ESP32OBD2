@@ -39,7 +39,11 @@ data class ConfigurationProjection(
 object ConfigurationProjector {
     val supportedPidIds = setOf("rpm", "coolant", "speed", "load", "fuel")
     val transmissionPidIds = setOf("tcmtemp", "tcmgear")
-    fun pagePidIds(source: String) = if (source == "TCM" && BuildConfig.DEBUG) transmissionPidIds else supportedPidIds
+    fun pagePidIds(source: String) = when {
+        source == "BOTH" && BuildConfig.DEBUG -> supportedPidIds + transmissionPidIds
+        source == "TCM" && BuildConfig.DEBUG -> transmissionPidIds
+        else -> supportedPidIds
+    }
     private val definitionIds = mapOf(
         "tcmtemp" to "transmission.temperature.experimental",
         "tcmgear" to "transmission.gear",
@@ -184,8 +188,14 @@ object ConfigurationProjector {
             val extra = tcm.getJSONArray(key)
             for (index in 0 until extra.length()) target.put(extra.getJSONObject(index))
         }
+        val mergedPages = root.getJSONArray("pages")
+        val byId = (0 until mergedPages.length()).associate { index ->
+            mergedPages.getJSONObject(index).let { it.getString("id") to it }
+        }
+        root.put("pages", JSONArray(combined.pages.map { byId.getValue(it.id) }))
+        val projectedById = (engine.first.pages + transmission.first.pages).associateBy { it.id }
         if (combined.actions.isNotEmpty()) root.put("actions", ProfileActions.json(combined.actions))
-        return ConfigurationProjection(engine.first.pages + transmission.first.pages, engine.first.alerts, combined.actions) to
+        return ConfigurationProjection(combined.pages.map { projectedById.getValue(it.id) }, engine.first.alerts, combined.actions) to
             root.toString().toByteArray(Charsets.UTF_8)
     }
 

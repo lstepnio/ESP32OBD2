@@ -10,8 +10,11 @@ data class VehicleProfile(
     val draft: Draft,
     val primaryAdapter: AdapterBinding? = null,
     val transmission: TransmissionConnection? = null,
+    val pageOrder: List<String> = emptyList(),
 ) {
     init {
+        require(pageOrder.size <= 8 && pageOrder.distinct().size == pageOrder.size &&
+            pageOrder.all { it.matches(Regex("[a-z][a-z0-9._-]{0,63}")) }) { "Page order is invalid" }
         require(transmission == null || (draft.source == "ECM" && primaryAdapter != null)) {
             "A transmission child needs a primary engine adapter"
         }

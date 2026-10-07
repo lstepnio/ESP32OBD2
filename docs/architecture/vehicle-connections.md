@@ -33,7 +33,7 @@ attribution. A child is optional and remains absent from ordinary setup.
 - `VehicleProfile` owns the primary `draft` and `primaryAdapter`, plus optional
   `TransmissionConnection(adapter, draft)`. `draftFor`, `adapterFor`, `withDraft`
   and `withAdapter` select the correct source without altering its sibling.
-- Profile schema 7 adds local action bindings; schema 6 serializes the child within the vehicle. Schemas 1 through 5
+- Profile schema 8 adds cross-controller page order; schema 7 adds local action bindings; schema 6 serializes the child within the vehicle. Schemas 1 through 7
   remain readable. Existing standalone TCM profiles remain intact: the app never
   guesses which engine vehicle is their parent.
 - Expert exposes the child setup and source selection for the selected gauge.
@@ -69,7 +69,7 @@ Development candidate dev.42 executes one or two sources with separate worker/pa
 status, diagnostic, retry and alert availability state. The debug app's per-gauge
 `bothAdapters` choice uses compact capability `da:1`; it does not reinterpret public
 capacity or qualify three simultaneous radio links. Missing child data fails closed.
-The editors retain separate ECM/TCM drafts; combined review and send include both
+The editor presents one vehicle dashboard and saves changes into internal ECM/TCM drafts; combined review and send include both
 sets of pages (at most eight total) and primary alerts in one schema-2 configuration.
 Child page identities are prefixed `child.` to avoid collisions. Single-source
 imports remain available; importing a dual document into one editor is blocked
@@ -97,3 +97,10 @@ parser, diagnostics and independent retry state so a failed child cannot invalid
 healthy ECM data or route a vehicle command to the wrong controller. Adapter setup
 and migration remain in Expert. One adapter moved between ports uses single-source
 execution while both local drafts remain owned by the same vehicle.
+
+The combined editor and projection retain one cross-controller page order. Reading
+selection determines controller ownership internally. Firmware currently requires
+both readings on a Dual page to belong to the same controller, so the secondary
+picker lists compatible readings. Keep one page for each configured adapter; last
+source-page removal is disabled. Old profiles without explicit page order retain
+engine-first ordering. See the restart/editor rollout for exact physical evidence.

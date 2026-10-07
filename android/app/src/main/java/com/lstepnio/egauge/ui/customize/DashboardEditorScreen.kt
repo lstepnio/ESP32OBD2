@@ -78,7 +78,9 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
                     if (state.readings.any { it.id in com.lstepnio.egauge.ConfigurationProjector.supportedPidIds }) {
                         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
                             Column {
-                                listOfNotNull(current.readingId, current.secondaryId).forEachIndexed { index, id ->
+                                listOfNotNull(current.readingId, current.secondaryId).filter { id ->
+                                    state.readings.firstOrNull { it.id == id }?.source == "ECM"
+                                }.forEachIndexed { index, id ->
                                     if (index > 0) HorizontalDivider(Modifier.padding(horizontal = 18.dp))
                                     val reading = state.readings.firstOrNull { it.id == id }
                                     val alert = state.alerts.firstOrNull { it.readingId == id }
@@ -90,7 +92,7 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
                         }
                         TextButton({ onDestination(3) }, Modifier.fillMaxWidth()) { Text("All alerts (${state.alerts.size})") }
                     }
-                    state.blockers.firstOrNull()?.let { StatusCard(StatusUi("Check your settings", it, StatusTone.Error)) }
+                    (state.editingIssue ?: state.blockers.firstOrNull())?.let { StatusCard(StatusUi("Check your settings", it, StatusTone.Error)) }
                 }
             })
         }
@@ -99,7 +101,8 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
         val purpose = picker
         if (purpose == "layout" && current != null) LayoutPicker(state, current, { picker = null }) {
             actions.layout(it); picker = null
-        } else ReadingPicker(state.readings.filter { purpose != "secondary" || it.id != current?.readingId },
+        } else ReadingPicker(state.readings.filter { purpose != "secondary" || (it.id != current?.readingId &&
+            it.source == state.readings.firstOrNull { reading -> reading.id == current?.readingId }?.source) },
             if (purpose == "add") "Add page" else if (purpose == "secondary") "Second reading" else "Choose reading",
             if (purpose == "add") null else if (purpose == "secondary") current?.secondaryId else current?.readingId,
             state.editingEnabled, { picker = null }) { id ->

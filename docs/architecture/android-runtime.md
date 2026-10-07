@@ -85,3 +85,12 @@ regional defaults. No language-only inference or automatic gauge write is made.
 The existing Metric/Imperial preference also controls speed presentation; canonical
 configuration and alert values stay metric. Region mapping follows
 [Unicode CLDR measurementData](https://raw.githubusercontent.com/unicode-org/cldr/main/common/supplemental/supplementalData.xml).
+
+## Confirmation after gauge restart
+
+A protected reconnect attempt's own timeout is retryable read unavailability, not
+cancellation of the user's transaction. `restartRead` distinguishes session timeout
+from actual caller cancellation and closes each attempt before the next. Configuration
+confirmation shares a bounded saved/running read budget; firmware uses its existing
+exact-image and trial decision deadline. Never resend an uncertain write to obtain
+confirmation. Evidence: [restart/editor rollout](../development/restart-and-dashboard-rollout.md).
