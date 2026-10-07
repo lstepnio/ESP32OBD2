@@ -1,6 +1,6 @@
 # Current implementation and evidence
 
-Updated 2026-10-06. This is the authoritative status summary for this checkout.
+Updated 2026-10-07. This is the authoritative status summary for this checkout.
 A source build, a simulated response and an owner observation are different evidence.
 Recheck Git, installed firmware and connected devices before a new hardware session.
 
@@ -12,7 +12,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
   iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
 - Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
   verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.37-tcm`, configuration revision 28.
+- Latest recorded physical gauge: `0.2.0-dev.40`, configuration revision 29.
   Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
 - The owner has one Vgate, swapped between separate ECM and TCM connectors on a
   2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
@@ -26,11 +26,11 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 | Engine telemetry | Gauge reads attributed 7E8 replies. Owner reported RPM agrees with dash, disappears after unplugging adapter and returns after reconnect | Vehicle/adapter matrix, long soak and achieved polling rates |
 | Transmission | One active TCM profile routes 7E1/7E9; combined Gear + Temperature page. Owner confirmed page worked and both readings cleared/returned on adapter loss/recovery | Independent temperature sensor/scale reference, gears 2..8, current/target divergence |
 | Faults | Mac captured full stored/pending/permanent TCM lists. Version 15 protected full snapshots and Android source/category groups implemented and tested offline | New long-read transfer on Pixel and full fault polling alongside Gear + Temperature |
-| Settings | Brightness, orientation, Metric/Imperial units and automatic saved-page interval persisted through existing settings path | Physical units/persistence and automatic-cycle checks remain separate from protected readback |
+| Settings | Brightness, orientation, Metric/Imperial units and automatic saved-page interval persisted through existing settings path; initial app units follow locale region, saved choice/confirmed gauge wins | Physical units/persistence and automatic-cycle checks remain separate from protected readback |
 | Dashboards/alerts | Numeric, Arc, Bar, Trend and Dual renderers; bounded page/alert configuration, stronger palette and enlarged arc; host logic tests | Daylight/color review, alert transitions and hidden-page behavior on real vehicle |
 | Configuration | Atomic slots, exact review/projection, revision/hash conflict checks, trial/fallback and stored/running identity | Physical interruption matrix and all supported layouts/alerts on hardware |
 | Updates | Signed development catalog/bundle verification, owner BLE bootstrap, authenticated private Wi-Fi transfer, A/B trial confirmation and recovery journal; App/Wi-Fi installs recorded | Hardware power-loss/expiry matrix, production trust and performance measurements |
-| Multiple adapters | Source-specific model and legacy second-slot scaffolding; normal runtime uses one active source | Simultaneous adapters plus phone are unqualified; public link capacity is one |
+| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 6; remembered gauges retain independent vehicle/source contexts. Normal firmware uses one active source | Simultaneous adapters plus phone are unqualified; public link capacity is one |
 
 ## Public and experimental boundaries
 
@@ -63,3 +63,30 @@ Firmware board support originated from Janos Kutscherauer's esp32-obd2-meter at
 `e1f4d8ffbb2bfe0fb38369e44d532319770ddc00`. Upstream MIT and font OFL notices remain
 in the repository. Runtime, transport, ownership and UI have since changed;
 the imported baseline behavior is not the current architecture.
+
+## Automatic connection and settings UX update
+
+Source implements one shared connection widget across native pages, an expandable
+phone/gauge/active-adapter summary, concise active-source Car faults and automatic
+foreground settings/adapter/diagnostics reads. Read failures back off independently;
+ordinary Settings rows no longer require a read tap. Multiple-link aggregation is
+tested, but current profiles and firmware expose only one active adapter.
+
+Firmware candidate `0.2.0-dev.40` hardening separates display snapshots from NVS persistence, bounds writer
+admission, makes busy status reads retryable, and bounds prompt deadline arithmetic
+and RX draining. See [interaction/recovery policy](architecture/interaction-recovery.md)
+for exact behavior, simulated screenshots and remaining physical checks. These
+changes are installed on the Pixel and physical gauge through the signed App/Wi-Fi path.
+The owner confirmed a normal physical page and working swipes.
+
+Verification: 78 Android unit tests, debug APK and instrumentation compilation,
+Android lint, eight isolated Pixel UI tests including 76 screenshot comparisons,
+72 offline host tests, repository validation and the ESP-IDF firmware build passed.
+The physical post-update test passed automatic protected reads on open/resume,
+Bluetooth off/on recovery and Add gauge cancellation recovery, retaining settings,
+vehicle profile contents and configuration revision/hash within that test. Exact
+firmware version/ELF identity and healthy OTA state were asserted before reconnect.
+Wire packet layouts, opcodes and public capacity flags are unchanged; busy snapshot
+reads now return a retryable ATT resource error. See the focused
+[rollout evidence](development/car-connection-rollout.md) for evidence boundaries
+and remaining hardware qualification.

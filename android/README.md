@@ -102,3 +102,13 @@ adb shell am instrument -w \
 ```
 
 This opt-in test checks opening, activity stop/start and recovery after temporarily turning phone Bluetooth off/on. It restores Bluetooth in `finally`, verifies the same configuration revision/digest, and never calls configuration, firmware or car operations. Its screenshots and result are saved under app external files in `automatic-connection/`.
+
+## Automatic connection UI
+
+[Interaction/recovery rules](../docs/architecture/interaction-recovery.md) govern the
+shared status widget and automatic settings/vehicle refresh.
+`ConnectionStatusUiTest` renders isolated examples and checks that a partial dual
+connection cannot appear connected and stale settings cannot be edited. Pass
+`-e captureConnectionExamples true` to save its native Car/Settings examples.
+The checked-in examples were rendered on an isolated emulator; review affected
+`GoldenScreenshotTest` baselines separately on the documented Pixel environment.

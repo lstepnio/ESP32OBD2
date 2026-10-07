@@ -43,6 +43,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
         var route by rememberSaveable { mutableStateOf(Route.Gauge) }
         var customizeStep by rememberSaveable { mutableIntStateOf(0) }
         var progressOpen by rememberSaveable { mutableStateOf(false) }
+        var connectionsOpen by rememberSaveable { mutableStateOf(false) }
         var backProgress by remember { mutableFloatStateOf(0f) }
         fun back() {
             when {
@@ -50,6 +51,9 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                 route == Route.Updates -> route = Route.Settings
                 else -> route = Route.Gauge
             }
+        }
+        LaunchedEffect(route) {
+            if (route != Route.Setup) model.cancelAdditionalGaugeSelection()
         }
         LaunchedEffect(state.settings.advanced) {
             if (!state.settings.advanced && route == Route.Expert) route = Route.Settings
@@ -67,6 +71,12 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
         val selectedRoute = when (route) { Route.Setup, Route.Customize -> Route.Gauge
             Route.Updates -> Route.Settings; else -> route }
         val density = LocalDensity.current
+        val vehicleLinks = listOf(ConnectionLinkUi(state.car.activeId,
+            "${state.car.faultSources.firstOrNull()?.title ?: "Vehicle"} adapter", state.car.connectionStatus))
+        CompositionLocalProvider(LocalConnectionStatus provides {
+            ConnectionStatusWidget(state.home.connection, state.home.connectionVerified, vehicleLinks,
+                state.home.updateNotice, onClick = { connectionsOpen = true })
+        }) {
         BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             val rail = maxWidth >= EGaugeTokens.Layout.railBreakpoint.dp
             // A separating hinge must never run through a control. Use the larger unobstructed pane.
@@ -147,23 +157,47 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                         model::addPage, model::removePage, model::movePage, model::selectLayout,
                                         model::saveAlert, model::removeAlert,
                                         model::checkGaugeForReview, { model.sendNumericConfiguration(); route = Route.Gauge }, { route = Route.Setup }))
-                                Route.Car -> CarScreen(state.car, model::readGaugeDiagnostics, { route = Route.Setup },
+                                Route.Car -> CarScreen(state.car, { route = Route.Setup },
                                     model::selectProfile, { name -> model.editProfileName(name); model.createProfile() },
-                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::sendNumericConfiguration, model::checkVehicleAdapter)
+                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::sendNumericConfiguration, { route = Route.Expert })
                                 Route.Settings -> SettingsScreen(state.settings, model::setAdvancedTools, model::setDynamicColor,
-                                    model::renameGauge, model::rotateGauge, model::readSavedGauge,
-                                    model::readDisplaySettings, model::saveDisplaySettings, { route = Route.Updates },
+                                    model::renameGauge, model::rotateGauge, model::saveDisplaySettings, { route = Route.Updates },
                                     { route = Route.Setup }, onBluetoothSettings, model::saveMeasurementSystem,
-                                    model::savePageCycleSeconds)
+                                    model::savePageCycleSeconds, model::switchRememberedGauge,
+                                    { model.discoverAdditionalGauge(); route = Route.Setup })
                                 Route.Updates -> UpdatesScreen(state.updates, state.operation, false,
                                     ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate)
                                 Route.Expert -> ExpertScreen(state.expert, ExpertActions(
                                     model::checkGaugeForReview, model::readGaugeDiagnostics,
-                                    model::readHardwareCapacity, model::readRunningFirmware, model::adoptGaugeDraft, model::createExperimentalTcmProfile))
+                                    model::readHardwareCapacity, model::readRunningFirmware, model::adoptGaugeDraft, model::addTransmissionChild,
+                                    model::selectVehicleSource, model::removeTransmissionChild,
+                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::attachLegacyTransmission))
                             }
                         }
                     }
                 }
+            }
+        }
+        }
+        if (connectionsOpen) ModalBottomSheet(onDismissRequest = { connectionsOpen = false }) {
+            Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SectionTitle("Connections")
+                Text("Phone to gauge", style = MaterialTheme.typography.labelLarge)
+                StatusCard(connectionStatus(state.connection, android.os.SystemClock.elapsedRealtime()))
+                vehicleLinks.forEach { link ->
+                    Text(link.title, style = MaterialTheme.typography.labelLarge)
+                    StatusCard(link.status)
+                }
+                Text("Checks continue while the app is open.", style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (state.connection.phase in setOf(ConnectionPhase.PermissionRequired, ConnectionPhase.BluetoothOff))
+                    PrimaryAction("Connect gauge", { connectionsOpen = false; onFindGauge() })
+                else if (state.connection.phase in setOf(ConnectionPhase.PairRequired, ConnectionPhase.ChooseGauge))
+                    PrimaryAction("Set up gauge", { connectionsOpen = false; route = Route.Setup })
+                if (state.home.updateNotice != UpdateNotice.None)
+                    SettingsRow("Updates", if (state.home.updateNotice == UpdateNotice.Ready) "Update available" else "Check update",
+                        true, { connectionsOpen = false; route = Route.Updates })
             }
         }
         if (progressOpen) ModalBottomSheet(onDismissRequest = { progressOpen = false }) {

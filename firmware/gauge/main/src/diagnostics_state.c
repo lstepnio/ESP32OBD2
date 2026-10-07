@@ -107,7 +107,7 @@ void diagnostics_state_snapshot(uint32_t now, diagnostics_snapshot_t *out) {
     if (!out) return;
     memset(out, 0, sizeof(*out));
     if (!lock) return;
-    xSemaphoreTake(lock, portMAX_DELAY);
+    if (xSemaphoreTake(lock, 0) != pdTRUE) return;
     out->transmission = snapshot.transmission;
     if (mil_fresh(now)) { out->mil_on = snapshot.mil_on; out->reported_count = snapshot.reported_count; out->valid = true; }
     if (codes_fresh(0, now)) {
@@ -121,7 +121,7 @@ void diagnostics_state_snapshot(uint32_t now, diagnostics_snapshot_t *out) {
 size_t diagnostics_state_status(uint8_t out[DIAGNOSTICS_STATUS_SIZE]) {
     memset(out, 0, DIAGNOSTICS_STATUS_SIZE); out[0] = 5;
     if (!lock) return DIAGNOSTICS_STATUS_SIZE;
-    xSemaphoreTake(lock, portMAX_DELAY);
+    if (xSemaphoreTake(lock, 0) != pdTRUE) return 0;
     uint32_t now = pdTICKS_TO_MS(xTaskGetTickCount());
     /* Legacy clients cannot distinguish TCM from ECM. Never mislabel TCM evidence. */
     if (!snapshot.transmission && !snapshot.simulated) {
@@ -144,7 +144,7 @@ size_t diagnostics_state_status(uint8_t out[DIAGNOSTICS_STATUS_SIZE]) {
 size_t diagnostics_state_full_status(uint32_t now, uint8_t out[DIAGNOSTICS_FULL_SIZE]) {
     memset(out, 0, DIAGNOSTICS_FULL_SIZE); out[0] = 15;
     if (!lock) return DIAGNOSTICS_FULL_SIZE;
-    xSemaphoreTake(lock, portMAX_DELAY);
+    if (xSemaphoreTake(lock, 0) != pdTRUE) return 0;
     out[1] = snapshot.transmission ? 1 : 0;
     out[2] = (mil_fresh(now) ? 1 : 0) | (snapshot.mil_on ? 2 : 0) |
              (snapshot.connected ? 4 : 0) | (snapshot.simulated ? 8 : 0);

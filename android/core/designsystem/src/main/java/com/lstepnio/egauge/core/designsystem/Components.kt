@@ -66,9 +66,9 @@ fun StatusCard(state: StatusUi, modifier: Modifier = Modifier) {
 
 @Composable
 fun ConnectionPill(label: String, checked: Boolean, modifier: Modifier = Modifier,
-    icon: GaugeIcon? = null, onClick: (() -> Unit)? = null) {
+    icon: GaugeIcon? = null, onClick: (() -> Unit)? = null, clickLabel: String = "Open updates") {
     Surface(modifier.then(if (onClick != null) Modifier.clickable(role = Role.Button,
-        onClickLabel = "Open updates", onClick = onClick) else Modifier), shape = CircleShape,
+        onClickLabel = clickLabel, onClick = onClick) else Modifier), shape = CircleShape,
         color = if (checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
         contentColor = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant) {
         Row(Modifier.heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
@@ -93,8 +93,10 @@ fun SectionTitle(title: String) {
     Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
 }
 
+val LocalConnectionStatus = staticCompositionLocalOf<(@Composable () -> Unit)?> { null }
+
 @Composable
-fun ScreenTitle(title: String, onBack: (() -> Unit)? = null, trailing: @Composable (() -> Unit)? = null) {
+fun ScreenTitle(title: String, onBack: (() -> Unit)? = null, trailing: @Composable (() -> Unit)? = LocalConnectionStatus.current) {
     val largeText = LocalDensity.current.fontScale > 1.3f
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,

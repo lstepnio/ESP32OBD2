@@ -15,7 +15,7 @@ static void found(const ble_addr_t *addr, const char *name, uint8_t driver, void
 {
     (void)context;
     if (addr->type > 1) return; /* Public or static/random address only. */
-    xSemaphoreTake(lock, portMAX_DELAY);
+    if (xSemaphoreTake(lock, 0) != pdTRUE) return;
     unsigned count = snapshot[8];
     for (unsigned i = 0; i < count; ++i) {
         const uint8_t *entry = snapshot + 12 + 32*i;
@@ -66,7 +66,7 @@ bool adapter_registry_command(const uint8_t *bytes, size_t length)
     uint32_t sequence = (uint32_t)bytes[1] | ((uint32_t)bytes[2] << 8) |
                         ((uint32_t)bytes[3] << 16) | ((uint32_t)bytes[4] << 24);
     if (!sequence) return false;
-    xSemaphoreTake(lock, portMAX_DELAY);
+    if (xSemaphoreTake(lock, 0) != pdTRUE) return false;
     bool accepted = snapshot[1] != 1;
     if (accepted) {
         memset(snapshot, 0, sizeof(snapshot));
@@ -85,7 +85,7 @@ bool adapter_registry_command(const uint8_t *bytes, size_t length)
 size_t adapter_registry_status(uint8_t out[ADAPTER_SCAN_STATUS_SIZE])
 {
     if (!lock || !out) return 0;
-    xSemaphoreTake(lock, portMAX_DELAY);
+    if (xSemaphoreTake(lock, 0) != pdTRUE) return 0;
     memcpy(out, snapshot, sizeof(snapshot));
     xSemaphoreGive(lock);
     return sizeof(snapshot);

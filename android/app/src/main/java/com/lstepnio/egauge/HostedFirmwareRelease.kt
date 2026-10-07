@@ -64,10 +64,15 @@ internal data class FirmwareVersion(
     }
 }
 
+/** Historical TCM test images appended a label to the numeric development segment.
+ * Compare that known family by its development number; preserve all other SemVer rules. */
+private fun firmwareComparisonVersion(value: String): String =
+    Regex("([0-9]+\\.[0-9]+\\.[0-9]+-dev\\.[0-9]+)-tcm").matchEntire(value)?.groupValues?.get(1) ?: value
+
 internal fun isFirmwareNewer(candidate: String, running: String): Boolean {
-    val candidateVersion = FirmwareVersion.parse(candidate)
+    val candidateVersion = FirmwareVersion.parse(firmwareComparisonVersion(candidate))
         ?: error("Hosted firmware version is invalid")
-    val runningVersion = FirmwareVersion.parse(running)
+    val runningVersion = FirmwareVersion.parse(firmwareComparisonVersion(running))
         ?: error("Running firmware version cannot be compared safely")
     return candidateVersion > runningVersion
 }

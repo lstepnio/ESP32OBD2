@@ -1,8 +1,23 @@
 package com.lstepnio.egauge
 
 import kotlin.math.roundToInt
+import java.util.Locale
 
 enum class MeasurementSystem { Metric, Imperial }
+
+/** Initial temperature convention from Unicode CLDR measurementData (2026-10-06).
+ * A saved choice is authoritative; language alone is not a country preference. */
+fun preferredMeasurementSystem(savedName: String?, locale: Locale): MeasurementSystem {
+    MeasurementSystem.entries.firstOrNull { it.name == savedName }?.let { return it }
+    when (locale.getUnicodeLocaleType("mu")) {
+        "fahrenhe" -> return MeasurementSystem.Imperial
+        "celsius" -> return MeasurementSystem.Metric
+    }
+    val region = locale.getUnicodeLocaleType("rg")?.takeIf { it.matches(Regex("[a-z]{2}zzzz")) }
+        ?.take(2)?.uppercase(Locale.ROOT) ?: locale.country.uppercase(Locale.ROOT)
+    return if (region in setOf("US", "BS", "BZ", "KY", "PR", "PW"))
+        MeasurementSystem.Imperial else MeasurementSystem.Metric
+}
 
 /** Canonical configuration and alert values remain metric. */
 object MeasurementUnits {

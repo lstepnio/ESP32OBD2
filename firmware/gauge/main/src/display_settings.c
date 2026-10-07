@@ -7,6 +7,7 @@
 
 static SemaphoreHandle_t settings_lock;
 static display_settings_t current;
+static portMUX_TYPE snapshot_mux = portMUX_INITIALIZER_UNLOCKED;
 typedef struct {
     uint8_t version;
     uint8_t rotation;
@@ -58,9 +59,10 @@ esp_err_t display_settings_init(uint8_t default_rotation, uint8_t default_bright
 
 display_settings_t display_settings_snapshot(void)
 {
-    xSemaphoreTake(settings_lock, portMAX_DELAY);
+    /* Never wait for NVS/flash on the Bluetooth or UI task. */
+    portENTER_CRITICAL(&snapshot_mux);
     display_settings_t result = current;
-    xSemaphoreGive(settings_lock);
+    portEXIT_CRITICAL(&snapshot_mux);
     return result;
 }
 
@@ -68,12 +70,14 @@ esp_err_t display_settings_save(uint8_t rotation, uint8_t brightness, uint8_t un
                                 uint32_t expected_revision, display_settings_t *saved)
 {
     if (!valid(rotation, brightness, units, cycle_seconds)) return ESP_ERR_INVALID_ARG;
-    xSemaphoreTake(settings_lock, portMAX_DELAY);
-    if (current.revision != expected_revision || current.revision == UINT32_MAX) {
+    if (!settings_lock) return ESP_ERR_INVALID_STATE;
+    if (xSemaphoreTake(settings_lock, pdMS_TO_TICKS(250)) != pdTRUE) return ESP_ERR_TIMEOUT;
+    display_settings_t previous = display_settings_snapshot();
+    if (previous.revision != expected_revision || previous.revision == UINT32_MAX) {
         xSemaphoreGive(settings_lock);
         return ESP_ERR_INVALID_STATE;
     }
-    display_settings_t next = {rotation, brightness, units, current.revision + 1, cycle_seconds};
+    display_settings_t next = {rotation, brightness, units, previous.revision + 1, cycle_seconds};
     display_record_t record = {3, rotation, brightness, units, next.revision, cycle_seconds, 0};
     nvs_handle_t nvs;
     esp_err_t err = nvs_open("display", NVS_READWRITE, &nvs);
@@ -83,7 +87,9 @@ esp_err_t display_settings_save(uint8_t rotation, uint8_t brightness, uint8_t un
         nvs_close(nvs);
     }
     if (err == ESP_OK) {
+        portENTER_CRITICAL(&snapshot_mux);
         current = next;
+        portEXIT_CRITICAL(&snapshot_mux);
         if (saved) *saved = next;
     }
     xSemaphoreGive(settings_lock);

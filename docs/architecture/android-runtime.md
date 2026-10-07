@@ -23,11 +23,11 @@ stateDiagram-v2
     Authenticated --> Unknown: target or permission failure
 ```
 
-Discovery gathers all matching advertisers for a short bounded window. A single result is selected automatically. Multiple results require a user choice. The chosen BLE identity is remembered locally. RSSI orders the list but never proves identity. Android owns the bond secret; the app stores no passkey or bond key.
+Discovery gathers all matching advertisers for a short bounded window. A single result is selected automatically. Multiple results require a user choice. Multiple identities and per-gauge desired vehicle/source assignments are remembered locally; the phone selects one connection at a time. Settings owns the saved-gauge picker. RSSI orders the list but never proves identity. Android owns the bond secret; the app stores no passkey or bond key.
 
 ## Configuration transaction
 
-`ConfigurationProjector` is the single projection from the local draft to the supported firmware document. It validates supported page/rendering combinations. A bounded Transmission profile
+`ConfigurationProjector` is the single projection from the local draft to the supported firmware document. It validates supported page/rendering combinations. An optional Expert transmission child within an engine vehicle (or a retained legacy TCM profile)
 uses the captured temperature/current-gear definitions and one source-specific adapter. The review and wire payload use the same projection. The transaction captures the profile, draft, base revision, and base hash before sending.
 
 ```mermaid
@@ -51,7 +51,7 @@ Device-specific caches are cleared when discovery fails or a different target is
 
 ## Storage and recovery
 
-Profile documents have an explicit schema version. Version 1 profiles migrate to version 2. A legacy TCM draft enables the advanced second-adapter preference without changing its source. Unknown newer schemas and unsupported enum values fail closed and preserve the stored source document. Saves use synchronous commit and report failure.
+Profile schema 6 adds an optional nested transmission child while retaining schemas 1 through 5. Gauge association schema 1 retains multiple identities and desired contexts. Legacy standalone TCM profiles remain unchanged until explicitly attached. See [vehicle connections](vehicle-connections.md) for invariants and migration. Unknown newer schemas and unsupported enum values fail closed and preserve the stored source document. Saves use synchronous commit and report failure.
 
 The selected gauge identity and the minimal firmware-update recovery journal use separate private preference files. An interrupted update records target identity, image digest, stage, and time. On relaunch, the app asks for a protected running-firmware read before retry. A successful identity read reconciles and clears the journal. BLE upload remains an explicitly foreground workflow; the debug build keeps the phone awake while visible.
 
@@ -71,3 +71,14 @@ same protected maintenance state. Configuration remains on the bounded BLE path.
 - DTC clearing, dual-adapter concurrency and production OTA remain unavailable or unqualified.
 - Enabling the second-adapter preference changes a local profile only. It does not claim simultaneous firmware support.
 
+
+## Regional units
+
+On first use, `preferredMeasurementSystem` uses the Android app locale region and
+Unicode temperature preferences. US, Bahamas, Belize, Cayman Islands, Puerto Rico
+and Palau default to Fahrenheit; other regions default to Celsius. A saved choice
+wins. Confirmed gauge settings remain authoritative and do not get overwritten by
+regional defaults. No language-only inference or automatic gauge write is made.
+The existing Metric/Imperial preference also controls speed presentation; canonical
+configuration and alert values stay metric. Region mapping follows
+[Unicode CLDR measurementData](https://raw.githubusercontent.com/unicode-org/cldr/main/common/supplemental/supplementalData.xml).
