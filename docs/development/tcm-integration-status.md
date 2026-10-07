@@ -2,6 +2,15 @@
 
 Updated 2026-10-06. Target: the owner's JSS 8HP70 setup, TCM calibration 68274867AE, diagnostic responder 7E9. The user now prioritizes transmission temperature, actual gear and faults. No matching PCS/JSS laptop or saved calibration/log files are currently available. The owner subsequently confirmed the external PCS module is TCM-2800; its firmware/calibration and diagnostic-port routing remain unverified. See [updated hardware/interface findings](jss-transmission-research.md).
 
+Additional-value research and the next short vehicle session are covered in the
+[TCM values test plan](tcm-values-research-plan.md). It selects the 2016 Challenger
+5.7 L / 8HP70 calibration family as the initial reference, prioritizes faults,
+MIL status, reported voltage/RPM/speed and target gear, and retains pressure as
+an unqualified raw candidate because published scaling produces negative results.
+The combined capture mode is implemented and replay-tested; its next live vehicle
+session remains pending. It checks the exact captured controller identity and
+reports complete fault lists offline without changing app/firmware capabilities.
+
 ## Real fault capture
 
 The owner moved the Vgate from ECM to the separate TCM connector, with ignition ON/RUN, engine off and gauge off. The Mac connected directly over BLE. Standard discovery again identified responder 7E9. The fixed fault probe selected physical request header 7E1 and read Modes 03, 07 and 0A without clearing anything.

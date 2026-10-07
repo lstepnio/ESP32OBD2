@@ -39,6 +39,8 @@ int main(int argc, char **argv)
     elm_payload_t payload = {0};
     elm_result_t result = !prompt ? ELM_PENDING : mode == 1
         ? elm_response_decode_for_ecu(&frame, (uint8_t)mode, (uint8_t)pid, ecu, &payload)
+        : argc == 5
+        ? elm_response_decode_dtcs_for_ecu(&frame, (uint8_t)mode, ecu, &payload)
         : elm_response_decode_service(&frame, (uint8_t)mode, &payload);
     printf("{\"status\":%d,\"payload\":\"", result);
     for (size_t i = 0; i < payload.length; ++i) printf("%02x", payload.bytes[i]);

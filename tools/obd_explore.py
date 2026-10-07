@@ -16,6 +16,7 @@ from obd_capture_core import STANDARD_PIDS, allowed_command, support_replies, su
 from obd_temperature_candidate import COMMAND, decode_candidate
 import obd_tcm_temperature_candidate as tcm_temperature
 import obd_tcm_gear_candidate as tcm_gear
+import obd_tcm_values as tcm_values
 
 IDENTITY_COMMANDS = frozenset(('0900', '0904', '0906', '090A'))
 MONITOR_SETUP = frozenset(('ATTP0', 'ATTP6', 'ATTP7', 'ATCSM1', 'ATCAF0', 'ATCAF1', 'ATCRA'))
@@ -47,6 +48,11 @@ def tcm_temperature_v3_policy(command):
 
 def tcm_gear_policy(command):
     return exploration_policy(command) or command in (*tcm_gear.COMMANDS, 'ATSH7E1', 'ATSH7DF')
+
+
+def tcm_values_policy(command):
+    return exploration_policy(command) or command in (*tcm_values.STANDARD, *tcm_values.FIXED,
+                                                       'ATSH7E1', 'ATSH7DF')
 
 
 async def tcm_gear_probe(session, result):
@@ -198,12 +204,13 @@ async def explore(args):
     from bleak import BleakClient
     device = await choose_adapter(args.adapter)
     recording = Recording(args.output, args.source, 'mac_ble')
-    policy = (tcm_gear_policy if args.tcm_gear_position else
+    values_mode = getattr(args, 'tcm_values', False)
+    policy = (tcm_values_policy if values_mode else tcm_gear_policy if args.tcm_gear_position else
               tcm_temperature_v3_policy if args.tcm_temperature_v3 else
               tcm_temperature_v2_policy if args.tcm_temperature_v2 else
               tcm_temperature_policy if args.tcm_temperature else fault_policy if args.tcm_faults
               else candidate_policy if args.hemi_temperature else exploration_policy)
-    session = AdapterSession(recording, policy=policy)
+    session = (tcm_values.BoundedSession if values_mode else AdapterSession)(recording, policy=policy)
     result = {'physical_port': args.source, 'identity': {}, 'monitor': [],
               'limit': 'Raw identity and CAN evidence; no enhanced transmission meaning inferred.'}
     monitoring = False
@@ -243,6 +250,8 @@ async def explore(args):
             recording.event('link_ready')
             print('Mac connected. Recording bounded controller reads.', flush=True)
             try:
+                if values_mode:
+                    session.deadline = time.monotonic() + args.duration + 60
                 result['adapter_identity_hex'] = (await session.request('ATI')).hex()
                 await setup(session, ('ATE0', 'ATL0', 'ATS0', 'ATH1', 'ATCAF1', 'ATSP0'))
                 maps = {}
@@ -254,6 +263,13 @@ async def explore(args):
                 result['standard_support'] = maps
                 result['protocol_hex'] = (await session.request('ATDP')).hex()
                 result['protocol_number_hex'] = (await session.request('ATDPN')).hex()
+                if values_mode:
+                    selected = bytes.fromhex(result['protocol_number_hex']).strip(b'\r\n >')
+                    if selected not in (b'6', b'A6') or set(maps.get(0, {})) != {'7E9'}:
+                        raise ValueError('TCM values require only 7E9 on 11-bit 500 kbit/s CAN')
+                    if any(set(replies) != {'7E9'} for replies in maps.values()):
+                        raise ValueError('TCM support discovery contains missing or different responders')
+                    await setup(session, ('ATSH7E1',))
                 raw = await session.request('0900', timeout=8)
                 result['identity']['0900'] = raw.hex()
                 identity_maps = {0: support_replies(raw, 0, service=9)}
@@ -262,12 +278,22 @@ async def explore(args):
                     if supports(identity_maps, pid):
                         command = f'09{pid:02X}'
                         result['identity'][command] = (await session.request(command, timeout=8)).hex()
-                for _ in range(3):
+                for _ in range(0 if values_mode else 3):
                     for pid in STANDARD_PIDS:
                         if supports(maps, pid):
                             await session.request(f'01{pid:02X}', timeout=5)
                             await asyncio.sleep(.15)
                 save_private(recording.directory / 'diagnostic-discovery.json', result)
+                if values_mode:
+                    identity = tcm_values.verify_identity(result['identity'])
+                    result['tcm_values'] = {
+                        'owner_reported_state': args.tcm_state, 'verified_identity': identity,
+                        'request_id': '7E1', 'expected_response_id': '7E9',
+                        'qualified': False, 'samples': [], 'skipped': {}}
+                    print('TCM identity matches. Recording combined values at ' + args.tcm_state, flush=True)
+                    # Scope advertised support to this responder, never another ECU.
+                    tcm_maps = {base: {'7E9': replies['7E9']} for base, replies in maps.items()}
+                    await tcm_values.probe(session, result['tcm_values'], tcm_maps, args.duration)
                 if args.tcm_gear_position:
                     selected = bytes.fromhex(result['protocol_number_hex']).strip(b'\r\n >')
                     if selected not in (b'6', b'A6') or set(maps.get(0, {})) != {'7E9'}:
@@ -322,9 +348,11 @@ async def explore(args):
             finally:
                 monitoring = False
                 result['adapter_restored'] = False
+                if values_mode:
+                    session.deadline = None  # Three restoration requests, each still capped at 5s.
                 if not session.waiting_prompt:
                     try:
-                        restore = ('ATSH7DF', 'ATCAF1', 'ATTP0') if args.tcm_gear_position or args.hemi_temperature or args.tcm_faults or args.tcm_temperature or args.tcm_temperature_v2 or args.tcm_temperature_v3 else ('ATCAF1', 'ATTP0')
+                        restore = ('ATSH7DF', 'ATCAF1', 'ATTP0') if values_mode or args.tcm_gear_position or args.hemi_temperature or args.tcm_faults or args.tcm_temperature or args.tcm_temperature_v2 or args.tcm_temperature_v3 else ('ATCAF1', 'ATTP0')
                         await setup(session, restore)
                         result['adapter_restored'] = True
                     except (ValueError, OSError) as error:
@@ -332,9 +360,18 @@ async def explore(args):
                 if not result['adapter_restored']:
                     print('Adapter state was not restored; unplug/replug it before using the gauge.', flush=True)
             await client.stop_notify(rx)
+    except (ValueError, OSError) as error:
+        result['error'] = str(error)
+        raise
     finally:
         recording.close()
         save_private(recording.directory / 'exploration.json', result)
+        if 'tcm_values' in result:
+            summary = tcm_values.summarize(result['tcm_values'])
+            summary['adapter_restored'] = result.get('adapter_restored', False)
+            if 'error' in result:
+                summary['capture_error'] = result['error']
+            save_private(recording.directory / 'tcm-values-summary.json', summary)
         print(f'Private exploration saved: {recording.directory}', flush=True)
 
 
@@ -356,7 +393,22 @@ def main():
                         help='Test three unqualified OBDb Challenger 2204FE reads on 7E1 after confirming 7E9')
     parser.add_argument('--tcm-gear-position', choices=tcm_gear.POSITIONS,
                         help='Capture fixed gear candidates at one owner-reported parked selector position')
+    parser.add_argument('--tcm-values', action='store_true',
+                        help='Fixed combined fault/gear/temperature/standard/pressure-candidate capture')
+    parser.add_argument('--tcm-state', choices=tcm_values.STATES,
+                        help='Owner-reported vehicle state for the combined capture')
+    parser.add_argument('--duration', type=float, default=30,
+                        help='Combined polling seconds, 3..120; discovery adds at most 60 seconds')
     args = parser.parse_args()
+    if args.tcm_values:
+        if args.source != 'transmission' or not args.tcm_state or any((args.monitor,
+                args.hemi_temperature, args.tcm_faults, args.tcm_temperature,
+                args.tcm_temperature_v2, args.tcm_temperature_v3, args.tcm_gear_position)):
+            parser.error('--tcm-values requires transmission, --tcm-state and no other probes')
+        if not 3 <= args.duration <= 120:
+            parser.error('--duration must be between 3 and 120 seconds')
+    elif args.tcm_state or args.duration != 30:
+        parser.error('--tcm-state and --duration require --tcm-values')
     if args.tcm_gear_position and (args.source != 'transmission' or args.hemi_temperature or args.tcm_faults or args.monitor or args.tcm_temperature or args.tcm_temperature_v2 or args.tcm_temperature_v3):
         parser.error('--tcm-gear-position requires --source transmission and runs separately from other probes')
     if args.tcm_temperature_v3 and (args.source != 'transmission' or args.hemi_temperature or args.tcm_faults or args.monitor or args.tcm_temperature or args.tcm_temperature_v2):
