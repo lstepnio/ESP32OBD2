@@ -43,4 +43,10 @@ Owner moved the same Vgate to the transmission diagnostic port with the gauge po
 
 The standalone replay summary reports 320 accepted Mode 01 replies because it uses the parser without a specific ECU route. That is structural parser acceptance, not acceptance by the running engine profile or proof of transmission-specific measurement meaning. Sanitized responses now cover 0100, 010C, 0105, and 010D in the transmission fixture; the bench test verifies acceptance for 7E9 and rejection for 7E8. Replaying the fixture remains simulated evidence.
 
-The owner identifies the transmission as ZFHP70. Its controller supplier/software and documented enhanced request definitions remain unknown. No new enhanced vehicle queries, configuration writes, or fault-clear requests were sent. Return-to-engine display comparison remains pending.
+The owner identifies the transmission as ZFHP70. Its controller supplier/software and documented enhanced request definitions remain unknown. No new enhanced vehicle queries, configuration writes, or fault-clear requests were sent. Return-to-engine verification is recorded below.
+
+## Return to engine port
+
+Owner confirmed the Vgate was back on the engine port and separately confirmed the physical RPM aligns with the Jeep dashboard. A fresh 20-second USB recording after a gauge restart contains 66 completed transactions and 58 structurally accepted Mode 01 replies. Firmware trace reports 60 accepted decoded events across support maps, standard readings, and diagnostic categories, plus one NO DATA result. Fresh RPM, coolant, and speed payloads resumed under the engine route. These counts cover different categories and are not a success percentage.
+
+The final coolant payload 89 decodes to 97 C (206.6 F); this is a USB observation, not an owner-confirmed physical coolant value or comparison with another temperature instrument. Owner has now confirmed physical swipes and RPM agreement with the dashboard. The controller supplier/software remains unknown; enhanced transmission reads await a documented definition. Serial recording is stopped and the Pixel wake settings are restored.
