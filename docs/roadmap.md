@@ -14,6 +14,7 @@ This list contains remaining work, with evidence gates rather than old milestone
 | Recovery hardening | Config/OTA interruption and power-loss matrix, Wi-Fi expiry and uncertain outcome UX | [Recovery matrix](development/ota-recovery-matrix.md), exact images and post-reboot identities |
 | Adapter expansion | Second physical adapter plus phone coexistence, independent loss/recovery and sustained load | [Dual recovery matrix](development/dual-adapter-recovery.md); source dev.41 ready for qualification, measured radio/freshness/resource limits; public capacity stays one |
 | Product hardening | Phone/adapter/vehicle matrix, accessibility, performance, production release trust and Play publication | [Quality gates](development/quality.md), reproducible artifacts and explicit release authorization |
+| Future scope | [Off-road profile actions and gauge gesture triggers](architecture/vehicle-actions.md), including candidate high idle and ABS/ESC control | Local gesture tests, matching verified controller procedures, bounded execution/readback, restoration and interruption evidence before enabling each action |
 | Future scope | Safe code clearing, broader manufacturer packs, live phone telemetry, optional sensors | Documented protocol and complete protected path before advertising support |
 
 ## Scope and priorities

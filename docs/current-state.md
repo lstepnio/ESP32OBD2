@@ -44,7 +44,8 @@ remain uninterpreted. Captured current/target gear requests 225503/225504 compar
 P=0D, R=0B, N=00 and stationary Drive=01; Drive is not a distinct selector value.
 Pressure 225034 remains raw only. Shaft speed, converter slip/lockup and complete
 OEM fault inventory lack matching validated definitions. Code clearing is a design,
-not an implemented action. Simulated data never establishes vehicle compatibility.
+not an implemented action. [Off-road profile actions and gesture triggers](architecture/vehicle-actions.md)
+are also proposed only; high idle and ABS/ESC control are not enabled. Simulated data never establishes vehicle compatibility.
 
 ## Next work
 
