@@ -61,4 +61,12 @@ On 2026-10-06, the owner moved the Vgate to the ECM connector and confirmed read
 
 All three requests on the fixed 7E0 route returned `7E8 03 7F 22 80`. These are complete negative responses, not timeouts, and contain no temperature. The meaning of code 80 for this calibration has not been established. It does not by itself prove that starting the engine will fix the request or that every possible transmission-temperature interface is unsupported. The adapter recovered its prompts, restored the functional header, automatic formatting and protocol selection, and disconnected cleanly.
 
-Private evidence: `artifacts/vehicle-captures/20261007T030521.066747Z-engine-mac_ble/`, including raw request/reply records, identity and observation files. A single comparison with the engine idling has been requested; its outcome is pending. Firmware and the app remain unchanged.
+Private evidence: `artifacts/vehicle-captures/20261007T030521.066747Z-engine-mac_ble/`, including raw request/reply records, identity and observation files. The subsequent engine-idling comparison is recorded below. Firmware and the app remain unchanged.
+
+## Physical probe: engine idling comparison
+
+The owner confirmed the Jeep was parked and idling, Vgate in the ECM connector, gauge off. The same fixed 7E0 / 22 91 10 request again produced three complete `7E8 03 7F 22 80` negative replies. No temperature was returned in either condition. Standard Mode 01 RPM replies in this Mac capture decoded to 762, 743 and 744 RPM. These are direct Mac observations, not readings on the physical gauge.
+
+Private evidence: `artifacts/vehicle-captures/20261007T030625.351483Z-engine-mac_ble/`. Prompts and adapter settings were restored and the Mac released BLE. The idling comparison did not establish support for this candidate; it remains excluded from product configuration. No alternate identifier or header was tried.
+
+The next required evidence is the read-only temperature and actual-gear definition matching the original TCM calibration 68274867AE and JSS bridge configuration, or a matching CAN map plus independently labelled reference capture. This session does not establish the specific reason for code 80 or prove that all enhanced transmission interfaces are unavailable. Further repetitions of this candidate are not useful without new interface information. The owner can stop the engine; no additional running-vehicle capture is pending.
