@@ -54,3 +54,11 @@ The host explorer adds opt-in `--hemi-temperature`: exactly three 22 91 10 reads
 ## Information needed from JSS/PCS
 
 Ask for the diagnostic or DBC definitions applicable to calibration 68274867AE and the installed JSS module: fluid-temperature channel, actual versus commanded gear, addresses, requests, byte layout, scaling, invalid values and update rates. Confirm whether their OBD connector exposes the original TCM directly or through a bridge, and which PCS live channel is an appropriate reference. No vendor message has been sent.
+
+## Physical probe: ignition on, engine off
+
+On 2026-10-06, the owner moved the Vgate to the ECM connector and confirmed readiness after instructions to use ON/RUN with the engine off and gauge off. The Mac connected directly over BLE. Standard replies came from 7E8; the calibration/CVN were again 68059434AD / CA36378C, and the selected protocol was A6 (11-bit CAN, 500 kbit/s).
+
+All three requests on the fixed 7E0 route returned `7E8 03 7F 22 80`. These are complete negative responses, not timeouts, and contain no temperature. The meaning of code 80 for this calibration has not been established. It does not by itself prove that starting the engine will fix the request or that every possible transmission-temperature interface is unsupported. The adapter recovered its prompts, restored the functional header, automatic formatting and protocol selection, and disconnected cleanly.
+
+Private evidence: `artifacts/vehicle-captures/20261007T030521.066747Z-engine-mac_ble/`, including raw request/reply records, identity and observation files. A single comparison with the engine idling has been requested; its outcome is pending. Firmware and the app remain unchanged.
