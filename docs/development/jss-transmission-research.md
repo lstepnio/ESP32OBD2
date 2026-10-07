@@ -4,6 +4,8 @@ Researched 2026-10-06, America/Denver. Target: owner-reported 2010 Wrangler, 5.7
 
 ## Findings
 
+Update after direct Mac exploration: corrected transmission placement returned 7E9, calibration 68274867AE, CVN 8240DAE8 and name TCM - TransmisCtrl. A partial 11-bit CAN sample retained 126 frame lines across 32 identifiers before BUFFER FULL. This supplies a concrete FCA diagnostic lead, but no verified fluid-temperature or gear definition. See [direct exploration results](jeep-direct-exploration-results.md) for sources and limits. Legacy PCS mappings below remain unqualified.
+
 The owner now confirms a Jeep Speed Shop setup. JSS explicitly describes its eight-speed gear indicator as compatible with its PCS kit and displaying gears 1 through 8. Its swap kit includes wiring and a module, but the public listing does not specify the module hardware number, firmware, diagnostic requests, or signal map. [JSS gear indicator](https://jeepspeedshop.com/product/gear-indicator/), [JSS swap kit](https://jeepspeedshop.com/product/8-speed-transmission-swap/).
 
 The supplied photo independently shows PCS Universal TCU Software 1.11.4, TCM-2600/2800 Datastream, and Serial monitor type. That identifies the software and selected monitor family. It does not identify the actual module model, its running firmware, or the source of every displayed channel. Software version 1.11.4 is not a controller firmware version. Fields visible include transmission temperature, current/commanded gear, lever position, shaft speeds, lockup-related status, and battery voltage. The photo does not validate those fields against our current Jeep recording.
@@ -47,7 +49,7 @@ The Vgate's BLE UART connects to its diagnostic interpreter; it is not a general
 
 ### Adapter monitoring possibility
 
-Elm Electronics documents monitor mode, CAN filters, and silent monitoring behavior in its ELM327 reference. That makes a bounded passive capture a plausible experiment, not proof that this Vgate implements the commands or can sustain the required BLE throughput. Polling, raw CAN monitoring, and PCS serial packets need separate assemblers. The current recorder does not expose arbitrary commands or raw monitor mode. Add a bounded capture mode with stop/prompt recovery and filter checks before a vehicle experiment. [ELM327 reference](https://www.elmelectronics.com/wp-content/uploads/2020/05/ELM327DSL.pdf).
+Elm Electronics documents monitor mode, CAN filters, and silent monitoring behavior in its ELM327 reference. That makes a bounded passive capture a plausible experiment, not proof that this Vgate implements the commands or can sustain the required BLE throughput. Polling, raw CAN monitoring, and PCS serial packets need separate assemblers. The standard recorder does not expose arbitrary commands or raw monitor mode. The separate explorer now implements bounded silent monitoring and prompt recovery. The actual BUFFER FULL result requires filtered captures before sustained telemetry claims. [ELM327 reference](https://www.elmelectronics.com/wp-content/uploads/2020/05/ELM327DSL.pdf).
 
 ## Important limits in the literature
 

@@ -19,14 +19,14 @@ def allowed_command(command: str) -> bool:
     return pid in STANDARD_PIDS or pid in range(0, 0xE1, 0x20)
 
 
-def support_replies(raw: bytes, base: int) -> dict[str, int]:
+def support_replies(raw: bytes, base: int, service: int = 1) -> dict[str, int]:
     """Recognize complete headerless or CAN single-frame support replies.
 
     Other header/length/multiframe formats remain raw evidence. Duplicate
     anonymous responders are not collapsed into one ECU's capability.
     """
     replies: dict[str, int] = {}
-    prefix = f"41{base:02X}"
+    prefix = f"{service + 0x40:02X}{base:02X}"
     for line in re.split(rb"[\r\n>]", raw):
         text = re.sub(r"[ \t]", "", line.decode("ascii", "replace")).upper()
         if not text or not re.fullmatch(r"[0-9A-F]+", text):

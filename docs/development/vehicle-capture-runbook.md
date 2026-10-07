@@ -60,3 +60,15 @@ Options include `--source transmission`, `--chunk-size 1`, `--scenario missing`,
 The checked-in `firmware/gauge/tests/fixtures/jeep-engine.json` and `jeep-transmission.json` retain bounded standard responses and request latency. Addresses, phone identity, VIN, and raw owner data are omitted. Replaying these bytes is simulation, even when their original capture was physical.
 
 Offline implementation and evidence: [offline integration results](offline-integration-results.md).
+
+## Direct controller exploration
+
+With ignition on, gauge off and other adapter clients closed, use the physically identified adapter:
+
+```sh
+.venv/bin/python tools/obd_explore.py --source transmission --adapter PREVIOUSLY_IDENTIFIED_MAC_BLE_ID --monitor
+```
+
+This separate tool reads advertised standard support and calibration ID/CVN/ECU name. It excludes VIN, arbitrary commands, enhanced identifier sweeps and vehicle writes. Optional monitoring requests silent mode and temporary 11/29-bit 500 kbit/s protocols for up to five seconds each, with bounded storage and prompt recovery. CAN chunks stay separate from diagnostic transactions. BUFFER FULL marks a partial sample. If restoration fails, unplug/replug before using the gauge. Raw files stay private. Connector labels are owner input; compare responders and record placement corrections.
+
+Actual findings and limits: [direct exploration results](jeep-direct-exploration-results.md).

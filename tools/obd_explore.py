@@ -1,0 +1,208 @@
+#!/usr/bin/env python3
+"""Bounded Mac BLE exploration: standard IDs/reads and optional silent CAN.
+
+No arbitrary request argument, VIN, enhanced PID sweep, calibration or writes.
+Raw controller IDs and traffic remain in ignored private artifacts.
+"""
+import argparse
+import asyncio
+import re
+import time
+from pathlib import Path
+
+from obd_capture import (AdapterSession, BLE_PROFILES, DEFAULT_OUTPUT, Recording,
+                         choose_adapter, save_private)
+from obd_capture_core import STANDARD_PIDS, allowed_command, support_replies, supports
+
+IDENTITY_COMMANDS = frozenset(('0900', '0904', '0906', '090A'))
+MONITOR_SETUP = frozenset(('ATTP0', 'ATTP6', 'ATTP7', 'ATCSM1', 'ATCAF0', 'ATCAF1', 'ATCRA'))
+
+
+def exploration_policy(command):
+    return allowed_command(command) or command in IDENTITY_COMMANDS or command in MONITOR_SETUP
+
+
+async def setup(session, commands):
+    for command in commands:
+        reply = await session.request(command)
+        if b'OK' not in re.split(rb'[\r\n>]+', reply.upper()):
+            raise ValueError(f'Adapter did not confirm {command}; stopped')
+
+
+async def monitor(session, seconds=5, byte_limit=65536):
+    """A separate trace channel keeps CAN broadcasts out of OBD transactions."""
+    if session.waiting_prompt:
+        raise ValueError('Unfinished diagnostic request before monitoring')
+    while not session.rx.empty():
+        session.rx.get_nowait()
+    session.waiting_prompt = True
+    session.recording.event('monitor_start', b'ATMA\r')
+    await session.client.write_gatt_char(session.tx, b'ATMA\r', response=session.response)
+    blocks = []
+    received = 0
+    deadline = time.monotonic() + seconds
+    stopped = False
+    truncated = False
+    try:
+        while time.monotonic() < deadline:
+            try:
+                raw = await asyncio.wait_for(session.rx.get(), deadline - time.monotonic())
+            except asyncio.TimeoutError:
+                break
+            if session.rx_lost:
+                raise ValueError('Monitor notification queue overflow')
+            blocks.append(raw)
+            received += len(raw)
+            if b'>' in raw:
+                stopped = True
+                session.waiting_prompt = False
+                break
+            if received >= byte_limit:
+                truncated = True
+                break
+    finally:
+        if not stopped:
+            # A single serial character stops ELM monitoring; it is not a vehicle request.
+            session.recording.event('monitor_stop', b'\r')
+            await session.client.write_gatt_char(session.tx, b'\r', response=session.response)
+            end = time.monotonic() + 3
+            while time.monotonic() < end:
+                try:
+                    raw = await asyncio.wait_for(session.rx.get(), end - time.monotonic())
+                except asyncio.TimeoutError:
+                    break
+                if received < byte_limit:
+                    blocks.append(raw)
+                else:
+                    truncated = True
+                received += len(raw)
+                if b'>' in raw:
+                    session.waiting_prompt = False
+                    stopped = True
+                    break
+        session.recording.event('monitor_end', status=0 if stopped else 1)
+    if not stopped or session.rx_lost:
+        raise ValueError('Monitor did not recover its prompt cleanly; disconnecting')
+    raw = b''.join(blocks)
+    adapter_buffer_full = b'BUFFER FULL' in raw.upper()
+    return {'raw_hex': raw.hex(), 'bytes_received': received,
+            'capture_limited': truncated or adapter_buffer_full,
+            'adapter_buffer_full': adapter_buffer_full,
+            'prompt_recovered': stopped}
+
+
+async def explore(args):
+    from bleak import BleakClient
+    device = await choose_adapter(args.adapter)
+    recording = Recording(args.output, args.source, 'mac_ble')
+    session = AdapterSession(recording, policy=exploration_policy)
+    result = {'physical_port': args.source, 'identity': {}, 'monitor': [],
+              'limit': 'Raw identity and CAN evidence; no enhanced transmission meaning inferred.'}
+    monitoring = False
+
+    def receive(characteristic, raw):
+        if monitoring:
+            session.recording.event('can_rx', bytes(raw))
+            try:
+                session.rx.put_nowait(bytes(raw))
+            except asyncio.QueueFull:
+                session.rx_lost = True
+                session.recording.event('rx_overflow', status=1)
+        else:
+            session.notification(characteristic, raw)
+
+    try:
+        async with BleakClient(device, timeout=15,
+                               disconnected_callback=lambda _: recording.event('disconnected')) as client:
+            session.client = client
+            gatt = {'name': device.name, 'identifier': device.address, 'services': [
+                {'uuid': s.uuid, 'characteristics': [
+                    {'uuid': c.uuid, 'properties': c.properties} for c in s.characteristics]}
+                for s in client.services]}
+            save_private(recording.directory / 'gatt.json', gatt)
+            for service_uuid, tx_uuid, rx_uuid in BLE_PROFILES:
+                service = client.services.get_service(service_uuid)
+                if service:
+                    tx, rx = service.get_characteristic(tx_uuid), service.get_characteristic(rx_uuid)
+                    if tx and rx and 'notify' in rx.properties and any(
+                            p in tx.properties for p in ('write', 'write-without-response')):
+                        session.tx = tx
+                        session.response = 'write' in tx.properties
+                        break
+            else:
+                raise ValueError('No qualified BLE UART profile matches')
+            await client.start_notify(rx, receive)
+            recording.event('link_ready')
+            print('Mac connected. Recording bounded controller reads.', flush=True)
+            try:
+                result['adapter_identity_hex'] = (await session.request('ATI')).hex()
+                await setup(session, ('ATE0', 'ATL0', 'ATS0', 'ATH1', 'ATCAF1', 'ATSP0'))
+                maps = {}
+                for base in range(0, 0xE1, 0x20):
+                    raw = await session.request(f'01{base:02X}', timeout=15 if base == 0 else 5)
+                    maps[base] = support_replies(raw, base)
+                    if not any(bits & 1 for bits in maps[base].values()):
+                        break
+                result['standard_support'] = maps
+                result['protocol_hex'] = (await session.request('ATDP')).hex()
+                result['protocol_number_hex'] = (await session.request('ATDPN')).hex()
+                raw = await session.request('0900', timeout=8)
+                result['identity']['0900'] = raw.hex()
+                identity_maps = {0: support_replies(raw, 0, service=9)}
+                result['identity_support'] = identity_maps
+                for pid in (0x04, 0x06, 0x0A):
+                    if supports(identity_maps, pid):
+                        command = f'09{pid:02X}'
+                        result['identity'][command] = (await session.request(command, timeout=8)).hex()
+                for _ in range(3):
+                    for pid in STANDARD_PIDS:
+                        if supports(maps, pid):
+                            await session.request(f'01{pid:02X}', timeout=5)
+                            await asyncio.sleep(.15)
+                save_private(recording.directory / 'diagnostic-discovery.json', result)
+                if args.monitor:
+                    for protocol in ('6', '7'):
+                        await setup(session, (f'ATTP{protocol}', 'ATCSM1', 'ATCAF0', 'ATCRA'))
+                        print(f'Silent 500 kbit/s CAN capture, protocol {protocol}, up to 5 seconds.', flush=True)
+                        monitoring = True
+                        try:
+                            capture = await monitor(session)
+                            capture['protocol'] = protocol
+                            result['monitor'].append(capture)
+                            if capture['adapter_buffer_full']:
+                                print('Adapter buffer filled; saved a partial CAN sample.', flush=True)
+                        finally:
+                            monitoring = False
+            finally:
+                monitoring = False
+                result['adapter_restored'] = False
+                if not session.waiting_prompt:
+                    try:
+                        await setup(session, ('ATCAF1', 'ATTP0'))
+                        result['adapter_restored'] = True
+                    except (ValueError, OSError) as error:
+                        result['restore_error'] = str(error)
+                if not result['adapter_restored']:
+                    print('Adapter state was not restored; unplug/replug it before using the gauge.', flush=True)
+            await client.stop_notify(rx)
+    finally:
+        recording.close()
+        save_private(recording.directory / 'exploration.json', result)
+        print(f'Private exploration saved: {recording.directory}', flush=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source', choices=('engine', 'transmission'), required=True)
+    parser.add_argument('--adapter', required=True, help='Previously physically identified macOS BLE ID')
+    parser.add_argument('--output', type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument('--monitor', action='store_true', help='Add bounded silent 11/29-bit CAN captures')
+    args = parser.parse_args()
+    asyncio.run(explore(args))
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (ValueError, OSError) as error:
+        raise SystemExit(str(error))

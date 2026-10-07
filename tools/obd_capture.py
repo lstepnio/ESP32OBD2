@@ -199,8 +199,9 @@ async def choose_adapter(address: str | None):
 
 
 class AdapterSession:
-    def __init__(self, recording: Recording):
+    def __init__(self, recording: Recording, policy=allowed_command):
         self.recording = recording
+        self.policy = policy
         self.rx = asyncio.Queue(maxsize=128)
         self.rx_lost = False
         self.waiting_prompt = False
@@ -218,7 +219,7 @@ class AdapterSession:
             self.recording.event("rx_overflow", status=1)
 
     async def request(self, command: str, timeout: float = 8) -> bytes:
-        if not allowed_command(command):
+        if not self.policy(command):
             raise ValueError("Request rejected by the read-only capture policy")
         if self.waiting_prompt:
             raise ValueError("Previous request has no prompt; reconnect before another request")
