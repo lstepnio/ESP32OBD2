@@ -27,7 +27,8 @@ that every line or physical behavior has been audited.
 The focused changes retain protocol-0 command bytes, protected owner checks,
 configuration trial/recovery, update signing/trust and source separation. The
 capability correction changes advertised link capacity only; it does not remove
-legacy internal slot scaffolding. Firmware source is dev.39, an uninstalled candidate.
+legacy internal slot scaffolding. At that review the firmware source was dev.39, an uninstalled candidate. Consult
+[current state](../current-state.md) for later changes.
 
 Local checks: 70 offline host tests, capture self-test, C sanitizer fixtures,
 ESP-IDF build, Android unit tests/debug build/instrumentation compilation/lint,

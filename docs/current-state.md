@@ -63,3 +63,24 @@ Firmware board support originated from Janos Kutscherauer's esp32-obd2-meter at
 `e1f4d8ffbb2bfe0fb38369e44d532319770ddc00`. Upstream MIT and font OFL notices remain
 in the repository. Runtime, transport, ownership and UI have since changed;
 the imported baseline behavior is not the current architecture.
+
+## Automatic connection and settings UX update
+
+Source implements one shared connection widget across native pages, an expandable
+phone/gauge/active-adapter summary, concise active-source Car faults and automatic
+foreground settings/adapter/diagnostics reads. Read failures back off independently;
+ordinary Settings rows no longer require a read tap. Multiple-link aggregation is
+tested, but current profiles and firmware expose only one active adapter.
+
+Firmware candidate `0.2.0-dev.40` hardening separates display snapshots from NVS persistence, bounds writer
+admission, makes busy status reads retryable, and bounds prompt deadline arithmetic
+and RX draining. See [interaction/recovery policy](architecture/interaction-recovery.md)
+for exact behavior, simulated screenshots and remaining physical checks. These
+changes have not been installed on the Pixel or physical gauge.
+
+Verification for this change: 68 Android unit tests, debug APK and instrumentation
+compilation, Android lint, six isolated emulator UI tests, 72 offline host tests,
+repository validation and the ESP-IDF firmware build passed. Wire packet layouts,
+opcodes and public capacity flags are unchanged; busy snapshot reads now return
+a retryable ATT resource error. The affected Pixel golden baselines and physical
+negative-scenario qualification remain pending.

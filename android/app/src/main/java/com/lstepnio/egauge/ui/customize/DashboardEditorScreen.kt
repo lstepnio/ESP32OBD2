@@ -119,10 +119,8 @@ internal fun EditorScaffold(title: String, onBack: () -> Unit, primary: String, 
                             enabled: Boolean = true,
                             content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxSize().imePadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onBack) { EGaugeIcon(GaugeIcon.Back, "Go back") }
-            Text(title, Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
+        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+            ScreenTitle(title, onBack)
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp), content = content)

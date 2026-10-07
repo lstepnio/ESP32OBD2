@@ -22,7 +22,7 @@ fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Uni
                onEditPage: (Int) -> Unit = {}, onUpdates: () -> Unit = {}) {
     val pager = rememberPagerState(pageCount = { state.pages.size })
     ScreenContent {
-        ScreenTitle(state.gaugeName, trailing = { ConnectionPill(state.connection, state.connectionVerified,
+        ScreenTitle(state.gaugeName, trailing = LocalConnectionStatus.current ?: { ConnectionPill(state.connection, state.connectionVerified,
             icon = when (state.updateNotice) {
                 UpdateNotice.Ready -> GaugeIcon.Download
                 UpdateNotice.NeedsCheck -> GaugeIcon.Warning

@@ -26,7 +26,7 @@ class VehicleDiagnosticsTest {
   assertFalse(d.categories!![0].fresh)
   val g=diagnosticSources(d,0,"TCM")[1]; assertTrue(g.categories[0].status.contains("Unavailable"))
   assertTrue(g.categories[0].faults.all { it.category.startsWith("Last checked") })
-  assertEquals("Check again",diagnosticSources(d,30_001,"TCM")[1].status.title)
+  assertEquals("Refreshing faults",diagnosticSources(d,30_001,"TCM")[1].status.title)
   assertFalse(diagnosticCategoryAgeCurrent(d.categories[1],120_001))
  }
  @Test fun emptyUnknownAndLegacyAreDistinct() {

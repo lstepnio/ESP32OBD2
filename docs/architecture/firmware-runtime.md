@@ -29,7 +29,18 @@ FreeRTOS stack canaries are enabled. The application health log reports the `app
 6. Store metadata is copied while holding `store_lock`; partition reads, hashes, erase, JSON validation, and runtime compilation happen after releasing that lock.
 7. No subsystem lock is held while acquiring another subsystem lock. Queue admission from BLE callbacks is nonblocking.
 
-The firmware still contains short `portMAX_DELAY` waits inside the owning workers and initialization paths. They are outside NimBLE callbacks and do not nest with another subsystem mutex.
+Display settings snapshots use a copy-only critical section independent of the NVS
+writer mutex; writer admission is bounded to 250 ms. Adapter status uses a short
+critical section. Diagnostics, adapter discovery and Wi-Fi status return a retryable
+failure when their short snapshot lock is busy. GATT rejects a missing snapshot
+rather than returning an empty packet. Adapter discovery callbacks do not wait for
+its worker mutex. ELM prompt waits use one clock observation for deadline arithmetic,
+and stale RX drains have a fixed item budget.
+
+The firmware still contains `portMAX_DELAY` waits inside owning workers and
+initialization paths. Apply the [interaction policy](interaction-recovery.md) to
+new or modified paths; these remaining waits are not proof of exhaustive liveness
+qualification.
 
 ## Adapter lifecycle
 

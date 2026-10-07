@@ -178,6 +178,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ForegroundConnectionController(viewModelScope, operationCoordinator, ::automaticConnectionAttempt)
     }
     private val automaticUpdateHold = AutomaticUpdateHoldStore(application)
+    private val vehiclePoll = VehiclePollSchedule()
+    private val settingsPoll = VehiclePollSchedule()
+    var settingsCheckFailed by mutableStateOf(false)
+        private set
+    var settingsObservedAtElapsedMs by mutableStateOf<Long?>(null)
+        private set
+    var vehicleCheckFailed by mutableStateOf(false)
+        private set
     private var connectionForeground = false
     private var automaticUpdateJob: Job? = null
     private var nextAutomaticUpdateCheckAtElapsedMs = 0L
@@ -211,7 +219,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             return 5_000
         }
         try {
-            return withTimeout(35_000) {
+            val gaugePause = withTimeout(35_000) {
                 if (rediscoverGauge || capabilities == null || currentGaugeId == null) {
                     connection = connection.copy(phase = ConnectionPhase.Searching, checkedAtElapsedMs = null)
                     val candidates = bleClient.scanNearbyCandidates()
@@ -264,6 +272,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     operation.stage != OperationStage.RECOVERED) operation = OperationState.Idle
                 20_000L
             }
+            return if (connection.phase == ConnectionPhase.Ready) {
+                val client = GaugeConfigTransferClient(app)
+                val device = bleClient.selectedGauge()
+                val settingsPause = pollSettings(client, device)
+                minOf(settingsPause, pollVehicle(client, device))
+            } else gaugePause
         } catch (error: TimeoutCancellationException) {
             return connectionRetry("Gauge connection check timed out")
         } catch (cancelled: CancellationException) {
@@ -271,6 +285,80 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         } catch (error: Exception) {
             return connectionRetry(error.message ?: "Could not check the gauge")
         }
+    }
+
+    private suspend fun pollSettings(client: GaugeConfigTransferClient, device: BluetoothDevice): Long {
+        val caps = capabilities ?: return 20_000L
+        if (caps.displaySettingsVersion < 1 && !caps.savedStateRead) return 20_000L
+        val key = "${currentGaugeId}:${caps.displaySettingsVersion}"
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!settingsPoll.due(key, now)) return settingsPoll.pause(now)
+        var healthy = false
+        try {
+            withTimeout(8_000) {
+                if (caps.displaySettingsVersion >= 1) displaySettingsRead(client.readDisplaySettings(device))
+                else snapshotRead(bleClient.readSavedSnapshot())
+                healthy = true
+            }
+        } catch (_: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            settingsCheckFailed = true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            settingsCheckFailed = true
+        }
+        val finished = android.os.SystemClock.elapsedRealtime()
+        settingsPoll.completed(finished, healthy)
+        return settingsPoll.pause(finished)
+    }
+
+    private fun displaySettingsRead(value: GaugeConfigTransferClient.DisplaySettings) {
+        displaySettings = value
+        settingsObservedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
+        settingsCheckFailed = false
+        if (value.version >= 2 && presentationPreferences.measurementSystem != value.units)
+            savePresentation(presentationPreferences.copy(measurementSystem = value.units))
+    }
+
+    /** Uses the same cancellable read lease as reconnecting; never writes vehicle setup. */
+    private suspend fun pollVehicle(client: GaugeConfigTransferClient, device: BluetoothDevice): Long {
+        if (capabilities?.adapterRegistryVersion != 1) return 20_000L
+        val profile = profileCollection.active
+        val scope = "${currentGaugeId}:${profile.id}:${profile.primaryAdapter}:${draft.source}:${activeDocument?.revision}"
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!vehiclePoll.due(scope, now)) return vehiclePoll.pause(now)
+        var healthy = false
+        try {
+            // Vehicle failures are distinct from phone-to-gauge failures. Bound this extra work.
+            withTimeout(12_000) {
+                val status = client.readAdapterStatus(device)
+                if (profileCollection.active != profile) return@withTimeout
+                adapterSourceStatus = status
+                adapterStatusCheckedAt = android.os.SystemClock.elapsedRealtime()
+                vehicleCheckFailed = false
+                if (status.vehicleId == profile.id && status.sourceId == configuredSourceId(activeDocument, draft.source) &&
+                    status.phase == 4 && status.bound && !status.simulated && profile.primaryAdapter != null &&
+                    vehicleSetupMatches(activeDocument, profile.id, draft.source, profile.primaryAdapter)) {
+                    val snapshot = client.readDiagnostics(device)
+                    if (profileCollection.active != profile) return@withTimeout
+                    validateDiagnosticScope(snapshot, draft.source, activeDocument?.revision)
+                    diagnosticsRead(snapshot)
+                    healthy = snapshot.connected
+                    vehicleCheckFailed = !snapshot.connected
+                }
+            }
+        } catch (_: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            vehicleCheckFailed = true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            vehicleCheckFailed = true
+        }
+        val finished = android.os.SystemClock.elapsedRealtime()
+        vehiclePoll.completed(finished, healthy)
+        return vehiclePoll.pause(finished)
     }
 
     /** Discovery stays a foreground concern. GitHub work is quiet and never starts an OTA. */
@@ -529,18 +617,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var adapterStatusCheckedAt by mutableStateOf<Long?>(null)
         private set
-    fun checkVehicleAdapter() = launchGaugeOperation(OperationKind.READ, "Checking vehicle adapter") { id ->
-        require(capabilities?.adapterRegistryVersion == 1) { "Update the gauge before checking its adapter" }
-        val status = GaugeConfigTransferClient(getApplication()).readAdapterStatus(bleClient.selectedGauge())
-        adapterSourceStatus = status
-        adapterStatusCheckedAt = android.os.SystemClock.elapsedRealtime()
-        adapterMessage = if (status.vehicleId != profileCollection.activeId)
-            "The gauge is using a different car setup. Send this car's setup before checking readings."
-        else status.message
-        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-            "Adapter checked", adapterMessage, terminal = true)
-    }
-
     var adapterMessage by mutableStateOf<String?>(null)
         private set
 
@@ -567,6 +643,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         sentDigest = null
         diagnostics = null
         diagnosticsObservedAtElapsedMs = null
+        vehicleCheckFailed = false
         adapterSourceStatus = null
         adapterStatusCheckedAt = null
         activeVehicleSessionId = null
@@ -579,6 +656,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         diagnosticsObservedAtElapsedMs = null
         adapterCandidates = emptyList()
         adapterMessage = null
+        vehicleCheckFailed = false
         adapterSourceStatus = null
         adapterStatusCheckedAt = null
         activeVehicleSessionId = null
@@ -641,6 +719,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ownerAccess = OwnerAccess.UNKNOWN
         savedGauge = null
         displaySettings = null
+        settingsObservedAtElapsedMs = null
+        settingsCheckFailed = false
         diagnostics = null
         diagnosticsObservedAtElapsedMs = null
         bootIdentity = null
@@ -661,6 +741,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (!preserveSent) {
             savedGauge = null
             displaySettings = null
+            settingsObservedAtElapsedMs = null
+            settingsCheckFailed = false
             diagnostics = null
             diagnosticsObservedAtElapsedMs = null
             bootIdentity = null
@@ -684,6 +766,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun snapshotRead(value: GaugeSavedSnapshot) {
         scanning = false
         savedGauge = value
+        settingsObservedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
+        settingsCheckFailed = false
         ownerAccess = OwnerAccess.AUTHENTICATED
         deviceMessage = "Gauge saved state read at revision ${value.revision}."
     }
@@ -925,6 +1009,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         // after the update lease closes instead of keeping the previous image's snapshot.
         capabilities = null
         displaySettings = null
+        settingsObservedAtElapsedMs = null
+        settingsCheckFailed = false
         rediscoverGauge = true
         foregroundConnection.retrySoon()
         bootIdentity = value.running
@@ -1057,25 +1143,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Display rotation saved", "The gauge confirmed ${rotation * 90}°", terminal = true)
     }
 
-    fun readDisplaySettings() = launchGaugeOperation(OperationKind.READ, "Checking display settings") { id ->
-        require((capabilities?.displaySettingsVersion ?: 0) >= 1) { "Gauge does not offer display settings" }
-        displaySettings = GaugeConfigTransferClient(getApplication()).readDisplaySettings(bleClient.selectedGauge())
-        if ((displaySettings?.version ?: 0) >= 2)
-            savePresentation(presentationPreferences.copy(measurementSystem = requireNotNull(displaySettings).units))
-        ownerAccess = OwnerAccess.AUTHENTICATED
-        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-            "Display settings checked", "Saved on the gauge", terminal = true)
-    }
-
     fun saveDisplaySettings(rotation: Int, brightness: Int) =
         launchGaugeOperation(OperationKind.CONFIGURATION, "Saving display settings") { id ->
             require((capabilities?.displaySettingsVersion ?: 0) >= 1) { "Gauge does not offer display settings" }
             operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
                 "Saving display settings", "Waiting for gauge confirmation")
-            displaySettings = GaugeConfigTransferClient(getApplication()).saveDisplaySettings(
-                bleClient.selectedGauge(), rotation, brightness)
-            if ((displaySettings?.version ?: 0) >= 2)
-                savePresentation(presentationPreferences.copy(measurementSystem = requireNotNull(displaySettings).units))
+            displaySettingsRead(GaugeConfigTransferClient(getApplication()).saveDisplaySettings(
+                bleClient.selectedGauge(), rotation, brightness))
             ownerAccess = OwnerAccess.AUTHENTICATED
             operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
                 "Display settings saved", "The gauge confirmed ${rotation * 90}° and $brightness% brightness", terminal = true)
@@ -1088,9 +1162,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 "Saving measurement units", "Waiting for gauge confirmation")
             val client = GaugeConfigTransferClient(getApplication())
             val current = client.readDisplaySettings(bleClient.selectedGauge())
-            displaySettings = client.saveDisplaySettings(bleClient.selectedGauge(),
-                current.rotation, current.brightness, system)
-            savePresentation(presentationPreferences.copy(measurementSystem = requireNotNull(displaySettings).units))
+            displaySettingsRead(client.saveDisplaySettings(bleClient.selectedGauge(),
+                current.rotation, current.brightness, system))
             ownerAccess = OwnerAccess.AUTHENTICATED
             operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
                 "Measurement units saved", "The gauge confirmed ${system.name.lowercase()} units", terminal = true)
@@ -1104,19 +1177,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 "Saving page cycle interval", "Waiting for gauge confirmation")
             val client = GaugeConfigTransferClient(getApplication())
             val current = client.readDisplaySettings(bleClient.selectedGauge())
-            displaySettings = client.saveDisplaySettings(bleClient.selectedGauge(),
-                current.rotation, current.brightness, current.units, seconds)
+            displaySettingsRead(client.saveDisplaySettings(bleClient.selectedGauge(),
+                current.rotation, current.brightness, current.units, seconds))
             ownerAccess = OwnerAccess.AUTHENTICATED
             operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
                 "Page cycling saved", if (seconds == 0) "Automatic cycling is off" else "The gauge will cycle pages every $seconds seconds",
                 terminal = true)
         }
-
-    fun readSavedGauge() = launchGaugeOperation(OperationKind.READ, "Checking gauge settings") { id ->
-        snapshotRead(bleClient.readSavedSnapshot())
-        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-            "Gauge settings checked", "Saved revision ${savedGauge?.revision ?: 0}", terminal = true)
-    }
 
     fun pairGauge() = launchGaugeOperation(OperationKind.READ, "Pairing your gauge") { id ->
         require(Build.VERSION.SDK_INT < 31 || getApplication<Application>().checkSelfPermission(

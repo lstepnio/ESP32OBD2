@@ -342,6 +342,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     if (extended_status_mode == 11) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = adapter_status_snapshot(status_snapshot);
+        if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -350,6 +351,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     if (extended_status_mode == 10) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = adapter_registry_status(status_snapshot);
+        if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -358,6 +360,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     if (extended_status_mode == 1) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = config_transfer_status(status_snapshot);
+        if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -366,6 +369,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     if (extended_status_mode == 2) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = ota_transfer_status(status_snapshot);
+        if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -374,6 +378,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     if (extended_status_mode == 3) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = diagnostics_state_status(status_snapshot);
+        if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -383,6 +388,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = diagnostics_state_full_status(
                 pdTICKS_TO_MS(xTaskGetTickCount()), status_snapshot);
+        if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -391,6 +397,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     if (extended_status_mode == 4) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = ota_transfer_boot_identity(status_snapshot);
+        if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -425,6 +432,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
                 status_snapshot_length = ACTIVE_DOCUMENT_HEADER_SIZE;
             } else return BLE_ATT_ERR_UNLIKELY;
         }
+        if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -433,6 +441,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     if (extended_status_mode == 6) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = config_runtime_status(status_snapshot);
+        if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -442,6 +451,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
 #if CONFIG_EGAUGE_WIFI_BULK_ENABLED
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = wifi_bulk_status(status_snapshot);
+        if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -454,6 +464,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
         hardware_probe_set_ready(HARDWARE_FEATURE_BLE, ble_companion_ready());
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = hardware_probe_status(status_snapshot);
+        if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -475,6 +486,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
          * Android can restore link encryption before its first owner write. */
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = config_transfer_status(status_snapshot);
+        if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0

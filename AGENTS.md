@@ -16,6 +16,21 @@ These are the current entry points; historical reports are evidence, not instruc
 - Keep `docs/current-state.md` current and remaining work in `docs/roadmap.md`; link to focused evidence instead of duplicating status.
 - Do not use an em dash in user-facing responses.
 
+## Interaction and recovery rules
+
+- Follow [automatic refresh and resilient interactions](docs/architecture/interaction-recovery.md)
+  for every App/firmware change. Automatically read settings and known connection state;
+  use cancellable foreground polling and bounded retry backoff instead of routine refresh taps.
+- Reuse the universal connection widget and source-specific status projection. Account for
+  independent ECM/TCM links; do not let a healthy link hide a failed required link or promote
+  dual-adapter capability before the full path is qualified.
+- Keep BLE/UI callbacks nonblocking, snapshots short, writes serialized and external waits
+  deadline-bounded. Review lock ordering, queue saturation, late replies, disconnect cleanup,
+  failed persistence and interruption recovery. Test the relevant negative scenarios.
+- Preserve last committed/last checked state honestly. Never show stale or simulated data
+  as current, infer success from queued work, replay uncertain writes blindly, or claim
+  deadlock immunity from source inspection or a build alone.
+
 ## Hardware sessions
 
 For live Android debugging, run `python3 tools/adb_debug_awake.py start` before the session and `python3 tools/adb_debug_awake.py stop` when finished. The script saves and restores the phone's timeout and charging wake settings. The debug APK keeps its window awake while eGauge is visible. A manual device lock still requires the user to unlock it.

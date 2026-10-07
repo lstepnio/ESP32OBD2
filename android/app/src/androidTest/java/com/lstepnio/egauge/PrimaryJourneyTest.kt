@@ -22,7 +22,7 @@ class PrimaryJourneyTest {
         compose.onAllNodesWithText("Your gauge is offline").assertCountEquals(0)
         capture("gauge")
         compose.onNodeWithText("Car", useUnmergedTree = true).performClick()
-        compose.onNodeWithText("No car readings yet").assertIsDisplayed()
+        compose.onNodeWithText("Waiting for car").assertIsDisplayed()
         compose.onAllNodesWithText("About clearing codes").assertCountEquals(0)
         assertNoJargon()
         capture("car")

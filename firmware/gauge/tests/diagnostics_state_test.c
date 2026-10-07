@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include "diagnostics_state.h"
+int test_lock_busy;
+int test_critical_depth;
 static uint8_t packet[DIAGNOSTICS_FULL_SIZE];
 static void read_at(uint32_t now) { assert(diagnostics_state_full_status(now, packet) == 248); }
 int main(int argc, char **argv) {
@@ -28,5 +30,12 @@ int main(int argc, char **argv) {
  diagnostics_state_codes(3,codes,8,UINT32_MAX-50); read_at(25); assert(packet[33]==3 && packet[1]==0 && packet[20]==0xe8);
  diagnostics_state_configure(true,30,true); diagnostics_state_connected(); diagnostics_state_codes(3,codes,8,900);
  read_at(1000); assert(packet[2]==12 && packet[33]==1);
+ test_lock_busy = 1;
+ assert(diagnostics_state_full_status(1000, packet) == 0);
+ assert(diagnostics_state_status(legacy) == 0);
+ diagnostics_snapshot_t unavailable;
+ diagnostics_state_snapshot(1000, &unavailable); assert(!unavailable.valid);
+ test_lock_busy = 0;
+ read_at(1000); assert(packet[2]==12);
  puts("Diagnostics source, full lists, expiry, reconnect and simulation passed");
 }

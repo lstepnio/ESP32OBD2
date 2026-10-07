@@ -29,6 +29,7 @@
 
 #include "ble_mgr.h"
 #include "ble_obd.h"
+#include "obd_wait_policy.h"
 #include "obd_trace.h"
 #include "adapter_status.h"
 #include "obd_adapter_profile.h"
@@ -117,9 +118,11 @@ static bool wait_for_prompt(ble_obd_ctx_t *obd, TickType_t budget)
 {
     TickType_t start = xTaskGetTickCount();
     rx_byte_t item;
-    while (xTaskGetTickCount() - start < budget) {
-        TickType_t remaining = budget - (xTaskGetTickCount() - start);
-        if (atomic_load(&obd->generation) != obd->active_generation) return false;
+    for (;;) {
+        TickType_t remaining = obd_wait_remaining(start, xTaskGetTickCount(), budget);
+        if (!remaining) break;
+        if (atomic_load(&obd->generation) != obd->active_generation ||
+            atomic_load(&obd->rx_overflow)) return false;
         if (xQueueReceive(obd->rx, &item, remaining) != pdTRUE) break;
         if (item.generation != obd->active_generation) continue;
         if (elm_response_push(&obd->response, item.byte)) {
@@ -162,6 +165,17 @@ static bool ble_obd_dev_disconnected_cb_t(ble_mgr_ctx_t *mgr_ctx, void *usr_ctx)
     return false;
 }
 
+/* A noisy notifier cannot keep a worker in an unbounded queue-drain loop. */
+static bool drain_rx(ble_obd_ctx_t *obd)
+{
+    rx_byte_t ignored;
+    for (unsigned i = 0; i <= ELM_RESPONSE_CAPACITY; ++i)
+        if (xQueueReceive(obd->rx, &ignored, 0) != pdTRUE) return true;
+    atomic_store(&obd->rx_overflow, true);
+    ble_mgr_disconnect(obd->mgr_ctx);
+    return false;
+}
+
 static bool adapter_command(ble_obd_ctx_t *obd, const char *command, uint32_t timeout_ms)
 {
     TickType_t budget = pdMS_TO_TICKS(timeout_ms);
@@ -171,8 +185,7 @@ static bool adapter_command(ble_obd_ctx_t *obd, const char *command, uint32_t ti
     uint32_t generation = atomic_load(&obd->generation);
     obd->active_generation = generation;
     obd->awaiting_prompt = false;
-    rx_byte_t ignored;
-    while (xQueueReceive(obd->rx, &ignored, 0) == pdTRUE) {}
+    if (!drain_rx(obd)) goto done;
     elm_response_reset(&obd->response);
     if (send_command(obd, command) != BLE_MGR_E_OK) goto done;
     obd->awaiting_prompt = true;
@@ -357,8 +370,7 @@ int ble_obd_rxtx_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid,
         ble_mgr_disconnect(obd->mgr_ctx);
         goto done;
     }
-    rx_byte_t ignored;
-    while (xQueueReceive(obd->rx, &ignored, 0) == pdTRUE) {}
+    if (!drain_rx(obd)) goto done;
     elm_response_reset(&obd->response);
     char command[8];
     if (mode == 0x22) snprintf(command, sizeof(command), "22%04X\r", pid);
@@ -433,8 +445,7 @@ int ble_obd_read_service_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t e
         ble_mgr_disconnect(obd->mgr_ctx);
         goto done;
     }
-    rx_byte_t ignored;
-    while (xQueueReceive(obd->rx, &ignored, 0) == pdTRUE) {}
+    if (!drain_rx(obd)) goto done;
     elm_response_reset(&obd->response);
     char command[4];
     snprintf(command, sizeof(command), "%02X\r", mode);

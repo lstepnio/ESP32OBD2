@@ -10,64 +10,81 @@ import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.*
 import com.lstepnio.egauge.ui.state.CarUiState
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CarScreen(state: CarUiState, onCheck: () -> Unit, onSetup: () -> Unit,
+fun CarScreen(state: CarUiState, onSetup: () -> Unit,
               onSelectProfile: (String) -> Unit, onCreateProfile: (String) -> Unit,
               onFindAdapters: () -> Unit = {}, onChooseAdapter: (com.lstepnio.egauge.AdapterBinding?) -> Unit = {},
-              onSendAdapter: () -> Unit = {}, onCheckAdapter: () -> Unit = {}) {
+              onSendAdapter: () -> Unit = {}) {
     var profilesOpen by rememberSaveable { mutableStateOf(false) }
-    ScreenContent {
-        ScreenTitle(state.name)
+    var adapterOpen by rememberSaveable { mutableStateOf(false) }
+    var coverageOpen by rememberSaveable { mutableStateOf(false) }
+    ScreenContent(scrollKey = state.activeId) {
+        ScreenTitle("Car")
         ResponsivePanels(first = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                StatusCard(state.status)
-                state.faultSources.forEach { source ->
-                    Panel {
-                        SectionTitle(source.title)
-                        Text(source.status.title, style = MaterialTheme.typography.titleMedium)
-                        Text(source.status.detail, style = MaterialTheme.typography.bodyMedium)
-                        source.categories.forEach { category ->
-                            Text(category.name, style = MaterialTheme.typography.titleMedium)
-                            Text(category.status, style = MaterialTheme.typography.bodyMedium,
+                Panel {
+                    SectionTitle(state.faultSources.firstOrNull()?.title?.let { "$it faults" } ?: "Vehicle faults")
+                    Text(state.status.title, style = MaterialTheme.typography.titleMedium,
+                        color = if (state.status.tone == StatusTone.Critical) LocalSemanticColors.current.critical
+                            else MaterialTheme.colorScheme.onSurface)
+                    Text(state.status.detail, style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    state.faults.forEach { fault ->
+                        HorizontalDivider()
+                        Text(fault.code, style = MaterialTheme.typography.headlineSmall)
+                        Text(fault.description, style = MaterialTheme.typography.bodyLarge)
+                        Text(fault.category, style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            category.faults.forEach { fault ->
-                                Text(fault.code, style = MaterialTheme.typography.headlineSmall)
-                                Text(fault.description, style = MaterialTheme.typography.bodyLarge)
-                                Text(fault.category, style = MaterialTheme.typography.labelMedium,
+                    }
+                    if (state.incomplete) Text("Partial code list. More codes may be present.",
+                        style = MaterialTheme.typography.bodyMedium, color = LocalSemanticColors.current.warning)
+                    if (state.faultSources.any { it.categories.isNotEmpty() }) {
+                        TextButton({ coverageOpen = !coverageOpen }) {
+                            Text(if (coverageOpen) "Hide check coverage" else "Check coverage")
+                        }
+                        if (coverageOpen) state.faultSources.forEach { source ->
+                            source.categories.forEach { category ->
+                                Text("${category.name}: ${category.status}", style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
                 }
-                if (state.incomplete) Text("This gauge returned a partial code list. More codes may be present.",
-                    style = MaterialTheme.typography.bodyLarge, color = LocalSemanticColors.current.warning)
-                if (state.faults.isNotEmpty()) Text("A code points to a problem area. It does not identify a part to replace.",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                SettingsRow("Vehicle profile", state.name, !state.profileError, { profilesOpen = true })
-                Panel {
-                    SectionTitle("Vehicle adapter")
-                    Text(state.adapterSelected ?: "No adapter selected", style = MaterialTheme.typography.bodyLarge)
-                    Text(state.adapterMessage ?: "Plug your adapter into the car to find it.",
-                        style = MaterialTheme.typography.bodyMedium)
-                    PrimaryAction("Check adapter", onCheckAdapter, enabled = state.adapterAvailable)
-                    PrimaryAction("Find adapter", onFindAdapters, enabled = state.adapterAvailable && !state.profileError)
-                    state.adapterCandidates.forEach { candidate ->
-                        SettingsRow(candidate.name, candidate.binding.address.takeLast(5),
-                            enabled = state.adapterAvailable, onClick = { onChooseAdapter(candidate.binding) })
-                    }
-                    if (state.adapterSelected != null)
-                        TextButton({ onChooseAdapter(null) }, enabled = state.adapterAvailable) { Text("Remove adapter") }
-                    PrimaryAction("Send setup to gauge", onSendAdapter, enabled = state.canSendAdapter)
-                }
-                PrimaryAction(if (state.canCheck) "Check faults" else "Set up gauge",
-                    if (state.canCheck) onCheck else onSetup)
+                SettingsRow("Your car", state.name, !state.profileError, { profilesOpen = true })
+                SettingsRow("Adapter", state.connectionStatus.title, state.adapterAvailable, { adapterOpen = true })
+                if (state.setupNeeded && state.adapterSelected != null)
+                    PrimaryAction("Use this car on gauge", onSendAdapter, enabled = state.canSendAdapter)
+                else if (state.adapterSelected == null)
+                    PrimaryAction("Choose adapter", { adapterOpen = true }, enabled = state.adapterAvailable)
+                if (!state.adapterAvailable && !state.canCheck) TextButton(onSetup) { Text("Set up gauge") }
             }
         })
     }
     if (profilesOpen) ProfileDialog(state, { profilesOpen = false }, onSelectProfile, onCreateProfile)
+    if (adapterOpen) ModalBottomSheet(onDismissRequest = { adapterOpen = false }) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            SectionTitle("Vehicle adapter")
+            StatusCard(state.connectionStatus)
+            Text(state.adapterSelected ?: "No adapter selected", style = MaterialTheme.typography.bodyLarge)
+            if (state.adapterCandidates.isNotEmpty()) Text("Choose the adapter plugged into this car.")
+            state.adapterCandidates.forEach { candidate ->
+                SettingsRow(candidate.name, candidate.binding.address.takeLast(5), state.adapterAvailable,
+                    { onChooseAdapter(candidate.binding) })
+            }
+            PrimaryAction("Find adapter", onFindAdapters, enabled = state.adapterAvailable && !state.profileError)
+            if (state.adapterSelected != null)
+                TextButton({ onChooseAdapter(null) }, enabled = state.adapterAvailable) { Text("Remove adapter") }
+            if (state.setupNeeded && state.adapterSelected != null)
+                PrimaryAction("Use this car on gauge", { onSendAdapter(); adapterOpen = false }, enabled = state.canSendAdapter)
+            if (state.adapterMessage != null && state.adapterCandidates.isEmpty() && state.adapterSelected == null)
+                Text(state.adapterMessage, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
 }
 
 @Composable

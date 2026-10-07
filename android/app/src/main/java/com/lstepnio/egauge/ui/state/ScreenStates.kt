@@ -49,12 +49,15 @@ data class CarUiState(val name: String, val profiles: List<VehicleUi>, val activ
     val profileError: Boolean, val details: List<DetailUi>,
     val adapterAvailable: Boolean = false, val adapterSelected: String? = null,
     val adapterMessage: String? = null, val adapterCandidates: List<com.lstepnio.egauge.AdapterCandidate> = emptyList(),
-    val canSendAdapter: Boolean = false, val faultSources: List<FaultSourceUi> = emptyList())
+    val canSendAdapter: Boolean = false, val faultSources: List<FaultSourceUi> = emptyList(),
+    val connectionStatus: StatusUi = StatusUi("Checking car connection", "Checks run automatically while the app is open."),
+    val setupNeeded: Boolean = false)
 @Immutable
 data class SettingsUiState(val name: String, val found: Boolean, val rotation: Int?, val canRotate: Boolean,
     val busy: Boolean, val advanced: Boolean, val dynamicColor: Boolean, val version: String,
     val details: List<DetailUi>, val displaySettingsVersion: Int = 0, val brightness: Int? = null,
-    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val cycleSeconds: Int? = null)
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val cycleSeconds: Int? = null,
+    val settingsCurrent: Boolean = true)
 @Immutable
 data class CandidateUi(val id: String, val name: String, val shortId: String, val details: List<DetailUi>)
 @Immutable

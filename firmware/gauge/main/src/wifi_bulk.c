@@ -491,7 +491,7 @@ bool wifi_bulk_command(const uint8_t *bytes, size_t length)
 size_t wifi_bulk_status(uint8_t out[WIFI_BULK_STATUS_SIZE])
 {
     if (!out || !state_lock) return 0;
-    xSemaphoreTake(state_lock, portMAX_DELAY);
+    if (xSemaphoreTake(state_lock, 0) != pdTRUE) return 0;
     publish_locked();
     memcpy(out, status_cache, sizeof(status_cache));
     xSemaphoreGive(state_lock);

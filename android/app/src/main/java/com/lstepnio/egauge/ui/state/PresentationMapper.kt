@@ -163,7 +163,8 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         SettingsUiState(prefs.gaugeName, found, displaySettings?.rotation ?: savedGauge?.rotation,
             found && ((capabilities?.displaySettingsVersion ?: 0) >= 1 || capabilities?.displayRotationWrite == true),
             busy, prefs.advanced, prefs.dynamicColor, bootIdentity?.version ?: "Not checked", details,
-            capabilities?.displaySettingsVersion ?: 0, displaySettings?.brightness, system, displaySettings?.cycleSeconds),
+            capabilities?.displaySettingsVersion ?: 0, displaySettings?.brightness, system, displaySettings?.cycleSeconds,
+            settingsReadCurrent(settingsObservedAtElapsedMs, nowElapsedMs, settingsCheckFailed) && freshConnection),
         ExpertUiState(found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
             canAdoptGaugeDraft, details),
         SetupUiState(found || androidBonded, ownerAccess, busy || connection.phase in setOf(ConnectionPhase.Searching, ConnectionPhase.Checking), gaugeCandidates.mapIndexed { index, candidate ->
@@ -203,8 +204,12 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
     return CarUiState(profileCollection.active.name, profileCollection.profiles.map { VehicleUi(it.id, it.name) },
         profileCollection.activeId, status, faults, !busy && capabilities?.experimentalNumericConfig == true,
         data != null && (data.categories == null || data.categories.any { it.truncated }), profileError != null, details,
-        faultSources = sources,
-        adapterAvailable = capabilities?.adapterRegistryVersion == 1 && !busy,
+        faultSources = sources.filter { it.title == if (draft.source == "TCM") "Transmission" else "Engine" },
+        connectionStatus = vehicleConnectionStatus(adapterSourceStatus, adapterStatusCheckedAt?.let { now - it },
+            profileCollection.activeId, configuredSourceId(activeDocument, draft.source) ?: "", profileCollection.active.primaryAdapter != null,
+            vehicleSetupMatches(activeDocument, profileCollection.activeId, draft.source, profileCollection.active.primaryAdapter), vehicleCheckFailed),
+        setupNeeded = !vehicleSetupMatches(activeDocument, profileCollection.activeId, draft.source, profileCollection.active.primaryAdapter),
+        adapterAvailable = capabilities?.adapterRegistryVersion == 1 && !busy && connection.fresh(now),
         adapterSelected = profileCollection.active.primaryAdapter?.let { "${if (it.driver == "elm-bench-v1") "Bench simulator" else "Vehicle adapter"} · ${it.address.takeLast(5)}" },
         adapterMessage = if (adapterSourceStatus != null && (adapterStatusCheckedAt == null ||
             now - adapterStatusCheckedAt!! > 15_000)) "Adapter status is out of date. Check again."
@@ -219,7 +224,7 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
             else "Adapter selection differs from the gauge. Send setup to use this selection."
         }.getOrDefault("Refresh gauge settings to check the saved adapter."),
         adapterCandidates = adapterCandidates,
-        canSendAdapter = !busy && profileError == null && capabilities?.adapterRegistryVersion == 1 &&
+        canSendAdapter = !busy && connection.fresh(now) && profileError == null && capabilities?.adapterRegistryVersion == 1 &&
             activeConfigRevision != null && verifiedConfigHash != null && ConfigurationProjector.blockers(draft).isEmpty())
 }
 

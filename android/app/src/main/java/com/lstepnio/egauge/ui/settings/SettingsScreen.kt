@@ -17,8 +17,7 @@ import com.lstepnio.egauge.ui.state.SettingsUiState
 
 @Composable
 fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDynamic: (Boolean) -> Unit,
-    onRename: (String) -> Unit, onRotate: (Int) -> Unit, onReadSaved: () -> Unit,
-    onReadDisplay: () -> Unit, onSaveDisplay: (Int, Int) -> Unit, onUpdates: () -> Unit,
+    onRename: (String) -> Unit, onRotate: (Int) -> Unit, onSaveDisplay: (Int, Int) -> Unit, onUpdates: () -> Unit,
     onSetup: () -> Unit, onBluetoothSettings: () -> Unit, onSaveUnits: (MeasurementSystem) -> Unit = {},
     onSaveCycle: (Int) -> Unit = {}) {
     var nameOpen by rememberSaveable { mutableStateOf(false) }
@@ -35,24 +34,25 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                 SectionTitle("Gauge")
                 SettingsRow("Gauge name", state.name) { nameOpen = true }
                 SettingsRow("Brightness", state.brightness?.let { "$it%" } ?:
-                    if (state.displaySettingsVersion >= 1) "Check current settings" else "Not available on this gauge",
-                    state.displaySettingsVersion >= 1 && state.found && !state.busy) {
-                    if (state.brightness == null) onReadDisplay() else brightnessOpen = true
+                    if (state.displaySettingsVersion >= 1) "Reading settings…" else "Not available on this gauge",
+                    state.displaySettingsVersion >= 1 && state.found && !state.busy && state.settingsCurrent && state.brightness != null) {
+                    brightnessOpen = true
                 }
-                SettingsRow("Rotation", state.rotation?.let { "${it * 90}°" } ?: "Check current settings", state.found && !state.busy) {
-                    if (state.displaySettingsVersion >= 1 && state.brightness == null) onReadDisplay()
-                    else if (state.rotation == null) onReadSaved() else rotationOpen = true
+                SettingsRow("Rotation", state.rotation?.let { "${it * 90}°" } ?: "Reading settings…", state.found && !state.busy && state.settingsCurrent && state.rotation != null) {
+                    rotationOpen = true
                 }
                 SettingsRow("Units", if (state.displaySettingsVersion < 2) "Not available on this gauge"
-                    else if (state.brightness == null) "Check current settings" else state.measurementSystem.name,
-                    state.displaySettingsVersion >= 2 && state.found && !state.busy) {
-                    if (state.brightness == null) onReadDisplay() else unitsOpen = true
+                    else if (state.brightness == null) "Reading settings…" else state.measurementSystem.name,
+                    state.displaySettingsVersion >= 2 && state.found && !state.busy && state.settingsCurrent && state.brightness != null) {
+                    unitsOpen = true
                 }
                 SettingsRow("Auto-cycle pages", if (state.displaySettingsVersion < 3) "Not available on this gauge"
-                    else when (state.cycleSeconds) { null -> "Check current settings"; 0 -> "Off"; else -> "Every ${state.cycleSeconds} seconds" },
-                    state.displaySettingsVersion >= 3 && state.found && !state.busy) {
-                    if (state.cycleSeconds == null) onReadDisplay() else cycleOpen = true
+                    else when (state.cycleSeconds) { null -> "Reading settings…"; 0 -> "Off"; else -> "Every ${state.cycleSeconds} seconds" },
+                    state.displaySettingsVersion >= 3 && state.found && !state.busy && state.settingsCurrent && state.cycleSeconds != null) {
+                    cycleOpen = true
                 }
+                if (!state.settingsCurrent && state.found) Text("Refreshing settings automatically…",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (!state.found) TextButton(onSetup) { Text("Set up gauge") }
                 TextButton({ forgetOpen = true }) { Text("Remove from this phone") }
                 TextButton({ moveOwnerOpen = true }) { Text("Move gauge to another phone") }
@@ -93,7 +93,7 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
             if (state.displaySettingsVersion >= 1) onSaveDisplay(rotation, state.brightness ?: 80)
             else onRotate(rotation)
             rotationOpen = false
-        }, enabled = state.canRotate && !state.busy) { Text("Rotate gauge") } },
+        }, enabled = state.canRotate && state.settingsCurrent && !state.busy) { Text("Rotate gauge") } },
             dismissButton = { TextButton({ rotationOpen = false }) { Text("Cancel") } })
     }
     if (brightnessOpen) {
@@ -107,7 +107,7 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
         }, confirmButton = { Button({
             onSaveDisplay(state.rotation ?: 0, brightness)
             brightnessOpen = false
-        }, enabled = !state.busy) { Text("Save to gauge") } },
+        }, enabled = state.settingsCurrent && !state.busy) { Text("Save to gauge") } },
             dismissButton = { TextButton({ brightnessOpen = false }) { Text("Cancel") } })
     }
     if (unitsOpen) {
@@ -124,7 +124,7 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                 Text("Temperature and speed change on the gauge and in app previews.",
                     style = MaterialTheme.typography.bodyMedium)
             }
-        }, confirmButton = { Button({ onSaveUnits(choice); unitsOpen = false }, enabled = !state.busy) {
+        }, confirmButton = { Button({ onSaveUnits(choice); unitsOpen = false }, enabled = state.settingsCurrent && !state.busy) {
             Text("Save to gauge")
         } }, dismissButton = { TextButton({ unitsOpen = false }) { Text("Cancel") } })
     }
@@ -141,7 +141,7 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                 }
                 Text("A tap changes the page and restarts the timer.", style = MaterialTheme.typography.bodyMedium)
             }
-        }, confirmButton = { Button({ onSaveCycle(choice); cycleOpen = false }, enabled = !state.busy) {
+        }, confirmButton = { Button({ onSaveCycle(choice); cycleOpen = false }, enabled = state.settingsCurrent && !state.busy) {
             Text("Save to gauge")
         } }, dismissButton = { TextButton({ cycleOpen = false }) { Text("Cancel") } })
     }
