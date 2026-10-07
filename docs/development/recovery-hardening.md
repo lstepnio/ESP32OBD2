@@ -12,7 +12,7 @@ The standing implementation policy is [interaction recovery](../architecture/int
 | Android Wi-Fi callbacks | Network loss could occur before the connecting socket was published; callbacks from a retired request could affect a later one. | Publish before connect, reject retired callbacks, publish the selected network before resuming, verify it still exists after connect, and unregister a request that finishes registering after cancellation. Requires real Android network-loss qualification. |
 | Foreground reads | A healthy or backed-off schedule could delay settings/source refresh after resume. The outer timeout handler could classify caller cancellation as a retry. | Reset each independent schedule on foreground entry; preserve separate failure scopes. Check caller activity before treating a timeout as retryable. Native resume tests require observations newer than the actual resume time. |
 | Firmware socket reads/writes | Each `recv`/`send` could wait 65 s, renewed per fragment. Old clients could occupy the only server across network close/reopen. Accept relied on a receive timeout instead of an explicit readiness wait. | One 20 s fragment budget and 250 ms syscall slices. Session generations invalidate old clients across station loss and rapid reopen. `select` bounds listener readiness; only server task closes descriptors. Command waits/batches check session generation. Real production-C socket fixtures cover silence, trickle, send backpressure, peer closure, cancellation and wraparound. |
-| Firmware OTA reservation | An interrupted Wi-Fi transfer could retain the transfer gate for the ten-minute inactivity timeout, pausing adapter polling. | Queue entries and transfer state carry the Wi-Fi generation. Worker rejects retired requests and releases an unactivated reservation after session loss; authenticated OTA socket loss retires its generation too. Activating phase 4 and independent BLE transfers are preserved. Host phase-policy tests plus new physical interruption checks required. |
+| Firmware OTA reservation | An interrupted Wi-Fi transfer could retain the transfer gate for the ten-minute inactivity timeout, pausing adapter polling. | Queue entries and transfer state carry the Wi-Fi generation. Worker rejects retired requests and releases an unactivated reservation after session loss; authenticated OTA socket loss retires its generation too. Activating phase 4 and independent BLE transfers are preserved. Host phase/session-policy tests plus new physical interruption checks required. Matching authenticated OTA departure also closes the maintenance network to clear its separate adapter pause; late older-session signals are ignored. |
 | Firmware Wi-Fi state | Startup failure called BLE pause cleanup while holding Wi-Fi state lock. | Move cleanup outside the state lock. Keep published snapshots short and subsystem calls separate. |
 
 Firmware retains a 65 s idle allowance before the first frame byte, allowing the
@@ -27,7 +27,13 @@ after any in-flight flash work). Phase 4 cannot be automatically abandoned.
 Retired Wi-Fi requests are rejected before processing. Only an authenticated OTA
 participant's socket close invalidates its generation; read-only and rejected
 security probes cannot cancel a transfer. BLE-only transfers retain their existing
-inactivity timeout independently. These bounds describe code, not measured ESP32
+inactivity timeout independently. The Wi-Fi worker also closes the departed OTA
+participant's matching maintenance session, clearing the separate BLE adapter
+pause. A late departure signal cannot close a newer session with a different ID.
+Both holds must release before adapter polling resumes; a transfer-gate-only fix
+would still leave polling paused. Pre-first-frame abandonment, where no OTA
+participant exists, retains explicit App cleanup and the session expiry fallback
+and needs its own physical cancellation/consent-loss qualification. These bounds describe code, not measured ESP32
 recovery latency under every radio/flash workload.
 
 ## Existing architecture retained
@@ -119,3 +125,8 @@ privately, compare saved preferences before/after, and restore the awake helper.
 The harness temporarily toggles phone Bluetooth, restores it in `finally`, never
 sends configuration or firmware, and cannot establish physical display/touch or
 vehicle-adapter recovery from phone observations alone.
+
+Publication attempt 37654830879 was cancelled before release creation when final
+review identified the separate maintenance-network adapter pause. Candidate dev.44
+was amended to release both holds; publication requires checks on the amended
+commit. No published version or asset was changed.

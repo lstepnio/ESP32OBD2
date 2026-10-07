@@ -241,7 +241,8 @@ Android dev.40 and firmware source dev.44 add cancellation-aware total socket
 deadlines, firmware session-generation invalidation and bounded listener readiness,
 and immediate independent settings/source polling on resume. Wi-Fi OTA queue
 entries and unactivated transfers also follow the session generation, releasing
-the adapter-polling reservation after transport loss while preserving durable
+the adapter-polling reservation after transport loss and closing the matching
+maintenance network to clear its separate adapter pause, while preserving durable
 activation and independent BLE transfers. The shared patterns
 and staged verification are documented in [recovery hardening](development/recovery-hardening.md).
 Installed gauge remains signed dev.43 until a separately authorized release is

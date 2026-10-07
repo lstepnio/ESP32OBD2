@@ -21,6 +21,7 @@
 #include "mbedtls/gcm.h"
 #include "config_transfer.h"
 #include "ota_transfer.h"
+#include "ota_recovery_policy.h"
 #include "wifi_bulk.h"
 #include "wifi_bulk_policy.h"
 #include "wifi_bulk_io.h"
@@ -55,6 +56,7 @@ static bool wifi_initialized;
 static bool server_started;
 static atomic_bool wifi_active;
 static atomic_uint wifi_generation;
+static atomic_uint abandoned_ota_session;
 static struct {
     uint8_t phase;
     uint8_t result;
@@ -310,7 +312,7 @@ static bool run_ota_batch(const uint8_t *batch, uint8_t *response, size_t *respo
     return true;
 }
 
-static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext, uint32_t generation, bool *ota_client)
+static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext, uint32_t generation, uint32_t *ota_session)
 {
     uint8_t header[FRAME_HEADER], tag[FRAME_TAG];
     // Idle allowance retains the bounded development activation pause. Once a
@@ -364,7 +366,7 @@ static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext, ui
     xSemaphoreGive(state_lock);
 
     if ((kind == 2 && length >= 9 && plaintext[0] >= 0x20 && plaintext[0] <= 0x28) ||
-        (kind == 4 && validate_ota_batch(plaintext, length))) *ota_client = true;
+        (kind == 4 && validate_ota_batch(plaintext, length))) *ota_session = session_id;
 
     uint8_t response[CONFIG_TRANSFER_STATUS_SIZE];
     size_t response_length = 0;
@@ -445,13 +447,14 @@ static void server_task(void *arg)
             uint32_t generation = atomic_load(&wifi_generation);
             int client = accept(server, NULL, NULL);
             if (client < 0) continue;
-            bool ota_client = false;
-            while (handle_frame(client, ciphertext, plaintext, generation, &ota_client)) {}
-            if (ota_client) {
+            uint32_t ota_session = 0;
+            while (handle_frame(client, ciphertext, plaintext, generation, &ota_session)) {}
+            if (ota_session) {
                 // Only an authenticated OTA participant can abandon its transfer.
                 // Read-only or rejected probes cannot invalidate another session.
                 unsigned expected = generation;
                 atomic_compare_exchange_strong(&wifi_generation, &expected, generation + 1);
+                atomic_store(&abandoned_ota_session, ota_session);
             }
             close(client);
         }
@@ -492,12 +495,14 @@ static void worker_task(void *arg)
                 xSemaphoreGive(state_lock);
             }
         }
-        bool expired;
+        uint32_t abandoned = atomic_exchange(&abandoned_ota_session, 0);
+        bool should_close;
         xSemaphoreTake(state_lock, portMAX_DELAY);
-        expired = state.phase == PHASE_READY &&
-            (int32_t)(state.expires_at - xTaskGetTickCount()) <= 0;
+        should_close = (state.phase == PHASE_READY &&
+            (int32_t)(state.expires_at - xTaskGetTickCount()) <= 0) ||
+            ota_recovery_close_network(abandoned, state.session_id, state.phase == PHASE_READY);
         xSemaphoreGive(state_lock);
-        if (expired) stop_maintenance_network();
+        if (should_close) stop_maintenance_network();
     }
 }
 

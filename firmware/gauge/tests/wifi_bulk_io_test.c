@@ -40,6 +40,10 @@ int main(void)
         assert(!ota_recovery_abandon(phase, true, true));
         assert(ota_recovery_abandon(phase, true, false) == (phase >= 1 && phase <= 3));
     }
+    assert(ota_recovery_close_network(123, 123, true));
+    assert(!ota_recovery_close_network(123, 124, true));
+    assert(!ota_recovery_close_network(0, 123, true));
+    assert(!ota_recovery_close_network(123, 123, false));
     assert(obd_wait_remaining(UINT32_MAX - 4, 5, 20) == 10);
     assert(obd_wait_remaining(100, 150, 50) == 0);
     int pair[2]; uint8_t bytes[100] = {0};

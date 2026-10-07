@@ -54,7 +54,10 @@ abandon another transfer. Retired entries cannot begin or continue an upload; th
 OTA worker aborts only phases 1 through 3 and releases its transfer gate after any
 in-flight flash operation finishes. Phase 4 has already accepted durable activation
 and is resolved by post-boot identity/health, never automatic abort or blind replay.
-BLE-only transfer ownership is independent.
+The Wi-Fi control worker also closes that authenticated OTA participant's matching
+maintenance session, releasing its independent adapter pause. An older-session
+departure signal cannot close a newly opened network. BLE-only transfer ownership
+is independent.
 
 Firmware socket IO checks session validity in bounded slices. A frame's fragments
 share a total deadline instead of renewing it per byte. Android cancellation closes
