@@ -175,6 +175,10 @@ static bool initialize_wifi(void)
 
 static bool start_maintenance_network(void)
 {
+    // Retire the prior client/transfer even if a subsequent startup step fails.
+    atomic_store(&wifi_active, false);
+    atomic_fetch_add(&wifi_generation, 1);
+    if (wifi_initialized) esp_wifi_stop();
     if (!initialize_wifi()) return false;
     uint8_t mac[6];
     if (esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP) != ESP_OK) return false;
@@ -191,9 +195,6 @@ static bool start_maintenance_network(void)
     config.ap.pmf_cfg.capable = true;
     config.ap.pmf_cfg.required = false;
     xSemaphoreGive(state_lock);
-    atomic_store(&wifi_active, false);
-    atomic_fetch_add(&wifi_generation, 1);
-    esp_wifi_stop();
     if (esp_wifi_set_mode(WIFI_MODE_AP) != ESP_OK ||
         esp_wifi_set_config(WIFI_IF_AP, &config) != ESP_OK ||
         esp_wifi_start() != ESP_OK) return false;
@@ -231,10 +232,14 @@ static void stop_maintenance_network(void)
 
 /* Only the server task closes descriptors. A generation change invalidates an
  * old client even if a new maintenance session starts before its next IO slice. */
+bool wifi_bulk_session_current(uint32_t generation)
+{
+    return atomic_load(&wifi_active) && atomic_load(&wifi_generation) == generation;
+}
+
 static bool client_active(void *context)
 {
-    return atomic_load(&wifi_active) &&
-           atomic_load(&wifi_generation) == *(uint32_t *)context;
+    return wifi_bulk_session_current(*(uint32_t *)context);
 }
 
 static uint32_t clock_ms(void *context)
@@ -258,7 +263,7 @@ static bool wait_status(uint8_t kind, const uint8_t *command, size_t command_len
     if (!client_active(&generation)) return false;
     bool admitted = kind == 1
         ? config_transfer_command(command, command_length)
-        : ota_transfer_command(command, command_length);
+        : ota_transfer_wifi_command(command, command_length, generation);
     if (!admitted) return false;
     uint32_t sequence = read_u32(command + 1);
     TickType_t started = xTaskGetTickCount();
@@ -305,7 +310,7 @@ static bool run_ota_batch(const uint8_t *batch, uint8_t *response, size_t *respo
     return true;
 }
 
-static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext, uint32_t generation)
+static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext, uint32_t generation, bool *ota_client)
 {
     uint8_t header[FRAME_HEADER], tag[FRAME_TAG];
     // Idle allowance retains the bounded development activation pause. Once a
@@ -357,6 +362,9 @@ static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext, ui
     }
     state.last_frame_sequence = sequence;
     xSemaphoreGive(state_lock);
+
+    if ((kind == 2 && length >= 9 && plaintext[0] >= 0x20 && plaintext[0] <= 0x28) ||
+        (kind == 4 && validate_ota_batch(plaintext, length))) *ota_client = true;
 
     uint8_t response[CONFIG_TRANSFER_STATUS_SIZE];
     size_t response_length = 0;
@@ -437,7 +445,14 @@ static void server_task(void *arg)
             uint32_t generation = atomic_load(&wifi_generation);
             int client = accept(server, NULL, NULL);
             if (client < 0) continue;
-            while (handle_frame(client, ciphertext, plaintext, generation)) {}
+            bool ota_client = false;
+            while (handle_frame(client, ciphertext, plaintext, generation, &ota_client)) {}
+            if (ota_client) {
+                // Only an authenticated OTA participant can abandon its transfer.
+                // Read-only or rejected probes cannot invalidate another session.
+                unsigned expected = generation;
+                atomic_compare_exchange_strong(&wifi_generation, &expected, generation + 1);
+            }
             close(client);
         }
         close(server);

@@ -16,6 +16,8 @@
 #include "mbedtls/pk.h"
 #include "ota_transfer.h"
 #include "transfer_gate.h"
+#include "wifi_bulk.h"
+#include "ota_recovery_policy.h"
 
 #define OP_BEGIN 0x20
 #define OP_DIGEST 0x21
@@ -30,6 +32,8 @@
 
 typedef struct {
     uint16_t length;
+    bool wifi_owned;
+    uint32_t wifi_generation;
     uint8_t data[OTA_TRANSFER_MAX_REQUEST];
 } request_t;
 
@@ -40,6 +44,8 @@ static esp_ota_handle_t handle;
 extern const uint8_t update_public_key_start[] asm("_binary_dev_update_public_pem_start");
 extern const uint8_t update_public_key_end[] asm("_binary_dev_update_public_pem_end");
 static struct {
+    bool wifi_owned;
+    uint32_t wifi_generation;
     uint8_t phase; /* 0 idle, 1 metadata, 2 receiving, 3 ready, 4 activating */
     uint8_t result; /* 0 ok, 1 pending, 2 invalid, 3 conflict, 4 flash, 5 unsupported */
     uint8_t last_op;
@@ -96,7 +102,18 @@ static void abort_transfer(void)
     target = NULL;
     handle = 0;
     state.phase = 0;
+    state.wifi_owned = false;
     transfer_gate_release(2);
+}
+
+static void release_lost_wifi_transfer_locked(void)
+{
+    if (ota_recovery_abandon(state.phase, state.wifi_owned,
+                            wifi_bulk_session_current(state.wifi_generation))) {
+        abort_transfer();
+        state.result = 3;
+        publish_status_locked();
+    }
 }
 
 static uint8_t verify_image(void)
@@ -149,6 +166,15 @@ static void process(const request_t *request)
     const uint8_t *p = request->data;
     uint8_t op = p[0];
     xSemaphoreTake(lock, portMAX_DELAY);
+    release_lost_wifi_transfer_locked();
+    if (request->wifi_owned && !wifi_bulk_session_current(request->wifi_generation)) {
+        state.last_op = op;
+        state.sequence = u32(p + 1);
+        state.result = 3;
+        publish_status_locked();
+        xSemaphoreGive(lock);
+        return;
+    }
     if (op == OP_STATUS) {
         xSemaphoreGive(lock);
         return;
@@ -173,6 +199,8 @@ static void process(const request_t *request)
         else if (!transfer_gate_claim(2)) state.result = 3;
         else {
             target = next;
+            state.wifi_owned = request->wifi_owned;
+            state.wifi_generation = request->wifi_generation;
             state.id = id;
             state.length = length;
             state.accepted = 0;
@@ -257,6 +285,7 @@ static void worker(void *arg)
         if (xQueueReceive(queue, &request, pdMS_TO_TICKS(1000)) == pdTRUE)
             process(&request);
         xSemaphoreTake(lock, portMAX_DELAY);
+        release_lost_wifi_transfer_locked();
         if (state.phase > 0 && state.phase < 4 &&
             xTaskGetTickCount() - state.last_activity > pdMS_TO_TICKS(600000)) {
             abort_transfer();
@@ -282,13 +311,24 @@ esp_err_t ota_transfer_init(void)
         ? ESP_OK : ESP_ERR_NO_MEM;
 }
 
-bool ota_transfer_command(const uint8_t *bytes, size_t length)
+static bool enqueue_command(const uint8_t *bytes, size_t length,
+                            bool wifi_owned, uint32_t generation)
 {
     if (!queue || !bytes || length < 5 || length > OTA_TRANSFER_MAX_REQUEST ||
         bytes[0] < OP_BEGIN || bytes[0] > OP_SIGNATURE) return false;
-    request_t request = {.length = length};
+    request_t request = {.length = length, .wifi_owned = wifi_owned, .wifi_generation = generation};
     memcpy(request.data, bytes, length);
     return xQueueSend(queue, &request, 0) == pdTRUE;
+}
+
+bool ota_transfer_command(const uint8_t *bytes, size_t length)
+{
+    return enqueue_command(bytes, length, false, 0);
+}
+
+bool ota_transfer_wifi_command(const uint8_t *bytes, size_t length, uint32_t generation)
+{
+    return wifi_bulk_session_current(generation) && enqueue_command(bytes, length, true, generation);
 }
 
 size_t ota_transfer_status(uint8_t out[OTA_TRANSFER_STATUS_SIZE])

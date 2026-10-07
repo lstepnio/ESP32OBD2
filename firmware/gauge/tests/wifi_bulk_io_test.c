@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "wifi_bulk_io.h"
 #include "obd_wait_policy.h"
+#include "ota_recovery_policy.h"
 #include <assert.h>
 #include <pthread.h>
 #include <signal.h>
@@ -34,6 +35,11 @@ static void *trickle(void *context)
 int main(void)
 {
     signal(SIGPIPE, SIG_IGN);
+    for (unsigned phase = 0; phase <= 4; ++phase) {
+        assert(!ota_recovery_abandon(phase, false, false));
+        assert(!ota_recovery_abandon(phase, true, true));
+        assert(ota_recovery_abandon(phase, true, false) == (phase >= 1 && phase <= 3));
+    }
     assert(obd_wait_remaining(UINT32_MAX - 4, 5, 20) == 10);
     assert(obd_wait_remaining(100, 150, 50) == 0);
     int pair[2]; uint8_t bytes[100] = {0};
