@@ -1,6 +1,6 @@
 # Recovery audit and qualification
 
-Updated 2026-10-07. Installed signed firmware dev.44 and Android dev.41; physical evidence below.
+Updated 2026-10-07. Installed signed firmware dev.44 and Android dev.43; physical evidence below.
 Installed firmware and physical results belong in [current state](../current-state.md).
 The standing implementation policy is [interaction recovery](../architecture/interaction-recovery.md).
 
@@ -150,3 +150,20 @@ commit. No published version or asset was changed.
 - App dev.41 adds the missing hardware frame shape to the shared owner-read gate and logs GATT status, frame version and length for rejected reads without dumping payloads. Known/unknown/truncated frame fixtures passed; 108 JVM tests, debug/test builds, lint and repository validation passed. Protocol bytes unchanged.
 - Installed App dev.41 and reran protected opening/resume plus hardware snapshot followed by a new protected firmware read: passed in 13.690 s overall, opening 6.299 s and resume 2.790 s. Exact dev.44/health/configuration/settings retained. Preferences for presentation, profiles and gauge associations matched the before-session copies byte for byte. Phone wake settings restored.
 - These checks do not qualify interrupted OTA reservation/network cleanup, power removal, pre-first-frame abandonment or simultaneous ECM/TCM. Those physical gates remain pending. The owner has one adapter.
+
+
+### App dev.43 reported connection stall, 2026-10-07
+
+- Pixel logs captured repeated 12-second protected-read timeouts after successful
+  service discovery. Later sessions resumed successfully before the instrumentation
+  rerun. This is a transient transport stall; its initiating cause is not established.
+- Read-only opening/resume qualification passed: protected confirmation in 6.310 s,
+  fresh resume/settings in 2.746 s, signed dev.44 identity and OTA health 2, unchanged
+  configuration revision 42/digest and display settings. Bluetooth toggling and
+  hardware restart were not exercised in this check.
+- The normal App's Connections sheet separately confirmed “Your gauge is ready”
+  and a retrying transmission adapter. The aggregate “Car reconnecting” indicator
+  was not a phone-to-gauge failure at that point. No transport patch, configuration
+  send or firmware installation was performed. Phone wake settings were restored.
+- Retain the captured failure for a future stalled-link reproduction; a subsequent
+  successful readback does not prove the original timeout cause was corrected.
