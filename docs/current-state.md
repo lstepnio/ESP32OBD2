@@ -6,7 +6,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 
 ## Baseline
 
-- Latest installed Android: `0.2.0-dev.42`; signed gauge firmware dev.44 verified through protected readback, OTA health 2. Owner confirmed normal page and swipes. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
+- Latest installed Android: `0.2.0-dev.43`; signed gauge firmware dev.44 verified through protected readback, OTA health 2. Owner confirmed normal page and swipes. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
 
 - Board: Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S touch,
   16 MB flash and 2 MB PSRAM. ESP-IDF 5.4.1 with pinned components.
@@ -59,6 +59,16 @@ pages stay saved. The source-specific execution/radio configuration is unchanged
 110 JVM tests, three native UI/stored-state tests and protected dev.44 readback/resume
 passed; phone profiles and preferences retained. See [review and limits](development/vehicle-dashboard-review.md).
 Mixed-controller Dual pages and TCM alerts remain unsupported. Firmware unchanged.
+
+## Phone deletion controls
+
+App dev.43 adds visible page deletion in Customize/Manage pages and vehicle deletion
+in Car > Your car, with confirmation. Keep one page per vehicle and one vehicle
+profile. Last-controller page deletion is allowed; schema 9 persists empty internal
+drafts while retaining bindings/alerts. Vehicle deletion leaves assigned remembered
+gauges needing explicit reassignment and does not change their installed setup.
+115 JVM tests and six native UI/stored-profile tests passed; firmware remains dev.44.
+See [deletion evidence](development/vehicle-dashboard-review.md#app-dev43-deletion-follow-up).
 
 ## Next work
 

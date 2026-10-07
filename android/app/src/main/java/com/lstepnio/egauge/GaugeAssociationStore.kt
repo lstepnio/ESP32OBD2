@@ -23,7 +23,7 @@ data class GaugeAssociations(val selectedId: String?, val gauges: List<KnownGaug
         gauges = if (gauges.any { it.id == id }) gauges else gauges + KnownGauge(id, name.take(32).ifBlank { "eGauge" }))
     fun assign(id: String, vehicleId: String, source: String): GaugeAssociations {
         require(gauges.any { it.id == id })
-        return copy(gauges = gauges.map { if (it.id == id) it.copy(vehicleId = vehicleId, source = source) else it })
+        return copy(gauges = gauges.map { if (it.id == id) it.copy(vehicleId = vehicleId, source = source, bothAdapters = it.bothAdapters && it.vehicleId == vehicleId) else it })
     }
     fun context(id: String, profiles: ProfileCollection): Pair<String, Draft>? {
         val gauge = gauges.firstOrNull { it.id == id } ?: return null

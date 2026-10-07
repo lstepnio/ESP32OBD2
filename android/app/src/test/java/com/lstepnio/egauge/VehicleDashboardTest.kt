@@ -30,11 +30,11 @@ class VehicleDashboardTest {
         assertTrue(removed.combinedDraft().actions.isEmpty())
         assertEquals(combined.pages,removed.combinedDraft().pages)
     }
-    @Test fun mixedSourceDualAndRemovingTheLastControllerPageAreRejected() {
+    @Test fun mixedSourceDualAndRemovingTheLastVehiclePageAreRejected() {
         val combined = vehicle.combinedDraft()
         val bad = combined.pages.first().copy(layout=GaugeLayout.Dual,pidIds=listOf("rpm","tcmtemp"))
         assertThrows(IllegalArgumentException::class.java) { vehicle.withDashboard(combined.copy(pages=listOf(bad)+combined.pages.drop(1))) }
-        assertThrows(IllegalArgumentException::class.java) { vehicle.withDashboard(combined.copy(pages=vehicle.draft.pages)) }
+        assertThrows(IllegalArgumentException::class.java) { vehicle.withDashboard(combined.copy(pages=emptyList())) }
         assertEquals(combined,vehicle.combinedDraft())
     }
     @Test fun movedSingleAdapterStillHasOneEditableVehicleDashboard() {
@@ -61,6 +61,28 @@ class VehicleDashboardTest {
         val ordinary = vehicle.copy(transmission = null)
         assertEquals(ordinary.draft, ordinary.dashboardDraft())
         assertEquals(ConfigurationProjector.supportedPidIds, ConfigurationProjector.pagePidIds(ordinary.dashboardDraft().source))
+    }
+    @Test fun lastChildPageCanBeDeletedWithoutDeletingItsAdapterAndCanBeAddedAgain() {
+        val combined = vehicle.dashboardDraft()
+        val edited = vehicle.withDashboard(combined.copy(pages = vehicle.draft.pages, actions = emptyList()))
+        assertTrue(edited.transmission!!.draft.pages.isEmpty())
+        assertEquals(vehicle.transmission!!.adapter, edited.transmission.adapter)
+        val restored = ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(ProfileCollection(edited.id, listOf(edited)))).active
+        assertEquals(edited, restored)
+        assertTrue(ConfigurationProjector.blockers(edited.transmission.draft).isNotEmpty())
+        assertThrows(IllegalArgumentException::class.java) { edited.combinedDraft() }
+        val added = GaugePageDraft("page.custom.1", "GEAR", GaugeLayout.Numeric, listOf("tcmgear"))
+        val resumed = restored.withDashboard(restored.dashboardDraft().copy(pages = restored.dashboardDraft().pages + added))
+        assertEquals(listOf(added), resumed.transmission!!.draft.pages)
+        assertEquals(vehicle.transmission.adapter, resumed.transmission.adapter)
+    }
+    @Test fun lastPrimaryPageCanBeDeletedWhileRetainingSiblingPagesAndAlerts() {
+        val edited = vehicle.withDashboard(vehicle.dashboardDraft().let { it.copy(pages = it.pages.filter { p -> p.id.startsWith("child.") }) })
+        assertTrue(edited.draft.pages.isEmpty())
+        assertEquals(vehicle.draft.alerts, edited.draft.alerts)
+        assertEquals(vehicle.primaryAdapter, edited.primaryAdapter)
+        assertEquals(edited, ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(ProfileCollection(edited.id, listOf(edited)))).active)
+        assertTrue(ConfigurationProjector.blockers(edited.draft).isNotEmpty())
     }
     @Test fun olderProfilesKeepTheirExistingOrderAndActions() {
         val profile = ProfileCollection(vehicle.id,listOf(vehicle))

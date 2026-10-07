@@ -823,6 +823,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun removeTransmissionChild() {
         if (profileError != null || modifyingSetupBlocked || profileCollection.active.transmission == null) return
+        if (profileCollection.active.draft.pages.isEmpty()) {
+            deviceMessage = "Add a vehicle page before removing its transmission setup."
+            return
+        }
         val updated = profileCollection.copy(profiles = profileCollection.profiles.map {
             if (it.id == profileCollection.activeId) it.copy(transmission = null) else it
         })
@@ -897,6 +901,27 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }.onFailure { presentationError = "Transmission moved, but gauge assignments need review" }
         selectVehicleSource("TCM")
         deviceMessage = "Transmission now belongs to this car. Review and send to update the gauge's vehicle identity."
+    }
+
+    val canManageVehicles: Boolean get() = profileError == null && gaugeAssociationError == null &&
+        !modifyingSetupBlocked && pendingConfiguration == null && !configurationNeedsReview &&
+        updateRecoveryResult?.state in setOf(null, UpdateRecoveryState.INSTALLED)
+
+    fun deleteVehicle(id: String) {
+        if (!canManageVehicles || profileCollection.profiles.size <= 1) return
+        val updated = runCatching { profileCollection.withoutVehicle(id) }.getOrNull() ?: return
+        if (!profileStore.save(updated)) { profileError = "Could not delete the vehicle"; return }
+        val deletedActive = id == profileCollection.activeId
+        profileCollection = updated
+        if (deletedActive) {
+            clearVehicleEvidence()
+            draft = updated.active.draft
+            editingPageIndex = 0
+            foregroundConnection.retrySoon()
+        }
+        // Keep remembered gauge contexts pointing at the deleted ID, visibly unresolved.
+        // Retargeting them here would silently give another vehicle the removed setup.
+        deviceMessage = "Vehicle deleted from this phone. Installed gauge settings are unchanged."
     }
 
     fun createProfile() {
@@ -1753,7 +1778,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun removePage(index: Int) {
         val working = editorDraft
-        if (working.pages.size <= 1 || index !in working.pages.indices) return
+        if (modifyingSetupBlocked || working.pages.size <= 1 || index !in working.pages.indices) return
         val selectedId = working.pages.getOrNull(editingPageIndex)?.id
         val pages = working.pages.toMutableList().also { it.removeAt(index) }
         editingPageIndex = pages.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }

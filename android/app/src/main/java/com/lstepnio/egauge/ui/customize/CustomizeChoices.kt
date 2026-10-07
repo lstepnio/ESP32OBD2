@@ -117,12 +117,12 @@ internal fun PageManager(state: CustomizeUiState, onBack: () -> Unit, onAdd: () 
                                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
+                        TextButton({ removeId = page.id }, enabled = state.editingEnabled && state.pages.size > 1) { Text("Delete") }
                         Box {
                             IconButton({ menu = true }, enabled = state.editingEnabled) { EGaugeIcon(GaugeIcon.Settings, "Options for page ${index + 1}") }
                             DropdownMenu(menu, { menu = false }) {
                                 DropdownMenuItem({ Text("Move earlier") }, { actions.movePage(index, -1); menu = false }, enabled = index > 0)
                                 DropdownMenuItem({ Text("Move later") }, { actions.movePage(index, 1); menu = false }, enabled = index < state.pages.lastIndex)
-                                DropdownMenuItem({ Text("Remove page") }, { removeId = page.id; menu = false }, enabled = state.pages.size > 1 && (state.removablePageIds == null || page.id in state.removablePageIds))
                             }
                         }
                     }
@@ -131,12 +131,17 @@ internal fun PageManager(state: CustomizeUiState, onBack: () -> Unit, onAdd: () 
         }
     }
     val removal = state.pages.indexOfFirst { it.id == removeId }
-    if (removal >= 0) AlertDialog(onDismissRequest = { removeId = null },
-        title = { Text("Remove page ${removal + 1}?") },
-        text = { Text("${state.pages[removal].readingName} will leave this page list. Alerts for the reading will stay.") },
-        confirmButton = { TextButton({ actions.removePage(removal); removeId = null },
-            enabled = state.editingEnabled && state.pages.size > 1) { Text("Remove page") } },
-        dismissButton = { TextButton({ removeId = null }) { Text("Keep page") } })
+    if (removal >= 0) DeletePageDialog(state.pages[removal], removal, state.editingEnabled && state.pages.size > 1,
+        { removeId = null }, { actions.removePage(removal); removeId = null })
+}
+
+@Composable
+internal fun DeletePageDialog(page: PageUi, index: Int, enabled: Boolean, onDismiss: () -> Unit, onDelete: () -> Unit) {
+    AlertDialog(onDismissRequest = onDismiss,
+        title = { Text("Delete page ${index + 1}?") },
+        text = { Text("${page.readingName} will be removed from this phone's page list. Its gesture action will be removed; alerts stay saved. Review and send to update the gauge.") },
+        confirmButton = { TextButton(onDelete, enabled = enabled) { Text("Delete page") } },
+        dismissButton = { TextButton(onDismiss) { Text("Keep page") } })
 }
 
 @Composable

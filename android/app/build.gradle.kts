@@ -14,8 +14,8 @@ android {
         applicationId = "com.lstepnio.egauge"
         minSdk = 29
         targetSdk = 36
-        versionCode = 42
-        versionName = "0.2.0-dev.42"
+        versionCode = 43
+        versionName = "0.2.0-dev.43"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

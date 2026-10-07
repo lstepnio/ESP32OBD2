@@ -16,7 +16,7 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
               onSelectProfile: (String) -> Unit, onCreateProfile: (String) -> Unit,
               onFindAdapters: () -> Unit = {}, onChooseAdapter: (com.lstepnio.egauge.AdapterBinding?) -> Unit = {},
               onSendAdapter: () -> Unit = {}, onExpert: () -> Unit = {},
-              onSaveAction: (com.lstepnio.egauge.PageAction?) -> Unit = {}) {
+              onSaveAction: (com.lstepnio.egauge.PageAction?) -> Unit = {}, onDeleteProfile: (String) -> Unit = {}) {
     var profilesOpen by rememberSaveable { mutableStateOf(false) }
     var adapterOpen by rememberSaveable { mutableStateOf(false) }
     var actionsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
@@ -70,7 +70,7 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
         })
     }
     if (actionsOpen) PageActionsSheet(state, { actionsOpen = false }, onSaveAction)
-    if (profilesOpen) ProfileDialog(state, { profilesOpen = false }, onSelectProfile, onCreateProfile)
+    if (profilesOpen) ProfileDialog(state, { profilesOpen = false }, onSelectProfile, onCreateProfile, onDeleteProfile)
     if (adapterOpen) ModalBottomSheet(onDismissRequest = { adapterOpen = false }) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -107,17 +107,24 @@ fun ClearCodesDialog(onDismiss: () -> Unit, example: Boolean = false, onExampleC
 
 @Composable
 private fun ProfileDialog(state: CarUiState, onDismiss: () -> Unit,
-    onSelect: (String) -> Unit, onCreate: (String) -> Unit) {
+    onSelect: (String) -> Unit, onCreate: (String) -> Unit, onDelete: (String) -> Unit) {
     var name by rememberSaveable { mutableStateOf("") }
+    var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val duplicate = state.profiles.any { it.name.equals(name.trim(), true) }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Your cars") }, text = {
+    if (deleteId == null) AlertDialog(onDismissRequest = onDismiss, title = { Text("Your cars") }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             state.profiles.forEach { profile ->
-                TextButton({ onSelect(profile.id); onDismiss() }, Modifier.fillMaxWidth()) {
-                    Text(profile.name)
-                    if (profile.id == state.activeId) EGaugeIcon(GaugeIcon.Check)
+                Row(Modifier.fillMaxWidth()) {
+                    TextButton({ onSelect(profile.id); onDismiss() }, Modifier.weight(1f), enabled = state.canManageVehicles) {
+                        Text(profile.name)
+                        if (profile.id == state.activeId) EGaugeIcon(GaugeIcon.Check)
+                    }
+                    TextButton({ deleteId = profile.id }, enabled = state.canManageVehicles && state.profiles.size > 1) {
+                        Text("Delete")
+                    }
                 }
             }
+            if (state.profiles.size == 1) Text("Keep at least one car on this phone.", style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(name, { name = it.take(32) }, label = { Text("Car name") }, singleLine = true,
                 isError = duplicate, supportingText = {
                     if (duplicate) Text("This name is already used. Choose a different name.")
@@ -125,6 +132,14 @@ private fun ProfileDialog(state: CarUiState, onDismiss: () -> Unit,
                 })
         }
     }, confirmButton = {
-        Button({ onCreate(name.trim()); onDismiss() }, enabled = name.isNotBlank() && !duplicate && state.profiles.size < 8) { Text("Add car") }
+        Button({ onCreate(name.trim()); onDismiss() }, enabled = state.canManageVehicles && name.isNotBlank() && !duplicate && state.profiles.size < 8) { Text("Add car") }
     }, dismissButton = { TextButton(onDismiss) { Text("Cancel") } })
+    state.profiles.firstOrNull { it.id == deleteId }?.let { profile ->
+        AlertDialog(onDismissRequest = { deleteId = null },
+            title = { Text("Delete ${profile.name}?") },
+            text = { Text("This deletes its saved pages, alerts and adapter setup from this phone, including any transmission child. Installed gauge settings stay unchanged. Gauges assigned to this car will need reassignment.") },
+            confirmButton = { TextButton({ onDelete(profile.id); deleteId = null; onDismiss() },
+                enabled = state.canManageVehicles && state.profiles.size > 1) { Text("Delete car") } },
+            dismissButton = { TextButton({ deleteId = null }) { Text("Keep car") } })
+    }
 }

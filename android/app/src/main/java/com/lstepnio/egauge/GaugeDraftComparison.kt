@@ -94,7 +94,7 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                     saved.optJSONArray("sources")?.optJSONObject(0)?.optJSONObject("adapter")?.optString("id") ?: "None"),
                 field("Page count", draft.pages.size.toString(), pages?.length()?.toString()),
                 field("All page settings", pageSettings(draft.pages), savedPageSettings()),
-                field("Primary reading", draft.pages.first().pidIds.first(), primaryPid?.let(::localPid)),
+                field("Primary reading", draft.pages.firstOrNull()?.pidIds?.firstOrNull() ?: "None", primaryPid?.let(::localPid)),
                 field("Gesture actions", ProfileActions.summary(draft.actions),
                     runCatching { ProfileActions.summary(ProfileActions.decode(saved.optJSONArray("actions"))) }.getOrNull()),
                 field("Alert count", draft.alerts.size.toString(), saved.optJSONArray("alerts")?.length()?.toString()),

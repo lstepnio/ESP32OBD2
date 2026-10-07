@@ -65,3 +65,31 @@ claiming that additional firmware path.
   asserts the foreground package and was repeated successfully.
 - Final profile, association and presentation preferences still matched the baseline
   byte for byte. Pixel wake settings restored; App dev.42 remains installed.
+
+
+## App dev.43 deletion follow-up
+
+- Page deletion was hidden in the options menu and vehicle deletion was missing.
+  Customize now has Delete page; Manage pages and Car > Your car have visible
+  Delete actions with confirmation and cancellation.
+- Last-source page deletion now works. Bindings and alerts remain; target gestures
+  are cleared. Keep one vehicle page overall and at least one vehicle profile.
+- Phone profile schema 9 round-trips an empty internal ECM/TCM draft; schemas 1..8
+  remain readable. Previous App versions cannot read newly saved schema-9 profiles.
+  Empty executable source drafts cannot be sent; review shows zero pages honestly.
+  Combined firmware execution still requires pages for each configured source.
+- Vehicle deletion commits phone storage first, preserves sibling profiles and
+  leaves affected remembered-gauge contexts unresolved instead of retargeting.
+  Installed configuration and bonds remain unchanged. Pending setup/update outcomes
+  block vehicle deletion.
+- 115 JVM tests and six native Pixel UI/stored-profile tests passed. Fixtures tested
+  delete/cancel callbacks without deleting real phone data. Debug/test builds and
+  lint passed. App dev.43 installed with data-preserving replacement; phone profile,
+  association and presentation preferences remained byte-for-byte unchanged.
+  Firmware and wire formats unchanged.
+- App dev.43 protected gauge readback/resume passed in 14.615 s: opening
+  9.251 s, resume 3.245 s, exact signed dev.44 image, healthy boot and unchanged
+  configuration revision 42. No configuration or firmware send was performed.
+- The final installed build passed the stored-profile native check again after the
+  reassignment fix. Phone profile, association and presentation preferences still
+  matched the pre-install baseline. Pixel wake settings were restored.

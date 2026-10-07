@@ -36,6 +36,7 @@ data class CustomizeActions(
 fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestination: (Int) -> Unit,
                           onBack: () -> Unit, actions: CustomizeActions) {
     var picker by rememberSaveable { mutableStateOf<String?>(null) }
+    var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
     var alertReading by rememberSaveable { mutableStateOf<String?>(null) }
     var alertReturn by rememberSaveable { mutableIntStateOf(0) }
     val current = state.pages.getOrNull(state.editingPage) ?: state.pages.firstOrNull()
@@ -63,6 +64,10 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
             }, second = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     PageToolbar(state, { picker = "add" }, { onDestination(2) })
+                    TextButton({ deleteId = current.id }, enabled = state.editingEnabled && state.pages.size > 1) {
+                        Text("Delete page")
+                    }
+                    if (state.pages.size == 1) Text("Keep at least one page.", style = MaterialTheme.typography.bodySmall)
                     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
                         Column {
                             EditorRow("Reading", current.readingName, state.editingEnabled) { picker = "reading" }
@@ -97,6 +102,9 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
             })
         }
     }
+    val deletion = state.pages.indexOfFirst { it.id == deleteId }
+    if (deletion >= 0) DeletePageDialog(state.pages[deletion], deletion, state.editingEnabled && state.pages.size > 1,
+        { deleteId = null }, { actions.removePage(deletion); deleteId = null })
     if (picker != null) {
         val purpose = picker
         if (purpose == "layout" && current != null) LayoutPicker(state, current, { picker = null }) {
@@ -206,7 +214,7 @@ internal fun AlertUi.summary() = "Warn $direction $warning $unit · Critical $di
 
 @Composable
 private fun SendReview(state: CustomizeUiState, onBack: () -> Unit, actions: CustomizeActions) {
-    val pages = state.reviewPages.ifEmpty { state.pages }
+    val pages = state.reviewPages ?: state.pages
     val alerts = state.reviewAlerts ?: state.alerts
     EditorScaffold("Review and send", onBack,
         when { !state.found -> "Set up gauge"; state.needsCheck -> "Check gauge"; else -> "Send to gauge" },

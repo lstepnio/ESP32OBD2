@@ -38,6 +38,7 @@ fun VehicleProfile.combinedDraft(): Draft {
     require(draft.source == "ECM" && primaryAdapter != null)
     val child = requireNotNull(transmission)
     require(child.adapter != null && !samePhysicalAdapter(primaryAdapter, child.adapter))
+    require(draft.pages.isNotEmpty() && child.draft.pages.isNotEmpty()) { "Add a page for each adapter before sending both" }
     return dashboardDraft()
 }
 

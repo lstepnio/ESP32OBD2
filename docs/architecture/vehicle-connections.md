@@ -33,7 +33,7 @@ attribution. A child is optional and remains absent from ordinary setup.
 - `VehicleProfile` owns the primary `draft` and `primaryAdapter`, plus optional
   `TransmissionConnection(adapter, draft)`. `draftFor`, `adapterFor`, `withDraft`
   and `withAdapter` select the correct source without altering its sibling.
-- Profile schema 8 adds cross-controller page order; schema 7 adds local action bindings; schema 6 serializes the child within the vehicle. Schemas 1 through 7
+- Profile schema 9 permits one internal controller draft to have no pages while the vehicle retains at least one page; schema 8 adds cross-controller page order; schema 7 adds local action bindings; schema 6 serializes the child within the vehicle. Schemas 1 through 8
   remain readable. Existing standalone TCM profiles remain intact: the app never
   guesses which engine vehicle is their parent.
 - Expert exposes the child setup and source selection for the selected gauge.
@@ -107,6 +107,29 @@ The editor uses `dashboardDraft()` without radio preconditions. Only execution u
 legacy-parent attachment is needed. The combined editor and projection retain one cross-controller page order. Reading
 selection determines controller ownership internally. Firmware currently requires
 both readings on a Dual page to belong to the same controller, so the secondary
-picker lists compatible readings. Keep one page for each configured adapter; last
-source-page removal is disabled. Old profiles without explicit page order retain
+picker lists compatible readings. Local editing requires only one page across the vehicle. A controller draft may
+have no pages without deleting its binding. Sending a single source with no pages
+or enabling combined execution without pages for both sources is blocked; review
+shows the actual empty outgoing list rather than substituting the full preview. Old profiles without explicit page order retain
 engine-first ordering. See the restart/editor rollout for exact physical evidence.
+
+## Deleting phone data
+
+Customize has a visible Delete page action; Manage pages has Delete on each row.
+Confirmation identifies the page. Deletion clears any action targeting it, keeps
+reading alerts and requires a reviewed send to change the gauge. Page IDs are used
+to resolve the current deletion target after reordering. The last vehicle page is
+retained; last-source page deletion is allowed and persists through schema 9.
+
+Car > Your car lists a Delete action for each vehicle. Confirmation removes that
+phone profile including its optional child and selects a remaining profile if
+needed. At least one vehicle remains. Unresolved configuration/update operations
+block vehicle deletion; persistence must succeed before in-memory selection changes.
+Remembered gauges assigned to the deleted ID remain remembered but their context
+is unresolved, requiring explicit reassignment. Do not silently redirect them to
+the next profile. Deletion never sends to a gauge or removes its bond.
+
+Explicitly assigning a remembered gauge to a different vehicle resets its local
+simultaneous-adapter choice to single-adapter mode. A previous swap mode must not
+strand an ordinary replacement vehicle. Other gauges and same-vehicle mode stay
+unchanged; no firmware send follows automatically.

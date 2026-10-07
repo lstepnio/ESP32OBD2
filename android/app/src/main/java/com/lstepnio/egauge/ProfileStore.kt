@@ -13,6 +13,7 @@ data class VehicleProfile(
     val pageOrder: List<String> = emptyList(),
 ) {
     init {
+        require(draft.pages.isNotEmpty() || transmission?.draft?.pages?.isNotEmpty() == true) { "Keep at least one vehicle page" }
         require(pageOrder.size <= 8 && pageOrder.distinct().size == pageOrder.size &&
             pageOrder.all { it.matches(Regex("[a-z][a-z0-9._-]{0,63}")) }) { "Page order is invalid" }
         require(transmission == null || (draft.source == "ECM" && primaryAdapter != null)) {
@@ -41,6 +42,12 @@ data class VehicleProfile(
 
 data class ProfileCollection(val activeId: String, val profiles: List<VehicleProfile>) {
     val active: VehicleProfile get() = profiles.first { it.id == activeId }
+    fun withoutVehicle(id: String): ProfileCollection {
+        require(profiles.any { it.id == id }) { "Vehicle no longer exists" }
+        require(profiles.size > 1) { "Keep at least one vehicle" }
+        val remaining = profiles.filterNot { it.id == id }
+        return copy(activeId = if (activeId == id) remaining.first().id else activeId, profiles = remaining)
+    }
 }
 
 data class ProfileLoad(val collection: ProfileCollection, val error: String? = null)

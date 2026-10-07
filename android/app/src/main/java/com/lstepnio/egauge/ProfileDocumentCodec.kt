@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..8) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..9) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -46,7 +46,7 @@ object ProfileDocumentCodec {
                 ?: error("Profile layout is not supported by this app")
         val pages = if (schemaVersion >= 3) {
             val pageItems = saved.getJSONArray("pages")
-            require(pageItems.length() in 1..8) { "Profile page count is invalid" }
+            require(pageItems.length() in (if (schemaVersion >= 9) 0..8 else 1..8)) { "Profile page count is invalid" }
             (0 until pageItems.length()).map { pageIndex ->
                 val page = pageItems.getJSONObject(pageIndex)
                 val pageLayout = GaugeLayout.entries.firstOrNull { it.name == page.getString("layout") }
@@ -105,7 +105,7 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 8).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 9).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
             ProfileActions.validate(profile.draft.actions, profile.draft.pages)

@@ -23,7 +23,7 @@ class StoredVehicleDashboardTest {
             val state = model.presentationState(android.os.SystemClock.elapsedRealtime())
             assertTrue(state.customize.readings.map { it.id }.containsAll(setOf("rpm", "coolant", "tcmtemp", "tcmgear")))
             assertEquals(model.editorDraft.pages, state.car.actionPages)
-            assertEquals(model.transmittedDraft.pages.map { it.id }, state.customize.reviewPages.map { it.id })
+            assertEquals(model.transmittedDraft.pages.map { it.id }, state.customize.reviewPages!!.map { it.id })
             assertEquals(model.transmittedDraft.alerts.size, state.customize.reviewAlerts!!.size)
             if (!model.bothAdapters) assertNotNull(state.customize.reviewNotice)
         }

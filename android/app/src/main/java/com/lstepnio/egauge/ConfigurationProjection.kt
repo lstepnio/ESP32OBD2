@@ -54,13 +54,13 @@ object ConfigurationProjector {
         "fuel" to "vehicle.fuel",
     )
 
-    fun blockers(draft: Draft): List<String> {
+    fun blockers(draft: Draft, allowEmptyPages: Boolean = false): List<String> {
         val actionIssues = runCatching { ProfileActions.validate(draft.actions, draft.pages) }.exceptionOrNull()?.let { listOf(it.message ?: "Invalid actions") } ?: emptyList()
         if (draft.source == "BOTH") {
             val engine = draft.copy(source = "ECM", actions = emptyList(), pages = draft.pages.filter { it.pidIds.all { id -> id in supportedPidIds } })
             val transmission = draft.copy(source = "TCM", actions = emptyList(), pages = draft.pages.filter { it.pidIds.all { id -> id in transmissionPidIds } }, alerts = emptyList())
-            return actionIssues + blockers(engine) + blockers(transmission) + buildList {
-                if (draft.pages.size > 8) add("Choose up to eight pages across engine and transmission")
+            return actionIssues + blockers(engine, true) + blockers(transmission, true) + buildList {
+                if (draft.pages.size !in 1..8) add("Choose between one and eight vehicle pages")
                 if (engine.pages.size + transmission.pages.size != draft.pages.size) add("Each page must use one adapter source")
                 if (draft.pages.map { it.id }.distinct().size != draft.pages.size || draft.pages.any { it.id.length > 64 })
                     add("Every page needs a unique identity of at most 64 characters")
@@ -72,7 +72,7 @@ object ConfigurationProjector {
                     add("The TCM setup supports temperature and gear pages without alerts")
             } else if (draft.source != "ECM" || draft.pages.any { page -> page.pidIds.any { it in transmissionPidIds } } || draft.alerts.any { it.pidId in transmissionPidIds })
                 add("Engine and transmission readings need separate adapter profiles")
-            if (draft.pages.size !in 1..8) add("Choose between one and eight gauge pages")
+            if (draft.pages.size !in (if (allowEmptyPages) 0..8 else 1..8)) add("Add a page for the selected adapter before sending")
             if (draft.pages.map { it.id }.distinct().size != draft.pages.size)
                 add("Every page needs a unique identity")
             draft.pages.forEachIndexed { index, page ->

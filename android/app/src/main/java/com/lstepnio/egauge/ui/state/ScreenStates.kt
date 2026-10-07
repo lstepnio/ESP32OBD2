@@ -34,7 +34,7 @@ data class CustomizeUiState(val pages: List<PageUi>, val editingPage: Int, val r
     val alerts: List<AlertUi>, val blockers: List<String>, val canSend: Boolean,
     val needsCheck: Boolean, val found: Boolean, val busy: Boolean, val editingEnabled: Boolean,
     val advanced: Boolean, val supportedLayouts: Set<GaugeLayout>, val details: List<DetailUi>,
-    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val reviewPages: List<PageUi> = emptyList(), val actionSummary: String? = null, val removablePageIds: Set<String>? = null, val editingIssue: String? = null, val reviewAlerts: List<AlertUi>? = null, val reviewNotice: String? = null)
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val reviewPages: List<PageUi>? = null, val actionSummary: String? = null, val editingIssue: String? = null, val reviewAlerts: List<AlertUi>? = null, val reviewNotice: String? = null)
 @Immutable
 data class VehicleUi(val id: String, val name: String)
 @Immutable
@@ -54,7 +54,7 @@ data class CarUiState(val name: String, val profiles: List<VehicleUi>, val activ
     val setupNeeded: Boolean = false, val transmissionChild: Boolean = false, val connectionLinks: List<ConnectionLinkUi> = emptyList(),
     val actionPages: List<com.lstepnio.egauge.GaugePageDraft> = emptyList(),
     val actions: List<com.lstepnio.egauge.PageAction> = emptyList(), val canEditActions: Boolean = false,
-    val actionsSupported: Boolean = false)
+    val actionsSupported: Boolean = false, val canManageVehicles: Boolean = true)
 @Immutable
 data class SettingsUiState(val name: String, val found: Boolean, val rotation: Int?, val canRotate: Boolean,
     val busy: Boolean, val advanced: Boolean, val dynamicColor: Boolean, val version: String,

@@ -83,7 +83,9 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val pages = editorDraft.pages.map { pageUi(it, system) }
     val confirmed = !disconnected && ownerAccess == OwnerAccess.AUTHENTICATED && sentProfileId == profileCollection.activeId && sameSettings(sentDraft, transmittedDraft) &&
         isConfirmedSetup(activeConfigRevision, expectedSentDigest, runtimeIdentity)
-    val blockers = presentationBlockers(transmittedDraft, capabilities) + (if (bothAdapters && runCatching { profileCollection.active.combinedDraft() }.isFailure) listOf("Choose distinct engine and transmission adapters before sending") else emptyList()) +
+    val combinedIssue = if (bothAdapters) runCatching { profileCollection.active.combinedDraft() }
+        .exceptionOrNull()?.let { it.message ?: "Check both adapter setups before sending" } else null
+    val blockers = presentationBlockers(transmittedDraft, capabilities) + listOfNotNull(combinedIssue) +
         if (runtimeIdentity?.trial == true) listOf("Your gauge is still checking its settings. Wait, then check again.") else emptyList()
     val needsCheck = activeConfigRevision == null || verifiedConfigHash == null || ownerAccess != OwnerAccess.AUTHENTICATED ||
         (configurationNeedsReview && !configurationRecoveryRead) || disconnected
@@ -165,10 +167,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             actionSummary = transmittedDraft.actions.takeIf { it.isNotEmpty() }?.joinToString("\n") { action ->
                 val name = transmittedDraft.pages.firstOrNull { it.id == action.pageId }?.name ?: "Unavailable page"
                 "Jump to $name · ${action.count} swipes up within ${action.windowMs / 1000} seconds"
-            }, removablePageIds = if (editorDraft.source == "BOTH") editorDraft.pages.filter { page ->
-                val source = demoCatalog.first { it.id == page.pidIds.first() }.source
-                editorDraft.pages.count { demoCatalog.first { pid -> pid.id == it.pidIds.first() }.source == source } > 1
-            }.map { it.id }.toSet() else null, editingIssue = pageEditError,
+            }, editingIssue = pageEditError,
             reviewAlerts = transmittedDraft.alerts.map { alertUi(it, system) },
             reviewNotice = if (editorDraft.source == "BOTH" && !bothAdapters)
                 "Only the pages below will be sent to your gauge. Your other vehicle pages stay saved on this phone." else null),
@@ -268,7 +267,7 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
             activeConfigRevision != null && verifiedConfigHash != null && ConfigurationProjector.blockers(transmittedDraft).isEmpty() && (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) && (!bothAdapters || capabilities?.dualAdapterVersion == 1),
         transmissionChild = draft.source == "TCM" && profileCollection.active.transmission != null,
         actionPages = editorDraft.pages, actions = editorDraft.actions, canEditActions = !busy && profileError == null,
-        actionsSupported = capabilities?.pageActionsVersion == 1)
+        actionsSupported = capabilities?.pageActionsVersion == 1, canManageVehicles = canManageVehicles)
 }
 
 fun faultDescription(code: String): String = when (code) {
