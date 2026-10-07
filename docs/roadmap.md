@@ -1,36 +1,35 @@
-# Implementation roadmap
+# Remaining work
 
-Status: M0 is complete. M1 firmware transport, recovery, scheduler, alert, and ownership foundations are implemented on `feat/owned-gauge-control`; real adapter and three-link acceptance criteria remain open. M2 has an experimental authenticated configuration slice with prior numeric-page evidence. The eight-page and five-renderer expansion is source-built and needs physical transfer, display, touch, and reboot validation before promotion. Complete vertical slices with documentation and evidence before expanding the catalog.
+Updated 2026-10-06. Completed behavior is tracked in [current state](current-state.md).
+This list contains remaining work, with evidence gates rather than old milestone branches.
 
-| Milestone | Deliverables | Exit criteria |
+| Priority | Work | Completion evidence |
 | --- | --- | --- |
-| M0: design foundation | Repository, baseline provenance, architecture, UI prototype, schemas, quality gates | Prototype review and contract/example checks; user priorities recorded |
-| M1: transport and autonomy | Board module extraction, ELM stream parser, per-ECU samples, two-adapter-plus-phone BLE spike, stale data, local alert engine | ECM + TCM + phone links coexist, or measured limits and fallback decision are documented while LVGL renders; parser fixtures; stale/alert behavior verified without phone |
-| M2: configuration vertical slice | Native Android app, versioned local profiles, explicit association, serialized operations, bounded transfer, exact numeric review, two-slot durable config, active-document readback, stored/running identity, and a restricted numeric Apply path | Repeat final app/firmware regression; interruption retains old config; one real adapter-backed reading configured end to end |
-| M3: discovery and diagnostics | Standard per-ECU discovery, catalog UI, scoped manufacturer packs, numeric decoder lab, MIL/DTC/readiness, guarded clear flow | Partial/cancelled discovery; sample provenance; invalid definition rejection; clear semantics verified with emulator before explicit vehicle action |
-| M4: dashboard and alerts | Five LVGL renderers, Android editor, page sets, units/rotation/brightness, warning/critical rules and history, on-gauge DTC page | Pixel/physical readability; hidden-page alerts; hysteresis/dwell/stale/acknowledgment tests; all three use-case templates |
-| M5: updates and recovery | USB partition migration, signed bundle and GitHub catalog workflows, exact-board hosted selection, BLE transfer plus negotiated Wi-Fi spike, A/B rollback, Android foreground operation and recovery journal | Run the [GitHub OTA recovery matrix](development/ota-recovery-matrix.md); wrong image rejection; recovery to known working version; no false success |
-| M6: beta hardening | Hardware/phone matrix, soak, accessibility, performance budgets, maintenance docs | Quality gates in [quality strategy](development/quality.md) recorded with artifacts |
+| Next parked session | Full TCM fault snapshot on Pixel alongside Gear + Temperature | Correct source/revision, all available categories, 248-byte long read, unavailable after disconnect, new-session recovery |
+| Next parked session | Advertised TCM voltage/RPM/speed/MIL and raw pressure correlation | Exact captured identity, labelled off-P/idle-P recordings, restored adapter; no unverified pressure units |
+| Definition research | Temperature sensor meaning, shaft speeds, converter slip/lockup and full OEM fault coverage | Matching controller/calibration definitions plus independent reference comparisons |
+| Vehicle qualification | Gears 2..8, current/target divergence, achieved rates and adapter soak | Passenger/unattended capture prepared before driving, physical comparison and bounded failures |
+| UI/settings qualification | Metric/Imperial persistence, automatic page cycling, bold colors/arc clearance, alerts | Owner observations on the physical LCD, including hidden-page alert behavior and daylight readability |
+| Recovery hardening | Config/OTA interruption and power-loss matrix, Wi-Fi expiry and uncertain outcome UX | [Recovery matrix](development/ota-recovery-matrix.md), exact images and post-reboot identities |
+| Adapter expansion | Second physical adapter plus phone coexistence and fallback | Measured radio/freshness/resource limits; public capacity stays one until qualified |
+| Product hardening | Phone/adapter/vehicle matrix, accessibility, performance, production release trust and Play publication | [Quality gates](development/quality.md), reproducible artifacts and explicit release authorization |
+| Future scope | Safe code clearing, broader manufacturer packs, live phone telemetry, optional sensors | Documented protocol and complete protected path before advertising support |
 
-## First engineering slice, completed in source
+## Scope and priorities
 
-The branch contains bounded ELM response assembly, independent adapter contexts, owner-authenticated companion control, atomic configuration, local warnings, callback-safe status, reconnect recovery, and an independent application tick. The remaining part of this slice is hardware measurement with one and two real adapters plus the phone and display.
+Android and the standalone gauge are active. iOS is deferred. Everyday driving,
+thermal/off-road use, performance and diagnostics remain product goals, but new
+signals need source-specific support evidence. No exhaustive identifier sweep or
+synthetic placeholder becomes a supported vehicle value.
 
-## Use-case templates
+Normal configuration uses one source per profile. Dual-adapter scaffolding does
+not satisfy the simultaneous-operation gate. Use the existing Transmission profile;
+avoid introducing a second experimental workspace or competing settings store.
 
-Everyday: speed, coolant, voltage/load where available, MIL summary. Off-road/thermal: large temperatures, trends, conservative warning visibility. Performance: RPM/load/throttle where available with measured achievable rate. Diagnostics: ECU/source, support/readiness, DTC categories, sample/decoder lab. Templates are suggestions populated only with data the selected vehicle/profile can supply; missing transmission/oil-pressure data is never fabricated.
+## Acceptance and maintenance
 
-## Acceptance tracking
-
-Each implementation PR cites milestone, requirement, contract version, behavior changed, evidence and remaining limits. Record vehicle validation as compatibility entries, not informal global support statements. App and firmware release versions can differ; compatibility is negotiated by protocol/schema/features.
-
-## Tracked open engineering work
-
-- **MULTI-001:** independent adapter contexts and three-link hardware feasibility.
-- **MULTI-002:** define and measure fallback interaction if concurrent connections cannot meet freshness needs.
-- **OTA-001:** validate new partition layout and reversible configuration migration before USB provisioning.
-- **PID-001:** identify actual ECM/TCM vehicles, adapter GATT profiles and documented manufacturer PID definitions.
-
-## Hardware-aware transport extension
-
-BLE provides association/control and a universal update path; Wi-Fi is designed as a negotiated faster bulk transport sharing the same operation state, trust checks and recovery semantics. Two-adapter radio coexistence, board sensors, PSRAM, USB and power management are covered in the [hardware and transport strategy](architecture/hardware-and-transports.md). Preferred production update transport remains subject to WIFI-001/RADIO-001 measurements.
+A change records requirement, behavior, protocol impact, meaningful tests and any
+remaining physical check. Commit and push completed work under `AGENTS.md`; merge
+through reviewed PRs. Hardware-pending development work stays explicitly bounded
+and does not promote public capabilities. Firmware publication is a separate action.
+Keep current status in one place and retire completed planning lists.

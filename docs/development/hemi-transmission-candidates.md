@@ -1,5 +1,7 @@
 # Hemi transmission candidates and next capture
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Researched 2026-10-06. Current evidence: transmission responder 7E9 reports calibration 68274867AE; the engine connector separately exposed 7E8 / 68059434AD. Neither connector has supplied a validated enhanced temperature or actual-gear reading. [Direct exploration results](jeep-direct-exploration-results.md).
 
 ## A published temperature candidate

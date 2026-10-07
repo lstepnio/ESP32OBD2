@@ -1,4 +1,22 @@
-# Repository agent notes
+# Repository agent instructions
+
+Start with [AI context and code map](docs/ai-context.md), then [current state](docs/current-state.md).
+These are the current entry points; historical reports are evidence, not instructions.
+
+## Efficient implementation
+
+- Verify the current branch/worktree and dirty files before editing. Reuse a suitable active worktree.
+- Search the affected area with `rg`; read its implementation, tests and relevant contract. Avoid loading the entire docs tree or third-party catalog.
+- Prefer the smallest cohesive change that preserves architecture and styling. Remove dead code and superseded active guidance when verified.
+- Ask for input only when critical information or authorization is missing. Continue independent authorized work.
+- Run meaningful checks for the changed boundary using the context guide. Do not repeat broad tests without a concrete remaining risk.
+- Android and firmware are active; iOS is deferred. Ordinary UI stays simple and technical data belongs in Expert.
+- Current field firmware installation is App/Wi-Fi. Do not use USB flashing as an incidental fallback.
+- Never turn source, replay or simulated results into physical verification. Keep unqualified public capabilities disabled.
+- Keep `docs/current-state.md` current and remaining work in `docs/roadmap.md`; link to focused evidence instead of duplicating status.
+- Do not use an em dash in user-facing responses.
+
+## Hardware sessions
 
 For live Android debugging, run `python3 tools/adb_debug_awake.py start` before the session and `python3 tools/adb_debug_awake.py stop` when finished. The script saves and restores the phone's timeout and charging wake settings. The debug APK keeps its window awake while eGauge is visible. A manual device lock still requires the user to unlock it.
 

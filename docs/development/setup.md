@@ -1,50 +1,95 @@
-# Development setup
+# Development setup and checks
 
-## Design and contracts
+Use an existing working environment first. Commands below run from the repository
+root unless stated otherwise. Hardware work needs the owner's readiness/authorization;
+normal firmware installation is through App/Wi-Fi. Building does not install anything.
 
-Python 3.10+ for tooling. Create a venv, install `tools/requirements.txt`, run `python tools/validate.py`. Serve repository with `python3 -m http.server 8765 --bind 127.0.0.1` and open `/design/prototype/`. The prototype has no build step, network dependencies, or Web Bluetooth access.
+## Offline tooling
 
-## Firmware baseline
-
-Install [ESP-IDF 5.4.1](https://docs.espressif.com/projects/esp-idf/en/v5.4.1/esp32s3/get-started/linux-macos-setup.html) for esp32s3 and activate its environment. Then:
+Python 3.10+ and a C compiler are needed for host checks. `bleak` is imported by mocked
+adapter tests even when no Bluetooth connection is made.
 
 ```sh
-cd firmware/gauge
-idf.py build
-# Only when intentionally uploading:
-idf.py -p YOUR_SERIAL_PORT flash monitor
+python3 -m venv .venv
+.venv/bin/pip install -r tools/requirements-test.txt
+.venv/bin/python tools/validate.py
+.venv/bin/python -m unittest discover -s tools/tests -p 'test_obd*.py'
+.venv/bin/python tools/obd_capture.py self-test
 ```
 
-`main/idf_component.yml` pins all directly/transitively resolved registry components for this baseline. IDF resolves a local BSP path into its lockfile; that machine-local lockfile and downloaded components are ignored. CI uses the IDF 5.4.1 container and builds from manifests. Capture resolved lock/SBOM in release artifacts with paths sanitized. No claim of bit-for-bit reproducibility until two clean environment builds are compared.
-
-## Adapter selection for the M1 hardware spike
-
-Run `idf.py menuconfig` and open **eGauge adapter selection**. Leave the ECM MAC blank only for first-compatible discovery. Enter `AA:BB:CC:DD:EE:FF` format to bind ECM deterministically. Enter a different, observed address for TCM; a blank TCM address disables the second link. The TCM link stays idle after connection until source-specific TCM PID definitions are available. Keep real vehicle adapter addresses in local `sdkconfig` only, and restore the tracked defaults before committing. BLE privacy addresses may rotate, so the companion association flow will need stable identity/bond handling instead of relying on a plain MAC string.
-
-## Paired quick-selection setup
-
-After uploading the integration firmware, launch the Android app and read gauge capabilities. The Device screen shows paired quick selection when the `quickSelect` capability is present. Choose one of the five built-in PID examples in Design. An unpaired gauge starts on **PAIR READY** with a two-minute pairing window, then shows **HOLD TO PAIR** if the window expires. Long press to reopen it, then tap **Set preview reading on gauge** in Device. Enter the six-digit code shown on the round LCD in Android's system pairing dialog. Pairing occupies the display exclusively; readings, renderer graphics, alerts, and diagnostics stay hidden, and taps do not change the selected gauge page. The app writes the selected built-in index and waits for an authenticated state readback before reporting success. Once the owner is saved, the gauge shows its selected page and starts there on later boots, even when the phone is disconnected. A 12-second touch hold deletes the owner bond and restarts the gauge if the phone is lost. The startup and exclusive pairing presentation changes still need a physical LCD and phone review; see [pairing validation](paired-control-validation.md).
-
-If the gauge owner is reset, also forget the old eGauge bond in Android Bluetooth settings before pairing again. Android can otherwise retain a stale bond that the gauge no longer accepts.
-
-## Experimental BLE client probe
-
-With the gauge powered nearby, install `tools/requirements-ble.txt` in an isolated Python environment and run `python tools/ble_probe.py`. The script scans for the project service UUID, connects, and reads the public capability characteristic. It sends no vehicle commands and does not pair. `configWrite` and OTA remain disabled; the separate `quickSelect` flag describes the bounded paired operation.
-
-## Existing Mac notes
-
-The active local setup is `~/esp/esp-idf-v5.4.1`, with its managed environment at `~/.espressif/python_env/idf5.4_py3.9_env`. Bootstrap used system Python 3.9.6 because the Homebrew Python was newer than the toolchain expected. The Python 3.9 package-metadata checker failed to resolve ruamel distribution names. This environment was repaired with ruamel.yaml 0.17.21 and a local `ruamel.yaml.clib-0.2.15.dist-info` symlink to the underscore-named metadata directory. CMake 3.31.10 and Ninja 1.13.2 were installed into that venv. These are local workaround notes, not a portable installation recipe. Prefer the pinned container or a clean supported Python environment for CI/new machines.
-
-Use `source "$HOME/esp/esp-idf-v5.4.1/export.sh"` to activate on this Mac; the baseline installation selected system Python through PATH during setup. Device USB serial port names can change after reconnect. Do not hardcode this machine's port in project scripts.
+[Quality workflow](../../.github/workflows/quality.yml) contains the exact standalone
+C sanitizer and config-binding commands. Diagnostics host tests also compare the
+production C snapshot with the Android wire fixture.
 
 ## Android
 
-Architecture is in [android/README.md](../../android/README.md). Create the Gradle/Kotlin/Compose project in milestone M2 after BLE framing/capability contract is validated. Add Gradle wrapper and dependency verification metadata then. No APK build command is claimed at this stage.
+Use JDK 17, Android SDK platform/build-tools 36 and the checked-in Gradle wrapper.
+Set `ANDROID_HOME`, or use ignored `android/local.properties` with `sdk.dir`.
 
-## Recovery
+```sh
+cd android
+./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --no-daemon
+# When instrumentation contracts change:
+./gradlew :app:compileDebugAndroidTestKotlin --no-daemon
+```
 
-The current development image can be re-flashed via USB using the built source. OTA-enabled production firmware will require its own known compatible images and [migration procedure](../protocol/firmware-update.md). Never erase bonds/config or change eFuses as an incidental part of UI development.
+The debug APK is `android/app/build/outputs/apk/debug/app-debug.apk` from the root.
+[Android README](../../android/README.md) covers screenshots, phone test constraints
+and release signing. Do not run connected tests on the user's phone incidentally:
+they can replace its app and remove local data.
 
-## First vehicle capture
+For an authorized live Android session, run `python3 tools/adb_debug_awake.py start`
+beforehand and `stop` afterward. This restores the phone's original wake settings.
+A manually locked phone still requires the owner to unlock it.
 
-Use the [parked Jeep capture runbook](vehicle-capture-runbook.md) and prepared Mac menu to collect both OBD ports sequentially and replay the evidence offline.
+## Firmware
+
+Use ESP-IDF 5.4.1 targeting ESP32-S3, then:
+
+```sh
+. "$IDF_PATH/export.sh"
+cd firmware/gauge
+idf.py build
+```
+
+On the existing Mac, select the managed environment before exporting IDF; this
+avoids accidentally choosing a newer Homebrew Python:
+
+```sh
+export IDF_PYTHON_ENV_PATH="$HOME/.espressif/python_env/idf5.4_py3.9_env"
+export PATH="$IDF_PYTHON_ENV_PATH/bin:$PATH"
+. "$HOME/esp/esp-idf-v5.4.1/export.sh"
+```
+
+These Mac paths describe the known local installation. New machines should use a
+supported clean IDF setup or the pinned CI container. Do not recreate old package
+metadata workarounds unless an actual error requires them.
+
+Component manifests pin dependencies; generated component downloads and the local
+BSP lockfile remain ignored. `firmware/gauge/version.txt` supplies image identity.
+Build outputs are not signed release packages. Use the [release runbook](firmware-release-runbook.md)
+for authorized publication and the [recovery matrix](ota-recovery-matrix.md) for qualification.
+
+## Adapter and vehicle sessions
+
+The companion selects and saves a source-specific adapter binding in the configuration.
+The normal runtime polls one active Engine or Transmission source. Legacy menuconfig
+MAC fields are fallback/scaffolding, not the normal setup or qualified dual-adapter support.
+Keep real addresses and raw recordings in ignored local artifacts.
+
+Use [TCM resume](tcm-session-resume.md) for the next Jeep session and the
+[vehicle capture runbook](vehicle-capture-runbook.md) for general recording. Do not
+select an adapter by its name alone. Release other clients before a Mac capture.
+
+## Preview and recovery
+
+Serve the explicitly simulated design prototype with:
+
+```sh
+python3 -m http.server 8765 --bind 127.0.0.1
+```
+
+Open `http://127.0.0.1:8765/design/prototype/`. It does not access real Bluetooth.
+Full USB flashing changes OTA metadata; use the [migration procedure](usb-partition-migration.md)
+only for explicitly authorized provisioning/recovery. Never erase bonds/config or
+change eFuses as an incidental repair. Current field updates use App/Wi-Fi.

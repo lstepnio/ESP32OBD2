@@ -1,5 +1,7 @@
 # Offline adapter integration
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 ## Implemented
 
 Android can find adapters through the owned gauge, save a validated binding per vehicle profile, and send the binding together with pages and alerts in one configuration transaction. Schema 1 retains legacy discovery. Schema 2 supports an explicit primary source binding and treats an unbound source as unconfigured. Stored phone profiles migrate without inventing bindings.

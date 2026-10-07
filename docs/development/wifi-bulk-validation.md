@@ -1,5 +1,7 @@
 # Authenticated Wi-Fi bulk validation
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Observed on 2026-09-26 with the USB-connected ESP32-S3-Touch-LCD-1.28 and the owner-bonded Pixel 10 Pro. The phone ran the debug Android app over Wi-Fi ADB. No OBD adapter or vehicle was present.
 
 ## Successful signed OTA

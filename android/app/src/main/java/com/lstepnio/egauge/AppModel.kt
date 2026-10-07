@@ -516,23 +516,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var sentProfileId by mutableStateOf<String?>(null)
         private set
     private var sentDigest: String? = null
-    val configurationBlockers: List<String>
-        get() = buildList {
-            if (profileError != null) add("Local profile data needs recovery before applying")
-            addAll(ConfigurationProjector.blockers(draft))
-            if (capabilities == null) add("Read gauge capabilities first")
-            else if (capabilities?.configWrite != true) add("Gauge does not offer full configuration writes")
-            val observed = activeVehicleSessionId != null && vehicleObservations.any { observation ->
-                observation.profileId == profileCollection.activeId &&
-                    observation.sessionId == activeVehicleSessionId &&
-                    observation.adapterId.isNotBlank() && observation.ecuId.isNotBlank() &&
-                    observation.pidId == draft.pidId && observation.source == draft.source &&
-                    observation.status == VehiclePidStatus.Responding
-            }
-            if (activeVehicleSessionId == null) add("No vehicle discovery session is active")
-            else if (!observed) add("Selected PID has no responding evidence for this profile and ECU")
-            add("General configuration and vehicle evidence are not implemented")
-        }
     var scanning by mutableStateOf(false)
         private set
     var operation by mutableStateOf(OperationState.Idle)
@@ -832,10 +815,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         deviceMessage = "Fault snapshot read. Each category shows when it was checked."
     }
 
-    fun diagnosticsCurrent(nowElapsedMs: Long = android.os.SystemClock.elapsedRealtime()): Boolean {
-        val observed = diagnosticsObservedAtElapsedMs ?: return false
-        return nowElapsedMs >= observed && nowElapsedMs - observed <= 30_000
-    }
     fun bootIdentityRead(value: GaugeConfigTransferClient.BootIdentity) {
         scanning = false
         bootIdentity = value

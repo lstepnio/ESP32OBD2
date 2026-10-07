@@ -1,31 +1,65 @@
-# Current state and evidence
+# Current implementation and evidence
 
-Recorded through 2026-09-27. This separates observed behavior from design targets.
+Updated 2026-10-06. This is the authoritative status summary for this checkout.
+A source build, a simulated response and an owner observation are different evidence.
+Recheck Git, installed firmware and connected devices before a new hardware session.
 
-| Component | Observed state | Remaining evidence |
+## Baseline
+
+- Board: Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S touch,
+  16 MB flash and 2 MB PSRAM. ESP-IDF 5.4.1 with pinned components.
+- App: native Kotlin/Jetpack Compose Android, package `com.lstepnio.egauge`.
+  iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
+- Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
+  verifies signatures and compatibility; visibility alone does not prove feed availability.
+- Latest recorded physical gauge: `0.2.0-dev.37-tcm`, configuration revision 28.
+  Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
+- The owner has one Vgate, swapped between separate ECM and TCM connectors on a
+  2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
+  Diagnostic endpoint/bridge topology is not fully identified.
+
+## Feature status
+
+| Area | Implemented and evidence | Remaining qualification |
 | --- | --- | --- |
-| Hardware | Waveshare ESP32-S3-Touch-LCD-1.28; GC9A01, 240 × 240; CST816S touch; S3 rev 0.2, 2 MB PSRAM initialized, 16 MB flash. An owner-authenticated live capacity read reported two cores at 160 MHz, internal/PSRAM heap capacity and watermarks, uptime, reset reason, Wi-Fi state, and initialized BLE/display/touch/backlight subsystems | QMI8658 identity/health, calibrated battery ADC, exact board revision/pin inventory, enclosure, power behavior, and daylight legibility |
-| Firmware | Exact-board upstream commit `e1f4d8ffbb2bfe0fb38369e44d532319770ddc00`; development firmware is versioned from `firmware/gauge/version.txt` and builds with IDF 5.4.1. Physical calibration verified RGB565 byte swapping plus BGR panel order, radius-104 essential-content bounds, radius-112 decorative bounds, and compact-font handling for long values. The protected workflow published signed catalog generation 13 and hosted `0.2.0-dev.21`. A clean download passed catalog, bundle, image and signature verification before its exact image was written and verified over USB at `ota_0` offset `0x60000`; serial reboot confirmed the version, retained revision 4 configuration, display, touch, BLE, RX/TX task and 80% PWM backlight startup. See the [display color quality record](development/display-color-quality-validation.md) and [round display guidelines](design/round-display-ui-guidelines.md) | Vehicle/adapter session, physical power interruption, trial-window reset, live Wi-Fi expiry, and day/night brightness characterization remain unverified |
-| Board startup | Serial showed LCD, LVGL, touch, UI, and BLE controller startup; touch changed PID | No simultaneous phone and adapter session observed |
-| BLE adapter | ECM and TCM contexts use `18F0` / `2AF1` / `2AF0`. Readiness now checks properties, discovers the CCCD, waits for subscription, and runs bounded `ATE0`, `ATL0`, `ATS0`, `ATH0`, `ATSP0` initialization. ECM reconnect uses bounded backoff. TCM requires a distinct configured MAC and remains disabled by default | Real GATT maps, initialization replies, live reconnect, durable adapter binding, alternate profiles, and dual-link operation |
-| PIDs | Five built-in Mode 01 definitions use a bounded decoder. A host-tested scheduler supports up to 32 runtime PIDs with round-robin due selection and one diagnostic job per ten normal jobs. The executable subset rejects reserved PID 01 and supports eight ordered pages using numeric, arc, bar, trend, or dual renderers. The configurable renderer revision has source-build evidence only; see the [implementation record](development/configurable-pages-and-renderers.md) | Live adapter responses and achieved rates, supported-PID discovery, Mode 22, ECU attribution and dual-adapter scheduling |
-| Configuration | Owner-only transfer and atomic two-slot commit compile an executable Mode 01 subset. Pixel sent the restricted numeric ECM profile twice; reboot and separate protected reads confirmed revisions 1 and 2 with matching SHA-256. User confirmed numeric page display and touch navigation. Runtime now journals new revisions as trials, retains and selects the previous executable generation after an unconfirmed reset, reports stored/running/trial identity separately, uses fixed activation deadlines, and makes exact command retries idempotent | Deliberately stale conflict exercise, full document features, and physical power interruption during a trial |
-| Diagnostics and alerts | Firmware includes budgeted MIL/count and headerless single-responder Mode 03/07/0A reads with a protected freshness snapshot. Local alert dwell, hysteresis, priority, stale state, zero dwell, and timer wrap have sanitizer-backed host fixtures | Adapter evidence, complete ECU-attributed code history, acknowledgment, and safe code clearing |
-| Updates | The 16 MB layout has two 3 MiB app slots and a rollback-enabled bootloader. Transfer status is callback-safe, activation has a fixed deadline, and trial confirmation requires five seconds of application progress. The Pixel installed and confirmed GitHub prereleases through dev.17 by OTA. A dev.17 public-capability regression required a verified application-slot-only USB recovery from the GitHub-hosted dev.18 bundle; dev.18 then passed capability discovery, protected hardware read, and authenticated running identity. Serial resets at early, middle, late, post-verification/pre-activation, and first-visible-complete states retained a bootable confirmed image and configuration. Discovery verifies every bounded release candidate instead of trusting API order. Catalog trust rejects generation rollback and conflicting content under one generation. A live owner-authenticated security check rejected wrong-session, wrong-key, and replay frames. | Physical power-loss recovery, production release key, live session expiry, and an isolated trial-health-window reset |
-| UI/app | Pixel 10 Pro completed passkey bonding, authenticated reading selection, rotation, configuration transfer, signed Wi-Fi OTA, reboot readback, and the GitHub-hosted development update journey. The app has task-focused navigation, an ordered eight-page editor, exact dashboard review, runtime confirmation, operation serialization, candidate selection, remembered gauge identity, expiring diagnostic evidence, optional advanced second-adapter preference, and signed GitHub development catalog support | Accessibility/performance and general configuration and vehicle operations remain unverified |
+| Pairing | Foreground Android discovery, system passkey dialog, protected owner readback and firmware owner persistence; subsequent Jeep work used the paired phone | Broader bond-loss/recovery and alternate phone matrix |
+| Engine telemetry | Gauge reads attributed 7E8 replies. Owner reported RPM agrees with dash, disappears after unplugging adapter and returns after reconnect | Vehicle/adapter matrix, long soak and achieved polling rates |
+| Transmission | One active TCM profile routes 7E1/7E9; combined Gear + Temperature page. Owner confirmed page worked and both readings cleared/returned on adapter loss/recovery | Independent temperature sensor/scale reference, gears 2..8, current/target divergence |
+| Faults | Mac captured full stored/pending/permanent TCM lists. Version 15 protected full snapshots and Android source/category groups implemented and tested offline | New long-read transfer on Pixel and full fault polling alongside Gear + Temperature |
+| Settings | Brightness, orientation, Metric/Imperial units and automatic saved-page interval persisted through existing settings path | Physical units/persistence and automatic-cycle checks remain separate from protected readback |
+| Dashboards/alerts | Numeric, Arc, Bar, Trend and Dual renderers; bounded page/alert configuration, stronger palette and enlarged arc; host logic tests | Daylight/color review, alert transitions and hidden-page behavior on real vehicle |
+| Configuration | Atomic slots, exact review/projection, revision/hash conflict checks, trial/fallback and stored/running identity | Physical interruption matrix and all supported layouts/alerts on hardware |
+| Updates | Signed development catalog/bundle verification, owner BLE bootstrap, authenticated private Wi-Fi transfer, A/B trial confirmation and recovery journal; App/Wi-Fi installs recorded | Hardware power-loss/expiry matrix, production trust and performance measurements |
+| Multiple adapters | Source-specific model and legacy second-slot scaffolding; normal runtime uses one active source | Simultaneous adapters plus phone are unqualified; public link capacity is one |
 
-The integration branch runs authenticated protocol 0 reading selection and display rotation in firmware and Android. The transfer and scheduler firmware, plus a rollback-enabled bootloader, were uploaded over USB; esptool verified both hashes and the serial log showed normal display, touch, BLE and task startup. The existing owner bond and saved rotation were preserved after the first firmware flash. The [restricted numeric transfer](development/numeric-config-transfer-validation.md), [initial signed development OTA transfer](development/update-live-validation.md), and [changed-build retry](development/update-recovery-validation.md) succeeded from the Pixel. The [experimental transfer protocol](protocol/experimental-firmware-transfers.md) records the wire format and its restrictions. Public capability flags still report `configWrite:false` and `ota:false`.
+## Public and experimental boundaries
 
-The 2026-09-26 core hardening work is documented in [firmware runtime ownership](architecture/firmware-runtime.md) and its [validation record](development/firmware-core-hardening-validation.md). These source, sanitizer, build, and Android checks do not replace a flash and live regression of the new image.
+Public capability JSON keeps `configWrite:false` and `ota:false`. The bounded
+extensions (`cfg:3`, `ad:1`, `ds:3`, hardware and optional Wi-Fi features) expose
+specific development paths; they are not general production support claims.
+Public flags must follow implementation and physical evidence.
 
-The authenticated Wi-Fi bulk transport is enabled in the development build. The owner BLE link negotiates a random temporary WPA2 SoftAP and AES-256-GCM session; Android joins it without asking the user for network credentials and sends signed OTA commands through the existing update state machine. A Pixel 10 Pro transferred, activated and confirmed versions `0.2.0-dev.4`, `0.2.0-dev.6`, batched-v2 `0.2.0-dev.8`, and GitHub-hosted images through `0.2.0-dev.16` on the physical gauge. Bounded eight-command batching reduced access-point-ready-to-restart time from about 142 seconds to 54.6 seconds while retaining each 1 KiB worker offset confirmation. See [the live validation](development/wifi-bulk-validation.md), [GitHub-hosted validation](development/github-hosted-update-validation.md), and [recovery matrix](development/ota-recovery-matrix.md). A live owner-authenticated check rejected wrong-session, wrong-key, and replay frames. Session expiry, active attack testing, physical power-loss recovery, and the isolated trial-health-window reset remain explicit live qualification work; the expiry authorization policy is sanitizer tested.
+TCM temperature request 2204FE uses only the first byte as A−40 °C. Other bytes
+remain uninterpreted. Captured current/target gear requests 225503/225504 compare
+P=0D, R=0B, N=00 and stationary Drive=01; Drive is not a distinct selector value.
+Pressure 225034 remains raw only. Shaft speed, converter slip/lockup and complete
+OEM fault inventory lack matching validated definitions. Code clearing is a design,
+not an implemented action. Simulated data never establishes vehicle compatibility.
 
-The Android core and UX work is documented in [Android runtime ownership](architecture/android-runtime.md), its [review plan](development/android-core-ux-review-plan.md), and [validation record](development/android-core-ux-validation.md). Its deterministic software evidence does not replace phone accessibility/performance, published update, participant, or OBD hardware qualification.
+## Next work
 
-## Baseline provenance
+Follow [TCM resume instructions](development/tcm-session-resume.md) for the next
+parked session. The owner deferred vehicle/BLE work; do not start it unattended.
+Install through App/Wi-Fi, confirm exact firmware identity, check full fault lists
+and reconnect behavior, and retain the working combined page.
 
-`firmware/gauge` imports board support, firmware sources, fonts, simulator, CMake and sdkconfig from [Janos Kutscherauer's repository](https://gitlab.com/janoskut/esp32-obd2-meter) at the commit above. The main branch initially preserved upstream source behavior. The M1 branch changes response handling and freshness; see [M1 implementation status](development/m1-transport-status.md). Local dependency changes pin esp_lvgl_port 2.7.2 alongside LVGL 9.2.2 and the other registry components resolved during the successful build. The initially resolved display port 2.9.0 referenced `LV_COLOR_FORMAT_RGB565_SWAPPED`, which is absent from LVGL 9.2.2.
+[Roadmap](roadmap.md) tracks remaining priorities. [Evidence index](README.md)
+links historical records. New observations update this file and the relevant
+focused evidence record, rather than repeating status in every document.
 
-The earlier display-test firmware has been replaced. It is not a recovery dependency for this project. The previous Arduino instructions are superseded by [ESP-IDF setup](development/setup.md). The reference clone and retired sketches are local ignored files.
+## Provenance
 
-The baseline is a starting point, not evidence of a robust parser: notifications are parsed individually, the PID list is static, and the BLE manager has a single shared context. New transport code must assemble complete ELM responses and model central/peripheral sessions separately. `sdkconfig` enables both roles and three possible connections, but that alone does not implement the companion link.
+Firmware board support originated from Janos Kutscherauer's esp32-obd2-meter at
+`e1f4d8ffbb2bfe0fb38369e44d532319770ddc00`. Upstream MIT and font OFL notices remain
+in the repository. Runtime, transport, ownership and UI have since changed;
+the imported baseline behavior is not the current architecture.

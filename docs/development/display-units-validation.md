@@ -1,5 +1,7 @@
 # Metric and imperial display units validation
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Recorded 2026-09-29 for Android companion commit `2177827` and signed development firmware `0.2.0-dev.30`.
 
 ## Source and release checks

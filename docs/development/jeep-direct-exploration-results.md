@@ -1,5 +1,7 @@
 # Direct Mac exploration results
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Recorded 2026-10-06 America/Denver (2026-10-07 UTC), directly over Mac BLE to the physically identified Vgate. The owner prepared the transmission connector with ignition on and gauge powered off. Engine running state was not independently confirmed.
 
 ## Placement correction and identity

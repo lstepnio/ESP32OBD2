@@ -1,5 +1,7 @@
 # First Jeep capture results
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Date: 2026-10-06, America/Denver. Vehicle and swap description are owner-reported: 2010 Wrangler, 5.7 L Hemi, ZFHP70 transmission. One Vgate was moved sequentially between ports. No vehicle configuration or diagnostic-clear commands were sent.
 
 ## Adapter identification

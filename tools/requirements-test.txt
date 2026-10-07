@@ -1,0 +1,3 @@
+# Offline test workflows mock BLE clients but still import their installed API.
+-r requirements.txt
+-r requirements-capture.txt

@@ -1,5 +1,7 @@
 # Physical TCM temperature goal
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Updated 2026-10-06. Goal remains active: display a live transmission-fluid
 temperature from the JSS/PCS 8HP70 setup on the physical eGauge, updated through
 the App/Wi-Fi path and verified on the LCD. No temperature has been displayed yet.

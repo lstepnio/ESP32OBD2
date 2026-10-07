@@ -1,5 +1,7 @@
 # Active document readback on paired hardware
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Observed on 2026-09-26 with the USB-connected ESP32-S3-Touch-LCD-1.28 and the paired Pixel 10 Pro over Wi-Fi ADB. The gauge had no OBD adapter attached.
 
 The firmware and Android debug APK built successfully. Before flashing, a USB read of the two OTA metadata sectors showed sequence 3 in `ESP_OTA_IMG_VALID` state for `ota_0` and sequence 4 in `ESP_OTA_IMG_ABORTED` state for `ota_1`. The new `0.2.0-dev.2` application image was written only to active `ota_0` at `0x60000`; esptool verified the flash hash and reset the gauge. This left NVS, OTA metadata, and both configuration slots untouched. The APK was installed with `adb install -r`.

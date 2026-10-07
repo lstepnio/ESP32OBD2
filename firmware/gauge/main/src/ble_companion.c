@@ -169,14 +169,14 @@ static void owner_save_worker(void *arg)
 
 static const char capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
-    "\"maxAdapterLinks\":2,"
+    "\"maxAdapterLinks\":1,"
     "\"savedStateRead\":true,\"displayRotationWrite\":true,"
     "\"configWrite\":false,\"cfg\":3,\"ad\":1,"
     "\"quickSelect\":true,\"ota\":false,\"hw\":1"
     DISPLAY_SETTINGS_CAPABILITY WIFI_BULK_CAPABILITY "}";
 static const char document_capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
-    "\"maxAdapterLinks\":2,"
+    "\"maxAdapterLinks\":1,"
     "\"savedStateRead\":false,\"displayRotationWrite\":false,"
     "\"configWrite\":false,\"cfg\":3,\"ad\":1,"
     "\"ota\":false,\"hw\":1"

@@ -449,11 +449,9 @@ static void ble_mgr_gatt_svc_chr_disc_completed_check(ble_mgr_ctx_t *mgr_ctx, co
     ESP_NULL_CHECK(error, TAG, "error is NULL");
     ESP_NULL_CHECK(mgr_ctx, TAG, "context is NULL");
 
-    // If the error status is 0, it means discovery is not completed yet
+    /* Successful item callbacks precede BLE_HS_EDONE; keep collecting. */
     if (error->status == 0)
     {
-        // FIXME: Check if this is true
-        ESP_LOGW(TAG, "Discovery in progress ???????????????????????????????");
         return;
     }
 

@@ -43,6 +43,17 @@ int main(int argc, char **argv)
     assert(!runtime.legacy_auto_discovery && !strcmp(runtime.adapter_address,"C0:00:00:00:00:01") && runtime.adapter_address_type==1);
     assert(runtime.pids[0].responder==0x7e8);
     cJSON *source=cJSON_GetArrayItem(cJSON_GetObjectItem(root,"sources"),0);
+    cJSON *original_label=cJSON_Duplicate(cJSON_GetObjectItem(source,"label"),1);
+    char label[34]; memset(label,'x',33); label[32]=0;
+    cJSON_ReplaceItemInObject(source,"label",cJSON_CreateString(label));
+    set(root); assert(validate()==ESP_OK);
+    label[32]='x'; label[33]=0;
+    cJSON_ReplaceItemInObject(source,"label",cJSON_CreateString(label));
+    set(root); assert(validate()!=ESP_OK);
+    cJSON_ReplaceItemInObject(source,"label",cJSON_CreateString(""));
+    set(root); assert(validate()!=ESP_OK);
+    cJSON_ReplaceItemInObject(source,"label",original_label);
+
     cJSON *adapter=cJSON_GetObjectItem(source,"adapter");
     cJSON_ReplaceItemInObject(adapter,"addressType",cJSON_CreateString("guess"));
     set(root); assert(validate()==ESP_ERR_INVALID_ARG);

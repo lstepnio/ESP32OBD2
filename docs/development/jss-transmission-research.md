@@ -1,5 +1,7 @@
 # JSS / PCS transmission integration research
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Researched 2026-10-06, America/Denver. Target: owner-reported 2010 Wrangler, 5.7 L Hemi swap, ZF 8HP70, Jeep Speed Shop (JSS) controller/harness, and the physically tested Vgate BLE adapter. This is a research report, not a qualification of enhanced transmission readings.
 
 ## Findings

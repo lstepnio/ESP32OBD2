@@ -150,10 +150,12 @@ signed['range'] = {'min': -32768, 'max': 32767}
 check(decode(signed, 'FEFF') == -2, 'Signed little-endian decoding')
 
 # Verify authored Markdown targets. External URLs are intentionally not network-tested.
-mds = [ROOT / 'README.md', ROOT / 'CONTRIBUTING.md', ROOT / 'THIRD_PARTY_NOTICES.md']
+mds = [ROOT / 'README.md', ROOT / 'AGENTS.md', ROOT / 'CONTRIBUTING.md', ROOT / 'THIRD_PARTY_NOTICES.md']
 mds += list((ROOT / 'docs').rglob('*.md')) + [ROOT / 'android/README.md', ROOT / 'firmware/gauge/README.md']
 for p in mds:
-    for dest in re.findall(r'\]\(([^)]+)\)', p.read_text()):
+    destinations = re.findall(r'\]\(([^)]+)\)', p.read_text())
+    destinations += re.findall(r'<img\b[^>]*\bsrc=[\"\']([^\"\']+)', p.read_text())
+    for dest in destinations:
         if '://' in dest or dest.startswith(('#', 'mailto:')):
             continue
         target = unquote(dest.split('#')[0])
@@ -168,6 +170,10 @@ for guard in ('BLE_GATT_CHR_F_WRITE_AUTHEN', 'BLE_GATT_CHR_F_READ_AUTHEN',
               'desc.sec_state.encrypted', 'desc.sec_state.authenticated',
               'desc.sec_state.bonded', 'address_equal(&desc.peer_id_addr, &g_owner)'):
     check(guard in companion, f'Missing companion owner protection: {guard}')
+
+# Public link capacity must not promise the unqualified simultaneous adapter path.
+check(companion.count('\\"maxAdapterLinks\\":1') == 2,
+      'Public companion variants must advertise only one qualified adapter link')
 
 # Android and prototype tokens are generated from the shared palette.
 import subprocess

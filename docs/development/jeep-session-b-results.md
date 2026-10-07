@@ -1,5 +1,7 @@
 # Jeep engine Session B
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 ## Confirmed setup
 
 Owner confirmed the Jeep was idling, the identified Vgate was in the engine port, and other OBD apps were closed. Pixel and physical gauge were connected to the Mac. Public capability claims remain disabled.

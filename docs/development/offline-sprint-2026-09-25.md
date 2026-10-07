@@ -1,5 +1,7 @@
 # Offline development sprint, 2026-09-25
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Window: 18:05-20:05 UTC. The Android phone is away and OBD adapters are unavailable. Work can continue in the repository and on the USB-connected gauge. Do not treat simulated responses or a BLE capability read as vehicle support evidence.
 
 ## Work sequence

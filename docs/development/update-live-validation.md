@@ -1,5 +1,7 @@
 # Pixel signed development update, 2026-09-25
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 ## Setup
 
 - Paired Pixel 10 Pro, owner bond retained, Wi-Fi ADB available for observing the app. Gauge powered over USB-C. No OBD adapter or vehicle present.

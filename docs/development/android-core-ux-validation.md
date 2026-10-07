@@ -1,5 +1,7 @@
 # Android companion redesign validation
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 ## Customize workspace review, 2026-09-28
 
 The [review and before/after images](../design/redesign/customize-review.md) cover the replacement of the nested page editor with one preview-led workspace, focused pickers, compact page management and a locally saved alert form.
@@ -20,7 +22,7 @@ The screenshot suite never overwrites baselines during comparison. `PrimaryJourn
 
 Older evidence below predates this scoped review and retains its original verification boundaries.
 
-Date: 2026-09-27. Review stack: design foundation, presentation core, feature journeys, verification, automatic connection. The [prior A01+ review](android-core-ux-review-plan.md) remains a historical trust checklist; its original navigation/visual guidance is superseded by the [new design system](../design/design-system.md).
+Date: 2026-09-27. Review stack: design foundation, presentation core, feature journeys, verification, automatic connection. The completed A01+ planning document was retired; current gates are in [quality](quality.md) and visual guidance is in the [design system](../design/design-system.md).
 
 ## Software checks
 

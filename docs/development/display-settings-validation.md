@@ -1,5 +1,7 @@
 # Display settings qualification
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Date: 2026-09-29. Hardware: Waveshare ESP32-S3-Touch-LCD-1.28 gauge and Pixel 10 Pro. The user observed the gauge screen directly; the app observations below came from the Pixel UI. This record is for the development channel.
 
 ## dev.27 protected path

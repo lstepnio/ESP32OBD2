@@ -1,4 +1,9 @@
-# System architecture, draft 0.1
+# System architecture
+
+Updated 2026-10-06. Current implementation paths are in the [AI code map](../ai-context.md).
+The module table describes ownership boundaries; conceptual names are not promises
+that a separate source module or every planned action exists. Code clearing, live
+phone telemetry and simultaneous adapters remain planned/unqualified.
 
 ```mermaid
 flowchart LR

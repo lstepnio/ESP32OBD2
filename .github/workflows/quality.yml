@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
-      - run: pip install -r tools/requirements.txt
+      - run: pip install -r tools/requirements-test.txt
       - run: python tools/validate.py
       - run: node --check design/prototype/app.js
       - name: OBD capture policy, framing, and simulated adapter workflow

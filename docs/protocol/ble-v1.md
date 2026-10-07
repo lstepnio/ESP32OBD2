@@ -1,10 +1,22 @@
 # Companion BLE protocol, draft v1
 
-**Draft v1, not implemented.** Freeze only after the dual-link vertical slice. M1 exposes an experimental public capability characteristic at UUID `6f1a0001-9e3b-4f45-a714-69c9d23b6c00`. The integration branch adds bounded protocol 0 reading selection and display rotation controls described below. Firmware also has an [experimental owner transfer](experimental-firmware-transfers.md) on the same handles; Android has not exercised it. Full configuration and OTA capability flags remain disabled.
+The general v1 envelope remains a design. Current development firmware uses protocol
+0 and bounded owner-protected extensions. Android has exercised configuration and
+App/Wi-Fi updates; Jeep source-specific telemetry has recorded evidence. Public
+`configWrite` and `ota` remain disabled. [Current status](../current-state.md) owns
+physical qualification limits; [experimental commands](experimental-firmware-transfers.md)
+and [adapter bindings](adapter-bindings-v1.md) define the implemented bytes.
 
 ## Implemented protocol 0 quick selection
 
-The capability JSON advertises `quickSelect: true`, `savedStateRead: true`, `displayRotationWrite: true`, compact wire fields `hw: 1` and `cfg: 2`, `configWrite: false` and `ota: false`. The app maps `hw` to the hardware-capacity version and `cfg` to the restricted configuration version. Version 2 means at most eight ordered pages using numeric, arc, bar, trend, or dual renderers. The saved-state read reports only the built-in selection and rotation. The protected experimental path separately implements document readback, threshold writes, diagnostics and development OTA. It does not implement general v1 operations, arbitrary OBD requests, Mode 22, or source routing.
+The public JSON advertises protocol major 0, one qualified adapter link and bounded
+extensions `hw:1`, `cfg:3`, `ad:1` and optional `ds:3`/Wi-Fi features. Legacy
+quick-selection flags are offered only in the built-in state variant. The active
+configuration variant uses protected document/runtime reads instead. Config version 3
+adds schema-2 source-specific adapter bindings to bounded pages/renderers. Current
+runtime supports Engine Mode 01 and the exact captured Transmission Mode 22
+definitions; it does not offer arbitrary OBD requests or general v1 operations.
+
 
 The authenticated display-settings extension advertises `ds: 1` beginning with dev.28 after physical qualification of the protected path on dev.27. Dev.27 implements the path without advertising the public flag. The owner writes `35 01 00 00 00` to the protected control characteristic and reads the protected state characteristic. State version `0A` is eight bytes: version, rotation `0`..`3`, brightness `5`..`100`, reserved zero, and little-endian `u32` revision. To save, the owner writes opcode `36`, rotation, brightness, then the revision it just read. Firmware validates bounds, queues the command, saves a versioned NVS record, applies rotation and backlight, then advances the revision. The app reports success only after a read confirms the requested values and the next revision. Default values come from the active document or built-in gauge; a saved owner adjustment survives restart and document updates. The extension uses the existing protected characteristics and requires no GATT database change.
 
@@ -31,13 +43,17 @@ Rotation writes require the owner and the revision read immediately before the r
 
 This is a development slice requiring phone pairing and LCD review before a production security claim. The pairing UI, Android system dialog behavior, bond recovery, and simultaneous OBD-adapter compatibility need hardware evidence. Runtime Secure Connections-only policy may exclude adapters that require legacy pairing; verify actual adapters before relying on dual-link operation.
 
-The current development image has neither secure boot nor NVS encryption enabled. Bond and owner records therefore need a production storage-protection decision before distributing trusted update or vehicle-changing operations. Bounded reading selection and display rotation are the only enabled owner writes in this image. See [Espressif's ESP32-S3 security guide](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/security/security.html).
+The current development image has neither secure boot nor NVS encryption enabled. Bond and owner records therefore need a production storage-protection decision before distributing trusted update or vehicle-changing operations. Development owner writes include bounded configuration, display settings and signed
+updates; arbitrary vehicle writes and code clearing are not implemented. See [Espressif's ESP32-S3 security guide](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/security/security.html).
 
 The implementation follows the ESP-IDF NimBLE security settings and Android's system-managed bonding API. See [Espressif's security option reference](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/api-reference/kconfig.html) and [Android `BluetoothDevice.createBond`](https://developer.android.com/reference/android/bluetooth/BluetoothDevice#createBond()). Those references describe platform behavior; they do not prove this exact phone/gauge exchange until observed.
 
 In v1, firmware is peripheral to the Android central and central to the OBD adapter. One authorized phone session initially. A bonded device identity, not a changing BLE MAC address, identifies the gauge.
 
-## Discovery, ownership, and capabilities
+## Proposed v1 discovery, ownership, and capabilities
+
+The remaining v1 envelope/operation sections are design targets, not implemented
+command names. Use the protocol-0 documents above for current clients.
 
 Advertise the custom service and a short device name, without VIN or owner information. Physical long-press opens a 120-second association window. Use LE Secure Connections with authenticated passkey entry (fresh six digits displayed on gauge, entered in Android), encryption and bonding. Disable silent Just Works fallback for owner operations. A local confirm step identifies the physical gauge. Existing owner can revoke a phone; physical owner reset erases bonds and invalidates sessions. Define recovery without depending on a lost phone.
 
@@ -53,7 +69,7 @@ Service UUID: `6f1a0000-9e3b-4f45-a714-69c9d23b6c00`. Characteristics share the 
 
 Capabilities report protocol major/minor, schema versions, board/revision, firmware version/build, supported renderers/services/decoder operators, limits, actual maximum frame size, maxAdapterLinks, simultaneousAdapterLinks, OTA availability, bulkTransports, config revision and optional feature flags (DTC_CLEAR, ALERT_RULES). An omitted boolean capability means false. Standard Device Information can be exposed separately. App gates unavailable features instead of assuming a firmware version implies a capability.
 
-## Framing and message envelope
+## Proposed v1 framing and message envelope
 
 Works at ATT MTU 23; request larger MTU but use negotiated actual value. Every characteristic value starts with a 12-byte little-endian header: version u8=1; flags u8 (START=1, END=2, ACK=4, reserved bits zero); stream u16; message ID u32; fragment index u16; total fragments u16. Data length <= MTU-3-12. Require count 1..8192 and negotiated maximum; START only at index 0, END only at count-1. Bind assembly to connection generation + characteristic + stream + ID. Duplicate identical fragments are idempotent, conflicting duplicates abort; out-of-order fragments return expected index. Bound assembled command to 4096 bytes, metadata to 4096, and assembly timeout to 5 seconds. Bulk uses independently framed small chunks; never allocate an entire firmware image in RAM.
 
@@ -61,7 +77,7 @@ Control/event payloads are CBOR maps with string keys: `protocol=1`, `requestId`
 
 Serialize control requests, wait for semantic result beyond the ATT write acknowledgment. Indications acknowledge radio delivery, not durable execution. Retries reuse requestId and idempotency token; maintain a bounded replay journal, and expose operation state after reboot. Events include event sequence and boot/session ID so the app notices gaps and reconciles.
 
-## Operations
+## Proposed v1 operations
 
 | Group | Operations | Semantics |
 | --- | --- | --- |
@@ -74,7 +90,7 @@ Serialize control requests, wait for semantic result beyond the ATT write acknow
 | Alerts | `alerts.list`, `alerts.acknowledge` | Rule configuration is part of config transaction; acknowledgment does not modify threshold |
 | Update | `ota.begin`, `ota.status`, `ota.finish`, `ota.abort`, `ota.activate` | Manifest-bound stream; boot confirmation is separate |
 
-## Config transaction
+## Proposed v1 config transaction
 
 Android keeps a draft tied to `baseRevision`. Begin supplies total JSON UTF-8 length, SHA-256 and schema version. Device rejects >64 KiB or incompatible version before allocation. Chunks use accepted offset and bounded credits. Commit is allowed only after complete hash, schema, semantic references, poll budget, alert units, renderer limits and device capability validation. Stage a new generation, read it back, atomically switch active generation, then emit `APPLIED` with new revision and content hash. A repeat token returns the same result. Revision mismatch returns `CONFLICT` with active revision; app offers reload/rebase, never silent overwrite. Disconnect before commit leaves active config intact; stage expires after 10 minutes. After ambiguous commit, query revision/hash.
 
@@ -95,11 +111,11 @@ The app's full Apply state is explicit:
 
 The app may resume staging only when transfer ID, owner, schema, length, hash, and base revision all match the firmware's current staging record. Any mismatch starts a new explicit transaction after the old stage is aborted or expires. This avoids treating a partial upload as a complete configuration.
 
-## Bulk flow control
+## Proposed v1 bulk flow control
 
 Negotiate a 1 KiB initial chunk ceiling and a credit window of 1..8 chunks. An accepted chunk reports transfer ID, next contiguous offset and rolling progress. Sender stops when credits are exhausted; do not confuse Android write-without-response return with device flash acceptance. Retransmit from device's accepted offset, validate chunk CRC32 and complete SHA-256; CRC is corruption detection, not authentication. On disconnect resume only via the authenticated owner and matching artifact ID/hash. After device reboot the v1 OTA design restarts transfer, as documented in the OTA spec.
 
-## Error vocabulary
+## Proposed v1 error vocabulary
 
 `UNAUTHORIZED`, `UNSUPPORTED_VERSION`, `UNSUPPORTED_CAPABILITY`, `INVALID_SCHEMA`, `INVALID_REFERENCE`, `OUT_OF_RANGE`, `CONFLICT`, `BUSY`, `RESOURCE_LIMIT`, `OFFSET_MISMATCH`, `HASH_MISMATCH`, `SIGNATURE_INVALID`, `WRONG_BOARD`, `TIMEOUT`, `ADAPTER_LOST`, `CANCELLED`, `RESULT_UNKNOWN`. Include field paths and retryability where applicable. Keep transport failure separate from vehicle rejection. Rate-limit malformed and unauthorized requests; bounded logs omit credentials and sensitive identifiers.
 

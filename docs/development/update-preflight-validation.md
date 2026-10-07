@@ -1,5 +1,7 @@
 # Pixel update preflight, 2026-09-25
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 ## Observed on hardware
 
 - Built the Android app and ESP32 firmware from `feat/owned-gauge-control`, installed the APK on the paired Pixel 10 Pro, and flashed the application image to the gauge at `0x60000`. Both builds succeeded; the flash tool verified the written image hash.

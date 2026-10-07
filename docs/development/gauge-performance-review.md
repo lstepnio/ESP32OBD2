@@ -1,5 +1,7 @@
 # Gauge touch and firmware performance review
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 ## Scope and observations
 
 The reported delay occurs with the phone app closed. The USB console identified the bench gauge as `0.2.0-dev.24`, ELF prefix `24d277bce`, with configuration revision 17, two pages and no alerts. This is an identity observation, not a measured touch latency.

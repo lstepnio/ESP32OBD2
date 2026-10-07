@@ -1,5 +1,7 @@
 # Wi-Fi transport security validation, 2026-09-26
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 This check used the paired Pixel 10 Pro and the Waveshare gauge running confirmed `0.2.0-dev.14`. The phone first opened the temporary Wi-Fi maintenance network through the owner-authenticated BLE control service. The diagnostic did not issue a configuration or firmware mutation command and did not display or log the session key, network password, or complete session descriptor.
 
 Within one short-lived session, Android performed these probes:

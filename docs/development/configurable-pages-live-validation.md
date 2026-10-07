@@ -1,5 +1,7 @@
 # Configurable pages live validation
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Date: 2026-09-27
 
 ## Hardware and software

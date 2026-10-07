@@ -1,60 +1,76 @@
 # eGauge
 
-A standalone round OBD-II gauge and native Android companion for vehicle telemetry, flexible PID discovery, dashboard configuration, and recoverable firmware updates.
+A standalone round OBD-II gauge and native Android companion for vehicle readings,
+saved dashboard pages, display settings and signed development firmware updates.
 
-**Status: working gauge and Android foundations with authenticated numeric configuration and signed development updates observed.** The Waveshare display and touch work on the connected device. A paired Pixel 10 Pro sent a restricted RPM, coolant, and speed configuration twice, confirmed active revisions and hashes after each reboot, and the user confirmed numeric page navigation on the gauge. The Pixel installed signed development images over BLE and authenticated private Wi-Fi, including GitHub-hosted dev.12 with post-reboot identity confirmation. Catalog discovery verifies all bounded GitHub release candidates, rejects generation rollback or conflicting immutable content, and does not trust API ordering. An isolated unconfirmed trial was marked aborted; the bootloader loaded the previous valid image and Android reported the result. The Android app offers local drafts, a simulated design preview, an offline PID decoder, and read-only protected diagnostics. Live vehicle communication, adapter coexistence, DTC behavior on a vehicle, alert transitions, and physical power-loss recovery remain unverified. General configuration and update capability flags remain disabled.
+The gauge runs independently after setup. The app configures it over owner-protected
+BLE and transfers firmware over authenticated private Wi-Fi. Normal use needs no account.
+
+## Current status
+
+Working development hardware: Waveshare ESP32-S3-Touch-LCD-1.28 and Pixel companion.
+Jeep testing recorded live engine RPM matching the dash, loss/recovery after adapter
+removal, and a combined transmission Gear + Temperature page. Full transmission
+fault lists are integrated and tested offline; their new App/gauge path still needs
+physical qualification. Simultaneous adapters, additional drivetrain signals and
+production releases remain open. See [current implementation and evidence](docs/current-state.md).
+
+## App examples
+
+These checked-in native UI fixtures use example readings. They are a recorded visual
+baseline, not live vehicle data or a new hardware check. The round preview illustrates
+a saved gauge layout; current behavior is described in the status summary.
+
+<p>
+  <img src="android/app/src/androidTest/assets/goldens/gauge-dark-390.png" width="270" alt="Simulated Android gauge preview">
+  <img src="android/app/src/androidTest/assets/goldens/layouts-dark-390.png" width="270" alt="Example Android gauge layout choices">
+</p>
 
 ## Start here
 
-- [Interactive design](design/prototype/index.html): Android companion concept and 240 × 240 gauge preview. All readings, discovery, configuration transfers, and updates are simulated.
-- [Product requirements](docs/requirements.md): everyday driving, off-road/thermal monitoring, performance, and diagnostics receive equal priority.
-- [Architecture](docs/architecture/system.md), [Android design](android/README.md), and [decisions](docs/architecture/decisions.md).
-- [PID discovery and custom definitions](docs/protocol/pid-discovery.md), [BLE contract](docs/protocol/ble-v1.md), and [firmware updates](docs/protocol/firmware-update.md).
-- [Vehicle knowledge](docs/vehicles/README.md): model-specific research and validation status, starting with the Jeep Wrangler JK.
-- [CEL/DTC diagnostics and threshold alerts](docs/protocol/diagnostics-and-alerts.md).
-- [Visual and interaction specification](docs/design/design-system.md).
-- [Android core and UX execution plan](docs/development/android-core-ux-review-plan.md): usability, reliability, optional dual adapters, and GitHub-hosted firmware updates for supported boards.
-- [Foundation validation report](docs/development/validation-report.md).
-- [Quality and release gates](docs/development/quality.md), [implementation roadmap](docs/roadmap.md), and [development setup](docs/development/setup.md).
-- [Current hardware/firmware evidence](docs/current-state.md) and [research sources](docs/sources.md).
-- [Numeric configuration transfer evidence](docs/development/numeric-config-transfer-validation.md).
-- [Signed development update evidence](docs/development/update-live-validation.md) and [changed-build recovery check](docs/development/update-recovery-validation.md).
+- **AI/project work:** [AGENTS.md](AGENTS.md), [context and code map](docs/ai-context.md).
+- **Build and test:** [development setup](docs/development/setup.md), [quality gates](docs/development/quality.md).
+- **Resume Jeep testing:** [saved TCM session](docs/development/tcm-session-resume.md).
+- **Understand the system:** [architecture](docs/architecture/system.md), [Android](android/README.md), [firmware](firmware/gauge/README.md).
+- **Wire behavior:** [BLE](docs/protocol/ble-v1.md), [adapter bindings](docs/protocol/adapter-bindings-v1.md), [diagnostics](docs/protocol/diagnostics-and-alerts.md), [updates](docs/protocol/firmware-update.md).
+- **Product and remaining work:** [requirements](docs/requirements.md), [roadmap](docs/roadmap.md), [design system](docs/design/design-system.md).
+- **All documentation and historical evidence:** [documentation index](docs/README.md).
 
-## Preview and validate
-
-```sh
-python3 -m http.server 8765 --bind 127.0.0.1
-# Open http://127.0.0.1:8765/design/prototype/
-```
+## Quick offline checks
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install -r tools/requirements.txt
+.venv/bin/pip install -r tools/requirements-test.txt
 .venv/bin/python tools/validate.py
+.venv/bin/python -m unittest discover -s tools/tests -p 'test_obd*.py'
 ```
+
+Android uses JDK 17/SDK 36. Firmware uses ESP-IDF 5.4.1. Exact build and hardware
+session instructions are in [setup](docs/development/setup.md). Offline tests use
+fixtures and mocked adapters; they do not connect to a vehicle.
 
 ## Repository map
 
-| Path | Purpose |
+| Path | Responsibility |
 | --- | --- |
-| `firmware/gauge/` | ESP-IDF gauge firmware with LVGL display, BLE owner control, numeric configuration runtime, and experimental signed update receiver |
-| `android/` | Native Jetpack Compose app with local drafts, offline examples, paired controls, and restricted numeric configuration sender |
-| `contracts/` | Draft JSON Schemas and examples, versioned alongside documentation |
-| `design/` | Shared visual tokens and a dependency-free interaction prototype |
-| `docs/` | Requirements, decisions, protocols, quality gates, sources, and roadmap |
-| `docs/vehicles/` | Vehicle-specific diagnostic knowledge and validation gaps |
-| `tools/` | Documentation, schema, and semantic validation |
+| `firmware/gauge/` | ESP-IDF, LVGL display, adapter worker, owner BLE, configuration and signed update state |
+| `android/` | Kotlin/Compose app, local profiles, exact configuration review and protected transport |
+| `contracts/` | Versioned schemas and examples; runtime support is narrower than design contracts |
+| `design/` | Shared visual tokens and explicitly simulated browser prototype |
+| `docs/` | Current status, runtime maps, protocols, setup, evidence and remaining work |
+| `tools/` | Validation, bounded vehicle capture, offline replay and research utilities |
+| `data/vehicle-definitions/` | Research archive; not executable or qualified vehicle support |
 
-The browser prototype is a review tool. The Android app uses Jetpack Compose and the gauge UI uses LVGL. The gauge operates without a phone after configuration. No account or cloud connection is needed for normal operation.
+[Vehicle research](docs/vehicles/README.md) and the [catalog scope/license record](docs/vehicles/catalog-research.md)
+explain the imported reference data. Broad schema/catalog coverage does not imply
+compatible hardware or permission to execute vehicle-changing commands.
 
 ## Contribution and licensing
 
-Read [CONTRIBUTING](CONTRIBUTING.md) before changing contracts or behavior. Imported firmware retains its [MIT license](firmware/gauge/LICENSE); fonts retain the [SIL Open Font License](third_party/NotoSans-OFL.txt). See [third-party notices](THIRD_PARTY_NOTICES.md). A license for newly authored project material has not yet been selected; upstream licensing does not automatically license the entire repository.
+Read [CONTRIBUTING.md](CONTRIBUTING.md). Commit tested changes and push the feature
+branch after each session; review before merging into `main`. Firmware releases
+are separate authorized actions after their required hardware checks.
 
-## Separate ECM and TCM adapters
-
-The design includes source-specific adapter selection, connection state, discovery, PID binding and alerts for swapped vehicles. [Dual-adapter feasibility and fallback TODOs](docs/architecture/multi-adapter.md). Simultaneous operation remains unverified.
-
-## Hardware-aware transport extension
-
-BLE provides association/control and a universal update path; Wi-Fi is designed as a negotiated faster bulk transport sharing the same operation state, trust checks and recovery semantics. Two-adapter radio coexistence, board sensors, PSRAM, USB and power management are covered in the [hardware and transport strategy](docs/architecture/hardware-and-transports.md). Preferred production update transport remains subject to WIFI-001/RADIO-001 measurements.
+Imported firmware retains its [MIT license](firmware/gauge/LICENSE); fonts retain
+[SIL OFL](third_party/NotoSans-OFL.txt). See [third-party notices](THIRD_PARTY_NOTICES.md).
+A project-wide license for new material has not been selected.

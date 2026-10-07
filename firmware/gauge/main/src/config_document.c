@@ -59,8 +59,10 @@ static bool number(const cJSON *item, double low, double high)
 static bool string(const cJSON *item, size_t low, size_t high)
 {
     if (!cJSON_IsString(item) || item->valuestring == NULL) return false;
-    size_t length = strnlen(item->valuestring, high + 1);
-    return length >= low && length <= high;
+    /* C11 portable bounded length: reject a non-terminated maximum prefix. */
+    size_t length = 0;
+    while (length < high && item->valuestring[length] != '\0') ++length;
+    return item->valuestring[length] == '\0' && length >= low;
 }
 
 static bool identifier(const cJSON *item, size_t high)

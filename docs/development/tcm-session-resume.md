@@ -3,35 +3,25 @@
 Saved 2026-10-06, America/Denver. The owner deferred the next vehicle session
 until another day. Do not start a live capture until the owner confirms readiness.
 
-## Workspace and completed preparation
+## Ready to resume
 
-- Branch: `codex/egauge-display-update`.
-- Managed worktree: `/Users/lukasz.stepniowski/.codex/worktrees/egauge-display-update/ESP32OBD2`.
-- Implementation commit: `8468855`, combined TCM capture and offline reports.
-- 68 host OBD tests passed. Saved Jeep gear/temperature/fault replies replayed
-  successfully. Documentation validation passed. No new live capture was made.
-- [Research, commands and full test plan](tcm-values-research-plan.md).
-- Current gauge firmware is dev.37-tcm, installed previously through App/Wi-Fi.
-  Owner confirmed combined Gear + Temperature display and both clearing/returning
-  on adapter removal/reconnection. Exact values were not restated for that check.
-- This next Mac capture requires no firmware update or Android change.
-
-## Offline preparation completed after saving
-
-- Full fault lists and category freshness implemented in firmware and Android.
-- Verification passed: 63 Android tests, 70 host tests, C parser/state sanitizers,
-  Android lint, ESP-IDF build and contract/document validation.
-- Exact prepared files are retained privately under `artifacts/offline-prepared/dev.38-faults/`,
-  with filenames, sizes and SHA-256 hashes in `manifest.json`. They are uninstalled.
-- Protected command 39 / packet version 15 adds source, ECU, configuration revision,
-  connection session and bounded full lists. Old firmware has an Engine-only partial fallback.
-- No device or phone updated, and no BLE adapter connection made during this work.
-- First product check: install the Android build, update dev.38-faults through
-  App/Wi-Fi, select/send the Transmission profile and allow initial diagnostic polls.
-  Check all categories on Pixel, then unplug/reconnect the adapter and check that
-  old evidence is labelled last checked and new-session readings return.
-- The previous physically verified dev.37 combined Gear + Temperature page is the
-  hardware baseline. Public capability flags remain disabled.
+- Start from the latest reviewed `main` or its continuing feature branch; verify Git
+  status/upstream before choosing a worktree. Old absolute checkout paths are not
+  instructions to edit another branch.
+- Last recorded physical gauge is dev.37-tcm with configuration revision 28. The
+  owner confirmed the combined page worked and both readings cleared/returned.
+- Full fault snapshots are implemented and verified offline. The maintenance review
+  also corrects public adapter capacity and CI test dependencies. Current source
+  firmware version is in `firmware/gauge/version.txt`.
+- Older prepared dev.38-faults files under private artifacts are historical snapshots
+  tied to their manifest commit. Build/package the current reviewed revision for the
+  next install, then record exact image/hash. Do not silently reuse an older candidate.
+- First product check: install the current Android build and firmware through
+  App/Wi-Fi, select/send the Transmission profile and allow initial category polls.
+  Check all categories on Pixel, then unplug/reconnect the adapter. Old evidence must
+  become last checked; new-session readings must return with Gear + Temperature.
+- The separate next Mac capture needs no firmware update. [Research and fixed reads](tcm-values-research-plan.md).
+- No new physical check was performed by the offline maintenance work.
 
 ## Next session starts here
 

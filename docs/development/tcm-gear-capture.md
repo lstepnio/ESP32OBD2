@@ -1,5 +1,7 @@
 # JSS TCM gear capture
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Prepared 2026-10-06 America/Denver. Target: the owner's JSS/PCS 8HP70,
 calibration 68274867AE, separate TCM diagnostic connector at 7E1/7E9.
 Temperature already displays experimentally; selected gear remains unimplemented.
