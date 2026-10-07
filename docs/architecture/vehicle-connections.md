@@ -75,3 +75,13 @@ rather than discarding its other source. Public capacity remains one until the
 [physical recovery matrix](../development/dual-adapter-recovery.md) passes.
 
 Action drafts and legacy migration follow [ADR-013](vehicle-actions.md). Parent and child retain separate bindings; a combined gauge setup rejects ambiguous triggers.
+
+## Recovering a missing local setup
+
+Expert “Use saved gauge setup” can reconstruct a missing single-source profile
+from authenticated, confirmed running gauge readback. It validates supported pages,
+source, adapter binding and storage bounds before saving; existing identities are
+never overwritten by recovery. A legacy TCM setup keeps its gauge identity and
+remains separate until the owner explicitly attaches it to an ECM parent with a
+different adapter. Recovery does not send configuration or infer a vehicle parent.
+Combined-source import remains blocked rather than dropping either source.

@@ -12,7 +12,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
   iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
 - Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
   verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.42`, configuration revision 31.
+- Latest recorded physical gauge: `0.2.0-dev.42`, configuration revision 32.
   Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
 - The owner has one Vgate, swapped between separate ECM and TCM connectors on a
   2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
@@ -30,7 +30,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 | Dashboards/alerts | Numeric, Arc, Bar, Trend and Dual renderers; bounded page/alert configuration, stronger palette and enlarged arc; host logic tests | Daylight/color review, alert transitions and hidden-page behavior on real vehicle |
 | Configuration | Atomic slots, exact review/projection, revision/hash conflict checks, trial/fallback and stored/running identity | Physical interruption matrix and all supported layouts/alerts on hardware |
 | Updates | Signed development catalog/bundle verification, owner BLE bootstrap, authenticated private Wi-Fi transfer, A/B trial confirmation and recovery journal; App/Wi-Fi installs recorded | Hardware power-loss/expiry matrix, production trust and performance measurements |
-| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 7; remembered gauges retain independent vehicle/source contexts. Source dev.42 adds independent ECM/TCM workers and the debug app combined send/status path | Not installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
+| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 7; remembered gauges retain independent vehicle/source contexts. Source dev.42 adds independent ECM/TCM workers and the debug app combined send/status path | Installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
 
 ## Public and experimental boundaries
 
@@ -141,3 +141,17 @@ Initial post-reboot confirmation timed out, then protected reconciliation succee
 The phone lacks the gauge's matching saved TCM profile, so no shortcut configuration
 was sent. Recover that profile before the gesture check. Owner screen/swipe
 confirmation remains pending. See [rollout evidence](development/profile-actions-rollout.md).
+
+## Single-source profile recovery
+
+App dev.36 adds Expert “Use saved gauge setup” for a gauge profile missing from
+local storage, with confirmed owner readback, supported source/pages/binding checks,
+capacity bounds and no existing-profile overwrite. The Pixel recovered its TCM
+profile while preserving all three existing profiles. The normal Car Actions and
+review/send flow installed the three-upward-swipe TRANSMISSION shortcut. Protected
+readback confirmed revision 32 and exact expected running digest with trial cleared;
+only the action and base revision changed. The owner confirmed normal display and
+horizontal swipes on dev.42. Upward gesture observation remains pending. The initial
+configuration restart confirmation also timed out and later reconciliation passed;
+keep this recovery UX follow-up open. See the rollout evidence above. Recovery unit,
+build/lint and instrumentation compilation passed (92 Android unit tests).

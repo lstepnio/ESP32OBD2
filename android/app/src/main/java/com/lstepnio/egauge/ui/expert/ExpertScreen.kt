@@ -38,7 +38,7 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions) {
             SettingsRow("Check vehicle faults", enabled = state.canRead, onClick = actions.readDiagnostics)
             SettingsRow("Read hardware capacity", enabled = state.canReadHardware, onClick = actions.readHardware)
             SettingsRow("Check installed firmware", enabled = state.canRead, onClick = actions.readFirmware)
-            if (state.canAdoptGaugeSettings) SettingsRow("Use gauge settings", onClick = actions.adoptGaugeSettings)
+            if (state.canAdoptGaugeSettings) SettingsRow("Use saved gauge setup", enabled = state.canRead, onClick = actions.adoptGaugeSettings)
             if (BuildConfig.DEBUG && state.vehicleName.isNotBlank()) {
                 SectionTitle("Vehicle connections")
                 Text(state.vehicleName, style = MaterialTheme.typography.titleMedium)

@@ -45,7 +45,7 @@ sources. Then review/send the shortcut through the normal atomic path.
 
 ## Remaining checks
 
-- Owner confirmation of normal physical display and horizontal swipes.
+- Owner confirmed normal physical display and horizontal swipes; upward gesture outcome remains pending.
 - Physical upward-gesture shortcut, cooldown, stationary pairing hold, rotation,
   automatic cycling and persistence checks after profile recovery.
 - Investigate initial update confirmation timeout using retained transfer/boot evidence.
@@ -54,3 +54,36 @@ sources. Then review/send the shortcut through the normal atomic path.
 
 Private device identifiers, readback, screenshots and logs remain ignored under
 `artifacts/profile-actions-rollout/`. Phone wake settings were restored after the session.
+
+## Profile recovery and shortcut configuration
+
+The owner confirmed a normal physical page and working horizontal swipes after
+installation. App `0.2.0-dev.36` adds the Expert “Use saved gauge setup” recovery
+path for a missing single-source profile. It requires authenticated, confirmed
+running configuration before adoption; checks the source, supported pages, adapter
+binding, profile identity and local capacity; refuses existing identity overwrite
+or combined-source import. Local storage is validated and committed before selection.
+It retains the original gauge profile identity and restores a standalone legacy TCM
+profile without guessing an ECM parent or introducing duplicate simultaneous bindings.
+The existing migration path can attach it once distinct adapter bindings are available.
+
+On the physical Pixel, recovery added one TCM profile; all three previous profiles
+were byte-for-byte unchanged. Car > Actions saved the TRANSMISSION shortcut with
+three upward swipes within five seconds. The normal review/send path transferred it.
+The initial restart confirmation again ended unconfirmed. Subsequent protected
+readback confirmed running revision 32, matching digest and cleared trial; a second
+read-only opening/resume test passed in 8.102 seconds and asserted exact dev.42
+firmware identity and OTA health 2. The only changed document fields versus revision
+31 were `actions` and `baseRevision`. Existing pages, definitions, adapter bindings,
+alerts and document settings were retained. Phone display settings were also unchanged.
+
+Revision 32 digest:
+`bca0e1900db7cd26c0488dd3f1945d5ca4725b41b13b6ee656ffea1860671722`.
+Physical upward gesture outcome is pending owner observation. Successful config
+readback establishes the saved/running binding, not touch recognition.
+
+Recovery verification: 92 Android unit tests (including three new recovery tests),
+debug APK build, Android lint and instrumentation APK build passed. The new tests
+cover supported recovery and storage roundtrip, preservation of engine profiles,
+existing identity/capacity rejection, unknown reading, missing binding and dual-source
+rejection. No new BLE opcode, firmware build or release was needed for this App change.

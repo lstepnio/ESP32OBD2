@@ -654,7 +654,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         get() = activeDocument?.let { GaugeDraftComparison.from(it, profileCollection.activeId, transmittedDraft, profileCollection.active.adapterFor(draft.source)) }
     val canAdoptGaugeDraft: Boolean
         get() = activeDocument?.let {
-            GaugeDraftComparison.savedDraft(it, profileCollection.activeId) != null
+            GaugeDraftComparison.savedDraft(it, profileCollection.activeId) != null ||
+                runCatching { GaugeProfileRecovery.recover(profileCollection, it) }.isSuccess
         } == true
     var sentDraft by mutableStateOf<Draft?>(null)
         private set
@@ -1079,7 +1080,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         documentReadFailed = false
     }
     fun adoptGaugeDraft() {
+        if (modifyingSetupBlocked || profileError != null || ownerAccess != OwnerAccess.AUTHENTICATED) return
         val document = activeDocument ?: return
+        if (!com.lstepnio.egauge.ui.state.isConfirmedSetup(document.revision, document.sha256, runtimeIdentity)) {
+            documentMessage = "Wait for the gauge to confirm its saved setup before recovering it."
+            return
+        }
+        if (profileCollection.profiles.none { it.id == document.vehicleProfileId }) {
+            val recovered = runCatching { GaugeProfileRecovery.recover(profileCollection, document) }
+                .getOrElse { documentMessage = it.message; documentReadFailed = true; return }
+            if (!profileStore.save(recovered)) { profileError = "Could not save the recovered car"; return }
+            clearVehicleEvidence()
+            profileCollection = recovered
+            draft = recovered.active.draft
+            editingPageIndex = 0
+            rememberVehicleContext()
+            recognizeRunningPhoneSettings()
+            documentMessage = "Saved gauge setup recovered on this phone. The gauge was not changed."
+            documentReadFailed = false
+            return
+        }
         require(org.json.JSONObject(document.json).getJSONArray("sources").length() == 1) {
             "Both-adapter setup is already read automatically. Edit its engine and transmission drafts separately."
         }
