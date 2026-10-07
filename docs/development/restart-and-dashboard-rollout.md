@@ -150,3 +150,42 @@ confirmation, rather than reinstalling the already running image. Publication,
 signed GitHub asset verification and physical installation are separate gates.
 Installed firmware remains dev.42 until exact post-update identity is confirmed.
 Public `configWrite`, `ota` and adapter-capacity claims remain unchanged.
+
+
+## Signed dev.43 App/Wi-Fi qualification
+
+The owner explicitly authorized publication. Protected release workflow
+[37643964201](https://github.com/lstepnio/ESP32OBD2/actions/runs/37643964201)
+succeeded from `a8f1f104f88a9290d74b52cfd4cc892089f6496a`; exact-commit quality
+checks passed beforehand. Signed development prerelease
+[dev-v0.2.0-dev.43](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.43)
+uses catalog generation **25**. Downloaded catalog and image signatures verified
+against the App-pinned public key, with board/layout/protocol and descriptor checks.
+The hosted image is 1,514,144 bytes:
+
+- Image SHA-256: `b4be625baa7013698e5d5c4847d2cc9e45b77dadfa05299a3f41dc95ce0ffec3`
+- ELF SHA-256: `36f6eeb3afcc6669d14b0982ac6d0ed6cfc38fb9c8c45131ed91ce7d821cbb8f`
+- Bundle SHA-256: `747782cca1afa303230ee21110311c70539e83e1c2765d8cdf0d6c9c0d819b88`
+
+Installed App dev.39 discovered/downloaded the signed release through Settings >
+Check updates > Download and install. It joined the gauge Wi-Fi network and showed
+**Update installed** in the same warm App after restart, before any reopening or
+manual installed-version check. This qualifies the formerly pending fresh-image
+App/Wi-Fi confirmation path in this session. No USB flash or second update was used.
+
+Observed Android milestones: authenticated preflight 1.094 s, gauge Wi-Fi startup
+2.856 s cumulative, Android Wi-Fi availability 8.833 s, socket connect 0.172 s,
+first Wi-Fi response 11.959 s cumulative, flash preparation 2.265 s. Full payload
+and warm confirmation durations were not precisely captured; these milestones do
+not establish general update performance or eliminate interruption risks.
+
+Read-only opening/resume tests passed before (12.610 s) and after (12.583 s).
+Post-update protected identity matched exact hosted dev.43 ELF and OTA health **2**.
+Healthy running configuration remained revision **42** with digest
+`69b3f7171cc6f97ae3f840e12b73056fdca369df3d0d11c5c4b880da12497ba9`.
+Full active document, saved profiles, gauge assignments and presentation preferences
+were byte-for-byte unchanged. Display settings remained 100% brightness, 270°,
+Imperial, cycling Off. The update recovery journal was empty. Bluetooth toggling,
+picker cancellation and power-loss/interruption were not exercised by these tests.
+Physical display/swipe observation is pending separately. Phone wake preferences
+were restored. Public OTA/config-write and radio-capacity claims remain unchanged.

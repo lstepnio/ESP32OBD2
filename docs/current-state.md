@@ -12,7 +12,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
   iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
 - Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
   verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.42`, configuration revision 42, protected running confirmation and cleared trial.
+- Latest recorded physical gauge: `0.2.0-dev.43`, configuration revision 42, protected running confirmation and cleared trial.
   Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
 - The owner has one Vgate, swapped between separate ECM and TCM connectors on a
   2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
@@ -213,6 +213,23 @@ wake preferences were restored. 101 Android unit tests, debug/test builds and li
 passed. Earlier timeout-only repair did not cover this cache-invalidation case;
 see the [focused record](development/restart-and-dashboard-rollout.md). Owner confirmed five-second physical cycling and the App restored Off;
 the owner also confirmed cooldown blocks an immediate repeat and permits a later
-jump, with responsive navigation/touch after restart. Fresh firmware OTA with this App,
-physical cycling while a gesture is pending, and two-adapter hardware qualification
-remain pending. Firmware remains signed dev.42.
+jump, with responsive navigation/touch after restart. Fresh firmware OTA with this App passed in the signed dev.43 follow-up below.
+Physical cycling while a gesture is pending and two-adapter hardware qualification
+remain pending.
+
+
+## Fresh App/Wi-Fi confirmation qualification
+
+Signed dev.43 from `a8f1f10`, catalog generation 25, was published with explicit
+owner authorization and independently verified against the pinned trust key.
+App dev.39 installed it through Settings and private gauge Wi-Fi; the same warm
+App showed Update installed after authenticated post-reboot confirmation. No USB
+flash, reopening or manual version check was needed to obtain that success.
+
+The subsequent protected opening/resume test passed in 12.583 seconds, asserting
+the exact hosted dev.43 ELF hash and healthy OTA state 2. Configuration revision 42,
+full setup, profiles, gauge assignments and display settings were unchanged; update
+recovery journal cleared. Settings remain 100%, 270°, Imperial, cycling Off. Phone
+wake preferences restored. Physical post-update display/swipe check is pending
+separately. See the [signed rollout and measured timing limits](development/restart-and-dashboard-rollout.md).
+Public capability flags and hardware radio qualification remain unchanged.
