@@ -106,6 +106,15 @@ class AutomaticConnectionJourneyTest {
         assertEquals(originalProfiles, model.profileCollection.profiles)
         assertFalse(model.configurationNeedsReview)
         assertEquals(OperationStage.IDLE, model.operation.stage)
+        val hardwareChain = InstrumentationRegistry.getArguments().getString("checkHardwareReadChain") == "true"
+        if (hardwareChain) {
+            compose.runOnUiThread { model.readHardwareCapacity() }
+            compose.waitUntil(30_000) { model.operation.title == "Hardware checked" && model.operation.terminal }
+            assertNotNull(model.hardwareSnapshot)
+            compose.runOnUiThread { model.readRunningFirmware() }
+            compose.waitUntil(30_000) { model.operation.title == "Firmware checked" && model.operation.terminal }
+            assertEquals(verifiedBoot, model.bootIdentity)
+        }
         File(output, "verified-active.json").writeText(requireNotNull(model.activeDocument).json)
         File(output, "result.txt").writeText("Physical automatic connection validation\n" +
             "Opening to protected confirmation: $elapsed ms\n" +
@@ -113,6 +122,7 @@ class AutomaticConnectionJourneyTest {
             "Resume: protected confirmation and settings refreshed without a tap in $resumeElapsed ms\n" +
             "Bluetooth off/on recovery: $toggle; recovery duration: $bluetoothRecoveryElapsed ms\n" +
             "Add-gauge cancellation recovery: $picker\n" +
+            "Hardware snapshot followed by a fresh protected firmware read: $hardwareChain\n" +
             "Gauge identity unchanged; saved and running revision ${original.revision} retained\n" +
             "Configuration digest unchanged: ${original.sha256}\n" +
             "Settings populated and refreshed automatically; brightness, rotation, units and cycle unchanged\n" +

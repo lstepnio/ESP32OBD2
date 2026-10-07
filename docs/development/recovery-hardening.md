@@ -1,6 +1,6 @@
 # Recovery audit and qualification
 
-Updated 2026-10-07. Source candidate firmware dev.44 and Android dev.40.
+Updated 2026-10-07. Installed signed firmware dev.44 and Android dev.41; physical evidence below.
 Installed firmware and physical results belong in [current state](../current-state.md).
 The standing implementation policy is [interaction recovery](../architecture/interaction-recovery.md).
 
@@ -138,3 +138,15 @@ commit. No published version or asset was changed.
 - Owner-authorized protected release run 37657094780 published [dev.44](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.44), catalog generation 26, targeting that exact commit. The earlier cancelled run created no release.
 - Independently downloaded catalog/bundle passed both signatures against the App-pinned public key, compatibility, descriptor, size and hash checks. Image: 1,516,720 bytes; SHA-256 `04f943bc97a9cf8917c0b93e16faf1fd8f35fcf68fc97fc4226148155e7583d9`; ELF SHA-256 `325bc9bc2c1606ddb0947138e8214ecbd7bce1d1babec467c4a27f98c4d7a6ce`.
 - Publication does not establish installation or physical recovery. Pixel remains disconnected; installed App dev.39 and signed firmware dev.43 are unchanged. App dev.40 installation, App/Wi-Fi dev.44 transfer, exact running readback and physical interruption tests remain pending. Public capabilities remain unchanged.
+
+
+### Physical Pixel and signed dev.44 qualification, 2026-10-07
+
+- Installed App dev.40 with data-preserving replacement. Read-only test on signed dev.43 passed: opening 9.613 s, resume 3.238 s, Bluetooth off/on recovery 10.645 s and Add-gauge cancellation recovery. Configuration revision 42, full digest, profiles and settings retained.
+- First update attempt stopped before firmware transfer on a successful-GATT owner read whose frame shape was rejected; the App incorrectly suggested pairing. The exact rejected frame was not logged, so its identity is not established. Inspection found the supported 56-byte version-10 hardware snapshot missing from the owner-read shape gate.
+- Checked the gauge and explicitly retried the signed candidate through normal App/Wi-Fi. Android network selection took 9.882 s; first Wi-Fi response arrived 12.794 s after preflight began; flash preparation took 2.251 s. Warm App showed Update installed after restart. No USB flash or reset was used.
+- Protected post-update read confirmed signed dev.44 ELF `325bc9bc2c1606ddb0947138e8214ecbd7bce1d1babec467c4a27f98c4d7a6ce`, OTA health 2 and unchanged revision 42/digest. Opening 7.222 s, resume 2.771 s, Bluetooth off/on recovery 10.973 s and Add-gauge cancellation recovery passed.
+- Owner separately confirmed a normal physical gauge page and working swipes after dev.44 installation.
+- App dev.41 adds the missing hardware frame shape to the shared owner-read gate and logs GATT status, frame version and length for rejected reads without dumping payloads. Known/unknown/truncated frame fixtures passed; 108 JVM tests, debug/test builds, lint and repository validation passed. Protocol bytes unchanged.
+- Installed App dev.41 and reran protected opening/resume plus hardware snapshot followed by a new protected firmware read: passed in 13.690 s overall, opening 6.299 s and resume 2.790 s. Exact dev.44/health/configuration/settings retained. Preferences for presentation, profiles and gauge associations matched the before-session copies byte for byte. Phone wake settings restored.
+- These checks do not qualify interrupted OTA reservation/network cleanup, power removal, pre-first-frame abandonment or simultaneous ECM/TCM. Those physical gates remain pending. The owner has one adapter.

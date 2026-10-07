@@ -15,6 +15,25 @@ object GaugeProtocolCodec {
     const val HARDWARE_USB_UART = 1L shl 9
     private const val HARDWARE_KNOWN_MASK = (1L shl 10) - 1
 
+    /** Shape gate for a successful encrypted owner read; payload decoding stays with each reader. */
+    fun isProtectedStatusFrame(bytes: ByteArray): Boolean = when (bytes.firstOrNull()?.toInt()?.and(255)) {
+        2 -> bytes.size == 8
+        3 -> bytes.size == 64
+        4 -> bytes.size == 56
+        5 -> bytes.size == 32
+        6 -> bytes.size == 60
+        7 -> bytes.size in 52..180
+        8 -> bytes.size == 44
+        9 -> bytes.size == 112
+        10 -> bytes.size == 8 || bytes.size == 56
+        11 -> bytes.size == 8
+        12 -> bytes.size == 10
+        13 -> bytes.size == 140
+        14 -> bytes.size == 160
+        15 -> bytes.size == 248
+        else -> false
+    }
+
     fun capabilities(bytes: ByteArray): CapabilitySnapshot {
         val json = JSONObject(bytes.toString(Charsets.UTF_8))
         val protocol = json.getInt("protocolMajor")

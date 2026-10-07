@@ -192,22 +192,10 @@ class GaugeConfigTransferClient(private val context: Context) {
             repeat(4) {
                 val result = readEvent()
                 if (result.status == BluetoothGatt.GATT_SUCCESS &&
-                    ((result.bytes.size == 8 && result.bytes[0].toInt() == 2) ||
-                     (result.bytes.size == 64 && result.bytes[0].toInt() == 3) ||
-                     (result.bytes.size == 56 && result.bytes[0].toInt() == 4) ||
-                     (result.bytes.size == 32 && result.bytes[0].toInt() == 5) ||
-                     (result.bytes.size == 60 && result.bytes[0].toInt() == 6) ||
-                     (result.bytes.size in 52..180 && result.bytes[0].toInt() == 7) ||
-                     (result.bytes.size == 44 && result.bytes[0].toInt() == 8) ||
-                     (result.bytes.size == 112 && result.bytes[0].toInt() == 9) ||
-                     (result.bytes.size == 8 && result.bytes[0].toInt() in 10..11) ||
-                     (result.bytes.size == 10 && result.bytes[0].toInt() == 12) ||
-                     (result.bytes.size == 140 && result.bytes[0].toInt() == 13) ||
-                     (result.bytes.size == 160 && result.bytes[0].toInt() == 14) ||
-                     (result.bytes.size == 248 && result.bytes[0].toInt() == 15))) return
+                    GaugeProtocolCodec.isProtectedStatusFrame(result.bytes)) return
                 if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
                     result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
-                    error("Gauge owner state read failed (${result.status})")
+                    error("Gauge owner state read failed (GATT ${result.status}, version ${result.bytes.firstOrNull()?.toInt()?.and(255)}, length ${result.bytes.size})")
                 delay(250)
             }
             error("Gauge owner link did not become authenticated")
