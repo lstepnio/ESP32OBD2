@@ -15,6 +15,7 @@ from obd_capture import (AdapterSession, BLE_PROFILES, DEFAULT_OUTPUT, Recording
 from obd_capture_core import STANDARD_PIDS, allowed_command, support_replies, supports
 from obd_temperature_candidate import COMMAND, decode_candidate
 import obd_tcm_temperature_candidate as tcm_temperature
+import obd_tcm_gear_candidate as tcm_gear
 
 IDENTITY_COMMANDS = frozenset(('0900', '0904', '0906', '090A'))
 MONITOR_SETUP = frozenset(('ATTP0', 'ATTP6', 'ATTP7', 'ATCSM1', 'ATCAF0', 'ATCAF1', 'ATCRA'))
@@ -42,6 +43,31 @@ def tcm_temperature_v2_policy(command):
 
 def tcm_temperature_v3_policy(command):
     return exploration_policy(command) or command in ('2204FE', 'ATSH7E1', 'ATSH7DF')
+
+
+def tcm_gear_policy(command):
+    return exploration_policy(command) or command in (*tcm_gear.COMMANDS, 'ATSH7E1', 'ATSH7DF')
+
+
+async def tcm_gear_probe(session, result):
+    """Two reads of each fixed published candidate at one owner-reported position."""
+    if result.get('owner_reported_position') not in tcm_gear.POSITIONS:
+        raise ValueError('A labelled selector position is required')
+    try:
+        await setup(session, ('ATSH7E1',))
+        for _ in range(2):
+            for command in tcm_gear.COMMANDS:
+                raw = await session.request(command, timeout=5)
+                sample = {'request': command, 'raw_hex': raw.hex(), 'qualified': False}
+                try:
+                    sample.update(tcm_gear.decode_candidate(raw, command))
+                except ValueError as error:
+                    sample.update(status='rejected', reason=str(error))
+                result['samples'].append(sample)
+                await asyncio.sleep(.5)
+    finally:
+        if not session.waiting_prompt:
+            await setup(session, ('ATSH7DF',))
 
 
 async def tcm_temperature_probe(session, result, command=tcm_temperature.COMMAND):
@@ -172,7 +198,8 @@ async def explore(args):
     from bleak import BleakClient
     device = await choose_adapter(args.adapter)
     recording = Recording(args.output, args.source, 'mac_ble')
-    policy = (tcm_temperature_v3_policy if args.tcm_temperature_v3 else
+    policy = (tcm_gear_policy if args.tcm_gear_position else
+              tcm_temperature_v3_policy if args.tcm_temperature_v3 else
               tcm_temperature_v2_policy if args.tcm_temperature_v2 else
               tcm_temperature_policy if args.tcm_temperature else fault_policy if args.tcm_faults
               else candidate_policy if args.hemi_temperature else exploration_policy)
@@ -241,6 +268,17 @@ async def explore(args):
                             await session.request(f'01{pid:02X}', timeout=5)
                             await asyncio.sleep(.15)
                 save_private(recording.directory / 'diagnostic-discovery.json', result)
+                if args.tcm_gear_position:
+                    selected = bytes.fromhex(result['protocol_number_hex']).strip(b'\r\n >')
+                    if selected not in (b'6', b'A6') or set(maps.get(0, {})) != {'7E9'}:
+                        raise ValueError('TCM gear capture requires only 7E9 on 11-bit 500 kbit/s CAN')
+                    result['tcm_gear_candidates'] = {
+                        'owner_reported_position': args.tcm_gear_position,
+                        'request_id': '7E1', 'expected_response_id': '7E9',
+                        'qualified': False, 'samples': [],
+                        'scope': 'Published current/target candidates; selector meaning unvalidated'}
+                    print('Reading fixed gear candidates at owner-reported position ' + args.tcm_gear_position, flush=True)
+                    await tcm_gear_probe(session, result['tcm_gear_candidates'])
                 if args.tcm_temperature or args.tcm_temperature_v2 or args.tcm_temperature_v3:
                     selected = bytes.fromhex(result['protocol_number_hex']).strip(b'\r\n >')
                     if selected not in (b'6', b'A6') or set(maps.get(0, {})) != {'7E9'}:
@@ -286,7 +324,7 @@ async def explore(args):
                 result['adapter_restored'] = False
                 if not session.waiting_prompt:
                     try:
-                        restore = ('ATSH7DF', 'ATCAF1', 'ATTP0') if args.hemi_temperature or args.tcm_faults or args.tcm_temperature or args.tcm_temperature_v2 or args.tcm_temperature_v3 else ('ATCAF1', 'ATTP0')
+                        restore = ('ATSH7DF', 'ATCAF1', 'ATTP0') if args.tcm_gear_position or args.hemi_temperature or args.tcm_faults or args.tcm_temperature or args.tcm_temperature_v2 or args.tcm_temperature_v3 else ('ATCAF1', 'ATTP0')
                         await setup(session, restore)
                         result['adapter_restored'] = True
                     except (ValueError, OSError) as error:
@@ -316,7 +354,11 @@ def main():
                         help='Test three unqualified OBDb Challenger 225043 reads on 7E1 after confirming 7E9')
     parser.add_argument('--tcm-temperature-v3', action='store_true',
                         help='Test three unqualified OBDb Challenger 2204FE reads on 7E1 after confirming 7E9')
+    parser.add_argument('--tcm-gear-position', choices=tcm_gear.POSITIONS,
+                        help='Capture fixed gear candidates at one owner-reported parked selector position')
     args = parser.parse_args()
+    if args.tcm_gear_position and (args.source != 'transmission' or args.hemi_temperature or args.tcm_faults or args.monitor or args.tcm_temperature or args.tcm_temperature_v2 or args.tcm_temperature_v3):
+        parser.error('--tcm-gear-position requires --source transmission and runs separately from other probes')
     if args.tcm_temperature_v3 and (args.source != 'transmission' or args.hemi_temperature or args.tcm_faults or args.monitor or args.tcm_temperature or args.tcm_temperature_v2):
         parser.error('--tcm-temperature-v3 requires --source transmission and runs separately from other probes')
     if args.tcm_temperature_v2 and (args.source != 'transmission' or args.hemi_temperature or args.tcm_faults or args.monitor or args.tcm_temperature):
