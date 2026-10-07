@@ -52,6 +52,9 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                 else -> route = Route.Gauge
             }
         }
+        LaunchedEffect(route) {
+            if (route != Route.Setup) model.cancelAdditionalGaugeSelection()
+        }
         LaunchedEffect(state.settings.advanced) {
             if (!state.settings.advanced && route == Route.Expert) route = Route.Settings
         }

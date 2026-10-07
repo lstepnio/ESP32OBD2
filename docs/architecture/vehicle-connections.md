@@ -48,7 +48,9 @@ attribution. A child is optional and remains absent from ordinary setup.
   for review and never resolve to another vehicle or source.
 - `GaugeAssociationStore` migrates the old single identity without deleting it or
   its name. Each `KnownGauge` stores its desired vehicle/source context. Settings
-  offers a saved-gauge picker and explicit discovery for another gauge.
+  offers a saved-gauge picker and explicit discovery for another gauge. Leaving
+  the picker releases its discovery hold and resumes the remembered target; a late
+  scan result cannot reopen the cancelled picker.
 - The phone connects to one selected gauge at a time. Reconnect restores that
   gauge's desired vehicle/source draft. Switching clears device evidence, waits
   for automatic transport cleanup and does not send settings. Ownership always

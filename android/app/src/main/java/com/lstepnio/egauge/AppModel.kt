@@ -786,11 +786,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         choosingGauge = true
         val candidates = try { bleClient.scanNearbyCandidates() }
             catch (error: Exception) { choosingGauge = false; throw error }
+        if (!choosingGauge) { operation = OperationState.Idle; return@launchGaugeOperation }
         connectionError("Choose the gauge to connect")
         gaugeCandidates = candidates
         connection = ConnectionState(ConnectionPhase.ChooseGauge)
         operation = OperationState(id, OperationKind.DISCOVERY, OperationStage.ACTIVE,
             "Choose your gauge", "Match its ID to the screen", terminal = true)
+    }
+
+    fun cancelAdditionalGaugeSelection() {
+        if (!choosingGauge) return
+        choosingGauge = false
+        gaugeCandidates = emptyList()
+        rediscoverGauge = true
+        connection = ConnectionState(ConnectionPhase.Retrying)
+        foregroundConnection.retrySoon()
     }
 
     fun attachLegacyTransmission(parentId: String) {

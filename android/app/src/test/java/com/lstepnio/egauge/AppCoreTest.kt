@@ -14,6 +14,15 @@ import java.security.Signature
 import java.net.URL
 
 class AppCoreTest {
+    @Test fun legacyTcmDevelopmentLabelsCompareByTheirDevelopmentNumber() {
+        assertTrue(isFirmwareNewer("0.2.0-dev.40", "0.2.0-dev.37-tcm"))
+        assertFalse(isFirmwareNewer("0.2.0-dev.37", "0.2.0-dev.37-tcm"))
+        assertFalse(isFirmwareNewer("0.2.0-dev.37-tcm", "0.2.0-dev.37-tcm"))
+        assertFalse(isFirmwareNewer("0.2.0-dev.36", "0.2.0-dev.37-tcm"))
+        assertTrue(isFirmwareNewer("0.2.0", "0.2.0-dev.37-tcm"))
+        assertFalse(isFirmwareNewer("0.2.0-dev.40", "0.2.0-dev.37-custom"))
+    }
+
     @Test fun hostedFirmwareComparisonFollowsSemanticVersionPrecedence() {
         assertTrue(isFirmwareNewer("0.2.0-dev.9", "0.2.0-dev.8"))
         assertTrue(isFirmwareNewer("0.2.0", "0.2.0-dev.99"))

@@ -20,7 +20,7 @@ data class GaugeAssociations(val selectedId: String?, val gauges: List<KnownGaug
         require(selectedId == null || gauges.any { it.id == selectedId })
     }
     fun remember(id: String, name: String): GaugeAssociations = copy(selectedId = id,
-        gauges = if (gauges.any { it.id == id }) gauges else gauges + KnownGauge(id, name.take(32)))
+        gauges = if (gauges.any { it.id == id }) gauges else gauges + KnownGauge(id, name.take(32).ifBlank { "eGauge" }))
     fun assign(id: String, vehicleId: String, source: String): GaugeAssociations {
         require(gauges.any { it.id == id })
         return copy(gauges = gauges.map { if (it.id == id) it.copy(vehicleId = vehicleId, source = source) else it })
@@ -63,7 +63,9 @@ class GaugeAssociationStore(context: Context) {
     }
     fun rememberedId(): String? = load().selectedId
     fun save(value: GaugeAssociations) {
-        check(preferences.edit().putString("collection", GaugeAssociationDocumentCodec.encode(value)).commit()) {
+        val encoded = GaugeAssociationDocumentCodec.encode(value)
+        if (preferences.getString("collection", null) == encoded) return
+        check(preferences.edit().putString("collection", encoded).commit()) {
             "Could not save your gauges"
         }
     }

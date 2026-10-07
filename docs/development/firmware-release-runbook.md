@@ -50,3 +50,13 @@ The companion currently searches published GitHub releases for the first signed 
 Until these are recorded for the published asset, keep the release in the development channel and keep public OTA capability false.
 
 Use the [GitHub OTA recovery matrix](ota-recovery-matrix.md) for repeatable percentage-triggered resets and the evidence required after each attempt.
+
+## Legacy TCM image version labels
+
+Historical `0.2.0-dev.N-tcm` image labels attached the test suffix to a numeric
+prerelease identifier. Standard SemVer consequently ranks that identifier above
+later numeric identifiers. Android compares this known legacy family by `dev.N`
+for update availability, including equal/older rejection. Other version families
+retain standard ordering. Bundle/catalog signature, descriptor and post-boot
+image checks still use the exact published identity; no comparison alias changes
+what image is accepted or confirmed. Publish new candidates as `0.2.0-dev.N`.

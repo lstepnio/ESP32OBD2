@@ -1,6 +1,6 @@
 # Current implementation and evidence
 
-Updated 2026-10-06. This is the authoritative status summary for this checkout.
+Updated 2026-10-07. This is the authoritative status summary for this checkout.
 A source build, a simulated response and an owner observation are different evidence.
 Recheck Git, installed firmware and connected devices before a new hardware session.
 
@@ -12,7 +12,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
   iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
 - Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
   verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.37-tcm`, configuration revision 28.
+- Latest recorded physical gauge: `0.2.0-dev.40`, configuration revision 29.
   Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
 - The owner has one Vgate, swapped between separate ECM and TCM connectors on a
   2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
@@ -76,11 +76,17 @@ Firmware candidate `0.2.0-dev.40` hardening separates display snapshots from NVS
 admission, makes busy status reads retryable, and bounds prompt deadline arithmetic
 and RX draining. See [interaction/recovery policy](architecture/interaction-recovery.md)
 for exact behavior, simulated screenshots and remaining physical checks. These
-changes have not been installed on the Pixel or physical gauge.
+changes are installed on the Pixel and physical gauge through the signed App/Wi-Fi path.
+The owner confirmed a normal physical page and working swipes.
 
-Verification for this change: 68 Android unit tests, debug APK and instrumentation
-compilation, Android lint, six isolated emulator UI tests, 72 offline host tests,
-repository validation and the ESP-IDF firmware build passed. Wire packet layouts,
-opcodes and public capacity flags are unchanged; busy snapshot reads now return
-a retryable ATT resource error. The affected Pixel golden baselines and physical
-negative-scenario qualification remain pending.
+Verification: 78 Android unit tests, debug APK and instrumentation compilation,
+Android lint, eight isolated Pixel UI tests including 76 screenshot comparisons,
+72 offline host tests, repository validation and the ESP-IDF firmware build passed.
+The physical post-update test passed automatic protected reads on open/resume,
+Bluetooth off/on recovery and Add gauge cancellation recovery, retaining settings,
+vehicle profile contents and configuration revision/hash within that test. Exact
+firmware version/ELF identity and healthy OTA state were asserted before reconnect.
+Wire packet layouts, opcodes and public capacity flags are unchanged; busy snapshot
+reads now return a retryable ATT resource error. See the focused
+[rollout evidence](development/car-connection-rollout.md) for evidence boundaries
+and remaining hardware qualification.
