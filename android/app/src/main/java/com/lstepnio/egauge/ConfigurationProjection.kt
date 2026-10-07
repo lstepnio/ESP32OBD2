@@ -49,43 +49,55 @@ object ConfigurationProjector {
         "fuel" to "vehicle.fuel",
     )
 
-    fun blockers(draft: Draft): List<String> = buildList {
-        if (draft.source == "TCM") {
-            if (!BuildConfig.DEBUG || draft.alerts.isNotEmpty())
-                add("The TCM setup supports temperature and gear pages without alerts")
-        } else if (draft.source != "ECM" || draft.pages.any { page -> page.pidIds.any { it in transmissionPidIds } } || draft.alerts.any { it.pidId in transmissionPidIds })
-            add("Engine and transmission readings need separate adapter profiles")
-        if (draft.pages.size !in 1..8) add("Choose between one and eight gauge pages")
-        if (draft.pages.map { it.id }.distinct().size != draft.pages.size)
-            add("Every page needs a unique identity")
-        draft.pages.forEachIndexed { index, page ->
-            val expected = if (page.layout == GaugeLayout.Dual) 2 else 1
-            if (page.pidIds.size != expected || page.pidIds.distinct().size != page.pidIds.size)
-                add("Page ${index + 1} needs $expected distinct reading${if (expected == 1) "" else "s"}")
-            if (page.pidIds.any { it !in pagePidIds(draft.source) })
-                add("Page ${index + 1} contains a reading this firmware cannot execute")
-            if ("tcmgear" in page.pidIds && page.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual))
-                add("Gear uses Numeric or Dual layout")
-            if (page.name.isBlank() || page.name.length > 32)
-                add("Page ${index + 1} needs a name of at most 32 characters")
+    fun blockers(draft: Draft): List<String> {
+        if (draft.source == "BOTH") {
+            val engine = draft.copy(source = "ECM", pages = draft.pages.filter { it.pidIds.all { id -> id in supportedPidIds } })
+            val transmission = draft.copy(source = "TCM", pages = draft.pages.filter { it.pidIds.all { id -> id in transmissionPidIds } }, alerts = emptyList())
+            return blockers(engine) + blockers(transmission) + buildList {
+                if (draft.pages.size > 8) add("Choose up to eight pages across engine and transmission")
+                if (engine.pages.size + transmission.pages.size != draft.pages.size) add("Each page must use one adapter source")
+                if (draft.pages.map { it.id }.distinct().size != draft.pages.size || draft.pages.any { it.id.length > 64 })
+                    add("Every page needs a unique identity of at most 64 characters")
+            }
         }
-        if (draft.alerts.size > 32) add("Choose up to 32 alerts")
-        if (draft.alerts.map { it.id }.distinct().size != draft.alerts.size) add("Every alert needs a unique identity")
-        if (draft.alerts.map { it.pidId }.distinct().size != draft.alerts.size) add("Choose each reading only once for alerts")
-        draft.alerts.forEach { alert ->
-            val range = readingRange(alert.pidId)
-            if (alert.pidId !in supportedPidIds) add("An alert uses a reading this firmware cannot execute")
-            if (alert.warning !in range || alert.critical !in range) add("${alert.pidId} alert limits are outside its supported range")
-            val ordered = if (alert.direction == AlertDirection.Above) alert.warning < alert.critical else alert.warning > alert.critical
-            if (!ordered) add("${alert.pidId} critical limit must be beyond its warning limit")
-            if (alert.hysteresis !in 0..20 || alert.hysteresis >= range.last - range.first)
-                add("${alert.pidId} alert reset margin is outside the supported range")
-            val marginFits = if (alert.direction == AlertDirection.Above)
-                alert.warning + alert.hysteresis < alert.critical
-            else alert.warning - alert.hysteresis > alert.critical
-            if (!marginFits) add("${alert.pidId} alert reset margin needs more space between warning and critical")
-            if (alert.triggerDwellMs !in 0..60000 || alert.clearDwellMs !in 0..60000)
-                add("${alert.pidId} alert timing is outside the supported range")
+        return buildList {
+            if (draft.source == "TCM") {
+                if (!BuildConfig.DEBUG || draft.alerts.isNotEmpty())
+                    add("The TCM setup supports temperature and gear pages without alerts")
+            } else if (draft.source != "ECM" || draft.pages.any { page -> page.pidIds.any { it in transmissionPidIds } } || draft.alerts.any { it.pidId in transmissionPidIds })
+                add("Engine and transmission readings need separate adapter profiles")
+            if (draft.pages.size !in 1..8) add("Choose between one and eight gauge pages")
+            if (draft.pages.map { it.id }.distinct().size != draft.pages.size)
+                add("Every page needs a unique identity")
+            draft.pages.forEachIndexed { index, page ->
+                val expected = if (page.layout == GaugeLayout.Dual) 2 else 1
+                if (page.pidIds.size != expected || page.pidIds.distinct().size != page.pidIds.size)
+                    add("Page ${index + 1} needs $expected distinct reading${if (expected == 1) "" else "s"}")
+                if (page.pidIds.any { it !in pagePidIds(draft.source) })
+                    add("Page ${index + 1} contains a reading this firmware cannot execute")
+                if ("tcmgear" in page.pidIds && page.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual))
+                    add("Gear uses Numeric or Dual layout")
+                if (page.name.isBlank() || page.name.length > 32)
+                    add("Page ${index + 1} needs a name of at most 32 characters")
+            }
+            if (draft.alerts.size > 32) add("Choose up to 32 alerts")
+            if (draft.alerts.map { it.id }.distinct().size != draft.alerts.size) add("Every alert needs a unique identity")
+            if (draft.alerts.map { it.pidId }.distinct().size != draft.alerts.size) add("Choose each reading only once for alerts")
+            draft.alerts.forEach { alert ->
+                val range = readingRange(alert.pidId)
+                if (alert.pidId !in supportedPidIds) add("An alert uses a reading this firmware cannot execute")
+                if (alert.warning !in range || alert.critical !in range) add("${alert.pidId} alert limits are outside its supported range")
+                val ordered = if (alert.direction == AlertDirection.Above) alert.warning < alert.critical else alert.warning > alert.critical
+                if (!ordered) add("${alert.pidId} critical limit must be beyond its warning limit")
+                if (alert.hysteresis !in 0..20 || alert.hysteresis >= range.last - range.first)
+                    add("${alert.pidId} alert reset margin is outside the supported range")
+                val marginFits = if (alert.direction == AlertDirection.Above)
+                    alert.warning + alert.hysteresis < alert.critical
+                else alert.warning - alert.hysteresis > alert.critical
+                if (!marginFits) add("${alert.pidId} alert reset margin needs more space between warning and critical")
+                if (alert.triggerDwellMs !in 0..60000 || alert.clearDwellMs !in 0..60000)
+                    add("${alert.pidId} alert timing is outside the supported range")
+            }
         }
     }
 
@@ -151,4 +163,22 @@ object ConfigurationProjector {
         )
         return projection to json.toString().toByteArray(Charsets.UTF_8)
     }
+    fun projectCombined(template: String, vehicle: VehicleProfile, baseRevision: Long): Pair<ConfigurationProjection, ByteArray> {
+        val combined = vehicle.combinedDraft()
+        require(blockers(combined).isEmpty()) { blockers(combined).joinToString(". ") }
+        val engine = project(template, vehicle.draft, vehicle.id, baseRevision, vehicle.primaryAdapter, 2)
+        val child = requireNotNull(vehicle.transmission)
+        val tcmDraft = child.draft.copy(pages = child.draft.pages.map { it.copy(id = "child.${it.id}") })
+        val transmission = project(template, tcmDraft, vehicle.id, baseRevision, child.adapter, 2)
+        val root = JSONObject(engine.second.toString(Charsets.UTF_8))
+        val tcm = JSONObject(transmission.second.toString(Charsets.UTF_8))
+        listOf("sources", "definitions", "pages").forEach { key ->
+            val target = root.getJSONArray(key)
+            val extra = tcm.getJSONArray(key)
+            for (index in 0 until extra.length()) target.put(extra.getJSONObject(index))
+        }
+        return ConfigurationProjection(engine.first.pages + transmission.first.pages, engine.first.alerts) to
+            root.toString().toByteArray(Charsets.UTF_8)
+    }
+
 }

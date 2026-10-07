@@ -95,10 +95,17 @@ A pending image is confirmed only after display, touch, BLE companion startup, a
 | ELM response | 512 bytes |
 | Simultaneous NimBLE connections configured | 3 |
 
-The normal runtime selects one active Engine or Transmission source. Engine uses
+Development dev.41 compiles one source or an explicitly bound ECM/TCM pair. Each
+source has its own poll worker, scheduler, parser, reconnect backoff and diagnostic
+session; shared discovery consumes one bounded deadline. Source loss invalidates
+only its alert samples and displayed values. Queued samples carry source generation.
+The common single-adapter setup remains the default. Engine uses
 bounded Mode 01 definitions; Transmission permits the captured Mode 22 temperature
 and current-gear definitions. Five renderers, ordered pages, canonical-unit alerts
 and independent persisted display settings are implemented within compiler bounds.
 Transmission gear uses Numeric/Dual and its profile currently excludes alerts.
 PID 01 is reserved for MIL diagnostics. Schema-valid unsupported features are rejected
-before commit. Legacy second-link scaffolding is not simultaneous telemetry support.
+before commit. The old idle menuconfig TCM worker is removed; the atomic
+configuration owns both active bindings. Mixed-source pages and arbitrary enhanced
+identifiers remain unsupported; the compiler rejects duplicate numeric PID identities.
+Three-link radio behavior and memory/rate limits remain unqualified.

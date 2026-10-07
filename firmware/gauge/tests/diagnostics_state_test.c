@@ -37,5 +37,19 @@ int main(int argc, char **argv) {
  diagnostics_state_snapshot(1000, &unavailable); assert(!unavailable.valid);
  test_lock_busy = 0;
  read_at(1000); assert(packet[2]==12);
+ /* Independent controller evidence survives loss and reconnect of the other. */
+ diagnostics_state_configure_for(0,false,31,false);
+ diagnostics_state_configure_for(1,true,31,false);
+ diagnostics_state_connected_for(0); diagnostics_state_connected_for(1);
+ diagnostics_state_codes_for(0,3,codes,8,900);
+ diagnostics_state_codes_for(1,3,codes,4,900);
+ diagnostics_state_disconnected_for(1);
+ assert(diagnostics_state_full_status_for(0,1000,packet)==248);
+ assert(packet[2]==4 && packet[33]==3 && packet[34]==4 && packet[1]==0);
+ assert(diagnostics_state_full_status_for(1,1000,packet)==248);
+ assert(packet[2]==0 && packet[33]==1 && packet[34]==2 && packet[1]==1);
+ diagnostics_state_connected_for(1);
+ assert(diagnostics_state_full_status_for(1,1000,packet)==248 && packet[8]==2 && packet[34]==0);
+ assert(diagnostics_state_full_status_for(0,1000,packet)==248 && packet[8]==1 && packet[34]==4);
  puts("Diagnostics source, full lists, expiry, reconnect and simulation passed");
 }

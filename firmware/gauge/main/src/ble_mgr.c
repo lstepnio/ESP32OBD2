@@ -33,6 +33,7 @@
 #include "ble_mgr.h"
 #include "ble_util.h"
 #include "obd_adapter_profile.h"
+#include "obd_wait_policy.h"
 #include "sdkconfig.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -742,8 +743,10 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
     if (atomic_load(&mgr_ctx->is_connected)) return BLE_MGR_E_OK;
     if (atomic_load(&central_paused) || atomic_load(&user_scan_active) || mgr_ctx->conn_handle != BLE_HS_CONN_HANDLE_NONE ||
         atomic_load(&mgr_ctx->write_inflight)) return BLE_MGR_E_NOT_CONNECTED;
+    uint32_t started_ms = pdTICKS_TO_MS(xTaskGetTickCount());
     if (xSemaphoreTake(scan_lock, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) return BLE_MGR_E_TIMEOUT;
-    if (xSemaphoreTake(mgr_ctx->api.lock_mtx, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
+    if (xSemaphoreTake(mgr_ctx->api.lock_mtx, pdMS_TO_TICKS(obd_wait_remaining(
+            started_ms, pdTICKS_TO_MS(xTaskGetTickCount()), timeout_ms))) != pdTRUE) {
         xSemaphoreGive(scan_lock);
         return BLE_MGR_E_API_LOCK_ERROR;
     }
@@ -751,6 +754,12 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
         xSemaphoreGive(mgr_ctx->api.lock_mtx);
         xSemaphoreGive(scan_lock);
         return BLE_MGR_E_OK;
+    }
+    if (atomic_load(&central_paused) || atomic_load(&user_scan_active) ||
+        !obd_wait_remaining(started_ms, pdTICKS_TO_MS(xTaskGetTickCount()), timeout_ms)) {
+        xSemaphoreGive(mgr_ctx->api.lock_mtx);
+        xSemaphoreGive(scan_lock);
+        return BLE_MGR_E_TIMEOUT;
     }
     xQueueReset(mgr_ctx->api.result_que);
     retire_write(mgr_ctx);
@@ -768,7 +777,8 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
     int rc = ble_gap_disc(0, BLE_DISCOVERY_TIMEOUT_MS, &disc_params, ble_mgr_gap_event_cb, mgr_ctx);
     ble_mgr_status_t status = BLE_MGR_E_DISCOVERY_FAILED;
     if (rc == 0) {
-        if (!API_QUEUE_WAIT(mgr_ctx, &status, timeout_ms)) status = BLE_MGR_E_TIMEOUT;
+        if (!API_QUEUE_WAIT(mgr_ctx, &status, obd_wait_remaining(
+                started_ms, pdTICKS_TO_MS(xTaskGetTickCount()), timeout_ms))) status = BLE_MGR_E_TIMEOUT;
     }
     mgr_ctx->scanning = false;
     if (status != BLE_MGR_E_OK) {

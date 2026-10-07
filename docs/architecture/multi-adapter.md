@@ -2,11 +2,12 @@
 
 Owner use case added 2026-09-25: a swapped vehicle has separate OBD-II interfaces for ECM and TCM, each with its own BLE adapter. Support both data sources in one gauge and one vehicle profile.
 
-Current implementation supports one active configured source per profile and advertises
-`maxAdapterLinks=1`. The following is the target design, not qualified simultaneous
-operation. The shared Android status widget accepts independent link states; the
-production projection currently supplies one active source. Follow the
-[interaction policy](interaction-recovery.md) when extending it.
+Source candidate `0.2.0-dev.41` executes one or two configured sources. It has
+independent workers, diagnostic state, status snapshots, parser sessions and retry
+schedules. The Android debug app offers an explicit per-gauge Expert option and
+projects both parent/child drafts into one schema-2 transaction. This is implemented
+software, not physical qualification. Public `maxAdapterLinks=1` remains; compact
+`da:1` identifies the owner development path. See the [qualification plan](../development/dual-adapter-recovery.md).
 
 ## Vehicle hierarchy
 
@@ -25,11 +26,11 @@ Keys are `(vehicleProfileId, sourceId, ECU identity, service, identifier, defini
 
 New vehicle profiles default to one adapter. Separate ECM/TCM setup is an explicit per-profile advanced option, as specified in the [quality gates](../development/quality.md). Standard setup does not show a disconnected TCM placeholder. Existing profiles with multiple sources preserve their bindings and remain visibly configured for advanced connections. Disabling the second adapter requires resolving dependent pages and alerts before applying changes.
 
-In advanced profiles, UI labels all ambiguous signals with source/ECU and shows separate adapter connection, age, and availability. Technical details expose protocol and signal quality. Discovery can target one source or both when supported. A dual-value page can bind ECM coolant and a documented TCM temperature definition, but does not itself require two adapters. A threshold binds one definition/source; losing TCM must not interrupt ECM polling or silently disable a TCM alert.
+In advanced profiles, UI labels all ambiguous signals with source/ECU and shows separate adapter connection, age, and availability. Technical details expose protocol and signal quality. Discovery can target one source or both when supported. Current combined setups concatenate engine and transmission pages. A page may contain two values from the same source; mixed-source Dual pages remain rejected until display identity and skew validation support them. A threshold binds one definition/source; losing TCM must not interrupt ECM polling or silently disable a TCM alert.
 
 ## Feasibility TODO: MULTI-001
 
-**Unresolved hardware feasibility.** M1 now has two independently owned central connection contexts and serialized discovery, with TCM link activation gated by an explicit MAC. No simultaneous two-adapter operation has been measured. Baseline `sdkconfig` enables three NimBLE connections and both roles, but configuration capacity is not evidence of working multiple links or three-link coexistence. A read-only phone discovery endpoint is implemented and was read from macOS while ECM discovery ran; it does not implement authenticated companion control.
+**Unresolved hardware feasibility.** Two configured sources now activate two independently owned central contexts and workers. Both bindings must be explicit and distinct; discovery is serialized within one shared deadline. No simultaneous two-adapter operation has been measured. Baseline NimBLE configuration enables three connections and both roles, but that capacity is not physical evidence. Owner control, per-source snapshots and private maintenance transfer are implemented; the three-link load remains unqualified.
 
 1. Independent central contexts are implemented. Validate controller and host connection counts for ESP-IDF 5.4.1, buffer pools, heap/stack and session cleanup on two powered adapters.
 2. Bench scenario: two independently powered adapters/emulated radios, continuous ECM + TCM polling, phone connected/subscribed, LVGL rendering and local alerts. Record achieved per-source rates, P95 response latency, missed deadlines, reconnect behavior, radio parameters and minimum free memory.

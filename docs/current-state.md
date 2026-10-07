@@ -30,7 +30,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 | Dashboards/alerts | Numeric, Arc, Bar, Trend and Dual renderers; bounded page/alert configuration, stronger palette and enlarged arc; host logic tests | Daylight/color review, alert transitions and hidden-page behavior on real vehicle |
 | Configuration | Atomic slots, exact review/projection, revision/hash conflict checks, trial/fallback and stored/running identity | Physical interruption matrix and all supported layouts/alerts on hardware |
 | Updates | Signed development catalog/bundle verification, owner BLE bootstrap, authenticated private Wi-Fi transfer, A/B trial confirmation and recovery journal; App/Wi-Fi installs recorded | Hardware power-loss/expiry matrix, production trust and performance measurements |
-| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 6; remembered gauges retain independent vehicle/source contexts. Normal firmware uses one active source | Simultaneous adapters plus phone are unqualified; public link capacity is one |
+| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 6; remembered gauges retain independent vehicle/source contexts. Source dev.41 adds independent ECM/TCM workers and the debug app combined send/status path | Not installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
 
 ## Public and experimental boundaries
 
@@ -70,7 +70,8 @@ Source implements one shared connection widget across native pages, an expandabl
 phone/gauge/active-adapter summary, concise active-source Car faults and automatic
 foreground settings/adapter/diagnostics reads. Read failures back off independently;
 ordinary Settings rows no longer require a read tap. Multiple-link aggregation is
-tested, but current profiles and firmware expose only one active adapter.
+tested; source dev.41 adds the gated two-source runtime and readback. Installed
+dev.40 still executes one source.
 
 Firmware candidate `0.2.0-dev.40` hardening separates display snapshots from NVS persistence, bounds writer
 admission, makes busy status reads retryable, and bounds prompt deadline arithmetic
@@ -90,3 +91,16 @@ Wire packet layouts, opcodes and public capacity flags are unchanged; busy snaps
 reads now return a retryable ATT resource error. See the focused
 [rollout evidence](development/car-connection-rollout.md) for evidence boundaries
 and remaining hardware qualification.
+
+## Dual-source development follow-up
+
+Source candidate `0.2.0-dev.41` implements simultaneous source workers, independent
+fault/status snapshots and source-scoped recovery. Android uses one atomic combined
+projection behind an explicit per-gauge Expert choice and development `da:1` gate.
+This candidate has not been published, installed or physically qualified. The owner
+still has one adapter. Software verification: 84 Android unit tests, 73 offline
+host tests, production C compiler/core sanitizer fixtures, firmware/debug builds,
+lint, instrumentation compilation and repository validation passed. Native UI and
+dual hardware harness execution remain pending. Follow the [dual-adapter recovery plan](development/dual-adapter-recovery.md)
+for exact software bounds and the parked/bench matrix; installed dev.40 evidence
+above does not establish dev.41 physical behavior.

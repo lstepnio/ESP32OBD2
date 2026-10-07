@@ -39,7 +39,8 @@ catalog writes/activation routines during an exploratory read session.
 ## Core invariants
 
 - Gauge owns the adapter; Android connects to the gauge. A Mac capture needs the
-  gauge to release the single-client adapter. Normal firmware selects one active source.
+  gauge to release the single-client adapter. Single-source setup is default; development dev.41 also executes an explicitly
+  bound ECM/TCM pair. Public radio capacity remains unqualified.
 - BLE callbacks enqueue bounded work. Transfer workers own flash operations;
   LVGL owns widgets. Do not block callbacks or add nested subsystem locks.
 - Missing/invalid/stale data is unavailable, not zero. Source, ECU, revision,

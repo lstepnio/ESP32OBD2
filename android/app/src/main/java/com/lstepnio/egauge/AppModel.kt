@@ -161,6 +161,7 @@ data class CapabilitySnapshot(
     val hardwareCapacityVersion: Int?,
     val configurationVersion: Int = 0,
     val adapterRegistryVersion: Int = 0,
+    val dualAdapterVersion: Int = 0,
     val maxPages: Int = 0,
     val supportedRenderers: Set<GaugeLayout> = emptySet(),
 )
@@ -179,6 +180,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     private val automaticUpdateHold = AutomaticUpdateHoldStore(application)
     private val vehiclePoll = VehiclePollSchedule()
+    private val childPoll = VehiclePollSchedule()
     private val settingsPoll = VehiclePollSchedule()
     var settingsCheckFailed by mutableStateOf(false)
         private set
@@ -330,42 +332,55 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun pollVehicle(client: GaugeConfigTransferClient, device: BluetoothDevice): Long {
         if (capabilities?.adapterRegistryVersion != 1) return 20_000L
         val profile = profileCollection.active
-        val source = draft.source
+        val requested = vehicleSources
         val gaugeId = currentGaugeId
-        val scope = "$gaugeId:${profile.id}:${profile.adapterFor(source)}:$source:${activeDocument?.revision}"
-        val now = android.os.SystemClock.elapsedRealtime()
-        if (!vehiclePoll.due(scope, now)) return vehiclePoll.pause(now)
-        var healthy = false
-        try {
-            // Vehicle failures are distinct from phone-to-gauge failures. Bound this extra work.
-            withTimeout(12_000) {
-                val status = client.readAdapterStatus(device)
-                if (profileCollection.active != profile || draft.source != source || currentGaugeId != gaugeId) return@withTimeout
-                adapterSourceStatus = status
-                adapterStatusCheckedAt = android.os.SystemClock.elapsedRealtime()
-                vehicleCheckFailed = false
-                if (status.vehicleId == profile.id && status.sourceId == configuredSourceId(activeDocument, source) &&
-                    status.phase == 4 && status.bound && !status.simulated && profile.adapterFor(source) != null &&
-                    vehicleSetupMatches(activeDocument, profile.id, source, profile.adapterFor(source))) {
-                    val snapshot = client.readDiagnostics(device)
-                    if (profileCollection.active != profile || draft.source != source || currentGaugeId != gaugeId) return@withTimeout
-                    validateDiagnosticScope(snapshot, source, activeDocument?.revision)
-                    diagnosticsRead(snapshot)
-                    healthy = snapshot.connected
-                    vehicleCheckFailed = !snapshot.connected
+        val indices = configuredSourceIndices(activeDocument)
+        var pause = 20_000L
+        for (source in requested) {
+            val schedule = if (source == "TCM" && requested.size == 2) childPoll else vehiclePoll
+            val scope = "$gaugeId:${profile.id}:${profile.adapterFor(source)}:$source:${activeDocument?.revision}:${requested.size}"
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (!schedule.due(scope, now)) { pause = minOf(pause, schedule.pause(now)); continue }
+            var healthy = false
+            try {
+                withTimeout(12_000) {
+                    val index = if (requested.size == 2) indices[source] else null
+                    if (requested.size == 2 && (capabilities?.dualAdapterVersion != 1 || index == null)) return@withTimeout
+                    val status = client.readAdapterStatus(device, index)
+                    if (profileCollection.active != profile || vehicleSources != requested || currentGaugeId != gaugeId) return@withTimeout
+                    val checked = android.os.SystemClock.elapsedRealtime()
+                    adapterStatuses = adapterStatuses + (source to status)
+                    adapterCheckedAt = adapterCheckedAt + (source to checked)
+                    adapterSourceStatus = adapterStatuses[draft.source]
+                    adapterStatusCheckedAt = adapterCheckedAt[draft.source]
+                    vehicleFailures = vehicleFailures - source
+                    vehicleCheckFailed = vehicleFailures.isNotEmpty()
+                    if (status.vehicleId == profile.id && status.sourceId == configuredSourceId(activeDocument, source) &&
+                        status.bound && !status.simulated && profile.adapterFor(source) != null &&
+                        vehicleSetupMatches(activeDocument, profile.id, source, profile.adapterFor(source))) {
+                        // Read disconnected snapshots too, so old codes cannot remain current.
+                        val snapshot = client.readDiagnostics(device, index).let {
+                            if (status.phase == 4) it else it.copy(connected = false)
+                        }
+                        if (profileCollection.active != profile || vehicleSources != requested || currentGaugeId != gaugeId) return@withTimeout
+                        validateDiagnosticScope(snapshot, source, activeDocument?.revision)
+                        diagnosticsBySource = diagnosticsBySource + (source to snapshot)
+                        diagnosticsCheckedAt = diagnosticsCheckedAt + (source to android.os.SystemClock.elapsedRealtime())
+                        if (source == draft.source) diagnosticsRead(snapshot)
+                        healthy = status.phase == 4 && snapshot.connected
+                    }
                 }
-            }
-        } catch (_: TimeoutCancellationException) {
-            currentCoroutineContext().ensureActive()
-            vehicleCheckFailed = true
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            vehicleCheckFailed = true
+            } catch (_: TimeoutCancellationException) {
+                currentCoroutineContext().ensureActive()
+                vehicleFailures = vehicleFailures + source
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { vehicleFailures = vehicleFailures + source }
+            vehicleCheckFailed = vehicleFailures.isNotEmpty()
+            val finished = android.os.SystemClock.elapsedRealtime()
+            schedule.completed(finished, healthy)
+            pause = minOf(pause, schedule.pause(finished))
         }
-        val finished = android.os.SystemClock.elapsedRealtime()
-        vehiclePoll.completed(finished, healthy)
-        return vehiclePoll.pause(finished)
+        return pause
     }
 
     /** Discovery stays a foreground concern. GitHub work is quiet and never starts an OTA. */
@@ -634,7 +649,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var documentReadFailed by mutableStateOf(false)
         private set
     val draftComparison: GaugeDraftComparison?
-        get() = activeDocument?.let { GaugeDraftComparison.from(it, profileCollection.activeId, draft, profileCollection.active.adapterFor(draft.source)) }
+        get() = activeDocument?.let { GaugeDraftComparison.from(it, profileCollection.activeId, transmittedDraft, profileCollection.active.adapterFor(draft.source)) }
     val canAdoptGaugeDraft: Boolean
         get() = activeDocument?.let {
             GaugeDraftComparison.savedDraft(it, profileCollection.activeId) != null
@@ -685,11 +700,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun clearVehicleEvidence() {
+        adapterStatuses = emptyMap()
+        adapterCheckedAt = emptyMap()
+        diagnosticsBySource = emptyMap()
+        diagnosticsCheckedAt = emptyMap()
+        vehicleFailures = emptySet()
         sentDraft = null
         sentProfileId = null
         sentDigest = null
         diagnostics = null
         diagnosticsObservedAtElapsedMs = null
+        diagnosticsBySource = emptyMap()
+        diagnosticsCheckedAt = emptyMap()
+        adapterStatuses = emptyMap()
+        adapterCheckedAt = emptyMap()
         adapterCandidates = emptyList()
         adapterMessage = null
         foregroundConnection.retrySoon()
@@ -717,6 +741,44 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         editingPageIndex = 0
         rememberVehicleContext()
     }
+
+    val vehicleSources: List<String> get() = if (bothAdapters) listOf("ECM", "TCM") else listOf(draft.source)
+    var adapterStatuses by mutableStateOf<Map<String, AdapterSourceStatus>>(emptyMap())
+        private set
+    var adapterCheckedAt by mutableStateOf<Map<String, Long>>(emptyMap())
+        private set
+    var diagnosticsBySource by mutableStateOf<Map<String, GaugeConfigTransferClient.Diagnostics>>(emptyMap())
+        private set
+    var diagnosticsCheckedAt by mutableStateOf<Map<String, Long>>(emptyMap())
+        private set
+    var vehicleFailures by mutableStateOf<Set<String>>(emptySet())
+        private set
+    val bothAdapters: Boolean get() = knownGauges.firstOrNull { it.id == rememberedGaugeId }?.bothAdapters == true
+    val transmittedDraft: Draft get() = if (bothAdapters) runCatching { profileCollection.active.combinedDraft() }.getOrDefault(draft) else draft
+    fun setBothAdapters(enabled: Boolean) {
+        if (!BuildConfig.DEBUG || modifyingSetupBlocked || gaugeAssociationError != null) return
+        if (enabled && (capabilities?.dualAdapterVersion != 1 || runCatching { profileCollection.active.combinedDraft() }.isFailure)) {
+            deviceMessage = "Choose distinct engine and transmission adapters and update the gauge first"
+            return
+        }
+        val id = rememberedGaugeId ?: return
+        val stored = associationStore.load()
+        runCatching { associationStore.save(stored.copy(gauges = stored.gauges.map {
+            if (it.id == id) it.copy(bothAdapters = enabled) else it
+        })) }.onFailure { presentationError = "Could not save the gauge's adapter mode"; return }
+        knownGauges = associationStore.load().gauges
+        clearVehicleEvidence()
+        foregroundConnection.retrySoon()
+    }
+
+    private fun configurationBytes(template: String, baseRevision: Long, schemaVersion: Int): ByteArray =
+        if (bothAdapters) {
+            require(BuildConfig.DEBUG && capabilities?.dualAdapterVersion == 1 && schemaVersion == 2) {
+                "Update the gauge before sending both adapters"
+            }
+            ConfigurationProjector.projectCombined(template, profileCollection.active, baseRevision).second
+        } else ConfigurationProjector.project(template, draft, profileCollection.activeId, baseRevision,
+            profileCollection.active.adapterFor(draft.source), schemaVersion).second
 
     fun selectVehicleSource(source: String) {
         if (profileError != null || modifyingSetupBlocked) return
@@ -851,6 +913,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         settingsCheckFailed = false
         diagnostics = null
         diagnosticsObservedAtElapsedMs = null
+        diagnosticsBySource = emptyMap()
+        diagnosticsCheckedAt = emptyMap()
+        adapterStatuses = emptyMap()
+        adapterCheckedAt = emptyMap()
         bootIdentity = null
         runtimeIdentity = null
         hardwareSnapshot = null
@@ -901,7 +967,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun configApplied(value: GaugeConfigTransferClient.Applied, profileId: String, appliedDraft: Draft) {
         rememberedGaugeId?.let { id ->
-            runCatching { associationStore.assign(id, profileId, appliedDraft.source)
+            runCatching { associationStore.assign(id, profileId, if (appliedDraft.source == "BOTH") draft.source else appliedDraft.source)
                 knownGauges = associationStore.load().gauges
             }.onFailure { presentationError = "Setup is running, but its phone assignment could not be saved" }
         }
@@ -979,11 +1045,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val expected = runCatching {
             val template = getApplication<Application>().assets.open("numeric_config_template.json")
                 .bufferedReader().use { it.readText() }
-            ConfigurationProjector.project(template, draft, profileCollection.activeId, document.revision - 1,
-                profileCollection.active.adapterFor(draft.source), org.json.JSONObject(document.json).getInt("schemaVersion")).second
+            configurationBytes(template, document.revision - 1, org.json.JSONObject(document.json).getInt("schemaVersion"))
         }.getOrNull()
         if (matchesRunningPayload(expected, document.revision, document.sha256, runtimeIdentity)) {
-            sentDraft = draft
+            sentDraft = transmittedDraft
             sentProfileId = profileCollection.activeId
             sentDigest = document.sha256
             rememberVehicleContext()
@@ -1009,6 +1074,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun adoptGaugeDraft() {
         val document = activeDocument ?: return
+        require(org.json.JSONObject(document.json).getJSONArray("sources").length() == 1) {
+            "Both-adapter setup is already read automatically. Edit its engine and transmission drafts separately."
+        }
         val imported = GaugeDraftComparison.savedDraft(document, profileCollection.activeId) ?: run {
             documentMessage = "Saved settings cannot be mapped safely into this phone profile."
             documentReadFailed = true
@@ -1401,7 +1469,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Gauge does not offer dashboard configuration"
         }
         val profileId = profileCollection.activeId
-        val capturedDraft = draft
+        val capturedDraft = transmittedDraft
         val adapter = profileCollection.active.adapterFor(draft.source)
         val schemaVersion = if ((capabilities?.configurationVersion ?: 0) >= 3) 2 else 1
         require(adapter == null || schemaVersion == 2) { "Update the gauge before sending adapter settings" }
@@ -1411,12 +1479,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Sending gauge setup", "Checking the current saved revision")
         val template = getApplication<Application>().assets.open("numeric_config_template.json")
             .bufferedReader().use { it.readText() }
-        val expectedBytes = ConfigurationProjector.project(template, capturedDraft, profileId,
-            baseRevision, adapter, schemaVersion).second
+        val expectedBytes = configurationBytes(template, baseRevision, schemaVersion)
         pendingConfiguration = PendingConfiguration(rememberedGaugeId, profileId, capturedDraft,
             baseRevision + 1, expectedBytes)
         val applied = GaugeConfigTransferClient(getApplication()).apply(
-            bleClient.selectedGauge(), capturedDraft, profileId, baseRevision, baseHash, adapter, schemaVersion,
+            bleClient.selectedGauge(), capturedDraft, profileId, baseRevision, baseHash, adapter, schemaVersion, preparedDocument = expectedBytes,
         ) { stage -> operation = operation.copy(stage = stage, detail = operationDetail(stage)) }
         configApplied(applied, profileId, capturedDraft)
         operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
@@ -1442,10 +1509,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 "Select this car's adapter and send its setup to the gauge before checking vehicle faults"
             }
         }
-        val snapshot = GaugeConfigTransferClient(getApplication()).readDiagnostics(bleClient.selectedGauge())
-        validateDiagnosticScope(snapshot, draft.source,
-            activeDocument?.takeIf { it.vehicleProfileId == profileCollection.activeId }?.revision)
-        diagnosticsRead(snapshot)
+        val client = GaugeConfigTransferClient(getApplication())
+        for (source in vehicleSources) {
+            val index = if (bothAdapters) configuredSourceIndices(activeDocument)[source]
+                ?: error("Send both adapter connections before checking their faults") else null
+            val snapshot = client.readDiagnostics(bleClient.selectedGauge(), index)
+            validateDiagnosticScope(snapshot, source, activeDocument?.takeIf { it.vehicleProfileId == profileCollection.activeId }?.revision)
+            diagnosticsBySource = diagnosticsBySource + (source to snapshot)
+            diagnosticsCheckedAt = diagnosticsCheckedAt + (source to android.os.SystemClock.elapsedRealtime())
+            if (source == draft.source) diagnosticsRead(snapshot)
+        }
         operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
             "Fault snapshot read", "Review each category's last checked status", terminal = true)
     }

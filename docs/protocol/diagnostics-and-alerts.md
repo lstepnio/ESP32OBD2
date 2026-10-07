@@ -84,3 +84,13 @@ Only the active source is sampled. The other source is Not checked.
 This implementation reads codes only. The clearing flow above remains a design.
 Physical qualification still requires the 248-byte long read on Pixel, category
 coverage on the gauge and disconnect/reconnect checks with the real adapter.
+
+## Independent development sources, dev.41
+
+Each configured adapter has its own connected state, session, MIL and three fault
+categories. Disconnect clears freshness only for that source; reconnect increments
+its session and clears old categories. Source-specific `3A` reads keep the v15 layout;
+`39` remains source zero. See [source selection](adapter-bindings-v1.md).
+Snapshot lock contention yields a retryable resource error, not empty healthy data.
+The app reads disconnected snapshots as last checked and keeps separate poll backoff.
+No fault-clearing command is added.

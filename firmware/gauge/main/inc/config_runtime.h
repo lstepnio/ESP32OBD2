@@ -37,6 +37,7 @@ typedef struct {
     uint32_t poll_ms;
     uint32_t stale_ms;
     uint32_t responder;
+    uint8_t source_index;
 } runtime_pid_t;
 
 typedef struct {
@@ -54,19 +55,24 @@ typedef struct {
 } runtime_alert_t;
 
 typedef struct {
+    bool transmission;
+    bool simulated;
+    char id[33];
+    char adapter_id[65];
+    char address[18];
+    uint8_t address_type;
+} runtime_source_t;
+
+typedef struct {
+    uint8_t source_count;
+    runtime_source_t sources[2];
     uint8_t pid_count;
     uint8_t page_count;
     uint8_t alert_count;
     uint8_t rotation;
     uint8_t brightness;
     bool legacy_auto_discovery;
-    bool simulated_adapter;
-    bool transmission_source;
     char vehicle_id[65];
-    char source_id[33];
-    char adapter_id[65];
-    char adapter_address[18];
-    uint8_t adapter_address_type;
     runtime_pid_t pids[EGAUGE_RUNTIME_PIDS];
     runtime_page_t pages[EGAUGE_RUNTIME_PAGES];
     runtime_alert_t alerts[EGAUGE_RUNTIME_ALERTS];

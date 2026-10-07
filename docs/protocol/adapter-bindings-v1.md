@@ -20,9 +20,9 @@ Configuration schema 2 adds an optional `adapter` object to each source:
 }
 ```
 
-The example address is synthetic. Adapter identity, BLE address type, driver, vehicle profile, pages, and alerts travel in the same owner-authenticated stage/commit document. Existing hash readback, two reserved slots, trial boot, and previous-generation recovery apply. Changing a binding does not bypass document validation. Duplicate adapter IDs or addresses across sources are rejected. The runtime currently executes one ECM source, standard Mode 01, functional CAN queries, and explicit 11-bit responder IDs. A second live source remains blocked until its definitions and radio path are qualified.
+The example address is synthetic. Adapter identity, BLE address type, driver, vehicle profile, pages, and alerts travel in the same owner-authenticated stage/commit document. Existing hash readback, two reserved slots, trial boot, and previous-generation recovery apply. Changing a binding does not bypass document validation. Duplicate adapter IDs or addresses across sources are rejected. Development dev.41 executes one source or a distinct ECM/TCM pair. ECM retains bounded Mode 01 functional queries; TCM remains limited to captured 2204FE/225503 definitions and 7E1/7E9. Runtime compilation rejects duplicate numeric PID identities and TCM alerts. Public two-link qualification remains pending.
 
-An absent adapter in schema 2 means unbound: no automatic connection to a nearby adapter. Schema 1 remains readable with its legacy discovery behavior. The Android local profile codec migrates versions 1 through 4 to version 5 without inventing a binding. Selections stay separate for each of its eight vehicle profiles. A local selection is a draft until gauge save and running hash readback succeed.
+An absent adapter in schema 2 means unbound: no automatic connection to a nearby adapter. Schema 1 remains readable with its legacy discovery behavior. The Android local profile codec migrates versions 1 through 5 to version 6 without inventing a binding. Selections stay separate for each of its eight vehicle profiles. A local selection is a draft until gauge save and running hash readback succeed.
 
 `elm-18f0-v1` requires service 18F0, write characteristic 2AF1, notify characteristic 2AF0, suitable discovered properties, and a subscribed CCCD. An advertised name or service only establishes a candidate. Address selection is appropriate for the observed Vgate; adapters that rotate addresses need a stronger identity mechanism before qualification.
 
@@ -89,3 +89,19 @@ Adapter scanning and connections stop while the temporary Wi-Fi maintenance netw
 ESP-IDF 5.4.1 filters incoming ATT notifications from unencrypted links when its global NimBLE security level is 2 or higher. The gauge uses global level 1 for the adapter transport. Companion control/state attributes require authentication, and their handlers independently require an encrypted, authenticated, bonded saved-owner identity. Phone pairing still requests bonding, MITM protection, and Secure Connections. Adapter transport access does not grant companion owner access.
 
 An uncertain Android configuration result can be reconciled after reconnecting only when the saved document and healthy runtime match the exact attempted revision and payload digest. A subsequent draft edit is not substituted for that attempted payload. OTA reconciliation similarly requires the expected healthy image identity.
+
+## Development source selection, da:1
+
+Compact capability `da:1` advertises the owner development source-selection path,
+not verified public simultaneous capacity. Android release builds cannot enable the
+experimental both-adapter option. Public `maxAdapterLinks` stays one.
+
+- `53 sequence:u32 sourceIndex:u8` selects a source-specific adapter snapshot.
+- `3A sequence:u32 sourceIndex:u8` selects its full diagnostic snapshot.
+
+Source index is its array position in the exact confirmed configuration, 0 or 1.
+Only configured indices are accepted. Existing `52` and `39` read source zero and
+retain their packet layouts (v14, 160 bytes; v15, 248 bytes). Each selection clears
+the cached long-read snapshot. Unsupported commands, bad indices and malformed
+responses never fall back to another source. The Android client derives indices
+from unique configured role entries and validates vehicle/source/revision on reads.

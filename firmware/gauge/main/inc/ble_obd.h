@@ -29,7 +29,7 @@ typedef struct
     size_t  data_len;
 } obd_response_t;
 
-typedef void (*ble_obd_response_cb_t)(int pid, uint8_t const *data, size_t len, void *usr_ctx);
+typedef void (*ble_obd_response_cb_t)(int pid, uint8_t const *data, size_t len, uint32_t generation, void *usr_ctx);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Public Function Declarations
@@ -62,6 +62,6 @@ void ble_obd_disconnect(ble_obd_ctx_t *obd);
 ble_obd_ctx_t *ble_obd_connect_profile(unsigned source_id, const char *peer_mac, uint8_t address_type,
     const char *driver, ble_obd_response_cb_t response_cb, void *usr_ctx);
 
-/* One active source, explicitly initialized for ECM or TCM. TCM uses 7E1/7E9. */
+/* Independent source context, explicitly initialized for ECM or TCM. TCM uses 7E1/7E9. */
 ble_obd_ctx_t *ble_obd_connect_profile_ecu(unsigned source_id, const char *peer_mac, uint8_t address_type,
     const char *driver, uint32_t ecu, ble_obd_response_cb_t response_cb, void *usr_ctx);

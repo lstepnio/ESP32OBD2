@@ -63,23 +63,13 @@ attribution. A child is optional and remains absent from ordinary setup.
 
 ## Firmware and protocol boundary
 
-Current firmware executes one configured source and advertises `maxAdapterLinks=1`.
-Both an ECM gauge and a TCM gauge may project the same `vehicleProfileId`, using
-separate source roles and bindings in the existing schema-2 wire document. Local
-profile schema 6 and gauge association schema 1 do not change BLE opcodes or packet
-layouts. They do not install two sources on one gauge.
-
-The target in [multi-adapter support](multi-adapter.md) remains two independent
-central links on one gauge plus the phone. Gate that configuration until independent
-snapshots, mixed-source pages/alerts, link isolation, coexistence and hardware soak
-are implemented and qualified. Never hide a failed required child behind a healthy
-parent in the universal connection pill.
-
-## Verification
-
-`VehicleHierarchyTest` covers nested persistence, legacy migration, duplicate radio
-rejection, parent invariants, independent gauge contexts, invalid associations and
-source-specific wire projection. `VehicleHierarchyUiTest` covers Expert child setup,
-explicit removal, gauge selection and Car-to-Expert routing using isolated examples.
-Two adapters and multiple physical gauges still need field qualification; tests and
-UI fixtures do not establish that physical behavior.
+Development candidate dev.41 executes one or two sources with separate worker/parser,
+status, diagnostic, retry and alert availability state. The debug app's per-gauge
+`bothAdapters` choice uses compact capability `da:1`; it does not reinterpret public
+capacity or qualify three simultaneous radio links. Missing child data fails closed.
+The editors retain separate ECM/TCM drafts; combined review and send include both
+sets of pages (at most eight total) and primary alerts in one schema-2 configuration.
+Child page identities are prefixed `child.` to avoid collisions. Single-source
+imports remain available; importing a dual document into one editor is blocked
+rather than discarding its other source. Public capacity remains one until the
+[physical recovery matrix](../development/dual-adapter-recovery.md) passes.

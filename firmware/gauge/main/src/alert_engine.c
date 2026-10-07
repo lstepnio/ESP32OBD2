@@ -106,3 +106,14 @@ void alert_engine_invalidate(void)
         states[i].pending_since = 0;
     }
 }
+
+void alert_engine_invalidate_source(unsigned source)
+{
+    if (!rules) { alert_engine_invalidate(); return; }
+    for (unsigned i=0; i<rules->alert_count; ++i) {
+        if (rules->pids[rules->alerts[i].pid_index].source_index != source) continue;
+        states[i].sampled = false;
+        states[i].pending = 0;
+        states[i].pending_since = 0;
+    }
+}

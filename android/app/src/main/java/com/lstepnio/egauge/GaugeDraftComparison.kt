@@ -27,6 +27,7 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                        profileId: String): Draft? = runCatching {
             require(document.vehicleProfileId == profileId)
             val saved = JSONObject(document.json)
+            require(saved.getJSONArray("sources").length() == 1)
             val savedPages = saved.getJSONArray("pages")
             val primary = savedPages.getJSONObject(0)
             val pidId = localPid(primary.getJSONArray("pidIds").getString(0))

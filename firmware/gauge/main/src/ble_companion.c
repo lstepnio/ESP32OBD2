@@ -71,6 +71,7 @@ static QueueHandle_t owner_save_queue;
 #define ACTIVE_DOCUMENT_CHUNK_SIZE 128U
 #define BLE_OWNER_MAX_REQUEST 173U
 static uint8_t status_snapshot[512];
+static unsigned extended_source;
 static size_t status_snapshot_length;
 static uint32_t active_document_offset;
 
@@ -171,14 +172,14 @@ static const char capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
     "\"maxAdapterLinks\":1,"
     "\"savedStateRead\":true,\"displayRotationWrite\":true,"
-    "\"configWrite\":false,\"cfg\":3,\"ad\":1,"
+    "\"configWrite\":false,\"cfg\":3,\"ad\":1,\"da\":1,"
     "\"quickSelect\":true,\"ota\":false,\"hw\":1"
     DISPLAY_SETTINGS_CAPABILITY WIFI_BULK_CAPABILITY "}";
 static const char document_capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
     "\"maxAdapterLinks\":1,"
     "\"savedStateRead\":false,\"displayRotationWrite\":false,"
-    "\"configWrite\":false,\"cfg\":3,\"ad\":1,"
+    "\"configWrite\":false,\"cfg\":3,\"ad\":1,\"da\":1,"
     "\"ota\":false,\"hw\":1"
     DISPLAY_SETTINGS_CAPABILITY WIFI_BULK_CAPABILITY "}";
 _Static_assert(sizeof(capabilities) - 1U <= 255U,
@@ -218,7 +219,15 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
         status_snapshot_length = 0;
         return 0;
     }
+    if ((request[0] == 0x53 || request[0] == 0x3a) && length == 6) {
+        if (request[5] >= adapter_status_count()) return BLE_ATT_ERR_UNLIKELY;
+        extended_source = request[5];
+        extended_status_mode = request[0] == 0x53 ? 11 : 12;
+        status_snapshot_length = 0;
+        return 0;
+    }
     if (request[0] == 0x39 && length == 5) {
+        extended_source = 0;
         extended_status_mode = 12;
         status_snapshot_length = 0;
         return 0;
@@ -302,6 +311,7 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
 #endif
     }
     if (request[0] == 0x52 && length == 5) {
+        extended_source = 0;
         extended_status_mode = 11;
         status_snapshot_length = 0;
         return 0;
@@ -341,7 +351,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     if (!authorized(conn_handle)) return BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
     if (extended_status_mode == 11) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
-            status_snapshot_length = adapter_status_snapshot(status_snapshot);
+            status_snapshot_length = adapter_status_snapshot_for(extended_source, status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
@@ -386,7 +396,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     }
     if (extended_status_mode == 12) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
-            status_snapshot_length = diagnostics_state_full_status(
+            status_snapshot_length = diagnostics_state_full_status_for(extended_source,
                 pdTICKS_TO_MS(xTaskGetTickCount()), status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;

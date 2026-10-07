@@ -131,6 +131,13 @@ static void test_alert_edges(void)
     alert_engine_sample(1, 2, 1);
     summary = alert_engine_tick(1);
     assert(summary.severity == 1 && strcmp(summary.label, "High priority") == 0);
+    priorities.pids[1].source_index = 1;
+    alert_engine_invalidate_source(1);
+    summary = alert_engine_tick(2);
+    assert(summary.severity == 1 && !strcmp(summary.label, "High priority") && summary.unavailable);
+    priorities.alerts[1].priority = 0;
+    summary = alert_engine_tick(2);
+    assert(!strcmp(summary.label, "Low priority") && !summary.unavailable);
 }
 
 static void test_scheduler(void)

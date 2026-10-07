@@ -73,8 +73,10 @@ for authorized publication and the [recovery matrix](ota-recovery-matrix.md) for
 ## Adapter and vehicle sessions
 
 The companion selects and saves a source-specific adapter binding in the configuration.
-The normal runtime polls one active Engine or Transmission source. Legacy menuconfig
-MAC fields are fallback/scaffolding, not the normal setup or qualified dual-adapter support.
+The default setup polls one Engine or Transmission source. Development dev.41 also
+executes an explicitly configured ECM/TCM pair. The per-gauge Expert option requires
+`da:1` and distinct bindings. Menuconfig ECM MAC is a legacy fallback; the idle TCM
+worker is retired. See [dual recovery qualification](dual-adapter-recovery.md).
 Keep real addresses and raw recordings in ignored local artifacts.
 
 Use [TCM resume](tcm-session-resume.md) for the next Jeep session and the

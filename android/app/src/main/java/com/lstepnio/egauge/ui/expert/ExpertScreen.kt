@@ -24,6 +24,7 @@ data class ExpertActions(
     val findAdapters: () -> Unit = {},
     val chooseAdapter: (AdapterBinding?) -> Unit = {},
     val attachLegacy: (String) -> Unit = {},
+    val useBoth: (Boolean) -> Unit = {},
 )
 
 @Composable
@@ -43,9 +44,14 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions) {
                 Text(state.vehicleName, style = MaterialTheme.typography.titleMedium)
                 if (state.primarySource == "ECM") {
                     SettingsRow("Primary adapter", "Engine (ECM)", state.canEditVehicle) { actions.selectSource("ECM") }
+                    if (state.hasTransmission || state.bothAdapters) {
+                        SettingsRow("Use both adapters on this gauge", if (state.bothAdapters) "On · review and send setup" else "Off",
+                            state.canEditVehicle && (state.canUseBothAdapters || state.bothAdapters)) { actions.useBoth(!state.bothAdapters) }
+                        if (!state.canUseBothAdapters && !state.bothAdapters) Text("Choose two different adapters and update the gauge to enable this development feature.")
+                    }
                     if (state.hasTransmission) {
                         SettingsRow("Child adapter", "Transmission (TCM)", state.canEditVehicle) { actions.selectSource("TCM") }
-                        Text("This gauge uses ${if (state.selectedSource == "TCM") "the transmission child" else "the engine adapter"}. Both belong to this car.")
+                        Text("Editing ${if (state.selectedSource == "TCM") "transmission" else "engine"} pages. Both connections belong to this car.")
                         TextButton({ removeOpen = true }, enabled = state.canEditVehicle) { Text("Remove transmission child") }
                     } else {
                         SettingsRow("Add transmission child", "For a swap with a separate diagnostic connector",

@@ -28,7 +28,10 @@ Discovery gathers all matching advertisers for a short bounded window. A single 
 ## Configuration transaction
 
 `ConfigurationProjector` is the single projection from the local draft to the supported firmware document. It validates supported page/rendering combinations. An optional Expert transmission child within an engine vehicle (or a retained legacy TCM profile)
-uses the captured temperature/current-gear definitions and one source-specific adapter. The review and wire payload use the same projection. The transaction captures the profile, draft, base revision, and base hash before sending.
+uses the captured temperature/current-gear definitions. The debug app can explicitly
+include a vehicle's ECM and TCM child on one gauge when `da:1` is present; both drafts
+are reviewed and projected together. Per-source reads/backoff and confirmed revision
+scope remain separate. The review and wire payload use the same projection. The transaction captures the profile, draft, base revision, and base hash before sending.
 
 ```mermaid
 stateDiagram-v2

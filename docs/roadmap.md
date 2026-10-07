@@ -12,7 +12,7 @@ This list contains remaining work, with evidence gates rather than old milestone
 | App interaction qualification | Live Car fault refresh, adapter-loss status and concurrent user-operation preemption | Automatic settings, resume, Bluetooth recovery and Add gauge cancellation passed on Pixel/gauge; native goldens updated. Finish live adapter and interruption matrix |
 | UI/settings qualification | Metric/Imperial persistence, automatic page cycling, bold colors/arc clearance, alerts | Owner observations on the physical LCD, including hidden-page alert behavior and daylight readability |
 | Recovery hardening | Config/OTA interruption and power-loss matrix, Wi-Fi expiry and uncertain outcome UX | [Recovery matrix](development/ota-recovery-matrix.md), exact images and post-reboot identities |
-| Adapter expansion | Second physical adapter plus phone coexistence and fallback | Measured radio/freshness/resource limits; public capacity stays one until qualified |
+| Adapter expansion | Second physical adapter plus phone coexistence, independent loss/recovery and sustained load | [Dual recovery matrix](development/dual-adapter-recovery.md); source dev.41 ready for qualification, measured radio/freshness/resource limits; public capacity stays one |
 | Product hardening | Phone/adapter/vehicle matrix, accessibility, performance, production release trust and Play publication | [Quality gates](development/quality.md), reproducible artifacts and explicit release authorization |
 | Future scope | Safe code clearing, broader manufacturer packs, live phone telemetry, optional sensors | Documented protocol and complete protected path before advertising support |
 
@@ -26,8 +26,8 @@ synthetic placeholder becomes a supported vehicle value.
 Normal vehicles have one primary ECM connection. Expert can attach an optional TCM
 child within the same vehicle; legacy standalone Transmission profiles remain usable
 until explicitly attached. Each remembered gauge has its own vehicle/source context.
-The current gauge firmware runs one active source; simultaneous dual-adapter operation
-still requires qualification. Keep one workspace and the existing settings store.
+Installed dev.40 runs one source. Source dev.41 implements both workers and the
+combined app path; physical simultaneous operation still requires qualification. Keep one workspace and the existing settings store.
 
 ## Acceptance and maintenance
 

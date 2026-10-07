@@ -15,3 +15,5 @@ alert_summary_t alert_engine_tick(uint32_t now_ms);
 
 /* Retain the last alert severity as unavailable; abandon pending dwell. */
 void alert_engine_invalidate(void);
+
+void alert_engine_invalidate_source(unsigned source);

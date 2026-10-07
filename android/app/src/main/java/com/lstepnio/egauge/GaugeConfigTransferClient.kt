@@ -255,10 +255,11 @@ class GaugeConfigTransferClient(private val context: Context) {
         return ConfigurationProjector.project(template, draft, profileId, baseRevision, adapter, schemaVersion).second
     }
 
-    suspend fun readAdapterStatus(device: BluetoothDevice): AdapterSourceStatus {
+    suspend fun readAdapterStatus(device: BluetoothDevice, sourceIndex: Int? = null): AdapterSourceStatus {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         return withGauge(device) {
-            writeRaw(byteArrayOf(0x52) + le32(1))
+            require(sourceIndex == null || sourceIndex in 0..1)
+            writeRaw(if (sourceIndex == null) byteArrayOf(0x52) + le32(1) else byteArrayOf(0x53) + le32(1) + byteArrayOf(sourceIndex.toByte()))
             decodeAdapterStatus(readRaw())
         }
     }
@@ -346,15 +347,16 @@ class GaugeConfigTransferClient(private val context: Context) {
         }
     }
 
-    suspend fun readDiagnostics(device: BluetoothDevice): Diagnostics {
+    suspend fun readDiagnostics(device: BluetoothDevice, sourceIndex: Int? = null): Diagnostics {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         val bytes = withGauge(device) {
             try {
-                writeRaw(byteArrayOf(0x39) + le32(1))
+                require(sourceIndex == null || sourceIndex in 0..1)
+                writeRaw(if (sourceIndex == null) byteArrayOf(0x39) + le32(1) else byteArrayOf(0x3a) + le32(1) + byteArrayOf(sourceIndex.toByte()))
             } catch (error: GaugeCommandRejectedException) {
                 // Only explicit unsupported opcode/length permits legacy fallback.
                 // Link loss, auth failure and malformed snapshots are never downgraded.
-                if (error.status !in setOf(6, 13)) throw error
+                if (sourceIndex != null || error.status !in setOf(6, 13)) throw error
                 writeRaw(byteArrayOf(0x30) + le32(1))
             }
             readRaw()
@@ -704,7 +706,7 @@ class GaugeConfigTransferClient(private val context: Context) {
 
     suspend fun apply(device: BluetoothDevice, draft: Draft, profileId: String,
                       expectedBaseRevision: Long, expectedBaseSha256: String,
-                      adapter: AdapterBinding? = null, schemaVersion: Int = 1,
+                      adapter: AdapterBinding? = null, schemaVersion: Int = 1, preparedDocument: ByteArray? = null,
                       stage: (OperationStage) -> Unit = {}): Applied {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         require(expectedBaseRevision >= 0 && expectedBaseSha256.matches(Regex("[0-9a-f]{64}"))) {
@@ -724,7 +726,11 @@ class GaugeConfigTransferClient(private val context: Context) {
                 "Gauge configuration changed from verified revision $expectedBaseRevision to ${current.revision}. " +
                     "Refresh and review the differences before sending."
             }
-            val bytes = document(draft, profileId, current.revision, adapter, schemaVersion)
+            val bytes = preparedDocument?.copyOf() ?: document(draft, profileId, current.revision, adapter, schemaVersion)
+            val projected = JSONObject(bytes.toString(Charsets.UTF_8))
+            require(projected.getLong("baseRevision") == current.revision && projected.getString("vehicleProfileId") == profileId) {
+                "Prepared setup no longer matches the checked vehicle/revision"
+            }
             expectedRevision = current.revision + 1
             digest = MessageDigest.getInstance("SHA-256").digest(bytes)
             val id = le32(transferId)

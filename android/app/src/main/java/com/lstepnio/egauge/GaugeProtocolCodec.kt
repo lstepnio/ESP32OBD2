@@ -46,6 +46,7 @@ object GaugeProtocolCodec {
             wifiBulk = json.optString("wifiBulk").takeIf { it.isNotBlank() },
             hardwareCapacityVersion = hardwareCapacity.takeIf { it > 0 },
             configurationVersion = configurationVersion,
+            dualAdapterVersion = json.optInt("da", 0).also { require(it in 0..1) },
             adapterRegistryVersion = json.optInt("ad", 0).also { require(it in 0..1) },
             maxPages = if (configurationVersion >= 2) 8 else if (configurationVersion == 1) 3 else 0,
             supportedRenderers = when (configurationVersion) {

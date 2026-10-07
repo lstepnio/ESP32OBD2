@@ -44,7 +44,9 @@ One lost source must not stop retries, data or alerts for another healthy source
 
 `ConnectionLinkUi` and the widget accept multiple links. Vehicles may have an
 optional transmission child in local storage; current firmware readback exposes
-one active source per selected gauge, so the app presently supplies one link. See
+one or two selected sources through the gated development path. The app supplies
+independent links, read schedules and failure state; one healthy adapter never makes
+the whole connection pill healthy when its required sibling is unavailable. See
 [vehicle connections](vehicle-connections.md) for the hierarchy and per-gauge contexts.
 Do not fabricate a second link or advertise simultaneous adapters from UI support.
 Complete source-specific firmware snapshots, bindings and coexistence validation

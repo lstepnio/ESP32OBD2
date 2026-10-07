@@ -34,7 +34,7 @@ data class CustomizeUiState(val pages: List<PageUi>, val editingPage: Int, val r
     val alerts: List<AlertUi>, val blockers: List<String>, val canSend: Boolean,
     val needsCheck: Boolean, val found: Boolean, val busy: Boolean, val editingEnabled: Boolean,
     val advanced: Boolean, val supportedLayouts: Set<GaugeLayout>, val details: List<DetailUi>,
-    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric)
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val reviewPages: List<PageUi> = emptyList())
 @Immutable
 data class VehicleUi(val id: String, val name: String)
 @Immutable
@@ -51,7 +51,7 @@ data class CarUiState(val name: String, val profiles: List<VehicleUi>, val activ
     val adapterMessage: String? = null, val adapterCandidates: List<com.lstepnio.egauge.AdapterCandidate> = emptyList(),
     val canSendAdapter: Boolean = false, val faultSources: List<FaultSourceUi> = emptyList(),
     val connectionStatus: StatusUi = StatusUi("Checking car connection", "Checks run automatically while the app is open."),
-    val setupNeeded: Boolean = false, val transmissionChild: Boolean = false)
+    val setupNeeded: Boolean = false, val transmissionChild: Boolean = false, val connectionLinks: List<ConnectionLinkUi> = emptyList())
 @Immutable
 data class SettingsUiState(val name: String, val found: Boolean, val rotation: Int?, val canRotate: Boolean,
     val busy: Boolean, val advanced: Boolean, val dynamicColor: Boolean, val version: String,
@@ -59,7 +59,7 @@ data class SettingsUiState(val name: String, val found: Boolean, val rotation: I
     val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val cycleSeconds: Int? = null,
     val settingsCurrent: Boolean = true, val gauges: List<GaugeUi> = emptyList(), val selectedGaugeId: String? = null)
 @Immutable
-data class GaugeUi(val id: String, val name: String, val vehicleName: String?, val source: String?, val needsReview: Boolean = false)
+data class GaugeUi(val id: String, val name: String, val vehicleName: String?, val source: String?, val needsReview: Boolean = false, val bothAdapters: Boolean = false)
 @Immutable
 data class CandidateUi(val id: String, val name: String, val shortId: String, val details: List<DetailUi>)
 @Immutable
@@ -73,7 +73,7 @@ data class ExpertUiState(val canRead: Boolean, val canReadHardware: Boolean,
     val hasTransmission: Boolean = false, val selectedSource: String = "ECM", val canEditVehicle: Boolean = false,
     val selectedAdapter: String? = null, val adapterCandidates: List<com.lstepnio.egauge.AdapterCandidate> = emptyList(),
     val canFindAdapter: Boolean = false, val adapterMessage: String? = null,
-    val legacyParents: List<VehicleUi> = emptyList(), val vehicleMessage: String? = null)
+    val legacyParents: List<VehicleUi> = emptyList(), val vehicleMessage: String? = null, val bothAdapters: Boolean = false, val canUseBothAdapters: Boolean = false)
 @Immutable
 data class UpdatesUiState(val status: StatusUi, val availableVersion: String?, val installedVersion: String,
     val canCheck: Boolean, val canInstall: Boolean, val ready: Boolean, val busy: Boolean,

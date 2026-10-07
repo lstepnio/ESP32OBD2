@@ -203,13 +203,14 @@ internal fun AlertUi.summary() = "Warn $direction $warning $unit · Critical $di
 
 @Composable
 private fun SendReview(state: CustomizeUiState, onBack: () -> Unit, actions: CustomizeActions) {
+    val pages = state.reviewPages.ifEmpty { state.pages }
     EditorScaffold("Review and send", onBack,
         when { !state.found -> "Set up gauge"; state.needsCheck -> "Check gauge"; else -> "Send to gauge" },
         { when { !state.found -> actions.setup(); state.needsCheck -> actions.check(); else -> actions.send() } },
         !state.busy && (!state.found || state.needsCheck || state.canSend)) {
-        SectionTitle("${state.pages.size} pages")
+        SectionTitle("${pages.size} pages")
         Panel {
-            state.pages.forEachIndexed { index, page ->
+            pages.forEachIndexed { index, page ->
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("${index + 1}. ${page.readingName}" + (page.secondaryId?.let { " + ${readingName(it)}" } ?: ""),
                         style = MaterialTheme.typography.titleMedium)

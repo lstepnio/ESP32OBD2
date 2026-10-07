@@ -62,4 +62,18 @@ class VehicleHierarchyUiTest {
         assertEquals(true, expert)
         compose.onAllNodesWithText("Vehicle adapter").assertCountEquals(0)
     }
+    @Test fun bothAdaptersAreExplicitAndGatedInExpert() {
+        var selected = false
+        frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
+            hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true, canUseBothAdapters = true),
+            ExpertActions({}, {}, {}, {}, {}, useBoth = { selected = it })) }
+        compose.onNodeWithText("Use both adapters on this gauge").performScrollTo().performClick()
+        assertEquals(true, selected)
+    }
+    @Test fun oldFirmwareCannotEnableBothAdapters() {
+        frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
+            hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true), ExpertActions({}, {}, {}, {}, {})) }
+        compose.onNodeWithText("Use both adapters on this gauge").performScrollTo().assertIsNotEnabled()
+    }
+
 }

@@ -24,3 +24,11 @@ fun ProfileCollection.attachTransmission(legacyId: String, parentId: String): Pr
         if (it.id == parent.id) attached else it
     })
 }
+
+/** Combined payload only. Editors and storage retain separate parent/child drafts. */
+fun VehicleProfile.combinedDraft(): Draft {
+    require(draft.source == "ECM" && primaryAdapter != null)
+    val child = requireNotNull(transmission)
+    require(child.adapter != null && !samePhysicalAdapter(primaryAdapter, child.adapter))
+    return draft.copy(source = "BOTH", pages = draft.pages + child.draft.pages.map { it.copy(id = "child.${it.id}") })
+}

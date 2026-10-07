@@ -40,8 +40,9 @@ int main(int argc, char **argv)
     set(root); assert(validate()==ESP_OK);
     config_runtime_t runtime; config_store_record_t active; bool previous;
     assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
-    assert(!runtime.legacy_auto_discovery && !strcmp(runtime.adapter_address,"C0:00:00:00:00:01") && runtime.adapter_address_type==1);
+    assert(!runtime.legacy_auto_discovery && !strcmp(runtime.sources[0].address,"C0:00:00:00:00:01") && runtime.sources[0].address_type==1);
     assert(runtime.pids[0].responder==0x7e8);
+    cJSON *engine_root=cJSON_Duplicate(root,1);
     cJSON *source=cJSON_GetArrayItem(cJSON_GetObjectItem(root,"sources"),0);
     cJSON *original_label=cJSON_Duplicate(cJSON_GetObjectItem(source,"label"),1);
     char label[34]; memset(label,'x',33); label[32]=0;
@@ -67,7 +68,7 @@ int main(int argc, char **argv)
     cJSON_DeleteItemFromObject(source,"adapter");
     set(root); assert(validate()==ESP_OK);
     assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
-    assert(!runtime.legacy_auto_discovery && runtime.adapter_address[0]==0);
+    assert(!runtime.legacy_auto_discovery && runtime.sources[0].address[0]==0);
     cJSON_SetNumberValue(cJSON_GetObjectItem(root,"schemaVersion"),1);
     set(root); assert(validate()==ESP_OK);
     assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK && runtime.legacy_auto_discovery);
@@ -94,7 +95,7 @@ int main(int argc, char **argv)
     cJSON_ReplaceItemInObject(root,"alerts",cJSON_CreateArray());
     set(root); assert(validate()==ESP_OK);
     assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
-    assert(runtime.transmission_source && runtime.pids[0].obd.pid==0x04fe &&
+    assert(runtime.sources[0].transmission && runtime.pids[0].obd.pid==0x04fe &&
            runtime.pids[0].obd.len==3 && runtime.pids[0].obd.decoder.byte_length==1 && runtime.pids[0].responder==0x7e9);
     double temperature;
     const uint8_t observed[]={85,84,85}, placeholder[]={0,0,0};
@@ -126,6 +127,36 @@ int main(int argc, char **argv)
     assert(runtime.pids[1].obd.pid==0x5503 && runtime.pids[1].obd.len==1);
     const uint8_t park[]={13};
     assert(pid_decoder_eval(&runtime.pids[1].obd.decoder,park,1,&temperature) && temperature==13);
+    /* Compile the bounded dual-source payload using the same production compiler. */
+    cJSON *dual=cJSON_Duplicate(engine_root,1);
+    cJSON *child_source=cJSON_Duplicate(source,1);
+    cJSON *child_binding=cJSON_GetObjectItem(child_source,"adapter");
+    cJSON_ReplaceItemInObject(child_binding,"id",cJSON_CreateString("child.radio"));
+    cJSON_ReplaceItemInObject(child_binding,"address",cJSON_CreateString("C0:00:00:00:00:02"));
+    cJSON_AddItemToArray(cJSON_GetObjectItem(dual,"sources"),child_source);
+    cJSON *tcm_defs=cJSON_Duplicate(cJSON_GetObjectItem(root,"definitions"),1);
+    cJSON_ReplaceItemInObject(cJSON_GetArrayItem(tcm_defs,0),"id",cJSON_CreateString("transmission.temperature"));
+    cJSON *child_page=cJSON_Duplicate(page,1);
+    cJSON_ReplaceItemInObject(child_page,"id",cJSON_CreateString("child.page"));
+    cJSON_ReplaceItemInObject(child_page,"pidIds",cJSON_Parse("[\"transmission.temperature\",\"transmission.gear\"]"));
+    cJSON_AddItemToArray(cJSON_GetObjectItem(dual,"pages"),child_page);
+    while(cJSON_GetArraySize(tcm_defs)) cJSON_AddItemToArray(cJSON_GetObjectItem(dual,"definitions"),cJSON_DetachItemFromArray(tcm_defs,0));
+    cJSON_Delete(tcm_defs);
+    set(dual); assert(validate()==ESP_OK);
+    assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
+    assert(runtime.source_count==2 && !runtime.sources[0].transmission && runtime.sources[1].transmission);
+    assert(runtime.pids[runtime.pid_count-1].source_index==1 && runtime.pids[0].source_index==0);
+    cJSON_ReplaceItemInObject(child_page,"pidIds",cJSON_Parse("[\"engine.rpm\",\"transmission.gear\"]"));
+    set(dual); assert(validate()==ESP_OK);
+    assert(config_runtime_validate(&partition,0,document_length,NULL)!=ESP_OK);
+    cJSON_ReplaceItemInObject(child_page,"pidIds",cJSON_Parse("[\"transmission.temperature\",\"transmission.gear\"]"));
+    cJSON_ReplaceItemInObject(child_binding,"address",cJSON_CreateString("C0:00:00:00:00:01"));
+    set(dual); assert(validate()!=ESP_OK);
+    assert(config_runtime_validate(&partition,0,document_length,NULL)!=ESP_OK);
+    cJSON_ReplaceItemInObject(child_binding,"address",cJSON_CreateString("C0:00:00:00:00:02"));
+    cJSON_DeleteItemFromObject(child_source,"adapter");
+    set(dual); assert(config_runtime_validate(&partition,0,document_length,NULL)!=ESP_OK);
+    cJSON_Delete(dual); cJSON_Delete(engine_root);
     cJSON_ReplaceItemInObject(page,"renderer",cJSON_CreateString("arc"));
     cJSON_ReplaceItemInObject(page,"pidIds",cJSON_Parse("[\"transmission.gear\"]"));
     set(root); assert(validate()==ESP_OK);

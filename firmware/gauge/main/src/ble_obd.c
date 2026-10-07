@@ -147,8 +147,6 @@ static bool ble_obd_dev_filter_cb(ble_mgr_ctx_t *mgr_ctx, const ble_addr_t *addr
                     addr_str, strlen(addr_str), 0);
 
     if (obd->peer_mac[0]) return addr->type == obd->peer_address_type && strcasecmp(addr_str, obd->peer_mac) == 0;
-    if (obd->source_id == 0 && CONFIG_EGAUGE_TCM_ADAPTER_MAC[0] &&
-        strcasecmp(addr_str, CONFIG_EGAUGE_TCM_ADAPTER_MAC) == 0) return false;
     return true;
 }
 
@@ -390,7 +388,7 @@ int ble_obd_rxtx_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid,
     obd_trace_emit(obd->source_id, obd->active_generation, "decoded", payload.bytes, payload.length, decoded);
     if (decoded == ELM_OK && !atomic_load(&obd->rx_overflow) &&
         atomic_load(&obd->generation) == obd->active_generation) {
-        if (obd->response_cb && (mode == 0x22 || pid % 32 != 0)) obd->response_cb(pid, payload.bytes, payload.length, obd->usr_ctx);
+        if (obd->response_cb && (mode == 0x22 || pid % 32 != 0)) obd->response_cb(pid, payload.bytes, payload.length, obd->active_generation, obd->usr_ctx);
         result = 0;
     } else {
         ESP_LOGW(TAG, "Rejected PID %02X response (status=%d)", pid, decoded);

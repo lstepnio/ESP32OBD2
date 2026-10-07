@@ -71,8 +71,8 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
         val selectedRoute = when (route) { Route.Setup, Route.Customize -> Route.Gauge
             Route.Updates -> Route.Settings; else -> route }
         val density = LocalDensity.current
-        val vehicleLinks = listOf(ConnectionLinkUi(state.car.activeId,
-            "${state.car.faultSources.firstOrNull()?.title ?: "Vehicle"} adapter", state.car.connectionStatus))
+        val vehicleLinks = state.car.connectionLinks.ifEmpty { listOf(ConnectionLinkUi(state.car.activeId,
+            "${state.car.faultSources.firstOrNull()?.title ?: "Vehicle"} adapter", state.car.connectionStatus)) }
         CompositionLocalProvider(LocalConnectionStatus provides {
             ConnectionStatusWidget(state.home.connection, state.home.connectionVerified, vehicleLinks,
                 state.home.updateNotice, onClick = { connectionsOpen = true })
@@ -171,7 +171,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                     model::checkGaugeForReview, model::readGaugeDiagnostics,
                                     model::readHardwareCapacity, model::readRunningFirmware, model::adoptGaugeDraft, model::addTransmissionChild,
                                     model::selectVehicleSource, model::removeTransmissionChild,
-                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::attachLegacyTransmission))
+                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::attachLegacyTransmission, model::setBothAdapters))
                             }
                         }
                     }

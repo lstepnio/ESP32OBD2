@@ -155,12 +155,30 @@ static void page_ui(unsigned index, ui_page_t *out)
     }
 }
 
-static void clear_current_page(ui_t *ui)
+typedef struct { ui_t *ui; unsigned source; } source_worker_t;
+static source_worker_t source_workers[2];
+static unsigned runtime_source_count(void) { return g_runtime ? g_runtime->source_count : 1; }
+static bool runtime_simulated(void)
 {
+    if (!g_runtime) return false;
+    for (unsigned source=0; source<g_runtime->source_count; ++source)
+        if (g_runtime->sources[source].simulated) return true;
+    return false;
+}
+static void clear_source(ui_t *ui, unsigned source)
+{
+    /* Only visible metrics need queue entries; page switches reset hidden samples.
+     * Bound invalidation to two entries even when an absent source owns 32 PIDs. */
     ui_page_t page;
     page_ui(atomic_load(&g_selected_page), &page);
-    for (unsigned i = 0; i < page.metric_count; ++i)
-        ui_set_value(ui, page.metrics[i].pid, NULL);
+    for (unsigned metric=0; metric<page.metric_count; ++metric) {
+        if (!g_runtime) { ui_set_value(ui, page.metrics[metric].pid, NULL); continue; }
+        for (unsigned i=0; i<g_runtime->pid_count; ++i)
+            if (g_runtime->pids[i].source_index == source && g_runtime->pids[i].obd.pid == page.metrics[metric].pid) {
+                ui_set_value(ui, page.metrics[metric].pid, NULL);
+                break;
+            }
+    }
 }
 
 static const obd_pid_cfg_t *poll_cfg(unsigned index)
@@ -180,6 +198,7 @@ static config_t g_config = {
 static QueueHandle_t g_phone_command_queue;
 typedef struct {
     uint8_t pid_index;
+    uint32_t generation;
     double value;
     uint32_t observed_at_ms;
 } alert_sample_event_t;
@@ -236,10 +255,13 @@ static void boot_health_task(void *arg)
 // Private Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
-static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_ctx)
+static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t generation, void *usr_ctx)
 {
     ESP_NULL_CHECK(usr_ctx, TAG, "User context is NULL");
-    ui_t *ui = (ui_t *)usr_ctx;
+    source_worker_t *worker = usr_ctx;
+    ui_t *ui = worker->ui;
+    unsigned source = worker->source;
+    if (!adapter_status_ready_for(source) || generation != adapter_status_generation(source)) return;
 
     if (pid < 0)
     {
@@ -255,7 +277,7 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
 
     if (pid == 0x01) {
         if (len >= 4) {
-            diagnostics_state_mil((data[0] & 0x80) != 0, data[0] & 0x7f,
+            diagnostics_state_mil_for(source, (data[0] & 0x80) != 0, data[0] & 0x7f,
                                   pdTICKS_TO_MS(xTaskGetTickCount()));
         }
         /* PID 01 is reserved for the diagnostics monitor and cannot be a
@@ -265,7 +287,7 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
 
     const obd_pid_cfg_t *definition = NULL;
     for (unsigned i = 0; i < poll_count(); ++i)
-        if (poll_cfg(i)->pid == pid) { definition = poll_cfg(i); break; }
+        if (poll_cfg(i)->pid == pid && (!g_runtime || g_runtime->pids[i].source_index == source)) { definition = poll_cfg(i); break; }
     if (!definition) return;
     if (len != definition->len)
     {
@@ -274,7 +296,7 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
     }
 
     double decoded;
-    if (g_runtime && g_runtime->transmission_source && pid == 0x5503 &&
+    if (g_runtime && g_runtime->sources[source].transmission && pid == 0x5503 &&
         !transmission_gear_label(data[0])) {
         ui_set_value(ui, pid, NULL);
         return;
@@ -286,9 +308,10 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
 
     if (g_runtime) {
         for (unsigned i = 0; i < g_runtime->pid_count; ++i)
-            if (g_runtime->pids[i].obd.pid == pid) {
+            if (g_runtime->pids[i].obd.pid == pid && g_runtime->pids[i].source_index == source) {
                 alert_sample_event_t event = {
                     .pid_index = i,
+                    .generation = generation,
                     .value = decoded,
                     .observed_at_ms = pdTICKS_TO_MS(xTaskGetTickCount()),
                 };
@@ -317,14 +340,22 @@ static void app_tick_task(void *arg)
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
         ble_companion_tick();
         alert_sample_event_t event;
-        bool source_ready = adapter_status_ready();
-        while (xQueueReceive(g_alert_sample_queue, &event, 0) == pdTRUE)
-            if (source_ready) alert_engine_sample(event.pid_index, event.value, event.observed_at_ms);
-        if (!source_ready) alert_engine_invalidate();
+        while (xQueueReceive(g_alert_sample_queue, &event, 0) == pdTRUE) {
+            unsigned source = g_runtime ? g_runtime->pids[event.pid_index].source_index : 0;
+            if (adapter_status_ready_for(source) && event.generation == adapter_status_generation(source))
+                alert_engine_sample(event.pid_index, event.value, event.observed_at_ms);
+        }
+        for (unsigned source=0; source<runtime_source_count(); ++source)
+            if (!adapter_status_ready_for(source)) alert_engine_invalidate_source(source);
         alert_summary_t alert = alert_engine_tick(now_ms);
         ui_set_alert(ui, alert.severity, alert.unavailable, alert.label);
         diagnostics_snapshot_t diagnostics;
-        diagnostics_state_snapshot(now_ms, &diagnostics);
+        unsigned display_source = 0;
+        if (g_runtime) {
+            const runtime_page_t *page = &g_runtime->pages[atomic_load(&g_selected_page)];
+            display_source = g_runtime->pids[page->pid_indices[0]].source_index;
+        }
+        diagnostics_state_snapshot_for(display_source, now_ms, &diagnostics);
         ui_set_diagnostics(ui, diagnostics.valid, diagnostics.mil_on, diagnostics.transmission,
                            diagnostics.reported_count, diagnostics.first_code);
         uint32_t ticks = atomic_fetch_add(&g_app_tick_count, 1) + 1;
@@ -342,14 +373,21 @@ static void app_tick_task(void *arg)
 static void obd_task(void *arg)
 {
     ESP_NULL_CHECK(arg, TAG, "task arg is NULL");
-    ui_t *ui = (ui_t *)arg;
-
-    ESP_LOGI(TAG, "RX/TX task started");
+    source_worker_t *worker = arg;
+    ui_t *ui = worker->ui;
+    unsigned source = worker->source;
+    const runtime_source_t *configured = g_runtime ? &g_runtime->sources[source] : NULL;
+    bool transmission = configured && configured->transmission;
+    bool simulated = configured && configured->simulated;
+    uint32_t responder = transmission ? 0x7e9 : 0x7e8;
+    uint8_t pid_indices[POLL_SCHEDULER_MAX_PIDS];
+    uint8_t count = 0;
+    for (unsigned i=0; i<poll_count(); ++i)
+        if (!g_runtime || g_runtime->pids[i].source_index == source) pid_indices[count++] = i;
+    ESP_LOGI(TAG, "RX/TX source %u task started", source);
 
     ble_obd_ctx_t *obd = NULL;
     uint32_t reconnect_delay_ms = 500;
-
-    TickType_t last_wake = xTaskGetTickCount();
 
     const uint32_t period_ms  = 100;
     const uint32_t timeout_ms = 300;
@@ -359,34 +397,33 @@ static void obd_task(void *arg)
 
     while (true)
     {
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(period_ms));
+        vTaskDelay(pdMS_TO_TICKS(period_ms));
         if (transfer_gate_current() == 2 || ble_mgr_is_paused()) {
-            clear_current_page(ui);
-            diagnostics_state_disconnected();
+            clear_source(ui, source);
+            diagnostics_state_disconnected_for(source);
             continue;
         }
 
         if (obd == NULL || !ble_obd_is_connected(obd)) {
-            clear_current_page(ui);
-            diagnostics_state_disconnected();
-            if (g_runtime && !g_runtime->legacy_auto_discovery && !g_runtime->adapter_address[0])
+            clear_source(ui, source);
+            diagnostics_state_disconnected_for(source);
+            if (g_runtime && !g_runtime->legacy_auto_discovery && !configured->address[0])
                 continue;
-            const char *address = g_runtime && g_runtime->adapter_address[0]
-                ? g_runtime->adapter_address : CONFIG_EGAUGE_ECM_ADAPTER_MAC;
-            uint8_t address_type = g_runtime ? g_runtime->adapter_address_type : 0;
-            obd = ble_obd_connect_profile_ecu(0, address, address_type,
-                g_runtime && g_runtime->simulated_adapter ? "elm-bench-v1" : "elm-18f0-v1",
-                g_runtime && g_runtime->transmission_source ? 0x7e9 : 0x7e8, obd_response_cb, ui);
+            const char *address = configured && configured->address[0]
+                ? configured->address : CONFIG_EGAUGE_ECM_ADAPTER_MAC;
+            uint8_t address_type = configured ? configured->address_type : 0;
+            obd = ble_obd_connect_profile_ecu(source, address, address_type,
+                simulated ? "elm-bench-v1" : "elm-18f0-v1",
+                responder, obd_response_cb, worker);
             if (!obd) {
                 ESP_LOGW(TAG, "Vehicle adapter unavailable; retrying in %" PRIu32 " ms",
                          reconnect_delay_ms);
                 vTaskDelay(pdMS_TO_TICKS(reconnect_delay_ms));
                 if (reconnect_delay_ms < 8000) reconnect_delay_ms *= 2;
-                last_wake = xTaskGetTickCount();
                 continue;
             }
             ESP_LOGI(TAG, "Vehicle adapter link ready");
-            diagnostics_state_connected();
+            diagnostics_state_connected_for(source);
             reconnect_delay_ms = 500;
             poll_scheduler_init(&scheduler);
             continue;
@@ -394,18 +431,17 @@ static void obd_task(void *arg)
 
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
         uint32_t intervals[POLL_SCHEDULER_MAX_PIDS];
-        uint8_t count = poll_count();
         for (uint8_t i = 0; i < count; ++i)
-            intervals[i] = g_runtime ? g_runtime->pids[i].poll_ms : 500;
+            intervals[i] = g_runtime ? g_runtime->pids[pid_indices[i]].poll_ms : 500;
         poll_job_t job = poll_scheduler_next(&scheduler, now_ms, intervals, count);
         if (job.kind == POLL_JOB_NONE) continue;
-        if (g_runtime && g_runtime->simulated_adapter &&
+        if (simulated &&
             (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC)) continue;
         if (job.kind == POLL_JOB_MIL) {
             elm_result_t response;
             if (ble_obd_rxtx_status_ecu(obd, 1, 0x01,
-                g_runtime && g_runtime->transmission_source ? 0x7e9 : 0x7e8, 700, &response) != 0)
-                diagnostics_state_failed(1, response == ELM_UNSUPPORTED ?
+                responder, 700, &response) != 0)
+                diagnostics_state_failed_for(source, 1, response == ELM_UNSUPPORTED ?
                     DIAGNOSTICS_UNSUPPORTED : DIAGNOSTICS_UNAVAILABLE);
             continue;
         }
@@ -414,20 +450,20 @@ static void obd_task(void *arg)
             size_t code_length = sizeof(codes);
             elm_result_t response;
             if (ble_obd_read_service_status_ecu(obd, dtc_modes[job.index],
-                    g_runtime && g_runtime->transmission_source ? 0x7e9 : 0x7e8,
+                    responder,
                     1500, codes, &code_length, &response) == 0)
-                diagnostics_state_codes(dtc_modes[job.index], codes, code_length,
+                diagnostics_state_codes_for(source, dtc_modes[job.index], codes, code_length,
                                         pdTICKS_TO_MS(xTaskGetTickCount()));
-            else diagnostics_state_failed(dtc_modes[job.index], response == ELM_UNSUPPORTED ?
+            else diagnostics_state_failed_for(source, dtc_modes[job.index], response == ELM_UNSUPPORTED ?
                 DIAGNOSTICS_UNSUPPORTED : DIAGNOSTICS_UNAVAILABLE);
             continue;
         }
 
-        const obd_pid_cfg_t *requested = poll_cfg(job.index);
-        const uint8_t obd_mode = g_runtime && g_runtime->transmission_source ? 0x22 : 0x01;
+        const obd_pid_cfg_t *requested = poll_cfg(pid_indices[job.index]);
+        const uint8_t obd_mode = transmission ? 0x22 : 0x01;
 
         int status = ble_obd_rxtx_ecu(obd, obd_mode, requested->pid,
-            g_runtime ? g_runtime->pids[job.index].responder : ELM_ECU_ANY, timeout_ms);
+            g_runtime ? g_runtime->pids[pid_indices[job.index]].responder : ELM_ECU_ANY, timeout_ms);
 
         if (status != 0)
         {
@@ -446,24 +482,14 @@ static bool adapter_mac_valid(const char *mac)
     return true;
 }
 
-static void tcm_link_task(void *arg)
-{
-    (void)arg;
-    while (true) {
-        if (ble_mgr_is_paused()) { vTaskDelay(pdMS_TO_TICKS(500)); continue; }
-        ble_obd_ctx_t *tcm = ble_obd_connect(1, CONFIG_EGAUGE_TCM_ADAPTER_MAC, NULL, NULL);
-        if (tcm) {
-            ESP_LOGI(TAG, "TCM adapter link connected; awaiting TCM PID configuration");
-            while (ble_obd_is_connected(tcm)) vTaskDelay(pdMS_TO_TICKS(500));
-        }
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-
 static void init_obd_task(ui_t *ui)
 {
-    BaseType_t handle = xTaskCreate(obd_task, "obd_task", 4096, ui, 5, NULL);
-    ESP_CHECK(handle == pdPASS, TAG, "Failed to create RX/TX task");
+    for (unsigned source=0; source<runtime_source_count(); ++source) {
+        source_workers[source] = (source_worker_t){.ui=ui, .source=source};
+        BaseType_t started = xTaskCreate(obd_task, source ? "obd_child" : "obd_primary",
+            4096, &source_workers[source], 5, NULL);
+        ESP_CHECK(started == pdPASS, TAG, "Failed to create source worker");
+    }
 }
 
 static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
@@ -585,9 +611,10 @@ void app_main(void)
 
     config_document_init();
     init_config();
-    diagnostics_state_configure(g_runtime && g_runtime->transmission_source,
-        g_runtime ? g_running_config_record.revision : 0,
-        g_runtime && g_runtime->simulated_adapter);
+    for (unsigned source=0; source<runtime_source_count(); ++source)
+        diagnostics_state_configure_for(source, g_runtime && g_runtime->sources[source].transmission,
+            g_runtime ? g_running_config_record.revision : 0,
+            g_runtime && g_runtime->sources[source].simulated);
     bool pairing_required = !ble_companion_load_owner();
     alert_engine_init(g_runtime);
 
@@ -628,14 +655,15 @@ void app_main(void)
         return;
     }
     adapter_status_init(g_runtime);
-    if (g_runtime && g_runtime->simulated_adapter && lvgl_port_lock(portMAX_DELAY)) {
+    if (runtime_simulated() && lvgl_port_lock(portMAX_DELAY)) {
         ui_set_simulated(ui);
         lvgl_port_unlock();
     }
     ESP_ERROR_CHECK(adapter_registry_init());
     obd_trace_init();
-    if (g_runtime && g_runtime->simulated_adapter)
-        obd_trace_emit(0, 0, "source_simulated", NULL, 0, 1);
+    for (unsigned source=0; source<runtime_source_count(); ++source)
+        if (g_runtime && g_runtime->sources[source].simulated)
+            obd_trace_emit(source, 0, "source_simulated", NULL, 0, 1);
     init_obd_task(ui);
     BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 3072, ui, 5, NULL);
     ESP_CHECK(tick_started == pdPASS, TAG, "Application tick task creation failed");
@@ -645,16 +673,6 @@ void app_main(void)
         BaseType_t started = xTaskCreate(boot_health_task, "boot_health", 3072,
                                          NULL, 5, NULL);
         ESP_CHECK(started == pdPASS, TAG, "Boot health task creation failed");
-    }
-    if (CONFIG_EGAUGE_TCM_ADAPTER_MAC[0]) {
-        if (!adapter_mac_valid(CONFIG_EGAUGE_TCM_ADAPTER_MAC) ||
-            (CONFIG_EGAUGE_ECM_ADAPTER_MAC[0] &&
-             strcasecmp(CONFIG_EGAUGE_ECM_ADAPTER_MAC, CONFIG_EGAUGE_TCM_ADAPTER_MAC) == 0)) {
-            ESP_LOGE(TAG, "Invalid or duplicate TCM adapter MAC; second link disabled");
-        } else {
-            BaseType_t started = xTaskCreate(tcm_link_task, "tcm_link", 4096, NULL, 5, NULL);
-            ESP_CHECK(started == pdPASS, TAG, "TCM link task creation failed");
-        }
     }
 
     page_save_policy_t page_save = {0};
