@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "util.h"
@@ -31,6 +32,8 @@
 #include "ble_companion.h"
 #include "ble_mgr.h"
 #include "ble_util.h"
+#include "obd_adapter_profile.h"
+#include "sdkconfig.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Private Types
@@ -38,10 +41,13 @@
 
 struct ble_mgr_ctx
 {
-    uint16_t conn_handle;
+    atomic_uint_least16_t conn_handle;
     atomic_bool is_connected;
     atomic_bool connecting;
-    bool scanning;
+    atomic_bool scanning;
+    atomic_bool write_inflight;
+    atomic_uint write_generation;
+    QueueHandle_t write_result;
 
     ble_mgr_disc_cfg_t const *disc_cfg;
 
@@ -85,6 +91,21 @@ static int ble_mgr_gatt_dsc_discovered_cb(uint16_t conn_handle,
                                          const struct ble_gatt_error *error,
                                          uint16_t chr_val_handle,
                                          const struct ble_gatt_dsc *dsc, void *arg);
+static void observe(ble_mgr_ctx_t *ctx, const char *event, const void *data, size_t length, int status);
+
+static int cccd_readback(uint16_t conn_handle, const struct ble_gatt_error *error,
+                         struct ble_gatt_attr *attr, void *arg)
+{
+    ble_mgr_ctx_t *ctx = arg;
+    if (conn_handle != ctx->conn_handle) return 0;
+    uint8_t bytes[2];
+    size_t length = 0;
+    if (!error->status && attr && attr->om && OS_MBUF_PKTLEN(attr->om) == 2 &&
+        os_mbuf_copydata(attr->om, 0, 2, bytes) == 0) length = 2;
+    observe(ctx, "cccd_readback", bytes, length, error->status);
+    return 0;
+}
+
 static int ble_mgr_gatt_subscription_cb(uint16_t conn_handle,
                                         const struct ble_gatt_error *error,
                                         struct ble_gatt_attr *attr, void *arg);
@@ -134,6 +155,14 @@ static ble_mgr_ctx_t BLE_MGR_CTX[2] = {
 static SemaphoreHandle_t scan_lock;
 static SemaphoreHandle_t stack_ready;
 static bool stack_started;
+static atomic_bool central_paused;
+static atomic_bool user_scan_active;
+
+static void observe(ble_mgr_ctx_t *ctx, const char *event, const void *data, size_t length, int status)
+{
+    if (ctx->disc_cfg && ctx->disc_cfg->observe)
+        ctx->disc_cfg->observe(event, data, length, status, ctx->usr_ctx);
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Macros
@@ -194,6 +223,15 @@ static inline __attribute__((always_inline)) void API_QUEUE_SEND(ble_mgr_ctx_t c
 // Private Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
+static void retire_write(ble_mgr_ctx_t *ctx)
+{
+    atomic_fetch_add(&ctx->write_generation, 1);
+    if (atomic_exchange(&ctx->write_inflight, false)) {
+        ble_mgr_status_t status = BLE_MGR_E_NOT_CONNECTED;
+        xQueueSend(ctx->write_result, &status, 0);
+    }
+}
+
 static void ble_mgr_gap_stack_reset_cb(int reason)
 {
     ESP_LOGW(TAG, "NimBLE stack reset, reset reason: %d", reason);
@@ -203,6 +241,7 @@ static void ble_mgr_gap_stack_reset_cb(int reason)
         if (atomic_exchange(&ctx->connecting, false))
             API_QUEUE_SEND(ctx, BLE_MGR_E_NOT_CONNECTED);
         bool was_connected = atomic_exchange(&ctx->is_connected, false);
+        retire_write(ctx);
         ctx->conn_handle = BLE_HS_CONN_HANDLE_NONE;
         ctx->scanning = false;
         if (was_connected && ctx->disc_cfg && ctx->disc_cfg->disconnected_cb)
@@ -297,7 +336,7 @@ static int ble_mgr_gap_event_cb(struct ble_gap_event *event, void *arg)
         break;
 
     case BLE_GAP_EVENT_DISC_COMPLETE:
-        if (mgr_ctx->scanning) {
+        if (mgr_ctx->scanning && !atomic_load(&central_paused)) {
             ESP_LOGD(TAG, "Device discovery window complete. Continuing...");
             ble_gap_disc(0, BLE_DISCOVERY_TIMEOUT_MS, &disc_params, ble_mgr_gap_event_cb, mgr_ctx);
         }
@@ -317,6 +356,7 @@ static int ble_mgr_gap_event_cb(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_DISCONNECT:
         if (event->disconnect.conn.conn_handle != mgr_ctx->conn_handle) break;
+        retire_write(mgr_ctx);
         mgr_ctx->conn_handle  = BLE_HS_CONN_HANDLE_NONE;
         mgr_ctx->is_connected = false;
         ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_NOT_CONNECTED);
@@ -333,6 +373,15 @@ static int ble_mgr_gap_event_cb(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_MTU:
         ESP_LOGD(TAG, "MTU exchange complete. MTU size: %d", event->mtu.value);
+        break;
+
+    case BLE_GAP_EVENT_CONN_UPDATE_REQ:
+        *event->conn_update_req.self_params = *event->conn_update_req.peer_params;
+        observe(mgr_ctx, "conn_update_req", NULL, 0, 0);
+        break;
+
+    case BLE_GAP_EVENT_CONN_UPDATE:
+        observe(mgr_ctx, "conn_updated", NULL, 0, event->conn_update.status);
         break;
 
     case BLE_GAP_EVENT_LINK_ESTAB:
@@ -400,11 +449,9 @@ static void ble_mgr_gatt_svc_chr_disc_completed_check(ble_mgr_ctx_t *mgr_ctx, co
     ESP_NULL_CHECK(error, TAG, "error is NULL");
     ESP_NULL_CHECK(mgr_ctx, TAG, "context is NULL");
 
-    // If the error status is 0, it means discovery is not completed yet
+    /* Successful item callbacks precede BLE_HS_EDONE; keep collecting. */
     if (error->status == 0)
     {
-        // FIXME: Check if this is true
-        ESP_LOGW(TAG, "Discovery in progress ???????????????????????????????");
         return;
     }
 
@@ -518,6 +565,10 @@ static int ble_mgr_gatt_subscription_cb(uint16_t conn_handle,
         return 0;
     }
     ble_mgr_svc_def_t *service = (ble_mgr_svc_def_t *)mgr_ctx->disc_cfg->svc_def;
+    ble_gatt_char_def_t *subscribed = &service->chars[mgr_ctx->svc_disc_ctx.notify_index];
+    observe(mgr_ctx, "cccd_written", cccd_notify_enable_cfg, sizeof(cccd_notify_enable_cfg), 0);
+    int read_rc = ble_gattc_read(conn_handle, subscribed->cccd_handle, cccd_readback, mgr_ctx);
+    if (read_rc) observe(mgr_ctx, "cccd_readback", NULL, 0, read_rc);
     for (size_t i = mgr_ctx->svc_disc_ctx.notify_index + 1; i < service->num_chars; ++i) {
         ble_gatt_char_def_t *chr = &service->chars[i];
         if (!chr->notify_cb) continue;
@@ -672,7 +723,8 @@ ble_mgr_ctx_t *ble_mgr_init(unsigned source_id, int timeout_ms)
     if (!mgr_ctx->api.lock_mtx) {
         mgr_ctx->api.lock_mtx = xSemaphoreCreateMutex();
         mgr_ctx->api.result_que = xQueueCreate(1, sizeof(ble_mgr_status_t));
-        if (!mgr_ctx->api.lock_mtx || !mgr_ctx->api.result_que) return NULL;
+        mgr_ctx->write_result = xQueueCreate(1, sizeof(ble_mgr_status_t));
+        if (!mgr_ctx->api.lock_mtx || !mgr_ctx->api.result_que || !mgr_ctx->write_result) return NULL;
     }
     return mgr_ctx;
 }
@@ -687,6 +739,9 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
     ESP_NULL_CHECK(disc_cfg->dev_filter_cb, TAG, "discovery config device filter callback is NULL");
     ESP_NULL_CHECK(disc_cfg->svc_def, TAG, "discovery config service is NULL");
 
+    if (atomic_load(&mgr_ctx->is_connected)) return BLE_MGR_E_OK;
+    if (atomic_load(&central_paused) || atomic_load(&user_scan_active) || mgr_ctx->conn_handle != BLE_HS_CONN_HANDLE_NONE ||
+        atomic_load(&mgr_ctx->write_inflight)) return BLE_MGR_E_NOT_CONNECTED;
     if (xSemaphoreTake(scan_lock, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) return BLE_MGR_E_TIMEOUT;
     if (xSemaphoreTake(mgr_ctx->api.lock_mtx, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
         xSemaphoreGive(scan_lock);
@@ -698,8 +753,9 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
         return BLE_MGR_E_OK;
     }
     xQueueReset(mgr_ctx->api.result_que);
+    retire_write(mgr_ctx);
     mgr_ctx->conn_handle = BLE_HS_CONN_HANDLE_NONE;
-    mgr_ctx->scanning = true;
+    mgr_ctx->scanning = !atomic_load(&central_paused);
     mgr_ctx->connecting = true;
     for (size_t i = 0; i < disc_cfg->svc_def->num_chars; i++) {
         disc_cfg->svc_def->chars[i].def_handle = 0;
@@ -728,30 +784,65 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
     return status;
 }
 
+typedef struct {
+    ble_mgr_ctx_t *ctx;
+    unsigned generation;
+} write_request_t;
+
+static int write_completed(uint16_t conn_handle, const struct ble_gatt_error *error,
+                            struct ble_gatt_attr *attr, void *arg)
+{
+    (void)attr;
+    write_request_t *request = arg;
+    ble_mgr_ctx_t *ctx = request->ctx;
+    unsigned generation = request->generation;
+    free(request);
+    if (generation != atomic_load(&ctx->write_generation) ||
+        conn_handle != ctx->conn_handle || !atomic_exchange(&ctx->write_inflight, false)) return 0;
+    ble_mgr_status_t status = error->status ? BLE_MGR_E_GATT_SEND_FAILED : BLE_MGR_E_OK;
+    observe(ctx, "write_completed", NULL, 0, error->status);
+    xQueueSend(ctx->write_result, &status, 0);
+    return 0;
+}
+
 ble_mgr_status_t ble_mgr_send(ble_mgr_ctx_t *mgr_ctx, uint16_t chr_handle, const char *data, size_t len)
 {
-    ESP_NULL_CHECK(mgr_ctx, TAG, "context is NULL");
-    ESP_NULL_CHECK(data, TAG, "command is NULL");
-    ESP_NULL_CHECK(mgr_ctx->disc_cfg, TAG, "discovery config is NULL");
-
+    if (!mgr_ctx || !data || !mgr_ctx->disc_cfg) return BLE_MGR_E_NULL;
     API_LOCK_OR_RETURN(mgr_ctx, BLE_MGR_E_API_LOCK_ERROR);
-
-    if (!mgr_ctx->is_connected)
-    {
-        ESP_LOGE(TAG, "Not connected to any service");
+    if (!atomic_load(&mgr_ctx->is_connected) || atomic_load(&central_paused) ||
+        atomic_load(&mgr_ctx->write_inflight))
         return API_UNLOCK(mgr_ctx, BLE_MGR_E_NOT_CONNECTED);
+    uint8_t properties = 0;
+    for (size_t i = 0; i < mgr_ctx->disc_cfg->svc_def->num_chars; ++i)
+        if (mgr_ctx->disc_cfg->svc_def->chars[i].handle == chr_handle)
+            properties = mgr_ctx->disc_cfg->svc_def->chars[i].properties;
+    if (!(properties & (BLE_GATT_CHR_PROP_WRITE | BLE_GATT_CHR_PROP_WRITE_NO_RSP)))
+        return API_UNLOCK(mgr_ctx, BLE_MGR_E_GATT_SEND_FAILED);
+    if (!(properties & BLE_GATT_CHR_PROP_WRITE)) {
+        int rc = ble_gattc_write_no_rsp_flat(mgr_ctx->conn_handle, chr_handle, data, len);
+        return API_UNLOCK(mgr_ctx, rc ? BLE_MGR_E_GATT_SEND_FAILED : BLE_MGR_E_OK);
     }
-
-    ESP_LOGD(TAG, "Sending to tx characteristic (conn_handle=0x%04x, chr_handle=0x%04x, len=%zu): %.*s",
-             mgr_ctx->conn_handle, chr_handle, len, (int)len, data);
-    int rc = ble_gattc_write_flat(mgr_ctx->conn_handle, chr_handle, data, len, NULL, NULL);
-    if (rc != 0)
-    {
-        ESP_LOGE(TAG, "Failed to send command: %d", rc);
+    write_request_t *request = malloc(sizeof(*request));
+    if (!request) return API_UNLOCK(mgr_ctx, BLE_MGR_E_GATT_SEND_FAILED);
+    request->ctx = mgr_ctx;
+    request->generation = atomic_fetch_add(&mgr_ctx->write_generation, 1) + 1;
+    xQueueReset(mgr_ctx->write_result);
+    atomic_store(&mgr_ctx->write_inflight, true);
+    int rc = ble_gattc_write_flat(mgr_ctx->conn_handle, chr_handle, data, len,
+                                 write_completed, request);
+    if (rc) {
+        free(request);
+        atomic_store(&mgr_ctx->write_inflight, false);
+        observe(mgr_ctx, "write_completed", NULL, 0, rc);
         return API_UNLOCK(mgr_ctx, BLE_MGR_E_GATT_SEND_FAILED);
     }
-
-    return API_UNLOCK(mgr_ctx, BLE_MGR_E_OK);
+    ble_mgr_status_t status;
+    if (xQueueReceive(mgr_ctx->write_result, &status, pdMS_TO_TICKS(2000)) != pdTRUE) {
+        /* Never reuse the link after an uncertain ATT write completion. */
+        ble_mgr_disconnect(mgr_ctx);
+        status = BLE_MGR_E_TIMEOUT;
+    }
+    return API_UNLOCK(mgr_ctx, status);
 }
 
 bool ble_mgr_is_connected(ble_mgr_ctx_t *mgr_ctx)
@@ -764,5 +855,91 @@ bool ble_mgr_is_connected(ble_mgr_ctx_t *mgr_ctx)
 void ble_mgr_disconnect(ble_mgr_ctx_t *mgr_ctx)
 {
     if (!mgr_ctx || !atomic_load(&mgr_ctx->is_connected)) return;
+    atomic_store(&mgr_ctx->is_connected, false);
     ble_gap_terminate(mgr_ctx->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+}
+
+void ble_mgr_set_paused(bool paused)
+{
+    atomic_store(&central_paused, paused);
+    if (!paused || !stack_started) return;
+    ble_gap_disc_cancel();
+    ble_gap_conn_cancel();
+    for (size_t i = 0; i < ARRAY_SIZE(BLE_MGR_CTX); ++i) {
+        ble_mgr_ctx_t *ctx = &BLE_MGR_CTX[i];
+        ctx->scanning = false;
+        ble_mgr_connect_complete(ctx, BLE_MGR_E_NOT_CONNECTED);
+        if (ctx->conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+            atomic_store(&ctx->is_connected, false);
+            ble_gap_terminate(ctx->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+        }
+    }
+}
+
+bool ble_mgr_is_paused(void) { return atomic_load(&central_paused); }
+
+typedef struct {
+    void (*found)(const ble_addr_t *, const char *, uint8_t, void *);
+    void *context;
+    SemaphoreHandle_t done;
+} scan_context_t;
+static scan_context_t adapter_scan;
+
+static int adapter_scan_event(struct ble_gap_event *event, void *arg)
+{
+    scan_context_t *scan = arg;
+    if (event->type == BLE_GAP_EVENT_DISC_COMPLETE) xSemaphoreGive(scan->done);
+    else if (event->type == BLE_GAP_EVENT_DISC && !atomic_load(&central_paused)) {
+        struct ble_hs_adv_fields fields;
+        if (!ble_hs_adv_parse_fields(&fields, event->disc.data, event->disc.length_data)) {
+            uint8_t driver = ble_mgr_adv_contains_service(&fields, "0x18f0") ? 1 : 0;
+#if CONFIG_EGAUGE_OBD_TRACE
+            if (ble_mgr_adv_contains_service(&fields, OBD_BENCH_SERVICE)) driver = 2;
+#endif
+            if (!driver) return 0;
+            char name[25] = {0};
+            for (size_t i = 0; i < fields.name_len && i < sizeof(name)-1; ++i)
+                name[i] = fields.name[i] >= 32 && fields.name[i] <= 126 ? fields.name[i] : '?';
+            scan->found(&event->disc.addr, driver == 2 ? "Bench simulator" : name, driver, scan->context);
+        }
+    }
+    return 0;
+}
+
+ble_mgr_status_t ble_mgr_scan_adapters(void (*found)(const ble_addr_t *, const char *, uint8_t, void *),
+                                       void *context)
+{
+    if (!found || !stack_started || atomic_load(&central_paused)) return BLE_MGR_E_NOT_CONNECTED;
+    atomic_store(&user_scan_active, true);
+    /* A user search preempts a background connection attempt. Connected
+     * adapters keep their link; only the shared scanner is taken over. */
+    for (unsigned i=0; i<ARRAY_SIZE(BLE_MGR_CTX); ++i) {
+        ble_mgr_ctx_t *ctx = &BLE_MGR_CTX[i];
+        if (atomic_load(&ctx->connecting)) {
+            ctx->scanning = false;
+            ble_mgr_connect_complete(ctx, BLE_MGR_E_NOT_CONNECTED);
+        }
+    }
+    ble_gap_disc_cancel();
+    ble_gap_conn_cancel();
+    if (xSemaphoreTake(scan_lock, pdMS_TO_TICKS(1000)) != pdTRUE) {
+        atomic_store(&user_scan_active, false);
+        return BLE_MGR_E_API_LOCK_ERROR;
+    }
+    if (!adapter_scan.done) adapter_scan.done = xSemaphoreCreateBinary();
+    if (!adapter_scan.done) { atomic_store(&user_scan_active, false); xSemaphoreGive(scan_lock); return BLE_MGR_E_NULL; }
+    while (xSemaphoreTake(adapter_scan.done, 0) == pdTRUE) {}
+    adapter_scan.found = found;
+    adapter_scan.context = context;
+    int rc = ble_gap_disc(0, 8000, &disc_params, adapter_scan_event, &adapter_scan);
+    ble_mgr_status_t status = BLE_MGR_E_DISCOVERY_FAILED;
+    if (!rc) {
+        status = xSemaphoreTake(adapter_scan.done, pdMS_TO_TICKS(9000)) == pdTRUE
+            ? BLE_MGR_E_OK : BLE_MGR_E_TIMEOUT;
+        if (status != BLE_MGR_E_OK) ble_gap_disc_cancel();
+        if (atomic_load(&central_paused)) status = BLE_MGR_E_NOT_CONNECTED;
+    }
+    atomic_store(&user_scan_active, false);
+    xSemaphoreGive(scan_lock);
+    return status;
 }

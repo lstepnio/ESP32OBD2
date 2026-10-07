@@ -1,5 +1,7 @@
 # GitHub hosted firmware validation
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Recorded 2026-09-26 against the `feat/owned-gauge-control` integration branch. This record covers the published artifacts and the complete owner-app installation on physical hardware.
 
 ## Published development release

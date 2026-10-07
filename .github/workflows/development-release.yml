@@ -63,9 +63,9 @@ jobs:
           [[ "$RELEASE_SEQUENCE" =~ ^[1-9][0-9]*$ ]]
           MAX_SEQUENCE="$(
             gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-              --jq '.[] | .assets[] | select(.name == "egauge-release-catalog.json") | .browser_download_url' |
+              --jq '.[] | .assets[] | select(.name == "egauge-release-catalog.json") | .url' |
             while IFS= read -r asset_url; do
-              curl -fsSL -H "Authorization: Bearer $GH_TOKEN" "$asset_url" | jq -r '.generation'
+              gh api -H 'Accept: application/octet-stream' "$asset_url" --jq '.generation'
             done | sort -n | tail -1
           )"
           MAX_SEQUENCE="${MAX_SEQUENCE:-0}"

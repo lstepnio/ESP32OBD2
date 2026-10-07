@@ -1,5 +1,7 @@
 # Foundation validation, 2026-09-25
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 ## Completed locally
 
 - ESP-IDF 5.4.1 build of the imported `firmware/gauge` source: passed. App binary 953,184 bytes (`0xe8b60`), 9% free in the inherited 1 MiB app partition. This is the old baseline layout, not the proposed 4 MiB A/B layout.

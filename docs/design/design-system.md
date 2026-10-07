@@ -1,57 +1,48 @@
-# eGauge visual and interaction system, draft 0.1
+# eGauge design system
 
-Direction: precise instruments with a calm companion workspace. The reading takes priority over ornament. A restrained graphite/lime palette connects the phone and gauge; amber/red are reserved for attention. Warm neutral surrounds in the review prototype are presentation chrome, not an app screen.
+The Android companion puts the user's display first: a large round preview, simple reading names and one clear action. This specification supersedes earlier Android navigation and visual guidance. It does not change the gauge renderer, hardware geometry, authentication, or protocol contract.
 
-## Tokens and typography
+## Visual language
 
-[Shared tokens](../../design/tokens.json) define colors, spacing, radii, motion, and gauge geometry. Generate Compose and LVGL constants from these once renderer implementation begins. Until then, validate prototype token parity. Use bundled Noto Sans on gauge and native Android type on phone, with tabular numerals where supported. The baseline includes Noto fonts at limited sizes; new fonts need measured flash and glyph coverage budgets.
+Graphite, neutral surfaces, vivid teal accents, large tabular readings and soft 28 dp cards. The round preview uses the gauge firmware's near-black background, text, track, teal normal state, amber warning and red critical state. Light mode uses warm white surfaces and a darker teal for readable action text. Android dynamic colour is optional and affects app chrome only. Warning, critical and round-preview colours retain fixed meanings. Colour is always paired with an icon and a human sentence.
 
-App body 16 sp, secondary labels 14 sp, section titles 28 sp, display reading 44-56 sp. Gauge primary value 56-72 px depending on digit count, unit 18 px, label 16 px; two-value page readings at least 36 px. Decimal precision belongs to the definition/display setting, never unpredictable float formatting. Long labels use a short display label; no continuously scrolling driving text. Temperature can use °C/°F on screen while contracts retain `degC`.
+[Tokens](../../design/tokens.json) have separate `android` roles for light/dark colours, type, spacing, shape, motion and adaptive breakpoints. `tools/generate_design_tokens.py` generates Android values and browser CSS; `--check` detects drift. The preview arc uses the firmware's thicker stroke and track colour while keeping its own simulated layout. This palette update does not change firmware.
 
-Minimum phone target 48 dp with accessible contrast: normal text >=4.5:1, large text/icons >=3:1 against background. Gauge controls use broad tap regions and a deliberate long press. Never shrink text indefinitely to fit. Gauge is a true circular clip; keep essential content within radius 104 around (120,120), and test long negative values and units there. Arc scale marks are secondary and can use the outer ring; important status text cannot.
+Body text is 16 sp; labels are 14 sp; titles are 32 sp. Reading values are 64 sp in the mock display. Application text honours font scaling. The circular preview has a scalable text equivalent so its simulated device geometry never constrains accessible labels. Controls have at least 48 dp touch targets and grow with content.
 
-The measured panel geometry, row widths, font fallback rules, transport settings and physical review checklist are maintained in [Round display UI guidelines](round-display-ui-guidelines.md). Treat that document as the implementation constraint for the Waveshare 1.28 inch board.
+## Navigation and tasks
 
-The 240 px panel is circular even though its pixel buffer is square. At the bottom of glyphs whose baseline sits near y=215, the safe chord is only about 70 px wide, so a status such as SIMULATED can lose its outer letters. Put bottom status text around y=195-200 with a short label and at least 10-11 px type; reserve y>205 for nonessential marks. Use short gauge labels such as COOLANT and INPUT SPEED while retaining full names in the app and accessibility text. Center units under the primary number, keep the number within the central 166 px, and select from measured font sizes rather than scaling arbitrary strings to the rim. The Android preview and browser concept use these bounds; final LVGL layouts require physical screenshot and daylight legibility review.
+Gauge, Car and Settings are the default destinations. Settings has one **Show advanced tools** toggle, revealing Expert and advanced fields. Customize is one workspace with a swipeable page preview and contextual reading, layout and alert rows. Choices open focused sheets; Add page chooses a reading before creating a page. Manage pages uses compact numbered rows with named move/remove options. The alert form commits only on Save. Its unit-aware fields validate range, ordering, reset distance and delays. The primary action stays in a fixed footer. See the [Customize review](redesign/customize-review.md) for the audit, workflow and images. Setup walks through discovery, physical-code association and adapter availability. Technical facts live in Expert > Device data. Everyday screens have no generic details control.
 
-The Compose preview uses fixed vertical bands in its 238 dp circle: label top 48, value top 77, unit top 141, optional bar/trend/second value at 158-169, and the short DEMO badge near the lower safe chord. This keeps extra renderer content from pushing the main reading toward the rim. These are preview layout coordinates, not measured LCD pixels. A future font-scale and long-value review should include negative values, five digits, degrees, and a DTC code on the physical gauge.
+Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp it can show preview and controls side by side; large text returns content to a stack. Respect system bars, keyboard insets, fold hinges and predictive back.
 
-## Gauge renderers
+## Trust and status
 
-| Renderer | Visual hierarchy | Best use |
-| --- | --- | --- |
-| Numeric | Label -> large centered value -> unit -> link/age status | Glanceable speed, temperature, voltage |
-| Arc | One 240° scale with numeric center and threshold marks | RPM, load, boost when actually available |
-| Bar | Large value above one bounded bar | Fuel/load, bounded range channels |
-| Trend | Current value above a short graph with time span and gaps | Thermal/load behavior |
-| Dual | Two vertically stacked value/unit pairs separated by a rule | Coolant + load or other paired readings |
-| Diagnostics | CEL label, readable P-code, category and position | Trouble-code review |
+- Foreground discovery and owner reconnection are automatic. **Gauge ready** requires a recent protected check; it does not claim a persistent connection or live readings. Searching, reconnecting, Bluetooth-off and permission states remain explicit. Only initial code association and ambiguous gauge selection require a choice.
+- The Gauge pill carries routine ready status and opens Updates when a newer signed package is verified. Routine connection checks do not add or remove a saved-status card. Warning, offline, stale, critical and error cards remain visible.
+- Example values and histories always say **Preview** or **Example** next to that content.
+- **Saved & running on gauge** requires the expected running revision and hash, trial cleared and no previous-generation recovery. A stored readback or 100% transfer cannot claim this.
+- Sending, restarting and checking remain distinct stages. The operation stays visible across destinations. Only a gauge-confirmed success can be dismissed, manually or after six seconds; failures, rollbacks and unknown outcomes remain until the user checks them.
+- Signed development packages may be checked and downloaded during an authenticated foreground session. Installation always requires a tap. A failed release is held for that gauge to avoid repeated prompts.
+- Critical alerts, stale/offline readings, errors, rollback and unknown outcomes remain in the default path.
+- Automatic reconnection may refresh the protected readback before reviewing an unknown result. Never replay a commit automatically.
+- A changed page, layout or limit returns to unsent status. Browsing the page carousel must not create an edit.
+- Unimplemented adapter setup, live data, code clearing and public updates use truthful empty states.
 
-Missing = `--` plus “No data”; stale = last reading visibly dimmed plus age; disconnected = `--` and “Adapter offline.” Demo always includes a visible DEMO/SIMULATED label. Negative and zero are valid numeric values when their definition permits them. Trends break on missing/stale samples and never connect across a session boundary. Out-of-range decoded samples show a decode issue instead of saturating a scale and pretending success.
+## Components and copy
 
-Tap advances page, left/right swipe is an optional shortcut, long press opens a small local menu. A critical alert interrupts the page but does not discard selection. Tap acknowledgment returns to the page with an active badge; event inspection is reachable without the phone. Rotation is an explicit setting. Do not rely on automatic sensor rotation while driving.
+Status card, connection pill, round preview, reading tile, page carousel, unit-aware limit field, progress stepper, empty/error panel and primary action share the eight-state [fixtures](../../design/fixtures/ui-states.json). Component previews cover default, loading, disabled, error, success, stale, offline and critical states.
 
-## Android information architecture
+Buttons use verbs: **Find gauge**, **Pair gauge**, **Customize**, **Send to gauge**, **Check gauge**, **Install**. Default copy never exposes revision, hash, PID, ECU, transport phase or source-model terminology. Errors finish with one next step. Detailed facts remain exact in Expert > Device data. Settings switches and radio options use the entire named row as a target. No account, analytics or secrets in logs/export/backup.
 
-The implemented app uses Gauge, Readings, Vehicle, and Settings. Gauge holds the primary preview, exact supported configuration review, and send action. Readings starts with catalog search and keeps decoder/custom PID labs under technical details. Vehicle owns profiles and a single adapter by default; a second adapter is an advanced opt-in. Settings owns gauge association, protected status, diagnostics, display rotation, and updates. A tablet uses a navigation rail while a phone uses bottom navigation.
+Each supported standard reading can have one transmitted alert. People choose whether it should alert when the value rises above or falls below limits. Default labels are **Warn above**, **Critical above**, **Warn below**, and **Critical below**. Reset margin and timing remain inspectable in Expert > Device data. Unsupported layouts, readings, or sources stay preview-only with an explanation before send. All transmitted pages and alert settings are included in review.
 
-Reusable components: connection pill with text/icon; reading tile with quality/age; renderer selector; round preview; PID row with ECU and evidence badge; threshold editor with unit/hysteresis; code card with category; transfer progress with stage; persistent operation banner; empty/error panel with one useful next action; revision/apply bar. Each has default, focus, disabled, loading, success and error states. Busy controls retain readable labels and do not masquerade as applied changes.
+## Artifacts and verification
 
-## Required flows
+See the [audit](redesign/audit.md), [complete baseline string inventory](redesign/strings.csv), [IA and flows](redesign/concept.md), and [interactive prototype](../../design/prototype/index.html). Eight key concept screens have light/dark and compact/expanded captures in `docs/design/redesign/mockups/`.
 
-- **Design:** edits stay local until Apply. Show pending revision, compatibility validation and device acknowledgment. Unknown/rejected applies retain the draft and last known active revision.
-- **PID explorer:** searchable catalog and separate scan progress. Inspect an item to see request/response, ECU, confidence, units and rate. “Add” binds that exact source; it does not combine different ECU results.
-- **PID lab:** decoder fields, raw response, expected numeric result, source/license and vehicle scope. Bounded decoder capabilities are visible. Import errors point to fields.
-- **Thresholds:** selectable data source, above/below comparator, warning and critical levels, dwell, hysteresis and preview. Show estimated response time and conversion to chosen units. Critical overlay can be previewed without touching vehicle data.
-- **Diagnostics:** category counts, code details, ECU, age, readiness. Clear codes shows consequences and ECU scope, followed by verification. Permanent codes remain visible after simulated clear.
-- **Update:** stage-specific progress and recoverable failure copy. An interrupted upload offers retry; trial boot shows “Checking new firmware”; rollback shows restored version and next action.
+The [native gallery](../../design/prototype/native.html) shows 64 reviewed screenshot fixtures across light/dark, compact/expanded and component states. Both galleries are simulations. Native software tests, physical phone observations and physical gauge observations are separate evidence categories. The two-minute setup target requires a timed participant test and working adapter setup; it is not established by a mockup.
 
-## Prototype scope
+Android implementation uses [Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3), [adaptive navigation](https://developer.android.com/develop/adaptive-apps/guides/build-adaptive-navigation) and [predictive back](https://developer.android.com/develop/ui/compose/system/predictive-back). See the [validation record](../development/android-core-ux-validation.md) for the current measured result.
 
-The [interactive prototype](../../design/prototype/index.html) includes layout selection, data selection, units, draft/apply state, stale/offline/critical scenarios, searchable synthetic PID results, a basic raw-byte decoder lab, local threshold preview, DTC confirmation/readback simulation, and firmware transfer pause/resume. It uses local state and simulated timing. It cannot discover actual adapters, clear actual codes, or flash a device. It is not a pixel-accurate LVGL renderer or a native Compose app.
-
-Documented onboarding, profile import, detailed hysteresis tuning, actual association, and secure OTA are implementation work. Presentation defaults use synthetic standard data and an example vehicle name, not claims about the user's vehicle. In production all actions are capability-driven and powered by real device acknowledgments.
-
-## Quality of the experience
-
-No auto-hiding critical errors; no color-only state; no blocking spinner without status and cancellation for long work. Respect reduced motion; avoid rapid flashing. Large-text layouts may scroll vertically, while essential actions remain reachable. Screen readers announce state changes deliberately, not every incoming RPM sample. App previews and gauge renderers share golden state fixtures, but physical legibility needs daylight/night viewing on hardware.
+Gauge-side legibility and safe circular geometry remain documented in [round-display guidelines](round-display-ui-guidelines.md). This redesign introduces no LVGL or firmware changes.

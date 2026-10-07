@@ -5,6 +5,8 @@
 #include "esp_app_desc.h"
 #include "esp_partition.h"
 #include "esp_system.h"
+#include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
@@ -206,7 +208,13 @@ static void process(const request_t *request)
                    state.digest_parts == 15 && state.signature_length != 0 &&
                    state.signature_parts ==
                      ((1U << ((state.signature_length + 7) / 8)) - 1U)) {
-            if (esp_ota_begin(target, OTA_SIZE_UNKNOWN, &handle) == ESP_OK) {
+            int64_t erase_started_us = esp_timer_get_time();
+            esp_err_t begin_result = esp_ota_begin(target, state.length, &handle);
+            ESP_LOGI("ota_transfer", "Prepared %lu image bytes in %lld ms (result %s)",
+                     (unsigned long)state.length,
+                     (long long)((esp_timer_get_time() - erase_started_us) / 1000),
+                     esp_err_to_name(begin_result));
+            if (begin_result == ESP_OK) {
                 state.phase = 2;
                 state.result = 0;
             } else state.result = 4;

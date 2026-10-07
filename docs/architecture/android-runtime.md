@@ -1,10 +1,15 @@
 # Android companion runtime
 
-Date: 2026-09-26. This describes the implemented companion architecture on `feat/owned-gauge-control`.
+Updated 2026-10-06. This describes current ownership; evidence limits are in [current state](../current-state.md).
 
 ## Responsibilities and boundaries
 
-The companion has four primary destinations: Gauge, Readings, Vehicle, and Settings. Gauge edits a local per-vehicle draft and reviews the exact numeric pages and coolant alert that the implemented firmware subset can execute. Readings separates examples from observations. Vehicle owns profiles and the optional second-adapter preference. Settings owns association, protected maintenance reads, rotation, diagnostics, and development updates.
+Gauge, Car and Settings are primary destinations; Settings reveals optional Expert.
+Customize uses focused reading/layout sheets and exact review/send. Setup handles
+association. Settings owns brightness, orientation, units, page cycling and updates.
+Car owns source-specific fault views and adapter/profile selection. Technical reports,
+definition examples and maintenance details remain in Expert. Preview readings never
+become live vehicle observations.
 
 `AppViewModel` owns operation lifetime. `MainActivity` owns Android permission prompts, the system file picker, and window flags. Composables only dispatch intent and render state. `OperationCoordinator` grants one process-local BLE operation lease, so discovery, protected reads, configuration, and firmware upload cannot overlap. Every terminal operation reports Active, Recovered, Failed, or Outcome unknown instead of relying on one generic progress string.
 
@@ -22,7 +27,8 @@ Discovery gathers all matching advertisers for a short bounded window. A single 
 
 ## Configuration transaction
 
-`ConfigurationProjector` is the single projection from the local draft to the supported firmware document. It blocks unsupported renderers and TCM source transfer. The review and wire payload use the same projection. The transaction captures the profile, draft, base revision, and base hash before sending.
+`ConfigurationProjector` is the single projection from the local draft to the supported firmware document. It validates supported page/rendering combinations. A bounded Transmission profile
+uses the captured temperature/current-gear definitions and one source-specific adapter. The review and wire payload use the same projection. The transaction captures the profile, draft, base revision, and base hash before sending.
 
 ```mermaid
 stateDiagram-v2
@@ -53,12 +59,15 @@ The selected gauge identity and the minimal firmware-update recovery journal use
 
 Pure codecs validate capability JSON, diagnostics, and runtime identity before UI state changes. Invalid versions, lengths, reserved bits, and ranges are errors. Transfer callbacks enter a bounded channel. The process-level operation coordinator serializes sessions, and each client connection owns its callback queue and deadline. A callback cannot complete another connection's deferred result.
 
-Production support still requires a shared reusable GATT request layer if the protocol surface grows. The current bounded and serialized behavior is the compatibility-preserving foundation. Wi-Fi transport may later implement the same operation contract, but the current app does not offer Wi-Fi configuration or update controls.
+Production support still requires a shared reusable GATT request layer if the protocol surface grows. The current bounded and serialized behavior is the compatibility-preserving foundation. `WifiBulkClient` implements the authenticated private Wi-Fi update path using the
+same protected maintenance state. Configuration remains on the bounded BLE path.
 
 ## Feature evidence boundaries
 
 - Numeric ECM configuration, protected status, display rotation, and the development update protocol have prior phone and gauge evidence.
 - The GitHub catalog path is development trust only until a published release is exercised from a fresh app install.
-- Live OBD PID traffic, DTC clearing, dual-adapter concurrency, and stable production OTA remain unavailable or unqualified.
+- Live Engine RPM and combined Transmission Gear + Temperature have recorded owner observations.
+- Full source-scoped fault snapshots are implemented and offline-tested; new physical checks are pending.
+- DTC clearing, dual-adapter concurrency and production OTA remain unavailable or unqualified.
 - Enabling the second-adapter preference changes a local profile only. It does not claim simultaneous firmware support.
 

@@ -16,9 +16,17 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
-      - run: pip install -r tools/requirements.txt
+      - run: pip install -r tools/requirements-test.txt
       - run: python tools/validate.py
       - run: node --check design/prototype/app.js
+      - name: OBD capture policy, framing, and simulated adapter workflow
+        run: |
+          python -m unittest discover -s tools/tests -p 'test_obd*.py'
+          python tools/obd_capture.py self-test
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -Ifirmware/gauge/main/inc firmware/gauge/tests/obd_trace_test.c \
+            firmware/gauge/main/src/obd_trace_format.c -o /tmp/obd_trace_test
+          /tmp/obd_trace_test
       - name: ELM parser fixtures with sanitizers
         run: |
           cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
@@ -34,9 +42,11 @@ jobs:
             firmware/gauge/tests/core_logic_test.c \
             firmware/gauge/main/src/alert_engine.c \
             firmware/gauge/main/src/config_trial_policy.c \
+            firmware/gauge/main/src/display_units.c \
             firmware/gauge/main/src/json_guard.c \
             firmware/gauge/main/src/pid_decoder.c \
             firmware/gauge/main/src/poll_scheduler.c \
+            firmware/gauge/main/src/page_save_policy.c \
             firmware/gauge/main/src/wifi_bulk_policy.c \
             -lm -o /tmp/core_logic_test
           /tmp/core_logic_test
@@ -54,6 +64,12 @@ jobs:
         run: |
           . /opt/esp/idf/export.sh
           idf.py build
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -Itests/stubs -Imain/inc -I"$IDF_PATH/components/json/cJSON" \
+            tests/config_binding_test.c main/src/config_document.c main/src/config_runtime.c \
+            main/src/json_guard.c main/src/obd_adapter_profile.c main/src/pid_decoder.c "$IDF_PATH/components/json/cJSON/cJSON.c" \
+            -lm -o /tmp/config_binding_test
+          /tmp/config_binding_test ../../contracts/examples/config-bound-adapter.json ../../android/app/src/main/assets/numeric_config_template.json
 
   android-app:
     runs-on: ubuntu-24.04

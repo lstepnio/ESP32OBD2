@@ -3,6 +3,7 @@
 This is design tooling, not the firmware validator or a production decoder.
 """
 from __future__ import annotations
+import sys
 import copy
 import json
 import math
@@ -56,6 +57,8 @@ def config(doc):
     shape('config.schema.json', doc)
     check(len(json.dumps(doc, separators=(',', ':')).encode()) <= 65536, 'Config exceeds 64 KiB')
     unique(doc['sources'], 'id'); unique(doc['definitions'], 'id'); unique(doc['pages'], 'id'); unique(doc['alerts'], 'id')
+    bindings = [x['adapter'] for x in doc['sources'] if 'adapter' in x]
+    unique(bindings, 'id'); unique(bindings, 'address')
     sources = {x['id'] for x in doc['sources']}
     defs = {x['id']: x for x in doc['definitions']}
     physical_queries = set()
@@ -96,7 +99,25 @@ for p in (ROOT / 'contracts/examples').glob('*.json'):
     count += 1
 
 base = json.loads((ROOT / 'contracts/examples/config-dual-source.json').read_text())
+def bound(doc):
+    doc['schemaVersion'] = 2
+    for index, source in enumerate(doc['sources']):
+        source['adapter'] = {'id': 'adapter-fixture-' + str(index), 'address': 'C0:00:00:00:00:0' + str(index),
+                             'addressType': 'random', 'driver': 'elm-18f0-v1'}
+    return doc
+
+def duplicate_binding(doc):
+    bound(doc)
+    doc['sources'][1]['adapter'] = copy.deepcopy(doc['sources'][0]['adapter'])
+
+def bad_binding(doc):
+    bound(doc)
+    doc['sources'][0]['adapter']['addressType'] = 'guess'
+
 negative_cases = [
+    ('duplicate bound adapter', duplicate_binding),
+    ('invalid binding address type', bad_binding),
+    ('binding injected into legacy schema', lambda d: (bound(d), d.update(schemaVersion=1))),
     ('undefined source', lambda d: d['definitions'][0].update(sourceId='missing')),
     ('duplicate source', lambda d: d['sources'].append(copy.deepcopy(d['sources'][0]))),
     ('bad page reference', lambda d: d['pages'][0].update(pidIds=['missing.pid'])),
@@ -129,18 +150,36 @@ signed['range'] = {'min': -32768, 'max': 32767}
 check(decode(signed, 'FEFF') == -2, 'Signed little-endian decoding')
 
 # Verify authored Markdown targets. External URLs are intentionally not network-tested.
-mds = [ROOT / 'README.md', ROOT / 'CONTRIBUTING.md', ROOT / 'THIRD_PARTY_NOTICES.md']
+mds = [ROOT / 'README.md', ROOT / 'AGENTS.md', ROOT / 'CONTRIBUTING.md', ROOT / 'THIRD_PARTY_NOTICES.md']
 mds += list((ROOT / 'docs').rglob('*.md')) + [ROOT / 'android/README.md', ROOT / 'firmware/gauge/README.md']
 for p in mds:
-    for dest in re.findall(r'\]\(([^)]+)\)', p.read_text()):
+    destinations = re.findall(r'\]\(([^)]+)\)', p.read_text())
+    destinations += re.findall(r'<img\b[^>]*\bsrc=[\"\']([^\"\']+)', p.read_text())
+    for dest in destinations:
         if '://' in dest or dest.startswith(('#', 'mailto:')):
             continue
         target = unquote(dest.split('#')[0])
         check((p.parent / target).exists(), f'Broken link in {p.relative_to(ROOT)}: {dest}')
 
-# Prototype colors are a checked consumer of the design tokens until codegen exists.
+# NimBLE's global security floor filters every incoming adapter notification.
+# Owner protection belongs to the companion's authenticated attributes and identity gate.
+sdk = (ROOT / 'firmware/gauge/sdkconfig').read_text()
+check('CONFIG_BT_NIMBLE_SM_LVL=1' in sdk, 'Unencrypted OBD replies must reach the adapter client')
+companion = (ROOT / 'firmware/gauge/main/src/ble_companion.c').read_text()
+for guard in ('BLE_GATT_CHR_F_WRITE_AUTHEN', 'BLE_GATT_CHR_F_READ_AUTHEN',
+              'desc.sec_state.encrypted', 'desc.sec_state.authenticated',
+              'desc.sec_state.bonded', 'address_equal(&desc.peer_id_addr, &g_owner)'):
+    check(guard in companion, f'Missing companion owner protection: {guard}')
+
+# Public link capacity must not promise the unqualified simultaneous adapter path.
+check(companion.count('\\"maxAdapterLinks\\":1') == 2,
+      'Public companion variants must advertise only one qualified adapter link')
+
+# Android and prototype tokens are generated from the shared palette.
+import subprocess
+subprocess.run([sys.executable, str(ROOT / 'tools/generate_design_tokens.py'), '--check'], check=True)
 tokens = json.loads((ROOT / 'design/tokens.json').read_text())
-css = (ROOT / 'design/prototype/styles.css').read_text()
+css = (ROOT / 'design/prototype/tokens.css').read_text()
 for name, color in tokens['color'].items():
     match = re.search(r'--' + re.escape(name) + r'\s*:\s*(#[0-9a-fA-F]{6})', css)
     check(match and match.group(1).lower() == color.lower(), f'Prototype token mismatch: {name}')

@@ -1,5 +1,7 @@
 # Pixel numeric configuration transfer, 2026-09-25
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 ## Hardware and software
 
 - Gauge: Waveshare ESP32-S3-Touch-LCD-1.28 over USB-C, firmware from `feat/owned-gauge-control` with `experimentalNumericConfig:true`.

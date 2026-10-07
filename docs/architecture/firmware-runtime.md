@@ -1,6 +1,6 @@
 # Firmware runtime ownership and recovery
 
-Status: implemented development architecture, 2026-09-26. Public capability flags remain gated by hardware evidence.
+Updated 2026-10-06. Implemented development architecture. Public capability flags remain gated by hardware evidence.
 
 ## Task and resource inventory
 
@@ -38,10 +38,13 @@ The firmware still contains short `portMAX_DELAY` waits inside the owning worker
 | disconnected | startup, link loss, timeout resync failure, RX overflow | Scan/connect with 500 ms retry, doubling to 8 seconds. Clear displayed and diagnostic freshness. |
 | GATT discovered | service and characteristics found with required properties | Discover descriptors and locate the notification CCCD. Missing properties or descriptor fails the session. |
 | subscribed | CCCD write callback succeeds | Run bounded adapter initialization. Subscription submission alone is not readiness. |
-| adapter ready | `ATE0`, `ATL0`, `ATS0`, `ATH0`, and `ATSP0` each complete within one second | Begin scheduled OBD requests. Any initialization failure disconnects and re-enters backoff. |
+| adapter ready | The selected adapter profile completes bounded initialization, header setup, prompt recovery and standard discovery | Begin scheduled OBD requests. Any initialization failure disconnects and re-enters backoff. |
 | vehicle responding | one strict single-responder reply decodes successfully | Samples carry the selected PID identity and timestamp. Timeout or malformed replies do not create data. |
 
-Headers are disabled in the current adapter profile, so a configured response ID is a contract assertion rather than measured ECU attribution. Real adapter compatibility remains unverified.
+The active source requests headered replies and validates the responding ECU.
+TCM uses 7E1/7E9; Engine evidence is attributed to 7E8. See `obd_adapter_profile.c`
+and `ble_obd.c` for exact commands/budgets. Jeep captures and reconnect observations
+are scoped evidence, not general adapter compatibility.
 
 ## Polling, diagnostics, and alerts
 
@@ -81,4 +84,10 @@ A pending image is confirmed only after display, touch, BLE companion startup, a
 | ELM response | 512 bytes |
 | Simultaneous NimBLE connections configured | 3 |
 
-The runtime intentionally accepts only one ECM source, Mode 01 functional requests, numeric single-PID pages, metric units, fixed brightness, and the bounded numeric decoder. PID 01 is reserved for MIL diagnostics. Schema-valid features outside this executable subset are rejected before commit.
+The normal runtime selects one active Engine or Transmission source. Engine uses
+bounded Mode 01 definitions; Transmission permits the captured Mode 22 temperature
+and current-gear definitions. Five renderers, ordered pages, canonical-unit alerts
+and independent persisted display settings are implemented within compiler bounds.
+Transmission gear uses Numeric/Dual and its profile currently excludes alerts.
+PID 01 is reserved for MIL diagnostics. Schema-valid unsupported features are rejected
+before commit. Legacy second-link scaffolding is not simultaneous telemetry support.

@@ -1,5 +1,7 @@
 # M1 transport increment
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Status: implementation branch `feat/m1-transport-core`, 2026-09-25. Response assembly, display freshness, and two independently owned central-link contexts are implemented. M1 remains incomplete.
 
 ## Implemented

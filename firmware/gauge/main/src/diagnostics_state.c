@@ -6,128 +6,165 @@
 
 static SemaphoreHandle_t lock;
 static struct {
-    bool mil_valid;
-    bool mil_on;
+    bool transmission, simulated, connected;
+    uint32_t revision, session;
+    bool mil_known, mil_on;
+    diagnostics_result_t mil_result;
     uint8_t reported_count;
     uint32_t mil_at;
-    bool known[3];
-    uint8_t count[3];
-    uint16_t first[3];
-    uint32_t observed_at[3];
+    struct {
+        bool known;
+        diagnostics_result_t result;
+        uint8_t count;
+        uint16_t codes[DIAGNOSTICS_MAX_CODES];
+        uint32_t at;
+    } categories[3];
 } snapshot;
 
-static int category(uint8_t mode)
-{
-    return mode == 3 ? 0 : mode == 7 ? 1 : mode == 10 ? 2 : -1;
+static int category(uint8_t mode) { return mode == 3 ? 0 : mode == 7 ? 1 : mode == 10 ? 2 : -1; }
+static void put_u32(uint8_t *p, uint32_t v) { for (unsigned i=0; i<4; ++i) p[i] = v >> (8*i); }
+static bool mil_fresh(uint32_t now) {
+    return snapshot.connected && !snapshot.simulated && snapshot.mil_known &&
+        snapshot.mil_result == DIAGNOSTICS_OK && now - snapshot.mil_at <= 60000;
 }
-
-static void format_code(uint16_t code, char out[6])
-{
-    static const char classes[] = "PCBU";
-    static const char digits[] = "0123456789ABCDEF";
-    uint8_t high = code >> 8, low = code;
+static bool codes_fresh(unsigned i, uint32_t now) {
+    return snapshot.connected && !snapshot.simulated && snapshot.categories[i].known &&
+        snapshot.categories[i].result == DIAGNOSTICS_OK && now - snapshot.categories[i].at <= 120000;
+}
+static void format_code(uint16_t code, char out[6]) {
+    static const char classes[] = "PCBU", digits[] = "0123456789ABCDEF";
     if (!code) { out[0] = 0; return; }
-    out[0] = classes[high >> 6];
-    out[1] = digits[(high >> 4) & 3];
-    out[2] = digits[high & 15];
-    out[3] = digits[low >> 4];
-    out[4] = digits[low & 15];
-    out[5] = 0;
+    out[0] = classes[code >> 14]; out[1] = digits[(code >> 12) & 3];
+    out[2] = digits[(code >> 8) & 15]; out[3] = digits[(code >> 4) & 15];
+    out[4] = digits[code & 15]; out[5] = 0;
 }
-
-static void put_u32(uint8_t *p, uint32_t value)
-{
-    for (unsigned i = 0; i < 4; ++i) p[i] = value >> (8 * i);
-}
-
-esp_err_t diagnostics_state_init(void)
-{
+esp_err_t diagnostics_state_init(void) {
+    memset(&snapshot, 0, sizeof(snapshot));
     lock = xSemaphoreCreateMutex();
     return lock ? ESP_OK : ESP_ERR_NO_MEM;
 }
-
-void diagnostics_state_mil(bool on, uint8_t reported_count, uint32_t now_ms)
-{
+void diagnostics_state_configure(bool transmission, uint32_t revision, bool simulated) {
     if (!lock) return;
     xSemaphoreTake(lock, portMAX_DELAY);
-    snapshot.mil_valid = true;
-    snapshot.mil_on = on;
-    snapshot.reported_count = reported_count;
-    snapshot.mil_at = now_ms;
+    memset(&snapshot, 0, sizeof(snapshot));
+    snapshot.transmission = transmission; snapshot.revision = revision; snapshot.simulated = simulated;
     xSemaphoreGive(lock);
 }
-
-void diagnostics_state_codes(uint8_t mode, const uint8_t *bytes, size_t length,
-                             uint32_t now_ms)
-{
-    int index = category(mode);
-    if (!lock || index < 0 || !bytes || (length & 1U)) return;
+void diagnostics_state_connected(void) {
+    if (!lock) return;
+    xSemaphoreTake(lock, portMAX_DELAY);
+    snapshot.session++;
+    snapshot.connected = true;
+    snapshot.mil_known = false; snapshot.mil_on = false; snapshot.reported_count = 0;
+    snapshot.mil_result = DIAGNOSTICS_NOT_CHECKED; snapshot.mil_at = 0;
+    memset(snapshot.categories, 0, sizeof(snapshot.categories));
+    xSemaphoreGive(lock);
+}
+void diagnostics_state_mil(bool on, uint8_t count, uint32_t now) {
+    if (!lock) return;
+    xSemaphoreTake(lock, portMAX_DELAY);
+    snapshot.mil_known = true; snapshot.mil_result = DIAGNOSTICS_OK;
+    snapshot.mil_on = on; snapshot.reported_count = count; snapshot.mil_at = now;
+    xSemaphoreGive(lock);
+}
+void diagnostics_state_codes(uint8_t mode, const uint8_t *bytes, size_t length, uint32_t now) {
+    int i = category(mode);
+    if (!lock || i < 0 || !bytes || (length & 1U) || length > 2*DIAGNOSTICS_MAX_CODES) return;
+    uint16_t codes[DIAGNOSTICS_MAX_CODES] = {0};
     uint8_t count = 0;
-    uint16_t first = 0;
-    for (size_t i = 0; i + 1 < length; i += 2) {
-        uint16_t code = ((uint16_t)bytes[i] << 8) | bytes[i + 1];
+    for (size_t j=0; j<length; j+=2) {
+        uint16_t code = ((uint16_t)bytes[j] << 8) | bytes[j+1];
         if (!code) continue;
-        if (!first) first = code;
-        if (count < UINT8_MAX) ++count;
+        bool duplicate = false;
+        for (unsigned k=0; k<count; ++k) if (codes[k] == code) duplicate = true;
+        if (!duplicate) codes[count++] = code;
     }
     xSemaphoreTake(lock, portMAX_DELAY);
-    snapshot.known[index] = true;
-    snapshot.count[index] = count;
-    snapshot.first[index] = first;
-    snapshot.observed_at[index] = now_ms;
+    snapshot.categories[i].known = true; snapshot.categories[i].result = DIAGNOSTICS_OK;
+    snapshot.categories[i].count = count; snapshot.categories[i].at = now;
+    memcpy(snapshot.categories[i].codes, codes, sizeof(codes));
     xSemaphoreGive(lock);
 }
-
-void diagnostics_state_disconnected(void)
-{
+void diagnostics_state_failed(uint8_t mode, diagnostics_result_t result) {
+    int i = category(mode);
+    if (!lock || (mode != 1 && i < 0) ||
+        (result != DIAGNOSTICS_UNAVAILABLE && result != DIAGNOSTICS_UNSUPPORTED)) return;
+    xSemaphoreTake(lock, portMAX_DELAY);
+    if (mode == 1) snapshot.mil_result = result;
+    else snapshot.categories[i].result = result;
+    xSemaphoreGive(lock);
+}
+void diagnostics_state_disconnected(void) {
     if (!lock) return;
     xSemaphoreTake(lock, portMAX_DELAY);
-    snapshot.mil_valid = false;
-    for (unsigned i = 0; i < 3; ++i) snapshot.known[i] = false;
+    snapshot.connected = false;
+    if (snapshot.mil_known) snapshot.mil_result = DIAGNOSTICS_UNAVAILABLE;
+    for (unsigned i=0; i<3; ++i)
+        if (snapshot.categories[i].known) snapshot.categories[i].result = DIAGNOSTICS_UNAVAILABLE;
     xSemaphoreGive(lock);
 }
-
-void diagnostics_state_snapshot(uint32_t now_ms, diagnostics_snapshot_t *out)
-{
+void diagnostics_state_snapshot(uint32_t now, diagnostics_snapshot_t *out) {
     if (!out) return;
     memset(out, 0, sizeof(*out));
     if (!lock) return;
     xSemaphoreTake(lock, portMAX_DELAY);
-    bool mil_fresh = snapshot.mil_valid && now_ms - snapshot.mil_at <= 60000;
-    if (mil_fresh) {
-        out->mil_on = snapshot.mil_on;
-        out->reported_count = snapshot.reported_count;
+    out->transmission = snapshot.transmission;
+    if (mil_fresh(now)) { out->mil_on = snapshot.mil_on; out->reported_count = snapshot.reported_count; out->valid = true; }
+    if (codes_fresh(0, now)) {
+        out->stored_count = snapshot.categories[0].count;
+        if (!mil_fresh(now)) out->reported_count = out->stored_count;
+        format_code(snapshot.categories[0].codes[0], out->first_code);
+        out->valid = true;
     }
-    bool codes_fresh = snapshot.known[0] && now_ms - snapshot.observed_at[0] <= 120000;
-    if (codes_fresh) {
-        out->stored_count = snapshot.count[0];
-        if (!mil_fresh) out->reported_count = snapshot.count[0];
-        format_code(snapshot.first[0], out->first_code);
-    }
-    out->valid = mil_fresh || codes_fresh;
     xSemaphoreGive(lock);
 }
-
-size_t diagnostics_state_status(uint8_t out[DIAGNOSTICS_STATUS_SIZE])
-{
-    memset(out, 0, DIAGNOSTICS_STATUS_SIZE);
+size_t diagnostics_state_status(uint8_t out[DIAGNOSTICS_STATUS_SIZE]) {
+    memset(out, 0, DIAGNOSTICS_STATUS_SIZE); out[0] = 5;
     if (!lock) return DIAGNOSTICS_STATUS_SIZE;
     xSemaphoreTake(lock, portMAX_DELAY);
     uint32_t now = pdTICKS_TO_MS(xTaskGetTickCount());
-    out[0] = 5;
-    if (snapshot.mil_valid && now - snapshot.mil_at <= 60000) out[1] |= 1;
-    if (snapshot.mil_on) out[1] |= 2;
-    out[2] = snapshot.reported_count;
-    for (unsigned i = 0; i < 3; ++i) {
-        if (snapshot.known[i] && now - snapshot.observed_at[i] <= 120000)
-            out[1] |= (uint8_t)(4U << i);
-        out[3 + i] = snapshot.count[i];
-        out[6 + i * 2] = snapshot.first[i] >> 8;
-        out[7 + i * 2] = snapshot.first[i];
-        put_u32(out + 12 + i * 4, snapshot.observed_at[i]);
+    /* Legacy clients cannot distinguish TCM from ECM. Never mislabel TCM evidence. */
+    if (!snapshot.transmission && !snapshot.simulated) {
+        if (mil_fresh(now)) out[1] |= 1;
+        if (snapshot.mil_on) out[1] |= 2;
+        out[2] = snapshot.reported_count;
+        for (unsigned i=0; i<3; ++i) {
+            if (codes_fresh(i, now)) out[1] |= (uint8_t)(4U << i);
+            out[3+i] = snapshot.categories[i].count;
+            out[6+2*i] = snapshot.categories[i].codes[0] >> 8;
+            out[7+2*i] = snapshot.categories[i].codes[0];
+            put_u32(out+12+4*i, snapshot.categories[i].at);
+        }
+        put_u32(out+24, snapshot.mil_at);
     }
-    put_u32(out + 24, snapshot.mil_at);
-    put_u32(out + 28, now);
+    put_u32(out+28, now);
     xSemaphoreGive(lock);
     return DIAGNOSTICS_STATUS_SIZE;
+}
+size_t diagnostics_state_full_status(uint32_t now, uint8_t out[DIAGNOSTICS_FULL_SIZE]) {
+    memset(out, 0, DIAGNOSTICS_FULL_SIZE); out[0] = 15;
+    if (!lock) return DIAGNOSTICS_FULL_SIZE;
+    xSemaphoreTake(lock, portMAX_DELAY);
+    out[1] = snapshot.transmission ? 1 : 0;
+    out[2] = (mil_fresh(now) ? 1 : 0) | (snapshot.mil_on ? 2 : 0) |
+             (snapshot.connected ? 4 : 0) | (snapshot.simulated ? 8 : 0);
+    out[3] = snapshot.mil_result;
+    put_u32(out+4, snapshot.revision); put_u32(out+8, snapshot.session);
+    put_u32(out+12, now); put_u32(out+16, snapshot.mil_at);
+    uint16_t ecu = snapshot.transmission ? 0x7e9 : 0x7e8;
+    out[20] = ecu; out[21] = ecu >> 8; out[22] = snapshot.reported_count;
+    out[23] = snapshot.mil_known ? 1 : 0;
+    for (unsigned i=0; i<3; ++i) {
+        uint8_t *p = out+32+72*i;
+        p[0] = snapshot.categories[i].result;
+        p[1] = (snapshot.categories[i].known ? 1 : 0) | (codes_fresh(i, now) ? 2 : 0);
+        p[2] = snapshot.categories[i].count;
+        put_u32(p+4, snapshot.categories[i].at);
+        for (unsigned j=0; j<snapshot.categories[i].count; ++j) {
+            p[8+2*j] = snapshot.categories[i].codes[j] >> 8;
+            p[9+2*j] = snapshot.categories[i].codes[j];
+        }
+    }
+    xSemaphoreGive(lock);
+    return DIAGNOSTICS_FULL_SIZE;
 }

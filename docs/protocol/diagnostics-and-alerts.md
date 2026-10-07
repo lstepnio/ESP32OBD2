@@ -35,3 +35,52 @@ Warning: amber border/badge, labeled value and threshold, one entry pulse, then 
 Order multiple alerts by severity, then configured priority, then oldest activation. Show `1 of N` and allow inspection; enforce at most one overlay at once. MIL/DTC notification uses a separate engine-status indicator and event list, not a pretend numeric threshold. History records entry, escalation, acknowledgment, data loss and resolution with provenance. Bound retained events and batch flash writes. Configuration must warn when requested poll rates cannot support a requested short alert response time.
 
 Acceptance: alerts work with phone disconnected, on hidden pages, under unit conversion, around noisy thresholds, with stale samples, after reboot, and with multiple simultaneous violations. Diagnostic clearing tests use fixtures/emulator first; a live vehicle clear is an explicitly chosen user action at the time, never an automated test.
+
+## Implemented read-only snapshot, dev.38-faults
+
+The active Engine or Transmission profile polls Mode 01 PID 01 and Modes 03,
+07 and 0A against its selected responder (7E8 or 7E9). The protected companion
+command `39 <sequence:u32le>` selects a cached full diagnostic snapshot. Reading
+it does not initiate a vehicle scan. The scheduler populates categories separately;
+initial categories remain Not checked until their first accepted reply.
+
+Version 15 is 248 bytes. Header (32 bytes):
+
+| Offset | Field |
+| --- | --- |
+| 0 | Version 15 |
+| 1 | Source: 0 Engine, 1 Transmission |
+| 2 | Flags: bit 0 MIL fresh, 1 MIL on, 2 connected, 3 simulated |
+| 3 | MIL result: 0 not checked, 1 available, 2 unavailable, 3 unsupported |
+| 4 / 8 | Configuration revision / connection session, u32le |
+| 12 / 16 | Snapshot / MIL observation monotonic milliseconds, u32le |
+| 20 | Responding ECU, u16le |
+| 22 / 23 | MIL reported count / known flag |
+| 24..31 | Reserved zero |
+
+Stored, Pending and Permanent blocks start at 32, 104 and 176. Each is 72 bytes:
+result (same enum), flags (known, fresh, truncated), count (0..32), reserved zero,
+u32le observation time, then 32 two-byte big-endian DTC slots. Unused slots must
+be zero. Firmware never silently truncates: its 64-byte ISO-TP payload bound
+currently permits at most 31 codes after service/count bytes. Oversized or malformed
+responses are unavailable. Codes are deduplicated within each category only.
+
+Freshness requires connection, real data and a successful most recent query.
+MIL expires after 60 seconds, categories after 120 seconds. Android additionally
+expires its receipt after 30 seconds and verifies source, ECU and configuration
+revision. Unsigned time subtraction handles the gauge clock wrapping. Failure or
+disconnect retains known codes as last checked; reconnect clears them for a new
+session. Empty accepted lists are distinct from unknown or unavailable replies.
+Explicit DTC negative replies 11, 12 and 31 are unsupported. Other failures,
+including unsupported MIL queries, currently appear unavailable.
+
+Version 5 / command 30 remains an Engine-only partial snapshot. New Android falls
+back only on explicit unsupported command/length errors (GATT 6 or 13). Auth,
+transport or packet validation failures never trigger fallback. New firmware
+blanks version 5 Transmission data to prevent old apps labelling it as Engine CEL.
+The owner identity gate remains required; public capability flags are unchanged.
+Only the active source is sampled. The other source is Not checked.
+
+This implementation reads codes only. The clearing flow above remains a design.
+Physical qualification still requires the 248-byte long read on Pixel, category
+coverage on the gauge and disconnect/reconnect checks with the real adapter.

@@ -1,5 +1,7 @@
 # Development update recovery checks, 2026-09-25
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 These checks use a paired Pixel 10 Pro, the owner-only BLE update path, and the USB-powered Waveshare gauge. No OBD adapters or vehicle are present. The development signing key remains outside Git.
 
 ## Interrupted transfer and retry

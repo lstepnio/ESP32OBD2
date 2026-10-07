@@ -1,6 +1,9 @@
 # Architecture decisions
 
-Status is **proposed**, except the existing firmware toolchain baseline. Each decision can be revised with measured evidence.
+Updated 2026-10-06. ADR-001..004, 006..007, 009 and 012 describe implemented development choices.
+ADR-005 has bounded discovery/profile slices; broader coverage is planned. ADR-010
+contract freezing and ADR-011 simultaneous links remain qualification gates.
+Current support/evidence is in [current state](../current-state.md).
 
 | ID | Decision | Reason and tradeoff | Revisit when |
 | --- | --- | --- | --- |
@@ -11,7 +14,7 @@ Status is **proposed**, except the existing firmware toolchain baseline. Each de
 | ADR-005 | Capability-driven PID discovery + curated manufacturer profiles | Broad coverage with honest support states; no exhaustive manufacturer scan | A documented protocol offers safe enumeration |
 | ADR-006 | Typed bounded numeric decoder | Cross-language parity and resource bounds; limited complex payload support | Real profiles require additional operators |
 | ADR-007 | BLE bootstrap/control, shared BLE/Wi-Fi bulk protocol; A/B rollback | BLE works without network setup; Wi-Fi can speed maintenance transfers; requires routing/trust/coexistence tests and one USB migration | WIFI-001 and RADIO-001 results |
-| ADR-008 | JSON documents + versioned CBOR command envelope | Reviewable imports and schemas with compact radio transport; two representations need parity checks | Transport measurements favor a simpler encoding |
+| ADR-008 | JSON configuration documents + bounded versioned binary commands | Matches implemented config and protected command codecs; maintain Kotlin/C vectors and compatibility notes | Transport measurements favor a simpler encoding |
 | ADR-009 | Offline local data, no mandatory backend | Vehicle setup works in garage/trail without connectivity; catalogs/releases downloaded separately | Signed community distribution needs hosted indexing |
 | ADR-010 | Freeze contracts after a two-device vertical slice | Avoid premature protocol permanence; draft versions can change | Bond/read/apply/reboot slice passes |
 | ADR-011 | Source-aware multi-adapter data model | Prefer simultaneous ECM and TCM links with explicit fallback if three-link measurements fail | Three-link hardware spike completes |

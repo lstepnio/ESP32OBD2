@@ -1,0 +1,10 @@
+Physical gauge configuration journey
+Original revision: 6
+Original digest: e8e781af57ae4ac0190f28a5785d8b090925a9ce7baf324b3a98b226cce1c698
+Three-reading revision: 7
+Three-reading digest: 741d6c17b03d4b2411a1dede001b1cd06f7f94215dd65d584f8aa7c24d1d1542
+Running revision and digest matched; trial cleared.
+Restored revision: 8
+Restored digest: d4a02989f1a750eb16b14af2174bf3a3252b56795c8168b172da150f9b6e4b62
+Original pages, layouts, bindings and limits verified after restoration.
+Send started: true; confirmed: true; restored: true

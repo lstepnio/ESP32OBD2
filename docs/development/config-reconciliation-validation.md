@@ -1,5 +1,7 @@
 # Configuration reconciliation and write precondition
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Observed on 2026-09-26 with the paired Pixel 10 Pro and USB-powered ESP32-S3-Touch-LCD-1.28. No OBD adapter was attached, and no configuration transfer was started during this check.
 
 The updated debug APK was installed with `adb install -r`. After public gauge discovery, **Send experimental numeric profile** was disabled because the app had no verified write base. **Refresh saved configuration** completed through the existing owner bond and loaded revision 2 plus its SHA-256, after which the experimental sender became available.

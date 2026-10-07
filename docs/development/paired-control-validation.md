@@ -1,5 +1,7 @@
 # Paired control hardware review
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Status: On 2026-09-25, the integration image was uploaded to the USB gauge with flash hashes verified, and the debug APK was installed on a Pixel 10 Pro. The Pixel discovered the gauge, read protocol 0 capabilities, completed LE Secure Connections passkey bonding, and confirmed authenticated built-in selections by state readback, including after a gauge reboot. It also saved and read back a 90-degree display rotation through the owner link; the user confirmed the display and touch looked correct. No OBD adapter was present.
 
 ## Pairing diagnosis and observed fix, 2026-09-25

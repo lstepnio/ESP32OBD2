@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "origin": "captured",
+  "physicalPort": "engine",
+  "protocol": "CAN 11-bit 500 kbit/s",
+  "ecu": "7E8",
+  "cases": [
+    {
+      "command": "0120",
+      "responseHex": "37453830363431323038303037413031390d0d3e",
+      "latencyUs": 239989
+    },
+    {
+      "command": "0140",
+      "responseHex": "37453830363431343046454430303030300d0d3e",
+      "latencyUs": 239064
+    },
+    {
+      "command": "010C",
+      "responseHex": "374538303434313043304245300d0d3e",
+      "latencyUs": 239480
+    },
+    {
+      "command": "0105",
+      "responseHex": "37453830333431303535330d0d3e",
+      "latencyUs": 243260
+    },
+    {
+      "command": "010D",
+      "responseHex": "37453830333431304430300d0d3e",
+      "latencyUs": 92887
+    },
+    {
+      "command": "0104",
+      "responseHex": "37453830333431303434330d0d3e",
+      "latencyUs": 92857
+    },
+    {
+      "command": "012F",
+      "responseHex": "37453830333431324641350d0d3e",
+      "latencyUs": 107926
+    }
+  ],
+  "limit": "Standard responses captured by the Mac. No independent instrument comparison or gauge live-reading verification."
+}

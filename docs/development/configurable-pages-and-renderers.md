@@ -1,5 +1,7 @@
 # Configurable pages and renderers
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Status: implemented and transferred to the development gauge on 2026-09-27. Android sent a five-page dashboard through the authenticated owner path, firmware restarted into revision 3, and a fresh bounded document read reported zero differences. Physical renderer inspection and live vehicle sampling remain to be recorded.
 
 ## Executable configuration

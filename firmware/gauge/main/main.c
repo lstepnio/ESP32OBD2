@@ -33,9 +33,11 @@
 #include "esp_lvgl_port.h"
 
 #include "ble_obd.h"
+#include "obd_trace.h"
 #include "ble_companion.h"
 #include "ble_mgr.h"
 #include "config.h"
+#include "display_settings.h"
 #include "config_store.h"
 #include "config_transfer.h"
 #include "config_runtime.h"
@@ -44,13 +46,18 @@
 #include "wifi_bulk.h"
 #include "esp_ota_ops.h"
 #include "transfer_gate.h"
+#include "adapter_registry.h"
+#include "adapter_status.h"
+#include "elm_response.h"
 #include "diagnostics_state.h"
 #include "hardware_probe.h"
 #include "esp_heap_caps.h"
 #include "config_document.h"
 #include "config_trial.h"
 #include "obd.h"
+#include "transmission_gear.h"
 #include "poll_scheduler.h"
+#include "page_save_policy.h"
 #include "ui.h"
 #include "util.h"
 
@@ -89,6 +96,8 @@ static const obd_pid_cfg_t g_obd_pids[] = {
 // ---------------------------------------------------------------------------------------------------------------------
 
 static atomic_uchar g_selected_page;
+static atomic_uint g_local_page_generation;
+static atomic_uint g_page_activity_ms;
 static config_runtime_t *g_runtime;
 static config_store_record_t g_running_config_record;
 static bool g_running_previous_config;
@@ -265,6 +274,11 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
     }
 
     double decoded;
+    if (g_runtime && g_runtime->transmission_source && pid == 0x5503 &&
+        !transmission_gear_label(data[0])) {
+        ui_set_value(ui, pid, NULL);
+        return;
+    }
     if (!pid_decoder_eval(&definition->decoder, data, len, &decoded)) {
         ESP_LOGW(TAG, "Rejected invalid value for PID 0x%02X", pid);
         return;
@@ -290,7 +304,7 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
         return;
     }
     int32_t value = (int32_t)decoded;
-    ESP_LOGI(TAG, "Received PID 0x%02X (%s): %" PRId32, pid, definition->name, value);
+    ESP_LOGD(TAG, "Received PID 0x%02X (%s): %" PRId32, pid, definition->name, value);
     ui_set_value(ui, pid, &value);
 }
 
@@ -303,13 +317,15 @@ static void app_tick_task(void *arg)
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
         ble_companion_tick();
         alert_sample_event_t event;
+        bool source_ready = adapter_status_ready();
         while (xQueueReceive(g_alert_sample_queue, &event, 0) == pdTRUE)
-            alert_engine_sample(event.pid_index, event.value, event.observed_at_ms);
+            if (source_ready) alert_engine_sample(event.pid_index, event.value, event.observed_at_ms);
+        if (!source_ready) alert_engine_invalidate();
         alert_summary_t alert = alert_engine_tick(now_ms);
         ui_set_alert(ui, alert.severity, alert.unavailable, alert.label);
         diagnostics_snapshot_t diagnostics;
         diagnostics_state_snapshot(now_ms, &diagnostics);
-        ui_set_diagnostics(ui, diagnostics.valid, diagnostics.mil_on,
+        ui_set_diagnostics(ui, diagnostics.valid, diagnostics.mil_on, diagnostics.transmission,
                            diagnostics.reported_count, diagnostics.first_code);
         uint32_t ticks = atomic_fetch_add(&g_app_tick_count, 1) + 1;
         if (ticks % 600 == 0) {
@@ -344,24 +360,33 @@ static void obd_task(void *arg)
     while (true)
     {
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(period_ms));
-        if (transfer_gate_current() == 2) {
+        if (transfer_gate_current() == 2 || ble_mgr_is_paused()) {
             clear_current_page(ui);
+            diagnostics_state_disconnected();
             continue;
         }
 
         if (obd == NULL || !ble_obd_is_connected(obd)) {
             clear_current_page(ui);
             diagnostics_state_disconnected();
-            obd = ble_obd_connect(0, CONFIG_EGAUGE_ECM_ADAPTER_MAC, obd_response_cb, ui);
+            if (g_runtime && !g_runtime->legacy_auto_discovery && !g_runtime->adapter_address[0])
+                continue;
+            const char *address = g_runtime && g_runtime->adapter_address[0]
+                ? g_runtime->adapter_address : CONFIG_EGAUGE_ECM_ADAPTER_MAC;
+            uint8_t address_type = g_runtime ? g_runtime->adapter_address_type : 0;
+            obd = ble_obd_connect_profile_ecu(0, address, address_type,
+                g_runtime && g_runtime->simulated_adapter ? "elm-bench-v1" : "elm-18f0-v1",
+                g_runtime && g_runtime->transmission_source ? 0x7e9 : 0x7e8, obd_response_cb, ui);
             if (!obd) {
-                ESP_LOGW(TAG, "ECM adapter unavailable; retrying in %" PRIu32 " ms",
+                ESP_LOGW(TAG, "Vehicle adapter unavailable; retrying in %" PRIu32 " ms",
                          reconnect_delay_ms);
                 vTaskDelay(pdMS_TO_TICKS(reconnect_delay_ms));
                 if (reconnect_delay_ms < 8000) reconnect_delay_ms *= 2;
                 last_wake = xTaskGetTickCount();
                 continue;
             }
-            ESP_LOGI(TAG, "ECM adapter link ready");
+            ESP_LOGI(TAG, "Vehicle adapter link ready");
+            diagnostics_state_connected();
             reconnect_delay_ms = 500;
             poll_scheduler_init(&scheduler);
             continue;
@@ -374,24 +399,35 @@ static void obd_task(void *arg)
             intervals[i] = g_runtime ? g_runtime->pids[i].poll_ms : 500;
         poll_job_t job = poll_scheduler_next(&scheduler, now_ms, intervals, count);
         if (job.kind == POLL_JOB_NONE) continue;
+        if (g_runtime && g_runtime->simulated_adapter &&
+            (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC)) continue;
         if (job.kind == POLL_JOB_MIL) {
-            ble_obd_rxtx(obd, 1, 0x01, 700);
+            elm_result_t response;
+            if (ble_obd_rxtx_status_ecu(obd, 1, 0x01,
+                g_runtime && g_runtime->transmission_source ? 0x7e9 : 0x7e8, 700, &response) != 0)
+                diagnostics_state_failed(1, response == ELM_UNSUPPORTED ?
+                    DIAGNOSTICS_UNSUPPORTED : DIAGNOSTICS_UNAVAILABLE);
             continue;
         }
         if (job.kind == POLL_JOB_DTC) {
             uint8_t codes[64];
             size_t code_length = sizeof(codes);
-            if (ble_obd_read_service(obd, dtc_modes[job.index], 1500,
-                                     codes, &code_length) == 0)
+            elm_result_t response;
+            if (ble_obd_read_service_status_ecu(obd, dtc_modes[job.index],
+                    g_runtime && g_runtime->transmission_source ? 0x7e9 : 0x7e8,
+                    1500, codes, &code_length, &response) == 0)
                 diagnostics_state_codes(dtc_modes[job.index], codes, code_length,
                                         pdTICKS_TO_MS(xTaskGetTickCount()));
+            else diagnostics_state_failed(dtc_modes[job.index], response == ELM_UNSUPPORTED ?
+                DIAGNOSTICS_UNSUPPORTED : DIAGNOSTICS_UNAVAILABLE);
             continue;
         }
 
         const obd_pid_cfg_t *requested = poll_cfg(job.index);
-        const uint8_t obd_mode = 0x01;  // OBD-II mode
+        const uint8_t obd_mode = g_runtime && g_runtime->transmission_source ? 0x22 : 0x01;
 
-        int status = ble_obd_rxtx(obd, obd_mode, requested->pid, timeout_ms);
+        int status = ble_obd_rxtx_ecu(obd, obd_mode, requested->pid,
+            g_runtime ? g_runtime->pids[job.index].responder : ELM_ECU_ANY, timeout_ms);
 
         if (status != 0)
         {
@@ -414,6 +450,7 @@ static void tcm_link_task(void *arg)
 {
     (void)arg;
     while (true) {
+        if (ble_mgr_is_paused()) { vTaskDelay(pdMS_TO_TICKS(500)); continue; }
         ble_obd_ctx_t *tcm = ble_obd_connect(1, CONFIG_EGAUGE_TCM_ADAPTER_MAC, NULL, NULL);
         if (tcm) {
             ESP_LOGI(TAG, "TCM adapter link connected; awaiting TCM PID configuration");
@@ -439,17 +476,27 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
     {
     case LV_EVENT_CLICKED:
     {
-        companion_command_t command = {
-            .opcode = 1,
-            .value = (atomic_load(&g_selected_page) + 1) % page_count(),
-        };
-        if (g_phone_command_queue) xQueueSend(g_phone_command_queue, &command, 0);
+        /* Already on the LVGL task with its lock held. Browsing must not wait
+         * for app_main, a flash commit, or another UI mailbox interval. */
+        uint8_t selected = (atomic_load(&g_selected_page) + 1) % page_count();
+        ui_page_t page;
+        page_ui(selected, &page);
+        ui_set_page(ui, &page);
+        atomic_store(&g_selected_page, selected);
+        atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
+        ble_companion_selection_applied(selected);
+        atomic_fetch_add(&g_local_page_generation, 1);
         break;
     }
     case LV_EVENT_LONG_PRESSED:
         ble_companion_open_pairing_window();
         break;
     case LV_EVENT_RELEASED:
+    {
+        if (ble_companion_has_owner()) ui_show_pairing_code(ui, UI_PAIRING_RESET_CONFIRM);
+        break;
+    }
+    case LV_EVENT_VALUE_CHANGED:
     {
         companion_command_t command = {.opcode = 3};
         if (g_phone_command_queue) xQueueSend(g_phone_command_queue, &command, 0);
@@ -514,7 +561,10 @@ static void init_config(void)
     {
         ESP_LOGI(TAG, "Configuration loaded successfully: idx=%d, disp_rot=%d", g_config.cfg_idx, g_config.disp_rot);
     }
-    if (g_runtime) g_config.disp_rot = (lv_display_rotation_t)g_runtime->rotation;
+    uint8_t default_rotation = g_runtime ? g_runtime->rotation : (uint8_t)g_config.disp_rot;
+    uint8_t default_brightness = g_runtime ? g_runtime->brightness : 80;
+    ESP_ERROR_CHECK(display_settings_init(default_rotation, default_brightness, 0));
+    g_config.disp_rot = (lv_display_rotation_t)display_settings_snapshot().rotation;
     atomic_store(&g_selected_page, g_config.cfg_idx);
 }
 
@@ -531,10 +581,13 @@ void app_main(void)
     // esp_log_level_set("BLE_GATT", ESP_LOG_DEBUG);
     // esp_log_level_set("OBD", ESP_LOG_DEBUG);
     // esp_log_level_set("UI", ESP_LOG_DEBUG);
-    esp_log_level_set("main", ESP_LOG_DEBUG);
+    esp_log_level_set("main", ESP_LOG_INFO);
 
     config_document_init();
     init_config();
+    diagnostics_state_configure(g_runtime && g_runtime->transmission_source,
+        g_runtime ? g_running_config_record.revision : 0,
+        g_runtime && g_runtime->simulated_adapter);
     bool pairing_required = !ble_companion_load_owner();
     alert_engine_init(g_runtime);
 
@@ -551,10 +604,10 @@ void app_main(void)
     ui_page_t initial_page;
     page_ui(g_config.cfg_idx, &initial_page);
     ui_t          *ui             = ui_init(&initial_page, ui_interval_ms, ui_touch_callback,
-                                            pairing_required);
+                                            pairing_required, display_settings_snapshot().units == 1);
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
     bsp_display_on_off(true);
-    if (g_runtime) ESP_ERROR_CHECK(bsp_display_backlight_set_percent(g_runtime->brightness));
+    ESP_ERROR_CHECK(bsp_display_backlight_set_percent(display_settings_snapshot().brightness));
 
 #if CONFIG_EGAUGE_DISPLAY_CALIBRATION
     ui_start_display_calibration(ui);
@@ -574,6 +627,15 @@ void app_main(void)
         ESP_LOGE(TAG, "Invalid ECM adapter MAC in firmware configuration");
         return;
     }
+    adapter_status_init(g_runtime);
+    if (g_runtime && g_runtime->simulated_adapter && lvgl_port_lock(portMAX_DELAY)) {
+        ui_set_simulated(ui);
+        lvgl_port_unlock();
+    }
+    ESP_ERROR_CHECK(adapter_registry_init());
+    obd_trace_init();
+    if (g_runtime && g_runtime->simulated_adapter)
+        obd_trace_emit(0, 0, "source_simulated", NULL, 0, 1);
     init_obd_task(ui);
     BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 3072, ui, 5, NULL);
     ESP_CHECK(tick_started == pdPASS, TAG, "Application tick task creation failed");
@@ -595,12 +657,13 @@ void app_main(void)
         }
     }
 
+    page_save_policy_t page_save = {0};
+    atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
     while (true)
     {
         companion_command_t command;
-        if (xQueueReceive(g_phone_command_queue, &command, pdMS_TO_TICKS(10)) != pdTRUE)
-            continue;
-        if (command.opcode == 1 && command.value < page_count()) {
+        bool has_command = xQueueReceive(g_phone_command_queue, &command, pdMS_TO_TICKS(20)) == pdTRUE;
+        if (has_command && command.opcode == 1 && command.value < page_count()) {
             config_t updated = g_config;
             updated.cfg_idx = command.value;
             if (config_save(&updated) == ESP_OK) {
@@ -610,22 +673,106 @@ void app_main(void)
                     page_ui(command.value, &page);
                     ui_set_page(ui, &page);
                     atomic_store(&g_selected_page, command.value);
+                    atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
                     lvgl_port_unlock();
                     ble_companion_selection_applied(command.value);
                 }
             }
-        } else if (command.opcode == 2 && command.value <= LV_DISPLAY_ROTATION_270) {
+        } else if (has_command && command.opcode == 2 && command.value <= LV_DISPLAY_ROTATION_270) {
             config_t saved;
             uint32_t revision;
             if (config_read_snapshot(&saved, &revision) != ESP_OK) continue;
             saved.disp_rot = (lv_display_rotation_t)command.value;
             if (config_save_if_revision(&saved, command.base_revision, NULL) != ESP_OK) continue;
+            display_settings_t display = display_settings_snapshot();
+            if (display.rotation != command.value &&
+                display_settings_save(command.value, display.brightness, display.units, display.cycle_seconds, display.revision,
+                                      NULL) != ESP_OK)
+                ESP_LOGW(TAG, "Legacy rotation saved but display preference update failed");
             g_config = saved;
             if (lvgl_port_lock(portMAX_DELAY)) {
                 bsp_lv_disp_set_rotation(saved.disp_rot);
                 lvgl_port_unlock();
             }
             ESP_LOGI(TAG, "Display rotation saved: %u", (unsigned)command.value * 90);
-        } else if (command.opcode == 3) ble_companion_forget_owner();
+        } else if (has_command && command.opcode == 0x36) {
+            display_settings_t saved;
+            display_settings_t before = display_settings_snapshot();
+            if (display_settings_save(command.value, command.brightness, before.units, before.cycle_seconds,
+                                      command.base_revision, &saved) != ESP_OK) continue;
+            g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
+            if (lvgl_port_lock(portMAX_DELAY)) {
+                bsp_lv_disp_set_rotation(g_config.disp_rot);
+                lvgl_port_unlock();
+            }
+            ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
+            ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%%",
+                     (unsigned)saved.rotation * 90, (unsigned)saved.brightness);
+        } else if (has_command && command.opcode == 0x37) {
+            display_settings_t saved;
+            display_settings_t before = display_settings_snapshot();
+            if (display_settings_save(command.value, command.brightness, command.units, before.cycle_seconds,
+                                      command.base_revision, &saved) != ESP_OK) continue;
+            g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
+            if (lvgl_port_lock(portMAX_DELAY)) {
+                bsp_lv_disp_set_rotation(g_config.disp_rot);
+                ui_set_units(ui, saved.units == 1);
+                lvgl_port_unlock();
+            }
+            ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
+            ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u",
+                     (unsigned)saved.rotation * 90, (unsigned)saved.brightness, (unsigned)saved.units);
+        } else if (has_command && command.opcode == 0x38) {
+            display_settings_t saved;
+            if (display_settings_save(command.value, command.brightness, command.units, command.cycle_seconds,
+                                      command.base_revision, &saved) != ESP_OK) continue;
+            g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
+            if (lvgl_port_lock(portMAX_DELAY)) {
+                bsp_lv_disp_set_rotation(g_config.disp_rot);
+                ui_set_units(ui, saved.units == 1);
+                lvgl_port_unlock();
+            }
+            ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
+            atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
+            ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u cycle=%us",
+                     (unsigned)saved.rotation * 90, (unsigned)saved.brightness,
+                     (unsigned)saved.units, (unsigned)saved.cycle_seconds);
+        } else if (has_command && command.opcode == 3) ble_companion_forget_owner();
+
+        uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        display_settings_t cycle = display_settings_snapshot();
+        bool owner_ready = ble_companion_has_owner();
+        bool transfer_idle = transfer_gate_current() == 0;
+        if (!owner_ready || !transfer_idle) atomic_store(&g_page_activity_ms, now_ms);
+        if (page_cycle_due(cycle.cycle_seconds, page_count(), owner_ready,
+            transfer_idle, atomic_load(&g_page_activity_ms), now_ms) &&
+            lvgl_port_lock(0)) {
+            uint8_t selected = (atomic_load(&g_selected_page) + 1) % page_count();
+            ui_page_t page;
+            page_ui(selected, &page);
+            ui_set_page(ui, &page);
+            atomic_store(&g_selected_page, selected);
+            ble_companion_selection_applied(selected);
+            atomic_store(&g_page_activity_ms, now_ms);
+            lvgl_port_unlock();
+        }
+        page_save_observe(&page_save, atomic_load(&g_local_page_generation), now_ms);
+        if (page_save_due(&page_save, now_ms) && transfer_gate_current() == 0) {
+            config_t updated = g_config;
+            uint32_t generation;
+            /* Snapshot the page and generation together, then release LVGL
+             * before any flash access. A tap during the save stays pending. */
+            if (!lvgl_port_lock(0)) continue;
+            generation = atomic_load(&g_local_page_generation);
+            updated.cfg_idx = atomic_load(&g_selected_page);
+            lvgl_port_unlock();
+            if (generation != page_save.generation) {
+                page_save_observe(&page_save, generation, pdTICKS_TO_MS(xTaskGetTickCount()));
+                continue;
+            }
+            bool saved = updated.cfg_idx == g_config.cfg_idx || config_save(&updated) == ESP_OK;
+            if (saved) g_config = updated;
+            page_save_finished(&page_save, generation, saved, now_ms);
+        }
     }
 }

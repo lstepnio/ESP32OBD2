@@ -22,6 +22,7 @@
 #include "ota_transfer.h"
 #include "wifi_bulk.h"
 #include "wifi_bulk_policy.h"
+#include "ble_mgr.h"
 
 #define OP_OPEN 0x40
 #define OP_CLOSE 0x42
@@ -209,6 +210,7 @@ static bool start_maintenance_network(void)
 static void stop_maintenance_network(void)
 {
     atomic_store(&wifi_active, false);
+    ble_mgr_set_paused(false);
     if (wifi_initialized) esp_wifi_stop();
     xSemaphoreTake(state_lock, portMAX_DELAY);
     clear_session_locked(PHASE_OFF, RESULT_OK);
@@ -435,8 +437,10 @@ static void worker_task(void *arg)
             publish_locked();
             xSemaphoreGive(state_lock);
             if (command.op == OP_OPEN) {
+                ble_mgr_set_paused(true);
                 if (!start_maintenance_network()) {
                     xSemaphoreTake(state_lock, portMAX_DELAY);
+                    ble_mgr_set_paused(false);
                     clear_session_locked(PHASE_FAILED, RESULT_NETWORK);
                     state.last_op = command.op;
                     state.sequence = command.sequence;

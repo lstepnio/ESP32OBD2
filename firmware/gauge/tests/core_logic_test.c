@@ -5,9 +5,12 @@
 
 #include "alert_engine.h"
 #include "config_trial_policy.h"
+#include "display_units.h"
+#include "transmission_gear.h"
 #include "json_guard.h"
 #include "pid_decoder.h"
 #include "poll_scheduler.h"
+#include "page_save_policy.h"
 #include "wifi_bulk_policy.h"
 
 static void test_json_guard(void)
@@ -39,6 +42,27 @@ static void test_decoder(void)
     assert(fabs(value + 5.0) < 0.0001);
 }
 
+static void test_display_units(void)
+{
+    assert(strcmp(transmission_gear_label(13), "P") == 0);
+    assert(strcmp(transmission_gear_label(11), "R") == 0);
+    assert(strcmp(transmission_gear_label(0), "N") == 0);
+    assert(strcmp(transmission_gear_label(1), "1") == 0);
+    assert(strcmp(transmission_gear_label(8), "8") == 0);
+    for (int value = -1; value < 256; ++value)
+        assert((transmission_gear_label(value) != NULL) ==
+               (value >= 0 && (value <= 8 || value == 11 || value == 13)));
+    assert(display_units_value(13, "gear", true) == 13);
+    assert(strcmp(display_units_label("gear", true), "") == 0);
+    assert(display_units_value(92, "°C", true) == 198);
+    assert(display_units_value(-40, "degC", true) == -40);
+    assert(display_units_value(64, "kph", true) == 40);
+    assert(display_units_value(2840, "rpm", true) == 2840);
+    assert(display_units_value(92, "°C", false) == 92);
+    assert(strcmp(display_units_label("°C", true), "°F") == 0);
+    assert(strcmp(display_units_label("km/h", true), "mph") == 0);
+}
+
 static config_runtime_t one_alert_runtime(void)
 {
     config_runtime_t runtime = {0};
@@ -60,6 +84,9 @@ static void test_alert_edges(void)
     alert_engine_sample(0, 101, 10);
     alert_summary_t summary = alert_engine_tick(10);
     assert(summary.severity == 1 && !summary.unavailable);
+    alert_engine_invalidate();
+    summary = alert_engine_tick(11);
+    assert(summary.severity == 1 && summary.unavailable);
     summary = alert_engine_tick(600);
     assert(summary.severity == 1 && summary.unavailable);
     alert_engine_sample(0, 94, 610);
@@ -197,14 +224,56 @@ static void test_config_trial_policy(void)
     assert(!config_trial_policy_cancel(&state, 5));
 }
 
+static void test_page_save_policy(void)
+{
+    page_save_policy_t state = {0};
+    assert(!page_save_due(&state, 10000));
+    /* A burst of browsing needs one save after it settles, not a write per tap. */
+    for (uint32_t tap = 1; tap <= 100; ++tap) {
+        page_save_observe(&state, tap, tap * 100);
+        assert(!page_save_due(&state, tap * 100 + 99));
+    }
+    assert(!page_save_due(&state, 10749));
+    assert(page_save_due(&state, 10750));
+    page_save_finished(&state, 100, true, 10750);
+    assert(!page_save_due(&state, 20000));
+
+    /* A tap arriving while an older selection is saved must stay pending. */
+    page_save_observe(&state, 101, 20000);
+    page_save_observe(&state, 102, 20750);
+    page_save_finished(&state, 101, true, 20751);
+    assert(!page_save_due(&state, 21499));
+    assert(page_save_due(&state, 21500));
+    page_save_finished(&state, 102, false, 21500);
+    assert(!page_save_due(&state, 22249));
+    assert(page_save_due(&state, 22250));
+    page_save_finished(&state, 102, true, 22250);
+    assert(!page_save_due(&state, 30000));
+
+    /* The millisecond counter wrapping does not lose a pending save. */
+    page_save_observe(&state, 103, UINT32_MAX - 500);
+    assert(!page_save_due(&state, 248));
+    assert(page_save_due(&state, 249));
+}
+
 int main(void)
 {
+    assert(!page_cycle_due(0, 3, true, true, 1000, 61000));
+    assert(!page_cycle_due(5, 1, true, true, 1000, 6000));
+    assert(!page_cycle_due(5, 3, false, true, 1000, 6000));
+    assert(!page_cycle_due(5, 3, true, false, 1000, 6000));
+    assert(!page_cycle_due(5, 3, true, true, 1000, 5999));
+    assert(page_cycle_due(5, 3, true, true, 1000, 6000));
+    assert(!page_cycle_due(5, 3, true, true, 6000, 6001)); /* Manual tap restarts the timer. */
+    assert(page_cycle_due(5, 3, true, true, UINT32_MAX - 1000, 3999));
     test_json_guard();
     test_decoder();
+    test_display_units();
     test_alert_edges();
     test_scheduler();
     test_wifi_bulk_policy();
     test_config_trial_policy();
+    test_page_save_policy();
     puts("Core firmware logic fixtures passed");
     return 0;
 }

@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <stdatomic.h>
 #include "sdkconfig.h"
@@ -26,8 +27,11 @@
 #include "config_transfer.h"
 #include "ota_transfer.h"
 #include "wifi_bulk.h"
+#include "adapter_registry.h"
+#include "adapter_status.h"
 #include "diagnostics_state.h"
 #include "config_runtime.h"
+#include "display_settings.h"
 #include "hardware_probe.h"
 #include "ui.h"
 
@@ -44,6 +48,9 @@ static const ble_uuid128_t control_uuid = BLE_UUID128_INIT(
 static const ble_uuid128_t state_uuid = BLE_UUID128_INIT(
     0x00, 0x6c, 0x3b, 0xd2, 0xc9, 0x69, 0x14, 0xa7,
     0x45, 0x4f, 0x3b, 0x9e, 0x03, 0x00, 0x1a, 0x6f);
+static const ble_uuid128_t pairing_status_uuid = BLE_UUID128_INIT(
+    0x00, 0x6c, 0x3b, 0xd2, 0xc9, 0x69, 0x14, 0xa7,
+    0x45, 0x4f, 0x3b, 0x9e, 0x04, 0x00, 0x1a, 0x6f);
 
 static ui_t *g_ui;
 static QueueHandle_t g_command_queue;
@@ -51,6 +58,7 @@ static atomic_uchar g_selected_index;
 static ble_addr_t g_owner;
 static atomic_bool g_has_owner;
 static atomic_uint g_pairing_until;
+static atomic_uint pairing_conn;
 static atomic_bool g_ready;
 static uint8_t extended_status_mode;
 static bool document_active;
@@ -62,7 +70,7 @@ static QueueHandle_t owner_save_queue;
 #define ACTIVE_DOCUMENT_HEADER_SIZE 52U
 #define ACTIVE_DOCUMENT_CHUNK_SIZE 128U
 #define BLE_OWNER_MAX_REQUEST 173U
-static uint8_t status_snapshot[ACTIVE_DOCUMENT_HEADER_SIZE + ACTIVE_DOCUMENT_CHUNK_SIZE];
+static uint8_t status_snapshot[512];
 static size_t status_snapshot_length;
 static uint32_t active_document_offset;
 
@@ -100,11 +108,17 @@ bool ble_companion_load_owner(void)
 {
     atomic_store(&g_has_owner, false);
     nvs_handle_t handle;
-    if (nvs_open("eg_owner", NVS_READONLY, &handle) != ESP_OK) return false;
+    esp_err_t opened = nvs_open("eg_owner", NVS_READONLY, &handle);
+    if (opened != ESP_OK) {
+        ESP_LOGI(TAG, "Owner association unavailable at boot: %s", esp_err_to_name(opened));
+        return false;
+    }
     size_t size = sizeof(g_owner);
-    atomic_store(&g_has_owner,
-                 nvs_get_blob(handle, "peer", &g_owner, &size) == ESP_OK && size == sizeof(g_owner));
+    esp_err_t loaded = nvs_get_blob(handle, "peer", &g_owner, &size);
+    atomic_store(&g_has_owner, loaded == ESP_OK && size == sizeof(g_owner));
     nvs_close(handle);
+    ESP_LOGI(TAG, "Owner association at boot: %s (read %s)",
+             atomic_load(&g_has_owner) ? "present" : "absent", esp_err_to_name(loaded));
     return atomic_load(&g_has_owner);
 }
 
@@ -133,7 +147,8 @@ static void owner_save_worker(void *arg)
             continue;
         }
         atomic_store(&g_pairing_until, 0);
-        ui_show_pairing_code(g_ui, UI_PAIRING_HIDDEN);
+        atomic_store(&pairing_conn, BLE_HS_CONN_HANDLE_NONE);
+        ui_show_pairing_code(g_ui, UI_PAIRING_OWNER_SAVED);
         ESP_LOGI(TAG, "Owner identity persisted");
     }
 }
@@ -146,20 +161,26 @@ static void owner_save_worker(void *arg)
 #define WIFI_BULK_CAPABILITY ""
 #endif
 
+#if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED
+#define DISPLAY_SETTINGS_CAPABILITY ",\"ds\":3"
+#else
+#define DISPLAY_SETTINGS_CAPABILITY ""
+#endif
+
 static const char capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
-    "\"maxAdapterLinks\":2,"
+    "\"maxAdapterLinks\":1,"
     "\"savedStateRead\":true,\"displayRotationWrite\":true,"
-    "\"configWrite\":false,\"cfg\":2,"
+    "\"configWrite\":false,\"cfg\":3,\"ad\":1,"
     "\"quickSelect\":true,\"ota\":false,\"hw\":1"
-    WIFI_BULK_CAPABILITY "}";
+    DISPLAY_SETTINGS_CAPABILITY WIFI_BULK_CAPABILITY "}";
 static const char document_capabilities[] =
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
-    "\"maxAdapterLinks\":2,"
+    "\"maxAdapterLinks\":1,"
     "\"savedStateRead\":false,\"displayRotationWrite\":false,"
-    "\"configWrite\":false,\"cfg\":2,"
+    "\"configWrite\":false,\"cfg\":3,\"ad\":1,"
     "\"ota\":false,\"hw\":1"
-    WIFI_BULK_CAPABILITY "}";
+    DISPLAY_SETTINGS_CAPABILITY WIFI_BULK_CAPABILITY "}";
 _Static_assert(sizeof(capabilities) - 1U <= 255U,
                "Public capability JSON exceeds the qualified Android read boundary");
 _Static_assert(sizeof(document_capabilities) - 1U <= 255U,
@@ -197,6 +218,11 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
         status_snapshot_length = 0;
         return 0;
     }
+    if (request[0] == 0x39 && length == 5) {
+        extended_status_mode = 12;
+        status_snapshot_length = 0;
+        return 0;
+    }
     if (request[0] == 0x31 && length == 5) {
         extended_status_mode = 4;
         status_snapshot_length = 0;
@@ -218,6 +244,53 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
         status_snapshot_length = 0;
         return 0;
     }
+    if (request[0] == 0x35 && length == 5) {
+        extended_status_mode = 9;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x36 && length == 7) {
+        companion_command_t command = {
+            .opcode = 0x36, .value = request[1], .brightness = request[2],
+            .base_revision = read_u32(request + 3),
+        };
+        if (command.value > 3 || command.brightness < 5 || command.brightness > 100)
+            return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+            return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode = 9;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x37 && length == 8) {
+        companion_command_t command = {
+            .opcode = 0x37, .value = request[1], .brightness = request[2],
+            .units = request[3], .base_revision = read_u32(request + 4),
+        };
+        if (command.value > 3 || command.brightness < 5 || command.brightness > 100 ||
+            command.units > 1) return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+            return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode = 9;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x38 && length == 10) {
+        companion_command_t command = {
+            .opcode = 0x38, .value = request[1], .brightness = request[2],
+            .units = request[3], .cycle_seconds = request[4] | ((uint16_t)request[5] << 8),
+            .base_revision = read_u32(request + 6),
+        };
+        uint16_t interval = command.cycle_seconds;
+        if (command.value > 3 || command.brightness < 5 || command.brightness > 100 ||
+            command.units > 1 || (interval != 0 && interval != 5 && interval != 10 &&
+            interval != 15 && interval != 30 && interval != 60)) return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+            return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode = 9;
+        status_snapshot_length = 0;
+        return 0;
+    }
     if (request[0] == 0x40 || request[0] == 0x42) {
 #if CONFIG_EGAUGE_WIFI_BULK_ENABLED
         if (!wifi_bulk_command(request, length)) return BLE_ATT_ERR_UNLIKELY;
@@ -227,6 +300,17 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
 #else
         return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
 #endif
+    }
+    if (request[0] == 0x52 && length == 5) {
+        extended_status_mode = 11;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x50 || request[0] == 0x51) {
+        if (!adapter_registry_command(request, length)) return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode = 10;
+        status_snapshot_length = 0;
+        return 0;
     }
     if (document_active) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
     if (length != 2 && length != 6) return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
@@ -255,6 +339,22 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     (void)arg;
     if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
     if (!authorized(conn_handle)) return BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
+    if (extended_status_mode == 11) {
+        if (ctxt->offset == 0 || status_snapshot_length == 0)
+            status_snapshot_length = adapter_status_snapshot(status_snapshot);
+        if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
+                              status_snapshot_length - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+    if (extended_status_mode == 10) {
+        if (ctxt->offset == 0 || status_snapshot_length == 0)
+            status_snapshot_length = adapter_registry_status(status_snapshot);
+        if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
+                              status_snapshot_length - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
     if (extended_status_mode == 1) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = config_transfer_status(status_snapshot);
@@ -274,6 +374,15 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     if (extended_status_mode == 3) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = diagnostics_state_status(status_snapshot);
+        if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
+                              status_snapshot_length - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+    if (extended_status_mode == 12) {
+        if (ctxt->offset == 0 || status_snapshot_length == 0)
+            status_snapshot_length = diagnostics_state_full_status(
+                pdTICKS_TO_MS(xTaskGetTickCount()), status_snapshot);
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0
@@ -350,6 +459,17 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
                               status_snapshot_length - ctxt->offset) == 0
             ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     }
+    if (extended_status_mode == 9) {
+        display_settings_t settings = display_settings_snapshot();
+        uint8_t state[] = {12, settings.rotation, settings.brightness, settings.units,
+                           (uint8_t)settings.revision, (uint8_t)(settings.revision >> 8),
+                           (uint8_t)(settings.revision >> 16), (uint8_t)(settings.revision >> 24),
+                           (uint8_t)settings.cycle_seconds, (uint8_t)(settings.cycle_seconds >> 8)};
+        if (ctxt->offset > sizeof(state)) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, state + ctxt->offset,
+                              sizeof(state) - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
     if (document_active) {
         /* Keep a protected state read available after custom activation so
          * Android can restore link encryption before its first owner write. */
@@ -389,6 +509,28 @@ static int capabilities_read(uint16_t conn_handle, uint16_t attr_handle,
                           length - ctxt->offset) == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
+static int pairing_status_read(uint16_t conn_handle, uint16_t attr_handle,
+                               struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+    (void)conn_handle;
+    (void)attr_handle;
+    (void)arg;
+    if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
+
+    unsigned until = atomic_load(&g_pairing_until);
+    int32_t ticks_left = until ? (int32_t)(until - xTaskGetTickCount()) : 0;
+    uint16_t seconds_left = ticks_left > 0
+        ? (uint16_t)((pdTICKS_TO_MS((uint32_t)ticks_left) + 999U) / 1000U) : 0;
+    uint8_t state = 0;
+    if (atomic_load(&g_has_owner)) state = 3;
+    else if (seconds_left > 0)
+        state = atomic_load(&pairing_conn) == BLE_HS_CONN_HANDLE_NONE ? 1 : 2;
+    uint8_t status[] = {1, state, (uint8_t)seconds_left, (uint8_t)(seconds_left >> 8)};
+    if (ctxt->offset > sizeof(status)) return BLE_ATT_ERR_INVALID_OFFSET;
+    return os_mbuf_append(ctxt->om, status + ctxt->offset,
+                          sizeof(status) - ctxt->offset) == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
 static const struct ble_gatt_chr_def chars[] = {
     {.uuid = &capabilities_uuid.u, .access_cb = capabilities_read,
      .flags = BLE_GATT_CHR_F_READ},
@@ -396,6 +538,8 @@ static const struct ble_gatt_chr_def chars[] = {
      .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_AUTHEN},
     {.uuid = &state_uuid.u, .access_cb = state_access,
      .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_READ_AUTHEN},
+    {.uuid = &pairing_status_uuid.u, .access_cb = pairing_status_read,
+     .flags = BLE_GATT_CHR_F_READ},
     {0},
 };
 static const struct ble_gatt_svc_def services[] = {
@@ -405,8 +549,8 @@ static const struct ble_gatt_svc_def services[] = {
 };
 
 static uint8_t own_addr_type;
+static bool database_announced;
 static uint16_t phone_conn = BLE_HS_CONN_HANDLE_NONE;
-static atomic_uint pairing_conn;
 
 static int phone_gap_event(struct ble_gap_event *event, void *arg);
 
@@ -484,6 +628,7 @@ static int phone_gap_event(struct ble_gap_event *event, void *arg)
         if (rc == 0) {
             atomic_store(&pairing_conn, event->passkey.conn_handle);
             ui_show_pairing_code(g_ui, io.passkey);
+            ESP_LOGI(TAG, "Passkey displayed for active owner pairing");
         }
         return rc;
     }
@@ -538,6 +683,7 @@ int ble_companion_register(void)
 
 void ble_companion_reset(void)
 {
+    database_announced = false;
     atomic_store(&g_ready, false);
     phone_conn = BLE_HS_CONN_HANDLE_NONE;
     extended_status_mode = 0;
@@ -548,6 +694,11 @@ void ble_companion_reset(void)
 bool ble_companion_ready(void)
 {
     return atomic_load(&g_ready);
+}
+
+bool ble_companion_has_owner(void)
+{
+    return atomic_load(&g_has_owner);
 }
 
 void ble_companion_set_control(ui_t *ui, QueueHandle_t command_queue,
@@ -585,6 +736,7 @@ void ble_companion_tick(void)
 void ble_companion_forget_owner(void)
 {
     if (!atomic_load(&g_has_owner)) return;
+    ESP_LOGW(TAG, "Physical 12-second hold requested owner reset");
     int rc = ble_store_util_delete_peer(&g_owner);
     if (rc != 0) {
         ESP_LOGW(TAG, "Owner bond deletion returned %d; clearing owner association", rc);
@@ -603,5 +755,22 @@ void ble_companion_start(void)
     int rc = ble_hs_util_ensure_addr(0);
     if (rc == 0) rc = ble_hs_id_infer_auto(0, &own_addr_type);
     if (rc != 0) { ESP_LOGE(TAG, "BLE address setup failed: %d", rc); return; }
+    uint8_t address[6];
+    if (ble_hs_id_copy_addr(own_addr_type, address, NULL) == 0) {
+        char identifier[7];
+        snprintf(identifier, sizeof(identifier), "%02X%02X%02X",
+                 address[2], address[1], address[0]);
+        ui_set_pairing_identifier(g_ui, identifier);
+        char device_name[16];
+        snprintf(device_name, sizeof(device_name), "eGauge-%s", identifier);
+        int name_rc = ble_svc_gap_device_name_set(device_name);
+        if (name_rc != 0) ESP_LOGW(TAG, "Unique gauge name setup failed: %d", name_rc);
+    } else {
+        ESP_LOGW(TAG, "BLE identity unavailable for short pairing ID");
+    }
+    if (!database_announced) {
+        database_announced = true;
+        ble_svc_gatt_changed(1, 0xffff);
+    }
     advertise();
 }

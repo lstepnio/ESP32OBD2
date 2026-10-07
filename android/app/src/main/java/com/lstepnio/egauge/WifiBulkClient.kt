@@ -6,6 +6,8 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.wifi.WifiNetworkSpecifier
+import android.os.SystemClock
+import android.util.Log
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -157,10 +159,12 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
     }
 
     private fun connectSocket(selected: Network, timeoutMs: Int) = Socket().also { value ->
+        val startedAt = SystemClock.elapsedRealtime()
         selected.bindSocket(value)
         value.soTimeout = timeoutMs
         value.tcpNoDelay = true
         value.connect(InetSocketAddress(InetAddress.getByAddress(session.address), session.port), 12_000)
+        Log.i("eGaugeUpdate", "Gauge Wi-Fi socket connected after ${SystemClock.elapsedRealtime() - startedAt} ms")
     }
 
     private fun encodedFrame(kind: Int, plaintext: ByteArray, sessionId: Long,
@@ -206,6 +210,7 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
 
     private suspend fun requestMaintenanceNetwork(manager: ConnectivityManager): Network =
         suspendCancellableCoroutine { continuation ->
+            val requestedAt = SystemClock.elapsedRealtime()
             val specifier = WifiNetworkSpecifier.Builder()
                 .setSsid(session.ssid)
                 .setWpa2Passphrase(session.password)
@@ -217,9 +222,11 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
                 .build()
             val callback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(value: Network) {
+                    Log.i("eGaugeUpdate", "Android gauge Wi-Fi available after ${SystemClock.elapsedRealtime() - requestedAt} ms")
                     if (continuation.isActive) continuation.resume(value)
                 }
                 override fun onUnavailable() {
+                    Log.w("eGaugeUpdate", "Android gauge Wi-Fi unavailable after ${SystemClock.elapsedRealtime() - requestedAt} ms")
                     if (continuation.isActive)
                         continuation.resumeWithException(IllegalStateException(
                             "Android did not approve the temporary gauge network"))

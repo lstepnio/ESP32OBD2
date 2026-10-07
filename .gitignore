@@ -17,3 +17,6 @@ local.properties
 *.keystore
 *.pem
 artifacts/
+
+# Gradle Kotlin incremental compiler cache
+/android/.kotlin/

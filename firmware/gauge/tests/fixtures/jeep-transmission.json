@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "origin": "captured",
+  "physicalPort": "transmission",
+  "protocol": "CAN 11-bit 500 kbit/s",
+  "ecu": "7E9",
+  "cases": [
+    {
+      "command": "0120",
+      "responseHex": "37453930363431323038303031383030310d0d3e",
+      "latencyUs": 240264
+    },
+    {
+      "command": "0140",
+      "responseHex": "37453930363431343034303830303030300d0d3e",
+      "latencyUs": 239753
+    },
+    {
+      "command": "0100",
+      "responseHex": "534541524348494e472e2e2e0d37453930363431303039383138303030310d0d3e",
+      "latencyUs": 319224
+    },
+    {
+      "command": "010C",
+      "responseHex": "374539303434313043304143300d0d3e",
+      "latencyUs": 279098
+    },
+    {
+      "command": "0105",
+      "responseHex": "37453930333431303538390d0d3e",
+      "latencyUs": 270318
+    },
+    {
+      "command": "010D",
+      "responseHex": "37453930333431304430300d0d3e",
+      "latencyUs": 270559
+    }
+  ],
+  "limit": "Standard replies captured on the owner-identified transmission port, including physical gauge USB capture on dev35lab. Firmware rejected 7E9 under its engine route; owner confirmed dashes and working swipes. Controller supplier, enhanced readings and independent value comparison remain unknown. Replay is simulated."
+}

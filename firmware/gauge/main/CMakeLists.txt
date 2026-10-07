@@ -6,10 +6,17 @@ idf_component_register(
         "src/ble_init.c"
         "src/ble_companion.c"
         "src/ble_mgr.c"
+        "src/adapter_registry.c"
+        "src/adapter_status.c"
+        "src/obd_adapter_profile.c"
         "src/ble_obd.c"
+        "src/obd_trace.c"
+        "src/obd_trace_format.c"
         "src/elm_response.c"
         "src/ble_util.c"
         "src/config.c"
+        "src/display_settings.c"
+        "src/display_units.c"
         "src/config_store.c"
         "src/config_transfer.c"
         "src/config_runtime.c"
@@ -26,6 +33,7 @@ idf_component_register(
         "src/json_guard.c"
         "src/pid_decoder.c"
         "src/poll_scheduler.c"
+        "src/page_save_policy.c"
         "src/ui.c"
         ${FONT_SOURCES}
     INCLUDE_DIRS
@@ -33,7 +41,7 @@ idf_component_register(
         "inc"
     EMBED_TXTFILES "certs/dev-update-public.pem"
     REQUIRES lvgl esp_lvgl_port bt
-    PRIV_REQUIRES nvs_flash spi_flash mbedtls json app_update esp_wifi esp_netif esp_event lwip esp_psram
+    PRIV_REQUIRES nvs_flash spi_flash mbedtls json app_update esp_wifi esp_netif esp_event lwip esp_psram esp_timer
 )
 
 target_compile_options(${COMPONENT_TARGET} PRIVATE -Wall -Wextra -Wshadow -Werror)

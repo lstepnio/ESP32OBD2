@@ -3,12 +3,12 @@ package com.lstepnio.egauge
 import android.content.Context
 import java.util.UUID
 
-/** Local design drafts only. No adapter identity or vehicle capability claim is stored here. */
+/** Local drafts and adapter selections. Vehicle evidence is stored separately. */
 data class VehicleProfile(
     val id: String,
     val name: String,
     val draft: Draft,
-    val secondAdapterEnabled: Boolean = false,
+    val primaryAdapter: AdapterBinding? = null,
 )
 
 data class ProfileCollection(val activeId: String, val profiles: List<VehicleProfile>) {
@@ -41,9 +41,10 @@ class ProfileStore(context: Context) {
         val draft = Draft(
             pidId = legacy.getString("pid", "rpm")?.takeIf { id -> demoCatalog.any { it.id == id } } ?: "rpm",
             layout = layout,
-            warning = legacy.getInt("warning", 105).coerceIn(-40, 250),
-            critical = legacy.getInt("critical", 115).coerceIn(-40, 250),
             source = legacy.getString("source", "ECM")?.takeIf { it == "ECM" || it == "TCM" } ?: "ECM",
+            alerts = listOf(GaugeAlertDraft("alert.coolant", "coolant", AlertDirection.Above,
+                legacy.getInt("warning", 105).coerceIn(readingRange("coolant")),
+                legacy.getInt("critical", 115).coerceIn(readingRange("coolant")))),
         )
         val collection = ProfileCollection("default", listOf(VehicleProfile("default", "My vehicle", draft)))
         save(collection)
@@ -54,7 +55,7 @@ class ProfileStore(context: Context) {
         // Compatible with the future device configuration ID pattern.
         fun newId(): String = "vehicle-${UUID.randomUUID()}"
         private fun defaultCollection() = ProfileCollection(
-            "default", listOf(VehicleProfile("default", "My vehicle", Draft(), false)),
+            "default", listOf(VehicleProfile("default", "My vehicle", Draft())),
         )
     }
 }

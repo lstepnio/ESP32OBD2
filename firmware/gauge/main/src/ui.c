@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdatomic.h>
+#include "transmission_gear.h"
+#include "sdkconfig.h"
+#include "esp_timer.h"
 
 #include "esp_log.h"
 #include "esp_log_color.h"
@@ -38,6 +41,7 @@
 #include "widgets/line/lv_line.h"
 
 #include "obd.h"
+#include "display_units.h"
 #include "ui.h"
 #include "util.h"
 
@@ -52,7 +56,7 @@ static const char *TAG = "UI";
 // ---------------------------------------------------------------------------------------------------------------------
 
 typedef struct {
-    uint8_t pid;
+    uint16_t pid;
     int32_t value;
     TickType_t received_at;
 } ui_sample_t;
@@ -66,6 +70,7 @@ typedef struct {
 typedef struct {
     bool valid;
     bool mil_on;
+    bool transmission;
     uint8_t count;
     char first_code[6];
 } ui_diagnostics_t;
@@ -80,16 +85,40 @@ struct _ui_t
 {
     ui_touch_callback_t touch_cb;
     bool                long_press_handled;
+    bool                press_active;
     bool                pairing_visible;
+    uint32_t            pairing_code;
+    TickType_t          reset_confirmation_at;
+    TickType_t          owner_saved_at;
+    char                pairing_identifier[7];
     bool                calibration_mode;
+    bool                imperial_units;
     uint8_t             calibration_page;
     TickType_t          pressed_at;
+    ui_alert_t          rendered_alert;
+    ui_diagnostics_t    rendered_diagnostics;
+    bool                alert_rendered;
+    bool                diagnostics_rendered;
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+    struct {
+        int64_t click_at_us;
+        int64_t reported_at_us;
+        uint32_t count;
+        uint32_t maximum_us;
+        uint64_t total_us;
+        uint32_t presses;
+        uint32_t releases;
+        uint32_t clicks;
+        uint32_t holds;
+    } timing;
+#endif
 
     struct
     {
         QueueHandle_t value_que;
         QueueHandle_t touch_ev_que;
         QueueHandle_t pairing_que;
+        QueueHandle_t pairing_id_que;
         QueueHandle_t alert_que;
         QueueHandle_t diagnostics_que;
     } rtos;
@@ -139,10 +168,15 @@ static const lv_font_t *const font_unit     = &notosans_medium_24;
 static const uint32_t color_background = 0x05080A;
 static const uint32_t color_text_primary = 0xE4EAED;
 static const uint32_t color_text_secondary = 0x9CAAB2;
-static const uint32_t color_track = 0x202A30;
-static const uint32_t color_accent = 0x26B895;
-static const uint32_t color_warning = 0xE0A63A;
-static const uint32_t color_critical = 0xE75A5A;
+static const uint32_t color_track = 0x1B2A30;
+static const uint32_t color_accent = 0x00FF70;
+static const uint32_t color_warning = 0xFF8A00;
+static const uint32_t color_critical = 0xFF1744;
+
+// The arc is decorative: its 109 px outer radius stays inside the physically
+// checked 112 px band while essential text remains within the 104 px limit.
+#define GAUGE_ARC_DIAMETER 218
+#define GAUGE_ARC_WIDTH 11
 
 #define CALIBRATION_PAGE_COUNT 5
 #define PRIMARY_LABEL_WIDTH 160
@@ -173,14 +207,27 @@ static void show(lv_obj_t *object, bool visible)
 
 static void show_pairing(ui_t *ui, uint32_t pairing_code)
 {
+    ui->pairing_code = pairing_code;
     ui->pairing_visible = pairing_code != UI_PAIRING_HIDDEN;
     if (ui->pairing_visible) {
-        if (pairing_code == UI_PAIRING_READY)
-            lv_label_set_text(ui->widgets.pairing_lbl, "PAIR\nREADY");
-        else if (pairing_code == UI_PAIRING_WAITING)
-            lv_label_set_text(ui->widgets.pairing_lbl, "HOLD TO\nPAIR");
+        if (pairing_code == UI_PAIRING_READY) {
+            if (ui->pairing_identifier[0])
+                lv_label_set_text_fmt(ui->widgets.pairing_lbl, "OPEN APP TO\nPAIR GAUGE\nID %s", ui->pairing_identifier);
+            else lv_label_set_text(ui->widgets.pairing_lbl, "OPEN APP TO\nPAIR GAUGE");
+        } else if (pairing_code == UI_PAIRING_WAITING) {
+            if (ui->pairing_identifier[0])
+                lv_label_set_text_fmt(ui->widgets.pairing_lbl, "HOLD TO\nOPEN PAIRING\nID %s", ui->pairing_identifier);
+            else lv_label_set_text(ui->widgets.pairing_lbl, "HOLD TO\nOPEN PAIRING");
+        } else if (pairing_code == UI_PAIRING_RESET_CONFIRM) {
+            ui->reset_confirmation_at = xTaskGetTickCount();
+            lv_label_set_text(ui->widgets.pairing_lbl, "OWNER RESET?\nTAP TO CONFIRM");
+        } else if (pairing_code == UI_PAIRING_OWNER_SAVED) {
+            ui->owner_saved_at = xTaskGetTickCount();
+            lv_label_set_text(ui->widgets.pairing_lbl, "PHONE PAIRED\nOWNER SAVED");
+        } else if (ui->pairing_identifier[0])
+            lv_label_set_text_fmt(ui->widgets.pairing_lbl, "ENTER CODE\n%06" PRIu32 "\nID %s", pairing_code, ui->pairing_identifier);
         else
-            lv_label_set_text_fmt(ui->widgets.pairing_lbl, "PAIR\n%06" PRIu32, pairing_code);
+            lv_label_set_text_fmt(ui->widgets.pairing_lbl, "ENTER CODE\n%06" PRIu32, pairing_code);
     }
     show(ui->widgets.gauge_content, !ui->pairing_visible);
     show(ui->widgets.pairing_lbl, ui->pairing_visible);
@@ -289,7 +336,7 @@ static void render_calibration_page(ui_t *ui)
     }
     default: {
         lv_obj_t *arc = lv_arc_create(screen);
-        lv_obj_set_size(arc, 198, 198);
+        lv_obj_set_size(arc, GAUGE_ARC_DIAMETER, GAUGE_ARC_DIAMETER);
         lv_obj_center(arc);
         lv_arc_set_bg_angles(arc, 135, 45);
         lv_arc_set_range(arc, 0, 8000);
@@ -297,8 +344,8 @@ static void render_calibration_page(ui_t *ui)
         lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
         lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(arc, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_set_style_arc_width(arc, 7, LV_PART_MAIN);
-        lv_obj_set_style_arc_width(arc, 7, LV_PART_INDICATOR);
+        lv_obj_set_style_arc_width(arc, GAUGE_ARC_WIDTH, LV_PART_MAIN);
+        lv_obj_set_style_arc_width(arc, GAUGE_ARC_WIDTH, LV_PART_INDICATOR);
         lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
         lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
         lv_obj_set_style_arc_color(arc, lv_color_hex(color_track), LV_PART_MAIN);
@@ -335,32 +382,60 @@ static void select_renderer_widgets(ui_t *ui)
 // Private Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
+static void dispatch_touch(ui_t *ui, lv_event_code_t code)
+{
+    /* Calibration replaces screen objects, so defer that callback until the
+     * current input event has finished. Normal navigation keeps its objects. */
+    if (ui->calibration_mode) {
+        xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+    } else if (ui->touch_cb &&
+               (!(ui->pairing_visible && code == LV_EVENT_CLICKED) ||
+                ui->pairing_code == UI_PAIRING_RESET_CONFIRM)) {
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+        if (code == LV_EVENT_CLICKED && ui->timing.click_at_us == 0)
+            ui->timing.click_at_us = esp_timer_get_time();
+#endif
+        ui->touch_cb(ui, code);
+    }
+}
+
 static void ui_touch_callback(lv_event_t *e)
 {
     ESP_NULL_CHECK(e, TAG, "Event is NULL");
     ui_t *ui = (ui_t *)lv_event_get_user_data(e);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     lv_event_code_t code = lv_event_get_code(e);
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+    if (code == LV_EVENT_PRESSED) ui->timing.presses++;
+    if (code == LV_EVENT_RELEASED) ui->timing.releases++;
+    if (code == LV_EVENT_CLICKED) ui->timing.clicks++;
+    if (code == LV_EVENT_LONG_PRESSED) ui->timing.holds++;
+#endif
     switch (code)
     {
     case LV_EVENT_PRESSED:
+        ui->press_active = true;
         ui->long_press_handled = false;
         ui->pressed_at = xTaskGetTickCount();
         break;
     case LV_EVENT_LONG_PRESSED:
         ui->long_press_handled = true;
-        xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+        dispatch_touch(ui, code);
         break;
     case LV_EVENT_CLICKED:
         if (!ui->long_press_handled)
         {
-            xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+            if (ui->pairing_code == UI_PAIRING_RESET_CONFIRM)
+                dispatch_touch(ui, LV_EVENT_VALUE_CHANGED);
+            else dispatch_touch(ui, code);
         }
         break;
     case LV_EVENT_RELEASED:
-        if (xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
-            xQueueSend(ui->rtos.touch_ev_que, &code, 0);
+        /* A release without our matching press must never clear the owner. */
+        if (ui->press_active && xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
+            dispatch_touch(ui, code);
         }
+        ui->press_active = false;
         break;
     default:
         // ignore event
@@ -386,7 +461,10 @@ static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, c
 
     if (value != NULL)
     {
-        lv_label_set_text_fmt(ui->widgets.value_lbl, "%" PRId32, *value);
+        if (!strcmp(ui->display.page.metrics[0].unit, "gear")) {
+            const char *gear = transmission_gear_label(*value);
+            lv_label_set_text(ui->widgets.value_lbl, gear ? gear : "...");
+        } else lv_label_set_text_fmt(ui->widgets.value_lbl, "%" PRId32, *value);
         const char *text = lv_label_get_text(ui->widgets.value_lbl);
         int32_t safe_width = lv_obj_get_width(ui->widgets.value_lbl);
         const lv_font_t *font = font_title;
@@ -428,18 +506,23 @@ static void render_page(ui_t *ui)
             const ui_metric_t *metric = &ui->display.page.metrics[i];
             if (!ui->display.rendered_once || available[i] != ui->display.rendered_available[i] ||
                 (available[i] && values[i] != ui->display.rendered_values[i])) {
-                if (available[i]) lv_label_set_text_fmt(ui->widgets.dual_value[i], "%" PRId32, values[i]);
+                if (available[i] && !strcmp(metric->unit, "gear")) {
+                    const char *gear = transmission_gear_label(values[i]);
+                    lv_label_set_text(ui->widgets.dual_value[i], gear ? gear : "...");
+                } else if (available[i]) lv_label_set_text_fmt(ui->widgets.dual_value[i], "%" PRId32,
+                    display_units_value(values[i], metric->unit, ui->imperial_units));
                 else lv_label_set_text(ui->widgets.dual_value[i], "...");
                 lv_label_set_text_fmt(ui->widgets.dual_info[i], "%s  %s",
                                       metric->name ? metric->name : "VALUE",
-                                      metric->unit ? metric->unit : "");
+                                      display_units_label(metric->unit, ui->imperial_units));
             }
         }
     } else if (!ui->display.rendered_once || available[0] != ui->display.rendered_available[0] ||
                (available[0] && values[0] != ui->display.rendered_values[0])) {
-        ui_update_screen(ui, available[0] ? &values[0] : NULL,
+        int32_t shown = display_units_value(values[0], primary->unit, ui->imperial_units);
+        ui_update_screen(ui, available[0] ? &shown : NULL,
                          ui->display.page.name ? ui->display.page.name : primary->name,
-                         primary->unit);
+                         display_units_label(primary->unit, ui->imperial_units));
         if (available[0] && renderer == UI_RENDERER_ARC) lv_arc_set_value(ui->widgets.arc, values[0]);
         if (available[0] && renderer == UI_RENDERER_BAR) lv_bar_set_value(ui->widgets.bar, values[0], LV_ANIM_OFF);
     }
@@ -467,11 +550,44 @@ static void render_page(ui_t *ui)
     ui->display.rendered_once = true;
 }
 
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+static void render_finished(lv_event_t *event)
+{
+    ui_t *ui = lv_event_get_user_data(event);
+    if (!ui->timing.click_at_us) return;
+    uint32_t elapsed = (uint32_t)(esp_timer_get_time() - ui->timing.click_at_us);
+    ui->timing.count++;
+    ui->timing.total_us += elapsed;
+    if (elapsed > ui->timing.maximum_us) ui->timing.maximum_us = elapsed;
+    ui->timing.click_at_us = 0;
+}
+#endif
+
 static void ui_task(lv_timer_t *timer)
 {
     ESP_NULL_CHECK(timer, TAG, "timer is NULL");
     ui_t *ui = (ui_t *)lv_timer_get_user_data(timer);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
+
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+    int64_t now_us = esp_timer_get_time();
+    if ((ui->timing.presses || ui->timing.count) && now_us - ui->timing.reported_at_us >= 30000000) {
+        ESP_LOGI(TAG, "performance touch_frames=%" PRIu32 " mean_submit_us=%" PRIu64
+                 " max_submit_us=%" PRIu32 " stack_free=%u"
+                 " presses=%" PRIu32 " releases=%" PRIu32 " clicks=%" PRIu32 " holds=%" PRIu32,
+                 ui->timing.count, ui->timing.count ? ui->timing.total_us / ui->timing.count : 0,
+                 ui->timing.maximum_us, (unsigned)uxTaskGetStackHighWaterMark(NULL),
+                 ui->timing.presses, ui->timing.releases, ui->timing.clicks, ui->timing.holds);
+        ui->timing.count = 0;
+        ui->timing.total_us = 0;
+        ui->timing.maximum_us = 0;
+        ui->timing.presses = 0;
+        ui->timing.releases = 0;
+        ui->timing.clicks = 0;
+        ui->timing.holds = 0;
+        ui->timing.reported_at_us = now_us;
+    }
+#endif
 
     if (ui->calibration_mode) {
         lv_event_code_t event_code;
@@ -480,13 +596,33 @@ static void ui_task(lv_timer_t *timer)
         return;
     }
 
+    char pairing_identifier[sizeof(ui->pairing_identifier)];
+    if (xQueueReceive(ui->rtos.pairing_id_que, pairing_identifier, 0) == pdTRUE) {
+        memcpy(ui->pairing_identifier, pairing_identifier, sizeof(ui->pairing_identifier));
+        ui->pairing_identifier[sizeof(ui->pairing_identifier) - 1] = '\0';
+        if (ui->pairing_visible) show_pairing(ui, ui->pairing_code);
+    }
+
     uint32_t pairing_code;
     if (xQueueReceive(ui->rtos.pairing_que, &pairing_code, 0) == pdTRUE) {
         show_pairing(ui, pairing_code);
     }
+    if (ui->pairing_code == UI_PAIRING_RESET_CONFIRM &&
+        xTaskGetTickCount() - ui->reset_confirmation_at >= pdMS_TO_TICKS(30000)) {
+        show_pairing(ui, UI_PAIRING_HIDDEN);
+    }
+    if (ui->pairing_code == UI_PAIRING_OWNER_SAVED &&
+        xTaskGetTickCount() - ui->owner_saved_at >= pdMS_TO_TICKS(2500)) {
+        show_pairing(ui, UI_PAIRING_HIDDEN);
+    }
 
     ui_alert_t alert;
-    if (xQueueReceive(ui->rtos.alert_que, &alert, 0) == pdTRUE) {
+    if (xQueueReceive(ui->rtos.alert_que, &alert, 0) == pdTRUE &&
+        (!ui->alert_rendered || alert.severity != ui->rendered_alert.severity ||
+         alert.unavailable != ui->rendered_alert.unavailable ||
+         strcmp(alert.label, ui->rendered_alert.label) != 0)) {
+        ui->rendered_alert = alert;
+        ui->alert_rendered = true;
         lv_color_t indicator = alert.severity == 2 ? lv_color_hex(color_critical) :
                                alert.severity == 1 ? lv_color_hex(color_warning) :
                                                      lv_color_hex(color_accent);
@@ -510,7 +646,14 @@ static void ui_task(lv_timer_t *timer)
     }
 
     ui_diagnostics_t diagnostics;
-    if (xQueueReceive(ui->rtos.diagnostics_que, &diagnostics, 0) == pdTRUE) {
+    if (xQueueReceive(ui->rtos.diagnostics_que, &diagnostics, 0) == pdTRUE &&
+        (!ui->diagnostics_rendered || diagnostics.valid != ui->rendered_diagnostics.valid ||
+         diagnostics.mil_on != ui->rendered_diagnostics.mil_on ||
+         diagnostics.transmission != ui->rendered_diagnostics.transmission ||
+         diagnostics.count != ui->rendered_diagnostics.count ||
+         strcmp(diagnostics.first_code, ui->rendered_diagnostics.first_code) != 0)) {
+        ui->rendered_diagnostics = diagnostics;
+        ui->diagnostics_rendered = true;
         if (!diagnostics.valid || (!diagnostics.mil_on && diagnostics.count == 0 &&
                                    diagnostics.first_code[0] == 0))
             lv_obj_add_flag(ui->widgets.diagnostics_lbl, LV_OBJ_FLAG_HIDDEN);
@@ -519,7 +662,7 @@ static void ui_task(lv_timer_t *timer)
                 diagnostics.mil_on ? lv_color_hex(color_warning) : lv_color_hex(color_text_primary),
                 LV_PART_MAIN);
             lv_label_set_text_fmt(ui->widgets.diagnostics_lbl, "%s %u%s%s",
-                diagnostics.mil_on ? "CEL" : "DTC", diagnostics.count,
+                diagnostics.transmission ? "TCM" : diagnostics.mil_on ? "CEL" : "DTC", diagnostics.count,
                 diagnostics.first_code[0] ? "  " : "", diagnostics.first_code);
             lv_obj_remove_flag(ui->widgets.diagnostics_lbl, LV_OBJ_FLAG_HIDDEN);
         }
@@ -536,15 +679,6 @@ static void ui_task(lv_timer_t *timer)
     }
     render_page(ui);
 
-    lv_event_code_t event_code;
-    if (xQueueReceive(ui->rtos.touch_ev_que, &event_code, 0) == pdTRUE)
-    {
-        if (ui->touch_cb != NULL &&
-            !(ui->pairing_visible && event_code == LV_EVENT_CLICKED))
-        {
-            ui->touch_cb(ui, event_code);
-        }
-    }
 }
 
 static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms)
@@ -591,7 +725,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     // Unit label centered below the number, away from the curved right edge.
     lv_obj_t *unit_lbl = lv_label_create(gauge_content);
     ESP_NULL_CHECK(unit_lbl, TAG, "Failed to create unit label");
-    lv_label_set_text(unit_lbl, page->metrics[0].unit ? page->metrics[0].unit : "");
+    lv_label_set_text(unit_lbl, display_units_label(page->metrics[0].unit, ui->imperial_units));
     lv_obj_set_style_text_color(unit_lbl, lv_color_hex(color_text_secondary), LV_PART_MAIN);
     lv_obj_set_style_text_font(unit_lbl, font_unit, LV_PART_MAIN);
     lv_obj_set_style_text_align(unit_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
@@ -602,13 +736,13 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     ui->widgets.unit_lbl  = unit_lbl;
 
     lv_obj_t *arc = lv_arc_create(gauge_content);
-    lv_obj_set_size(arc, 198, 198);
+    lv_obj_set_size(arc, GAUGE_ARC_DIAMETER, GAUGE_ARC_DIAMETER);
     lv_obj_align(arc, LV_ALIGN_CENTER, 0, 0);
     lv_arc_set_bg_angles(arc, 135, 45);
     lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
     lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_arc_width(arc, 7, LV_PART_MAIN);
-    lv_obj_set_style_arc_width(arc, 7, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(arc, GAUGE_ARC_WIDTH, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(arc, GAUGE_ARC_WIDTH, LV_PART_INDICATOR);
     lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
     lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(arc, lv_color_hex(color_track), LV_PART_MAIN);
@@ -697,6 +831,9 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
 
     // add handlers
     lv_obj_add_event_cb(lv_screen_active(), ui_touch_callback, LV_EVENT_ALL, ui);
+#if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
+    lv_display_add_event_cb(lv_display_get_default(), render_finished, LV_EVENT_REFR_READY, ui);
+#endif
     lv_timer_create(ui_task, interval_ms, ui);
 
     ESP_LOGI(TAG, "Screen initialized successfully");
@@ -707,7 +844,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
 // ---------------------------------------------------------------------------------------------------------------------
 
 ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t touch_cb,
-              bool pairing_required)
+              bool pairing_required, bool imperial_units)
 {
     ESP_NULL_CHECK(page, TAG, "Page config is NULL");
     ESP_NULL_CHECK(touch_cb, TAG, "touch callback is NULL");
@@ -722,18 +859,22 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     ui->rtos.value_que    = xQueueCreate(32, sizeof(ui_sample_t));
     ui->rtos.touch_ev_que = xQueueCreate(4, sizeof(lv_event_code_t));
     ui->rtos.pairing_que = xQueueCreate(1, sizeof(uint32_t));
+    ui->rtos.pairing_id_que = xQueueCreate(1, sizeof(ui->pairing_identifier));
     ui->rtos.alert_que = xQueueCreate(1, sizeof(ui_alert_t));
     ui->rtos.diagnostics_que = xQueueCreate(1, sizeof(ui_diagnostics_t));
     ui->touch_cb          = touch_cb;
     ui->display.page = *page;
     ui->pairing_visible = pairing_required;
+    ui->imperial_units = imperial_units;
 
     if (!ui->rtos.value_que || !ui->rtos.touch_ev_que || !ui->rtos.pairing_que ||
+        !ui->rtos.pairing_id_que ||
         !ui->rtos.alert_que || !ui->rtos.diagnostics_que) {
         ESP_LOGE(TAG, "Failed to allocate UI mailboxes");
         if (ui->rtos.value_que) vQueueDelete(ui->rtos.value_que);
         if (ui->rtos.touch_ev_que) vQueueDelete(ui->rtos.touch_ev_que);
         if (ui->rtos.pairing_que) vQueueDelete(ui->rtos.pairing_que);
+        if (ui->rtos.pairing_id_que) vQueueDelete(ui->rtos.pairing_id_que);
         if (ui->rtos.alert_que) vQueueDelete(ui->rtos.alert_que);
         if (ui->rtos.diagnostics_que) vQueueDelete(ui->rtos.diagnostics_que);
         free(ui);
@@ -756,7 +897,7 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     return ui;
 }
 
-void ui_set_value(ui_t *ui, uint8_t pid, int32_t const *value)
+void ui_set_value(ui_t *ui, uint16_t pid, int32_t const *value)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
@@ -789,13 +930,34 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     lv_arc_set_range(ui->widgets.arc, minimum, maximum);
     lv_bar_set_range(ui->widgets.bar, minimum, maximum);
     select_renderer_widgets(ui);
-    ui_update_screen(ui, NULL, page->name, page->metrics[0].unit);
-    ESP_LOGI(TAG, "Updated page: %s renderer=%u", page->name, page->renderer);
+    if (ui->alert_rendered && ui->rendered_alert.severity != 0)
+        lv_obj_add_flag(ui->widgets.info_lbl, LV_OBJ_FLAG_HIDDEN);
+    /* Populate all renderer-specific widgets now, including dual values.
+     * Waiting for the data timer adds another 50 ms to a page change. */
+    render_page(ui);
+    ESP_LOGD(TAG, "Updated page: %s renderer=%u", page->name, page->renderer);
+}
+
+void ui_set_units(ui_t *ui, bool imperial_units)
+{
+    ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
+    if (ui->imperial_units == imperial_units) return;
+    ui->imperial_units = imperial_units;
+    ui->display.rendered_once = false;
+    render_page(ui);
 }
 
 void ui_show_pairing_code(ui_t *ui, uint32_t passkey)
 {
     if (ui != NULL) xQueueOverwrite(ui->rtos.pairing_que, &passkey);
+}
+
+void ui_set_pairing_identifier(ui_t *ui, const char *identifier)
+{
+    if (!ui || !ui->rtos.pairing_id_que) return;
+    char value[sizeof(ui->pairing_identifier)] = {0};
+    if (identifier) snprintf(value, sizeof(value), "%s", identifier);
+    xQueueOverwrite(ui->rtos.pairing_id_que, value);
 }
 
 void ui_set_alert(ui_t *ui, uint8_t severity, bool unavailable, const char *label)
@@ -806,11 +968,11 @@ void ui_set_alert(ui_t *ui, uint8_t severity, bool unavailable, const char *labe
     xQueueOverwrite(ui->rtos.alert_que, &alert);
 }
 
-void ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on,
+void ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on, bool transmission,
                         uint8_t count, const char *first_code)
 {
     if (!ui || !ui->rtos.diagnostics_que) return;
-    ui_diagnostics_t diagnostics = {.valid = valid, .mil_on = mil_on, .count = count};
+    ui_diagnostics_t diagnostics = {.valid = valid, .mil_on = mil_on, .transmission = transmission, .count = count};
     if (first_code) snprintf(diagnostics.first_code, sizeof(diagnostics.first_code),
                              "%s", first_code);
     xQueueOverwrite(ui->rtos.diagnostics_que, &diagnostics);
@@ -830,4 +992,16 @@ void ui_next_display_calibration(ui_t *ui)
     if (!ui || !ui->calibration_mode) return;
     ui->calibration_page = (ui->calibration_page + 1) % CALIBRATION_PAGE_COUNT;
     render_calibration_page(ui);
+}
+
+void ui_set_simulated(ui_t *ui)
+{
+    if (!ui || !ui->widgets.gauge_content) return;
+    lv_obj_t *label = lv_label_create(ui->widgets.gauge_content);
+    lv_label_set_text(label, "SIMULATED");
+    lv_obj_set_style_text_font(label, font_unit, LV_PART_MAIN);
+    lv_obj_set_style_text_color(label, lv_color_hex(color_warning), LV_PART_MAIN);
+    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 28);
+    lv_obj_clear_flag(label, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
 }

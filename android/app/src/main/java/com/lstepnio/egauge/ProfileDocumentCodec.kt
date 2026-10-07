@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..3) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..5) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -40,27 +40,44 @@ object ProfileDocumentCodec {
                 }
             } else defaultGaugePages(pidId, layout)
             require(pages.map { it.id }.distinct().size == pages.size) { "Profile page IDs are duplicated" }
+            val alerts = if (schemaVersion >= 4) {
+                val values = saved.getJSONArray("alerts")
+                require(values.length() <= 32) { "Profile alert count is invalid" }
+                (0 until values.length()).map { alertIndex ->
+                    val alert = values.getJSONObject(alertIndex)
+                    val alertId = alert.getString("id")
+                    val alertPid = alert.getString("pidId")
+                    require(alertId.matches(Regex("[a-z][a-z0-9._-]{0,63}")) &&
+                        demoCatalog.any { it.id == alertPid }) { "Profile alert identity is invalid" }
+                    GaugeAlertDraft(alertId, alertPid,
+                        AlertDirection.valueOf(alert.optString("direction", "above").replaceFirstChar(Char::uppercase)),
+                        alert.getInt("warning"), alert.getInt("critical"), alert.optInt("hysteresis", 3),
+                        alert.optInt("triggerDwellMs", 1000), alert.optInt("clearDwellMs", 2000), alert.optInt("priority", 8))
+                }
+            } else listOf(GaugeAlertDraft("alert.coolant", "coolant", AlertDirection.Above,
+                saved.getInt("warning"), saved.getInt("critical"), saved.optInt("hysteresis", 3),
+                saved.optInt("triggerDwellMs", 1000), saved.optInt("clearDwellMs", 2000)))
             val draft = Draft(
                 pidId = pidId,
                 layout = layout,
-                warning = saved.getInt("warning"),
-                critical = saved.getInt("critical"),
-                hysteresis = saved.optInt("hysteresis", 3),
-                triggerDwellMs = saved.optInt("triggerDwellMs", 1000),
-                clearDwellMs = saved.optInt("clearDwellMs", 2000),
                 source = saved.getString("source"),
                 pages = pages,
+                alerts = alerts,
             )
             require(draft.source == "ECM" || draft.source == "TCM") { "Profile source is invalid" }
-            require(draft.warning in -40..250 && draft.critical in -40..250 &&
-                draft.hysteresis in 0..20 && draft.triggerDwellMs in 0..60000 &&
-                draft.clearDwellMs in 0..60000) { "Profile alert settings are invalid" }
+            require(draft.alerts.map { it.id }.distinct().size == draft.alerts.size &&
+                draft.alerts.all { alert ->
+                    // Older apps accepted 16384. Keep those profiles readable so the editor can fix the limit.
+                    val storedRange = if (alert.pidId == "rpm") 0..16384 else readingRange(alert.pidId)
+                    alert.warning in storedRange && alert.critical in storedRange && alert.hysteresis in 0..20 &&
+                    alert.triggerDwellMs in 0..60000 && alert.clearDwellMs in 0..60000 }) {
+                "Profile alert settings are invalid"
+            }
             VehicleProfile(
                 id,
                 name,
                 draft,
-                secondAdapterEnabled = if (schemaVersion >= 2)
-                    item.optBoolean("secondAdapterEnabled", false) else draft.source == "TCM",
+                if (schemaVersion >= 5) item.optJSONObject("primaryAdapter")?.let(AdapterBinding::decode) else null,
             )
         }
         require(profiles.map { it.id }.distinct().size == profiles.size) { "Profile IDs are duplicated" }
@@ -71,25 +88,29 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 3).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 5).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
             items.put(JSONObject().put("id", profile.id).put("name", profile.name)
-                .put("secondAdapterEnabled", profile.secondAdapterEnabled)
+                .put("primaryAdapter", profile.primaryAdapter?.json())
                 .put("draft", JSONObject()
                     .put("pidId", profile.draft.pidId)
                     .put("layout", profile.draft.layout.name)
-                    .put("warning", profile.draft.warning)
-                    .put("critical", profile.draft.critical)
-                    .put("hysteresis", profile.draft.hysteresis)
-                    .put("triggerDwellMs", profile.draft.triggerDwellMs)
-                    .put("clearDwellMs", profile.draft.clearDwellMs)
                     .put("source", profile.draft.source)
                     .put("pages", JSONArray().also { pages ->
                         profile.draft.pages.forEach { page ->
                             pages.put(JSONObject().put("id", page.id).put("name", page.name)
                                 .put("layout", page.layout.name)
                                 .put("pidIds", JSONArray(page.pidIds)))
+                        }
+                    })
+                    .put("alerts", JSONArray().also { alerts ->
+                        profile.draft.alerts.forEach { alert ->
+                            alerts.put(JSONObject().put("id", alert.id).put("pidId", alert.pidId)
+                                .put("direction", alert.direction.name.lowercase())
+                                .put("warning", alert.warning).put("critical", alert.critical)
+                                .put("hysteresis", alert.hysteresis).put("triggerDwellMs", alert.triggerDwellMs)
+                                .put("clearDwellMs", alert.clearDwellMs).put("priority", alert.priority))
                         }
                     })))
         }

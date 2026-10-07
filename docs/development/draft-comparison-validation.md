@@ -1,5 +1,7 @@
 # Phone draft and saved gauge comparison
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Observed on 2026-09-26 with the paired Pixel 10 Pro and USB-powered ESP32-S3-Touch-LCD-1.28. No OBD adapter was attached.
 
 The final Android debug APK from commit `42081ad` was installed with `adb install -r`. The app discovered the gauge through its public capability read. On Design, **Refresh saved configuration** completed through the existing owner bond without a new passkey prompt. The screen reported saved revision 2, eight matching fields, one difference, and zero unavailable fields. The difference was the phone draft's `dual` renderer versus the gauge document's `numeric` renderer. The profile ID and primary PID rows visibly matched.

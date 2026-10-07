@@ -7,6 +7,9 @@
 typedef struct {
     uint8_t opcode;
     uint8_t value;
+    uint8_t brightness;
+    uint8_t units;
+    uint16_t cycle_seconds;
     uint32_t base_revision;
 } companion_command_t;
 
@@ -29,5 +32,6 @@ void ble_companion_open_pairing_window(void);
 void ble_companion_selection_applied(uint8_t selected_index);
 void ble_companion_tick(void);
 bool ble_companion_ready(void);
+bool ble_companion_has_owner(void);
 /* Physical 12-second hold only. Erases the owner association and restarts. */
 void ble_companion_forget_owner(void);

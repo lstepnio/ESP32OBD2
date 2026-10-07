@@ -8,6 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.lstepnio.egauge.ui.state.alertUi
 import java.security.KeyPairGenerator
 import java.security.Signature
 import java.net.URL
@@ -122,8 +123,9 @@ class AppCoreTest {
     }
 
     @Test fun projectionAndPayloadDescribeTheSameNumericPages() {
-        val draft = Draft(pidId = "coolant", layout = GaugeLayout.Numeric, warning = 104,
-            critical = 114, hysteresis = 3, triggerDwellMs = 2000, clearDwellMs = 5000)
+        val draft = Draft(pidId = "coolant", layout = GaugeLayout.Numeric,
+            alerts = listOf(GaugeAlertDraft("alert.coolant", "coolant", AlertDirection.Above,
+                warning = 104, critical = 114, hysteresis = 3, triggerDwellMs = 2000, clearDwellMs = 5000)))
         val (projection, bytes) = ConfigurationProjector.project(template, draft, "vehicle-1", 9)
         val json = JSONObject(bytes.toString(Charsets.UTF_8))
         assertEquals("engine.coolant", projection.pages.first().pidId)
@@ -159,6 +161,18 @@ class AppCoreTest {
         assertTrue(differing.fields.single { it.label == "All page settings" }.matches == false)
     }
 
+    @Test fun projectionKeepsAlertsForEachChosenReading() {
+        val draft = Draft(alerts = listOf(
+            defaultAlert("coolant"),
+            defaultAlert("speed").copy(warning = 110, critical = 130),
+        ))
+        val (_, bytes) = ConfigurationProjector.project(template, draft, "default", 2)
+        val alerts = JSONObject(bytes.toString(Charsets.UTF_8)).getJSONArray("alerts")
+        assertEquals(2, alerts.length())
+        assertEquals("engine.coolant", alerts.getJSONObject(0).getString("pidId"))
+        assertEquals("vehicle.speed", alerts.getJSONObject(1).getString("pidId"))
+    }
+
     @Test fun legacyTransmissionProfileMigratesToAdvancedTopologyWithoutChangingDraft() {
         val legacy = """{
           "schemaVersion":1,"activeId":"v1","profiles":[{
@@ -167,7 +181,6 @@ class AppCoreTest {
             "clearDwellMs":2000,"source":"TCM"}}]}
         """.trimIndent()
         val migrated = ProfileDocumentCodec.decode(legacy)
-        assertTrue(migrated.active.secondAdapterEnabled)
         assertEquals("TCM", migrated.active.draft.source)
         val roundTrip = ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(migrated))
         assertEquals(migrated, roundTrip)
@@ -193,6 +206,54 @@ class AppCoreTest {
         assertEquals(7, GaugeProtocolCodec.runtimeIdentity(runtimeBytes).revision)
         runtimeBytes[1] = 0x81.toByte()
         assertThrows { GaugeProtocolCodec.runtimeIdentity(runtimeBytes) }
+    }
+
+    @Test fun displaySettingsCodecChecksCapabilityAndSavedStateBounds() {
+        val capability = """{"board":"board","protocolMajor":0,"maxAdapterLinks":2,
+            "configWrite":false,"ota":false,"ds":1}""".trimIndent().toByteArray()
+        assertEquals(1, GaugeProtocolCodec.capabilities(capability).displaySettingsVersion)
+        assertEquals(2, GaugeProtocolCodec.capabilities(
+            capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":2").toByteArray()).displaySettingsVersion)
+        assertEquals(3, GaugeProtocolCodec.capabilities(
+            capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":3").toByteArray()).displaySettingsVersion)
+        assertThrows { GaugeProtocolCodec.capabilities(
+            capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":4").toByteArray()) }
+
+        val state = byteArrayOf(10, 1, 55, 0, 7, 0, 0, 0)
+        assertEquals(GaugeConfigTransferClient.DisplaySettings(1, 55, 7),
+            GaugeProtocolCodec.displaySettings(state))
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf(7)) }
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[1] = 4 }) }
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[2] = 4 }) }
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[3] = 1 }) }
+        val imperial = state.copyOf().apply { this[0] = 11; this[3] = 1 }
+        assertEquals(MeasurementSystem.Imperial, GaugeProtocolCodec.displaySettings(imperial).units)
+        assertThrows { GaugeProtocolCodec.displaySettings(imperial.copyOf().apply { this[3] = 2 }) }
+        val cycling = imperial.copyOf(10).apply { this[0] = 12; this[8] = 15 }
+        assertEquals(GaugeConfigTransferClient.DisplaySettings(1, 55, 7, MeasurementSystem.Imperial, 3, 15),
+            GaugeProtocolCodec.displaySettings(cycling))
+        assertThrows { GaugeProtocolCodec.displaySettings(cycling.copyOf().apply { this[8] = 4 }) }
+    }
+
+    @Test fun imperialDisplayConvertsOnlyKnownUnitsAndRoundTripsAlertValues() {
+        assertEquals(198, MeasurementUnits.value(92, "°C", MeasurementSystem.Imperial))
+        assertEquals("°F", MeasurementUnits.label("degC", MeasurementSystem.Imperial))
+        assertEquals(40, MeasurementUnits.value(64, "kph", MeasurementSystem.Imperial))
+        assertEquals("mph", MeasurementUnits.label("km/h", MeasurementSystem.Imperial))
+        assertEquals(121, MeasurementUnits.canonical(75, "km/h", MeasurementSystem.Imperial))
+        assertEquals(5, MeasurementUnits.canonicalDistance(9, "°C", MeasurementSystem.Imperial))
+        assertEquals(2840, MeasurementUnits.value(2840, "rpm", MeasurementSystem.Imperial))
+        assertEquals("2,840", MeasurementUnits.displayValue("2,840", "rpm", MeasurementSystem.Imperial))
+    }
+
+    @Test fun imperialAlertPresentationRetainsCanonicalThresholds() {
+        val original = defaultAlert("coolant")
+        val shown = alertUi(original, MeasurementSystem.Imperial)
+        assertEquals("°F", shown.unit)
+        assertEquals(MeasurementUnits.value(original.warning, "°C", MeasurementSystem.Imperial), shown.warning)
+        assertEquals(original.warning, shown.canonicalWarning)
+        assertEquals(original.critical, shown.canonicalCritical)
+        assertEquals(original.hysteresis, shown.canonicalResetMargin)
     }
 
     @Test fun hostedCatalogRequiresValidSignatureAndExactCompatibility() {

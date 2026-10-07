@@ -1,5 +1,7 @@
 # Display color quality correction
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Recorded 2026-09-27 for the Waveshare ESP32-S3-Touch-LCD-1.28.
 
 ## Physical evidence before the correction

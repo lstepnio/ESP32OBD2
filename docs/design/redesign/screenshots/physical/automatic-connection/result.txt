@@ -1,0 +1,7 @@
+Physical automatic connection validation
+Opening to protected confirmation: 3827 ms
+Resume: protected confirmation refreshed without a tap
+Bluetooth off/on recovery: true
+Gauge identity unchanged; saved and running revision 8 retained
+Configuration digest unchanged: d4a02989f1a750eb16b14af2174bf3a3252b56795c8168b172da150f9b6e4b62
+No configuration, vehicle or firmware action invoked

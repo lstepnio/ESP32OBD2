@@ -10,6 +10,7 @@
 #include "config_document.h"
 #include "config_store.h"
 #include "json_guard.h"
+#include "obd_adapter_profile.h"
 
 #define ARRAY_COUNT(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -58,8 +59,10 @@ static bool number(const cJSON *item, double low, double high)
 static bool string(const cJSON *item, size_t low, size_t high)
 {
     if (!cJSON_IsString(item) || item->valuestring == NULL) return false;
-    size_t length = strnlen(item->valuestring, high + 1);
-    return length >= low && length <= high;
+    /* C11 portable bounded length: reject a non-terminated maximum prefix. */
+    size_t length = 0;
+    while (length < high && item->valuestring[length] != '\0') ++length;
+    return item->valuestring[length] == '\0' && length >= low;
 }
 
 static bool identifier(const cJSON *item, size_t high)
@@ -180,14 +183,35 @@ static bool vector_matches(const cJSON *payload, const cJSON *expected,
            fabs(decoded - expected->valuedouble) <= 0.0001;
 }
 
+static bool binding_valid(const cJSON *item)
+{
+    if (!item) return true;
+    static const char *const keys[] = {"id", "address", "addressType", "driver"};
+    static const char *const types[] = {"public", "random"};
+    const cJSON *address = cJSON_GetObjectItemCaseSensitive(item, "address");
+    if (!fields(item, keys, ARRAY_COUNT(keys)) ||
+        !identifier(cJSON_GetObjectItemCaseSensitive(item, "id"), 64) ||
+        !string(address, 17, 17) ||
+        !one_of(cJSON_GetObjectItemCaseSensitive(item, "addressType"), types, ARRAY_COUNT(types)) ||
+        !string(cJSON_GetObjectItemCaseSensitive(item, "driver"), 11, 12) ||
+        !obd_adapter_profile_find(cJSON_GetObjectItemCaseSensitive(item, "driver")->valuestring)) return false;
+    for (unsigned i = 0; i < 17; ++i) {
+        char c = address->valuestring[i];
+        if (i % 3 == 2) { if (c != ':') return false; }
+        else if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))) return false;
+    }
+    return true;
+}
+
 static bool source_valid(const cJSON *item)
 {
-    static const char *const keys[] = {"id", "label", "role"};
+    static const char *const keys[] = {"id", "label", "role", "adapter"};
     static const char *const roles[] = {"ecm", "tcm", "other"};
     return fields(item, keys, ARRAY_COUNT(keys)) &&
            identifier(cJSON_GetObjectItemCaseSensitive(item, "id"), 32) &&
            string(cJSON_GetObjectItemCaseSensitive(item, "label"), 1, 32) &&
-           one_of(cJSON_GetObjectItemCaseSensitive(item, "role"), roles, ARRAY_COUNT(roles));
+           one_of(cJSON_GetObjectItemCaseSensitive(item, "role"), roles, ARRAY_COUNT(roles)) &&
+           binding_valid(cJSON_GetObjectItemCaseSensitive(item, "adapter"));
 }
 
 static bool definition_valid(const cJSON *item, const cJSON *sources)
@@ -369,7 +393,7 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
     const cJSON *alerts = cJSON_GetObjectItemCaseSensitive(root, "alerts");
     const cJSON *rotation = cJSON_GetObjectItemCaseSensitive(root, "rotation");
     if (!fields(root, keys, ARRAY_COUNT(keys)) ||
-        !integer(cJSON_GetObjectItemCaseSensitive(root, "schemaVersion"), 1, 1) ||
+        !integer(cJSON_GetObjectItemCaseSensitive(root, "schemaVersion"), 1, 2) ||
         !integer(cJSON_GetObjectItemCaseSensitive(root, "baseRevision"),
                  context->base_revision, context->base_revision) ||
         !identifier(cJSON_GetObjectItemCaseSensitive(root, "vehicleProfileId"), 64) ||
@@ -382,8 +406,21 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
         !array_size(alerts, 0, 32) ||
         !unique_ids(sources) || !unique_ids(definitions) ||
         !unique_ids(pages) || !unique_ids(alerts)) return false;
-    for (const cJSON *item = sources->child; item != NULL; item = item->next)
-        if (!source_valid(item)) return false;
+    for (const cJSON *item = sources->child; item != NULL; item = item->next) {
+        const cJSON *adapter = cJSON_GetObjectItemCaseSensitive(item, "adapter");
+        if (!source_valid(item) || (adapter && cJSON_GetObjectItemCaseSensitive(root, "schemaVersion")->valueint == 1)) return false;
+        if (!adapter) continue;
+        for (const cJSON *other = item->next; other; other = other->next) {
+            const cJSON *binding = cJSON_GetObjectItemCaseSensitive(other, "adapter");
+            if (!binding) continue;
+            /* One physical adapter must never supply two simultaneous sources. */
+            if (!binding_valid(binding) ||
+                strcmp(cJSON_GetObjectItemCaseSensitive(adapter, "id")->valuestring,
+                       cJSON_GetObjectItemCaseSensitive(binding, "id")->valuestring) == 0 ||
+                strcmp(cJSON_GetObjectItemCaseSensitive(adapter, "address")->valuestring,
+                       cJSON_GetObjectItemCaseSensitive(binding, "address")->valuestring) == 0) return false;
+        }
+    }
     for (const cJSON *item = definitions->child; item != NULL; item = item->next)
         if (!definition_valid(item, sources)) return false;
     for (const cJSON *item = pages->child; item != NULL; item = item->next)

@@ -1,5 +1,7 @@
 # USB migration to the 16 MB gauge layout
 
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
 Status: implementation procedure for a development board. This changes the boot partition table and cannot be delivered through the current factory application. Keep a verified USB backup until the new image, saved selection, and owner bond have been checked on hardware.
 
 ## Layout and boot selection

@@ -57,6 +57,7 @@ struct ble_mgr_disc_cfg
     ble_mgr_svc_def_t const  *svc_def;
     ble_mgr_dev_filter_cb_t   dev_filter_cb;
     ble_mgr_disconnected_cb_t disconnected_cb;
+    void (*observe)(const char *event, const void *data, size_t length, int status, void *usr_ctx);
 };
 
 typedef struct
@@ -113,3 +114,10 @@ ble_mgr_status_t ble_mgr_send(ble_mgr_ctx_t *mgr_ctx, uint16_t chr_handle, const
 
 bool ble_mgr_is_connected(ble_mgr_ctx_t *mgr_ctx);
 void ble_mgr_disconnect(ble_mgr_ctx_t *mgr_ctx);
+
+/* Quiesce central scanning/connections while the maintenance network is open. */
+void ble_mgr_set_paused(bool paused);
+bool ble_mgr_is_paused(void);
+
+ble_mgr_status_t ble_mgr_scan_adapters(void (*found)(const ble_addr_t *, const char *, uint8_t, void *),
+                                       void *context);
