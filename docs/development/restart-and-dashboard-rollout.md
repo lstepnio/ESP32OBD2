@@ -139,3 +139,14 @@ confirmed running revision 42, automatic settings refresh and unchanged saved pr
 configuration and display settings. Bluetooth toggling and picker cancellation were
 not enabled in this run. The owner observation above, rather than this read-only phone test, establishes
 physical gesture cooldown for this session.
+
+
+## Next signed update candidate
+
+Prepared candidate `0.2.0-dev.43` changes the image version from dev.42 without
+changing firmware runtime logic or protocol bytes. It provides a distinct descriptor
+and ELF identity for qualifying App dev.39's App/Wi-Fi transfer and post-reboot
+confirmation, rather than reinstalling the already running image. Publication,
+signed GitHub asset verification and physical installation are separate gates.
+Installed firmware remains dev.42 until exact post-update identity is confirmed.
+Public `configWrite`, `ota` and adapter-capacity claims remain unchanged.
