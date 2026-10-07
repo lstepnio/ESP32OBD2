@@ -255,3 +255,11 @@ production-C socket negatives, debug/instrumentation APK builds, lint, ESP-IDF
 physical testing, so App dev.39 + firmware dev.43 remain the last installed pair.
 Native recovery tests, new firmware transport-loss and interruption checks remain
 pending; source deadlines are not measured hardware latency claims.
+
+
+### Signed dev.44 candidate publication, 2026-10-07
+
+- Final source commit `79965f2a11acc2bd9cc6170aa2243db49148c04d` passed all hosted quality jobs in run 37656161279.
+- Owner-authorized protected release run 37657094780 published [dev.44](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.44), catalog generation 26, targeting that exact commit. The earlier cancelled run created no release.
+- Independently downloaded catalog/bundle passed both signatures against the App-pinned public key, compatibility, descriptor, size and hash checks. Image: 1,516,720 bytes; SHA-256 `04f943bc97a9cf8917c0b93e16faf1fd8f35fcf68fc97fc4226148155e7583d9`; ELF SHA-256 `325bc9bc2c1606ddb0947138e8214ecbd7bce1d1babec467c4a27f98c4d7a6ce`.
+- Publication does not establish installation or physical recovery. Pixel remains disconnected; installed App dev.39 and signed firmware dev.43 are unchanged. App dev.40 installation, App/Wi-Fi dev.44 transfer, exact running readback and physical interruption tests remain pending. Public capabilities remain unchanged.
