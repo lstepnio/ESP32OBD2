@@ -11,7 +11,8 @@ fun readingName(id: String): String = when (id) {
     "load" -> "Engine load"
     "fuel" -> "Fuel level"
     "tcm" -> "Transmission input speed"
-    "tcmtemp" -> "TCM temperature (experimental)"
+    "tcmtemp" -> "Transmission temperature"
+    "tcmgear" -> "Gear"
     else -> "Unknown reading"
 }
 
@@ -155,7 +156,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             }; HomeAction.Check -> "Check gauge"
                 HomeAction.Review -> "Review and send"; HomeAction.Customize -> "Customize" }, homeAction, busy, details,
             updateNotice),
-        CustomizeUiState(pages, editingPageIndex, demoCatalog.filter { it.id in ConfigurationProjector.supportedPidIds }.map { readingUi(it, system) },
+        CustomizeUiState(pages, editingPageIndex, demoCatalog.filter { it.id in ConfigurationProjector.pagePidIds(draft.source) }.map { readingUi(it, system) },
             draft.alerts.map { alertUi(it, system) }, blockers, canSend, needsCheck, found, busy, profileError == null && !busy, prefs.advanced,
             capabilities?.supportedRenderers.orEmpty(), details, system),
         car,

@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdatomic.h>
+#include "transmission_gear.h"
 #include "sdkconfig.h"
 #include "esp_timer.h"
 
@@ -459,7 +460,10 @@ static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, c
 
     if (value != NULL)
     {
-        lv_label_set_text_fmt(ui->widgets.value_lbl, "%" PRId32, *value);
+        if (!strcmp(ui->display.page.metrics[0].unit, "gear")) {
+            const char *gear = transmission_gear_label(*value);
+            lv_label_set_text(ui->widgets.value_lbl, gear ? gear : "...");
+        } else lv_label_set_text_fmt(ui->widgets.value_lbl, "%" PRId32, *value);
         const char *text = lv_label_get_text(ui->widgets.value_lbl);
         int32_t safe_width = lv_obj_get_width(ui->widgets.value_lbl);
         const lv_font_t *font = font_title;
@@ -501,7 +505,10 @@ static void render_page(ui_t *ui)
             const ui_metric_t *metric = &ui->display.page.metrics[i];
             if (!ui->display.rendered_once || available[i] != ui->display.rendered_available[i] ||
                 (available[i] && values[i] != ui->display.rendered_values[i])) {
-                if (available[i]) lv_label_set_text_fmt(ui->widgets.dual_value[i], "%" PRId32,
+                if (available[i] && !strcmp(metric->unit, "gear")) {
+                    const char *gear = transmission_gear_label(values[i]);
+                    lv_label_set_text(ui->widgets.dual_value[i], gear ? gear : "...");
+                } else if (available[i]) lv_label_set_text_fmt(ui->widgets.dual_value[i], "%" PRId32,
                     display_units_value(values[i], metric->unit, ui->imperial_units));
                 else lv_label_set_text(ui->widgets.dual_value[i], "...");
                 lv_label_set_text_fmt(ui->widgets.dual_info[i], "%s  %s",

@@ -53,6 +53,16 @@ static elm_result_t identifier(const char *wire, size_t fragment, elm_payload_t 
 int main(void)
 {
     elm_payload_t payload;
+    for (unsigned gear = 0; gear < 4; ++gear) {
+        static const char *const wires[] = {"7E9046255030D\r>", "7E9046255030B\r>", "7E90462550300\r>", "7E90462550301\r>"};
+        static const uint8_t values[] = {13, 11, 0, 1};
+        elm_response_t response;
+        elm_response_reset(&response);
+        for (const char *c = wires[gear]; *c; ++c) elm_response_push(&response, *c);
+        assert(elm_response_decode_identifier(&response, 0x5503, 0x7e9, &payload) == ELM_OK);
+        assert(payload.length == 1 && payload.bytes[0] == values[gear]);
+        assert(elm_response_decode_identifier(&response, 0x5504, 0x7e9, &payload) != ELM_OK);
+    }
     for (size_t split = 1; split < 32; split++) {
         assert(decode("010C\rSEARCHING...\r41 0C 1A F8\r>", split, &payload) == ELM_OK);
         assert(payload.length == 2 && payload.bytes[0] == 0x1A && payload.bytes[1] == 0xF8);

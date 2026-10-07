@@ -75,19 +75,21 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
                             }
                         }
                     }
-                    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
-                        Column {
-                            listOfNotNull(current.readingId, current.secondaryId).forEachIndexed { index, id ->
-                                if (index > 0) HorizontalDivider(Modifier.padding(horizontal = 18.dp))
-                                val reading = state.readings.firstOrNull { it.id == id }
-                                val alert = state.alerts.firstOrNull { it.readingId == id }
-                                EditorRow("${reading?.name ?: readingName(id)} alert",
-                                    if (reading == null) "Choose an available reading first" else alert?.summary() ?: "Off",
-                                    state.editingEnabled && reading != null) { editAlert(id) }
+                    if (state.readings.any { it.id in com.lstepnio.egauge.ConfigurationProjector.supportedPidIds }) {
+                        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
+                            Column {
+                                listOfNotNull(current.readingId, current.secondaryId).forEachIndexed { index, id ->
+                                    if (index > 0) HorizontalDivider(Modifier.padding(horizontal = 18.dp))
+                                    val reading = state.readings.firstOrNull { it.id == id }
+                                    val alert = state.alerts.firstOrNull { it.readingId == id }
+                                    EditorRow("${reading?.name ?: readingName(id)} alert",
+                                        if (reading == null) "Choose an available reading first" else alert?.summary() ?: "Off",
+                                        state.editingEnabled && reading != null) { editAlert(id) }
+                                }
                             }
                         }
+                        TextButton({ onDestination(3) }, Modifier.fillMaxWidth()) { Text("All alerts (${state.alerts.size})") }
                     }
-                    TextButton({ onDestination(3) }, Modifier.fillMaxWidth()) { Text("All alerts (${state.alerts.size})") }
                     state.blockers.firstOrNull()?.let { StatusCard(StatusUi("Check your settings", it, StatusTone.Error)) }
                 }
             })

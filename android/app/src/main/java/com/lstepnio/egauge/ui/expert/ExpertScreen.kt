@@ -29,7 +29,7 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions) {
             SettingsRow("Read hardware capacity", enabled = state.canReadHardware, onClick = actions.readHardware)
             SettingsRow("Check installed firmware", enabled = state.canRead, onClick = actions.readFirmware)
             if (state.canAdoptGaugeSettings) SettingsRow("Use gauge settings", onClick = actions.adoptGaugeSettings)
-            if (BuildConfig.DEBUG) SettingsRow("Create TCM temperature test profile", onClick = actions.createTcmTest)
+            if (BuildConfig.DEBUG) SettingsRow("Set up transmission", onClick = actions.createTcmTest)
             SectionTitle("Device data")
             DetailContent(state.details)
         }

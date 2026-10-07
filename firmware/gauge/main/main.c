@@ -55,6 +55,7 @@
 #include "config_document.h"
 #include "config_trial.h"
 #include "obd.h"
+#include "transmission_gear.h"
 #include "poll_scheduler.h"
 #include "page_save_policy.h"
 #include "ui.h"
@@ -273,6 +274,11 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, void *usr_
     }
 
     double decoded;
+    if (g_runtime && g_runtime->transmission_source && pid == 0x5503 &&
+        !transmission_gear_label(data[0])) {
+        ui_set_value(ui, pid, NULL);
+        return;
+    }
     if (!pid_decoder_eval(&definition->decoder, data, len, &decoded)) {
         ESP_LOGW(TAG, "Rejected invalid value for PID 0x%02X", pid);
         return;

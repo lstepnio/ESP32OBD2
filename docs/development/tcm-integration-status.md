@@ -48,3 +48,16 @@ divergence and a distinct D selector indication remain unvalidated. See
 ## Concrete vendor information request
 
 Provide JSS/PCS these observed identifiers: TCM calibration 68274867AE, CVN 8240DAE8, ECU name TCM - TransmisCtrl, 11-bit 500 kbit/s diagnostic responder 7E9. Request the applicable read-only definitions for transmission fluid temperature and actual/commanded gear: request addresses, services/identifiers, payload lengths, scaling, valid/invalid values and update rates. If broadcast-only, request the matching DBC/message map and bus routing. Also ask which tool/channel provides a trusted reference and which read-only service returns the complete OEM fault inventory. No message has been sent.
+
+## Combined transmission workspace
+
+Firmware dev.37-tcm and the companion now support the captured current-gear read
+22 5503 alongside temperature 22 04FE. One Transmission profile uses a Dual
+Gear + Temperature page and the existing page editor. Set up transmission reuses
+the saved profile identity and adapter binding. Display labels are simple; evidence
+and qualification details remain in Expert/provenance. No protocol version change
+is required: the existing configuration carries a `gear` unit and exact bounded
+request definition. Unknown full-byte gear codes become unavailable. App/Wi-Fi
+transfer completed and passive USB boot identifies dev.37-tcm. The owner confirmed the combined Gear + Temperature page worked on the physical
+gauge. The owner confirmed both readings cleared after adapter removal and returned
+after reconnecting. App readback reports revision 28 stored and running. See [combined setup details](tcm-gear-capture.md).

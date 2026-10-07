@@ -92,7 +92,7 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
     out->transmission_source = !strcmp(role, "tcm");
     if (strcmp(role, "ecm") && !out->transmission_source) goto done;
     if (out->transmission_source && (field(root, "schemaVersion")->valueint != 2 ||
-        cJSON_GetArraySize(definitions) != 1 || cJSON_GetArraySize(alerts) != 0)) goto done;
+        cJSON_GetArraySize(definitions) > 2 || cJSON_GetArraySize(alerts) != 0)) goto done;
     out->legacy_auto_discovery = field(root, "schemaVersion")->valueint == 1;
     if (!copy_text(out->vehicle_id, sizeof(out->vehicle_id), field(root, "vehicleProfileId")) ||
         !copy_text(out->source_id, sizeof(out->source_id), field(source, "id"))) goto done;
@@ -117,16 +117,19 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         if (strcmp(field(item, "sourceId")->valuestring, source_id) != 0 ||
             !field(request, "responseId") || field(decoder, "byteOffset")->valueint != 0) goto done;
         if (out->transmission_source) {
-            /* Experimental captured TCM definition only. No arbitrary enhanced reads. */
+            /* Captured TCM temperature/current gear. No arbitrary enhanced reads. */
+            bool gear = !strcmp(identifier, "5503");
             if (strcmp(field(request, "service")->valuestring, "22") ||
-                strcmp(identifier, "04FE") || strcmp(field(request, "route")->valuestring, "can11_physical") ||
+                (!gear && strcmp(identifier, "04FE")) || strcmp(field(request, "route")->valuestring, "can11_physical") ||
                 !field(request, "requestId") || strcmp(field(request, "requestId")->valuestring, "7E1") ||
                 strcmp(field(request, "responseId")->valuestring, "7E9") ||
-                strcmp(field(response, "prefix")->valuestring, "6204FE") ||
-                field(response, "minPayloadBytes")->valueint != 3 ||
+                strcmp(field(response, "prefix")->valuestring, gear ? "625503" : "6204FE") ||
+                field(response, "minPayloadBytes")->valueint != (gear ? 1 : 3) ||
                 field(decoder, "byteLength")->valueint != 1 ||
                 field(decoder, "numerator")->valueint != 1 || field(decoder, "denominator")->valueint != 1 ||
-                field(decoder, "offset")->valuedouble != -40 || cJSON_IsTrue(field(decoder, "signed"))) goto done;
+                field(decoder, "offset")->valuedouble != (gear ? 0 : -40) || cJSON_IsTrue(field(decoder, "signed")) ||
+                strcmp(field(item, "unit")->valuestring, gear ? "gear" : "degC") ||
+                (gear && (field(range, "min")->valuedouble != 0 || field(range, "max")->valuedouble != 13))) goto done;
         } else if (strcmp(field(request, "service")->valuestring, "01") ||
                    strcmp(field(request, "route")->valuestring, "functional") || strlen(identifier) != 2 ||
                    !strcmp(identifier, "01") ||
@@ -168,6 +171,8 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         for (int i = 0; i < count; ++i) {
             int index = pid_index(out, cJSON_GetArrayItem(ids, i)->valuestring);
             if (index < 0) goto done;
+            if (out->pids[index].obd.pid == 0x5503 && page->renderer != RUNTIME_RENDERER_NUMERIC &&
+                page->renderer != RUNTIME_RENDERER_DUAL) goto done;
             page->pid_indices[i] = index;
         }
         out->page_count++;

@@ -14,6 +14,7 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
     companion object {
         private fun localPid(id: String): String? = when (id) {
             "transmission.temperature.experimental" -> "tcmtemp"
+            "transmission.gear" -> "tcmgear"
             "engine.rpm" -> "rpm"
             "engine.coolant" -> "coolant"
             "vehicle.speed" -> "speed"

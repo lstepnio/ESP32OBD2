@@ -59,7 +59,8 @@ val demoCatalog = listOf(
     PidExample("speed", "Vehicle speed", "ECM", "01 0D", "km/h", "64", "Example response", "Driving", "SPEED"),
     PidExample("load", "Calculated load", "ECM", "01 04", "%", "38", "Example response", "Engine", "ENGINE LOAD"),
     PidExample("fuel", "Fuel level", "ECM", "01 2F", "%", "73", "Example response", "Fuel", "FUEL LEVEL"),
-    PidExample("tcmtemp", "TCM temp (experimental)", "TCM", "22 04FE", "°C", "45", "Experimental interpretation; sensor meaning unvalidated", "Transmission", "TCM TEMP (TEST)"),
+    PidExample("tcmtemp", "Transmission temperature", "TCM", "22 04FE", "°C", "45", "Experimental interpretation; sensor meaning unvalidated", "Transmission", "TRANS TEMP"),
+    PidExample("tcmgear", "Gear", "TCM", "22 5503", "", "P", "P/R/N/1 compared on JSS; gears 2–8 use published mapping", "Transmission", "GEAR"),
     PidExample("tcm", "Transmission input speed", "TCM", "Vehicle specific", "rpm", "2,120", "Synthetic only", "Transmission", "INPUT SPEED"),
 )
 
@@ -605,20 +606,32 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun createExperimentalTcmProfile() {
         if (!BuildConfig.DEBUG || profileError != null) return
-        profileCollection.profiles.firstOrNull { it.name == "JSS TCM temperature test" }?.let {
-            selectProfile(it.id); return
+        profileCollection.profiles.firstOrNull { it.draft.source == "TCM" }?.let { existing ->
+            val updatedDraft = TransmissionSetup.draft(existing.draft)
+            if (updatedDraft.pages.none { "tcmgear" in it.pidIds }) {
+                deviceMessage = "Remove an unused transmission page before adding gear"
+                return
+            }
+            val updated = profileCollection.copy(activeId = existing.id, profiles = profileCollection.profiles.map {
+                if (it.id == existing.id) it.copy(name = if (it.name == "JSS TCM temperature test") "Transmission" else it.name,
+                    draft = updatedDraft) else it
+            })
+            if (!profileStore.save(updated)) { profileError = "Could not save transmission settings"; return }
+            profileCollection = updated
+            selectProfile(existing.id)
+            deviceMessage = "Transmission setup ready. Send setup to gauge."
+            return
         }
         if (profileCollection.profiles.size >= 8) { deviceMessage = "Remove an unused profile before adding the TCM test"; return }
-        val testDraft = Draft(pidId = "tcmtemp", source = "TCM", pages = listOf(
-            GaugePageDraft("page.tcm.temperature", "TCM temp (test)", GaugeLayout.Numeric, listOf("tcmtemp"))), alerts = emptyList())
-        val profile = VehicleProfile(ProfileStore.newId(), "JSS TCM temperature test", testDraft,
+        val testDraft = TransmissionSetup.draft()
+        val profile = VehicleProfile(ProfileStore.newId(), "Transmission", testDraft,
             profileCollection.active.primaryAdapter)
         val updated = profileCollection.copy(activeId = profile.id, profiles = profileCollection.profiles + profile)
         if (!profileStore.save(updated)) { profileError = "Could not save the TCM test profile"; return }
         profileCollection = updated
         draft = testDraft
         editingPageIndex = 0
-        deviceMessage = "Experimental TCM temperature profile ready. Keep the adapter in the TCM connector and send setup."
+        deviceMessage = "Transmission setup ready. Keep the adapter in the TCM connector and send setup."
     }
 
     fun createProfile() {
@@ -1430,13 +1443,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addPage(pidId: String = "rpm") {
-        if (draft.pages.size >= 8 || pidId !in ConfigurationProjector.supportedPidIds) return
+        if (draft.pages.size >= 8 || pidId !in ConfigurationProjector.pagePidIds(draft.source)) return
         val used = draft.pages.map { it.id }.toSet()
         val sequence = (1..99).first { "page.custom.$it" !in used }
         val page = GaugePageDraft("page.custom.$sequence", demoCatalog.first { it.id == pidId }.gaugeLabel,
             GaugeLayout.Numeric, listOf(pidId))
         editingPageIndex = draft.pages.size
-        save(draft.copy(pidId = pidId, layout = GaugeLayout.Numeric, source = "ECM",
+        save(draft.copy(pidId = pidId, layout = GaugeLayout.Numeric,
             pages = draft.pages + page))
     }
 
@@ -1466,15 +1479,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val current = pages[editingPageIndex]
         val ids = if (current.layout == GaugeLayout.Dual) {
             val second = current.pidIds.getOrNull(1)?.takeIf { it != pid.id }
-                ?: ConfigurationProjector.supportedPidIds.first { it != pid.id }
+                ?: ConfigurationProjector.pagePidIds(draft.source).first { it != pid.id }
             listOf(pid.id, second)
         } else listOf(pid.id)
-        pages[editingPageIndex] = current.copy(name = pid.gaugeLabel, pidIds = ids)
-        save(draft.copy(pidId = pid.id, source = pid.source, pages = pages))
+        val layout = if (pid.id == "tcmgear" && current.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual))
+            GaugeLayout.Numeric else current.layout
+        pages[editingPageIndex] = current.copy(name = pid.gaugeLabel, pidIds = ids, layout = layout)
+        save(draft.copy(pidId = pid.id, layout = layout, source = pid.source, pages = pages))
     }
 
     fun selectSecondaryPid(pid: PidExample) {
-        if (editingPageIndex !in draft.pages.indices || pid.id !in ConfigurationProjector.supportedPidIds) return
+        if (editingPageIndex !in draft.pages.indices || pid.id !in ConfigurationProjector.pagePidIds(draft.source)) return
         val pages = draft.pages.toMutableList()
         val current = pages[editingPageIndex]
         if (current.layout != GaugeLayout.Dual || current.pidIds.first() == pid.id) return
@@ -1488,7 +1503,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val current = pages[editingPageIndex]
         val ids = if (layout == GaugeLayout.Dual) {
             val secondary = current.pidIds.getOrNull(1)
-                ?: ConfigurationProjector.supportedPidIds.first { it != current.pidIds.first() }
+                ?: ConfigurationProjector.pagePidIds(draft.source).first { it != current.pidIds.first() }
             listOf(current.pidIds.first(), secondary)
         } else listOf(current.pidIds.first())
         pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids)

@@ -139,3 +139,13 @@ data becoming unavailable after disconnect, recovery after reconnect, and a
 trusted reference where available. Experimental meaning must be visible until
 validated; merely compiling or replaying a synthetic fixture does not finish
 the goal.
+
+## Combined workspace follow-up
+
+The subsequent parked gear comparison identified a useful current-gear read.
+The companion now upgrades the same TCM profile into a Transmission setup with
+Gear + Temperature together, using the existing page editor and adapter binding.
+Firmware dev.37-tcm was installed through App/Wi-Fi, and the owner confirmed the
+combined physical page worked. Normal labels omit test qualifiers; evidence and
+remaining qualification live in Expert/provenance. See [gear capture and combined
+setup](tcm-gear-capture.md) for implementation and acceptance details.

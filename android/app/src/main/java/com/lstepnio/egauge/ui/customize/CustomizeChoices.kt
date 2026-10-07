@@ -61,7 +61,7 @@ fun LayoutChoices(state: CustomizeUiState, current: PageUi, onSelect: (GaugeLayo
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val columns = if (fontScale > 1.3f || maxWidth < 300.dp) 1 else if (maxWidth >= 700.dp) 3 else 2
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            GaugeLayout.entries.chunked(columns).forEach { group ->
+            GaugeLayout.entries.filter { current.readingId != "tcmgear" || it in listOf(GaugeLayout.Numeric, GaugeLayout.Dual) }.chunked(columns).forEach { group ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     group.forEach { layout ->
                         val selected = current.layout == layout

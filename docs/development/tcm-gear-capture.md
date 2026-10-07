@@ -76,15 +76,41 @@ separate target-gear read at 22 5504. It does not identify a distinct D selector
 byte, validate actual gears 2..8, or demonstrate current/target divergence. No physical LCD gear
 verification or actual forward-gear qualification has occurred.
 
-All 50 host OBD
-tests pass, including the gear candidate parser, fixed request order, owner labels,
+All 51 host OBD tests pass, including the gear candidate parser, fixed request order, owner labels,
 route restoration, partial timeout evidence and CLI exclusions. These tests use
 synthetic/author fixture data and are not live vehicle observations.
 
 A distinct selected D position has not been identified: the captured candidate
 reports first gear in stationary D. Do not relabel that byte as D. Actual engaged
 gear 1..8 and commanded gear need separate validation; stationary D does not qualify
-all eight gears. Once a request is verified, add a typed discrete reading rather
-than treating enum values as temperature or ordinary numeric scaling. Preserve
-source identity, unavailable/unknown states and freshness in firmware, configuration
-and App UI. No firmware change or capability flag is enabled by this capture tool.
+all eight gears. The capture tool does not itself change firmware or capability flags.
+
+## Cohesive transmission setup
+
+Firmware `0.2.0-dev.37-tcm` adds current gear `22 5503` alongside the existing
+`22 04FE` temperature source. The exact requests, response lengths and routing
+are validated. Both use the existing scheduler, persisted configuration, unit
+settings and stale-data handling. The `gear` unit identifies a discrete value:
+only full-byte 0, 1..8, 11 and 13 are accepted, rendered N, 1..8, R and P.
+Unknown/reserved values become unavailable immediately; high bits are not masked
+away. Target gear is not substituted for current gear.
+
+The App uses one **Transmission** profile and the normal Numeric/Dual page
+editor. **Set up transmission** upgrades the existing temperature test profile
+in place, preserving profile ID and adapter binding. The original default page
+becomes a Dual Gear + Temperature overview. Custom pages are preserved and a
+Gear page added when capacity allows; repeated setup is idempotent. Normal labels
+are Gear and Transmission temperature. Qualification information stays in Expert
+and definition provenance; the single debug gate remains easy to change. Engine
+and transmission profiles remain separate because simultaneous adapter operation
+is not implemented. Gear does not offer Arc/Bar/Trend layouts or numeric alerts.
+
+58 Android tests pass, including combined projection/readback and idempotent
+profile upgrade. Sanitizer fixtures check the actual App asset with the production
+configuration compiler, gear rendering/unknown codes/units, and captured replies.
+The firmware builds successfully. App/Wi-Fi transfer completed and passive USB
+boot identifies dev.37-tcm. The combined setup passed validation and the App
+recovered after restart. The owner then confirmed the combined Gear + Temperature page worked on the
+physical gauge. Exact values were not restated in that confirmation. The owner also confirmed both readings became unavailable after adapter removal
+and returned after reconnecting. App readback reports configuration revision 28
+stored and running.

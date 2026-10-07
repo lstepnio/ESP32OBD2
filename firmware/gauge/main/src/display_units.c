@@ -24,6 +24,7 @@ int32_t display_units_value(int32_t canonical, const char *unit, bool imperial)
 const char *display_units_label(const char *unit, bool imperial)
 {
     if (!unit) return "";
+    if (strcmp(unit, "gear") == 0) return "";
     if (imperial) {
         if (strcmp(unit, "°C") == 0 || strcmp(unit, "degC") == 0) return "°F";
         if (strcmp(unit, "km/h") == 0 || strcmp(unit, "kph") == 0) return "mph";

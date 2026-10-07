@@ -69,7 +69,7 @@ jobs:
             tests/config_binding_test.c main/src/config_document.c main/src/config_runtime.c \
             main/src/json_guard.c main/src/obd_adapter_profile.c main/src/pid_decoder.c "$IDF_PATH/components/json/cJSON/cJSON.c" \
             -lm -o /tmp/config_binding_test
-          /tmp/config_binding_test ../../contracts/examples/config-bound-adapter.json
+          /tmp/config_binding_test ../../contracts/examples/config-bound-adapter.json ../../android/app/src/main/assets/numeric_config_template.json
 
   android-app:
     runs-on: ubuntu-24.04

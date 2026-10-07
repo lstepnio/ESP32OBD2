@@ -16,7 +16,7 @@ class AdapterIntegrationTest {
         val json = JSONObject(bytes.toString(Charsets.UTF_8))
         assertEquals("tcm", json.getJSONArray("sources").getJSONObject(0).getString("role"))
         assertTrue(json.getJSONArray("sources").getJSONObject(0).getString("label").length <= 32)
-        assertEquals("TCM temperature (experimental)", com.lstepnio.egauge.ui.state.readingName("tcmtemp"))
+        assertEquals("Transmission temperature", com.lstepnio.egauge.ui.state.readingName("tcmtemp"))
         val definition = json.getJSONArray("definitions").getJSONObject(0)
         assertEquals("04FE", definition.getJSONObject("request").getString("identifier"))
         assertEquals("7E1", definition.getJSONObject("request").getString("requestId"))

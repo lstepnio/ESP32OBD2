@@ -32,7 +32,7 @@ static esp_err_t validate(void)
 { config_document_context_t ctx={.base_revision=21,.max_adapter_links=2}; return config_document_validate(&partition,0,document_length,&ctx); }
 int main(int argc, char **argv)
 {
-    assert(argc==2);
+    assert(argc==3);
     FILE *file=fopen(argv[1],"rb"); assert(file);
     char input[65537]; size_t length=fread(input,1,sizeof(input)-1,file); fclose(file); input[length]=0;
     cJSON *root=cJSON_Parse(input); assert(root);
@@ -95,6 +95,36 @@ int main(int argc, char **argv)
     cJSON_ReplaceItemInObject(request,"requestId",cJSON_CreateString("7E1"));
     cJSON_ReplaceItemInObject(request,"identifier",cJSON_CreateString("5043"));
     set(root); assert(config_runtime_validate(&partition,0,document_length,NULL)==ESP_ERR_NOT_SUPPORTED);
+    cJSON_ReplaceItemInObject(request,"identifier",cJSON_CreateString("04FE"));
+    /* Use the actual App asset gear definition with the production compiler. */
+    file=fopen(argv[2],"rb"); assert(file);
+    length=fread(input,1,sizeof(input)-1,file); fclose(file); input[length]=0;
+    cJSON *asset=cJSON_Parse(input); assert(asset);
+    const cJSON *gear=NULL;
+    cJSON_ArrayForEach(gear,cJSON_GetObjectItem(asset,"definitions"))
+        if (!strcmp(cJSON_GetObjectItem(gear,"id")->valuestring,"transmission.gear")) break;
+    assert(gear);
+    cJSON *gear_definition=cJSON_Duplicate(gear,1);
+    cJSON_AddItemToArray(definitions,gear_definition);
+    cJSON *page=cJSON_GetArrayItem(pages,0);
+    cJSON_ReplaceItemInObject(page,"renderer",cJSON_CreateString("dual"));
+    cJSON_ReplaceItemInObject(page,"pidIds",cJSON_Parse("[\"engine.rpm\",\"transmission.gear\"]"));
+    set(root); assert(validate()==ESP_OK);
+    assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
+    assert(runtime.pid_count==2 && runtime.page_count==1 && runtime.pages[0].pid_count==2);
+    assert(runtime.pids[1].obd.pid==0x5503 && runtime.pids[1].obd.len==1);
+    const uint8_t park[]={13};
+    assert(pid_decoder_eval(&runtime.pids[1].obd.decoder,park,1,&temperature) && temperature==13);
+    cJSON_ReplaceItemInObject(page,"renderer",cJSON_CreateString("arc"));
+    cJSON_ReplaceItemInObject(page,"pidIds",cJSON_Parse("[\"transmission.gear\"]"));
+    set(root); assert(validate()==ESP_OK);
+    assert(config_runtime_validate(&partition,0,document_length,NULL)==ESP_ERR_NOT_SUPPORTED);
+    cJSON_ReplaceItemInObject(page,"renderer",cJSON_CreateString("numeric"));
+    cJSON_ReplaceItemInObject(cJSON_GetObjectItem(gear_definition,"request"),"identifier",cJSON_CreateString("5504"));
+    cJSON_ReplaceItemInObject(cJSON_GetObjectItem(gear_definition,"response"),"prefix",cJSON_CreateString("625504"));
+    set(root); assert(validate()==ESP_OK);
+    assert(config_runtime_validate(&partition,0,document_length,NULL)==ESP_ERR_NOT_SUPPORTED);
+    cJSON_Delete(asset);
     free(document); cJSON_Delete(root);
     puts("Production configuration binding validation and runtime fixtures passed");
 }

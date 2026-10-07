@@ -6,6 +6,7 @@
 #include "alert_engine.h"
 #include "config_trial_policy.h"
 #include "display_units.h"
+#include "transmission_gear.h"
 #include "json_guard.h"
 #include "pid_decoder.h"
 #include "poll_scheduler.h"
@@ -43,6 +44,16 @@ static void test_decoder(void)
 
 static void test_display_units(void)
 {
+    assert(strcmp(transmission_gear_label(13), "P") == 0);
+    assert(strcmp(transmission_gear_label(11), "R") == 0);
+    assert(strcmp(transmission_gear_label(0), "N") == 0);
+    assert(strcmp(transmission_gear_label(1), "1") == 0);
+    assert(strcmp(transmission_gear_label(8), "8") == 0);
+    for (int value = -1; value < 256; ++value)
+        assert((transmission_gear_label(value) != NULL) ==
+               (value >= 0 && (value <= 8 || value == 11 || value == 13)));
+    assert(display_units_value(13, "gear", true) == 13);
+    assert(strcmp(display_units_label("gear", true), "") == 0);
     assert(display_units_value(92, "°C", true) == 198);
     assert(display_units_value(-40, "degC", true) == -40);
     assert(display_units_value(64, "kph", true) == 40);

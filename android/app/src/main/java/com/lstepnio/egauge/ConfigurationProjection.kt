@@ -37,8 +37,11 @@ data class ConfigurationProjection(
 
 object ConfigurationProjector {
     val supportedPidIds = setOf("rpm", "coolant", "speed", "load", "fuel")
+    val transmissionPidIds = setOf("tcmtemp", "tcmgear")
+    fun pagePidIds(source: String) = if (source == "TCM" && BuildConfig.DEBUG) transmissionPidIds else supportedPidIds
     private val definitionIds = mapOf(
         "tcmtemp" to "transmission.temperature.experimental",
+        "tcmgear" to "transmission.gear",
         "rpm" to "engine.rpm",
         "coolant" to "engine.coolant",
         "speed" to "vehicle.speed",
@@ -48,10 +51,10 @@ object ConfigurationProjector {
 
     fun blockers(draft: Draft): List<String> = buildList {
         if (draft.source == "TCM") {
-            if (!BuildConfig.DEBUG || draft.pages.any { it.pidIds != listOf("tcmtemp") } || draft.alerts.isNotEmpty())
-                add("The experimental TCM setup supports only temperature pages without alerts")
-        } else if (draft.source != "ECM" || draft.pages.any { "tcmtemp" in it.pidIds } || draft.alerts.any { it.pidId == "tcmtemp" })
-            add("Engine and experimental TCM readings need separate profiles")
+            if (!BuildConfig.DEBUG || draft.alerts.isNotEmpty())
+                add("The TCM setup supports temperature and gear pages without alerts")
+        } else if (draft.source != "ECM" || draft.pages.any { page -> page.pidIds.any { it in transmissionPidIds } } || draft.alerts.any { it.pidId in transmissionPidIds })
+            add("Engine and transmission readings need separate adapter profiles")
         if (draft.pages.size !in 1..8) add("Choose between one and eight gauge pages")
         if (draft.pages.map { it.id }.distinct().size != draft.pages.size)
             add("Every page needs a unique identity")
@@ -59,8 +62,10 @@ object ConfigurationProjector {
             val expected = if (page.layout == GaugeLayout.Dual) 2 else 1
             if (page.pidIds.size != expected || page.pidIds.distinct().size != page.pidIds.size)
                 add("Page ${index + 1} needs $expected distinct reading${if (expected == 1) "" else "s"}")
-            if (page.pidIds.any { it !in (if (draft.source == "TCM" && BuildConfig.DEBUG) setOf("tcmtemp") else supportedPidIds) })
+            if (page.pidIds.any { it !in pagePidIds(draft.source) })
                 add("Page ${index + 1} contains a reading this firmware cannot execute")
+            if ("tcmgear" in page.pidIds && page.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual))
+                add("Gear uses Numeric or Dual layout")
             if (page.name.isBlank() || page.name.length > 32)
                 add("Page ${index + 1} needs a name of at most 32 characters")
         }
@@ -94,7 +99,7 @@ object ConfigurationProjector {
         val source = json.getJSONArray("sources").getJSONObject(0)
         if (draft.source == "TCM") {
             require(schemaVersion == 2 && adapter != null) { "Select the TCM adapter before sending its experimental setup" }
-            source.put("id", "tcm").put("role", "tcm").put("label", "TCM adapter (experimental)")
+            source.put("id", "tcm").put("role", "tcm").put("label", "Transmission adapter")
         }
         if (adapter != null) source.put("adapter", adapter.json()) else source.remove("adapter")
         json.put("baseRevision", baseRevision)
