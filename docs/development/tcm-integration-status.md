@@ -37,7 +37,13 @@ The published newer-Hemi ECM temperature candidate was rejected in both engine-o
 
 Subsequent bounded reads of `7E1 / 22 04 FE` returned `7E9 06 62 04 FE 55 54 55` three times while idling. The community OBDb first-byte conversion produces 45 C. A separate experimental temperature profile and firmware parser are implemented, and the image was transferred through App/Wi-Fi. The owner confirmed 45 C on the physical LCD, then dashes after adapter removal. App readback confirms revision 27 healthy, without trial or fallback, and firmware dev.36-tcm with valid OTA state. The owner then confirmed 45 C returned after reconnecting. Independent sensor-meaning validation remains pending. `22 50 43` returned zero even when idling and is not used. See the linked temperature goal for exact evidence and installation state.
 
-Required evidence for qualification: a trusted matching reference for this calibration and JSS bridge. Keep experimental interpretation visible and public capabilities disabled. Actual gear remains unimplemented and unvalidated.
+Required evidence for qualification: a trusted matching reference for this calibration and JSS bridge. Keep experimental interpretation visible and public capabilities disabled. Gear display remains unimplemented. A subsequent owner-labelled stationary
+comparison captured `22 5503` (current candidate) and `22 5504` (target
+candidate): P=0D, R=0B, N=00, stationary D=01, final P=0D, each twice.
+All replies came from 7E9 and adapter restoration completed. This supports an
+experimental P/R/N/first-gear interpretation; higher gears, current/target
+divergence and a distinct D selector indication remain unvalidated. See
+[gear capture evidence and implementation boundary](tcm-gear-capture.md).
 
 ## Concrete vendor information request
 

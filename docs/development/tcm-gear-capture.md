@@ -51,12 +51,38 @@ Example invocation, substituting the already physically identified Mac BLE ID:
 
 ## Acceptance and next implementation
 
-No physical gear capture has been performed at this checkpoint. All 50 host OBD
+The first owner-confirmed P baseline was captured over Mac BLE. Current request
+`22 5503` returned `7E9 04 62 55 03 0D` twice, and target request
+`22 5504` returned `7E9 04 62 55 04 0D` twice. Both agree with the
+published P mapping. `22 3C22` returned `7F 22 31` twice. TCM identity
+remained 68274867AE/CVN 8240DAE8, adapter settings were restored and Mac
+BLE released. The selector could not be moved normally with the engine off,
+so the owner started the engine and confirmed stationary R with the brake held.
+Current request returned `7E9 04 62 55 03 0B` twice and target request
+returned `7E9 04 62 55 04 0B` twice, agreeing with the published R mapping.
+The older request again returned NRC 31. Adapter settings were restored.
+With the owner-confirmed selector in N, current request returned
+`7E9 04 62 55 03 00` twice and target request returned
+`7E9 04 62 55 04 00` twice, agreeing with neutral. The older request
+again returned NRC 31, and adapter restoration completed. In owner-confirmed stationary D, current request returned
+`7E9 04 62 55 03 01` twice and target returned
+`7E9 04 62 55 04 01` twice. This agrees with first gear, not a separate
+D selector enum. The older request returned NRC 31, and adapter restoration
+completed. The final owner-confirmed idling P repeat returned `0D` twice for both
+current and target requests. Adapter restoration completed in all five sessions.
+The observed comparison is P=0D, R=0B, N=00, stationary D=01, P=0D.
+This identifies a useful experimental current-gear read at 22 5503 and a
+separate target-gear read at 22 5504. It does not identify a distinct D selector
+byte, validate actual gears 2..8, or demonstrate current/target divergence. No physical LCD gear
+verification or actual forward-gear qualification has occurred.
+
+All 50 host OBD
 tests pass, including the gear candidate parser, fixed request order, owner labels,
 route restoration, partial timeout evidence and CLI exclusions. These tests use
 synthetic/author fixture data and are not live vehicle observations.
 
-Selected position requires a repeatable matching P/R/N/D reference. Actual engaged
+A distinct selected D position has not been identified: the captured candidate
+reports first gear in stationary D. Do not relabel that byte as D. Actual engaged
 gear 1..8 and commanded gear need separate validation; stationary D does not qualify
 all eight gears. Once a request is verified, add a typed discrete reading rather
 than treating enum values as temperature or ordinary numeric scaling. Preserve

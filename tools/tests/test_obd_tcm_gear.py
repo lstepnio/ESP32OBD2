@@ -11,6 +11,16 @@ from obd_explore import main, tcm_gear_policy, tcm_gear_probe
 
 
 class GearTests(unittest.TestCase):
+    def test_owner_labelled_jeep_stationary_comparison(self):
+        # Actual 2026-10-06 replies; D gave first gear, not a D selector enum.
+        for selector, byte, gear in (('P', '0D', 'P'), ('R', '0B', 'R'),
+                                    ('N', '00', 'N'), ('D', '01', '1'), ('P', '0D', 'P')):
+            for command in ('225503', '225504'):
+                with self.subTest(selector=selector, command=command):
+                    result = decode_candidate(f'7E90462{command[2:]}{byte}\r\r>'.encode(), command)
+                    self.assertEqual(gear, result['published_gear'])
+                    self.assertFalse(result['qualified'])
+
     def test_published_fixtures_remain_unqualified_and_kind_is_separate(self):
         for command in ('225503', '225504'):
             for value, gear in ((0, 'N'), (1, '1'), (3, '3'), (11, 'R'), (13, 'P')):
