@@ -126,11 +126,16 @@ On 2026-10-07, the App Settings path confirmed five-second cycling. The owner
 watched the physical gauge for about 20 seconds without touching it and confirmed
 TRANSMISSION and GEAR alternate approximately every five seconds. The App then
 confirmed cycling Off again, retaining 100% brightness, 270° orientation and
-Imperial units. Gesture cooldown observation is pending in this bench session.
+Imperial units. The owner then confirmed the physical cooldown sequence: three upward swipes
+from GEAR jump to TRANSMISSION; an immediate return/repeat stays on GEAR during
+cooldown; after six seconds, three upward swipes jump again. This also establishes
+responsive physical navigation/touch after the revision-42 restart. The phone
+readback and the owner observations are separate evidence.
 
 An initial read-only phone test was interrupted by the Pixel charging screensaver
 at its screenshot assertion. After the owner unlocked the phone, the opening/resume
 test passed in 9.492 seconds, checking exact dev.42 firmware/ELF identity, OTA health 2,
 confirmed running revision 42, automatic settings refresh and unchanged saved profiles,
 configuration and display settings. Bluetooth toggling and picker cancellation were
-not enabled in this run. This does not establish physical gesture cooldown.
+not enabled in this run. The owner observation above, rather than this read-only phone test, establishes
+physical gesture cooldown for this session.

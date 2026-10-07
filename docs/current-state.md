@@ -212,5 +212,7 @@ and shortcut survived. Cycling was restored to its original Off setting, and pho
 wake preferences were restored. 101 Android unit tests, debug/test builds and lint
 passed. Earlier timeout-only repair did not cover this cache-invalidation case;
 see the [focused record](development/restart-and-dashboard-rollout.md). Owner confirmed five-second physical cycling and the App restored Off;
-physical gesture cooldown/touch checks, fresh firmware OTA with this App and two-adapter
-hardware qualification remain pending. Firmware remains signed dev.42.
+the owner also confirmed cooldown blocks an immediate repeat and permits a later
+jump, with responsive navigation/touch after restart. Fresh firmware OTA with this App,
+physical cycling while a gesture is pending, and two-adapter hardware qualification
+remain pending. Firmware remains signed dev.42.

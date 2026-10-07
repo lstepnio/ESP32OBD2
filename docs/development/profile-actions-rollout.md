@@ -46,8 +46,9 @@ sources. Then review/send the shortcut through the normal atomic path.
 ## Remaining checks
 
 - Owner confirmed normal physical display, horizontal swipes and the upward-gesture shortcut.
-- Physical cooldown, stationary pairing hold, rotation and visible automatic cycling
-  remain distinct from protected settings/setup persistence, which passed on App dev.39.
+- Owner confirmed physical five-second cycling and cooldown/later-repeat behavior.
+  Stationary pairing hold, rotation changes and cycling during a pending gesture remain
+  distinct from protected settings/setup persistence, which passed on App dev.39.
 - Initial timeout and service-invalidation recovery are covered in the
   [restart/persistence follow-up](restart-and-dashboard-rollout.md); fresh firmware OTA
   confirmation with the revised App remains pending.

@@ -22,8 +22,9 @@ does not establish control support. ABS targets must not be assumed to be the TC
 Installed dev.42 handles clicks and holds, with clicks advancing pages and holds
 opening pairing, and upward stroke recognition for the local page action. The owner
 confirmed that three upward swipes jump to the saved TRANSMISSION page. Protected
-settings/setup persistence passed on App dev.39; physical cooldown, cycling interaction
-and broader gesture ergonomics remain unqualified. See the
+settings/setup persistence passed on App dev.39; the owner also confirmed five-second
+page cycling and the physical cooldown/later-repeat sequence. Cycling during a pending
+gesture and broader gesture ergonomics remain unqualified. See the
 [restart and persistence record](../development/restart-and-dashboard-rollout.md).
 
 ## Decision
