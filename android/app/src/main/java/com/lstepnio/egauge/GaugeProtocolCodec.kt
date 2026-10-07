@@ -75,6 +75,7 @@ object GaugeProtocolCodec {
     }
 
     fun diagnostics(bytes: ByteArray): GaugeConfigTransferClient.Diagnostics {
+        if (bytes.size == 248 && bytes[0].toInt() == 15) return fullDiagnostics(bytes)
         require(bytes.size == 32 && bytes[0].toInt() == 5) {
             "Gauge returned an unsupported diagnostic snapshot"
         }
@@ -101,7 +102,68 @@ object GaugeProtocolCodec {
             flags and 16 != 0,
             bytes[5].toInt() and 255,
             code(10),
+            milKnown = flags and 3 != 0 || u32(bytes, 24) != 0L,
+            milAgeMs = (u32(bytes, 28) - u32(bytes, 24)) and 0xffffffffL,
         )
+    }
+
+    private fun fullDiagnostics(bytes: ByteArray): GaugeConfigTransferClient.Diagnostics {
+        fun byte(offset: Int) = bytes[offset].toInt() and 255
+        val source = byte(1)
+        val flags = byte(2)
+        val connected = flags and 4 != 0
+        val simulated = flags and 8 != 0
+        val milKnown = byte(23) == 1
+        val milState = byte(3)
+        val ecu = byte(20) or (byte(21) shl 8)
+        require(source in 0..1 && flags and 0xf0 == 0 && milState in 0..3 &&
+            byte(23) in 0..1 && byte(22) <= 127 && bytes.sliceArray(24..31).all { it == 0.toByte() } &&
+            ecu == if (source == 1) 0x7e9 else 0x7e8) { "Malformed diagnostic source/header" }
+        val now = u32(bytes, 12)
+        val milAge = if (milKnown) (now - u32(bytes, 16)) and 0xffffffffL else null
+        require((milState != 1 || milKnown) && (flags and 2 == 0 || milKnown) &&
+            (milKnown || (u32(bytes, 16) == 0L && byte(22) == 0))) { "Malformed MIL evidence" }
+        require(flags and 1 == 0 || (milKnown && connected && !simulated && milState == 1 && milAge!! <= 60_000)) {
+            "Malformed diagnostic MIL freshness"
+        }
+        val categories = (0..2).map { index ->
+            val offset = 32 + 72 * index
+            val state = byte(offset)
+            val categoryFlags = byte(offset + 1)
+            val count = byte(offset + 2)
+            val known = categoryFlags and 1 != 0
+            val fresh = categoryFlags and 2 != 0
+            val age = if (known) (now - u32(bytes, offset + 4)) and 0xffffffffL else null
+            require(state in 0..3 && categoryFlags and 0xf8 == 0 && count <= 32 && byte(offset + 3) == 0 &&
+                (state != 1 || known) && (known || (count == 0 && u32(bytes, offset + 4) == 0L)) &&
+                (!fresh || (known && state == 1 && connected && !simulated && age!! <= 120_000))) {
+                "Malformed diagnostic category"
+            }
+            val codes = (0 until count).map { codeIndex ->
+                diagnosticCode(bytes, offset + 8 + codeIndex * 2).also {
+                    require(it != null) { "Zero entry in diagnostic code list" }
+                }!!
+            }
+            require(codes.distinct().size == codes.size &&
+                bytes.sliceArray(offset + 8 + count * 2 until offset + 72).all { it == 0.toByte() }) {
+                "Duplicate diagnostic code or nonzero list padding"
+            }
+            DiagnosticCategory(listOf("Stored", "Pending", "Permanent")[index],
+                DiagnosticAvailability.entries[state], known, fresh, codes, age, categoryFlags and 4 != 0)
+        }
+        return GaugeConfigTransferClient.Diagnostics(flags and 1 != 0, flags and 2 != 0, byte(22),
+            categories[0].fresh, categories[0].codes.size, categories[0].codes.firstOrNull(),
+            categories[1].fresh, categories[1].codes.size, categories[1].codes.firstOrNull(),
+            categories[2].fresh, categories[2].codes.size, categories[2].codes.firstOrNull(),
+            if (source == 1) "TCM" else "ECM", ecu, u32(bytes, 4), u32(bytes, 8), connected, simulated,
+            milKnown, DiagnosticAvailability.entries[milState], milAge, categories)
+    }
+
+    private fun diagnosticCode(bytes: ByteArray, offset: Int): String? {
+        val a = bytes[offset].toInt() and 255
+        val b = bytes[offset + 1].toInt() and 255
+        if (a == 0 && b == 0) return null
+        return "${"PCBU"[a ushr 6]}${(a ushr 4) and 3}${(a and 15).toString(16).uppercase()}${b.toString(16).uppercase().padStart(2, '0')}"
     }
 
     fun runtimeIdentity(bytes: ByteArray): GaugeConfigTransferClient.RuntimeIdentity {

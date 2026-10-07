@@ -70,6 +70,7 @@ typedef struct {
 typedef struct {
     bool valid;
     bool mil_on;
+    bool transmission;
     uint8_t count;
     char first_code[6];
 } ui_diagnostics_t;
@@ -648,6 +649,7 @@ static void ui_task(lv_timer_t *timer)
     if (xQueueReceive(ui->rtos.diagnostics_que, &diagnostics, 0) == pdTRUE &&
         (!ui->diagnostics_rendered || diagnostics.valid != ui->rendered_diagnostics.valid ||
          diagnostics.mil_on != ui->rendered_diagnostics.mil_on ||
+         diagnostics.transmission != ui->rendered_diagnostics.transmission ||
          diagnostics.count != ui->rendered_diagnostics.count ||
          strcmp(diagnostics.first_code, ui->rendered_diagnostics.first_code) != 0)) {
         ui->rendered_diagnostics = diagnostics;
@@ -660,7 +662,7 @@ static void ui_task(lv_timer_t *timer)
                 diagnostics.mil_on ? lv_color_hex(color_warning) : lv_color_hex(color_text_primary),
                 LV_PART_MAIN);
             lv_label_set_text_fmt(ui->widgets.diagnostics_lbl, "%s %u%s%s",
-                diagnostics.mil_on ? "CEL" : "DTC", diagnostics.count,
+                diagnostics.transmission ? "TCM" : diagnostics.mil_on ? "CEL" : "DTC", diagnostics.count,
                 diagnostics.first_code[0] ? "  " : "", diagnostics.first_code);
             lv_obj_remove_flag(ui->widgets.diagnostics_lbl, LV_OBJ_FLAG_HIDDEN);
         }
@@ -966,11 +968,11 @@ void ui_set_alert(ui_t *ui, uint8_t severity, bool unavailable, const char *labe
     xQueueOverwrite(ui->rtos.alert_que, &alert);
 }
 
-void ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on,
+void ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on, bool transmission,
                         uint8_t count, const char *first_code)
 {
     if (!ui || !ui->rtos.diagnostics_que) return;
-    ui_diagnostics_t diagnostics = {.valid = valid, .mil_on = mil_on, .count = count};
+    ui_diagnostics_t diagnostics = {.valid = valid, .mil_on = mil_on, .transmission = transmission, .count = count};
     if (first_code) snprintf(diagnostics.first_code, sizeof(diagnostics.first_code),
                              "%s", first_code);
     xQueueOverwrite(ui->rtos.diagnostics_que, &diagnostics);

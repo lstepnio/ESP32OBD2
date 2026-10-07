@@ -229,6 +229,20 @@ async def probe(session, result, maps, duration, *, clock=None, sleep=None):
             break
 
 
+def aggregate_reports(reports):
+    """Compare labelled recordings without treating state correlation as sensor proof."""
+    comparisons = {}
+    for index, report in enumerate(reports):
+        for request, group in report['requests'].items():
+            comparisons.setdefault(request, []).append({
+                'session_index': index, 'owner_reported_state': report['owner_reported_state'],
+                'samples': group['samples'], 'statuses': group['statuses'], 'values': group['values']})
+    return {'sessions': reports, 'comparison_by_request': comparisons,
+            'incomplete_sessions': [i for i, r in enumerate(reports)
+                                    if r.get('stop_reason') or not r.get('adapter_restored')],
+            'limit': 'Owner-labelled state correlation is not independent sensor validation.'}
+
+
 def main():
     parser = argparse.ArgumentParser(description='Offline summary of a combined TCM exploration.json')
     parser.add_argument('recording', type=Path, nargs='+')
@@ -238,8 +252,10 @@ def main():
         record = json.loads(path.read_text())
         report = summarize(record['tcm_values'])
         report['adapter_restored'] = record.get('adapter_restored', False)
+        report['restore_error'] = record.get('restore_error')
+        report['recording'] = str(path)
         reports.append(report)
-    print(json.dumps(reports[0] if len(reports) == 1 else {'sessions': reports}, indent=2))
+    print(json.dumps(reports[0] if len(reports) == 1 else aggregate_reports(reports), indent=2))
 
 
 if __name__ == '__main__':

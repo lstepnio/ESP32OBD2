@@ -325,7 +325,7 @@ static void app_tick_task(void *arg)
         ui_set_alert(ui, alert.severity, alert.unavailable, alert.label);
         diagnostics_snapshot_t diagnostics;
         diagnostics_state_snapshot(now_ms, &diagnostics);
-        ui_set_diagnostics(ui, diagnostics.valid, diagnostics.mil_on,
+        ui_set_diagnostics(ui, diagnostics.valid, diagnostics.mil_on, diagnostics.transmission,
                            diagnostics.reported_count, diagnostics.first_code);
         uint32_t ticks = atomic_fetch_add(&g_app_tick_count, 1) + 1;
         if (ticks % 600 == 0) {
@@ -386,6 +386,7 @@ static void obd_task(void *arg)
                 continue;
             }
             ESP_LOGI(TAG, "Vehicle adapter link ready");
+            diagnostics_state_connected();
             reconnect_delay_ms = 500;
             poll_scheduler_init(&scheduler);
             continue;
@@ -398,19 +399,27 @@ static void obd_task(void *arg)
             intervals[i] = g_runtime ? g_runtime->pids[i].poll_ms : 500;
         poll_job_t job = poll_scheduler_next(&scheduler, now_ms, intervals, count);
         if (job.kind == POLL_JOB_NONE) continue;
-        if (g_runtime && (g_runtime->simulated_adapter || g_runtime->transmission_source) &&
+        if (g_runtime && g_runtime->simulated_adapter &&
             (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC)) continue;
         if (job.kind == POLL_JOB_MIL) {
-            ble_obd_rxtx_ecu(obd, 1, 0x01, 0x7e8, 700);
+            elm_result_t response;
+            if (ble_obd_rxtx_status_ecu(obd, 1, 0x01,
+                g_runtime && g_runtime->transmission_source ? 0x7e9 : 0x7e8, 700, &response) != 0)
+                diagnostics_state_failed(1, response == ELM_UNSUPPORTED ?
+                    DIAGNOSTICS_UNSUPPORTED : DIAGNOSTICS_UNAVAILABLE);
             continue;
         }
         if (job.kind == POLL_JOB_DTC) {
             uint8_t codes[64];
             size_t code_length = sizeof(codes);
-            if (ble_obd_read_service(obd, dtc_modes[job.index], 1500,
-                                     codes, &code_length) == 0)
+            elm_result_t response;
+            if (ble_obd_read_service_status_ecu(obd, dtc_modes[job.index],
+                    g_runtime && g_runtime->transmission_source ? 0x7e9 : 0x7e8,
+                    1500, codes, &code_length, &response) == 0)
                 diagnostics_state_codes(dtc_modes[job.index], codes, code_length,
                                         pdTICKS_TO_MS(xTaskGetTickCount()));
+            else diagnostics_state_failed(dtc_modes[job.index], response == ELM_UNSUPPORTED ?
+                DIAGNOSTICS_UNSUPPORTED : DIAGNOSTICS_UNAVAILABLE);
             continue;
         }
 
@@ -576,6 +585,9 @@ void app_main(void)
 
     config_document_init();
     init_config();
+    diagnostics_state_configure(g_runtime && g_runtime->transmission_source,
+        g_runtime ? g_running_config_record.revision : 0,
+        g_runtime && g_runtime->simulated_adapter);
     bool pairing_required = !ble_companion_load_owner();
     alert_engine_init(g_runtime);
 

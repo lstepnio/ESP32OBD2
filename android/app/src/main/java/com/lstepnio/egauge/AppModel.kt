@@ -829,7 +829,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         diagnostics = value
         ownerAccess = OwnerAccess.AUTHENTICATED
         diagnosticsObservedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
-        deviceMessage = "Protected diagnostic snapshot read. Vehicle evidence is shown below."
+        deviceMessage = "Fault snapshot read. Each category shows when it was checked."
     }
 
     fun diagnosticsCurrent(nowElapsedMs: Long = android.os.SystemClock.elapsedRealtime()): Boolean {
@@ -1257,9 +1257,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 "Select this car's adapter and send its setup to the gauge before checking vehicle faults"
             }
         }
-        diagnosticsRead(GaugeConfigTransferClient(getApplication()).readDiagnostics(bleClient.selectedGauge()))
+        val snapshot = GaugeConfigTransferClient(getApplication()).readDiagnostics(bleClient.selectedGauge())
+        validateDiagnosticScope(snapshot, draft.source,
+            activeDocument?.takeIf { it.vehicleProfileId == profileCollection.activeId }?.revision)
+        diagnosticsRead(snapshot)
         operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-            "Vehicle fault snapshot checked", "Fresh when read from the gauge", terminal = true)
+            "Fault snapshot read", "Review each category's last checked status", terminal = true)
     }
 
     fun readRunningFirmware() = launchGaugeOperation(OperationKind.READ, "Checking firmware") { id ->

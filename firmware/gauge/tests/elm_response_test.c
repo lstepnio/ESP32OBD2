@@ -151,5 +151,9 @@ int main(void)
     }
     assert(identifier("NO DATA\r>", 1, &payload) == ELM_NO_DATA);
     assert(identifier(huge, 1, &payload) == ELM_OVERFLOW);
+    assert(faults("7E9037F0311\r>", 3, 0x7e9, 1, &payload) == ELM_UNSUPPORTED);
+    assert(faults("7E9037F0731\r>", 7, 0x7e9, 1, &payload) == ELM_UNSUPPORTED);
+    assert(faults("7E9037F0322\r>", 3, 0x7e9, 1, &payload) != ELM_UNSUPPORTED);
+    assert(faults("7E8037F0311\r>", 3, 0x7e9, 1, &payload) != ELM_UNSUPPORTED);
     puts("ELM response fixtures passed");
 }

@@ -193,25 +193,17 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
 }
 
 private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<DetailUi>): CarUiState {
-    val data = diagnostics
-    val current = diagnosticsCurrent(now)
-    val status = when {
-        data == null -> StatusUi("No car readings yet", "Choose the adapter for this car, then check its connection.", StatusTone.Disabled)
-        !current -> StatusUi("Car readings are out of date",
-            if (data.milOn) "The check-engine light was on at the last check. Check again before relying on this status."
-            else "The last check is more than 30 seconds old. Check again before relying on it.", StatusTone.Stale)
-        !data.milFresh -> StatusUi("Check-engine status is unavailable", "Your gauge has no recent response from the car. Check the adapter connection.", StatusTone.Stale)
-        data.milOn -> StatusUi("Check-engine light is on", "${data.reportedCount} fault codes reported. Review the available codes.", StatusTone.Critical)
-        else -> StatusUi("Check-engine light is off", "This is the last checked status, not a live reading.", StatusTone.Success)
-    }
-    val faults = if (data != null) listOfNotNull(
-        data.confirmedFirst?.let { FaultUi(it, faultDescription(it), if (current && data.confirmedFresh) "Confirmed" else "Last checked · Confirmed") },
-        data.pendingFirst?.let { FaultUi(it, faultDescription(it), if (current && data.pendingFresh) "Pending" else "Last checked · Pending") },
-        data.permanentFirst?.let { FaultUi(it, faultDescription(it), if (current && data.permanentFresh) "Permanent" else "Last checked · Permanent") },
-    ) else emptyList()
+    val data = diagnostics?.takeIf { it.source == draft.source &&
+        (it.revision == null || (activeDocument?.vehicleProfileId == profileCollection.activeId &&
+            it.revision == activeDocument?.revision)) }
+    val elapsed = diagnosticsObservedAtElapsedMs?.let { now - it } ?: Long.MAX_VALUE
+    val sources = diagnosticSources(data, elapsed, draft.source)
+    val status = sources.first { it.title == if (draft.source == "TCM") "Transmission" else "Engine" }.status
+    val faults = sources.flatMap { it.categories.flatMap { category -> category.faults } }
     return CarUiState(profileCollection.active.name, profileCollection.profiles.map { VehicleUi(it.id, it.name) },
         profileCollection.activeId, status, faults, !busy && capabilities?.experimentalNumericConfig == true,
-        data != null, profileError != null, details,
+        data != null && (data.categories == null || data.categories.any { it.truncated }), profileError != null, details,
+        faultSources = sources,
         adapterAvailable = capabilities?.adapterRegistryVersion == 1 && !busy,
         adapterSelected = profileCollection.active.primaryAdapter?.let { "${if (it.driver == "elm-bench-v1") "Bench simulator" else "Vehicle adapter"} · ${it.address.takeLast(5)}" },
         adapterMessage = if (adapterSourceStatus != null && (adapterStatusCheckedAt == null ||

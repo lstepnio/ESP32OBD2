@@ -290,6 +290,9 @@ elm_result_t elm_response_decode_dtcs_for_ecu(const elm_response_t *response, ui
         complete = received == expected;
     }
     if (no_data) return started ? ELM_MALFORMED : ELM_NO_DATA;
+    if (complete && expected == 3 && message[0] == 0x7f && message[1] == mode &&
+        (message[2] == 0x11 || message[2] == 0x12 || message[2] == 0x31))
+        return ELM_UNSUPPORTED;
     if (!complete || expected < 2 || message[0] != (uint8_t)(mode+0x40) ||
         expected != 2U + 2U*message[1]) return ELM_MALFORMED;
     payload->length = expected-2;

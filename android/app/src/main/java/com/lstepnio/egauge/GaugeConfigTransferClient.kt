@@ -22,7 +22,9 @@ import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal class GaugeLinkException(message: String) : IllegalStateException(message)
+internal open class GaugeLinkException(message: String) : IllegalStateException(message)
+internal class GaugeCommandRejectedException(val status: Int) :
+    GaugeLinkException("Protected write failed (GATT $status)")
 
 enum class FirmwareUpdateStage {
     PREPARING,
@@ -56,7 +58,13 @@ class GaugeConfigTransferClient(private val context: Context) {
     data class Diagnostics(val milFresh: Boolean, val milOn: Boolean, val reportedCount: Int,
                            val confirmedFresh: Boolean, val confirmedCount: Int, val confirmedFirst: String?,
                            val pendingFresh: Boolean, val pendingCount: Int, val pendingFirst: String?,
-                           val permanentFresh: Boolean, val permanentCount: Int, val permanentFirst: String?)
+                           val permanentFresh: Boolean, val permanentCount: Int, val permanentFirst: String?,
+                           val source: String = "ECM", val responder: Int = 0x7e8,
+                           val revision: Long? = null, val session: Long? = null,
+                           val connected: Boolean = true, val simulated: Boolean = false,
+                           val milKnown: Boolean = milFresh,
+                           val milAvailability: DiagnosticAvailability = if (milFresh) DiagnosticAvailability.Available else DiagnosticAvailability.NotChecked,
+                           val milAgeMs: Long? = null, val categories: List<DiagnosticCategory>? = null)
     data class BootIdentity(val otaState: Int, val partitionSubtype: Int, val secureVersion: Long,
                             val elfSha256: String, val version: String, val partitionAddress: Long)
     data class RuntimeIdentity(val running: Boolean, val usedPreviousGeneration: Boolean,
@@ -170,7 +178,8 @@ class GaugeConfigTransferClient(private val context: Context) {
                      (result.bytes.size == 8 && result.bytes[0].toInt() in 10..11) ||
                      (result.bytes.size == 10 && result.bytes[0].toInt() == 12) ||
                      (result.bytes.size == 140 && result.bytes[0].toInt() == 13) ||
-                     (result.bytes.size == 160 && result.bytes[0].toInt() == 14))) return
+                     (result.bytes.size == 160 && result.bytes[0].toInt() == 14) ||
+                     (result.bytes.size == 248 && result.bytes[0].toInt() == 15))) return
                 if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
                     result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
                     error("Gauge owner state read failed (${result.status})")
@@ -204,7 +213,7 @@ class GaugeConfigTransferClient(private val context: Context) {
             val write = next()
             if (write !is Event.Write) throw GaugeLinkException("Unexpected gauge response during write")
             if (write.status != BluetoothGatt.GATT_SUCCESS)
-                throw GaugeLinkException("Protected write failed (GATT ${write.status})")
+                throw GaugeCommandRejectedException(write.status)
         }
         suspend fun command(opcode: Int, sequence: Long, payload: ByteArray = byteArrayOf()): Status {
             writeRaw(byteArrayOf(opcode.toByte()) + le32(sequence) + payload)
@@ -340,7 +349,14 @@ class GaugeConfigTransferClient(private val context: Context) {
     suspend fun readDiagnostics(device: BluetoothDevice): Diagnostics {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         val bytes = withGauge(device) {
-            writeRaw(byteArrayOf(0x30) + le32(1))
+            try {
+                writeRaw(byteArrayOf(0x39) + le32(1))
+            } catch (error: GaugeCommandRejectedException) {
+                // Only explicit unsupported opcode/length permits legacy fallback.
+                // Link loss, auth failure and malformed snapshots are never downgraded.
+                if (error.status !in setOf(6, 13)) throw error
+                writeRaw(byteArrayOf(0x30) + le32(1))
+            }
             readRaw()
         }
         return GaugeProtocolCodec.diagnostics(bytes)

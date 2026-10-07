@@ -326,6 +326,13 @@ ble_obd_ctx_t *ble_obd_connect_profile_ecu(unsigned source_id, const char *peer_
 
 int ble_obd_rxtx_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid, uint32_t ecu, uint32_t timeout_ms)
 {
+    return ble_obd_rxtx_status_ecu(obd, mode, pid, ecu, timeout_ms, NULL);
+}
+
+int ble_obd_rxtx_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid,
+                          uint32_t ecu, uint32_t timeout_ms, elm_result_t *status)
+{
+    if (status) *status = ELM_ADAPTER_ERROR;
     if (!obd || !timeout_ms || (mode != 1 && mode != 0x22) ||
         (mode == 1 && pid > 255) || (mode == 0x22 && ecu != obd->discovery_ecu)) return -1;
     TickType_t budget = pdMS_TO_TICKS(timeout_ms);
@@ -367,6 +374,7 @@ int ble_obd_rxtx_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid, uint32_t ec
     elm_result_t decoded = mode == 0x22
         ? elm_response_decode_identifier(&obd->response, pid, ecu, &payload)
         : elm_response_decode_for_ecu(&obd->response, mode, pid, ecu, &payload);
+    if (status) *status = decoded;
     obd_trace_emit(obd->source_id, obd->active_generation, "decoded", payload.bytes, payload.length, decoded);
     if (decoded == ELM_OK && !atomic_load(&obd->rx_overflow) &&
         atomic_load(&obd->generation) == obd->active_generation) {
@@ -395,7 +403,15 @@ int ble_obd_read_service(ble_obd_ctx_t *obd, uint8_t mode, uint32_t timeout_ms,
 int ble_obd_read_service_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t ecu,
                             uint32_t timeout_ms, uint8_t *data, size_t *length)
 {
+    return ble_obd_read_service_status_ecu(obd, mode, ecu, timeout_ms, data, length, NULL);
+}
+
+int ble_obd_read_service_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t ecu,
+    uint32_t timeout_ms, uint8_t *data, size_t *length, elm_result_t *status)
+{
+    if (status) *status = ELM_ADAPTER_ERROR;
     if (!obd || !data || !length || *length == 0 || !timeout_ms ||
+        ecu != obd->discovery_ecu ||
         (mode != 3 && mode != 7 && mode != 10)) return -1;
     TickType_t budget = pdMS_TO_TICKS(timeout_ms);
     if (!budget) budget = 1;
@@ -431,6 +447,7 @@ int ble_obd_read_service_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t ecu,
     obd->consecutive_timeouts = 0;
     elm_payload_t payload;
     elm_result_t decoded = elm_response_decode_dtcs_for_ecu(&obd->response, mode, ecu, &payload);
+    if (status) *status = decoded;
     obd_trace_emit(obd->source_id, obd->active_generation, "decoded", payload.bytes, payload.length, decoded);
     if (decoded == ELM_OK && payload.length <= *length &&
         !atomic_load(&obd->rx_overflow) &&

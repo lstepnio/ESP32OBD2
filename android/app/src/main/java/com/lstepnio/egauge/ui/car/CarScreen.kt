@@ -21,15 +21,25 @@ fun CarScreen(state: CarUiState, onCheck: () -> Unit, onSetup: () -> Unit,
         ResponsivePanels(first = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 StatusCard(state.status)
-                state.faults.forEach { fault ->
+                state.faultSources.forEach { source ->
                     Panel {
-                        Text(fault.code, style = MaterialTheme.typography.headlineSmall)
-                        Text(fault.description, style = MaterialTheme.typography.bodyLarge)
-                        Text(fault.category, style = MaterialTheme.typography.labelMedium,
+                        SectionTitle(source.title)
+                        Text(source.status.title, style = MaterialTheme.typography.titleMedium)
+                        Text(source.status.detail, style = MaterialTheme.typography.bodyMedium)
+                        source.categories.forEach { category ->
+                            Text(category.name, style = MaterialTheme.typography.titleMedium)
+                            Text(category.status, style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            category.faults.forEach { fault ->
+                                Text(fault.code, style = MaterialTheme.typography.headlineSmall)
+                                Text(fault.description, style = MaterialTheme.typography.bodyLarge)
+                                Text(fault.category, style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     }
                 }
-                if (state.incomplete) Text("Only the first code in each category is available. More codes may be present.",
+                if (state.incomplete) Text("This gauge returned a partial code list. More codes may be present.",
                     style = MaterialTheme.typography.bodyLarge, color = LocalSemanticColors.current.warning)
                 if (state.faults.isNotEmpty()) Text("A code points to a problem area. It does not identify a part to replace.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -52,7 +62,7 @@ fun CarScreen(state: CarUiState, onCheck: () -> Unit, onSetup: () -> Unit,
                         TextButton({ onChooseAdapter(null) }, enabled = state.adapterAvailable) { Text("Remove adapter") }
                     PrimaryAction("Send setup to gauge", onSendAdapter, enabled = state.canSendAdapter)
                 }
-                PrimaryAction(if (state.canCheck) "Check car" else "Set up gauge",
+                PrimaryAction(if (state.canCheck) "Check faults" else "Set up gauge",
                     if (state.canCheck) onCheck else onSetup)
             }
         })

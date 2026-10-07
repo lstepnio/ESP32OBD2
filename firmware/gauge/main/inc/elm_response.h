@@ -10,7 +10,7 @@
 
 typedef enum {
     ELM_PENDING, ELM_OK, ELM_NO_DATA, ELM_ADAPTER_ERROR,
-    ELM_MALFORMED, ELM_OVERFLOW, ELM_AMBIGUOUS
+    ELM_MALFORMED, ELM_OVERFLOW, ELM_AMBIGUOUS, ELM_UNSUPPORTED
 } elm_result_t;
 
 /* One instance per adapter. Owned by its polling task, never by the BLE callback. */

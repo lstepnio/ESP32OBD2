@@ -6,6 +6,10 @@
 #include "esp_err.h"
 
 #define DIAGNOSTICS_STATUS_SIZE 32
+#define DIAGNOSTICS_FULL_SIZE 248
+#define DIAGNOSTICS_MAX_CODES 32
+typedef enum { DIAGNOSTICS_NOT_CHECKED, DIAGNOSTICS_OK,
+               DIAGNOSTICS_UNAVAILABLE, DIAGNOSTICS_UNSUPPORTED } diagnostics_result_t;
 
 typedef struct {
     bool valid;
@@ -13,12 +17,17 @@ typedef struct {
     uint8_t reported_count;
     uint8_t stored_count;
     char first_code[6];
+    bool transmission;
 } diagnostics_snapshot_t;
 
 esp_err_t diagnostics_state_init(void);
+void diagnostics_state_configure(bool transmission, uint32_t revision, bool simulated);
+void diagnostics_state_connected(void);
+void diagnostics_state_failed(uint8_t mode, diagnostics_result_t result);
 void diagnostics_state_mil(bool on, uint8_t reported_count, uint32_t now_ms);
 void diagnostics_state_codes(uint8_t mode, const uint8_t *bytes, size_t length,
                              uint32_t now_ms);
 void diagnostics_state_disconnected(void);
 void diagnostics_state_snapshot(uint32_t now_ms, diagnostics_snapshot_t *out);
 size_t diagnostics_state_status(uint8_t out[DIAGNOSTICS_STATUS_SIZE]);
+size_t diagnostics_state_full_status(uint32_t now_ms, uint8_t out[DIAGNOSTICS_FULL_SIZE]);

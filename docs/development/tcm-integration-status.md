@@ -34,11 +34,20 @@ Raw private capture: `artifacts/vehicle-captures/20261007T030853.309411Z-transmi
 
 Verification: 33 host capture tests passed, C parser tests passed with address/undefined-behavior sanitizers, contract/document validation passed, and the existing ESP-IDF firmware target built successfully. This image has not been installed or physically verified. Its SHA-256 is recorded privately with the capture; it is not a qualified TCM release.
 
-## App and firmware integration still required
+## App and firmware fault integration prepared offline
 
-Firmware `0.2.0-dev.36-tcm` now accepts a single experimental TCM temperature source, selected through a separate debug App profile. Its scheduler connects source zero. The TCM temperature profile suppresses ECM fault jobs, and the Android protected diagnostics message still contains only counts and first codes. This does not expose all four TCM codes in the app. The TCM fault product path is not complete or physically verified.
+The uninstalled dev.38-faults build now polls diagnostics for the active TCM profile,
+retains complete bounded lists and supplies source/ECU/revision/session/freshness
+through protected command 39, packet version 15. Android groups Engine and
+Transmission and distinguishes empty accepted lists from unavailable, unsupported,
+unknown and old evidence. Source/profile mismatch is rejected. Older firmware is
+readable through the Engine-only partial snapshot, with a partial-list notice.
 
-The next implementation must retain source identity throughout the adapter worker, fault snapshot and companion message. A versioned message should expose the complete bounded list for each category, freshness and the responding ECU. The Android Faults screen should group Engine and Transmission separately and report unavailable/unsupported separately from an empty successful list. An ECM connection must never imply that TCM faults were checked. Diagnostic-only TCM configuration and one-adapter port switching need an explicit supported runtime mode; dual-adapter operation remains a separate qualification.
+The existing single-source Transmission profile is reused. No diagnostic-only mode
+or parallel adapter model was introduced. An ECM connection never implies that TCM
+faults were checked. Physical qualification of the 248-byte long read and fault
+polling alongside Gear + Temperature remains pending. Public capabilities are unchanged.
+See [wire format and acceptance limits](../protocol/diagnostics-and-alerts.md).
 
 ## Temperature and actual gear
 
@@ -46,7 +55,7 @@ The published newer-Hemi ECM temperature candidate was rejected in both engine-o
 
 Subsequent bounded reads of `7E1 / 22 04 FE` returned `7E9 06 62 04 FE 55 54 55` three times while idling. The community OBDb first-byte conversion produces 45 C. A separate experimental temperature profile and firmware parser are implemented, and the image was transferred through App/Wi-Fi. The owner confirmed 45 C on the physical LCD, then dashes after adapter removal. App readback confirms revision 27 healthy, without trial or fallback, and firmware dev.36-tcm with valid OTA state. The owner then confirmed 45 C returned after reconnecting. Independent sensor-meaning validation remains pending. `22 50 43` returned zero even when idling and is not used. See the linked temperature goal for exact evidence and installation state.
 
-Required evidence for qualification: a trusted matching reference for this calibration and JSS bridge. Keep experimental interpretation visible and public capabilities disabled. Gear display remains unimplemented. A subsequent owner-labelled stationary
+Required evidence for qualification: a trusted matching reference for this calibration and JSS bridge. Keep experimental interpretation visible and public capabilities disabled. Gear display was subsequently implemented in dev.37 as described below. An owner-labelled stationary
 comparison captured `22 5503` (current candidate) and `22 5504` (target
 candidate): P=0D, R=0B, N=00, stationary D=01, final P=0D, each twice.
 All replies came from 7E9 and adapter restoration completed. This supports an

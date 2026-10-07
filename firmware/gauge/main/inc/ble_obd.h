@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "elm_response.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Definitions
@@ -47,6 +48,10 @@ int ble_obd_read_service(ble_obd_ctx_t *obd, uint8_t mode, uint32_t timeout_ms,
                          uint8_t *data, size_t *length);
 int ble_obd_read_service_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t ecu,
                             uint32_t timeout_ms, uint8_t *data, size_t *length);
+int ble_obd_read_service_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t ecu,
+    uint32_t timeout_ms, uint8_t *data, size_t *length, elm_result_t *status);
+int ble_obd_rxtx_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid,
+    uint32_t ecu, uint32_t timeout_ms, elm_result_t *status);
 
 /* Persisted selection includes BLE address type. Changing it invalidates the link. */
 ble_obd_ctx_t *ble_obd_connect_bound(unsigned source_id, const char *peer_mac, uint8_t address_type,

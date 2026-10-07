@@ -73,7 +73,7 @@ void  ui_set_units(ui_t *ui, bool imperial_units);
 void  ui_show_pairing_code(ui_t *ui, uint32_t passkey);
 void  ui_set_pairing_identifier(ui_t *ui, const char *identifier);
 void  ui_set_alert(ui_t *ui, uint8_t severity, bool unavailable, const char *label);
-void  ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on,
+void  ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on, bool transmission,
                          uint8_t count, const char *first_code);
 void  ui_start_display_calibration(ui_t *ui);
 void  ui_next_display_calibration(ui_t *ui);

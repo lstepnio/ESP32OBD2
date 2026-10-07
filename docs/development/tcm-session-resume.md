@@ -16,6 +16,23 @@ until another day. Do not start a live capture until the owner confirms readines
   on adapter removal/reconnection. Exact values were not restated for that check.
 - This next Mac capture requires no firmware update or Android change.
 
+## Offline preparation completed after saving
+
+- Full fault lists and category freshness implemented in firmware and Android.
+- Verification passed: 63 Android tests, 70 host tests, C parser/state sanitizers,
+  Android lint, ESP-IDF build and contract/document validation.
+- Exact prepared files are retained privately under `artifacts/offline-prepared/dev.38-faults/`,
+  with filenames, sizes and SHA-256 hashes in `manifest.json`. They are uninstalled.
+- Protected command 39 / packet version 15 adds source, ECU, configuration revision,
+  connection session and bounded full lists. Old firmware has an Engine-only partial fallback.
+- No device or phone updated, and no BLE adapter connection made during this work.
+- First product check: install the Android build, update dev.38-faults through
+  App/Wi-Fi, select/send the Transmission profile and allow initial diagnostic polls.
+  Check all categories on Pixel, then unplug/reconnect the adapter and check that
+  old evidence is labelled last checked and new-session readings return.
+- The previous physically verified dev.37 combined Gear + Temperature page is the
+  hardware baseline. Public capability flags remain disabled.
+
 ## Next session starts here
 
 Ask the owner to confirm all of the following:
@@ -48,8 +65,9 @@ prepared before departure and managed by a passenger or unattended logger.
   temperature meaning/scale remain to be qualified.
 - Shaft speeds, converter slip/lockup and complete OEM faults need matching
   definitions/reference evidence. No neighboring-identifier sweep.
-- Complete TCM fault lists are available to the Mac capture, not yet integrated
-  into the app/gauge product path. Engine and Transmission sources stay distinct.
+- Complete TCM fault lists are now integrated in the uninstalled dev.38-faults
+  app/gauge build. Engine and Transmission sources stay distinct. Physical qualification
+  of the new protected snapshot is pending.
 
 ## End the session
 

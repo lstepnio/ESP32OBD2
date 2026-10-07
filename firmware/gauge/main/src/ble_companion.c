@@ -70,7 +70,7 @@ static QueueHandle_t owner_save_queue;
 #define ACTIVE_DOCUMENT_HEADER_SIZE 52U
 #define ACTIVE_DOCUMENT_CHUNK_SIZE 128U
 #define BLE_OWNER_MAX_REQUEST 173U
-static uint8_t status_snapshot[ACTIVE_DOCUMENT_HEADER_SIZE + ACTIVE_DOCUMENT_CHUNK_SIZE];
+static uint8_t status_snapshot[512];
 static size_t status_snapshot_length;
 static uint32_t active_document_offset;
 
@@ -215,6 +215,11 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
     }
     if (request[0] == 0x30 && length == 5) {
         extended_status_mode = 3;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x39 && length == 5) {
+        extended_status_mode = 12;
         status_snapshot_length = 0;
         return 0;
     }
@@ -369,6 +374,15 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
     if (extended_status_mode == 3) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = diagnostics_state_status(status_snapshot);
+        if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
+        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
+                              status_snapshot_length - ctxt->offset) == 0
+            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+    if (extended_status_mode == 12) {
+        if (ctxt->offset == 0 || status_snapshot_length == 0)
+            status_snapshot_length = diagnostics_state_full_status(
+                pdTICKS_TO_MS(xTaskGetTickCount()), status_snapshot);
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
                               status_snapshot_length - ctxt->offset) == 0

@@ -263,3 +263,36 @@ Each value advances independently; a model-family match is not blanket approval.
 - [rusEFI 8HP research](https://github.com/rusefi/rusefi/wiki/8hp): different OEM CAN dialects.
 - [OBD Solutions standard reads](https://www.obdsol.com/knowledgebase/obd-software-development/reading-real-time-data/):
   standard RPM/speed request meanings.
+
+## Offline follow-up, 2026-10-06
+
+The [current OBDb Challenger definitions](https://github.com/OBDb/Dodge-Challenger/blob/main/signalsets/v3/default.json)
+were rechecked. They retain 04FE, 5503/5504 and raw 5034 candidates. They also list
+output shaft speed in Engine request 21CA, with model filters and a multi-value
+payload. This is a separate ECM candidate, not a validated TCM identifier. It is
+excluded from the bounded transmission probe. No matching input-shaft, converter
+slip or lockup identifier was established by this follow-up.
+
+The [opendbc Stellantis definitions](https://github.com/commaai/opendbc/blob/master/opendbc/dbc/generator/chrysler/_stellantis_common.dbc)
+include broadcast engine RPM and transmission gear state. These CAN frames do not
+establish diagnostic identifiers, PCS bridge routing or compatibility with this
+swap. Keep them as a future passive-capture reference. No broadcast decoder or
+new undocumented request has been added.
+
+Prioritize the next short parked test: complete stored/pending/permanent lists,
+then advertised MIL/count, voltage, RPM and speed. Compare off-P and idle-P, then
+owner-labelled R/N/D only if needed. Save raw 5034 alongside those observations.
+Independent reference data is still required before naming pressure, shaft speed,
+converter slip or lockup. Do not derive converter slip from engine RPM and vehicle
+speed alone. Unknown manufacturer-specific code descriptions remain unavailable.
+
+Offline multi-recording reports now compare each request across labelled sessions
+in input order and identify incomplete or unrestored sessions. Use:
+
+```sh
+.venv/bin/python tools/obd_tcm_values.py <off-P/exploration.json> <idle-P/exploration.json>
+```
+
+The reports retain raw candidate meaning limits. Failed adapter restoration requires
+an adapter power cycle before gauge use. No vehicle connection is needed to generate
+these comparisons from saved files.

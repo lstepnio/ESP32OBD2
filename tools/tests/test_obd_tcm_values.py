@@ -251,4 +251,16 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual('Link lost', summary['stop_reason'])
 
 
+class AggregateReportTests(unittest.TestCase):
+    def test_preserves_state_order_and_flags_partial_sessions(self):
+        from obd_tcm_values import aggregate_reports
+        request = {'samples': 1, 'statuses': {'accepted': 1}, 'values': [{'raw_value': 13}]}
+        reports = [{'owner_reported_state': 'off-P', 'requests': {'225503': request}, 'adapter_restored': True},
+                   {'owner_reported_state': 'idle-P', 'requests': {'225503': request}, 'adapter_restored': False,
+                    'stop_reason': 'Link lost'}]
+        result = aggregate_reports(reports)
+        self.assertEqual([1], result['incomplete_sessions'])
+        self.assertEqual(['off-P', 'idle-P'], [r['owner_reported_state'] for r in result['comparison_by_request']['225503']])
+        self.assertEqual(reports, result['sessions'])
+
 if __name__ == '__main__': unittest.main()
