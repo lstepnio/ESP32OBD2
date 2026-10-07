@@ -164,7 +164,9 @@ int main(int argc, char **argv)
     assert(runtime.pids[runtime.pid_count-1].source_index==1 && runtime.pids[0].source_index==0);
     cJSON_ReplaceItemInObject(child_page,"pidIds",cJSON_Parse("[\"engine.rpm\",\"transmission.gear\"]"));
     set(dual); assert(validate()==ESP_OK);
-    assert(config_runtime_validate(&partition,0,document_length,NULL)!=ESP_OK);
+    assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
+    assert(runtime.pids[runtime.pages[runtime.page_count-1].pid_indices[0]].source_index == 0);
+    assert(runtime.pids[runtime.pages[runtime.page_count-1].pid_indices[1]].source_index == 1);
     cJSON_ReplaceItemInObject(child_page,"pidIds",cJSON_Parse("[\"transmission.temperature\",\"transmission.gear\"]"));
     cJSON_ReplaceItemInObject(child_binding,"address",cJSON_CreateString("C0:00:00:00:00:01"));
     set(dual); assert(validate()!=ESP_OK);
@@ -172,6 +174,16 @@ int main(int argc, char **argv)
     cJSON_ReplaceItemInObject(child_binding,"address",cJSON_CreateString("C0:00:00:00:00:02"));
     cJSON_DeleteItemFromObject(child_source,"adapter");
     set(dual); assert(config_runtime_validate(&partition,0,document_length,NULL)!=ESP_OK);
+    /* One physical adapter carries the same whole dashboard and per-PID routes. */
+    cJSON_DeleteItemFromArray(cJSON_GetObjectItem(dual,"sources"),1);
+    cJSON *single_defs=cJSON_GetObjectItem(dual,"definitions");
+    for (cJSON *item=single_defs->child; item; item=item->next)
+        cJSON_ReplaceItemInObject(item,"sourceId",cJSON_CreateString("ecm"));
+    set(dual); assert(validate()==ESP_OK);
+    assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
+    assert(runtime.source_count==1 && !runtime.sources[0].transmission);
+    assert(runtime.pids[0].service==1 && runtime.pids[0].responder==0x7e8);
+    assert(runtime.pids[runtime.pid_count-1].service==0x22 && runtime.pids[runtime.pid_count-1].responder==0x7e9);
     cJSON_Delete(dual); cJSON_Delete(engine_root);
     cJSON_ReplaceItemInObject(page,"renderer",cJSON_CreateString("arc"));
     cJSON_ReplaceItemInObject(page,"pidIds",cJSON_Parse("[\"transmission.gear\"]"));

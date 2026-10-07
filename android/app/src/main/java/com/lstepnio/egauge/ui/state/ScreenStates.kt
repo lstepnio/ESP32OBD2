@@ -51,7 +51,7 @@ data class CarUiState(val name: String, val profiles: List<VehicleUi>, val activ
     val adapterMessage: String? = null, val adapterCandidates: List<com.lstepnio.egauge.AdapterCandidate> = emptyList(),
     val canSendAdapter: Boolean = false, val faultSources: List<FaultSourceUi> = emptyList(),
     val connectionStatus: StatusUi = StatusUi("Checking car connection", "Checks run automatically while the app is open."),
-    val setupNeeded: Boolean = false, val transmissionChild: Boolean = false, val connectionLinks: List<ConnectionLinkUi> = emptyList(),
+    val setupNeeded: Boolean = false, val connectionLinks: List<ConnectionLinkUi> = emptyList(),
     val actionPages: List<com.lstepnio.egauge.GaugePageDraft> = emptyList(),
     val actions: List<com.lstepnio.egauge.PageAction> = emptyList(), val canEditActions: Boolean = false,
     val actionsSupported: Boolean = false, val canManageVehicles: Boolean = true)

@@ -61,7 +61,8 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
     }
     caps?.let {
         if (draft.actions.isNotEmpty() && it.pageActionsVersion != 1) add("Update the gauge before sending gesture actions")
-        if (draft.source == "BOTH" && (!BuildConfig.DEBUG || it.dualAdapterVersion != 1)) add("Update the gauge before using both adapters")
+        if (requiresVehicleDashboardFirmware(draft, false) && it.vehicleDashboardVersion != 1)
+            add("Update the gauge before sending the complete vehicle dashboard")
         if (draft.pages.size > it.maxPages) add("Your gauge supports ${it.maxPages} pages. Remove an extra page.")
         val unsupported = draft.pages.map { it.layout }.distinct().filter { layout -> layout !in it.supportedRenderers }
         if (unsupported.isNotEmpty()) add("${unsupported.joinToString { layout -> layout.label }} is preview-only on this gauge. Choose a supported layout.")
@@ -86,6 +87,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val combinedIssue = if (bothAdapters) runCatching { profileCollection.active.combinedDraft() }
         .exceptionOrNull()?.let { it.message ?: "Check both adapter setups before sending" } else null
     val blockers = presentationBlockers(transmittedDraft, capabilities) + listOfNotNull(combinedIssue) +
+        (if (bothAdapters && capabilities?.vehicleDashboardVersion != 1) listOf("Update the gauge before using the second adapter") else emptyList()) +
         if (runtimeIdentity?.trial == true) listOf("Your gauge is still checking its settings. Wait, then check again.") else emptyList()
     val needsCheck = activeConfigRevision == null || verifiedConfigHash == null || ownerAccess != OwnerAccess.AUTHENTICATED ||
         (configurationNeedsReview && !configurationRecoveryRead) || disconnected
@@ -169,8 +171,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 "Jump to $name · ${action.count} swipes up within ${action.windowMs / 1000} seconds"
             }, editingIssue = pageEditError,
             reviewAlerts = transmittedDraft.alerts.map { alertUi(it, system) },
-            reviewNotice = if (editorDraft.source == "BOTH" && !bothAdapters)
-                "Only the pages below will be sent to your gauge. Your other vehicle pages stay saved on this phone." else null),
+            reviewNotice = null),
         car,
         SettingsUiState(currentGaugeName, found, displaySettings?.rotation ?: savedGauge?.rotation,
             found && ((capabilities?.displaySettingsVersion ?: 0) >= 1 || capabilities?.displayRotationWrite == true),
@@ -181,9 +182,9 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 it.source, it.vehicleId != null && GaugeAssociations(it.id, listOf(it)).context(it.id, profileCollection) == null, it.bothAdapters)
             }, rememberedGaugeId),
         ExpertUiState(found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
-            canAdoptGaugeDraft, details, profileCollection.active.name, profileCollection.active.draft.source,
+            canAdoptGaugeDraft, details, profileCollection.active.name, "ECM",
             profileCollection.active.primaryAdapter != null, profileCollection.active.transmission != null,
-            draft.source, !busy && profileError == null,
+            adapterSelectionSource, !busy && profileError == null,
             selectedVehicleAdapter?.address?.takeLast(5), adapterCandidates,
             capabilities?.adapterRegistryVersion == 1 && freshConnection && !busy,
             adapterMessage, if (profileCollection.active.draft.source == "TCM") profileCollection.profiles.filter {
@@ -231,14 +232,14 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
             .filter { it.title == if (source == "TCM") "Transmission" else "Engine" }
     }
     val links = vehicleSources.map { source ->
-        val adapter = profileCollection.active.adapterFor(source)
+        val adapter = if (source == "ECM") profileCollection.active.primaryAdapter else profileCollection.active.transmission?.adapter ?: profileCollection.active.primaryAdapter
         ConnectionLinkUi("${profileCollection.activeId}:$source", "${if (source == "TCM") "Transmission" else "Engine"} adapter",
             vehicleConnectionStatus(adapterStatuses[source] ?: adapterSourceStatus?.takeIf { it.sourceId.equals(source, true) },
                 (adapterCheckedAt[source] ?: adapterStatusCheckedAt)?.let { now-it }, profileCollection.activeId,
                 configuredSourceId(activeDocument, source) ?: "", adapter != null,
                 vehicleSetupMatches(activeDocument, profileCollection.activeId, source, adapter), source in vehicleFailures))
     }
-    val status = sources.first { it.title == if (draft.source == "TCM") "Transmission" else "Engine" }.status
+    val status = sources.first().status
     val faults = sources.flatMap { it.categories.flatMap { category -> category.faults } }
     return CarUiState(profileCollection.active.name, profileCollection.profiles.map { VehicleUi(it.id, it.name) },
         profileCollection.activeId, status, faults, !busy && capabilities?.experimentalNumericConfig == true,
@@ -247,7 +248,7 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
         connectionStatus = links.firstOrNull { it.status.tone != StatusTone.Success }?.status ?: links.first().status,
         setupNeeded = !sameSettings(sentDraft, transmittedDraft) || vehicleSources.any { !vehicleSetupMatches(activeDocument, profileCollection.activeId, it, profileCollection.active.adapterFor(it)) },
         adapterAvailable = capabilities?.adapterRegistryVersion == 1 && !busy && connection.fresh(now),
-        adapterSelected = selectedVehicleAdapter?.let { "${if (it.driver == "elm-bench-v1") "Bench simulator" else if (draft.source == "TCM") "Transmission adapter" else "Engine adapter"} · ${it.address.takeLast(5)}" },
+        adapterSelected = profileCollection.active.primaryAdapter?.let { "${if (it.driver == "elm-bench-v1") "Bench simulator" else "Vehicle adapter"} · ${it.address.takeLast(5)}" },
         adapterMessage = if (adapterSourceStatus != null && (adapterStatusCheckedAt == null ||
             now - adapterStatusCheckedAt!! > 15_000)) "Adapter status is out of date. Check again."
         else adapterMessage ?: if (activeDocument?.vehicleProfileId != profileCollection.activeId)
@@ -255,17 +256,17 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
         else runCatching {
             val savedSources = org.json.JSONObject(activeDocument!!.json).getJSONArray("sources")
             val saved = (0 until savedSources.length()).map { savedSources.getJSONObject(it) }
-                .singleOrNull { it.getString("role").equals(draft.source, true) }?.optJSONObject("adapter")
-            if (saved == null && selectedVehicleAdapter == null)
+                .firstOrNull()?.optJSONObject("adapter")
+            if (saved == null && profileCollection.active.primaryAdapter == null)
                 "No adapter selected on the gauge. Find your adapter when it is powered."
-            else if (saved?.optString("id") == selectedVehicleAdapter?.id && saved != null)
+            else if (saved?.optString("id") == profileCollection.active.primaryAdapter?.id && saved != null)
                 "Adapter selection saved on the gauge. Check its connection below."
             else "Adapter selection differs from the gauge. Send setup to use this selection."
         }.getOrDefault("Refresh gauge settings to check the saved adapter."),
         adapterCandidates = adapterCandidates,
         canSendAdapter = !busy && connection.fresh(now) && profileError == null && capabilities?.adapterRegistryVersion == 1 &&
-            activeConfigRevision != null && verifiedConfigHash != null && ConfigurationProjector.blockers(transmittedDraft).isEmpty() && (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) && (!bothAdapters || capabilities?.dualAdapterVersion == 1),
-        transmissionChild = draft.source == "TCM" && profileCollection.active.transmission != null,
+            activeConfigRevision != null && verifiedConfigHash != null && ConfigurationProjector.blockers(transmittedDraft).isEmpty() && (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) && (!bothAdapters || capabilities?.dualAdapterVersion == 1) &&
+            (!requiresVehicleDashboardFirmware(transmittedDraft, bothAdapters) || capabilities?.vehicleDashboardVersion == 1),
         actionPages = editorDraft.pages, actions = editorDraft.actions, canEditActions = !busy && profileError == null,
         actionsSupported = capabilities?.pageActionsVersion == 1, canManageVehicles = canManageVehicles)
 }

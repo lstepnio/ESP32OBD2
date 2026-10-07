@@ -48,10 +48,10 @@ class DualAdapterConfigurationTest {
         assertThrows(IllegalArgumentException::class.java) { ConfigurationProjector.projectCombined(template(), many, 29) }
     }
 
-    @Test fun mixedSourcePageIsRejected() {
+    @Test fun mixedControllerPageIsAccepted() {
         val draft = vehicle.combinedDraft().copy(pages = listOf(
             GaugePageDraft("mixed", "MIXED", GaugeLayout.Dual, listOf("rpm", "tcmtemp"))))
-        assertTrue(ConfigurationProjector.blockers(draft).isNotEmpty())
+        assertTrue(ConfigurationProjector.blockers(draft).isEmpty())
     }
 
     @Test fun adapterModeIsPerGaugeAndMissingChildNeverFallsBack() {
@@ -73,6 +73,7 @@ class DualAdapterConfigurationTest {
         val root = JSONObject(document.json)
         root.getJSONArray("sources").getJSONObject(1).put("role", "ecm")
         assertTrue(configuredSourceIndices(document.copy(json = root.toString())).isEmpty())
-        assertNull(GaugeDraftComparison.savedDraft(document, "jeep"))
+        assertNotNull(GaugeDraftComparison.savedDraft(document, "jeep"))
+        assertNull(GaugeDraftComparison.savedDraft(document.copy(json = root.toString()), "jeep"))
     }
 }

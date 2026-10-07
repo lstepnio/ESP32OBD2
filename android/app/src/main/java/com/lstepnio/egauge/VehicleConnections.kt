@@ -27,7 +27,7 @@ fun ProfileCollection.attachTransmission(legacyId: String, parentId: String): Pr
 
 /** Vehicle editing is independent of the adapter currently connected to the gauge. */
 fun VehicleProfile.dashboardDraft(): Draft {
-    val child = transmission ?: return draft
+    val child = transmission ?: return draft.copy(source = "ECM")
     val pages = draft.pages + child.draft.pages.map { it.copy(id = "child.${it.id}") }
     val ordered = pageOrder.mapNotNull { id -> pages.firstOrNull { it.id == id } } + pages.filter { it.id !in pageOrder }
     return draft.copy(source = "BOTH", actions = draft.actions + child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") }, pages = ordered)
@@ -38,7 +38,6 @@ fun VehicleProfile.combinedDraft(): Draft {
     require(draft.source == "ECM" && primaryAdapter != null)
     val child = requireNotNull(transmission)
     require(child.adapter != null && !samePhysicalAdapter(primaryAdapter, child.adapter))
-    require(draft.pages.isNotEmpty() && child.draft.pages.isNotEmpty()) { "Add a page for each adapter before sending both" }
     return dashboardDraft()
 }
 
@@ -56,3 +55,7 @@ fun VehicleProfile.withCombinedPageAction(action: PageAction?): VehicleProfile {
     ProfileActions.validate(secondary.actions, secondary.pages)
     return copy(draft = primary, transmission = child.copy(draft = secondary))
 }
+
+/** Removing a physical route never removes the vehicle's pages or gestures. */
+fun VehicleProfile.withoutTransmissionAdapter(): VehicleProfile =
+    copy(draft = dashboardDraft().copy(source = "ECM"), transmission = null, pageOrder = emptyList())

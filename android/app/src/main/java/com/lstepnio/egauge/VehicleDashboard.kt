@@ -2,12 +2,12 @@ package com.lstepnio.egauge
 
 /** One editable dashboard; controller ownership is derived from the selected readings. */
 fun VehicleProfile.withDashboard(value: Draft): VehicleProfile {
-    require(value.source == "BOTH" && ConfigurationProjector.blockers(value).isEmpty()) {
+    require(value.source in setOf("ECM", "BOTH", "TCM") && ConfigurationProjector.blockers(value).isEmpty()) {
         "Choose supported readings and keep at least one vehicle page"
     }
-    val child = requireNotNull(transmission)
-    val primaryPages = value.pages.filter { page -> page.pidIds.all { it in ConfigurationProjector.supportedPidIds } }
+    val child = transmission ?: return copy(draft = value.copy(source = "ECM"))
     val childPages = value.pages.filter { page -> page.pidIds.all { it in ConfigurationProjector.transmissionPidIds } }
+    val primaryPages = value.pages.filterNot { it in childPages }
     val mappedIds = value.pages.associate { page ->
         page.id to if (page in childPages && !page.id.startsWith("child.")) "child.${page.id}" else page.id
     }
@@ -25,3 +25,7 @@ fun VehicleProfile.withDashboard(value: Draft): VehicleProfile {
     ProfileActions.validate(combined.actions, combined.pages)
     return result
 }
+
+/** The older runtime ties request service to an entire adapter instead of each reading. */
+fun requiresVehicleDashboardFirmware(draft: Draft, secondAdapter: Boolean): Boolean =
+    secondAdapter || draft.pages.any { page -> page.pidIds.any { it in ConfigurationProjector.transmissionPidIds } }

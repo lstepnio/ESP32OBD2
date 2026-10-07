@@ -1,5 +1,8 @@
 # Vehicle dashboard and adapter routing review
 
+The partial App dev.42/43 editor fixes below are historical. The current execution
+model and qualification plan are in [whole vehicle review](logical-vehicle-review.md).
+
 Updated 2026-10-07. App dev.42, unchanged signed firmware dev.44.
 
 ## Product model and finding

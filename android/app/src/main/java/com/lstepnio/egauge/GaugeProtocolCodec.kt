@@ -56,7 +56,7 @@ object GaugeProtocolCodec {
             configWrite = configWrite,
             experimentalNumericConfig = configurationVersion > 0,
             savedStateRead = json.optBoolean("savedStateRead", false),
-            quickSelect = json.optBoolean("quickSelect", false),
+            quickSelect = json.optBoolean("quickSelect", json.optBoolean("qs", false)),
             displayRotationWrite = json.optBoolean("displayRotationWrite", false),
             displaySettingsVersion = json.optInt("ds", 0).also {
                 require(it in 0..3) { "Unsupported display settings version" }
@@ -65,6 +65,7 @@ object GaugeProtocolCodec {
             wifiBulk = json.optString("wifiBulk").takeIf { it.isNotBlank() },
             hardwareCapacityVersion = hardwareCapacity.takeIf { it > 0 },
             configurationVersion = configurationVersion,
+            vehicleDashboardVersion = json.optInt("va", 0).also { require(it in 0..1) },
             dualAdapterVersion = json.optInt("da", 0).also { require(it in 0..1) },
             pageActionsVersion = if (configurationVersion >= 4) 1 else 0,
             adapterRegistryVersion = json.optInt("ad", 0).also { require(it in 0..1) },

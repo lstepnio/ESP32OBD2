@@ -15,7 +15,7 @@ import com.lstepnio.egauge.ui.state.CarUiState
 fun CarScreen(state: CarUiState, onSetup: () -> Unit,
               onSelectProfile: (String) -> Unit, onCreateProfile: (String) -> Unit,
               onFindAdapters: () -> Unit = {}, onChooseAdapter: (com.lstepnio.egauge.AdapterBinding?) -> Unit = {},
-              onSendAdapter: () -> Unit = {}, onExpert: () -> Unit = {},
+              onSendAdapter: () -> Unit = {},
               onSaveAction: (com.lstepnio.egauge.PageAction?) -> Unit = {}, onDeleteProfile: (String) -> Unit = {}) {
     var profilesOpen by rememberSaveable { mutableStateOf(false) }
     var adapterOpen by rememberSaveable { mutableStateOf(false) }
@@ -59,12 +59,12 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
                 SettingsRow("Actions", if (state.actions.isEmpty()) "No gesture assigned" else "Jump to page",
                     state.canEditActions, { actionsOpen = true })
                 SettingsRow("Your car", state.name, !state.profileError, { profilesOpen = true })
-                SettingsRow(if (state.transmissionChild) "Transmission child" else "Adapter", state.connectionStatus.title,
-                    state.adapterAvailable, { if (state.transmissionChild) onExpert() else adapterOpen = true })
+                SettingsRow("Adapter", state.connectionStatus.title,
+                    state.adapterAvailable, { adapterOpen = true })
                 if (state.setupNeeded && state.adapterSelected != null)
                     PrimaryAction("Use this car on gauge", onSendAdapter, enabled = state.canSendAdapter)
                 else if (state.adapterSelected == null)
-                    PrimaryAction("Choose adapter", { if (state.transmissionChild) onExpert() else adapterOpen = true }, enabled = state.adapterAvailable)
+                    PrimaryAction("Choose adapter", { adapterOpen = true }, enabled = state.adapterAvailable)
                 if (!state.adapterAvailable && !state.canCheck) TextButton(onSetup) { Text("Set up gauge") }
             }
         })

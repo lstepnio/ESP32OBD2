@@ -51,7 +51,7 @@ last physically checked firmware. Do not start BLE/vehicle work unattended.
 
 | Case | Action | Required observation |
 | --- | --- | --- |
-| Single-source regression | Run ECM only, then TCM only | Existing pages, faults, settings and automatic retry still work; no unused sibling shown |
+| Single-source regression | Move one adapter ECM to TCM with one unchanged whole dashboard | Existing pages stay visible; inaccessible readings become unavailable; available readings and automatic retry work |
 | Both present + phone | Start both, open app | Both source statuses and independent fault categories appear; correct role, ECU, revision and session |
 | TCM absent at startup | Power only ECM | ECM reaches live readings despite repeated TCM discovery failure; child is unavailable; app remains usable |
 | ECM absent at startup | Power only TCM | TCM reaches live readings independently; engine/alerts unavailable; no parent-radio dependency |

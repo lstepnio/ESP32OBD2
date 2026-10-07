@@ -51,14 +51,15 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions) {
                     }
                     if (state.hasTransmission) {
                         SettingsRow("Child adapter", "Transmission (TCM)", state.canEditVehicle) { actions.selectSource("TCM") }
-                        Text("Editing ${if (state.selectedSource == "TCM") "transmission" else "engine"} pages. Both connections belong to this car.")
+                        Text("Editing the ${if (state.selectedSource == "TCM") "second" else "primary"} adapter. All readings share one vehicle dashboard.")
                         TextButton({ removeOpen = true }, enabled = state.canEditVehicle) { Text("Remove transmission child") }
                     } else {
                         SettingsRow("Add transmission child", "For a swap with a separate diagnostic connector",
                             state.canEditVehicle && state.hasPrimaryAdapter, actions.addTransmission)
                         if (!state.hasPrimaryAdapter) Text("Choose the primary engine adapter in Car first.")
                     }
-                } else {
+                }
+                if (state.legacyParents.isNotEmpty()) {
                     Text("Legacy transmission setup. Choose its engine vehicle to move the pages and adapter into a child connection.")
                     state.legacyParents.forEach { parent ->
                         SettingsRow("Attach to ${parent.name}", "Keeps transmission pages; review and send afterward",
@@ -86,7 +87,7 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions) {
     }
     if (removeOpen) AlertDialog(onDismissRequest = { removeOpen = false },
         title = { Text("Remove transmission child?") },
-        text = { Text("This removes its saved pages and adapter selection from this phone. Gauges using this child keep their installed setup until you review and send a replacement.") },
+        text = { Text("This removes the second adapter selection. All vehicle pages and gestures stay saved and will use the primary adapter after you review and send. Installed gauge settings stay unchanged.") },
         confirmButton = { TextButton({ actions.removeTransmission(); removeOpen = false }, enabled = state.canEditVehicle) { Text("Remove") } },
         dismissButton = { TextButton({ removeOpen = false }) { Text("Cancel") } })
 }

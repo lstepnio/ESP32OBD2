@@ -163,6 +163,7 @@ data class CapabilitySnapshot(
     val configurationVersion: Int = 0,
     val adapterRegistryVersion: Int = 0,
     val dualAdapterVersion: Int = 0,
+    val vehicleDashboardVersion: Int = 0,
     val pageActionsVersion: Int = 0,
     val maxPages: Int = 0,
     val supportedRenderers: Set<GaugeLayout> = emptySet(),
@@ -509,9 +510,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         associationStore.remember(candidate.id, candidate.name)
         rememberedGaugeId = candidate.id
         knownGauges = associationStore.load().gauges
-        associationStore.load().context(candidate.id, profileCollection)?.let { (vehicleId, restoredDraft) ->
+        associationStore.load().context(candidate.id, profileCollection)?.let { (vehicleId, _) ->
             profileCollection = profileCollection.copy(activeId = vehicleId)
-            draft = restoredDraft
+            draft = profileCollection.active.draft
             editingPageIndex = 0
         }
         rediscoverGauge = false
@@ -572,7 +573,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     val currentGaugeName: String get() = knownGauges.firstOrNull { it.id == rememberedGaugeId }?.name
         ?: presentationPreferences.gaugeName
-    val selectedVehicleAdapter: AdapterBinding? get() = profileCollection.active.adapterFor(draft.source)
+    var adapterSelectionSource by mutableStateOf("ECM")
+        private set
+    val selectedVehicleAdapter: AdapterBinding? get() = if (adapterSelectionSource == "TCM" && profileCollection.active.transmission != null)
+        profileCollection.active.transmission?.adapter else profileCollection.active.primaryAdapter
     private val modifyingSetupBlocked: Boolean get() = updateInProgress ||
         (operation.stage != OperationStage.IDLE && !operation.terminal)
     private var choosingGauge = false
@@ -695,11 +699,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Adapter search finished", adapterMessage, terminal = true)
     }
 
+    fun choosePrimaryAdapter(value: AdapterBinding?) {
+        adapterSelectionSource = "ECM"
+        chooseVehicleAdapter(value)
+    }
+
     fun chooseVehicleAdapter(value: AdapterBinding?) {
         if (profileError != null || modifyingSetupBlocked) return
         val updated = runCatching {
             profileCollection.copy(profiles = profileCollection.profiles.map {
-                if (it.id == profileCollection.activeId) it.withAdapter(draft.source, value) else it
+                if (it.id == profileCollection.activeId) it.withAdapter(if (adapterSelectionSource == "TCM" && it.transmission != null) "TCM" else it.draft.source, value) else it
             })
         }.getOrElse { adapterMessage = it.message; return }
         if (!profileStore.save(updated)) { profileError = "Could not save the adapter selection"; return }
@@ -734,7 +743,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun rememberVehicleContext() {
         rememberedGaugeId?.let { id ->
-            runCatching { associationStore.assign(id, profileCollection.activeId, draft.source)
+            runCatching { associationStore.assign(id, profileCollection.activeId, profileCollection.active.draft.source)
                 knownGauges = associationStore.load().gauges
             }.onFailure { presentationError = "Could not save this gauge's vehicle assignment" }
         }
@@ -747,11 +756,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         clearVehicleEvidence()
         profileCollection = updated
         draft = profileCollection.active.draft
+        adapterSelectionSource = "ECM"
         editingPageIndex = 0
         rememberVehicleContext()
     }
 
-    val vehicleSources: List<String> get() = if (bothAdapters) listOf("ECM", "TCM") else listOf(draft.source)
+    val vehicleSources: List<String> get() = activeDocument?.takeIf { it.vehicleProfileId == profileCollection.activeId }
+        ?.let { configuredSourceIndices(it).keys.toList().takeIf(List<String>::isNotEmpty) }
+        ?: if (bothAdapters) listOf("ECM", "TCM") else listOf("ECM")
     var adapterStatuses by mutableStateOf<Map<String, AdapterSourceStatus>>(emptyMap())
         private set
     var adapterCheckedAt by mutableStateOf<Map<String, Long>>(emptyMap())
@@ -766,7 +778,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var pageEditError by mutableStateOf<String?>(null)
         private set
     val editorDraft: Draft get() = profileCollection.active.dashboardDraft()
-    val transmittedDraft: Draft get() = if (bothAdapters) runCatching { profileCollection.active.combinedDraft() }.getOrDefault(draft) else draft
+    val transmittedDraft: Draft get() = editorDraft.copy(source = "ECM")
     fun setBothAdapters(enabled: Boolean) {
         if (!BuildConfig.DEBUG || modifyingSetupBlocked || gaugeAssociationError != null) return
         if (enabled && (capabilities?.dualAdapterVersion != 1 || runCatching { profileCollection.active.combinedDraft() }.isFailure)) {
@@ -787,53 +799,51 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         require(transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) {
             "Update the gauge before sending gesture actions"
         }
-        return if (bothAdapters) {
-            require(BuildConfig.DEBUG && capabilities?.dualAdapterVersion == 1 && schemaVersion == 2) {
-                "Update the gauge before sending both adapters"
-            }
-            ConfigurationProjector.projectCombined(template, profileCollection.active, baseRevision).second
-        } else ConfigurationProjector.project(template, draft, profileCollection.activeId, baseRevision,
-            profileCollection.active.adapterFor(draft.source), schemaVersion).second
+        require(!requiresVehicleDashboardFirmware(transmittedDraft, bothAdapters) || capabilities?.vehicleDashboardVersion == 1) {
+            "Update the gauge before sending the complete vehicle dashboard"
+        }
+        if (bothAdapters) require(BuildConfig.DEBUG && capabilities?.dualAdapterVersion == 1 && schemaVersion == 2) {
+            "Update the gauge before using the second adapter"
+        }
+        return ConfigurationProjector.projectVehicle(template, profileCollection.active, baseRevision, bothAdapters, schemaVersion).second
     }
 
+    /** Expert selects a binding to edit, never a subset of the vehicle dashboard. */
     fun selectVehicleSource(source: String) {
-        if (profileError != null || modifyingSetupBlocked) return
-        val selected = profileCollection.active.draftFor(source) ?: return
-        clearVehicleEvidence()
-        draft = selected
-        editingPageIndex = 0
-        rememberVehicleContext()
+        if (profileError != null || modifyingSetupBlocked || source !in setOf("ECM", "TCM")) return
+        if (source == "TCM" && profileCollection.active.transmission == null) return
+        adapterSelectionSource = source
     }
 
     fun addTransmissionChild() {
         if (!BuildConfig.DEBUG || profileError != null || modifyingSetupBlocked) return
         val profile = profileCollection.active
-        if (profile.draft.source != "ECM" || profile.primaryAdapter == null) {
+        if (profile.transmission != null) return
+        if (profile.primaryAdapter == null) {
             deviceMessage = "Choose an engine vehicle and its primary adapter first"
             return
         }
         val updated = profileCollection.copy(profiles = profileCollection.profiles.map {
-            if (it.id == profile.id) it.copy(transmission = it.transmission ?: TransmissionConnection()) else it
+            if (it.id == profile.id) it.copy(draft = it.dashboardDraft().copy(source = "ECM"), transmission = it.transmission ?: TransmissionConnection(draft = TransmissionSetup.draft().copy(pages = emptyList()))) else it
         })
         if (!profileStore.save(updated)) { profileError = "Could not save transmission setup"; return }
         profileCollection = updated
+        draft = updated.active.draft
         selectVehicleSource("TCM")
         deviceMessage = "Choose the separate transmission adapter. Send setup to use it on this gauge."
     }
 
     fun removeTransmissionChild() {
         if (profileError != null || modifyingSetupBlocked || profileCollection.active.transmission == null) return
-        if (profileCollection.active.draft.pages.isEmpty()) {
-            deviceMessage = "Add a vehicle page before removing its transmission setup."
-            return
-        }
         val updated = profileCollection.copy(profiles = profileCollection.profiles.map {
-            if (it.id == profileCollection.activeId) it.copy(transmission = null) else it
+            if (it.id == profileCollection.activeId) it.withoutTransmissionAdapter() else it
         })
         if (!profileStore.save(updated)) { profileError = "Could not remove transmission setup"; return }
         profileCollection = updated
+        draft = updated.active.draft
         selectVehicleSource("ECM")
-        deviceMessage = "Transmission removed from the phone draft. Review and send to change the gauge."
+        setBothAdapters(false)
+        deviceMessage = "Second adapter removed. Vehicle pages stay saved. Review and send to use the primary adapter."
     }
 
     fun switchRememberedGauge(id: String) = launchGaugeOperation(OperationKind.READ, "Connecting gauge") {
@@ -852,9 +862,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         choosingGauge = false
         configurationNeedsReview = false
         configurationRecoveryRead = false
-        associationStore.load().context(id, profileCollection)?.let { (vehicleId, selected) ->
+        associationStore.load().context(id, profileCollection)?.let { (vehicleId, _) ->
             profileCollection = profileCollection.copy(activeId = vehicleId)
-            draft = selected
+            draft = profileCollection.active.draft
             editingPageIndex = 0
         }
         operation = OperationState.Idle
@@ -1134,24 +1144,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             documentReadFailed = false
             return
         }
-        require(org.json.JSONObject(document.json).getJSONArray("sources").length() == 1) {
-            "Both-adapter setup is already read automatically. Edit its engine and transmission drafts separately."
-        }
-        val imported = GaugeDraftComparison.savedDraft(document, profileCollection.activeId) ?: run {
-            documentMessage = "Saved settings cannot be mapped safely into this phone profile."
-            documentReadFailed = true
-            return
-        }
-        if (profileCollection.active.draftFor(imported.source) == null) {
-            documentMessage = "Set up this vehicle's transmission child before importing its readings."
-            documentReadFailed = true
-            return
-        }
+        val restored = runCatching { GaugeProfileRecovery.restore(profileCollection.active, document) }
+            .getOrElse { documentMessage = it.message; documentReadFailed = true; return }
+        val updated = profileCollection.copy(profiles = profileCollection.profiles.map {
+            if (it.id == restored.id) restored else it
+        })
+        if (!profileStore.save(updated)) { profileError = "Could not save recovered vehicle settings"; return }
+        profileCollection = updated
+        draft = restored.draft
+        adapterSelectionSource = "ECM"
         editingPageIndex = 0
-        save(imported)
+        clearVehicleEvidence()
         documentMessage = "Saved revision ${document.revision} copied into the phone draft. The gauge was not changed."
         documentReadFailed = false
     }
+
     fun activeDocumentError(message: String) {
         scanning = false
         documentMessage = message
@@ -1805,8 +1812,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val pages = working.pages.toMutableList()
         val current = pages[editingPageIndex]
         val ids = if (current.layout == GaugeLayout.Dual) {
-            val second = current.pidIds.getOrNull(1)?.takeIf { it != pid.id && it in ConfigurationProjector.pagePidIds(pid.source) }
-                ?: ConfigurationProjector.pagePidIds(pid.source).first { it != pid.id }
+            val second = current.pidIds.getOrNull(1)?.takeIf { it != pid.id && it in ConfigurationProjector.pagePidIds(working.source) }
+                ?: ConfigurationProjector.pagePidIds(working.source).first { it != pid.id }
             listOf(pid.id, second)
         } else listOf(pid.id)
         val layout = if (pid.id == "tcmgear" && current.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual))
@@ -1820,8 +1827,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (editingPageIndex !in working.pages.indices || pid.id !in ConfigurationProjector.pagePidIds(working.source)) return
         val pages = working.pages.toMutableList()
         val current = pages[editingPageIndex]
-        if (current.layout != GaugeLayout.Dual || current.pidIds.first() == pid.id ||
-            pid.source != demoCatalog.first { it.id == current.pidIds.first() }.source) return
+        if (current.layout != GaugeLayout.Dual || current.pidIds.first() == pid.id) return
         pages[editingPageIndex] = current.copy(pidIds = listOf(current.pidIds.first(), pid.id))
         save(working.copy(pages = pages))
     }
@@ -1833,7 +1839,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val current = pages[editingPageIndex]
         val ids = if (layout == GaugeLayout.Dual) {
             val secondary = current.pidIds.getOrNull(1)
-                ?: ConfigurationProjector.pagePidIds(demoCatalog.first { it.id == current.pidIds.first() }.source).first { it != current.pidIds.first() }
+                ?: ConfigurationProjector.pagePidIds(working.source).first { it != current.pidIds.first() }
             listOf(current.pidIds.first(), secondary)
         } else listOf(current.pidIds.first())
         pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids)
@@ -1860,12 +1866,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }) }.getOrElse { deviceMessage = it.message ?: "Could not update the vehicle action"; return }
             if (!profileStore.save(updated)) { profileError = "Could not save changes on this phone"; return }
             profileCollection = updated
-            draft = requireNotNull(updated.active.draftFor(draft.source))
+            draft = updated.active.draft
             return
         }
         val actions = listOfNotNull(value)
         if (runCatching { ProfileActions.validate(actions, draft.pages) }.isFailure) return
-        save(draft.copy(actions = actions))
+        save(editorDraft.copy(actions = actions))
     }
     fun removeAlert(id: String) = save(editorDraft.copy(alerts = editorDraft.alerts.filterNot { it.id == id }))
     fun setSource(value: String) = selectVehicleSource(value)
@@ -1873,7 +1879,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (profileError != null) return
         val updated = runCatching { profileCollection.copy(profiles = profileCollection.profiles.map { profile ->
             if (profile.id == profileCollection.activeId) {
-                if (value.source == "BOTH") profile.withDashboard(value) else profile.withDraft(value)
+                profile.withDashboard(value)
             } else profile
         }) }.getOrElse {
             pageEditError = it.message ?: "These readings cannot share this page"
@@ -1885,7 +1891,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (!profileStore.save(updated)) { profileError = "Could not save changes on this phone"; return }
         val previousSource = draft.source
         profileCollection = updated
-        draft = if (value.source == "BOTH") requireNotNull(updated.active.draftFor(previousSource)) else value
+        draft = updated.active.draft
         editingPageIndex = editingPageIndex.coerceIn(editorDraft.pages.indices)
         if (previousSource != draft.source) rememberVehicleContext()
     }

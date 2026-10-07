@@ -25,7 +25,7 @@ class AdapterIntegrationTest {
         assertEquals(1, definition.getJSONObject("decoder").getInt("byteLength"))
         assertEquals(draft, GaugeDraftComparison.savedDraft(GaugeConfigTransferClient.ActiveDocument(
             22, "0".repeat(64), bytes.size, "jss-tcm-test", 1, 1, 0, json.toString()), "jss-tcm-test"))
-        assertTrue(ConfigurationProjector.blockers(draft.copy(source = "ECM")).isNotEmpty())
+        assertTrue(ConfigurationProjector.blockers(draft.copy(source = "ECM")).isEmpty())
         assertTrue(ConfigurationProjector.blockers(draft.copy(alerts = listOf(defaultAlert()))).isNotEmpty())
         assertThrows(IllegalArgumentException::class.java) {
             ConfigurationProjector.project(template(), draft, "jss-tcm-test", 21)

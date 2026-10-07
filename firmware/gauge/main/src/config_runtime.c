@@ -126,7 +126,8 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
                out->sources[source_index].id)) ++source_index;
         if (source_index == out->source_count || !field(request, "responseId") ||
             field(decoder, "byteOffset")->valueint != 0) goto done;
-        if (out->sources[source_index].transmission) {
+        bool enhanced = !strcmp(field(request, "service")->valuestring, "22");
+        if (enhanced) {
             /* Captured TCM temperature/current gear. No arbitrary enhanced reads. */
             bool gear = !strcmp(identifier, "5503");
             if (strcmp(field(request, "service")->valuestring, "22") ||
@@ -140,7 +141,9 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
                 field(decoder, "offset")->valuedouble != (gear ? 0 : -40) || cJSON_IsTrue(field(decoder, "signed")) ||
                 strcmp(field(item, "unit")->valuestring, gear ? "gear" : "degC") ||
                 (gear && (field(range, "min")->valuedouble != 0 || field(range, "max")->valuedouble != 13))) goto done;
-        } else if (strcmp(field(request, "service")->valuestring, "01") ||
+        } else if (out->sources[source_index].transmission ||
+                   strcmp(field(request, "responseId")->valuestring, "7E8") ||
+                   strcmp(field(request, "service")->valuestring, "01") ||
                    strcmp(field(request, "route")->valuestring, "functional") || strlen(identifier) != 2 ||
                    !strcmp(identifier, "01") ||
                    field(response, "minPayloadBytes")->valueint != field(decoder, "byteLength")->valueint) goto done;
@@ -149,6 +152,7 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
             !copy_text(pid->name, sizeof(pid->name), field(item, "name")) ||
             !copy_text(pid->unit, sizeof(pid->unit), field(item, "unit"))) goto done;
         pid->source_index = source_index;
+        pid->service = enhanced ? 0x22 : 0x01;
         pid->obd.pid = strtoul(identifier, NULL, 16);
         pid->responder = strtoul(field(request, "responseId")->valuestring, NULL, 16);
         for (unsigned previous = 0; previous + 1 < out->pid_count; ++previous)
@@ -169,12 +173,6 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         pid->poll_ms = field(item, "pollIntervalMs")->valueint;
         pid->stale_ms = field(item, "staleAfterMs")->valueint;
     }
-    for (unsigned source=0; source<out->source_count; ++source) {
-        bool used = false;
-        for (unsigned i=0; i<out->pid_count; ++i)
-            if (out->pids[i].source_index == source) used = true;
-        if (!used) goto done;
-    }
     for (const cJSON *item = pages->child; item; item = item->next) {
         const cJSON *ids = field(item, "pidIds");
         const char *renderer = field(item, "renderer")->valuestring;
@@ -190,14 +188,13 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
             if (index < 0) goto done;
             if (out->pids[index].obd.pid == 0x5503 && page->renderer != RUNTIME_RENDERER_NUMERIC &&
                 page->renderer != RUNTIME_RENDERER_DUAL) goto done;
-            if (i && out->pids[page->pid_indices[0]].source_index != out->pids[index].source_index) goto done;
             page->pid_indices[i] = index;
         }
         out->page_count++;
     }
     for (const cJSON *item = alerts->child; item; item = item->next) {
         int index = pid_index(out, field(item, "pidId")->valuestring);
-        if (index < 0 || out->sources[out->pids[index].source_index].transmission) goto done;
+        if (index < 0 || out->pids[index].service == 0x22) goto done;
         runtime_alert_t *alert = &out->alerts[out->alert_count++];
         if (!copy_text(alert->id, sizeof(alert->id), field(item, "id"))) goto done;
         alert->pid_index = index;

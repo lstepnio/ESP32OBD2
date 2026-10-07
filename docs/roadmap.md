@@ -37,12 +37,13 @@ through reviewed PRs. Hardware-pending development work stays explicitly bounded
 and does not promote public capabilities. Firmware publication is a separate action.
 Keep current status in one place and retire completed planning lists.
 
-## Cohesive dual-source vehicle UI
+## Whole vehicle dashboard qualification
 
-The owner confirmed that the optional TCM belongs to its primary ECM vehicle.
-Present ECM/TCM readings as one vehicle in ordinary UI, with one action picker and
-combined Gauge preview/review when both adapters are enabled. Preserve source routing
-and independent recovery internally; setup details stay in Expert. App dev.38 implements one combined reading/page editing flow with saved cross-controller
-page order. Mixed-source readings in one Dual page remain unsupported by firmware. Do not introduce another vehicle profile for a transmission child.
-
-Vehicle editor review and remaining mixed-controller Dual/TCM alert boundaries are recorded in [vehicle dashboard review](development/vehicle-dashboard-review.md).
+Source App dev.44 and firmware dev.45 remove source filtering from editing and
+sending, support mixed-controller Dual pages and keep one logical vehicle across
+one primary or two explicitly configured transports. Complete the signed App/Wi-Fi
+candidate installation and single-adapter ECM/TCM port-switch check in the
+[logical vehicle review](development/logical-vehicle-review.md). Two distinct
+adapters are still required for the independent loss/recovery and radio coexistence
+matrix. TCM alerts and single-transport TCM fault polling remain follow-up work;
+existing calibration-specific values do not establish broader vehicle support.

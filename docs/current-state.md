@@ -6,7 +6,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 
 ## Baseline
 
-- Latest installed Android: `0.2.0-dev.43`; signed gauge firmware dev.44 verified through protected readback, OTA health 2. Owner confirmed normal page and swipes. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
+- Latest installed Android: `0.2.0-dev.44`; signed gauge firmware dev.44 verified through protected readback, OTA health 2. Owner confirmed normal page and swipes. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
 
 - Board: Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S touch,
   16 MB flash and 2 MB PSRAM. ESP-IDF 5.4.1 with pinned components.
@@ -14,7 +14,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
   iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
 - Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
   verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.44`, configuration revision 42, protected running confirmation and cleared trial.
+- Latest recorded physical gauge: `0.2.0-dev.44`, configuration revision 45, protected running confirmation and cleared trial.
   Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
 - The owner has one Vgate, swapped between separate ECM and TCM connectors on a
   2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
@@ -32,7 +32,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 | Dashboards/alerts | Numeric, Arc, Bar, Trend and Dual renderers; bounded page/alert configuration, stronger palette and enlarged arc; host logic tests | Daylight/color review, alert transitions and hidden-page behavior on real vehicle |
 | Configuration | Atomic slots, exact review/projection, revision/hash conflict checks, trial/fallback and stored/running identity | Physical interruption matrix and all supported layouts/alerts on hardware |
 | Updates | Signed development catalog/bundle verification, owner BLE bootstrap, authenticated private Wi-Fi transfer, A/B trial confirmation and recovery journal; App/Wi-Fi installs recorded | Hardware power-loss/expiry matrix, production trust and performance measurements |
-| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 8; remembered gauges retain independent vehicle/source contexts. Source dev.42 adds independent ECM/TCM workers and the debug app combined send/status path | Installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
+| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 10 in source; remembered gauges retain independent vehicle/source contexts. Source dev.42 adds independent ECM/TCM workers and the debug app combined send/status path | Installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
 
 ## Public and experimental boundaries
 
@@ -49,16 +49,21 @@ OEM fault inventory lack matching validated definitions. Code clearing is a desi
 not an implemented action. [Off-road profile actions and gesture triggers](architecture/vehicle-actions.md)
 have an installed local page-action foundation; high idle and ABS/ESC control are not enabled. Simulated data never establishes vehicle compatibility.
 
-## Unified vehicle editing
+## One vehicle dashboard and optional child route
 
-App dev.42 fixes the TCM-only reading picker for a vehicle with a transmission
-child. Gauge preview, Customize and gesture targets use one vehicle page list,
-independent of the current single-adapter selection or two-adapter mode.
-Review/send shows the actual outgoing pages, alerts and actions; unsent sibling
-pages stay saved. The source-specific execution/radio configuration is unchanged.
-110 JVM tests, three native UI/stored-state tests and protected dev.44 readback/resume
-passed; phone profiles and preferences retained. See [review and limits](development/vehicle-dashboard-review.md).
-Mixed-controller Dual pages and TCM alerts remain unsupported. Firmware unchanged.
+The owner's second vehicle report showed that App dev.42/43 only unified editing
+when a child existed; single sends and legacy profiles still selected source subsets.
+Source App dev.44 and firmware dev.45 now send the whole vehicle dashboard through
+one primary adapter, or route transmission definitions through an explicitly enabled
+second adapter. Expert binding selection cannot filter pages. Mixed-controller Dual
+pages work; removing a child preserves pages/gestures. Missing readings back off
+independently, and each physical adapter keeps its independent worker/recovery state.
+
+123 JVM tests, firmware build/sanitizer fixtures, ten final native Pixel tests and
+protected existing-firmware readback/resume passed; phone preferences retained.
+New execution requires firmware `va:1`; installed dev.44 lacks it. No new firmware
+release, installation or physical port-switch/dual qualification is claimed here.
+See [detailed review and test plan](development/logical-vehicle-review.md).
 
 ## Phone deletion controls
 

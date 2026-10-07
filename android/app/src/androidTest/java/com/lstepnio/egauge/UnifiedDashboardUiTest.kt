@@ -41,11 +41,31 @@ class UnifiedDashboardUiTest {
         compose.onNode(hasText("Transmission temperature") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).performClick()
         assertEquals("tcmtemp",selected)
     }
-    @Test fun secondReadingKeepsCompatibleChoicesWithoutAnExpertSourceSwitch() {
+    private fun singleState(profile: VehicleProfile): CustomizeUiState {
+        val value = profile.dashboardDraft()
+        return CustomizeUiState(value.pages.map { pageUi(it) }, 0,
+            demoCatalog.filter { it.id in ConfigurationProjector.pagePidIds(value.source) }.map { readingUi(it) },
+            emptyList(), emptyList(), false, false, false, false, true, false, GaugeLayout.entries.toSet(), emptyList())
+    }
+    @Test fun legacyTcmVehicleCanChooseAnEngineReadingWithoutAChild() {
+        val profile = vehicle.copy(draft = TransmissionSetup.draft(), transmission = null)
+        compose.setContent { EGaugeTheme { DashboardEditorScreen(singleState(profile), 0, {}, {}, actions()) } }
+        compose.onNodeWithText("Add page").performScrollTo().performClick()
+        compose.onNode(hasText("Engine speed") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertExists()
+        compose.onNode(hasText("Transmission temperature") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertExists()
+    }
+    @Test fun ordinaryVehicleCanChooseTransmissionReadingsWithoutAddingAnotherAdapter() {
+        val profile = vehicle.copy(transmission = null)
+        compose.setContent { EGaugeTheme { DashboardEditorScreen(singleState(profile), 0, {}, {}, actions()) } }
+        compose.onNodeWithText("Add page").performScrollTo().performClick()
+        compose.onNode(hasText("Engine speed") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertExists()
+        compose.onNode(hasText("Transmission temperature") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertExists()
+    }
+    @Test fun secondReadingIncludesBothControllersWithoutAnExpertSourceSwitch() {
         val index = dashboard.pages.indexOfFirst { "tcmgear" in it.pidIds }
         compose.setContent { EGaugeTheme { DashboardEditorScreen(state(index),0,{}, {},actions()) } }
         compose.onNodeWithText("Second reading").performScrollTo().performClick()
         compose.onNode(hasText("Transmission temperature") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertExists()
-        compose.onNode(hasText("Engine speed") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertDoesNotExist()
+        compose.onNode(hasText("Engine speed") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertExists()
     }
 }

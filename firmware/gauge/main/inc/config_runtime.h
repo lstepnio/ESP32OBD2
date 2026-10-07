@@ -39,6 +39,7 @@ typedef struct {
     uint32_t stale_ms;
     uint32_t responder;
     uint8_t source_index;
+    uint8_t service;
 } runtime_pid_t;
 
 typedef struct {

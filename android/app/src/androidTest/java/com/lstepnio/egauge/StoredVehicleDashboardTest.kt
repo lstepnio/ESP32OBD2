@@ -17,15 +17,22 @@ class StoredVehicleDashboardTest {
     @Test fun childReadingsAndEngineReadingsShareTheActualVehicleEditor() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("allowStoredVehicleRead") == "true")
         val model = ViewModelProvider(compose.activity)[AppViewModel::class.java]
-        assumeTrue(model.profileCollection.active.transmission != null)
         compose.runOnIdle {
-            assertEquals("BOTH", model.editorDraft.source)
+            assertTrue(model.editorDraft.source in setOf("ECM", "BOTH"))
             val state = model.presentationState(android.os.SystemClock.elapsedRealtime())
             assertTrue(state.customize.readings.map { it.id }.containsAll(setOf("rpm", "coolant", "tcmtemp", "tcmgear")))
             assertEquals(model.editorDraft.pages, state.car.actionPages)
             assertEquals(model.transmittedDraft.pages.map { it.id }, state.customize.reviewPages!!.map { it.id })
             assertEquals(model.transmittedDraft.alerts.size, state.customize.reviewAlerts!!.size)
-            if (!model.bothAdapters) assertNotNull(state.customize.reviewNotice)
+            assertNull(state.customize.reviewNotice)
+            assertEquals(model.editorDraft.pages.map { it.id }, model.transmittedDraft.pages.map { it.id })
+            val original = model.profileCollection
+            val pages = model.editorDraft.pages
+            model.selectVehicleSource("TCM")
+            assertEquals(pages, model.editorDraft.pages)
+            assertEquals(original, model.profileCollection)
+            assertEquals(pages.map { it.id }, model.transmittedDraft.pages.map { it.id })
+            model.selectVehicleSource("ECM")
         }
     }
 }

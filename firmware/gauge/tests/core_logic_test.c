@@ -181,6 +181,31 @@ static void test_scheduler(void)
     for (unsigned i = 0; i < 3; ++i) scheduler.last_dtc[i] = UINT32_MAX - 5;
     job = poll_scheduler_next(&scheduler, 5, intervals, 1);
     assert(job.kind == POLL_JOB_PID && job.index == 0);
+    /* Missing transmission data cannot consume the healthy engine's cadence. */
+    poll_scheduler_init(&scheduler);
+    scheduler.seen_background = 0x0f;
+    scheduler.last_mil = 0;
+    memset(scheduler.last_dtc, 0, sizeof(scheduler.last_dtc));
+    intervals[0] = intervals[1] = 100;
+    job = poll_scheduler_next(&scheduler, 0, intervals, 2);
+    assert(job.kind == POLL_JOB_PID && job.index == 0);
+    poll_scheduler_result(&scheduler, 0, false);
+    job = poll_scheduler_next(&scheduler, 0, intervals, 2);
+    assert(job.kind == POLL_JOB_PID && job.index == 1);
+    poll_scheduler_result(&scheduler, 1, true);
+    for (uint32_t now=100; now<1000; now+=100) {
+        job = poll_scheduler_next(&scheduler, now, intervals, 2);
+        assert(job.kind == POLL_JOB_PID && job.index == 1);
+    }
+    job = poll_scheduler_next(&scheduler, 1000, intervals, 2);
+    assert(job.kind == POLL_JOB_PID && job.index == 0);
+    poll_scheduler_result(&scheduler, 0, true);
+    assert(scheduler.failures[0] == 0);
+    /* A configured adapter with no display definitions still checks faults. */
+    poll_scheduler_init(&scheduler);
+    assert(poll_scheduler_next(&scheduler, 0, intervals, 0).kind == POLL_JOB_MIL);
+    assert(poll_scheduler_next(&scheduler, 0, intervals, 0).kind == POLL_JOB_DTC);
+
 }
 
 static void test_wifi_bulk_policy(void)

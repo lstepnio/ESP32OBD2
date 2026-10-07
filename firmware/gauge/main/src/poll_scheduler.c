@@ -17,14 +17,21 @@ poll_job_t poll_scheduler_next(poll_scheduler_t *scheduler, uint32_t now_ms,
                                const uint32_t *pid_intervals_ms, uint8_t pid_count)
 {
     poll_job_t none = {0};
-    if (!scheduler || !pid_intervals_ms || pid_count == 0 ||
+    if (!scheduler || !pid_intervals_ms ||
         pid_count > POLL_SCHEDULER_MAX_PIDS) return none;
 
+    if (pid_count == 0) scheduler->normal_since_background = 10;
     int chosen = -1;
     for (uint8_t step = 0; step < pid_count; ++step) {
         uint8_t index = (scheduler->cursor + step) % pid_count;
+        uint32_t interval = pid_intervals_ms[index];
+        if (scheduler->failures[index]) {
+            uint32_t retry = 500U << scheduler->failures[index];
+            if (retry > 5000U) retry = 5000U;
+            if (retry > interval) interval = retry;
+        }
         if (due((scheduler->seen_pids & (1UL << index)) != 0, now_ms,
-                scheduler->last_pid[index], pid_intervals_ms[index])) {
+                scheduler->last_pid[index], interval)) {
             chosen = index;
             break;
         }
@@ -58,4 +65,11 @@ poll_job_t poll_scheduler_next(poll_scheduler_t *scheduler, uint32_t now_ms,
         return (poll_job_t){.kind = POLL_JOB_PID, .index = (uint8_t)chosen};
     }
     return none;
+}
+
+void poll_scheduler_result(poll_scheduler_t *scheduler, uint8_t index, bool success)
+{
+    if (!scheduler || index >= POLL_SCHEDULER_MAX_PIDS) return;
+    if (success) scheduler->failures[index] = 0;
+    else if (scheduler->failures[index] < 4) scheduler->failures[index]++;
 }

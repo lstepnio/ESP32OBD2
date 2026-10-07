@@ -72,7 +72,7 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
         Column {
             state.gauges.forEach { gauge ->
                 SettingsRow(gauge.name,
-                    listOfNotNull(gauge.vehicleName, gauge.source?.let { if (gauge.bothAdapters) "Engine + transmission" else if (it == "TCM") "Transmission" else "Engine" },
+                    listOfNotNull(gauge.vehicleName,
                         if (gauge.needsReview) "Setup needs review" else if (gauge.id == state.selectedGaugeId) "Selected" else null).joinToString(" · "), !state.busy,
                     { onSelectGauge(gauge.id); gaugesOpen = false })
             }

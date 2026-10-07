@@ -91,3 +91,14 @@ Bindings are persisted only as configuration. Partial sequences/cooldown are vol
 boot never replays an action, and local selection uses the existing bounded page-save
 policy. This development extension establishes local page navigation only; it does
 not advertise idle/ABS support or qualify physical gesture usability.
+
+
+## Whole-vehicle definition routing, source dev.45
+
+Compact capability `va:1` enables standard and the existing captured enhanced
+transmission definitions on one primary transport, plus mixed-controller Dual pages.
+Each PID supplies its service and expected ECU; optional child routing preserves
+all vehicle pages. Configuration schema remains 2. Apps must require this capability
+before sending the new payload to older firmware. Compact `qs` aliases `quickSelect`
+to keep the discovery capability frame within its 255-byte read boundary. Public
+link/configuration/update qualification flags remain unchanged.

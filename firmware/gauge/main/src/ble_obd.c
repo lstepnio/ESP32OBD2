@@ -61,6 +61,7 @@ struct ble_obd_ctx
     ble_mgr_ctx_t *mgr_ctx;
     unsigned source_id;
     uint32_t discovery_ecu;
+    uint16_t request_header;
     char peer_mac[18];
     uint8_t peer_address_type;
     ble_gatt_char_def_t chars[2];
@@ -215,6 +216,7 @@ static bool initialize_adapter(ble_obd_ctx_t *obd)
             return false;
         }
     }
+    obd->request_header = 0x7df;
     /* Bounded standard support-map discovery, attributed to the engine ECU.
      * A missing reply remains unknown; it is not evidence of unsupported PIDs. */
     for (unsigned base = 0; base <= 224; base += 32) {
@@ -234,7 +236,10 @@ static bool initialize_adapter(ble_obd_ctx_t *obd)
         adapter_status_support(obd->source_id, atomic_load(&obd->generation), obd->discovery_ecu, base, map.bytes, map.length);
         if (!(map.bytes[3] & 1)) break;
     }
-    if (obd->discovery_ecu == 0x7e9 && !adapter_command(obd, "ATSH7E1\r", 2000)) return false;
+    if (obd->discovery_ecu == 0x7e9) {
+        if (!adapter_command(obd, "ATSH7E1\r", 2000)) return false;
+        obd->request_header = 0x7e1;
+    }
     atomic_store(&obd->ready, true);
     adapter_status_event(obd->source_id, atomic_load(&obd->generation), 4, 0);
     return true;
@@ -335,6 +340,28 @@ ble_obd_ctx_t *ble_obd_connect_profile_ecu(unsigned source_id, const char *peer_
     return obd;
 }
 
+/* The adapter is a transport. Each definition chooses its ECU request header.
+ * Called only by its worker while holding the existing RX/TX mutex. */
+static bool select_request_header_locked(ble_obd_ctx_t *obd, uint16_t header,
+                                         TickType_t start, TickType_t budget)
+{
+    if (obd->request_header == header) return true;
+    if (!obd_wait_remaining(start, xTaskGetTickCount(), budget)) return false;
+    char command[12];
+    snprintf(command, sizeof(command), "ATSH%03X\r", header);
+    elm_response_reset(&obd->response);
+    obd->request_header = 0; // An uncertain header must never be reused.
+    if (send_command(obd, command) != BLE_MGR_E_OK) return false;
+    obd->awaiting_prompt = true;
+    if (!wait_for_prompt(obd, obd_wait_remaining(start, xTaskGetTickCount(), budget)) ||
+        atomic_load(&obd->rx_overflow) || atomic_load(&obd->generation) != obd->active_generation ||
+        !strstr(obd->response.text, "OK") || strstr(obd->response.text, "ERROR") ||
+        strstr(obd->response.text, "?")) return false;
+    obd->request_header = header;
+    elm_response_reset(&obd->response);
+    return true;
+}
+
 int ble_obd_rxtx_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid, uint32_t ecu, uint32_t timeout_ms)
 {
     return ble_obd_rxtx_status_ecu(obd, mode, pid, ecu, timeout_ms, NULL);
@@ -345,9 +372,10 @@ int ble_obd_rxtx_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid,
 {
     if (status) *status = ELM_ADAPTER_ERROR;
     if (!obd || !timeout_ms || (mode != 1 && mode != 0x22) ||
-        (mode == 1 && pid > 255) || (mode == 0x22 && ecu != obd->discovery_ecu)) return -1;
+        (mode == 1 && pid > 255) || (mode == 0x22 && ecu != 0x7e9)) return -1;
     TickType_t budget = pdMS_TO_TICKS(timeout_ms);
     if (!budget) budget = 1;
+    TickType_t start = xTaskGetTickCount();
     if (xSemaphoreTake(obd->mutex, budget) != pdTRUE) return -1;
     int result = -1;
     uint32_t generation = atomic_load(&obd->generation);
@@ -358,7 +386,7 @@ int ble_obd_rxtx_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid,
         elm_response_reset(&obd->response);
     }
     if (!ble_mgr_is_connected(obd->mgr_ctx)) goto done;
-    if (obd->awaiting_prompt && !wait_for_prompt(obd, budget)) {
+    if (obd->awaiting_prompt && !wait_for_prompt(obd, obd_wait_remaining(start, xTaskGetTickCount(), budget))) {
         if (++obd->consecutive_timeouts >= 5) ble_mgr_disconnect(obd->mgr_ctx);
         goto done;
     }
@@ -369,13 +397,15 @@ int ble_obd_rxtx_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid,
         goto done;
     }
     if (!drain_rx(obd)) goto done;
+    if (!select_request_header_locked(obd, mode == 0x22 ? 0x7e1 : 0x7df, start, budget)) goto done;
+    if (!obd_wait_remaining(start, xTaskGetTickCount(), budget)) goto done;
     elm_response_reset(&obd->response);
     char command[8];
     if (mode == 0x22) snprintf(command, sizeof(command), "22%04X\r", pid);
     else snprintf(command, sizeof(command), "%02X%02X\r", mode, pid);
     if (send_command(obd, command) != BLE_MGR_E_OK) goto done;
     obd->awaiting_prompt = true;
-    if (!wait_for_prompt(obd, budget)) {
+    if (!wait_for_prompt(obd, obd_wait_remaining(start, xTaskGetTickCount(), budget))) {
         obd->consecutive_timeouts = 1;
         goto done;
     }
@@ -425,6 +455,7 @@ int ble_obd_read_service_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t e
         (mode != 3 && mode != 7 && mode != 10)) return -1;
     TickType_t budget = pdMS_TO_TICKS(timeout_ms);
     if (!budget) budget = 1;
+    TickType_t start = xTaskGetTickCount();
     if (xSemaphoreTake(obd->mutex, budget) != pdTRUE) return -1;
     int result = -1;
     uint32_t generation = atomic_load(&obd->generation);
@@ -435,7 +466,7 @@ int ble_obd_read_service_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t e
         elm_response_reset(&obd->response);
     }
     if (!ble_mgr_is_connected(obd->mgr_ctx)) goto done;
-    if (obd->awaiting_prompt && !wait_for_prompt(obd, budget)) {
+    if (obd->awaiting_prompt && !wait_for_prompt(obd, obd_wait_remaining(start, xTaskGetTickCount(), budget))) {
         if (++obd->consecutive_timeouts >= 5) ble_mgr_disconnect(obd->mgr_ctx);
         goto done;
     }
@@ -444,12 +475,14 @@ int ble_obd_read_service_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t e
         goto done;
     }
     if (!drain_rx(obd)) goto done;
+    if (!select_request_header_locked(obd, ecu == 0x7e9 ? 0x7e1 : 0x7df, start, budget)) goto done;
+    if (!obd_wait_remaining(start, xTaskGetTickCount(), budget)) goto done;
     elm_response_reset(&obd->response);
     char command[4];
     snprintf(command, sizeof(command), "%02X\r", mode);
     if (send_command(obd, command) != BLE_MGR_E_OK) goto done;
     obd->awaiting_prompt = true;
-    if (!wait_for_prompt(obd, budget)) {
+    if (!wait_for_prompt(obd, obd_wait_remaining(start, xTaskGetTickCount(), budget))) {
         obd->consecutive_timeouts = 1;
         goto done;
     }

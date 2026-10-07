@@ -27,7 +27,11 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                        profileId: String): Draft? = runCatching {
             require(document.vehicleProfileId == profileId)
             val saved = JSONObject(document.json)
-            require(saved.getJSONArray("sources").length() == 1)
+            val sourceItems = saved.getJSONArray("sources")
+            require(sourceItems.length() in 1..2)
+            val roles = (0 until sourceItems.length()).map { sourceItems.getJSONObject(it).getString("role") }
+            require(roles.distinct().size == roles.size && roles.all { it in setOf("ecm", "tcm") })
+            if (roles.size == 2) require(roles == listOf("ecm", "tcm"))
             val savedPages = saved.getJSONArray("pages")
             val primary = savedPages.getJSONObject(0)
             val pidId = localPid(primary.getJSONArray("pidIds").getString(0))
@@ -60,7 +64,7 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                     alert.getInt("warning"), alert.getInt("critical"), alert.getInt("hysteresis"),
                     alert.getInt("triggerDwellMs"), alert.getInt("clearDwellMs"), alert.optInt("priority", 8))
             }
-            Draft(pidId = pidId, layout = layout, source = source, pages = pages, alerts = alerts, actions = ProfileActions.decode(saved.optJSONArray("actions"))).also { ProfileActions.validate(it.actions, it.pages) }
+            Draft(pidId = pidId, layout = layout, source = if (saved.getJSONArray("sources").length() == 2) "ECM" else source, pages = pages, alerts = alerts, actions = ProfileActions.decode(saved.optJSONArray("actions"))).also { ProfileActions.validate(it.actions, it.pages) }
         }.getOrNull()
 
         fun from(document: GaugeConfigTransferClient.ActiveDocument,

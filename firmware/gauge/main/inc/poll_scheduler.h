@@ -19,6 +19,7 @@ typedef struct {
 
 typedef struct {
     uint32_t last_pid[POLL_SCHEDULER_MAX_PIDS];
+    uint8_t failures[POLL_SCHEDULER_MAX_PIDS];
     uint32_t last_mil;
     uint32_t last_dtc[3];
     uint32_t seen_pids;
@@ -32,3 +33,6 @@ void poll_scheduler_init(poll_scheduler_t *scheduler);
  * unsigned subtraction keeps deadline checks valid across counter wrap. */
 poll_job_t poll_scheduler_next(poll_scheduler_t *scheduler, uint32_t now_ms,
                                const uint32_t *pid_intervals_ms, uint8_t pid_count);
+
+/* Per-reading loss backs off without delaying healthy sibling readings. */
+void poll_scheduler_result(poll_scheduler_t *scheduler, uint8_t index, bool success);

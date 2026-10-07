@@ -109,8 +109,7 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
         val purpose = picker
         if (purpose == "layout" && current != null) LayoutPicker(state, current, { picker = null }) {
             actions.layout(it); picker = null
-        } else ReadingPicker(state.readings.filter { purpose != "secondary" || (it.id != current?.readingId &&
-            it.source == state.readings.firstOrNull { reading -> reading.id == current?.readingId }?.source) },
+        } else ReadingPicker(state.readings.filter { purpose != "secondary" || it.id != current?.readingId },
             if (purpose == "add") "Add page" else if (purpose == "secondary") "Second reading" else "Choose reading",
             if (purpose == "add") null else if (purpose == "secondary") current?.secondaryId else current?.readingId,
             state.editingEnabled, { picker = null }) { id ->

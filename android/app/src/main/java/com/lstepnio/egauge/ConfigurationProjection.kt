@@ -40,7 +40,7 @@ object ConfigurationProjector {
     val supportedPidIds = setOf("rpm", "coolant", "speed", "load", "fuel")
     val transmissionPidIds = setOf("tcmtemp", "tcmgear")
     fun pagePidIds(source: String) = when {
-        source == "BOTH" && BuildConfig.DEBUG -> supportedPidIds + transmissionPidIds
+        source in setOf("BOTH", "ECM") && BuildConfig.DEBUG -> supportedPidIds + transmissionPidIds
         source == "TCM" && BuildConfig.DEBUG -> transmissionPidIds
         else -> supportedPidIds
     }
@@ -56,22 +56,12 @@ object ConfigurationProjector {
 
     fun blockers(draft: Draft, allowEmptyPages: Boolean = false): List<String> {
         val actionIssues = runCatching { ProfileActions.validate(draft.actions, draft.pages) }.exceptionOrNull()?.let { listOf(it.message ?: "Invalid actions") } ?: emptyList()
-        if (draft.source == "BOTH") {
-            val engine = draft.copy(source = "ECM", actions = emptyList(), pages = draft.pages.filter { it.pidIds.all { id -> id in supportedPidIds } })
-            val transmission = draft.copy(source = "TCM", actions = emptyList(), pages = draft.pages.filter { it.pidIds.all { id -> id in transmissionPidIds } }, alerts = emptyList())
-            return actionIssues + blockers(engine, true) + blockers(transmission, true) + buildList {
-                if (draft.pages.size !in 1..8) add("Choose between one and eight vehicle pages")
-                if (engine.pages.size + transmission.pages.size != draft.pages.size) add("Each page must use one adapter source")
-                if (draft.pages.map { it.id }.distinct().size != draft.pages.size || draft.pages.any { it.id.length > 64 })
-                    add("Every page needs a unique identity of at most 64 characters")
-            }
-        }
         return actionIssues + buildList {
             if (draft.source == "TCM") {
                 if (!BuildConfig.DEBUG || draft.alerts.isNotEmpty())
                     add("The TCM setup supports temperature and gear pages without alerts")
-            } else if (draft.source != "ECM" || draft.pages.any { page -> page.pidIds.any { it in transmissionPidIds } } || draft.alerts.any { it.pidId in transmissionPidIds })
-                add("Engine and transmission readings need separate adapter profiles")
+            } else if (draft.source !in setOf("ECM", "BOTH"))
+                add("Vehicle source is invalid")
             if (draft.pages.size !in (if (allowEmptyPages) 0..8 else 1..8)) add("Add a page for the selected adapter before sending")
             if (draft.pages.map { it.id }.distinct().size != draft.pages.size)
                 add("Every page needs a unique identity")
@@ -132,7 +122,10 @@ object ConfigurationProjector {
         val definitions = JSONArray()
         for (index in 0 until availableDefinitions.length()) {
             val definition = availableDefinitions.getJSONObject(index)
-            if (definition.getString("id") in requiredDefinitions) definitions.put(definition)
+            if (definition.getString("id") in requiredDefinitions) {
+                definition.put("sourceId", source.getString("id"))
+                definitions.put(definition)
+            }
         }
         require(definitions.length() == requiredDefinitions.size) {
             "Configuration template is missing a required PID definition"
@@ -173,30 +166,25 @@ object ConfigurationProjector {
         )
         return projection to json.toString().toByteArray(Charsets.UTF_8)
     }
-    fun projectCombined(template: String, vehicle: VehicleProfile, baseRevision: Long): Pair<ConfigurationProjection, ByteArray> {
-        val combined = vehicle.combinedDraft()
-        require(blockers(combined).isEmpty()) { blockers(combined).joinToString(". ") }
-        val engine = project(template, vehicle.draft, vehicle.id, baseRevision, vehicle.primaryAdapter, 2)
+    /** All vehicle pages are sent together; only transport routing changes in Expert. */
+    fun projectVehicle(template: String, vehicle: VehicleProfile, baseRevision: Long,
+                       useChildAdapter: Boolean, schemaVersion: Int = 2): Pair<ConfigurationProjection, ByteArray> {
+        val draft = vehicle.dashboardDraft().copy(source = "ECM")
+        val result = project(template, draft, vehicle.id, baseRevision, vehicle.primaryAdapter, schemaVersion)
+        if (!useChildAdapter) return result
+        vehicle.combinedDraft() // Distinct bindings, never two workers claiming the same radio.
         val child = requireNotNull(vehicle.transmission)
-        val tcmDraft = child.draft.copy(pages = child.draft.pages.map { it.copy(id = "child.${it.id}") },
-            actions = child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") })
-        val transmission = project(template, tcmDraft, vehicle.id, baseRevision, child.adapter, 2)
-        val root = JSONObject(engine.second.toString(Charsets.UTF_8))
-        val tcm = JSONObject(transmission.second.toString(Charsets.UTF_8))
-        listOf("sources", "definitions", "pages").forEach { key ->
-            val target = root.getJSONArray(key)
-            val extra = tcm.getJSONArray(key)
-            for (index in 0 until extra.length()) target.put(extra.getJSONObject(index))
+        val root = JSONObject(result.second.toString(Charsets.UTF_8))
+        root.getJSONArray("sources").put(JSONObject().put("id", "tcm").put("role", "tcm")
+            .put("label", "Transmission adapter").put("adapter", requireNotNull(child.adapter).json()))
+        val definitions = root.getJSONArray("definitions")
+        for (index in 0 until definitions.length()) {
+            val definition = definitions.getJSONObject(index)
+            if (definition.getJSONObject("request").getString("service") == "22") definition.put("sourceId", "tcm")
         }
-        val mergedPages = root.getJSONArray("pages")
-        val byId = (0 until mergedPages.length()).associate { index ->
-            mergedPages.getJSONObject(index).let { it.getString("id") to it }
-        }
-        root.put("pages", JSONArray(combined.pages.map { byId.getValue(it.id) }))
-        val projectedById = (engine.first.pages + transmission.first.pages).associateBy { it.id }
-        if (combined.actions.isNotEmpty()) root.put("actions", ProfileActions.json(combined.actions))
-        return ConfigurationProjection(combined.pages.map { projectedById.getValue(it.id) }, engine.first.alerts, combined.actions) to
-            root.toString().toByteArray(Charsets.UTF_8)
+        return result.first to root.toString().toByteArray(Charsets.UTF_8)
     }
 
+    fun projectCombined(template: String, vehicle: VehicleProfile, baseRevision: Long): Pair<ConfigurationProjection, ByteArray> =
+        projectVehicle(template, vehicle, baseRevision, true)
 }

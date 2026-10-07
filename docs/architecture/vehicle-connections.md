@@ -1,135 +1,88 @@
-# Vehicles, primary adapters and transmission children
+# Vehicles and adapter routing
 
-Updated 2026-10-07. This describes Android storage and setup behavior. It does not
-promote simultaneous adapter capability.
+Updated 2026-10-07. One vehicle dashboard is independent of its physical adapters.
 
-## Ownership
+## Product model
 
-A phone keeps up to eight vehicle profiles and sixteen remembered gauges. A normal
-vehicle has one primary OBD-II adapter and engine draft. A swapped vehicle can add
-one optional transmission child inside that same profile. The child has its own
-adapter binding and saved pages; it does not consume another vehicle slot.
+A phone stores up to eight vehicles and sixteen remembered gauges. Every vehicle
+has one primary logical connection, ECM, and one dashboard containing its supported
+engine and transmission readings. A swap may explicitly enable one optional second
+adapter in Expert. It belongs to the primary vehicle; it is never a second car.
+
+One adapter is the normal case. All configured definitions use that transport,
+keeping their own CAN request/response identities. A second adapter only changes
+where transmission definitions are polled. No page editor, preview, Actions picker
+or send review selects an ECM-only or TCM-only subset.
 
 ```mermaid
 flowchart TD
-    App[Android app] --> VehicleA[Vehicle A]
-    App --> VehicleB[Vehicle B]
-    VehicleA --> ECM[Primary ECM adapter and pages]
-    ECM --> TCM[Optional TCM child adapter and pages]
-    VehicleB --> Single[Single OBD-II adapter and pages]
-    App --> Gauges[Remembered gauges]
-    Gauges --> G1[Gauge 1: Vehicle A / ECM]
-    Gauges --> G2[Gauge 2: Vehicle A / TCM]
-    Gauges --> G3[Gauge 3: Vehicle B / ECM]
+    App[Android app] --> Vehicle[Vehicle and one dashboard]
+    Vehicle --> Primary[Primary adapter]
+    Vehicle --> Child[Optional second adapter in Expert]
+    Primary --> Engine[Engine requests]
+    Primary --> Transmission[Transmission requests when second adapter is off]
+    Child --> Routed[Transmission requests when second adapter is enabled]
 ```
 
-The parent relationship is configuration ownership, not a radio dependency. TCM
-recovery must not wait for ECM availability. Adapter identity and source/ECU keys
-stay independent. A vehicle-wide shared fault list or parser must not erase source
-attribution. A child is optional and remains absent from ordinary setup.
+Each physical connection recovers independently. Missing engine data cannot prevent
+transmission data from displaying, or the reverse. Keep pages visible with unavailable
+values for absent data. Do not erase source/ECU identity in parsing, diagnostics,
+commands or freshness merely because the product has one logical connection.
 
 ## Android implementation
 
-- `VehicleProfile` owns the primary `draft` and `primaryAdapter`, plus optional
-  `TransmissionConnection(adapter, draft)`. `draftFor`, `adapterFor`, `withDraft`
-  and `withAdapter` select the correct source without altering its sibling.
-- Profile schema 9 permits one internal controller draft to have no pages while the vehicle retains at least one page; schema 8 adds cross-controller page order; schema 7 adds local action bindings; schema 6 serializes the child within the vehicle. Schemas 1 through 8
-  remain readable. Existing standalone TCM profiles remain intact: the app never
-  guesses which engine vehicle is their parent.
-- Expert exposes the child setup and source selection for the selected gauge.
-  Explicit legacy attachment moves its pages/binding into a chosen engine vehicle;
-  the installed gauge still needs a reviewed send to adopt the new vehicle ID.
-- A child needs an ECM parent with an adapter selected. Two adapters used simultaneously must have different IDs
-  and addresses. A single physical adapter moved between ports may be referenced
-  by both connections using the exact same binding; combined runtime remains
-  blocked until two distinct adapters are selected. Reject inconsistent aliases
-  for one adapter without overwriting either binding. Remove the child before removing the primary adapter. Replacing the
-  primary retains the vehicle's child unless the replacement conflicts with it.
-- Removing a child asks for confirmation because it deletes its phone draft.
-  Installed gauges keep their configuration. Stale local assignments are marked
-  for review and never resolve to another vehicle or source.
-- `GaugeAssociationStore` migrates the old single identity without deleting it or
-  its name. Each `KnownGauge` stores its desired vehicle/source context. Settings
-  offers a saved-gauge picker and explicit discovery for another gauge. Leaving
-  the picker releases its discovery hold and resumes the remembered target; a late
-  scan result cannot reopen the cancelled picker.
-- The phone connects to one selected gauge at a time. Reconnect restores that
-  gauge's desired vehicle/source draft. Switching clears device evidence, waits
-  for automatic transport cleanup and does not send settings. Ownership always
-  requires the Android bond plus protected readback, independently for each gauge.
-- Pending configuration/update outcomes must be reconciled before switching gauges.
-  Corrupt associations fail closed; retain the raw stored document for recovery.
-- Poll scope includes gauge, vehicle, source, adapter and configuration revision.
-  A late read for a previous source is discarded even when its parent vehicle is
-  unchanged. Local desired assignments never establish healthy installed setup.
+`VehicleProfile` retains primary and internal child drafts for backward-compatible
+storage. `dashboardDraft()` is the logical editor; it includes both page sets and
+legacy TCM-only profiles. `withDashboard()` stores edits without changing bindings.
+`projectVehicle()` sends every dashboard page and changes only definition routing
+when the second adapter is enabled. Mixed-controller Dual pages are supported by
+new firmware. Page order and gesture targets survive route changes.
 
-## Firmware and protocol boundary
+Expert selection edits a binding, never a page source. Car always edits the primary
+binding. Reconnection restores the whole vehicle editing context. Actual installed
+source roles drive protected status polling until a reviewed replacement is sent.
+Each remembered gauge retains its vehicle association and explicit second-adapter
+mode. Separate vehicles and gauges never inherit one another's bindings.
 
-Development candidate dev.42 executes one or two sources with separate worker/parser,
-status, diagnostic, retry and alert availability state. The debug app's per-gauge
-`bothAdapters` choice uses compact capability `da:1`; it does not reinterpret public
-capacity or qualify three simultaneous radio links. Missing child data fails closed.
-The editor always presents one vehicle dashboard for a vehicle with a child, independently of the selected adapter or simultaneous execution setting, and saves changes into internal ECM/TCM drafts; combined review and send include both
-sets of pages (at most eight total) and primary alerts in one schema-2 configuration.
-Child page identities are prefixed `child.` to avoid collisions. Single-source
-imports remain available; importing a dual document into one editor is blocked
-rather than discarding its other source. Public capacity remains one until the
-[physical recovery matrix](../development/dual-adapter-recovery.md) passes.
+Schema 10 allows mixed primary pages and retains reads of schemas 1..9. Child page
+identities keep their existing `child.` prefix; this is an internal identity rather
+than a separate dashboard. A legacy TCM profile keeps its ID and binding, offers
+engine readings, and normalizes its primary draft when edited. It does not guess
+which other saved car is its parent. Explicit legacy attachment remains available
+for recovering an older separate profile. Confirmed protected single/dual gauge
+readback can recover a missing vehicle without overwriting an existing ID.
 
-Action drafts and legacy migration follow [ADR-013](vehicle-actions.md). Parent and child retain separate bindings; a combined gauge setup rejects ambiguous triggers.
+A vehicle keeps at least one page, and the phone keeps at least one vehicle. A
+controller's internal draft may be empty. Both configured adapters can still check
+faults without having a display page assigned. Unfinished or same-radio child
+bindings cannot enable two workers; single mode uses the primary transport for the
+whole dashboard. Removing a child route retains all pages/gestures.
 
-## Recovering a missing local setup
+## Firmware and compatibility
 
-Expert “Use saved gauge setup” can reconstruct a missing single-source profile
-from authenticated, confirmed running gauge readback. It validates supported pages,
-source, adapter binding and storage bounds before saving; existing identities are
-never overwritten by recovery. A legacy TCM setup keeps its gauge identity and
-remains separate until the owner explicitly attaches it to its ECM parent.
-A moved adapter can use the same exact binding for single-source operation. Recovery does not send configuration or infer a vehicle parent.
-Combined-source import remains blocked rather than dropping either source.
+Source dev.45 adds `va:1`: request service and expected responder belong to each
+PID, with bounded serialized CAN header changes. Sources describe transports.
+One transport can carry standard 7E8 and captured enhanced 7E9 requests. A second
+source routes the enhanced definitions to its independent worker. Public link
+capacity remains one until the physical coexistence matrix passes.
 
-## One vehicle in the product
+Configuration schema remains 2. An older firmware lacks `va:1`; Android blocks the
+new mixed/second-adapter payload rather than dropping pages. Older phone Apps reject
+new schema-10 storage. Firmware freshness, source generations and unknown replies
+continue to fail closed. TCM alerts and TCM faults on a shared primary transport are
+not qualified capabilities. Existing enhanced definitions remain calibration-specific.
 
-ECM is the primary connection and TCM is its associated child, never a second car.
-Gauge previews, Customize reading/page selection and the Actions picker always
-present the combined vehicle pages when a child exists, including a single adapter
-moved between ports and a child whose adapter selection is unfinished.
-Review and send uses only the actual execution configuration: one selected connection
-or both explicitly configured adapters. Its pages, alerts and actions must match
-the outgoing payload; other vehicle pages stay saved on the phone. Source/ECU identity stays in internal routing,
-parser, diagnostics and independent retry state so a failed child cannot invalidate
-healthy ECM data or route a vehicle command to the wrong controller. Adapter setup
-and migration remain in Expert. One adapter moved between ports uses single-source
-execution while both local drafts remain owned by the same vehicle.
-
-The editor uses `dashboardDraft()` without radio preconditions. Only execution uses
-`combinedDraft()` and its distinct-adapter checks. No schema migration or guessed
-legacy-parent attachment is needed. The combined editor and projection retain one cross-controller page order. Reading
-selection determines controller ownership internally. Firmware currently requires
-both readings on a Dual page to belong to the same controller, so the secondary
-picker lists compatible readings. Local editing requires only one page across the vehicle. A controller draft may
-have no pages without deleting its binding. Sending a single source with no pages
-or enabling combined execution without pages for both sources is blocked; review
-shows the actual empty outgoing list rather than substituting the full preview. Old profiles without explicit page order retain
-engine-first ordering. See the restart/editor rollout for exact physical evidence.
+See [detailed review and test plan](../development/logical-vehicle-review.md) and
+[dual recovery matrix](../development/dual-adapter-recovery.md).
 
 ## Deleting phone data
 
-Customize has a visible Delete page action; Manage pages has Delete on each row.
-Confirmation identifies the page. Deletion clears any action targeting it, keeps
-reading alerts and requires a reviewed send to change the gauge. Page IDs are used
-to resolve the current deletion target after reordering. The last vehicle page is
-retained; last-source page deletion is allowed and persists through schema 9.
+Customize and Manage pages expose confirmed page deletion. Target gestures are
+cleared, reading alerts remain, and a reviewed send changes the gauge.
 
-Car > Your car lists a Delete action for each vehicle. Confirmation removes that
-phone profile including its optional child and selects a remaining profile if
-needed. At least one vehicle remains. Unresolved configuration/update operations
-block vehicle deletion; persistence must succeed before in-memory selection changes.
-Remembered gauges assigned to the deleted ID remain remembered but their context
-is unresolved, requiring explicit reassignment. Do not silently redirect them to
-the next profile. Deletion never sends to a gauge or removes its bond.
-
-Explicitly assigning a remembered gauge to a different vehicle resets its local
-simultaneous-adapter choice to single-adapter mode. A previous swap mode must not
-strand an ordinary replacement vehicle. Other gauges and same-vehicle mode stay
-unchanged; no firmware send follows automatically.
+Car > Your car exposes confirmed vehicle deletion. Persistence must succeed before
+selection changes. Pending setup/update outcomes block deletion. Installed settings
+and bonds remain unchanged; affected remembered gauges need explicit reassignment.
+Choosing a different vehicle resets that gauge's local second-adapter mode. Other
+gauges keep their own assignments. Corrupt associations fail closed and remain
+recoverable; they never silently select another vehicle.

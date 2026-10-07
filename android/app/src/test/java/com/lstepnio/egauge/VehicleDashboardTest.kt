@@ -30,10 +30,10 @@ class VehicleDashboardTest {
         assertTrue(removed.combinedDraft().actions.isEmpty())
         assertEquals(combined.pages,removed.combinedDraft().pages)
     }
-    @Test fun mixedSourceDualAndRemovingTheLastVehiclePageAreRejected() {
+    @Test fun mixedControllerDualWorksAndRemovingTheLastVehiclePageIsRejected() {
         val combined = vehicle.combinedDraft()
         val bad = combined.pages.first().copy(layout=GaugeLayout.Dual,pidIds=listOf("rpm","tcmtemp"))
-        assertThrows(IllegalArgumentException::class.java) { vehicle.withDashboard(combined.copy(pages=listOf(bad)+combined.pages.drop(1))) }
+        assertEquals(bad, vehicle.withDashboard(combined.copy(pages=listOf(bad)+combined.pages.drop(1))).dashboardDraft().pages.first())
         assertThrows(IllegalArgumentException::class.java) { vehicle.withDashboard(combined.copy(pages=emptyList())) }
         assertEquals(combined,vehicle.combinedDraft())
     }
@@ -60,7 +60,7 @@ class VehicleDashboardTest {
         assertThrows(IllegalArgumentException::class.java) { unfinished.combinedDraft() }
         val ordinary = vehicle.copy(transmission = null)
         assertEquals(ordinary.draft, ordinary.dashboardDraft())
-        assertEquals(ConfigurationProjector.supportedPidIds, ConfigurationProjector.pagePidIds(ordinary.dashboardDraft().source))
+        assertEquals(ConfigurationProjector.supportedPidIds + ConfigurationProjector.transmissionPidIds, ConfigurationProjector.pagePidIds(ordinary.dashboardDraft().source))
     }
     @Test fun lastChildPageCanBeDeletedWithoutDeletingItsAdapterAndCanBeAddedAgain() {
         val combined = vehicle.dashboardDraft()
@@ -70,7 +70,7 @@ class VehicleDashboardTest {
         val restored = ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(ProfileCollection(edited.id, listOf(edited)))).active
         assertEquals(edited, restored)
         assertTrue(ConfigurationProjector.blockers(edited.transmission.draft).isNotEmpty())
-        assertThrows(IllegalArgumentException::class.java) { edited.combinedDraft() }
+        assertEquals(edited.dashboardDraft(), edited.combinedDraft())
         val added = GaugePageDraft("page.custom.1", "GEAR", GaugeLayout.Numeric, listOf("tcmgear"))
         val resumed = restored.withDashboard(restored.dashboardDraft().copy(pages = restored.dashboardDraft().pages + added))
         assertEquals(listOf(added), resumed.transmission!!.draft.pages)

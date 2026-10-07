@@ -30,7 +30,7 @@ data class VehicleProfile(
         else -> null
     }
     fun adapterFor(source: String): AdapterBinding? = if (source == draft.source) primaryAdapter
-        else if (source == "TCM") transmission?.adapter else null
+        else if (source == "TCM") transmission?.adapter else if (source == "ECM") primaryAdapter else null
     fun withDraft(value: Draft): VehicleProfile = if (value.source == draft.source) copy(draft = value)
         else copy(transmission = (transmission ?: error("Set up the transmission child first")).copy(draft = value))
     fun withAdapter(source: String, value: AdapterBinding?): VehicleProfile = when (source) {

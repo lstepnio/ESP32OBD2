@@ -25,6 +25,23 @@ class GaugeProfileRecoveryTest {
         assertNull(result.active.transmission)
         assertEquals(result, ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(result)))
     }
+    @Test fun combinedRecoveryRetainsOneVehicleWithItsChildAndFullDashboard() {
+        val vehicle = engine.copy(id = "missing.jeep", transmission = TransmissionConnection(
+            AdapterBinding("child", "AA:BB:CC:DD:EE:02", "public")))
+        val bytes = ConfigurationProjector.projectCombined(File("src/main/assets/numeric_config_template.json").readText(), vehicle, 42).second
+        val saved = GaugeConfigTransferClient.ActiveDocument(43, "a".repeat(64), bytes.size, vehicle.id, 0, 0, 0, bytes.toString(Charsets.UTF_8))
+        val recovered = GaugeProfileRecovery.recover(original, saved).active
+        assertEquals(vehicle.primaryAdapter, recovered.primaryAdapter)
+        assertEquals(vehicle.transmission!!.adapter, recovered.transmission!!.adapter)
+        assertEquals(vehicle.dashboardDraft().pages, recovered.dashboardDraft().pages)
+        assertEquals(engine, original.active)
+        val restored = GaugeProfileRecovery.restore(vehicle.copy(name = "Custom Jeep"), saved)
+        assertEquals("Custom Jeep", restored.name)
+        assertEquals(recovered.dashboardDraft().pages, restored.dashboardDraft().pages)
+        assertEquals(recovered.transmission?.adapter, restored.transmission?.adapter)
+        assertThrows(IllegalArgumentException::class.java) { GaugeProfileRecovery.restore(engine, saved) }
+    }
+
     @Test fun existingIdentityAndFullCollectionAreNeverOverwritten() {
         val recovered = GaugeProfileRecovery.recover(original, document())
         assertThrows(IllegalArgumentException::class.java) { GaugeProfileRecovery.recover(recovered, document()) }

@@ -296,7 +296,7 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     }
 
     double decoded;
-    if (g_runtime && g_runtime->sources[source].transmission && pid == 0x5503 &&
+    if (g_runtime && pid == 0x5503 &&
         !transmission_gear_label(data[0])) {
         ui_set_value(ui, pid, NULL);
         return;
@@ -460,11 +460,12 @@ static void obd_task(void *arg)
         }
 
         const obd_pid_cfg_t *requested = poll_cfg(pid_indices[job.index]);
-        const uint8_t obd_mode = transmission ? 0x22 : 0x01;
+        const uint8_t obd_mode = g_runtime ? g_runtime->pids[pid_indices[job.index]].service : 0x01;
 
         int status = ble_obd_rxtx_ecu(obd, obd_mode, requested->pid,
             g_runtime ? g_runtime->pids[pid_indices[job.index]].responder : ELM_ECU_ANY, timeout_ms);
 
+        poll_scheduler_result(&scheduler, job.index, status == 0);
         if (status != 0)
         {
             ESP_LOGW(TAG, "Failed to send request: %d", status);
