@@ -9,6 +9,8 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.channels.Channel
@@ -44,7 +46,7 @@ class GaugeConfigTransferClient(private val context: Context) {
     private val controlId = UUID.fromString("6f1a0002-9e3b-4f45-a714-69c9d23b6c00")
     private val stateId = UUID.fromString("6f1a0003-9e3b-4f45-a714-69c9d23b6c00")
     private sealed interface Event {
-        data class Ready(val mtu: Int) : Event
+        data class Ready(val mtu: Int, val control: BluetoothGattCharacteristic, val state: BluetoothGattCharacteristic) : Event
         data class Read(val bytes: ByteArray, val status: Int) : Event
         data class Write(val status: Int) : Event
         data class Failed(val reason: String) : Event
@@ -98,26 +100,44 @@ class GaugeConfigTransferClient(private val context: Context) {
         }
         var requestedMtu = 23
         val readySent = AtomicBoolean(false)
+        val readyPublished = AtomicBoolean(false)
+        val discoveryGeneration = java.util.concurrent.atomic.AtomicInteger(0)
+        val handshakeHandler = Handler(Looper.getMainLooper())
+        val discovery = GattDiscovery { emit(Event.Failed("Could not discover gauge services")) }
         val callback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED)
                     emit(Event.Failed("Gauge disconnected during configuration ($status)"))
-                else if (newState == BluetoothProfile.STATE_CONNECTED && !gatt.requestMtu(185))
-                    gatt.discoverServices()
+                else if (newState == BluetoothProfile.STATE_CONNECTED)
+                    discovery.connect(gatt)
             }
             override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
                 if (status == BluetoothGatt.GATT_SUCCESS) requestedMtu = mtu
-                if (!gatt.discoverServices()) emit(Event.Failed("Could not discover gauge services"))
+                discovery.discover(gatt)
             }
             override fun onServiceChanged(gatt: BluetoothGatt) {
-                emit(Event.Failed("Gauge services changed. Reconnect to reload its settings."))
+                if (readyPublished.get()) emit(Event.Failed("Gauge services changed. Reconnect to reload its settings."))
+                else {
+                    discoveryGeneration.incrementAndGet()
+                    handshakeHandler.removeCallbacksAndMessages(null)
+                    readySent.set(false)
+                    discovery.rediscover(gatt)
+                }
             }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-                if (status != BluetoothGatt.GATT_SUCCESS ||
-                    gatt.getService(serviceId)?.getCharacteristic(controlId) == null ||
-                    gatt.getService(serviceId)?.getCharacteristic(stateId) == null)
-                    emit(Event.Failed("Gauge transfer service is unavailable"))
-                else if (readySent.compareAndSet(false, true)) emit(Event.Ready(requestedMtu))
+                if (!readySent.compareAndSet(false, true)) return
+                val service = if (status == BluetoothGatt.GATT_SUCCESS) gatt.getService(serviceId) else null
+                val control = service?.getCharacteristic(controlId)
+                val state = service?.getCharacteristic(stateId)
+                if (control == null || state == null) emit(Event.Failed("Gauge transfer service is unavailable"))
+                else {
+                    // Cache invalidation can follow discovery success. Only publish the latest database.
+                    val generation = discoveryGeneration.get()
+                    handshakeHandler.postDelayed({
+                        if (discoveryGeneration.get() == generation && readyPublished.compareAndSet(false, true))
+                            emit(Event.Ready(requestedMtu, control, state))
+                    }, 750)
+                }
             }
             @Deprecated("Required for Android 10 through 12")
             override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
@@ -139,20 +159,25 @@ class GaugeConfigTransferClient(private val context: Context) {
             if (ready is Event.Failed) throw GaugeLinkException(ready.reason)
             require(ready is Event.Ready)
             withTimeout(operationTimeoutMs) {
-                val session = Session(gatt, events, ready.mtu)
+                val session = Session(gatt, events, ready.mtu, ready.control, ready.state)
                 session.establishOwner()
                 session.action()
             }
+        } catch (failure: Exception) {
+            if (BuildConfig.DEBUG) Log.w("eGaugeLink", "Protected session failed (${failure.javaClass.simpleName}): ${failure.message}")
+            throw failure
         } finally {
+            handshakeHandler.removeCallbacksAndMessages(null)
+            discovery.close()
             gatt.disconnect()
             gatt.close()
             events.close()
         }
     }
 
-    private inner class Session(private val gatt: BluetoothGatt, private val events: Channel<Event>, val mtu: Int) {
-        private val control = gatt.getService(serviceId).getCharacteristic(controlId)
-        private val state = gatt.getService(serviceId).getCharacteristic(stateId)
+    private inner class Session(private val gatt: BluetoothGatt, private val events: Channel<Event>, val mtu: Int,
+                                private val control: BluetoothGattCharacteristic,
+                                private val state: BluetoothGattCharacteristic) {
         private suspend fun next(): Event = withTimeout(12_000) { events.receive() }.also {
             if (it is Event.Failed) throw GaugeLinkException(it.reason)
         }

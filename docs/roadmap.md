@@ -27,8 +27,7 @@ synthetic placeholder becomes a supported vehicle value.
 Normal vehicles have one primary ECM connection. Expert can attach an optional TCM
 child within the same vehicle; legacy standalone Transmission profiles remain usable
 until explicitly attached. Each remembered gauge has its own vehicle/source context.
-Installed dev.40 runs one source. Source dev.42 implements both workers and the
-combined app path; physical simultaneous operation still requires qualification. Keep one workspace and the existing settings store.
+Installed dev.42 implements both workers and the combined app path; physical simultaneous operation still requires qualification. Keep one workspace and the existing settings store.
 
 ## Acceptance and maintenance
 

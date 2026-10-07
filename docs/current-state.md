@@ -12,7 +12,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
   iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
 - Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
   verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.42`, configuration revision 35.
+- Latest recorded physical gauge: `0.2.0-dev.42`, configuration revision 42, protected running confirmation and cleared trial.
   Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
 - The owner has one Vgate, swapped between separate ECM and TCM connectors on a
   2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
@@ -26,11 +26,11 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 | Engine telemetry | Gauge reads attributed 7E8 replies. Owner reported RPM agrees with dash, disappears after unplugging adapter and returns after reconnect | Vehicle/adapter matrix, long soak and achieved polling rates |
 | Transmission | One active TCM profile routes 7E1/7E9; combined Gear + Temperature page. Owner confirmed page worked and both readings cleared/returned on adapter loss/recovery | Independent temperature sensor/scale reference, gears 2..8, current/target divergence |
 | Faults | Mac captured full stored/pending/permanent TCM lists. Version 15 protected full snapshots and Android source/category groups implemented and tested offline | New long-read transfer on Pixel and full fault polling alongside Gear + Temperature |
-| Settings | Brightness, orientation, Metric/Imperial units and automatic saved-page interval persisted through existing settings path; initial app units follow locale region, saved choice/confirmed gauge wins | Physical units/persistence and automatic-cycle checks remain separate from protected readback |
+| Settings | Brightness, orientation, Metric/Imperial units and automatic saved-page interval persisted through existing settings path; initial app units follow locale region, saved choice/confirmed gauge wins | App dev.39 protected post-restart settings persistence passed; physical units and automatic-cycle observations remain separate |
 | Dashboards/alerts | Numeric, Arc, Bar, Trend and Dual renderers; bounded page/alert configuration, stronger palette and enlarged arc; host logic tests | Daylight/color review, alert transitions and hidden-page behavior on real vehicle |
 | Configuration | Atomic slots, exact review/projection, revision/hash conflict checks, trial/fallback and stored/running identity | Physical interruption matrix and all supported layouts/alerts on hardware |
 | Updates | Signed development catalog/bundle verification, owner BLE bootstrap, authenticated private Wi-Fi transfer, A/B trial confirmation and recovery journal; App/Wi-Fi installs recorded | Hardware power-loss/expiry matrix, production trust and performance measurements |
-| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 7; remembered gauges retain independent vehicle/source contexts. Source dev.42 adds independent ECM/TCM workers and the debug app combined send/status path | Installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
+| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 8; remembered gauges retain independent vehicle/source contexts. Source dev.42 adds independent ECM/TCM workers and the debug app combined send/status path | Installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
 
 ## Public and experimental boundaries
 
@@ -45,7 +45,7 @@ P=0D, R=0B, N=00 and stationary Drive=01; Drive is not a distinct selector value
 Pressure 225034 remains raw only. Shaft speed, converter slip/lockup and complete
 OEM fault inventory lack matching validated definitions. Code clearing is a design,
 not an implemented action. [Off-road profile actions and gesture triggers](architecture/vehicle-actions.md)
-have a source-only local page-action foundation; high idle and ABS/ESC control are not enabled. Simulated data never establishes vehicle compatibility.
+have an installed local page-action foundation; high idle and ABS/ESC control are not enabled. Simulated data never establishes vehicle compatibility.
 
 ## Next work
 
@@ -71,8 +71,8 @@ Source implements one shared connection widget across native pages, an expandabl
 phone/gauge/active-adapter summary, concise active-source Car faults and automatic
 foreground settings/adapter/diagnostics reads. Read failures back off independently;
 ordinary Settings rows no longer require a read tap. Multiple-link aggregation is
-tested; source dev.42 adds the gated two-source runtime and readback. Installed
-dev.40 still executes one source.
+tested; installed dev.42 adds the gated two-source runtime and readback. Physical
+simultaneous operation remains unqualified.
 
 Firmware candidate `0.2.0-dev.40` hardening separates display snapshots from NVS persistence, bounds writer
 admission, makes busy status reads retryable, and bounds prompt deadline arithmetic
@@ -111,7 +111,7 @@ above does not establish dev.42 physical behavior.
 Source dev.42 adds `Car > Actions`, persisted profile bindings and a local page
 shortcut using repeated upward gauge swipes (default three within five seconds).
 The existing atomic config/readback path carries the choice through `cfg:4` and
-optional schema-2 `actions`. Installed dev.40 has no gesture-action support. No
+optional schema-2 `actions`. Signed dev.42 is installed with gesture support. No
 vehicle commands are enabled; high idle and ABS/ESC remain controller research and
 physical qualification work. See [ADR-013](architecture/vehicle-actions.md) for bounds,
 interaction/recovery tests and the remaining execution contract.
@@ -120,11 +120,12 @@ Action foundation verification: 89 Android unit tests, three isolated native emu
 UI tests, 73 offline host tests, production C configuration/gesture sanitizer fixtures,
 debug/test APK builds, lint, firmware build and contract/link checks passed. The native
 example and exact limits are recorded in ADR-013. Signed publication and App/Wi-Fi installation are now recorded below. Physical
-gesture tests have not occurred; dev.40 remains the earlier owner-confirmed display/swipe baseline. Earlier dual-source test totals describe that development
+three-upward-swipe page jump and normal horizontal swipes were confirmed by the owner.
+Cooldown and cycle interaction still require physical observations. Earlier dual-source test totals describe that development
 increment, not the latest action increment.
 
-The matching source App is `0.2.0-dev.35` (version code 35). Install it before
-a dev.42 gauge candidate: older Apps reject the new development `cfg:4` version.
+App dev.35 introduced compatibility with development `cfg:4`; installed App dev.38
+retains it. Apps older than dev.35 reject that version.
 Signed dev.42 and catalog generation 24 were published and installed on 2026-10-07.
 
 Four Car screenshot references were updated and compared successfully on the API-36
@@ -192,3 +193,24 @@ filtered for the firmware's current Dual-page limit. 101 unit tests, two isolate
 native Pixel UI tests, debug/test builds and lint passed. Single-adapter vehicle state
 is preserved; combined hardware operation remains unqualified. Physical cooldown,
 cycling and touch behavior after restart still require owner observations.
+
+
+## Service invalidation recovery and settings persistence
+
+Installed App dev.39 handles repeated MTU/discovery callbacks, keeps validated
+characteristics, and rediscovers during handshake on the same BLE link when the
+gauge invalidates its service database. Invalidation after handshake still fails
+the operation honestly; no uncertain write is replayed. An MTU callback deadline
+allows discovery to proceed conservatively, with normal negotiated packet sizing
+retained. The 750 ms handshake settling window keeps late invalidation ahead of
+protected commands. Debug session failures retain diagnostic causes.
+
+The Pixel/gauge persistence test passed in 58.049 seconds overall. The same warm
+App confirmed revision 42 and fresh protected display settings in 22.065 seconds:
+100% brightness, 270° orientation, Imperial units, five-second cycling. Exact setup
+and shortcut survived. Cycling was restored to its original Off setting, and phone
+wake preferences were restored. 101 Android unit tests, debug/test builds and lint
+passed. Earlier timeout-only repair did not cover this cache-invalidation case;
+see the [focused record](development/restart-and-dashboard-rollout.md). Visual cycle,
+physical gesture cooldown/touch checks, fresh firmware OTA with this App and two-adapter
+hardware qualification remain pending. Firmware remains signed dev.42.

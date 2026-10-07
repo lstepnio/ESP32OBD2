@@ -58,3 +58,63 @@ creating a mixed-source page that cannot run. No public capability was promoted.
 
 Private phone/device identifiers, saved document and logs stay ignored under
 `artifacts/profile-actions-rollout/`. Phone wake settings are restored after debugging.
+
+## Display persistence follow-up
+
+The next opt-in bench test enabled five-second cycling and resent the same setup.
+Serial boot evidence showed dev.42 loading revision 36, but warm-App confirmation
+failed to complete. The owner reported that the display still responded. This is
+not evidence of a frozen display or successful protected settings confirmation.
+The first test's cleanup opened an independent GATT session and masked the original
+failure; the revised test uses the ordinary serialized settings poll, records errors
+before cleanup, and retains the original failure if restoration also fails.
+
+A separate restoration attempt exposed duplicate Android MTU/service callbacks and
+a null transfer-service lookup. App dev.39 guards discovery and service handling once
+per session across the protected/capability clients, and passes the validated control
+and state characteristics with the Ready event. A Session no longer re-queries a
+service cache that a late discovery callback can change. Disconnection, service
+change and missing service still fail the operation; there is no uncertain write replay.
+This addresses the observed discovery race, not every possible cause of the original
+post-restart timeout. Protocol bytes and installed firmware are unchanged.
+
+The duplicate-discovery guard allowed the isolated settings restoration (4.875 s),
+but the next warm restart still timed out. Logs showed a service-change event,
+then a connected link with no MTU callback. The revised test retained this original
+failure and successfully restored cycling Off through normal App polling/writes.
+The shared `GattDiscovery` helper now starts service discovery after two seconds
+if MTU negotiation gives no callback, guards duplicate starts and cancels pending
+fallback work on close. Transfers keep the conservative 23-byte MTU when an agreed
+size is unavailable. Protected authentication and reply validation are unchanged.
+
+
+The fallback and a read-without-MTU experiment did not qualify warm restart recovery.
+The latter was removed. MTU negotiation remains in the connection path. Diagnostic
+logging then showed protected reads timing out following the boot service-change
+announcement. Closing the connection during this handshake did not recover in the
+bounded attempts, although later ordinary polling restored settings.
+
+Final App dev.39 keeps that connection alive and rediscovers its service database
+when invalidation arrives before handshake completion. A generation token prevents
+old discovery results becoming Ready; a 750 ms settling window catches late cache
+invalidation before protected commands start. Validated characteristic references
+travel with Ready. Service changes after handshake completion still fail the active
+operation, preserving uncertain-write semantics. The connection deadline and close
+cleanup remain bounded; no setup or update is automatically replayed.
+
+The physical `DisplayPersistenceJourneyTest` passed in **58.049 seconds** overall.
+It confirmed five-second cycling, resent the same setup, confirmed healthy running
+revision **42** with cleared trial, then obtained a fresh ordinary serialized settings
+poll. Configuration confirmation plus fresh settings took **22.065 seconds** from
+send start. Brightness 100%, rotation 270°, Imperial units and five-second interval
+survived. The exact setup document and shortcut survived apart from base revision.
+The test restored cycling **Off**. Running revision 42 digest:
+`69b3f7171cc6f97ae3f840e12b73056fdca369df3d0d11c5c4b880da12497ba9`.
+
+Final verification: 101 Android unit tests, debug APK, instrumentation build and
+lint passed; the physical persistence/recovery test passed. The earlier isolated
+restoration test passed too. This qualifies protected persistence and same-App
+configuration restart recovery in this session, not visual automatic cycling,
+physical cooldown, broader recovery immunity, fresh firmware OTA or two adapters.
+The owner separately reported a responsive display during the initial failure.
+Phone wake preferences were restored and firmware remains dev.42.

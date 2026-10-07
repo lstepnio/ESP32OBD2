@@ -53,6 +53,8 @@ class BleCapabilityClient(private val context: Context) {
         val result = CompletableDeferred<ByteArray?>()
         val service = serviceId
         val statusId = pairingStatusId
+        val discoveryStarted = java.util.concurrent.atomic.AtomicBoolean(false)
+        val servicesHandled = java.util.concurrent.atomic.AtomicBoolean(false)
         val callback = object : BluetoothGattCallback() {
             private fun fail(message: String) {
                 if (!result.isCompleted) result.completeExceptionally(IllegalStateException(message))
@@ -60,10 +62,12 @@ class BleCapabilityClient(private val context: Context) {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED)
                     fail("Gauge disconnected while checking pairing readiness ($status)")
-                else if (newState == BluetoothProfile.STATE_CONNECTED && !gatt.discoverServices())
+                else if (newState == BluetoothProfile.STATE_CONNECTED &&
+                    discoveryStarted.compareAndSet(false, true) && !gatt.discoverServices())
                     fail("Could not check gauge pairing readiness")
             }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                if (!servicesHandled.compareAndSet(false, true)) return
                 if (result.isCompleted) return
                 val characteristic = if (status == BluetoothGatt.GATT_SUCCESS)
                     gatt.getService(service)?.getCharacteristic(statusId) else null
@@ -198,6 +202,10 @@ class BleCapabilityClient(private val context: Context) {
         var snapshot: BluetoothGattCharacteristic? = null
         var sawBonding = false
         var authenticatedRetries = 0
+        val discovery = GattDiscovery {
+            if (!result.isCompleted) result.completeExceptionally(IllegalStateException("Could not discover gauge snapshot"))
+        }
+        val servicesHandled = java.util.concurrent.atomic.AtomicBoolean(false)
         val callback = object : BluetoothGattCallback() {
             private fun fail(message: String) {
                 if (!result.isCompleted) result.completeExceptionally(IllegalStateException(message))
@@ -205,14 +213,12 @@ class BleCapabilityClient(private val context: Context) {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED)
                     fail("Gauge disconnected during saved state read ($status)")
-                else if (newState == BluetoothProfile.STATE_CONNECTED && !gatt.requestMtu(185))
-                    discover(gatt)
+                else if (newState == BluetoothProfile.STATE_CONNECTED)
+                    discovery.connect(gatt)
             }
-            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) { discover(gatt) }
-            private fun discover(gatt: BluetoothGatt) {
-                if (!gatt.discoverServices()) fail("Could not discover gauge snapshot")
-            }
+            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) { discovery.discover(gatt) }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                if (!servicesHandled.compareAndSet(false, true)) return
                 snapshot = if (status == BluetoothGatt.GATT_SUCCESS)
                     gatt.getService(serviceId)?.getCharacteristic(stateId) else null
                 if (snapshot == null || !gatt.readCharacteristic(snapshot))
@@ -275,6 +281,7 @@ class BleCapabilityClient(private val context: Context) {
             result.cancel()
             handler.removeCallbacksAndMessages(null)
             gatt.disconnect()
+            discovery.close()
             gatt.close()
         }
     }
@@ -302,6 +309,10 @@ class BleCapabilityClient(private val context: Context) {
         var readAttempts = 0
         val target = value
         var sawBonding = false
+        val discovery = GattDiscovery {
+            if (!result.isCompleted) result.completeExceptionally(IllegalStateException("Could not discover gauge control service"))
+        }
+        val servicesHandled = java.util.concurrent.atomic.AtomicBoolean(false)
         val callback = object : BluetoothGattCallback() {
             private fun fail(message: String) {
                 if (!result.isCompleted) result.completeExceptionally(IllegalStateException(message))
@@ -309,14 +320,12 @@ class BleCapabilityClient(private val context: Context) {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED)
                     fail("Gauge disconnected during selection ($status)")
-                else if (newState == BluetoothProfile.STATE_CONNECTED && !gatt.requestMtu(185))
-                    discover(gatt)
+                else if (newState == BluetoothProfile.STATE_CONNECTED)
+                    discovery.connect(gatt)
             }
-            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) { discover(gatt) }
-            private fun discover(gatt: BluetoothGatt) {
-                if (!gatt.discoverServices()) fail("Could not discover gauge control service")
-            }
+            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) { discovery.discover(gatt) }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                if (!servicesHandled.compareAndSet(false, true)) return
                 val service = if (status == BluetoothGatt.GATT_SUCCESS) gatt.getService(serviceId) else null
                 stateCharacteristic = service?.getCharacteristic(stateId)
                 controlCharacteristic = service?.getCharacteristic(controlId)
@@ -440,6 +449,7 @@ class BleCapabilityClient(private val context: Context) {
             result.cancel()
             handler.removeCallbacksAndMessages(null)
             gatt.disconnect()
+            discovery.close()
             gatt.close()
         }
     }
@@ -516,24 +526,24 @@ class BleCapabilityClient(private val context: Context) {
     @SuppressLint("MissingPermission")
     private suspend fun readCapabilities(device: BluetoothDevice): CapabilitySnapshot {
         val result = CompletableDeferred<ByteArray>()
+        val discovery = GattDiscovery {
+            if (!result.isCompleted) result.completeExceptionally(IllegalStateException("Could not discover gauge services"))
+        }
+        val servicesHandled = java.util.concurrent.atomic.AtomicBoolean(false)
         val callback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED) {
                     if (!result.isCompleted) result.completeExceptionally(
                         IllegalStateException("Gauge disconnected ($status)"))
-                } else if (newState == BluetoothProfile.STATE_CONNECTED && !gatt.requestMtu(185)) {
-                    discover(gatt)
+                } else if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    discovery.connect(gatt)
                 }
             }
             override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
-                discover(gatt)
-            }
-            private fun discover(gatt: BluetoothGatt) {
-                if (!gatt.discoverServices() && !result.isCompleted) {
-                    result.completeExceptionally(IllegalStateException("Could not discover gauge services"))
-                }
+                discovery.discover(gatt)
             }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                if (!servicesHandled.compareAndSet(false, true)) return
                 val value = if (status == BluetoothGatt.GATT_SUCCESS)
                     gatt.getService(serviceId)?.getCharacteristic(capabilityId) else null
                 if (value == null || !gatt.readCharacteristic(value)) {
@@ -566,6 +576,7 @@ class BleCapabilityClient(private val context: Context) {
             GaugeProtocolCodec.capabilities(bytes)
         } finally {
             gatt.disconnect()
+            discovery.close()
             gatt.close()
         }
     }
