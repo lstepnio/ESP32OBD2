@@ -36,3 +36,11 @@ Installed dev35lab image SHA-256: `d61a81605a5c9cf9aa68859a879c4590edb9d4d9a87f3
 The engine vertical slice now has physical evidence for a visible RPM reading, saved binding across restart, unavailable display after unplugging, and recovery after reconnecting. Coolant/speed decoding is confirmed in USB logs; visible coolant values, swipe behavior, and dashboard comparison have not yet been confirmed. This does not qualify other adapter models, vehicles, enhanced transmission reads, or simultaneous links.
 
 Final hardware recording replay: 1,499 completed transactions, with 1,462 accepted Mode 01 responses. The remaining completed transactions include adapter setup and other service categories; this count is not a packet-success rate. Raw identifiers and serial recordings remain in ignored local artifacts.
+
+## Transmission-port follow-on, same vehicle session
+
+Owner moved the same Vgate to the transmission diagnostic port with the gauge powered and confirmed swiping works. Gauge USB capture restarted dev35lab with the saved engine profile. The recording contains 331 completed transactions and no timeout events. The support-map response and standard RPM, coolant, and speed replies came from responder 7E9. All 326 firmware decoded events rejected the responses under the active engine route (status 4); owner separately confirmed the physical gauge showed dashes. This verifies that transmission-port replies are not displayed as live engine-profile values.
+
+The standalone replay summary reports 320 accepted Mode 01 replies because it uses the parser without a specific ECU route. That is structural parser acceptance, not acceptance by the running engine profile or proof of transmission-specific measurement meaning. Sanitized responses now cover 0100, 010C, 0105, and 010D in the transmission fixture; the bench test verifies acceptance for 7E9 and rejection for 7E8. Replaying the fixture remains simulated evidence.
+
+The owner identifies the transmission as ZFHP70. Its controller supplier/software and documented enhanced request definitions remain unknown. No new enhanced vehicle queries, configuration writes, or fault-clear requests were sent. Return-to-engine display comparison remains pending.

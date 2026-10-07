@@ -24,6 +24,12 @@ class BenchTest(unittest.TestCase):
         model=BenchReplies(scenario='multiple'); model.reply(b'ATE0')
         self.assertEqual(6,self.decode(model,'010C')['status'])
         self.assertEqual('0b3c',self.decode(model,'010C','7E8')['payload'])
+    def test_transmission_port_cannot_supply_engine_route_readings(self):
+        model=BenchReplies('transmission'); model.reply(b'ATE0'); model.reply(b'ATH1')
+        for command in ['0100','010C','0105','010D']:
+            with self.subTest(command=command):
+                self.assertEqual(4,self.decode(model,command,'7E8')['status'])
+                self.assertEqual(1,self.decode(model,command,'7E9')['status'])
     def test_errors_and_absent_replies_stay_unavailable(self):
         model=BenchReplies(scenario='no-data'); model.reply(b'ATE0')
         self.assertEqual(2,self.decode(model,'010C')['status'])
