@@ -79,7 +79,7 @@ alerts and document settings were retained. Phone display settings were also unc
 
 Revision 32 digest:
 `bca0e1900db7cd26c0488dd3f1945d5ca4725b41b13b6ee656ffea1860671722`.
-Physical upward gesture outcome is pending owner observation. Successful config
+The owner confirmed that three upward swipes from GEAR jump to TRANSMISSION. Successful config
 readback establishes the saved/running binding, not touch recognition.
 
 Recovery verification: 92 Android unit tests (including three new recovery tests),
@@ -87,3 +87,30 @@ debug APK build, Android lint and instrumentation APK build passed. The new test
 cover supported recovery and storage roundtrip, preservation of engine profiles,
 existing identity/capacity rejection, unknown reading, missing binding and dual-source
 rejection. No new BLE opcode, firmware build or release was needed for this App change.
+
+The owner additionally confirmed the product model: one vehicle with primary ECM
+and associated TCM child. The combined gauge should present both sets of readings
+as one vehicle; source separation remains an internal routing/recovery concern.
+
+## ECM parent association
+
+App dev.37 adds exact shared-binding support for one adapter moved between ports;
+it does not allow that adapter in a simultaneous combined firmware configuration.
+An inconsistent alias using the same radio address/identity is rejected. Car Actions
+uses one combined page picker when both adapters are enabled, with target ownership
+resolved into the parent or child and no ambiguous duplicate gesture binding.
+
+On the physical Pixel, the recovered transmission profile was attached to Jeep using
+Expert. The original Jeep engine draft and other car profiles were retained, and the
+standalone recovered profile was removed. The child retained TRANSMISSION/GEAR pages
+and the physically observed three-upward-swipe shortcut. The normal reviewed setup
+transfer updated the gauge's vehicle association. Protected readback at revision 33
+confirmed digest `55a618eb3c4bd3d2d5bac5f57f8a2fea8c22ee86c0e58c699e5f655dd67605c3`
+and cleared trial, with only `vehicleProfileId` and `baseRevision` changed versus
+revision 32. The exact signed dev.42 identity and OTA health 2 remained confirmed.
+The read-only opening/resume test passed in 8.086 seconds; no Bluetooth toggle or
+picker cancellation was requested. Initial transfer restart confirmation again
+failed before later reconciliation, so this remains an explicit recovery follow-up.
+
+94 Android unit tests, debug/test APK builds, lint and repository validation passed.
+Simultaneous hardware operation is still unqualified with only one adapter available.

@@ -15,8 +15,8 @@ data class VehicleProfile(
         require(transmission == null || (draft.source == "ECM" && primaryAdapter != null)) {
             "A transmission child needs a primary engine adapter"
         }
-        require(transmission?.adapter == null || !samePhysicalAdapter(primaryAdapter, transmission.adapter)) {
-            "Engine and transmission need different adapters"
+        require(transmission?.adapter == null || primaryAdapter == transmission.adapter || !samePhysicalAdapter(primaryAdapter, transmission.adapter)) {
+            "The same adapter must keep the same identity for both connections"
         }
     }
 

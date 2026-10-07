@@ -1810,7 +1810,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         save(draft.copy(alerts = alerts))
     }
     fun savePageAction(value: PageAction?) {
-        if (modifyingSetupBlocked) return
+        if (modifyingSetupBlocked || profileError != null) return
+        if (bothAdapters) {
+            val updated = runCatching { profileCollection.copy(profiles = profileCollection.profiles.map {
+                if (it.id == profileCollection.activeId) it.withCombinedPageAction(value) else it
+            }) }.getOrElse { deviceMessage = it.message ?: "Could not update the vehicle action"; return }
+            if (!profileStore.save(updated)) { profileError = "Could not save changes on this phone"; return }
+            profileCollection = updated
+            draft = requireNotNull(updated.active.draftFor(draft.source))
+            return
+        }
         val actions = listOfNotNull(value)
         if (runCatching { ProfileActions.validate(actions, draft.pages) }.isFailure) return
         save(draft.copy(actions = actions))

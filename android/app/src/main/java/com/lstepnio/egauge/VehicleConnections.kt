@@ -32,3 +32,18 @@ fun VehicleProfile.combinedDraft(): Draft {
     require(child.adapter != null && !samePhysicalAdapter(primaryAdapter, child.adapter))
     return draft.copy(source = "BOTH", actions = draft.actions + child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") }, pages = draft.pages + child.draft.pages.map { it.copy(id = "child.${it.id}") })
 }
+
+/** One gesture picker across the vehicle; storage keeps the controller owning its target page. */
+fun VehicleProfile.withCombinedPageAction(action: PageAction?): VehicleProfile {
+    val child = requireNotNull(transmission)
+    val combined = combinedDraft()
+    ProfileActions.validate(listOfNotNull(action), combined.pages)
+    require(combined.pages.map { it.id }.distinct().size == combined.pages.size) { "Page identities must be unique across the vehicle" }
+    val childTarget = action != null && draft.pages.none { it.id == action.pageId }
+    val primary = draft.copy(actions = if (action != null && !childTarget) listOf(action) else emptyList())
+    val secondary = child.draft.copy(actions = if (action != null && childTarget)
+        listOf(action.copy(pageId = action.pageId.removePrefix("child."))) else emptyList())
+    ProfileActions.validate(primary.actions, primary.pages)
+    ProfileActions.validate(secondary.actions, secondary.pages)
+    return copy(draft = primary, transmission = child.copy(draft = secondary))
+}

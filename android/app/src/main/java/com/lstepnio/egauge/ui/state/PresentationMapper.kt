@@ -183,7 +183,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             capabilities?.adapterRegistryVersion == 1 && freshConnection && !busy,
             adapterMessage, if (profileCollection.active.draft.source == "TCM") profileCollection.profiles.filter {
                 it.draft.source == "ECM" && it.primaryAdapter != null && it.transmission == null &&
-                    !samePhysicalAdapter(it.primaryAdapter, profileCollection.active.primaryAdapter)
+                    (it.primaryAdapter == profileCollection.active.primaryAdapter || !samePhysicalAdapter(it.primaryAdapter, profileCollection.active.primaryAdapter))
             }.map { VehicleUi(it.id, it.name) } else emptyList(), deviceMessage, bothAdapters,
             !busy && capabilities?.dualAdapterVersion == 1 && runCatching { profileCollection.active.combinedDraft() }.isSuccess),
         SetupUiState(found || androidBonded, ownerAccess, busy || connection.phase in setOf(ConnectionPhase.Searching, ConnectionPhase.Checking), gaugeCandidates.mapIndexed { index, candidate ->
@@ -261,7 +261,7 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
         canSendAdapter = !busy && connection.fresh(now) && profileError == null && capabilities?.adapterRegistryVersion == 1 &&
             activeConfigRevision != null && verifiedConfigHash != null && ConfigurationProjector.blockers(transmittedDraft).isEmpty() && (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) && (!bothAdapters || capabilities?.dualAdapterVersion == 1),
         transmissionChild = draft.source == "TCM" && profileCollection.active.transmission != null,
-        actionPages = draft.pages, actions = draft.actions, canEditActions = !busy && profileError == null,
+        actionPages = transmittedDraft.pages, actions = transmittedDraft.actions, canEditActions = !busy && profileError == null,
         actionsSupported = capabilities?.pageActionsVersion == 1)
 }
 

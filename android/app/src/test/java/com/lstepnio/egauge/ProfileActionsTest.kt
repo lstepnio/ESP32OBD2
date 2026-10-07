@@ -60,6 +60,22 @@ class ProfileActionsTest {
             ConfigurationProjector.projectCombined(template(),vehicle.copy(draft=initial.copy(actions=listOf(action))),29)
         }
     }
+    @Test fun combinedPickerRoutesEitherTargetAndClearsThePreviousBinding() {
+        val ecm = AdapterBinding("ecm", "AA:BB:CC:DD:EE:01", "public")
+        val tcm = AdapterBinding("tcm", "AA:BB:CC:DD:EE:02", "public")
+        val vehicle = VehicleProfile("jeep", "Jeep", initial, ecm, TransmissionConnection(tcm))
+        val target = "child." + vehicle.transmission!!.draft.pages.first().id
+        val childAction = vehicle.withCombinedPageAction(PageAction(target))
+        assertTrue(childAction.draft.actions.isEmpty())
+        assertEquals(target, childAction.combinedDraft().actions.single().pageId)
+        val engineAction = childAction.withCombinedPageAction(action)
+        assertEquals(listOf(action), engineAction.draft.actions)
+        assertTrue(engineAction.transmission!!.draft.actions.isEmpty())
+        assertTrue(engineAction.withCombinedPageAction(null).combinedDraft().actions.isEmpty())
+        assertThrows(IllegalArgumentException::class.java) { vehicle.withCombinedPageAction(PageAction("missing")) }
+        assertEquals(vehicle, vehicle.withCombinedPageAction(null))
+    }
+
     @Test fun developmentConfigVersionControlsAvailability() {
         val base = JSONObject("""{"protocolMajor":0,"board":"test","maxAdapterLinks":1,"configWrite":false,"ota":false,"cfg":3}""")
         val old = GaugeProtocolCodec.capabilities(base.toString().toByteArray())

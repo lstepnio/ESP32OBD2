@@ -64,10 +64,10 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions) {
                         SettingsRow("Attach to ${parent.name}", "Keeps transmission pages; review and send afterward",
                             state.canEditVehicle, { actions.attachLegacy(parent.id) })
                     }
-                    if (state.legacyParents.isEmpty()) Text("Set up an engine vehicle with a different primary adapter first.")
+                    if (state.legacyParents.isEmpty()) Text("Set up an engine vehicle and its primary adapter first.")
                 }
                 if (state.hasTransmission && state.selectedSource == "TCM") {
-                    Text(state.selectedAdapter?.let { "Selected transmission adapter · $it" } ?: "Choose a different adapter for the transmission child.")
+                    Text(state.selectedAdapter?.let { "Selected transmission adapter · $it" } ?: "Choose the adapter used for the transmission connection.")
                     state.adapterCandidates.forEach { candidate ->
                         SettingsRow(candidate.name, candidate.binding.address.takeLast(5), state.canEditVehicle,
                             { actions.chooseAdapter(candidate.binding) })

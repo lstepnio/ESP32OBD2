@@ -46,6 +46,19 @@ class VehicleHierarchyTest {
         assertEquals(jeep.transmission, jeep.withAdapter("ECM", other.primaryAdapter).transmission)
     }
 
+    @Test fun oneMovedAdapterStillBelongsToOneVehicleButCannotRunTwoLinks() {
+        val legacy = VehicleProfile("legacy.tcm", "Transmission", TransmissionSetup.draft(), ecm)
+        val original = ProfileCollection(legacy.id, listOf(jeep.copy(transmission = null), legacy))
+        val attached = original.attachTransmission(legacy.id, jeep.id)
+        assertEquals(1, attached.profiles.size)
+        assertEquals(ecm, attached.active.adapterFor("ECM"))
+        assertEquals(ecm, attached.active.adapterFor("TCM"))
+        assertEquals(legacy.draft, attached.active.transmission?.draft)
+        assertEquals(attached, ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(attached)))
+        assertThrows(IllegalArgumentException::class.java) { attached.active.combinedDraft() }
+        assertNotNull(attached.active.withAdapter("TCM", tcm).combinedDraft())
+    }
+
     @Test fun childRemovalDoesNotChangeAnotherCarOrItsPrimarySetup() {
         val removed = jeep.copy(transmission = null)
         assertEquals(jeep.draft, removed.draft)

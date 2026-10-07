@@ -39,9 +39,11 @@ attribution. A child is optional and remains absent from ordinary setup.
 - Expert exposes the child setup and source selection for the selected gauge.
   Explicit legacy attachment moves its pages/binding into a chosen engine vehicle;
   the installed gauge still needs a reviewed send to adopt the new vehicle ID.
-- A child needs an ECM parent with an adapter selected. Parent/child adapter IDs
-  and addresses must differ. Reject duplicate selection without overwriting either
-  binding. Remove the child before removing the primary adapter. Replacing the
+- A child needs an ECM parent with an adapter selected. Two adapters used simultaneously must have different IDs
+  and addresses. A single physical adapter moved between ports may be referenced
+  by both connections using the exact same binding; combined runtime remains
+  blocked until two distinct adapters are selected. Reject inconsistent aliases
+  for one adapter without overwriting either binding. Remove the child before removing the primary adapter. Replacing the
   primary retains the vehicle's child unless the replacement conflicts with it.
 - Removing a child asks for confirmation because it deletes its phone draft.
   Installed gauges keep their configuration. Stale local assignments are marked
@@ -63,7 +65,7 @@ attribution. A child is optional and remains absent from ordinary setup.
 
 ## Firmware and protocol boundary
 
-Development candidate dev.41 executes one or two sources with separate worker/parser,
+Development candidate dev.42 executes one or two sources with separate worker/parser,
 status, diagnostic, retry and alert availability state. The debug app's per-gauge
 `bothAdapters` choice uses compact capability `da:1`; it does not reinterpret public
 capacity or qualify three simultaneous radio links. Missing child data fails closed.
@@ -82,6 +84,16 @@ Expert “Use saved gauge setup” can reconstruct a missing single-source profi
 from authenticated, confirmed running gauge readback. It validates supported pages,
 source, adapter binding and storage bounds before saving; existing identities are
 never overwritten by recovery. A legacy TCM setup keeps its gauge identity and
-remains separate until the owner explicitly attaches it to an ECM parent with a
-different adapter. Recovery does not send configuration or infer a vehicle parent.
+remains separate until the owner explicitly attaches it to its ECM parent.
+A moved adapter can use the same exact binding for single-source operation. Recovery does not send configuration or infer a vehicle parent.
 Combined-source import remains blocked rather than dropping either source.
+
+## One vehicle in the product
+
+ECM is the primary connection and TCM is its associated child, never a second car.
+With both adapters enabled, Gauge previews, setup review and the Actions page picker
+present the combined vehicle pages. Source/ECU identity stays in internal routing,
+parser, diagnostics and independent retry state so a failed child cannot invalidate
+healthy ECM data or route a vehicle command to the wrong controller. Adapter setup
+and migration remain in Expert. One adapter moved between ports uses single-source
+execution while both local drafts remain owned by the same vehicle.

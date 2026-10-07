@@ -12,7 +12,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
   iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
 - Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
   verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.42`, configuration revision 32.
+- Latest recorded physical gauge: `0.2.0-dev.42`, configuration revision 33.
   Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
 - The owner has one Vgate, swapped between separate ECM and TCM connectors on a
   2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
@@ -151,7 +151,26 @@ profile while preserving all three existing profiles. The normal Car Actions and
 review/send flow installed the three-upward-swipe TRANSMISSION shortcut. Protected
 readback confirmed revision 32 and exact expected running digest with trial cleared;
 only the action and base revision changed. The owner confirmed normal display and
-horizontal swipes on dev.42. Upward gesture observation remains pending. The initial
+horizontal swipes on dev.42. The owner confirmed the upward gesture jumps from GEAR to TRANSMISSION. The initial
 configuration restart confirmation also timed out and later reconciliation passed;
 keep this recovery UX follow-up open. See the rollout evidence above. Recovery unit,
 build/lint and instrumentation compilation passed (92 Android unit tests).
+
+## One vehicle with a transmission child
+
+App dev.37 permits the exact same adapter binding in ECM and TCM local drafts when
+one adapter is moved between ports; simultaneous combined projection still requires
+two distinct bindings. The Pixel's recovered TCM setup was attached to Jeep without
+changing its engine draft, child pages or gesture action. No standalone transmission
+vehicle remains. Normal review/send updated the gauge to Jeep at revision 33; protected
+readback verified matching running digest and cleared trial. Only `vehicleProfileId`
+and `baseRevision` changed from revision 32. Firmware remains signed dev.42.
+
+When both adapters are enabled, Car Actions shows one combined page picker and routes
+the selected target into its owning draft, clearing the previous gesture binding across
+the vehicle. Off clears both bindings. Invalid targets or ambiguous page identities
+are rejected. Source attribution remains internal to polling, routing and recovery.
+The general page editor still uses source-scoped drafts; its unified editing flow is
+tracked in the roadmap. Verification: 94 Android unit tests, debug/test builds and
+lint passed; one physical protected opening/resume readback test passed in 8.086 seconds.
+Initial post-restart confirmation still needed later reconciliation and remains open.
