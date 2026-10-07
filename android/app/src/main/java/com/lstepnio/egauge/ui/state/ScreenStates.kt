@@ -34,7 +34,7 @@ data class CustomizeUiState(val pages: List<PageUi>, val editingPage: Int, val r
     val alerts: List<AlertUi>, val blockers: List<String>, val canSend: Boolean,
     val needsCheck: Boolean, val found: Boolean, val busy: Boolean, val editingEnabled: Boolean,
     val advanced: Boolean, val supportedLayouts: Set<GaugeLayout>, val details: List<DetailUi>,
-    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val reviewPages: List<PageUi> = emptyList(), val actionSummary: String? = null, val removablePageIds: Set<String>? = null, val editingIssue: String? = null)
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val reviewPages: List<PageUi> = emptyList(), val actionSummary: String? = null, val removablePageIds: Set<String>? = null, val editingIssue: String? = null, val reviewAlerts: List<AlertUi>? = null, val reviewNotice: String? = null)
 @Immutable
 data class VehicleUi(val id: String, val name: String)
 @Immutable

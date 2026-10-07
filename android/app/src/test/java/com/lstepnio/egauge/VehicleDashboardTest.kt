@@ -37,6 +37,31 @@ class VehicleDashboardTest {
         assertThrows(IllegalArgumentException::class.java) { vehicle.withDashboard(combined.copy(pages=vehicle.draft.pages)) }
         assertEquals(combined,vehicle.combinedDraft())
     }
+    @Test fun movedSingleAdapterStillHasOneEditableVehicleDashboard() {
+        val shared = vehicle.copy(transmission = vehicle.transmission!!.copy(adapter = vehicle.primaryAdapter))
+        val dashboard = shared.dashboardDraft()
+        assertEquals(vehicle.combinedDraft().pages, dashboard.pages)
+        assertTrue(ConfigurationProjector.pagePidIds(dashboard.source).containsAll(setOf("rpm", "tcmtemp", "tcmgear")))
+        val added = GaugePageDraft("page.custom.1", "ENGINE RPM", GaugeLayout.Numeric, listOf("rpm"))
+        val edited = shared.withDashboard(dashboard.copy(pages = dashboard.pages + added))
+        assertEquals(shared.transmission, edited.transmission)
+        assertEquals(shared.primaryAdapter, edited.primaryAdapter)
+        assertTrue(edited.dashboardDraft().pages.any { it.id == added.id })
+        assertThrows(IllegalArgumentException::class.java) { edited.combinedDraft() }
+        val restored = ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(ProfileCollection(edited.id, listOf(edited)))).active
+        assertEquals(edited.dashboardDraft(), restored.dashboardDraft())
+        val action = PageAction(dashboard.pages.first().id)
+        assertEquals(listOf(action), shared.withCombinedPageAction(action).draft.actions)
+        assertTrue(shared.withCombinedPageAction(action).transmission!!.draft.actions.isEmpty())
+    }
+    @Test fun unfinishedChildBindingDoesNotHideVehicleReadingsAndOrdinaryVehicleStaysSingle() {
+        val unfinished = vehicle.copy(transmission = vehicle.transmission!!.copy(adapter = null))
+        assertEquals(vehicle.combinedDraft().pages, unfinished.dashboardDraft().pages)
+        assertThrows(IllegalArgumentException::class.java) { unfinished.combinedDraft() }
+        val ordinary = vehicle.copy(transmission = null)
+        assertEquals(ordinary.draft, ordinary.dashboardDraft())
+        assertEquals(ConfigurationProjector.supportedPidIds, ConfigurationProjector.pagePidIds(ordinary.dashboardDraft().source))
+    }
     @Test fun olderProfilesKeepTheirExistingOrderAndActions() {
         val profile = ProfileCollection(vehicle.id,listOf(vehicle))
         val old = JSONObject(ProfileDocumentCodec.encode(profile)).put("schemaVersion",7)

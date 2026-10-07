@@ -111,11 +111,11 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         runtimeIdentity?.trial == true -> StatusUi("Your gauge is still checking these settings", "Keep it powered and check again.", StatusTone.Stale)
         !freshConnection && connection.phase != ConnectionPhase.Idle -> connectionStatus(connection, nowElapsedMs)
         updatePreparation == "held" -> StatusUi("Update needs attention", hostedUpdateMessage, StatusTone.Stale)
-        confirmed -> StatusUi("Saved & running on gauge", "Your gauge confirmed these settings.", StatusTone.Success)
+        confirmed -> StatusUi("Saved & running on gauge", "Your gauge confirmed the pages sent to it.", StatusTone.Success)
         !found -> StatusUi("Your gauge is not connected", "Connect to check its current settings.", StatusTone.Neutral)
         needsCheck -> StatusUi("Check your gauge before sending", "We will read its current settings so newer changes are protected.")
         blockers.isNotEmpty() -> StatusUi("A page needs attention", blockers.first(), StatusTone.Stale)
-        else -> StatusUi("Changes ready to send", "${pages.size} pages · ${draft.alerts.size} alerts")
+        else -> StatusUi("Changes ready to send", "${transmittedDraft.pages.size} pages · ${transmittedDraft.alerts.size} alerts")
     }
     val homeAction = when {
         connection.phase in setOf(ConnectionPhase.PermissionRequired, ConnectionPhase.BluetoothOff,
@@ -149,7 +149,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             UpdateNotice.NeedsCheck -> "Update needs check"
             UpdateNotice.None -> if (connection.phase == ConnectionPhase.Idle && found) "Last checked"
                 else connectionLabel(connection, nowElapsedMs)
-        }, freshConnection, status, transmittedDraft.pages.map { pageUi(it, system) },
+        }, freshConnection, status, editorDraft.pages.map { pageUi(it, system) },
             !confirmed, when (homeAction) { HomeAction.SetUp -> when (connection.phase) {
                 ConnectionPhase.PermissionRequired -> "Allow nearby devices"
                 ConnectionPhase.BluetoothOff -> "Turn on Bluetooth"
@@ -165,10 +165,13 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             actionSummary = transmittedDraft.actions.takeIf { it.isNotEmpty() }?.joinToString("\n") { action ->
                 val name = transmittedDraft.pages.firstOrNull { it.id == action.pageId }?.name ?: "Unavailable page"
                 "Jump to $name · ${action.count} swipes up within ${action.windowMs / 1000} seconds"
-            }, removablePageIds = if (bothAdapters) editorDraft.pages.filter { page ->
+            }, removablePageIds = if (editorDraft.source == "BOTH") editorDraft.pages.filter { page ->
                 val source = demoCatalog.first { it.id == page.pidIds.first() }.source
                 editorDraft.pages.count { demoCatalog.first { pid -> pid.id == it.pidIds.first() }.source == source } > 1
-            }.map { it.id }.toSet() else null, editingIssue = pageEditError),
+            }.map { it.id }.toSet() else null, editingIssue = pageEditError,
+            reviewAlerts = transmittedDraft.alerts.map { alertUi(it, system) },
+            reviewNotice = if (editorDraft.source == "BOTH" && !bothAdapters)
+                "Only the pages below will be sent to your gauge. Your other vehicle pages stay saved on this phone." else null),
         car,
         SettingsUiState(currentGaugeName, found, displaySettings?.rotation ?: savedGauge?.rotation,
             found && ((capabilities?.displaySettingsVersion ?: 0) >= 1 || capabilities?.displayRotationWrite == true),
@@ -264,7 +267,7 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
         canSendAdapter = !busy && connection.fresh(now) && profileError == null && capabilities?.adapterRegistryVersion == 1 &&
             activeConfigRevision != null && verifiedConfigHash != null && ConfigurationProjector.blockers(transmittedDraft).isEmpty() && (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) && (!bothAdapters || capabilities?.dualAdapterVersion == 1),
         transmissionChild = draft.source == "TCM" && profileCollection.active.transmission != null,
-        actionPages = transmittedDraft.pages, actions = transmittedDraft.actions, canEditActions = !busy && profileError == null,
+        actionPages = editorDraft.pages, actions = editorDraft.actions, canEditActions = !busy && profileError == null,
         actionsSupported = capabilities?.pageActionsVersion == 1)
 }
 

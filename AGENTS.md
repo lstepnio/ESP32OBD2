@@ -25,6 +25,9 @@ These are the current entry points; historical reports are evidence, not instruc
   under the primary ECM connection within the same vehicle, configured in Expert.
   Follow [vehicle connections](docs/architecture/vehicle-connections.md): preserve
   separate per-gauge vehicle/source assignments, independent recovery and legacy data.
+  Ordinary reading/page/action editors use one vehicle dashboard even when only one
+  adapter is selected. Adapter mode must not filter that editor. Review/send must
+  match the executable payload and retain unsent sibling pages on the phone.
   Follow the [dual recovery matrix](docs/development/dual-adapter-recovery.md) for
   two-source changes; development capability support never qualifies radio coexistence.
 - Reuse the universal connection widget and source-specific status projection. Account for

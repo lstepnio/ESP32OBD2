@@ -21,8 +21,8 @@ import java.io.File
 class UnifiedDashboardUiTest {
     @get:Rule val compose = createComposeRule()
     private val vehicle = VehicleProfile("jeep","Jeep",Draft(),AdapterBinding("ecm","AA:BB:CC:DD:EE:01","public"),
-        TransmissionConnection(AdapterBinding("tcm","AA:BB:CC:DD:EE:02","public")))
-    private val dashboard = vehicle.combinedDraft()
+        TransmissionConnection(AdapterBinding("ecm","AA:BB:CC:DD:EE:01","public")))
+    private val dashboard = vehicle.dashboardDraft()
     private fun state(index: Int = 0) = CustomizeUiState(dashboard.pages.map { pageUi(it) },index,
         demoCatalog.filter { it.id in ConfigurationProjector.pagePidIds("BOTH") }.map { readingUi(it) },
         emptyList(),emptyList(),false,false,false,false,true,false,GaugeLayout.entries.toSet(),emptyList())
@@ -34,6 +34,7 @@ class UnifiedDashboardUiTest {
         compose.onNode(hasText("Engine speed") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertExists()
         compose.onNode(hasText("Transmission temperature") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).performScrollTo().assertIsDisplayed()
         val output = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),"unified-dashboard").apply { mkdirs() }
+        assertEquals("com.lstepnio.egauge", InstrumentationRegistry.getInstrumentation().uiAutomation.rootInActiveWindow?.packageName?.toString())
         File(output,"combined-reading-picker.png").outputStream().use {
             InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().compress(Bitmap.CompressFormat.PNG,100,it)
         }

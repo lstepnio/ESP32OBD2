@@ -6,7 +6,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 
 ## Baseline
 
-- Latest installed Android: `0.2.0-dev.41`; signed gauge firmware dev.44 verified through protected readback, OTA health 2. Owner confirmed normal page and swipes. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
+- Latest installed Android: `0.2.0-dev.42`; signed gauge firmware dev.44 verified through protected readback, OTA health 2. Owner confirmed normal page and swipes. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
 
 - Board: Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S touch,
   16 MB flash and 2 MB PSRAM. ESP-IDF 5.4.1 with pinned components.
@@ -48,6 +48,17 @@ Pressure 225034 remains raw only. Shaft speed, converter slip/lockup and complet
 OEM fault inventory lack matching validated definitions. Code clearing is a design,
 not an implemented action. [Off-road profile actions and gesture triggers](architecture/vehicle-actions.md)
 have an installed local page-action foundation; high idle and ABS/ESC control are not enabled. Simulated data never establishes vehicle compatibility.
+
+## Unified vehicle editing
+
+App dev.42 fixes the TCM-only reading picker for a vehicle with a transmission
+child. Gauge preview, Customize and gesture targets use one vehicle page list,
+independent of the current single-adapter selection or two-adapter mode.
+Review/send shows the actual outgoing pages, alerts and actions; unsent sibling
+pages stay saved. The source-specific execution/radio configuration is unchanged.
+110 JVM tests, three native UI/stored-state tests and protected dev.44 readback/resume
+passed; phone profiles and preferences retained. See [review and limits](development/vehicle-dashboard-review.md).
+Mixed-controller Dual pages and TCM alerts remain unsupported. Firmware unchanged.
 
 ## Next work
 

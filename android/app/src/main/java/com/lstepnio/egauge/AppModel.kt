@@ -765,7 +765,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val bothAdapters: Boolean get() = knownGauges.firstOrNull { it.id == rememberedGaugeId }?.bothAdapters == true
     var pageEditError by mutableStateOf<String?>(null)
         private set
-    val editorDraft: Draft get() = transmittedDraft
+    val editorDraft: Draft get() = profileCollection.active.dashboardDraft()
     val transmittedDraft: Draft get() = if (bothAdapters) runCatching { profileCollection.active.combinedDraft() }.getOrDefault(draft) else draft
     fun setBothAdapters(enabled: Boolean) {
         if (!BuildConfig.DEBUG || modifyingSetupBlocked || gaugeAssociationError != null) return
@@ -1829,7 +1829,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun savePageAction(value: PageAction?) {
         if (modifyingSetupBlocked || profileError != null) return
-        if (bothAdapters) {
+        if (profileCollection.active.transmission != null) {
             val updated = runCatching { profileCollection.copy(profiles = profileCollection.profiles.map {
                 if (it.id == profileCollection.activeId) it.withCombinedPageAction(value) else it
             }) }.getOrElse { deviceMessage = it.message ?: "Could not update the vehicle action"; return }
@@ -1848,7 +1848,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (profileError != null) return
         val updated = runCatching { profileCollection.copy(profiles = profileCollection.profiles.map { profile ->
             if (profile.id == profileCollection.activeId) {
-                if (bothAdapters && value.source == "BOTH") profile.withDashboard(value) else profile.withDraft(value)
+                if (value.source == "BOTH") profile.withDashboard(value) else profile.withDraft(value)
             } else profile
         }) }.getOrElse {
             pageEditError = it.message ?: "These readings cannot share this page"

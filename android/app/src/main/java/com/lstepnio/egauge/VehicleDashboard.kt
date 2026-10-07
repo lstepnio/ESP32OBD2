@@ -21,7 +21,7 @@ fun VehicleProfile.withDashboard(value: Draft): VehicleProfile {
             .map { it.copy(pageId = mappedIds.getValue(it.pageId).removePrefix("child.")) })
     val result = copy(draft = primary, transmission = child.copy(draft = secondary),
         pageOrder = value.pages.map { mappedIds.getValue(it.id) })
-    val combined = result.combinedDraft()
+    val combined = result.dashboardDraft()
     require(ConfigurationProjector.blockers(combined).isEmpty()) { "Page identities must be unique across the vehicle" }
     ProfileActions.validate(combined.actions, combined.pages)
     return result

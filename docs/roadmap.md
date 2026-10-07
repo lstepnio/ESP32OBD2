@@ -44,3 +44,5 @@ Present ECM/TCM readings as one vehicle in ordinary UI, with one action picker a
 combined Gauge preview/review when both adapters are enabled. Preserve source routing
 and independent recovery internally; setup details stay in Expert. App dev.38 implements one combined reading/page editing flow with saved cross-controller
 page order. Mixed-source readings in one Dual page remain unsupported by firmware. Do not introduce another vehicle profile for a transmission child.
+
+Vehicle editor review and remaining mixed-controller Dual/TCM alert boundaries are recorded in [vehicle dashboard review](development/vehicle-dashboard-review.md).

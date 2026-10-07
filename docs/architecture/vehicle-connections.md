@@ -69,7 +69,7 @@ Development candidate dev.42 executes one or two sources with separate worker/pa
 status, diagnostic, retry and alert availability state. The debug app's per-gauge
 `bothAdapters` choice uses compact capability `da:1`; it does not reinterpret public
 capacity or qualify three simultaneous radio links. Missing child data fails closed.
-The editor presents one vehicle dashboard and saves changes into internal ECM/TCM drafts; combined review and send include both
+The editor always presents one vehicle dashboard for a vehicle with a child, independently of the selected adapter or simultaneous execution setting, and saves changes into internal ECM/TCM drafts; combined review and send include both
 sets of pages (at most eight total) and primary alerts in one schema-2 configuration.
 Child page identities are prefixed `child.` to avoid collisions. Single-source
 imports remain available; importing a dual document into one editor is blocked
@@ -91,14 +91,20 @@ Combined-source import remains blocked rather than dropping either source.
 ## One vehicle in the product
 
 ECM is the primary connection and TCM is its associated child, never a second car.
-With both adapters enabled, Gauge previews, setup review and the Actions page picker
-present the combined vehicle pages. Source/ECU identity stays in internal routing,
+Gauge previews, Customize reading/page selection and the Actions picker always
+present the combined vehicle pages when a child exists, including a single adapter
+moved between ports and a child whose adapter selection is unfinished.
+Review and send uses only the actual execution configuration: one selected connection
+or both explicitly configured adapters. Its pages, alerts and actions must match
+the outgoing payload; other vehicle pages stay saved on the phone. Source/ECU identity stays in internal routing,
 parser, diagnostics and independent retry state so a failed child cannot invalidate
 healthy ECM data or route a vehicle command to the wrong controller. Adapter setup
 and migration remain in Expert. One adapter moved between ports uses single-source
 execution while both local drafts remain owned by the same vehicle.
 
-The combined editor and projection retain one cross-controller page order. Reading
+The editor uses `dashboardDraft()` without radio preconditions. Only execution uses
+`combinedDraft()` and its distinct-adapter checks. No schema migration or guessed
+legacy-parent attachment is needed. The combined editor and projection retain one cross-controller page order. Reading
 selection determines controller ownership internally. Firmware currently requires
 both readings on a Dual page to belong to the same controller, so the secondary
 picker lists compatible readings. Keep one page for each configured adapter; last

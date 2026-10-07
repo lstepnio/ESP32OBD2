@@ -25,20 +25,26 @@ fun ProfileCollection.attachTransmission(legacyId: String, parentId: String): Pr
     })
 }
 
-/** Combined payload only. Editors and storage retain separate parent/child drafts. */
-fun VehicleProfile.combinedDraft(): Draft {
-    require(draft.source == "ECM" && primaryAdapter != null)
-    val child = requireNotNull(transmission)
-    require(child.adapter != null && !samePhysicalAdapter(primaryAdapter, child.adapter))
+/** Vehicle editing is independent of the adapter currently connected to the gauge. */
+fun VehicleProfile.dashboardDraft(): Draft {
+    val child = transmission ?: return draft
     val pages = draft.pages + child.draft.pages.map { it.copy(id = "child.${it.id}") }
     val ordered = pageOrder.mapNotNull { id -> pages.firstOrNull { it.id == id } } + pages.filter { it.id !in pageOrder }
     return draft.copy(source = "BOTH", actions = draft.actions + child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") }, pages = ordered)
 }
 
+/** Only execution needs two distinct physical adapters. */
+fun VehicleProfile.combinedDraft(): Draft {
+    require(draft.source == "ECM" && primaryAdapter != null)
+    val child = requireNotNull(transmission)
+    require(child.adapter != null && !samePhysicalAdapter(primaryAdapter, child.adapter))
+    return dashboardDraft()
+}
+
 /** One gesture picker across the vehicle; storage keeps the controller owning its target page. */
 fun VehicleProfile.withCombinedPageAction(action: PageAction?): VehicleProfile {
     val child = requireNotNull(transmission)
-    val combined = combinedDraft()
+    val combined = dashboardDraft()
     ProfileActions.validate(listOfNotNull(action), combined.pages)
     require(combined.pages.map { it.id }.distinct().size == combined.pages.size) { "Page identities must be unique across the vehicle" }
     val childTarget = action != null && draft.pages.none { it.id == action.pageId }

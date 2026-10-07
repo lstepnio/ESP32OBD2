@@ -144,7 +144,7 @@ internal fun AlertManager(state: CustomizeUiState, onBack: () -> Unit, onEdit: (
     EditorScaffold("All alerts", onBack, "Done", onBack) {
         Text("Alerts follow a reading across all pages, even when it is not on the screen.",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        state.readings.forEach { reading ->
+        state.readings.filter { it.id in com.lstepnio.egauge.ConfigurationProjector.supportedPidIds }.forEach { reading ->
             Surface(shape = MaterialTheme.shapes.large) {
                 EditorRow(reading.name, state.alerts.firstOrNull { it.readingId == reading.id }?.summary() ?: "Off", state.editingEnabled) {
                     onEdit(reading.id)
