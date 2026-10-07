@@ -33,7 +33,7 @@ The next implementation must retain source identity throughout the adapter worke
 
 ## Temperature and actual gear
 
-The published newer-Hemi ECM temperature candidate was rejected in both engine-off and idling tests. It does not qualify a temperature read through TCM 7E9. The TCM CAN sample is partial and unlabelled, and the old PCS map stops at six forward gears. No temperature or actual-gear decoder has been qualified. [Candidate investigation](hemi-transmission-candidates.md), [JSS interface research](jss-transmission-research.md).
+The published newer-Hemi ECM temperature candidate was rejected in both engine-off and idling tests. It does not qualify a temperature read through TCM 7E9. The subsequent TCM-addressed EcoDiesel candidate `7E1 / 22 08 DF` returned `7F 22 31` on all three engine-off reads with the same TCM identity. The TCM CAN sample is partial and unlabelled, and the old PCS map stops at six forward gears. No temperature or actual-gear decoder has been qualified. [Physical temperature goal and actual test](tcm-temperature-goal.md), [ECM candidate investigation](hemi-transmission-candidates.md), [JSS interface research](jss-transmission-research.md).
 
 Required evidence: the read-only request/response definitions or matching CAN map for this calibration and JSS bridge, plus a trusted reference channel. Until provided, do not expose invented temperature/gear values or enable public capabilities on the basis of the Mac fault capture.
 
