@@ -75,6 +75,7 @@ void ui_configure_page_action(ui_t *ui, page_action_config_t config);
 void ui_set_action_context(ui_t *ui, bool allowed);
 uint8_t ui_action_target(ui_t *ui);
 void ui_reset_action_sequence(ui_t *ui);
+bool ui_action_pending(ui_t *ui);
 void ui_action_applied(ui_t *ui);
 /* Call on the LVGL task or while holding its lock. */
 void  ui_set_units(ui_t *ui, bool imperial_units);

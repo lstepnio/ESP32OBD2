@@ -782,7 +782,7 @@ void app_main(void)
         ui_set_action_context(ui, owner_ready && transfer_idle);
         if (!owner_ready || !transfer_idle) atomic_store(&g_page_activity_ms, now_ms);
         if (page_cycle_due(cycle.cycle_seconds, page_count(), owner_ready,
-            transfer_idle, atomic_load(&g_page_activity_ms), now_ms) &&
+            transfer_idle && !ui_action_pending(ui), atomic_load(&g_page_activity_ms), now_ms) &&
             lvgl_port_lock(0)) {
             uint8_t selected = (atomic_load(&g_selected_page) + 1) % page_count();
             ui_page_t page;

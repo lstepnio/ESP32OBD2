@@ -88,7 +88,7 @@ struct _ui_t
     bool                press_active;
     bool suppress_action_click;
     page_action_t action;
-    atomic_bool action_allowed;
+    atomic_bool action_allowed, action_pending;
     atomic_uint action_context_epoch;
     unsigned action_seen_epoch;
     uint32_t action_feedback_ms;
@@ -631,6 +631,7 @@ static void ui_task(lv_timer_t *timer)
     action_context(ui);
     uint32_t action_now = (uint32_t)(esp_timer_get_time() / 1000);
     page_action_tick(&ui->action, action_now);
+    atomic_store(&ui->action_pending, ui->action.progress != 0 || ui->action.pressed);
     if (ui->action_feedback && action_now - ui->action_feedback_ms >= 2000) ui->action_feedback = false;
     if (ui->action_label && !ui->calibration_mode) {
         bool visible = !ui->pairing_visible && !ui->calibration_mode &&
@@ -945,9 +946,10 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
         return NULL;
     }
 
-    ui_init_screen(ui, page, interval_ms);
     atomic_init(&ui->action_allowed, false);
+    atomic_init(&ui->action_pending, false);
     atomic_init(&ui->action_context_epoch, 0);
+    ui_init_screen(ui, page, interval_ms);
     ui->action_label = lv_label_create(ui->widgets.gauge_content);
     lv_obj_set_style_text_color(ui->action_label, lv_color_hex(color_accent), 0);
     lv_obj_set_style_text_font(ui->action_label, LV_FONT_DEFAULT, 0);
@@ -1083,7 +1085,12 @@ void ui_set_action_context(ui_t *ui, bool allowed)
 }
 uint8_t ui_action_target(ui_t *ui) { return ui->action.config.target_page; }
 
-void ui_reset_action_sequence(ui_t *ui) { page_action_reset(&ui->action); }
+void ui_reset_action_sequence(ui_t *ui)
+{
+    page_action_reset(&ui->action);
+    atomic_store(&ui->action_pending, false);
+}
+bool ui_action_pending(ui_t *ui) { return atomic_load(&ui->action_pending); }
 
 void ui_action_applied(ui_t *ui)
 {

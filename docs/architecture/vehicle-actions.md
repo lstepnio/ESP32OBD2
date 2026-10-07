@@ -151,7 +151,8 @@ reverse/side excursions. A successful sequence has a five-second cooldown. Progr
 and completion appear on the gauge. Pairing/calibration/transfer context, page change
 and orientation changes reset partial sequences. A recognized swipe suppresses its
 trailing click; a moving upward stroke does not turn into a pairing hold. Touch
-activity pauses automatic page cycling. This path sends no adapter commands.
+activity and an active gesture sequence pause automatic page cycling, including
+when the cycle interval is shorter than the recognition window. This path sends no adapter commands.
 
 Vehicle execution, named confirmation, live preconditions, controller result/state
 readback and Stop/Restore remain unimplemented. They require a versioned bounded

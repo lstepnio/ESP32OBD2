@@ -2,6 +2,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include "page_action.h"
+#include "page_save_policy.h"
 static bool swipe(page_action_t *s, uint32_t end) {
     bool fired = false;
     page_action_press(s,120,160,end-100);
@@ -38,5 +39,10 @@ int main(void) {
     assert(!page_action_release(&s,120,100,1100,&fired));
     cfg.count=5; cfg.window_ms=2000; page_action_init(&s,cfg);
     for (unsigned i=0;i<5;i++) assert(swipe(&s,1000+i*200)==(i==4));
+    cfg.count=3; cfg.window_ms=10000; page_action_init(&s,cfg);
+    assert(!swipe(&s,1000));
+    assert(!page_cycle_due(5,3,true,s.progress==0,1000,7000)); // short cycle cannot interrupt long gesture window
+    page_action_tick(&s,11001);
+    assert(page_cycle_due(5,3,true,s.progress==0,1000,11001)); // expiry resumes cycling
     puts("PASS: page actions timing, noise, context reset, cooldown and wrap");
 }
