@@ -25,6 +25,7 @@ Do not load all historical reports or third-party catalogs to begin a task.
 | Config validation/projection/persistence | `src/config_document.c`, `src/config_runtime.c`, Android `ConfigurationProjection.kt`, `GaugeDraftComparison.kt`, `ProfileStore.kt` | [Config storage](architecture/config-storage.md) |
 | BLE commands and bytes | `src/ble_companion.c`, Android `GaugeConfigTransferClient.kt`, `GaugeProtocolCodec.kt` | [BLE](protocol/ble-v1.md), [development extensions](protocol/experimental-firmware-transfers.md) |
 | Signed updates/Wi-Fi | `src/ota_transfer.c`, `src/wifi_bulk.c`, Android `WifiBulkClient.kt`, update classes | [Release runbook](development/firmware-release-runbook.md), [Wi-Fi](protocol/wifi-bulk-v1.md) |
+| Vehicle hierarchy and gauge assignments | Android `ProfileStore.kt`, `ProfileDocumentCodec.kt`, `VehicleConnections.kt`, `GaugeAssociationStore.kt` | [Vehicle connections](architecture/vehicle-connections.md) |
 | App state and operations | Android `AppModel.kt`, `connection/`, `ui/state/`, `AppOperation.kt` | [Android runtime](architecture/android-runtime.md) |
 | App UI/style | Android `ui/`, `core/designsystem/`, `design/tokens.json` | [Design system](design/design-system.md) |
 | Jeep capture and offline replay | `tools/obd_capture.py`, `obd_explore.py`, `obd_tcm_values.py`, `tools/tests/` | [TCM resume](development/tcm-session-resume.md) |

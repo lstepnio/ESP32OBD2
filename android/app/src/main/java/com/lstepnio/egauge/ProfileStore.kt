@@ -9,7 +9,32 @@ data class VehicleProfile(
     val name: String,
     val draft: Draft,
     val primaryAdapter: AdapterBinding? = null,
-)
+    val transmission: TransmissionConnection? = null,
+) {
+    init {
+        require(transmission == null || (draft.source == "ECM" && primaryAdapter != null)) {
+            "A transmission child needs a primary engine adapter"
+        }
+        require(transmission?.adapter == null || !samePhysicalAdapter(primaryAdapter, transmission.adapter)) {
+            "Engine and transmission need different adapters"
+        }
+    }
+
+    fun draftFor(source: String): Draft? = when (source) {
+        draft.source -> draft
+        "TCM" -> transmission?.draft
+        else -> null
+    }
+    fun adapterFor(source: String): AdapterBinding? = if (source == draft.source) primaryAdapter
+        else if (source == "TCM") transmission?.adapter else null
+    fun withDraft(value: Draft): VehicleProfile = if (value.source == draft.source) copy(draft = value)
+        else copy(transmission = (transmission ?: error("Set up the transmission child first")).copy(draft = value))
+    fun withAdapter(source: String, value: AdapterBinding?): VehicleProfile = when (source) {
+        draft.source -> copy(primaryAdapter = value)
+        "TCM" -> copy(transmission = (transmission ?: error("Set up the transmission child first")).copy(adapter = value))
+        else -> error("Vehicle source is invalid")
+    }
+}
 
 data class ProfileCollection(val activeId: String, val profiles: List<VehicleProfile>) {
     val active: VehicleProfile get() = profiles.first { it.id == activeId }

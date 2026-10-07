@@ -156,16 +156,19 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                         model::checkGaugeForReview, { model.sendNumericConfiguration(); route = Route.Gauge }, { route = Route.Setup }))
                                 Route.Car -> CarScreen(state.car, { route = Route.Setup },
                                     model::selectProfile, { name -> model.editProfileName(name); model.createProfile() },
-                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::sendNumericConfiguration)
+                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::sendNumericConfiguration, { route = Route.Expert })
                                 Route.Settings -> SettingsScreen(state.settings, model::setAdvancedTools, model::setDynamicColor,
                                     model::renameGauge, model::rotateGauge, model::saveDisplaySettings, { route = Route.Updates },
                                     { route = Route.Setup }, onBluetoothSettings, model::saveMeasurementSystem,
-                                    model::savePageCycleSeconds)
+                                    model::savePageCycleSeconds, model::switchRememberedGauge,
+                                    { model.discoverAdditionalGauge(); route = Route.Setup })
                                 Route.Updates -> UpdatesScreen(state.updates, state.operation, false,
                                     ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate)
                                 Route.Expert -> ExpertScreen(state.expert, ExpertActions(
                                     model::checkGaugeForReview, model::readGaugeDiagnostics,
-                                    model::readHardwareCapacity, model::readRunningFirmware, model::adoptGaugeDraft, model::createExperimentalTcmProfile))
+                                    model::readHardwareCapacity, model::readRunningFirmware, model::adoptGaugeDraft, model::addTransmissionChild,
+                                    model::selectVehicleSource, model::removeTransmissionChild,
+                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::attachLegacyTransmission))
                             }
                         }
                     }

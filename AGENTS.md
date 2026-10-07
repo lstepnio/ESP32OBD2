@@ -21,6 +21,10 @@ These are the current entry points; historical reports are evidence, not instruc
 - Follow [automatic refresh and resilient interactions](docs/architecture/interaction-recovery.md)
   for every App/firmware change. Automatically read settings and known connection state;
   use cancellable foreground polling and bounded retry backoff instead of routine refresh taps.
+- Normal vehicles have one primary OBD-II adapter. Put a swap's optional TCM adapter
+  under the primary ECM connection within the same vehicle, configured in Expert.
+  Follow [vehicle connections](docs/architecture/vehicle-connections.md): preserve
+  separate per-gauge vehicle/source assignments, independent recovery and legacy data.
 - Reuse the universal connection widget and source-specific status projection. Account for
   independent ECM/TCM links; do not let a healthy link hide a failed required link or promote
   dual-adapter capability before the full path is qualified.

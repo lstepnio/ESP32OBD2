@@ -19,7 +19,8 @@ import com.lstepnio.egauge.ui.state.SettingsUiState
 fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDynamic: (Boolean) -> Unit,
     onRename: (String) -> Unit, onRotate: (Int) -> Unit, onSaveDisplay: (Int, Int) -> Unit, onUpdates: () -> Unit,
     onSetup: () -> Unit, onBluetoothSettings: () -> Unit, onSaveUnits: (MeasurementSystem) -> Unit = {},
-    onSaveCycle: (Int) -> Unit = {}) {
+    onSaveCycle: (Int) -> Unit = {}, onSelectGauge: (String) -> Unit = {}, onAddGauge: () -> Unit = {}) {
+    var gaugesOpen by rememberSaveable { mutableStateOf(false) }
     var nameOpen by rememberSaveable { mutableStateOf(false) }
     var rotationOpen by rememberSaveable { mutableStateOf(false) }
     var brightnessOpen by rememberSaveable { mutableStateOf(false) }
@@ -32,6 +33,7 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
         ResponsivePanels(first = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SectionTitle("Gauge")
+                SettingsRow("Your gauges", state.name, !state.busy) { gaugesOpen = true }
                 SettingsRow("Gauge name", state.name) { nameOpen = true }
                 SettingsRow("Brightness", state.brightness?.let { "$it%" } ?:
                     if (state.displaySettingsVersion >= 1) "Reading settings…" else "Not available on this gauge",
@@ -66,6 +68,17 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
             }
         })
     }
+    if (gaugesOpen) AlertDialog(onDismissRequest = { gaugesOpen = false }, title = { Text("Your gauges") }, text = {
+        Column {
+            state.gauges.forEach { gauge ->
+                SettingsRow(gauge.name,
+                    listOfNotNull(gauge.vehicleName, gauge.source?.let { if (it == "TCM") "Transmission" else "Engine" },
+                        if (gauge.needsReview) "Setup needs review" else if (gauge.id == state.selectedGaugeId) "Selected" else null).joinToString(" · "), !state.busy,
+                    { onSelectGauge(gauge.id); gaugesOpen = false })
+            }
+            TextButton({ onAddGauge(); gaugesOpen = false }, enabled = !state.busy) { Text("Add gauge") }
+        }
+    }, confirmButton = { TextButton({ gaugesOpen = false }) { Text("Close") } })
     if (nameOpen) {
         var name by rememberSaveable { mutableStateOf(state.name) }
         AlertDialog(onDismissRequest = { nameOpen = false }, title = { Text("Name your gauge") }, text = {

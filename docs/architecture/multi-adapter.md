@@ -8,6 +8,15 @@ operation. The shared Android status widget accepts independent link states; the
 production projection currently supplies one active source. Follow the
 [interaction policy](interaction-recovery.md) when extending it.
 
+## Vehicle hierarchy
+
+The primary ECM adapter owns an optional transmission child inside the same vehicle
+profile. This is an Expert option for swaps, not another vehicle or a second adapter
+placeholder in ordinary setup. Multiple vehicle profiles and multiple remembered
+gauges retain independent selections. See [vehicle connections](vehicle-connections.md)
+for implemented local storage, migration and source routing. The parent relationship
+does not require an ECM radio connection before TCM recovery.
+
 ## Preferred design
 
 Gauge maintains **two central-role adapter links plus one peripheral-role phone link**, three total simultaneous BLE connections. Each adapter has independent identity/profile, GATT handles, ELM transaction queue, protocol/ECU context, parser, timeout, reconnect, poll budget, and discovery job. This differs from multiple ECUs behind one adapter, which share that adapter's serial transaction budget.

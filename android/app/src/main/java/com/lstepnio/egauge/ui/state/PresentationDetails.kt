@@ -14,6 +14,7 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
     fact("Last device response", deviceMessage)
     fact("Profile identifier", profileCollection.activeId)
     fact("Profile problem", profileError)
+    fact("Gauge association problem", gaugeAssociationError)
     fact("Operation", "${operation.id} · ${operation.kind} · ${operation.stage}")
     fact("Operation response", operation.detail)
     capabilities?.let { caps ->

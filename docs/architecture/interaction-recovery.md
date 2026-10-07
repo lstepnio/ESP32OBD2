@@ -42,8 +42,10 @@ are current and ready. A healthy ECM must not conceal a lost TCM. Zero required
 links, example links and incomplete setup cannot produce all-connected status.
 One lost source must not stop retries, data or alerts for another healthy source.
 
-`ConnectionLinkUi` and the widget accept multiple links. The current profile and
-firmware readback expose one active source, so the app presently supplies one link.
+`ConnectionLinkUi` and the widget accept multiple links. Vehicles may have an
+optional transmission child in local storage; current firmware readback exposes
+one active source per selected gauge, so the app presently supplies one link. See
+[vehicle connections](vehicle-connections.md) for the hierarchy and per-gauge contexts.
 Do not fabricate a second link or advertise simultaneous adapters from UI support.
 Complete source-specific firmware snapshots, bindings and coexistence validation
 before extending the projection or promoting `maxAdapterLinks` above one.

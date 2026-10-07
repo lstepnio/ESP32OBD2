@@ -26,11 +26,11 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 | Engine telemetry | Gauge reads attributed 7E8 replies. Owner reported RPM agrees with dash, disappears after unplugging adapter and returns after reconnect | Vehicle/adapter matrix, long soak and achieved polling rates |
 | Transmission | One active TCM profile routes 7E1/7E9; combined Gear + Temperature page. Owner confirmed page worked and both readings cleared/returned on adapter loss/recovery | Independent temperature sensor/scale reference, gears 2..8, current/target divergence |
 | Faults | Mac captured full stored/pending/permanent TCM lists. Version 15 protected full snapshots and Android source/category groups implemented and tested offline | New long-read transfer on Pixel and full fault polling alongside Gear + Temperature |
-| Settings | Brightness, orientation, Metric/Imperial units and automatic saved-page interval persisted through existing settings path | Physical units/persistence and automatic-cycle checks remain separate from protected readback |
+| Settings | Brightness, orientation, Metric/Imperial units and automatic saved-page interval persisted through existing settings path; initial app units follow locale region, saved choice/confirmed gauge wins | Physical units/persistence and automatic-cycle checks remain separate from protected readback |
 | Dashboards/alerts | Numeric, Arc, Bar, Trend and Dual renderers; bounded page/alert configuration, stronger palette and enlarged arc; host logic tests | Daylight/color review, alert transitions and hidden-page behavior on real vehicle |
 | Configuration | Atomic slots, exact review/projection, revision/hash conflict checks, trial/fallback and stored/running identity | Physical interruption matrix and all supported layouts/alerts on hardware |
 | Updates | Signed development catalog/bundle verification, owner BLE bootstrap, authenticated private Wi-Fi transfer, A/B trial confirmation and recovery journal; App/Wi-Fi installs recorded | Hardware power-loss/expiry matrix, production trust and performance measurements |
-| Multiple adapters | Source-specific model and legacy second-slot scaffolding; normal runtime uses one active source | Simultaneous adapters plus phone are unqualified; public link capacity is one |
+| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 6; remembered gauges retain independent vehicle/source contexts. Normal firmware uses one active source | Simultaneous adapters plus phone are unqualified; public link capacity is one |
 
 ## Public and experimental boundaries
 
