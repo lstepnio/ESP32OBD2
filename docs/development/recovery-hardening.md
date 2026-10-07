@@ -97,3 +97,25 @@ arbitrary timeouts or classify an uncertain write as failed without readback.
 - Native recovery harness now requires fresh observations after the actual resume
   time and records resume/Bluetooth recovery durations. Run it with explicit
   read-only opt-in on the paired Pixel before claiming physical automatic recovery.
+
+### Read-only Pixel recovery command
+
+After installing the built debug and instrumentation APKs with data-preserving
+replacement, enable the awake helper, then run the opt-in native harness:
+
+```sh
+adb shell am instrument -w -r \
+  -e class com.lstepnio.egauge.AutomaticConnectionJourneyTest \
+  -e allowGaugeRead true \
+  -e toggleBluetooth true \
+  -e checkGaugePickerRecovery true \
+  -e expectedFirmwareVersion '<exact installed version>' \
+  -e expectedFirmwareElf '<verified hosted ELF hash>' \
+  com.lstepnio.egauge.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Record the external `automatic-connection/result.txt` and full active document
+privately, compare saved preferences before/after, and restore the awake helper.
+The harness temporarily toggles phone Bluetooth, restores it in `finally`, never
+sends configuration or firmware, and cannot establish physical display/touch or
+vehicle-adapter recovery from phone observations alone.
