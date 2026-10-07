@@ -26,7 +26,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 | Engine telemetry | Gauge reads attributed 7E8 replies. Owner reported RPM agrees with dash, disappears after unplugging adapter and returns after reconnect | Vehicle/adapter matrix, long soak and achieved polling rates |
 | Transmission | One active TCM profile routes 7E1/7E9; combined Gear + Temperature page. Owner confirmed page worked and both readings cleared/returned on adapter loss/recovery | Independent temperature sensor/scale reference, gears 2..8, current/target divergence |
 | Faults | Mac captured full stored/pending/permanent TCM lists. Version 15 protected full snapshots and Android source/category groups implemented and tested offline | New long-read transfer on Pixel and full fault polling alongside Gear + Temperature |
-| Settings | Brightness, orientation, Metric/Imperial units and automatic saved-page interval persisted through existing settings path; initial app units follow locale region, saved choice/confirmed gauge wins | App dev.39 protected post-restart settings persistence passed; physical units and automatic-cycle observations remain separate |
+| Settings | Brightness, orientation, Metric/Imperial units and automatic saved-page interval persisted through existing settings path; initial app units follow locale region, saved choice/confirmed gauge wins | App dev.39 protected post-restart settings persistence passed; owner confirmed five-second physical page cycling; physical unit rendering remains separate |
 | Dashboards/alerts | Numeric, Arc, Bar, Trend and Dual renderers; bounded page/alert configuration, stronger palette and enlarged arc; host logic tests | Daylight/color review, alert transitions and hidden-page behavior on real vehicle |
 | Configuration | Atomic slots, exact review/projection, revision/hash conflict checks, trial/fallback and stored/running identity | Physical interruption matrix and all supported layouts/alerts on hardware |
 | Updates | Signed development catalog/bundle verification, owner BLE bootstrap, authenticated private Wi-Fi transfer, A/B trial confirmation and recovery journal; App/Wi-Fi installs recorded | Hardware power-loss/expiry matrix, production trust and performance measurements |
@@ -211,6 +211,6 @@ App confirmed revision 42 and fresh protected display settings in 22.065 seconds
 and shortcut survived. Cycling was restored to its original Off setting, and phone
 wake preferences were restored. 101 Android unit tests, debug/test builds and lint
 passed. Earlier timeout-only repair did not cover this cache-invalidation case;
-see the [focused record](development/restart-and-dashboard-rollout.md). Visual cycle,
+see the [focused record](development/restart-and-dashboard-rollout.md). Owner confirmed five-second physical cycling and the App restored Off;
 physical gesture cooldown/touch checks, fresh firmware OTA with this App and two-adapter
 hardware qualification remain pending. Firmware remains signed dev.42.

@@ -118,3 +118,19 @@ configuration restart recovery in this session, not visual automatic cycling,
 physical cooldown, broader recovery immunity, fresh firmware OTA or two adapters.
 The owner separately reported a responsive display during the initial failure.
 Phone wake preferences were restored and firmware remains dev.42.
+
+
+## Physical cycling check
+
+On 2026-10-07, the App Settings path confirmed five-second cycling. The owner
+watched the physical gauge for about 20 seconds without touching it and confirmed
+TRANSMISSION and GEAR alternate approximately every five seconds. The App then
+confirmed cycling Off again, retaining 100% brightness, 270° orientation and
+Imperial units. Gesture cooldown observation is pending in this bench session.
+
+An initial read-only phone test was interrupted by the Pixel charging screensaver
+at its screenshot assertion. After the owner unlocked the phone, the opening/resume
+test passed in 9.492 seconds, checking exact dev.42 firmware/ELF identity, OTA health 2,
+confirmed running revision 42, automatic settings refresh and unchanged saved profiles,
+configuration and display settings. Bluetooth toggling and picker cancellation were
+not enabled in this run. This does not establish physical gesture cooldown.

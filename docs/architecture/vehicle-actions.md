@@ -19,9 +19,12 @@ research leads for these examples. They are incomplete procedures and do not
 establish compatibility with the swapped Jeep. Reading TCM temperature and gear
 does not establish control support. ABS targets must not be assumed to be the TCM.
 
-Installed dev.40 handles clicks and holds, with clicks advancing pages and holds
-opening pairing. Source dev.42 adds upward stroke recognition for the local page
-action. Recognition is tested offline; physical gesture ergonomics remain unqualified.
+Installed dev.42 handles clicks and holds, with clicks advancing pages and holds
+opening pairing, and upward stroke recognition for the local page action. The owner
+confirmed that three upward swipes jump to the saved TRANSMISSION page. Protected
+settings/setup persistence passed on App dev.39; physical cooldown, cycling interaction
+and broader gesture ergonomics remain unqualified. See the
+[restart and persistence record](../development/restart-and-dashboard-rollout.md).
 
 ## Decision
 
