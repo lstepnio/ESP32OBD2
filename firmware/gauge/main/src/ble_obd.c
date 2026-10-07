@@ -178,7 +178,8 @@ static bool adapter_command(ble_obd_ctx_t *obd, const char *command, uint32_t ti
     if (!wait_for_prompt(obd, budget) || atomic_load(&obd->rx_overflow) ||
         atomic_load(&obd->generation) != generation) goto done;
     if (strstr(obd->response.text, "?") || strstr(obd->response.text, "ERROR") ||
-        strstr(obd->response.text, "UNABLE TO CONNECT")) goto done;
+        strstr(obd->response.text, "UNABLE TO CONNECT") ||
+        !strstr(obd->response.text, "OK")) goto done;
     ok = true;
 done:
     xSemaphoreGive(obd->mutex);
@@ -202,18 +203,26 @@ static bool initialize_adapter(ble_obd_ctx_t *obd)
             return false;
         }
     }
-    atomic_store(&obd->ready, true);
-    adapter_status_event(obd->source_id, atomic_load(&obd->generation), 4, 0);
     /* Bounded standard support-map discovery, attributed to the engine ECU.
      * A missing reply remains unknown; it is not evidence of unsupported PIDs. */
     for (unsigned base = 0; base <= 224; base += 32) {
-        if (ble_obd_rxtx_ecu(obd, 1, base, 0x7e8, 1500) != 0) break;
+        /* ATSP0 starts protocol discovery at the first vehicle request.
+         * Do not let normal poll timeouts interrupt its SEARCHING reply. */
+        if (ble_obd_rxtx_ecu(obd, 1, base, 0x7e8, base == 0 ? 15000 : 1500) != 0) {
+            if (obd->awaiting_prompt) {
+                adapter_status_event(obd->source_id, atomic_load(&obd->generation), 5, 6);
+                return false;
+            }
+            break;
+        }
         if (obd->response.overflow) break;
         elm_payload_t map;
         if (elm_response_decode_for_ecu(&obd->response, 1, base, 0x7e8, &map) != ELM_OK || map.length != 4) break;
         adapter_status_support(obd->source_id, atomic_load(&obd->generation), 0x7e8, base, map.bytes, map.length);
         if (!(map.bytes[3] & 1)) break;
     }
+    atomic_store(&obd->ready, true);
+    adapter_status_event(obd->source_id, atomic_load(&obd->generation), 4, 0);
     return true;
 }
 
