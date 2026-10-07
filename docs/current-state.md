@@ -6,7 +6,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 
 ## Baseline
 
-- Latest installed Android: `0.2.0-dev.44`; signed gauge firmware dev.44 verified through protected readback, OTA health 2. Owner confirmed normal page and swipes. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
+- Latest installed Android: `0.2.0-dev.44`; signed gauge firmware dev.45 verified through protected readback, OTA health 2. New display/swipe confirmation is pending. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
 
 - Board: Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S touch,
   16 MB flash and 2 MB PSRAM. ESP-IDF 5.4.1 with pinned components.
@@ -14,7 +14,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
   iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
 - Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
   verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.44`, configuration revision 45, protected running confirmation and cleared trial.
+- Latest recorded physical gauge: `0.2.0-dev.45`, configuration revision 46, protected running confirmation and cleared trial.
   Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
 - The owner has one Vgate, swapped between separate ECM and TCM connectors on a
   2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
@@ -61,8 +61,12 @@ independently, and each physical adapter keeps its independent worker/recovery s
 
 123 JVM tests, firmware build/sanitizer fixtures, ten final native Pixel tests and
 protected existing-firmware readback/resume passed; phone preferences retained.
-New execution requires firmware `va:1`; installed dev.44 lacks it. No new firmware
-release, installation or physical port-switch/dual qualification is claimed here.
+Signed dev.45 was owner-authorized, published from `07c436a` with catalog
+generation 27 and installed through App/Wi-Fi. Protected readback confirmed exact
+ELF identity and healthy boot. The complete six-page dashboard is now confirmed
+as revision 46 on one primary ECM transport, with settings and phone profiles
+retained. New display/swipe confirmation and physical port-switch/dual qualification
+remain pending.
 See [detailed review and test plan](development/logical-vehicle-review.md).
 
 ## Phone deletion controls

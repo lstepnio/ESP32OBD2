@@ -41,8 +41,9 @@ Keep current status in one place and retire completed planning lists.
 
 Source App dev.44 and firmware dev.45 remove source filtering from editing and
 sending, support mixed-controller Dual pages and keep one logical vehicle across
-one primary or two explicitly configured transports. Complete the signed App/Wi-Fi
-candidate installation and single-adapter ECM/TCM port-switch check in the
+one primary or two explicitly configured transports. Signed dev.45 App/Wi-Fi
+installation, complete six-page dashboard send and protected identity checks passed.
+Complete display/swipe observation and single-adapter ECM/TCM port-switch check in the
 [logical vehicle review](development/logical-vehicle-review.md). Two distinct
 adapters are still required for the independent loss/recovery and radio coexistence
 matrix. TCM alerts and single-transport TCM fault polling remain follow-up work;

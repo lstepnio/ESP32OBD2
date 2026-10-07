@@ -115,9 +115,9 @@ UI fixtures do not establish physical port switching or dual-radio liveness.
   Protected readback/resume passed in 11.305 s: opening 6.432 s, resume 2.789 s,
   exact installed signed dev.44 identity/OTA health 2 and unchanged configuration
   revision 45/digest and settings. No firmware/configuration send was performed.
-- Signed dev.45 publication, App/Wi-Fi installation, physical ECM/TCM port switching
-  and independent two-adapter absence/recovery are still pending. Do not describe
-  those source/offline results as physical qualification.
+- Signed dev.45 publication and App/Wi-Fi installation are recorded below. Physical
+  ECM/TCM port switching and independent two-adapter absence/recovery remain pending.
+  Source/offline results do not establish physical qualification.
 
 - Final transport review propagated the remaining operation budget through ATT
   write completion as well as the CAN header/prompt waits. The existing 2-second
@@ -125,3 +125,38 @@ UI fixtures do not establish physical port switching or dual-radio liveness.
   the link; late completion generations remain rejected. Final firmware build passed.
 - Final phone preferences still matched the pre-install baseline after protected
   readback; original Pixel wake settings were restored. App dev.44 remains installed.
+
+## Signed dev.45 installation, 2026-10-07
+
+- Owner explicitly authorized publication and App/Wi-Fi installation. Quality run
+  37678465859 passed all three jobs for `07c436aae686edf06f0a9302e116d63edffcebd5`.
+  Protected release run 37679317096 published the immutable development prerelease
+  [dev.45](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.45),
+  catalog generation 27, targeting that exact commit.
+- Clean GitHub downloads passed independent catalog and image signature verification,
+  board/layout/protocol and descriptor checks. Bundle SHA-256:
+  `993959e488f6b6bbe7042dd4423d280a2539bcf71661ef7b443815a6916aaae8`;
+  image SHA-256: `d2c8e9bb98f280aeb094fcd5f907cb2a001e19396a1e042c5068c94984e880f5`.
+- Pixel App dev.44 discovered, downloaded and installed the hosted signed candidate
+  through App/Wi-Fi. The same App reported Update installed after restart; no USB
+  flashing or reset was used.
+- Protected opening/resume test passed in 11.623 s, confirming dev.45 ELF
+  `9289f8dd9d9fbde52c893b1e3edd9068eb78cf152ba3dd5b3cfbd162372784f4`, OTA
+  health 2, unchanged saved/running revision 45 and configuration digest
+  `ec2d5c70584f64ef16e8939851ca9caa815a217c4956f69618e112db66cd84d2`. Opening
+  confirmation took 6.670 s and resume 2.797 s. Brightness, rotation, units, cycling
+  and phone profiles were retained. This test issued no setup or vehicle write.
+- After the owner unlocked the Pixel, normal Review and send showed all six saved
+  pages: coolant, speed, combined Gear + Temperature, Gear, transmission temperature
+  and RPM. The App sent the complete dashboard in single-adapter mode. Protected
+  saved/running readback confirmed revision 46 and digest
+  `17f8d4d50b098f524b55da6f420d171714262bed8f3d335c1211af2bc3f8ecac`, all six
+  pages, one primary ECM source and both service 01/7E8 and captured service 22/7E9
+  definitions routed to that primary source. Post-send opening/resume passed in
+  22.211 s; opening 16.757 s, resume 3.249 s. Exact dev.45 identity/health retained.
+- Settings fields matched the pre-send document. Phone profiles and presentation
+  preferences were byte-identical; the sole association change normalized the
+  remembered source from TCM to ECM, keeping the same gauge and vehicle identity.
+  Original Pixel wake settings were restored. Owner display/swipe observation
+  remains pending. No physical OBD adapter was contacted by the Mac, and no
+  simultaneous adapter behavior is claimed.
