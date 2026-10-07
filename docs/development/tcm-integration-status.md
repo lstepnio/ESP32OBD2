@@ -1,6 +1,6 @@
 # TCM integration: observed faults and remaining gates
 
-Updated 2026-10-06. Target: the owner's JSS 8HP70 setup, TCM calibration 68274867AE, diagnostic responder 7E9. The user now prioritizes transmission temperature, actual gear and faults. No matching PCS/JSS laptop or saved calibration/log files are currently available.
+Updated 2026-10-06. Target: the owner's JSS 8HP70 setup, TCM calibration 68274867AE, diagnostic responder 7E9. The user now prioritizes transmission temperature, actual gear and faults. No matching PCS/JSS laptop or saved calibration/log files are currently available. The owner subsequently confirmed the external PCS module is TCM-2800; its firmware/calibration and diagnostic-port routing remain unverified. See [updated hardware/interface findings](jss-transmission-research.md).
 
 ## Real fault capture
 
