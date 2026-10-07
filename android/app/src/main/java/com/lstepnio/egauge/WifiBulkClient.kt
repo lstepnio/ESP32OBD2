@@ -271,7 +271,14 @@ class WifiBulkClient(private val context: Context, private val session: WifiBulk
             }
             synchronized(transportLock) { networkCallback = callback }
             continuation.invokeOnCancellation { releaseNetworkRequest(manager, callback) }
-            manager.requestNetwork(request, callback, 30_000)
+            try {
+                if (continuation.isActive) manager.requestNetwork(request, callback, 30_000)
+            } finally {
+                // Cancellation can unregister before requestNetwork finishes registering.
+                // Retire that late registration too, without touching a newer callback.
+                if (synchronized(transportLock) { networkCallback !== callback })
+                    runCatching { manager.unregisterNetworkCallback(callback) }
+            }
         }
 
     private fun crypt(mode: Int, header: ByteArray, input: ByteArray, nonce: ByteArray,
