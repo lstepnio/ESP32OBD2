@@ -36,6 +36,7 @@ typedef struct {
     obd_pid_cfg_t obd;
     uint32_t poll_ms;
     uint32_t stale_ms;
+    uint32_t responder;
 } runtime_pid_t;
 
 typedef struct {
@@ -58,6 +59,13 @@ typedef struct {
     uint8_t alert_count;
     uint8_t rotation;
     uint8_t brightness;
+    bool legacy_auto_discovery;
+    bool simulated_adapter;
+    char vehicle_id[65];
+    char source_id[33];
+    char adapter_id[65];
+    char adapter_address[18];
+    uint8_t adapter_address_type;
     runtime_pid_t pids[EGAUGE_RUNTIME_PIDS];
     runtime_page_t pages[EGAUGE_RUNTIME_PAGES];
     runtime_alert_t alerts[EGAUGE_RUNTIME_ALERTS];

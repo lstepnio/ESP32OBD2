@@ -12,3 +12,6 @@ typedef struct {
 void alert_engine_init(const config_runtime_t *runtime);
 void alert_engine_sample(uint8_t pid_index, double value, uint32_t now_ms);
 alert_summary_t alert_engine_tick(uint32_t now_ms);
+
+/* Retain the last alert severity as unavailable; abandon pending dwell. */
+void alert_engine_invalidate(void);

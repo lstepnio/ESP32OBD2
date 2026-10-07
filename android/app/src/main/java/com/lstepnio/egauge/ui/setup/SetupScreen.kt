@@ -8,12 +8,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.OwnerAccess
+import com.lstepnio.egauge.PairingWindowState
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.ScreenContent
 import com.lstepnio.egauge.ui.state.SetupUiState
 
 @Composable
 fun SetupScreen(state: SetupUiState, onFind: () -> Unit, onPair: () -> Unit,
+    onRefreshPairing: () -> Unit, onBluetoothSettings: () -> Unit,
     onChoose: (String) -> Unit, onCustomize: () -> Unit, onBack: () -> Unit) {
     val step = when { state.owner == OwnerAccess.AUTHENTICATED -> 2; state.found -> 1; else -> 0 }
     var candidate by rememberSaveable { mutableStateOf<String?>(null) }
@@ -31,8 +33,8 @@ fun SetupScreen(state: SetupUiState, onFind: () -> Unit, onPair: () -> Unit,
         }
         when (step) {
             0 -> {
-                state.candidates.forEachIndexed { index, item ->
-                    ReadingTile("${item.name} · ${index + 1}", "Confirm its code next", candidate == item.id,
+                state.candidates.forEach { item ->
+                    ReadingTile("${item.name} · ${item.shortId}", "Match this ID to the gauge screen", candidate == item.id,
                         { candidate = item.id }, enabled = !state.busy)
                 }
                 StatusCard(state.status)
@@ -43,10 +45,33 @@ fun SetupScreen(state: SetupUiState, onFind: () -> Unit, onPair: () -> Unit,
             }
             1 -> {
                 Text("Open pairing on your gauge", style = MaterialTheme.typography.headlineSmall)
-                Text("Long press the display, then enter the code shown on it when Android asks. Keep the gauge nearby until pairing finishes.",
+                val pairingWindow = state.pairingWindow
+                val pairingInstructions = if (state.androidBonded)
+                    "Android paired this phone. The app is checking that your gauge saved it as owner. Keep the gauge powered and nearby."
+                else when (pairingWindow?.state) {
+                    PairingWindowState.READY -> "Your gauge is ready. Tap Pair gauge, then enter the six-digit code shown on the gauge in Android's pairing prompt. Pairing stays open for about ${pairingWindow.secondsRemaining} seconds."
+                    PairingWindowState.CODE_DISPLAYED -> "A pairing request is already open. Enter the six-digit code shown on your gauge in Android's prompt. If you dismissed the prompt, check pairing status."
+                    PairingWindowState.CLOSED -> "Pairing is closed on the gauge. Hold the display briefly until it says OPEN APP TO PAIR GAUGE, then tap Pair gauge."
+                    PairingWindowState.OWNER_PRESENT -> "This gauge still has an owner. To move it to this phone, hold the display for 12 seconds, release, then tap once when it says OWNER RESET? TAP TO CONFIRM. Display settings stay saved."
+                    null -> "Tap Pair gauge to open Android's pairing prompt, then enter the code shown on the gauge. If it says HOLD TO OPEN PAIRING, hold the screen briefly first."
+                }
+                Text(pairingInstructions,
                     style = MaterialTheme.typography.bodyLarge)
                 StatusCard(state.status)
-                PrimaryAction("Pair gauge", onPair, enabled = !state.busy)
+                if (state.status.title == "This phone's saved bond does not own the gauge")
+                    TextButton(onBluetoothSettings, Modifier.fillMaxWidth()) { Text("Open Bluetooth settings") }
+                val status = state.pairingWindow?.state
+                val action = if (!state.androidBonded && status in setOf(PairingWindowState.CLOSED, PairingWindowState.OWNER_PRESENT,
+                        PairingWindowState.CODE_DISPLAYED))
+                    onRefreshPairing else onPair
+                val actionLabel = if (state.androidBonded)
+                    if (state.busy) "Checking..." else "Check gauge access"
+                else when (status) {
+                    PairingWindowState.CLOSED, PairingWindowState.OWNER_PRESENT,
+                    PairingWindowState.CODE_DISPLAYED -> "Check pairing status"
+                    else -> if (state.busy) "Pairing..." else "Pair gauge"
+                }
+                PrimaryAction(actionLabel, action, enabled = !state.busy)
             }
             else -> {
                 StatusCard(StatusUi("Your phone is paired", "Your gauge confirmed access.", StatusTone.Success))

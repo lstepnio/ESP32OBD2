@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "origin": "captured",
+  "physicalPort": "transmission",
+  "protocol": "CAN 11-bit 500 kbit/s",
+  "ecu": "7E9",
+  "cases": [
+    {
+      "command": "0120",
+      "responseHex": "37453930363431323038303031383030310d0d3e",
+      "latencyUs": 240264
+    },
+    {
+      "command": "0140",
+      "responseHex": "37453930363431343034303830303030300d0d3e",
+      "latencyUs": 239753
+    }
+  ],
+  "limit": "Standard responses captured by the Mac. No independent instrument comparison or gauge live-reading verification."
+}

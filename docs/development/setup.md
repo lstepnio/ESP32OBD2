@@ -44,3 +44,7 @@ Architecture is in [android/README.md](../../android/README.md). Create the Grad
 ## Recovery
 
 The current development image can be re-flashed via USB using the built source. OTA-enabled production firmware will require its own known compatible images and [migration procedure](../protocol/firmware-update.md). Never erase bonds/config or change eFuses as an incidental part of UI development.
+
+## First vehicle capture
+
+Use the [parked Jeep capture runbook](vehicle-capture-runbook.md) and prepared Mac menu to collect both OBD ports sequentially and replay the evidence offline.

@@ -12,7 +12,9 @@ import com.lstepnio.egauge.ui.state.CarUiState
 
 @Composable
 fun CarScreen(state: CarUiState, onCheck: () -> Unit, onSetup: () -> Unit,
-              onSelectProfile: (String) -> Unit, onCreateProfile: (String) -> Unit) {
+              onSelectProfile: (String) -> Unit, onCreateProfile: (String) -> Unit,
+              onFindAdapters: () -> Unit = {}, onChooseAdapter: (com.lstepnio.egauge.AdapterBinding?) -> Unit = {},
+              onSendAdapter: () -> Unit = {}, onCheckAdapter: () -> Unit = {}) {
     var profilesOpen by rememberSaveable { mutableStateOf(false) }
     ScreenContent {
         ScreenTitle(state.name)
@@ -35,7 +37,21 @@ fun CarScreen(state: CarUiState, onCheck: () -> Unit, onSetup: () -> Unit,
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 SettingsRow("Vehicle profile", state.name, !state.profileError, { profilesOpen = true })
-                EmptyState("Vehicle adapter", "Adapter setup is not available in this app yet.")
+                Panel {
+                    SectionTitle("Vehicle adapter")
+                    Text(state.adapterSelected ?: "No adapter selected", style = MaterialTheme.typography.bodyLarge)
+                    Text(state.adapterMessage ?: "Plug your adapter into the car to find it.",
+                        style = MaterialTheme.typography.bodyMedium)
+                    PrimaryAction("Check adapter", onCheckAdapter, enabled = state.adapterAvailable)
+                    PrimaryAction("Find adapter", onFindAdapters, enabled = state.adapterAvailable && !state.profileError)
+                    state.adapterCandidates.forEach { candidate ->
+                        SettingsRow(candidate.name, candidate.binding.address.takeLast(5),
+                            enabled = state.adapterAvailable, onClick = { onChooseAdapter(candidate.binding) })
+                    }
+                    if (state.adapterSelected != null)
+                        TextButton({ onChooseAdapter(null) }, enabled = state.adapterAvailable) { Text("Remove adapter") }
+                    PrimaryAction("Send setup to gauge", onSendAdapter, enabled = state.canSendAdapter)
+                }
                 PrimaryAction(if (state.canCheck) "Check car" else "Set up gauge",
                     if (state.canCheck) onCheck else onSetup)
             }

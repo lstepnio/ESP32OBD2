@@ -3,11 +3,12 @@ package com.lstepnio.egauge
 import android.content.Context
 import java.util.UUID
 
-/** Local design drafts only. No adapter identity or vehicle capability claim is stored here. */
+/** Local drafts and adapter selections. Vehicle evidence is stored separately. */
 data class VehicleProfile(
     val id: String,
     val name: String,
     val draft: Draft,
+    val primaryAdapter: AdapterBinding? = null,
 )
 
 data class ProfileCollection(val activeId: String, val profiles: List<VehicleProfile>) {

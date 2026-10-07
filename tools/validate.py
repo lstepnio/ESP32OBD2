@@ -57,6 +57,8 @@ def config(doc):
     shape('config.schema.json', doc)
     check(len(json.dumps(doc, separators=(',', ':')).encode()) <= 65536, 'Config exceeds 64 KiB')
     unique(doc['sources'], 'id'); unique(doc['definitions'], 'id'); unique(doc['pages'], 'id'); unique(doc['alerts'], 'id')
+    bindings = [x['adapter'] for x in doc['sources'] if 'adapter' in x]
+    unique(bindings, 'id'); unique(bindings, 'address')
     sources = {x['id'] for x in doc['sources']}
     defs = {x['id']: x for x in doc['definitions']}
     physical_queries = set()
@@ -97,7 +99,25 @@ for p in (ROOT / 'contracts/examples').glob('*.json'):
     count += 1
 
 base = json.loads((ROOT / 'contracts/examples/config-dual-source.json').read_text())
+def bound(doc):
+    doc['schemaVersion'] = 2
+    for index, source in enumerate(doc['sources']):
+        source['adapter'] = {'id': 'adapter-fixture-' + str(index), 'address': 'C0:00:00:00:00:0' + str(index),
+                             'addressType': 'random', 'driver': 'elm-18f0-v1'}
+    return doc
+
+def duplicate_binding(doc):
+    bound(doc)
+    doc['sources'][1]['adapter'] = copy.deepcopy(doc['sources'][0]['adapter'])
+
+def bad_binding(doc):
+    bound(doc)
+    doc['sources'][0]['adapter']['addressType'] = 'guess'
+
 negative_cases = [
+    ('duplicate bound adapter', duplicate_binding),
+    ('invalid binding address type', bad_binding),
+    ('binding injected into legacy schema', lambda d: (bound(d), d.update(schemaVersion=1))),
     ('undefined source', lambda d: d['definitions'][0].update(sourceId='missing')),
     ('duplicate source', lambda d: d['sources'].append(copy.deepcopy(d['sources'][0]))),
     ('bad page reference', lambda d: d['pages'][0].update(pidIds=['missing.pid'])),
@@ -138,6 +158,16 @@ for p in mds:
             continue
         target = unquote(dest.split('#')[0])
         check((p.parent / target).exists(), f'Broken link in {p.relative_to(ROOT)}: {dest}')
+
+# NimBLE's global security floor filters every incoming adapter notification.
+# Owner protection belongs to the companion's authenticated attributes and identity gate.
+sdk = (ROOT / 'firmware/gauge/sdkconfig').read_text()
+check('CONFIG_BT_NIMBLE_SM_LVL=1' in sdk, 'Unencrypted OBD replies must reach the adapter client')
+companion = (ROOT / 'firmware/gauge/main/src/ble_companion.c').read_text()
+for guard in ('BLE_GATT_CHR_F_WRITE_AUTHEN', 'BLE_GATT_CHR_F_READ_AUTHEN',
+              'desc.sec_state.encrypted', 'desc.sec_state.authenticated',
+              'desc.sec_state.bonded', 'address_equal(&desc.peer_id_addr, &g_owner)'):
+    check(guard in companion, f'Missing companion owner protection: {guard}')
 
 # Android and prototype tokens are generated from the shared palette.
 import subprocess

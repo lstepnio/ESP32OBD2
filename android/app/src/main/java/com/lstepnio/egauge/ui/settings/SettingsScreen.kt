@@ -27,6 +27,7 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
     var unitsOpen by rememberSaveable { mutableStateOf(false) }
     var cycleOpen by rememberSaveable { mutableStateOf(false) }
     var forgetOpen by rememberSaveable { mutableStateOf(false) }
+    var moveOwnerOpen by rememberSaveable { mutableStateOf(false) }
     ScreenContent {
         ScreenTitle("Settings")
         ResponsivePanels(first = {
@@ -53,7 +54,8 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                     if (state.cycleSeconds == null) onReadDisplay() else cycleOpen = true
                 }
                 if (!state.found) TextButton(onSetup) { Text("Set up gauge") }
-                TextButton({ forgetOpen = true }) { Text("Forget gauge") }
+                TextButton({ forgetOpen = true }) { Text("Remove from this phone") }
+                TextButton({ moveOwnerOpen = true }) { Text("Move gauge to another phone") }
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -143,10 +145,14 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
             Text("Save to gauge")
         } }, dismissButton = { TextButton({ cycleOpen = false }) { Text("Cancel") } })
     }
-    if (forgetOpen) AlertDialog(onDismissRequest = { forgetOpen = false }, title = { Text("Forget this gauge?") },
-        text = { Text("Remove eGauge from paired devices in Android Bluetooth settings. You will need the code on your gauge to pair again. Your display settings stay on the gauge.") },
+    if (forgetOpen) AlertDialog(onDismissRequest = { forgetOpen = false }, title = { Text("Remove this phone's bond?") },
+        text = { Text("This opens Android Bluetooth settings so you can remove the saved eGauge bond. The gauge owner remains saved. Your display settings stay on the gauge.") },
         confirmButton = { Button({ forgetOpen = false; onBluetoothSettings() }) { Text("Open Bluetooth settings") } },
         dismissButton = { TextButton({ forgetOpen = false }) { Text("Cancel") } })
+    if (moveOwnerOpen) AlertDialog(onDismissRequest = { moveOwnerOpen = false }, title = { Text("Move gauge to another phone?") },
+        text = { Text("On the gauge, hold the screen for 12 seconds, release, then tap when it says OWNER RESET? TAP TO CONFIRM. After it restarts and opens pairing, remove eGauge from this phone's Bluetooth settings. The new phone can then tap Pair gauge. Display settings stay saved.") },
+        confirmButton = { Button({ moveOwnerOpen = false; onBluetoothSettings() }) { Text("Open Bluetooth settings") } },
+        dismissButton = { TextButton({ moveOwnerOpen = false }) { Text("Close") } })
 }
 
 @Composable

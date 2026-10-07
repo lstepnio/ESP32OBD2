@@ -2,6 +2,7 @@ package com.lstepnio.egauge.ui.state
 
 import androidx.compose.runtime.Immutable
 import com.lstepnio.egauge.GaugeLayout
+import com.lstepnio.egauge.GaugePairingWindow
 import com.lstepnio.egauge.MeasurementSystem
 import com.lstepnio.egauge.OwnerAccess
 import com.lstepnio.egauge.connection.ConnectionState
@@ -41,17 +42,21 @@ data class FaultUi(val code: String, val description: String, val category: Stri
 @Immutable
 data class CarUiState(val name: String, val profiles: List<VehicleUi>, val activeId: String,
     val status: StatusUi, val faults: List<FaultUi>, val canCheck: Boolean, val incomplete: Boolean,
-    val profileError: Boolean, val details: List<DetailUi>)
+    val profileError: Boolean, val details: List<DetailUi>,
+    val adapterAvailable: Boolean = false, val adapterSelected: String? = null,
+    val adapterMessage: String? = null, val adapterCandidates: List<com.lstepnio.egauge.AdapterCandidate> = emptyList(),
+    val canSendAdapter: Boolean = false)
 @Immutable
 data class SettingsUiState(val name: String, val found: Boolean, val rotation: Int?, val canRotate: Boolean,
     val busy: Boolean, val advanced: Boolean, val dynamicColor: Boolean, val version: String,
     val details: List<DetailUi>, val displaySettingsVersion: Int = 0, val brightness: Int? = null,
     val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val cycleSeconds: Int? = null)
 @Immutable
-data class CandidateUi(val id: String, val name: String, val details: List<DetailUi>)
+data class CandidateUi(val id: String, val name: String, val shortId: String, val details: List<DetailUi>)
 @Immutable
 data class SetupUiState(val found: Boolean, val owner: OwnerAccess, val busy: Boolean,
-    val candidates: List<CandidateUi>, val status: StatusUi, val details: List<DetailUi>)
+    val candidates: List<CandidateUi>, val status: StatusUi, val details: List<DetailUi>,
+    val pairingWindow: GaugePairingWindow? = null, val androidBonded: Boolean = false)
 @Immutable
 data class ExpertUiState(val canRead: Boolean, val canReadHardware: Boolean,
     val canAdoptGaugeSettings: Boolean, val details: List<DetailUi>)

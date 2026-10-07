@@ -67,7 +67,8 @@ object ScreenFixtures {
                 when (name) {
                     "setup", "pair" -> SetupScreen(SetupUiState(name == "pair", OwnerAccess.DISCOVERED, name == "setup",
                         emptyList(), StatusUi(if (name == "pair") "Gauge found" else "Looking for your gauge",
-                            "Keep your gauge powered and nearby.", if (name == "setup") StatusTone.Loading else StatusTone.Neutral), details), {}, {}, {}, {}, {})
+                            "Keep your gauge powered and nearby.", if (name == "setup") StatusTone.Loading else StatusTone.Neutral), details),
+                        {}, {}, {}, {}, {}, {}, {})
                     "gauge" -> HomeScreen(home, {}, {})
                     "recovery" -> HomeScreen(home.copy(status = recovery.status, pendingChanges = true,
                         primaryLabel = "Check gauge", primaryAction = HomeAction.Check), {}, {})

@@ -73,6 +73,9 @@ static void test_alert_edges(void)
     alert_engine_sample(0, 101, 10);
     alert_summary_t summary = alert_engine_tick(10);
     assert(summary.severity == 1 && !summary.unavailable);
+    alert_engine_invalidate();
+    summary = alert_engine_tick(11);
+    assert(summary.severity == 1 && summary.unavailable);
     summary = alert_engine_tick(600);
     assert(summary.severity == 1 && summary.unavailable);
     alert_engine_sample(0, 94, 610);

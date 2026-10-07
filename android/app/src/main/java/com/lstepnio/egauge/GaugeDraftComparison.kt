@@ -61,7 +61,7 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
         }.getOrNull()
 
         fun from(document: GaugeConfigTransferClient.ActiveDocument,
-                 profileId: String, draft: Draft): GaugeDraftComparison {
+                 profileId: String, draft: Draft, adapter: AdapterBinding? = null): GaugeDraftComparison {
             val saved = JSONObject(document.json)
             val pages = saved.optJSONArray("pages")
             val primaryPid = pages?.optJSONObject(0)?.optJSONArray("pidIds")?.optString(0)?.takeIf { it.isNotBlank() }
@@ -87,6 +87,8 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
             }
             return GaugeDraftComparison(document.revision, listOf(
                 field("Vehicle profile ID", profileId, document.vehicleProfileId),
+                field("Vehicle adapter", adapter?.id ?: "None",
+                    saved.optJSONArray("sources")?.optJSONObject(0)?.optJSONObject("adapter")?.optString("id") ?: "None"),
                 field("Page count", draft.pages.size.toString(), pages?.length()?.toString()),
                 field("All page settings", pageSettings(draft.pages), savedPageSettings()),
                 field("Primary reading", draft.pages.first().pidIds.first(), primaryPid?.let(::localPid)),

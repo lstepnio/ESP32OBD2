@@ -13,6 +13,8 @@ import com.lstepnio.egauge.ui.state.*
 fun UpdatesScreen(state: UpdatesUiState, operation: OperationUi, development: Boolean,
     onBack: () -> Unit, onCheck: () -> Unit, onInstall: () -> Unit,
     onReadInstalled: () -> Unit, onChoosePackage: () -> Unit) {
+    val debugBuild = androidx.compose.ui.platform.LocalContext.current.applicationInfo.flags and
+        android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
     ScreenContent {
         ScreenTitle(if (development) "Development updates" else "Updates", onBack)
         if (development) Text("Installed version: ${state.installedVersion}", style = MaterialTheme.typography.bodyLarge)
@@ -44,8 +46,8 @@ fun UpdatesScreen(state: UpdatesUiState, operation: OperationUi, development: Bo
             }
         }, enabled = if (state.feedUnavailable) !state.busy else if (state.ready) state.canInstall else state.canCheck)
         if (state.feedUnavailable) TextButton(onCheck, enabled = state.canCheck) { Text("Try online check") }
-        if (development && !state.feedUnavailable) {
-            OutlinedButton(onChoosePackage, Modifier.fillMaxWidth(), enabled = !state.busy) { Text("Choose development package") }
+        if ((development || debugBuild) && !state.feedUnavailable) {
+            OutlinedButton(onChoosePackage, Modifier.fillMaxWidth(), enabled = !state.busy) { Text("Choose signed package") }
         }
         if (development) {
             TextButton(onReadInstalled, enabled = state.canCheck) { Text("Check installed version") }

@@ -70,6 +70,8 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val freshConnection = connection.fresh(nowElapsedMs)
     val disconnected = connection.phase in setOf(ConnectionPhase.Retrying, ConnectionPhase.BluetoothOff, ConnectionPhase.PermissionRequired)
     val found = capabilities != null && !disconnected && connection.phase != ConnectionPhase.Searching
+    val androidBonded = capabilities != null && connection.phase !in setOf(
+        ConnectionPhase.BluetoothOff, ConnectionPhase.PermissionRequired) && androidBondedForUi()
     val busy = scanning || hostedUpdateBusy || updateInProgress ||
         (operation.stage != OperationStage.IDLE && !operation.terminal)
     val system = displaySettings?.takeIf { it.version >= 2 }?.units ?: prefs.measurementSystem
@@ -162,13 +164,16 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             capabilities?.displaySettingsVersion ?: 0, displaySettings?.brightness, system, displaySettings?.cycleSeconds),
         ExpertUiState(found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
             canAdoptGaugeDraft, details),
-        SetupUiState(found, ownerAccess, busy || connection.phase in setOf(ConnectionPhase.Searching, ConnectionPhase.Checking), gaugeCandidates.mapIndexed { index, candidate ->
-            CandidateUi(candidate.id, candidate.name.ifBlank { "Gauge ${index + 1}" }, listOf(
+        SetupUiState(found || androidBonded, ownerAccess, busy || connection.phase in setOf(ConnectionPhase.Searching, ConnectionPhase.Checking), gaugeCandidates.mapIndexed { index, candidate ->
+            val shortId = candidate.id.filter(Char::isLetterOrDigit).takeLast(6).uppercase()
+            val visibleName = candidate.name.removeSuffix("-$shortId").ifBlank { "Gauge ${index + 1}" }
+            CandidateUi(candidate.id, visibleName, shortId, listOf(
                 DetailUi("Gauge identifier", candidate.id), DetailUi("Signal", "${candidate.signalDbm} dBm")))
         }, if (presentationError != null) friendlyFailure(presentationError) else if (op.needsCheck || op.busy) op.status
             else if (connection.phase != ConnectionPhase.Idle) connectionStatus(connection, nowElapsedMs)
             else StatusUi(if (ownerAccess == OwnerAccess.AUTHENTICATED) "Your phone is paired" else if (found) "Gauge found" else "Ready to find your gauge",
-                if (ownerAccess == OwnerAccess.AUTHENTICATED) "Your gauge confirmed access." else "Keep your gauge powered and nearby."), details),
+                if (ownerAccess == OwnerAccess.AUTHENTICATED) "Your gauge confirmed access." else "Keep your gauge powered and nearby."), details,
+            pairingWindowForUi(nowElapsedMs), androidBonded),
         UpdatesUiState(updateStatus, hostedUpdate?.release?.version, bootIdentity?.version ?: "Not checked",
             found && !busy, updateReady && found && !busy && capabilities?.experimentalNumericConfig == true &&
                 updateRecovery?.state !in setOf(UpdateRecoveryState.CHECK_REQUIRED, UpdateRecoveryState.WAITING_FOR_CONFIRMATION),
@@ -189,7 +194,7 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
     val data = diagnostics
     val current = diagnosticsCurrent(now)
     val status = when {
-        data == null -> StatusUi("No car readings yet", "Adapter setup is not available in this app yet. You can still customize your gauge.", StatusTone.Disabled)
+        data == null -> StatusUi("No car readings yet", "Choose the adapter for this car, then check its connection.", StatusTone.Disabled)
         !current -> StatusUi("Car readings are out of date",
             if (data.milOn) "The check-engine light was on at the last check. Check again before relying on this status."
             else "The last check is more than 30 seconds old. Check again before relying on it.", StatusTone.Stale)
@@ -204,7 +209,24 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
     ) else emptyList()
     return CarUiState(profileCollection.active.name, profileCollection.profiles.map { VehicleUi(it.id, it.name) },
         profileCollection.activeId, status, faults, !busy && capabilities?.experimentalNumericConfig == true,
-        data != null, profileError != null, details)
+        data != null, profileError != null, details,
+        adapterAvailable = capabilities?.adapterRegistryVersion == 1 && !busy,
+        adapterSelected = profileCollection.active.primaryAdapter?.let { "${if (it.driver == "elm-bench-v1") "Bench simulator" else "Vehicle adapter"} · ${it.address.takeLast(5)}" },
+        adapterMessage = if (adapterSourceStatus != null && (adapterStatusCheckedAt == null ||
+            now - adapterStatusCheckedAt!! > 15_000)) "Adapter status is out of date. Check again."
+        else adapterMessage ?: if (activeDocument?.vehicleProfileId != profileCollection.activeId)
+            "This car's setup has not been confirmed on the gauge."
+        else runCatching {
+            val saved = org.json.JSONObject(activeDocument!!.json).getJSONArray("sources").getJSONObject(0).optJSONObject("adapter")
+            if (saved == null && profileCollection.active.primaryAdapter == null)
+                "No adapter selected on the gauge. Find your adapter when it is powered."
+            else if (saved?.optString("id") == profileCollection.active.primaryAdapter?.id && saved != null)
+                "Adapter selection saved on the gauge. Check its connection below."
+            else "Adapter selection differs from the gauge. Send setup to use this selection."
+        }.getOrDefault("Refresh gauge settings to check the saved adapter."),
+        adapterCandidates = adapterCandidates,
+        canSendAdapter = !busy && profileError == null && capabilities?.adapterRegistryVersion == 1 &&
+            activeConfigRevision != null && verifiedConfigHash != null && ConfigurationProjector.blockers(draft).isEmpty())
 }
 
 fun faultDescription(code: String): String = when (code) {

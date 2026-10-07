@@ -4,7 +4,10 @@
   "type": "object",
   "properties": {
     "schemaVersion": {
-      "const": 1
+      "enum": [
+        1,
+        2
+      ]
     },
     "baseRevision": {
       "type": "integer",
@@ -212,6 +215,40 @@
               "tcm",
               "other"
             ]
+          },
+          "adapter": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9._-]*$",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "address": {
+                "type": "string",
+                "pattern": "^[0-9A-F]{2}(:[0-9A-F]{2}){5}$"
+              },
+              "addressType": {
+                "enum": [
+                  "public",
+                  "random"
+                ]
+              },
+              "driver": {
+                "enum": [
+                  "elm-18f0-v1",
+                  "elm-bench-v1"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "address",
+              "addressType",
+              "driver"
+            ],
+            "additionalProperties": false
           }
         }
       }
@@ -230,5 +267,29 @@
     "alerts",
     "sources"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "sources": {
+            "items": {
+              "not": {
+                "required": [
+                  "adapter"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

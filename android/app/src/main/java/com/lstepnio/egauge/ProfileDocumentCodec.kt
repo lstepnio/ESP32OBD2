@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..4) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..5) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -77,6 +77,7 @@ object ProfileDocumentCodec {
                 id,
                 name,
                 draft,
+                if (schemaVersion >= 5) item.optJSONObject("primaryAdapter")?.let(AdapterBinding::decode) else null,
             )
         }
         require(profiles.map { it.id }.distinct().size == profiles.size) { "Profile IDs are duplicated" }
@@ -87,10 +88,11 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 4).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 5).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
             items.put(JSONObject().put("id", profile.id).put("name", profile.name)
+                .put("primaryAdapter", profile.primaryAdapter?.json())
                 .put("draft", JSONObject()
                     .put("pidId", profile.draft.pidId)
                     .put("layout", profile.draft.layout.name)

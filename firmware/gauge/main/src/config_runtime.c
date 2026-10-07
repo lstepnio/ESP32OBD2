@@ -8,6 +8,7 @@
 #include "config_trial.h"
 #include "config_document.h"
 #include "json_guard.h"
+#include "sdkconfig.h"
 
 typedef struct {
     bool valid;
@@ -94,6 +95,20 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
     if (strcmp(field(root, "units")->valuestring, "metric") != 0 ||
         cJSON_IsTrue(field(root, "reducedMotion"))) goto done;
     const char *source_id = field(cJSON_GetArrayItem(sources, 0), "id")->valuestring;
+    const cJSON *source = cJSON_GetArrayItem(sources, 0);
+    out->legacy_auto_discovery = field(root, "schemaVersion")->valueint == 1;
+    if (!copy_text(out->vehicle_id, sizeof(out->vehicle_id), field(root, "vehicleProfileId")) ||
+        !copy_text(out->source_id, sizeof(out->source_id), field(source, "id"))) goto done;
+    const cJSON *binding = field(source, "adapter");
+    if (binding) {
+        out->simulated_adapter = !strcmp(field(binding, "driver")->valuestring, "elm-bench-v1");
+#if !CONFIG_EGAUGE_OBD_TRACE
+        if (out->simulated_adapter) goto done;
+#endif
+        if (!copy_text(out->adapter_id, sizeof(out->adapter_id), field(binding, "id")) ||
+            !copy_text(out->adapter_address, sizeof(out->adapter_address), field(binding, "address"))) goto done;
+        out->adapter_address_type = strcmp(field(binding, "addressType")->valuestring, "random") == 0;
+    }
     out->rotation = rotation->valueint / 90;
     out->brightness = field(root, "brightness")->valueint;
     for (const cJSON *item = definitions->child; item; item = item->next) {
@@ -105,7 +120,7 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         if (strcmp(field(item, "sourceId")->valuestring, source_id) != 0 ||
             strcmp(field(request, "service")->valuestring, "01") != 0 ||
             strcmp(field(request, "route")->valuestring, "functional") != 0 ||
-            strcmp(field(request, "responseId")->valuestring, "7E8") != 0 ||
+            !field(request, "responseId") ||
             strlen(identifier) != 2 ||
             strcmp(identifier, "01") == 0 ||
             field(decoder, "byteOffset")->valueint != 0 ||
@@ -116,6 +131,7 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
             !copy_text(pid->name, sizeof(pid->name), field(item, "name")) ||
             !copy_text(pid->unit, sizeof(pid->unit), field(item, "unit"))) goto done;
         pid->obd.pid = hex_byte(identifier);
+        pid->responder = strtoul(field(request, "responseId")->valuestring, NULL, 16);
         for (unsigned previous = 0; previous + 1 < out->pid_count; ++previous)
             if (out->pids[previous].obd.pid == pid->obd.pid) goto done;
         pid->obd.len = field(decoder, "byteLength")->valueint;
@@ -238,7 +254,7 @@ esp_err_t config_runtime_load(config_runtime_t *out, config_store_record_t *runn
         return ESP_OK;
     }
     config_trial_reject(active.revision);
-previous:
+previous:;
     esp_err_t previous_err = config_store_previous(&previous);
     if (previous_err != ESP_OK) return err == ESP_OK ? previous_err : err;
     previous_err = compile_record(&previous, out);

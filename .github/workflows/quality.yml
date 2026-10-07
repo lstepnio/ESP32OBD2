@@ -19,6 +19,14 @@ jobs:
       - run: pip install -r tools/requirements.txt
       - run: python tools/validate.py
       - run: node --check design/prototype/app.js
+      - name: OBD capture policy, framing, and simulated adapter workflow
+        run: |
+          python -m unittest discover -s tools/tests -p 'test_obd*.py'
+          python tools/obd_capture.py self-test
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -Ifirmware/gauge/main/inc firmware/gauge/tests/obd_trace_test.c \
+            firmware/gauge/main/src/obd_trace_format.c -o /tmp/obd_trace_test
+          /tmp/obd_trace_test
       - name: ELM parser fixtures with sanitizers
         run: |
           cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
@@ -56,6 +64,12 @@ jobs:
         run: |
           . /opt/esp/idf/export.sh
           idf.py build
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -Itests/stubs -Imain/inc -I"$IDF_PATH/components/json/cJSON" \
+            tests/config_binding_test.c main/src/config_document.c main/src/config_runtime.c \
+            main/src/json_guard.c main/src/obd_adapter_profile.c "$IDF_PATH/components/json/cJSON/cJSON.c" \
+            -lm -o /tmp/config_binding_test
+          /tmp/config_binding_test ../../contracts/examples/config-bound-adapter.json
 
   android-app:
     runs-on: ubuntu-24.04

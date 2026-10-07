@@ -33,6 +33,7 @@
 #include "esp_lvgl_port.h"
 
 #include "ble_obd.h"
+#include "obd_trace.h"
 #include "ble_companion.h"
 #include "ble_mgr.h"
 #include "config.h"
@@ -45,6 +46,9 @@
 #include "wifi_bulk.h"
 #include "esp_ota_ops.h"
 #include "transfer_gate.h"
+#include "adapter_registry.h"
+#include "adapter_status.h"
+#include "elm_response.h"
 #include "diagnostics_state.h"
 #include "hardware_probe.h"
 #include "esp_heap_caps.h"
@@ -307,8 +311,10 @@ static void app_tick_task(void *arg)
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
         ble_companion_tick();
         alert_sample_event_t event;
+        bool source_ready = adapter_status_ready();
         while (xQueueReceive(g_alert_sample_queue, &event, 0) == pdTRUE)
-            alert_engine_sample(event.pid_index, event.value, event.observed_at_ms);
+            if (source_ready) alert_engine_sample(event.pid_index, event.value, event.observed_at_ms);
+        if (!source_ready) alert_engine_invalidate();
         alert_summary_t alert = alert_engine_tick(now_ms);
         ui_set_alert(ui, alert.severity, alert.unavailable, alert.label);
         diagnostics_snapshot_t diagnostics;
@@ -348,15 +354,22 @@ static void obd_task(void *arg)
     while (true)
     {
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(period_ms));
-        if (transfer_gate_current() == 2) {
+        if (transfer_gate_current() == 2 || ble_mgr_is_paused()) {
             clear_current_page(ui);
+            diagnostics_state_disconnected();
             continue;
         }
 
         if (obd == NULL || !ble_obd_is_connected(obd)) {
             clear_current_page(ui);
             diagnostics_state_disconnected();
-            obd = ble_obd_connect(0, CONFIG_EGAUGE_ECM_ADAPTER_MAC, obd_response_cb, ui);
+            if (g_runtime && !g_runtime->legacy_auto_discovery && !g_runtime->adapter_address[0])
+                continue;
+            const char *address = g_runtime && g_runtime->adapter_address[0]
+                ? g_runtime->adapter_address : CONFIG_EGAUGE_ECM_ADAPTER_MAC;
+            uint8_t address_type = g_runtime ? g_runtime->adapter_address_type : 0;
+            obd = ble_obd_connect_profile(0, address, address_type,
+                g_runtime && g_runtime->simulated_adapter ? "elm-bench-v1" : "elm-18f0-v1", obd_response_cb, ui);
             if (!obd) {
                 ESP_LOGW(TAG, "ECM adapter unavailable; retrying in %" PRIu32 " ms",
                          reconnect_delay_ms);
@@ -378,8 +391,9 @@ static void obd_task(void *arg)
             intervals[i] = g_runtime ? g_runtime->pids[i].poll_ms : 500;
         poll_job_t job = poll_scheduler_next(&scheduler, now_ms, intervals, count);
         if (job.kind == POLL_JOB_NONE) continue;
+        if (g_runtime && g_runtime->simulated_adapter && (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC)) continue;
         if (job.kind == POLL_JOB_MIL) {
-            ble_obd_rxtx(obd, 1, 0x01, 700);
+            ble_obd_rxtx_ecu(obd, 1, 0x01, 0x7e8, 700);
             continue;
         }
         if (job.kind == POLL_JOB_DTC) {
@@ -395,7 +409,8 @@ static void obd_task(void *arg)
         const obd_pid_cfg_t *requested = poll_cfg(job.index);
         const uint8_t obd_mode = 0x01;  // OBD-II mode
 
-        int status = ble_obd_rxtx(obd, obd_mode, requested->pid, timeout_ms);
+        int status = ble_obd_rxtx_ecu(obd, obd_mode, requested->pid,
+            g_runtime ? g_runtime->pids[job.index].responder : ELM_ECU_ANY, timeout_ms);
 
         if (status != 0)
         {
@@ -418,6 +433,7 @@ static void tcm_link_task(void *arg)
 {
     (void)arg;
     while (true) {
+        if (ble_mgr_is_paused()) { vTaskDelay(pdMS_TO_TICKS(500)); continue; }
         ble_obd_ctx_t *tcm = ble_obd_connect(1, CONFIG_EGAUGE_TCM_ADAPTER_MAC, NULL, NULL);
         if (tcm) {
             ESP_LOGI(TAG, "TCM adapter link connected; awaiting TCM PID configuration");
@@ -459,6 +475,11 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         ble_companion_open_pairing_window();
         break;
     case LV_EVENT_RELEASED:
+    {
+        if (ble_companion_has_owner()) ui_show_pairing_code(ui, UI_PAIRING_RESET_CONFIRM);
+        break;
+    }
+    case LV_EVENT_VALUE_CHANGED:
     {
         companion_command_t command = {.opcode = 3};
         if (g_phone_command_queue) xQueueSend(g_phone_command_queue, &command, 0);
@@ -586,6 +607,15 @@ void app_main(void)
         ESP_LOGE(TAG, "Invalid ECM adapter MAC in firmware configuration");
         return;
     }
+    adapter_status_init(g_runtime);
+    if (g_runtime && g_runtime->simulated_adapter && lvgl_port_lock(portMAX_DELAY)) {
+        ui_set_simulated(ui);
+        lvgl_port_unlock();
+    }
+    ESP_ERROR_CHECK(adapter_registry_init());
+    obd_trace_init();
+    if (g_runtime && g_runtime->simulated_adapter)
+        obd_trace_emit(0, 0, "source_simulated", NULL, 0, 1);
     init_obd_task(ui);
     BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 3072, ui, 5, NULL);
     ESP_CHECK(tick_started == pdPASS, TAG, "Application tick task creation failed");

@@ -101,6 +101,9 @@ class GaugeConfigTransferClient(private val context: Context) {
                 if (status == BluetoothGatt.GATT_SUCCESS) requestedMtu = mtu
                 if (!gatt.discoverServices()) emit(Event.Failed("Could not discover gauge services"))
             }
+            override fun onServiceChanged(gatt: BluetoothGatt) {
+                emit(Event.Failed("Gauge services changed. Reconnect to reload its settings."))
+            }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
                 if (status != BluetoothGatt.GATT_SUCCESS ||
                     gatt.getService(serviceId)?.getCharacteristic(controlId) == null ||
@@ -165,7 +168,9 @@ class GaugeConfigTransferClient(private val context: Context) {
                      (result.bytes.size == 44 && result.bytes[0].toInt() == 8) ||
                      (result.bytes.size == 112 && result.bytes[0].toInt() == 9) ||
                      (result.bytes.size == 8 && result.bytes[0].toInt() in 10..11) ||
-                     (result.bytes.size == 10 && result.bytes[0].toInt() == 12))) return
+                     (result.bytes.size == 10 && result.bytes[0].toInt() == 12) ||
+                     (result.bytes.size == 140 && result.bytes[0].toInt() == 13) ||
+                     (result.bytes.size == 160 && result.bytes[0].toInt() == 14))) return
                 if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
                     result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
                     error("Gauge owner state read failed (${result.status})")
@@ -236,9 +241,35 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
 
     /** Generates only the schema subset that config_runtime currently executes. */
-    private fun document(draft: Draft, profileId: String, baseRevision: Long): ByteArray {
+    private fun document(draft: Draft, profileId: String, baseRevision: Long, adapter: AdapterBinding?, schemaVersion: Int): ByteArray {
         val template = context.assets.open("numeric_config_template.json").bufferedReader().use { it.readText() }
-        return ConfigurationProjector.project(template, draft, profileId, baseRevision).second
+        return ConfigurationProjector.project(template, draft, profileId, baseRevision, adapter, schemaVersion).second
+    }
+
+    suspend fun readAdapterStatus(device: BluetoothDevice): AdapterSourceStatus {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x52) + le32(1))
+            decodeAdapterStatus(readRaw())
+        }
+    }
+
+    suspend fun findAdapters(device: BluetoothDevice): List<AdapterCandidate> {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        val sequence = (SecureRandom().nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
+        return withGauge(device, 25_000) {
+            writeRaw(byteArrayOf(0x50) + le32(sequence))
+            repeat(40) {
+                val bytes = readRaw()
+                require(bytes.size == 140 && bytes[0].toInt() == 13) { "Gauge returned an unsupported adapter search" }
+                if (u32(bytes, 4) == sequence && bytes[1].toInt() != 1) {
+                    check(bytes[1].toInt() == 2 && bytes[2].toInt() == 0) { "Adapter search was interrupted. Try again." }
+                    return@withGauge decodeAdapters(bytes)
+                }
+                delay(250)
+            }
+            error("Adapter search did not finish. Try again.")
+        }
     }
 
     suspend fun readActive(device: BluetoothDevice): ActiveStatus {
@@ -296,7 +327,7 @@ class GaugeConfigTransferClient(private val context: Context) {
             check(hash.contentEquals(requireNotNull(digest))) { "Gauge document failed SHA-256 readback" }
             val jsonText = bytes.toString(Charsets.UTF_8)
             val json = JSONObject(jsonText)
-            require(json.getInt("schemaVersion") == 1 &&
+            require(json.getInt("schemaVersion") in 1..2 &&
                 json.getLong("baseRevision") == revision - 1) {
                 "Gauge returned an unsupported document schema"
             }
@@ -630,27 +661,34 @@ class GaugeConfigTransferClient(private val context: Context) {
     private suspend fun confirmUpdatedBoot(device: BluetoothDevice, before: BootIdentity,
                                            expectedElf: String): UpdateResult {
         delay(10000)
-        repeat(8) {
-                val observed = try {
-                    readBootIdentity(device)
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    null
-                }
-            if (observed != null && observed.partitionAddress != before.partitionAddress &&
-                observed.elfSha256 == expectedElf && observed.otaState == 2)
-                return UpdateResult(observed)
-            if (observed != null && observed.partitionAddress == before.partitionAddress &&
-                observed.elfSha256 == before.elfSha256 && observed.otaState == 2)
-                error("Gauge is running the previous valid firmware after the update attempt. The trial image was not confirmed.")
+        val deadline = SystemClock.elapsedRealtime() + 90_000
+        var sawNewPartition = false
+        var last: BootIdentity? = null
+        do {
+            last = try {
+                readBootIdentity(device)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                null
+            }
+            when (updateBootDecision(before, last, expectedElf, sawNewPartition, false)) {
+                UpdateBootDecision.CONFIRMED -> return UpdateResult(requireNotNull(last))
+                UpdateBootDecision.PREVIOUS_IMAGE ->
+                    error("Gauge returned to its previous valid firmware after the trial update.")
+                UpdateBootDecision.WAIT -> Unit
+            }
+            if (last != null && last.partitionAddress != before.partitionAddress) sawNewPartition = true
             delay(1500)
-        }
+        } while (SystemClock.elapsedRealtime() < deadline)
+        if (updateBootDecision(before, last, expectedElf, sawNewPartition, true) == UpdateBootDecision.PREVIOUS_IMAGE)
+            error("Gauge is still running its previous valid firmware after the update attempt.")
         error("Update was sent, but the new image was not confirmed as running. Check the gauge before retrying.")
     }
 
     suspend fun apply(device: BluetoothDevice, draft: Draft, profileId: String,
                       expectedBaseRevision: Long, expectedBaseSha256: String,
+                      adapter: AdapterBinding? = null, schemaVersion: Int = 1,
                       stage: (OperationStage) -> Unit = {}): Applied {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         require(expectedBaseRevision >= 0 && expectedBaseSha256.matches(Regex("[0-9a-f]{64}"))) {
@@ -670,7 +708,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 "Gauge configuration changed from verified revision $expectedBaseRevision to ${current.revision}. " +
                     "Refresh and review the differences before sending."
             }
-            val bytes = document(draft, profileId, current.revision)
+            val bytes = document(draft, profileId, current.revision, adapter, schemaVersion)
             expectedRevision = current.revision + 1
             digest = MessageDigest.getInstance("SHA-256").digest(bytes)
             val id = le32(transferId)
@@ -754,6 +792,34 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
 
     companion object {
+        fun decodeAdapterStatus(bytes: ByteArray): AdapterSourceStatus {
+            require(bytes.size == 160 && bytes[0].toInt() == 14 && bytes[1].toInt() in 0..6 && bytes[3].toInt() in 0..3)
+            fun text(start: Int, end: Int) = bytes.copyOfRange(start, end).takeWhile { it.toInt() != 0 }
+                .toByteArray().toString(Charsets.US_ASCII)
+            val known = bytes[120].toInt() and 255
+            val maps = (0..7).filter { known and (1 shl it) != 0 }.associate { index ->
+                index * 32 to (0..3).fold(0L) { acc, part -> (acc shl 8) or (bytes[121+index*4+part].toLong() and 255) }
+            }
+            return AdapterSourceStatus(bytes[1].toInt(), bytes[2].toInt() and 255, bytes[3].toInt() and 1 != 0,
+                u32(bytes, 4), u32(bytes, 8), u32(bytes, 12), text(16, 80), text(80, 112), bytes[3].toInt() and 2 != 0, maps, u32(bytes, 153))
+        }
+
+        fun decodeAdapters(bytes: ByteArray): List<AdapterCandidate> {
+            require(bytes.size == 140 && bytes[0].toInt() == 13 && bytes[8].toInt() in 0..4)
+            val values = (0 until bytes[8].toInt()).map { index ->
+                val start = 12 + 32 * index
+                val address = (5 downTo 0).joinToString(":") { "%02X".format(bytes[start + it].toInt() and 255) }
+                val type = bytes[start + 6].toInt()
+                require(type in 0..1 && bytes[start + 7].toInt() in 1..2)
+                val name = bytes.copyOfRange(start + 8, start + 32).takeWhile { it.toInt() != 0 }.toByteArray().toString(Charsets.US_ASCII)
+                AdapterCandidate(name.ifBlank { "Vehicle adapter" },
+                    AdapterBinding("adapter-" + address.replace(":", "").lowercase(), address, if (type == 0) "public" else "random",
+                        if (bytes[start + 7].toInt() == 2) "elm-bench-v1" else "elm-18f0-v1"))
+            }
+            require(values.map { it.binding.address }.distinct().size == values.size)
+            return values
+        }
+
         private const val WIFI_ABORT_CLEANUP_TIMEOUT_MS = 3_000L
         private const val WIFI_CLOSE_CLEANUP_TIMEOUT_MS = 5_000L
         private fun otaStatus(bytes: ByteArray): OtaStatus {

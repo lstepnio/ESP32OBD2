@@ -97,3 +97,12 @@ alert_summary_t alert_engine_tick(uint32_t now_ms)
     }
     return summary;
 }
+
+void alert_engine_invalidate(void)
+{
+    for (unsigned i=0; i<EGAUGE_RUNTIME_ALERTS; ++i) {
+        states[i].sampled = false;
+        states[i].pending = 0;
+        states[i].pending_since = 0;
+    }
+}

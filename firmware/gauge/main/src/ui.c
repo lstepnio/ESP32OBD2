@@ -85,6 +85,10 @@ struct _ui_t
     bool                long_press_handled;
     bool                press_active;
     bool                pairing_visible;
+    uint32_t            pairing_code;
+    TickType_t          reset_confirmation_at;
+    TickType_t          owner_saved_at;
+    char                pairing_identifier[7];
     bool                calibration_mode;
     bool                imperial_units;
     uint8_t             calibration_page;
@@ -112,6 +116,7 @@ struct _ui_t
         QueueHandle_t value_que;
         QueueHandle_t touch_ev_que;
         QueueHandle_t pairing_que;
+        QueueHandle_t pairing_id_que;
         QueueHandle_t alert_que;
         QueueHandle_t diagnostics_que;
     } rtos;
@@ -200,14 +205,27 @@ static void show(lv_obj_t *object, bool visible)
 
 static void show_pairing(ui_t *ui, uint32_t pairing_code)
 {
+    ui->pairing_code = pairing_code;
     ui->pairing_visible = pairing_code != UI_PAIRING_HIDDEN;
     if (ui->pairing_visible) {
-        if (pairing_code == UI_PAIRING_READY)
-            lv_label_set_text(ui->widgets.pairing_lbl, "PAIR\nREADY");
-        else if (pairing_code == UI_PAIRING_WAITING)
-            lv_label_set_text(ui->widgets.pairing_lbl, "HOLD TO\nPAIR");
+        if (pairing_code == UI_PAIRING_READY) {
+            if (ui->pairing_identifier[0])
+                lv_label_set_text_fmt(ui->widgets.pairing_lbl, "OPEN APP TO\nPAIR GAUGE\nID %s", ui->pairing_identifier);
+            else lv_label_set_text(ui->widgets.pairing_lbl, "OPEN APP TO\nPAIR GAUGE");
+        } else if (pairing_code == UI_PAIRING_WAITING) {
+            if (ui->pairing_identifier[0])
+                lv_label_set_text_fmt(ui->widgets.pairing_lbl, "HOLD TO\nOPEN PAIRING\nID %s", ui->pairing_identifier);
+            else lv_label_set_text(ui->widgets.pairing_lbl, "HOLD TO\nOPEN PAIRING");
+        } else if (pairing_code == UI_PAIRING_RESET_CONFIRM) {
+            ui->reset_confirmation_at = xTaskGetTickCount();
+            lv_label_set_text(ui->widgets.pairing_lbl, "OWNER RESET?\nTAP TO CONFIRM");
+        } else if (pairing_code == UI_PAIRING_OWNER_SAVED) {
+            ui->owner_saved_at = xTaskGetTickCount();
+            lv_label_set_text(ui->widgets.pairing_lbl, "PHONE PAIRED\nOWNER SAVED");
+        } else if (ui->pairing_identifier[0])
+            lv_label_set_text_fmt(ui->widgets.pairing_lbl, "ENTER CODE\n%06" PRIu32 "\nID %s", pairing_code, ui->pairing_identifier);
         else
-            lv_label_set_text_fmt(ui->widgets.pairing_lbl, "PAIR\n%06" PRIu32, pairing_code);
+            lv_label_set_text_fmt(ui->widgets.pairing_lbl, "ENTER CODE\n%06" PRIu32, pairing_code);
     }
     show(ui->widgets.gauge_content, !ui->pairing_visible);
     show(ui->widgets.pairing_lbl, ui->pairing_visible);
@@ -368,7 +386,9 @@ static void dispatch_touch(ui_t *ui, lv_event_code_t code)
      * current input event has finished. Normal navigation keeps its objects. */
     if (ui->calibration_mode) {
         xQueueSend(ui->rtos.touch_ev_que, &code, 0);
-    } else if (ui->touch_cb && !(ui->pairing_visible && code == LV_EVENT_CLICKED)) {
+    } else if (ui->touch_cb &&
+               (!(ui->pairing_visible && code == LV_EVENT_CLICKED) ||
+                ui->pairing_code == UI_PAIRING_RESET_CONFIRM)) {
 #if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
         if (code == LV_EVENT_CLICKED && ui->timing.click_at_us == 0)
             ui->timing.click_at_us = esp_timer_get_time();
@@ -403,7 +423,9 @@ static void ui_touch_callback(lv_event_t *e)
     case LV_EVENT_CLICKED:
         if (!ui->long_press_handled)
         {
-            dispatch_touch(ui, code);
+            if (ui->pairing_code == UI_PAIRING_RESET_CONFIRM)
+                dispatch_touch(ui, LV_EVENT_VALUE_CHANGED);
+            else dispatch_touch(ui, code);
         }
         break;
     case LV_EVENT_RELEASED:
@@ -566,9 +588,24 @@ static void ui_task(lv_timer_t *timer)
         return;
     }
 
+    char pairing_identifier[sizeof(ui->pairing_identifier)];
+    if (xQueueReceive(ui->rtos.pairing_id_que, pairing_identifier, 0) == pdTRUE) {
+        memcpy(ui->pairing_identifier, pairing_identifier, sizeof(ui->pairing_identifier));
+        ui->pairing_identifier[sizeof(ui->pairing_identifier) - 1] = '\0';
+        if (ui->pairing_visible) show_pairing(ui, ui->pairing_code);
+    }
+
     uint32_t pairing_code;
     if (xQueueReceive(ui->rtos.pairing_que, &pairing_code, 0) == pdTRUE) {
         show_pairing(ui, pairing_code);
+    }
+    if (ui->pairing_code == UI_PAIRING_RESET_CONFIRM &&
+        xTaskGetTickCount() - ui->reset_confirmation_at >= pdMS_TO_TICKS(30000)) {
+        show_pairing(ui, UI_PAIRING_HIDDEN);
+    }
+    if (ui->pairing_code == UI_PAIRING_OWNER_SAVED &&
+        xTaskGetTickCount() - ui->owner_saved_at >= pdMS_TO_TICKS(2500)) {
+        show_pairing(ui, UI_PAIRING_HIDDEN);
     }
 
     ui_alert_t alert;
@@ -813,6 +850,7 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     ui->rtos.value_que    = xQueueCreate(32, sizeof(ui_sample_t));
     ui->rtos.touch_ev_que = xQueueCreate(4, sizeof(lv_event_code_t));
     ui->rtos.pairing_que = xQueueCreate(1, sizeof(uint32_t));
+    ui->rtos.pairing_id_que = xQueueCreate(1, sizeof(ui->pairing_identifier));
     ui->rtos.alert_que = xQueueCreate(1, sizeof(ui_alert_t));
     ui->rtos.diagnostics_que = xQueueCreate(1, sizeof(ui_diagnostics_t));
     ui->touch_cb          = touch_cb;
@@ -821,11 +859,13 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     ui->imperial_units = imperial_units;
 
     if (!ui->rtos.value_que || !ui->rtos.touch_ev_que || !ui->rtos.pairing_que ||
+        !ui->rtos.pairing_id_que ||
         !ui->rtos.alert_que || !ui->rtos.diagnostics_que) {
         ESP_LOGE(TAG, "Failed to allocate UI mailboxes");
         if (ui->rtos.value_que) vQueueDelete(ui->rtos.value_que);
         if (ui->rtos.touch_ev_que) vQueueDelete(ui->rtos.touch_ev_que);
         if (ui->rtos.pairing_que) vQueueDelete(ui->rtos.pairing_que);
+        if (ui->rtos.pairing_id_que) vQueueDelete(ui->rtos.pairing_id_que);
         if (ui->rtos.alert_que) vQueueDelete(ui->rtos.alert_que);
         if (ui->rtos.diagnostics_que) vQueueDelete(ui->rtos.diagnostics_que);
         free(ui);
@@ -903,6 +943,14 @@ void ui_show_pairing_code(ui_t *ui, uint32_t passkey)
     if (ui != NULL) xQueueOverwrite(ui->rtos.pairing_que, &passkey);
 }
 
+void ui_set_pairing_identifier(ui_t *ui, const char *identifier)
+{
+    if (!ui || !ui->rtos.pairing_id_que) return;
+    char value[sizeof(ui->pairing_identifier)] = {0};
+    if (identifier) snprintf(value, sizeof(value), "%s", identifier);
+    xQueueOverwrite(ui->rtos.pairing_id_que, value);
+}
+
 void ui_set_alert(ui_t *ui, uint8_t severity, bool unavailable, const char *label)
 {
     if (!ui || !ui->rtos.alert_que) return;
@@ -935,4 +983,16 @@ void ui_next_display_calibration(ui_t *ui)
     if (!ui || !ui->calibration_mode) return;
     ui->calibration_page = (ui->calibration_page + 1) % CALIBRATION_PAGE_COUNT;
     render_calibration_page(ui);
+}
+
+void ui_set_simulated(ui_t *ui)
+{
+    if (!ui || !ui->widgets.gauge_content) return;
+    lv_obj_t *label = lv_label_create(ui->widgets.gauge_content);
+    lv_label_set_text(label, "SIMULATED");
+    lv_obj_set_style_text_font(label, font_unit, LV_PART_MAIN);
+    lv_obj_set_style_text_color(label, lv_color_hex(color_warning), LV_PART_MAIN);
+    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 28);
+    lv_obj_clear_flag(label, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
 }

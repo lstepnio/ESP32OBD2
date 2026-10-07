@@ -20,6 +20,8 @@
 #define UI_PAIRING_HIDDEN 0U
 #define UI_PAIRING_READY UINT32_MAX
 #define UI_PAIRING_WAITING (UINT32_MAX - 1U)
+#define UI_PAIRING_RESET_CONFIRM (UINT32_MAX - 2U)
+#define UI_PAIRING_OWNER_SAVED (UINT32_MAX - 3U)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Types
@@ -66,11 +68,15 @@ void  ui_set_value(ui_t *ui, uint8_t pid, int32_t const *value);
 void  ui_set_page(ui_t *ui, ui_page_t const *page);
 /* Call on the LVGL task or while holding its lock. */
 void  ui_set_units(ui_t *ui, bool imperial_units);
-/* Thread-safe: displays only pairing content. Accepts a six-digit passkey or
- * UI_PAIRING_READY / UI_PAIRING_WAITING. UI_PAIRING_HIDDEN restores gauges. */
+/* Thread-safe: displays pairing or owner-reset instructions. Accepts a six-digit
+ * passkey or UI_PAIRING_* state. UI_PAIRING_HIDDEN restores the gauge view. */
 void  ui_show_pairing_code(ui_t *ui, uint32_t passkey);
+void  ui_set_pairing_identifier(ui_t *ui, const char *identifier);
 void  ui_set_alert(ui_t *ui, uint8_t severity, bool unavailable, const char *label);
 void  ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on,
                          uint8_t count, const char *first_code);
 void  ui_start_display_calibration(ui_t *ui);
 void  ui_next_display_calibration(ui_t *ui);
+
+/* Call at boot with the LVGL lock held for a trace-build bench source. */
+void ui_set_simulated(ui_t *ui);

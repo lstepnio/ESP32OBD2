@@ -1,5 +1,14 @@
 menu "eGauge configuration"
 
+config EGAUGE_OBD_TRACE
+    bool "Record bounded OBD transport traces over USB serial"
+    default n
+    help
+        Development capture only. Logs raw adapter commands and response
+        fragments with monotonic timestamps, source and generation. Uses a
+        bounded queue and reports dropped events. Keep raw recordings private.
+        Does not enable any public BLE capability or change vehicle requests.
+
 config EGAUGE_DISPLAY_SETTINGS_ENABLED
     bool "Advertise authenticated display settings"
     default n

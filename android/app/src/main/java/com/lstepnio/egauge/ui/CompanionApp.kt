@@ -136,7 +136,8 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                     route = Route.Customize
                                 }, onUpdates = { route = Route.Updates })
                                 Route.Setup -> SetupScreen(state.setup, onFindGauge,
-                                    { if (model.capabilities?.experimentalNumericConfig == true) model.checkGaugeForReview() else model.readSavedGauge() },
+                                    model::pairGauge,
+                                    model::refreshPairingStatus, onBluetoothSettings,
                                     { id -> model.gaugeCandidates.firstOrNull { it.id == id }?.let(model::selectGaugeCandidate) },
                                     { customizeStep = 0; route = Route.Customize }, ::back)
                                 Route.Customize -> DashboardEditorScreen(state.customize, customizeStep, { customizeStep = it }, ::back,
@@ -147,7 +148,8 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                         model::saveAlert, model::removeAlert,
                                         model::checkGaugeForReview, { model.sendNumericConfiguration(); route = Route.Gauge }, { route = Route.Setup }))
                                 Route.Car -> CarScreen(state.car, model::readGaugeDiagnostics, { route = Route.Setup },
-                                    model::selectProfile, { name -> model.editProfileName(name); model.createProfile() })
+                                    model::selectProfile, { name -> model.editProfileName(name); model.createProfile() },
+                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::sendNumericConfiguration, model::checkVehicleAdapter)
                                 Route.Settings -> SettingsScreen(state.settings, model::setAdvancedTools, model::setDynamicColor,
                                     model::renameGauge, model::rotateGauge, model::readSavedGauge,
                                     model::readDisplaySettings, model::saveDisplaySettings, { route = Route.Updates },

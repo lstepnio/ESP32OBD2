@@ -80,10 +80,14 @@ object ConfigurationProjector {
     }
 
     fun project(template: String, draft: Draft, profileId: String,
-                baseRevision: Long): Pair<ConfigurationProjection, ByteArray> {
+                baseRevision: Long, adapter: AdapterBinding? = null, schemaVersion: Int = 1): Pair<ConfigurationProjection, ByteArray> {
         val issues = blockers(draft)
         require(issues.isEmpty()) { issues.joinToString(". ") }
         val json = JSONObject(template)
+        require(schemaVersion in 1..2 && (adapter == null || schemaVersion == 2))
+        json.put("schemaVersion", schemaVersion)
+        val source = json.getJSONArray("sources").getJSONObject(0)
+        if (adapter != null) source.put("adapter", adapter.json()) else source.remove("adapter")
         json.put("baseRevision", baseRevision)
         json.put("vehicleProfileId", profileId)
         val pages = JSONArray()
