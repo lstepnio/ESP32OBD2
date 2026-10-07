@@ -252,6 +252,44 @@
           }
         }
       }
+    },
+    "actions": {
+      "type": "array",
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "jumpPage"
+          },
+          "pageId": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+          },
+          "gesture": {
+            "const": "up"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5
+          },
+          "windowMs": {
+            "type": "integer",
+            "minimum": 2000,
+            "maximum": 10000,
+            "multipleOf": 1000
+          }
+        },
+        "required": [
+          "type",
+          "pageId",
+          "gesture",
+          "count",
+          "windowMs"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [
@@ -287,7 +325,8 @@
                 ]
               }
             }
-          }
+          },
+          "actions": false
         }
       }
     }

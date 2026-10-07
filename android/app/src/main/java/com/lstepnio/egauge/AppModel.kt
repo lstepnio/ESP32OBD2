@@ -143,6 +143,7 @@ data class Draft(
     val source: String = "ECM",
     val pages: List<GaugePageDraft> = defaultGaugePages(pidId, layout),
     val alerts: List<GaugeAlertDraft> = listOf(defaultAlert()),
+    val actions: List<PageAction> = emptyList(),
 )
 
 data class CapabilitySnapshot(
@@ -162,6 +163,7 @@ data class CapabilitySnapshot(
     val configurationVersion: Int = 0,
     val adapterRegistryVersion: Int = 0,
     val dualAdapterVersion: Int = 0,
+    val pageActionsVersion: Int = 0,
     val maxPages: Int = 0,
     val supportedRenderers: Set<GaugeLayout> = emptySet(),
 )
@@ -771,14 +773,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         foregroundConnection.retrySoon()
     }
 
-    private fun configurationBytes(template: String, baseRevision: Long, schemaVersion: Int): ByteArray =
-        if (bothAdapters) {
+    private fun configurationBytes(template: String, baseRevision: Long, schemaVersion: Int): ByteArray {
+        require(transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) {
+            "Update the gauge before sending gesture actions"
+        }
+        return if (bothAdapters) {
             require(BuildConfig.DEBUG && capabilities?.dualAdapterVersion == 1 && schemaVersion == 2) {
                 "Update the gauge before sending both adapters"
             }
             ConfigurationProjector.projectCombined(template, profileCollection.active, baseRevision).second
         } else ConfigurationProjector.project(template, draft, profileCollection.activeId, baseRevision,
             profileCollection.active.adapterFor(draft.source), schemaVersion).second
+    }
 
     fun selectVehicleSource(source: String) {
         if (profileError != null || modifyingSetupBlocked) return
@@ -1721,7 +1727,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         editingPageIndex = pages.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
             ?: index.coerceAtMost(pages.lastIndex)
         val selected = pages[editingPageIndex]
-        save(draft.copy(pidId = selected.pidIds[0], layout = selected.layout, pages = pages))
+        save(draft.copy(pidId = selected.pidIds[0], layout = selected.layout, pages = pages,
+            actions = draft.actions.filter { action -> pages.any { it.id == action.pageId } }))
     }
 
     fun movePage(index: Int, delta: Int) {
@@ -1781,6 +1788,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (alerts.size > 32 || alerts.map { it.id }.distinct().size != alerts.size ||
             ConfigurationProjector.blockers(Draft(alerts = listOf(alert))).isNotEmpty()) return
         save(draft.copy(alerts = alerts))
+    }
+    fun savePageAction(value: PageAction?) {
+        if (modifyingSetupBlocked) return
+        val actions = listOfNotNull(value)
+        if (runCatching { ProfileActions.validate(actions, draft.pages) }.isFailure) return
+        save(draft.copy(actions = actions))
     }
     fun removeAlert(id: String) = save(draft.copy(alerts = draft.alerts.filterNot { it.id == id }))
     fun setSource(value: String) = selectVehicleSource(value)

@@ -60,7 +60,7 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                     alert.getInt("warning"), alert.getInt("critical"), alert.getInt("hysteresis"),
                     alert.getInt("triggerDwellMs"), alert.getInt("clearDwellMs"), alert.optInt("priority", 8))
             }
-            Draft(pidId = pidId, layout = layout, source = source, pages = pages, alerts = alerts)
+            Draft(pidId = pidId, layout = layout, source = source, pages = pages, alerts = alerts, actions = ProfileActions.decode(saved.optJSONArray("actions"))).also { ProfileActions.validate(it.actions, it.pages) }
         }.getOrNull()
 
         fun from(document: GaugeConfigTransferClient.ActiveDocument,
@@ -95,6 +95,8 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                 field("Page count", draft.pages.size.toString(), pages?.length()?.toString()),
                 field("All page settings", pageSettings(draft.pages), savedPageSettings()),
                 field("Primary reading", draft.pages.first().pidIds.first(), primaryPid?.let(::localPid)),
+                field("Gesture actions", ProfileActions.summary(draft.actions),
+                    runCatching { ProfileActions.summary(ProfileActions.decode(saved.optJSONArray("actions"))) }.getOrNull()),
                 field("Alert count", draft.alerts.size.toString(), saved.optJSONArray("alerts")?.length()?.toString()),
                 field("All alert settings", alertSettings(draft.alerts), savedAlertSettings()),
             ))

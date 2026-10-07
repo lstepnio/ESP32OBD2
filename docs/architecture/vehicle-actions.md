@@ -1,6 +1,6 @@
 # ADR-013: Profile actions and gauge gesture triggers
 
-**Status:** Proposed, no vehicle control commands implemented
+**Status:** Accepted for the local page-action foundation; vehicle controls proposed
 **Date:** 2026-10-07
 **Deciders:** Project owner for interaction choices; implementation and physical
 qualification determine which controller definitions become available.
@@ -19,10 +19,9 @@ research leads for these examples. They are incomplete procedures and do not
 establish compatibility with the swapped Jeep. Reading TCM temperature and gear
 does not establish control support. ABS targets must not be assumed to be the TCM.
 
-Current physical gauge touch code handles clicks and holds, with clicks advancing
-pages and holds opening pairing. It does not expose directional swipe events to
-the application. Direction recognition must be implemented and measured; three
-upward swipes are a proposed binding, not an existing input capability.
+Installed dev.40 handles clicks and holds, with clicks advancing pages and holds
+opening pairing. Source dev.42 adds upward stroke recognition for the local page
+action. Recognition is tested offline; physical gesture ergonomics remain unqualified.
 
 ## Decision
 
@@ -53,13 +52,17 @@ upward swipes are a proposed binding, not an existing input capability.
 
 Initial implementation uses physical gauge gestures; Android configures them.
 The proposed default is three complete upward swipes, with the third completed
-within five seconds of the first. Keep gesture count/window configurable within
-tested bounds, reserve each trigger for one action and reject ambiguous bindings.
+within five seconds of the first. Source bounds are 2..5 swipes and 2..10 seconds
+in whole-second increments. The
+initial implementation permits one upward binding across the transmitted profile,
+including its child pages; additional trigger families remain future work.
 
 Recognize direction in screen coordinates after orientation, require real separate
 press/release cycles, reject diagonal/noisy movement and suppress the click generated
 by a recognized swipe. Use monotonic time, reset on expiry, contradictory input,
-configuration/session change or leaving the normal page context. Pairing, calibration,
+configuration change or leaving the normal page context. Vehicle controls must
+also reset on loss of their required controller/session state. A local page jump
+remains useful when an adapter is disconnected. Pairing, calibration,
 updates and other overlays must consume input without arming vehicle actions.
 Maintain existing click/hold behavior and test it explicitly.
 
@@ -125,17 +128,41 @@ One engine can serve multiple vehicles and both primary/child sources. Each new
 controller action still needs its own support evidence. Gesture ergonomics on the
 round screen may require a different default after hands-on testing.
 
-This ADR changes no protocol, capabilities, profile schema or executable behavior.
-Implementation will need a versioned bounded action configuration and request/result
-contract, Kotlin/C validation vectors, firmware-owned preconditions and compatibility
-handling. Select limits and version numbers during implementation, rather than
-advertising a speculative wire contract. Keep public action capability absent or
-disabled until the full matching path is implemented and physically qualified.
+### Implemented local foundation
+
+Source dev.42 adds `Car > Actions`, phone profile schema 7 (schemas 1..6 migrate
+with no bindings), exact review/readback comparison and a single local `jumpPage`
+action. Removing its target page removes that binding. Each saved parent/child
+keeps its own draft; the combined payload prefixes child page identities and rejects
+conflicting upward bindings. Configuration is sent to the selected gauge through
+the existing atomic flow, not a second settings or persistence channel.
+
+Development capability `cfg:4` extends schema-2 documents with optional `actions`;
+see [development protocol](../protocol/experimental-firmware-transfers.md). Configs
+without actions retain their existing bytes/shape. New Android blocks sending a
+binding to older firmware. Older Android rejects the unfamiliar development version,
+so candidate installation must first install App dev.35 (version code 35). Public `configWrite`, `ota`
+and link-capacity claims stay unchanged; no vehicle action capability is advertised.
+
+Firmware compiles only `jumpPage`, gives gesture recognition to LVGL and reuses
+normal page selection/persistence. Input uses 80..800 ms strokes, at least 32 pixels
+up, at most 24 pixels sideways, an upward-to-sideways ratio of at least 2, and rejects
+reverse/side excursions. A successful sequence has a five-second cooldown. Progress
+and completion appear on the gauge. Pairing/calibration/transfer context, page change
+and orientation changes reset partial sequences. A recognized swipe suppresses its
+trailing click; a moving upward stroke does not turn into a pairing hold. Touch
+activity pauses automatic page cycling. This path sends no adapter commands.
+
+Vehicle execution, named confirmation, live preconditions, controller result/state
+readback and Stop/Restore remain unimplemented. They require a versioned bounded
+request/result contract and a verified controller definition, rather than extending
+`jumpPage` to carry arbitrary commands. The existing static research inputs are
+insufficient to enable high idle or ABS on this Jeep.
 
 ## Action items and quick test plan
 
-1. [ ] Build profile configuration and a local-only simulated action, exercising
-   gesture recognition and feedback before any vehicle writes. Test time boundaries,
+1. [x] Build profile configuration and an executable local page action, exercising
+   gesture recognition and feedback before any vehicle writes. Host tests cover time boundaries,
    noisy/diagonal input, orientation, click suppression, holds/pairing, cooldown,
    conflicting bindings, overlays, config changes and reboot with a partial sequence.
 2. [ ] Define typed controller actions and request/result vectors in the existing
@@ -155,3 +182,25 @@ disabled until the full matching path is implemented and physically qualified.
    polling, and changing vehicles/gauges cannot carry an armed action across contexts.
    Promote only definitions with complete evidence; preserve unverified candidates
    as research entries in Expert.
+
+## Software verification, 2026-10-07
+
+- 89 Android unit tests passed, including profile migration, action projection,
+  exact readback, capability gating, invalid commands/parameters and child routing.
+- Three isolated native Compose tests passed on the existing Television AVD with
+  a forced 390 × 844 portrait viewport: save defaults/edits, older-firmware draft
+  behavior and busy-state rejection. This is emulator evidence, not a Pixel test.
+- 73 offline host tests passed; production config compiler/validator and pure
+  gesture fixtures passed with AddressSanitizer/UndefinedBehaviorSanitizer.
+- Debug APK/test APK, Android lint, ESP-IDF 5.4.1 build and contract/link checks passed.
+- Emulator wake/display overrides were restored and the emulator was stopped.
+  No physical device installation, BLE session or vehicle command occurred.
+
+Native example of the action sheet with simulated profile data:
+
+![Action sheet, simulated native emulator example](../design/profile-actions/action-sheet-example.png)
+
+Physical gauge gesture recognition, touch/pairing regression, orientation, automatic
+page cycling and restart persistence still need owner observations after an explicitly
+qualified App/Wi-Fi candidate installation. Idle/ABS procedures still lack matching
+controller identity, complete sequences, response semantics and restoration evidence.

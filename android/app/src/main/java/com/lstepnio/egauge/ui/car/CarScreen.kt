@@ -15,9 +15,11 @@ import com.lstepnio.egauge.ui.state.CarUiState
 fun CarScreen(state: CarUiState, onSetup: () -> Unit,
               onSelectProfile: (String) -> Unit, onCreateProfile: (String) -> Unit,
               onFindAdapters: () -> Unit = {}, onChooseAdapter: (com.lstepnio.egauge.AdapterBinding?) -> Unit = {},
-              onSendAdapter: () -> Unit = {}, onExpert: () -> Unit = {}) {
+              onSendAdapter: () -> Unit = {}, onExpert: () -> Unit = {},
+              onSaveAction: (com.lstepnio.egauge.PageAction?) -> Unit = {}) {
     var profilesOpen by rememberSaveable { mutableStateOf(false) }
     var adapterOpen by rememberSaveable { mutableStateOf(false) }
+    var actionsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var coverageOpen by rememberSaveable { mutableStateOf(false) }
     ScreenContent(scrollKey = state.activeId) {
         ScreenTitle("Car")
@@ -54,6 +56,8 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                SettingsRow("Actions", if (state.actions.isEmpty()) "No gesture assigned" else "Jump to page",
+                    state.canEditActions, { actionsOpen = true })
                 SettingsRow("Your car", state.name, !state.profileError, { profilesOpen = true })
                 SettingsRow(if (state.transmissionChild) "Transmission child" else "Adapter", state.connectionStatus.title,
                     state.adapterAvailable, { if (state.transmissionChild) onExpert() else adapterOpen = true })
@@ -65,6 +69,7 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
             }
         })
     }
+    if (actionsOpen) PageActionsSheet(state, { actionsOpen = false }, onSaveAction)
     if (profilesOpen) ProfileDialog(state, { profilesOpen = false }, onSelectProfile, onCreateProfile)
     if (adapterOpen) ModalBottomSheet(onDismissRequest = { adapterOpen = false }) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp),

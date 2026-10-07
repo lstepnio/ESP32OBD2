@@ -27,6 +27,12 @@ jobs:
             -Ifirmware/gauge/main/inc firmware/gauge/tests/obd_trace_test.c \
             firmware/gauge/main/src/obd_trace_format.c -o /tmp/obd_trace_test
           /tmp/obd_trace_test
+      - name: Local gauge gesture fixtures with sanitizers
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -Ifirmware/gauge/main/inc firmware/gauge/tests/page_action_test.c \
+            firmware/gauge/main/src/page_action.c -o /tmp/page_action_test
+          /tmp/page_action_test
       - name: ELM parser fixtures with sanitizers
         run: |
           cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \

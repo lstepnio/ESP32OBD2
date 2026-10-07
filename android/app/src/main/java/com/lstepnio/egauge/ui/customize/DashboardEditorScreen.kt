@@ -218,6 +218,7 @@ private fun SendReview(state: CustomizeUiState, onBack: () -> Unit, actions: Cus
                 }
             }
         }
+        state.actionSummary?.let { SectionTitle("Gesture action"); Text(it) }
         SectionTitle("Alerts")
         if (state.alerts.isEmpty()) Text("No alerts set") else Panel {
             state.alerts.forEach { alert ->

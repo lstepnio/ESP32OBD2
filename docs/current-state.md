@@ -30,12 +30,12 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 | Dashboards/alerts | Numeric, Arc, Bar, Trend and Dual renderers; bounded page/alert configuration, stronger palette and enlarged arc; host logic tests | Daylight/color review, alert transitions and hidden-page behavior on real vehicle |
 | Configuration | Atomic slots, exact review/projection, revision/hash conflict checks, trial/fallback and stored/running identity | Physical interruption matrix and all supported layouts/alerts on hardware |
 | Updates | Signed development catalog/bundle verification, owner BLE bootstrap, authenticated private Wi-Fi transfer, A/B trial confirmation and recovery journal; App/Wi-Fi installs recorded | Hardware power-loss/expiry matrix, production trust and performance measurements |
-| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 6; remembered gauges retain independent vehicle/source contexts. Source dev.41 adds independent ECM/TCM workers and the debug app combined send/status path | Not installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
+| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 7; remembered gauges retain independent vehicle/source contexts. Source dev.42 adds independent ECM/TCM workers and the debug app combined send/status path | Not installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
 
 ## Public and experimental boundaries
 
 Public capability JSON keeps `configWrite:false` and `ota:false`. The bounded
-extensions (`cfg:3`, `ad:1`, `ds:3`, hardware and optional Wi-Fi features) expose
+extensions (`cfg:4`, `ad:1`, `ds:3`, hardware and optional Wi-Fi features) expose
 specific development paths; they are not general production support claims.
 Public flags must follow implementation and physical evidence.
 
@@ -45,7 +45,7 @@ P=0D, R=0B, N=00 and stationary Drive=01; Drive is not a distinct selector value
 Pressure 225034 remains raw only. Shaft speed, converter slip/lockup and complete
 OEM fault inventory lack matching validated definitions. Code clearing is a design,
 not an implemented action. [Off-road profile actions and gesture triggers](architecture/vehicle-actions.md)
-are also proposed only; high idle and ABS/ESC control are not enabled. Simulated data never establishes vehicle compatibility.
+have a source-only local page-action foundation; high idle and ABS/ESC control are not enabled. Simulated data never establishes vehicle compatibility.
 
 ## Next work
 
@@ -71,7 +71,7 @@ Source implements one shared connection widget across native pages, an expandabl
 phone/gauge/active-adapter summary, concise active-source Car faults and automatic
 foreground settings/adapter/diagnostics reads. Read failures back off independently;
 ordinary Settings rows no longer require a read tap. Multiple-link aggregation is
-tested; source dev.41 adds the gated two-source runtime and readback. Installed
+tested; source dev.42 adds the gated two-source runtime and readback. Installed
 dev.40 still executes one source.
 
 Firmware candidate `0.2.0-dev.40` hardening separates display snapshots from NVS persistence, bounds writer
@@ -95,7 +95,7 @@ and remaining hardware qualification.
 
 ## Dual-source development follow-up
 
-Source candidate `0.2.0-dev.41` implements simultaneous source workers, independent
+Source candidate `0.2.0-dev.42` implements simultaneous source workers, independent
 fault/status snapshots and source-scoped recovery. Android uses one atomic combined
 projection behind an explicit per-gauge Expert choice and development `da:1` gate.
 This candidate has not been published, installed or physically qualified. The owner
@@ -104,4 +104,26 @@ host tests, production C compiler/core sanitizer fixtures, firmware/debug builds
 lint, instrumentation compilation and repository validation passed. Native UI and
 dual hardware harness execution remain pending. Follow the [dual-adapter recovery plan](development/dual-adapter-recovery.md)
 for exact software bounds and the parked/bench matrix; installed dev.40 evidence
-above does not establish dev.41 physical behavior.
+above does not establish dev.42 physical behavior.
+
+## Profile action foundation
+
+Source dev.42 adds `Car > Actions`, persisted profile bindings and a local page
+shortcut using repeated upward gauge swipes (default three within five seconds).
+The existing atomic config/readback path carries the choice through `cfg:4` and
+optional schema-2 `actions`. Installed dev.40 has no gesture-action support. No
+vehicle commands are enabled; high idle and ABS/ESC remain controller research and
+physical qualification work. See [ADR-013](architecture/vehicle-actions.md) for bounds,
+interaction/recovery tests and the remaining execution contract.
+
+Action foundation verification: 89 Android unit tests, three isolated native emulator
+UI tests, 73 offline host tests, production C configuration/gesture sanitizer fixtures,
+debug/test APK builds, lint, firmware build and contract/link checks passed. The native
+example and exact limits are recorded in ADR-013. Physical gesture tests, signed
+publication and device installation have not occurred; installed dev.40 stays the
+last qualified image. Earlier dual-source test totals describe that development
+increment, not the latest action increment.
+
+The matching source App is `0.2.0-dev.35` (version code 35). Install it before
+a dev.42 gauge candidate: older Apps reject the new development `cfg:4` version.
+No signed dev.42 release/catalog entry has been published.

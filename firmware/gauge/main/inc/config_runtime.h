@@ -7,6 +7,7 @@
 #include "esp_partition.h"
 #include "obd.h"
 #include "config_store.h"
+#include "page_action.h"
 
 #define EGAUGE_RUNTIME_PIDS 32
 #define EGAUGE_RUNTIME_PAGES 8
@@ -69,6 +70,7 @@ typedef struct {
     uint8_t pid_count;
     uint8_t page_count;
     uint8_t alert_count;
+    page_action_config_t page_action;
     uint8_t rotation;
     uint8_t brightness;
     bool legacy_auto_discovery;

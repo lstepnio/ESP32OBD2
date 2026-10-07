@@ -34,7 +34,7 @@ data class CustomizeUiState(val pages: List<PageUi>, val editingPage: Int, val r
     val alerts: List<AlertUi>, val blockers: List<String>, val canSend: Boolean,
     val needsCheck: Boolean, val found: Boolean, val busy: Boolean, val editingEnabled: Boolean,
     val advanced: Boolean, val supportedLayouts: Set<GaugeLayout>, val details: List<DetailUi>,
-    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val reviewPages: List<PageUi> = emptyList())
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric, val reviewPages: List<PageUi> = emptyList(), val actionSummary: String? = null)
 @Immutable
 data class VehicleUi(val id: String, val name: String)
 @Immutable
@@ -51,7 +51,10 @@ data class CarUiState(val name: String, val profiles: List<VehicleUi>, val activ
     val adapterMessage: String? = null, val adapterCandidates: List<com.lstepnio.egauge.AdapterCandidate> = emptyList(),
     val canSendAdapter: Boolean = false, val faultSources: List<FaultSourceUi> = emptyList(),
     val connectionStatus: StatusUi = StatusUi("Checking car connection", "Checks run automatically while the app is open."),
-    val setupNeeded: Boolean = false, val transmissionChild: Boolean = false, val connectionLinks: List<ConnectionLinkUi> = emptyList())
+    val setupNeeded: Boolean = false, val transmissionChild: Boolean = false, val connectionLinks: List<ConnectionLinkUi> = emptyList(),
+    val actionPages: List<com.lstepnio.egauge.GaugePageDraft> = emptyList(),
+    val actions: List<com.lstepnio.egauge.PageAction> = emptyList(), val canEditActions: Boolean = false,
+    val actionsSupported: Boolean = false)
 @Immutable
 data class SettingsUiState(val name: String, val found: Boolean, val rotation: Int?, val canRotate: Boolean,
     val busy: Boolean, val advanced: Boolean, val dynamicColor: Boolean, val version: String,

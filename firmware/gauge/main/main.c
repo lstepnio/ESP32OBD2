@@ -500,11 +500,20 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
 #endif
     switch (event_code)
     {
+    case LV_EVENT_PRESSED:
+        atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
+        break;
+    case UI_EVENT_PAGE_ACTION:
+        if (transfer_gate_current() != 0 || !ble_companion_has_owner()) break;
+        /* Fall through to the same local selection/persistence path. */
+        __attribute__((fallthrough));
     case LV_EVENT_CLICKED:
     {
         /* Already on the LVGL task with its lock held. Browsing must not wait
          * for app_main, a flash commit, or another UI mailbox interval. */
-        uint8_t selected = (atomic_load(&g_selected_page) + 1) % page_count();
+        uint8_t selected = event_code == UI_EVENT_PAGE_ACTION ? ui_action_target(ui) :
+            (atomic_load(&g_selected_page) + 1) % page_count();
+        if (selected >= page_count()) break;
         ui_page_t page;
         page_ui(selected, &page);
         ui_set_page(ui, &page);
@@ -512,6 +521,7 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
         ble_companion_selection_applied(selected);
         atomic_fetch_add(&g_local_page_generation, 1);
+        if (event_code == UI_EVENT_PAGE_ACTION) ui_action_applied(ui);
         break;
     }
     case LV_EVENT_LONG_PRESSED:
@@ -633,6 +643,10 @@ void app_main(void)
     ui_t          *ui             = ui_init(&initial_page, ui_interval_ms, ui_touch_callback,
                                             pairing_required, display_settings_snapshot().units == 1);
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
+    if (g_runtime && lvgl_port_lock(portMAX_DELAY)) {
+        ui_configure_page_action(ui, g_runtime->page_action);
+        lvgl_port_unlock();
+    }
     bsp_display_on_off(true);
     ESP_ERROR_CHECK(bsp_display_backlight_set_percent(display_settings_snapshot().brightness));
 
@@ -709,6 +723,7 @@ void app_main(void)
                 ESP_LOGW(TAG, "Legacy rotation saved but display preference update failed");
             g_config = saved;
             if (lvgl_port_lock(portMAX_DELAY)) {
+                ui_reset_action_sequence(ui);
                 bsp_lv_disp_set_rotation(saved.disp_rot);
                 lvgl_port_unlock();
             }
@@ -720,6 +735,7 @@ void app_main(void)
                                       command.base_revision, &saved) != ESP_OK) continue;
             g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
             if (lvgl_port_lock(portMAX_DELAY)) {
+                ui_reset_action_sequence(ui);
                 bsp_lv_disp_set_rotation(g_config.disp_rot);
                 lvgl_port_unlock();
             }
@@ -733,6 +749,7 @@ void app_main(void)
                                       command.base_revision, &saved) != ESP_OK) continue;
             g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
             if (lvgl_port_lock(portMAX_DELAY)) {
+                ui_reset_action_sequence(ui);
                 bsp_lv_disp_set_rotation(g_config.disp_rot);
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
@@ -746,6 +763,7 @@ void app_main(void)
                                       command.base_revision, &saved) != ESP_OK) continue;
             g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
             if (lvgl_port_lock(portMAX_DELAY)) {
+                ui_reset_action_sequence(ui);
                 bsp_lv_disp_set_rotation(g_config.disp_rot);
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
@@ -761,6 +779,7 @@ void app_main(void)
         display_settings_t cycle = display_settings_snapshot();
         bool owner_ready = ble_companion_has_owner();
         bool transfer_idle = transfer_gate_current() == 0;
+        ui_set_action_context(ui, owner_ready && transfer_idle);
         if (!owner_ready || !transfer_idle) atomic_store(&g_page_activity_ms, now_ms);
         if (page_cycle_due(cycle.cycle_seconds, page_count(), owner_ready,
             transfer_idle, atomic_load(&g_page_activity_ms), now_ms) &&

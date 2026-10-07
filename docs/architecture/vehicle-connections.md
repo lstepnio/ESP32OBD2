@@ -33,7 +33,7 @@ attribution. A child is optional and remains absent from ordinary setup.
 - `VehicleProfile` owns the primary `draft` and `primaryAdapter`, plus optional
   `TransmissionConnection(adapter, draft)`. `draftFor`, `adapterFor`, `withDraft`
   and `withAdapter` select the correct source without altering its sibling.
-- Profile schema 6 serializes the child within the vehicle. Schemas 1 through 5
+- Profile schema 7 adds local action bindings; schema 6 serializes the child within the vehicle. Schemas 1 through 5
   remain readable. Existing standalone TCM profiles remain intact: the app never
   guesses which engine vehicle is their parent.
 - Expert exposes the child setup and source selection for the selected gauge.
@@ -73,3 +73,5 @@ Child page identities are prefixed `child.` to avoid collisions. Single-source
 imports remain available; importing a dual document into one editor is blocked
 rather than discarding its other source. Public capacity remains one until the
 [physical recovery matrix](../development/dual-adapter-recovery.md) passes.
+
+Action drafts and legacy migration follow [ADR-013](vehicle-actions.md). Parent and child retain separate bindings; a combined gauge setup rejects ambiguous triggers.

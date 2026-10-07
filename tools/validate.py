@@ -71,6 +71,8 @@ def config(doc):
     for page in doc['pages']:
         check(len(page['pidIds']) == (2 if page['renderer'] == 'dual' else 1), 'Renderer channel count')
         check(all(x in defs for x in page['pidIds']), 'Page references unknown PID')
+    for action in doc.get('actions', []):
+        check(action['pageId'] in {page['id'] for page in doc['pages']}, 'Action references unknown page')
     for alert in doc['alerts']:
         check(alert['pidId'] in defs, 'Alert references unknown PID')
         d = defs[alert['pidId']]
@@ -114,7 +116,18 @@ def bad_binding(doc):
     bound(doc)
     doc['sources'][0]['adapter']['addressType'] = 'guess'
 
+def action_case(doc, **changes):
+    doc['schemaVersion'] = 2
+    doc['actions'] = [dict(type='jumpPage', pageId=doc['pages'][0]['id'], gesture='up', count=3, windowMs=5000)]
+    doc['actions'][0].update(changes)
+
 negative_cases = [
+    ('unknown control action', lambda d: action_case(d, type='disableAbs')),
+    ('missing action target', lambda d: action_case(d, pageId='missing')),
+    ('fractional gesture count', lambda d: action_case(d, count=3.5)),
+    ('unbounded gesture time', lambda d: action_case(d, windowMs=10001)),
+    ('unsupported gesture direction', lambda d: action_case(d, gesture='down')),
+    ('action injected into legacy schema', lambda d: (action_case(d), d.update(schemaVersion=1))),
     ('duplicate bound adapter', duplicate_binding),
     ('invalid binding address type', bad_binding),
     ('binding injected into legacy schema', lambda d: (bound(d), d.update(schemaVersion=1))),

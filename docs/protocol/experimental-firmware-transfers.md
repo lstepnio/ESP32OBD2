@@ -62,3 +62,32 @@ app's combined send and [source-specific reads](adapter-bindings-v1.md).
 Existing stored/running hash, trial/fallback and uncertain-outcome rules apply to
 the entire configuration. This extension does not promote public write, OTA or
 simultaneous radio capacity flags.
+
+## Local page actions, development `cfg:4`
+
+`cfg:4` includes the `cfg:3` transport and schema-2 adapter/config features and
+adds optional `actions` to a schema-2 document. It uses the existing atomic transfer,
+validation, running revision/hash and protected document readback. No new opcode or
+vehicle control service is introduced. Schema 1 forbids `actions`; omitting it
+preserves older configurations. New Android may save a local draft while offline
+but must require `cfg:4` before sending a nonempty action list. Older Android that
+rejects unknown `cfg` versions requires the matching App update.
+
+The list permits zero or one object with exactly these fields:
+
+```json
+{"type":"jumpPage","pageId":"page.rpm","gesture":"up","count":3,"windowMs":5000}
+```
+
+`pageId` must reference a page in the same document. `count` is an integer 2..5;
+`windowMs` is an integer 2000..10000 divisible by 1000. The target resolves to a
+compiled page index, including explicitly prefixed child pages. Unknown types,
+extra fields, invalid references and multiple bindings fail staging validation.
+Firmware and Android both reject vehicle control types, raw commands and ambiguous
+bindings. The first and final completed strokes must be at most `windowMs` apart;
+recognition uses monotonic elapsed time and a five-second completion cooldown.
+
+Bindings are persisted only as configuration. Partial sequences/cooldown are volatile,
+boot never replays an action, and local selection uses the existing bounded page-save
+policy. This development extension establishes local page navigation only; it does
+not advertise idle/ABS support or qualify physical gesture usability.

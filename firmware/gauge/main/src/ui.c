@@ -86,6 +86,16 @@ struct _ui_t
     ui_touch_callback_t touch_cb;
     bool                long_press_handled;
     bool                press_active;
+    bool suppress_action_click;
+    page_action_t action;
+    atomic_bool action_allowed;
+    atomic_uint action_context_epoch;
+    unsigned action_seen_epoch;
+    uint32_t action_feedback_ms;
+    bool action_feedback;
+    bool rendered_action_visible, rendered_action_feedback;
+    uint8_t rendered_action_progress;
+    lv_obj_t *action_label;
     bool                pairing_visible;
     uint32_t            pairing_code;
     TickType_t          reset_confirmation_at;
@@ -399,6 +409,15 @@ static void dispatch_touch(ui_t *ui, lv_event_code_t code)
     }
 }
 
+static bool action_context(ui_t *ui)
+{
+    unsigned epoch = atomic_load(&ui->action_context_epoch);
+    bool allowed = atomic_load(&ui->action_allowed) && !ui->pairing_visible && !ui->calibration_mode;
+    if (!allowed || epoch != ui->action_seen_epoch) page_action_reset(&ui->action);
+    ui->action_seen_epoch = epoch;
+    return allowed;
+}
+
 static void ui_touch_callback(lv_event_t *e)
 {
     ESP_NULL_CHECK(e, TAG, "Event is NULL");
@@ -411,19 +430,32 @@ static void ui_touch_callback(lv_event_t *e)
     if (code == LV_EVENT_CLICKED) ui->timing.clicks++;
     if (code == LV_EVENT_LONG_PRESSED) ui->timing.holds++;
 #endif
+    bool actions_allowed = action_context(ui);
+    lv_point_t point = {0};
+    lv_indev_t *input = lv_indev_active();
+    if (input) lv_indev_get_point(input, &point);
+    uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
     switch (code)
     {
     case LV_EVENT_PRESSED:
+        ui->suppress_action_click = false;
+        if (actions_allowed && input) page_action_press(&ui->action, point.x, point.y, now);
         ui->press_active = true;
         ui->long_press_handled = false;
         ui->pressed_at = xTaskGetTickCount();
+        dispatch_touch(ui, LV_EVENT_PRESSED);
+        break;
+    case LV_EVENT_PRESSING:
+        if (actions_allowed && input) page_action_move(&ui->action, point.x, point.y);
         break;
     case LV_EVENT_LONG_PRESSED:
+        if (actions_allowed && ui->action.pressed && !ui->action.cancelled && (int)ui->action.y - point.y >= 32) break;
+        page_action_reset(&ui->action);
         ui->long_press_handled = true;
         dispatch_touch(ui, code);
         break;
     case LV_EVENT_CLICKED:
-        if (!ui->long_press_handled)
+        if (!ui->long_press_handled && !ui->suppress_action_click)
         {
             if (ui->pairing_code == UI_PAIRING_RESET_CONFIRM)
                 dispatch_touch(ui, LV_EVENT_VALUE_CHANGED);
@@ -431,6 +463,13 @@ static void ui_touch_callback(lv_event_t *e)
         }
         break;
     case LV_EVENT_RELEASED:
+        if (actions_allowed && input && !ui->long_press_handled) {
+            bool fired = false;
+            ui->suppress_action_click = page_action_release(&ui->action, point.x, point.y, now, &fired);
+            if (fired) {
+                dispatch_touch(ui, UI_EVENT_PAGE_ACTION);
+            }
+        } else page_action_reset(&ui->action);
         /* A release without our matching press must never clear the owner. */
         if (ui->press_active && xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
             dispatch_touch(ui, code);
@@ -589,6 +628,23 @@ static void ui_task(lv_timer_t *timer)
     }
 #endif
 
+    action_context(ui);
+    uint32_t action_now = (uint32_t)(esp_timer_get_time() / 1000);
+    page_action_tick(&ui->action, action_now);
+    if (ui->action_feedback && action_now - ui->action_feedback_ms >= 2000) ui->action_feedback = false;
+    if (ui->action_label && !ui->calibration_mode) {
+        bool visible = !ui->pairing_visible && !ui->calibration_mode &&
+            (ui->action.progress || ui->action_feedback);
+        if (visible && (!ui->rendered_action_visible || ui->rendered_action_feedback != ui->action_feedback ||
+                        ui->rendered_action_progress != ui->action.progress)) {
+            if (ui->action_feedback) lv_label_set_text(ui->action_label, "PAGE SHORTCUT");
+            else lv_label_set_text_fmt(ui->action_label, "SWIPE UP %u/%u", ui->action.progress, ui->action.config.count);
+            lv_obj_remove_flag(ui->action_label, LV_OBJ_FLAG_HIDDEN);
+        } else if (!visible && ui->rendered_action_visible) lv_obj_add_flag(ui->action_label, LV_OBJ_FLAG_HIDDEN);
+        ui->rendered_action_visible = visible;
+        ui->rendered_action_progress = ui->action.progress;
+        ui->rendered_action_feedback = ui->action_feedback;
+    }
     if (ui->calibration_mode) {
         lv_event_code_t event_code;
         if (xQueueReceive(ui->rtos.touch_ev_que, &event_code, 0) == pdTRUE && ui->touch_cb)
@@ -605,6 +661,7 @@ static void ui_task(lv_timer_t *timer)
 
     uint32_t pairing_code;
     if (xQueueReceive(ui->rtos.pairing_que, &pairing_code, 0) == pdTRUE) {
+        page_action_reset(&ui->action);
         show_pairing(ui, pairing_code);
     }
     if (ui->pairing_code == UI_PAIRING_RESET_CONFIRM &&
@@ -889,6 +946,13 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     }
 
     ui_init_screen(ui, page, interval_ms);
+    atomic_init(&ui->action_allowed, false);
+    atomic_init(&ui->action_context_epoch, 0);
+    ui->action_label = lv_label_create(ui->widgets.gauge_content);
+    lv_obj_set_style_text_color(ui->action_label, lv_color_hex(color_accent), 0);
+    lv_obj_set_style_text_font(ui->action_label, LV_FONT_DEFAULT, 0);
+    lv_obj_align(ui->action_label, LV_ALIGN_TOP_MID, 0, 25);
+    lv_obj_add_flag(ui->action_label, LV_OBJ_FLAG_HIDDEN);
 
     lvgl_port_unlock();
 
@@ -918,6 +982,7 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     ESP_NULL_CHECK(page, TAG, "Page config is NULL");
 
+    page_action_reset(&ui->action);
     xQueueReset(ui->rtos.value_que);
     ui->display.page = *page;
     memset(ui->display.samples, 0, sizeof(ui->display.samples));
@@ -1004,4 +1069,24 @@ void ui_set_simulated(ui_t *ui)
     lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 28);
     lv_obj_clear_flag(label, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
+}
+
+void ui_configure_page_action(ui_t *ui, page_action_config_t config)
+{
+    page_action_init(&ui->action, config);
+    ui->action_feedback = false;
+}
+void ui_set_action_context(ui_t *ui, bool allowed)
+{
+    if (atomic_exchange(&ui->action_allowed, allowed) != allowed)
+        atomic_fetch_add(&ui->action_context_epoch, 1);
+}
+uint8_t ui_action_target(ui_t *ui) { return ui->action.config.target_page; }
+
+void ui_reset_action_sequence(ui_t *ui) { page_action_reset(&ui->action); }
+
+void ui_action_applied(ui_t *ui)
+{
+    ui->action_feedback = true;
+    ui->action_feedback_ms = (uint32_t)(esp_timer_get_time() / 1000);
 }

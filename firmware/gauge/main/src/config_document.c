@@ -385,7 +385,7 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
 {
     static const char *const keys[] = {"schemaVersion", "baseRevision", "vehicleProfileId",
         "units", "rotation", "brightness", "reducedMotion", "definitions", "pages",
-        "alerts", "sources"};
+        "alerts", "sources", "actions"};
     static const char *const units[] = {"metric", "imperial"};
     const cJSON *sources = cJSON_GetObjectItemCaseSensitive(root, "sources");
     const cJSON *definitions = cJSON_GetObjectItemCaseSensitive(root, "definitions");
@@ -406,6 +406,22 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
         !array_size(alerts, 0, 32) ||
         !unique_ids(sources) || !unique_ids(definitions) ||
         !unique_ids(pages) || !unique_ids(alerts)) return false;
+    const cJSON *actions = cJSON_GetObjectItemCaseSensitive(root, "actions");
+    if (actions) {
+        if (cJSON_GetObjectItemCaseSensitive(root, "schemaVersion")->valueint != 2 || !array_size(actions, 0, 1)) return false;
+        static const char *const action_keys[] = {"type", "pageId", "gesture", "count", "windowMs"};
+        static const char *const types[] = {"jumpPage"}, *const gestures[] = {"up"};
+        for (const cJSON *action = actions->child; action; action = action->next) {
+            const cJSON *page = cJSON_GetObjectItemCaseSensitive(action, "pageId");
+            if (!fields(action, action_keys, ARRAY_COUNT(action_keys)) || !identifier(page, 64) ||
+                !contains_id(pages, page->valuestring) ||
+                !one_of(cJSON_GetObjectItemCaseSensitive(action, "type"), types, ARRAY_COUNT(types)) ||
+                !one_of(cJSON_GetObjectItemCaseSensitive(action, "gesture"), gestures, ARRAY_COUNT(gestures)) ||
+                !integer(cJSON_GetObjectItemCaseSensitive(action, "count"), 2, 5) ||
+                (!integer(cJSON_GetObjectItemCaseSensitive(action, "windowMs"), 2000, 10000) ||
+                 cJSON_GetObjectItemCaseSensitive(action, "windowMs")->valueint % 1000 != 0)) return false;
+        }
+    }
     for (const cJSON *item = sources->child; item != NULL; item = item->next) {
         const cJSON *adapter = cJSON_GetObjectItemCaseSensitive(item, "adapter");
         if (!source_valid(item) || (adapter && cJSON_GetObjectItemCaseSensitive(root, "schemaVersion")->valueint == 1)) return false;

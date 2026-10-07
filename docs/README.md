@@ -19,7 +19,7 @@ Current status belongs in [current-state.md](current-state.md). This index route
 - [Firmware runtime ownership and recovery](architecture/firmware-runtime.md)
 - [Hardware capabilities and integration strategy](architecture/hardware-and-transports.md)
 - [Multi-adapter ECM/TCM support](architecture/multi-adapter.md)
-- [Proposed off-road profile actions and gauge gestures](architecture/vehicle-actions.md)
+- [Off-road profile actions and gauge gestures](architecture/vehicle-actions.md)
 - [System architecture](architecture/system.md)
 
 ## Wire protocols and compatibility

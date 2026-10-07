@@ -214,7 +214,25 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         alert->priority = field(item, "priority")->valueint;
         if (field(item, "snoozeMs")->valueint != 0) goto done;
     }
+    const cJSON *actions = field(root, "actions");
+    if (actions && (!cJSON_IsArray(actions) || cJSON_GetArraySize(actions) > 1 ||
+        field(root, "schemaVersion")->valueint != 2)) goto done;
+    if (actions && cJSON_GetArraySize(actions)) {
+        const cJSON *action = cJSON_GetArrayItem(actions, 0);
+        const cJSON *kind = field(action, "type"), *gesture = field(action, "gesture"),
+            *page_id = field(action, "pageId"), *count = field(action, "count"), *window = field(action, "windowMs");
+        if (!cJSON_IsString(kind) || strcmp(kind->valuestring, "jumpPage") ||
+            !cJSON_IsString(gesture) || strcmp(gesture->valuestring, "up") || !cJSON_IsString(page_id) ||
+            !cJSON_IsNumber(count) || count->valuedouble != count->valueint || count->valueint < 2 || count->valueint > 5 ||
+            !cJSON_IsNumber(window) || window->valuedouble != window->valueint || window->valueint < 2000 || window->valueint > 10000 || window->valueint % 1000 != 0) goto done;
+        unsigned target = 0;
+        while (target < out->page_count && strcmp(out->pages[target].id, field(action, "pageId")->valuestring)) ++target;
+        if (target == out->page_count) goto done;
+        out->page_action = (page_action_config_t){.enabled = true, .target_page = target,
+            .count = field(action, "count")->valueint, .window_ms = field(action, "windowMs")->valueint};
+    }
     err = ESP_OK;
+
 done:
     cJSON_Delete(root);
     return err;

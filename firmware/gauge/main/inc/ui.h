@@ -11,6 +11,10 @@
 #include "misc/lv_event.h"
 
 #include "obd.h"
+#include "page_action.h"
+
+/* Internal callback event; no external vehicle control operation. */
+#define UI_EVENT_PAGE_ACTION LV_EVENT_REFRESH
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Definitions
@@ -66,6 +70,12 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
  * page change. Passing NULL publishes an unavailable sample for that PID. */
 void  ui_set_value(ui_t *ui, uint16_t pid, int32_t const *value);
 void  ui_set_page(ui_t *ui, ui_page_t const *page);
+/* LVGL owner only for configuration and target access. Context mailbox is thread-safe. */
+void ui_configure_page_action(ui_t *ui, page_action_config_t config);
+void ui_set_action_context(ui_t *ui, bool allowed);
+uint8_t ui_action_target(ui_t *ui);
+void ui_reset_action_sequence(ui_t *ui);
+void ui_action_applied(ui_t *ui);
 /* Call on the LVGL task or while holding its lock. */
 void  ui_set_units(ui_t *ui, bool imperial_units);
 /* Thread-safe: displays pairing or owner-reset instructions. Accepts a six-digit

@@ -1,6 +1,6 @@
 # Dual-adapter and hardware recovery qualification
 
-Prepared 2026-10-07 for source candidate `0.2.0-dev.41`. No physical dual-adapter
+Prepared 2026-10-07 for source candidate `0.2.0-dev.42`. No physical dual-adapter
 result is claimed: the owner still has one Vgate. Installed dev.40 remains the
 last physically checked firmware. Do not start BLE/vehicle work unattended.
 

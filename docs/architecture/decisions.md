@@ -1,7 +1,7 @@
 # Architecture decisions
 
 Updated 2026-10-07. ADR-001..004, 006..007, 009 and 012 describe implemented development choices.
-ADR-005 has bounded discovery/profile slices; broader coverage is planned. ADR-010
+ADR-005 has bounded discovery/profile slices; broader coverage is planned. ADR-013 has an implemented local page-action foundation; vehicle controls remain proposed. ADR-010
 contract freezing and ADR-011 simultaneous links remain qualification gates.
 Current support/evidence is in [current state](../current-state.md).
 
@@ -19,10 +19,10 @@ Current support/evidence is in [current state](../current-state.md).
 | ADR-010 | Freeze contracts after a two-device vertical slice | Avoid premature protocol permanence; draft versions can change | Bond/read/apply/reboot slice passes |
 | ADR-011 | Source-aware multi-adapter data model | Prefer simultaneous ECM and TCM links with explicit fallback if three-link measurements fail | Three-link hardware spike completes |
 | ADR-012 | Dedicated dual config slots before full writes | Existing 24 KiB NVS cannot stage and retain a 64 KiB document; inactive-slot validation protects active config | Flash geometry, image growth, and USB migration are measured |
-| ADR-013 | Proposed curated off-road profile actions with bounded gauge gestures | Simple autonomous controls with explicit controller support, source routing and uncertain-outcome handling | Action contract and controller qualification complete |
+| ADR-013 | Curated off-road profile actions with bounded gauge gestures | Simple autonomous controls with explicit controller support, source routing and uncertain-outcome handling | Action contract and controller qualification complete |
 
 [System architecture](system.md) records module boundaries. [Roadmap](../roadmap.md) defines the evidence needed to accept these decisions.
 
 [Multi-adapter design](multi-adapter.md) details ADR-011. [Configuration storage](config-storage.md) details ADR-012 and its migration gate.
 
-[Profile actions and gauge gestures](vehicle-actions.md) records proposed ADR-013; no vehicle controls are enabled.
+[Profile actions and gauge gestures](vehicle-actions.md) records ADR-013 and its local foundation; no vehicle controls are enabled.

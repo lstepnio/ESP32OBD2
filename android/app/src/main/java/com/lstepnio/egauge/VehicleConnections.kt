@@ -30,5 +30,5 @@ fun VehicleProfile.combinedDraft(): Draft {
     require(draft.source == "ECM" && primaryAdapter != null)
     val child = requireNotNull(transmission)
     require(child.adapter != null && !samePhysicalAdapter(primaryAdapter, child.adapter))
-    return draft.copy(source = "BOTH", pages = draft.pages + child.draft.pages.map { it.copy(id = "child.${it.id}") })
+    return draft.copy(source = "BOTH", actions = draft.actions + child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") }, pages = draft.pages + child.draft.pages.map { it.copy(id = "child.${it.id}") })
 }

@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..6) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..7) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -75,12 +75,15 @@ object ProfileDocumentCodec {
         } else listOf(GaugeAlertDraft("alert.coolant", "coolant", AlertDirection.Above,
             saved.getInt("warning"), saved.getInt("critical"), saved.optInt("hysteresis", 3),
             saved.optInt("triggerDwellMs", 1000), saved.optInt("clearDwellMs", 2000)))
+        val actions = if (schemaVersion >= 7) ProfileActions.decode(saved.getJSONArray("actions")) else emptyList()
+        ProfileActions.validate(actions, pages)
         val draft = Draft(
             pidId = pidId,
             layout = layout,
             source = saved.getString("source"),
             pages = pages,
             alerts = alerts,
+            actions = actions,
         )
         require(draft.source == "ECM" || draft.source == "TCM") { "Profile source is invalid" }
         require(draft.alerts.map { it.id }.distinct().size == draft.alerts.size &&
@@ -96,9 +99,11 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 6).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 7).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
+            ProfileActions.validate(profile.draft.actions, profile.draft.pages)
+            profile.transmission?.draft?.let { ProfileActions.validate(it.actions, it.pages) }
             items.put(JSONObject().put("id", profile.id).put("name", profile.name)
                 .put("primaryAdapter", profile.primaryAdapter?.json())
                 .put("transmission", profile.transmission?.let { child ->
@@ -110,6 +115,7 @@ object ProfileDocumentCodec {
     }
 
     private fun draftJson(draft: Draft): JSONObject = JSONObject()
+                    .put("actions", ProfileActions.json(draft.actions))
                     .put("pidId", draft.pidId)
                     .put("layout", draft.layout.name)
                     .put("source", draft.source)

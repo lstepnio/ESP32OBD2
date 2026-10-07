@@ -21,7 +21,7 @@ Do not load all historical reports or third-party catalogs to begin a task.
 | --- | --- | --- |
 | Gauge startup, touch, page/setting application | `firmware/gauge/main/main.c`, `src/ui.c`, `src/display_settings.c` | [Firmware runtime](architecture/firmware-runtime.md) |
 | Adapter connect/routing/ELM replies | `src/ble_mgr.c`, `src/ble_obd.c`, `src/elm_response.c`, `src/obd_adapter_profile.c` | [Adapter bindings](protocol/adapter-bindings-v1.md) |
-| Vehicle action or gesture design | [Proposed profile actions](architecture/vehicle-actions.md), `main.c`, `src/ui.c`, existing per-source workers | No control support follows from telemetry or static catalog fragments; unknown write outcomes must not be blindly retried |
+| Vehicle action or gesture design | [Profile actions](architecture/vehicle-actions.md), `main.c`, `src/ui.c`, existing per-source workers | No control support follows from telemetry or static catalog fragments; unknown write outcomes must not be blindly retried |
 | Fault state | `src/diagnostics_state.c`, Android `VehicleDiagnostics.kt`, `ui/state/DiagnosticPresentation.kt` | [Diagnostics](protocol/diagnostics-and-alerts.md) |
 | Config validation/projection/persistence | `src/config_document.c`, `src/config_runtime.c`, Android `ConfigurationProjection.kt`, `GaugeDraftComparison.kt`, `ProfileStore.kt` | [Config storage](architecture/config-storage.md) |
 | BLE commands and bytes | `src/ble_companion.c`, Android `GaugeConfigTransferClient.kt`, `GaugeProtocolCodec.kt` | [BLE](protocol/ble-v1.md), [development extensions](protocol/experimental-firmware-transfers.md) |
@@ -40,7 +40,7 @@ catalog writes/activation routines during an exploratory read session.
 ## Core invariants
 
 - Gauge owns the adapter; Android connects to the gauge. A Mac capture needs the
-  gauge to release the single-client adapter. Single-source setup is default; development dev.41 also executes an explicitly
+  gauge to release the single-client adapter. Single-source setup is default; development dev.42 also executes an explicitly
   bound ECM/TCM pair. Public radio capacity remains unqualified.
 - BLE callbacks enqueue bounded work. Transfer workers own flash operations;
   LVGL owns widgets. Do not block callbacks or add nested subsystem locks.

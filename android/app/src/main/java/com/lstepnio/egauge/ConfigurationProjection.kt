@@ -26,13 +26,14 @@ data class ProjectedAlert(
 data class ConfigurationProjection(
     val pages: List<ProjectedPage>,
     val alerts: List<ProjectedAlert>,
+    val actions: List<PageAction> = emptyList(),
 ) {
     fun reviewLines(): List<String> = pages.mapIndexed { index, page ->
         val values = listOfNotNull(page.pidId, page.secondaryPidId).joinToString(" + ")
         "${index + 1}. ${page.label} • ${page.renderer} • $values"
     } + alerts.map { alert ->
         "${alert.pidId}: warn ${alert.direction.name.lowercase()} ${alert.warning}; critical ${alert.direction.name.lowercase()} ${alert.critical}"
-    }
+    } + actions.map { "Jump to ${pages.firstOrNull { page -> page.id == it.pageId }?.label ?: "Unavailable page"}: ${it.count} swipes up in ${it.windowMs / 1000}s" }
 }
 
 object ConfigurationProjector {
@@ -50,17 +51,18 @@ object ConfigurationProjector {
     )
 
     fun blockers(draft: Draft): List<String> {
+        val actionIssues = runCatching { ProfileActions.validate(draft.actions, draft.pages) }.exceptionOrNull()?.let { listOf(it.message ?: "Invalid actions") } ?: emptyList()
         if (draft.source == "BOTH") {
-            val engine = draft.copy(source = "ECM", pages = draft.pages.filter { it.pidIds.all { id -> id in supportedPidIds } })
-            val transmission = draft.copy(source = "TCM", pages = draft.pages.filter { it.pidIds.all { id -> id in transmissionPidIds } }, alerts = emptyList())
-            return blockers(engine) + blockers(transmission) + buildList {
+            val engine = draft.copy(source = "ECM", actions = emptyList(), pages = draft.pages.filter { it.pidIds.all { id -> id in supportedPidIds } })
+            val transmission = draft.copy(source = "TCM", actions = emptyList(), pages = draft.pages.filter { it.pidIds.all { id -> id in transmissionPidIds } }, alerts = emptyList())
+            return actionIssues + blockers(engine) + blockers(transmission) + buildList {
                 if (draft.pages.size > 8) add("Choose up to eight pages across engine and transmission")
                 if (engine.pages.size + transmission.pages.size != draft.pages.size) add("Each page must use one adapter source")
                 if (draft.pages.map { it.id }.distinct().size != draft.pages.size || draft.pages.any { it.id.length > 64 })
                     add("Every page needs a unique identity of at most 64 characters")
             }
         }
-        return buildList {
+        return actionIssues + buildList {
             if (draft.source == "TCM") {
                 if (!BuildConfig.DEBUG || draft.alerts.isNotEmpty())
                     add("The TCM setup supports temperature and gear pages without alerts")
@@ -107,6 +109,9 @@ object ConfigurationProjector {
         require(issues.isEmpty()) { issues.joinToString(". ") }
         val json = JSONObject(template)
         require(schemaVersion in 1..2 && (adapter == null || schemaVersion == 2))
+        require(draft.actions.isEmpty() || schemaVersion == 2) { "Gesture actions require updated gauge configuration" }
+        json.remove("actions")
+        if (draft.actions.isNotEmpty()) json.put("actions", ProfileActions.json(draft.actions))
         json.put("schemaVersion", schemaVersion)
         val source = json.getJSONArray("sources").getJSONObject(0)
         if (draft.source == "TCM") {
@@ -153,6 +158,7 @@ object ConfigurationProjector {
             }
         })
         val projection = ConfigurationProjection(
+            actions = draft.actions,
             pages = draft.pages.map { page ->
                 ProjectedPage(page.id, page.name, definitionIds.getValue(page.pidIds[0]),
                     page.layout.name.lowercase(Locale.ROOT),
@@ -168,7 +174,8 @@ object ConfigurationProjector {
         require(blockers(combined).isEmpty()) { blockers(combined).joinToString(". ") }
         val engine = project(template, vehicle.draft, vehicle.id, baseRevision, vehicle.primaryAdapter, 2)
         val child = requireNotNull(vehicle.transmission)
-        val tcmDraft = child.draft.copy(pages = child.draft.pages.map { it.copy(id = "child.${it.id}") })
+        val tcmDraft = child.draft.copy(pages = child.draft.pages.map { it.copy(id = "child.${it.id}") },
+            actions = child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") })
         val transmission = project(template, tcmDraft, vehicle.id, baseRevision, child.adapter, 2)
         val root = JSONObject(engine.second.toString(Charsets.UTF_8))
         val tcm = JSONObject(transmission.second.toString(Charsets.UTF_8))
@@ -177,7 +184,8 @@ object ConfigurationProjector {
             val extra = tcm.getJSONArray(key)
             for (index in 0 until extra.length()) target.put(extra.getJSONObject(index))
         }
-        return ConfigurationProjection(engine.first.pages + transmission.first.pages, engine.first.alerts) to
+        if (combined.actions.isNotEmpty()) root.put("actions", ProfileActions.json(combined.actions))
+        return ConfigurationProjection(engine.first.pages + transmission.first.pages, engine.first.alerts, combined.actions) to
             root.toString().toByteArray(Charsets.UTF_8)
     }
 

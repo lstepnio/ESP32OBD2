@@ -18,7 +18,7 @@ fun readingName(id: String): String = when (id) {
 
 /** Editor cursor fields are not part of the transmitted page/alert payload. */
 fun sameSettings(first: Draft?, second: Draft): Boolean = first != null && first.pages == second.pages &&
-    first.source == second.source && first.alerts == second.alerts
+    first.source == second.source && first.alerts == second.alerts && first.actions == second.actions
 
 fun pageUi(page: GaugePageDraft, system: MeasurementSystem = MeasurementSystem.Metric): PageUi {
     val reading = demoCatalog.first { it.id == page.pidIds.first() }
@@ -55,10 +55,12 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
             "critical limit" in raw -> "Move the critical limit farther than the warning limit."
             "outside its supported range" in raw -> "Choose limits within this reading's supported range."
             "timing" in raw -> "The alert delay is out of range. Choose a delay of 60 seconds or less."
+            "action" in raw || "swipe" in raw || "page for" in raw -> raw
             else -> "A page needs a valid reading and layout. Review your pages."
         })
     }
     caps?.let {
+        if (draft.actions.isNotEmpty() && it.pageActionsVersion != 1) add("Update the gauge before sending gesture actions")
         if (draft.source == "BOTH" && (!BuildConfig.DEBUG || it.dualAdapterVersion != 1)) add("Update the gauge before using both adapters")
         if (draft.pages.size > it.maxPages) add("Your gauge supports ${it.maxPages} pages. Remove an extra page.")
         val unsupported = draft.pages.map { it.layout }.distinct().filter { layout -> layout !in it.supportedRenderers }
@@ -159,7 +161,11 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             updateNotice),
         CustomizeUiState(pages, editingPageIndex, demoCatalog.filter { it.id in ConfigurationProjector.pagePidIds(draft.source) }.map { readingUi(it, system) },
             draft.alerts.map { alertUi(it, system) }, blockers, canSend, needsCheck, found, busy, profileError == null && !busy, prefs.advanced,
-            capabilities?.supportedRenderers.orEmpty(), details, system, transmittedDraft.pages.map { pageUi(it, system) }),
+            capabilities?.supportedRenderers.orEmpty(), details, system, transmittedDraft.pages.map { pageUi(it, system) },
+            actionSummary = transmittedDraft.actions.takeIf { it.isNotEmpty() }?.joinToString("\n") { action ->
+                val name = transmittedDraft.pages.firstOrNull { it.id == action.pageId }?.name ?: "Unavailable page"
+                "Jump to $name · ${action.count} swipes up within ${action.windowMs / 1000} seconds"
+            }),
         car,
         SettingsUiState(currentGaugeName, found, displaySettings?.rotation ?: savedGauge?.rotation,
             found && ((capabilities?.displaySettingsVersion ?: 0) >= 1 || capabilities?.displayRotationWrite == true),
@@ -234,7 +240,7 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
         (diagnosticsBySource.values.toList() + listOfNotNull(data)).any { it.categories == null || it.categories.any { category -> category.truncated } }, profileError != null, details,
         faultSources = sources, connectionLinks = links,
         connectionStatus = links.firstOrNull { it.status.tone != StatusTone.Success }?.status ?: links.first().status,
-        setupNeeded = vehicleSources.any { !vehicleSetupMatches(activeDocument, profileCollection.activeId, it, profileCollection.active.adapterFor(it)) },
+        setupNeeded = !sameSettings(sentDraft, transmittedDraft) || vehicleSources.any { !vehicleSetupMatches(activeDocument, profileCollection.activeId, it, profileCollection.active.adapterFor(it)) },
         adapterAvailable = capabilities?.adapterRegistryVersion == 1 && !busy && connection.fresh(now),
         adapterSelected = selectedVehicleAdapter?.let { "${if (it.driver == "elm-bench-v1") "Bench simulator" else if (draft.source == "TCM") "Transmission adapter" else "Engine adapter"} · ${it.address.takeLast(5)}" },
         adapterMessage = if (adapterSourceStatus != null && (adapterStatusCheckedAt == null ||
@@ -253,8 +259,10 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
         }.getOrDefault("Refresh gauge settings to check the saved adapter."),
         adapterCandidates = adapterCandidates,
         canSendAdapter = !busy && connection.fresh(now) && profileError == null && capabilities?.adapterRegistryVersion == 1 &&
-            activeConfigRevision != null && verifiedConfigHash != null && ConfigurationProjector.blockers(transmittedDraft).isEmpty() && (!bothAdapters || capabilities?.dualAdapterVersion == 1),
-        transmissionChild = draft.source == "TCM" && profileCollection.active.transmission != null)
+            activeConfigRevision != null && verifiedConfigHash != null && ConfigurationProjector.blockers(transmittedDraft).isEmpty() && (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) && (!bothAdapters || capabilities?.dualAdapterVersion == 1),
+        transmissionChild = draft.source == "TCM" && profileCollection.active.transmission != null,
+        actionPages = draft.pages, actions = draft.actions, canEditActions = !busy && profileError == null,
+        actionsSupported = capabilities?.pageActionsVersion == 1)
 }
 
 fun faultDescription(code: String): String = when (code) {
