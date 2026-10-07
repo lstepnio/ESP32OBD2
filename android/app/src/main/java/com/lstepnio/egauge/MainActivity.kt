@@ -23,6 +23,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import com.lstepnio.egauge.ui.CompanionApp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,6 +55,8 @@ class MainActivity : ComponentActivity() {
                         ?: error("Could not open the update package")
                 }
                 model.updatePackageLoaded(bundle)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
                 model.updatePackageError(error.message ?: "Update package is invalid")
             }

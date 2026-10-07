@@ -153,7 +153,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             UpdateNotice.NeedsCheck -> "Update needs check"
             UpdateNotice.None -> if (connection.phase == ConnectionPhase.Idle && found) "Last checked"
                 else connectionLabel(connection, nowElapsedMs)
-        }, freshConnection, status, editorDraft.pages.map { pageUi(it, system) },
+        }, freshConnection, status, pages,
             !confirmed, when (homeAction) { HomeAction.SetUp -> when (connection.phase) {
                 ConnectionPhase.PermissionRequired -> "Allow nearby devices"
                 ConnectionPhase.BluetoothOff -> "Turn on Bluetooth"
@@ -162,7 +162,10 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 else -> if (rememberedGaugeId != null) "Connect gauge" else "Set up gauge"
             }; HomeAction.Check -> "Check gauge"
                 HomeAction.Review -> "Review and send"; HomeAction.Customize -> "Customize" }, homeAction, busy, details,
-            updateNotice),
+            updateNotice, showStatus = profileError == null && gaugeAssociationError == null &&
+                presentationError == null && !(op.visible && (op.busy || op.needsCheck)) &&
+                (runtimeIdentity?.usedPreviousGeneration == true || runtimeIdentity?.trial == true ||
+                    updatePreparation == "held" || blockers.isNotEmpty())),
         CustomizeUiState(pages, editingPageIndex, demoCatalog.filter { it.id in ConfigurationProjector.pagePidIds(editorDraft.source) }.map { readingUi(it, system) },
             editorDraft.alerts.map { alertUi(it, system) }, blockers, canSend, needsCheck, found, busy, profileError == null && !busy, prefs.advanced,
             capabilities?.supportedRenderers.orEmpty(), details, system, transmittedDraft.pages.map { pageUi(it, system) },
@@ -215,7 +218,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         else if (profileError != null) StatusUi("Your saved profiles need attention",
             "Editing is paused to protect your settings. Review the problem in Expert > Device data.", StatusTone.Error)
         else presentationError?.let { friendlyFailure(it) }
-            ?: if (disconnected) connectionStatus(connection, nowElapsedMs) else null,
+            ?: null,
         connection,
     )
 }
@@ -239,18 +242,18 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
                 configuredSourceId(activeDocument, source) ?: "", adapter != null,
                 vehicleSetupMatches(activeDocument, profileCollection.activeId, source, adapter), source in vehicleFailures))
     }
-    val status = sources.first().status
+    val status = vehicleFaultStatus(sources)
     val faults = sources.flatMap { it.categories.flatMap { category -> category.faults } }
     return CarUiState(profileCollection.active.name, profileCollection.profiles.map { VehicleUi(it.id, it.name) },
         profileCollection.activeId, status, faults, !busy && capabilities?.experimentalNumericConfig == true,
-        (diagnosticsBySource.values.toList() + listOfNotNull(data)).any { it.categories == null || it.categories.any { category -> category.truncated } }, profileError != null, details,
+        sources.any { source -> source.categories.any { category -> category.incomplete } }, profileError != null, details,
         faultSources = sources, connectionLinks = links,
         connectionStatus = links.firstOrNull { it.status.tone != StatusTone.Success }?.status ?: links.first().status,
         setupNeeded = !sameSettings(sentDraft, transmittedDraft) || vehicleSources.any { !vehicleSetupMatches(activeDocument, profileCollection.activeId, it, profileCollection.active.adapterFor(it)) },
         adapterAvailable = capabilities?.adapterRegistryVersion == 1 && !busy && connection.fresh(now),
         adapterSelected = profileCollection.active.primaryAdapter?.let { "${if (it.driver == "elm-bench-v1") "Bench simulator" else "Vehicle adapter"} · ${it.address.takeLast(5)}" },
         adapterMessage = if (adapterSourceStatus != null && (adapterStatusCheckedAt == null ||
-            now - adapterStatusCheckedAt!! > 15_000)) "Adapter status is out of date. Check again."
+            now - adapterStatusCheckedAt!! > 15_000)) "Last checked connection. Rechecking automatically."
         else adapterMessage ?: if (activeDocument?.vehicleProfileId != profileCollection.activeId)
             "This car's setup has not been confirmed on the gauge."
         else runCatching {
@@ -260,9 +263,9 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
             if (saved == null && profileCollection.active.primaryAdapter == null)
                 "No adapter selected on the gauge. Find your adapter when it is powered."
             else if (saved?.optString("id") == profileCollection.active.primaryAdapter?.id && saved != null)
-                "Adapter selection saved on the gauge. Check its connection below."
+                "Adapter saved on gauge."
             else "Adapter selection differs from the gauge. Send setup to use this selection."
-        }.getOrDefault("Refresh gauge settings to check the saved adapter."),
+        }.getOrDefault("Waiting for the gauge to confirm its adapter."),
         adapterCandidates = adapterCandidates,
         canSendAdapter = !busy && connection.fresh(now) && profileError == null && capabilities?.adapterRegistryVersion == 1 &&
             activeConfigRevision != null && verifiedConfigHash != null && ConfigurationProjector.blockers(transmittedDraft).isEmpty() && (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) && (!bothAdapters || capabilities?.dualAdapterVersion == 1) &&

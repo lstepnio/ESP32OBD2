@@ -129,13 +129,13 @@ internal fun EditorScaffold(title: String, onBack: () -> Unit, primary: String, 
                             enabled: Boolean = true,
                             content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxSize().imePadding()) {
-        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+        Box(Modifier.fillMaxWidth().padding(horizontal = EGaugeTokens.Spacing.lg.dp, vertical = 12.dp)) {
             ScreenTitle(title, onBack)
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = EGaugeTokens.Spacing.lg.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
         Surface(color = MaterialTheme.colorScheme.background, tonalElevation = 2.dp) {
-            Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), contentAlignment = Alignment.CenterEnd) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = EGaugeTokens.Spacing.lg.dp, vertical = 12.dp), contentAlignment = Alignment.CenterEnd) {
                 PrimaryAction(primary, onPrimary, Modifier.widthIn(max = 480.dp), enabled)
             }
         }

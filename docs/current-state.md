@@ -6,7 +6,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 
 ## Baseline
 
-- Latest installed Android: `0.2.0-dev.44`; signed gauge firmware dev.45 verified through protected readback, OTA health 2. New display/swipe confirmation is pending. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
+- Latest installed Android: `0.2.0-dev.45`; signed gauge firmware dev.45 verified through protected readback, OTA health 2. New display/swipe confirmation is pending. See [recovery evidence](development/recovery-hardening.md) for automatic reconnect/resume results and pending interruption gates.
 
 - Board: Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S touch,
   16 MB flash and 2 MB PSRAM. ESP-IDF 5.4.1 with pinned components.
@@ -32,7 +32,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 | Dashboards/alerts | Numeric, Arc, Bar, Trend and Dual renderers; bounded page/alert configuration, stronger palette and enlarged arc; host logic tests | Daylight/color review, alert transitions and hidden-page behavior on real vehicle |
 | Configuration | Atomic slots, exact review/projection, revision/hash conflict checks, trial/fallback and stored/running identity | Physical interruption matrix and all supported layouts/alerts on hardware |
 | Updates | Signed development catalog/bundle verification, owner BLE bootstrap, authenticated private Wi-Fi transfer, A/B trial confirmation and recovery journal; App/Wi-Fi installs recorded | Hardware power-loss/expiry matrix, production trust and performance measurements |
-| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 10 in source; remembered gauges retain independent vehicle/source contexts. Source dev.42 adds independent ECM/TCM workers and the debug app combined send/status path | Installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
+| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 10 in source; remembered gauges retain independent vehicle/source contexts. Firmware dev.45 retains independent ECM/TCM workers; App dev.45 uses one complete vehicle dashboard and independently scoped status/faults | Installed; two-adapter plus phone and recovery matrix pending; public link capacity is one |
 
 ## Public and experimental boundaries
 
@@ -78,6 +78,23 @@ drafts while retaining bindings/alerts. Vehicle deletion leaves assigned remembe
 gauges needing explicit reassignment and does not change their installed setup.
 115 JVM tests and six native UI/stored-profile tests passed; firmware remains dev.44.
 See [deletion evidence](development/vehicle-dashboard-review.md#app-dev43-deletion-follow-up).
+
+## Product UX and resilience optimization
+
+Android source dev.45 refines the shared title/status/dialog patterns, removes
+routine connection duplication, preserves independent combined fault status and
+provides accessible Home page actions. Pairing waits for ordinary owner readback
+and leads directly to Car adapter setup. Gauge health has its own polling cadence;
+read retries use bounded jitter. Hosted HTTP cancellation retires its resource and
+awaits cleanup, with per-response and whole-catalog deadlines. Firmware dev.45 and
+protocol/capability flags are unchanged by this increment. 136 JVM tests, 28 native
+UI tests, 12 navigation/editing journey tests and 76 reviewed screenshot comparisons passed. Pixel/gauge read-only opening,
+resume, Bluetooth off/on and gauge-picker cancellation passed with revision 46 and
+settings retained; phone profile/association/presentation preferences were unchanged.
+The final update-verification copy follow-up is built in source; reinstalling that APK
+and restoring saved debug wake settings await the borrowed phone's return.
+See the
+[assessment, prioritized backlog and verification](development/product-optimization.md).
 
 ## Next work
 

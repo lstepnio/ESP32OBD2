@@ -93,19 +93,28 @@ fun SectionTitle(title: String) {
     Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
 }
 
+/** Dialog choices remain scrollable when text or the keyboard reduces the viewport. */
+@Composable
+fun DialogContent(content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(EGaugeTokens.Spacing.sm.dp), content = content)
+}
+
 val LocalConnectionStatus = staticCompositionLocalOf<(@Composable () -> Unit)?> { null }
 
 @Composable
 fun ScreenTitle(title: String, onBack: (() -> Unit)? = null, trailing: @Composable (() -> Unit)? = LocalConnectionStatus.current) {
-    val largeText = LocalDensity.current.fontScale > 1.3f
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (onBack != null) IconButton(onClick = onBack) { EGaugeIcon(GaugeIcon.Back, "Go back") }
-            Text(title, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f).semantics { heading() })
-            if (!largeText) trailing?.invoke()
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val stacked = LocalDensity.current.fontScale > 1.3f || maxWidth < 400.dp
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (onBack != null) IconButton(onClick = onBack) { EGaugeIcon(GaugeIcon.Back, "Go back") }
+                Text(title, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f).semantics { heading() })
+                if (!stacked) trailing?.invoke()
+            }
+            if (stacked) trailing?.invoke()
         }
-        if (largeText) trailing?.invoke()
     }
 }
 
@@ -114,7 +123,7 @@ fun ReadingTile(name: String, unit: String, selected: Boolean, onClick: () -> Un
                 modifier: Modifier = Modifier, enabled: Boolean = true, supporting: String? = null) {
     Surface(onClick = onClick, enabled = enabled, modifier = modifier.fillMaxWidth().heightIn(min = 64.dp)
         .semantics { this.selected = selected },
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(EGaugeTokens.Radius.control.dp),
         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
         border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
@@ -172,7 +181,7 @@ fun EmptyState(title: String, detail: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun SettingsRow(title: String, detail: String? = null, enabled: Boolean = true, onClick: () -> Unit) {
-    Surface(onClick = onClick, enabled = enabled, shape = RoundedCornerShape(20.dp),
+    Surface(onClick = onClick, enabled = enabled, shape = RoundedCornerShape(EGaugeTokens.Radius.control.dp),
         color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -78,7 +78,9 @@ class AutomaticConnectionJourneyTest {
             try {
                 instrumentation.uiAutomation.executeShellCommand("svc bluetooth disable").close()
                 compose.waitUntil(60_000) { model.connection.phase == ConnectionPhase.BluetoothOff }
-                compose.waitUntil(5_000) { compose.onAllNodesWithText("Bluetooth is off").fetchSemanticsNodes().isNotEmpty() }
+                compose.waitUntil(5_000) { compose.onAllNodesWithText("Bluetooth off").fetchSemanticsNodes().isNotEmpty() }
+                compose.onNode(sharedStatus).assertIsDisplayed()
+                compose.onNodeWithText("Turn on Bluetooth").assertIsDisplayed()
                 capture("bluetooth-off")
             } finally {
                 instrumentation.uiAutomation.executeShellCommand("svc bluetooth enable").close()

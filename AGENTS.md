@@ -42,6 +42,10 @@ These are the current entry points; historical reports are evidence, not instruc
   Reject retired callbacks/session generations. Follow the shared patterns in
   [interaction recovery](docs/architecture/interaction-recovery.md), with qualification
   recorded in [recovery hardening](docs/development/recovery-hardening.md).
+- Use one status/progress surface for each task. Routine connection recovery stays
+  in the universal widget; actionable profile, mutation and security failures stay
+  visible. Keep settings/profile dialogs scrollable and scope unsaved choices to
+  the selected gauge/vehicle. A healthy parent never certifies child fault checks.
 - Recover routine transient loss through the shared status widget and automatic
   protected reads; avoid recurring prompts/toasts and arbitrary shorter timeouts.
 - Preserve last committed/last checked state honestly. Never show stale or simulated data

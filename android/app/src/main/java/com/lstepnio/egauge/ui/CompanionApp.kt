@@ -121,7 +121,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                         // reports them without interrupting the current screen. Transfers remain visible
                         // until the gauge has proved their result, including recovery-required outcomes.
                         val banner = rememberTransferBannerState(op)
-                        if (banner.visible)
+                        if (banner.visible && !(route == Route.Updates && op.update))
                             OperationBanner(op, { progressOpen = true }, {
                                 if (op.update) route = Route.Updates
                                 else if (model.configurationRecoveryRead) { customizeStep = 5; route = Route.Customize }
@@ -149,14 +149,14 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                     model::pairGauge,
                                     model::refreshPairingStatus, onBluetoothSettings,
                                     { id -> model.gaugeCandidates.firstOrNull { it.id == id }?.let(model::selectGaugeCandidate) },
-                                    { customizeStep = 0; route = Route.Customize }, ::back)
-                                Route.Customize -> DashboardEditorScreen(state.customize, customizeStep, { customizeStep = it }, ::back,
+                                    { customizeStep = 0; route = Route.Customize }, ::back, { route = Route.Car })
+                                Route.Customize -> key(state.car.activeId) { DashboardEditorScreen(state.customize, customizeStep, { customizeStep = it }, ::back,
                                     CustomizeActions(
                                         model::selectPage, { id -> model.selectPid(demoCatalog.first { it.id == id }) },
                                         { id -> model.selectSecondaryPid(demoCatalog.first { it.id == id }) },
                                         model::addPage, model::removePage, model::movePage, model::selectLayout,
                                         model::saveAlert, model::removeAlert,
-                                        model::checkGaugeForReview, { model.sendNumericConfiguration(); route = Route.Gauge }, { route = Route.Setup }))
+                                        model::checkGaugeForReview, { model.sendNumericConfiguration(); route = Route.Gauge }, { route = Route.Setup })) }
                                 Route.Car -> CarScreen(state.car, { route = Route.Setup },
                                     model::selectProfile, { name -> model.editProfileName(name); model.createProfile() },
                                     model::findVehicleAdapters, model::choosePrimaryAdapter, model::sendNumericConfiguration, model::savePageAction, model::deleteVehicle)

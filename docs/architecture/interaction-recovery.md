@@ -62,6 +62,29 @@ claim that every hardware failure scenario has already been qualified.
 See [recovery audit and qualification](../development/recovery-hardening.md) for the
 current application of these patterns and the remaining physical gates.
 
+## Android read scheduling and hosted HTTP
+
+Gauge health, settings and each adapter have independent `VehiclePollSchedule`
+instances. Healthy reads run at 20 seconds; scope changes and foreground resume
+make checks due. Adapter failure ticks do not repeat a still-current protected
+gauge check. Nominal 2/5/10/20/30-second retries receive 80..100% jitter, retain a
+one-second minimum and cap at 30 seconds. User reads still preempt and await
+automatic cleanup before acquiring the shared lease. An unexpected platform
+exception records a failure and backs off instead of terminating the foreground loop.
+
+`resourceIo` closes blocking resources on cancellation and awaits the IO child.
+`socketIo` and `boundedHttpDownload` share it. Hosted responses have a 45-second
+total budget plus byte/connect/read bounds; the whole catalog search has a
+120-second budget. Candidate iteration rethrows cancellation. Manual checks and
+downloads mark busy before launch and cancel/join the automatic HTTP job before
+handover. Online failures do not invalidate an independently checked gauge.
+Signatures, compatibility, generation/conflict protection and reviewed installation
+remain mandatory. Background HTTP failure uses the existing 15-minute retry;
+a successful check waits six hours. No failed mutation is automatically replayed.
+
+[Product optimization evidence](../development/product-optimization.md) separates
+unit/HTTP fixtures, rendered UI and physical owner readback from hardware recovery.
+
 ## Multiple adapters
 
 Each required link has a stable ID, source title and independent status. The pill's

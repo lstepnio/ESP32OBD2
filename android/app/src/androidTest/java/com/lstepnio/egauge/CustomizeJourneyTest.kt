@@ -86,11 +86,10 @@ class CustomizeJourneyTest {
         assertEquals(listOf("fuel"), added)
         compose.onNodeWithText("Manage pages").performScrollTo().performClick()
         capture("pages")
-        compose.onNodeWithContentDescription("Options for page 4").performScrollTo().performClick()
-        compose.onNodeWithText("Remove page").performClick()
-        compose.onNodeWithText("Remove page 4?").assertIsDisplayed()
+        compose.onAllNodesWithText("Delete")[3].performScrollTo().performClick()
+        compose.onNodeWithText("Delete page 4?").assertIsDisplayed()
         assertTrue(removed.isEmpty())
-        compose.onNodeWithText("Remove page").performClick()
+        compose.onNodeWithText("Delete page").performClick()
         assertEquals(listOf(3), removed)
     }
 
@@ -138,8 +137,8 @@ class CustomizeJourneyTest {
         state = state.copy(pages = listOf(state.pages.first()))
         launch()
         compose.onNodeWithText("Manage pages").performScrollTo().performClick()
+        compose.onNodeWithText("Delete").assertIsNotEnabled()
         compose.onNodeWithContentDescription("Options for page 1").performClick()
-        compose.onNodeWithText("Remove page").assertIsNotEnabled()
         compose.onNodeWithText("Move earlier").assertIsNotEnabled()
         compose.onNodeWithText("Move later").assertIsNotEnabled()
     }
@@ -181,10 +180,11 @@ class CustomizeJourneyTest {
     }
 
     @Test fun anUnavailableLegacyReadingCanBeReplacedWithoutOpeningItsAlertEditor() {
-        state = state.copy(pages = listOf(pageUi(GaugePageDraft("legacy", "Transmission", GaugeLayout.Numeric, listOf("tcm")))),
-            blockers = listOf("This reading cannot be sent from the second adapter. Choose a main-adapter reading."))
+        val legacy = state.pages.first().copy(readingId = "legacy-unknown-reading", readingName = "Unknown reading")
+        state = state.copy(pages = listOf(legacy),
+            blockers = listOf("This reading is not supported. Choose an available reading."))
         launch()
-        compose.onNodeWithText("Choose an available reading first").performScrollTo().assertIsNotEnabled()
+        compose.onAllNodesWithText("Unknown reading alert").assertCountEquals(0)
         compose.onNodeWithText("Reading").performScrollTo().performClick()
         compose.onNodeWithText("Engine speed").performScrollTo().assertIsEnabled()
     }

@@ -18,6 +18,7 @@ import kotlinx.coroutines.delay
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.ensureActive
@@ -179,9 +180,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private var currentGaugeId: String? = null
     private var rediscoverGauge = true
     private val foregroundConnection by lazy {
-        ForegroundConnectionController(viewModelScope, operationCoordinator, ::automaticConnectionAttempt)
+        ForegroundConnectionController(viewModelScope, operationCoordinator,
+            onUnexpectedFailure = { connectionRetry(it.message ?: "Gauge check interrupted") },
+            attempt = ::automaticConnectionAttempt)
     }
     private val automaticUpdateHold = AutomaticUpdateHoldStore(application)
+    private val gaugePoll = VehiclePollSchedule()
     private val vehiclePoll = VehiclePollSchedule()
     private val childPoll = VehiclePollSchedule()
     private val settingsPoll = VehiclePollSchedule()
@@ -197,6 +201,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setConnectionForeground(value: Boolean) {
         if (value && !connectionForeground) {
+            gaugePoll.reset()
             settingsPoll.reset()
             vehiclePoll.reset()
             childPoll.reset()
@@ -208,7 +213,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             nextAutomaticUpdateCheckAtElapsedMs = 0L
         }
     }
-    fun retryConnection() = foregroundConnection.retrySoon()
+    fun retryConnection() { gaugePoll.reset(); foregroundConnection.retrySoon() }
 
     @SuppressLint("MissingPermission")
     private suspend fun automaticConnectionAttempt(): Long {
@@ -234,7 +239,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (choosingGauge) return 15_000
         try {
-            val gaugePause = withTimeout(35_000) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            val gaugeScope = rememberedGaugeId ?: currentGaugeId ?: "unselected"
+            val gaugeDue = gaugePoll.due(gaugeScope, now)
+            val checkGauge = rediscoverGauge || capabilities == null || currentGaugeId == null ||
+                connection.phase != ConnectionPhase.Ready ||
+                (configurationNeedsReview && !configurationRecoveryRead) || pendingUpdateRecovery != null ||
+                gaugeDue
+            val gaugePause = if (checkGauge) withTimeout(35_000) {
                 if (rediscoverGauge || capabilities == null || currentGaugeId == null) {
                     connection = connection.copy(phase = ConnectionPhase.Searching, checkedAtElapsedMs = null)
                     val candidates = bleClient.scanNearbyCandidates()
@@ -244,7 +256,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         connection = ConnectionState(if (rememberedGaugeId == null)
                             ConnectionPhase.ChooseGauge else ConnectionPhase.Retrying,
                             attempts = connection.attempts + 1)
-                        return@withTimeout reconnectDelayMs(connection.attempts)
+                        return@withTimeout jitteredRetryDelay(reconnectDelayMs(connection.attempts))
                     }
                     connection = connection.copy(phase = ConnectionPhase.Checking)
                     connectDiscoveredCandidate(candidates.single { it.id == id })
@@ -285,13 +297,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 // Clear transient read failures only. Never erase a send/update recovery outcome.
                 if (operation.terminal && operation.kind in setOf(OperationKind.READ, OperationKind.DISCOVERY) &&
                     operation.stage != OperationStage.RECOVERED) operation = OperationState.Idle
+                gaugePoll.completed(android.os.SystemClock.elapsedRealtime(), true)
                 20_000L
-            }
+            } else gaugePoll.pause(now)
             return if (connection.phase == ConnectionPhase.Ready) {
                 val client = GaugeConfigTransferClient(app)
                 val device = bleClient.selectedGauge()
                 val settingsPause = pollSettings(client, device)
-                minOf(settingsPause, pollVehicle(client, device))
+                minOf(gaugePoll.pause(android.os.SystemClock.elapsedRealtime()), settingsPause, pollVehicle(client, device))
             } else gaugePause
         } catch (error: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()
@@ -469,7 +482,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         rediscoverGauge = true
         ownerAccess = OwnerAccess.UNKNOWN
         connection = ConnectionState(ConnectionPhase.Retrying, attempts = connection.attempts + 1, detail = message)
-        return reconnectDelayMs(connection.attempts)
+        return jitteredRetryDelay(reconnectDelayMs(connection.attempts))
     }
 
     private fun updatePairingWindow(value: GaugePairingWindow?) {
@@ -1663,17 +1676,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun checkHostedFirmware() {
         if (hostedUpdateBusy) return
-        automaticUpdateJob?.cancel()
-        selectedUpdate = null
         val caps = capabilities ?: run {
             hostedUpdateMessage = "Find the gauge before checking firmware compatibility"
             return
         }
+        hostedUpdateBusy = true
         viewModelScope.launch {
-            hostedUpdateBusy = true
             updatePreparation = "checking"
             hostedUpdate = null
             try {
+                automaticUpdateJob?.cancelAndJoin()
+                selectedUpdate = null
                 foregroundConnection.runUserOperation(OperationKind.READ) { id ->
                     operation = OperationState(id, OperationKind.READ, OperationStage.CONNECTING,
                         "Checking for firmware", "Reading the installed gauge version")
@@ -1716,12 +1729,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun downloadHostedFirmware(installWhenReady: Boolean = false) {
         if (hostedUpdateBusy) return
         val available = hostedUpdate ?: return
+        hostedUpdateBusy = true
         viewModelScope.launch {
-            hostedUpdateBusy = true
             updatePreparation = "downloading"
             hostedUpdateMessage = "Downloading and verifying ${available.release.version}"
             var downloadedSuccessfully = false
             try {
+                automaticUpdateJob?.cancelAndJoin()
                 foregroundConnection.runUserOperation(OperationKind.UPDATE) { id ->
                     operation = OperationState(id, OperationKind.UPDATE, OperationStage.PREPARING,
                         "Downloading update", "Verifying the signed package")

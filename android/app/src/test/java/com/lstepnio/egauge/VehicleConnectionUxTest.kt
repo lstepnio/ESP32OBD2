@@ -72,7 +72,7 @@ class VehicleConnectionUxTest {
         assertTrue(child.due("gauge:tcm", 2101))
     }
     @Test fun vehicleRetriesBackOffResetAfterSuccessAndRestartForNewBinding() {
-        val schedule = VehiclePollSchedule()
+        val schedule = VehiclePollSchedule { it }
         var now = 1_000L
         assertTrue(schedule.due("engine:first", now))
         listOf(2_000L, 5_000L, 10_000L, 20_000L, 30_000L, 30_000L).forEach { delay ->

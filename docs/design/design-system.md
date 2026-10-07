@@ -4,7 +4,7 @@ The Android companion puts the user's display first: a large round preview, simp
 
 ## Visual language
 
-Graphite, neutral surfaces, vivid teal accents, large tabular readings and soft 28 dp cards. The round preview uses the gauge firmware's near-black background, text, track, teal normal state, amber warning and red critical state. Light mode uses warm white surfaces and a darker teal for readable action text. Android dynamic colour is optional and affects app chrome only. Warning, critical and round-preview colours retain fixed meanings. Colour is always paired with an icon and a human sentence.
+Graphite, neutral surfaces, vivid green accents, large tabular readings and soft 28 dp cards. The round preview uses the gauge firmware's near-black background, text, track, green normal state, amber warning and red critical state. Light mode uses warm white surfaces and a darker green for readable action text. Android dynamic colour is optional and affects app chrome only. Warning, critical and round-preview colours retain fixed meanings. Colour is always paired with an icon and a human sentence.
 
 [Tokens](../../design/tokens.json) have separate `android` roles for light/dark colours, type, spacing, shape, motion and adaptive breakpoints. `tools/generate_design_tokens.py` generates Android values and browser CSS; `--check` detects drift. The preview arc uses the firmware's thicker stroke and track colour while keeping its own simulated layout. This palette update does not change firmware.
 
@@ -19,15 +19,15 @@ Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp i
 ## Trust and status
 
 - Foreground discovery and owner reconnection are automatic. **Gauge ready** requires a recent protected check; it does not claim a persistent connection or live readings. Searching, reconnecting, Bluetooth-off and permission states remain explicit. Only initial code association and ambiguous gauge selection require a choice.
-- The Gauge pill carries routine ready status and opens Updates when a newer signed package is verified. Routine connection checks do not add or remove a saved-status card. Warning, offline, stale, critical and error cards remain visible.
+- The universal connection pill appears on every page. It opens independent phone/gauge/adapter status and links to Updates when appropriate. Routine reconnecting stays here; task failures, stale settings, partial fault checks and unknown mutations remain visible in their relevant surface.
 - Example values and histories always say **Preview** or **Example** next to that content.
 - **Saved & running on gauge** requires the expected running revision and hash, trial cleared and no previous-generation recovery. A stored readback or 100% transfer cannot claim this.
-- Sending, restarting and checking remain distinct stages. The operation stays visible across destinations. Only a gauge-confirmed success can be dismissed, manually or after six seconds; failures, rollbacks and unknown outcomes remain until the user checks them.
+- Sending, restarting and checking remain distinct stages. Updates owns detailed update progress; other destinations retain the shared activity entry point. Only a gauge-confirmed success can be dismissed, manually or after six seconds; failures, rollbacks and unknown outcomes remain until the user checks them.
 - Signed development packages may be checked and downloaded during an authenticated foreground session. Installation always requires a tap. A failed release is held for that gauge to avoid repeated prompts.
 - Critical alerts, stale/offline readings, errors, rollback and unknown outcomes remain in the default path.
 - Automatic reconnection may refresh the protected readback before reviewing an unknown result. Never replay a commit automatically.
 - A changed page, layout or limit returns to unsent status. Browsing the page carousel must not create an edit.
-- Unimplemented adapter setup, live data, code clearing and public updates use truthful empty states.
+- Adapter setup is available through Car. Live companion telemetry and code clearing remain unavailable; previews stay labeled examples. Public capability qualification remains separate from development paths.
 
 ## Components and copy
 
@@ -46,3 +46,21 @@ The [native gallery](../../design/prototype/native.html) shows 64 reviewed scree
 Android implementation uses [Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3), [adaptive navigation](https://developer.android.com/develop/adaptive-apps/guides/build-adaptive-navigation) and [predictive back](https://developer.android.com/develop/ui/compose/system/predictive-back). See the [validation record](../development/android-core-ux-validation.md) for the current measured result.
 
 Gauge-side legibility and safe circular geometry remain documented in [round-display guidelines](round-display-ui-guidelines.md). This redesign introduces no LVGL or firmware changes.
+
+## Current component and messaging rules
+
+Compact titles and large text place the connection pill beneath the heading; expanded
+layouts can share a row. Settings and profile dialogs use `DialogContent` so choices
+scroll without hiding native actions. Settings choices are keyed to gauge identity.
+Shared controls use the existing radius/spacing tokens; explicit renderer geometry
+is not replaced with arbitrary app layout tokens. Home exposes edit, next and
+previous page accessibility actions alongside touch gestures.
+
+One logical vehicle may contain an optional second adapter. A combined fault card
+labels source sections and preserves each status; a healthy engine never certifies
+transmission checks. Exact category coverage and raw snapshots stay in Expert.
+Disabled stale settings say Last checked. Global notices are reserved for actionable
+profile/association/preference failures, not each routine connection retry.
+
+See [product assessment and implementation evidence](../development/product-optimization.md)
+for the prioritized review, simplified workflows and remaining qualification.

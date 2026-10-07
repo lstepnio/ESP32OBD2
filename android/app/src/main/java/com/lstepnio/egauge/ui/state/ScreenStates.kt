@@ -27,7 +27,7 @@ enum class UpdateNotice { None, Ready, NeedsCheck }
 data class HomeUiState(val gaugeName: String, val connection: String, val connectionVerified: Boolean,
     val status: StatusUi, val pages: List<PageUi>, val pendingChanges: Boolean,
     val primaryLabel: String, val primaryAction: HomeAction, val busy: Boolean, val details: List<DetailUi>,
-    val updateNotice: UpdateNotice = UpdateNotice.None)
+    val updateNotice: UpdateNotice = UpdateNotice.None, val showStatus: Boolean = true)
 enum class HomeAction { SetUp, Check, Review, Customize }
 @Immutable
 data class CustomizeUiState(val pages: List<PageUi>, val editingPage: Int, val readings: List<ReadingUi>,
@@ -40,7 +40,7 @@ data class VehicleUi(val id: String, val name: String)
 @Immutable
 data class FaultUi(val code: String, val description: String, val category: String)
 @Immutable
-data class FaultCategoryUi(val name: String, val status: String, val faults: List<FaultUi>)
+data class FaultCategoryUi(val name: String, val status: String, val faults: List<FaultUi>, val incomplete: Boolean = false)
 @Immutable
 data class FaultSourceUi(val title: String, val status: StatusUi, val categories: List<FaultCategoryUi>)
 @Immutable

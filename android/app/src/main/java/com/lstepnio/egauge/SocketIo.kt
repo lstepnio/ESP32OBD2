@@ -16,16 +16,20 @@ import kotlin.coroutines.resumeWithException
  * Failed exchanges invalidate the transport. Callers must reconcile uncertain writes.
  */
 internal suspend fun <T> socketIo(socket: Socket, timeoutMs: Long, block: () -> T): T =
+    resourceIo(timeoutMs, { socket.close() }, block)
+
+/** Cancellation retires the resource and waits for its IO child before returning. */
+internal suspend fun <T> resourceIo(timeoutMs: Long, close: () -> Unit, block: () -> T): T =
     withTimeout(timeoutMs) {
         coroutineScope {
             suspendCancellableCoroutine { continuation ->
-                continuation.invokeOnCancellation { runCatching { socket.close() } }
+                continuation.invokeOnCancellation { runCatching { close() } }
                 launch(Dispatchers.IO) {
                     try {
                         ensureActive()
                         continuation.resume(block())
                     } catch (error: Exception) {
-                        runCatching { socket.close() }
+                        runCatching { close() }
                         continuation.resumeWithException(error)
                     }
                 }

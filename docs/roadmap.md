@@ -48,3 +48,11 @@ Complete display/swipe observation and single-adapter ECM/TCM port-switch check 
 adapters are still required for the independent loss/recovery and radio coexistence
 matrix. TCM alerts and single-transport TCM fault polling remain follow-up work;
 existing calibration-specific values do not establish broader vehicle support.
+
+## Product quality follow-up
+
+The [product optimization review](development/product-optimization.md) records
+implemented shared UX/recovery improvements and remaining ranked work. Next gates
+are longer frame/memory/energy profiling, incremental typed transport failures and
+TalkBack/keyboard/OEM/fold qualification. Preserve authoritative mutation outcomes
+and independently unavailable child data when simplifying future interfaces.

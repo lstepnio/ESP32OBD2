@@ -88,3 +88,8 @@ when changing the App or firmware. Shared status UI, automatic settings reads, b
 foreground retries, independent adapter status and negative-scenario verification are
 project defaults. The document maps the implementation and distinguishes source tests
 from remaining hardware qualification.
+
+The [product optimization review](development/product-optimization.md) owns the current
+screen/journey assessment, ranked backlog, shared UI standards and measurements.
+Routine connection recovery uses the shared pill; actionable mutation/security
+outcomes remain visible. Keep dialogs scrollable and unsaved state keyed to gauge/vehicle.

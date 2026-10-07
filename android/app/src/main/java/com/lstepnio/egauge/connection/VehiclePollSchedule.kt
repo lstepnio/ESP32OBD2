@@ -1,7 +1,7 @@
 package com.lstepnio.egauge.connection
 
 /** Read-only foreground polling. A failure never invalidates an independently checked gauge. */
-class VehiclePollSchedule {
+class VehiclePollSchedule(private val retryDelay: (Long) -> Long = { jitteredRetryDelay(it) }) {
     private var key: String? = null
     private var failures = 0
     private var nextAt = 0L
@@ -12,7 +12,7 @@ class VehiclePollSchedule {
     }
     fun completed(now: Long, healthy: Boolean) {
         failures = if (healthy) 0 else (failures + 1).coerceAtMost(5)
-        nextAt = now + if (healthy) 20_000L else reconnectDelayMs(failures)
+        nextAt = now + if (healthy) 20_000L else retryDelay(reconnectDelayMs(failures))
     }
     fun pause(now: Long): Long = (nextAt - now).coerceIn(1_000L, 20_000L)
 }

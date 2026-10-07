@@ -12,12 +12,14 @@ import kotlinx.coroutines.flow.collectLatest
 class ForegroundConnectionController(
     scope: CoroutineScope,
     private val coordinator: OperationCoordinator,
+    private val onUnexpectedFailure: (Exception) -> Unit = {},
     private val attempt: suspend () -> Long,
 ) {
     private val foreground = MutableStateFlow(false)
     private val wake = Channel<Unit>(Channel.CONFLATED)
     private var automatic: Job? = null
     private var userOperations = 0
+    private var unexpectedFailures = 0
 
     init {
         scope.launch {
@@ -27,8 +29,17 @@ class ForegroundConnectionController(
                     var pauseMs = 1_000L
                     coroutineScope {
                         val job = launch(start = CoroutineStart.LAZY) {
-                            try { pauseMs = coordinator.run(OperationKind.READ) { attempt() } }
+                            try {
+                                pauseMs = coordinator.run(OperationKind.READ) { attempt() }
+                                unexpectedFailures = 0
+                            }
                             catch (_: OperationBusyException) { /* A user operation owns the lease. */ }
+                            catch (cancelled: CancellationException) { throw cancelled }
+                            catch (error: Exception) {
+                                unexpectedFailures = (unexpectedFailures + 1).coerceAtMost(5)
+                                onUnexpectedFailure(error)
+                                pauseMs = jitteredRetryDelay(reconnectDelayMs(unexpectedFailures))
+                            }
                         }
                         automatic = job
                         try { job.start(); job.join() }
@@ -79,4 +90,10 @@ fun reconnectDelayMs(failures: Int): Long = when (failures) {
     3 -> 10_000
     4 -> 20_000
     else -> 30_000
+}
+
+/** Equal jitter spreads independent retries while preserving a meaningful minimum delay. */
+fun jitteredRetryDelay(delayMs: Long, sample: Double = kotlin.random.Random.nextDouble()): Long {
+    require(sample in 0.0..1.0)
+    return (delayMs * (0.8 + 0.2 * sample)).toLong().coerceIn(1_000, 30_000)
 }

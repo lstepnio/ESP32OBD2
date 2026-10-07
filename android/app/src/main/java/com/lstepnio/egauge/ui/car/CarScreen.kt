@@ -20,38 +20,35 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
     var profilesOpen by rememberSaveable { mutableStateOf(false) }
     var adapterOpen by rememberSaveable { mutableStateOf(false) }
     var actionsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
-    var coverageOpen by rememberSaveable { mutableStateOf(false) }
     ScreenContent(scrollKey = state.activeId) {
         ScreenTitle("Car")
         ResponsivePanels(first = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Panel {
-                    SectionTitle(state.faultSources.firstOrNull()?.title?.let { "$it faults" } ?: "Vehicle faults")
-                    Text(state.status.title, style = MaterialTheme.typography.titleMedium,
-                        color = if (state.status.tone == StatusTone.Critical) LocalSemanticColors.current.critical
-                            else MaterialTheme.colorScheme.onSurface)
-                    Text(state.status.detail, style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    state.faults.forEach { fault ->
-                        HorizontalDivider()
-                        Text(fault.code, style = MaterialTheme.typography.headlineSmall)
-                        Text(fault.description, style = MaterialTheme.typography.bodyLarge)
-                        Text(fault.category, style = MaterialTheme.typography.labelMedium,
+                    SectionTitle("Vehicle faults")
+                    val sources = state.faultSources.ifEmpty {
+                        listOf(com.lstepnio.egauge.ui.state.FaultSourceUi("Vehicle", state.status,
+                            listOf(com.lstepnio.egauge.ui.state.FaultCategoryUi("", "", state.faults))))
+                    }
+                    sources.forEachIndexed { index, source ->
+                        if (index > 0) HorizontalDivider()
+                        if (sources.size > 1) SectionTitle(source.title)
+                        Text(source.status.title, style = MaterialTheme.typography.titleMedium,
+                            color = if (source.status.tone == StatusTone.Critical) LocalSemanticColors.current.critical
+                                else MaterialTheme.colorScheme.onSurface)
+                        if (source.status.detail.isNotBlank()) Text(source.status.detail,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        source.categories.flatMap { it.faults }.forEach { fault ->
+                            HorizontalDivider()
+                            Text(fault.code, style = MaterialTheme.typography.headlineSmall)
+                            Text(fault.description, style = MaterialTheme.typography.bodyLarge)
+                            Text(fault.category, style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                     if (state.incomplete) Text("Partial code list. More codes may be present.",
                         style = MaterialTheme.typography.bodyMedium, color = LocalSemanticColors.current.warning)
-                    if (state.faultSources.any { it.categories.isNotEmpty() }) {
-                        TextButton({ coverageOpen = !coverageOpen }) {
-                            Text(if (coverageOpen) "Hide check coverage" else "Check coverage")
-                        }
-                        if (coverageOpen) state.faultSources.forEach { source ->
-                            source.categories.forEach { category ->
-                                Text("${category.name}: ${category.status}", style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
                 }
             }
         }, second = {
@@ -112,7 +109,7 @@ private fun ProfileDialog(state: CarUiState, onDismiss: () -> Unit,
     var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val duplicate = state.profiles.any { it.name.equals(name.trim(), true) }
     if (deleteId == null) AlertDialog(onDismissRequest = onDismiss, title = { Text("Your cars") }, text = {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        DialogContent {
             state.profiles.forEach { profile ->
                 Row(Modifier.fillMaxWidth()) {
                     TextButton({ onSelect(profile.id); onDismiss() }, Modifier.weight(1f), enabled = state.canManageVehicles) {

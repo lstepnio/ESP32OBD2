@@ -32,12 +32,17 @@ fun diagnosticSources(data: GaugeConfigTransferClient.Diagnostics?, elapsedSince
             }
             FaultCategoryUi(category.name, status, category.codes.map {
                 FaultUi(it, faultDescription(it), if (current) category.name else "Last checked · ${category.name}")
-            })
+            }, incomplete = category.truncated || data.categories == null)
         }
+        val partial = categories.any { it.availability != DiagnosticAvailability.Unsupported &&
+            (it.availability == DiagnosticAvailability.Unavailable || !it.known ||
+                !diagnosticCategoryAgeCurrent(it, elapsedSinceRead) || it.truncated) }
         val status = when {
             !data.connected -> StatusUi("Adapter disconnected", "Previously read codes are shown as last checked.", StatusTone.Stale)
             !receiptCurrent -> StatusUi("Refreshing faults", "Last checked codes remain visible while we reconnect.", StatusTone.Stale)
             milCurrent && data.milOn -> StatusUi("$title reports a warning", "${data.reportedCount} codes reported by this controller. Review the lists below.", StatusTone.Critical)
+            milCurrent && partial -> StatusUi("$title faults partially checked",
+                "Warning lamp is off. Some fault checks are unavailable or out of date.", StatusTone.Stale)
             milCurrent -> StatusUi("$title warning is off", "Last checked controller status. Other fault categories may still contain codes.", StatusTone.Success)
             else -> StatusUi("Warning status unavailable", "Review the fault lists below; no current warning-lamp status was established.", StatusTone.Stale)
         }
@@ -49,4 +54,12 @@ private fun checkedAgo(ageMs: Long): String = when {
     ageMs < 1000 -> "Checked just now"
     ageMs < 60_000 -> "Checked ${ageMs / 1000} seconds ago"
     else -> "Checked ${ageMs / 60_000} minutes ago"
+}
+
+/** One healthy controller must not conceal a sibling's unavailable check or warning. */
+fun vehicleFaultStatus(sources: List<FaultSourceUi>): StatusUi {
+    val priority = listOf(StatusTone.Critical, StatusTone.Error, StatusTone.Stale,
+        StatusTone.Offline, StatusTone.Disabled, StatusTone.Loading, StatusTone.Neutral, StatusTone.Success)
+    return sources.minByOrNull { priority.indexOf(it.status.tone) }?.status
+        ?: StatusUi("Waiting for car", "Fault checks start when the car is connected.", StatusTone.Disabled)
 }
