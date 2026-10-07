@@ -13,6 +13,7 @@ from pathlib import Path
 from obd_capture import (AdapterSession, BLE_PROFILES, DEFAULT_OUTPUT, Recording,
                          choose_adapter, save_private)
 from obd_capture_core import STANDARD_PIDS, allowed_command, support_replies, supports
+from obd_temperature_candidate import COMMAND, decode_candidate
 
 IDENTITY_COMMANDS = frozenset(('0900', '0904', '0906', '090A'))
 MONITOR_SETUP = frozenset(('ATTP0', 'ATTP6', 'ATTP7', 'ATCSM1', 'ATCAF0', 'ATCAF1', 'ATCRA'))
@@ -20,6 +21,32 @@ MONITOR_SETUP = frozenset(('ATTP0', 'ATTP6', 'ATTP7', 'ATCSM1', 'ATCAF0', 'ATCAF
 
 def exploration_policy(command):
     return allowed_command(command) or command in IDENTITY_COMMANDS or command in MONITOR_SETUP
+
+
+def candidate_policy(command):
+    return exploration_policy(command) or command in (COMMAND, 'ATSH7E0', 'ATSH7DF')
+
+
+async def temperature_probe(session):
+    """One published route, three bounded reads, no alternate identifiers or sessions."""
+    samples = []
+    try:
+        await setup(session, ('ATSH7E0',))
+        for index in range(3):
+            raw = await session.request(COMMAND, timeout=5)
+            sample = {'raw_hex': raw.hex(), 'qualified': False}
+            try:
+                sample.update(decode_candidate(raw))
+            except ValueError as error:
+                sample.update(status='rejected', reason=str(error))
+            samples.append(sample)
+            if index < 2:
+                await asyncio.sleep(1)
+    finally:
+        if not session.waiting_prompt:
+            await setup(session, ('ATSH7DF',))
+    return {'request_id': '7E0', 'expected_response_id': '7E8', 'request': COMMAND,
+            'qualified': False, 'samples': samples}
 
 
 async def setup(session, commands):
@@ -95,7 +122,7 @@ async def explore(args):
     from bleak import BleakClient
     device = await choose_adapter(args.adapter)
     recording = Recording(args.output, args.source, 'mac_ble')
-    session = AdapterSession(recording, policy=exploration_policy)
+    session = AdapterSession(recording, policy=candidate_policy if args.hemi_temperature else exploration_policy)
     result = {'physical_port': args.source, 'identity': {}, 'monitor': [],
               'limit': 'Raw identity and CAN evidence; no enhanced transmission meaning inferred.'}
     monitoring = False
@@ -160,6 +187,12 @@ async def explore(args):
                             await session.request(f'01{pid:02X}', timeout=5)
                             await asyncio.sleep(.15)
                 save_private(recording.directory / 'diagnostic-discovery.json', result)
+                if args.hemi_temperature:
+                    selected = bytes.fromhex(result['protocol_number_hex']).strip(b'\r\n >')
+                    if selected not in (b'6', b'A6'):
+                        raise ValueError('Temperature candidate requires the observed 11-bit 500 kbit/s protocol')
+                    print('Testing the published Hemi temperature candidate; values remain unqualified.', flush=True)
+                    result['temperature_candidate'] = await temperature_probe(session)
                 if args.monitor:
                     for protocol in ('6', '7'):
                         await setup(session, (f'ATTP{protocol}', 'ATCSM1', 'ATCAF0', 'ATCRA'))
@@ -178,7 +211,8 @@ async def explore(args):
                 result['adapter_restored'] = False
                 if not session.waiting_prompt:
                     try:
-                        await setup(session, ('ATCAF1', 'ATTP0'))
+                        restore = ('ATSH7DF', 'ATCAF1', 'ATTP0') if args.hemi_temperature else ('ATCAF1', 'ATTP0')
+                        await setup(session, restore)
                         result['adapter_restored'] = True
                     except (ValueError, OSError) as error:
                         result['restore_error'] = str(error)
@@ -197,7 +231,11 @@ def main():
     parser.add_argument('--adapter', required=True, help='Previously physically identified macOS BLE ID')
     parser.add_argument('--output', type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument('--monitor', action='store_true', help='Add bounded silent 11/29-bit CAN captures')
+    parser.add_argument('--hemi-temperature', action='store_true',
+                        help='Opt in to three unqualified published 229110 reads on 7E0 only')
     args = parser.parse_args()
+    if args.hemi_temperature and args.source != 'engine':
+        parser.error('--hemi-temperature uses the published engine-controller route; choose --source engine')
     asyncio.run(explore(args))
 
 

@@ -4,6 +4,8 @@ Researched 2026-10-06, America/Denver. Target: owner-reported 2010 Wrangler, 5.7
 
 ## Findings
 
+Further research found a ScanGauge temperature candidate for newer Hemi applications. It targets 7E0 rather than the observed TCM route and has not been tested on this Jeep. A host-only decoder and fixed opt-in probe are prepared; actual gear still needs a matching definition. See [candidate analysis and validation session](hemi-transmission-candidates.md).
+
 Update after direct Mac exploration: corrected transmission placement returned 7E9, calibration 68274867AE, CVN 8240DAE8 and name TCM - TransmisCtrl. A partial 11-bit CAN sample retained 126 frame lines across 32 identifiers before BUFFER FULL. This supplies a concrete FCA diagnostic lead, but no verified fluid-temperature or gear definition. See [direct exploration results](jeep-direct-exploration-results.md) for sources and limits. Legacy PCS mappings below remain unqualified.
 
 The owner now confirms a Jeep Speed Shop setup. JSS explicitly describes its eight-speed gear indicator as compatible with its PCS kit and displaying gears 1 through 8. Its swap kit includes wiring and a module, but the public listing does not specify the module hardware number, firmware, diagnostic requests, or signal map. [JSS gear indicator](https://jeepspeedshop.com/product/gear-indicator/), [JSS swap kit](https://jeepspeedshop.com/product/8-speed-transmission-swap/).
