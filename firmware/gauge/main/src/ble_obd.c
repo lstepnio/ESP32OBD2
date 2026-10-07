@@ -85,12 +85,13 @@ struct ble_obd_ctx
  * service definitions, RX state, transaction lock, and connection generation. */
 static ble_obd_ctx_t sources[2];
 
-static ble_mgr_status_t send_command(ble_obd_ctx_t *obd, const char *command)
+static ble_mgr_status_t send_command_budget(ble_obd_ctx_t *obd, const char *command, TickType_t remaining)
 {
+    if (!remaining) return BLE_MGR_E_TIMEOUT;
     uint32_t generation = atomic_load(&obd->generation);
     obd_trace_emit(obd->source_id, generation, "tx", command, strlen(command), 0);
-    ble_mgr_status_t status = ble_mgr_send(obd->mgr_ctx, obd->chars[0].handle,
-                                          command, strlen(command));
+    ble_mgr_status_t status = ble_mgr_send_with_timeout(obd->mgr_ctx, obd->chars[0].handle,
+                                          command, strlen(command), pdTICKS_TO_MS(remaining) ? pdTICKS_TO_MS(remaining) : 1);
     if (status != BLE_MGR_E_OK)
         obd_trace_emit(obd->source_id, generation, "tx_failed", NULL, 0, status);
     return status;
@@ -179,6 +180,7 @@ static bool adapter_command(ble_obd_ctx_t *obd, const char *command, uint32_t ti
 {
     TickType_t budget = pdMS_TO_TICKS(timeout_ms);
     if (!budget) budget = 1;
+    TickType_t start = xTaskGetTickCount();
     if (xSemaphoreTake(obd->mutex, budget) != pdTRUE) return false;
     bool ok = false;
     uint32_t generation = atomic_load(&obd->generation);
@@ -186,9 +188,9 @@ static bool adapter_command(ble_obd_ctx_t *obd, const char *command, uint32_t ti
     obd->awaiting_prompt = false;
     if (!drain_rx(obd)) goto done;
     elm_response_reset(&obd->response);
-    if (send_command(obd, command) != BLE_MGR_E_OK) goto done;
+    if (send_command_budget(obd, command, obd_wait_remaining(start, xTaskGetTickCount(), budget)) != BLE_MGR_E_OK) goto done;
     obd->awaiting_prompt = true;
-    if (!wait_for_prompt(obd, budget) || atomic_load(&obd->rx_overflow) ||
+    if (!wait_for_prompt(obd, obd_wait_remaining(start, xTaskGetTickCount(), budget)) || atomic_load(&obd->rx_overflow) ||
         atomic_load(&obd->generation) != generation) goto done;
     if (strstr(obd->response.text, "?") || strstr(obd->response.text, "ERROR") ||
         strstr(obd->response.text, "UNABLE TO CONNECT") ||
@@ -351,7 +353,7 @@ static bool select_request_header_locked(ble_obd_ctx_t *obd, uint16_t header,
     snprintf(command, sizeof(command), "ATSH%03X\r", header);
     elm_response_reset(&obd->response);
     obd->request_header = 0; // An uncertain header must never be reused.
-    if (send_command(obd, command) != BLE_MGR_E_OK) return false;
+    if (send_command_budget(obd, command, obd_wait_remaining(start, xTaskGetTickCount(), budget)) != BLE_MGR_E_OK) return false;
     obd->awaiting_prompt = true;
     if (!wait_for_prompt(obd, obd_wait_remaining(start, xTaskGetTickCount(), budget)) ||
         atomic_load(&obd->rx_overflow) || atomic_load(&obd->generation) != obd->active_generation ||
@@ -403,7 +405,7 @@ int ble_obd_rxtx_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid,
     char command[8];
     if (mode == 0x22) snprintf(command, sizeof(command), "22%04X\r", pid);
     else snprintf(command, sizeof(command), "%02X%02X\r", mode, pid);
-    if (send_command(obd, command) != BLE_MGR_E_OK) goto done;
+    if (send_command_budget(obd, command, obd_wait_remaining(start, xTaskGetTickCount(), budget)) != BLE_MGR_E_OK) goto done;
     obd->awaiting_prompt = true;
     if (!wait_for_prompt(obd, obd_wait_remaining(start, xTaskGetTickCount(), budget))) {
         obd->consecutive_timeouts = 1;
@@ -480,7 +482,7 @@ int ble_obd_read_service_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t e
     elm_response_reset(&obd->response);
     char command[4];
     snprintf(command, sizeof(command), "%02X\r", mode);
-    if (send_command(obd, command) != BLE_MGR_E_OK) goto done;
+    if (send_command_budget(obd, command, obd_wait_remaining(start, xTaskGetTickCount(), budget)) != BLE_MGR_E_OK) goto done;
     obd->awaiting_prompt = true;
     if (!wait_for_prompt(obd, obd_wait_remaining(start, xTaskGetTickCount(), budget))) {
         obd->consecutive_timeouts = 1;

@@ -118,3 +118,10 @@ UI fixtures do not establish physical port switching or dual-radio liveness.
 - Signed dev.45 publication, App/Wi-Fi installation, physical ECM/TCM port switching
   and independent two-adapter absence/recovery are still pending. Do not describe
   those source/offline results as physical qualification.
+
+- Final transport review propagated the remaining operation budget through ATT
+  write completion as well as the CAN header/prompt waits. The existing 2-second
+  default remains for other manager callers. A timed-out ATT write still retires
+  the link; late completion generations remain rejected. Final firmware build passed.
+- Final phone preferences still matched the pre-install baseline after protected
+  readback; original Pixel wake settings were restored. App dev.44 remains installed.

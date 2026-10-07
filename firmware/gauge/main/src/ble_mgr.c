@@ -817,7 +817,17 @@ static int write_completed(uint16_t conn_handle, const struct ble_gatt_error *er
 
 ble_mgr_status_t ble_mgr_send(ble_mgr_ctx_t *mgr_ctx, uint16_t chr_handle, const char *data, size_t len)
 {
+    return ble_mgr_send_with_timeout(mgr_ctx, chr_handle, data, len, 2000);
+}
+
+ble_mgr_status_t ble_mgr_send_with_timeout(ble_mgr_ctx_t *mgr_ctx, uint16_t chr_handle,
+                                          const char *data, size_t len, uint32_t timeout_ms)
+{
     if (!mgr_ctx || !data || !mgr_ctx->disc_cfg) return BLE_MGR_E_NULL;
+    if (!timeout_ms) return BLE_MGR_E_TIMEOUT;
+    TickType_t start = xTaskGetTickCount();
+    TickType_t budget = pdMS_TO_TICKS(timeout_ms);
+    if (!budget) budget = 1;
     API_LOCK_OR_RETURN(mgr_ctx, BLE_MGR_E_API_LOCK_ERROR);
     if (!atomic_load(&mgr_ctx->is_connected) || atomic_load(&central_paused) ||
         atomic_load(&mgr_ctx->write_inflight))
@@ -847,7 +857,9 @@ ble_mgr_status_t ble_mgr_send(ble_mgr_ctx_t *mgr_ctx, uint16_t chr_handle, const
         return API_UNLOCK(mgr_ctx, BLE_MGR_E_GATT_SEND_FAILED);
     }
     ble_mgr_status_t status;
-    if (xQueueReceive(mgr_ctx->write_result, &status, pdMS_TO_TICKS(2000)) != pdTRUE) {
+    TickType_t elapsed = xTaskGetTickCount() - start;
+    TickType_t remaining = elapsed < budget ? budget - elapsed : 0;
+    if (xQueueReceive(mgr_ctx->write_result, &status, remaining) != pdTRUE) {
         /* Never reuse the link after an uncertain ATT write completion. */
         ble_mgr_disconnect(mgr_ctx);
         status = BLE_MGR_E_TIMEOUT;
