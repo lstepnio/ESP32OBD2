@@ -51,8 +51,12 @@ int ble_obd_read_service_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t ecu,
 /* Persisted selection includes BLE address type. Changing it invalidates the link. */
 ble_obd_ctx_t *ble_obd_connect_bound(unsigned source_id, const char *peer_mac, uint8_t address_type,
                                      ble_obd_response_cb_t response_cb, void *usr_ctx);
-int ble_obd_rxtx_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint8_t pid, uint32_t ecu, uint32_t timeout_ms);
+int ble_obd_rxtx_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid, uint32_t ecu, uint32_t timeout_ms);
 void ble_obd_disconnect(ble_obd_ctx_t *obd);
 
 ble_obd_ctx_t *ble_obd_connect_profile(unsigned source_id, const char *peer_mac, uint8_t address_type,
     const char *driver, ble_obd_response_cb_t response_cb, void *usr_ctx);
+
+/* One active source, explicitly initialized for ECM or TCM. TCM uses 7E1/7E9. */
+ble_obd_ctx_t *ble_obd_connect_profile_ecu(unsigned source_id, const char *peer_mac, uint8_t address_type,
+    const char *driver, uint32_t ecu, ble_obd_response_cb_t response_cb, void *usr_ctx);

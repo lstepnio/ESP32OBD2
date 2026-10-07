@@ -9,6 +9,34 @@ class AdapterIntegrationTest {
     private val adapter = AdapterBinding("adapter-aabbccddeeff", "AA:BB:CC:DD:EE:FF", "random")
     private fun template() = File("src/main/assets/numeric_config_template.json").readText()
 
+    @Test fun experimentalTcmProfileProjectsTheCapturedRouteAndKeepsEngineSetupSeparate() {
+        val draft = Draft(pidId = "tcmtemp", source = "TCM", pages = listOf(
+            GaugePageDraft("page.tcm", "TCM temp (test)", GaugeLayout.Numeric, listOf("tcmtemp"))), alerts = emptyList())
+        val (_, bytes) = ConfigurationProjector.project(template(), draft, "jss-tcm-test", 21, adapter, 2)
+        val json = JSONObject(bytes.toString(Charsets.UTF_8))
+        assertEquals("tcm", json.getJSONArray("sources").getJSONObject(0).getString("role"))
+        assertTrue(json.getJSONArray("sources").getJSONObject(0).getString("label").length <= 32)
+        assertEquals("TCM temperature (experimental)", com.lstepnio.egauge.ui.state.readingName("tcmtemp"))
+        val definition = json.getJSONArray("definitions").getJSONObject(0)
+        assertEquals("04FE", definition.getJSONObject("request").getString("identifier"))
+        assertEquals("7E1", definition.getJSONObject("request").getString("requestId"))
+        assertEquals("7E9", definition.getJSONObject("request").getString("responseId"))
+        assertEquals(3, definition.getJSONObject("response").getInt("minPayloadBytes"))
+        assertEquals(1, definition.getJSONObject("decoder").getInt("byteLength"))
+        assertEquals(draft, GaugeDraftComparison.savedDraft(GaugeConfigTransferClient.ActiveDocument(
+            22, "0".repeat(64), bytes.size, "jss-tcm-test", 1, 1, 0, json.toString()), "jss-tcm-test"))
+        assertTrue(ConfigurationProjector.blockers(draft.copy(source = "ECM")).isNotEmpty())
+        assertTrue(ConfigurationProjector.blockers(draft.copy(alerts = listOf(defaultAlert()))).isNotEmpty())
+        assertThrows(IllegalArgumentException::class.java) {
+            ConfigurationProjector.project(template(), draft, "jss-tcm-test", 21)
+        }
+        val engine = JSONObject(ConfigurationProjector.project(template(), Draft(), "engine", 21, adapter, 2).second.toString(Charsets.UTF_8))
+        assertEquals("ecm", engine.getJSONArray("sources").getJSONObject(0).getString("role"))
+        assertTrue((0 until engine.getJSONArray("definitions").length()).all {
+            engine.getJSONArray("definitions").getJSONObject(it).getString("sourceId") == "ecm"
+        })
+    }
+
     @Test fun oldProfilesMigrateWithoutInventingAnAdapterAndNewProfilesKeepTheirSelection() {
         val collection = ProfileCollection("default", listOf(VehicleProfile("default", "Jeep", Draft(), adapter)))
         val encoded = ProfileDocumentCodec.encode(collection)

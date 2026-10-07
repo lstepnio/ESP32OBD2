@@ -38,6 +38,7 @@ data class ConfigurationProjection(
 object ConfigurationProjector {
     val supportedPidIds = setOf("rpm", "coolant", "speed", "load", "fuel")
     private val definitionIds = mapOf(
+        "tcmtemp" to "transmission.temperature.experimental",
         "rpm" to "engine.rpm",
         "coolant" to "engine.coolant",
         "speed" to "vehicle.speed",
@@ -46,7 +47,11 @@ object ConfigurationProjector {
     )
 
     fun blockers(draft: Draft): List<String> = buildList {
-        if (draft.source != "ECM") add("The current firmware can send only the primary vehicle adapter")
+        if (draft.source == "TCM") {
+            if (!BuildConfig.DEBUG || draft.pages.any { it.pidIds != listOf("tcmtemp") } || draft.alerts.isNotEmpty())
+                add("The experimental TCM setup supports only temperature pages without alerts")
+        } else if (draft.source != "ECM" || draft.pages.any { "tcmtemp" in it.pidIds } || draft.alerts.any { it.pidId == "tcmtemp" })
+            add("Engine and experimental TCM readings need separate profiles")
         if (draft.pages.size !in 1..8) add("Choose between one and eight gauge pages")
         if (draft.pages.map { it.id }.distinct().size != draft.pages.size)
             add("Every page needs a unique identity")
@@ -54,7 +59,7 @@ object ConfigurationProjector {
             val expected = if (page.layout == GaugeLayout.Dual) 2 else 1
             if (page.pidIds.size != expected || page.pidIds.distinct().size != page.pidIds.size)
                 add("Page ${index + 1} needs $expected distinct reading${if (expected == 1) "" else "s"}")
-            if (page.pidIds.any { it !in supportedPidIds })
+            if (page.pidIds.any { it !in (if (draft.source == "TCM" && BuildConfig.DEBUG) setOf("tcmtemp") else supportedPidIds) })
                 add("Page ${index + 1} contains a reading this firmware cannot execute")
             if (page.name.isBlank() || page.name.length > 32)
                 add("Page ${index + 1} needs a name of at most 32 characters")
@@ -87,6 +92,10 @@ object ConfigurationProjector {
         require(schemaVersion in 1..2 && (adapter == null || schemaVersion == 2))
         json.put("schemaVersion", schemaVersion)
         val source = json.getJSONArray("sources").getJSONObject(0)
+        if (draft.source == "TCM") {
+            require(schemaVersion == 2 && adapter != null) { "Select the TCM adapter before sending its experimental setup" }
+            source.put("id", "tcm").put("role", "tcm").put("label", "TCM adapter (experimental)")
+        }
         if (adapter != null) source.put("adapter", adapter.json()) else source.remove("adapter")
         json.put("baseRevision", baseRevision)
         json.put("vehicleProfileId", profileId)

@@ -368,17 +368,18 @@ static void obd_task(void *arg)
             const char *address = g_runtime && g_runtime->adapter_address[0]
                 ? g_runtime->adapter_address : CONFIG_EGAUGE_ECM_ADAPTER_MAC;
             uint8_t address_type = g_runtime ? g_runtime->adapter_address_type : 0;
-            obd = ble_obd_connect_profile(0, address, address_type,
-                g_runtime && g_runtime->simulated_adapter ? "elm-bench-v1" : "elm-18f0-v1", obd_response_cb, ui);
+            obd = ble_obd_connect_profile_ecu(0, address, address_type,
+                g_runtime && g_runtime->simulated_adapter ? "elm-bench-v1" : "elm-18f0-v1",
+                g_runtime && g_runtime->transmission_source ? 0x7e9 : 0x7e8, obd_response_cb, ui);
             if (!obd) {
-                ESP_LOGW(TAG, "ECM adapter unavailable; retrying in %" PRIu32 " ms",
+                ESP_LOGW(TAG, "Vehicle adapter unavailable; retrying in %" PRIu32 " ms",
                          reconnect_delay_ms);
                 vTaskDelay(pdMS_TO_TICKS(reconnect_delay_ms));
                 if (reconnect_delay_ms < 8000) reconnect_delay_ms *= 2;
                 last_wake = xTaskGetTickCount();
                 continue;
             }
-            ESP_LOGI(TAG, "ECM adapter link ready");
+            ESP_LOGI(TAG, "Vehicle adapter link ready");
             reconnect_delay_ms = 500;
             poll_scheduler_init(&scheduler);
             continue;
@@ -391,7 +392,8 @@ static void obd_task(void *arg)
             intervals[i] = g_runtime ? g_runtime->pids[i].poll_ms : 500;
         poll_job_t job = poll_scheduler_next(&scheduler, now_ms, intervals, count);
         if (job.kind == POLL_JOB_NONE) continue;
-        if (g_runtime && g_runtime->simulated_adapter && (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC)) continue;
+        if (g_runtime && (g_runtime->simulated_adapter || g_runtime->transmission_source) &&
+            (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC)) continue;
         if (job.kind == POLL_JOB_MIL) {
             ble_obd_rxtx_ecu(obd, 1, 0x01, 0x7e8, 700);
             continue;
@@ -407,7 +409,7 @@ static void obd_task(void *arg)
         }
 
         const obd_pid_cfg_t *requested = poll_cfg(job.index);
-        const uint8_t obd_mode = 0x01;  // OBD-II mode
+        const uint8_t obd_mode = g_runtime && g_runtime->transmission_source ? 0x22 : 0x01;
 
         int status = ble_obd_rxtx_ecu(obd, obd_mode, requested->pid,
             g_runtime ? g_runtime->pids[job.index].responder : ELM_ECU_ANY, timeout_ms);

@@ -59,6 +59,7 @@ struct ble_obd_ctx
 {
     ble_mgr_ctx_t *mgr_ctx;
     unsigned source_id;
+    uint32_t discovery_ecu;
     char peer_mac[18];
     uint8_t peer_address_type;
     ble_gatt_char_def_t chars[2];
@@ -195,7 +196,7 @@ static void transport_observe(const char *event, const void *data, size_t length
 static bool initialize_adapter(ble_obd_ctx_t *obd)
 {
     adapter_status_event(obd->source_id, atomic_load(&obd->generation), 3, 0);
-    static const char *const commands[] = {"ATE0\r", "ATL0\r", "ATS0\r", "ATH1\r", "ATSP0\r"};
+    static const char *const commands[] = {"ATE0\r", "ATL0\r", "ATS0\r", "ATH1\r", "ATCAF1\r", "ATSH7DF\r", "ATSP0\r"};
     for (size_t i = 0; i < ARRAY_SIZE(commands); ++i) {
         if (!adapter_command(obd, commands[i], 2000)) {
             adapter_status_event(obd->source_id, atomic_load(&obd->generation), 5, i+1);
@@ -208,19 +209,21 @@ static bool initialize_adapter(ble_obd_ctx_t *obd)
     for (unsigned base = 0; base <= 224; base += 32) {
         /* ATSP0 starts protocol discovery at the first vehicle request.
          * Do not let normal poll timeouts interrupt its SEARCHING reply. */
-        if (ble_obd_rxtx_ecu(obd, 1, base, 0x7e8, base == 0 ? 15000 : 1500) != 0) {
+        if (ble_obd_rxtx_ecu(obd, 1, base, obd->discovery_ecu, base == 0 ? 15000 : 1500) != 0) {
             if (obd->awaiting_prompt) {
                 adapter_status_event(obd->source_id, atomic_load(&obd->generation), 5, 6);
                 return false;
             }
+            if (obd->discovery_ecu == 0x7e9 && base == 0) return false;
             break;
         }
         if (obd->response.overflow) break;
         elm_payload_t map;
-        if (elm_response_decode_for_ecu(&obd->response, 1, base, 0x7e8, &map) != ELM_OK || map.length != 4) break;
-        adapter_status_support(obd->source_id, atomic_load(&obd->generation), 0x7e8, base, map.bytes, map.length);
+        if (elm_response_decode_for_ecu(&obd->response, 1, base, obd->discovery_ecu, &map) != ELM_OK || map.length != 4) break;
+        adapter_status_support(obd->source_id, atomic_load(&obd->generation), obd->discovery_ecu, base, map.bytes, map.length);
         if (!(map.bytes[3] & 1)) break;
     }
+    if (obd->discovery_ecu == 0x7e9 && !adapter_command(obd, "ATSH7E1\r", 2000)) return false;
     atomic_store(&obd->ready, true);
     adapter_status_event(obd->source_id, atomic_load(&obd->generation), 4, 0);
     return true;
@@ -233,9 +236,15 @@ static bool initialize_adapter(ble_obd_ctx_t *obd)
 ble_obd_ctx_t *ble_obd_connect_profile(unsigned source_id, const char *peer_mac, uint8_t address_type,
     const char *driver, ble_obd_response_cb_t response_cb, void *usr_ctx)
 {
+    return ble_obd_connect_profile_ecu(source_id, peer_mac, address_type, driver, 0x7e8, response_cb, usr_ctx);
+}
+
+ble_obd_ctx_t *ble_obd_connect_profile_ecu(unsigned source_id, const char *peer_mac, uint8_t address_type,
+    const char *driver, uint32_t ecu, ble_obd_response_cb_t response_cb, void *usr_ctx)
+{
     ESP_LOGD(TAG, "Connecting to BLE RX/TX service...");
 
-    if (source_id >= 2 || address_type > 1 || !peer_mac || strlen(peer_mac) >= sizeof(sources[0].peer_mac)) return NULL;
+    if ((ecu != 0x7e8 && ecu != 0x7e9) || source_id >= 2 || address_type > 1 || !peer_mac || strlen(peer_mac) >= sizeof(sources[0].peer_mac)) return NULL;
     const obd_adapter_profile_t *profile = obd_adapter_profile_find(driver);
     if (!profile) return NULL;
 #if !CONFIG_EGAUGE_OBD_TRACE
@@ -265,7 +274,7 @@ ble_obd_ctx_t *ble_obd_connect_profile(unsigned source_id, const char *peer_mac,
         obd->usr_ctx = usr_ctx;
         elm_response_reset(&obd->response);
     }
-    if (strcmp(obd->peer_mac, peer_mac) || obd->peer_address_type != address_type ||
+    if (obd->discovery_ecu != ecu || strcmp(obd->peer_mac, peer_mac) || obd->peer_address_type != address_type ||
         strcmp(obd->svc_def.service_uuid, profile->service)) {
         ble_mgr_disconnect(obd->mgr_ctx);
         atomic_store(&obd->ready, false);
@@ -276,6 +285,7 @@ ble_obd_ctx_t *ble_obd_connect_profile(unsigned source_id, const char *peer_mac,
         obd->chars[0].uuid = profile->tx;
         obd->chars[1].uuid = profile->rx;
     }
+    obd->discovery_ecu = ecu;
     if (!obd->mgr_ctx) obd->mgr_ctx = ble_mgr_init(source_id, 1000U);
     if (!obd->mgr_ctx) return NULL;
     if (ble_mgr_is_connected(obd->mgr_ctx)) {
@@ -314,9 +324,10 @@ ble_obd_ctx_t *ble_obd_connect_profile(unsigned source_id, const char *peer_mac,
     return obd;
 }
 
-int ble_obd_rxtx_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint8_t pid, uint32_t ecu, uint32_t timeout_ms)
+int ble_obd_rxtx_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid, uint32_t ecu, uint32_t timeout_ms)
 {
-    if (!obd || mode != 1 || !timeout_ms) return -1;
+    if (!obd || !timeout_ms || (mode != 1 && mode != 0x22) ||
+        (mode == 1 && pid > 255) || (mode == 0x22 && ecu != obd->discovery_ecu)) return -1;
     TickType_t budget = pdMS_TO_TICKS(timeout_ms);
     if (!budget) budget = 1;
     if (xSemaphoreTake(obd->mutex, budget) != pdTRUE) return -1;
@@ -342,8 +353,9 @@ int ble_obd_rxtx_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint8_t pid, uint32_t ecu
     rx_byte_t ignored;
     while (xQueueReceive(obd->rx, &ignored, 0) == pdTRUE) {}
     elm_response_reset(&obd->response);
-    char command[6];
-    snprintf(command, sizeof(command), "%02X%02X\r", mode, pid);
+    char command[8];
+    if (mode == 0x22) snprintf(command, sizeof(command), "22%04X\r", pid);
+    else snprintf(command, sizeof(command), "%02X%02X\r", mode, pid);
     if (send_command(obd, command) != BLE_MGR_E_OK) goto done;
     obd->awaiting_prompt = true;
     if (!wait_for_prompt(obd, budget)) {
@@ -352,11 +364,13 @@ int ble_obd_rxtx_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint8_t pid, uint32_t ecu
     }
     obd->consecutive_timeouts = 0;
     elm_payload_t payload;
-    elm_result_t decoded = elm_response_decode_for_ecu(&obd->response, mode, pid, ecu, &payload);
+    elm_result_t decoded = mode == 0x22
+        ? elm_response_decode_identifier(&obd->response, pid, ecu, &payload)
+        : elm_response_decode_for_ecu(&obd->response, mode, pid, ecu, &payload);
     obd_trace_emit(obd->source_id, obd->active_generation, "decoded", payload.bytes, payload.length, decoded);
     if (decoded == ELM_OK && !atomic_load(&obd->rx_overflow) &&
         atomic_load(&obd->generation) == obd->active_generation) {
-        if (obd->response_cb && pid % 32 != 0) obd->response_cb(pid, payload.bytes, payload.length, obd->usr_ctx);
+        if (obd->response_cb && (mode == 0x22 || pid % 32 != 0)) obd->response_cb(pid, payload.bytes, payload.length, obd->usr_ctx);
         result = 0;
     } else {
         ESP_LOGW(TAG, "Rejected PID %02X response (status=%d)", pid, decoded);

@@ -46,3 +46,8 @@ elm_result_t elm_response_decode_for_ecu(const elm_response_t *response, uint8_t
  * validate its reported DTC count, and return normalized two-byte code pairs. */
 elm_result_t elm_response_decode_dtcs_for_ecu(const elm_response_t *response, uint8_t mode,
                                             uint32_t ecu, elm_payload_t *payload);
+
+/* Headered 11-bit CAN single-frame Mode 22 read. Verify the full 16-bit DID;
+ * callers must also check the exact expected data length and sensor validity. */
+elm_result_t elm_response_decode_identifier(const elm_response_t *response, uint16_t identifier,
+                                             uint32_t ecu, elm_payload_t *payload);

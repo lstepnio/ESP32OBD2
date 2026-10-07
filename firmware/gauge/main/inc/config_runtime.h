@@ -61,6 +61,7 @@ typedef struct {
     uint8_t brightness;
     bool legacy_auto_discovery;
     bool simulated_adapter;
+    bool transmission_source;
     char vehicle_id[65];
     char source_id[33];
     char adapter_id[65];

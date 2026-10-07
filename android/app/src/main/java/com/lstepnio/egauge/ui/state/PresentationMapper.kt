@@ -11,6 +11,7 @@ fun readingName(id: String): String = when (id) {
     "load" -> "Engine load"
     "fuel" -> "Fuel level"
     "tcm" -> "Transmission input speed"
+    "tcmtemp" -> "TCM temperature (experimental)"
     else -> "Unknown reading"
 }
 

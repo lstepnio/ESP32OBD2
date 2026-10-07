@@ -55,7 +55,7 @@ static const char *TAG = "UI";
 // ---------------------------------------------------------------------------------------------------------------------
 
 typedef struct {
-    uint8_t pid;
+    uint16_t pid;
     int32_t value;
     TickType_t received_at;
 } ui_sample_t;
@@ -888,7 +888,7 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     return ui;
 }
 
-void ui_set_value(ui_t *ui, uint8_t pid, int32_t const *value)
+void ui_set_value(ui_t *ui, uint16_t pid, int32_t const *value)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 

@@ -159,7 +159,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                     ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate)
                                 Route.Expert -> ExpertScreen(state.expert, ExpertActions(
                                     model::checkGaugeForReview, model::readGaugeDiagnostics,
-                                    model::readHardwareCapacity, model::readRunningFirmware, model::adoptGaugeDraft))
+                                    model::readHardwareCapacity, model::readRunningFirmware, model::adoptGaugeDraft, model::createExperimentalTcmProfile))
                             }
                         }
                     }

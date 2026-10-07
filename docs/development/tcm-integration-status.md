@@ -27,7 +27,7 @@ Verification: 33 host capture tests passed, C parser tests passed with address/u
 
 ## App and firmware integration still required
 
-The running firmware vertical slice accepts one ECM-role source. Its scheduler connects source zero, its diagnostics snapshot represents one source and the Android protected diagnostics message contains only counts and first codes. The new explicit parser/API does not by itself activate TCM polling or expose all four TCM codes in the app. Those product paths are not complete or physically verified.
+Firmware `0.2.0-dev.36-tcm` now accepts a single experimental TCM temperature source, selected through a separate debug App profile. Its scheduler connects source zero. The TCM temperature profile suppresses ECM fault jobs, and the Android protected diagnostics message still contains only counts and first codes. This does not expose all four TCM codes in the app. The TCM fault product path is not complete or physically verified.
 
 The next implementation must retain source identity throughout the adapter worker, fault snapshot and companion message. A versioned message should expose the complete bounded list for each category, freshness and the responding ECU. The Android Faults screen should group Engine and Transmission separately and report unavailable/unsupported separately from an empty successful list. An ECM connection must never imply that TCM faults were checked. Diagnostic-only TCM configuration and one-adapter port switching need an explicit supported runtime mode; dual-adapter operation remains a separate qualification.
 
@@ -35,7 +35,9 @@ The next implementation must retain source identity throughout the adapter worke
 
 The published newer-Hemi ECM temperature candidate was rejected in both engine-off and idling tests. It does not qualify a temperature read through TCM 7E9. The subsequent TCM-addressed EcoDiesel candidate `7E1 / 22 08 DF` returned `7F 22 31` on all three engine-off reads with the same TCM identity. The TCM CAN sample is partial and unlabelled, and the old PCS map stops at six forward gears. No temperature or actual-gear decoder has been qualified. [Physical temperature goal and actual test](tcm-temperature-goal.md), [ECM candidate investigation](hemi-transmission-candidates.md), [JSS interface research](jss-transmission-research.md).
 
-Required evidence: the read-only request/response definitions or matching CAN map for this calibration and JSS bridge, plus a trusted reference channel. Until provided, do not expose invented temperature/gear values or enable public capabilities on the basis of the Mac fault capture.
+Subsequent bounded reads of `7E1 / 22 04 FE` returned `7E9 06 62 04 FE 55 54 55` three times while idling. The community OBDb first-byte conversion produces 45 C. A separate experimental temperature profile and firmware parser are implemented, and the image was transferred through App/Wi-Fi. The owner confirmed 45 C on the physical LCD, then dashes after adapter removal. App readback confirms revision 27 healthy, without trial or fallback, and firmware dev.36-tcm with valid OTA state. The owner then confirmed 45 C returned after reconnecting. Independent sensor-meaning validation remains pending. `22 50 43` returned zero even when idling and is not used. See the linked temperature goal for exact evidence and installation state.
+
+Required evidence for qualification: a trusted matching reference for this calibration and JSS bridge. Keep experimental interpretation visible and public capabilities disabled. Actual gear remains unimplemented and unvalidated.
 
 ## Concrete vendor information request
 

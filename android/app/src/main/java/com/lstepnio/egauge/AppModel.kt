@@ -59,6 +59,7 @@ val demoCatalog = listOf(
     PidExample("speed", "Vehicle speed", "ECM", "01 0D", "km/h", "64", "Example response", "Driving", "SPEED"),
     PidExample("load", "Calculated load", "ECM", "01 04", "%", "38", "Example response", "Engine", "ENGINE LOAD"),
     PidExample("fuel", "Fuel level", "ECM", "01 2F", "%", "73", "Example response", "Fuel", "FUEL LEVEL"),
+    PidExample("tcmtemp", "TCM temp (experimental)", "TCM", "22 04FE", "°C", "45", "Experimental interpretation; sensor meaning unvalidated", "Transmission", "TCM TEMP (TEST)"),
     PidExample("tcm", "Transmission input speed", "TCM", "Vehicle specific", "rpm", "2,120", "Synthetic only", "Transmission", "INPUT SPEED"),
 )
 
@@ -94,6 +95,7 @@ data class GaugeAlertDraft(
 fun readingRange(id: String): IntRange = when (id) {
     "rpm" -> 0..16383 // Largest whole-number threshold within the decoder's 16383.75 maximum.
     "coolant" -> -40..215
+    "tcmtemp" -> 0..180
     "speed" -> 0..255
     "load", "fuel" -> 0..100
     else -> 0..100
@@ -601,6 +603,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         editingPageIndex = 0
         if (!profileStore.save(profileCollection)) profileError = "Could not save the selected vehicle profile"
     }
+    fun createExperimentalTcmProfile() {
+        if (!BuildConfig.DEBUG || profileError != null) return
+        profileCollection.profiles.firstOrNull { it.name == "JSS TCM temperature test" }?.let {
+            selectProfile(it.id); return
+        }
+        if (profileCollection.profiles.size >= 8) { deviceMessage = "Remove an unused profile before adding the TCM test"; return }
+        val testDraft = Draft(pidId = "tcmtemp", source = "TCM", pages = listOf(
+            GaugePageDraft("page.tcm.temperature", "TCM temp (test)", GaugeLayout.Numeric, listOf("tcmtemp"))), alerts = emptyList())
+        val profile = VehicleProfile(ProfileStore.newId(), "JSS TCM temperature test", testDraft,
+            profileCollection.active.primaryAdapter)
+        val updated = profileCollection.copy(activeId = profile.id, profiles = profileCollection.profiles + profile)
+        if (!profileStore.save(updated)) { profileError = "Could not save the TCM test profile"; return }
+        profileCollection = updated
+        draft = testDraft
+        editingPageIndex = 0
+        deviceMessage = "Experimental TCM temperature profile ready. Keep the adapter in the TCM connector and send setup."
+    }
+
     fun createProfile() {
         val name = profileNameInput.trim()
         if (profileError != null || name.isEmpty() || profileCollection.profiles.size >= 8 ||
@@ -1406,7 +1426,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (index !in draft.pages.indices) return
         editingPageIndex = index
         val page = draft.pages[index]
-        save(draft.copy(pidId = page.pidIds[0], layout = page.layout, source = "ECM"))
+        save(draft.copy(pidId = page.pidIds[0], layout = page.layout, source = demoCatalog.first { it.id == page.pidIds[0] }.source))
     }
 
     fun addPage(pidId: String = "rpm") {

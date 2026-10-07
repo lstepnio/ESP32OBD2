@@ -39,6 +39,17 @@ static elm_result_t faults(const char *wire, uint8_t mode, uint32_t ecu, size_t 
     return elm_response_decode_dtcs_for_ecu(&response, mode, ecu, payload);
 }
 
+static elm_result_t identifier(const char *wire, size_t fragment, elm_payload_t *payload)
+{
+    elm_response_t response;
+    elm_response_reset(&response);
+    for (size_t offset = 0; offset < strlen(wire); offset += fragment) {
+        size_t end = offset + fragment < strlen(wire) ? offset + fragment : strlen(wire);
+        for (size_t i = offset; i < end; ++i) elm_response_push(&response, wire[i]);
+    }
+    return elm_response_decode_identifier(&response, 0x04fe, 0x7e9, payload);
+}
+
 int main(void)
 {
     elm_payload_t payload;
@@ -109,5 +120,26 @@ int main(void)
     }
     assert(faults("7E9024300\r>", 4, 0x7e9, 1, &payload) == ELM_MALFORMED);
     assert(faults("NO DATA\r>", 3, 0x7e9, 1, &payload) == ELM_NO_DATA);
+    /* Actual TCM temperature candidate, engine idling. Sensor meaning unqualified. */
+    for (size_t split = 1; split < 32; ++split) {
+        assert(identifier("2204FE\r7E9066204FE555455\r\r>", split, &payload) == ELM_OK);
+        assert(payload.length == 3 && payload.bytes[0] == 85 && payload.bytes[1] == 84 &&
+               payload.bytes[2] == 85 && payload.has_responder && payload.responder == 0x7e9);
+        assert(identifier("7E9 06 62 04 FE 55 54 55 AA\r>", split, &payload) == ELM_OK);
+    }
+    const char *bad_identifier[] = {
+        "7E8066204FE555455\r>", "6204FE555455\r>",
+        "7E906625043555455\r>", "7E9066204FE5554\r>",
+        "7E9066204FE555455\r7E9066204FE555455\r>",
+        "7E910086204FE5554\r>", "7E9037F2231\r>",
+        "7E9066204FE555455\rNO DATA\r>",
+        "7E9 0 6 62 04 FE 55 54 55\r>", "7E9066204FE555455\rBUFFER FULL\r>"
+    };
+    for (size_t i = 0; i < sizeof(bad_identifier)/sizeof(bad_identifier[0]); ++i) {
+        assert(identifier(bad_identifier[i], 1, &payload) != ELM_OK);
+        assert(payload.length == 0);
+    }
+    assert(identifier("NO DATA\r>", 1, &payload) == ELM_NO_DATA);
+    assert(identifier(huge, 1, &payload) == ELM_OVERFLOW);
     puts("ELM response fixtures passed");
 }

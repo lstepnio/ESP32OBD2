@@ -36,15 +36,25 @@ def tcm_temperature_policy(command):
     return exploration_policy(command) or command in (tcm_temperature.COMMAND, 'ATSH7E1', 'ATSH7DF')
 
 
-async def tcm_temperature_probe(session, result):
+def tcm_temperature_v2_policy(command):
+    return exploration_policy(command) or command in ('225043', 'ATSH7E1', 'ATSH7DF')
+
+
+def tcm_temperature_v3_policy(command):
+    return exploration_policy(command) or command in ('2204FE', 'ATSH7E1', 'ATSH7DF')
+
+
+async def tcm_temperature_probe(session, result, command=tcm_temperature.COMMAND):
     """Three reads of a documented TCM route; preserve partial evidence on failure."""
+    if command not in tcm_temperature.COMMANDS:
+        raise ValueError('Unlisted temperature candidate')
     try:
         await setup(session, ('ATSH7E1',))
         for index in range(3):
-            raw = await session.request(tcm_temperature.COMMAND, timeout=5)
+            raw = await session.request(command, timeout=5)
             sample = {'raw_hex': raw.hex(), 'qualified': False}
             try:
-                sample.update(tcm_temperature.decode_candidate(raw))
+                sample.update(tcm_temperature.decode_candidate(raw, command))
             except ValueError as error:
                 sample.update(status='rejected', reason=str(error))
             result['samples'].append(sample)
@@ -162,7 +172,9 @@ async def explore(args):
     from bleak import BleakClient
     device = await choose_adapter(args.adapter)
     recording = Recording(args.output, args.source, 'mac_ble')
-    policy = (tcm_temperature_policy if args.tcm_temperature else fault_policy if args.tcm_faults
+    policy = (tcm_temperature_v3_policy if args.tcm_temperature_v3 else
+              tcm_temperature_v2_policy if args.tcm_temperature_v2 else
+              tcm_temperature_policy if args.tcm_temperature else fault_policy if args.tcm_faults
               else candidate_policy if args.hemi_temperature else exploration_policy)
     session = AdapterSession(recording, policy=policy)
     result = {'physical_port': args.source, 'identity': {}, 'monitor': [],
@@ -229,16 +241,19 @@ async def explore(args):
                             await session.request(f'01{pid:02X}', timeout=5)
                             await asyncio.sleep(.15)
                 save_private(recording.directory / 'diagnostic-discovery.json', result)
-                if args.tcm_temperature:
+                if args.tcm_temperature or args.tcm_temperature_v2 or args.tcm_temperature_v3:
                     selected = bytes.fromhex(result['protocol_number_hex']).strip(b'\r\n >')
                     if selected not in (b'6', b'A6') or set(maps.get(0, {})) != {'7E9'}:
                         raise ValueError('TCM temperature requires only 7E9 on 11-bit 500 kbit/s CAN')
+                    command = ('2204FE' if args.tcm_temperature_v3 else
+                               '225043' if args.tcm_temperature_v2 else tcm_temperature.COMMAND)
                     result['tcm_temperature_candidate'] = {
                         'request_id': '7E1', 'expected_response_id': '7E9',
-                        'request': tcm_temperature.COMMAND, 'qualified': False,
-                        'scope': 'EcoDiesel documented candidate, not qualified for JSS', 'samples': []}
+                        'request': command, 'qualified': False,
+                        'scope': ('OBDb Challenger candidate, not qualified for JSS' if args.tcm_temperature_v2 or args.tcm_temperature_v3
+                                  else 'EcoDiesel documented candidate, not qualified for JSS'), 'samples': []}
                     print('Testing one published TCM temperature read; values remain unqualified.', flush=True)
-                    await tcm_temperature_probe(session, result['tcm_temperature_candidate'])
+                    await tcm_temperature_probe(session, result['tcm_temperature_candidate'], command)
                 if args.tcm_faults:
                     selected = bytes.fromhex(result['protocol_number_hex']).strip(b'\r\n >')
                     if selected not in (b'6', b'A6') or '7E9' not in maps.get(0, {}):
@@ -271,7 +286,7 @@ async def explore(args):
                 result['adapter_restored'] = False
                 if not session.waiting_prompt:
                     try:
-                        restore = ('ATSH7DF', 'ATCAF1', 'ATTP0') if args.hemi_temperature or args.tcm_faults or args.tcm_temperature else ('ATCAF1', 'ATTP0')
+                        restore = ('ATSH7DF', 'ATCAF1', 'ATTP0') if args.hemi_temperature or args.tcm_faults or args.tcm_temperature or args.tcm_temperature_v2 or args.tcm_temperature_v3 else ('ATCAF1', 'ATTP0')
                         await setup(session, restore)
                         result['adapter_restored'] = True
                     except (ValueError, OSError) as error:
@@ -297,7 +312,15 @@ def main():
                         help='Read standard stored/pending/permanent faults on 7E1 after confirming 7E9')
     parser.add_argument('--tcm-temperature', action='store_true',
                         help='Test three unqualified published 2208DF reads on 7E1 after confirming 7E9')
+    parser.add_argument('--tcm-temperature-v2', action='store_true',
+                        help='Test three unqualified OBDb Challenger 225043 reads on 7E1 after confirming 7E9')
+    parser.add_argument('--tcm-temperature-v3', action='store_true',
+                        help='Test three unqualified OBDb Challenger 2204FE reads on 7E1 after confirming 7E9')
     args = parser.parse_args()
+    if args.tcm_temperature_v3 and (args.source != 'transmission' or args.hemi_temperature or args.tcm_faults or args.monitor or args.tcm_temperature or args.tcm_temperature_v2):
+        parser.error('--tcm-temperature-v3 requires --source transmission and runs separately from other probes')
+    if args.tcm_temperature_v2 and (args.source != 'transmission' or args.hemi_temperature or args.tcm_faults or args.monitor or args.tcm_temperature):
+        parser.error('--tcm-temperature-v2 requires --source transmission and runs separately from other probes')
     if args.tcm_temperature and (args.source != 'transmission' or args.hemi_temperature or args.tcm_faults or args.monitor):
         parser.error('--tcm-temperature requires --source transmission and runs separately from other probes')
     if args.hemi_temperature and args.source != 'engine':

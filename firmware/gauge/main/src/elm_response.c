@@ -150,6 +150,65 @@ elm_result_t elm_response_decode_service(const elm_response_t *response, uint8_t
     return elm_response_decode_for_ecu(response, mode, 0, ELM_ECU_ANY, payload);
 }
 
+elm_result_t elm_response_decode_identifier(const elm_response_t *response, uint16_t identifier,
+                                             uint32_t ecu, elm_payload_t *payload)
+{
+    if (!payload) return ELM_MALFORMED;
+    memset(payload, 0, sizeof(*payload));
+    if (!response || ecu > 0x7ffU) return ELM_MALFORMED;
+    if (response->overflow) return ELM_OVERFLOW;
+    bool matched = false, no_data = false;
+    elm_payload_t candidate = {0};
+    for (size_t offset = 0; offset < response->length;) {
+        const char *line = response->text + offset;
+        size_t len = 0;
+        while (offset + len < response->length && line[len] != '\r' && line[len] != '\n') ++len;
+        offset += len;
+        while (offset < response->length && (response->text[offset] == '\r' || response->text[offset] == '\n')) ++offset;
+        while (len && (*line == ' ' || *line == '\t')) { ++line; --len; }
+        while (len && (line[len-1] == ' ' || line[len-1] == '\t')) --len;
+        if (!len || equals(line, len, "SEARCHING...")) continue;
+        if (equals(line, len, "NO DATA")) { no_data = true; continue; }
+        if (equals(line, len, "?") || equals(line, len, "BUFFER FULL") ||
+            equals(line, len, "STOPPED") || equals(line, len, "CAN ERROR") ||
+            equals(line, len, "BUS ERROR") || equals(line, len, "UNABLE TO CONNECT")) return ELM_ADAPTER_ERROR;
+        char compact[20];
+        size_t digits = 0;
+        for (size_t i = 0; i < len; ++i) {
+            if (line[i] == ' ' || line[i] == '\t') {
+                if (digits < 3 || ((digits - 3) & 1U)) return ELM_MALFORMED;
+                continue;
+            }
+            if (hex(line[i]) < 0 || digits >= sizeof(compact)-1) return ELM_MALFORMED;
+            compact[digits++] = line[i];
+        }
+        if (digits == 6 && hex(compact[0]) == 2 && hex(compact[1]) == 2 &&
+            hex(compact[2]) == (identifier >> 12) && hex(compact[3]) == ((identifier >> 8) & 15) &&
+            hex(compact[4]) == ((identifier >> 4) & 15) && hex(compact[5]) == (identifier & 15)) continue;
+        if (digits < 7 || !(digits & 1U)) return ELM_MALFORMED;
+        uint32_t responder = (hex(compact[0]) << 8) | (hex(compact[1]) << 4) | hex(compact[2]);
+        if (responder > 0x7ffU) return ELM_MALFORMED;
+        uint8_t frame[8];
+        size_t count = (digits-3)/2;
+        for (size_t i = 0; i < count; ++i)
+            frame[i] = (uint8_t)((hex(compact[3+2*i]) << 4) | hex(compact[4+2*i]));
+        if (!frame[0] || frame[0] > 7 || count < 1U+frame[0]) return ELM_MALFORMED;
+        if (responder != ecu) continue;
+        if (matched) return ELM_AMBIGUOUS;
+        if (frame[0] < 4 || frame[1] != 0x62 || frame[2] != (identifier >> 8) ||
+            frame[3] != (identifier & 255)) return ELM_MALFORMED;
+        candidate.length = frame[0]-3;
+        memcpy(candidate.bytes, frame+4, candidate.length);
+        candidate.has_responder = true;
+        candidate.responder = responder;
+        matched = true;
+    }
+    if (no_data) return matched ? ELM_MALFORMED : ELM_NO_DATA;
+    if (!matched) return ELM_MALFORMED;
+    *payload = candidate;
+    return ELM_OK;
+}
+
 elm_result_t elm_response_decode_dtcs_for_ecu(const elm_response_t *response, uint8_t mode,
                                             uint32_t ecu, elm_payload_t *payload)
 {

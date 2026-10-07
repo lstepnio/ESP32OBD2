@@ -29,15 +29,7 @@ static const cJSON *field(const cJSON *item, const char *name)
     return cJSON_GetObjectItemCaseSensitive(item, name);
 }
 
-static uint8_t hex_byte(const char *s)
-{
-    uint8_t result = 0;
-    for (unsigned i = 0; i < 2; ++i) {
-        char c = s[i];
-        result = (uint8_t)((result << 4) | (c <= '9' ? c - '0' : c - 'A' + 10));
-    }
-    return result;
-}
+
 
 static bool copy_text(char *dest, size_t capacity, const cJSON *item)
 {
@@ -88,7 +80,7 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
     const cJSON *rotation = field(root, "rotation");
     esp_err_t err = ESP_ERR_NOT_SUPPORTED;
     if (cJSON_GetArraySize(sources) != 1 ||
-        strcmp(field(cJSON_GetArrayItem(sources, 0), "role")->valuestring, "ecm") != 0 ||
+
         cJSON_GetArraySize(definitions) > EGAUGE_RUNTIME_PIDS ||
         cJSON_GetArraySize(pages) > EGAUGE_RUNTIME_PAGES ||
         cJSON_GetArraySize(alerts) > EGAUGE_RUNTIME_ALERTS) goto done;
@@ -96,6 +88,11 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         cJSON_IsTrue(field(root, "reducedMotion"))) goto done;
     const char *source_id = field(cJSON_GetArrayItem(sources, 0), "id")->valuestring;
     const cJSON *source = cJSON_GetArrayItem(sources, 0);
+    const char *role = field(source, "role")->valuestring;
+    out->transmission_source = !strcmp(role, "tcm");
+    if (strcmp(role, "ecm") && !out->transmission_source) goto done;
+    if (out->transmission_source && (field(root, "schemaVersion")->valueint != 2 ||
+        cJSON_GetArraySize(definitions) != 1 || cJSON_GetArraySize(alerts) != 0)) goto done;
     out->legacy_auto_discovery = field(root, "schemaVersion")->valueint == 1;
     if (!copy_text(out->vehicle_id, sizeof(out->vehicle_id), field(root, "vehicleProfileId")) ||
         !copy_text(out->source_id, sizeof(out->source_id), field(source, "id"))) goto done;
@@ -118,27 +115,35 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         const cJSON *response = field(item, "response");
         const char *identifier = field(request, "identifier")->valuestring;
         if (strcmp(field(item, "sourceId")->valuestring, source_id) != 0 ||
-            strcmp(field(request, "service")->valuestring, "01") != 0 ||
-            strcmp(field(request, "route")->valuestring, "functional") != 0 ||
-            !field(request, "responseId") ||
-            strlen(identifier) != 2 ||
-            strcmp(identifier, "01") == 0 ||
-            field(decoder, "byteOffset")->valueint != 0 ||
-            field(response, "minPayloadBytes")->valueint != field(decoder, "byteLength")->valueint)
-            goto done;
+            !field(request, "responseId") || field(decoder, "byteOffset")->valueint != 0) goto done;
+        if (out->transmission_source) {
+            /* Experimental captured TCM definition only. No arbitrary enhanced reads. */
+            if (strcmp(field(request, "service")->valuestring, "22") ||
+                strcmp(identifier, "04FE") || strcmp(field(request, "route")->valuestring, "can11_physical") ||
+                !field(request, "requestId") || strcmp(field(request, "requestId")->valuestring, "7E1") ||
+                strcmp(field(request, "responseId")->valuestring, "7E9") ||
+                strcmp(field(response, "prefix")->valuestring, "6204FE") ||
+                field(response, "minPayloadBytes")->valueint != 3 ||
+                field(decoder, "byteLength")->valueint != 1 ||
+                field(decoder, "numerator")->valueint != 1 || field(decoder, "denominator")->valueint != 1 ||
+                field(decoder, "offset")->valuedouble != -40 || cJSON_IsTrue(field(decoder, "signed"))) goto done;
+        } else if (strcmp(field(request, "service")->valuestring, "01") ||
+                   strcmp(field(request, "route")->valuestring, "functional") || strlen(identifier) != 2 ||
+                   !strcmp(identifier, "01") ||
+                   field(response, "minPayloadBytes")->valueint != field(decoder, "byteLength")->valueint) goto done;
         runtime_pid_t *pid = &out->pids[out->pid_count++];
         if (!copy_text(pid->id, sizeof(pid->id), field(item, "id")) ||
             !copy_text(pid->name, sizeof(pid->name), field(item, "name")) ||
             !copy_text(pid->unit, sizeof(pid->unit), field(item, "unit"))) goto done;
-        pid->obd.pid = hex_byte(identifier);
+        pid->obd.pid = strtoul(identifier, NULL, 16);
         pid->responder = strtoul(field(request, "responseId")->valuestring, NULL, 16);
         for (unsigned previous = 0; previous + 1 < out->pid_count; ++previous)
             if (out->pids[previous].obd.pid == pid->obd.pid) goto done;
-        pid->obd.len = field(decoder, "byteLength")->valueint;
+        pid->obd.len = field(response, "minPayloadBytes")->valueint;
         pid->obd.name = pid->name;
         pid->obd.unit = pid->unit;
         pid->obd.decoder = (pid_numeric_decoder_t){
-            .byte_length = pid->obd.len,
+            .byte_length = field(decoder, "byteLength")->valueint,
             .little_endian = strcmp(field(decoder, "endian")->valuestring, "little") == 0,
             .signed_value = cJSON_IsTrue(field(decoder, "signed")),
             .numerator = field(decoder, "numerator")->valueint,

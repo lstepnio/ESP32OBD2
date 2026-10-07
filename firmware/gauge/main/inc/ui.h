@@ -38,7 +38,7 @@ typedef enum {
 } ui_renderer_t;
 
 typedef struct {
-    uint8_t pid;
+    uint16_t pid;
     const char *name;
     const char *unit;
     int32_t minimum;
@@ -64,7 +64,7 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
 /* Thread-safe presentation mailbox. Samples are accepted only when their PID
  * still matches the selected page, preventing late replies from crossing a
  * page change. Passing NULL publishes an unavailable sample for that PID. */
-void  ui_set_value(ui_t *ui, uint8_t pid, int32_t const *value);
+void  ui_set_value(ui_t *ui, uint16_t pid, int32_t const *value);
 void  ui_set_page(ui_t *ui, ui_page_t const *page);
 /* Call on the LVGL task or while holding its lock. */
 void  ui_set_units(ui_t *ui, bool imperial_units);
