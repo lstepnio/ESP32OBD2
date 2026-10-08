@@ -145,4 +145,3 @@ data class CapabilitySnapshot(
 )
 
 data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revision: Long)
-
