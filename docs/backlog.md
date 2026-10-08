@@ -21,7 +21,6 @@ are in current state and evidence, with remaining qualification listed separatel
 
 | ID | Priority | Status | Task | Dependency / acceptance |
 | --- | --- | --- | --- | --- |
-| QUAL-01 | P0 | Needs device | Confirm dev.47 display and touch | Owner normal-page and swipe observation; protected image/health already passed |
 | QUAL-02 | P0 | Needs device | Configuration/OTA interruption and uncertain outcome | [Recovery matrix](development/ota-recovery-matrix.md); stage/commit, app loss, Wi-Fi expiry, power loss and rollback; exact post-reboot identity before any retry |
 | QUAL-03 | P1 | Needs device | One adapter moved between ECM/TCM ports | Whole vehicle pages stay editable; unavailable values clear; correct attributed values recover; [logical vehicle evidence](evidence/logical-vehicle-review.md) |
 | QUAL-05 | P1 | Needs device | ECU-scoped CEL/MIL and full vehicle faults | [ADR-015 Phase 1](architecture/alerts-and-diagnostics.md#implementation-sequence-and-file-ownership): Dev.48 endpoint routing, fair polling and global presentation implemented with production fixtures; sequential ECM/TCM long-read/coverage qualification remains |

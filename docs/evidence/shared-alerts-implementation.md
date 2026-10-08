@@ -5,9 +5,9 @@
 > [the backlog](../backlog.md).
 
 2026-10-07, development candidate `0.2.0-dev.48`, PR #51 branch
-`codex/dual-adapter-runtime`. Source/offline evidence only. No physical gauge,
-Pixel, vehicle writes or firmware installation were performed for this increment.
-The attached owner phone was not used by instrumentation. Devices remain dev.47.
+`codex/dual-adapter-runtime`. The initial implementation was verified offline. The authorized Pixel/App-Wi-Fi
+rollout below followed; no vehicle writes or live adapter session occurred.
+The owner phone was not used by instrumentation.
 [Current state](../current-state.md), [backlog](../backlog.md) and
 [ADR-015](../architecture/alerts-and-diagnostics.md) own maintained decisions.
 
@@ -81,3 +81,31 @@ by hardware availability. The [provider integration guide](../architecture/phone
 requires reviewed access/licensing, relevance and a bounded persistent slot allocator
 before any live crowd provider is enabled. iOS remains deferred. Public capability
 flags and qualified link capacity are unchanged.
+
+## Authorized App/Wi-Fi rollout
+
+Owner explicitly authorized deployment when ready. All three Foundation quality jobs
+passed for release commit `f572974`. Protected release workflow `37729394793`
+published immutable signed `dev-v0.2.0-dev.48`, generation 30. Independent downloaded
+catalog/bundle checks verified both signatures, hashes, board, layout, protocol and
+embedded version. Hosted image: 1,534,576 bytes; ELF SHA-256
+`f83e85c7411ce6bea724f6d6f36baf6038a1d20bc287c6ddf36bb4f6192248a4`.
+
+Pixel App replacement retained all seven original preference documents byte-for-byte.
+Actual Settings hosted-update flow installed through private gauge Wi-Fi; the App
+confirmed running image. A subsequent protected Expert read independently showed
+version dev.48, OTA state 2 and the exact hosted ELF, running partition `0x360000`.
+Profile, gauge-association and presentation documents remained byte-identical after
+firmware installation; trusted generation became 30 and update journal was empty.
+Owner separately confirmed a normal physical gauge page and working swipes.
+
+The upgrade exposed a cached unsupported result: Car still requested a firmware
+update for history after dev.48 was installed. The App follow-up invalidates alert
+transport/support and clear preparation on a new connection, changed protected image
+or confirmed update, preserving durable history and requiring fresh supported reads.
+This corrects automatic feature discovery without replaying writes or replacing setup.
+
+Standing extension rules were added to AGENTS.md, the AI context guide and ADR-015.
+The orientation policy and FEATURE-07 record capability-gated Auto rotation as upcoming
+work. Current firmware has no implemented IMU identity/health/axis path; Auto is not
+advertised or claimed by this release. Manual rotation and page cycling remain separate.

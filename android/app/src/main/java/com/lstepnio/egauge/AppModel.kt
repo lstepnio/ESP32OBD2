@@ -1136,6 +1136,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun connected(value: CapabilitySnapshot, preserveSent: Boolean = false) {
         configurationRecoveryRead = false
         scanning = false
+        invalidateAlertTransport()
         capabilities = value
         gaugeCandidates = emptyList()
         ownerAccess = OwnerAccess.DISCOVERED
@@ -1331,8 +1332,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         deviceMessage = "Fault snapshot read. Each category shows when it was checked."
     }
 
+    private fun invalidateAlertTransport() {
+        // Unsupported is a property of one running image/session, not the saved vehicle.
+        alertScope = ""
+        alertFrameworkSupported = null
+        activeAlertCursor = null
+        nextAlertPoll = 0
+        alertFailures = 0
+        lastAlertChecked = 0
+        captureChecked.clear()
+        clearStatus = null
+        preparedClearScope = null
+        clearConfirmationOpen = false
+    }
     suspend fun bootIdentityRead(value: GaugeConfigTransferClient.BootIdentity) {
         scanning = false
+        if (bootIdentity?.elfSha256 != value.elfSha256) invalidateAlertTransport()
         bootIdentity = value
         ownerAccess = OwnerAccess.AUTHENTICATED
         val pending = pendingUpdateRecovery ?: updatePersistence.pending()
@@ -1420,6 +1435,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         updateInProgress = false
         updateMayHaveChangedGauge = false
         scanning = false
+        invalidateAlertTransport()
         // The rebooted image may advertise new controls. Re-read its public capabilities
         // after the update lease closes instead of keeping the previous image's snapshot.
         capabilities = null

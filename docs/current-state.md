@@ -8,17 +8,17 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | Candidate `0.2.0-dev.48` | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
-| Installed Pixel and gauge | Signed dev.47, published from `ec97641`, generation 29; App/Wi-Fi installed | Exact hosted ELF and OTA health 2 passed protected readback; dev.47 owner display/touch confirmation remains pending |
+| Source/App/firmware version | Development `0.2.0-dev.48` | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Installed Pixel and gauge | Signed dev.48, published from `f572974`, generation 30; App/Wi-Fi installed | Exact hosted ELF and OTA health 2 passed protected readback; owner normal-page/swipe confirmation passed |
 | Gauge dashboard | Revision 49; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
 | Current setup | One primary ECM transport; zero optional children or dual-adapter selections | Owner chose to re-add the child when a second adapter arrives; combined pages remain available |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
 | Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; one Vgate | Adapter is moved between separate ports; dual-radio operation has not been measured |
 | Repository | Public `lstepnio/ESP32OBD2`; continuing review PR #51 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
 
-Latest rollout: [dev.47 hardening and device evidence](evidence/offline-hardening.md#authorized-pixelapp-wi-fi-rollout).
+Latest rollout: [dev.48 shared-alert implementation and device evidence](evidence/shared-alerts-implementation.md#authorized-appwi-fi-rollout).
 Original phone wake settings were restored. Android and firmware are active; iOS is deferred.
-No live vehicle session was performed by the dev.47 rollout.
+No live vehicle session or ECU clear was performed by the dev.48 rollout.
 
 ## Support and evidence
 
@@ -31,7 +31,7 @@ No live vehicle session was performed by the dev.47 rollout.
 | Display settings | Persisted brightness, orientation, Metric/Imperial and page interval; regional first-use units | Protected post-restart reads, owner five-second cycling/cooldown; App Metric save and Imperial restoration | Physical unit rendering, cycling/gesture interaction and daylight readability |
 | Pages/catalog/alerts | Five renderers; one catalog with 53 Mode 01 and two existing JSS readings; any selectable reading can alert, including named gear conditions | Software vectors, editor fixtures and preserved installed dashboard | New decimals/rendering, hidden-page alerts, dwell/stale behavior on real vehicle |
 | Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
-| Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Dev.47 authorized App/Wi-Fi install, exact healthy image, cleared journal | Power-loss, expiry, rollback and broader recovery matrix |
+| Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Dev.48 authorized App/Wi-Fi install, exact healthy image, cleared journal | Power-loss, expiry, rollback and broader recovery matrix |
 | Phone persistence | Schema 12 coupled profiles/assignments; serialized IO; cancellation-safe writes and typed pairing failures | 156 JVM tests, 18 emulator fixtures; initial Pixel migration retained data | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
 | Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness | Software/replay qualification | Second adapter plus phone coexistence, sibling continuity and sustained load |
 | Health measurements | Fixed worker records, queue drops and free/largest memory in minute logs | One dev.47 minute log set; continued App/UI and adapter retry progress | Longer controlled soak, measured gap/rate and memory limits |
@@ -58,6 +58,10 @@ phone checks are in the linked evidence, not implied by these counts.
   Drive is not a distinct selector value. The diagnostic endpoint/PCS bridge topology
   remains unresolved. Definitions are calibration-specific; standard catalog membership
   is not vehicle support.
+
+Auto orientation is specified in the [hardware policy](architecture/hardware-and-transports.md#automatic-display-orientation)
+and tracked as FEATURE-07. The current IMU path is unimplemented; manual rotation
+and timed page cycling remain independent implemented controls.
 
 ## Next session
 
