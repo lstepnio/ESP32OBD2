@@ -1,83 +1,92 @@
 # AI context and task routing
 
-Read this after the root `AGENTS.md`, then read [current state](current-state.md).
-Do not load all historical reports or third-party catalogs to begin a task.
+Read root [AGENTS.md](../AGENTS.md), this file and [current state](current-state.md).
+Read only the relevant [backlog](backlog.md) item, contract and source after that.
+Do not load the evidence archive or imported catalogs to start ordinary work.
 
-## Start a session
+## Session workflow
 
-1. Inspect `git status --short`, branch/upstream and the attached worktree. Use the
-   current suitable checkout. Do not reset dirty files or edit another task's checkout.
-2. Read current state and choose the affected area from the table below.
-3. Search with `rg` and read the implementation plus its focused tests/contract.
-   Verify names and constants in code before applying old notes.
-4. Implement the smallest cohesive change. Ask only for genuinely missing input,
-   destructive actions or an authorization that has not already been given.
-5. Run checks for the changed boundary. Record software tests separately from phone,
-   gauge and vehicle observations. Commit and push using root instructions.
+1. Inspect branch/upstream, `git status --short` and attached worktree. Reuse a suitable
+   active checkout; preserve dirty files and other tasks' work.
+2. Identify the requested outcome and, when relevant, its backlog ID/acceptance gate.
+   Separate implementation, simulated checks, phone/gauge observations and vehicle qualification.
+3. Search affected source/tests with `rg`. Verify names/constants before using dated
+   notes. Use the map below and the machine-readable [documentation map](documentation-map.json).
+4. Implement the smallest cohesive change. Preserve architecture/styling and automatic
+   bounded recovery. Ask only for critical missing input or required authorization.
+5. Run the minimum meaningful checks below. Record remaining limits honestly, update
+   the authoritative documents, commit and push under root instructions.
 
-## Runtime map
+## Source map
 
-| Task | Read/edit first | Contract or evidence |
+Firmware paths below are relative to `firmware/gauge/main/`. Android paths are
+relative to `android/app/src/main/java/com/lstepnio/egauge/` unless specified.
+
+| Area | Source entry points | Maintained contract |
 | --- | --- | --- |
-| Gauge startup, touch, page/setting application | `firmware/gauge/main/main.c`, `src/ui.c`, `src/display_settings.c` | [Firmware runtime](architecture/firmware-runtime.md) |
-| Adapter connect/routing/ELM replies | `src/ble_mgr.c`, `src/ble_obd.c`, `src/elm_response.c`, `src/obd_adapter_profile.c` | [Adapter bindings](protocol/adapter-bindings-v1.md) |
-| Fault state | `src/diagnostics_state.c`, Android `VehicleDiagnostics.kt`, `ui/state/DiagnosticPresentation.kt` | [Diagnostics](protocol/diagnostics-and-alerts.md) |
-| Config validation/projection/persistence | `src/config_document.c`, `src/config_runtime.c`, Android `ConfigurationProjection.kt`, `GaugeDraftComparison.kt`, `ProfileStore.kt` | [Config storage](architecture/config-storage.md) |
-| BLE commands and bytes | `src/ble_companion.c`, Android `GaugeConfigTransferClient.kt`, `GaugeProtocolCodec.kt` | [BLE](protocol/ble-v1.md), [development extensions](protocol/experimental-firmware-transfers.md) |
-| Signed updates/Wi-Fi | `src/ota_transfer.c`, `src/wifi_bulk.c`, Android `WifiBulkClient.kt`, update classes | [Release runbook](development/firmware-release-runbook.md), [Wi-Fi](protocol/wifi-bulk-v1.md) |
-| Vehicle hierarchy and gauge assignments | Android `ProfileStore.kt`, `ProfileDocumentCodec.kt`, `VehicleConnections.kt`, `GaugeAssociationStore.kt` | [Vehicle connections](architecture/vehicle-connections.md) |
-| App state and operations | Android `AppModel.kt`, `connection/`, `ui/state/`, `AppOperation.kt` | [Android runtime](architecture/android-runtime.md) |
-| App UI/style | Android `ui/`, `core/designsystem/`, `design/tokens.json` | [Design system](design/design-system.md) |
-| Jeep capture and offline replay | `tools/obd_capture.py`, `obd_explore.py`, `obd_tcm_values.py`, `tools/tests/` | [TCM resume](development/tcm-session-resume.md) |
-| Catalog research | `tools/research/`, `data/vehicle-definitions/` | [Catalog scope/license](vehicles/catalog-research.md) |
+| Gauge startup/display/settings/gestures | `main.c`, `src/ui.c`, `src/display_settings.c`, `src/page_action.c` | [Firmware ownership](architecture/firmware-runtime.md), [actions](architecture/vehicle-actions.md) |
+| Adapter/routing/ELM replies | `src/ble_mgr.c`, `src/ble_obd.c`, `src/elm_response.c`, `src/obd_adapter_profile.c` | [Bindings](protocol/adapter-bindings-v1.md), [vehicle model](architecture/vehicle-connections.md) |
+| Fault state and presentation | `src/diagnostics_state.c`; `VehicleDiagnostics.kt`, `ui/state/DiagnosticPresentation.kt` | [Implemented diagnostics](protocol/diagnostics-and-alerts.md), [shared alert/CEL architecture](architecture/alerts-and-diagnostics.md) |
+| Shared events/history/providers | `src/alert_events.c`, `src/alert_runtime.c`, `src/diagnostic_clear.c`; `AlertEvents.kt`, `AlertRepository.kt`, `AlertNotifications.kt`, `AlertMonitoringService.kt`, `ExternalAlerts.kt`, `ui/AlertPresentation.kt` | [Shared alerts](architecture/alerts-and-diagnostics.md), [phone providers](architecture/phone-alert-providers.md) |
+| Config compile/project/trial | `src/config_document.c`, `src/config_runtime.c`; `ConfigurationProjection.kt`, `GaugeDraftComparison.kt` | [Config storage](architecture/config-storage.md) |
+| Phone setup and assignments | `ProfileStore.kt`, `ProfileDocumentCodec.kt`, `LocalSetupStore.kt`, `LocalSetupTransactions.kt`, `DurableWrites.kt`, `VehicleConnections.kt` | [Android storage](architecture/android-runtime.md#storage-and-recovery) |
+| BLE bytes, owner and pairing | `src/ble_companion.c`; `GaugeConfigTransferClient.kt`, `GaugeProtocolCodec.kt`, `BleCapabilityClient.kt`, `PairingFailure.kt` | [Implemented development wire](protocol/experimental-firmware-transfers.md); public BLE v1 is proposed |
+| Updates/Wi-Fi/recovery | `src/ota_transfer.c`, `src/wifi_bulk.c`, `src/wifi_bulk_io.c`; `WifiBulkClient.kt`, `FirmwareUpdatePersistence.kt`, `UpdateRecoveryJournal.kt`, `SocketIo.kt` | [Wi-Fi](protocol/wifi-bulk-v1.md), [release runbook](development/firmware-release-runbook.md) |
+| App lifecycle/state/operations | `AppModel.kt`, `GaugeModels.kt`, `AppOperation.kt`, `connection/`, `ui/state/` | [Android ownership](architecture/android-runtime.md), [recovery rules](architecture/interaction-recovery.md) |
+| UI/style/accessibility | `ui/`, `android/core/designsystem/`, `design/tokens.json` | [Design system](design/design-system.md) |
+| Reading/alert catalog | `contracts/reading-catalog.json`, `tools/generate_reading_catalog.py`; `ReadingCatalog.kt`, `ui/customize/AlertForm.kt`; `src/alert_engine.c` | [Catalog maintenance](development/reading-catalog-alerts.md) |
+| Worker health and resource observations | `src/worker_health.c`, `main.c`, worker loops | [Firmware health](architecture/firmware-runtime.md#worker-progress-and-memory-evidence) |
+| Parked capture/replay | `tools/obd_capture.py`, `tools/obd_explore.py`, `tools/obd_tcm_values.py`, `tools/tests/` | [TCM resume](development/tcm-session-resume.md), [capture runbook](development/vehicle-capture-runbook.md) |
+| Research definitions | `tools/research/`, `data/vehicle-definitions/` | [Scope/license](vehicles/catalog-research.md); not executable vehicle support |
 
-Firmware paths in the table are relative to `firmware/gauge/main/`. Android Kotlin
-files are under `android/app/src/main/java/com/lstepnio/egauge/` unless specified.
-Third-party research definitions are not executable vehicle support. Never run
-catalog writes/activation routines during an exploratory read session.
+## Nonnegotiable boundaries
 
-## Core invariants
+- The gauge owns each adapter; a Mac capture requires releasing its single-client link.
+  One adapter is normal. An optional child changes routing, never the vehicle page list.
+- Missing/invalid/stale values are unavailable, never zero. Keep ECU, source, revision,
+  session and monotonic age through parsing and presentation; healthy siblings continue.
+- BLE/UI callbacks are nonblocking; owning workers hold external resources. Use one
+  monotonic budget, cancellation-safe IO and bounded cleanup before lease release.
+- Coupled phone state uses one off-main serialized commit; publish only acknowledged
+  state. Retain invalid/newer documents and uncertain outcomes rather than guessing.
+- Config success requires expected running revision/hash and cleared trial. Update
+  success requires the exact post-reboot signed image and healthy OTA state.
+- Previews remain labelled examples; technical detail belongs in Expert. Controls,
+  clearing and public capability promotion need a complete qualified protected path.
+- Keep private captures, identifiers, preference backups and signing material out of Git.
+  Ordinary commit/push authorization does not authorize main merge or release publication.
 
-- Gauge owns the adapter; Android connects to the gauge. A Mac capture needs the
-  gauge to release the single-client adapter. Normal firmware selects one active source.
-- BLE callbacks enqueue bounded work. Transfer workers own flash operations;
-  LVGL owns widgets. Do not block callbacks or add nested subsystem locks.
-- Missing/invalid/stale data is unavailable, not zero. Source, ECU, revision,
-  session and monotonic age remain attached to evidence.
-- Configuration success needs expected running revision/hash and cleared trial state.
-  Firmware update success needs post-reboot identity confirmation.
-- App previews are labelled examples. Technical detail belongs in Expert. Preserve
-  existing architecture and visual tokens; do not introduce a second settings model.
-- Do not change public capability flags based on compilation or simulations alone.
-- Keep private captures under ignored `artifacts/`; never commit secrets or device IDs.
+Details belong in [standing recovery rules](architecture/interaction-recovery.md),
+not a second copy here. Owner instructions take precedence over repository guidance.
 
-## Choose verification by impact
+## Extending alerts and sensor capabilities
 
-| Changed area | Minimum meaningful checks |
+For an alert-related task, read [ADR-015's extension checklist](architecture/alerts-and-diagnostics.md#framework-extension-checklist)
+first. Reuse its producer/reducer/history/presentation owners and update the owning
+contracts with the change. External feeds also use the [provider guide](architecture/phone-alert-providers.md).
+For Auto screen rotation use the [orientation policy](architecture/hardware-and-transports.md#automatic-display-orientation):
+sensor presence, implemented support and advertised usable capability are separate.
+
+## Verification by impact
+
+| Changed boundary | Minimum meaningful checks |
 | --- | --- |
-| Docs, schemas, tokens | `.venv/bin/python tools/validate.py`, `git diff --check` |
-| OBD/capture/parser/diagnostics | Host tests in [setup](development/setup.md), C sanitizer fixtures; firmware build if C changes |
-| Android state/codec/UI | Relevant unit tests, debug build and lint; compile instrumentation tests when their contracts change |
-| Firmware runtime/config/update | IDF build and affected host C fixtures; use [quality gates](development/quality.md) for physical qualification |
-| Visible UI | Inspect existing fixtures or capture relevant new example screens if behavior/layout changes |
+| Documentation | `.venv/bin/python tools/validate.py`, `git diff --check`; inspect authority/link/backlog changes |
+| Catalog/schema/tokens | Validator and corresponding generator `--check`; affected decode/projection fixtures |
+| OBD/capture/parser/diagnostics | Relevant host tests and C sanitizer fixtures; firmware build for C changes |
+| Android state/codec/UI | Relevant JVM tests, debug build and lint; compile instrumentation when its contracts change |
+| Firmware runtime/config/update | ESP-IDF build and affected host C fixtures; physical gates are distinct |
+| Visible UI | Inspect relevant fixtures or focused screens; avoid repeating every golden without a concrete risk |
 
-Use [setup](development/setup.md) for exact toolchain commands. Do not reinstall
-working toolchains or run broad repeated tests once the changed risk is verified.
-Do not install/flash devices, run BLE discovery, clear codes, drive, or publish a
-release as an incidental validation step. Follow the owner's existing authorization.
+Exact commands and toolchains are in [setup](development/setup.md); hardware gates
+are in [quality](development/quality.md). Never run broad connected tests on the owner
+phone, reset its App data, flash, publish or access a vehicle as incidental validation.
+Do not reinstall working toolchains or repeat broad checks after the risk is verified.
 
-## Maintain the context
+## Documentation updates
 
-`current-state.md` owns current status; `roadmap.md` owns unfinished work; protocols
-own wire details; runtime docs own implementation responsibilities. Historical
-reports are evidence, not new instructions. Replace stale active text rather than
-adding another competing summary. Record dates, exact image identity and evidence
-limits. Delete superseded planning docs after preserving still-relevant gates.
-
-## Standing interaction policy
-
-Follow [automatic refresh and resilient interactions](architecture/interaction-recovery.md)
-when changing the App or firmware. Shared status UI, automatic settings reads, bounded
-foreground retries, independent adapter status and negative-scenario verification are
-project defaults. The document maps the implementation and distinguishes source tests
-from remaining hardware qualification.
+[Documentation ownership](documentation.md) defines where each fact belongs.
+Current state owns support/devices, backlog owns tasks/status/blockers, roadmap owns
+outcome order, protocols own bytes, architecture owns implementation responsibilities,
+and evidence owns dated measurements. Replace stale active text; do not append a
+competing summary. Update related facts/gates in the same commit as the code.

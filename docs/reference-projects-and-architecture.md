@@ -1,5 +1,10 @@
 # OBD eGauge: reference projects and initial architecture
 
+> Historical research, checked 2026-09-25. The initial architecture/sequence below
+> is superseded by [system architecture](architecture/system.md) and
+> [current state](current-state.md). It is not a current implementation plan.
+
+
 Research checked 2026-09-25. Repository status and project descriptions can change; recheck before adopting code or dependencies.
 
 ## Best references

@@ -1,8 +1,10 @@
+#include "worker_health.h"
 // ---------------------------------------------------------------------------------------------------------------------
 // Includes
 // ---------------------------------------------------------------------------------------------------------------------
 
 #include <inttypes.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,6 +45,7 @@
 #include "obd.h"
 #include "display_units.h"
 #include "ui.h"
+#include "alert_runtime.h"
 #include "util.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -57,12 +60,18 @@ static const char *TAG = "UI";
 
 typedef struct {
     uint16_t pid;
-    int32_t value;
+    bool present;
+    double value;
     TickType_t received_at;
 } ui_sample_t;
 
 typedef struct {
     uint8_t severity;
+    bool attention;
+    uint16_t key;
+    uint32_t boot,episode;
+    float value,limit;
+    char unit[12];
     bool unavailable;
     char label[32];
 } ui_alert_t;
@@ -77,7 +86,7 @@ typedef struct {
 
 typedef struct {
     bool present;
-    int32_t value;
+    double value;
     TickType_t received_at;
 } ui_metric_sample_t;
 
@@ -86,6 +95,16 @@ struct _ui_t
     ui_touch_callback_t touch_cb;
     bool                long_press_handled;
     bool                press_active;
+    bool suppress_action_click;
+    page_action_t action;
+    atomic_bool action_allowed, action_pending;
+    atomic_uint action_context_epoch;
+    unsigned action_seen_epoch;
+    uint32_t action_feedback_ms;
+    bool action_feedback;
+    bool rendered_action_visible, rendered_action_feedback;
+    uint8_t rendered_action_progress;
+    lv_obj_t *action_label;
     bool                pairing_visible;
     uint32_t            pairing_code;
     TickType_t          reset_confirmation_at;
@@ -130,6 +149,8 @@ struct _ui_t
         lv_obj_t *unit_lbl;
         lv_obj_t *pairing_lbl;
         lv_obj_t *alert_lbl;
+        lv_obj_t *alert_overlay;
+        lv_obj_t *alert_overlay_label;
         lv_obj_t *diagnostics_lbl;
         lv_obj_t *arc;
         lv_obj_t *bar;
@@ -142,7 +163,7 @@ struct _ui_t
     {
         ui_page_t page;
         ui_metric_sample_t samples[2];
-        int32_t rendered_values[2];
+        double rendered_values[2];
         bool rendered_available[2];
         bool rendered_once;
         lv_point_precise_t trend_points[60];
@@ -183,13 +204,19 @@ static const uint32_t color_critical = 0xFF1744;
 #define PRIMARY_VALUE_WIDTH 176
 #define PRIMARY_UNIT_WIDTH 156
 
-static int32_t bounded_range(int32_t minimum, int32_t maximum)
+static double bounded_range(double minimum, double maximum)
 {
-    int64_t range = (int64_t)maximum - minimum;
-    return range > 0 && range <= INT32_MAX ? (int32_t)range : 1;
+    double range = maximum - minimum;
+    return isfinite(range) && range > 0 ? range : 1;
 }
 
-static bool metric_value(ui_t *ui, unsigned index, int32_t *value)
+static int32_t normalized_value(double value, const ui_metric_t *metric, int32_t extent)
+{
+    double normalized = (value - metric->minimum) / bounded_range(metric->minimum, metric->maximum);
+    return (int32_t)lround(fmin(1, fmax(0, normalized)) * extent);
+}
+
+static bool metric_value(ui_t *ui, unsigned index, double *value)
 {
     if (index >= ui->display.page.metric_count || !ui->display.samples[index].present) return false;
     TickType_t age = xTaskGetTickCount() - ui->display.samples[index].received_at;
@@ -399,6 +426,15 @@ static void dispatch_touch(ui_t *ui, lv_event_code_t code)
     }
 }
 
+static bool action_context(ui_t *ui)
+{
+    unsigned epoch = atomic_load(&ui->action_context_epoch);
+    bool allowed = atomic_load(&ui->action_allowed) && !ui->pairing_visible && !ui->calibration_mode;
+    if (!allowed || epoch != ui->action_seen_epoch) page_action_reset(&ui->action);
+    ui->action_seen_epoch = epoch;
+    return allowed;
+}
+
 static void ui_touch_callback(lv_event_t *e)
 {
     ESP_NULL_CHECK(e, TAG, "Event is NULL");
@@ -411,19 +447,32 @@ static void ui_touch_callback(lv_event_t *e)
     if (code == LV_EVENT_CLICKED) ui->timing.clicks++;
     if (code == LV_EVENT_LONG_PRESSED) ui->timing.holds++;
 #endif
+    bool actions_allowed = action_context(ui);
+    lv_point_t point = {0};
+    lv_indev_t *input = lv_indev_active();
+    if (input) lv_indev_get_point(input, &point);
+    uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
     switch (code)
     {
     case LV_EVENT_PRESSED:
+        ui->suppress_action_click = false;
+        if (actions_allowed && input) page_action_press(&ui->action, point.x, point.y, now);
         ui->press_active = true;
         ui->long_press_handled = false;
         ui->pressed_at = xTaskGetTickCount();
+        dispatch_touch(ui, LV_EVENT_PRESSED);
+        break;
+    case LV_EVENT_PRESSING:
+        if (actions_allowed && input) page_action_move(&ui->action, point.x, point.y);
         break;
     case LV_EVENT_LONG_PRESSED:
+        if (actions_allowed && ui->action.pressed && !ui->action.cancelled && (int)ui->action.y - point.y >= 32) break;
+        page_action_reset(&ui->action);
         ui->long_press_handled = true;
         dispatch_touch(ui, code);
         break;
     case LV_EVENT_CLICKED:
-        if (!ui->long_press_handled)
+        if (!ui->long_press_handled && !ui->suppress_action_click)
         {
             if (ui->pairing_code == UI_PAIRING_RESET_CONFIRM)
                 dispatch_touch(ui, LV_EVENT_VALUE_CHANGED);
@@ -431,6 +480,13 @@ static void ui_touch_callback(lv_event_t *e)
         }
         break;
     case LV_EVENT_RELEASED:
+        if (actions_allowed && input && !ui->long_press_handled) {
+            bool fired = false;
+            ui->suppress_action_click = page_action_release(&ui->action, point.x, point.y, now, &fired);
+            if (fired) {
+                dispatch_touch(ui, UI_EVENT_PAGE_ACTION);
+            }
+        } else page_action_reset(&ui->action);
         /* A release without our matching press must never clear the owner. */
         if (ui->press_active && xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
             dispatch_touch(ui, code);
@@ -455,7 +511,7 @@ static void ui_align_labels(ui_t *ui)
     lv_obj_align(ui->widgets.unit_lbl, LV_ALIGN_TOP_MID, 0, 158);
 }
 
-static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, const char *unit)
+static void ui_update_screen(ui_t *ui, double const *value, const char *info, const char *unit)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
@@ -464,7 +520,11 @@ static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, c
         if (!strcmp(ui->display.page.metrics[0].unit, "gear")) {
             const char *gear = transmission_gear_label(*value);
             lv_label_set_text(ui->widgets.value_lbl, gear ? gear : "...");
-        } else lv_label_set_text_fmt(ui->widgets.value_lbl, "%" PRId32, *value);
+        } else {
+            char text[32];
+            display_units_format(text, sizeof(text), *value, ui->display.page.metrics[0].unit, ui->imperial_units);
+            lv_label_set_text(ui->widgets.value_lbl, text);
+        }
         const char *text = lv_label_get_text(ui->widgets.value_lbl);
         int32_t safe_width = lv_obj_get_width(ui->widgets.value_lbl);
         const lv_font_t *font = font_title;
@@ -493,7 +553,7 @@ static void ui_update_screen(ui_t *ui, int32_t const *value, const char *info, c
 
 static void render_page(ui_t *ui)
 {
-    int32_t values[2] = {0};
+    double values[2] = {0};
     bool available[2] = {
         metric_value(ui, 0, &values[0]),
         metric_value(ui, 1, &values[1]),
@@ -509,8 +569,11 @@ static void render_page(ui_t *ui)
                 if (available[i] && !strcmp(metric->unit, "gear")) {
                     const char *gear = transmission_gear_label(values[i]);
                     lv_label_set_text(ui->widgets.dual_value[i], gear ? gear : "...");
-                } else if (available[i]) lv_label_set_text_fmt(ui->widgets.dual_value[i], "%" PRId32,
-                    display_units_value(values[i], metric->unit, ui->imperial_units));
+                } else if (available[i]) {
+                    char text[32];
+                    display_units_format(text, sizeof(text), values[i], metric->unit, ui->imperial_units);
+                    lv_label_set_text(ui->widgets.dual_value[i], text);
+                }
                 else lv_label_set_text(ui->widgets.dual_value[i], "...");
                 lv_label_set_text_fmt(ui->widgets.dual_info[i], "%s  %s",
                                       metric->name ? metric->name : "VALUE",
@@ -519,12 +582,11 @@ static void render_page(ui_t *ui)
         }
     } else if (!ui->display.rendered_once || available[0] != ui->display.rendered_available[0] ||
                (available[0] && values[0] != ui->display.rendered_values[0])) {
-        int32_t shown = display_units_value(values[0], primary->unit, ui->imperial_units);
-        ui_update_screen(ui, available[0] ? &shown : NULL,
+        ui_update_screen(ui, available[0] ? &values[0] : NULL,
                          ui->display.page.name ? ui->display.page.name : primary->name,
                          display_units_label(primary->unit, ui->imperial_units));
-        if (available[0] && renderer == UI_RENDERER_ARC) lv_arc_set_value(ui->widgets.arc, values[0]);
-        if (available[0] && renderer == UI_RENDERER_BAR) lv_bar_set_value(ui->widgets.bar, values[0], LV_ANIM_OFF);
+        if (available[0] && renderer == UI_RENDERER_ARC) lv_arc_set_value(ui->widgets.arc, normalized_value(values[0], primary, 1000));
+        if (available[0] && renderer == UI_RENDERER_BAR) lv_bar_set_value(ui->widgets.bar, normalized_value(values[0], primary, 1000), LV_ANIM_OFF);
     }
 
     if (renderer == UI_RENDERER_TREND && available[0] &&
@@ -533,10 +595,7 @@ static void render_page(ui_t *ui)
         if (ui->display.trend_count < 60) ui->display.trend_count++;
         memmove(&ui->display.trend_points[0], &ui->display.trend_points[1],
                 59 * sizeof(ui->display.trend_points[0]));
-        int32_t range = bounded_range(primary->minimum, primary->maximum);
-        int64_t normalized = ((int64_t)(values[0] - primary->minimum) * 76) / range;
-        if (normalized < 0) normalized = 0;
-        if (normalized > 76) normalized = 76;
+        int32_t normalized = normalized_value(values[0], primary, 76);
         for (unsigned i = 0; i < 60; ++i)
             ui->display.trend_points[i].x = (int32_t)i * 144 / 59;
         ui->display.trend_points[59].y = 76 - (int32_t)normalized;
@@ -563,9 +622,22 @@ static void render_finished(lv_event_t *event)
 }
 #endif
 
+static void acknowledge_alert(lv_event_t *event)
+{
+    if(lv_event_get_code(event)!=LV_EVENT_CLICKED)return;
+    lv_event_stop_bubbling(event);
+    ui_t *ui=lv_event_get_user_data(event);
+    if(!ui || !ui->rendered_alert.episode)return;
+    ui_alert_t chosen=ui->rendered_alert;
+    uint8_t command[16]={0x3d,(uint8_t)chosen.key};
+    memcpy(command+4,&chosen.episode,4);memcpy(command+8,&chosen.boot,4);
+    alert_runtime_command(command,sizeof(command));
+}
+
 static void ui_task(lv_timer_t *timer)
 {
     ESP_NULL_CHECK(timer, TAG, "timer is NULL");
+    worker_health_progress(WORKER_UI, (uint32_t)(esp_timer_get_time() / 1000));
     ui_t *ui = (ui_t *)lv_timer_get_user_data(timer);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
@@ -589,6 +661,24 @@ static void ui_task(lv_timer_t *timer)
     }
 #endif
 
+    action_context(ui);
+    uint32_t action_now = (uint32_t)(esp_timer_get_time() / 1000);
+    page_action_tick(&ui->action, action_now);
+    atomic_store(&ui->action_pending, ui->action.progress != 0 || ui->action.pressed);
+    if (ui->action_feedback && action_now - ui->action_feedback_ms >= 2000) ui->action_feedback = false;
+    if (ui->action_label && !ui->calibration_mode) {
+        bool visible = !ui->pairing_visible && !ui->calibration_mode &&
+            (ui->action.progress || ui->action_feedback);
+        if (visible && (!ui->rendered_action_visible || ui->rendered_action_feedback != ui->action_feedback ||
+                        ui->rendered_action_progress != ui->action.progress)) {
+            if (ui->action_feedback) lv_label_set_text(ui->action_label, "PAGE SHORTCUT");
+            else lv_label_set_text_fmt(ui->action_label, "SWIPE UP %u/%u", ui->action.progress, ui->action.config.count);
+            lv_obj_remove_flag(ui->action_label, LV_OBJ_FLAG_HIDDEN);
+        } else if (!visible && ui->rendered_action_visible) lv_obj_add_flag(ui->action_label, LV_OBJ_FLAG_HIDDEN);
+        ui->rendered_action_visible = visible;
+        ui->rendered_action_progress = ui->action.progress;
+        ui->rendered_action_feedback = ui->action_feedback;
+    }
     if (ui->calibration_mode) {
         lv_event_code_t event_code;
         if (xQueueReceive(ui->rtos.touch_ev_que, &event_code, 0) == pdTRUE && ui->touch_cb)
@@ -605,6 +695,7 @@ static void ui_task(lv_timer_t *timer)
 
     uint32_t pairing_code;
     if (xQueueReceive(ui->rtos.pairing_que, &pairing_code, 0) == pdTRUE) {
+        page_action_reset(&ui->action);
         show_pairing(ui, pairing_code);
     }
     if (ui->pairing_code == UI_PAIRING_RESET_CONFIRM &&
@@ -618,8 +709,8 @@ static void ui_task(lv_timer_t *timer)
 
     ui_alert_t alert;
     if (xQueueReceive(ui->rtos.alert_que, &alert, 0) == pdTRUE &&
-        (!ui->alert_rendered || alert.severity != ui->rendered_alert.severity ||
-         alert.unavailable != ui->rendered_alert.unavailable ||
+        (!ui->alert_rendered || alert.value!=ui->rendered_alert.value || alert.episode!=ui->rendered_alert.episode || alert.boot!=ui->rendered_alert.boot || alert.severity != ui->rendered_alert.severity ||
+         alert.attention != ui->rendered_alert.attention || alert.unavailable != ui->rendered_alert.unavailable ||
          strcmp(alert.label, ui->rendered_alert.label) != 0)) {
         ui->rendered_alert = alert;
         ui->alert_rendered = true;
@@ -635,14 +726,24 @@ static void ui_task(lv_timer_t *timer)
         }
         else {
             lv_obj_set_style_text_color(ui->widgets.alert_lbl,
-                alert.severity == 2 ? lv_color_hex(color_critical) : lv_color_hex(color_warning),
+                alert.severity == 2 ? lv_color_hex(color_critical) : alert.severity == 1 ? lv_color_hex(color_warning) : lv_color_hex(color_accent),
                 LV_PART_MAIN);
             lv_label_set_text_fmt(ui->widgets.alert_lbl, "%s\n%s%s",
-                alert.severity == 2 ? "CRITICAL" : "WARNING", alert.label,
+                alert.severity == 2 ? "CRITICAL" : alert.severity == 1 ? "WARNING" : "NOTICE", alert.label,
                 alert.unavailable ? " LOST" : "");
             lv_obj_add_flag(ui->widgets.info_lbl, LV_OBJ_FLAG_HIDDEN);
             lv_obj_remove_flag(ui->widgets.alert_lbl, LV_OBJ_FLAG_HIDDEN);
         }
+    }
+
+    bool overlay=ui->rendered_alert.attention&&!ui->pairing_visible&&!ui->calibration_mode;
+    show(ui->widgets.alert_overlay,overlay);
+    if(overlay) {
+        char value[24],limit[24];
+        display_units_format(value,sizeof(value),ui->rendered_alert.value,ui->rendered_alert.unit,ui->imperial_units);
+        display_units_format(limit,sizeof(limit),ui->rendered_alert.limit,ui->rendered_alert.unit,ui->imperial_units);
+        lv_label_set_text_fmt(ui->widgets.alert_overlay_label,"CRITICAL\n%s\n%s %s\nLimit %s %s\nTap to acknowledge",
+            ui->rendered_alert.label,value,display_units_label(ui->rendered_alert.unit,ui->imperial_units),limit,display_units_label(ui->rendered_alert.unit,ui->imperial_units));
     }
 
     ui_diagnostics_t diagnostics;
@@ -672,7 +773,7 @@ static void ui_task(lv_timer_t *timer)
     while (xQueueReceive(ui->rtos.value_que, &sample, 0) == pdTRUE) {
         for (unsigned i = 0; i < ui->display.page.metric_count; ++i) {
             if (ui->display.page.metrics[i].pid != sample.pid) continue;
-            ui->display.samples[i].present = sample.value != DISPLAY_VALUE_INVALID;
+            ui->display.samples[i].present = sample.present;
             ui->display.samples[i].value = sample.value;
             ui->display.samples[i].received_at = sample.received_at;
         }
@@ -808,6 +909,22 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_add_flag(alert_lbl, LV_OBJ_FLAG_HIDDEN);
     ui->widgets.alert_lbl = alert_lbl;
 
+    lv_obj_t *overlay=lv_obj_create(gauge_content);
+    lv_obj_set_size(overlay,176,144);lv_obj_align(overlay,LV_ALIGN_CENTER,0,0);
+    lv_obj_set_style_bg_color(overlay,lv_color_hex(color_background),0);
+    lv_obj_set_style_border_color(overlay,lv_color_hex(color_critical),0);
+    lv_obj_set_style_border_width(overlay,3,0);
+    lv_obj_clear_flag(overlay,LV_OBJ_FLAG_SCROLLABLE|LV_OBJ_FLAG_EVENT_BUBBLE|LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_add_flag(overlay,LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(overlay,acknowledge_alert,LV_EVENT_CLICKED,ui);
+    lv_obj_t *overlay_label=lv_label_create(overlay);
+    lv_obj_set_width(overlay_label,152);lv_obj_center(overlay_label);
+    lv_obj_set_style_text_font(overlay_label,font_subtitle,0);
+    lv_obj_set_style_text_align(overlay_label,LV_TEXT_ALIGN_CENTER,0);
+    lv_obj_set_style_text_color(overlay_label,lv_color_hex(color_critical),0);
+    lv_obj_add_flag(overlay,LV_OBJ_FLAG_HIDDEN);
+    ui->widgets.alert_overlay=overlay;ui->widgets.alert_overlay_label=overlay_label;
+
     lv_obj_t *diagnostics_lbl = lv_label_create(gauge_content);
     lv_obj_set_size(diagnostics_lbl, 132, 24);
     lv_obj_align(diagnostics_lbl, LV_ALIGN_BOTTOM_MID, 0, -22);
@@ -817,11 +934,8 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_add_flag(diagnostics_lbl, LV_OBJ_FLAG_HIDDEN);
     ui->widgets.diagnostics_lbl = diagnostics_lbl;
 
-    int32_t minimum = page->metrics[0].minimum;
-    int32_t maximum = page->metrics[0].maximum;
-    if (maximum <= minimum) maximum = minimum + 1;
-    lv_arc_set_range(arc, minimum, maximum);
-    lv_bar_set_range(bar, minimum, maximum);
+    lv_arc_set_range(arc, 0, 1000);
+    lv_bar_set_range(bar, 0, 1000);
     select_renderer_widgets(ui);
     show_pairing(ui, ui->pairing_visible ? UI_PAIRING_WAITING : UI_PAIRING_HIDDEN);
 
@@ -888,7 +1002,15 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
         return NULL;
     }
 
+    atomic_init(&ui->action_allowed, false);
+    atomic_init(&ui->action_pending, false);
+    atomic_init(&ui->action_context_epoch, 0);
     ui_init_screen(ui, page, interval_ms);
+    ui->action_label = lv_label_create(ui->widgets.gauge_content);
+    lv_obj_set_style_text_color(ui->action_label, lv_color_hex(color_accent), 0);
+    lv_obj_set_style_text_font(ui->action_label, LV_FONT_DEFAULT, 0);
+    lv_obj_align(ui->action_label, LV_ALIGN_TOP_MID, 0, 25);
+    lv_obj_add_flag(ui->action_label, LV_OBJ_FLAG_HIDDEN);
 
     lvgl_port_unlock();
 
@@ -897,13 +1019,14 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     return ui;
 }
 
-void ui_set_value(ui_t *ui, uint16_t pid, int32_t const *value)
+void ui_set_value(ui_t *ui, uint16_t pid, double const *value)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 
     ui_sample_t sample = {
         .pid = pid,
-        .value = value != NULL ? *value : DISPLAY_VALUE_INVALID,
+        .present = value != NULL && isfinite(*value),
+        .value = value != NULL && isfinite(*value) ? *value : 0,
         .received_at = xTaskGetTickCount(),
     };
 
@@ -918,17 +1041,15 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     ESP_NULL_CHECK(page, TAG, "Page config is NULL");
 
+    page_action_reset(&ui->action);
     xQueueReset(ui->rtos.value_que);
     ui->display.page = *page;
     memset(ui->display.samples, 0, sizeof(ui->display.samples));
     ui->display.rendered_once = false;
     ui->display.trend_count = 0;
     for (unsigned i = 0; i < 60; ++i) ui->display.trend_points[i].y = 76;
-    int32_t minimum = page->metrics[0].minimum;
-    int32_t maximum = page->metrics[0].maximum;
-    if (maximum <= minimum) maximum = minimum + 1;
-    lv_arc_set_range(ui->widgets.arc, minimum, maximum);
-    lv_bar_set_range(ui->widgets.bar, minimum, maximum);
+    lv_arc_set_range(ui->widgets.arc, 0, 1000);
+    lv_bar_set_range(ui->widgets.bar, 0, 1000);
     select_renderer_widgets(ui);
     if (ui->alert_rendered && ui->rendered_alert.severity != 0)
         lv_obj_add_flag(ui->widgets.info_lbl, LV_OBJ_FLAG_HIDDEN);
@@ -960,10 +1081,18 @@ void ui_set_pairing_identifier(ui_t *ui, const char *identifier)
     xQueueOverwrite(ui->rtos.pairing_id_que, value);
 }
 
-void ui_set_alert(ui_t *ui, uint8_t severity, bool unavailable, const char *label)
+void ui_set_alert(ui_t *ui,uint8_t severity,bool unavailable,const char *label) {
+    ui_set_alert_full(ui,severity,unavailable,label,false);
+}
+void ui_set_alert_full(ui_t *ui, uint8_t severity, bool unavailable, const char *label, bool attention)
+{
+    ui_set_alert_event(ui,severity,unavailable,label,attention,0,0,0,0,0,"");
+}
+void ui_set_alert_event(ui_t *ui,uint8_t severity,bool unavailable,const char *label,bool attention,uint16_t key,uint32_t boot,uint32_t episode,float value,float limit,const char *unit)
 {
     if (!ui || !ui->rtos.alert_que) return;
-    ui_alert_t alert = {.severity = severity, .unavailable = unavailable};
+    ui_alert_t alert = {.severity = severity, .attention = attention, .unavailable = unavailable,.key=key,.boot=boot,.episode=episode,.value=value,.limit=limit};
+    if(unit)snprintf(alert.unit,sizeof(alert.unit),"%s",unit);
     if (label) snprintf(alert.label, sizeof(alert.label), "%s", label);
     xQueueOverwrite(ui->rtos.alert_que, &alert);
 }
@@ -1004,4 +1133,29 @@ void ui_set_simulated(ui_t *ui)
     lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 28);
     lv_obj_clear_flag(label, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
+}
+
+void ui_configure_page_action(ui_t *ui, page_action_config_t config)
+{
+    page_action_init(&ui->action, config);
+    ui->action_feedback = false;
+}
+void ui_set_action_context(ui_t *ui, bool allowed)
+{
+    if (atomic_exchange(&ui->action_allowed, allowed) != allowed)
+        atomic_fetch_add(&ui->action_context_epoch, 1);
+}
+uint8_t ui_action_target(ui_t *ui) { return ui->action.config.target_page; }
+
+void ui_reset_action_sequence(ui_t *ui)
+{
+    page_action_reset(&ui->action);
+    atomic_store(&ui->action_pending, false);
+}
+bool ui_action_pending(ui_t *ui) { return atomic_load(&ui->action_pending); }
+
+void ui_action_applied(ui_t *ui)
+{
+    ui->action_feedback = true;
+    ui->action_feedback_ms = (uint32_t)(esp_timer_get_time() / 1000);
 }

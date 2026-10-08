@@ -5,7 +5,6 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.connection.ConnectionPhase
@@ -26,7 +25,7 @@ class AutomaticConnectionJourneyTest {
     @Test fun openingResumingAndBluetoothRecoveryNeedNoConnectTap() {
         assumeTrue("Requires the paired bench gauge", allowed)
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val model = ViewModelProvider(compose.activity)[AppViewModel::class.java]
+        val model = (compose.activity.application as EGaugeApplication).model
         val output = File(instrumentation.targetContext.getExternalFilesDir(null), "automatic-connection").apply { mkdirs() }
         val started = android.os.SystemClock.elapsedRealtime()
         val sharedStatus = SemanticsMatcher("Universal connection status action") {
@@ -66,23 +65,28 @@ class AutomaticConnectionJourneyTest {
         val verifiedBoot = model.bootIdentity
         val target = model.rememberedGaugeId
         capture("opened")
-        val beforeResume = requireNotNull(model.connection.checkedAtElapsedMs)
         compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        val beforeResume = android.os.SystemClock.elapsedRealtime()
         compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
         readyAfter(beforeResume)
+        val resumeElapsed = android.os.SystemClock.elapsedRealtime() - beforeResume
         capture("resumed")
         val toggle = InstrumentationRegistry.getArguments().getString("toggleBluetooth") == "true"
+        var bluetoothRecoveryElapsed: Long? = null
         if (toggle) {
             try {
                 instrumentation.uiAutomation.executeShellCommand("svc bluetooth disable").close()
                 compose.waitUntil(60_000) { model.connection.phase == ConnectionPhase.BluetoothOff }
-                compose.waitUntil(5_000) { compose.onAllNodesWithText("Bluetooth is off").fetchSemanticsNodes().isNotEmpty() }
+                compose.waitUntil(5_000) { compose.onAllNodesWithText("Bluetooth off").fetchSemanticsNodes().isNotEmpty() }
+                compose.onNode(sharedStatus).assertIsDisplayed()
+                compose.onNodeWithText("Turn on Bluetooth").assertIsDisplayed()
                 capture("bluetooth-off")
             } finally {
                 instrumentation.uiAutomation.executeShellCommand("svc bluetooth enable").close()
             }
             val retryAfter = android.os.SystemClock.elapsedRealtime()
             readyAfter(retryAfter)
+            bluetoothRecoveryElapsed = android.os.SystemClock.elapsedRealtime() - retryAfter
             capture("reconnected")
         }
         val picker = InstrumentationRegistry.getArguments().getString("checkGaugePickerRecovery") == "true"
@@ -103,13 +107,23 @@ class AutomaticConnectionJourneyTest {
         assertEquals(originalProfiles, model.profileCollection.profiles)
         assertFalse(model.configurationNeedsReview)
         assertEquals(OperationStage.IDLE, model.operation.stage)
+        val hardwareChain = InstrumentationRegistry.getArguments().getString("checkHardwareReadChain") == "true"
+        if (hardwareChain) {
+            compose.runOnUiThread { model.readHardwareCapacity() }
+            compose.waitUntil(30_000) { model.operation.title == "Hardware checked" && model.operation.terminal }
+            assertNotNull(model.hardwareSnapshot)
+            compose.runOnUiThread { model.readRunningFirmware() }
+            compose.waitUntil(30_000) { model.operation.title == "Firmware checked" && model.operation.terminal }
+            assertEquals(verifiedBoot, model.bootIdentity)
+        }
         File(output, "verified-active.json").writeText(requireNotNull(model.activeDocument).json)
         File(output, "result.txt").writeText("Physical automatic connection validation\n" +
             "Opening to protected confirmation: $elapsed ms\n" +
             "Running firmware version: ${verifiedBoot?.version}; OTA health: ${verifiedBoot?.otaState}\n" +
-            "Resume: protected confirmation refreshed without a tap\n" +
-            "Bluetooth off/on recovery: $toggle\n" +
+            "Resume: protected confirmation and settings refreshed without a tap in $resumeElapsed ms\n" +
+            "Bluetooth off/on recovery: $toggle; recovery duration: $bluetoothRecoveryElapsed ms\n" +
             "Add-gauge cancellation recovery: $picker\n" +
+            "Hardware snapshot followed by a fresh protected firmware read: $hardwareChain\n" +
             "Gauge identity unchanged; saved and running revision ${original.revision} retained\n" +
             "Configuration digest unchanged: ${original.sha256}\n" +
             "Settings populated and refreshed automatically; brightness, rotation, units and cycle unchanged\n" +

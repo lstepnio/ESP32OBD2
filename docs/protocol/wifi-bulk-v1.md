@@ -44,6 +44,28 @@ Kind 4 reduces network and AEAD round trips without creating another update stat
 
 The larger request and plaintext buffers are allocated once from PSRAM. The OTA queue remains bounded to one original command, so batching does not multiply worker memory or bypass the existing transfer gate. This preserves the SHA-256, signed image, per-chunk offset, one-writer, activation and rollback behavior.
 
+## Recovery ownership (source candidate dev.44)
+
+Wire bytes and advertised development version do not change. Wi-Fi OTA queue
+entries and active unactivated transfers carry an internal session generation.
+Station departure, explicit close/expiry/reopen or closure of an authenticated OTA
+participant's socket retires that generation. Rejected or read-only probes cannot
+abandon another transfer. Retired entries cannot begin or continue an upload; the
+OTA worker aborts only phases 1 through 3 and releases its transfer gate after any
+in-flight flash operation finishes. Phase 4 has already accepted durable activation
+and is resolved by post-boot identity/health, never automatic abort or blind replay.
+The Wi-Fi control worker also closes that authenticated OTA participant's matching
+maintenance session, releasing its independent adapter pause. An older-session
+departure signal cannot close a newly opened network. BLE-only transfer ownership
+is independent.
+
+Firmware socket IO checks session validity in bounded slices. A frame's fragments
+share a total deadline instead of renewing it per byte. Android cancellation closes
+its blocking socket and waits for worker exit before lease release. See the
+[recovery audit](../evidence/recovery-hardening.md) for budgets, offline evidence
+and remaining physical qualification. Installed dev.43 does not implement these
+new internal ownership rules.
+
 ## Operational boundaries
 
 - Wi-Fi is off by default and intended for maintenance only.
@@ -51,6 +73,6 @@ The larger request and plaintext buffers are allocated once from PSRAM. The OTA 
 - Android requests at most one local network and releases it when the operation closes.
 - Application-layer AEAD protects the local socket independently of WPA2.
 - BLE remains the ownership bootstrap, capability source and post-reboot health channel.
-- Live encrypted transfer, signed activation, alternate-partition boot, health confirmation and BLE readback are recorded in [Wi-Fi bulk validation](../development/wifi-bulk-validation.md).
-- A live owner-authenticated check rejected wrong-session, wrong-key, and replay frames; see [Wi-Fi transport security validation](../development/wifi-transport-security-validation.md).
+- Live encrypted transfer, signed activation, alternate-partition boot, health confirmation and BLE readback are recorded in [Wi-Fi bulk validation](../evidence/wifi-bulk-validation.md).
+- A live owner-authenticated check rejected wrong-session, wrong-key, and replay frames; see [Wi-Fi transport security validation](../evidence/wifi-transport-security-validation.md).
 - Session expiry, active attack testing, physical power-loss interruption, and recovery still require live qualification before removing the experimental label.

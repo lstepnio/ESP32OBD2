@@ -1,3 +1,4 @@
+#include "worker_health.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdatomic.h>
@@ -10,6 +11,7 @@
 #include "esp_mac.h"
 #include "esp_netif.h"
 #include "esp_random.h"
+#include "esp_timer.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -20,8 +22,10 @@
 #include "mbedtls/gcm.h"
 #include "config_transfer.h"
 #include "ota_transfer.h"
+#include "ota_recovery_policy.h"
 #include "wifi_bulk.h"
 #include "wifi_bulk_policy.h"
+#include "wifi_bulk_io.h"
 #include "ble_mgr.h"
 
 #define OP_OPEN 0x40
@@ -32,6 +36,8 @@
 #define FRAME_TAG 16U
 #define OTA_BATCH_MAX_COMMANDS 8U
 #define FRAME_MAX_PLAINTEXT 8448U
+#define FRAME_IO_BUDGET_MS 20000U
+#define CLIENT_IDLE_BUDGET_MS 65000U
 #define COMMAND_STATUS_POLL_TICKS 1U
 #define COMMAND_STATUS_TIMEOUT_TICKS pdMS_TO_TICKS(60000)
 
@@ -50,6 +56,8 @@ static esp_netif_t *ap_netif;
 static bool wifi_initialized;
 static bool server_started;
 static atomic_bool wifi_active;
+static atomic_uint wifi_generation;
+static atomic_uint abandoned_ota_session;
 static struct {
     uint8_t phase;
     uint8_t result;
@@ -143,8 +151,12 @@ static void wifi_event(void *arg, esp_event_base_t base, int32_t id, void *data)
     (void)data;
     if (base == WIFI_EVENT && id == WIFI_EVENT_AP_STACONNECTED)
         ESP_LOGI(TAG, "Owner phone joined temporary maintenance network");
-    else if (base == WIFI_EVENT && id == WIFI_EVENT_AP_STADISCONNECTED)
+    else if (base == WIFI_EVENT && id == WIFI_EVENT_AP_STADISCONNECTED) {
+        // Leave the bounded session available, but release the departed client's
+        // socket promptly. Never replay an already admitted transfer command.
+        atomic_fetch_add(&wifi_generation, 1);
         ESP_LOGI(TAG, "Owner phone left temporary maintenance network");
+    }
 }
 
 static bool initialize_wifi(void)
@@ -166,6 +178,10 @@ static bool initialize_wifi(void)
 
 static bool start_maintenance_network(void)
 {
+    // Retire the prior client/transfer even if a subsequent startup step fails.
+    atomic_store(&wifi_active, false);
+    atomic_fetch_add(&wifi_generation, 1);
+    if (wifi_initialized) esp_wifi_stop();
     if (!initialize_wifi()) return false;
     uint8_t mac[6];
     if (esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP) != ESP_OK) return false;
@@ -182,7 +198,6 @@ static bool start_maintenance_network(void)
     config.ap.pmf_cfg.capable = true;
     config.ap.pmf_cfg.required = false;
     xSemaphoreGive(state_lock);
-    if (atomic_load(&wifi_active)) esp_wifi_stop();
     if (esp_wifi_set_mode(WIFI_MODE_AP) != ESP_OK ||
         esp_wifi_set_config(WIFI_IF_AP, &config) != ESP_OK ||
         esp_wifi_start() != ESP_OK) return false;
@@ -210,6 +225,7 @@ static bool start_maintenance_network(void)
 static void stop_maintenance_network(void)
 {
     atomic_store(&wifi_active, false);
+    atomic_fetch_add(&wifi_generation, 1);
     ble_mgr_set_paused(false);
     if (wifi_initialized) esp_wifi_stop();
     xSemaphoreTake(state_lock, portMAX_DELAY);
@@ -217,26 +233,22 @@ static void stop_maintenance_network(void)
     xSemaphoreGive(state_lock);
 }
 
-static int receive_all(int socket_fd, uint8_t *data, size_t length)
+/* Only the server task closes descriptors. A generation change invalidates an
+ * old client even if a new maintenance session starts before its next IO slice. */
+bool wifi_bulk_session_current(uint32_t generation)
 {
-    size_t received = 0;
-    while (received < length) {
-        int count = recv(socket_fd, data + received, length - received, 0);
-        if (count <= 0) return -1;
-        received += count;
-    }
-    return 0;
+    return atomic_load(&wifi_active) && atomic_load(&wifi_generation) == generation;
 }
 
-static int send_all(int socket_fd, const uint8_t *data, size_t length)
+static bool client_active(void *context)
 {
-    size_t sent = 0;
-    while (sent < length) {
-        int count = send(socket_fd, data + sent, length - sent, 0);
-        if (count <= 0) return -1;
-        sent += count;
-    }
-    return 0;
+    return wifi_bulk_session_current(*(uint32_t *)context);
+}
+
+static uint32_t clock_ms(void *context)
+{
+    (void)context;
+    return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
 static void make_nonce(uint8_t nonce[12], uint32_t session_id,
@@ -249,15 +261,17 @@ static void make_nonce(uint8_t nonce[12], uint32_t session_id,
 }
 
 static bool wait_status(uint8_t kind, const uint8_t *command, size_t command_length,
-                        uint8_t *out, size_t *out_length)
+                        uint8_t *out, size_t *out_length, uint32_t generation)
 {
+    if (!client_active(&generation)) return false;
     bool admitted = kind == 1
         ? config_transfer_command(command, command_length)
-        : ota_transfer_command(command, command_length);
+        : ota_transfer_wifi_command(command, command_length, generation);
     if (!admitted) return false;
     uint32_t sequence = read_u32(command + 1);
     TickType_t started = xTaskGetTickCount();
     while (xTaskGetTickCount() - started < COMMAND_STATUS_TIMEOUT_TICKS) {
+        if (!client_active(&generation)) return false;
         *out_length = kind == 1 ? config_transfer_status(out) : ota_transfer_status(out);
         if (*out_length >= 8 && out[3] == command[0] && read_u32(out + 4) == sequence)
             return true;
@@ -281,7 +295,7 @@ static bool validate_ota_batch(const uint8_t *batch, size_t length)
     return offset == length;
 }
 
-static bool run_ota_batch(const uint8_t *batch, uint8_t *response, size_t *response_length)
+static bool run_ota_batch(const uint8_t *batch, uint8_t *response, size_t *response_length, uint32_t generation)
 {
     size_t offset = 1;
     uint8_t status[OTA_TRANSFER_STATUS_SIZE];
@@ -289,7 +303,7 @@ static bool run_ota_batch(const uint8_t *batch, uint8_t *response, size_t *respo
     for (uint8_t i = 0; i < batch[0]; ++i) {
         size_t command_length = read_u16(batch + offset);
         offset += 2;
-        if (!wait_status(2, batch + offset, command_length, status, &status_length)) return false;
+        if (!wait_status(2, batch + offset, command_length, status, &status_length, generation)) return false;
         if (status_length != OTA_TRANSFER_STATUS_SIZE || status[2] != RESULT_OK) return false;
         offset += command_length;
     }
@@ -299,18 +313,25 @@ static bool run_ota_batch(const uint8_t *batch, uint8_t *response, size_t *respo
     return true;
 }
 
-static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext)
+static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext, uint32_t generation, uint32_t *ota_session)
 {
     uint8_t header[FRAME_HEADER], tag[FRAME_TAG];
-    if (receive_all(client, header, sizeof(header)) != 0 ||
+    // Idle allowance retains the bounded development activation pause. Once a
+    // frame starts, all remaining header/tag/payload fragments share 20 seconds.
+    uint32_t idle_at = clock_ms(NULL);
+    if (wifi_bulk_io(client, header, 1, false, idle_at, CLIENT_IDLE_BUDGET_MS,
+                     clock_ms, client_active, &generation) != 0) return false;
+    uint32_t received_at = clock_ms(NULL);
+    if (wifi_bulk_io(client, header + 1, sizeof(header) - 1, false, received_at,
+                     FRAME_IO_BUDGET_MS, clock_ms, client_active, &generation) != 0 ||
         memcmp(header, "EGW1", 4) != 0) return false;
     uint32_t session_id = read_u32(header + 4);
     uint32_t sequence = read_u32(header + 8);
     uint8_t kind = header[12];
     uint16_t length = read_u16(header + 14);
     if ((kind < 1 || kind > 4) || length == 0 || length > FRAME_MAX_PLAINTEXT ||
-        receive_all(client, tag, sizeof(tag)) != 0 ||
-        receive_all(client, ciphertext, length) != 0) return false;
+        wifi_bulk_io(client, tag, sizeof(tag), false, received_at, FRAME_IO_BUDGET_MS, clock_ms, client_active, &generation) != 0 ||
+        wifi_bulk_io(client, ciphertext, length, false, received_at, FRAME_IO_BUDGET_MS, clock_ms, client_active, &generation) != 0) return false;
 
     uint8_t key[32];
     bool authorized = false;
@@ -345,6 +366,9 @@ static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext)
     state.last_frame_sequence = sequence;
     xSemaphoreGive(state_lock);
 
+    if ((kind == 2 && length >= 9 && plaintext[0] >= 0x20 && plaintext[0] <= 0x28) ||
+        (kind == 4 && validate_ota_batch(plaintext, length))) *ota_session = session_id;
+
     uint8_t response[CONFIG_TRANSFER_STATUS_SIZE];
     size_t response_length = 0;
     bool ok;
@@ -353,10 +377,10 @@ static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext)
             ? config_transfer_status(response) : ota_transfer_status(response);
         ok = true;
     } else if (kind == 4 && validate_ota_batch(plaintext, length)) {
-        ok = run_ota_batch(plaintext, response, &response_length);
+        ok = run_ota_batch(plaintext, response, &response_length, generation);
     } else if ((kind == 1 && plaintext[0] >= 0x10 && plaintext[0] <= 0x17) ||
                (kind == 2 && plaintext[0] >= 0x20 && plaintext[0] <= 0x28)) {
-        ok = wait_status(kind, plaintext, length, response, &response_length);
+        ok = wait_status(kind, plaintext, length, response, &response_length, generation);
     } else ok = false;
     if (!ok) {
         response[0] = 1;
@@ -372,9 +396,13 @@ static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext)
         nonce, sizeof(nonce), header, sizeof(header), response, ciphertext,
         sizeof(tag), tag);
     mbedtls_gcm_free(&gcm);
-    return rc == 0 && send_all(client, header, sizeof(header)) == 0 &&
-        send_all(client, tag, sizeof(tag)) == 0 &&
-        send_all(client, ciphertext, response_length) == 0;
+    uint32_t sent_at = clock_ms(NULL);
+    return rc == 0 && wifi_bulk_io(client, header, sizeof(header), true, sent_at,
+            FRAME_IO_BUDGET_MS, clock_ms, client_active, &generation) == 0 &&
+        wifi_bulk_io(client, tag, sizeof(tag), true, sent_at,
+            FRAME_IO_BUDGET_MS, clock_ms, client_active, &generation) == 0 &&
+        wifi_bulk_io(client, ciphertext, response_length, true, sent_at,
+            FRAME_IO_BUDGET_MS, clock_ms, client_active, &generation) == 0;
 }
 
 static void server_task(void *arg)
@@ -392,7 +420,11 @@ static void server_task(void *arg)
         return;
     }
     for (;;) {
-        while (!atomic_load(&wifi_active)) vTaskDelay(pdMS_TO_TICKS(250));
+        worker_health_progress(WORKER_WIFI_SERVER, (uint32_t)(esp_timer_get_time() / 1000));
+        while (!atomic_load(&wifi_active)) {
+            worker_health_progress(WORKER_WIFI_SERVER, (uint32_t)(esp_timer_get_time() / 1000));
+            vTaskDelay(pdMS_TO_TICKS(250));
+        }
         int server = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         if (server < 0) { vTaskDelay(pdMS_TO_TICKS(1000)); continue; }
         int yes = 1;
@@ -409,14 +441,27 @@ static void server_task(void *arg)
             continue;
         }
         while (atomic_load(&wifi_active)) {
-            struct timeval timeout = {.tv_sec = 1};
-            setsockopt(server, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+            worker_health_progress(WORKER_WIFI_SERVER, (uint32_t)(esp_timer_get_time() / 1000));
+            // SO_RCVTIMEO does not portably bound accept; select owns its deadline.
+            fd_set readable;
+            FD_ZERO(&readable);
+            FD_SET(server, &readable);
+            struct timeval timeout = {.tv_sec = 0, .tv_usec = 250000};
+            int ready = select(server + 1, &readable, NULL, NULL, &timeout);
+            if (ready < 0) break;
+            if (ready == 0 || !atomic_load(&wifi_active)) continue;
+            uint32_t generation = atomic_load(&wifi_generation);
             int client = accept(server, NULL, NULL);
             if (client < 0) continue;
-            struct timeval io_timeout = {.tv_sec = 65};
-            setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &io_timeout, sizeof(io_timeout));
-            setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &io_timeout, sizeof(io_timeout));
-            while (handle_frame(client, ciphertext, plaintext)) {}
+            uint32_t ota_session = 0;
+            while (handle_frame(client, ciphertext, plaintext, generation, &ota_session)) {}
+            if (ota_session) {
+                // Only an authenticated OTA participant can abandon its transfer.
+                // Read-only or rejected probes cannot invalidate another session.
+                unsigned expected = generation;
+                atomic_compare_exchange_strong(&wifi_generation, &expected, generation + 1);
+                atomic_store(&abandoned_ota_session, ota_session);
+            }
             close(client);
         }
         close(server);
@@ -428,6 +473,7 @@ static void worker_task(void *arg)
     (void)arg;
     command_t command;
     for (;;) {
+        worker_health_progress(WORKER_WIFI_COMMAND, (uint32_t)(esp_timer_get_time() / 1000));
         if (xQueueReceive(command_queue, &command, pdMS_TO_TICKS(1000)) == pdTRUE) {
             xSemaphoreTake(state_lock, portMAX_DELAY);
             state.last_op = command.op;
@@ -439,8 +485,8 @@ static void worker_task(void *arg)
             if (command.op == OP_OPEN) {
                 ble_mgr_set_paused(true);
                 if (!start_maintenance_network()) {
-                    xSemaphoreTake(state_lock, portMAX_DELAY);
                     ble_mgr_set_paused(false);
+                    xSemaphoreTake(state_lock, portMAX_DELAY);
                     clear_session_locked(PHASE_FAILED, RESULT_NETWORK);
                     state.last_op = command.op;
                     state.sequence = command.sequence;
@@ -456,12 +502,14 @@ static void worker_task(void *arg)
                 xSemaphoreGive(state_lock);
             }
         }
-        bool expired;
+        uint32_t abandoned = atomic_exchange(&abandoned_ota_session, 0);
+        bool should_close;
         xSemaphoreTake(state_lock, portMAX_DELAY);
-        expired = state.phase == PHASE_READY &&
-            (int32_t)(state.expires_at - xTaskGetTickCount()) <= 0;
+        should_close = (state.phase == PHASE_READY &&
+            (int32_t)(state.expires_at - xTaskGetTickCount()) <= 0) ||
+            ota_recovery_close_network(abandoned, state.session_id, state.phase == PHASE_READY);
         xSemaphoreGive(state_lock);
-        if (expired) stop_maintenance_network();
+        if (should_close) stop_maintenance_network();
     }
 }
 
@@ -485,7 +533,9 @@ bool wifi_bulk_command(const uint8_t *bytes, size_t length)
     if (!server_started || !bytes || length != 5 ||
         (bytes[0] != OP_OPEN && bytes[0] != OP_CLOSE)) return false;
     command_t command = {.op = bytes[0], .sequence = read_u32(bytes + 1)};
-    return xQueueSend(command_queue, &command, 0) == pdTRUE;
+    bool queued = xQueueSend(command_queue, &command, 0) == pdTRUE;
+    if (!queued) worker_health_queue_drop(WORKER_WIFI_COMMAND);
+    return queued;
 }
 
 size_t wifi_bulk_status(uint8_t out[WIFI_BULK_STATUS_SIZE])

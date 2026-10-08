@@ -3,9 +3,12 @@
 This is the implemented development protocol-0 path, not a general production
 configuration contract. Owner writes use characteristic `6f1a0002`; protected
 reads use `6f1a0003`. Android configuration/readback and signed App/Wi-Fi updates
-have recorded evidence. Public `configWrite` and `ota` stay false. `cfg:3` adds
-source-specific schema-2 adapter bindings to bounded pages/renderers; old `cfg:2`
-and `experimentalNumericConfig:true` remain compatibility variants.
+have recorded evidence. Public `configWrite` and `ota` stay false. Current `cfg:5`
+includes bindings (`cfg:3`), local page actions (`cfg:4`), expanded catalog decimals
+and TCM numeric/gear alerts. `va:1` identifies per-definition ECU routing and `da:1`
+source-index reads. Older `cfg:2`/`experimentalNumericConfig:true` are legacy variants.
+Negotiate these markers before writes; the later extension sections below define
+current semantics without changing the existing command layouts.
 See [current state](../current-state.md) for physical limits and
 [adapter bindings](adapter-bindings-v1.md) for routing.
 
@@ -26,7 +29,7 @@ The owner client reads the protected state characteristic before its first write
 
 State version `03` has 64 bytes: phase at 1, result at 2, last opcode at 3, sequence at 4, transfer ID at 8, accepted offset at 12, total length at 16, active document revision at 20, base revision at 24, received digest-part mask at 28, and active SHA-256 at 32. `u32` fields are little endian. Phases: 0 idle, 1 metadata, 2 receiving, 3 verified, 4 applied. Results: 0 success, 2 bad request, 3 conflict, 4 storage error, 5 invalid document, 6 unsupported runtime feature. A transfer expires after ten minutes without an owner command. A disconnect alone does not discard its in-RAM offset; reboot discards an incomplete transfer while retaining the prior committed slot.
 
-Configuration capability version 2 supports one ECM source using headerless functional Mode 01 replies, one-byte PID identifiers, one to eight ordered pages, and the decoder's first 1..4 payload bytes. Numeric, arc, bar, and trend pages reference one PID; dual pages reference exactly two distinct PIDs. It requires metric units, brightness 80, reduced motion false, and alert snooze zero because those settings have no runtime handler yet. The schema's `7E8` response ID is constrained at compile time but cannot be confirmed from a headerless adapter reply; no ECU attribution claim should be made from this path. Mode 22, physical routing, TCM sources, renderer-specific style options, and ECU-specific responses cannot be committed yet. A full schema-valid document may therefore return result 6 at COMMIT. The active generation is loaded at boot; firmware falls back to its built-in readings if a selected generation cannot compile. Polling uses per-definition intervals. Configured thresholds run locally with hysteresis, entry and clear dwell, and a warning or critical badge; the remaining attention/acknowledgment design is pending. When a custom document is active, the public legacy quick-selection and saved-state flags become false because those operations represent only the built-in profile.
+**Legacy compatibility, cfg:2 only:** Configuration capability version 2 supports one ECM source using headerless functional Mode 01 replies, one-byte PID identifiers, one to eight ordered pages, and the decoder's first 1..4 payload bytes. Numeric, arc, bar, and trend pages reference one PID; dual pages reference exactly two distinct PIDs. It requires metric units, brightness 80, reduced motion false, and alert snooze zero because those settings have no runtime handler yet. The schema's `7E8` response ID is constrained at compile time but cannot be confirmed from a headerless adapter reply; no ECU attribution claim should be made from this path. Mode 22, physical routing, TCM sources, renderer-specific style options, and ECU-specific responses cannot be committed yet. A full schema-valid document may therefore return result 6 at COMMIT. The active generation is loaded at boot; firmware falls back to its built-in readings if a selected generation cannot compile. Polling uses per-definition intervals. Configured thresholds run locally with hysteresis, entry and clear dwell, and a warning or critical badge; the remaining attention/acknowledgment design is pending. When a custom document is active, the public legacy quick-selection and saved-state flags become false because those operations represent only the built-in profile.
 
 | Update opcode | Payload after opcode + sequence | Effect |
 | --- | --- | --- |
@@ -42,7 +45,7 @@ Configuration capability version 2 supports one ECM source using headerless func
 
 Update state version `04` has 56 bytes: phase/result/opcode/sequence/transferId/acceptedOffset/totalLength at the same positions as config; digest-part mask at 20, signature length at 21, signature-part mask at 22, and expected SHA-256 at 24. Phases: 0 idle, 1 metadata, 2 receiving, 3 verified, 4 activating. Results: 0 success, 2 invalid image/request, 3 conflict, 4 flash error, 5 unsupported board/length. The signed bytes are little-endian board tag `0x31534745`, little-endian image length, then the 32 raw image SHA-256 bytes. Verify uses ECDSA P-256 with SHA-256 and the pinned development public key in `firmware/gauge/main/certs`. Bootloader rollback is enabled. A trial image is confirmed after display, touch, BLE and task startup. No OBD adapter is required for boot health.
 
-**Trust boundary:** Update activation requires the authenticated owner bond, full-image SHA-256, and a P-256 signature from the pinned development key. The private development key is generated locally outside the repository at `~/.config/egauge/dev-update-key.pem`; it is not a production release key and must be backed up or deliberately rotated before distributing updates. This design does not yet enforce downgrade prevention, hardware secure boot, or encrypted NVS. Keep `ota:false` until power interruption, production signing and recovery policy are exercised. A 23-byte ATT MTU allows only seven bytes per chunk; negotiated larger MTUs are important for a practical update time.
+**Trust boundary:** Update activation requires the authenticated owner bond, full-image SHA-256, and a P-256 signature from the pinned development key. Published development releases use protected GitHub signing material and the [release runbook](../development/firmware-release-runbook.md). Earlier local bench keys are historical inputs, never a substitute for the protected publication workflow. Development trust is not production provisioning. This design does not yet enforce downgrade prevention, hardware secure boot, or encrypted NVS. Keep `ota:false` until power interruption, production signing and recovery policy are exercised. A 23-byte ATT MTU allows only seven bytes per chunk; negotiated larger MTUs are important for a practical update time.
 
 The Android development install path now imports the signed package, checks its SHA-256, signature, board tag and ESP app descriptor, then uses the owner link to send metadata and sequential chunks. It checks the accepted offset after every chunk, asks the gauge to verify the complete image, and only then sends ACTIVATE. After reboot it requires a different running partition, `ESP_OTA_IMG_VALID`, and an ELF SHA-256 matching the descriptor inside the signed image. The transfer runs in Android ViewModel scope so Activity recreation does not cancel it; the app keeps the screen awake while foreground. Process death or a lost session still requires a fresh attempt, which aborts a prior incomplete transfer. This is an experimental development path, not a general `ota:true` capability.
 
@@ -53,3 +56,63 @@ Owner opcode `31` with a four-byte sequence switches the protected state read to
 Owner opcode `32` with a little-endian `u32 sequence` and `u32 document offset` selects a protected active-document read. State version `07` has a 52-byte header followed by up to 128 document bytes. Byte 1 is `1` when a custom document is active and `0` for built-in readings. Bytes 2..3 and 17..19 are reserved zero. Bytes 4..7 hold active revision, 8..11 total document length, 12..15 returned offset, byte 16 returned byte count, and 20..51 the committed SHA-256. All integers are little endian. With no custom document, offset zero returns only the 52-byte header and flag zero. Out-of-range offsets fail. Each request reads a bounded piece from the active slot; if revision or digest changes while that piece is read, the read fails. The client must verify stable metadata across all pieces and hash the complete reconstructed document before presenting it as a saved configuration. This readback is experimental owner functionality and does not enable general `configWrite` or establish any vehicle PID support.
 
 Owner opcode `33` with a four-byte sequence selects protected runtime configuration identity version `08`. The response is 44 bytes. Byte 1 bit 0 means a custom configuration is running; bit 1 means the runtime rejected the newest stored generation and loaded the previous committed executable generation; bit 2 means the running generation is in its boot-health trial. Bytes 2..3 are reserved zero. Bytes 4..7 hold the little-endian running revision, bytes 8..11 hold the newest durable revision observed before any recovery selection, and bytes 12..43 hold the running revision's SHA-256. When bit 0 is clear, the firmware is using built-in readings and the running revision and digest are zero; the durable revision may still identify a rejected document. This identity is distinct from the active-document read: version 7 reports the current store base used for the next revision, while version 8 reports what the current boot actually compiled and whether a newer durable generation was rejected.
+
+## Dual-source development configuration, dev.41
+
+The existing schema-2 config transaction can atomically carry a bound ECM plus TCM.
+No config/update opcode or packet layout changes. Capability `da:1` gates the debug
+app's combined send and [source-specific reads](adapter-bindings-v1.md).
+Existing stored/running hash, trial/fallback and uncertain-outcome rules apply to
+the entire configuration. This extension does not promote public write, OTA or
+simultaneous radio capacity flags.
+
+## Local page actions, development `cfg:4`
+
+`cfg:4` includes the `cfg:3` transport and schema-2 adapter/config features and
+adds optional `actions` to a schema-2 document. It uses the existing atomic transfer,
+validation, running revision/hash and protected document readback. No new opcode or
+vehicle control service is introduced. Schema 1 forbids `actions`; omitting it
+preserves older configurations. New Android may save a local draft while offline
+but must require `cfg:4` before sending a nonempty action list. Older Android that
+rejects unknown `cfg` versions requires the matching App update.
+
+The list permits zero or one object with exactly these fields:
+
+```json
+{"type":"jumpPage","pageId":"page.rpm","gesture":"up","count":3,"windowMs":5000}
+```
+
+`pageId` must reference a page in the same document. `count` is an integer 2..5;
+`windowMs` is an integer 2000..10000 divisible by 1000. The target resolves to a
+compiled page index, including explicitly prefixed child pages. Unknown types,
+extra fields, invalid references and multiple bindings fail staging validation.
+Firmware and Android both reject vehicle control types, raw commands and ambiguous
+bindings. The first and final completed strokes must be at most `windowMs` apart;
+recognition uses monotonic elapsed time and a five-second completion cooldown.
+
+Bindings are persisted only as configuration. Partial sequences/cooldown are volatile,
+boot never replays an action, and local selection uses the existing bounded page-save
+policy. This development extension establishes local page navigation only; it does
+not advertise idle/ABS support or qualify physical gesture usability.
+
+
+## Whole-vehicle definition routing, source dev.45
+
+Compact capability `va:1` enables standard and the existing captured enhanced
+transmission definitions on one primary transport, plus mixed-controller Dual pages.
+Each PID supplies its service and expected ECU; optional child routing preserves
+all vehicle pages. Configuration schema remains 2. Apps must require this capability
+before sending the new payload to older firmware. Compact `qs` aliases `quickSelect`
+to keep the discovery capability frame within its 255-byte read boundary. Public
+link/configuration/update qualification flags remain unchanged.
+
+## Expanded local alerts, development `cfg:5`
+
+`cfg:5` retains `cfg:4` operations and bounds and adds decimal-preserving rendering,
+numeric enhanced-PID alerts and gear `equals` conditions. Config schema 2 accepts
+`equals` only for a gear definition, valid integer position codes 0..8/11/13 and
+zero hysteresis. Both numeric comparators retain existing release/dwell behavior.
+The App requires this capability before sending new catalog entries or TCM alerts.
+Install the compatible App first; older Apps reject an unknown capability version.
+No BLE opcode, protocol-major, public OTA/config-write flag or link qualification
+changes. See [catalog maintenance and evidence](../development/reading-catalog-alerts.md).

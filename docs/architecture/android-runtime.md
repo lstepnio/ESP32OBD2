@@ -27,8 +27,13 @@ Discovery gathers all matching advertisers for a short bounded window. A single 
 
 ## Configuration transaction
 
-`ConfigurationProjector` is the single projection from the local draft to the supported firmware document. It validates supported page/rendering combinations. An optional Expert transmission child within an engine vehicle (or a retained legacy TCM profile)
-uses the captured temperature/current-gear definitions and one source-specific adapter. The review and wire payload use the same projection. The transaction captures the profile, draft, base revision, and base hash before sending.
+`ConfigurationProjector.projectVehicle` sends one whole vehicle dashboard through
+its primary adapter. Explicit Expert child mode changes transmission-definition
+routing to a second adapter; it never filters pages. New execution requires `va:1`,
+and two transports also require `da:1`. The editor, review and wire payload retain
+the same page order and actions. Per-source reads, retry schedules and confirmed
+revision scope stay separate. Source selection edits only an Expert binding.
+The transaction captures profile, dashboard, base revision and base hash before sending.
 
 ```mermaid
 stateDiagram-v2
@@ -51,9 +56,35 @@ Device-specific caches are cleared when discovery fails or a different target is
 
 ## Storage and recovery
 
-Profile schema 6 adds an optional nested transmission child while retaining schemas 1 through 5. Gauge association schema 1 retains multiple identities and desired contexts. Legacy standalone TCM profiles remain unchanged until explicitly attached. See [vehicle connections](vehicle-connections.md) for invariants and migration. Unknown newer schemas and unsupported enum values fail closed and preserve the stored source document. Saves use synchronous commit and report failure.
+Profile schema 12 retains schemas 1 through 11 and requires coupled vehicle and gauge
+assignment storage. `LocalSetupStore` saves both documents in one `profiles-v1`
+preference commit. The old association file is a read-only migration input. Older
+Apps reject schema 12 rather than loading stale assignments. Unknown schemas and
+invalid documents fail closed without replacing the source. Standalone TCM profiles
+remain separate until explicitly attached; that attachment moves their assignments
+in the same commit. See [vehicle connections](vehicle-connections.md).
 
-The selected gauge identity and the minimal firmware-update recovery journal use separate private preference files. An interrupted update records target identity, image digest, stage, and time. On relaunch, the app asks for a protected running-firmware read before retry. A successful identity read reconciles and clears the journal. BLE upload remains an explicitly foreground workflow; the debug build keeps the phone awake while visible.
+`LocalSetupTransactions` loads, transforms and commits the whole setup through
+`DurableWrites`, one mutex and the IO dispatcher. UI state changes only after the
+commit succeeds. Queued cancellation does not start a write; an admitted platform
+commit finishes before its lease is released. On commit failure, the prior memory
+map is restored best-effort, the visible model is retained and setup edits stop
+until reopening/review. A second failed rollback cannot guarantee disk recovery.
+Page browsing changes an ephemeral cursor without a disk write.
+
+`GaugeModels.kt` owns domain models. `PairingFailure`/`OwnerReadFailure` distinguish
+pairing reasons from retryable protected reads. `suspendResult` preserves coroutine
+cancellation and fatal errors; only cleanup uses bounded noncancellable work.
+`AppViewModel` still owns lifecycle and transport outcomes. A local mutation uses
+the same operation lease and waits for automatic read cleanup.
+
+`FirmwareUpdatePersistence` owns the separate update journal and per-gauge hold.
+Candidate identity is durable before upload starts. Verified device success remains
+success if phone cleanup fails; the journal stays available for recovery. Corrupt
+journals become uncertain records requiring authenticated healthy running readback,
+never silently disappear. An image without confirmed OTA health does not clear
+uncertain recovery evidence. BLE upload remains an explicit foreground workflow.
+See [offline hardening](../evidence/offline-hardening.md) for evidence and limits.
 
 ## Protocol and transport rules
 
@@ -64,13 +95,10 @@ same protected maintenance state. Configuration remains on the bounded BLE path.
 
 ## Feature evidence boundaries
 
-- Numeric ECM configuration, protected status, display rotation, and the development update protocol have prior phone and gauge evidence.
-- The GitHub catalog path is development trust only until a published release is exercised from a fresh app install.
-- Live Engine RPM and combined Transmission Gear + Temperature have recorded owner observations.
-- Full source-scoped fault snapshots are implemented and offline-tested; new physical checks are pending.
-- DTC clearing, dual-adapter concurrency and production OTA remain unavailable or unqualified.
-- Enabling the second-adapter preference changes a local profile only. It does not claim simultaneous firmware support.
-
+[Current state](../current-state.md) owns installed and observed support. The current
+runtime has independent workers behind optional child routing; source-level support
+never establishes simultaneous-radio qualification. Phone previews remain examples.
+Controller writes, diagnostic clearing and production capabilities remain gated.
 
 ## Regional units
 
@@ -82,3 +110,12 @@ regional defaults. No language-only inference or automatic gauge write is made.
 The existing Metric/Imperial preference also controls speed presentation; canonical
 configuration and alert values stay metric. Region mapping follows
 [Unicode CLDR measurementData](https://raw.githubusercontent.com/unicode-org/cldr/main/common/supplemental/supplementalData.xml).
+
+## Confirmation after gauge restart
+
+A protected reconnect attempt's own timeout is retryable read unavailability, not
+cancellation of the user's transaction. `restartRead` distinguishes session timeout
+from actual caller cancellation and closes each attempt before the next. Configuration
+confirmation shares a bounded saved/running read budget; firmware uses its existing
+exact-image and trial decision deadline. Never resend an uncertain write to obtain
+confirmation. Evidence: [restart/editor rollout](../evidence/restart-and-dashboard-rollout.md).

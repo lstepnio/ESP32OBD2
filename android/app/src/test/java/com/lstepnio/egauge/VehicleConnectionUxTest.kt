@@ -54,8 +54,25 @@ class VehicleConnectionUxTest {
         assertFalse(vehicleSetupMatches(document, "jeep", "ECM", adapter.copy(addressType = "random")))
         assertFalse(vehicleSetupMatches(document, "jeep", "ECM", null))
     }
+    @Test fun resumeMakesEachIndependentReadDueImmediately() {
+        val settings = VehiclePollSchedule()
+        val child = VehiclePollSchedule()
+        settings.due("gauge:settings", 100)
+        child.due("gauge:tcm", 100)
+        settings.completed(100, true)
+        child.completed(100, false)
+        assertFalse(settings.due("gauge:settings", 101))
+        assertFalse(child.due("gauge:tcm", 101))
+        settings.reset()
+        assertTrue(settings.due("gauge:settings", 101))
+        assertFalse(child.due("gauge:tcm", 101))
+        child.reset()
+        assertTrue(child.due("gauge:tcm", 101))
+        child.completed(101, false)
+        assertTrue(child.due("gauge:tcm", 2101))
+    }
     @Test fun vehicleRetriesBackOffResetAfterSuccessAndRestartForNewBinding() {
-        val schedule = VehiclePollSchedule()
+        val schedule = VehiclePollSchedule { it }
         var now = 1_000L
         assertTrue(schedule.due("engine:first", now))
         listOf(2_000L, 5_000L, 10_000L, 20_000L, 30_000L, 30_000L).forEach { delay ->

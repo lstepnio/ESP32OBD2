@@ -1,5 +1,8 @@
 # eGauge: your display, first
 
+> Scoped design history. Current UI rules are in [the design system](../design-system.md);
+> implemented support is in [current state](../../current-state.md).
+
 The round display is the visual centre. Graphite surfaces, a precise lime accent, large tabular values and generous controls replace dense diagnostic panels. Light mode uses warm neutral surfaces and dark green controls. Optional Android dynamic colour changes app chrome; critical, warning and the gauge preview retain their semantic colours. No decorative marketing copy.
 
 ## Information architecture

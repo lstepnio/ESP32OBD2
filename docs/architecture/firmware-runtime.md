@@ -1,6 +1,6 @@
 # Firmware runtime ownership and recovery
 
-Updated 2026-10-06. Implemented development architecture. Public capability flags remain gated by hardware evidence.
+Updated 2026-10-07. Implemented development architecture. Public capability flags remain gated by hardware evidence.
 
 ## Task and resource inventory
 
@@ -95,10 +95,30 @@ A pending image is confirmed only after display, touch, BLE companion startup, a
 | ELM response | 512 bytes |
 | Simultaneous NimBLE connections configured | 3 |
 
-The normal runtime selects one active Engine or Transmission source. Engine uses
-bounded Mode 01 definitions; Transmission permits the captured Mode 22 temperature
-and current-gear definitions. Five renderers, ordered pages, canonical-unit alerts
-and independent persisted display settings are implemented within compiler bounds.
-Transmission gear uses Numeric/Dual and its profile currently excludes alerts.
-PID 01 is reserved for MIL diagnostics. Schema-valid unsupported features are rejected
-before commit. Legacy second-link scaffolding is not simultaneous telemetry support.
+One whole vehicle dashboard compiles onto one primary adapter by default, or an
+explicitly configured primary/child pair. Each physical source has an independent
+poll worker, scheduler, parser, reconnect backoff and diagnostic session; shared
+discovery consumes one bounded deadline. Source loss invalidates only its samples
+and displayed values. Queued samples carry source generation. The shared catalog
+contains 53 bounded Mode 01 readings and captured Mode 22 temperature/current gear.
+Only selected pages and alerts are polled. Mixed-controller Dual pages and TCM
+alerts are supported by development cfg:5. Arbitrary enhanced definitions remain
+unsupported. PID 01 is reserved for MIL diagnostics. The configuration owns both
+bindings; three-link radio behavior and sustained rates remain unqualified.
+
+## Worker progress and memory evidence
+
+`worker_health.c` holds eight fixed atomic records: application, UI, primary adapter,
+child adapter, configuration, OTA, Wi-Fi server and Wi-Fi command. Owning loops
+publish progress, including adapter maintenance pauses and idle queue waits.
+Nonblocking queue rejection increments the relevant drop count. The existing
+minute health log includes progress age/count, maximum loop gap, admission drops,
+current free and largest allocatable internal/PSRAM blocks, existing heap minima,
+application/UI stack margins and alert queue/drop counts.
+
+These are approximate diagnostics, not synchronized transaction snapshots or an
+automatic reset policy. An unavailable adapter is normal recovery work, not a
+stalled task. No metric feeds a watchdog to disguise a stall. Firmware build and
+sanitized host fixtures qualify arithmetic and bounds only; physical soak,
+interruption and memory/rate measurements remain pending. See
+[offline hardening](../evidence/offline-hardening.md).

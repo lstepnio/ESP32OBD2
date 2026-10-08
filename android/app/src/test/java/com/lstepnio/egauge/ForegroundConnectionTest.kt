@@ -98,5 +98,30 @@ class ForegroundConnectionTest {
         } finally { scope.cancel() }
     }
 
+    @Test fun localSaveRequestedByAutomaticReadWaitsForThatReadsCleanup() = runBlocking {
+        val scope = CoroutineScope(coroutineContext + SupervisorJob())
+        val saved = CompletableDeferred<Unit>()
+        var cleaned = false
+        var launched = false
+        lateinit var controller: ForegroundConnectionController
+        controller = ForegroundConnectionController(scope, OperationCoordinator()) {
+            if (!launched) {
+                launched = true
+                try {
+                    scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                        controller.runUserOperation(OperationKind.READ) {
+                            assertTrue(cleaned)
+                            DurableWrites().write { saved.complete(Unit) }
+                        }
+                    }
+                    awaitCancellation()
+                } finally { withContext(NonCancellable) { delay(10); cleaned = true } }
+            }
+            100L
+        }
+        try { controller.setForeground(true); withTimeout(2_000) { saved.await() } }
+        finally { scope.cancel() }
+    }
+
     private suspend fun await(predicate: () -> Boolean) = withTimeout(2_000) { while (!predicate()) delay(2) }
 }

@@ -1,6 +1,9 @@
 package com.lstepnio.egauge
 
 import android.content.Context
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -8,8 +11,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.net.HttpURLConnection
+import java.io.IOException
 import java.net.URL
 import java.security.KeyFactory
 import java.security.MessageDigest
@@ -230,12 +232,19 @@ internal fun selectHighestHostedCatalog(candidates: List<HostedCatalogCandidate>
 class GitHubFirmwareSource(private val context: Context) {
     private val releasesUrl = "https://api.github.com/repos/lstepnio/ESP32OBD2/releases?per_page=20"
 
-    suspend fun check(capabilities: CapabilitySnapshot): HostedUpdate = withContext(Dispatchers.IO) {
+    suspend fun check(capabilities: CapabilitySnapshot): HostedUpdate = try {
+        withTimeout(120_000) { checkCompatible(capabilities) }
+    } catch (timeout: TimeoutCancellationException) {
+        currentCoroutineContext().ensureActive()
+        throw IOException("Online update check timed out", timeout)
+    }
+
+    private suspend fun checkCompatible(capabilities: CapabilitySnapshot): HostedUpdate = withContext(Dispatchers.IO) {
         val boardId = when (capabilities.board) {
             "ESP32-S3-Touch-LCD-1.28" -> "waveshare-esp32-s3-touch-lcd-1.28"
             else -> error("This gauge board is not registered for hosted updates")
         }
-        val releases = JSONArray(download(URL(releasesUrl), 1_048_576).toString(Charsets.UTF_8))
+        val releases = JSONArray(boundedHttpDownload(URL(releasesUrl), 1_048_576).toString(Charsets.UTF_8))
         val pem = context.assets.open("dev-update-public.pem").bufferedReader().use { it.readText() }
         val publicKey = HostedFirmwareCatalogCodec.publicKey(pem)
         val candidates = mutableListOf<HostedCatalogCandidate>()
@@ -259,8 +268,8 @@ class GitHubFirmwareSource(private val context: Context) {
                         HostedFirmwareCatalogCodec.isTrustedAssetUrl(signature.toString())) {
                         "GitHub returned an untrusted catalog location"
                     }
-                    val catalogBytes = download(catalog, 131_072)
-                    val signatureBytes = download(signature, 256)
+                    val catalogBytes = boundedHttpDownload(catalog, 131_072)
+                    val signatureBytes = boundedHttpDownload(signature, 256)
                     val parsed = HostedFirmwareCatalogCodec.verifyAndParse(catalogBytes, signatureBytes,
                         publicKey, Instant.now().epochSecond)
                     val compatible = HostedFirmwareCatalogCodec.select(parsed, boardId, "all",
@@ -270,7 +279,7 @@ class GitHubFirmwareSource(private val context: Context) {
                             .joinToString("") { "%02x".format(it) }
                         candidates += HostedCatalogCandidate(parsed, digest, compatible)
                     }
-                }
+                }.onFailure { if (it is CancellationException) throw it }
             }
         }
         val selected = selectHighestHostedCatalog(candidates)
@@ -293,7 +302,11 @@ class GitHubFirmwareSource(private val context: Context) {
     suspend fun download(update: HostedUpdate): HostedUpdate = withContext(Dispatchers.IO) {
         currentCoroutineContext().ensureActive()
         val release = update.release
-        val bytes = download(URL(release.bundleUrl), release.bundleBytes + 1)
+        val bytes = try { boundedHttpDownload(URL(release.bundleUrl), release.bundleBytes + 1) }
+        catch (timeout: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            throw IOException("Firmware download timed out", timeout)
+        }
         currentCoroutineContext().ensureActive()
         require(bytes.size == release.bundleBytes) { "Downloaded firmware bundle size does not match the catalog" }
         val digest = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
@@ -302,39 +315,4 @@ class GitHubFirmwareSource(private val context: Context) {
         HostedUpdate(release, bundle)
     }
 
-    private fun download(url: URL, maximumBytes: Int): ByteArray {
-        require(url.protocol == "https") { "Firmware downloads require HTTPS" }
-        val connection = (url.openConnection() as HttpURLConnection).apply {
-            connectTimeout = 15_000
-            readTimeout = 30_000
-            instanceFollowRedirects = true
-            setRequestProperty("Accept", "application/vnd.github+json, application/octet-stream")
-            setRequestProperty("User-Agent", "ESP32OBD2-Android")
-        }
-        try {
-            require(connection.responseCode == HttpURLConnection.HTTP_OK) {
-                if (connection.responseCode == 403) "GitHub update check was rate limited"
-                else if (connection.responseCode == 404 && url.toString() == releasesUrl)
-                    HOSTED_RELEASE_FEED_UNAVAILABLE
-                else "GitHub download failed (${connection.responseCode})"
-            }
-            val finalUrl = connection.url
-            require(isTrustedGitHubDownloadUrl(finalUrl)) { "GitHub redirected to an untrusted host" }
-            val declared = connection.contentLengthLong
-            require(declared < 0 || declared <= maximumBytes) { "GitHub asset is larger than allowed" }
-            connection.inputStream.use { input ->
-                val output = ByteArrayOutputStream()
-                val buffer = ByteArray(8192)
-                while (true) {
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    require(output.size() + count <= maximumBytes) { "GitHub asset is larger than allowed" }
-                    output.write(buffer, 0, count)
-                }
-                return output.toByteArray()
-            }
-        } finally {
-            connection.disconnect()
-        }
-    }
 }

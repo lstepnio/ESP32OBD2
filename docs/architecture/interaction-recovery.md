@@ -34,6 +34,72 @@ claim that every hardware failure scenario has already been qualified.
   have their own retry schedules and must not turn a successful gauge check into a
   false phone-link failure.
 
+## Durable local changes
+
+Use the coupled `LocalSetupStore` transaction for profiles and gauge assignments.
+Serialize writes on IO and publish UI state only after the commit acknowledges
+success. An admitted commit finishes before releasing its writer lease; cancellation
+while waiting never admits a write. Preserve malformed/newer source documents.
+Failed save keeps the prior visible model and blocks setup changes until reopening
+and review; rollback of the platform memory map is best-effort, not a guarantee
+against storage hardware failure. Journal cleanup failure must not reverse a
+protected, verified gauge outcome. Read-only page navigation needs no durable write.
+
+Use typed pairing/read errors and cancellation-preserving `suspendResult` for optional
+suspending work. Limit noncancellable cleanup to an explicit deadline. Reconcile
+unknown/corrupt update evidence only from authenticated healthy running identity.
+
+## Recovery implementation patterns
+
+- Give each external operation one monotonic budget. A fragmented response, a retry
+  or a cleanup step must not silently renew that budget. Use a single clock sample
+  for remaining time and explicit bounded cleanup sub-budgets.
+- Cancellation must reach the underlying resource. Moving blocking work to an IO
+  thread does not make it cancellable: close its socket to unblock streams, join the
+  child, then release the operation lease. `SocketIo.kt` is the Android pattern;
+  firmware `wifi_bulk_io.c` uses short syscall slices with one total IO budget.
+- A single task owns firmware socket close. Network stop, expiry and reopen
+  invalidate a session generation; old clients and queued batches check it before
+  further admission. Retired Android callbacks cannot modify the current request.
+- Resume immediately schedules settings and each configured source for readback.
+  Success resets the relevant backoff. Scope changes invalidate old completions;
+  repeated foreground signals do not create duplicate workers.
+- Optimize the successful path with existing connection reuse and bounded batches.
+  Do not lower deadlines without measurements of healthy and failure paths. Record
+  time to fresh authenticated state and time to released resources separately.
+- Keep routine loss/retry in the universal status widget, without recurring dialogs
+  or toasts. Explain a persistent failure once when an explicit user action really
+  is needed. Automatic discovery and protected reads can recover silently;
+  ambiguous writes must retain their outcome until identity/readback resolves it.
+- Log diagnostic causes and timings for development without exposing session keys,
+  private adapter identities or raw transport errors in normal user messages.
+
+See [recovery audit and qualification](../evidence/recovery-hardening.md) for the
+current application of these patterns and the remaining physical gates.
+
+## Android read scheduling and hosted HTTP
+
+Gauge health, settings and each adapter have independent `VehiclePollSchedule`
+instances. Healthy reads run at 20 seconds; scope changes and foreground resume
+make checks due. Adapter failure ticks do not repeat a still-current protected
+gauge check. Nominal 2/5/10/20/30-second retries receive 80..100% jitter, retain a
+one-second minimum and cap at 30 seconds. User reads still preempt and await
+automatic cleanup before acquiring the shared lease. An unexpected platform
+exception records a failure and backs off instead of terminating the foreground loop.
+
+`resourceIo` closes blocking resources on cancellation and awaits the IO child.
+`socketIo` and `boundedHttpDownload` share it. Hosted responses have a 45-second
+total budget plus byte/connect/read bounds; the whole catalog search has a
+120-second budget. Candidate iteration rethrows cancellation. Manual checks and
+downloads mark busy before launch and cancel/join the automatic HTTP job before
+handover. Online failures do not invalidate an independently checked gauge.
+Signatures, compatibility, generation/conflict protection and reviewed installation
+remain mandatory. Background HTTP failure uses the existing 15-minute retry;
+a successful check waits six hours. No failed mutation is automatically replayed.
+
+[Product optimization evidence](../evidence/product-optimization.md) separates
+unit/HTTP fixtures, rendered UI and physical owner readback from hardware recovery.
+
 ## Multiple adapters
 
 Each required link has a stable ID, source title and independent status. The pill's
@@ -44,7 +110,9 @@ One lost source must not stop retries, data or alerts for another healthy source
 
 `ConnectionLinkUi` and the widget accept multiple links. Vehicles may have an
 optional transmission child in local storage; current firmware readback exposes
-one active source per selected gauge, so the app presently supplies one link. See
+one or two selected sources through the gated development path. The app supplies
+independent links, read schedules and failure state; one healthy adapter never makes
+the whole connection pill healthy when its required sibling is unavailable. See
 [vehicle connections](vehicle-connections.md) for the hierarchy and per-gauge contexts.
 Do not fabricate a second link or advertise simultaneous adapters from UI support.
 Complete source-specific firmware snapshots, bindings and coexistence validation
@@ -100,3 +168,11 @@ to every possible deadlock.
   during commit, failed commit, stale revision, writer contention and clock expiry.
 - Physical foreground/background, adapter-loss and settings persistence checks with
   this exact build, flood testing and prolonged coexistence soak remain required.
+
+## Firmware health observation
+
+Extend `worker_health` and the existing minute health log, rather than creating
+unbounded diagnostic queues. Record owner-loop progress, admission drops and largest
+allocatable blocks alongside free memory. Progress during missing-adapter retry is
+healthy owner behavior. Measurements do not establish deadlock immunity or justify
+reset loops; use them to qualify failure/soak scenarios on actual hardware.

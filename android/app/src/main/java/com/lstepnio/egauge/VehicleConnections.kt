@@ -4,9 +4,9 @@ package com.lstepnio.egauge
 data class TransmissionConnection(val adapter: AdapterBinding? = null,
                                   val draft: Draft = TransmissionSetup.draft()) {
     init {
-        require(draft.source == "TCM" && draft.alerts.isEmpty() &&
+        require(draft.source == "TCM" && draft.alerts.all { it.pidId in ConfigurationProjector.transmissionPidIds } &&
             draft.pages.flatMap { it.pidIds }.all { it in ConfigurationProjector.transmissionPidIds }) {
-            "Transmission child must use supported TCM pages without alerts"
+            "Transmission child must use supported TCM readings"
         }
     }
 }
@@ -24,3 +24,38 @@ fun ProfileCollection.attachTransmission(legacyId: String, parentId: String): Pr
         if (it.id == parent.id) attached else it
     })
 }
+
+/** Vehicle editing is independent of the adapter currently connected to the gauge. */
+fun VehicleProfile.dashboardDraft(): Draft {
+    val child = transmission ?: return draft.copy(source = "ECM")
+    val pages = draft.pages + child.draft.pages.map { it.copy(id = "child.${it.id}") }
+    val ordered = pageOrder.mapNotNull { id -> pages.firstOrNull { it.id == id } } + pages.filter { it.id !in pageOrder }
+    return draft.copy(source = "BOTH", alerts = draft.alerts + child.draft.alerts, actions = draft.actions + child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") }, pages = ordered)
+}
+
+/** Only execution needs two distinct physical adapters. */
+fun VehicleProfile.combinedDraft(): Draft {
+    require(draft.source == "ECM" && primaryAdapter != null)
+    val child = requireNotNull(transmission)
+    require(child.adapter != null && !samePhysicalAdapter(primaryAdapter, child.adapter))
+    return dashboardDraft()
+}
+
+/** One gesture picker across the vehicle; storage keeps the controller owning its target page. */
+fun VehicleProfile.withCombinedPageAction(action: PageAction?): VehicleProfile {
+    val child = requireNotNull(transmission)
+    val combined = dashboardDraft()
+    ProfileActions.validate(listOfNotNull(action), combined.pages)
+    require(combined.pages.map { it.id }.distinct().size == combined.pages.size) { "Page identities must be unique across the vehicle" }
+    val childTarget = action != null && draft.pages.none { it.id == action.pageId }
+    val primary = draft.copy(actions = if (action != null && !childTarget) listOf(action) else emptyList())
+    val secondary = child.draft.copy(actions = if (action != null && childTarget)
+        listOf(action.copy(pageId = action.pageId.removePrefix("child."))) else emptyList())
+    ProfileActions.validate(primary.actions, primary.pages)
+    ProfileActions.validate(secondary.actions, secondary.pages)
+    return copy(draft = primary, transmission = child.copy(draft = secondary))
+}
+
+/** Removing a physical route never removes the vehicle's pages or gestures. */
+fun VehicleProfile.withoutTransmissionAdapter(): VehicleProfile =
+    copy(draft = dashboardDraft().copy(source = "ECM"), transmission = null, pageOrder = emptyList())

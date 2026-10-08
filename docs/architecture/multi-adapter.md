@@ -1,50 +1,57 @@
 # Multi-adapter ECM/TCM support
 
-Owner use case added 2026-09-25: a swapped vehicle has separate OBD-II interfaces for ECM and TCM, each with its own BLE adapter. Support both data sources in one gauge and one vehicle profile.
+## Implemented development boundary
 
-Current implementation supports one active configured source per profile and advertises
-`maxAdapterLinks=1`. The following is the target design, not qualified simultaneous
-operation. The shared Android status widget accepts independent link states; the
-production projection currently supplies one active source. Follow the
-[interaction policy](interaction-recovery.md) when extending it.
+One vehicle has one primary ECM connection and an optional TCM child configured in
+Expert. A normal single adapter carries all configured requests; enabling a child
+routes transmission definitions to its independent worker. Editors, previews, pages,
+alerts and send review always use the same whole vehicle dashboard.
 
-## Vehicle hierarchy
+Firmware has independent connection contexts, transaction/parser state, sessions,
+retry schedules, polling and diagnostic snapshots. Android projects both bindings
+into one schema-2 configuration revision and aggregates required connections in the
+universal status widget. A parent relationship never requires the ECM radio to be
+connected before the child can recover. See [vehicle routing and migration](vehicle-connections.md).
 
-The primary ECM adapter owns an optional transmission child inside the same vehicle
-profile. This is an Expert option for swaps, not another vehicle or a second adapter
-placeholder in ordinary setup. Multiple vehicle profiles and multiple remembered
-gauges retain independent selections. See [vehicle connections](vehicle-connections.md)
-for implemented local storage, migration and source routing. The parent relationship
-does not require an ECM radio connection before TCM recovery.
+Mixed-controller Dual pages and catalog TCM alerts are supported in the development
+path. Disabling/removing a child retains pages, alerts and gestures; unavailable
+readings do not become zero or disappear from the editor. Alert identity remains
+bound to its definition and responder after routing changes.
 
-## Preferred design
+## Identity and independent recovery
 
-Gauge maintains **two central-role adapter links plus one peripheral-role phone link**, three total simultaneous BLE connections. Each adapter has independent identity/profile, GATT handles, ELM transaction queue, protocol/ECU context, parser, timeout, reconnect, poll budget, and discovery job. This differs from multiple ECUs behind one adapter, which share that adapter's serial transaction budget.
+Keys include vehicle, source, ECU, service, identifier and definition revision.
+Two adapters can both report `7E8`; responder address alone is not vehicle-wide
+identity. Explicit physical bindings must be distinct. Do not infer identity from
+matching advertised names or copy bond credentials into profile exports.
 
-Keys are `(vehicleProfileId, sourceId, ECU identity, service, identifier, definition revision)`. ECM and TCM may both reply as `7E8`; address alone is never a unique vehicle-wide key. Stable source aliases such as `ecm` and `tcm` belong to the configuration. Adapter identity/bond data stays on the gauge and is bound to those aliases during setup, not copied as credentials in profile exports.
+Each adapter has one outstanding ELM transaction and its own connection generation.
+Discard late replies from retired sessions. Losing either source invalidates only
+its samples/freshness; healthy-source polling and touch continue. Pause both adapters
+explicitly during maintenance rather than silently starving one. Source-specific
+protected status reads preserve these identities even though ordinary UX shows one
+logical connection.
 
-New vehicle profiles default to one adapter. Separate ECM/TCM setup is an explicit per-profile advanced option, as specified in the [quality gates](../development/quality.md). Standard setup does not show a disconnected TCM placeholder. Existing profiles with multiple sources preserve their bindings and remain visibly configured for advanced connections. Disabling the second adapter requires resolving dependent pages and alerts before applying changes.
+## Qualification and fallback
 
-In advanced profiles, UI labels all ambiguous signals with source/ECU and shows separate adapter connection, age, and availability. Technical details expose protocol and signal quality. Discovery can target one source or both when supported. A dual-value page can bind ECM coolant and a documented TCM temperature definition, but does not itself require two adapters. A threshold binds one definition/source; losing TCM must not interrupt ECM polling or silently disable a TCM alert.
+The configured three BLE connections (two central links and one phone peripheral
+link) are software capacity, not physical qualification. Public qualified link
+capacity remains one. Current evidence/device availability is in [current state](../current-state.md);
+remaining hardware work is **QUAL-04** and **QUAL-08** in the [backlog](../backlog.md).
+Use the [dual recovery matrix](../development/dual-adapter-recovery.md) and
+[quality gates](../development/quality.md) for rates, memory, sibling interruption,
+identity overlap and soak acceptance.
 
-## Feasibility TODO: MULTI-001
+**Proposed, not implemented:** if measured three-link coexistence cannot meet the
+budget, evaluate explicit maintenance-only source pauses or opt-in time slicing.
+Measure reconnect overhead and achievable freshness first. Time slicing cannot be
+presented as simultaneous sampling. Never silently sacrifice a required source to
+admit the phone; cross-source derived values need explicit timestamp-skew bounds.
+A second gauge/gateway is an alternative if a measured fallback cannot meet freshness.
 
-**Unresolved hardware feasibility.** M1 now has two independently owned central connection contexts and serialized discovery, with TCM link activation gated by an explicit MAC. No simultaneous two-adapter operation has been measured. Baseline `sdkconfig` enables three NimBLE connections and both roles, but configuration capacity is not evidence of working multiple links or three-link coexistence. A read-only phone discovery endpoint is implemented and was read from macOS while ECM discovery ran; it does not implement authenticated companion control.
+## Contracts
 
-1. Independent central contexts are implemented. Validate controller and host connection counts for ESP-IDF 5.4.1, buffer pools, heap/stack and session cleanup on two powered adapters.
-2. Bench scenario: two independently powered adapters/emulated radios, continuous ECM + TCM polling, phone connected/subscribed, LVGL rendering and local alerts. Record achieved per-source rates, P95 response latency, missed deadlines, reconnect behavior, radio parameters and minimum free memory.
-3. Interrupt each adapter independently; verify the other continues, phone configuration remains available, and no cross-source responses appear. Test duplicate names and overlapping `7E8`/PID identities.
-4. Run two hours under combined load with zero cross-source attribution and bounded queues/memory. Compare against single-adapter baseline. Raise phone telemetry interval before sacrificing warning freshness. Maintenance OTA may explicitly disconnect both adapters.
-5. Report capability `maxAdapterLinks` and `simultaneousAdapterLinks` from actual implementation/validation. App must gate dual live pages and explain degraded operation on firmware that supports only one link.
-
-## Fallback decision TODO: MULTI-002
-
-If two adapter links are reliable but adding the phone is not, evaluate a deliberate configuration/maintenance mode that temporarily pauses one source while the phone is connected. Indicate that source's data/alerts are unavailable. Never silently sacrifice a source to admit a phone.
-
-If only one adapter can be held reliably, investigate scheduled switching with explicit per-source slots, connection/ELM initialization overhead, a minimum useful dwell, poll priorities, and reconnect failure bounds. Test whether the adapters tolerate repeated sessions. Expect lower rates and gaps. Time slicing must be opt-in with an achievable freshness budget; it cannot be presented as simultaneous sampling. Active alerts retain source-lost status while disconnected, and users must see that new threshold crossings cannot be detected on the inactive source. If this cannot meet required freshness, use a second gauge or dedicated gateway rather than promise continuous protection.
-
-Do not implement a fixed switching interval before measuring connection times. Preserve independent parser/session generations and discard late responses after switching. No cross-source derived values unless timestamp skew and validity meet the calculation's explicit bounds.
-
-## Acceptance and schemas
-
-Configuration has up to two source descriptors. Every PID definition requires `sourceId`. An alert references a unique PID definition that already includes source and responder; imports cannot omit this binding. Semantic validation rejects undefined sources and duplicate physical queries with conflicting identifiers. Prototype examples illustrate source labels only; they do not demonstrate actual adapter concurrency.
+[Adapter bindings](../protocol/adapter-bindings-v1.md) owns wire identities and
+capability negotiation. Imports reject undefined sources and duplicate/conflicting
+physical queries. Schema examples and simulator radios do not qualify vehicle
+compatibility or concurrency.

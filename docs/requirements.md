@@ -1,5 +1,10 @@
 # Product requirements, draft 0.1
 
+Product requirements include intended future behavior. [Current state](current-state.md)
+owns implemented/observed support; [backlog](backlog.md) owns readiness and gates.
+Do not infer a shipped feature or authorization from a requirement.
+
+
 Owner decision on 2026-09-25: support **all** of everyday/engine-health/off-road, performance, and diagnostics/custom manufacturer PIDs. Product name “eGauge” is a working name.
 
 ## Outcomes
@@ -41,7 +46,7 @@ Performance mode prioritizes selected fast-changing channels. Off-road mode prio
 
 ## Open decisions
 
-App minimum Android 10/API 29 is a proposal; confirm against actual phones. Choose product-wide license before inviting external contributions. Confirm target vehicles and adapter models through recorded sessions. Validate display units, accessible palettes, glove interaction, and enclosure orientation on the physical 1.28-inch display. None of these prevent the protocol and UI design work here.
+Android minimum SDK is set in `android/app/build.gradle.kts`; verify device coverage through QUAL-09 instead of treating the original API proposal as current configuration. Choose product-wide license before inviting external contributions. Confirm target vehicles and adapter models through recorded sessions. Validate display units, accessible palettes, glove interaction, and enclosure orientation on the physical 1.28-inch display. None of these prevent the protocol and UI design work here.
 
 ## Diagnostics and threshold addition
 

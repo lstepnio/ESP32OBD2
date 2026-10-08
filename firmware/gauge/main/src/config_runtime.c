@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdatomic.h>
 #include <string.h>
+#include <strings.h>
 #include "cJSON.h"
 #include "esp_heap_caps.h"
 #include "config_runtime.h"
@@ -79,32 +80,38 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
     const cJSON *alerts = field(root, "alerts");
     const cJSON *rotation = field(root, "rotation");
     esp_err_t err = ESP_ERR_NOT_SUPPORTED;
-    if (cJSON_GetArraySize(sources) != 1 ||
+    if (cJSON_GetArraySize(sources) < 1 || cJSON_GetArraySize(sources) > 2 ||
 
         cJSON_GetArraySize(definitions) > EGAUGE_RUNTIME_PIDS ||
         cJSON_GetArraySize(pages) > EGAUGE_RUNTIME_PAGES ||
         cJSON_GetArraySize(alerts) > EGAUGE_RUNTIME_ALERTS) goto done;
     if (strcmp(field(root, "units")->valuestring, "metric") != 0 ||
         cJSON_IsTrue(field(root, "reducedMotion"))) goto done;
-    const char *source_id = field(cJSON_GetArrayItem(sources, 0), "id")->valuestring;
-    const cJSON *source = cJSON_GetArrayItem(sources, 0);
-    const char *role = field(source, "role")->valuestring;
-    out->transmission_source = !strcmp(role, "tcm");
-    if (strcmp(role, "ecm") && !out->transmission_source) goto done;
-    if (out->transmission_source && (field(root, "schemaVersion")->valueint != 2 ||
-        cJSON_GetArraySize(definitions) > 2 || cJSON_GetArraySize(alerts) != 0)) goto done;
+    out->source_count = cJSON_GetArraySize(sources);
     out->legacy_auto_discovery = field(root, "schemaVersion")->valueint == 1;
-    if (!copy_text(out->vehicle_id, sizeof(out->vehicle_id), field(root, "vehicleProfileId")) ||
-        !copy_text(out->source_id, sizeof(out->source_id), field(source, "id"))) goto done;
-    const cJSON *binding = field(source, "adapter");
-    if (binding) {
-        out->simulated_adapter = !strcmp(field(binding, "driver")->valuestring, "elm-bench-v1");
+    if (!copy_text(out->vehicle_id, sizeof(out->vehicle_id), field(root, "vehicleProfileId"))) goto done;
+    for (unsigned i = 0; i < out->source_count; ++i) {
+        const cJSON *source = cJSON_GetArrayItem(sources, i);
+        runtime_source_t *target = &out->sources[i];
+        const char *role = field(source, "role")->valuestring;
+        target->transmission = !strcmp(role, "tcm");
+        if (strcmp(role, "ecm") && !target->transmission) goto done;
+        if (!copy_text(target->id, sizeof(target->id), field(source, "id"))) goto done;
+        const cJSON *binding = field(source, "adapter");
+        if (binding) {
+            target->simulated = !strcmp(field(binding, "driver")->valuestring, "elm-bench-v1");
 #if !CONFIG_EGAUGE_OBD_TRACE
-        if (out->simulated_adapter) goto done;
+            if (target->simulated) goto done;
 #endif
-        if (!copy_text(out->adapter_id, sizeof(out->adapter_id), field(binding, "id")) ||
-            !copy_text(out->adapter_address, sizeof(out->adapter_address), field(binding, "address"))) goto done;
-        out->adapter_address_type = strcmp(field(binding, "addressType")->valuestring, "random") == 0;
+            if (!copy_text(target->adapter_id, sizeof(target->adapter_id), field(binding, "id")) ||
+                !copy_text(target->address, sizeof(target->address), field(binding, "address"))) goto done;
+            target->address_type = !strcmp(field(binding, "addressType")->valuestring, "random");
+        }
+        if (target->transmission && field(root, "schemaVersion")->valueint != 2) goto done;
+        if (i && (!strcmp(out->sources[0].adapter_id, target->adapter_id) ||
+            !strcasecmp(out->sources[0].address, target->address))) goto done;
+        if (out->source_count == 2 && (!binding || out->legacy_auto_discovery ||
+            (i && out->sources[0].transmission == target->transmission))) goto done;
     }
     out->rotation = rotation->valueint / 90;
     out->brightness = field(root, "brightness")->valueint;
@@ -114,9 +121,13 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         const cJSON *range = field(item, "range");
         const cJSON *response = field(item, "response");
         const char *identifier = field(request, "identifier")->valuestring;
-        if (strcmp(field(item, "sourceId")->valuestring, source_id) != 0 ||
-            !field(request, "responseId") || field(decoder, "byteOffset")->valueint != 0) goto done;
-        if (out->transmission_source) {
+        unsigned source_index = 0;
+        while (source_index < out->source_count && strcmp(field(item, "sourceId")->valuestring,
+               out->sources[source_index].id)) ++source_index;
+        if (source_index == out->source_count || !field(request, "responseId") ||
+            field(decoder, "byteOffset")->valueint != 0) goto done;
+        bool enhanced = !strcmp(field(request, "service")->valuestring, "22");
+        if (enhanced) {
             /* Captured TCM temperature/current gear. No arbitrary enhanced reads. */
             bool gear = !strcmp(identifier, "5503");
             if (strcmp(field(request, "service")->valuestring, "22") ||
@@ -130,7 +141,9 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
                 field(decoder, "offset")->valuedouble != (gear ? 0 : -40) || cJSON_IsTrue(field(decoder, "signed")) ||
                 strcmp(field(item, "unit")->valuestring, gear ? "gear" : "degC") ||
                 (gear && (field(range, "min")->valuedouble != 0 || field(range, "max")->valuedouble != 13))) goto done;
-        } else if (strcmp(field(request, "service")->valuestring, "01") ||
+        } else if (out->sources[source_index].transmission ||
+                   strcmp(field(request, "responseId")->valuestring, "7E8") ||
+                   strcmp(field(request, "service")->valuestring, "01") ||
                    strcmp(field(request, "route")->valuestring, "functional") || strlen(identifier) != 2 ||
                    !strcmp(identifier, "01") ||
                    field(response, "minPayloadBytes")->valueint != field(decoder, "byteLength")->valueint) goto done;
@@ -138,6 +151,8 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         if (!copy_text(pid->id, sizeof(pid->id), field(item, "id")) ||
             !copy_text(pid->name, sizeof(pid->name), field(item, "name")) ||
             !copy_text(pid->unit, sizeof(pid->unit), field(item, "unit"))) goto done;
+        pid->source_index = source_index;
+        pid->service = enhanced ? 0x22 : 0x01;
         pid->obd.pid = strtoul(identifier, NULL, 16);
         pid->responder = strtoul(field(request, "responseId")->valuestring, NULL, 16);
         for (unsigned previous = 0; previous + 1 < out->pid_count; ++previous)
@@ -183,6 +198,9 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         runtime_alert_t *alert = &out->alerts[out->alert_count++];
         if (!copy_text(alert->id, sizeof(alert->id), field(item, "id"))) goto done;
         alert->pid_index = index;
+        alert->equals = strcmp(field(item, "direction")->valuestring, "equals") == 0;
+        if (alert->equals != (strcmp(out->pids[index].unit, "gear") == 0) ||
+            (alert->equals && (out->pids[index].service != 0x22 || out->pids[index].obd.pid != 0x5503))) goto done;
         alert->above = strcmp(field(item, "direction")->valuestring, "above") == 0;
         const cJSON *warning = field(item, "warning");
         const cJSON *critical = field(item, "critical");
@@ -196,7 +214,25 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         alert->priority = field(item, "priority")->valueint;
         if (field(item, "snoozeMs")->valueint != 0) goto done;
     }
+    const cJSON *actions = field(root, "actions");
+    if (actions && (!cJSON_IsArray(actions) || cJSON_GetArraySize(actions) > 1 ||
+        field(root, "schemaVersion")->valueint != 2)) goto done;
+    if (actions && cJSON_GetArraySize(actions)) {
+        const cJSON *action = cJSON_GetArrayItem(actions, 0);
+        const cJSON *kind = field(action, "type"), *gesture = field(action, "gesture"),
+            *page_id = field(action, "pageId"), *count = field(action, "count"), *window = field(action, "windowMs");
+        if (!cJSON_IsString(kind) || strcmp(kind->valuestring, "jumpPage") ||
+            !cJSON_IsString(gesture) || strcmp(gesture->valuestring, "up") || !cJSON_IsString(page_id) ||
+            !cJSON_IsNumber(count) || count->valuedouble != count->valueint || count->valueint < 2 || count->valueint > 5 ||
+            !cJSON_IsNumber(window) || window->valuedouble != window->valueint || window->valueint < 2000 || window->valueint > 10000 || window->valueint % 1000 != 0) goto done;
+        unsigned target = 0;
+        while (target < out->page_count && strcmp(out->pages[target].id, field(action, "pageId")->valuestring)) ++target;
+        if (target == out->page_count) goto done;
+        out->page_action = (page_action_config_t){.enabled = true, .target_page = target,
+            .count = field(action, "count")->valueint, .window_ms = field(action, "windowMs")->valueint};
+    }
     err = ESP_OK;
+
 done:
     cJSON_Delete(root);
     return err;

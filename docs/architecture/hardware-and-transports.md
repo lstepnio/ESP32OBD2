@@ -2,6 +2,14 @@
 
 Owner direction: exploit Wi-Fi and other ESP32/board capabilities where they improve reliability and user experience. Capability availability, implemented support and measured performance are distinct.
 
+## Current boundary
+
+Protected App/Wi-Fi transfers, manual brightness/rotation and page cycling are
+implemented. [Firmware runtime](firmware-runtime.md) owns current task/resource
+bounds; [current state](../current-state.md) owns physical evidence. The inventory
+and opportunities below are strategy, not an assertion that every use is implemented.
+Deferred sensor/telemetry work belongs to FEATURE-02 in [the backlog](../backlog.md).
+
 ## Hardware inventory and intended use
 
 | Capability | Proposed use | Constraints/evidence |
@@ -15,12 +23,49 @@ Owner direction: exploit Wi-Fi and other ESP32/board capabilities where they imp
 | CST816S touch | Page navigation, owner confirmation, alert acknowledgment and local diagnostics | Small circular area; broad targets and deliberate destructive-action confirmation |
 | QMI8658 IMU | Installation orientation assistant, wake/tap experiments and parked-movement event markers | Shares I2C with touch; verify identity, interrupt routing and enclosure calibration before use |
 | LiPo connector, charger and GPIO1 battery ADC | Battery-backed shutdown, parked mode, update preflight and device-power diagnostics | Measures the attached device battery, not vehicle voltage; calibrate the 200 kΩ/100 kΩ divider per unit/revision |
-| GPIO2 LCD backlight control | Smooth brightness, manual night mode and alert emphasis | A 20 kHz PWM baseline now applies the validated configuration value of 80%; app control, safe-minimum characterization, flicker, thermal behavior and boot-state qualification remain open |
+| GPIO2 LCD backlight control | Smooth brightness, manual night mode and alert emphasis | Manual App brightness and persistence are implemented; defaults and bounds are in the display-settings contract. Flicker, thermal and environmental characterization remain physical qualification |
 | GPIO4/GPIO5 switched contacts | Candidate low-current haptic or indicator output | Exact board population and load limits require inspection. GPIO5 is already the touch interrupt in the current BSP, so it is not available without a verified pin/revision change |
 | USB-C through CH343P USB-to-UART | Flash/recovery, serial logs and deterministic bench development | The fitted connector is routed as USB-to-UART. ESP32-S3 native USB features are not exposed through this connector as a product interface |
 | Six-pin SH1.0 expansion connector | Future ambient-light input, ignition sense, protected external sensor or future accessory | Verify the exact revision pinout, occupied pins, voltage, current and automotive protection before connecting hardware |
 
 ESP32-S3 feature reference: [Espressif datasheet](https://documentation.espressif.com/esp32_s3_datasheet_en.pdf). Board details are from the [Waveshare board documentation](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.28), its linked Rev3 schematic and the checked-out BSP. The product must still record and probe the exact assembled revision because Waveshare lists two SKUs and more than one schematic. Native Bluetooth Classic is not a fallback for this S3 design. An onboard CAN transceiver, GNSS, ambient light sensor, buzzer and vehicle-grade power protection are not present in the documented design.
+
+## Automatic display orientation
+
+Owner direction: Settings rotation should offer **Auto** when the gauge can report
+actual orientation and adjust its own screen. Auto orientation is independent of
+**Auto-cycle pages**, which changes saved pages at an interval.
+
+Current firmware implements manual 0°, 90°, 180° and 270° only. The board inventory
+lists a QMI8658, but its driver, identity/health probe and enclosure axis calibration
+are not implemented. Board model or sensor presence alone cannot enable Auto.
+
+Implementation policy:
+
+- Advertise an explicit usable Auto-orientation capability after initialization and
+  health checks. Show Auto alongside the four manual angles only for supported gauges;
+  legacy gauges retain their current choices and wire semantics.
+- Persist the selected mode separately from the last applied manual/automatic angle.
+  Keep the current manual default on migration. In Auto, changing the applied angle
+  must not rewrite flash on every sensor observation or change page/vehicle settings.
+- Sample orientation through bounded shared-I2C ownership, independent of BLE/UI
+  callbacks. Map board axes through a versioned mounting calibration. Use gravity
+  confidence, angular hysteresis and a stable dwell before changing among four angles;
+  do not rotate from every noisy sample, acceleration spike or nearly horizontal pose.
+- Apply display and touch transforms together through the existing rendering owner.
+  Hold the last stable angle when orientation is ambiguous or the sensor becomes
+  unavailable. Recover automatically when reliable observations return; do not
+  repeatedly prompt the user. Manual selection exits Auto immediately.
+- Negotiate a versioned display-settings extension carrying mode, applied angle and
+  sensor availability. Do not reinterpret legacy rotation bytes or allocate opcodes
+  in this design document. Unsupported writes are rejected, not silently converted.
+- Test axis mapping, all angles, boundary jitter, motion/flat poses, stale sensor,
+  shared-bus contention, restart/persistence and legacy compatibility. Physically
+  qualify display/touch alignment, vehicle-motion stability and continued pairing,
+  alerts, updates and page cycling before advertising Auto on this board.
+
+The [backlog](../backlog.md) owns implementation status; this policy does not claim
+that Auto works in the current development image.
 
 ## Product opportunity review
 
@@ -81,11 +126,11 @@ Optional future LAN read-only telemetry endpoint or MQTT publisher can consume t
 
 Power saving: use bounded reconnect scans, optional screen dimming and explicit sleep policy after sustained loss of vehicle activity. BLE disconnect alone does not prove ignition off. Validate wake behavior with both adapter types and any fitted battery. Night dimming can be manual/time-based before adding ambient sensing; do not invent ambient readings from nonexistent sensors.
 
-## Tracked work
+## Qualification ownership
 
-- **HW-001:** authenticated runtime capacity polling is implemented and [observed on the Pixel and gauge](../development/hardware-capacity-validation.md). Exact board revision, sensor identity, battery ADC calibration and available pin map remain open.
-- **RADIO-001:** ECM + TCM + phone coexistence with Wi-Fi off/on and in maintenance, including power measurements.
-- **WIFI-001:** automatic temporary-AP authorization, Android network routing, measured transfer throughput and recovery; promote the capability only from device evidence.
-- **POWER-001:** sleep/dimming/wake policy, ignition inference limits, permanent automotive power design.
-
-These are implementation gates. The Wi-Fi source path is implemented behind a disabled capability gate; qualification is still required. No extra sensors or permanent radio mode changes are installed by this design milestone.
+Hardware snapshot reads and the protected private Wi-Fi update path have development
+evidence; their production gates remain distinct. **QUAL-02** tracks Wi-Fi/update
+interruption, **QUAL-04/QUAL-08** track radio coexistence and resource/power measurements,
+and **FEATURE-02** covers optional sensors and power/sleep integrations in
+[the backlog](../backlog.md). This strategy does not install extra sensors or qualify
+permanent automotive power. Exact board revision/pin and ADC decisions precede use.

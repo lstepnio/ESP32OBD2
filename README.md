@@ -33,7 +33,7 @@ a saved gauge layout; current behavior is described in the status summary.
 - **Resume Jeep testing:** [saved TCM session](docs/development/tcm-session-resume.md).
 - **Understand the system:** [architecture](docs/architecture/system.md), [Android](android/README.md), [firmware](firmware/gauge/README.md).
 - **Wire behavior:** [BLE](docs/protocol/ble-v1.md), [adapter bindings](docs/protocol/adapter-bindings-v1.md), [diagnostics](docs/protocol/diagnostics-and-alerts.md), [updates](docs/protocol/firmware-update.md).
-- **Product and remaining work:** [requirements](docs/requirements.md), [roadmap](docs/roadmap.md), [design system](docs/design/design-system.md).
+- **Product and remaining work:** [requirements](docs/requirements.md), [roadmap](docs/roadmap.md), [backlog and acceptance](docs/backlog.md), [design system](docs/design/design-system.md).
 - **All documentation and historical evidence:** [documentation index](docs/README.md).
 
 ## Quick offline checks

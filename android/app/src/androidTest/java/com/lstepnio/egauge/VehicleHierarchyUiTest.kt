@@ -51,15 +51,28 @@ class VehicleHierarchyUiTest {
             gauges = listOf(GaugeUi("one", "Main gauge", "Jeep", "ECM"), GaugeUi("two", "TCM gauge", "Jeep", "TCM")),
             selectedGaugeId = "one"), {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, onSelectGauge = { selected = it }) }
         compose.onNodeWithText("Your gauges").performClick()
-        compose.onNodeWithText("Jeep · Transmission").assertIsDisplayed()
+        compose.onAllNodesWithText("Transmission", substring = true).assertCountEquals(0)
         compose.onNodeWithText("TCM gauge").performClick()
         assertEquals("two", selected)
     }
-    @Test fun carSendsTransmissionAdapterSetupToExpert() {
-        var expert = false
-        frame { CarScreen(CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", StatusUi("Waiting for car", "Checks run automatically"), emptyList(), false, false, false, emptyList(), transmissionChild = true, adapterAvailable = true), {}, {}, {}, onExpert = { expert = true }) }
+    @Test fun carAlwaysEditsThePrimaryVehicleAdapter() {
+        frame { CarScreen(CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", StatusUi("Waiting for car", "Checks run automatically"), emptyList(), false, false, false, emptyList(), adapterAvailable = true), {}, {}, {}) }
         compose.onNodeWithText("Choose adapter").performScrollTo().performClick()
-        assertEquals(true, expert)
-        compose.onAllNodesWithText("Vehicle adapter").assertCountEquals(0)
+        compose.onNodeWithText("Vehicle adapter").assertIsDisplayed()
+        compose.onAllNodesWithText("Transmission child").assertCountEquals(0)
     }
+    @Test fun bothAdaptersAreExplicitAndGatedInExpert() {
+        var selected = false
+        frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
+            hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true, canUseBothAdapters = true),
+            ExpertActions({}, {}, {}, {}, {}, useBoth = { selected = it })) }
+        compose.onNodeWithText("Use both adapters on this gauge").performScrollTo().performClick()
+        assertEquals(true, selected)
+    }
+    @Test fun oldFirmwareCannotEnableBothAdapters() {
+        frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
+            hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true), ExpertActions({}, {}, {}, {}, {})) }
+        compose.onNodeWithText("Use both adapters on this gauge").performScrollTo().assertIsNotEnabled()
+    }
+
 }

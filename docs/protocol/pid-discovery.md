@@ -1,5 +1,10 @@
 # PID discovery and definition model, draft 0.1
 
+**Proposed broader discovery contract.** Current curated executable catalog and bounded
+adapter discovery are described in [catalog maintenance](../development/reading-catalog-alerts.md)
+and [bindings](adapter-bindings-v1.md). The tabs, imports and general discovery UX below
+are not a claim of shipped behavior; FEATURE-01 in [the backlog](../backlog.md) tracks expansion.
+
 The app makes discovery approachable while retaining evidence for advanced users. The gauge performs requests using the same serialized engine as live polling. “Discover” never implies every manufacturer identifier can be enumerated.
 
 Vehicle-specific research and compatibility gaps are organized in the [vehicle knowledge section](../vehicles/README.md), beginning with the [Wrangler JK](../vehicles/jeep/wrangler-jk.md).

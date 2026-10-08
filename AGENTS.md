@@ -13,7 +13,7 @@ These are the current entry points; historical reports are evidence, not instruc
 - Android and firmware are active; iOS is deferred. Ordinary UI stays simple and technical data belongs in Expert.
 - Current field firmware installation is App/Wi-Fi. Do not use USB flashing as an incidental fallback.
 - Never turn source, replay or simulated results into physical verification. Keep unqualified public capabilities disabled.
-- Keep `docs/current-state.md` current and remaining work in `docs/roadmap.md`; link to focused evidence instead of duplicating status.
+- Follow [documentation ownership](docs/documentation.md): current state owns verified facts, backlog owns tasks/status/blockers, roadmap owns outcome order, and evidence owns dated measurements. Update the relevant authority with the code; do not duplicate status or treat historical pending notes as instructions.
 - Do not use an em dash in user-facing responses.
 
 ## Interaction and recovery rules
@@ -25,15 +25,62 @@ These are the current entry points; historical reports are evidence, not instruc
   under the primary ECM connection within the same vehicle, configured in Expert.
   Follow [vehicle connections](docs/architecture/vehicle-connections.md): preserve
   separate per-gauge vehicle/source assignments, independent recovery and legacy data.
+  Ordinary reading/page/action editors and review/send use the same whole vehicle
+  dashboard, including legacy TCM-only profiles and single-adapter vehicles. Expert
+  edits transport bindings only. A second adapter changes PID routing, never the
+  page list; each missing source expires independently while its sibling continues.
+  Follow the [dual recovery matrix](docs/development/dual-adapter-recovery.md) for
+  two-source changes; development capability support never qualifies radio coexistence.
 - Reuse the universal connection widget and source-specific status projection. Account for
   independent ECM/TCM links; do not let a healthy link hide a failed required link or promote
   dual-adapter capability before the full path is qualified.
 - Keep BLE/UI callbacks nonblocking, snapshots short, writes serialized and external waits
   deadline-bounded. Review lock ordering, queue saturation, late replies, disconnect cleanup,
   failed persistence and interruption recovery. Test the relevant negative scenarios.
+- For external IO, use one monotonic operation budget, propagate cancellation to
+  the underlying socket/resource, and await cleanup before releasing the lease.
+  Reject retired callbacks/session generations. Follow the shared patterns in
+  [interaction recovery](docs/architecture/interaction-recovery.md), with qualification
+  recorded in [recovery hardening](docs/evidence/recovery-hardening.md).
+- Use one status/progress surface for each task. Routine connection recovery stays
+  in the universal widget; actionable profile, mutation and security failures stay
+  visible. Keep settings/profile dialogs scrollable and scope unsaved choices to
+  the selected gauge/vehicle. A healthy parent never certifies child fault checks.
+- Recover routine transient loss through the shared status widget and automatic
+  protected reads; avoid recurring prompts/toasts and arbitrary shorter timeouts.
 - Preserve last committed/last checked state honestly. Never show stale or simulated data
   as current, infer success from queued work, replay uncertain writes blindly, or claim
   deadlock immunity from source inspection or a build alone.
+
+## Shared alert framework and extensions
+
+- Use [ADR-015](docs/architecture/alerts-and-diagnostics.md) for every threshold,
+  MIL/fault and phone/provider alert. Extend existing producer adapters and shared
+  lifecycle, severity, attention, context, history and notification owners. Do not
+  create feature-specific alert stores, notification services or BLE owners.
+- Preserve autonomous gauge truth, independent availability, immutable entry context,
+  scoped vehicle/gauge/endpoint identities and silent replay. Acknowledgment, snooze,
+  history deletion and ECU clearing are distinct operations.
+- Follow the ADR's extension checklist in the same change: bounded producer contract,
+  wire/storage compatibility, negative/parity tests, architecture/protocol updates,
+  current support and backlog gates, then dated qualification evidence. Use the
+  [phone provider guide](docs/architecture/phone-alert-providers.md) for external feeds.
+- Advertise sensor-driven features only after runtime capability checks and relevant
+  qualification. Auto orientation follows the [hardware orientation policy](docs/architecture/hardware-and-transports.md#automatic-display-orientation),
+  independently of automatic page cycling.
+
+## Durable state and health patterns
+
+- Save coupled vehicle/profile and gauge assignments in one `LocalSetupStore` commit.
+  Use `LocalSetupTransactions`/`DurableWrites` off the UI thread, publish acknowledged
+  state only after success and retain legacy documents as read-only migration inputs.
+  Do not silently overwrite malformed/newer saved state or replay uncertain writes.
+- Preserve cancellation through `suspendResult`; use typed pairing/read failures.
+  Noncancellable work is limited to admitted platform commits and bounded cleanup.
+  A verified gauge outcome remains authoritative if phone journal cleanup fails.
+- Extend the existing firmware minute health log for task progress, queue saturation
+  and memory fragmentation. Adapter absence is not a task failure; do not add reset
+  loops or watchdog feeding that hides stalled owners. Qualify recovery on hardware.
 
 ## Hardware sessions
 

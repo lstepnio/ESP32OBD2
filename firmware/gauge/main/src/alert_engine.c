@@ -1,4 +1,5 @@
 #include <string.h>
+#include <math.h>
 #include "alert_engine.h"
 
 typedef struct {
@@ -7,19 +8,22 @@ typedef struct {
     uint32_t pending_since;
     uint32_t last_sample;
     bool sampled;
+    double value;
 } alert_state_t;
 
 static const config_runtime_t *rules;
+static alert_transition_sink_t transition_sink;
+void alert_engine_set_sink(alert_transition_sink_t sink) { transition_sink = sink; }
 static alert_state_t states[EGAUGE_RUNTIME_ALERTS];
 
 static bool crosses(const runtime_alert_t *rule, double value, double limit)
 {
-    return rule->above ? value >= limit : value <= limit;
+    return rule->equals ? value == limit : rule->above ? value >= limit : value <= limit;
 }
 
 static bool releases(const runtime_alert_t *rule, double value, double limit)
 {
-    return rule->above ? value <= limit - rule->hysteresis
+    return rule->equals ? value != limit : rule->above ? value <= limit - rule->hysteresis
                        : value >= limit + rule->hysteresis;
 }
 
@@ -31,7 +35,8 @@ void alert_engine_init(const config_runtime_t *runtime)
 
 void alert_engine_sample(uint8_t pid_index, double value, uint32_t now_ms)
 {
-    if (!rules) return;
+    if (!rules || pid_index >= rules->pid_count) return;
+    if (!isfinite(value)) { alert_engine_invalidate_pid(pid_index); return; }
     for (unsigned i = 0; i < rules->alert_count; ++i) {
         const runtime_alert_t *rule = &rules->alerts[i];
         if (rule->pid_index != pid_index) continue;
@@ -41,6 +46,7 @@ void alert_engine_sample(uint8_t pid_index, double value, uint32_t now_ms)
             state->pending = 0;
             state->pending_since = 0;
         }
+        state->value = value;
         state->sampled = true;
         state->last_sample = now_ms;
         uint8_t target = 0;
@@ -86,6 +92,9 @@ alert_summary_t alert_engine_tick(uint32_t now_ms)
         bool stale = !state->sampled ||
             now_ms - state->last_sample > rules->pids[rule->pid_index].stale_ms;
         if (stale) state->pending = 0;
+        if (transition_sink) transition_sink(i, state->severity == 2 ? 4 : state->severity == 1 ? 3 : 0,
+            stale, rules->pids[rule->pid_index].name, rules->pids[rule->pid_index].unit,
+            (float)state->value, (float)(state->severity == 2 ? rule->critical : rule->warning), state->last_sample, now_ms);
         if (state->severity > summary.severity ||
             (state->severity != 0 && state->severity == summary.severity &&
              rule->priority > chosen_priority)) {
@@ -101,6 +110,28 @@ alert_summary_t alert_engine_tick(uint32_t now_ms)
 void alert_engine_invalidate(void)
 {
     for (unsigned i=0; i<EGAUGE_RUNTIME_ALERTS; ++i) {
+        states[i].sampled = false;
+        states[i].pending = 0;
+        states[i].pending_since = 0;
+    }
+}
+
+void alert_engine_invalidate_source(unsigned source)
+{
+    if (!rules) { alert_engine_invalidate(); return; }
+    for (unsigned i=0; i<rules->alert_count; ++i) {
+        if (rules->pids[rules->alerts[i].pid_index].source_index != source) continue;
+        states[i].sampled = false;
+        states[i].pending = 0;
+        states[i].pending_since = 0;
+    }
+}
+
+void alert_engine_invalidate_pid(uint8_t pid_index)
+{
+    if (!rules) return;
+    for (unsigned i=0; i<rules->alert_count; ++i) {
+        if (rules->alerts[i].pid_index != pid_index) continue;
         states[i].sampled = false;
         states[i].pending = 0;
         states[i].pending_since = 0;

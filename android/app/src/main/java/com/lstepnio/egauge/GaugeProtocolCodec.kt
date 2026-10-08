@@ -15,6 +15,30 @@ object GaugeProtocolCodec {
     const val HARDWARE_USB_UART = 1L shl 9
     private const val HARDWARE_KNOWN_MASK = (1L shl 10) - 1
 
+    /** Shape gate for a successful encrypted owner read; payload decoding stays with each reader. */
+    fun isProtectedStatusFrame(bytes: ByteArray): Boolean = when (bytes.firstOrNull()?.toInt()?.and(255)) {
+        2 -> bytes.size == 8
+        3 -> bytes.size == 64
+        4 -> bytes.size == 56
+        5 -> bytes.size == 32
+        6 -> bytes.size == 60
+        7 -> bytes.size in 52..180
+        8 -> bytes.size == 44
+        9 -> bytes.size == 112
+        10 -> bytes.size == 8 || bytes.size == 56
+        11 -> bytes.size == 8
+        12 -> bytes.size == 10
+        13 -> bytes.size == 140
+        14 -> bytes.size == 160
+        15 -> bytes.size == 248
+        16 -> bytes.size in 24..360 && (bytes.size - 24) % 84 == 0 &&
+            (bytes[3].toInt() and 255) == (bytes.size - 24) / 84
+        17 -> bytes.size in 24..216 && (bytes.size - 24) % 12 == 0
+        18 -> bytes.size == 32
+        19 -> bytes.size == 24
+        else -> false
+    }
+
     fun capabilities(bytes: ByteArray): CapabilitySnapshot {
         val json = JSONObject(bytes.toString(Charsets.UTF_8))
         val protocol = json.getInt("protocolMajor")
@@ -26,7 +50,7 @@ object GaugeProtocolCodec {
         val hardwareCapacity = json.optInt("hardwareCapacity", json.optInt("hw", 0))
         val configurationVersion = json.optInt("cfg",
             if (json.optBoolean("experimentalNumericConfig", false)) 1 else 0)
-        require(configurationVersion in 0..3) { "Gauge returned an invalid configuration version" }
+        require(configurationVersion in 0..5) { "Gauge returned an invalid configuration version" }
         require(hardwareCapacity in 0..1) { "Gauge returned an invalid hardware-capacity version" }
         require(!configWrite && !ota) { "Unexpected experimental capability flags" }
         return CapabilitySnapshot(
@@ -37,7 +61,7 @@ object GaugeProtocolCodec {
             configWrite = configWrite,
             experimentalNumericConfig = configurationVersion > 0,
             savedStateRead = json.optBoolean("savedStateRead", false),
-            quickSelect = json.optBoolean("quickSelect", false),
+            quickSelect = json.optBoolean("quickSelect", json.optBoolean("qs", false)),
             displayRotationWrite = json.optBoolean("displayRotationWrite", false),
             displaySettingsVersion = json.optInt("ds", 0).also {
                 require(it in 0..3) { "Unsupported display settings version" }
@@ -46,10 +70,14 @@ object GaugeProtocolCodec {
             wifiBulk = json.optString("wifiBulk").takeIf { it.isNotBlank() },
             hardwareCapacityVersion = hardwareCapacity.takeIf { it > 0 },
             configurationVersion = configurationVersion,
+            pidCatalogVersion = if (configurationVersion >= 5) 1 else 0,
+            vehicleDashboardVersion = json.optInt("va", 0).also { require(it in 0..1) },
+            dualAdapterVersion = json.optInt("da", 0).also { require(it in 0..1) },
+            pageActionsVersion = if (configurationVersion >= 4) 1 else 0,
             adapterRegistryVersion = json.optInt("ad", 0).also { require(it in 0..1) },
             maxPages = if (configurationVersion >= 2) 8 else if (configurationVersion == 1) 3 else 0,
             supportedRenderers = when (configurationVersion) {
-                2, 3 -> GaugeLayout.entries.toSet()
+                2, 3, 4, 5 -> GaugeLayout.entries.toSet()
                 1 -> setOf(GaugeLayout.Numeric)
                 else -> emptySet()
             },

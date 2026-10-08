@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "cJSON.h"
 #include "config_document.h"
 #include "config_runtime.h"
@@ -40,8 +41,25 @@ int main(int argc, char **argv)
     set(root); assert(validate()==ESP_OK);
     config_runtime_t runtime; config_store_record_t active; bool previous;
     assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
-    assert(!runtime.legacy_auto_discovery && !strcmp(runtime.adapter_address,"C0:00:00:00:00:01") && runtime.adapter_address_type==1);
+    assert(!runtime.legacy_auto_discovery && !strcmp(runtime.sources[0].address,"C0:00:00:00:00:01") && runtime.sources[0].address_type==1);
     assert(runtime.pids[0].responder==0x7e8);
+    cJSON *actions = cJSON_CreateArray();
+    cJSON *action = cJSON_Parse("{\"type\":\"jumpPage\",\"pageId\":\"placeholder\",\"gesture\":\"up\",\"count\":3,\"windowMs\":5000}");
+    const char *first_page = cJSON_GetObjectItem(cJSON_GetArrayItem(cJSON_GetObjectItem(root,"pages"),0),"id")->valuestring;
+    cJSON_ReplaceItemInObject(action,"pageId",cJSON_CreateString(first_page));
+    cJSON_AddItemToArray(actions,action); cJSON_AddItemToObject(root,"actions",actions);
+    set(root); assert(validate()==ESP_OK); assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
+    assert(runtime.page_action.enabled && runtime.page_action.target_page==0 && runtime.page_action.count==3);
+    cJSON_ReplaceItemInObject(action,"type",cJSON_CreateString("disableAbs")); set(root); assert(validate()!=ESP_OK);
+    cJSON_ReplaceItemInObject(action,"type",cJSON_CreateString("jumpPage"));
+    cJSON_SetNumberValue(cJSON_GetObjectItem(action,"count"),3.5); set(root); assert(validate()!=ESP_OK);
+    cJSON_SetNumberValue(cJSON_GetObjectItem(action,"count"),3);
+    cJSON_SetNumberValue(cJSON_GetObjectItem(action,"windowMs"),10001); set(root); assert(validate()!=ESP_OK);
+    cJSON_SetNumberValue(cJSON_GetObjectItem(action,"windowMs"),5000);
+    cJSON_ReplaceItemInObject(action,"pageId",cJSON_CreateString("missing")); set(root); assert(validate()!=ESP_OK);
+    cJSON_DeleteItemFromObject(root,"actions");
+    set(root); assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK && !runtime.page_action.enabled);
+    cJSON *engine_root=cJSON_Duplicate(root,1);
     cJSON *source=cJSON_GetArrayItem(cJSON_GetObjectItem(root,"sources"),0);
     cJSON *original_label=cJSON_Duplicate(cJSON_GetObjectItem(source,"label"),1);
     char label[34]; memset(label,'x',33); label[32]=0;
@@ -67,7 +85,7 @@ int main(int argc, char **argv)
     cJSON_DeleteItemFromObject(source,"adapter");
     set(root); assert(validate()==ESP_OK);
     assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
-    assert(!runtime.legacy_auto_discovery && runtime.adapter_address[0]==0);
+    assert(!runtime.legacy_auto_discovery && runtime.sources[0].address[0]==0);
     cJSON_SetNumberValue(cJSON_GetObjectItem(root,"schemaVersion"),1);
     set(root); assert(validate()==ESP_OK);
     assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK && runtime.legacy_auto_discovery);
@@ -94,7 +112,7 @@ int main(int argc, char **argv)
     cJSON_ReplaceItemInObject(root,"alerts",cJSON_CreateArray());
     set(root); assert(validate()==ESP_OK);
     assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
-    assert(runtime.transmission_source && runtime.pids[0].obd.pid==0x04fe &&
+    assert(runtime.sources[0].transmission && runtime.pids[0].obd.pid==0x04fe &&
            runtime.pids[0].obd.len==3 && runtime.pids[0].obd.decoder.byte_length==1 && runtime.pids[0].responder==0x7e9);
     double temperature;
     const uint8_t observed[]={85,84,85}, placeholder[]={0,0,0};
@@ -126,6 +144,48 @@ int main(int argc, char **argv)
     assert(runtime.pids[1].obd.pid==0x5503 && runtime.pids[1].obd.len==1);
     const uint8_t park[]={13};
     assert(pid_decoder_eval(&runtime.pids[1].obd.decoder,park,1,&temperature) && temperature==13);
+    /* Compile the bounded dual-source payload using the same production compiler. */
+    cJSON *dual=cJSON_Duplicate(engine_root,1);
+    cJSON *child_source=cJSON_Duplicate(source,1);
+    cJSON *child_binding=cJSON_GetObjectItem(child_source,"adapter");
+    cJSON_ReplaceItemInObject(child_binding,"id",cJSON_CreateString("child.radio"));
+    cJSON_ReplaceItemInObject(child_binding,"address",cJSON_CreateString("C0:00:00:00:00:02"));
+    cJSON_AddItemToArray(cJSON_GetObjectItem(dual,"sources"),child_source);
+    cJSON *tcm_defs=cJSON_Duplicate(cJSON_GetObjectItem(root,"definitions"),1);
+    cJSON_ReplaceItemInObject(cJSON_GetArrayItem(tcm_defs,0),"id",cJSON_CreateString("transmission.temperature"));
+    cJSON *child_page=cJSON_Duplicate(page,1);
+    cJSON_ReplaceItemInObject(child_page,"id",cJSON_CreateString("child.page"));
+    cJSON_ReplaceItemInObject(child_page,"pidIds",cJSON_Parse("[\"transmission.temperature\",\"transmission.gear\"]"));
+    cJSON_AddItemToArray(cJSON_GetObjectItem(dual,"pages"),child_page);
+    while(cJSON_GetArraySize(tcm_defs)) cJSON_AddItemToArray(cJSON_GetObjectItem(dual,"definitions"),cJSON_DetachItemFromArray(tcm_defs,0));
+    cJSON_Delete(tcm_defs);
+    set(dual); assert(validate()==ESP_OK);
+    assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
+    assert(runtime.source_count==2 && !runtime.sources[0].transmission && runtime.sources[1].transmission);
+    assert(runtime.pids[runtime.pid_count-1].source_index==1 && runtime.pids[0].source_index==0);
+    cJSON_ReplaceItemInObject(child_page,"pidIds",cJSON_Parse("[\"engine.rpm\",\"transmission.gear\"]"));
+    set(dual); assert(validate()==ESP_OK);
+    assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
+    assert(runtime.pids[runtime.pages[runtime.page_count-1].pid_indices[0]].source_index == 0);
+    assert(runtime.pids[runtime.pages[runtime.page_count-1].pid_indices[1]].source_index == 1);
+    cJSON_ReplaceItemInObject(child_page,"pidIds",cJSON_Parse("[\"transmission.temperature\",\"transmission.gear\"]"));
+    cJSON_ReplaceItemInObject(child_binding,"address",cJSON_CreateString("C0:00:00:00:00:01"));
+    set(dual); assert(validate()!=ESP_OK);
+    assert(config_runtime_validate(&partition,0,document_length,NULL)!=ESP_OK);
+    cJSON_ReplaceItemInObject(child_binding,"address",cJSON_CreateString("C0:00:00:00:00:02"));
+    cJSON_DeleteItemFromObject(child_source,"adapter");
+    set(dual); assert(config_runtime_validate(&partition,0,document_length,NULL)!=ESP_OK);
+    /* One physical adapter carries the same whole dashboard and per-PID routes. */
+    cJSON_DeleteItemFromArray(cJSON_GetObjectItem(dual,"sources"),1);
+    cJSON *single_defs=cJSON_GetObjectItem(dual,"definitions");
+    for (cJSON *item=single_defs->child; item; item=item->next)
+        cJSON_ReplaceItemInObject(item,"sourceId",cJSON_CreateString("ecm"));
+    set(dual); assert(validate()==ESP_OK);
+    assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
+    assert(runtime.source_count==1 && !runtime.sources[0].transmission);
+    assert(runtime.pids[0].service==1 && runtime.pids[0].responder==0x7e8);
+    assert(runtime.pids[runtime.pid_count-1].service==0x22 && runtime.pids[runtime.pid_count-1].responder==0x7e9);
+    cJSON_Delete(dual); cJSON_Delete(engine_root);
     cJSON_ReplaceItemInObject(page,"renderer",cJSON_CreateString("arc"));
     cJSON_ReplaceItemInObject(page,"pidIds",cJSON_Parse("[\"transmission.gear\"]"));
     set(root); assert(validate()==ESP_OK);
@@ -135,6 +195,60 @@ int main(int argc, char **argv)
     cJSON_ReplaceItemInObject(cJSON_GetObjectItem(gear_definition,"response"),"prefix",cJSON_CreateString("625504"));
     set(root); assert(validate()==ESP_OK);
     assert(config_runtime_validate(&partition,0,document_length,NULL)==ESP_ERR_NOT_SUPPORTED);
+    /* Every selectable catalog definition compiles with the production path and its vectors. */
+    unsigned catalog_count = 0;
+    const cJSON *catalog_definition;
+    cJSON_ArrayForEach(catalog_definition,cJSON_GetObjectItem(asset,"definitions")) {
+        cJSON *selected = cJSON_Duplicate(asset,1);
+        cJSON_SetNumberValue(cJSON_GetObjectItem(selected,"baseRevision"),21);
+        cJSON_SetNumberValue(cJSON_GetObjectItem(selected,"schemaVersion"),2);
+        cJSON *one_definition = cJSON_Duplicate(catalog_definition,1);
+        cJSON_ReplaceItemInObject(one_definition,"sourceId",cJSON_CreateString("ecm"));
+        cJSON *selected_defs = cJSON_CreateArray(); cJSON_AddItemToArray(selected_defs,one_definition);
+        cJSON_ReplaceItemInObject(selected,"definitions",selected_defs);
+        cJSON *selected_pages = cJSON_CreateArray();
+        cJSON *selected_page = cJSON_Parse("{\"id\":\"page.catalog\",\"name\":\"CATALOG\",\"renderer\":\"numeric\",\"pidIds\":[]}");
+        const char *id=cJSON_GetObjectItem(one_definition,"id")->valuestring;
+        cJSON_AddItemToArray(cJSON_GetObjectItem(selected_page,"pidIds"),cJSON_CreateString(id));
+        cJSON_AddItemToArray(selected_pages,selected_page);
+        cJSON_ReplaceItemInObject(selected,"pages",selected_pages);
+        bool is_gear = !strcmp(cJSON_GetObjectItem(one_definition,"unit")->valuestring,"gear");
+        const cJSON *bounds = cJSON_GetObjectItem(one_definition,"range");
+        double minimum=cJSON_GetObjectItem(bounds,"min")->valuedouble;
+        double span=cJSON_GetObjectItem(bounds,"max")->valuedouble-minimum;
+        cJSON *selected_alerts=cJSON_CreateArray();
+        cJSON *rule=cJSON_Parse("{\"id\":\"alert.catalog\",\"pidId\":\"placeholder\",\"direction\":\"above\",\"warning\":0,\"critical\":0,\"hysteresis\":0,\"triggerDwellMs\":1000,\"clearDwellMs\":2000,\"snoozeMs\":0,\"priority\":8}");
+        cJSON_ReplaceItemInObject(rule,"pidId",cJSON_CreateString(id));
+        if (is_gear) cJSON_ReplaceItemInObject(rule,"direction",cJSON_CreateString("equals"));
+        cJSON_SetNumberValue(cJSON_GetObjectItem(rule,"warning"),is_gear ? 11 : minimum + span*.6);
+        cJSON_SetNumberValue(cJSON_GetObjectItem(rule,"critical"),is_gear ? 13 : minimum + span*.8);
+        cJSON_SetNumberValue(cJSON_GetObjectItem(rule,"hysteresis"),is_gear ? 0 : span*.05);
+        cJSON_AddItemToArray(selected_alerts,rule);
+        cJSON_ReplaceItemInObject(selected,"alerts",selected_alerts);
+        set(selected); assert(validate()==ESP_OK);
+        assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
+        assert(runtime.pid_count==1 && runtime.alert_count==1 && runtime.alerts[0].equals==is_gear);
+        const cJSON *vector;
+        cJSON_ArrayForEach(vector,cJSON_GetObjectItem(one_definition,"vectors")) {
+            const char *hex=cJSON_GetObjectItem(vector,"payloadHex")->valuestring;
+            uint8_t payload[16]; size_t size=strlen(hex)/2; assert(size<=sizeof(payload));
+            for (size_t i=0; i<size; ++i) { unsigned v; assert(sscanf(hex+2*i,"%2x",&v)==1); payload[i]=v; }
+            double value;
+            assert(pid_decoder_eval(&runtime.pids[0].obd.decoder,payload,size,&value));
+            assert(fabs(value-cJSON_GetObjectItem(vector,"expected")->valuedouble)<1e-8);
+            assert(!pid_decoder_eval(&runtime.pids[0].obd.decoder,payload,runtime.pids[0].obd.decoder.byte_length-1,&value));
+        }
+        if (is_gear) {
+            cJSON_SetNumberValue(cJSON_GetObjectItem(rule,"warning"),12); set(selected); assert(validate()!=ESP_OK);
+            cJSON_SetNumberValue(cJSON_GetObjectItem(rule,"warning"),11);
+            cJSON_SetNumberValue(cJSON_GetObjectItem(rule,"hysteresis"),.1); set(selected); assert(validate()!=ESP_OK);
+        } else {
+            cJSON_ReplaceItemInObject(rule,"direction",cJSON_CreateString("equals")); set(selected); assert(validate()!=ESP_OK);
+        }
+        cJSON_Delete(selected); ++catalog_count;
+    }
+    assert(catalog_count==55);
+    printf("%u catalog definitions and alerts compiled and vectors decoded\n",catalog_count);
     cJSON_Delete(asset);
     free(document); cJSON_Delete(root);
     puts("Production configuration binding validation and runtime fixtures passed");

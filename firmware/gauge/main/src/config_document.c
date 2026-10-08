@@ -335,7 +335,7 @@ static bool alert_valid(const cJSON *item, const cJSON *definitions)
 {
     static const char *const keys[] = {"id", "pidId", "direction", "warning", "critical",
         "hysteresis", "triggerDwellMs", "clearDwellMs", "snoozeMs", "priority"};
-    static const char *const directions[] = {"above", "below"};
+    static const char *const directions[] = {"above", "below", "equals"};
     const cJSON *pid = cJSON_GetObjectItemCaseSensitive(item, "pidId");
     const cJSON *direction = cJSON_GetObjectItemCaseSensitive(item, "direction");
     const cJSON *warning = cJSON_GetObjectItemCaseSensitive(item, "warning");
@@ -365,6 +365,18 @@ static bool alert_valid(const cJSON *item, const cJSON *definitions)
         (critical && (critical->valuedouble < minimum->valuedouble ||
                       critical->valuedouble > maximum->valuedouble)) ||
         hysteresis->valuedouble >= maximum->valuedouble - minimum->valuedouble) return false;
+    bool gear = strcmp(cJSON_GetObjectItemCaseSensitive(definition, "unit")->valuestring, "gear") == 0;
+    if (strcmp(direction->valuestring, "equals") == 0) {
+        if (!gear || hysteresis->valuedouble != 0) return false;
+        const cJSON *targets[] = {warning, critical};
+        for (unsigned i=0; i<ARRAY_COUNT(targets); ++i) {
+            if (!targets[i]) continue;
+            double v = targets[i]->valuedouble;
+            if (!((v >= 0 && v <= 8 && floor(v) == v) || v == 11 || v == 13)) return false;
+        }
+        return true;
+    }
+    if (gear) return false;
     if (strcmp(direction->valuestring, "above") == 0) {
         if ((warning && warning->valuedouble - hysteresis->valuedouble < minimum->valuedouble) ||
             (critical && critical->valuedouble - hysteresis->valuedouble < minimum->valuedouble))
@@ -385,7 +397,7 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
 {
     static const char *const keys[] = {"schemaVersion", "baseRevision", "vehicleProfileId",
         "units", "rotation", "brightness", "reducedMotion", "definitions", "pages",
-        "alerts", "sources"};
+        "alerts", "sources", "actions"};
     static const char *const units[] = {"metric", "imperial"};
     const cJSON *sources = cJSON_GetObjectItemCaseSensitive(root, "sources");
     const cJSON *definitions = cJSON_GetObjectItemCaseSensitive(root, "definitions");
@@ -406,6 +418,22 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
         !array_size(alerts, 0, 32) ||
         !unique_ids(sources) || !unique_ids(definitions) ||
         !unique_ids(pages) || !unique_ids(alerts)) return false;
+    const cJSON *actions = cJSON_GetObjectItemCaseSensitive(root, "actions");
+    if (actions) {
+        if (cJSON_GetObjectItemCaseSensitive(root, "schemaVersion")->valueint != 2 || !array_size(actions, 0, 1)) return false;
+        static const char *const action_keys[] = {"type", "pageId", "gesture", "count", "windowMs"};
+        static const char *const types[] = {"jumpPage"}, *const gestures[] = {"up"};
+        for (const cJSON *action = actions->child; action; action = action->next) {
+            const cJSON *page = cJSON_GetObjectItemCaseSensitive(action, "pageId");
+            if (!fields(action, action_keys, ARRAY_COUNT(action_keys)) || !identifier(page, 64) ||
+                !contains_id(pages, page->valuestring) ||
+                !one_of(cJSON_GetObjectItemCaseSensitive(action, "type"), types, ARRAY_COUNT(types)) ||
+                !one_of(cJSON_GetObjectItemCaseSensitive(action, "gesture"), gestures, ARRAY_COUNT(gestures)) ||
+                !integer(cJSON_GetObjectItemCaseSensitive(action, "count"), 2, 5) ||
+                (!integer(cJSON_GetObjectItemCaseSensitive(action, "windowMs"), 2000, 10000) ||
+                 cJSON_GetObjectItemCaseSensitive(action, "windowMs")->valueint % 1000 != 0)) return false;
+        }
+    }
     for (const cJSON *item = sources->child; item != NULL; item = item->next) {
         const cJSON *adapter = cJSON_GetObjectItemCaseSensitive(item, "adapter");
         if (!source_valid(item) || (adapter && cJSON_GetObjectItemCaseSensitive(root, "schemaVersion")->valueint == 1)) return false;

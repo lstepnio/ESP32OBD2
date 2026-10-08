@@ -1,5 +1,8 @@
 # eGauge Android redesign audit
 
+> Scoped review evidence. Current UI rules are in [the design system](../design-system.md);
+> current task readiness belongs to [the backlog](../../backlog.md).
+
 Baseline: `848e59d`, 2026-09-27. The companion is functional but spreads one task across four destinations. `MainActivity.kt` contains 1,318 lines. Screenshots in `screenshots/before/` were captured from the existing app on the paired Pixel, without changing its saved profiles or querying a car.
 
 The new Android design supersedes previous Android visual and navigation guidance. Firmware, round-display geometry, protocols, and the A01+ trust requirements remain unchanged. The exhaustive baseline literal inventory is [strings.csv](strings.csv); this table groups the same content by user job.

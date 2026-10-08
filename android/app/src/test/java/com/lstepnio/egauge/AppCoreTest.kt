@@ -134,7 +134,7 @@ class AppCoreTest {
     @Test fun projectionAndPayloadDescribeTheSameNumericPages() {
         val draft = Draft(pidId = "coolant", layout = GaugeLayout.Numeric,
             alerts = listOf(GaugeAlertDraft("alert.coolant", "coolant", AlertDirection.Above,
-                warning = 104, critical = 114, hysteresis = 3, triggerDwellMs = 2000, clearDwellMs = 5000)))
+                warning = 104.0, critical = 114.0, hysteresis = 3.0, triggerDwellMs = 2000, clearDwellMs = 5000)))
         val (projection, bytes) = ConfigurationProjector.project(template, draft, "vehicle-1", 9)
         val json = JSONObject(bytes.toString(Charsets.UTF_8))
         assertEquals("engine.coolant", projection.pages.first().pidId)
@@ -173,7 +173,7 @@ class AppCoreTest {
     @Test fun projectionKeepsAlertsForEachChosenReading() {
         val draft = Draft(alerts = listOf(
             defaultAlert("coolant"),
-            defaultAlert("speed").copy(warning = 110, critical = 130),
+            defaultAlert("speed").copy(warning = 110.0, critical = 130.0),
         ))
         val (_, bytes) = ConfigurationProjector.project(template, draft, "default", 2)
         val alerts = JSONObject(bytes.toString(Charsets.UTF_8)).getJSONArray("alerts")
@@ -259,10 +259,10 @@ class AppCoreTest {
         val original = defaultAlert("coolant")
         val shown = alertUi(original, MeasurementSystem.Imperial)
         assertEquals("°F", shown.unit)
-        assertEquals(MeasurementUnits.value(original.warning, "°C", MeasurementSystem.Imperial), shown.warning)
-        assertEquals(original.warning, shown.canonicalWarning)
-        assertEquals(original.critical, shown.canonicalCritical)
-        assertEquals(original.hysteresis, shown.canonicalResetMargin)
+        assertEquals(MeasurementUnits.value(original.warning, "°C", MeasurementSystem.Imperial), shown.warning, 1e-9)
+        assertEquals(original.warning, shown.canonicalWarning, 1e-9)
+        assertEquals(original.critical, shown.canonicalCritical, 1e-9)
+        assertEquals(original.hysteresis, shown.canonicalResetMargin, 1e-9)
     }
 
     @Test fun hostedCatalogRequiresValidSignatureAndExactCompatibility() {

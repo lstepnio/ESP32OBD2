@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..6) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..12) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -25,6 +25,12 @@ object ProfileDocumentCodec {
                     TransmissionConnection(child.optJSONObject("adapter")?.let(AdapterBinding::decode),
                         decodeDraft(child.getJSONObject("draft"), schemaVersion))
                 } else null,
+                item.optJSONArray("pageOrder")?.let { order ->
+                    (0 until order.length()).map { order.getString(it) }.also { ids ->
+                        require(ids.size <= 8 && ids.distinct().size == ids.size &&
+                            ids.all { it.matches(Regex("[a-z][a-z0-9._-]{0,63}")) }) { "Page order is invalid" }
+                    }
+                } ?: emptyList(),
             )
         }
         require(profiles.map { it.id }.distinct().size == profiles.size) { "Profile IDs are duplicated" }
@@ -40,7 +46,7 @@ object ProfileDocumentCodec {
                 ?: error("Profile layout is not supported by this app")
         val pages = if (schemaVersion >= 3) {
             val pageItems = saved.getJSONArray("pages")
-            require(pageItems.length() in 1..8) { "Profile page count is invalid" }
+            require(pageItems.length() in (if (schemaVersion >= 9) 0..8 else 1..8)) { "Profile page count is invalid" }
             (0 until pageItems.length()).map { pageIndex ->
                 val page = pageItems.getJSONObject(pageIndex)
                 val pageLayout = GaugeLayout.entries.firstOrNull { it.name == page.getString("layout") }
@@ -69,25 +75,28 @@ object ProfileDocumentCodec {
                     demoCatalog.any { it.id == alertPid }) { "Profile alert identity is invalid" }
                 GaugeAlertDraft(alertId, alertPid,
                     AlertDirection.valueOf(alert.optString("direction", "above").replaceFirstChar(Char::uppercase)),
-                    alert.getInt("warning"), alert.getInt("critical"), alert.optInt("hysteresis", 3),
+                    alert.getDouble("warning"), alert.getDouble("critical"), alert.optDouble("hysteresis", 3.0),
                     alert.optInt("triggerDwellMs", 1000), alert.optInt("clearDwellMs", 2000), alert.optInt("priority", 8))
             }
         } else listOf(GaugeAlertDraft("alert.coolant", "coolant", AlertDirection.Above,
             saved.getInt("warning"), saved.getInt("critical"), saved.optInt("hysteresis", 3),
             saved.optInt("triggerDwellMs", 1000), saved.optInt("clearDwellMs", 2000)))
+        val actions = if (schemaVersion >= 7) ProfileActions.decode(saved.getJSONArray("actions")) else emptyList()
+        ProfileActions.validate(actions, pages)
         val draft = Draft(
             pidId = pidId,
             layout = layout,
             source = saved.getString("source"),
             pages = pages,
             alerts = alerts,
+            actions = actions,
         )
         require(draft.source == "ECM" || draft.source == "TCM") { "Profile source is invalid" }
         require(draft.alerts.map { it.id }.distinct().size == draft.alerts.size &&
             draft.alerts.all { alert ->
                 // Older apps accepted 16384. Keep those profiles readable so the editor can fix the limit.
-                val storedRange = if (alert.pidId == "rpm") 0..16384 else readingRange(alert.pidId)
-                alert.warning in storedRange && alert.critical in storedRange && alert.hysteresis in 0..20 &&
+                val storedRange = if (alert.pidId == "rpm") 0.0..16384.0 else readingBounds(alert.pidId)
+                alert.warning in storedRange && alert.critical in storedRange && alert.hysteresis.isFinite() && alert.hysteresis >= 0 && alert.hysteresis < storedRange.endInclusive - storedRange.start &&
                 alert.triggerDwellMs in 0..60000 && alert.clearDwellMs in 0..60000 }) {
             "Profile alert settings are invalid"
         }
@@ -96,10 +105,13 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 6).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 12).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
+            ProfileActions.validate(profile.draft.actions, profile.draft.pages)
+            profile.transmission?.draft?.let { ProfileActions.validate(it.actions, it.pages) }
             items.put(JSONObject().put("id", profile.id).put("name", profile.name)
+                .put("pageOrder", JSONArray(profile.pageOrder))
                 .put("primaryAdapter", profile.primaryAdapter?.json())
                 .put("transmission", profile.transmission?.let { child ->
                     JSONObject().put("adapter", child.adapter?.json()).put("draft", draftJson(child.draft))
@@ -110,6 +122,7 @@ object ProfileDocumentCodec {
     }
 
     private fun draftJson(draft: Draft): JSONObject = JSONObject()
+                    .put("actions", ProfileActions.json(draft.actions))
                     .put("pidId", draft.pidId)
                     .put("layout", draft.layout.name)
                     .put("source", draft.source)

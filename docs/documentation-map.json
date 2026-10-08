@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "entrypoints": {
+    "instructions": "AGENTS.md",
+    "context": "docs/ai-context.md",
+    "state": "docs/current-state.md",
+    "roadmap": "docs/roadmap.md",
+    "backlog": "docs/backlog.md",
+    "index": "docs/README.md",
+    "policy": "docs/documentation.md"
+  },
+  "documents": {
+    "entrypoints": [
+      "README.md",
+      "AGENTS.md",
+      "CONTRIBUTING.md",
+      "THIRD_PARTY_NOTICES.md",
+      "android/README.md",
+      "firmware/gauge/README.md",
+      "docs/README.md",
+      "docs/ai-context.md",
+      "docs/current-state.md",
+      "docs/roadmap.md",
+      "docs/backlog.md",
+      "docs/documentation.md",
+      "docs/requirements.md"
+    ],
+    "architecture": [
+      "docs/architecture/alerts-and-diagnostics.md",
+      "docs/architecture/android-runtime.md",
+      "docs/architecture/config-storage.md",
+      "docs/architecture/decisions.md",
+      "docs/architecture/firmware-runtime.md",
+      "docs/architecture/hardware-and-transports.md",
+      "docs/architecture/interaction-recovery.md",
+      "docs/architecture/multi-adapter.md",
+      "docs/architecture/phone-alert-providers.md",
+      "docs/architecture/system.md",
+      "docs/architecture/vehicle-actions.md",
+      "docs/architecture/vehicle-connections.md"
+    ],
+    "development-contracts-and-proposals": [
+      "docs/protocol/adapter-bindings-v1.md",
+      "docs/protocol/ble-v1.md",
+      "docs/protocol/diagnostics-and-alerts.md",
+      "docs/protocol/experimental-firmware-transfers.md",
+      "docs/protocol/firmware-update.md",
+      "docs/protocol/hardware-probe.md",
+      "docs/protocol/pid-discovery.md",
+      "docs/protocol/wifi-bulk-v1.md"
+    ],
+    "maintained-runbooks": [
+      "docs/development/dual-adapter-recovery.md",
+      "docs/development/firmware-release-runbook.md",
+      "docs/development/ota-recovery-matrix.md",
+      "docs/development/quality.md",
+      "docs/development/reading-catalog-alerts.md",
+      "docs/development/setup.md",
+      "docs/development/tcm-session-resume.md",
+      "docs/development/tcm-values-research-plan.md",
+      "docs/development/vehicle-capture-runbook.md"
+    ],
+    "vehicle-research": [
+      "docs/vehicles/README.md",
+      "docs/vehicles/catalog-research.md",
+      "docs/vehicles/jeep/jk-handler-analysis.md",
+      "docs/vehicles/jeep/wrangler-jk.md"
+    ],
+    "design-rules": [
+      "docs/design/design-system.md",
+      "docs/design/round-display-ui-guidelines.md"
+    ],
+    "scoped-design-history": [
+      "docs/design/redesign/audit.md",
+      "docs/design/redesign/concept.md",
+      "docs/design/redesign/customize-review.md"
+    ],
+    "reference-research": [
+      "docs/reference-projects-and-architecture.md",
+      "docs/sources.md"
+    ]
+  },
+  "evidenceDirectory": "docs/evidence",
+  "sourceAreas": {
+    "firmware-runtime": [
+      "firmware/gauge/main/main.c",
+      "firmware/gauge/main/src/ui.c",
+      "firmware/gauge/main/src/display_settings.c",
+      "firmware/gauge/main/src/page_action.c",
+      "firmware/gauge/main/src/worker_health.c"
+    ],
+    "adapters": [
+      "firmware/gauge/main/src/ble_mgr.c",
+      "firmware/gauge/main/src/ble_obd.c",
+      "firmware/gauge/main/src/elm_response.c",
+      "firmware/gauge/main/src/obd_adapter_profile.c"
+    ],
+    "configuration": [
+      "firmware/gauge/main/src/config_document.c",
+      "firmware/gauge/main/src/config_runtime.c"
+    ],
+    "diagnostics": [
+      "firmware/gauge/main/src/diagnostics_state.c",
+      "firmware/gauge/main/src/poll_scheduler.c",
+      "firmware/gauge/main/src/alert_engine.c",
+      "firmware/gauge/main/src/alert_events.c",
+      "firmware/gauge/main/src/alert_runtime.c",
+      "firmware/gauge/main/src/clear_policy.c",
+      "firmware/gauge/main/src/diagnostic_clear.c"
+    ],
+    "owner-transfers": [
+      "firmware/gauge/main/src/ble_companion.c",
+      "firmware/gauge/main/src/ota_transfer.c",
+      "firmware/gauge/main/src/wifi_bulk.c",
+      "firmware/gauge/main/src/wifi_bulk_io.c"
+    ],
+    "android-state": [
+      "android/app/src/main/java/com/lstepnio/egauge/AppModel.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/GaugeModels.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/AppOperation.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/connection/",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/"
+    ],
+    "phone-persistence": [
+      "android/app/src/main/java/com/lstepnio/egauge/ProfileStore.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/ProfileDocumentCodec.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/LocalSetupStore.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/LocalSetupTransactions.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/DurableWrites.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/VehicleConnections.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/AlertRepository.kt"
+    ],
+    "android-protocol": [
+      "android/app/src/main/java/com/lstepnio/egauge/GaugeConfigTransferClient.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/GaugeProtocolCodec.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/BleCapabilityClient.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/PairingFailure.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/VehicleDiagnostics.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/DiagnosticPresentation.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/ConfigurationProjection.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/GaugeDraftComparison.kt"
+    ],
+    "android-update": [
+      "android/app/src/main/java/com/lstepnio/egauge/WifiBulkClient.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/FirmwareUpdatePersistence.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/UpdateRecoveryJournal.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/SocketIo.kt"
+    ],
+    "catalog": [
+      "contracts/reading-catalog.json",
+      "tools/generate_reading_catalog.py",
+      "firmware/gauge/main/src/alert_engine.c",
+      "android/app/src/main/java/com/lstepnio/egauge/ReadingCatalog.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/customize/AlertForm.kt"
+    ],
+    "design": [
+      "android/core/designsystem/",
+      "design/tokens.json"
+    ],
+    "capture-research": [
+      "tools/obd_capture.py",
+      "tools/obd_explore.py",
+      "tools/obd_tcm_values.py",
+      "tools/tests/",
+      "tools/research/",
+      "data/vehicle-definitions/"
+    ]
+  }
+}

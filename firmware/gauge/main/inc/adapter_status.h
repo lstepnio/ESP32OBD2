@@ -10,3 +10,9 @@ void adapter_status_support(unsigned source, uint32_t generation, uint32_t ecu,
 size_t adapter_status_snapshot(uint8_t out[ADAPTER_SOURCE_STATUS_SIZE]);
 
 bool adapter_status_ready(void);
+
+size_t adapter_status_snapshot_for(unsigned source, uint8_t out[ADAPTER_SOURCE_STATUS_SIZE]);
+bool adapter_status_ready_for(unsigned source);
+uint32_t adapter_status_generation(unsigned source);
+
+unsigned adapter_status_count(void);

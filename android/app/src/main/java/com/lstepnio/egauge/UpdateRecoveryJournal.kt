@@ -39,6 +39,11 @@ fun reconcilePendingUpdate(
             false,
         )
     }
+    if (otaState !in 0..2 || (pending.expectedElfSha256 == null && otaState != 2) ||
+        (pending.expectedElfSha256 != runningElfSha256 && otaState != 2)) {
+        return UpdateRecoveryResult(UpdateRecoveryState.WAITING_FOR_CONFIRMATION,
+            "The running firmware has not confirmed its health yet. Recovery will check again.", false)
+    }
     val expected = pending.expectedElfSha256
     if (expected == null) {
         return UpdateRecoveryResult(
@@ -82,7 +87,10 @@ class UpdateRecoveryJournal(context: Context) {
                 value.getString("stage"),
                 value.getLong("updatedAtEpochMs"),
             )
-        }.getOrNull()
+        }.getOrElse {
+            // A corrupt journal is evidence of uncertainty, never evidence that no update ran.
+            PendingUpdateRecovery("unknown", "unknown", null, "unreadable", 0)
+        }
     }
 
     fun write(gaugeId: String, imageSha256: String, expectedElfSha256: String, stage: String) {
