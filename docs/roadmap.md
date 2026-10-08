@@ -9,10 +9,10 @@ Updated 2026-10-07. This document orders outcomes, not individual task status.
 | Stage | Outcome | Backlog scope | Exit evidence |
 | --- | --- | --- | --- |
 | Now | Preserve the working single-adapter product and qualify dev.47 recovery | QUAL-01, QUAL-02, QUAL-03, CODE-01, CODE-02 | Confirmed physical behavior, explicit uncertain outcomes, bounded recovery without routine user taps |
-| Next parked sessions | Complete the existing Jeep/TCM slice | QUAL-05, QUAL-06, QUAL-07 | Correct full faults, independently validated signal meanings and real alert transitions |
+| Next offline and parked sessions | Complete vehicle diagnostics and shared alerts | QUAL-05, FEATURE-05, FEATURE-03, QUAL-11, QUAL-06, QUAL-07 | ECU-scoped MIL/faults, consistent severity/context/history/notifications, qualified explicit clearing and real alert transitions; [implementation sequence](architecture/alerts-and-diagnostics.md) |
 | Next hardware expansion | Add the niche second adapter as a child of the primary vehicle | QUAL-04, QUAL-08 | Measured two adapters plus phone, independent loss/recovery and sustained resource limits |
 | Beta preparation | Broader phones/adapters, accessibility and reliable distribution | QUAL-09, QUAL-10, RELEASE-01 | [Quality gates](development/quality.md), compatibility evidence and explicit release review |
-| Future capability | Broader definitions, live phone telemetry, optional sensors and reviewed controls | FEATURE-01 through FEATURE-05 | Bounded contracts, authoritative definitions and complete protected path before advertising support |
+| Future capability | Broader definitions, live phone telemetry, optional sensors and reviewed controls | FEATURE-01, FEATURE-02, FEATURE-04, FEATURE-06 | Bounded contracts, authoritative definitions and complete protected path before advertising support |
 
 Dependencies and precise acceptance criteria belong to the backlog. There are no
 implied dates or automatic release authorizations. Unavailable hardware blocks its

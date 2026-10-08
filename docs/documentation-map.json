@@ -26,6 +26,7 @@
       "docs/requirements.md"
     ],
     "architecture": [
+      "docs/architecture/alerts-and-diagnostics.md",
       "docs/architecture/android-runtime.md",
       "docs/architecture/config-storage.md",
       "docs/architecture/decisions.md",
@@ -98,7 +99,9 @@
       "firmware/gauge/main/src/config_runtime.c"
     ],
     "diagnostics": [
-      "firmware/gauge/main/src/diagnostics_state.c"
+      "firmware/gauge/main/src/diagnostics_state.c",
+      "firmware/gauge/main/src/poll_scheduler.c",
+      "firmware/gauge/main/src/alert_engine.c"
     ],
     "owner-transfers": [
       "firmware/gauge/main/src/ble_companion.c",

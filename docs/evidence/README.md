@@ -56,3 +56,5 @@ Search only the relevant report when exact evidence is needed.
 - [Vehicle dashboard and adapter routing review](vehicle-dashboard-review.md)
 - [Authenticated Wi-Fi bulk validation](wifi-bulk-validation.md)
 - [Wi-Fi transport security validation, 2026-09-26](wifi-transport-security-validation.md)
+
+- [Alert/diagnostic source and scheduler design audit](alerts-diagnostics-design-audit.md), 2026-10-07: source review and synthetic clock fixture; no physical observations.

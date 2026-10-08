@@ -26,7 +26,7 @@ relative to `android/app/src/main/java/com/lstepnio/egauge/` unless specified.
 | --- | --- | --- |
 | Gauge startup/display/settings/gestures | `main.c`, `src/ui.c`, `src/display_settings.c`, `src/page_action.c` | [Firmware ownership](architecture/firmware-runtime.md), [actions](architecture/vehicle-actions.md) |
 | Adapter/routing/ELM replies | `src/ble_mgr.c`, `src/ble_obd.c`, `src/elm_response.c`, `src/obd_adapter_profile.c` | [Bindings](protocol/adapter-bindings-v1.md), [vehicle model](architecture/vehicle-connections.md) |
-| Fault state and presentation | `src/diagnostics_state.c`; `VehicleDiagnostics.kt`, `ui/state/DiagnosticPresentation.kt` | [Diagnostics](protocol/diagnostics-and-alerts.md) |
+| Fault state and presentation | `src/diagnostics_state.c`; `VehicleDiagnostics.kt`, `ui/state/DiagnosticPresentation.kt` | [Implemented diagnostics](protocol/diagnostics-and-alerts.md), [shared alert/CEL plan](architecture/alerts-and-diagnostics.md) |
 | Config compile/project/trial | `src/config_document.c`, `src/config_runtime.c`; `ConfigurationProjection.kt`, `GaugeDraftComparison.kt` | [Config storage](architecture/config-storage.md) |
 | Phone setup and assignments | `ProfileStore.kt`, `ProfileDocumentCodec.kt`, `LocalSetupStore.kt`, `LocalSetupTransactions.kt`, `DurableWrites.kt`, `VehicleConnections.kt` | [Android storage](architecture/android-runtime.md#storage-and-recovery) |
 | BLE bytes, owner and pairing | `src/ble_companion.c`; `GaugeConfigTransferClient.kt`, `GaugeProtocolCodec.kt`, `BleCapabilityClient.kt`, `PairingFailure.kt` | [Implemented development wire](protocol/experimental-firmware-transfers.md); public BLE v1 is proposed |

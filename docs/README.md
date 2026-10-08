@@ -19,6 +19,8 @@ Read only the affected contract/runbook before source work; evidence is not requ
 - [Configuration storage](architecture/config-storage.md), [architecture decisions](architecture/decisions.md)
 - [Hardware strategy](architecture/hardware-and-transports.md), [local gestures and proposed controller actions](architecture/vehicle-actions.md)
 
+- [Shared alerts, notifications and CEL/MIL plan](architecture/alerts-and-diagnostics.md): proposed lifecycle, context/history, clearing and implementation/test sequence
+
 ## Protocols
 
 - Implemented development: [protected BLE/config/update wire](protocol/experimental-firmware-transfers.md), [adapter bindings](protocol/adapter-bindings-v1.md), [Wi-Fi bulk](protocol/wifi-bulk-v1.md), [hardware snapshot](protocol/hardware-probe.md)

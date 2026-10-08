@@ -69,3 +69,10 @@ verification from source, an emulator, transfer percentage or serial startup alo
 
 Firmware board support originated from Janos Kutscherauer's esp32-obd2-meter at
 `e1f4d8ffbb2bfe0fb38369e44d532319770ddc00`. Upstream MIT/font OFL notices remain.
+
+## Proposed shared alerts and diagnostics
+
+[ADR-015](architecture/alerts-and-diagnostics.md) plans ECU-scoped CEL/MIL/faults,
+shared threshold/diagnostic/external alert lifecycle, notifications, bounded history
+and context, and explicit code clearing. These extensions are not implemented or
+physically qualified by the planning change. The backlog owns their task status.
