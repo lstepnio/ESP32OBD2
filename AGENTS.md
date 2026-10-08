@@ -52,6 +52,23 @@ These are the current entry points; historical reports are evidence, not instruc
   as current, infer success from queued work, replay uncertain writes blindly, or claim
   deadlock immunity from source inspection or a build alone.
 
+## Shared alert framework and extensions
+
+- Use [ADR-015](docs/architecture/alerts-and-diagnostics.md) for every threshold,
+  MIL/fault and phone/provider alert. Extend existing producer adapters and shared
+  lifecycle, severity, attention, context, history and notification owners. Do not
+  create feature-specific alert stores, notification services or BLE owners.
+- Preserve autonomous gauge truth, independent availability, immutable entry context,
+  scoped vehicle/gauge/endpoint identities and silent replay. Acknowledgment, snooze,
+  history deletion and ECU clearing are distinct operations.
+- Follow the ADR's extension checklist in the same change: bounded producer contract,
+  wire/storage compatibility, negative/parity tests, architecture/protocol updates,
+  current support and backlog gates, then dated qualification evidence. Use the
+  [phone provider guide](docs/architecture/phone-alert-providers.md) for external feeds.
+- Advertise sensor-driven features only after runtime capability checks and relevant
+  qualification. Auto orientation follows the [hardware orientation policy](docs/architecture/hardware-and-transports.md#automatic-display-orientation),
+  independently of automatic page cycling.
+
 ## Durable state and health patterns
 
 - Save coupled vehicle/profile and gauge assignments in one `LocalSetupStore` commit.

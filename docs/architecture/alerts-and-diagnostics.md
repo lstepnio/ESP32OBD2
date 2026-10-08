@@ -182,10 +182,10 @@ context is read-only. No clearing or vehicle writes from a notification action.
 [Android permission guidance](https://developer.android.com/develop/ui/compose/notifications/notification-permission)
 explains the runtime permission and user control.
 
-Current phone polling is foreground-only. Background notifications need a separately
-implemented and qualified monitoring mode; receiving historical events later is not
-continuous monitoring. Plan an opt-in connected-device foreground service using the
-existing single BLE owner/coordinator, started from the visible App. Evaluate companion
+Without enabled monitoring, phone polling is foreground-only. Dev.48 implements an
+opt-in connected-device foreground service through the existing single BLE owner,
+started from the visible App. Its locked/background/OEM behavior still needs physical
+qualification; receiving historical events later is not continuous monitoring. Evaluate companion
 presence APIs before adding another lifecycle owner. Test process termination, user stop,
 lock screen and battery restrictions. Report monitoring unavailable concisely; never
 promise delivery while disconnected. Gauge-local warnings remain autonomous.
@@ -282,7 +282,9 @@ its authorization, gesture and accessible confirmation path is separately design
 Keep implemented protected 39/3A v15 and legacy 30/v5 semantics unchanged. New endpoint
 selection must not reinterpret physical source indices for old clients. Add negotiated,
 versioned protected diagnostic/alert extensions after auditing opcode/layout capacity.
-Do not allocate final opcodes or repurpose reserved bytes in this planning change.
+The implemented development additions are allocated in the wire contract. Future
+extensions must version new semantics and retain legacy layouts; reserved bytes are
+not permission to change existing client behavior.
 
 New contracts need bounded endpoint observations, active episode summaries, transition
 cursor batches, capture fragments, acknowledgment/snooze and clear prepare/confirm/status.
@@ -292,7 +294,8 @@ by a protected read; no raw faults/history on public unauthenticated characteris
 Firmware summarizes per endpoint; App aggregates per vehicle. Old clients retain their
 existing read coverage and never display an unimplemented clear action.
 
-Cursor reads return explicit gap/reboot markers and at most 16 transitions per batch;
+Dev.48 cursor reads return explicit gap/reboot markers and at most four transitions
+per 360-byte batch;
 receiver persists before cursor progress. Active snapshot resynchronizes after a gap.
 Do not resolve an episode merely because its event was evicted. State and acknowledgment
 conflicts follow producer session/episode identity, not last wall-clock timestamp.
@@ -309,6 +312,42 @@ as a production feed. Validate producer ID, lengths, bounded text, replay/sequen
 expiry, location relevance where applicable and severity caps. No arbitrary markup,
 links, transport commands or external actions. External failures cannot stall local
 thresholds/MIL. Live feeds remain a separate entry gate, not a prerequisite for this framework.
+
+## Framework extension checklist
+
+This is the standing procedure for adding or changing an alert producer. Keep one
+framework even when a new source initially runs only on the phone or one board.
+
+1. Define the producer's authoritative observation and coverage. Preserve vehicle,
+   gauge, endpoint/provider, boot/session and configuration identities. Specify units,
+   correlation, expiry and severity limits; missing data cannot resolve an episode.
+2. Reuse the existing evaluator or reviewed decoder. Thresholds emit through
+   `alert_engine.c`; diagnostics through endpoint snapshots; paired-phone sources
+   through `ExternalAlerts.kt`. Normalize transitions in `alert_events.c` and the
+   Kotlin codec rather than adding a parallel lifecycle or rule engine.
+3. Keep callbacks nonblocking and admission, sample/window storage and retries bounded.
+   Use `alert_runtime.c` for gauge queue/journal/capture and the existing App operation
+   lease for transport. Recording failure must not suppress live alert presentation.
+4. Reuse `AlertRepository`, `AlertNotifications`, `AlertMonitoringService` and
+   `ui/AlertPresentation.kt`. Preserve immutable initial context, atomic cursor import,
+   scoped reports and silent history/reconnect. Source-specific context uses reviewed
+   typed fields; it does not create another notification owner or command path.
+5. Version any wire/storage change in its maintained contract. Check compatibility,
+   scope changes, replay, stale/unsupported data, eviction, queue/storage failure and
+   interruption. Add production C/Kotlin parity vectors when bytes change. Test the
+   real threshold sink or producer boundary instead of only a duplicate test model.
+6. Update this ADR for responsibility/policy changes and the wire contract for bytes.
+   Update the AI source map when ownership moves. Current state owns supported behavior;
+   backlog owns readiness and hardware gates; evidence owns dated tests and measurements.
+   Replace superseded instructions in the same commit rather than appending alternatives.
+7. Qualify attention, context, storage and recovery on affected devices before promoting
+   capability claims. External feeds require the provider guide's authorization,
+   licensing, relevance and privacy gates. ECU writes retain separate explicit action
+   and at-most-once outcome rules; an alert must never invoke an arbitrary vehicle write.
+
+Review every extension against autonomous gauge operation, healthy sibling continuity,
+notification deduplication and truthful Last checked/Unavailable presentation. Do not
+increase event keys, storage or radio budgets without measuring their effect.
 
 ## Alternatives and tradeoffs
 
@@ -327,7 +366,8 @@ phone monitoring or provider services fail.
 
 ## Implementation sequence and file ownership
 
-Proposed new module names below are design targets, not existing source paths.
+The phase table records delivery responsibilities. Dev.48 source ownership is in
+the [AI source map](../ai-context.md#source-map); remaining qualification is in the backlog.
 
 | Phase | Scope and likely files | Completion evidence |
 | --- | --- | --- |

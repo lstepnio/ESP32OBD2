@@ -30,6 +30,43 @@ Deferred sensor/telemetry work belongs to FEATURE-02 in [the backlog](../backlog
 
 ESP32-S3 feature reference: [Espressif datasheet](https://documentation.espressif.com/esp32_s3_datasheet_en.pdf). Board details are from the [Waveshare board documentation](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.28), its linked Rev3 schematic and the checked-out BSP. The product must still record and probe the exact assembled revision because Waveshare lists two SKUs and more than one schematic. Native Bluetooth Classic is not a fallback for this S3 design. An onboard CAN transceiver, GNSS, ambient light sensor, buzzer and vehicle-grade power protection are not present in the documented design.
 
+## Automatic display orientation
+
+Owner direction: Settings rotation should offer **Auto** when the gauge can report
+actual orientation and adjust its own screen. Auto orientation is independent of
+**Auto-cycle pages**, which changes saved pages at an interval.
+
+Current firmware implements manual 0°, 90°, 180° and 270° only. The board inventory
+lists a QMI8658, but its driver, identity/health probe and enclosure axis calibration
+are not implemented. Board model or sensor presence alone cannot enable Auto.
+
+Implementation policy:
+
+- Advertise an explicit usable Auto-orientation capability after initialization and
+  health checks. Show Auto alongside the four manual angles only for supported gauges;
+  legacy gauges retain their current choices and wire semantics.
+- Persist the selected mode separately from the last applied manual/automatic angle.
+  Keep the current manual default on migration. In Auto, changing the applied angle
+  must not rewrite flash on every sensor observation or change page/vehicle settings.
+- Sample orientation through bounded shared-I2C ownership, independent of BLE/UI
+  callbacks. Map board axes through a versioned mounting calibration. Use gravity
+  confidence, angular hysteresis and a stable dwell before changing among four angles;
+  do not rotate from every noisy sample, acceleration spike or nearly horizontal pose.
+- Apply display and touch transforms together through the existing rendering owner.
+  Hold the last stable angle when orientation is ambiguous or the sensor becomes
+  unavailable. Recover automatically when reliable observations return; do not
+  repeatedly prompt the user. Manual selection exits Auto immediately.
+- Negotiate a versioned display-settings extension carrying mode, applied angle and
+  sensor availability. Do not reinterpret legacy rotation bytes or allocate opcodes
+  in this design document. Unsupported writes are rejected, not silently converted.
+- Test axis mapping, all angles, boundary jitter, motion/flat poses, stale sensor,
+  shared-bus contention, restart/persistence and legacy compatibility. Physically
+  qualify display/touch alignment, vehicle-motion stability and continued pairing,
+  alerts, updates and page cycling before advertising Auto on this board.
+
+The [backlog](../backlog.md) owns implementation status; this policy does not claim
+that Auto works in the current development image.
+
 ## Product opportunity review
 
 The following order maximizes driver value and reliability while keeping unverified hardware claims out of the product.

@@ -59,6 +59,14 @@ relative to `android/app/src/main/java/com/lstepnio/egauge/` unless specified.
 Details belong in [standing recovery rules](architecture/interaction-recovery.md),
 not a second copy here. Owner instructions take precedence over repository guidance.
 
+## Extending alerts and sensor capabilities
+
+For an alert-related task, read [ADR-015's extension checklist](architecture/alerts-and-diagnostics.md#framework-extension-checklist)
+first. Reuse its producer/reducer/history/presentation owners and update the owning
+contracts with the change. External feeds also use the [provider guide](architecture/phone-alert-providers.md).
+For Auto screen rotation use the [orientation policy](architecture/hardware-and-transports.md#automatic-display-orientation):
+sensor presence, implemented support and advertised usable capability are separate.
+
 ## Verification by impact
 
 | Changed boundary | Minimum meaningful checks |
