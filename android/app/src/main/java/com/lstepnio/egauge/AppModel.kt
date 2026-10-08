@@ -257,7 +257,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         } catch(cancelled: TimeoutCancellationException) { currentCoroutineContext().ensureActive();alertFailures++;alertHistoryError="Alert history is last checked. Retrying automatically." }
         catch(cancelled: CancellationException) { throw cancelled }
-        catch(_: Exception) { alertFailures++;alertHistoryError="Alert history is last checked. Reconnecting automatically." }
+        catch(failure: Exception) { if(BuildConfig.DEBUG)android.util.Log.w("EGaugeAlerts","Alert synchronization failed",failure);alertFailures++;alertHistoryError="Alert history is last checked. Reconnecting automatically." }
         val pause=if(alertFailures==0)2000L else com.lstepnio.egauge.connection.jitteredRetryDelay(com.lstepnio.egauge.connection.reconnectDelayMs(alertFailures))
         nextAlertPoll=android.os.SystemClock.elapsedRealtime()+pause
         return pause

@@ -54,7 +54,7 @@ selects PID=10 and jobs 2/2/1/1 for Engine, 1/1/1/1 for Transmission. This is a
 synthetic admission stress case, not measured vehicle latency. Real reads are
 bounded at 300/700/1500 ms and physical rates/heap/flash latency remain unqualified.
 
-Android debug build, lint, all **161 JVM tests** and instrumentation APK compilation
+Android debug build, lint, all **162 JVM tests** and instrumentation APK compilation
 passed. A disposable API-36 Android TV emulator with phone-size display override
 passed **8 focused instrumentation tests**: real SQLite transaction/import/restart,
 old revisions/unknown scope, pins/deletion, out-of-order checkpoint/report scope,
@@ -109,3 +109,10 @@ Standing extension rules were added to AGENTS.md, the AI context guide and ADR-0
 The orientation policy and FEATURE-07 record capability-gated Auto rotation as upcoming
 work. Current firmware has no implemented IMU identity/health/axis path; Auto is not
 advertised or claimed by this release. Manual rotation and page cycling remain separate.
+
+The relay check then exposed an owner-handshake compatibility gap: new v16..19
+protected responses were absent from the resumed-session format allowlist. The App
+follow-up recognizes bounded valid frame lengths/counts and rejects malformed/unknown
+frames. A regression fixture covers a subsequent owner session beginning with the
+previous alert/context/clear/readiness response. These App corrections do not change
+the already signed firmware bytes or enable code clearing.

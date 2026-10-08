@@ -334,7 +334,9 @@ framework even when a new source initially runs only on the phone or one board.
    typed fields; it does not create another notification owner or command path.
 5. Version any wire/storage change in its maintained contract. Check compatibility,
    scope changes, replay, stale/unsupported data, eviction, queue/storage failure and
-   interruption. Add production C/Kotlin parity vectors when bytes change. Test the
+   interruption. Update resumed-owner frame recognition for every new protected
+   response and invalidate unsupported caches after an image/session change. Add
+   production C/Kotlin parity vectors when bytes change. Test the
    real threshold sink or producer boundary instead of only a duplicate test model.
 6. Update this ADR for responsibility/policy changes and the wire contract for bytes.
    Update the AI source map when ownership moves. Current state owns supported behavior;

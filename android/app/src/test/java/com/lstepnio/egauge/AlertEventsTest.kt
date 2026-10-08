@@ -44,4 +44,14 @@ class AlertEventsTest {
         assertThrows(IllegalArgumentException::class.java) { PhoneAlertBridge.fixtures.validate(alert,"car",31000) }
         assertThrows(IllegalStateException::class.java) { PhoneAlertBridge.fixtures.validate(alert.copy(provider="unknown"),"car",2000) }
     }
+    @org.junit.Test fun resumedOwnerAcceptsNewProtectedFramesAndRejectsMalformedLengths() {
+        fun frame(version: Int, size: Int, count: Int = 0) = ByteArray(size).apply { this[0]=version.toByte();if(size>3)this[3]=count.toByte() }
+        // The next session first reads the previous command's protected response.
+        listOf(frame(16,24),frame(16,360,4),frame(17,24),frame(17,216),frame(18,32),frame(19,24)).forEach {
+            org.junit.Assert.assertTrue(GaugeProtocolCodec.isProtectedStatusFrame(it))
+        }
+        listOf(frame(16,108,0),frame(16,361,4),frame(17,25),frame(18,31),frame(19,25),frame(20,24)).forEach {
+            org.junit.Assert.assertFalse(GaugeProtocolCodec.isProtectedStatusFrame(it))
+        }
+    }
 }

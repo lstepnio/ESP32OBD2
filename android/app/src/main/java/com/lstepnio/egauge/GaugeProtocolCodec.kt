@@ -31,6 +31,11 @@ object GaugeProtocolCodec {
         13 -> bytes.size == 140
         14 -> bytes.size == 160
         15 -> bytes.size == 248
+        16 -> bytes.size in 24..360 && (bytes.size - 24) % 84 == 0 &&
+            (bytes[3].toInt() and 255) == (bytes.size - 24) / 84
+        17 -> bytes.size in 24..216 && (bytes.size - 24) % 12 == 0
+        18 -> bytes.size == 32
+        19 -> bytes.size == 24
         else -> false
     }
 
