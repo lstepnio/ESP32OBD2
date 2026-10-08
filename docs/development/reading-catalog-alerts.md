@@ -71,8 +71,9 @@ rendering plus numeric Mode 22 and gear-equality alerts. Public `configWrite`/`o
 remain false, and link capacity stays one. No new BLE opcode or protocol-major
 change is introduced. Config schema remains 2 with the additive `equals`
 comparator. Local profile schema becomes 11, preventing older Android versions
-from silently truncating fractional limits. This App reads profile schemas 1..11
-and capability versions 0..5.
+from silently truncating fractional limits. App dev.46 reads profile schemas 1..11 and capability versions 0..5.
+Source dev.47 reads profiles 1..12; schema 12 also records atomic vehicle/gauge
+assignment persistence. See [hardening](offline-hardening.md).
 
 Install App dev.46 before gauge dev.46: older Apps deliberately reject unknown
 capability versions. The new App can read dev.45 and keep existing dashboards, but

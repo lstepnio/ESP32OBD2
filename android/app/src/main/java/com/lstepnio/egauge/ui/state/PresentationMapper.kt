@@ -74,7 +74,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val found = capabilities != null && !disconnected && connection.phase != ConnectionPhase.Searching
     val androidBonded = capabilities != null && connection.phase !in setOf(
         ConnectionPhase.BluetoothOff, ConnectionPhase.PermissionRequired) && androidBondedForUi()
-    val busy = scanning || hostedUpdateBusy || updateInProgress ||
+    val busy = localSaveBusy || scanning || hostedUpdateBusy || updateInProgress ||
         (operation.stage != OperationStage.IDLE && !operation.terminal)
     val system = displaySettings?.takeIf { it.version >= 2 }?.units ?: prefs.measurementSystem
     val pages = editorDraft.pages.map { pageUi(it, system) }

@@ -1,3 +1,4 @@
+#include "worker_health.h"
 // ---------------------------------------------------------------------------------------------------------------------
 // Includes
 // ---------------------------------------------------------------------------------------------------------------------
@@ -616,6 +617,7 @@ static void render_finished(lv_event_t *event)
 static void ui_task(lv_timer_t *timer)
 {
     ESP_NULL_CHECK(timer, TAG, "timer is NULL");
+    worker_health_progress(WORKER_UI, (uint32_t)(esp_timer_get_time() / 1000));
     ui_t *ui = (ui_t *)lv_timer_get_user_data(timer);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
 

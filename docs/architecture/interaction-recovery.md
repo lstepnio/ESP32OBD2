@@ -34,6 +34,21 @@ claim that every hardware failure scenario has already been qualified.
   have their own retry schedules and must not turn a successful gauge check into a
   false phone-link failure.
 
+## Durable local changes
+
+Use the coupled `LocalSetupStore` transaction for profiles and gauge assignments.
+Serialize writes on IO and publish UI state only after the commit acknowledges
+success. An admitted commit finishes before releasing its writer lease; cancellation
+while waiting never admits a write. Preserve malformed/newer source documents.
+Failed save keeps the prior visible model and blocks setup changes until reopening
+and review; rollback of the platform memory map is best-effort, not a guarantee
+against storage hardware failure. Journal cleanup failure must not reverse a
+protected, verified gauge outcome. Read-only page navigation needs no durable write.
+
+Use typed pairing/read errors and cancellation-preserving `suspendResult` for optional
+suspending work. Limit noncancellable cleanup to an explicit deadline. Reconcile
+unknown/corrupt update evidence only from authenticated healthy running identity.
+
 ## Recovery implementation patterns
 
 - Give each external operation one monotonic budget. A fragmented response, a retry
@@ -153,3 +168,11 @@ to every possible deadlock.
   during commit, failed commit, stale revision, writer contention and clock expiry.
 - Physical foreground/background, adapter-loss and settings persistence checks with
   this exact build, flood testing and prolonged coexistence soak remain required.
+
+## Firmware health observation
+
+Extend `worker_health` and the existing minute health log, rather than creating
+unbounded diagnostic queues. Record owner-loop progress, admission drops and largest
+allocatable blocks alongside free memory. Progress during missing-adapter retry is
+healthy owner behavior. Measurements do not establish deadlock immunity or justify
+reset loops; use them to qualify failure/soak scenarios on actual hardware.

@@ -23,157 +23,49 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withTimeout
 
-/** All catalog rows below are examples, never vehicle capability evidence. */
-data class PidExample(
-    val id: String,
-    val name: String,
-    val source: String,
-    val request: String,
-    val unit: String,
-    val demoValue: String,
-    val exampleKind: String,
-    val category: String,
-    val gaugeLabel: String,
-    val definitionId: String = "",
-    val minimum: Double = 0.0,
-    val maximum: Double = 100.0,
-    val alertKind: String = "numeric",
-    val configurationVersion: Int = 5,
-)
-
-/** Populated only from an adapter session with a known vehicle and ECU source. */
-enum class VehiclePidStatus { Responding, NoResponse }
-
-data class VehiclePidObservation(
-    val profileId: String,
-    val sessionId: String,
-    val adapterId: String,
-    val ecuId: String,
-    val pidId: String,
-    val source: String,
-    val status: VehiclePidStatus,
-    val observedAtMillis: Long,
-)
-
-// Preserve legacy local profiles; synthetic input speed cannot be sent.
-val demoCatalog = readingCatalog + PidExample("tcm", "Transmission input speed", "TCM", "Vehicle specific", "rpm", "2,120", "Synthetic only", "Transmission", "INPUT SPEED")
-
-enum class Destination(val label: String, val glyph: String) {
-    Gauge("Gauge", "◉"), Readings("Readings", "≡"), Vehicle("Vehicle", "⌂"), Settings("Settings", "⚙")
-}
-
-enum class GaugeLayout(val label: String) {
-    Numeric("Numeric"), Arc("Arc"), Bar("Bar"), Trend("Trend"), Dual("Dual")
-}
-
-data class GaugePageDraft(
-    val id: String,
-    val name: String,
-    val layout: GaugeLayout,
-    val pidIds: List<String>,
-)
-
-enum class AlertDirection { Above, Below, Equals }
-
-data class GaugeAlertDraft(
-    val id: String,
-    val pidId: String,
-    val direction: AlertDirection = AlertDirection.Above,
-    val warning: Double,
-    val critical: Double,
-    val hysteresis: Double = 3.0,
-    val triggerDwellMs: Int = 1000,
-    val clearDwellMs: Int = 2000,
-    val priority: Int = 8,
-) {
-    constructor(id: String, pidId: String, direction: AlertDirection = AlertDirection.Above,
-                warning: Int, critical: Int, hysteresis: Int = 3, triggerDwellMs: Int = 1000,
-                clearDwellMs: Int = 2000, priority: Int = 8) : this(id, pidId, direction,
-        warning.toDouble(), critical.toDouble(), hysteresis.toDouble(), triggerDwellMs, clearDwellMs, priority)
-}
-
-fun readingRange(id: String): IntRange = readingBounds(id).let {
-    kotlin.math.ceil(it.start).toInt()..kotlin.math.floor(it.endInclusive).toInt()
-}
-
-fun defaultAlert(pidId: String = "coolant"): GaugeAlertDraft {
-    val reading = readingCatalog.first { it.id == pidId }
-    if (reading.alertKind == "gear") return GaugeAlertDraft("alert.$pidId", pidId,
-        AlertDirection.Equals, warning = 11.0, critical = 13.0, hysteresis = 0.0)
-    val span = reading.maximum - reading.minimum
-    val warning = when (pidId) {
-        "coolant" -> 105.0
-        "rpm" -> 4000.0
-        "speed" -> 120.0
-        "load", "fuel" -> 80.0
-        else -> reading.minimum + span * .75
-    }
-    val critical = when (pidId) {
-        "coolant" -> 115.0
-        "rpm" -> 5000.0
-        "speed" -> 140.0
-        "load", "fuel" -> 90.0
-        else -> reading.minimum + span * .9
-    }
-    val margin = if (reading.configurationVersion == 1) (span.toInt() / 50).coerceIn(1, 20).toDouble()
-        else minOf(span * .02, (critical - warning) / 4)
-    return GaugeAlertDraft("alert.$pidId", pidId, AlertDirection.Above, warning, critical, hysteresis = margin)
-}
-
-fun defaultGaugePages(primary: String = "rpm", layout: GaugeLayout = GaugeLayout.Numeric): List<GaugePageDraft> {
-    val ordered = listOf(primary, "rpm", "coolant", "speed").distinct().take(3)
-    return ordered.mapIndexed { index, pidId ->
-        val definition = demoCatalog.first { it.id == pidId }
-        GaugePageDraft("page.${index + 1}.${pidId}", definition.gaugeLabel, if (index == 0) layout else GaugeLayout.Numeric,
-            listOf(pidId))
-    }
-}
-
-enum class OwnerAccess { UNKNOWN, DISCOVERED, AUTHENTICATED }
-enum class PairingWindowState { CLOSED, READY, CODE_DISPLAYED, OWNER_PRESENT }
-enum class PairingProgress { WAITING_FOR_ANDROID, CHECKING_GAUGE_ACCESS }
-data class GaugePairingWindow(val state: PairingWindowState, val secondsRemaining: Int)
-
-data class Draft(
-    val pidId: String = "rpm",
-    val layout: GaugeLayout = GaugeLayout.Numeric,
-    val source: String = "ECM",
-    val pages: List<GaugePageDraft> = defaultGaugePages(pidId, layout),
-    val alerts: List<GaugeAlertDraft> = listOf(defaultAlert()),
-    val actions: List<PageAction> = emptyList(),
-)
-
-data class CapabilitySnapshot(
-    val board: String,
-    val protocolMajor: Int,
-    val maxAdapterLinks: Int,
-    val simultaneousVerified: Boolean,
-    val configWrite: Boolean,
-    val experimentalNumericConfig: Boolean,
-    val savedStateRead: Boolean,
-    val quickSelect: Boolean,
-    val displayRotationWrite: Boolean,
-    val displaySettingsVersion: Int = 0,
-    val ota: Boolean,
-    val wifiBulk: String?,
-    val hardwareCapacityVersion: Int?,
-    val configurationVersion: Int = 0,
-    val adapterRegistryVersion: Int = 0,
-    val dualAdapterVersion: Int = 0,
-    val vehicleDashboardVersion: Int = 0,
-    val pidCatalogVersion: Int = 0,
-    val pageActionsVersion: Int = 0,
-    val maxPages: Int = 0,
-    val supportedRenderers: Set<GaugeLayout> = emptySet(),
-)
-
-data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revision: Long)
-
 class AppViewModel(application: Application) : AndroidViewModel(application) {
+    private val durableWrites = DurableWrites()
+    private val setupStore = LocalSetupStore(application)
+    private val setupTransactions = LocalSetupTransactions(setupStore::load, setupStore::save, durableWrites)
+    var localSaveBusy by mutableStateOf(false)
+        private set
+
+    /** Freeze mutation admission while the off-main commit finishes. Read-only polling yields. */
+    private fun launchLocalMutation(block: suspend () -> Unit) {
+        if (localSaveBusy) return
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            localSaveBusy = true
+            try { foregroundConnection.runUserOperation(OperationKind.READ) { block() } }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) {
+                if (failure is LocalSetupSaveFailure) gaugeAssociationError = "Could not save gauge assignments. Reopen the App before changing vehicle setup."
+                presentationError = failure.message ?: "Could not save changes on this phone"
+            }
+            finally { localSaveBusy = false }
+        }
+    }
+    private suspend fun persistProfiles(value: ProfileCollection, assignSelected: Boolean = false,
+        associations: (GaugeAssociations) -> GaugeAssociations = { it }): Boolean {
+        val saved = try {
+            setupTransactions.update { current ->
+                val savedAssociations = associations(current.associations)
+                LocalSetup(value, if (assignSelected) savedAssociations.selectedId?.let {
+                    savedAssociations.assign(it, value.activeId, value.active.draft.source)
+                } ?: savedAssociations else savedAssociations)
+            }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (failure: Exception) { profileError = failure.message ?: "Could not save vehicle setup"; return false }
+        knownGauges = saved.associations.gauges
+        return true
+    }
+
     val bleClient = BleCapabilityClient(application)
     private val operationCoordinator = OperationCoordinator()
     var connection by mutableStateOf(ConnectionState())
@@ -185,7 +77,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             onUnexpectedFailure = { connectionRetry(it.message ?: "Gauge check interrupted") },
             attempt = ::automaticConnectionAttempt)
     }
-    private val automaticUpdateHold = AutomaticUpdateHoldStore(application)
+    private val updatePersistence = FirmwareUpdatePersistence(application, durableWrites)
     private val gaugePoll = VehiclePollSchedule()
     private val vehiclePoll = VehiclePollSchedule()
     private val childPoll = VehiclePollSchedule()
@@ -218,6 +110,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     @SuppressLint("MissingPermission")
     private suspend fun automaticConnectionAttempt(): Long {
+        if (localSaveBusy) return 250L
         val app = getApplication<Application>()
         val permissions = if (Build.VERSION.SDK_INT >= 31)
             listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
@@ -270,7 +163,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 connection = connection.copy(phase = ConnectionPhase.Checking)
                 val client = GaugeConfigTransferClient(app)
-                if (pendingUpdateRecovery != null || updateJournal.read() != null) {
+                if (pendingUpdateRecovery != null || updatePersistence.pending() != null) {
                     bootIdentityRead(client.readBootIdentity(device))
                     if (updateRecoveryResult?.state == UpdateRecoveryState.INSTALLED && operation.kind == OperationKind.UPDATE) {
                         operation = operation.copy(stage = OperationStage.ACTIVE, title = "Update confirmed on gauge",
@@ -440,7 +333,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 if (!connectionForeground || rememberedGaugeId != gaugeId || updateInProgress) return@launch
                 when (automaticUpdateDecision(running.version, running.otaState,
                     candidate.release.version, candidate.release.bundleSha256,
-                    automaticUpdateHold.digestFor(gaugeId),
+                    updatePersistence.heldDigest(gaugeId),
                     updateRecoveryResult?.state !in setOf(null, UpdateRecoveryState.INSTALLED))) {
                     AutomaticUpdateDecision.CURRENT -> {
                         hostedUpdate = null
@@ -519,16 +412,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         choosingGauge = false
         val sameGauge = currentGaugeId == candidate.id
         val value = bleClient.readCandidate(candidate)
+        val saved = setupTransactions.update { current ->
+            val associations = current.associations.remember(candidate.id, candidate.name)
+            val profileId = associations.context(candidate.id, current.profiles)?.first
+            LocalSetup(if (profileId == null) current.profiles else current.profiles.copy(activeId = profileId), associations)
+        }
         connected(value, preserveSent = sameGauge)
         currentGaugeId = candidate.id
-        associationStore.remember(candidate.id, candidate.name)
         rememberedGaugeId = candidate.id
-        knownGauges = associationStore.load().gauges
-        associationStore.load().context(candidate.id, profileCollection)?.let { (vehicleId, _) ->
-            profileCollection = profileCollection.copy(activeId = vehicleId)
-            draft = profileCollection.active.draft
-            editingPageIndex = 0
-        }
+        knownGauges = saved.associations.gauges
+        profileCollection = saved.profiles
+        draft = saved.profiles.active.draft
+        editingPageIndex = editingPageIndex.coerceIn(editorDraft.pages.indices)
         rediscoverGauge = false
     }
     private val profileStore = ProfileStore(application)
@@ -559,25 +454,30 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setAdvancedTools(value: Boolean) = savePresentation(presentationPreferences.copy(advanced = value))
     fun setDynamicColor(value: Boolean) = savePresentation(presentationPreferences.copy(dynamicColor = value))
-    fun renameGauge(value: String) {
+    fun renameGauge(value: String) = launchLocalMutation {
+        if (gaugeAssociationError != null) return@launchLocalMutation
         val name = value.trim().take(32)
         if (name.isNotEmpty()) {
             val id = rememberedGaugeId
-            if (id == null) savePresentation(presentationPreferences.copy(gaugeName = name))
-            else runCatching {
-                val stored = associationStore.load()
-                associationStore.save(stored.copy(gauges = stored.gauges.map { if (it.id == id) it.copy(name = name) else it }))
-                knownGauges = associationStore.load().gauges
-            }.onFailure { presentationError = "Could not save the gauge name" }
+            if (id == null) {
+                val updated = presentationPreferences.copy(gaugeName = name)
+                if (durableWrites.write { presentationStore.write(updated) }) presentationPreferences = updated
+                else presentationError = "Could not save the gauge name"
+            } else {
+                val saved = setupTransactions.update { current -> current.copy(associations =
+                    current.associations.copy(gauges = current.associations.gauges.map {
+                        if (it.id == id) it.copy(name = name) else it
+                    })) }
+                knownGauges = saved.associations.gauges
+            }
         }
     }
-    private fun savePresentation(value: PresentationPreferences) {
-        if (presentationStore.write(value)) { presentationPreferences = value; presentationError = null }
+    private fun savePresentation(value: PresentationPreferences) = launchLocalMutation {
+        if (durableWrites.write { presentationStore.write(value) }) { presentationPreferences = value; presentationError = null }
         else presentationError = "Could not save appearance settings. Try again."
     }
 
     private val associationStore = GaugeAssociationStore(application)
-    private val updateJournal = UpdateRecoveryJournal(application)
     private val loadedAssociations = runCatching { associationStore.load() }
     var rememberedGaugeId by mutableStateOf(loadedAssociations.getOrNull()?.selectedId)
         private set
@@ -648,7 +548,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun updateBundle(): DevUpdateBundle = selectedUpdate ?: error("Select a signed update package first")
     var updateInProgress by mutableStateOf(false)
         private set
-    private var pendingUpdateRecovery = updateJournal.read()
+    private var pendingUpdateRecovery = updatePersistence.pending()
     var updateRecoveryResult by mutableStateOf(pendingUpdateRecovery?.let {
         UpdateRecoveryResult(UpdateRecoveryState.CHECK_REQUIRED,
             "A previous update was interrupted. Check installed firmware before retrying.", false)
@@ -718,24 +618,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         chooseVehicleAdapter(value)
     }
 
-    fun chooseVehicleAdapter(value: AdapterBinding?) {
-        if (profileError != null || modifyingSetupBlocked) return
+    fun chooseVehicleAdapter(value: AdapterBinding?) = launchLocalMutation {
+        if (profileError != null || modifyingSetupBlocked) return@launchLocalMutation
         val updated = runCatching {
             profileCollection.copy(profiles = profileCollection.profiles.map {
                 if (it.id == profileCollection.activeId) it.withAdapter(if (adapterSelectionSource == "TCM" && it.transmission != null) "TCM" else it.draft.source, value) else it
             })
-        }.getOrElse { adapterMessage = it.message; return }
-        if (!profileStore.save(updated)) { profileError = "Could not save the adapter selection"; return }
+        }.getOrElse { adapterMessage = it.message; return@launchLocalMutation }
+        if (!persistProfiles(updated)) { profileError = "Could not save the adapter selection"; return@launchLocalMutation }
         profileCollection = updated
         clearVehicleEvidence()
         adapterMessage = "Saved on this phone. Send setup to use it on the gauge."
     }
 
     private fun clearVehicleEvidence() {
-        adapterStatuses = emptyMap()
-        adapterCheckedAt = emptyMap()
-        diagnosticsBySource = emptyMap()
-        diagnosticsCheckedAt = emptyMap()
         vehicleFailures = emptySet()
         sentDraft = null
         sentProfileId = null
@@ -755,24 +651,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         activeVehicleSessionId = null
     }
 
-    private fun rememberVehicleContext() {
-        rememberedGaugeId?.let { id ->
-            runCatching { associationStore.assign(id, profileCollection.activeId, profileCollection.active.draft.source)
-                knownGauges = associationStore.load().gauges
-            }.onFailure { presentationError = "Could not save this gauge's vehicle assignment" }
-        }
-    }
-
-    fun selectProfile(id: String) {
-        if (profileError != null || modifyingSetupBlocked || profileCollection.profiles.none { it.id == id }) return
+    fun selectProfile(id: String) = launchLocalMutation {
+        if (profileError != null || modifyingSetupBlocked || profileCollection.profiles.none { it.id == id }) return@launchLocalMutation
         val updated = profileCollection.copy(activeId = id)
-        if (!profileStore.save(updated)) { profileError = "Could not save the selected vehicle"; return }
+        if (!persistProfiles(updated, associations = { LocalSetup(profileCollection, it).select(id).associations })) { profileError = "Could not save the selected vehicle"; return@launchLocalMutation }
         clearVehicleEvidence()
         profileCollection = updated
         draft = profileCollection.active.draft
         adapterSelectionSource = "ECM"
         editingPageIndex = 0
-        rememberVehicleContext()
     }
 
     val vehicleSources: List<String> get() = activeDocument?.takeIf { it.vehicleProfileId == profileCollection.activeId }
@@ -793,18 +680,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     val editorDraft: Draft get() = profileCollection.active.dashboardDraft()
     val transmittedDraft: Draft get() = editorDraft.copy(source = "ECM")
-    fun setBothAdapters(enabled: Boolean) {
-        if (!BuildConfig.DEBUG || modifyingSetupBlocked || gaugeAssociationError != null) return
+    fun setBothAdapters(enabled: Boolean) = launchLocalMutation {
+        if (!BuildConfig.DEBUG || modifyingSetupBlocked || gaugeAssociationError != null) return@launchLocalMutation
         if (enabled && (capabilities?.dualAdapterVersion != 1 || runCatching { profileCollection.active.combinedDraft() }.isFailure)) {
             deviceMessage = "Choose distinct engine and transmission adapters and update the gauge first"
-            return
+            return@launchLocalMutation
         }
-        val id = rememberedGaugeId ?: return
-        val stored = associationStore.load()
-        runCatching { associationStore.save(stored.copy(gauges = stored.gauges.map {
-            if (it.id == id) it.copy(bothAdapters = enabled) else it
-        })) }.onFailure { presentationError = "Could not save the gauge's adapter mode"; return }
-        knownGauges = associationStore.load().gauges
+        val id = rememberedGaugeId ?: return@launchLocalMutation
+        val saved = setupTransactions.update { current -> current.copy(associations =
+            current.associations.copy(gauges = current.associations.gauges.map {
+                if (it.id == id) it.copy(bothAdapters = enabled) else it
+            })) }
+        knownGauges = saved.associations.gauges
         clearVehicleEvidence()
         foregroundConnection.retrySoon()
     }
@@ -827,50 +714,61 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Expert selects a binding to edit, never a subset of the vehicle dashboard. */
     fun selectVehicleSource(source: String) {
-        if (profileError != null || modifyingSetupBlocked || source !in setOf("ECM", "TCM")) return
+        if (localSaveBusy || profileError != null || modifyingSetupBlocked || source !in setOf("ECM", "TCM")) return
         if (source == "TCM" && profileCollection.active.transmission == null) return
         adapterSelectionSource = source
     }
 
-    fun addTransmissionChild() {
-        if (!BuildConfig.DEBUG || profileError != null || modifyingSetupBlocked) return
+    fun addTransmissionChild() = launchLocalMutation {
+        if (!BuildConfig.DEBUG || profileError != null || modifyingSetupBlocked) return@launchLocalMutation
         val profile = profileCollection.active
-        if (profile.transmission != null) return
+        if (profile.transmission != null) return@launchLocalMutation
         if (profile.primaryAdapter == null) {
             deviceMessage = "Choose an engine vehicle and its primary adapter first"
-            return
+            return@launchLocalMutation
         }
         val updated = profileCollection.copy(profiles = profileCollection.profiles.map {
             if (it.id == profile.id) it.copy(draft = it.dashboardDraft().copy(source = "ECM"), transmission = it.transmission ?: TransmissionConnection(draft = TransmissionSetup.draft().copy(pages = emptyList()))) else it
         })
-        if (!profileStore.save(updated)) { profileError = "Could not save transmission setup"; return }
+        if (!persistProfiles(updated)) { profileError = "Could not save transmission setup"; return@launchLocalMutation }
         profileCollection = updated
         draft = updated.active.draft
-        selectVehicleSource("TCM")
+        adapterSelectionSource = "TCM"
         deviceMessage = "Choose the separate transmission adapter. Send setup to use it on this gauge."
     }
 
-    fun removeTransmissionChild() {
-        if (profileError != null || modifyingSetupBlocked || profileCollection.active.transmission == null) return
+    fun removeTransmissionChild() = launchLocalMutation {
+        if (profileError != null || modifyingSetupBlocked || profileCollection.active.transmission == null) return@launchLocalMutation
         val updated = profileCollection.copy(profiles = profileCollection.profiles.map {
             if (it.id == profileCollection.activeId) it.withoutTransmissionAdapter() else it
         })
-        if (!profileStore.save(updated)) { profileError = "Could not remove transmission setup"; return }
+        if (!persistProfiles(updated, associations = { saved ->
+            saved.copy(gauges = saved.gauges.map {
+                if (it.vehicleId == updated.activeId) it.copy(source = "ECM", bothAdapters = false) else it
+            })
+        })) { profileError = "Could not remove transmission setup"; return@launchLocalMutation }
         profileCollection = updated
         draft = updated.active.draft
-        selectVehicleSource("ECM")
-        setBothAdapters(false)
+        adapterSelectionSource = "ECM"
         deviceMessage = "Second adapter removed. Vehicle pages stay saved. Review and send to use the primary adapter."
     }
 
     fun switchRememberedGauge(id: String) = launchGaugeOperation(OperationKind.READ, "Connecting gauge") {
         val stored = associationStore.load()
         require(gaugeAssociationError == null) { "Saved gauges need attention before switching" }
-        require(pendingConfiguration == null && updateJournal.read() == null && !configurationNeedsReview) {
+        require(pendingConfiguration == null && updatePersistence.pending() == null && !configurationNeedsReview) {
             "Confirm the previous gauge operation before switching gauges"
         }
         require(stored.gauges.any { it.id == id }) { "Gauge is not saved on this phone" }
-        associationStore.save(stored.copy(selectedId = id))
+        val saved = setupTransactions.update { current ->
+            val selected = current.associations.copy(selectedId = id)
+            val profileId = selected.context(id, current.profiles)?.first
+            LocalSetup(if (profileId == null) current.profiles else current.profiles.copy(activeId = profileId), selected)
+        }
+        profileCollection = saved.profiles
+        knownGauges = saved.associations.gauges
+        draft = saved.profiles.active.draft
+        editingPageIndex = 0
         rememberedGaugeId = id
         clearVehicleEvidence()
         connectionError("Connecting your selected gauge")
@@ -879,17 +777,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         choosingGauge = false
         configurationNeedsReview = false
         configurationRecoveryRead = false
-        associationStore.load().context(id, profileCollection)?.let { (vehicleId, _) ->
-            profileCollection = profileCollection.copy(activeId = vehicleId)
-            draft = profileCollection.active.draft
-            editingPageIndex = 0
-        }
         operation = OperationState.Idle
     }
 
     fun discoverAdditionalGauge() = launchGaugeOperation(OperationKind.DISCOVERY, "Finding another gauge") { id ->
         require(gaugeAssociationError == null) { "Saved gauges need attention before switching" }
-        require(pendingConfiguration == null && updateJournal.read() == null && !configurationNeedsReview) {
+        require(pendingConfiguration == null && updatePersistence.pending() == null && !configurationNeedsReview) {
             "Confirm the previous gauge operation before adding a gauge"
         }
         choosingGauge = true
@@ -912,21 +805,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         foregroundConnection.retrySoon()
     }
 
-    fun attachLegacyTransmission(parentId: String) {
-        if (profileError != null || gaugeAssociationError != null || modifyingSetupBlocked) return
-        val legacyId = profileCollection.activeId
-        val updated = runCatching { profileCollection.attachTransmission(legacyId, parentId) }
-            .getOrElse { deviceMessage = it.message ?: "These adapter selections cannot be combined"; return }
-        val associations = associationStore.load()
-        if (!profileStore.save(updated)) { profileError = "Could not move transmission setup"; return }
+    fun attachLegacyTransmission(parentId: String) = launchLocalMutation {
+        if (profileError != null || gaugeAssociationError != null || modifyingSetupBlocked) return@launchLocalMutation
+        val updated = runCatching { profileCollection.attachTransmission(profileCollection.activeId, parentId) }
+            .getOrElse { deviceMessage = it.message ?: "These adapter selections cannot be combined"; return@launchLocalMutation }
+        if (!persistProfiles(updated, associations = {
+            LocalSetup(profileCollection, it).attachTransmission(parentId).associations
+        })) { profileError = "Could not move transmission setup"; return@launchLocalMutation }
         profileCollection = updated
-        runCatching {
-            associationStore.save(associations.copy(gauges = associations.gauges.map {
-                if (it.vehicleId == legacyId) it.copy(vehicleId = parentId, source = "TCM") else it
-            }))
-            knownGauges = associationStore.load().gauges
-        }.onFailure { presentationError = "Transmission moved, but gauge assignments need review" }
-        selectVehicleSource("TCM")
+        draft = updated.active.draft
+        editingPageIndex = 0
+        clearVehicleEvidence()
+        adapterSelectionSource = "TCM"
         deviceMessage = "Transmission now belongs to this car. Review and send to update the gauge's vehicle identity."
     }
 
@@ -934,10 +824,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         !modifyingSetupBlocked && pendingConfiguration == null && !configurationNeedsReview &&
         updateRecoveryResult?.state in setOf(null, UpdateRecoveryState.INSTALLED)
 
-    fun deleteVehicle(id: String) {
-        if (!canManageVehicles || profileCollection.profiles.size <= 1) return
-        val updated = runCatching { profileCollection.withoutVehicle(id) }.getOrNull() ?: return
-        if (!profileStore.save(updated)) { profileError = "Could not delete the vehicle"; return }
+    fun deleteVehicle(id: String) = launchLocalMutation {
+        if (!canManageVehicles || profileCollection.profiles.size <= 1) return@launchLocalMutation
+        val updated = runCatching { profileCollection.withoutVehicle(id) }.getOrNull() ?: return@launchLocalMutation
+        if (!persistProfiles(updated)) { profileError = "Could not delete the vehicle"; return@launchLocalMutation }
         val deletedActive = id == profileCollection.activeId
         profileCollection = updated
         if (deletedActive) {
@@ -951,22 +841,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         deviceMessage = "Vehicle deleted from this phone. Installed gauge settings are unchanged."
     }
 
-    fun createProfile() {
+    fun createProfile() = launchLocalMutation {
         val name = profileNameInput.trim()
         if (profileError != null || modifyingSetupBlocked || name.isEmpty() || profileCollection.profiles.size >= 8 ||
-            profileCollection.profiles.any { it.name.equals(name, ignoreCase = true) }) return
+            profileCollection.profiles.any { it.name.equals(name, ignoreCase = true) }) return@launchLocalMutation
         val profile = VehicleProfile(ProfileStore.newId(), name, Draft())
-        profileCollection = profileCollection.copy(
-            activeId = profile.id,
-            profiles = profileCollection.profiles + profile,
-        )
+        val updated = profileCollection.copy(activeId = profile.id, profiles = profileCollection.profiles + profile)
+        if (!persistProfiles(updated, associations = { LocalSetup(profileCollection, it).create(profile).associations })) {
+            profileError = "Could not save the new vehicle profile"
+            return@launchLocalMutation
+        }
+        profileCollection = updated
         clearVehicleEvidence()
         draft = profile.draft
         editingPageIndex = 0
         profileNameInput = ""
-        if (!profileStore.save(profileCollection)) profileError = "Could not save the new vehicle profile"
-        else rememberVehicleContext()
     }
+
     fun markScanning(value: Boolean) { scanning = value }
     fun connectionError(message: String) {
         presentationError = message
@@ -1033,9 +924,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ownerAccess = OwnerAccess.AUTHENTICATED
         deviceMessage = "Gauge saved state read at revision ${value.revision}."
     }
-    fun configApplied(value: GaugeConfigTransferClient.Applied, profileId: String, appliedDraft: Draft) {
+    suspend fun configApplied(value: GaugeConfigTransferClient.Applied, profileId: String, appliedDraft: Draft) {
         rememberedGaugeId?.let { id ->
-            runCatching { associationStore.assign(id, profileId, if (appliedDraft.source == "BOTH") draft.source else appliedDraft.source)
+            suspendResult { durableWrites.write { associationStore.assign(id, profileId, if (appliedDraft.source == "BOTH") draft.source else appliedDraft.source) }
                 knownGauges = associationStore.load().gauges
             }.onFailure { presentationError = "Setup is running, but its phone assignment could not be saved" }
         }
@@ -1080,7 +971,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         else "Gauge active config revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…; " +
             "transfer phase ${value.transferPhase}, last result ${value.lastResult}."
     }
-    fun runtimeIdentityRead(value: GaugeConfigTransferClient.RuntimeIdentity) {
+    suspend fun runtimeIdentityRead(value: GaugeConfigTransferClient.RuntimeIdentity) {
         scanning = false
         runtimeIdentity = value
         ownerAccess = OwnerAccess.AUTHENTICATED
@@ -1106,7 +997,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     /** Reopening the app need not prompt another send when every expected byte is already running. */
-    private fun recognizeRunningPhoneSettings() {
+    private suspend fun recognizeRunningPhoneSettings() {
         if (configurationNeedsReview || profileError != null) return
         val document = activeDocument ?: return
         if (document.sha256 != verifiedConfigHash) return
@@ -1119,7 +1010,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             sentDraft = transmittedDraft
             sentProfileId = profileCollection.activeId
             sentDigest = document.sha256
-            rememberVehicleContext()
+            rememberedGaugeId?.let { id ->
+                suspendResult { durableWrites.write { associationStore.assign(id, profileCollection.activeId, profileCollection.active.draft.source) } }
+                    .onFailure { presentationError = "Could not save this gauge's vehicle assignment" }
+            }
         }
     }
 
@@ -1140,33 +1034,32 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         else "Verified saved revision ${value.revision}. Compare it with this phone draft below."
         documentReadFailed = false
     }
-    fun adoptGaugeDraft() {
-        if (modifyingSetupBlocked || profileError != null || ownerAccess != OwnerAccess.AUTHENTICATED) return
-        val document = activeDocument ?: return
+    fun adoptGaugeDraft() = launchLocalMutation {
+        if (modifyingSetupBlocked || profileError != null || ownerAccess != OwnerAccess.AUTHENTICATED) return@launchLocalMutation
+        val document = activeDocument ?: return@launchLocalMutation
         if (!com.lstepnio.egauge.ui.state.isConfirmedSetup(document.revision, document.sha256, runtimeIdentity)) {
             documentMessage = "Wait for the gauge to confirm its saved setup before recovering it."
-            return
+            return@launchLocalMutation
         }
         if (profileCollection.profiles.none { it.id == document.vehicleProfileId }) {
             val recovered = runCatching { GaugeProfileRecovery.recover(profileCollection, document) }
-                .getOrElse { documentMessage = it.message; documentReadFailed = true; return }
-            if (!profileStore.save(recovered)) { profileError = "Could not save the recovered car"; return }
+                .getOrElse { documentMessage = it.message; documentReadFailed = true; return@launchLocalMutation }
+            if (!persistProfiles(recovered, assignSelected = true)) { profileError = "Could not save the recovered car"; return@launchLocalMutation }
             clearVehicleEvidence()
             profileCollection = recovered
             draft = recovered.active.draft
             editingPageIndex = 0
-            rememberVehicleContext()
             recognizeRunningPhoneSettings()
             documentMessage = "Saved gauge setup recovered on this phone. The gauge was not changed."
             documentReadFailed = false
-            return
+            return@launchLocalMutation
         }
         val restored = runCatching { GaugeProfileRecovery.restore(profileCollection.active, document) }
-            .getOrElse { documentMessage = it.message; documentReadFailed = true; return }
+            .getOrElse { documentMessage = it.message; documentReadFailed = true; return@launchLocalMutation }
         val updated = profileCollection.copy(profiles = profileCollection.profiles.map {
             if (it.id == restored.id) restored else it
         })
-        if (!profileStore.save(updated)) { profileError = "Could not save recovered vehicle settings"; return }
+        if (!persistProfiles(updated)) { profileError = "Could not save recovered vehicle settings"; return@launchLocalMutation }
         profileCollection = updated
         draft = restored.draft
         adapterSelectionSource = "ECM"
@@ -1190,19 +1083,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         deviceMessage = "Fault snapshot read. Each category shows when it was checked."
     }
 
-    fun bootIdentityRead(value: GaugeConfigTransferClient.BootIdentity) {
+    suspend fun bootIdentityRead(value: GaugeConfigTransferClient.BootIdentity) {
         scanning = false
         bootIdentity = value
         ownerAccess = OwnerAccess.AUTHENTICATED
-        val pending = pendingUpdateRecovery ?: updateJournal.read()
+        val pending = pendingUpdateRecovery ?: updatePersistence.pending()
         val recovery = pending?.let {
             reconcilePendingUpdate(it, rememberedGaugeId, value.elfSha256, value.otaState)
         }
         updateRecoveryResult = recovery
         if (recovery != null) updatePackageMessage = recovery.message
         if (recovery?.terminal == true) {
-            updateJournal.clear()
-            pendingUpdateRecovery = null
+            val cleared = suspendResult { updatePersistence.clearRecovery() }
+            if (cleared.isSuccess) pendingUpdateRecovery = null
+            else presentationError = "Gauge identity checked, but phone recovery history could not be cleared"
         }
         deviceMessage = recovery?.message ?: "Protected running firmware identity read."
     }
@@ -1216,38 +1110,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val hash = value.sha256.joinToString("") { "%02x".format(it) }
         updatePackageMessage = "Development signature valid • ${value.image.size} bytes • SHA-256 ${hash.take(12)}…"
     }
-    fun updateStarted() {
+    suspend fun updateStarted() {
         updateInProgress = true
         updateMayHaveChangedGauge = false
         scanning = true
         val bundle = updateBundle()
-        val hosted = hostedUpdate
-        val gaugeId = rememberedGaugeId
-        if (hosted?.bundle?.sha256?.contentEquals(bundle.sha256) == true && gaugeId != null)
-            automaticUpdateHold.hold(gaugeId, hosted.release.bundleSha256)
-        updateJournal.write(
-            rememberedGaugeId ?: "unknown",
-            bundle.sha256.joinToString("") { "%02x".format(it) },
-            bundle.elfSha256.joinToString("") { "%02x".format(it) },
-            "preparing",
-        )
-        pendingUpdateRecovery = updateJournal.read()
+        updatePersistence.start(rememberedGaugeId, bundle, hostedUpdate)
+        pendingUpdateRecovery = updatePersistence.pending()
         updateRecoveryResult = UpdateRecoveryResult(UpdateRecoveryState.CHECK_REQUIRED,
             "Update started. Running identity will be checked if the operation is interrupted.", false)
         updatePackageMessage = "Connecting to gauge for signed update…"
     }
     fun updateProgress(percent: Int) {
         updateMayHaveChangedGauge = true
-        if (percent == 0) {
-            val bundle = updateBundle()
-            updateJournal.write(
-                rememberedGaugeId ?: "unknown",
-                bundle.sha256.joinToString("") { "%02x".format(it) },
-                bundle.elfSha256.joinToString("") { "%02x".format(it) },
-                "transferring",
-            )
-            pendingUpdateRecovery = updateJournal.read()
-        }
+
         updatePackageMessage = "Sending signed image to gauge • $percent%"
     }
     fun updateStageChanged(stage: FirmwareUpdateStage) {
@@ -1292,7 +1168,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             FirmwareUpdateStage.CONFIRMING -> "Gauge restarted. Confirming the healthy running image…"
         }
     }
-    fun updateSucceeded(value: GaugeConfigTransferClient.UpdateResult) {
+    suspend fun updateSucceeded(value: GaugeConfigTransferClient.UpdateResult) {
         updateInProgress = false
         updateMayHaveChangedGauge = false
         scanning = false
@@ -1308,32 +1184,27 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         hostedUpdate = null
         selectedUpdate = null
         updatePreparation = "current"
-        rememberedGaugeId?.let(automaticUpdateHold::clear)
         nextAutomaticUpdateCheckAtElapsedMs = android.os.SystemClock.elapsedRealtime() + 6 * 60 * 60_000L
-        updateJournal.clear()
-        pendingUpdateRecovery = null
+        val cleanup = suspendResult { updatePersistence.complete(rememberedGaugeId) }
+        pendingUpdateRecovery = if (cleanup.isSuccess) null else updatePersistence.pending()
+        if (cleanup.isFailure) presentationError = "Firmware is running, but phone recovery history could not be cleared"
         updateRecoveryResult = UpdateRecoveryResult(UpdateRecoveryState.INSTALLED,
             "The new firmware is confirmed healthy.", true)
         updatePackageMessage = "Gauge confirmed new image at 0x${value.running.partitionAddress.toString(16)} • ELF SHA-256 ${value.running.elfSha256.take(12)}…"
     }
-    fun updateFailed(message: String) {
+    suspend fun updateFailed(message: String) {
         updateInProgress = false
         scanning = false
-        if (updateMayHaveChangedGauge) selectedUpdate?.let { bundle ->
-            updateJournal.write(
-                rememberedGaugeId ?: "unknown",
-                bundle.sha256.joinToString("") { "%02x".format(it) },
-                bundle.elfSha256.joinToString("") { "%02x".format(it) },
-                "needs-reconciliation",
-            )
-            pendingUpdateRecovery = updateJournal.read()
-            updateRecoveryResult = UpdateRecoveryResult(UpdateRecoveryState.CHECK_REQUIRED,
-                "The update outcome is unknown. Check installed firmware before retrying.", false)
-        } else {
-            updateJournal.clear()
-            pendingUpdateRecovery = null
-            updateRecoveryResult = null
+        val cleanup = suspendResult {
+            if (updateMayHaveChangedGauge) selectedUpdate?.let { updatePersistence.interrupted(rememberedGaugeId, it) }
+            else updatePersistence.clearRecovery()
         }
+        pendingUpdateRecovery = updatePersistence.pending()
+        updateRecoveryResult = pendingUpdateRecovery?.let {
+            UpdateRecoveryResult(UpdateRecoveryState.CHECK_REQUIRED,
+                "The update outcome needs a fresh gauge check before retrying.", false)
+        }
+        if (cleanup.isFailure) presentationError = "Phone recovery history could not be saved. Check your gauge before retrying."
         updateMayHaveChangedGauge = false
         if (hostedUpdate != null) {
             hostedUpdate = null
@@ -1378,7 +1249,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 updateFailed("Gauge update timed out. Reconnect and read running firmware before retrying.")
                 operationFailed("Firmware update timed out", outcomeUnknown = true)
             } catch (error: CancellationException) {
-                updateFailed("Update interrupted. Reconnect and read the running firmware before retrying.")
+                withContext(NonCancellable) { updateFailed("Update interrupted. Reconnect and read the running firmware before retrying.") }
                 operationFailed("Firmware update was interrupted", outcomeUnknown = true)
                 throw error
             } catch (error: GaugeLinkException) {
@@ -1480,13 +1351,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         require(Build.VERSION.SDK_INT < 31 || getApplication<Application>().checkSelfPermission(
             Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) { "Bluetooth permission is required" }
         val device = bleClient.selectedGauge()
-        if (device.bondState == BluetoothDevice.BOND_BONDING) error("pairing_in_progress")
+        if (device.bondState == BluetoothDevice.BOND_BONDING) throw PairingFailure(PairingFailureReason.InProgress)
         val currentWindow = pairingWindowForUi(android.os.SystemClock.elapsedRealtime())
         if (device.bondState != BluetoothDevice.BOND_BONDED) {
             when (currentWindow?.state) {
-                PairingWindowState.CLOSED -> error("pairing_window_closed")
-                PairingWindowState.CODE_DISPLAYED -> error("pairing_in_progress")
-                PairingWindowState.OWNER_PRESENT -> error("gauge_already_owned")
+                PairingWindowState.CLOSED -> throw PairingFailure(PairingFailureReason.WindowClosed)
+                PairingWindowState.CODE_DISPLAYED -> throw PairingFailure(PairingFailureReason.InProgress)
+                PairingWindowState.OWNER_PRESENT -> throw PairingFailure(PairingFailureReason.AlreadyOwned)
                 else -> Unit
             }
         }
@@ -1507,7 +1378,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            if (error.message == "owner_verification_pending" &&
+            if ((error as? PairingFailure)?.reason == PairingFailureReason.OwnerVerificationPending &&
                 device.bondState == BluetoothDevice.BOND_BONDED) {
                 updatePairingWindow(null)
                 operation = OperationState(id, OperationKind.READ, OperationStage.OUTCOME_UNKNOWN,
@@ -1515,9 +1386,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 foregroundConnection.retrySoon()
                 return@launchGaugeOperation
             }
-            if (error.message?.contains("pairing_cancelled") == true ||
-                error.message?.contains("pairing_failed") == true ||
-                error.message?.contains("pairing_timeout") == true) {
+            if ((error as? PairingFailure)?.reason?.refreshWindow == true) {
                 val freshStatus = try { bleClient.readPairingWindowStatus() }
                     catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) { null }
@@ -1626,6 +1495,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun launchGaugeOperation(kind: OperationKind, title: String, block: suspend (Long) -> Unit) {
+        if (localSaveBusy) return
         viewModelScope.launch {
             try {
                 foregroundConnection.runUserOperation(kind) { id ->
@@ -1783,10 +1653,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun selectPage(index: Int) {
         val working = editorDraft
-        if (index !in working.pages.indices) return
+        if (localSaveBusy || index !in working.pages.indices) return
         editingPageIndex = index
-        val page = working.pages[index]
-        save(working.copy(pidId = page.pidIds[0], layout = page.layout, source = working.source))
+        // Page order/readings remain committed. Navigation does not create a disk write.
     }
 
     fun addPage(pidId: String = "rpm") {
@@ -1796,9 +1665,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val sequence = (1..99).first { "page.custom.$it" !in used }
         val page = GaugePageDraft("page.custom.$sequence", demoCatalog.first { it.id == pidId }.gaugeLabel,
             GaugeLayout.Numeric, listOf(pidId))
-        editingPageIndex = working.pages.size
         save(working.copy(pidId = pidId, layout = GaugeLayout.Numeric,
-            pages = working.pages + page))
+            pages = working.pages + page), selectedIndex = working.pages.size)
     }
 
     fun removePage(index: Int) {
@@ -1806,11 +1674,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (modifyingSetupBlocked || working.pages.size <= 1 || index !in working.pages.indices) return
         val selectedId = working.pages.getOrNull(editingPageIndex)?.id
         val pages = working.pages.toMutableList().also { it.removeAt(index) }
-        editingPageIndex = pages.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
+        val selectedIndex = pages.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
             ?: index.coerceAtMost(pages.lastIndex)
-        val selected = pages[editingPageIndex]
+        val selected = pages[selectedIndex]
         save(working.copy(pidId = selected.pidIds[0], layout = selected.layout, pages = pages,
-            actions = working.actions.filter { action -> pages.any { it.id == action.pageId } }))
+            actions = working.actions.filter { action -> pages.any { it.id == action.pageId } }), selectedIndex)
     }
 
     fun movePage(index: Int, delta: Int) {
@@ -1820,8 +1688,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val pages = working.pages.toMutableList()
         val page = pages.removeAt(index)
         pages.add(destination, page)
-        editingPageIndex = destination
-        save(working.copy(pages = pages))
+        save(working.copy(pages = pages), selectedIndex = destination)
     }
 
     fun selectPid(pid: PidExample) {
@@ -1876,24 +1743,27 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             ConfigurationProjector.blockers(working.copy(alerts = alerts)).isNotEmpty()) return
         save(working.copy(alerts = alerts))
     }
-    fun savePageAction(value: PageAction?) {
-        if (modifyingSetupBlocked || profileError != null) return
+    fun savePageAction(value: PageAction?) = launchLocalMutation {
+        if (modifyingSetupBlocked || profileError != null) return@launchLocalMutation
         if (profileCollection.active.transmission != null) {
             val updated = runCatching { profileCollection.copy(profiles = profileCollection.profiles.map {
                 if (it.id == profileCollection.activeId) it.withCombinedPageAction(value) else it
-            }) }.getOrElse { deviceMessage = it.message ?: "Could not update the vehicle action"; return }
-            if (!profileStore.save(updated)) { profileError = "Could not save changes on this phone"; return }
+            }) }.getOrElse { deviceMessage = it.message ?: "Could not update the vehicle action"; return@launchLocalMutation }
+            if (!persistProfiles(updated)) { profileError = "Could not save changes on this phone"; return@launchLocalMutation }
             profileCollection = updated
             draft = updated.active.draft
-            return
+            return@launchLocalMutation
         }
         val actions = listOfNotNull(value)
-        if (runCatching { ProfileActions.validate(actions, draft.pages) }.isFailure) return
-        save(editorDraft.copy(actions = actions))
+        if (runCatching { ProfileActions.validate(actions, draft.pages) }.isFailure) return@launchLocalMutation
+        persistDraft(editorDraft.copy(actions = actions))
     }
     fun removeAlert(id: String) = save(editorDraft.copy(alerts = editorDraft.alerts.filterNot { it.id == id }))
     fun setSource(value: String) = selectVehicleSource(value)
-    private fun save(value: Draft) {
+    private fun save(value: Draft, selectedIndex: Int = editingPageIndex) = launchLocalMutation {
+        persistDraft(value, selectedIndex)
+    }
+    private suspend fun persistDraft(value: Draft, selectedIndex: Int = editingPageIndex) {
         if (profileError != null) return
         val updated = runCatching { profileCollection.copy(profiles = profileCollection.profiles.map { profile ->
             if (profile.id == profileCollection.activeId) {
@@ -1906,12 +1776,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         pageEditError = null
-        if (!profileStore.save(updated)) { profileError = "Could not save changes on this phone"; return }
         val previousSource = draft.source
+        if (!persistProfiles(updated, assignSelected = previousSource != updated.active.draft.source)) { profileError = "Could not save changes on this phone"; return }
         profileCollection = updated
         draft = updated.active.draft
-        editingPageIndex = editingPageIndex.coerceIn(editorDraft.pages.indices)
-        if (previousSource != draft.source) rememberVehicleContext()
+        editingPageIndex = selectedIndex.coerceIn(editorDraft.pages.indices)
     }
     fun checkGaugeForReview() = launchGaugeOperation(OperationKind.READ, "Checking gauge settings") { id ->
         val client = GaugeConfigTransferClient(getApplication())

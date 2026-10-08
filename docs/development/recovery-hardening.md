@@ -1,6 +1,6 @@
 # Recovery audit and qualification
 
-Updated 2026-10-07. Installed signed firmware dev.44 and Android dev.43; physical evidence below.
+Historical audit begun for development dev.44; dated physical evidence follows.
 Installed firmware and physical results belong in [current state](../current-state.md).
 The standing implementation policy is [interaction recovery](../architecture/interaction-recovery.md).
 

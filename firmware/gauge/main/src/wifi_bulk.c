@@ -1,3 +1,4 @@
+#include "worker_health.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdatomic.h>
@@ -419,7 +420,11 @@ static void server_task(void *arg)
         return;
     }
     for (;;) {
-        while (!atomic_load(&wifi_active)) vTaskDelay(pdMS_TO_TICKS(250));
+        worker_health_progress(WORKER_WIFI_SERVER, (uint32_t)(esp_timer_get_time() / 1000));
+        while (!atomic_load(&wifi_active)) {
+            worker_health_progress(WORKER_WIFI_SERVER, (uint32_t)(esp_timer_get_time() / 1000));
+            vTaskDelay(pdMS_TO_TICKS(250));
+        }
         int server = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         if (server < 0) { vTaskDelay(pdMS_TO_TICKS(1000)); continue; }
         int yes = 1;
@@ -436,6 +441,7 @@ static void server_task(void *arg)
             continue;
         }
         while (atomic_load(&wifi_active)) {
+            worker_health_progress(WORKER_WIFI_SERVER, (uint32_t)(esp_timer_get_time() / 1000));
             // SO_RCVTIMEO does not portably bound accept; select owns its deadline.
             fd_set readable;
             FD_ZERO(&readable);
@@ -467,6 +473,7 @@ static void worker_task(void *arg)
     (void)arg;
     command_t command;
     for (;;) {
+        worker_health_progress(WORKER_WIFI_COMMAND, (uint32_t)(esp_timer_get_time() / 1000));
         if (xQueueReceive(command_queue, &command, pdMS_TO_TICKS(1000)) == pdTRUE) {
             xSemaphoreTake(state_lock, portMAX_DELAY);
             state.last_op = command.op;
@@ -526,7 +533,9 @@ bool wifi_bulk_command(const uint8_t *bytes, size_t length)
     if (!server_started || !bytes || length != 5 ||
         (bytes[0] != OP_OPEN && bytes[0] != OP_CLOSE)) return false;
     command_t command = {.op = bytes[0], .sequence = read_u32(bytes + 1)};
-    return xQueueSend(command_queue, &command, 0) == pdTRUE;
+    bool queued = xQueueSend(command_queue, &command, 0) == pdTRUE;
+    if (!queued) worker_health_queue_drop(WORKER_WIFI_COMMAND);
+    return queued;
 }
 
 size_t wifi_bulk_status(uint8_t out[WIFI_BULK_STATUS_SIZE])

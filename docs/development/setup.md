@@ -73,8 +73,9 @@ for authorized publication and the [recovery matrix](ota-recovery-matrix.md) for
 ## Adapter and vehicle sessions
 
 The companion selects and saves a source-specific adapter binding in the configuration.
-The default setup polls one Engine or Transmission source. Development dev.41 also
-executes an explicitly configured ECM/TCM pair. The per-gauge Expert option requires
+The default setup uses one primary adapter for the whole vehicle dashboard, including
+any supported transmission requests. An explicitly configured child adapter changes
+request routing, not the visible reading/page list. The per-gauge Expert option requires
 `da:1` and distinct bindings. Menuconfig ECM MAC is a legacy fallback; the idle TCM
 worker is retired. See [dual recovery qualification](dual-adapter-recovery.md).
 Keep real addresses and raw recordings in ignored local artifacts.

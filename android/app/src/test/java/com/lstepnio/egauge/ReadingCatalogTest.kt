@@ -48,7 +48,7 @@ class ReadingCatalogTest {
         val alert = GaugeAlertDraft("alert.voltage", "voltage", AlertDirection.Below, 12.2, 11.7, .1)
         val draft = Draft(alerts = listOf(alert))
         val profiles = ProfileCollection("default", listOf(VehicleProfile("default", "Vehicle", draft)))
-        assertEquals(11, JSONObject(ProfileDocumentCodec.encode(profiles)).getInt("schemaVersion"))
+        assertEquals(12, JSONObject(ProfileDocumentCodec.encode(profiles)).getInt("schemaVersion"))
         assertEquals(profiles, ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(profiles)))
         val bytes = ConfigurationProjector.project(template, draft, "default", 2, schemaVersion = 2).second
         assertEquals(listOf(alert), GaugeDraftComparison.savedDraft(document(bytes.toString(Charsets.UTF_8)), "default")!!.alerts)

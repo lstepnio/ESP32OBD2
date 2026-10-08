@@ -56,9 +56,35 @@ Device-specific caches are cleared when discovery fails or a different target is
 
 ## Storage and recovery
 
-Profile schema 6 adds an optional nested transmission child while retaining schemas 1 through 5. Gauge association schema 1 retains multiple identities and desired contexts. Legacy standalone TCM profiles remain unchanged until explicitly attached. See [vehicle connections](vehicle-connections.md) for invariants and migration. Unknown newer schemas and unsupported enum values fail closed and preserve the stored source document. Saves use synchronous commit and report failure.
+Profile schema 12 retains schemas 1 through 11 and requires coupled vehicle and gauge
+assignment storage. `LocalSetupStore` saves both documents in one `profiles-v1`
+preference commit. The old association file is a read-only migration input. Older
+Apps reject schema 12 rather than loading stale assignments. Unknown schemas and
+invalid documents fail closed without replacing the source. Standalone TCM profiles
+remain separate until explicitly attached; that attachment moves their assignments
+in the same commit. See [vehicle connections](vehicle-connections.md).
 
-The selected gauge identity and the minimal firmware-update recovery journal use separate private preference files. An interrupted update records target identity, image digest, stage, and time. On relaunch, the app asks for a protected running-firmware read before retry. A successful identity read reconciles and clears the journal. BLE upload remains an explicitly foreground workflow; the debug build keeps the phone awake while visible.
+`LocalSetupTransactions` loads, transforms and commits the whole setup through
+`DurableWrites`, one mutex and the IO dispatcher. UI state changes only after the
+commit succeeds. Queued cancellation does not start a write; an admitted platform
+commit finishes before its lease is released. On commit failure, the prior memory
+map is restored best-effort, the visible model is retained and setup edits stop
+until reopening/review. A second failed rollback cannot guarantee disk recovery.
+Page browsing changes an ephemeral cursor without a disk write.
+
+`GaugeModels.kt` owns domain models. `PairingFailure`/`OwnerReadFailure` distinguish
+pairing reasons from retryable protected reads. `suspendResult` preserves coroutine
+cancellation and fatal errors; only cleanup uses bounded noncancellable work.
+`AppViewModel` still owns lifecycle and transport outcomes. A local mutation uses
+the same operation lease and waits for automatic read cleanup.
+
+`FirmwareUpdatePersistence` owns the separate update journal and per-gauge hold.
+Candidate identity is durable before upload starts. Verified device success remains
+success if phone cleanup fails; the journal stays available for recovery. Corrupt
+journals become uncertain records requiring authenticated healthy running readback,
+never silently disappear. An image without confirmed OTA health does not clear
+uncertain recovery evidence. BLE upload remains an explicit foreground workflow.
+See [offline hardening](../development/offline-hardening.md) for evidence and limits.
 
 ## Protocol and transport rules
 

@@ -52,7 +52,7 @@ data class ProfileCollection(val activeId: String, val profiles: List<VehiclePro
 
 data class ProfileLoad(val collection: ProfileCollection, val error: String? = null)
 
-class ProfileStore(context: Context) {
+class ProfileStore(private val context: Context) {
     private val preferences = context.getSharedPreferences("profiles-v1", Context.MODE_PRIVATE)
     private val legacy = context.getSharedPreferences("draft-v1", Context.MODE_PRIVATE)
 
@@ -67,7 +67,7 @@ class ProfileStore(context: Context) {
 
     fun save(value: ProfileCollection): Boolean {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        return preferences.edit().putString("collection", ProfileDocumentCodec.encode(value)).commit()
+        return LocalSetupStore(context).save(LocalSetup(value, GaugeAssociationStore(context).load()))
     }
 
     private fun migrateLegacy(): ProfileLoad {
@@ -82,7 +82,7 @@ class ProfileStore(context: Context) {
                 legacy.getInt("critical", 115).coerceIn(readingRange("coolant")))),
         )
         val collection = ProfileCollection("default", listOf(VehicleProfile("default", "My vehicle", draft)))
-        save(collection)
+        // Read-only migration; first successful off-main save persists the complete setup.
         return ProfileLoad(collection)
     }
 

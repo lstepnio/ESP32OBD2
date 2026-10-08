@@ -41,8 +41,8 @@ catalog writes/activation routines during an exploratory read session.
 ## Core invariants
 
 - Gauge owns the adapter; Android connects to the gauge. A Mac capture needs the
-  gauge to release the single-client adapter. Single-source setup is default; development dev.42 also executes an explicitly
-  bound ECM/TCM pair. Public radio capacity remains unqualified.
+  gauge to release the single-client adapter. Single-adapter setup is default; the development path also executes an explicitly
+  bound primary/child pair. Public radio capacity remains unqualified.
 - BLE callbacks enqueue bounded work. Transfer workers own flash operations;
   LVGL owns widgets. Do not block callbacks or add nested subsystem locks.
 - Missing/invalid/stale data is unavailable, not zero. Source, ECU, revision,

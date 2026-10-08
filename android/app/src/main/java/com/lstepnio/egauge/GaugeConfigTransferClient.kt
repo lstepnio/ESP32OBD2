@@ -601,9 +601,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 check(verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
                     verified.digest.contentEquals(bundle.sha256)) { "Gauge did not verify the signed image" }
             } catch (error: Exception) {
-                withTimeoutOrNull(WIFI_ABORT_CLEANUP_TIMEOUT_MS) {
-                    runCatching { command(0x26, id) }
-                }
+                boundedCleanup(WIFI_ABORT_CLEANUP_TIMEOUT_MS) { command(0x26, id) }
                 throw error
             }
                 stage(FirmwareUpdateStage.READY_TO_ACTIVATE)
@@ -613,9 +611,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 stage(FirmwareUpdateStage.RESTARTING)
             }
         } catch (error: Exception) {
-            withTimeoutOrNull(WIFI_CLOSE_CLEANUP_TIMEOUT_MS) {
-                runCatching { closeWifiBulk(device) }
-            }
+            boundedCleanup(WIFI_CLOSE_CLEANUP_TIMEOUT_MS) { closeWifiBulk(device) }
             throw error
         }
         stage(FirmwareUpdateStage.CONFIRMING)
@@ -674,7 +670,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 check(verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
                     verified.digest.contentEquals(bundle.sha256)) { "Gauge did not verify the signed image" }
             } catch (error: Exception) {
-                runCatching { otaCommand(0x26, sequence++, id) }
+                boundedCleanup(3_000) { otaCommand(0x26, sequence++, id) }
                 throw error
             }
             stage(FirmwareUpdateStage.READY_TO_ACTIVATE)
@@ -760,11 +756,11 @@ class GaugeConfigTransferClient(private val context: Context) {
                 stage(OperationStage.VERIFYING)
                 command(0x14, sequence++, id)
             } catch (error: Exception) {
-                runCatching { command(0x16, sequence++, id) }
+                boundedCleanup(3_000) { command(0x16, sequence++, id) }
                 throw error
             }
             // A disconnect during COMMIT is ambiguous. Reconnect and inspect the durable slot.
-            val commit = runCatching { command(0x15, sequence++, id) }.getOrNull()
+            val commit = suspendResult { command(0x15, sequence++, id) }.getOrNull()
             if (commit != null) check(commit.phase == 4 && commit.revision == expectedRevision &&
                 commit.hash.contentEquals(digest)) { "Gauge commit readback did not match the document" }
         }
@@ -781,7 +777,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 }
                 if (observed?.phase in 1..3 && observed?.transferId == transferId &&
                     observed.opcode == 0x15 && observed.result != 0) {
-                    runCatching { withGauge(device) { command(0x16, sequence++, le32(transferId)) } }
+                    suspendResult { withGauge(device) { command(0x16, sequence++, le32(transferId)) } }
                     error("Gauge rejected configuration commit (result ${observed.result})")
                 }
                 if (observed?.phase == 0) confirmed = observed
@@ -791,7 +787,7 @@ class GaugeConfigTransferClient(private val context: Context) {
         val durable = confirmed ?: error("Gauge commit succeeded, but reboot readback is unavailable")
         if (durable.revision != expectedRevision || !durable.hash.contentEquals(digest)) {
             if (durable.phase in 1..3 && durable.transferId == transferId)
-                runCatching { withGauge(device) { command(0x16, sequence++, le32(transferId)) } }
+                suspendResult { withGauge(device) { command(0x16, sequence++, le32(transferId)) } }
             error("Gauge did not activate the sent configuration (result ${durable.result}); active revision ${durable.revision}")
         }
         val expectedHash = digest.joinToString("") { "%02x".format(it) }

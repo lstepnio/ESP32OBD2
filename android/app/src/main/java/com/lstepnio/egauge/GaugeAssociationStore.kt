@@ -54,11 +54,13 @@ object GaugeAssociationDocumentCodec {
 }
 
 /** Multiple remembered identities, one selected phone connection. Never stores bond credentials. */
-class GaugeAssociationStore(context: Context) {
+class GaugeAssociationStore(private val context: Context) {
     private val legacyName = context.getSharedPreferences("presentation", Context.MODE_PRIVATE)
         .getString("gauge-name", "eGauge")?.trim()?.takeIf { it.length in 1..32 } ?: "eGauge"
     private val preferences = context.getSharedPreferences("gauge-association", Context.MODE_PRIVATE)
     fun load(): GaugeAssociations {
+        context.getSharedPreferences("profiles-v1", Context.MODE_PRIVATE)
+            .getString(LocalSetupStore.ASSOCIATIONS, null)?.let { return GaugeAssociationDocumentCodec.decode(it) }
         preferences.getString("collection", null)?.let { return GaugeAssociationDocumentCodec.decode(it) }
         val legacy = preferences.getString("selected-gauge-id", null)
         return GaugeAssociations(legacy, legacy?.let { listOf(KnownGauge(it, legacyName)) } ?: emptyList())
@@ -66,8 +68,10 @@ class GaugeAssociationStore(context: Context) {
     fun rememberedId(): String? = load().selectedId
     fun save(value: GaugeAssociations) {
         val encoded = GaugeAssociationDocumentCodec.encode(value)
-        if (preferences.getString("collection", null) == encoded) return
-        check(preferences.edit().putString("collection", encoded).commit()) {
+        if (GaugeAssociationDocumentCodec.encode(load()) == encoded) return
+        val profiles = ProfileStore(context).load()
+        check(profiles.error == null) { profiles.error ?: "Saved profiles need attention" }
+        check(LocalSetupStore(context).save(LocalSetup(profiles.collection, value))) {
             "Could not save your gauges"
         }
     }

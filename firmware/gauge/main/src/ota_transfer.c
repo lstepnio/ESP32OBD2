@@ -1,3 +1,4 @@
+#include "worker_health.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -282,6 +283,7 @@ static void worker(void *arg)
     (void)arg;
     request_t request;
     for (;;) {
+        worker_health_progress(WORKER_OTA, (uint32_t)(esp_timer_get_time() / 1000));
         if (xQueueReceive(queue, &request, pdMS_TO_TICKS(1000)) == pdTRUE)
             process(&request);
         xSemaphoreTake(lock, portMAX_DELAY);
@@ -318,7 +320,9 @@ static bool enqueue_command(const uint8_t *bytes, size_t length,
         bytes[0] < OP_BEGIN || bytes[0] > OP_SIGNATURE) return false;
     request_t request = {.length = length, .wifi_owned = wifi_owned, .wifi_generation = generation};
     memcpy(request.data, bytes, length);
-    return xQueueSend(queue, &request, 0) == pdTRUE;
+    bool queued = xQueueSend(queue, &request, 0) == pdTRUE;
+    if (!queued) worker_health_queue_drop(WORKER_OTA);
+    return queued;
 }
 
 bool ota_transfer_command(const uint8_t *bytes, size_t length)

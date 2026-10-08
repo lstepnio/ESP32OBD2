@@ -1,3 +1,4 @@
+#include "worker_health.h"
 // ---------------------------------------------------------------------------------------------------------------------
 // Includes
 // ---------------------------------------------------------------------------------------------------------------------
@@ -365,6 +366,7 @@ static void app_tick_task(void *arg)
         diagnostics_state_snapshot_for(display_source, now_ms, &diagnostics);
         ui_set_diagnostics(ui, diagnostics.valid, diagnostics.mil_on, diagnostics.transmission,
                            diagnostics.reported_count, diagnostics.first_code);
+        worker_health_progress(WORKER_APP, now_ms);
         uint32_t ticks = atomic_fetch_add(&g_app_tick_count, 1) + 1;
         if (ticks % 600 == 0) {
             ESP_LOGI(TAG, "health app_stack=%u internal_min=%u psram_min=%u alert_free=%u alert_drops=%u",
@@ -373,6 +375,18 @@ static void app_tick_task(void *arg)
                      (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM),
                      (unsigned)uxQueueSpacesAvailable(g_alert_sample_queue),
                      (unsigned)atomic_load(&g_alert_sample_drops));
+            ESP_LOGI(TAG, "health internal_free=%u internal_largest=%u psram_free=%u psram_largest=%u",
+                     (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                     (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+                     (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+                     (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+            for (worker_id_t id = 0; id < WORKER_COUNT; ++id) {
+                worker_health_t health = worker_health_snapshot(id, now_ms);
+                if (health.observed) ESP_LOGI(TAG, "health worker=%s progress=%" PRIu32
+                    " age_ms=%" PRIu32 " max_gap_ms=%" PRIu32 " queue_drops=%" PRIu32,
+                    worker_health_name(id), health.progress_count, health.age_ms,
+                    health.maximum_gap_ms, health.queue_drops);
+            }
         }
     }
 }
@@ -405,6 +419,7 @@ static void obd_task(void *arg)
     while (true)
     {
         vTaskDelay(pdMS_TO_TICKS(period_ms));
+        worker_health_progress(source == 0 ? WORKER_ECM : WORKER_TCM, (uint32_t)(esp_timer_get_time() / 1000));
         if (transfer_gate_current() == 2 || ble_mgr_is_paused()) {
             clear_source(ui, source);
             diagnostics_state_disconnected_for(source);

@@ -42,6 +42,8 @@ Current status belongs in [current-state.md](current-state.md). This index route
 
 ## Focused runbooks and historical evidence
 
+- [Offline hardening candidate](development/offline-hardening.md): all seven priorities, checks and hardware gates.
+- [Historical runtime evidence](development/runtime-history.md): archived observations, not current instructions.
 - [Maintainability review](development/maintainability-review.md): resolved findings and scope.
 
 Use dates, versions and explicit limits inside each record. Old pending steps are superseded by current state and the active roadmap. Completed review plans were removed; their acceptance gates are consolidated in quality/runtime docs.

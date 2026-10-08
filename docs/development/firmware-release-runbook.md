@@ -16,7 +16,11 @@ The development app and firmware pin the public half of the development P-256 ke
 
 The workflow is `.github/workflows/development-release.yml`. Actions are pinned to commit SHAs. The build uses the same ESP-IDF version as quality CI, requires the ESP app descriptor version to equal the requested release version, signs the application-only image, creates a bounded `.egauge-dev-update` bundle, creates and signs `egauge-release-catalog.json`, and publishes an immutable prerelease.
 
-The workflow becomes dispatchable after it exists on the default branch. Until this integration branch is merged, a release may be bootstrapped with the exact workflow commands and uploaded as immutable GitHub release assets targeting the reviewed commit. A clean GitHub download must be compared byte for byte and its catalog signature independently verified before the app can install it. After merge, all releases use the protected workflow. Device installation and validation always start from GitHub Releases; local bundles are limited to explicit recovery engineering and are not a release path.
+The protected workflow is available on the default branch. Dispatch it against the
+exact reviewed feature ref and verify the run's Git SHA before publication. Every
+release uses this workflow; keep signing credentials in its protected environment.
+Device installation and validation start from GitHub Releases. Local bundles are
+limited to explicit recovery engineering and are not a release path.
 
 ## Publish
 
@@ -37,7 +41,7 @@ For a bad development release, mark it withdrawn in the next signed catalog by o
 
 `dev-v0.2.0-dev.11` is the first recorded withdrawal. Its catalog accidentally reused generation 3, which had already been consumed by dev.3. The companion's conflicting-generation guard rejected it before download or installation. Its assets remain immutable, its release notes identify the withdrawal, and dev.12 consumes generation 4.
 
-The companion currently searches published GitHub releases for the first signed catalog, verifies its signature and freshness, rejects a generation older than one previously trusted on the phone, and rejects different content reused under the same generation. It then selects the highest compatible sequence for the exact board, hardware range, layout, channel, and transfer protocol. A wrong board or layout cannot enter the updater. GitHub availability does not bypass the gauge's independent signature and image checks.
+The companion searches bounded published GitHub release candidates, verifies signatures and freshness, rejects a generation older than one previously trusted on the phone, and rejects different content reused under the same generation. It then selects the highest compatible sequence for the exact board, hardware range, layout, channel, and transfer protocol. A wrong board or layout cannot enter the updater. GitHub availability does not bypass the gauge's independent signature and image checks.
 
 ## Qualification gates
 

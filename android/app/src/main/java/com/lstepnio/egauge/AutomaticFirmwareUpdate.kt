@@ -36,6 +36,6 @@ internal class AutomaticUpdateHoldStore(context: Context) {
     }
 
     fun clear(gaugeId: String) {
-        preferences.edit().remove(key(gaugeId)).commit()
+        check(preferences.edit().remove(key(gaugeId)).commit()) { "Could not clear update retry history" }
     }
 }

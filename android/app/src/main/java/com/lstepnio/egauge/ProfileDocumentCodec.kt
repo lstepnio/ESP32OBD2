@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..11) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..12) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -105,7 +105,7 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 11).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 12).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
             ProfileActions.validate(profile.draft.actions, profile.draft.pages)

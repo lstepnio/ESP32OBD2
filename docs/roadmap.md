@@ -12,7 +12,7 @@ This list contains remaining work, with evidence gates rather than old milestone
 | App interaction qualification | Live Car fault refresh, adapter-loss status and concurrent user-operation preemption | Automatic settings, resume, Bluetooth recovery and Add gauge cancellation passed on Pixel/gauge; native goldens updated. Finish live adapter and interruption matrix |
 | UI/settings qualification | Physical unit rendering, gesture/cycling interaction, bold colors/arc clearance, alerts | Protected settings persistence, owner-observed five-second cycling and gesture cooldown passed; finish cycling during a pending gesture, hidden-page alerts and daylight readability |
 | Recovery hardening | Config/OTA interruption and power-loss matrix, Wi-Fi expiry and uncertain outcome UX | [Focused audit](development/recovery-hardening.md), [recovery matrix](development/ota-recovery-matrix.md), exact images and post-reboot identities |
-| Adapter expansion | Second physical adapter plus phone coexistence, independent loss/recovery and sustained load | [Dual recovery matrix](development/dual-adapter-recovery.md); source dev.42 ready for qualification, measured radio/freshness/resource limits; public capacity stays one |
+| Adapter expansion | Second physical adapter plus phone coexistence, independent loss/recovery and sustained load | [Dual recovery matrix](development/dual-adapter-recovery.md); independent source workers ready for qualification, measured radio/freshness/resource limits; public capacity stays one |
 | Product hardening | Phone/adapter/vehicle matrix, accessibility, performance, production release trust and Play publication | [Quality gates](development/quality.md), reproducible artifacts and explicit release authorization |
 | Future scope | [Controller actions and physical gesture qualification](architecture/vehicle-actions.md), local page-action foundation implemented, high idle and ABS/ESC remain candidates | Local gesture tests, matching verified controller procedures, bounded execution/readback, restoration and interruption evidence before enabling each action |
 | Future scope | Safe code clearing, broader manufacturer packs, live phone telemetry, optional sensors | Documented protocol and complete protected path before advertising support |
@@ -27,7 +27,7 @@ synthetic placeholder becomes a supported vehicle value.
 Normal vehicles have one primary ECM connection. Expert can attach an optional TCM
 child within the same vehicle; legacy standalone Transmission profiles remain usable
 until explicitly attached. Each remembered gauge has its own vehicle/source context.
-Installed dev.42 implements both workers and the combined app path; physical simultaneous operation still requires qualification. Keep one workspace and the existing settings store.
+Both workers and the combined app path are implemented; physical simultaneous operation still requires qualification. Keep one workspace and the existing settings store.
 
 ## Acceptance and maintenance
 
@@ -43,7 +43,7 @@ Source App dev.44 and firmware dev.45 remove source filtering from editing and
 sending, support mixed-controller Dual pages and keep one logical vehicle across
 one primary or two explicitly configured transports. Signed dev.45 App/Wi-Fi
 installation, complete six-page dashboard send and protected identity checks passed.
-Complete display/swipe observation and single-adapter ECM/TCM port-switch check in the
+Owner display/swipe confirmation passed after dev.46. Complete the single-adapter ECM/TCM port-switch check in the
 [logical vehicle review](development/logical-vehicle-review.md). Two distinct
 adapters are still required for the independent loss/recovery and radio coexistence
 matrix. TCM alerts are installed in dev.46 with host/native editor checks;
@@ -66,3 +66,12 @@ preservation. Physical decimal rendering and TCM hidden-page alert/dwell/stale
 recovery checks remain pending. Oxygen-sensor multi-signal and
 compound status definitions remain future additions, with separate decoding and
 alert semantics instead of generic whole-byte interpretation.
+
+## Offline hardening qualification
+
+Source dev.47 completes the seven scoped implementation/cleanup priorities in
+[offline hardening](development/offline-hardening.md). Keep the installed dev.46
+baseline until an authorized signed candidate is qualified through App/Wi-Fi.
+Next hardware gates are interrupted config/update recovery, adapter/phone coexistence
+and sustained worker progress/queue/memory measurements. Remaining coordinator
+extraction should follow ownership boundaries rather than a whole-App rewrite.

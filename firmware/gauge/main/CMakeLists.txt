@@ -30,6 +30,7 @@ idf_component_register(
         "src/transfer_gate.c"
         "src/diagnostics_state.c"
         "src/hardware_probe.c"
+        "src/worker_health.c"
         "src/config_document.c"
         "src/json_guard.c"
         "src/pid_decoder.c"

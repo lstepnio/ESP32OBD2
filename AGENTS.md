@@ -52,6 +52,19 @@ These are the current entry points; historical reports are evidence, not instruc
   as current, infer success from queued work, replay uncertain writes blindly, or claim
   deadlock immunity from source inspection or a build alone.
 
+## Durable state and health patterns
+
+- Save coupled vehicle/profile and gauge assignments in one `LocalSetupStore` commit.
+  Use `LocalSetupTransactions`/`DurableWrites` off the UI thread, publish acknowledged
+  state only after success and retain legacy documents as read-only migration inputs.
+  Do not silently overwrite malformed/newer saved state or replay uncertain writes.
+- Preserve cancellation through `suspendResult`; use typed pairing/read failures.
+  Noncancellable work is limited to admitted platform commits and bounded cleanup.
+  A verified gauge outcome remains authoritative if phone journal cleanup fails.
+- Extend the existing firmware minute health log for task progress, queue saturation
+  and memory fragmentation. Adapter absence is not a task failure; do not add reset
+  loops or watchdog feeding that hides stalled owners. Qualify recovery on hardware.
+
 ## Hardware sessions
 
 For live Android debugging, run `python3 tools/adb_debug_awake.py start` before the session and `python3 tools/adb_debug_awake.py stop` when finished. The script saves and restores the phone's timeout and charging wake settings. The debug APK keeps its window awake while eGauge is visible. A manual device lock still requires the user to unlock it.
