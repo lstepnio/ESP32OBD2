@@ -56,9 +56,21 @@ Shared controls use the existing radius/spacing tokens; explicit renderer geomet
 is not replaced with arbitrary app layout tokens. Home exposes edit, next and
 previous page accessibility actions alongside touch gestures.
 
-One logical vehicle may contain an optional second adapter. A combined fault card
-labels source sections and preserves each status; a healthy engine never certifies
-transmission checks. Exact category coverage and raw snapshots stay in Expert.
+Car starts with the selected vehicle and any required setup action, followed by one
+Vehicle health card and a compact Alerts card. Fault codes open a named, focused
+sheet; empty Stored/Pending/Permanent lists and exact coverage stay in Expert.
+Recent alerts prioritize current active events; Alert history contains export and
+history deletion. No disabled report-management controls occupy the main screen.
+Adapter and Gauge gestures use shared settings rows; routine connection retries
+remain in the universal pill. Sheets scroll at large text sizes and close when the
+active vehicle changes, preventing actions on the previously selected vehicle.
+
+One logical vehicle may contain an optional second adapter. The summary preserves
+warnings, incomplete checks and the affected controller; a healthy engine never
+certifies transmission checks. Codes are deduplicated across categories per
+controller, retain last-checked/category meaning and never merge across controllers.
+No-warning status only means the warning lamp is off, not that the vehicle is fault-free.
+Exact category coverage and raw snapshots stay in Expert.
 Disabled stale settings say Last checked. Global notices are reserved for actionable
 profile/association/preference failures, not each routine connection retry.
 

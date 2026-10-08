@@ -55,10 +55,36 @@ class OptimizationUiTest {
         val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", vehicleFaultStatus(listOf(engine, child)),
             emptyList(), true, false, false, emptyList(), faultSources = listOf(engine, child))
         compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}) } }
-        compose.onNodeWithText("Engine warning is off").assertExists()
-        compose.onNodeWithText("Warning status unavailable").assertExists()
+        compose.onNodeWithText("Fault checks incomplete").assertExists()
+        compose.onNodeWithText("Transmission checks are unavailable or out of date.", substring = true).assertExists()
+        compose.onAllNodesWithText("Pending").assertCountEquals(0)
+        compose.onNodeWithText("Fault codes").performScrollTo().performClick()
         compose.onNodeWithText("P0301").assertExists(); compose.onNodeWithText("P0700").assertExists()
+        compose.onNodeWithText("Transmission · Last checked · Pending").assertExists()
         compose.onAllNodesWithText("Check coverage").assertCountEquals(0)
+    }
+    @Test fun largeTextCarKeepsAdapterChoicesScrollableAndVehicleSwitchClosesCodes() {
+        val fault = FaultUi("P0301", "Engine misfire", "Stored")
+        var state by mutableStateOf(CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep",
+            StatusUi("Warning", tone = StatusTone.Warning), listOf(fault), true, false, false, emptyList(),
+            adapterAvailable = true, adapterSelected = "Vehicle adapter"))
+        compose.setContent { CompositionLocalProvider(LocalDensity provides Density(1f, 2f)) {
+            EGaugeTheme { Surface(Modifier.requiredSize(390.dp, 844.dp)) { CarScreen(state, {}, {}, {}) } }
+        } }
+        compose.onNodeWithText("Fault codes").performScrollTo().performClick()
+        compose.onNodeWithText("P0301").performScrollTo().assertIsDisplayed()
+        compose.runOnIdle { state = state.copy(activeId = "other", name = "Other car", faults = emptyList()) }
+        compose.onAllNodesWithText("P0301").assertCountEquals(0)
+        compose.onNodeWithText("Adapter").performScrollTo().performClick()
+        compose.onNodeWithText("Remove adapter").performScrollTo().assertIsDisplayed()
+    }
+    @Test fun rememberedGaugeReconnectDoesNotAskForSetupAgain() {
+        val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep",
+            StatusUi("Waiting", tone = StatusTone.Disabled), emptyList(), false, false, false, emptyList(), gaugeKnown = true)
+        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}) } }
+        compose.onAllNodesWithText("Set up gauge").assertCountEquals(0)
+        compose.onAllNodesWithText("Choose adapter").assertCountEquals(0)
+        compose.onNodeWithText("Waiting for car").assertExists()
     }
     @Test fun ordinaryReconnectionDoesNotAddAnotherHomeStatusCard() {
         val home = HomeUiState("eGauge", "Reconnecting", false,

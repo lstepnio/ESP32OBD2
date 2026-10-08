@@ -5,6 +5,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.*
@@ -17,81 +20,108 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
               onFindAdapters: () -> Unit = {}, onChooseAdapter: (com.lstepnio.egauge.AdapterBinding?) -> Unit = {},
               onSendAdapter: () -> Unit = {},
               onSaveAction: (com.lstepnio.egauge.PageAction?) -> Unit = {}, onDeleteProfile: (String) -> Unit = {}, alerts: @Composable () -> Unit = {}) {
-    var profilesOpen by rememberSaveable { mutableStateOf(false) }
-    var adapterOpen by rememberSaveable { mutableStateOf(false) }
+    var profilesOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
+    var adapterOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var actionsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
+    var faultsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
+    val faults = com.lstepnio.egauge.ui.state.carFaults(state)
     ScreenContent(scrollKey = state.activeId) {
         ScreenTitle("Car")
         ResponsivePanels(first = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                alerts()
+                SettingsRow("Your car", state.name, state.canManageVehicles && !state.profileError, { profilesOpen = true })
+                if (!state.adapterAvailable && !state.canCheck && !state.gaugeKnown)
+                    PrimaryAction("Set up gauge", onSetup)
+                else if (state.setupNeeded && state.adapterSelected != null && state.adapterAvailable)
+                    PrimaryAction("Use this car on gauge", onSendAdapter, enabled = state.canSendAdapter)
+                else if (state.adapterSelected == null && state.adapterAvailable)
+                    PrimaryAction("Choose adapter", { adapterOpen = true }, enabled = state.adapterAvailable)
                 Panel {
-                    SectionTitle("Vehicle faults")
-                    val sources = state.faultSources.ifEmpty {
-                        listOf(com.lstepnio.egauge.ui.state.FaultSourceUi("Vehicle", state.status,
-                            listOf(com.lstepnio.egauge.ui.state.FaultCategoryUi("", "", state.faults))))
-                    }
-                    sources.forEachIndexed { index, source ->
-                        if (index > 0) HorizontalDivider()
-                        if (sources.size > 1) SectionTitle(source.title)
-                        Text(source.status.title, style = MaterialTheme.typography.titleMedium,
-                            color = if (source.status.tone == StatusTone.Critical) LocalSemanticColors.current.critical
-                                else if(source.status.tone==StatusTone.Warning)LocalSemanticColors.current.warning else MaterialTheme.colorScheme.onSurface)
-                        if (source.status.detail.isNotBlank()) Text(source.status.detail,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        source.categories.forEach { category ->
-                            Text(category.name, style = MaterialTheme.typography.labelLarge)
-                            Text(category.status, style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            category.faults.forEach { fault ->
-                            HorizontalDivider()
-                            Text(fault.code, style = MaterialTheme.typography.headlineSmall)
-                            Text(fault.description, style = MaterialTheme.typography.bodyLarge)
-                            Text(fault.category, style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        }
-                    }
-                    if (state.incomplete) Text("Partial code list. More codes may be present.",
-                        style = MaterialTheme.typography.bodyMedium, color = LocalSemanticColors.current.warning)
+                    SectionTitle("Vehicle health")
+                    val summary = com.lstepnio.egauge.ui.state.carHealthStatus(state)
+                    Text(summary.title, style = MaterialTheme.typography.titleMedium, color = if (summary.tone in setOf(StatusTone.Neutral, StatusTone.Disabled, StatusTone.Loading))
+                            MaterialTheme.colorScheme.onSurfaceVariant else toneColor(summary.tone),
+                        modifier = Modifier.semantics {
+                            if (summary.tone in setOf(StatusTone.Warning, StatusTone.Critical, StatusTone.Stale, StatusTone.Error))
+                                liveRegion = LiveRegionMode.Polite
+                        })
+                    Text(summary.detail, style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (faults.isNotEmpty()) SettingsRow("Fault codes", "${faults.size} recorded", onClick = { faultsOpen = true })
                 }
+                alerts()
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                SettingsRow("Actions", if (state.actions.isEmpty()) "No gesture assigned" else "Jump to page",
-                    state.canEditActions, { actionsOpen = true })
-                SettingsRow("Your car", state.name, !state.profileError, { profilesOpen = true })
-                SettingsRow("Adapter", state.connectionStatus.title,
+                SettingsRow("Adapter", if (state.adapterSelected == null) "Not selected" else "Manage adapter",
                     state.adapterAvailable, { adapterOpen = true })
-                if (state.setupNeeded && state.adapterSelected != null)
-                    PrimaryAction("Use this car on gauge", onSendAdapter, enabled = state.canSendAdapter)
-                else if (state.adapterSelected == null)
-                    PrimaryAction("Choose adapter", { adapterOpen = true }, enabled = state.adapterAvailable)
-                if (!state.adapterAvailable && !state.canCheck) TextButton(onSetup) { Text("Set up gauge") }
+                SettingsRow("Gauge gestures", if (state.actions.isEmpty()) "No gesture assigned" else "Jump to page",
+                    state.canEditActions, { actionsOpen = true })
             }
         })
     }
+    if (faultsOpen) {
+        ModalBottomSheet(onDismissRequest = { faultsOpen = false }) {
+            Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp)) {
+                DialogContent {
+                    SectionTitle("Fault codes")
+                    Text(com.lstepnio.egauge.ui.state.carHealthStatus(state).detail)
+                    if (faults.isEmpty()) Text("No recorded codes. Checks continue automatically.")
+                    faults.forEach { fault ->
+                        HorizontalDivider()
+                        Text(fault.code, style = MaterialTheme.typography.titleLarge)
+                        Text(fault.description, style = MaterialTheme.typography.bodyLarge)
+                        Text("${fault.source} · ${fault.categories}", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
     if (actionsOpen) PageActionsSheet(state, { actionsOpen = false }, onSaveAction)
     if (profilesOpen) ProfileDialog(state, { profilesOpen = false }, onSelectProfile, onCreateProfile, onDeleteProfile)
-    if (adapterOpen) ModalBottomSheet(onDismissRequest = { adapterOpen = false }) {
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            SectionTitle("Vehicle adapter")
-            StatusCard(state.connectionStatus)
-            Text(state.adapterSelected ?: "No adapter selected", style = MaterialTheme.typography.bodyLarge)
-            if (state.adapterCandidates.isNotEmpty()) Text("Choose the adapter plugged into this car.")
-            state.adapterCandidates.forEach { candidate ->
-                SettingsRow(candidate.name, candidate.binding.address.takeLast(5), state.adapterAvailable,
-                    { onChooseAdapter(candidate.binding) })
+    if (adapterOpen) {
+        ModalBottomSheet(onDismissRequest = { adapterOpen = false }) {
+            Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp)) {
+                DialogContent {
+                    SectionTitle("Vehicle adapter")
+                    Text(if (state.adapterSelected == null) "Choose the adapter plugged into this car."
+                        else "An adapter is saved for this car. Connection checks run automatically.")
+                    if (state.adapterCandidates.isNotEmpty()) {
+                        Text("Choose the adapter plugged into this car.")
+                    }
+                    state.adapterCandidates.forEach { candidate ->
+                        SettingsRow(candidate.name, candidate.binding.address.takeLast(5), state.adapterAvailable,
+                            { onChooseAdapter(candidate.binding) })
+                    }
+                    PrimaryAction("Find adapter", onFindAdapters, enabled = state.adapterAvailable && !state.profileError)
+                    if (state.adapterSelected != null)
+                        TextButton({ onChooseAdapter(null) }, enabled = state.adapterAvailable) { Text("Remove adapter") }
+                    if (state.setupNeeded && state.adapterSelected != null)
+                        PrimaryAction("Use this car on gauge", { onSendAdapter(); adapterOpen = false }, enabled = state.canSendAdapter)
+                    if (state.adapterMessage != null && state.adapterCandidates.isEmpty())
+                        Text(state.adapterMessage, style = MaterialTheme.typography.bodyMedium)
+                }
             }
-            PrimaryAction("Find adapter", onFindAdapters, enabled = state.adapterAvailable && !state.profileError)
-            if (state.adapterSelected != null)
-                TextButton({ onChooseAdapter(null) }, enabled = state.adapterAvailable) { Text("Remove adapter") }
-            if (state.setupNeeded && state.adapterSelected != null)
-                PrimaryAction("Use this car on gauge", { onSendAdapter(); adapterOpen = false }, enabled = state.canSendAdapter)
-            if (state.adapterMessage != null && state.adapterCandidates.isEmpty())
-                Text(state.adapterMessage, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+/** Coverage, controller attribution and category freshness belong in Expert. */
+@Composable
+fun VehicleFaultCoverage(state: CarUiState) {
+    Panel {
+        SectionTitle("Vehicle fault coverage")
+        state.faultSources.forEach { source ->
+            SectionTitle(source.title)
+            Text(source.status.title, color = toneColor(source.status.tone))
+            Text(source.status.detail, style = MaterialTheme.typography.bodyMedium)
+            source.categories.forEach { category ->
+                Text(category.name, style = MaterialTheme.typography.labelLarge)
+                Text(category.status, style = MaterialTheme.typography.bodySmall)
+                category.faults.forEach { Text("${it.code} · ${it.description} · ${it.category}") }
+                if (category.incomplete) Text("Partial list. More codes may be present.", color = LocalSemanticColors.current.warning)
+            }
         }
     }
 }

@@ -29,6 +29,7 @@ No live vehicle session or ECU clear was performed by the dev.48 rollout.
 | TCM readings | Captured `2204FE` temperature and `225503` current gear; combined pages | Owner temperature/gear display and loss/recovery checks on the JSS setup | Independent sensor/scale meaning, gears 2..8, current/target divergence |
 | Faults | Independent controller endpoints across a primary/child transport, full categories, fair polling and global presentation | Mac captured stored/pending/permanent TCM lists; software fixtures | Live full App/gauge path; TCM faults through one shared primary transport |
 | Display settings | Persisted brightness, orientation, Metric/Imperial and page interval; regional first-use units | Protected post-restart reads, owner five-second cycling/cooldown; App Metric save and Imperial restoration | Physical unit rendering, cycling/gesture interaction and daylight readability |
+| Car workspace | Selected car, compact health/recent alerts, focused code/history sheets; exact coverage in Expert | [Pixel visual review and fifteen focused emulator fixtures](evidence/car-ux-review.md); existing phone setup preserved | Live vehicle alert/fault UX qualification |
 | Shared alert/history framework | Threshold/MIL/synthetic producers share lifecycle, attention, bounded gauge context/journal, phone history/export and opt-in monitoring | Dev.48 Pixel/gauge synthetic Entry/Expired import and shared context/banner; 162 JVM tests, eight earlier emulator fixtures | Real vehicle alerts/context, physical attention, background/OEM and storage/power-loss matrix |
 | Pages/catalog/alerts | Five renderers; one catalog with 53 Mode 01 and two existing JSS readings; any selectable reading can alert, including named gear conditions | Software vectors, editor fixtures and preserved installed dashboard | New decimals/rendering, hidden-page alerts, dwell/stale behavior on real vehicle |
 | Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
@@ -75,7 +76,7 @@ verification from source, an emulator, transfer percentage or serial startup alo
 Firmware board support originated from Janos Kutscherauer's esp32-obd2-meter at
 `e1f4d8ffbb2bfe0fb38369e44d532319770ddc00`. Upstream MIT/font OFL notices remain.
 
-## Shared alerts and diagnostics development candidate
+## Shared alerts and diagnostics baseline
 
 Dev.48 implements [ADR-015](architecture/alerts-and-diagnostics.md): threshold/MIL/fault
 producers share severity/lifecycle, autonomous gauge attention and scoped acknowledgment,
@@ -85,6 +86,6 @@ The [paired-phone provider guide](architecture/phone-alert-providers.md) documen
 synthetic Expert test and future authorized crowd-alert integrations. No live feed is enabled.
 
 Engine clearing code and readback exist behind a default-off firmware gate. TCM clearing,
-freeze-frame collection and hardware qualification remain open. This candidate is not
-published or installed; the devices remain on dev.47. See [implementation evidence](evidence/shared-alerts-implementation.md)
-for source/offline scope, not inferred physical results. The backlog owns remaining tasks.
+freeze-frame collection and hardware qualification remain open. Signed dev.48 is installed;
+protected image identity and owner display/swipe checks passed. See [implementation evidence](evidence/shared-alerts-implementation.md)
+for the distinct offline, Pixel and gauge scopes. The backlog owns remaining tasks.

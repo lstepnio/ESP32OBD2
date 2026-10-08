@@ -29,7 +29,7 @@ data class ExpertActions(
 )
 
 @Composable
-fun ExpertScreen(state: ExpertUiState, actions: ExpertActions) {
+fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @Composable () -> Unit = {}) {
     var removeOpen by rememberSaveable { mutableStateOf(false) }
     ScreenContent {
         ScreenTitle("Expert")
@@ -83,6 +83,7 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions) {
                 }
             }
             state.vehicleMessage?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            faultCoverage()
             SectionTitle("Device data")
             DetailContent(state.details)
         }

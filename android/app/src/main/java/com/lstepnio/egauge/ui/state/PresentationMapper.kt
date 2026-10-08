@@ -267,7 +267,7 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
             activeConfigRevision != null && verifiedConfigHash != null && ConfigurationProjector.blockers(transmittedDraft).isEmpty() && (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) && (!bothAdapters || capabilities?.dualAdapterVersion == 1) &&
             (!requiresVehicleDashboardFirmware(transmittedDraft, bothAdapters) || capabilities?.vehicleDashboardVersion == 1),
         actionPages = editorDraft.pages, actions = editorDraft.actions, canEditActions = !busy && profileError == null,
-        actionsSupported = capabilities?.pageActionsVersion == 1, canManageVehicles = canManageVehicles)
+        actionsSupported = capabilities?.pageActionsVersion == 1, canManageVehicles = canManageVehicles, gaugeKnown = rememberedGaugeId != null)
 }
 
 fun faultDescription(code: String): String = when (code) {

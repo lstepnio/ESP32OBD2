@@ -54,7 +54,7 @@ data class CarUiState(val name: String, val profiles: List<VehicleUi>, val activ
     val setupNeeded: Boolean = false, val connectionLinks: List<ConnectionLinkUi> = emptyList(),
     val actionPages: List<com.lstepnio.egauge.GaugePageDraft> = emptyList(),
     val actions: List<com.lstepnio.egauge.PageAction> = emptyList(), val canEditActions: Boolean = false,
-    val actionsSupported: Boolean = false, val canManageVehicles: Boolean = true)
+    val actionsSupported: Boolean = false, val canManageVehicles: Boolean = true, val gaugeKnown: Boolean = false)
 @Immutable
 data class SettingsUiState(val name: String, val found: Boolean, val rotation: Int?, val canRotate: Boolean,
     val busy: Boolean, val advanced: Boolean, val dynamicColor: Boolean, val version: String,

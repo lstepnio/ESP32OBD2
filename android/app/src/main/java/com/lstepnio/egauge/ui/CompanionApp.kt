@@ -173,7 +173,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                     model::checkGaugeForReview, model::readGaugeDiagnostics,
                                     model::readHardwareCapacity, model::readRunningFirmware, model::adoptGaugeDraft, model::addTransmissionChild,
                                     model::selectVehicleSource, model::removeTransmissionChild,
-                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::attachLegacyTransmission, model::setBothAdapters, model::sendSyntheticPhoneAlert))
+                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::attachLegacyTransmission, model::setBothAdapters, model::sendSyntheticPhoneAlert), faultCoverage = { com.lstepnio.egauge.ui.car.VehicleFaultCoverage(state.car) })
                             }
                         }
                     }

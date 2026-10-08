@@ -3,39 +3,82 @@ package com.lstepnio.egauge.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.*
 import com.lstepnio.egauge.core.designsystem.*
 import java.util.Date
 
+/** Keep the main Car page concise; history and report actions share one focused sheet. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlertHistoryPanel(model: AppViewModel, onExport: () -> Unit) {
-    val entries=model.alertHistory.filter { it.vehicle==model.profileCollection.activeId }
-    var all by remember { mutableStateOf(false) }
-    var delete by remember { mutableStateOf(false) }
+    val vehicle = model.profileCollection.activeId
+    val entries = model.alertHistory.filter { it.vehicle == vehicle }
+    var historyOpen by rememberSaveable(vehicle) { mutableStateOf(false) }
+    val active = entries.filter { model.isAlertCurrent(it) && it.event.lifecycle == AlertLifecycle.Active }
+    val recent = (active.sortedByDescending { it.event.severity } + entries).distinctBy { it.id }.take(3)
     Panel {
         SectionTitle("Alerts")
+        if (model.alertFrameworkSupported == false) Text("Update the gauge to use alert history.")
+        else if (entries.isEmpty()) Text("No recorded alerts", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        recent.forEach { entry ->
+            SettingsRow(entry.event.label, alertEntryStatus(entry.event, model.isAlertCurrent(entry)),
+                onClick = { model.selectedAlertId = entry.id })
+        }
+        model.alertHistoryError?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        SettingsRow("Alert history", if (active.size > 3) "${active.size} active · ${entries.size} recorded"
+            else if (entries.isEmpty()) "Reports and saved alerts" else "${entries.size} recorded",
+            onClick = { historyOpen = true })
+    }
+    if (historyOpen) ModalBottomSheet(onDismissRequest = { historyOpen = false }, modifier = Modifier.testTag("alert-history")) {
+        Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp)) {
+            DialogContent { AlertHistoryContent(model, onExport, { historyOpen = false }) }
+        }
+    }
+}
+
+/** Human-readable state shared by recent alerts and history, independent of severity. */
+internal fun alertEntryStatus(event: AlertEvent, current: Boolean): String {
+    val state = when {
+        event.lifecycle == AlertLifecycle.Resolved -> "Resolved"
+        event.lifecycle == AlertLifecycle.Expired -> "Expired"
+        !current -> "Last checked"
+        event.unavailable -> "Data unavailable · not confirmed resolved"
+        event.snoozed -> "Snoozed · active"
+        event.acknowledged -> "Acknowledged · active"
+        else -> "Active"
+    }
+    return "${if (event.simulated) "Simulated · " else ""}${event.severity.name} · $state"
+}
+
+@Composable
+private fun AlertHistoryContent(model: AppViewModel, onExport: () -> Unit, onSelect: () -> Unit = {}) {
+    val entries=model.alertHistory.filter { it.vehicle==model.profileCollection.activeId }
+    var all by rememberSaveable(model.profileCollection.activeId) { mutableStateOf(false) }
+    var delete by rememberSaveable(model.profileCollection.activeId) { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionTitle("Alert history")
         if(model.alertFrameworkSupported==false)Text("Update the gauge to use alert history.")
         else if(entries.isEmpty())Text("No recorded alerts")
         model.alertHistoryError?.let { Text(it,style=MaterialTheme.typography.bodySmall) }
         entries.take(if(all)500 else 6).forEach { entry ->
             val e=entry.event
-            TextButton({ model.selectedAlertId=entry.id }) {
+            TextButton({ onSelect(); model.selectedAlertId=entry.id }) {
                 Column(Modifier.fillMaxWidth()) {
-                    Text("${e.severity.name} · ${e.label}")
-                    Text(if(e.simulated)"Simulated" else if(e.lifecycle!=AlertLifecycle.Active)e.lifecycle.name else if(!model.isAlertCurrent(entry))"Last checked" else if(e.unavailable)"Data unavailable" else if(e.snoozed)"Snoozed · active" else if(e.acknowledged)"Acknowledged · active" else e.lifecycle.name,
-                        style=MaterialTheme.typography.bodySmall)
+                    Text(e.label)
+                    Text(alertEntryStatus(e, model.isAlertCurrent(entry)), style=MaterialTheme.typography.bodySmall)
+
                 }
             }
         }
         if(entries.size>6)TextButton({ all=!all }) { Text(if(all)"Show recent" else "Show all history") }
         model.clearMessage?.let { Text(it,style=MaterialTheme.typography.bodySmall) }
-        if(model.clearStatus?.supported==true)TextButton(model::prepareCodeClear) { Text("Clear engine codes") }
-        Row {
-            TextButton(onExport) { Text("Save report") }
-            TextButton({ delete=true },enabled=entries.any { !it.current && !it.pinned }) { Text("Delete history") }
-        }
+        if(model.clearStatus?.supported==true)TextButton({ onSelect(); model.prepareCodeClear() }) { Text("Clear engine codes") }
+        SettingsRow("Save report", onClick = onExport)
+        SettingsRow("Delete history", enabled = entries.any { !it.current && !it.pinned }, onClick = { delete = true })
     }
     if(delete)AlertDialog(onDismissRequest={ delete=false },title={ Text("Delete local history?") },text={ Text("Unpinned inactive reports for this vehicle will be removed from this phone. Active alerts and vehicle fault codes are retained.") },confirmButton={ TextButton({ delete=false;model.clearAlertHistory() }) { Text("Delete history") } },dismissButton={ TextButton({ delete=false }) { Text("Cancel") } })
 }
@@ -44,7 +87,7 @@ fun AlertHistoryPanel(model: AppViewModel, onExport: () -> Unit) {
 @Composable
 fun AlertContextSheet(model: AppViewModel) {
     val entry=model.alertHistory.firstOrNull { it.id==model.selectedAlertId }?:model.notificationAlert?.takeIf { it.id==model.selectedAlertId }?:return
-    ModalBottomSheet(onDismissRequest={ model.selectedAlertId=null }) {
+    ModalBottomSheet(onDismissRequest={ model.selectedAlertId=null }, modifier = Modifier.testTag("alert-context")) {
         DialogContent {
             val e=entry.event
             SectionTitle(e.label)
