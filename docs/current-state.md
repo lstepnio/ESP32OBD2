@@ -6,7 +6,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 
 ## Baseline
 
-- Latest installed Android and signed gauge firmware: `0.2.0-dev.46`. Exact protected firmware identity and OTA health 2 verified; owner confirmed a normal page and working swipes. Dashboard revision 49, phone profiles/assignments and display settings retained. See [catalog rollout evidence](development/reading-catalog-alerts.md#signed-appwi-fi-rollout-2026-10-07) and [recovery evidence](development/recovery-hardening.md) for remaining interruption gates.
+- Latest installed Android and signed gauge firmware: `0.2.0-dev.47`. Authorized App/Wi-Fi installation and exact protected image/OTA health 2 verified; revision 49 and display settings retained. Owner display/touch confirmation remains pending. The owner accepted the clean single-primary-adapter setup until a second adapter arrives. See [dev.47 rollout](development/offline-hardening.md#authorized-pixelapp-wi-fi-rollout). Prior dev.46 owner normal-page/swipe evidence remains historical. See [catalog rollout evidence](development/reading-catalog-alerts.md#signed-appwi-fi-rollout-2026-10-07) and [recovery evidence](development/recovery-hardening.md) for remaining interruption gates.
 
 - Board: Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S touch,
   16 MB flash and 2 MB PSRAM. ESP-IDF 5.4.1 with pinned components.
@@ -14,7 +14,7 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
   iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
 - Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
   verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.46`, configuration revision 49, protected running confirmation and cleared trial.
+- Latest recorded physical gauge: `0.2.0-dev.47`, configuration revision 49, protected running confirmation and cleared trial.
   Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
 - The owner has one Vgate, swapped between separate ECM and TCM connectors on a
   2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
@@ -39,10 +39,12 @@ Recheck Git, installed firmware and connected devices before a new hardware sess
 Source App/FW dev.47 adds coupled profile/assignment commits, serialized off-main
 writes, typed pairing failures, cancellation-safe cleanup, extracted persistence
 boundaries and bounded worker/memory measurements. Historical runtime records were
-consolidated and stale active architecture guidance corrected. This candidate is
-not published or installed on owner devices. See [all seven priorities and test
-evidence](development/offline-hardening.md). Installed dev.46 remains the physical
-baseline; new recovery/soak behavior requires App/Wi-Fi and hardware qualification.
+consolidated and stale active architecture guidance corrected. The owner-authorized signed candidate is now
+installed on Pixel/gauge through App/Wi-Fi. See [all seven priorities and test
+evidence](development/offline-hardening.md). Exact healthy dev.47 readback and automatic resume passed; owner display/touch,
+longer recovery/soak gates remain pending. The owner accepted the single-adapter
+cleanup: zero optional children/dual selections, one running ECM source, combined
+reading pages retained.
 
 ## Expanded readings and alerts
 

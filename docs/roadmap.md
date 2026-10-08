@@ -70,8 +70,9 @@ alert semantics instead of generic whole-byte interpretation.
 ## Offline hardening qualification
 
 Source dev.47 completes the seven scoped implementation/cleanup priorities in
-[offline hardening](development/offline-hardening.md). Keep the installed dev.46
-baseline until an authorized signed candidate is qualified through App/Wi-Fi.
+[offline hardening](development/offline-hardening.md). Owner-authorized dev.47 is installed through App/Wi-Fi with exact healthy readback.
+Finish owner display/touch confirmation. Keep the owner-accepted single-adapter setup
+until a second adapter is available, then explicitly add its child binding.
 Next hardware gates are interrupted config/update recovery, adapter/phone coexistence
 and sustained worker progress/queue/memory measurements. Remaining coordinator
 extraction should follow ownership boundaries rather than a whole-App rewrite.

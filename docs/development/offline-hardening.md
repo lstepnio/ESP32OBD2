@@ -1,9 +1,9 @@
 # Offline hardening and maintainability
 
 2026-10-07. Source candidate App/FW `0.2.0-dev.47`. The owner authorized all seven
-priorities without routine prompts. Installed owner Pixel/gauge remain dev.46.
-No release publication, owner-device install, vehicle access or BLE adapter session
-is part of this offline increment.
+priorities without routine prompts. The initial offline increment kept owner devices on dev.46. The subsequent
+owner-authorized dev.47 App/Wi-Fi rollout is recorded below. No vehicle or OBD
+adapter session was performed.
 
 ## Scope and completed boundaries
 
@@ -73,10 +73,64 @@ viewport. It is simulated evidence, not Pixel, vehicle, radio or physical displa
 qualification. Preference fixtures use private namespaces; the local save journey
 is guarded to emulator hardware only. The owner phone is not used.
 
+## Authorized Pixel/App-Wi-Fi rollout
+
+After the phone returned, all three GitHub quality jobs passed for `ec97641`.
+A private preference backup preceded a data-preserving App dev.47 replacement.
+The initial migration retained all profiles, legacy assignments and appearance;
+new coupled assignments matched the legacy document, with schema 11 becoming 12.
+No broad connected-test task or App-data reset was used.
+
+Two selected read-only physical journeys passed against the exact signed dev.46
+image and OTA health 2. Opening/resume took 7.287/5.201 seconds, then 10.574/2.773
+seconds. Bluetooth off/on recovered automatically in 16.018 seconds. Hardware
+snapshot followed by fresh protected firmware read also passed. These are individual
+bench samples, not performance distributions. Normal vehicle-adapter unavailability
+was distinct from the successful phone/gauge connection.
+
+Actual Settings unit saves confirmed Metric on the gauge and in the phone's durable
+presentation preferences, then restored Imperial. This checks the final settings
+lease correction. Other display settings and appearance remained unchanged.
+
+The owner explicitly authorized publishing and installing dev.47. Protected workflow
+run `37713217386` published immutable prerelease `dev-v0.2.0-dev.47` from `ec97641`,
+catalog generation 29. Independently downloaded catalog and bundle signatures,
+board/layout, descriptor, sizes and hashes passed verification. The normal Settings
+GitHub download/App-Wi-Fi path completed and showed **Update installed**. First
+firmware response took 12.902 seconds from preflight; flash preparation 2.370 seconds.
+Protected readback asserted exact hosted ELF
+`004f96dc780ef333495a7307f03bf6bcb0fee8d83deee2781f86983fd1e0ecd6`
+and OTA health 2. Post-install opening/resume took 9.215/2.783 seconds; hardware
+read followed by fresh firmware read passed. Running dashboard revision 49 and its
+hash, display settings, gauge identity, associations and appearance were retained.
+The update recovery journal cleared.
+
+A later backup comparison found the optional TCM child removed from one phone
+profile, with all three dashboard pages retained. The initial migration had preserved
+it; the cause of the later change is unconfirmed. The owner explicitly chose the
+clean single-adapter setup and will re-add the child when a second adapter arrives.
+Audit confirmed zero optional children across three saved vehicles, zero dual-adapter
+selections or TCM-only gauge transport assignments, and one ECM source in the running
+gauge document. Three mixed-reading pages and one alert remain. No restoration or
+new configuration send was needed. Do not claim byte-for-byte full-session profile
+preservation; associations, appearance and the firmware dashboard remained intact.
+
+Private USB recording observed dev.46 boot after opening the serial port, followed
+by dev.47 boot after OTA. One dev.47 minute health set showed application maximum
+gap 100 ms, UI 70 ms, configured adapter retry-loop maximum gap 16.100 seconds,
+zero recorded transfer queue drops, internal free/largest 77,867/31,744 bytes and
+PSRAM free/largest 2,059,656/2,031,616 bytes. The optional child worker was not active.
+This is bounded bench observation only. The trace-oriented recorder reported no
+OBD trace events, as expected without a vehicle session; its raw health log remains
+private. Physical display/touch owner confirmation remains pending.
+
+Original phone wake settings were restored, with eGauge reopened. Personal identifiers,
+preferences, captures and screenshots remain under ignored artifacts.
+
 ## Next physical gates
 
-1. Publish a signed candidate only with separate release authorization, then install
-   through App/Wi-Fi and confirm exact healthy running identity, display and touch.
+1. Dev.47 signed App/Wi-Fi installation and exact healthy identity passed. Finish
+   owner display/touch confirmation; retain the accepted single-adapter setup.
 2. Exercise backgrounding, disconnect and power interruption across config/update,
    preserving uncertain outcomes and checking protected recovery before retry.
 3. Measure worker gaps, admission drops, heap minima/largest blocks and freshness
