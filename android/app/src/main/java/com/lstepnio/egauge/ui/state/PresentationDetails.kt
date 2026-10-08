@@ -66,7 +66,7 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
     diagnosticsBySource.forEach { (source, snapshot) ->
         fact("$source fault snapshot", snapshot)
     }
-    fact("Diagnostic limitations", "Bounded full category lists on supported firmware; legacy snapshots contain only the first code. Freshness is checked per category and receipt. No code clearing is implemented.")
+    fact("Diagnostic limitations", "Bounded full category lists on supported firmware; legacy snapshots contain only the first code. Freshness is checked per category and receipt. Engine code clearing is implemented behind a default-off qualification gate; Transmission clearing is unsupported.")
     bootIdentity?.let {
         fact("Installed version", it.version); fact("OTA state", it.otaState)
         fact("Partition", "0x${it.partitionAddress.toString(16)}"); fact("Partition subtype", it.partitionSubtype)
