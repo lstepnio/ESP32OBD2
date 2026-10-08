@@ -31,6 +31,10 @@ stop until reopening/review. Failed rollback or storage hardware failure is not
 proven recoverable by a host test. Invalid existing documents are never replaced
 with defaults by an association save.
 
+Confirmed gauge units are mirrored on IO within the existing settings operation
+lease, avoiding nested operation admission. Local page-action saves use the same
+admitted draft transaction rather than launching a second local save.
+
 An update candidate is recorded before upload. A confirmed running gauge image
 remains authoritative if local journal cleanup fails; pending evidence remains for
 another protected recovery check. Corrupt journals represent uncertainty. An
@@ -56,6 +60,10 @@ Final candidate checks passed:
 - ESP-IDF 5.4.1 firmware build: image `0x173310` bytes, 52% of the OTA slot free.
 - Repository validator: four schemas, nine examples, 24 rejection cases, signed
   decode vector, 96 document link sets and design token parity; `git diff --check`.
+
+The 18 native fixtures ran before the final settings-unit mirror correction;
+that correction passed the repeated 156 JVM tests, APK compilation and lint.
+Physical unit synchronization remains a hardware gate.
 
 The native test APK was installed only on the disposable emulator. The final save
 journey also checks that a local page action persists through the serialized write

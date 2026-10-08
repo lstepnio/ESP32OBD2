@@ -236,12 +236,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         return settingsPoll.pause(finished)
     }
 
-    private fun displaySettingsRead(value: GaugeConfigTransferClient.DisplaySettings) {
+    private suspend fun displaySettingsRead(value: GaugeConfigTransferClient.DisplaySettings) {
         displaySettings = value
         settingsObservedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
         settingsCheckFailed = false
-        if (value.version >= 2 && presentationPreferences.measurementSystem != value.units)
-            savePresentation(presentationPreferences.copy(measurementSystem = value.units))
+        if (value.version >= 2 && presentationPreferences.measurementSystem != value.units) {
+            // This read already owns the operation lease. Do not launch a nested user operation.
+            val updated = presentationPreferences.copy(measurementSystem = value.units)
+            suspendResult { durableWrites.write { presentationStore.write(updated) } }
+                .onSuccess { saved ->
+                    if (saved) presentationPreferences = updated
+                    else presentationError = "Could not save the confirmed measurement units on this phone"
+                }
+                .onFailure { presentationError = "Could not save the confirmed measurement units on this phone" }
+        }
     }
 
     /** Uses the same cancellable read lease as reconnecting; never writes vehicle setup. */
