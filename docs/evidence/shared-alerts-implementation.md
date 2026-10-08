@@ -116,3 +116,22 @@ follow-up recognizes bounded valid frame lengths/counts and rejects malformed/un
 frames. A regression fixture covers a subsequent owner session beginning with the
 previous alert/context/clear/readiness response. These App corrections do not change
 the already signed firmware bytes or enable code clearing.
+
+Final App implementation `fa36164` passed 162 JVM tests, debug/test APK builds and
+lint, then was installed with data-preserving replacement. The eight disposable
+emulator tests preceded these two App follow-ups. Actual Pixel/gauge checks after
+the corrections established a durable protected history cursor and successful
+Expert synthetic relay: key 36 entered as Advisory/simulated, then expired; two
+unique transitions (sequence 1 Entry/Active, sequence 2 Resolution/Expired) were
+stored. The active App banner disappeared, the history/context remained explicitly
+Simulated, and disconnected diagnostics remained NotChecked. This is protected
+runtime state and phone presentation evidence, not an owner observation of the
+physical synthetic badge or a qualified external feed.
+
+Final automatic Settings read showed brightness 100%, rotation 270°, Imperial and
+page cycling Off. Profile, gauge association and presentation documents remained
+byte-identical to the pre-install backup after all checks. Original Pixel wake
+settings were restored. No App-data reset, phone instrumentation, USB flashing,
+live adapter session, ECU command, public-capability promotion or main merge occurred.
+Physical vehicle transitions/context, phone monitoring/OEM behavior, sensor/storage
+fault injection and simultaneous dual adapters remain qualification work.
