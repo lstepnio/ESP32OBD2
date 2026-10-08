@@ -10,10 +10,10 @@ and [adapter bindings](adapter-bindings-v1.md) define the implemented bytes.
 ## Implemented protocol 0 quick selection
 
 The public JSON advertises protocol major 0, one qualified adapter link and bounded
-extensions `hw:1`, `cfg:3`, `ad:1` and optional `ds:3`/Wi-Fi features. Legacy
+extensions including `hw:1`, `cfg:5`, `ad:1`, `va:1`, `da:1` and `ds:3`/Wi-Fi features. Legacy
 quick-selection flags are offered only in the built-in state variant. The active
-configuration variant uses protected document/runtime reads instead. Config version 3
-adds schema-2 source-specific adapter bindings to bounded pages/renderers. Current
+configuration variant uses protected document/runtime reads instead. Config version 5
+includes schema-2 bindings, mixed-controller pages, decimal readings and TCM alerts. Current
 runtime supports Engine Mode 01 and the exact captured Transmission Mode 22
 definitions; it does not offer arbitrary OBD requests or general v1 operations.
 
@@ -49,6 +49,9 @@ updates; arbitrary vehicle writes and code clearing are not implemented. See [Es
 The implementation follows the ESP-IDF NimBLE security settings and Android's system-managed bonding API. See [Espressif's security option reference](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/api-reference/kconfig.html) and [Android `BluetoothDevice.createBond`](https://developer.android.com/reference/android/bluetooth/BluetoothDevice#createBond()). Those references describe platform behavior; they do not prove this exact phone/gauge exchange until observed.
 
 In v1, firmware is peripheral to the Android central and central to the OBD adapter. One authorized phone session initially. A bonded device identity, not a changing BLE MAC address, identifies the gauge.
+
+**Proposed, not implemented:** the general v1 sections below describe future contracts,
+not the protocol-0 operations above. Capability flags do not enable them.
 
 ## Proposed v1 discovery, ownership, and capabilities
 
@@ -94,7 +97,7 @@ Serialize control requests, wait for semantic result beyond the ATT write acknow
 
 Android keeps a draft tied to `baseRevision`. Begin supplies total JSON UTF-8 length, SHA-256 and schema version. Device rejects >64 KiB or incompatible version before allocation. Chunks use accepted offset and bounded credits. Commit is allowed only after complete hash, schema, semantic references, poll budget, alert units, renderer limits and device capability validation. Stage a new generation, read it back, atomically switch active generation, then emit `APPLIED` with new revision and content hash. A repeat token returns the same result. Revision mismatch returns `CONFLICT` with active revision; app offers reload/rebase, never silent overwrite. Disconnect before commit leaves active config intact; stage expires after 10 minutes. After ambiguous commit, query revision/hash.
 
-The original 24 KiB NVS partition could not hold a staged 64 KiB document. The development board has been migrated to the custom dual-generation [configuration storage](../architecture/config-storage.md) layout, but schema validation, transfer, activation, and recovery are still pending. Keep `configWrite: false` until those paths are implemented and observed.
+The original 24 KiB NVS partition could not hold a staged 64 KiB document. The development board has been migrated to the custom dual-generation [configuration storage](../architecture/config-storage.md) layout, and the protected development validation/transfer/activation/recovery path is implemented. This proposed public v1 transaction is not that path; keep `configWrite: false` until its full production qualification passes.
 
 The app's full Apply state is explicit:
 
@@ -125,4 +128,4 @@ Wi-Fi bulk transfer uses the same operation/hash/offset semantics with an exclus
 
 ## Development adapter selection extension
 
-The private `cfg: 3`, `ad: 1` extension adds schema 2 adapter bindings and owner-only discovery/status using the existing protected characteristics. See [adapter binding contract](adapter-bindings-v1.md). The public configuration and simultaneous-adapter flags remain disabled pending physical qualification. Pairing status is appended to preserve the control/state handles, and Service Changed announces database updates.
+The implemented private `cfg:5`, `ad:1`, `va:1` and `da:1` extensions add schema-2 bindings, per-definition routing, owner-only discovery/status and catalog alerts using the existing protected characteristics. See [adapter binding contract](adapter-bindings-v1.md). The public configuration and simultaneous-adapter flags remain disabled pending physical qualification. Pairing status is appended to preserve the control/state handles, and Service Changed announces database updates.

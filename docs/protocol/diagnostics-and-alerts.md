@@ -1,6 +1,6 @@
 # CEL, trouble codes, and local alerts, draft 0.1
 
-Owner scope added 2026-09-25: show CEL codes and allow clearing; configure attention-getting ESP32 threshold alerts from Android. These are designed capabilities, not features of the current baseline.
+Read-only fault snapshots and freshness-aware catalog threshold/gear alerts are implemented development features. Code clearing, attention overlays, acknowledgment/snooze and retained alert event history below are **proposed, not implemented**. [Current state](../current-state.md) owns observed support; [the backlog](../backlog.md) owns qualification and deferred scope.
 
 ## Diagnostic data
 
@@ -36,6 +36,9 @@ are in [reading catalog and local alerts](../development/reading-catalog-alerts.
 
 ## Attention and acknowledgment
 
+**Proposed, not implemented:** current local alert badges do not provide this full
+overlay, snooze, acknowledgment or history design.
+
 Warning: amber border/badge, labeled value and threshold, one entry pulse, then steady display. Critical: full readable alert overlay with red border, large value/unit, explicit reason and page priority; no rapid flashing. Acknowledge restores the chosen dashboard with a persistent alert badge. If severity escalates or a new rule activates, interrupt again. A snooze suppresses repeated visual interruption for the configured period, not sampling, logging or the active badge. Provide reduced-motion option with steady visual cues. No onboard buzzer/haptic assumed; sound needs additional hardware.
 
 Order multiple alerts by severity, then configured priority, then oldest activation. Show `1 of N` and allow inspection; enforce at most one overlay at once. MIL/DTC notification uses a separate engine-status indicator and event list, not a pretend numeric threshold. History records entry, escalation, acknowledgment, data loss and resolution with provenance. Bound retained events and batch flash writes. Configuration must warn when requested poll rates cannot support a requested short alert response time.
@@ -44,8 +47,10 @@ Acceptance: alerts work with phone disconnected, on hidden pages, under unit con
 
 ## Implemented read-only snapshot, dev.38-faults
 
-The active Engine or Transmission profile polls Mode 01 PID 01 and Modes 03,
-07 and 0A against its selected responder (7E8 or 7E9). The protected companion
+Each configured physical source polls Mode 01 PID 01 and Modes 03,
+07 and 0A against its diagnostic responder (7E8 or 7E9). Page selection does not
+select a separate vehicle. TCM faults on a shared primary transport need the
+QUAL-05 routing review; two physical-source snapshots are not proof of that path. The protected companion
 command `39 <sequence:u32le>` selects a cached full diagnostic snapshot. Reading
 it does not initiate a vehicle scan. The scheduler populates categories separately;
 initial categories remain Not checked until their first accepted reply.
@@ -85,7 +90,7 @@ back only on explicit unsupported command/length errors (GATT 6 or 13). Auth,
 transport or packet validation failures never trigger fallback. New firmware
 blanks version 5 Transmission data to prevent old apps labelling it as Engine CEL.
 The owner identity gate remains required; public capability flags are unchanged.
-Only the active source is sampled. The other source is Not checked.
+Legacy single-source firmware samples only its configured source. Current independent-source behavior is defined below.
 
 This implementation reads codes only. The clearing flow above remains a design.
 Physical qualification still requires the 248-byte long read on Pixel, category

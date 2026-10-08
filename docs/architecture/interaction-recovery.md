@@ -74,7 +74,7 @@ unknown/corrupt update evidence only from authenticated healthy running identity
 - Log diagnostic causes and timings for development without exposing session keys,
   private adapter identities or raw transport errors in normal user messages.
 
-See [recovery audit and qualification](../development/recovery-hardening.md) for the
+See [recovery audit and qualification](../evidence/recovery-hardening.md) for the
 current application of these patterns and the remaining physical gates.
 
 ## Android read scheduling and hosted HTTP
@@ -97,7 +97,7 @@ Signatures, compatibility, generation/conflict protection and reviewed installat
 remain mandatory. Background HTTP failure uses the existing 15-minute retry;
 a successful check waits six hours. No failed mutation is automatically replayed.
 
-[Product optimization evidence](../development/product-optimization.md) separates
+[Product optimization evidence](../evidence/product-optimization.md) separates
 unit/HTTP fixtures, rendered UI and physical owner readback from hardware recovery.
 
 ## Multiple adapters

@@ -93,6 +93,6 @@ python3 -m http.server 8765 --bind 127.0.0.1
 ```
 
 Open `http://127.0.0.1:8765/design/prototype/`. It does not access real Bluetooth.
-Full USB flashing changes OTA metadata; use the [migration procedure](usb-partition-migration.md)
+Full USB flashing changes OTA metadata; use the [migration procedure](../evidence/usb-partition-migration.md)
 only for explicitly authorized provisioning/recovery. Never erase bonds/config or
 change eFuses as an incidental repair. Current field updates use App/Wi-Fi.

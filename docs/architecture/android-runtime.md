@@ -84,7 +84,7 @@ success if phone cleanup fails; the journal stays available for recovery. Corrup
 journals become uncertain records requiring authenticated healthy running readback,
 never silently disappear. An image without confirmed OTA health does not clear
 uncertain recovery evidence. BLE upload remains an explicit foreground workflow.
-See [offline hardening](../development/offline-hardening.md) for evidence and limits.
+See [offline hardening](../evidence/offline-hardening.md) for evidence and limits.
 
 ## Protocol and transport rules
 
@@ -95,13 +95,10 @@ same protected maintenance state. Configuration remains on the bounded BLE path.
 
 ## Feature evidence boundaries
 
-- Numeric ECM configuration, protected status, display rotation, and the development update protocol have prior phone and gauge evidence.
-- The GitHub catalog path is development trust only until a published release is exercised from a fresh app install.
-- Live Engine RPM and combined Transmission Gear + Temperature have recorded owner observations.
-- Full source-scoped fault snapshots are implemented and offline-tested; new physical checks are pending.
-- DTC clearing, dual-adapter concurrency and production OTA remain unavailable or unqualified.
-- Enabling the second-adapter preference changes a local profile only. It does not claim simultaneous firmware support.
-
+[Current state](../current-state.md) owns installed and observed support. The current
+runtime has independent workers behind optional child routing; source-level support
+never establishes simultaneous-radio qualification. Phone previews remain examples.
+Controller writes, diagnostic clearing and production capabilities remain gated.
 
 ## Regional units
 
@@ -121,4 +118,4 @@ cancellation of the user's transaction. `restartRead` distinguishes session time
 from actual caller cancellation and closes each attempt before the next. Configuration
 confirmation shares a bounded saved/running read budget; firmware uses its existing
 exact-image and trial decision deadline. Never resend an uncertain write to obtain
-confirmation. Evidence: [restart/editor rollout](../development/restart-and-dashboard-rollout.md).
+confirmation. Evidence: [restart/editor rollout](../evidence/restart-and-dashboard-rollout.md).

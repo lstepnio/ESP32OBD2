@@ -1,6 +1,6 @@
 # Development adapter binding contract
 
-Status: implemented development slice. Protocol major remains 0. Public `configWrite`, `ota`, and simultaneous-adapter verification remain false. The private capability markers are `cfg: 3` and `ad: 1`. Live vehicle qualification is separate from parser replay and bench simulation.
+Status: implemented development slice. Protocol major remains 0. Public `configWrite`, `ota`, and simultaneous-adapter verification remain false. Current private markers include `cfg:5`, `ad:1`, `va:1` and `da:1`; older versions remain compatibility variants. Live vehicle qualification is separate from parser replay and bench simulation.
 
 ## Durable selection
 
@@ -20,9 +20,9 @@ Configuration schema 2 adds an optional `adapter` object to each source:
 }
 ```
 
-The example address is synthetic. Adapter identity, BLE address type, driver, vehicle profile, pages, and alerts travel in the same owner-authenticated stage/commit document. Existing hash readback, two reserved slots, trial boot, and previous-generation recovery apply. Changing a binding does not bypass document validation. Duplicate adapter IDs or addresses across sources are rejected. Development dev.41 executes one source or a distinct ECM/TCM pair. ECM retains bounded Mode 01 functional queries; TCM remains limited to captured 2204FE/225503 definitions and 7E1/7E9. Runtime compilation rejects duplicate numeric PID identities and TCM alerts. Public two-link qualification remains pending.
+The example address is synthetic. Adapter identity, BLE address type, driver, vehicle profile, pages, and alerts travel in the same owner-authenticated stage/commit document. Existing hash readback, two reserved slots, trial boot, and previous-generation recovery apply. Changing a binding does not bypass document validation. Duplicate adapter IDs or addresses across sources are rejected. The runtime executes one primary transport or a distinct primary/child pair. `va:1` places request/responder identity on each definition; one transport can carry common Mode 01 and captured Mode 22 queries. `cfg:5` supports the shared catalog, mixed-controller Dual pages and TCM numeric/gear alerts. Captured enhanced requests remain restricted to reviewed definitions, including 2204FE/225503 and 7E1/7E9. Compilation rejects undefined sources and duplicate physical query identities. Public two-link qualification remains pending.
 
-An absent adapter in schema 2 means unbound: no automatic connection to a nearby adapter. Schema 1 remains readable with its legacy discovery behavior. The Android local profile codec migrates versions 1 through 5 to version 6 without inventing a binding. Selections stay separate for each of its eight vehicle profiles. A local selection is a draft until gauge save and running hash readback succeed.
+An absent adapter in schema 2 means unbound: no automatic connection to a nearby adapter. Schema 1 remains readable with its legacy discovery behavior. The Android codec reads profile schemas 1..12 without inventing missing bindings; [storage](../architecture/android-runtime.md#storage-and-recovery) owns migration and atomic assignment details. Selections stay separate for each of its eight vehicle profiles. A local selection is a draft until gauge save and running hash readback succeed.
 
 `elm-18f0-v1` requires service 18F0, write characteristic 2AF1, notify characteristic 2AF0, suitable discovered properties, and a subscribed CCCD. An advertised name or service only establishes a candidate. Address selection is appropriate for the observed Vgate; adapters that rotate addresses need a stronger identity mechanism before qualification.
 

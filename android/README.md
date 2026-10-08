@@ -2,7 +2,7 @@
 
 The companion opens around the round gauge preview. Gauge, Car and Settings are the default destinations. **Show advanced tools** in Settings reveals Expert. Customize keeps the selected page's preview, reading, layout and alerts in one workspace. Reading and layout choices open in focused sheets. Add page asks for a reading first; Manage pages handles ordering and removal. Alert changes stay in a local form until Save, with correct units and inline validation. Review and send remains in reach at the bottom.
 
-The [design audit](../docs/design/redesign/audit.md), [interactive concept](../design/prototype/index.html), [native fixture gallery](../design/prototype/native.html) and [validation record](../docs/development/android-core-ux-validation.md) distinguish implemented software, example screens, physical phone observations and protected gauge readback.
+The [design audit](../docs/design/redesign/audit.md), [interactive concept](../design/prototype/index.html), [native fixture gallery](../design/prototype/native.html) and [validation record](../docs/evidence/android-core-ux-validation.md) distinguish implemented software, example screens, physical phone observations and protected gauge readback.
 
 ## Build and run
 
@@ -64,7 +64,7 @@ Review lists every transmitted page, binding, layout and alert setting. A protec
 
 A verified saved configuration can be adopted into the phone from Expert diagnostics only when the existing mapper can represent it safely. Unknown fields never count as matches. Expert > Device data includes the complete saved JSON, comparison fields, PID/service/source, runtime identity, hardware/partition metadata and package signatures. Its allowlist excludes Wi-Fi sessions, credentials and bond secrets. The technical report has no clipboard action.
 
-Historical hardware records remain available: [configuration transfer](../docs/development/numeric-config-transfer-validation.md), [saved readback](../docs/development/active-document-readback-validation.md), [comparison](../docs/development/draft-comparison-validation.md), [reconciliation](../docs/development/config-reconciliation-validation.md), [signed updates](../docs/development/update-live-validation.md), [update recovery](../docs/development/update-recovery-validation.md), [hosted release journey](../docs/development/github-hosted-update-validation.md) and [Wi-Fi self-check](../docs/development/wifi-transport-security-validation.md). They are historical evidence, not new claims from this redesign.
+Historical hardware records remain available: [configuration transfer](../docs/evidence/numeric-config-transfer-validation.md), [saved readback](../docs/evidence/active-document-readback-validation.md), [comparison](../docs/evidence/draft-comparison-validation.md), [reconciliation](../docs/evidence/config-reconciliation-validation.md), [signed updates](../docs/evidence/update-live-validation.md), [update recovery](../docs/evidence/update-recovery-validation.md), [hosted release journey](../docs/evidence/github-hosted-update-validation.md) and [Wi-Fi self-check](../docs/evidence/wifi-transport-security-validation.md). They are historical evidence, not new claims from this redesign.
 
 ## Previews and image checks
 
@@ -88,7 +88,7 @@ Manual APK installation preserves local app data during these checks. To deliber
 
 No account or analytics. Android owns the BLE bond; the app stores no pairing code or bond secret. Backup remains disabled. Appearance preferences and profiles are local, and signed package verification is unchanged. Keep public capabilities disabled until the complete path is implemented and physically verified.
 
-The two-minute first-time setup target remains unmeasured. Primary adapter selection, protected reconnects and App/Wi-Fi development installation are implemented with recorded field/bench evidence. Real code clearing, simultaneous dual adapters, broader interruption/OEM tests, physical foldables, full RTL, frame/memory/energy profiling and participant usability testing remain separate qualification work. See the [current product optimization review](../docs/development/product-optimization.md) for updated tests, measurements and limits.
+The two-minute first-time setup target remains unmeasured. Primary adapter selection, protected reconnects and App/Wi-Fi development installation are implemented with recorded field/bench evidence. Real code clearing, simultaneous dual adapters, broader interruption/OEM tests, physical foldables, full RTL, frame/memory/energy profiling and participant usability testing remain separate qualification work. See the [current product optimization review](../docs/evidence/product-optimization.md) for updated tests, measurements and limits.
 
 ## Automatic connection verification
 

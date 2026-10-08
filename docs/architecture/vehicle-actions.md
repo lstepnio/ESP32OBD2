@@ -19,13 +19,13 @@ research leads for these examples. They are incomplete procedures and do not
 establish compatibility with the swapped Jeep. Reading TCM temperature and gear
 does not establish control support. ABS targets must not be assumed to be the TCM.
 
-Installed dev.42 handles clicks and holds, with clicks advancing pages and holds
+The development runtime handles clicks and holds, with clicks advancing pages and holds
 opening pairing, and upward stroke recognition for the local page action. The owner
 confirmed that three upward swipes jump to the saved TRANSMISSION page. Protected
 settings/setup persistence passed on App dev.39; the owner also confirmed five-second
 page cycling and the physical cooldown/later-repeat sequence. Cycling during a pending
 gesture and broader gesture ergonomics remain unqualified. See the
-[restart and persistence record](../development/restart-and-dashboard-rollout.md).
+[restart and persistence record](../evidence/restart-and-dashboard-rollout.md).
 
 ## Decision
 
@@ -134,18 +134,16 @@ round screen may require a different default after hands-on testing.
 
 ### Implemented local foundation
 
-Source dev.42 adds `Car > Actions`, phone profile schema 7 (schemas 1..6 migrate
-with no bindings), exact review/readback comparison and a single local `jumpPage`
-action. Removing its target page removes that binding. Each saved parent/child
-keeps its own draft; the combined payload prefixes child page identities and rejects
-conflicting upward bindings. Configuration is sent to the selected gauge through
-the existing atomic flow, not a second settings or persistence channel.
+`Car > Actions` stores a single local `jumpPage` binding in the vehicle dashboard.
+Removing its target removes that binding. Parent/child pages project into one payload;
+conflicting upward bindings are rejected. Current profile schema/migration lives in
+[Android storage](android-runtime.md#storage-and-recovery). Configuration uses the
+existing atomic apply flow, not another settings/persistence channel.
 
 Development capability `cfg:4` extends schema-2 documents with optional `actions`;
 see [development protocol](../protocol/experimental-firmware-transfers.md). Configs
 without actions retain their existing bytes/shape. New Android blocks sending a
-binding to older firmware. Older Android rejects the unfamiliar development version,
-so candidate installation must first install App dev.35 (version code 35). Public `configWrite`, `ota`
+binding to older firmware. Install a compatible App first; older Android rejects unfamiliar development versions. Public `configWrite`, `ota`
 and link-capacity claims stay unchanged; no vehicle action capability is advertised.
 
 Firmware compiles only `jumpPage`, gives gesture recognition to LVGL and reuses
@@ -164,58 +162,11 @@ request/result contract and a verified controller definition, rather than extend
 `jumpPage` to carry arbitrary commands. The existing static research inputs are
 insufficient to enable high idle or ABS on this Jeep.
 
-## Action items and quick test plan
+## Remaining qualification
 
-1. [x] Build profile configuration and an executable local page action, exercising
-   gesture recognition and feedback before any vehicle writes. Host tests cover time boundaries,
-   noisy/diagonal input, orientation, click suppression, holds/pairing, cooldown,
-   conflicting bindings, overlays, config changes and reboot with a partial sequence.
-2. [ ] Define typed controller actions and request/result vectors in the existing
-   config/transport architecture. Test malformed parameters, unsupported definitions,
-   wrong source/ECU, stale config/session, missing/disagreeing preconditions, duplicate
-   requests, queue saturation and polling fairness with one or two sources.
-3. [ ] Complete the petrol high-idle research procedure for the actual swapped PCM.
-   Establish encoding, stop/refresh timing, response/readback and loss-of-power
-   behavior before an owner-authorized stationary control test. Validate Stop,
-   normal idle restoration, disconnect and uncertain outcomes against observation.
-4. [ ] Qualify ABS/ESC enable/disable separately against the actual controller,
-   including state readback, restoration and key-cycle behavior, in an explicitly
-   authorized controlled off-road/bench session. Do not infer support from the
-   static handler fragments or use a moving test to discover command meaning.
-5. [ ] Measure gesture usability and command latency on the physical gauge. Verify
-   no write is replayed after interruption, failed writes do not stall touch or
-   polling, and changing vehicles/gauges cannot carry an armed action across contexts.
-   Promote only definitions with complete evidence; preserve unverified candidates
-   as research entries in Expert.
-
-## Software verification, 2026-10-07
-
-- 89 Android unit tests passed, including profile migration, action projection,
-  exact readback, capability gating, invalid commands/parameters and child routing.
-- Three isolated native Compose tests passed on the existing Television AVD with
-  a forced 390 × 844 portrait viewport: save defaults/edits, older-firmware draft
-  behavior and busy-state rejection. This is emulator evidence, not a Pixel test.
-- 73 offline host tests passed; production config compiler/validator and pure
-  gesture fixtures passed with AddressSanitizer/UndefinedBehaviorSanitizer.
-- Debug APK/test APK, Android lint, ESP-IDF 5.4.1 build and contract/link checks passed.
-- Emulator wake/display overrides were restored and the emulator was stopped.
-  No physical device installation, BLE session or vehicle command occurred.
-
-Native example of the action sheet with simulated profile data:
-
-![Action sheet, simulated native emulator example](../design/profile-actions/action-sheet-example.png)
-
-Physical gauge gesture recognition, touch/pairing regression, orientation, automatic
-page cycling and restart persistence still need owner observations after an explicitly
-qualified App/Wi-Fi candidate installation. Idle/ABS procedures still lack matching
-controller identity, complete sequences, response semantics and restoration evidence.
-
-The four Car goldens (compact/expanded, light/dark) were refreshed for the Actions
-row and passed strict comparison on the API-36 emulator. GoldenScreenshotTest now
-supports `fixtureName=car` for focused maintenance and waits up to five seconds for
-foreground accessibility state before capture, avoiding a startup-focus race.
-An unchanged Settings control comparison passed expanded references but differed
-by 270/271 pixels around arrow glyphs in the compact references. Those original
-Settings references and the existing tolerance were retained. This is a renderer
-comparison limit, not a claim that the full Pixel golden suite passed; repeat that
-suite on the Pixel before physical UI qualification.
+Controller execution and its negative scenarios belong to **FEATURE-04** in the
+[backlog](../backlog.md). Matching controller identity, complete commands, readback,
+restoration and interruption evidence are required before enabling an action.
+[Local fixture results](../evidence/profile-action-fixtures.md) and
+[physical gesture observations](../evidence/profile-actions-rollout.md) are historical
+records; [current state](../current-state.md) owns current qualification.

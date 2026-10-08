@@ -5,23 +5,17 @@ until another day. Do not start a live capture until the owner confirms readines
 
 ## Ready to resume
 
-- Start from the latest reviewed `main` or its continuing feature branch; verify Git
-  status/upstream before choosing a worktree. Old absolute checkout paths are not
-  instructions to edit another branch.
-- Last recorded physical gauge is dev.37-tcm with configuration revision 28. The
-  owner confirmed the combined page worked and both readings cleared/returned.
-- Full fault snapshots are implemented and verified offline. The maintenance review
-  also corrects public adapter capacity and CI test dependencies. Current source
-  firmware version is in `firmware/gauge/version.txt`.
-- Older prepared dev.38-faults files under private artifacts are historical snapshots
-  tied to their manifest commit. Build/package the current reviewed revision for the
-  next install, then record exact image/hash. Do not silently reuse an older candidate.
-- First product check: install the current Android build and firmware through
-  App/Wi-Fi, select/send the Transmission profile and allow initial category polls.
-  Check all categories on Pixel, then unplug/reconnect the adapter. Old evidence must
-  become last checked; new-session readings must return with Gear + Temperature.
-- The separate next Mac capture needs no firmware update. [Research and fixed reads](tcm-values-research-plan.md).
-- No new physical check was performed by the offline maintenance work.
+- Inspect Git/worktree state and read [current state](../current-state.md) first;
+  use its installed image, profile and qualification facts, not an old candidate.
+- The owner has one adapter and intentionally removed the optional child setup.
+  Use the existing whole vehicle dashboard on the primary transport. Re-add a child
+  only when the second adapter arrives; never select a TCM-only page editor.
+- Fault integration/primary-route review is **QUAL-05**; meanings/references are
+  **QUAL-06** in [the backlog](../backlog.md). Prepare bounded replay/software work
+  without a vehicle. Use [research and fixed reads](tcm-values-research-plan.md).
+- A Mac capture does not require updating firmware. For an authorized App/gauge
+  install, use current reviewed builds and the App/Wi-Fi flow, then record exact
+  image/hash and physical behavior separately.
 
 ## Next session starts here
 
@@ -55,9 +49,9 @@ prepared before departure and managed by a passenger or unattended logger.
   temperature meaning/scale remain to be qualified.
 - Shaft speeds, converter slip/lockup and complete OEM faults need matching
   definitions/reference evidence. No neighboring-identifier sweep.
-- Complete TCM fault lists are now integrated in the uninstalled dev.38-faults
-  app/gauge build. Engine and Transmission sources stay distinct. Physical qualification
-  of the new protected snapshot is pending.
+- Fault lists retain source/ECU freshness inside one logical vehicle. Check the
+  current QUAL-05 implementation review before expecting TCM faults on a shared
+  primary transport; protected snapshot vehicle qualification remains separate.
 
 ## End the session
 

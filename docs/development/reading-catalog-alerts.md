@@ -2,7 +2,7 @@
 
 ## Scope and authority
 
-Installed development version `0.2.0-dev.46` offers 55 executable readings: 53 scalar SAE
+The current catalog offers 55 executable readings: 53 scalar SAE
 Mode 01 readings and the two existing calibration-specific JSS transmission
 readings. The list covers fuel trims, pressures, intake/ambient/oil/catalyst
 temperatures, voltage, air flow, throttle/pedal positions, EGR/purge, run time,
@@ -70,16 +70,11 @@ Development capability `cfg:5` includes `cfg:4` and signals expanded decimal
 rendering plus numeric Mode 22 and gear-equality alerts. Public `configWrite`/`ota`
 remain false, and link capacity stays one. No new BLE opcode or protocol-major
 change is introduced. Config schema remains 2 with the additive `equals`
-comparator. Local profile schema becomes 11, preventing older Android versions
-from silently truncating fractional limits. App dev.46 reads profile schemas 1..11 and capability versions 0..5.
-Source dev.47 reads profiles 1..12; schema 12 also records atomic vehicle/gauge
-assignment persistence. See [hardening](offline-hardening.md).
-
-Install App dev.46 before gauge dev.46: older Apps deliberately reject unknown
-capability versions. The new App can read dev.45 and keep existing dashboards, but
-blocks sending new readings/TCM alerts until `cfg:5` is confirmed. Saved drafts
-can be edited before firmware installation. Existing published releases are
-unchanged; publication requires owner authorization under `AGENTS.md`.
+comparator. Current phone storage compatibility is in [current state](../current-state.md)
+and [Android storage](../architecture/android-runtime.md#storage-and-recovery).
+Android negotiates capabilities and blocks unsupported writes without dropping pages.
+Install a compatible App before updating firmware; saved drafts remain editable.
+Release publication is separately authorized under `AGENTS.md`.
 
 ## Verification and physical follow-up
 
@@ -97,12 +92,9 @@ unchanged; publication requires owner authorization under `AGENTS.md`.
   or gauge writes. Separate dashboard editor regression checks are recorded with
   the final result below.
 
-Remaining real-gauge checks after an authorized App/Wi-Fi install: verify voltage
-or air-flow fractional rendering, fractional Arc/Bar range, a hidden-page TCM
-alert, entry/clear dwell, stale badge after unplugging, return after reconnect and
-settings/profile retention. Use both physical adapters for independent two-source
-loss/recovery qualification. Temperature meaning and gears 2..8 need an independent
-reference. Host vectors and phone fixtures do not provide vehicle evidence.
+Physical acceptance is tracked as **QUAL-06**, **QUAL-07** and **QUAL-04** in
+[the backlog](../backlog.md). Host vectors and phone fixtures do not establish vehicle
+support. Dated build/editor/install results are in [catalog rollout evidence](../evidence/reading-catalog-rollout.md).
 
 ## Extending the catalog
 
@@ -115,58 +107,3 @@ reference. Host vectors and phone fixtures do not provide vehicle evidence.
    fixtures. A definition that the firmware compiler cannot execute must not appear
    as selectable. Add mappings for genuinely new units in both App and firmware.
 4. Record physical qualification separately; do not change public flags implicitly.
-
-### Session result, 2026-10-07
-
-- Android debug APK build, instrumentation APK build, lint and 145 JVM tests pass.
-- Pixel native fixtures: 18 tests pass, comprising four new reading/alert tests,
-  ten dashboard editor journeys and four unified dashboard tests. Three older
-  assertions were corrected to compare canonical doubles; the editor behavior
-  remained verified. App dev.46 was installed with replacement install preserving
-  data, and the original phone wake settings were restored after testing.
-- ESP-IDF 5.4.1 candidate dev.46 build passes. Production configuration fixtures
-  compile all 55 definitions/alerts and evaluate all catalog vectors. Core logic
-  fixtures pass with AddressSanitizer and UndefinedBehaviorSanitizer. The host
-  compile suppresses macOS deprecation warnings in the pinned third-party cJSON
-  implementation; project warnings remain errors.
-- Repository contract/examples/rejection cases, generated catalog parity, document
-  links and design token parity pass.
-- The subsequent authorized signed installation is recorded below. Vehicle
-  qualification remains separate from these source and editor checks.
-
-### Signed App/Wi-Fi rollout, 2026-10-07
-
-- All three quality jobs passed for source commit `022d7451e1790f621e2af6070443de3fd16b8e3d`
-  in run 37703919973. Owner explicitly authorized publishing and installing dev.46.
-- Protected release run 37704367028 published immutable prerelease
-  [dev.46](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.46)
-  from that exact commit, consuming catalog generation 28. Every previously published
-  catalog was checked first; the previous maximum was 27.
-- Clean GitHub downloads passed independent catalog and bundle signatures against
-  the App-pinned public key, board/layout/protocol checks, size/hash checks and the
-  ESP descriptor version check. Image size: 1,519,472 bytes. Image SHA-256:
-  `2666be389322364736549d4f62ce9a5d28d0522e5e22062f4e281e951b6397fe`.
-  ELF SHA-256: `cca5675b8b9160511d4cd75df55e2e359f166bfec178cdf924519e1602572c86`.
-- Actual Pixel App dev.46 checked GitHub through Settings, downloaded and verified
-  the hosted release, then installed it over private gauge Wi-Fi. The same warm
-  App showed **Update installed** after authenticated reboot confirmation. No USB
-  flash, local package picker or manual version check was used for installation.
-  Android network availability took 9.192 s, first Wi-Fi response 12.021 s from
-  preflight, and gauge flash preparation 2.334 s. These are this session's timings.
-- Read-only protected opening/resume check passed both before and after installation.
-  After installation it asserted the exact hosted ELF hash, version dev.46 and OTA
-  health 2. Opening confirmation took 20.521 s and resume 3.235 s. An initial GATT
-  133 owner-read failure recovered automatically; no pairing or connection tap was
-  required. Bluetooth toggle and interrupted OTA were not tested in this session.
-- The current three-page dashboard, including its one alert, stayed byte for byte
-  unchanged at revision 49. Phone profile, gauge-association and presentation
-  preferences were also byte for byte unchanged; update recovery journal cleared.
-  Gauge settings stayed 100% brightness, 270°, Imperial, page cycling Off. The owner's
-  current dashboard differed from the earlier revision-46 six-page baseline; the
-  fresh before/after comparison used revision 49.
-- Owner separately confirmed the physical gauge displayed a normal page and swipes
-  worked. Original Pixel wake settings were restored. Private screenshots/readback
-  evidence remains under ignored artifacts, without personal identifiers in Git.
-- No vehicle capture or alert observation was performed here. New decimal gauge rendering, real TCM alert
-  entry/clear/stale recovery, independent temperature meaning and gears 2..8 remain
-  physical follow-up. Public capabilities and qualified link capacity stay unchanged.

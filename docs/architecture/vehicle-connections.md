@@ -44,7 +44,8 @@ source roles drive protected status polling until a reviewed replacement is sent
 Each remembered gauge retains its vehicle association and explicit second-adapter
 mode. Separate vehicles and gauges never inherit one another's bindings.
 
-Schema 10 allows mixed primary pages and retains reads of schemas 1..9. Child page
+Profile schema 12 retains mixed primary pages and reads schemas 1..12. Coupled
+vehicle/gauge assignments commit together; see [Android storage](android-runtime.md#storage-and-recovery). Child page
 identities keep their existing `child.` prefix; this is an internal identity rather
 than a separate dashboard. A legacy TCM profile keeps its ID and binding, offers
 engine readings, and normalizes its primary draft when edited. It does not guess
@@ -60,7 +61,7 @@ whole dashboard. Removing a child route retains all pages/gestures.
 
 ## Firmware and compatibility
 
-Source dev.45 adds `va:1`: request service and expected responder belong to each
+Development capability `va:1` means: request service and expected responder belong to each
 PID, with bounded serialized CAN header changes. Sources describe transports.
 One transport can carry standard 7E8 and captured enhanced 7E9 requests. A second
 source routes the enhanced definitions to its independent worker. Public link
@@ -68,11 +69,12 @@ capacity remains one until the physical coexistence matrix passes.
 
 Configuration schema remains 2. An older firmware lacks `va:1`; Android blocks the
 new mixed/second-adapter payload rather than dropping pages. Older phone Apps reject
-new schema-10 storage. Firmware freshness, source generations and unknown replies
-continue to fail closed. TCM alerts and TCM faults on a shared primary transport are
-not qualified capabilities. Existing enhanced definitions remain calibration-specific.
+new schema-12 storage. Firmware freshness, source generations and unknown replies
+continue to fail closed. `cfg:5` implements TCM numeric and gear alerts; their real-vehicle qualification
+remains pending. TCM faults on a shared primary transport need the **QUAL-05** review
+in the [backlog](../backlog.md). Existing enhanced definitions remain calibration-specific.
 
-See [detailed review and test plan](../development/logical-vehicle-review.md) and
+See [detailed review and test plan](../evidence/logical-vehicle-review.md) and
 [dual recovery matrix](../development/dual-adapter-recovery.md).
 
 ## Deleting phone data

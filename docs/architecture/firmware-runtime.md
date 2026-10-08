@@ -121,4 +121,4 @@ automatic reset policy. An unavailable adapter is normal recovery work, not a
 stalled task. No metric feeds a watchdog to disguise a stall. Firmware build and
 sanitized host fixtures qualify arithmetic and bounds only; physical soak,
 interruption and memory/rate measurements remain pending. See
-[offline hardening](../development/offline-hardening.md).
+[offline hardening](../evidence/offline-hardening.md).

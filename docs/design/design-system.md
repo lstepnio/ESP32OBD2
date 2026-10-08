@@ -35,7 +35,7 @@ Status card, connection pill, round preview, reading tile, page carousel, unit-a
 
 Buttons use verbs: **Find gauge**, **Pair gauge**, **Customize**, **Send to gauge**, **Check gauge**, **Install**. Default copy never exposes revision, hash, PID, ECU, transport phase or source-model terminology. Errors finish with one next step. Detailed facts remain exact in Expert > Device data. Settings switches and radio options use the entire named row as a target. No account, analytics or secrets in logs/export/backup.
 
-Each supported standard reading can have one transmitted alert. People choose whether it should alert when the value rises above or falls below limits. Default labels are **Warn above**, **Critical above**, **Warn below**, and **Critical below**. Reset margin and timing remain inspectable in Expert > Device data. Unsupported layouts, readings, or sources stay preview-only with an explanation before send. All transmitted pages and alert settings are included in review.
+Every selectable catalog reading can have one transmitted alert, including TCM readings and readings absent from pages. Numeric rules use finite decimal Above/Below limits; gear rules use named position equality. People choose the applicable condition. Default labels are **Warn above**, **Critical above**, **Warn below**, and **Critical below**. Reset margin and timing remain inspectable in Expert > Device data. Unsupported layouts, readings, or sources stay preview-only with an explanation before send. All transmitted pages and alert settings are included in review.
 
 ## Artifacts and verification
 
@@ -43,7 +43,7 @@ See the [audit](redesign/audit.md), [complete baseline string inventory](redesig
 
 The [native gallery](../../design/prototype/native.html) shows 64 reviewed screenshot fixtures across light/dark, compact/expanded and component states. Both galleries are simulations. Native software tests, physical phone observations and physical gauge observations are separate evidence categories. The two-minute setup target requires a timed participant test and working adapter setup; it is not established by a mockup.
 
-Android implementation uses [Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3), [adaptive navigation](https://developer.android.com/develop/adaptive-apps/guides/build-adaptive-navigation) and [predictive back](https://developer.android.com/develop/ui/compose/system/predictive-back). See the [validation record](../development/android-core-ux-validation.md) for the current measured result.
+Android implementation uses [Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3), [adaptive navigation](https://developer.android.com/develop/adaptive-apps/guides/build-adaptive-navigation) and [predictive back](https://developer.android.com/develop/ui/compose/system/predictive-back). See the [validation record](../evidence/android-core-ux-validation.md) for the current measured result.
 
 Gauge-side legibility and safe circular geometry remain documented in [round-display guidelines](round-display-ui-guidelines.md). This redesign introduces no LVGL or firmware changes.
 
@@ -62,5 +62,6 @@ transmission checks. Exact category coverage and raw snapshots stay in Expert.
 Disabled stale settings say Last checked. Global notices are reserved for actionable
 profile/association/preference failures, not each routine connection retry.
 
-See [product assessment and implementation evidence](../development/product-optimization.md)
-for the prioritized review, simplified workflows and remaining qualification.
+See [product assessment and implementation evidence](../evidence/product-optimization.md)
+for the dated review and workflow evidence. Current remaining qualification belongs
+to [the backlog](../backlog.md).

@@ -1,35 +1,24 @@
 # Dual-adapter and hardware recovery qualification
 
-Prepared 2026-10-07 for source candidate `0.2.0-dev.42`. No physical dual-adapter
-result is claimed: the owner still has one Vgate. Installed dev.40 remains the
-last physically checked firmware. Do not start BLE/vehicle work unattended.
+This maintained procedure qualifies the current development runtime. Current image,
+software checks and device availability are in [current state](../current-state.md).
+The owner has one adapter; physical dual operation is **QUAL-04** in
+[the backlog](../backlog.md). Do not start vehicle/BLE work unattended.
 
 ## Software boundary and offline evidence
 
-- Schema 2 carries the primary ECM and optional TCM child in one atomic revision.
-  Distinct explicit bindings are mandatory. The compiler permits only bounded ECM
-  Mode 01 and captured TCM 2204FE/225503 definitions, with no TCM alerts. Duplicate
-  numeric identifiers and mixed-source display pages are rejected.
-- Two independent source workers own poll scheduling, parser/transaction state,
-  response generation, reconnect delay and diagnostics. Shared discovery has one
-  timeout budget, including admission and result wait. Workers do not catch up
-  in a burst after a long operation.
-- Source loss clears only that source's displayed values and alert sample validity;
-  active severity remains unavailable rather than being resolved by missing data.
-- Android debug Expert explicitly enables both adapters for the selected gauge.
-  Editors remain separate; review/send include both. Each source has separate read
-  evidence and backoff, and the universal pill aggregates both required links.
-- Development capability `da:1` adds source-index reads; packet layouts remain v14/v15.
-  Public `maxAdapterLinks=1`, `configWrite:false` and `ota:false` remain unchanged.
-- Production C sanitizer fixtures cover independent adapter/diagnostic state,
-  disconnect/reconnect, stale generations, pause, duplicate/unbound radio rejection,
-  and source-specific alert invalidation. Android unit tests cover combined payload,
-  bindings, child edits, bounds, per-gauge mode, source indices and safe import refusal.
-  84 Android unit tests and 73 offline host tests passed, alongside production
-  config/compiler and core C sanitizer fixtures, the ESP-IDF 5.4.1 build, Android
-  debug build/lint and instrumentation compilation. Native UI tests and the dual
-  hardware harness were compiled but not executed this session. No Android device
-  was attached. These checks are software evidence only.
+- Schema 2 carries primary/optional child bindings in one atomic revision. Distinct
+  bindings are required for two workers. Per-definition routing permits common Mode
+  01 and the captured Mode 22 definitions on a primary or child transport.
+- One logical dashboard supports mixed-controller Dual pages and catalog TCM alerts.
+  Expert changes bindings only; source loss clears only that source's current samples.
+  Missing data does not resolve active alert severity as healthy.
+- Workers independently own polling, parsers, generations, diagnostics and retry.
+  Shared discovery has one deadline; workers never catch up in an unbounded burst.
+- `da:1` source reads preserve v14/v15 layouts. Public qualified link count remains
+  one, and `configWrite:false`/`ota:false` remain unchanged.
+- Focused source/sanitizer fixtures are recorded in [hardening evidence](../evidence/offline-hardening.md).
+  These checks do not qualify concurrent radios, display behavior or vehicle signals.
 
 ## Prepare once, without driving
 
@@ -41,7 +30,7 @@ last physically checked firmware. Do not start BLE/vehicle work unattended.
    through App/Wi-Fi. Record image/ELF identity and config revision/hash. Confirm
    normal physical display and touch separately from app/serial evidence.
 3. Attach the TCM child to the engine vehicle in Expert, select both bindings, enable
-   “Use both adapters on this gauge”, review all pages/primary alerts and send once.
+   “Use both adapters on this gauge”, review all pages/alerts and send once.
    Protected running revision/hash must match the entire reviewed document.
 4. Keep the vehicle parked. Verify engine RPM/coolant and existing TCM Gear/Temperature
    pages against the known references. Selector/temperature semantics remain bounded

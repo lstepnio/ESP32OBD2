@@ -13,7 +13,7 @@ These are the current entry points; historical reports are evidence, not instruc
 - Android and firmware are active; iOS is deferred. Ordinary UI stays simple and technical data belongs in Expert.
 - Current field firmware installation is App/Wi-Fi. Do not use USB flashing as an incidental fallback.
 - Never turn source, replay or simulated results into physical verification. Keep unqualified public capabilities disabled.
-- Keep `docs/current-state.md` current and remaining work in `docs/roadmap.md`; link to focused evidence instead of duplicating status.
+- Follow [documentation ownership](docs/documentation.md): current state owns verified facts, backlog owns tasks/status/blockers, roadmap owns outcome order, and evidence owns dated measurements. Update the relevant authority with the code; do not duplicate status or treat historical pending notes as instructions.
 - Do not use an em dash in user-facing responses.
 
 ## Interaction and recovery rules
@@ -41,7 +41,7 @@ These are the current entry points; historical reports are evidence, not instruc
   the underlying socket/resource, and await cleanup before releasing the lease.
   Reject retired callbacks/session generations. Follow the shared patterns in
   [interaction recovery](docs/architecture/interaction-recovery.md), with qualification
-  recorded in [recovery hardening](docs/development/recovery-hardening.md).
+  recorded in [recovery hardening](docs/evidence/recovery-hardening.md).
 - Use one status/progress surface for each task. Routine connection recovery stays
   in the universal widget; actionable profile, mutation and security failures stay
   visible. Keep settings/profile dialogs scrollable and scope unsaved choices to

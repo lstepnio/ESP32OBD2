@@ -1,5 +1,8 @@
 # Customize usability review and revamp
 
+> Scoped review evidence. Current UI rules are in [the design system](../design-system.md);
+> current task readiness belongs to [the backlog](../../backlog.md).
+
 The selected gauge page is now the editing workspace. Swipe the round preview to choose a page, then change its reading, layout or alert in place. Focused pickers replace the long editor and the separate edit-page landing screen. The only filled action is kept at the bottom: **Review and send**, **Save alert** or **Done**, depending on the task.
 
 ## Audit

@@ -9,7 +9,6 @@ import json
 import math
 import re
 from pathlib import Path
-from urllib.parse import unquote
 from jsonschema import Draft202012Validator, ValidationError
 from referencing import Registry, Resource
 
@@ -178,17 +177,9 @@ signed['decoder'].update(endian='little', signed=True, denominator=1)
 signed['range'] = {'min': -32768, 'max': 32767}
 check(decode(signed, 'FEFF') == -2, 'Signed little-endian decoding')
 
-# Verify authored Markdown targets. External URLs are intentionally not network-tested.
-mds = [ROOT / 'README.md', ROOT / 'AGENTS.md', ROOT / 'CONTRIBUTING.md', ROOT / 'THIRD_PARTY_NOTICES.md']
-mds += list((ROOT / 'docs').rglob('*.md')) + [ROOT / 'android/README.md', ROOT / 'firmware/gauge/README.md']
-for p in mds:
-    destinations = re.findall(r'\]\(([^)]+)\)', p.read_text())
-    destinations += re.findall(r'<img\b[^>]*\bsrc=[\"\']([^\"\']+)', p.read_text())
-    for dest in destinations:
-        if '://' in dest or dest.startswith(('#', 'mailto:')):
-            continue
-        target = unquote(dest.split('#')[0])
-        check((p.parent / target).exists(), f'Broken link in {p.relative_to(ROOT)}: {dest}')
+# Documentation roles, source context, local files and heading anchors are offline gates.
+from documentation_policy import check_documentation
+md_count = check_documentation(ROOT)
 
 # NimBLE's global security floor filters every incoming adapter notification.
 # Owner protection belongs to the companion's authenticated attributes and identity gate.
@@ -212,4 +203,4 @@ css = (ROOT / 'design/prototype/tokens.css').read_text()
 for name, color in tokens['color'].items():
     match = re.search(r'--' + re.escape(name) + r'\s*:\s*(#[0-9a-fA-F]{6})', css)
     check(match and match.group(1).lower() == color.lower(), f'Prototype token mismatch: {name}')
-print(f'PASS: {len(schemas)} schemas, {count} examples, {len(negative_cases)} rejection cases, signed decode vector, {len(mds)} document link sets, color token parity.')
+print(f'PASS: {len(schemas)} schemas, {count} examples, {len(negative_cases)} rejection cases, signed decode vector, {md_count} document link sets, color token parity.')

@@ -62,7 +62,7 @@ is independent.
 Firmware socket IO checks session validity in bounded slices. A frame's fragments
 share a total deadline instead of renewing it per byte. Android cancellation closes
 its blocking socket and waits for worker exit before lease release. See the
-[recovery audit](../development/recovery-hardening.md) for budgets, offline evidence
+[recovery audit](../evidence/recovery-hardening.md) for budgets, offline evidence
 and remaining physical qualification. Installed dev.43 does not implement these
 new internal ownership rules.
 
@@ -73,6 +73,6 @@ new internal ownership rules.
 - Android requests at most one local network and releases it when the operation closes.
 - Application-layer AEAD protects the local socket independently of WPA2.
 - BLE remains the ownership bootstrap, capability source and post-reboot health channel.
-- Live encrypted transfer, signed activation, alternate-partition boot, health confirmation and BLE readback are recorded in [Wi-Fi bulk validation](../development/wifi-bulk-validation.md).
-- A live owner-authenticated check rejected wrong-session, wrong-key, and replay frames; see [Wi-Fi transport security validation](../development/wifi-transport-security-validation.md).
+- Live encrypted transfer, signed activation, alternate-partition boot, health confirmation and BLE readback are recorded in [Wi-Fi bulk validation](../evidence/wifi-bulk-validation.md).
+- A live owner-authenticated check rejected wrong-session, wrong-key, and replay frames; see [Wi-Fi transport security validation](../evidence/wifi-transport-security-validation.md).
 - Session expiry, active attack testing, physical power-loss interruption, and recovery still require live qualification before removing the experimental label.
