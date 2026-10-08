@@ -377,6 +377,120 @@ class GaugeConfigTransferClient(private val context: Context) {
         return GaugeProtocolCodec.diagnostics(bytes)
     }
 
+    data class ClearStatus(val phase: Int,val supported: Boolean,val endpoint: Int,val operation: Long,
+        val token: Long,val revision: Long,val session: Long) {
+        val message: String get() = when(phase) {
+            0 -> "Code clearing is not available for this vehicle yet"
+            1 -> "Ready to prepare a clear request"
+            2 -> "Confirm the vehicle is parked with ignition on and engine off"
+            3,4 -> "Checking the clear result"
+            5 -> "Clear acknowledged and checked. Readiness may need to run again."
+            6 -> "Fault codes remain. Review the diagnostic report."
+            7 -> "Permanent codes remain. They clear only after the controller verifies the repair."
+            8 -> "Clear outcome is unknown. Checking current faults without sending again."
+            else -> "The clear request did not complete"
+        }
+    }
+    private fun clearStatus(bytes: ByteArray): ClearStatus {
+        require(bytes.size==32 && bytes[0].toInt()==18 && bytes[1].toInt() in 0..9 &&
+            bytes[2].toInt() in 0..1 && bytes[3].toInt()==0 && bytes.drop(24).all { it==0.toByte() })
+        return ClearStatus(bytes[1].toInt(),bytes[2].toInt()==1,0,u32(bytes,4),u32(bytes,8),u32(bytes,12),u32(bytes,16))
+    }
+    suspend fun readReadiness(device: BluetoothDevice,endpoint: Int,revision: Long,session: Long?): JSONObject = withGauge(device) {
+        require(endpoint in 0..1 && session!=null)
+        writeRaw(byteArrayOf(0x63)+le32(1)+byteArrayOf(endpoint.toByte()))
+        val bytes=readRaw()
+        require(bytes.size==24 && bytes[0].toInt()==19 && bytes[1].toInt()==endpoint && bytes[2].toInt() and 0xf0==0 && bytes[3]==0.toByte() && u32(bytes,4)==revision && u32(bytes,8)==session)
+        JSONObject().put("known",bytes[2].toInt() and 1!=0).put("fresh",bytes[2].toInt() and 2!=0)
+            .put("observedAtMs",u32(bytes,12)).put("rawMode01Pid01",bytes.copyOfRange(20,24).joinToString("") { "%02X".format(it.toInt() and 255) })
+    }
+    suspend fun readClearStatus(device: BluetoothDevice): ClearStatus = withGauge(device) {
+        writeRaw(byteArrayOf(0x62)+le32(1));clearStatus(readRaw())
+    }
+    suspend fun prepareClear(device: BluetoothDevice, operation: Long, revision: Long): ClearStatus = withGauge(device) {
+        writeRaw(byteArrayOf(0x60,0)+le32(operation)+le32(revision))
+        var status=clearStatus(readRaw())
+        repeat(10) { if(status.operation==operation || !status.supported)return@withGauge status
+            delay(100);status=clearStatus(readRaw()) }
+        error("Could not prepare the clear request")
+    }
+    suspend fun confirmClear(device: BluetoothDevice, prepared: ClearStatus): ClearStatus = withGauge(device) {
+        // One send only. A timeout is reconciled by status and diagnostics reads.
+        writeRaw(byteArrayOf(0x61,1)+le32(prepared.operation)+le32(prepared.token)+le32(prepared.revision))
+        var status=clearStatus(readRaw())
+        repeat(60) {
+            if(status.operation==prepared.operation && status.phase in 5..9)return@withGauge status
+            delay(150);writeRaw(byteArrayOf(0x62)+le32(1));status=clearStatus(readRaw())
+        }
+        error("Clear verification is incomplete. Read current faults before deciding whether to try another clear.")
+    }
+
+    suspend fun readAlertBatch(device: BluetoothDevice, boot: Long, cursor: Long, active: Boolean = false): AlertBatch? {
+        return try {
+            val bytes = withGauge(device) {
+                writeRaw(byteArrayOf(0x3c, if (active) 1 else 0) + AlertCodec.le32(boot) + AlertCodec.le32(cursor))
+                readRaw()
+            }
+            AlertCodec.decode(bytes)
+        } catch(error: GaugeCommandRejectedException) {
+            if(error.status !in setOf(6,13)) throw error
+            null
+        }
+    }
+    suspend fun readAlertContext(device: BluetoothDevice, event: AlertEvent): JSONObject = withGauge(device) {
+        var offset=0L
+        var total=0L
+        var flags=0
+        val samples=org.json.JSONArray()
+        do {
+            writeRaw(byteArrayOf(0x3f,event.key.toByte())+AlertCodec.le32(event.boot)+AlertCodec.le32(event.episode)+AlertCodec.le32(offset))
+            val bytes=readRaw()
+            require(bytes.size>=24 && bytes[0].toInt()==17 && bytes[2].toInt()==event.key &&
+                u32(bytes,4)==event.boot && u32(bytes,8)==event.episode && u32(bytes,20)==offset && (bytes.size-24)%12==0)
+            flags=bytes[1].toInt() and 255
+            if(flags and 1==0)break
+            require(u32(bytes,12)==event.revision)
+            total=u32(bytes,16);require(total<=480 && offset<=total)
+            val count=(bytes.size-24)/12;require(count in 0..16 && offset+count<=total)
+            for(i in 0 until count) {
+                val at=24+i*12;val value=Float.fromBits(u32(bytes,at+4).toInt())
+                val valid=bytes[at+9].toInt()==1
+                require(bytes[at+8].toInt() in 0..31 && bytes[at+9].toInt() in 0..1 && bytes[at+10].toInt()==0 && bytes[at+11].toInt()==0)
+                samples.put(JSONObject().put("atMs",u32(bytes,at)).put("pidIndex",bytes[at+8].toInt())
+                    .put("valid",valid && value.isFinite()).put("value",value.takeIf { valid && it.isFinite() }))
+            }
+            offset+=count
+            if(count==0)break
+        } while(offset<total)
+        JSONObject().put("available",flags and 1!=0).put("complete",flags and 2!=0 && offset==total)
+            .put("partial",flags and 4!=0 || flags and 1==0).put("volatileGaugeWindow",true)
+            .put("samples",samples)
+    }
+
+    suspend fun acknowledgeAlert(device: BluetoothDevice, event: AlertEvent, snoozeMs: Long = 0) {
+        withGauge(device) { writeRaw(AlertCodec.acknowledge(event,snoozeMs)) }
+    }
+    suspend fun relayExternalAlert(device: BluetoothDevice, slot: Int, boot: Long, sequence: Long,
+        severity: AlertSeverity, ttlMs: Long, title: String, context: String, simulated: Boolean = false) {
+        withGauge(device) { writeRaw(AlertCodec.external(slot,boot,sequence,severity,ttlMs,title,context,simulated)) }
+    }
+
+    suspend fun readDiagnosticEndpoint(device: BluetoothDevice, endpoint: Int): Diagnostics? {
+        require(endpoint in 0..1)
+        return try {
+            val bytes = withGauge(device) {
+                writeRaw(byteArrayOf(0x3b) + le32(1) + byteArrayOf(endpoint.toByte()))
+                readRaw()
+            }
+            GaugeProtocolCodec.diagnostics(bytes).also {
+                require(it.source == if (endpoint == 1) "TCM" else "ECM")
+            }
+        } catch (error: GaugeCommandRejectedException) {
+            if (error.status !in setOf(6, 13)) throw error
+            null
+        }
+    }
+
     suspend fun readBootIdentity(device: BluetoothDevice): BootIdentity {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         val bytes = withGauge(device) {

@@ -1,8 +1,9 @@
 # Shared alerts, notifications and vehicle diagnostics
 
-**ADR-015, proposed.** Updated 2026-10-07. Decider: project owner; implementation
+**ADR-015, accepted for development implementation.** Updated 2026-10-07. Decider: project owner; implementation
 review follows repository gates. This is the maintained design and implementation
-sequence for QUAL-05, FEATURE-03 and FEATURE-05. It does not claim shipped behavior.
+sequence for QUAL-05, FEATURE-03 and FEATURE-05. Dev.48 implements the software
+slice below; physical qualification and live clearing/provider gates remain separate.
 [Current state](../current-state.md) owns support; [backlog](../backlog.md) owns status.
 [Wire contract](../protocol/diagnostics-and-alerts.md) owns implemented bytes.
 
@@ -215,15 +216,15 @@ RAM-only history cannot promise survival across power loss. Recover committed re
 ignore interrupted tails, expose oldest/newest sequence and dropped-event count.
 Bulk sensor windows may be lost while disconnected; sync compact event context first.
 
-Phone: propose a separate Room/SQLite `AlertRepository` for episodes, transitions,
-cursor checkpoints and capture metadata, plus bounded app-private capture files.
-Current SharedPreferences setup storage remains the authoritative setup store; Room
-is a proposed event-storage addition. Database transactions store a received batch and
+Phone: use the separate SQLite `AlertRepository` for episodes, transitions,
+cursor checkpoints and bounded inline capture JSON.
+Current LocalSetupStore remains the authoritative setup store; SQLite
+is the separate implemented event-storage addition. Database transactions store a received batch and
 cursor together before acknowledging progress. Unique transition IDs make retries
-idempotent. Stage capture files, rename atomically, then commit metadata; reconcile
-orphan files/metadata after interruption and mark incomplete captures. All storage runs
-off the UI thread through one owner. [Room documentation](https://developer.android.com/training/data-storage/room)
-provides the database abstraction; select the pinned compatible version during implementation.
+idempotent. Capture JSON and metadata are updated transactionally; mark incomplete
+windows explicitly rather than synthesizing missing samples. All storage runs
+off the UI thread through one owner. The implementation uses the platform SQLiteOpenHelper without adding a database dependency.
+Schema 1 migration failures preserve the database rather than silently rebuilding history.
 
 Defaults: unpinned history retained for 30 days, at most 500 episodes and 50 MiB total,
 whichever limit is reached first. Keep active episodes and their compact context;
@@ -355,11 +356,30 @@ TCM sequentially. It cannot prove simultaneous dual-adapter behavior.
 | Clearing | Emulated addressed vs broadcast scope, token expiry/duplicate, precondition/session change, disconnect before/after send, process/power loss, permanent codes remain | Only explicit parked clear with report saved, exact ECU/network scope and complete before/after readback; never induce faults or auto-clear during tests |
 | External provider | Expiry, stale/replayed/malformed payload, priority spoof, prohibited action, unavailable feed | Synthetic protected phone-to-gauge slice; live provider qualification separately |
 
-## Next implementation handoff
+## Development implementation and next qualification
 
-Start Phase 1 with the production scheduler starvation regression, endpoint-scoped
-state and compatibility vectors. Then add shared event contracts before history or
-notification screens. Validate configured alert response expectations against measured
+Dev.48 implements endpoint state/routing, fair diagnostics, the existing threshold
+engine's shared sink, bounded events and NVS transitions, two volatile context
+windows, transactional SQLite history, export, shared UI and opt-in Android monitoring.
+An application-scoped owner keeps Activity/service on the existing operation lease.
+Phone history loads without a current gauge connection; stale history is last checked.
+The [phone-provider guide](phone-alert-providers.md) defines the implemented synthetic
+seam and required live integration work. At-most-once Engine clearing is implemented
+behind a default-off build gate; TCM clearing is not qualified.
+
+Implementation limits: 44 keys, 64 RAM transitions, 32 persisted transitions, two
+windows of at most sixteen readings/480 samples, 1 Hz ten-second prebuffer/twenty-second
+postbuffer. Windows are volatile until phone import. SQLite retains 30-day/500 inactive
+unpinned episodes, 100 pinned reports, 100 clear reports, 10000 transitions, 100 recent
+configuration mappings and a 50 MiB logical payload budget. Under pressure context
+may degrade; active metadata and pinned reports are retained. Record budget/wear/heap
+qualification independently of these source bounds. Raw readiness is preserved;
+freeze-frame capture and live providers remain future work. Synthetic and unavailable
+history cannot produce a fresh vehicle notification.
+
+Continue QUAL-05/QUAL-11 with parked endpoint reads, gauge attention/touch, background
+Pixel notification behavior, power/storage loss and measured polling/flash budgets.
+Never enable live clearing from offline success alone. Validate configured alert response expectations against measured
 poll cadence and dwell; do not promise a short trigger time the adapter cannot sustain. Record task IDs and measured/source/physical evidence separately
 in the PR. Follow existing commit, release and hardware gates; this document does not
 publish firmware, enable a capability or authorize an unattended vehicle command.

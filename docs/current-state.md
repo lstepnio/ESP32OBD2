@@ -8,7 +8,7 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | `0.2.0-dev.47` | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Source/App/firmware version | Candidate `0.2.0-dev.48` | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
 | Installed Pixel and gauge | Signed dev.47, published from `ec97641`, generation 29; App/Wi-Fi installed | Exact hosted ELF and OTA health 2 passed protected readback; dev.47 owner display/touch confirmation remains pending |
 | Gauge dashboard | Revision 49; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
 | Current setup | One primary ECM transport; zero optional children or dual-adapter selections | Owner chose to re-add the child when a second adapter arrives; combined pages remain available |
@@ -27,7 +27,7 @@ No live vehicle session was performed by the dev.47 rollout.
 | Pairing/connection | Android system passkey, protected owner checks, persisted owner; automatic foreground reads and bounded retries | Repeated Pixel opening/resume; Bluetooth off/on recovery; paired Jeep sessions | Bond-loss, alternate-phone and interruption matrix |
 | Engine readings | Header-attributed replies and independently expiring values | Owner RPM agrees with dash; disappears after adapter removal and returns on reconnect | Adapter/vehicle matrix, rates and soak |
 | TCM readings | Captured `2204FE` temperature and `225503` current gear; combined pages | Owner temperature/gear display and loss/recovery checks on the JSS setup | Independent sensor/scale meaning, gears 2..8, current/target divergence |
-| Faults | Full source/category snapshots, cached protected long reads and independently scoped presentation | Mac captured stored/pending/permanent TCM lists; software fixtures | Live full App/gauge path; TCM faults through one shared primary transport |
+| Faults | Independent controller endpoints across a primary/child transport, full categories, fair polling and global presentation | Mac captured stored/pending/permanent TCM lists; software fixtures | Live full App/gauge path; TCM faults through one shared primary transport |
 | Display settings | Persisted brightness, orientation, Metric/Imperial and page interval; regional first-use units | Protected post-restart reads, owner five-second cycling/cooldown; App Metric save and Imperial restoration | Physical unit rendering, cycling/gesture interaction and daylight readability |
 | Pages/catalog/alerts | Five renderers; one catalog with 53 Mode 01 and two existing JSS readings; any selectable reading can alert, including named gear conditions | Software vectors, editor fixtures and preserved installed dashboard | New decimals/rendering, hidden-page alerts, dwell/stale behavior on real vehicle |
 | Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
@@ -70,9 +70,16 @@ verification from source, an emulator, transfer percentage or serial startup alo
 Firmware board support originated from Janos Kutscherauer's esp32-obd2-meter at
 `e1f4d8ffbb2bfe0fb38369e44d532319770ddc00`. Upstream MIT/font OFL notices remain.
 
-## Proposed shared alerts and diagnostics
+## Shared alerts and diagnostics development candidate
 
-[ADR-015](architecture/alerts-and-diagnostics.md) plans ECU-scoped CEL/MIL/faults,
-shared threshold/diagnostic/external alert lifecycle, notifications, bounded history
-and context, and explicit code clearing. These extensions are not implemented or
-physically qualified by the planning change. The backlog owns their task status.
+Dev.48 implements [ADR-015](architecture/alerts-and-diagnostics.md): threshold/MIL/fault
+producers share severity/lifecycle, autonomous gauge attention and scoped acknowledgment,
+bounded transitions/context, transactional phone history/export and opt-in Android
+notifications through one connection owner. Threshold dwell/hysteresis remains unchanged.
+The [paired-phone provider guide](architecture/phone-alert-providers.md) documents a
+synthetic Expert test and future authorized crowd-alert integrations. No live feed is enabled.
+
+Engine clearing code and readback exist behind a default-off firmware gate. TCM clearing,
+freeze-frame collection and hardware qualification remain open. This candidate is not
+published or installed; the devices remain on dev.47. See [implementation evidence](evidence/shared-alerts-implementation.md)
+for source/offline scope, not inferred physical results. The backlog owns remaining tasks.

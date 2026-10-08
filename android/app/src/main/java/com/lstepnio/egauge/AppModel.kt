@@ -31,6 +31,237 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withTimeout
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
+    private val alertRepository=AlertRepository(application)
+    private val alertNotifications=AlertNotifications(application)
+    private val alertPreferences=application.getSharedPreferences("alert-policy",android.content.Context.MODE_PRIVATE)
+    var phoneAlertsEnabled by mutableStateOf(alertPreferences.getBoolean("enabled",false))
+        private set
+    var alertMonitoring by mutableStateOf(false)
+        private set
+    var alertHistory by mutableStateOf<List<StoredAlert>>(emptyList())
+        private set
+    var alertFrameworkSupported by mutableStateOf<Boolean?>(null)
+        private set
+    var alertHistoryError by mutableStateOf<String?>(null)
+        private set
+    var selectedAlertId by mutableStateOf<String?>(null)
+    var notificationAlert by mutableStateOf<StoredAlert?>(null)
+        private set
+    private var alertScope=""
+    private var nextAlertPoll=0L
+    private var alertFailures=0
+    private var activeAlertCursor: Long?=null
+    private var lastAlertBoot=0L
+    private var lastAlertChecked=0L
+    fun isAlertCurrent(entry: StoredAlert): Boolean = connection.phase==ConnectionPhase.Ready && entry.current && entry.vehicle==profileCollection.activeId && entry.gauge==currentGaugeId && entry.event.revision==activeDocument?.revision && entry.event.boot==lastAlertBoot && android.os.SystemClock.elapsedRealtime()-lastAlertChecked<15000
+    private val captureChecked=mutableSetOf<String>()
+    fun setPhoneAlertsPolicy(value: Boolean, saved: () -> Unit = {}) {
+        viewModelScope.launch {
+            val success=durableWrites.write { alertPreferences.edit().putBoolean("enabled",value).commit() }
+            if(success) { phoneAlertsEnabled=value;saved() }
+            else alertHistoryError="Could not save phone alert settings"
+        }
+    }
+    fun updateAlertMonitoring(value: Boolean) {
+        alertMonitoring=value
+        foregroundConnection.setForeground(connectionForeground||value)
+    }
+    fun acknowledgeAlert(entry: StoredAlert, snooze: Boolean = false) = launchGaugeOperation(OperationKind.READ,"Updating alert attention") { id ->
+        require(isAlertCurrent(entry))
+        GaugeConfigTransferClient(getApplication()).acknowledgeAlert(bleClient.selectedGauge(),entry.event,if(snooze)300000 else 0)
+        nextAlertPoll=0;foregroundConnection.retrySoon()
+        operation=OperationState(id,OperationKind.READ,OperationStage.ACTIVE,"Alert request queued","Checking gauge acknowledgment automatically",terminal=true)
+    }
+    fun clearAlertHistory() {
+        viewModelScope.launch {
+            try {
+                val vehicle=profileCollection.activeId
+                alertHistory=withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.deleteHistory(vehicle);alertRepository.list(vehicle,currentGaugeId) }
+            } catch(cancelled: CancellationException) { throw cancelled }
+            catch(_: Exception) { alertHistoryError="Could not delete alert history" }
+        }
+    }
+    fun pinAlert(entry: StoredAlert, value: Boolean) {
+        viewModelScope.launch { try { withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.pin(entry.id,value) }
+            alertHistory=withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(profileCollection.activeId,currentGaugeId) }
+        } catch(cancelled: CancellationException) { throw cancelled } catch(_: Exception) { alertHistoryError="Could not save this report" } }
+    }
+    fun refreshAlertHistory() {
+        val vehicle=profileCollection.activeId
+        viewModelScope.launch {
+            try { val history=withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(vehicle) }
+                if(profileCollection.activeId==vehicle)alertHistory=history
+            } catch(cancelled: CancellationException) { throw cancelled }
+            catch(_: Exception) { alertHistoryError="Could not load alert history" }
+        }
+    }
+    fun exportAlerts(onReady: (android.net.Uri) -> Unit) {
+        viewModelScope.launch { try {
+            val vehicle=profileCollection.activeId;val history=alertHistory.filter { it.vehicle==vehicle }
+            val uri=withContext(kotlinx.coroutines.Dispatchers.IO) { exportAlertReport(getApplication(),history,alertRepository,vehicle) }
+            onReady(uri)
+        } catch(cancelled: CancellationException) { throw cancelled }
+        catch(_: Exception) { alertHistoryError="Could not create diagnostic report" } }
+    }
+    fun openAlertIntent(intent: android.content.Intent) {
+        val id=intent.getStringExtra("alert_id")?:return
+        val vehicle=intent.getStringExtra("alert_vehicle")?:return
+        val gauge=intent.getStringExtra("alert_gauge")?:return
+        viewModelScope.launch {
+            val records=try { withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(vehicle,gauge) } }
+                catch(cancelled: CancellationException) { throw cancelled }
+                catch(_: Exception) { alertHistoryError="Saved context is unavailable. Previous data has been preserved.";alertHistory.filter { it.vehicle==vehicle && it.gauge==gauge } }
+            records.firstOrNull { it.id==id }?.let { notificationAlert=it;selectedAlertId=id }
+        }
+    }
+    var clearStatus by mutableStateOf<GaugeConfigTransferClient.ClearStatus?>(null)
+        private set
+    var clearConfirmationOpen by mutableStateOf(false)
+    var clearMessage by mutableStateOf<String?>(null)
+        private set
+    private var preparedClearScope: Pair<String,String>?=null
+    private val clearJournal=application.getSharedPreferences("diagnostic-clear",android.content.Context.MODE_PRIVATE)
+    fun sendSyntheticPhoneAlert() = launchGaugeOperation(OperationKind.READ,"Sending phone alert test") { id ->
+        require(BuildConfig.DEBUG && alertFrameworkSupported==true)
+        val device=bleClient.selectedGauge()
+        val gauge=currentGaugeId?:error("Connect your gauge first")
+        val vehicle=profileCollection.activeId
+        val client=GaugeConfigTransferClient(getApplication())
+        val batch=client.readAlertBatch(device,0,0)?:error("Update the gauge first")
+        val notice=PhoneAlertBridge.fixtures.validate(SyntheticPhoneAlertProvider().notices(vehicle,android.os.SystemClock.elapsedRealtime()).single(),vehicle,android.os.SystemClock.elapsedRealtime())
+        val sequenceKey="external:$gauge:${batch.boot}:0"
+        val sequence=alertPreferences.getLong(sequenceKey,0)+1
+        require(sequence<=0x7fffffffL)
+        check(durableWrites.write { alertPreferences.edit().putLong(sequenceKey,sequence).commit() })
+        client.relayExternalAlert(device,0,batch.boot,sequence,notice.severity,notice.ttlMs,notice.title,notice.context,true)
+        nextAlertPoll=0;foregroundConnection.retrySoon()
+        operation=OperationState(id,OperationKind.READ,OperationStage.ACTIVE,"Phone alert test requested","Checking gauge presentation automatically",terminal=true)
+    }
+    fun prepareCodeClear() = launchGaugeOperation(OperationKind.READ,"Preparing diagnostic report") { id ->
+        val gauge=currentGaugeId?:error("Connect your gauge first")
+        val vehicle=profileCollection.activeId
+        val config=activeDocument?.takeIf { it.vehicleProfileId==vehicle }?:error("Confirm this vehicle's setup first")
+        val client=GaugeConfigTransferClient(getApplication())
+        val device=bleClient.selectedGauge()
+        val support=client.readClearStatus(device)
+        require(support.supported) { support.message }
+        val before=client.readDiagnosticEndpoint(device,0)?:error("Controller-scoped diagnostics are required")
+        validateDiagnosticScope(before,"ECM",config.revision)
+        diagnosticsBySource=diagnosticsBySource+("ECM" to before)
+        val operation=(java.security.SecureRandom().nextInt().toLong() and 0x7fffffffL).coerceAtLeast(1)
+        val readiness=client.readReadiness(device,0,config.revision,before.session)
+        val report=org.json.JSONObject().put("vehicle",vehicle).put("operation",operation).put("stage","before clear").put("configurationRevision",config.revision)
+            .put("diagnostics",org.json.JSONObject(diagnosticContext())).put("capturedAt",System.currentTimeMillis())
+            .put("readiness",readiness).put("freezeFrame","Not captured")
+        withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.saveReport("clear:$gauge:$operation",report,System.currentTimeMillis()) }
+        val prepared=client.prepareClear(device,operation,config.revision)
+        require(prepared.phase==2 && prepared.operation==operation && prepared.revision==config.revision) { prepared.message }
+        preparedClearScope=gauge to vehicle;clearStatus=prepared;clearMessage=null;clearConfirmationOpen=true
+        this.operation=OperationState(id,OperationKind.READ,OperationStage.ACTIVE,"Diagnostic report saved",terminal=true)
+    }
+    fun confirmCodeClear() = launchGaugeOperation(OperationKind.DIAGNOSTIC_CLEAR,"Clearing engine fault codes") { id ->
+        val prepared=clearStatus?:error("Prepare a new clear request")
+        val gauge=currentGaugeId?:error("Connect your gauge first")
+        require(prepared.phase==2 && activeDocument?.revision==prepared.revision && preparedClearScope==(gauge to profileCollection.activeId))
+        val journal=org.json.JSONObject().put("gauge",gauge).put("vehicle",profileCollection.activeId)
+            .put("operation",prepared.operation).put("revision",prepared.revision).put("confirmedAt",System.currentTimeMillis()).toString()
+        check(durableWrites.write { clearJournal.edit().putString("pending",journal).commit() }) { "Could not preserve this operation. Nothing was sent." }
+        clearConfirmationOpen=false
+        clearMessage="Checking the clear result"
+        try {
+            val result=GaugeConfigTransferClient(getApplication()).confirmClear(bleClient.selectedGauge(),prepared)
+            clearStatus=result;clearMessage=result.message
+            val after=GaugeConfigTransferClient(getApplication()).readDiagnosticEndpoint(bleClient.selectedGauge(),0)
+            after?.let { validateDiagnosticScope(it,"ECM",prepared.revision);diagnosticsBySource=diagnosticsBySource+("ECM" to it) }
+            val context=diagnosticContext()
+            val readiness=after?.let { GaugeConfigTransferClient(getApplication()).readReadiness(bleClient.selectedGauge(),0,prepared.revision,it.session) }
+            withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.saveReport("clear-result:$gauge:${prepared.operation}",org.json.JSONObject()
+                .put("vehicle",profileCollection.activeId).put("readiness",readiness).put("stage","after clear").put("operation",result.operation).put("diagnostics",org.json.JSONObject(context)).put("phase",result.phase).put("revision",result.revision).put("capturedAt",System.currentTimeMillis()),System.currentTimeMillis()) }
+        } catch(cancelled: CancellationException) {
+            clearMessage="Outcome unknown. Current faults will be checked without sending again.";throw cancelled
+        } catch(_: Exception) { clearMessage="Outcome unknown. Current faults will be checked without sending again." }
+        vehiclePoll.reset();nextAlertPoll=0;foregroundConnection.retrySoon()
+        operation=OperationState(id,OperationKind.DIAGNOSTIC_CLEAR,when(clearStatus?.phase) { in 5..7 -> OperationStage.ACTIVE;9 -> OperationStage.FAILED;else -> OperationStage.OUTCOME_UNKNOWN },clearMessage?:"Clear result checked",terminal=true)
+    }
+    private fun diagnosticContext(): String = org.json.JSONObject().apply {
+        diagnosticsBySource.forEach { (source,data) -> put(source,org.json.JSONObject().put("milOn",data.milOn)
+            .put("milFresh",data.milFresh).put("connected",data.connected).put("responder",data.responder)
+            .put("categories",org.json.JSONArray().apply { data.categories?.forEach { category ->
+                put(org.json.JSONObject().put("name",category.name).put("availability",category.availability.name)
+                    .put("fresh",category.fresh).put("codes",org.json.JSONArray(category.codes)))
+            } })) }
+    }.toString()
+    private suspend fun pollAlerts(client: GaugeConfigTransferClient, device: BluetoothDevice): Long {
+        val gauge=currentGaugeId?:return 20000
+        val vehicle=profileCollection.activeId
+        val config=activeDocument?.takeIf { it.vehicleProfileId==vehicle }?:return 20000
+        val scope="$vehicle:$gauge:${config.revision}"
+        val now=android.os.SystemClock.elapsedRealtime()
+        if(alertScope!=scope) {
+            alertScope=scope;nextAlertPoll=0;activeAlertCursor=null;alertFrameworkSupported=null;captureChecked.clear()
+            alertHistory=withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(vehicle,gauge) }
+        }
+        if(alertFrameworkSupported==false)return 20000
+        if(now<nextAlertPoll)return nextAlertPoll-now
+        try {
+            withTimeout(15000) {
+                val cursor=withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.cursor("$vehicle:$gauge") }
+                val batch=client.readAlertBatch(device,cursor.boot,cursor.sequence)?:run { alertFrameworkSupported=false;return@withTimeout }
+                if(currentGaugeId!=gauge || profileCollection.activeId!=vehicle || activeDocument?.revision!=config.revision)return@withTimeout
+                alertFrameworkSupported=true
+                if(clearStatus==null || clearStatus?.phase in 3..4 || clearJournal.contains("pending")) {
+                    val checked=client.readClearStatus(device)
+                    val pending=clearJournal.getString("pending",null)?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
+                    if(pending!=null && pending.optString("gauge")==gauge && pending.optString("vehicle")==vehicle) {
+                        clearMessage=if(checked.operation==pending.getLong("operation"))checked.message else "The previous clear outcome is unknown. Current faults remain available."
+                        if(checked.operation==pending.getLong("operation") && checked.phase in 5..9) {
+                            durableWrites.write { clearJournal.edit().remove("pending").commit() }
+                        }
+                    }
+                    clearStatus=checked
+                }
+                if(batch.gap || batch.boot!=lastAlertBoot) { alertNotifications.cancelGauge(gauge);activeAlertCursor=0;lastAlertBoot=batch.boot }
+                val live=cursor.boot==batch.boot && cursor.sequence>0 && !batch.gap
+                val diagnostics=diagnosticContext()
+                var storageFailed=false
+                suspend fun store(page: AlertBatch): List<StoredAlert> = try {
+                    withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.ingest(vehicle,gauge,page,config.json,diagnostics,System.currentTimeMillis()) }
+                } catch(failure: android.database.sqlite.SQLiteException) {
+                    storageFailed=true
+                    alertHistoryError=if(failure is android.database.sqlite.SQLiteFullException)"Phone storage is full. Free space to save alert history." else "Alert history could not be saved. Current alerts remain available."
+                    volatileAlertHistory(alertHistory,vehicle,gauge,page.copy(events=page.events.filter { it.revision==config.revision }),System.currentTimeMillis())
+                }
+                val history=store(batch)
+                alertHistory=history
+                if(live && connectionForeground)batch.events.firstOrNull { !it.simulated && !it.unavailable &&
+                    !it.acknowledged && it.severity==AlertSeverity.Critical && it.kind in 1..2 && it.revision==config.revision }?.let { selectedAlertId=it.id(gauge) }
+                if(phoneAlertsEnabled)batch.events.filter { it.revision==config.revision }.forEach {
+                    alertNotifications.show(it,vehicle,gauge,live,connectionForeground)
+                }
+                activeAlertCursor?.let { offset ->
+                    client.readAlertBatch(device,batch.boot,offset,true)?.let { active ->
+                        alertHistory=store(active)
+                        activeAlertCursor=if(active.complete)null else active.next
+                    }
+                }
+                val capture=if(storageFailed)null else alertHistory.firstOrNull { it.event.key<36 && it.event.boot==batch.boot && it.id !in captureChecked &&
+                    it.context.optJSONObject("capture")?.optBoolean("complete")!=true && ((System.currentTimeMillis()-it.recordedAt)>=20000) }
+                if(capture!=null) {
+                    val context=client.readAlertContext(device,capture.event)
+                    withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.saveCapture(capture.id,context) }
+                    if(context.optBoolean("complete")||!context.optBoolean("available"))captureChecked+=capture.id
+                    alertHistory=withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(vehicle,gauge) }
+                }
+                if(currentGaugeId!=gauge || profileCollection.activeId!=vehicle || activeDocument?.revision!=config.revision)return@withTimeout
+                lastAlertChecked=android.os.SystemClock.elapsedRealtime();if(!storageFailed)alertHistoryError=null;alertFailures=0
+            }
+        } catch(cancelled: TimeoutCancellationException) { currentCoroutineContext().ensureActive();alertFailures++;alertHistoryError="Alert history is last checked. Retrying automatically." }
+        catch(cancelled: CancellationException) { throw cancelled }
+        catch(_: Exception) { alertFailures++;alertHistoryError="Alert history is last checked. Reconnecting automatically." }
+        val pause=if(alertFailures==0)2000L else com.lstepnio.egauge.connection.jitteredRetryDelay(com.lstepnio.egauge.connection.reconnectDelayMs(alertFailures))
+        nextAlertPoll=android.os.SystemClock.elapsedRealtime()+pause
+        return pause
+    }
     private val durableWrites = DurableWrites()
     private val setupStore = LocalSetupStore(application)
     private val setupTransactions = LocalSetupTransactions(setupStore::load, setupStore::save, durableWrites)
@@ -100,7 +331,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             childPoll.reset()
         }
         connectionForeground = value
-        foregroundConnection.setForeground(value)
+        foregroundConnection.setForeground(value || alertMonitoring)
         if (!value) {
             automaticUpdateJob?.cancel()
             nextAutomaticUpdateCheckAtElapsedMs = 0L
@@ -198,7 +429,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val client = GaugeConfigTransferClient(app)
                 val device = bleClient.selectedGauge()
                 val settingsPause = pollSettings(client, device)
-                minOf(gaugePoll.pause(android.os.SystemClock.elapsedRealtime()), settingsPause, pollVehicle(client, device))
+                minOf(gaugePoll.pause(android.os.SystemClock.elapsedRealtime()), settingsPause, pollVehicle(client, device), pollAlerts(client, device))
             } else gaugePause
         } catch (error: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()
@@ -283,7 +514,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         status.bound && !status.simulated && profile.adapterFor(source) != null &&
                         vehicleSetupMatches(activeDocument, profile.id, source, profile.adapterFor(source))) {
                         // Read disconnected snapshots too, so old codes cannot remain current.
-                        val snapshot = client.readDiagnostics(device, index).let {
+                        val snapshot = (client.readDiagnosticEndpoint(device, if (source == "TCM") 1 else 0)
+                            ?: client.readDiagnostics(device, index)).let {
                             if (status.phase == 4) it else it.copy(connected = false)
                         }
                         if (profileCollection.active != profile || vehicleSources != requested || currentGaugeId != gaugeId) return@withTimeout
@@ -291,6 +523,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         diagnosticsBySource = diagnosticsBySource + (source to snapshot)
                         diagnosticsCheckedAt = diagnosticsCheckedAt + (source to android.os.SystemClock.elapsedRealtime())
                         if (source == draft.source) diagnosticsRead(snapshot)
+                        if (requested.size == 1 && source == "ECM") {
+                            client.readDiagnosticEndpoint(device, 1)?.let { child ->
+                                if(profileCollection.active!=profile || currentGaugeId!=gaugeId)return@withTimeout
+                                validateDiagnosticScope(child, "TCM", activeDocument?.revision)
+                                diagnosticsBySource = diagnosticsBySource + ("TCM" to child)
+                                diagnosticsCheckedAt = diagnosticsCheckedAt + ("TCM" to android.os.SystemClock.elapsedRealtime())
+                            }
+                        }
                         healthy = status.phase == 4 && snapshot.connected
                     }
                 }
@@ -1523,7 +1763,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 scanning = false
                 val message = error.message ?: "$title did not complete"
                 deviceMessage = message
-                operationFailed(message, outcomeUnknown = kind == OperationKind.CONFIGURATION)
+                operationFailed(message, outcomeUnknown = kind in setOf(OperationKind.CONFIGURATION,OperationKind.DIAGNOSTIC_CLEAR))
             }
         }
     }
@@ -1815,4 +2055,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000),
             presentationState(android.os.SystemClock.elapsedRealtime()))
 
+    init {
+        viewModelScope.launch {
+            snapshotFlow { profileCollection.activeId }.collectLatest {
+                lastAlertChecked=0;alertScope="";clearStatus=null;clearMessage=null;clearConfirmationOpen=false
+                selectedAlertId=null;refreshAlertHistory()
+            }
+        }
+    }
 }

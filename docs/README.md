@@ -50,3 +50,5 @@ Read only the affected contract/runbook before source work; evidence is not requ
 review and measured behavior. Old pending instructions are historical. Use current
 state and backlog to decide today's work, not the latest-looking archive title.
 Screenshots remain labelled as simulated fixtures or physical captures in their records.
+
+Paired-phone provider integration: [typed notices, review and qualification](architecture/phone-alert-providers.md).

@@ -90,3 +90,7 @@ void  ui_next_display_calibration(ui_t *ui);
 
 /* Call at boot with the LVGL lock held for a trace-build bench source. */
 void ui_set_simulated(ui_t *ui);
+
+void ui_set_alert_full(ui_t *ui,uint8_t severity,bool unavailable,const char *label,bool attention);
+
+void ui_set_alert_event(ui_t *ui,uint8_t severity,bool unavailable,const char *label,bool attention,uint16_t key,uint32_t boot,uint32_t episode,float value,float limit,const char *unit);

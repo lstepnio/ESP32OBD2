@@ -1,6 +1,5 @@
 package com.lstepnio.egauge
 
-import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.ui.state.presentationState
@@ -16,7 +15,7 @@ class StoredVehicleDashboardTest {
     @get:Rule val compose = activityTestRule()
     @Test fun childReadingsAndEngineReadingsShareTheActualVehicleEditor() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("allowStoredVehicleRead") == "true")
-        val model = ViewModelProvider(compose.activity)[AppViewModel::class.java]
+        val model = (compose.activity.application as EGaugeApplication).model
         compose.runOnIdle {
             assertTrue(model.editorDraft.source in setOf("ECM", "BOTH"))
             val state = model.presentationState(android.os.SystemClock.elapsedRealtime())

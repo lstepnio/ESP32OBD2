@@ -1,7 +1,6 @@
 package com.lstepnio.egauge
 
 import androidx.compose.ui.test.*
-import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.connection.ConnectionPhase
@@ -20,7 +19,7 @@ class RestartConfirmationJourneyTest {
     @get:Rule val compose = activityTestRule(automaticConnection = allowed)
     @Test fun setupRestartConfirmsInTheSameAppWithoutRefreshOrAnotherWrite() {
         assumeTrue("Requires explicit bench write authorization", allowed)
-        val model = ViewModelProvider(compose.activity)[AppViewModel::class.java]
+        val model = (compose.activity.application as EGaugeApplication).model
         compose.waitUntil(90_000) { model.connection.phase == ConnectionPhase.Ready && model.activeDocument != null && model.runtimeIdentity != null }
         val original = requireNotNull(model.activeDocument)
         assertTrue(isConfirmedSetup(original.revision,original.sha256,model.runtimeIdentity))

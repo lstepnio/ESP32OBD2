@@ -196,69 +196,51 @@ static void test_alert_edges(void)
 static void test_scheduler(void)
 {
     poll_scheduler_t scheduler;
+    uint32_t intervals[] = {30000, 100};
     poll_scheduler_init(&scheduler);
-    uint32_t intervals[] = {1, 1};
-    poll_job_t job = poll_scheduler_next(&scheduler, 0, intervals, 2);
-    assert(job.kind == POLL_JOB_MIL);
-    for (uint32_t now = 1; now <= 10; ++now) {
-        job = poll_scheduler_next(&scheduler, now, intervals, 2);
-        assert(job.kind == POLL_JOB_PID);
-        assert(job.index == (uint8_t)((now - 1) % 2));
+    unsigned counts[4] = {0};
+    uint32_t background_at = 0; bool seen = false;
+    for (uint32_t now = 0; now < 600000; now += 100) {
+        poll_job_t job = poll_scheduler_next(&scheduler, now, intervals, 1);
+        if (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC) {
+            if (seen) assert(now - background_at >= 2000);
+            background_at = now; seen = true;
+            counts[job.kind == POLL_JOB_MIL ? 0 : 1 + job.index]++;
+        }
     }
-    job = poll_scheduler_next(&scheduler, 11, intervals, 2);
-    assert(job.kind == POLL_JOB_DTC && job.index == 0);
-
-    /* A due diagnostic cannot form a catch-up burst after one background job. */
+    for (unsigned i = 0; i < 4; ++i) assert(counts[i] >= 4);
+    /* Even a 30-second request cadence must not starve either readings or faults. */
+    poll_scheduler_init(&scheduler);unsigned normal=0;memset(counts,0,sizeof(counts));
+    for(uint32_t now=0;now<600000;now+=30000) {
+        poll_job_t job=poll_scheduler_next(&scheduler,now,intervals,1);
+        if(job.kind==POLL_JOB_PID)normal++;
+        else if(job.kind!=POLL_JOB_NONE)counts[job.kind==POLL_JOB_MIL?0:job.index+1]++;
+    }
+    assert(normal>=8);for(unsigned i=0;i<4;i++)assert(counts[i]>0);
+    poll_job_t failed={.kind=POLL_JOB_DTC,.index=0,.endpoint=0};
+    poll_scheduler_background_result(&scheduler,failed,false);assert(scheduler.background_failures[1]==1);
+    poll_scheduler_mil_changed(&scheduler,0);assert(!(scheduler.seen_background&14));
+    poll_scheduler_init(&scheduler); poll_scheduler_endpoints(&scheduler, 2);
+    unsigned endpoints[2] = {0};
+    for (uint32_t now = 0; now < 30000; now += 100) {
+        poll_job_t job = poll_scheduler_next(&scheduler, now, intervals, 0);
+        if (job.kind != POLL_JOB_NONE) endpoints[job.endpoint]++;
+    }
+    assert(endpoints[0] >= 4 && endpoints[1] >= 4);
+    assert(poll_scheduler_next(&scheduler, 0, intervals, 33).kind == POLL_JOB_NONE);
     poll_scheduler_init(&scheduler);
-    job = poll_scheduler_next(&scheduler, 1000, intervals, 2);
-    assert(job.kind == POLL_JOB_MIL);
-    job = poll_scheduler_next(&scheduler, 1000, intervals, 2);
-    assert(job.kind == POLL_JOB_PID && job.index == 0);
-    job = poll_scheduler_next(&scheduler, 1000, intervals, 2);
-    assert(job.kind == POLL_JOB_PID && job.index == 1);
-    assert(poll_scheduler_next(&scheduler, 1000, intervals, 2).kind == POLL_JOB_NONE);
-    for (uint32_t now = 1001; now <= 1008; ++now)
-        assert(poll_scheduler_next(&scheduler, now, intervals, 2).kind == POLL_JOB_PID);
-    job = poll_scheduler_next(&scheduler, 1009, intervals, 2);
-    assert(job.kind == POLL_JOB_DTC);
-
-    assert(poll_scheduler_next(&scheduler, 1010, intervals,
-                               POLL_SCHEDULER_MAX_PIDS + 1).kind == POLL_JOB_NONE);
-
-    poll_scheduler_init(&scheduler);
-    scheduler.seen_pids = 1;
-    scheduler.last_pid[0] = UINT32_MAX - 5;
+    scheduler.seen_background = 15;
+    for (unsigned i = 0; i < 4; ++i) scheduler.last_background[i] = UINT32_MAX - 5;
+    scheduler.background_at = UINT32_MAX - 5;
+    scheduler.seen_pids = 1; scheduler.last_pid[0] = UINT32_MAX - 5;
     intervals[0] = 10;
-    scheduler.seen_background = 0x0f;
-    scheduler.last_mil = UINT32_MAX - 5;
-    for (unsigned i = 0; i < 3; ++i) scheduler.last_dtc[i] = UINT32_MAX - 5;
-    job = poll_scheduler_next(&scheduler, 5, intervals, 1);
-    assert(job.kind == POLL_JOB_PID && job.index == 0);
-    /* Missing transmission data cannot consume the healthy engine's cadence. */
-    poll_scheduler_init(&scheduler);
-    scheduler.seen_background = 0x0f;
-    scheduler.last_mil = 0;
-    memset(scheduler.last_dtc, 0, sizeof(scheduler.last_dtc));
+    assert(poll_scheduler_next(&scheduler, 5, intervals, 1).kind == POLL_JOB_PID);
+    poll_scheduler_init(&scheduler); scheduler.seen_background = 15;
     intervals[0] = intervals[1] = 100;
-    job = poll_scheduler_next(&scheduler, 0, intervals, 2);
-    assert(job.kind == POLL_JOB_PID && job.index == 0);
+    assert(poll_scheduler_next(&scheduler, 0, intervals, 2).index == 0);
     poll_scheduler_result(&scheduler, 0, false);
-    job = poll_scheduler_next(&scheduler, 0, intervals, 2);
-    assert(job.kind == POLL_JOB_PID && job.index == 1);
-    poll_scheduler_result(&scheduler, 1, true);
-    for (uint32_t now=100; now<1000; now+=100) {
-        job = poll_scheduler_next(&scheduler, now, intervals, 2);
-        assert(job.kind == POLL_JOB_PID && job.index == 1);
-    }
-    job = poll_scheduler_next(&scheduler, 1000, intervals, 2);
-    assert(job.kind == POLL_JOB_PID && job.index == 0);
-    poll_scheduler_result(&scheduler, 0, true);
-    assert(scheduler.failures[0] == 0);
-    /* A configured adapter with no display definitions still checks faults. */
-    poll_scheduler_init(&scheduler);
-    assert(poll_scheduler_next(&scheduler, 0, intervals, 0).kind == POLL_JOB_MIL);
-    assert(poll_scheduler_next(&scheduler, 0, intervals, 0).kind == POLL_JOB_DTC);
-
+    assert(poll_scheduler_next(&scheduler, 100, intervals, 2).index == 1);
+    assert(scheduler.failures[0] == 1);
 }
 
 static void test_wifi_bulk_policy(void)

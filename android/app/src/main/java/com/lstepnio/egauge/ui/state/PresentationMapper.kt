@@ -224,7 +224,7 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
         (it.revision == null || (activeDocument?.vehicleProfileId == profileCollection.activeId &&
             it.revision == activeDocument?.revision)) }
     val elapsed = diagnosticsObservedAtElapsedMs?.let { now - it } ?: Long.MAX_VALUE
-    val sources = vehicleSources.flatMap { source ->
+    val sources = (vehicleSources + diagnosticsBySource.keys).distinct().flatMap { source ->
         val snapshot = diagnosticsBySource[source] ?: data?.takeIf { it.source == source }
         val age = diagnosticsCheckedAt[source]?.let { now-it } ?: elapsed
         diagnosticSources(snapshot?.takeIf { it.revision == activeDocument?.revision || it.revision == null }, age, source)

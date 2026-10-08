@@ -34,6 +34,7 @@
       "docs/architecture/hardware-and-transports.md",
       "docs/architecture/interaction-recovery.md",
       "docs/architecture/multi-adapter.md",
+      "docs/architecture/phone-alert-providers.md",
       "docs/architecture/system.md",
       "docs/architecture/vehicle-actions.md",
       "docs/architecture/vehicle-connections.md"
@@ -101,7 +102,11 @@
     "diagnostics": [
       "firmware/gauge/main/src/diagnostics_state.c",
       "firmware/gauge/main/src/poll_scheduler.c",
-      "firmware/gauge/main/src/alert_engine.c"
+      "firmware/gauge/main/src/alert_engine.c",
+      "firmware/gauge/main/src/alert_events.c",
+      "firmware/gauge/main/src/alert_runtime.c",
+      "firmware/gauge/main/src/clear_policy.c",
+      "firmware/gauge/main/src/diagnostic_clear.c"
     ],
     "owner-transfers": [
       "firmware/gauge/main/src/ble_companion.c",
@@ -122,7 +127,8 @@
       "android/app/src/main/java/com/lstepnio/egauge/LocalSetupStore.kt",
       "android/app/src/main/java/com/lstepnio/egauge/LocalSetupTransactions.kt",
       "android/app/src/main/java/com/lstepnio/egauge/DurableWrites.kt",
-      "android/app/src/main/java/com/lstepnio/egauge/VehicleConnections.kt"
+      "android/app/src/main/java/com/lstepnio/egauge/VehicleConnections.kt",
+      "android/app/src/main/java/com/lstepnio/egauge/AlertRepository.kt"
     ],
     "android-protocol": [
       "android/app/src/main/java/com/lstepnio/egauge/GaugeConfigTransferClient.kt",

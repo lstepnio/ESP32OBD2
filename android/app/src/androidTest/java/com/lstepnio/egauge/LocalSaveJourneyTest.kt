@@ -1,7 +1,6 @@
 package com.lstepnio.egauge
 
 import android.os.Build
-import androidx.lifecycle.ViewModelProvider
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
@@ -13,7 +12,7 @@ class LocalSaveJourneyTest {
 
     @Test fun asynchronousVehicleAndPageSavesPublishTheCommittedStateAndCursor() {
         assumeTrue(Build.HARDWARE in setOf("ranchu", "goldfish"))
-        val model = ViewModelProvider(compose.activity)[AppViewModel::class.java]
+        val model = (compose.activity.application as EGaugeApplication).model
         val before = model.profileCollection
         compose.runOnUiThread { model.editProfileName("Fixture saved car"); model.createProfile() }
         compose.waitUntil(10_000) { !model.localSaveBusy && model.profileCollection.active.name == "Fixture saved car" }

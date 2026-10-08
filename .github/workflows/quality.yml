@@ -29,6 +29,8 @@ jobs:
             -Ifirmware/gauge/main/inc firmware/gauge/tests/obd_trace_test.c \
             firmware/gauge/main/src/obd_trace_format.c -o /tmp/obd_trace_test
           /tmp/obd_trace_test
+      - name: Shared alerts and clear policy with production parity
+        run: python -m unittest discover -s tools/tests -p 'test_alert*.py'
       - name: Local gauge gesture fixtures with sanitizers
         run: |
           cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \

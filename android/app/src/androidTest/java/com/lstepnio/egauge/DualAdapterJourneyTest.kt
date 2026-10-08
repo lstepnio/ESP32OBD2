@@ -2,7 +2,6 @@ package com.lstepnio.egauge
 
 import androidx.compose.ui.test.junit4.*
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.connection.ConnectionPhase
@@ -23,7 +22,7 @@ class DualAdapterJourneyTest {
     @get:Rule val compose = activityTestRule(automaticConnection = allowed)
     @Test fun independentSourcesResumeAndRecover() {
         assumeTrue("Requires an explicitly prepared dual-adapter bench", allowed)
-        val model = ViewModelProvider(compose.activity)[AppViewModel::class.java]
+        val model = (compose.activity.application as EGaugeApplication).model
         compose.waitUntil(90_000) { model.connection.phase == ConnectionPhase.Ready }
         assertTrue("Enable both adapters for this gauge before running", model.bothAdapters)
         assertEquals(1, model.capabilities?.dualAdapterVersion)

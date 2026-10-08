@@ -45,6 +45,7 @@
 #include "obd.h"
 #include "display_units.h"
 #include "ui.h"
+#include "alert_runtime.h"
 #include "util.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -66,6 +67,11 @@ typedef struct {
 
 typedef struct {
     uint8_t severity;
+    bool attention;
+    uint16_t key;
+    uint32_t boot,episode;
+    float value,limit;
+    char unit[12];
     bool unavailable;
     char label[32];
 } ui_alert_t;
@@ -143,6 +149,8 @@ struct _ui_t
         lv_obj_t *unit_lbl;
         lv_obj_t *pairing_lbl;
         lv_obj_t *alert_lbl;
+        lv_obj_t *alert_overlay;
+        lv_obj_t *alert_overlay_label;
         lv_obj_t *diagnostics_lbl;
         lv_obj_t *arc;
         lv_obj_t *bar;
@@ -614,6 +622,18 @@ static void render_finished(lv_event_t *event)
 }
 #endif
 
+static void acknowledge_alert(lv_event_t *event)
+{
+    if(lv_event_get_code(event)!=LV_EVENT_CLICKED)return;
+    lv_event_stop_bubbling(event);
+    ui_t *ui=lv_event_get_user_data(event);
+    if(!ui || !ui->rendered_alert.episode)return;
+    ui_alert_t chosen=ui->rendered_alert;
+    uint8_t command[16]={0x3d,(uint8_t)chosen.key};
+    memcpy(command+4,&chosen.episode,4);memcpy(command+8,&chosen.boot,4);
+    alert_runtime_command(command,sizeof(command));
+}
+
 static void ui_task(lv_timer_t *timer)
 {
     ESP_NULL_CHECK(timer, TAG, "timer is NULL");
@@ -689,8 +709,8 @@ static void ui_task(lv_timer_t *timer)
 
     ui_alert_t alert;
     if (xQueueReceive(ui->rtos.alert_que, &alert, 0) == pdTRUE &&
-        (!ui->alert_rendered || alert.severity != ui->rendered_alert.severity ||
-         alert.unavailable != ui->rendered_alert.unavailable ||
+        (!ui->alert_rendered || alert.value!=ui->rendered_alert.value || alert.episode!=ui->rendered_alert.episode || alert.boot!=ui->rendered_alert.boot || alert.severity != ui->rendered_alert.severity ||
+         alert.attention != ui->rendered_alert.attention || alert.unavailable != ui->rendered_alert.unavailable ||
          strcmp(alert.label, ui->rendered_alert.label) != 0)) {
         ui->rendered_alert = alert;
         ui->alert_rendered = true;
@@ -706,14 +726,24 @@ static void ui_task(lv_timer_t *timer)
         }
         else {
             lv_obj_set_style_text_color(ui->widgets.alert_lbl,
-                alert.severity == 2 ? lv_color_hex(color_critical) : lv_color_hex(color_warning),
+                alert.severity == 2 ? lv_color_hex(color_critical) : alert.severity == 1 ? lv_color_hex(color_warning) : lv_color_hex(color_accent),
                 LV_PART_MAIN);
             lv_label_set_text_fmt(ui->widgets.alert_lbl, "%s\n%s%s",
-                alert.severity == 2 ? "CRITICAL" : "WARNING", alert.label,
+                alert.severity == 2 ? "CRITICAL" : alert.severity == 1 ? "WARNING" : "NOTICE", alert.label,
                 alert.unavailable ? " LOST" : "");
             lv_obj_add_flag(ui->widgets.info_lbl, LV_OBJ_FLAG_HIDDEN);
             lv_obj_remove_flag(ui->widgets.alert_lbl, LV_OBJ_FLAG_HIDDEN);
         }
+    }
+
+    bool overlay=ui->rendered_alert.attention&&!ui->pairing_visible&&!ui->calibration_mode;
+    show(ui->widgets.alert_overlay,overlay);
+    if(overlay) {
+        char value[24],limit[24];
+        display_units_format(value,sizeof(value),ui->rendered_alert.value,ui->rendered_alert.unit,ui->imperial_units);
+        display_units_format(limit,sizeof(limit),ui->rendered_alert.limit,ui->rendered_alert.unit,ui->imperial_units);
+        lv_label_set_text_fmt(ui->widgets.alert_overlay_label,"CRITICAL\n%s\n%s %s\nLimit %s %s\nTap to acknowledge",
+            ui->rendered_alert.label,value,display_units_label(ui->rendered_alert.unit,ui->imperial_units),limit,display_units_label(ui->rendered_alert.unit,ui->imperial_units));
     }
 
     ui_diagnostics_t diagnostics;
@@ -879,6 +909,22 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_add_flag(alert_lbl, LV_OBJ_FLAG_HIDDEN);
     ui->widgets.alert_lbl = alert_lbl;
 
+    lv_obj_t *overlay=lv_obj_create(gauge_content);
+    lv_obj_set_size(overlay,176,144);lv_obj_align(overlay,LV_ALIGN_CENTER,0,0);
+    lv_obj_set_style_bg_color(overlay,lv_color_hex(color_background),0);
+    lv_obj_set_style_border_color(overlay,lv_color_hex(color_critical),0);
+    lv_obj_set_style_border_width(overlay,3,0);
+    lv_obj_clear_flag(overlay,LV_OBJ_FLAG_SCROLLABLE|LV_OBJ_FLAG_EVENT_BUBBLE|LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_add_flag(overlay,LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(overlay,acknowledge_alert,LV_EVENT_CLICKED,ui);
+    lv_obj_t *overlay_label=lv_label_create(overlay);
+    lv_obj_set_width(overlay_label,152);lv_obj_center(overlay_label);
+    lv_obj_set_style_text_font(overlay_label,font_subtitle,0);
+    lv_obj_set_style_text_align(overlay_label,LV_TEXT_ALIGN_CENTER,0);
+    lv_obj_set_style_text_color(overlay_label,lv_color_hex(color_critical),0);
+    lv_obj_add_flag(overlay,LV_OBJ_FLAG_HIDDEN);
+    ui->widgets.alert_overlay=overlay;ui->widgets.alert_overlay_label=overlay_label;
+
     lv_obj_t *diagnostics_lbl = lv_label_create(gauge_content);
     lv_obj_set_size(diagnostics_lbl, 132, 24);
     lv_obj_align(diagnostics_lbl, LV_ALIGN_BOTTOM_MID, 0, -22);
@@ -1035,10 +1081,18 @@ void ui_set_pairing_identifier(ui_t *ui, const char *identifier)
     xQueueOverwrite(ui->rtos.pairing_id_que, value);
 }
 
-void ui_set_alert(ui_t *ui, uint8_t severity, bool unavailable, const char *label)
+void ui_set_alert(ui_t *ui,uint8_t severity,bool unavailable,const char *label) {
+    ui_set_alert_full(ui,severity,unavailable,label,false);
+}
+void ui_set_alert_full(ui_t *ui, uint8_t severity, bool unavailable, const char *label, bool attention)
+{
+    ui_set_alert_event(ui,severity,unavailable,label,attention,0,0,0,0,0,"");
+}
+void ui_set_alert_event(ui_t *ui,uint8_t severity,bool unavailable,const char *label,bool attention,uint16_t key,uint32_t boot,uint32_t episode,float value,float limit,const char *unit)
 {
     if (!ui || !ui->rtos.alert_que) return;
-    ui_alert_t alert = {.severity = severity, .unavailable = unavailable};
+    ui_alert_t alert = {.severity = severity, .attention = attention, .unavailable = unavailable,.key=key,.boot=boot,.episode=episode,.value=value,.limit=limit};
+    if(unit)snprintf(alert.unit,sizeof(alert.unit),"%s",unit);
     if (label) snprintf(alert.label, sizeof(alert.label), "%s", label);
     xQueueOverwrite(ui->rtos.alert_que, &alert);
 }

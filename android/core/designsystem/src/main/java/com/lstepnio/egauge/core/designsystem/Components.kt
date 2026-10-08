@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun toneColor(tone: StatusTone): Color = when (tone) {
     StatusTone.Error, StatusTone.Critical -> LocalSemanticColors.current.critical
-    StatusTone.Stale, StatusTone.Offline -> LocalSemanticColors.current.warning
+    StatusTone.Stale, StatusTone.Offline, StatusTone.Warning -> LocalSemanticColors.current.warning
     StatusTone.Success -> LocalSemanticColors.current.success
     else -> MaterialTheme.colorScheme.primary
 }
@@ -50,7 +50,7 @@ fun StatusCard(state: StatusUi, modifier: Modifier = Modifier) {
         Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             EGaugeIcon(when (state.tone) {
                 StatusTone.Success -> GaugeIcon.Check
-                StatusTone.Error, StatusTone.Critical, StatusTone.Stale -> GaugeIcon.Warning
+                StatusTone.Error, StatusTone.Critical, StatusTone.Warning, StatusTone.Stale -> GaugeIcon.Warning
                 StatusTone.Loading -> GaugeIcon.Refresh
                 StatusTone.Offline -> GaugeIcon.Bluetooth
                 else -> GaugeIcon.Info

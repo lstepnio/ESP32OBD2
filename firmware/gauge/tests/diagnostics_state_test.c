@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include "diagnostics_state.h"
 int test_lock_busy;
 int test_critical_depth;
@@ -51,5 +52,17 @@ int main(int argc, char **argv) {
  diagnostics_state_connected_for(1);
  assert(diagnostics_state_full_status_for(1,1000,packet)==248 && packet[8]==2 && packet[34]==0);
  assert(diagnostics_state_full_status_for(0,1000,packet)==248 && packet[8]==1 && packet[34]==4);
+ /* One physical link can carry independent engine and transmission endpoints. */
+ diagnostics_endpoint_configure(0,0,32,false);diagnostics_endpoint_configure(1,0,32,false);
+ diagnostics_state_connected_for(2);diagnostics_state_connected_for(3);
+ uint8_t readiness[]={0x82,0x07,0xaa,0x55};diagnostics_state_mil_payload(2,readiness,1000);
+ diagnostics_state_codes_for(3,3,codes,4,1000);
+ assert(diagnostics_endpoint_status(0,1000,packet)==248 && packet[2]==7 && packet[1]==0);
+ assert(diagnostics_endpoint_status(1,1000,packet)==248 && packet[2]==4 && packet[34]==2 && packet[1]==1);
+ diagnostics_state_failed_for(3,1,DIAGNOSTICS_UNAVAILABLE);
+ assert(diagnostics_endpoint_status(0,1001,packet)==248 && packet[2]==7);
+ uint8_t ready[24];assert(diagnostics_endpoint_readiness(0,1001,ready)==24 && ready[2]==7 && !memcmp(ready+20,readiness,4));
+ diagnostics_state_disconnected_for(3);
+ diagnostics_snapshot_t vehicle;diagnostics_vehicle_snapshot(1002,&vehicle);assert(vehicle.valid && vehicle.mil_on);
  puts("Diagnostics source, full lists, expiry, reconnect and simulation passed");
 }

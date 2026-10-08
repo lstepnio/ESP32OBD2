@@ -25,6 +25,7 @@ data class ExpertActions(
     val chooseAdapter: (AdapterBinding?) -> Unit = {},
     val attachLegacy: (String) -> Unit = {},
     val useBoth: (Boolean) -> Unit = {},
+    val phoneAlertTest: () -> Unit = {},
 )
 
 @Composable
@@ -34,6 +35,7 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions) {
         ScreenTitle("Expert")
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionTitle("Gauge checks")
+            if(BuildConfig.DEBUG)SettingsRow("Phone alert test","Simulated road notice · expires after 30 seconds",state.canRead,actions.phoneAlertTest)
             PrimaryAction("Refresh gauge data", actions.refreshSettings, enabled = state.canRead)
             SettingsRow("Check vehicle faults", enabled = state.canRead, onClick = actions.readDiagnostics)
             SettingsRow("Read hardware capacity", enabled = state.canReadHardware, onClick = actions.readHardware)

@@ -570,6 +570,8 @@ CONFIG_EGAUGE_WIFI_BULK_ENABLED=y
 CONFIG_EGAUGE_ECM_ADAPTER_MAC=""
 # end of eGauge configuration
 
+# CONFIG_EGAUGE_DTC_CLEAR_ENABLED is not set
+
 #
 # Compiler options
 #

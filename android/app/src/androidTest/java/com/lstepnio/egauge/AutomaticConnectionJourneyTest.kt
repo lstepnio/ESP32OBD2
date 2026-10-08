@@ -5,7 +5,6 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.connection.ConnectionPhase
@@ -26,7 +25,7 @@ class AutomaticConnectionJourneyTest {
     @Test fun openingResumingAndBluetoothRecoveryNeedNoConnectTap() {
         assumeTrue("Requires the paired bench gauge", allowed)
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val model = ViewModelProvider(compose.activity)[AppViewModel::class.java]
+        val model = (compose.activity.application as EGaugeApplication).model
         val output = File(instrumentation.targetContext.getExternalFilesDir(null), "automatic-connection").apply { mkdirs() }
         val started = android.os.SystemClock.elapsedRealtime()
         val sharedStatus = SemanticsMatcher("Universal connection status action") {

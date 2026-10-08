@@ -8,9 +8,12 @@ typedef struct {
     uint32_t pending_since;
     uint32_t last_sample;
     bool sampled;
+    double value;
 } alert_state_t;
 
 static const config_runtime_t *rules;
+static alert_transition_sink_t transition_sink;
+void alert_engine_set_sink(alert_transition_sink_t sink) { transition_sink = sink; }
 static alert_state_t states[EGAUGE_RUNTIME_ALERTS];
 
 static bool crosses(const runtime_alert_t *rule, double value, double limit)
@@ -43,6 +46,7 @@ void alert_engine_sample(uint8_t pid_index, double value, uint32_t now_ms)
             state->pending = 0;
             state->pending_since = 0;
         }
+        state->value = value;
         state->sampled = true;
         state->last_sample = now_ms;
         uint8_t target = 0;
@@ -88,6 +92,9 @@ alert_summary_t alert_engine_tick(uint32_t now_ms)
         bool stale = !state->sampled ||
             now_ms - state->last_sample > rules->pids[rule->pid_index].stale_ms;
         if (stale) state->pending = 0;
+        if (transition_sink) transition_sink(i, state->severity == 2 ? 4 : state->severity == 1 ? 3 : 0,
+            stale, rules->pids[rule->pid_index].name, rules->pids[rule->pid_index].unit,
+            (float)state->value, (float)(state->severity == 2 ? rule->critical : rule->warning), state->last_sample, now_ms);
         if (state->severity > summary.severity ||
             (state->severity != 0 && state->severity == summary.severity &&
              rule->priority > chosen_priority)) {

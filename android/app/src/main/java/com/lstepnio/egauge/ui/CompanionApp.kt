@@ -37,7 +37,7 @@ private enum class Route(val title: String, val icon: GaugeIcon) {
 @Composable
 fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: () -> Unit,
     onSelectUpdate: () -> Unit, onBluetoothSettings: () -> Unit,
-    fold: FoldingFeature? = null) {
+    fold: FoldingFeature? = null, onPhoneAlerts: (Boolean) -> Unit = {}, onExportAlerts: () -> Unit = {}) {
     val state by model.uiState.collectAsStateWithLifecycle()
     EGaugeTheme(dynamicColor = state.settings.dynamicColor) {
         var route by rememberSaveable { mutableStateOf(Route.Gauge) }
@@ -116,6 +116,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                 StatusCard(notice)
                             }
                         }
+                        GlobalAlertBanner(model)
                         val op = state.operation
                         // Discovery and reconnecting are routine background work. The compact gauge pill
                         // reports them without interrupting the current screen. Transfers remain visible
@@ -159,19 +160,20 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                         model::checkGaugeForReview, { model.sendNumericConfiguration(); route = Route.Gauge }, { route = Route.Setup })) }
                                 Route.Car -> CarScreen(state.car, { route = Route.Setup },
                                     model::selectProfile, { name -> model.editProfileName(name); model.createProfile() },
-                                    model::findVehicleAdapters, model::choosePrimaryAdapter, model::sendNumericConfiguration, model::savePageAction, model::deleteVehicle)
+                                    model::findVehicleAdapters, model::choosePrimaryAdapter, model::sendNumericConfiguration, model::savePageAction, model::deleteVehicle, alerts = { AlertHistoryPanel(model,onExportAlerts) })
                                 Route.Settings -> SettingsScreen(state.settings, model::setAdvancedTools, model::setDynamicColor,
                                     model::renameGauge, model::rotateGauge, model::saveDisplaySettings, { route = Route.Updates },
                                     { route = Route.Setup }, onBluetoothSettings, model::saveMeasurementSystem,
                                     model::savePageCycleSeconds, model::switchRememberedGauge,
-                                    { model.discoverAdditionalGauge(); route = Route.Setup })
+                                    { model.discoverAdditionalGauge(); route = Route.Setup },
+                                    model.phoneAlertsEnabled, model.alertMonitoring, onPhoneAlerts)
                                 Route.Updates -> UpdatesScreen(state.updates, state.operation, false,
                                     ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate)
                                 Route.Expert -> ExpertScreen(state.expert, ExpertActions(
                                     model::checkGaugeForReview, model::readGaugeDiagnostics,
                                     model::readHardwareCapacity, model::readRunningFirmware, model::adoptGaugeDraft, model::addTransmissionChild,
                                     model::selectVehicleSource, model::removeTransmissionChild,
-                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::attachLegacyTransmission, model::setBothAdapters))
+                                    model::findVehicleAdapters, model::chooseVehicleAdapter, model::attachLegacyTransmission, model::setBothAdapters, model::sendSyntheticPhoneAlert))
                             }
                         }
                     }
@@ -179,6 +181,8 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
             }
         }
         }
+        AlertContextSheet(model)
+        ClearCodeConfirmation(model)
         if (connectionsOpen) ModalBottomSheet(onDismissRequest = { connectionsOpen = false }) {
             Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -189,7 +193,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                     Text(link.title, style = MaterialTheme.typography.labelLarge)
                     StatusCard(link.status)
                 }
-                Text("Checks continue while the app is open.", style = MaterialTheme.typography.bodyMedium,
+                Text(if(model.alertMonitoring)"Phone monitoring is enabled." else "Checks continue while the app is open.", style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (state.connection.phase in setOf(ConnectionPhase.PermissionRequired, ConnectionPhase.BluetoothOff))
                     PrimaryAction("Connect gauge", { connectionsOpen = false; onFindGauge() })

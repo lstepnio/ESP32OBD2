@@ -16,7 +16,7 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
               onSelectProfile: (String) -> Unit, onCreateProfile: (String) -> Unit,
               onFindAdapters: () -> Unit = {}, onChooseAdapter: (com.lstepnio.egauge.AdapterBinding?) -> Unit = {},
               onSendAdapter: () -> Unit = {},
-              onSaveAction: (com.lstepnio.egauge.PageAction?) -> Unit = {}, onDeleteProfile: (String) -> Unit = {}) {
+              onSaveAction: (com.lstepnio.egauge.PageAction?) -> Unit = {}, onDeleteProfile: (String) -> Unit = {}, alerts: @Composable () -> Unit = {}) {
     var profilesOpen by rememberSaveable { mutableStateOf(false) }
     var adapterOpen by rememberSaveable { mutableStateOf(false) }
     var actionsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
@@ -24,6 +24,7 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
         ScreenTitle("Car")
         ResponsivePanels(first = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                alerts()
                 Panel {
                     SectionTitle("Vehicle faults")
                     val sources = state.faultSources.ifEmpty {
@@ -35,16 +36,21 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
                         if (sources.size > 1) SectionTitle(source.title)
                         Text(source.status.title, style = MaterialTheme.typography.titleMedium,
                             color = if (source.status.tone == StatusTone.Critical) LocalSemanticColors.current.critical
-                                else MaterialTheme.colorScheme.onSurface)
+                                else if(source.status.tone==StatusTone.Warning)LocalSemanticColors.current.warning else MaterialTheme.colorScheme.onSurface)
                         if (source.status.detail.isNotBlank()) Text(source.status.detail,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        source.categories.flatMap { it.faults }.forEach { fault ->
+                        source.categories.forEach { category ->
+                            Text(category.name, style = MaterialTheme.typography.labelLarge)
+                            Text(category.status, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            category.faults.forEach { fault ->
                             HorizontalDivider()
                             Text(fault.code, style = MaterialTheme.typography.headlineSmall)
                             Text(fault.description, style = MaterialTheme.typography.bodyLarge)
                             Text(fault.category, style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         }
                     }
                     if (state.incomplete) Text("Partial code list. More codes may be present.",

@@ -372,6 +372,12 @@ int ble_obd_rxtx_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid, uint32_t ec
 int ble_obd_rxtx_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid,
                           uint32_t ecu, uint32_t timeout_ms, elm_result_t *status)
 {
+    return ble_obd_read_pid(obd, mode, pid, ecu, timeout_ms, status, NULL);
+}
+
+int ble_obd_read_pid(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid,
+                    uint32_t ecu, uint32_t timeout_ms, elm_result_t *status, elm_payload_t *out)
+{
     if (status) *status = ELM_ADAPTER_ERROR;
     if (!obd || !timeout_ms || (mode != 1 && mode != 0x22) ||
         (mode == 1 && pid > 255) || (mode == 0x22 && ecu != 0x7e9)) return -1;
@@ -420,7 +426,8 @@ int ble_obd_rxtx_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid,
     obd_trace_emit(obd->source_id, obd->active_generation, "decoded", payload.bytes, payload.length, decoded);
     if (decoded == ELM_OK && !atomic_load(&obd->rx_overflow) &&
         atomic_load(&obd->generation) == obd->active_generation) {
-        if (obd->response_cb && (mode == 0x22 || pid % 32 != 0)) obd->response_cb(pid, payload.bytes, payload.length, obd->active_generation, obd->usr_ctx);
+        if (out) *out = payload;
+        if (!out && obd->response_cb && (mode == 0x22 || pid % 32 != 0)) obd->response_cb(pid, payload.bytes, payload.length, obd->active_generation, obd->usr_ctx);
         result = 0;
     } else {
         ESP_LOGW(TAG, "Rejected PID %02X response (status=%d)", pid, decoded);
@@ -453,8 +460,8 @@ int ble_obd_read_service_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t e
 {
     if (status) *status = ELM_ADAPTER_ERROR;
     if (!obd || !data || !length || *length == 0 || !timeout_ms ||
-        ecu != obd->discovery_ecu ||
-        (mode != 3 && mode != 7 && mode != 10)) return -1;
+        (ecu != 0x7e8 && ecu != 0x7e9) ||
+        (mode != 3 && mode != 4 && mode != 7 && mode != 10)) return -1;
     TickType_t budget = pdMS_TO_TICKS(timeout_ms);
     if (!budget) budget = 1;
     TickType_t start = xTaskGetTickCount();
@@ -477,7 +484,7 @@ int ble_obd_read_service_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t e
         goto done;
     }
     if (!drain_rx(obd)) goto done;
-    if (!select_request_header_locked(obd, ecu == 0x7e9 ? 0x7e1 : 0x7df, start, budget)) goto done;
+    if (!select_request_header_locked(obd, ecu == 0x7e9 ? 0x7e1 : mode == 4 ? 0x7e0 : 0x7df, start, budget)) goto done;
     if (!obd_wait_remaining(start, xTaskGetTickCount(), budget)) goto done;
     elm_response_reset(&obd->response);
     char command[4];
@@ -490,7 +497,10 @@ int ble_obd_read_service_status_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint32_t e
     }
     obd->consecutive_timeouts = 0;
     elm_payload_t payload;
-    elm_result_t decoded = elm_response_decode_dtcs_for_ecu(&obd->response, mode, ecu, &payload);
+    elm_result_t decoded = mode == 4
+        ? elm_response_decode_for_ecu(&obd->response,4,0,ecu,&payload)
+        : elm_response_decode_dtcs_for_ecu(&obd->response, mode, ecu, &payload);
+    if(mode==4 && payload.length!=0)decoded=ELM_MALFORMED;
     if (status) *status = decoded;
     obd_trace_emit(obd->source_id, obd->active_generation, "decoded", payload.bytes, payload.length, decoded);
     if (decoded == ELM_OK && payload.length <= *length &&

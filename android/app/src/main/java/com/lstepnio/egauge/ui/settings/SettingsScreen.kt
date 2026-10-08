@@ -22,7 +22,7 @@ import com.lstepnio.egauge.ui.state.SettingsUiState
 fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDynamic: (Boolean) -> Unit,
     onRename: (String) -> Unit, onRotate: (Int) -> Unit, onSaveDisplay: (Int, Int) -> Unit, onUpdates: () -> Unit,
     onSetup: () -> Unit, onBluetoothSettings: () -> Unit, onSaveUnits: (MeasurementSystem) -> Unit = {},
-    onSaveCycle: (Int) -> Unit = {}, onSelectGauge: (String) -> Unit = {}, onAddGauge: () -> Unit = {}) {
+    onSaveCycle: (Int) -> Unit = {}, onSelectGauge: (String) -> Unit = {}, onAddGauge: () -> Unit = {}, phoneAlerts: Boolean = false, monitoring: Boolean = false, onPhoneAlerts: (Boolean) -> Unit = {}) {
     var gaugesOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var nameOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var rotationOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
@@ -65,6 +65,9 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                SectionTitle("Alerts")
+                PreferenceToggle("Phone alerts",phoneAlerts,onPhoneAlerts)
+                Text(if(monitoring)"Monitoring your connected gauge" else "Gauge alerts work independently. Phone monitoring is off.",style=MaterialTheme.typography.bodySmall)
                 SectionTitle("Appearance and tools")
                 PreferenceToggle("Use phone colours", state.dynamicColor, onDynamic)
                 PreferenceToggle("Show advanced tools", state.advanced, onAdvanced)

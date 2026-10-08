@@ -44,6 +44,8 @@
 #include "config_transfer.h"
 #include "config_runtime.h"
 #include "alert_engine.h"
+#include "alert_runtime.h"
+#include "diagnostic_clear.h"
 #include "ota_transfer.h"
 #include "wifi_bulk.h"
 #include "esp_ota_ops.h"
@@ -204,6 +206,8 @@ static QueueHandle_t g_alert_sample_queue;
 static atomic_uint g_app_tick_count;
 static atomic_uint g_alert_sample_drops;
 static atomic_uint g_alert_lost_pids;
+static uint32_t engine_rpm_at,speed_at;
+static bool engine_running,vehicle_moving;
 
 /* NaN is an internal unavailable marker, never a decoded numeric sample.
  * The application task owns alert state. Queue loss also breaks pending dwell. */
@@ -293,15 +297,8 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
         return;
     }
 
-    if (pid == 0x01) {
-        if (len >= 4) {
-            diagnostics_state_mil_for(source, (data[0] & 0x80) != 0, data[0] & 0x7f,
-                                  pdTICKS_TO_MS(xTaskGetTickCount()));
-        }
-        /* PID 01 is reserved for the diagnostics monitor and cannot be a
-         * runtime-configured gauge definition. */
-        return;
-    }
+    /* Diagnostic PID replies are consumed synchronously with endpoint identity. */
+    if (pid == 0x01) return;
 
     const obd_pid_cfg_t *definition = NULL;
     for (unsigned i = 0; i < poll_count(); ++i)
@@ -348,22 +345,54 @@ static void app_tick_task(void *arg)
             if (!g_runtime || event.pid_index >= g_runtime->pid_count) continue;
             unsigned source = g_runtime ? g_runtime->pids[event.pid_index].source_index : 0;
             if (adapter_status_ready_for(source) && event.generation == adapter_status_generation(source))
+            {
+                if((!g_runtime || g_runtime->pids[event.pid_index].responder!=0x7e9) && poll_cfg(event.pid_index)->pid==0x0c && isfinite(event.value)) {
+                    engine_rpm_at=event.observed_at_ms;engine_running=event.value>0;
+                }
+                if((!g_runtime || g_runtime->pids[event.pid_index].responder!=0x7e9) && poll_cfg(event.pid_index)->pid==0x0d && isfinite(event.value)) {
+                    speed_at=event.observed_at_ms;vehicle_moving=event.value>0;
+                }
+                alert_runtime_sample(event.pid_index,event.value,event.observed_at_ms);
                 alert_engine_sample(event.pid_index, event.value, event.observed_at_ms);
+            }
         }
         unsigned lost = atomic_exchange(&g_alert_lost_pids,0);
         for (unsigned i=0; i<EGAUGE_RUNTIME_PIDS; ++i)
-            if (lost & (UINT32_C(1)<<i)) alert_engine_invalidate_pid(i);
+            if (lost & (UINT32_C(1)<<i)) { alert_engine_invalidate_pid(i);alert_runtime_sample(i,NAN,now_ms); }
         for (unsigned source=0; source<runtime_source_count(); ++source)
-            if (!adapter_status_ready_for(source)) alert_engine_invalidate_source(source);
+            if (!adapter_status_ready_for(source)) {
+                alert_engine_invalidate_source(source);
+                if(g_runtime)for(unsigned i=0;i<g_runtime->pid_count;i++)
+                    if(g_runtime->pids[i].source_index==source)alert_runtime_sample(i,NAN,now_ms);
+            }
         alert_summary_t alert = alert_engine_tick(now_ms);
-        ui_set_alert(ui, alert.severity, alert.unavailable, alert.label);
-        diagnostics_snapshot_t diagnostics;
-        unsigned display_source = 0;
-        if (g_runtime) {
-            const runtime_page_t *page = &g_runtime->pages[atomic_load(&g_selected_page)];
-            display_source = g_runtime->pids[page->pid_indices[0]].source_index;
+        (void)alert;
+        for (unsigned endpoint=0; endpoint<2; ++endpoint) {
+            uint8_t packet[248];
+            if (!diagnostics_endpoint_status(endpoint,now_ms,packet)) continue;
+            const char *name=endpoint?"Transmission warning":"Check engine";
+            bool fresh=(packet[2]&1)!=0;
+            alert_runtime_observe(32+endpoint,fresh&&(packet[2]&2)?3:0,!fresh,
+                name,"codes",packet[22],0,now_ms,now_ms);
+            unsigned count=0; bool complete=true; uint8_t severity=0;
+            for(unsigned i=0;i<3;i++) {
+                const uint8_t *category=packet+32+i*72;
+                if(category[0]==3)continue;
+                if(!(category[1]&2)){complete=false;continue;}
+                count+=category[2];
+                if(category[2])severity=i==2?(severity?severity:1):2;
+            }
+            alert_runtime_observe(34+endpoint,severity,!complete && !severity,
+                endpoint?"Transmission faults":"Engine faults","codes",count,0,now_ms,now_ms);
         }
-        diagnostics_state_snapshot_for(display_source, now_ms, &diagnostics);
+        alert_runtime_tick(now_ms);
+        diagnostic_clear_tick(now_ms,now_ms-engine_rpm_at<=2000 && engine_running,now_ms-speed_at<=2000 && vehicle_moving);
+        alert_event_t chosen={0}; bool attention=false;
+        bool active=alert_runtime_summary(now_ms,&chosen,&attention);
+        ui_set_alert_event(ui,active?(chosen.severity==4?2:chosen.severity>=3?1:3):0,
+            chosen.unavailable,chosen.label,active&&chosen.severity==4&&attention,chosen.key,chosen.boot,chosen.episode,chosen.value,chosen.limit,chosen.unit);
+        diagnostics_snapshot_t diagnostics;
+        diagnostics_vehicle_snapshot(now_ms, &diagnostics);
         ui_set_diagnostics(ui, diagnostics.valid, diagnostics.mil_on, diagnostics.transmission,
                            diagnostics.reported_count, diagnostics.first_code);
         worker_health_progress(WORKER_APP, now_ms);
@@ -414,7 +443,12 @@ static void obd_task(void *arg)
     const uint32_t timeout_ms = 300;
     const uint8_t dtc_modes[3] = {3, 7, 10};
     poll_scheduler_t scheduler;
+    uint8_t endpoints[2], endpoint_count = 0;
+    for (unsigned e = 0; e < 2; ++e)
+        if (diagnostics_endpoint_enabled(e) && diagnostics_endpoint_transport(e) == source)
+            endpoints[endpoint_count++] = e;
     poll_scheduler_init(&scheduler);
+    poll_scheduler_endpoints(&scheduler, endpoint_count);
 
     while (true)
     {
@@ -423,12 +457,14 @@ static void obd_task(void *arg)
         if (transfer_gate_current() == 2 || ble_mgr_is_paused()) {
             clear_source(ui, source);
             diagnostics_state_disconnected_for(source);
+            for (unsigned e = 0; e < endpoint_count; ++e) diagnostics_state_disconnected_for(2 + endpoints[e]);
             continue;
         }
 
         if (obd == NULL || !ble_obd_is_connected(obd)) {
             clear_source(ui, source);
             diagnostics_state_disconnected_for(source);
+            for (unsigned e = 0; e < endpoint_count; ++e) diagnostics_state_disconnected_for(2 + endpoints[e]);
             if (g_runtime && !g_runtime->legacy_auto_discovery && !configured->address[0])
                 continue;
             const char *address = configured && configured->address[0]
@@ -446,12 +482,44 @@ static void obd_task(void *arg)
             }
             ESP_LOGI(TAG, "Vehicle adapter link ready");
             diagnostics_state_connected_for(source);
+            for (unsigned e = 0; e < endpoint_count; ++e) diagnostics_state_connected_for(2 + endpoints[e]);
             reconnect_delay_ms = 500;
             poll_scheduler_init(&scheduler);
+            poll_scheduler_endpoints(&scheduler, endpoint_count);
             continue;
         }
 
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        clear_state_t clear;
+        if(diagnostic_clear_take(source,now_ms,&clear)) {
+            uint8_t bytes[64];size_t length=sizeof(bytes);elm_result_t response;
+            int result=ble_obd_read_service_status_ecu(obd,4,0x7e8,1500,bytes,&length,&response);
+            clear_phase_t phase=CLEAR_UNKNOWN;
+            if(result==0) {
+                phase=CLEAR_VERIFYING;
+                bool verified=true;unsigned counts[3]={0};
+                vTaskDelay(pdMS_TO_TICKS(500));
+                for(unsigned i=0;i<3;i++) {
+                    length=sizeof(bytes);
+                    if(ble_obd_read_service_status_ecu(obd,dtc_modes[i],0x7e8,1500,bytes,&length,&response)==0) {
+                        for(size_t j=0;j+1<length;j+=2)if(bytes[j]||bytes[j+1])counts[i]++;
+                        diagnostics_state_codes_for(2,dtc_modes[i],bytes,length,pdTICKS_TO_MS(xTaskGetTickCount()));
+                        if(!transmission)diagnostics_state_codes_for(source,dtc_modes[i],bytes,length,pdTICKS_TO_MS(xTaskGetTickCount()));
+                    } else { diagnostics_state_failed_for(2,dtc_modes[i],response==ELM_UNSUPPORTED?DIAGNOSTICS_UNSUPPORTED:DIAGNOSTICS_UNAVAILABLE);if(response!=ELM_UNSUPPORTED)verified=false; }
+                }
+                elm_payload_t mil;
+                if(ble_obd_read_pid(obd,1,1,0x7e8,700,&response,&mil)==0 && mil.length>=4) {
+                    diagnostics_state_mil_payload(2,mil.bytes,pdTICKS_TO_MS(xTaskGetTickCount()));
+                    if(!transmission)diagnostics_state_mil_for(source,(mil.bytes[0]&0x80)!=0,mil.bytes[0]&0x7f,pdTICKS_TO_MS(xTaskGetTickCount()));
+                    if(mil.bytes[0]&0x80)counts[0]++;
+                } else { verified=false;diagnostics_state_failed_for(2,1,DIAGNOSTICS_UNAVAILABLE); }
+                phase=!verified?CLEAR_UNKNOWN:counts[0]||counts[1]?CLEAR_CODES_REMAIN:
+                    counts[2]?CLEAR_PERMANENT_REMAIN:CLEAR_VERIFIED;
+            }
+            diagnostic_clear_finish(clear.operation,phase);
+            poll_scheduler_init(&scheduler);poll_scheduler_endpoints(&scheduler,endpoint_count);
+            continue;
+        }
         uint32_t intervals[POLL_SCHEDULER_MAX_PIDS];
         for (uint8_t i = 0; i < count; ++i)
             intervals[i] = g_runtime ? g_runtime->pids[pid_indices[i]].poll_ms : 500;
@@ -459,25 +527,31 @@ static void obd_task(void *arg)
         if (job.kind == POLL_JOB_NONE) continue;
         if (simulated &&
             (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC)) continue;
-        if (job.kind == POLL_JOB_MIL) {
-            elm_result_t response;
-            if (ble_obd_rxtx_status_ecu(obd, 1, 0x01,
-                responder, 700, &response) != 0)
-                diagnostics_state_failed_for(source, 1, response == ELM_UNSUPPORTED ?
+        if (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC) {
+            if (!endpoint_count) continue;
+            unsigned endpoint = endpoints[job.endpoint];
+            uint32_t ecu = endpoint == 1 ? 0x7e9 : 0x7e8;
+            unsigned slots[2] = {2 + endpoint, source};
+            unsigned slot_count = (transmission == (endpoint == 1)) ? 2 : 1;
+            elm_result_t response = ELM_ADAPTER_ERROR;
+            uint8_t previous[248];bool had_previous=diagnostics_endpoint_status(endpoint,now_ms,previous)!=0 && (previous[2]&1);
+            uint32_t generation = adapter_status_generation(source);
+            uint8_t mode = job.kind == POLL_JOB_MIL ? 1 : dtc_modes[job.index];
+            elm_payload_t payload = {0};
+            uint8_t codes[64]; size_t length = sizeof(codes);
+            int result = mode == 1 ? ble_obd_read_pid(obd, 1, 1, ecu, 700, &response, &payload)
+                : ble_obd_read_service_status_ecu(obd, mode, ecu, 1500, codes, &length, &response);
+            if (generation != adapter_status_generation(source) || !adapter_status_ready_for(source)) continue;
+            poll_scheduler_background_result(&scheduler,job,result==0 && (mode!=1 || payload.length>=4));
+            if(mode==1 && result==0 && payload.length>=4 && had_previous && ((previous[2]&2)!=0)!=((payload.bytes[0]&0x80)!=0))poll_scheduler_mil_changed(&scheduler,job.endpoint);
+            for (unsigned slot = 0; slot < slot_count; ++slot) {
+                if (result == 0 && mode == 1 && payload.length >= 4)
+                    diagnostics_state_mil_payload(slots[slot],payload.bytes,pdTICKS_TO_MS(xTaskGetTickCount()));
+                else if (result == 0 && mode != 1)
+                    diagnostics_state_codes_for(slots[slot], mode, codes, length, pdTICKS_TO_MS(xTaskGetTickCount()));
+                else diagnostics_state_failed_for(slots[slot], mode, response == ELM_UNSUPPORTED ?
                     DIAGNOSTICS_UNSUPPORTED : DIAGNOSTICS_UNAVAILABLE);
-            continue;
-        }
-        if (job.kind == POLL_JOB_DTC) {
-            uint8_t codes[64];
-            size_t code_length = sizeof(codes);
-            elm_result_t response;
-            if (ble_obd_read_service_status_ecu(obd, dtc_modes[job.index],
-                    responder,
-                    1500, codes, &code_length, &response) == 0)
-                diagnostics_state_codes_for(source, dtc_modes[job.index], codes, code_length,
-                                        pdTICKS_TO_MS(xTaskGetTickCount()));
-            else diagnostics_state_failed_for(source, dtc_modes[job.index], response == ELM_UNSUPPORTED ?
-                DIAGNOSTICS_UNSUPPORTED : DIAGNOSTICS_UNAVAILABLE);
+            }
             continue;
         }
 
@@ -653,6 +727,15 @@ void app_main(void)
             g_runtime && g_runtime->sources[source].simulated);
     bool pairing_required = !ble_companion_load_owner();
     alert_engine_init(g_runtime);
+    ESP_ERROR_CHECK(alert_runtime_init(g_runtime ? g_running_config_record.revision : 0));
+    ESP_ERROR_CHECK(diagnostic_clear_init());
+    alert_engine_set_sink(alert_runtime_observe);
+    if(g_runtime) {
+        for(unsigned i=0;i<g_runtime->alert_count;i++)alert_runtime_priority(i,g_runtime->alerts[i].priority);
+        for(unsigned i=0;i<g_runtime->pid_count;i++)alert_runtime_stale(i,g_runtime->pids[i].stale_ms);
+    }
+    if(g_runtime)for(unsigned i=0;i<g_runtime->alert_count;i++)
+        alert_runtime_simulated(i,g_runtime->sources[g_runtime->pids[g_runtime->alerts[i].pid_index].source_index].simulated);
 
     bsp_init();
     bsp_display_start();
@@ -704,6 +787,22 @@ void app_main(void)
     for (unsigned source=0; source<runtime_source_count(); ++source)
         if (g_runtime && g_runtime->sources[source].simulated)
             obd_trace_emit(source, 0, "source_simulated", NULL, 0, 1);
+    for (unsigned e = 0; e < 2; ++e) {
+        int transport = -1;
+        for (unsigned i = 0; i < poll_count(); ++i) {
+            unsigned role = g_runtime && g_runtime->pids[i].responder == 0x7e9 ? 1 : 0;
+            if (role == e) transport = g_runtime ? g_runtime->pids[i].source_index : 0;
+        }
+        if (e == 0 && transport < 0 && (!g_runtime || !g_runtime->sources[0].transmission)) transport = 0;
+        if (g_runtime) for (unsigned i = 0; i < g_runtime->source_count; ++i)
+            if (g_runtime->sources[i].transmission == (e == 1)) transport = (int)i;
+        if(transport>=0) {
+            alert_runtime_simulated(32+e,g_runtime&&g_runtime->sources[transport].simulated);
+            alert_runtime_simulated(34+e,g_runtime&&g_runtime->sources[transport].simulated);
+        }
+        if (transport >= 0) diagnostics_endpoint_configure(e, transport,
+            g_running_config_record.revision, g_runtime && g_runtime->sources[transport].simulated);
+    }
     init_obd_task(ui);
     BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 3072, ui, 5, NULL);
     ESP_CHECK(tick_started == pdPASS, TAG, "Application tick task creation failed");

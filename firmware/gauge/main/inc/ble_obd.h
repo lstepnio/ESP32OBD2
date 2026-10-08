@@ -65,3 +65,6 @@ ble_obd_ctx_t *ble_obd_connect_profile(unsigned source_id, const char *peer_mac,
 /* Independent source context, explicitly initialized for ECM or TCM. TCM uses 7E1/7E9. */
 ble_obd_ctx_t *ble_obd_connect_profile_ecu(unsigned source_id, const char *peer_mac, uint8_t address_type,
     const char *driver, uint32_t ecu, ble_obd_response_cb_t response_cb, void *usr_ctx);
+
+int ble_obd_read_pid(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid, uint32_t ecu,
+    uint32_t timeout_ms, elm_result_t *status, elm_payload_t *out);

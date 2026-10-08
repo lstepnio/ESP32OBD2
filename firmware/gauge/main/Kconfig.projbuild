@@ -48,3 +48,10 @@ config EGAUGE_ECM_ADAPTER_MAC
         Configure this for deterministic source binding.
 
 endmenu
+
+config EGAUGE_DTC_CLEAR_ENABLED
+    bool "Enable qualified addressed ECM emissions clearing"
+    default n
+    help
+        Development qualification switch. Never enable for an unqualified vehicle
+        or JSS transmission controller. Reading faults does not qualify clearing.
