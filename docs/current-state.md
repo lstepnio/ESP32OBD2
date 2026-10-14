@@ -8,28 +8,30 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | App `0.2.0-dev.49`; running signed firmware dev.52 | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
-| Installed Pixel and gauge | Pixel dev.49 recovery App from `1630dce`; gauge signed dev.52 from `3293d6a`, generation 34 | Full hosted App/Wi-Fi installation passed in 68.495 seconds with exact alternate-slot ELF and OTA health 2; config/settings/profiles preserved; owner confirmed dev.52 normal page and responsive swipes |
+| Source/App/firmware version | App `0.2.0-dev.49`; running signed firmware dev.53 | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Installed Pixel and gauge | Pixel dev.49 recovery App from `1630dce`; gauge signed dev.53 from `bff726e`, generation 35 | Owner-authorized application-only USB repair; exact hosted ELF/health 2 and unchanged config/settings verified; fresh App pairing and owner retention after power cycle passed; owner confirmed normal page/swipes |
 | Gauge dashboard | Revision 50; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
-| Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors, live coexistence remains pending |
+| Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors; dev.53 live both-source reads/resume and each adapter loss/recovery passed |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
-| Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; two same-model adapters reported by owner | A distinct supported BLE candidate was discovered; dual-radio operation has not been measured |
+| Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; two same-model adapters reported by owner | Dev.53 live simultaneous source reads and independent sibling continuity/recovery passed; sustained-load qualification remains open |
 | Repository | Public `lstepnio/ESP32OBD2`; continuing review PR #51 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
 
-Latest rollout: [dev.52 full hosted App/Wi-Fi qualification](evidence/gatt-long-read-recovery.md#dev52-full-hosted-appwi-fi-outcome).
+Latest rollout: [dev.53 fresh pairing recovery](evidence/gatt-long-read-recovery.md#dev53-authorized-pairing-recovery-outcome).
 During the subsequent Jeep session, the gauge booted with its owner key absent while
-the Pixel retained its old bond. Fresh pairing fails because dev.52 is compiled with
-NimBLE security level 1. Dev.53 uses neutral global level 0 with a production build guard;
-publication, authorized recovery installation and fresh-pairing qualification are pending.
+the Pixel retained its old bond. Fresh pairing failed because dev.52 was compiled with
+NimBLE security level 1. Dev.53 uses neutral global level 0 with a production build guard.
+Its separately authorized signed USB repair, fresh pairing and one owner-retention
+power cycle passed. Live both-source reads/resume, independent ECM/TCM loss/recovery
+and a phone Bluetooth off/on journey passed; the wider dual qualification matrix remains open.
 The owner-key disappearance remains unexplained; see [field diagnosis](evidence/gatt-long-read-recovery.md#jeep-fresh-pairing-regression-diagnosis).
-Original phone wake settings were restored. Android and firmware are active; iOS is deferred.
+Original phone wake settings were restored after the Jeep session. Android and firmware are active; iOS is deferred.
 No live vehicle session or ECU clear was performed by the dev.48 rollout.
 
 ## Support and evidence
 
 | Area | Implemented | Observed qualification | Remaining work |
 | --- | --- | --- | --- |
-| Pairing/connection | Android system passkey, protected owner checks, persisted owner; automatic foreground reads and bounded retries | Repeated Pixel opening/resume; Bluetooth off/on recovery; paired Jeep sessions | Dev.52 fresh pairing is blocked by security level 1; dev.53 repair prepared; owner retention, bond-loss, alternate-phone and interruption matrix |
+| Pairing/connection | Android system passkey, protected owner checks, persisted owner; automatic foreground reads and bounded retries | Repeated Pixel opening/resume; Bluetooth off/on recovery; paired Jeep sessions | Dev.53 fresh pairing/one power-cycle retention passed; original owner-key loss remains unexplained; additional retention, bond-loss, alternate-phone and interruption matrix |
 | Engine readings | Header-attributed replies and independently expiring values | Owner RPM agrees with dash; disappears after adapter removal and returns on reconnect | Adapter/vehicle matrix, rates and soak |
 | TCM readings | Captured `2204FE` temperature and `225503` current gear; combined pages | Owner temperature/gear display and loss/recovery checks on the JSS setup | Independent sensor/scale meaning, gears 2..8, current/target divergence |
 | Faults | Independent controller endpoints across a primary/child transport, full categories, fair polling and global presentation | Mac captured stored/pending/permanent TCM lists; software fixtures | Live full App/gauge path; TCM faults through one shared primary transport |
@@ -40,8 +42,8 @@ No live vehicle session or ECU clear was performed by the dev.48 rollout.
 | Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
 | Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Dev.48 App/Wi-Fi install and dev.49/dev.50/dev.51 signed App/Bluetooth recovery, exact healthy images and cleared journals; dev.51 two authenticated Wi-Fi open/read/close cycles without reboot; dev.52 full signed hosted Wi-Fi upload/alternate-slot activation with unchanged setup | Wi-Fi interruption and sustained transfer matrix; memory/radio qualification with live dual adapters |
 | Phone persistence | Schema 12 coupled profiles/assignments; serialized IO; cancellation-safe writes and typed pairing failures | 156 JVM tests, 18 emulator fixtures; initial Pixel migration retained data | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
-| Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Second-adapter setup review](evidence/second-adapter-setup.md); software fixtures and live discovery of a distinct second candidate | Dev.49 repair and revision 50 dual setup installed; two-adapter plus phone coexistence, sibling continuity and sustained load remain unqualified |
-| Health measurements | Fixed worker records, queue drops and free/largest memory in minute logs | One dev.47 minute log set; continued App/UI and adapter retry progress | Longer controlled soak, measured gap/rate and memory limits |
+| Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Setup review](evidence/second-adapter-setup.md); [dev.53 live reads/resume, independent loss/recovery and phone off/on](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification); owner confirmed live ECM/TCM display and independent expiry/return | Startup absence, loaded maintenance, rates and sustained soak remain open |
+| Health measurements | Fixed worker records, queue drops and free/largest memory in minute logs | Dev.47 sample and dev.53 approximately ten-minute dual field capture; App/UI progress, zero recorded queue drops and internal minimum 44,843 bytes | Longer controlled soak, measured gap/rate and memory limits |
 
 Software checks for the hardening increment: Android build/lint, 156 JVM tests,
 18 emulator tests, 75 host tests, sanitized production C fixtures, firmware build,

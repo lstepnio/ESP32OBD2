@@ -73,12 +73,21 @@ adb shell am instrument -w \
   com.lstepnio.egauge.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-For an isolation case, also pass `-e interruptSource TCM` (or ECM). Within the
-bounded two-minute wait unplug only that adapter, leave it out until the other
-source's fresh read is recorded, then reconnect during the recovery wait. The
+For an isolation case, also pass `-e interruptSource TCM` (or ECM). Wait for the
+`READY_FOR_LOSS_TCM`/`READY_FOR_LOSS_ECM` instrumentation checkpoint before unplugging
+that adapter. Leave it out until `READY_FOR_RESTORE_TCM`/`READY_FOR_RESTORE_ECM`, then
+reconnect during the bounded recovery wait. The
 harness checks unchanged sibling session and whole configuration revision/hash.
 It writes a private result under the app's external `dual-adapter-recovery` folder.
-No opt-in means the test skips. Its physical execution is pending.
+For the phone radio case, pass `-e allowPhoneBluetoothToggle true`. This explicitly
+opts into a platform Bluetooth off/on cycle with a 15-second off interval. The harness
+drains each shell command to completion, verifies the platform state separately from
+the App phase, then requires fresh reads with unchanged source sessions. Other services such as
+Android Auto can re-enable Bluetooth; an interrupted off interval fails as test setup,
+not proof of a gauge recovery failure. Record any temporary service isolation.
+Optional exact `expectedFirmwareVersion` / `expectedFirmwareElf` arguments verify
+the installed candidate. No opt-in means the test skips. Record physical execution
+separately; stage signals are operator coordination, not automatic adapter actions.
 
 ## Record the outcome
 

@@ -353,3 +353,102 @@ Dual source/phone coexistence, physical values and sibling isolation remain unqu
 Only firmware worker progress/link readiness was observed before pairing recovery.
 No ECU commands, code clearing, USB flash or new release publication occurred during
 this diagnosis. Saved phone setup and gauge configuration are retained.
+
+
+## Dev.53 authorized pairing recovery outcome
+
+The owner separately approved publishing dev.53 and an application-only USB recovery
+because the unowned running image rejected fresh pairing and could not authorize
+App/BLE or App/Wi-Fi repair. All three quality jobs passed for `bff726e` in run
+`38647126828`; release run `38647801977` published [dev.53](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.53),
+generation 35, from that exact source. Catalog and image signatures, board/layout,
+version, length and digest verified independently. Image length **1,535,600 bytes**;
+expected/running ELF `e8dcf2c89a064d1ef384c3c7c8c60b66282922a7e4ee1cc4bd88931b52ff18ad`.
+
+The first high-baud full-flash backup failed before any write. A full 16 MB read at
+115,200 baud was too slow and stopped; it was not counted as a completed backup.
+Instead, a completed **303,104-byte** backup covered the partition table, NVS, PHY,
+OTA metadata and both configuration partitions, with digest/region manifest. The
+independently verified signed dev.52 application was extracted as a rollback image
+and matched against the running application's flash digest. The partition table and
+boot log selected `ota_1` at `0x360000`; only that application address was written.
+Flash digest verification passed. Readback before boot was byte-identical across all
+backed-up persistent partitions. No whole-chip erase, bootloader/table rewrite, NVS
+restore or ECU interaction occurred. Private recovery backups have restricted access.
+
+Fresh pairing through the ordinary eGauge Pair action now produced the passkey,
+Android completed its bond, and firmware logged durable owner persistence. The
+read-only automatic management journey passed in **14.076 seconds**, including exact
+ELF/health 2, revision 50/digest/settings preservation, resume refresh and the hardware/
+firmware protected read chain. An initial test APK setup mismatch was repaired before
+this successful run; its old result file was not treated as current evidence.
+
+The owner then physically power-cycled the gauge with both adapters unplugged and
+confirmed a normal page and responsive swipes. Serial showed owner load **present**
+with `ESP_OK`; the subsequent automatic management journey passed in **23.183 seconds**,
+with opening confirmation **10,597 ms** and resume/settings refresh **8,243 ms**.
+Version/ELF, health 2, revision 50/digest and settings remained unchanged. This is one
+verified owner-retention power cycle; the earlier owner disappearance still has no
+proven cause. Longer reset/retention qualification remains QUAL-12.
+
+Both adapter workers were active before the repair, but simultaneous live readings,
+phone coexistence and sibling isolation are not inferred from those logs. The next
+field phase reconnects both adapters and uses the read-only dual harness, with explicit
+loss/restore checkpoints and sampled diagnostic-source/session evidence.
+
+
+## Dev.53 parked Jeep dual-source qualification
+
+The owner reconnected two same-model Vgate adapters to the primary ECM and separate
+TCM connectors, with the Jeep parked and idling and the Pixel using the existing
+whole revision 50 dashboard. This session introduced no configuration or ECU control
+writes. The read-only opt-in harness required both real, bound sources, matching vehicle,
+configuration revision and fresh protected diagnostic checks. Exact dev.53 ELF and
+healthy boot state were checked at each journey.
+
+| Journey | Automated result | Separate physical observation |
+| --- | --- | --- |
+| Both sources and App resume | Passed in 35.902 s; fresh checks for both sources, unchanged sessions and whole revision/digest | Owner confirmed the LCD displayed ECM and TCM values |
+| TCM unplug/reconnect | Passed in 89.655 s; ECM remained fresh with unchanged session; only TCM session advanced | RPM stayed, TCM values cleared; owner confirmed an early reconnect and both returned |
+| ECM unplug/reconnect | Passed in 182.446 s; TCM remained fresh with unchanged session; only ECM session advanced | TCM values stayed, RPM cleared; owner reconnected when requested and both sources displayed again |
+
+These elapsed times include operator coordination and are not measured reconnection
+latencies. The TCM adapter was reconnected before the restore instruction; the owner
+explicitly confirmed this, so the record does not invent a longer disconnected interval.
+Private timestamped stage reports and raw serial captures remain under ignored artifacts.
+
+During the approximately ten-minute serial capture, minimum internal memory was
+44,843 bytes, largest internal block 31,744 bytes, and PSRAM free/minimum 2,045,572
+bytes. App stack headroom was 616 bytes. Recorded App/UI maximum progress gaps were
+180/160 ms with zero queue drops. Both adapter workers progressed outside the intended
+absence/retry periods; their 20,100 ms maximum gaps include those periods. No unexpected
+reset/panic was captured. This is a sampled field check, not a two-hour soak, rate/P95
+measurement or proof that every fault category or alert behaves correctly.
+
+The first optional phone Bluetooth toggle journey timed out waiting for the App's
+BluetoothOff phase. It had not independently recorded the platform off state, and its
+cleanup enabled Bluetooth, so that attempt establishes neither a platform toggle nor
+a product recovery failure. The retry independently recorded platform off, but the Bluetooth manager history
+showed Android Auto requesting Enable about a second later. This explains the
+invalid off interval in both attempts; neither qualifies sustained phone-off behavior.
+The harness now drains shell output to EOF, checks platform state throughout the
+phase wait and at the end of the off interval, and allows the existing admitted read
+budget to unwind. Android Auto was temporarily force-stopped for the isolated retry;
+its stored setup was not changed.
+
+
+With Android Auto temporarily stopped, the phone off/on journey passed in **54.718 s**.
+Android off was recorded, the App reached BluetoothOff, and the harness retained a
+15-second off interval before enabling the radio. Automatic reconnect then returned
+fresh protected ECM/TCM reads with both source sessions unchanged and revision 50/digest
+preserved. The owner separately confirmed both physical readings continued and swipes
+worked during the interruption. This qualifies that interruption on the present setup,
+not every Android service/OEM combination.
+
+Final private pre/post phone backups proved byte-identical profiles, presentation
+preferences and gauge associations. The debug wake helper restored the original phone
+settings and eGauge was left open. The owner was told the live checks were complete and
+the engine could be switched off. Remaining QUAL-04 gates include absent-source startup,
+loaded App/Wi-Fi maintenance, rates/P95 and two-hour load/soak; owner-loss cause and the
+wider retention/reset matrix remain QUAL-12. No public capability promotion, ECU clear
+or main merge occurred.
