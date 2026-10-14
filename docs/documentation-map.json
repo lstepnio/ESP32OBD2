@@ -73,7 +73,8 @@
     "scoped-design-history": [
       "docs/design/redesign/audit.md",
       "docs/design/redesign/concept.md",
-      "docs/design/redesign/customize-review.md"
+      "docs/design/redesign/customize-review.md",
+      "docs/design/gauge-ui-proposal.md"
     ],
     "reference-research": [
       "docs/reference-projects-and-architecture.md",

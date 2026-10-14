@@ -14,6 +14,7 @@ because a task appears here. The owner's existing authorization governs each act
 Statuses: **Ready** means useful work can begin; **Needs device** means physical
 qualification is required; **Blocked** names an unavailable dependency; **Deferred**
 means out of current delivery scope. Priority is delivery order, not a date promise.
+**Awaiting approval** means a concrete proposal is ready for owner review.
 No task is In progress until a session actually starts it. Completed implementations
 are in current state and evidence, with remaining qualification listed separately.
 
@@ -21,6 +22,7 @@ are in current state and evidence, with remaining qualification listed separatel
 
 | ID | Priority | Status | Task | Dependency / acceptance |
 | --- | --- | --- | --- | --- |
+| FEATURE-08 | P1 | Awaiting approval | Gauge instrument UI and custom-PID display contract | [Design plan and 44 screen concepts](design/gauge-ui-proposal.md); shared circular geometry, status compositor, fault/critical inspection, all renderers/system states and descriptor fitting rules. Firmware unchanged; owner design approval precedes implementation |
 | QUAL-12 | P1 | Qualification | Fresh pairing and owner retention recovery | Dev.53 neutral global policy/compile guard installed via approved signed USB repair; fresh App pairing, protected reads and owner retention after one physical power cycle passed; original key-loss cause, longer retention and reset/bond-loss matrix remain unresolved |
 | QUAL-02 | P0 | Needs device | Configuration/OTA interruption and uncertain outcome | [Recovery matrix](development/ota-recovery-matrix.md); stage/commit, app loss, Wi-Fi expiry, power loss and rollback; exact post-reboot identity before any retry |
 | QUAL-03 | P1 | Needs device | One adapter moved between ECM/TCM ports | Whole vehicle pages stay editable; unavailable values clear; correct attributed values recover; [logical vehicle evidence](evidence/logical-vehicle-review.md) |
