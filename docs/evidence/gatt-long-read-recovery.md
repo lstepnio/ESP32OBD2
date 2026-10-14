@@ -111,3 +111,31 @@ Dev.50 publication needs its own approval and green checks. Local App build/lint
 build, sanitized core fixtures (including exhaustion/fragmentation admission cases),
 repository validation and diff checks passed. Physical recovery is recorded below
 only after the exact running-image check completes.
+
+## Authorized App/Bluetooth recovery and dual send
+
+The owner explicitly approved App/Bluetooth recovery after the Wi-Fi crash was
+identified. The dev.49 image from `5864046`, generation 31, installed through the
+App's existing protected Bluetooth OTA path with the development recovery App
+from `f12edb1`. The opt-in preservation test passed in 776.084 seconds, including
+transfer, reboot, fresh protected image read and automatic settings reload. Running
+ELF matched `e5fcda4f66721dc405a9add3c26e996caac21cb786849c833fcf6194e9585530`,
+OTA health was 2, the update journal cleared, and revision 49/digest, display
+settings and phone profiles were unchanged. No USB flash was performed.
+
+The whole saved vehicle dashboard was then reviewed and sent once through the
+ordinary App flow. Protected stored/running revision **50** matched digest
+`21ce4c932ae9ec32c978cf3ff1570fc9fdec93988a3674555c5a7198ad046cab`,
+with trial cleared, two distinct ECM/TCM bindings, three mixed-reading pages and
+one coolant alert. Private pre/post preference comparison also confirmed unchanged
+profile and presentation documents. The read-only automatic connection journey
+passed in 17.219 seconds: opening confirmation 10.357 seconds, resume refresh
+2.775 seconds, hardware snapshot followed by fresh protected firmware identity,
+unchanged configuration/settings and no mutations. No Bluetooth toggle or picker
+recovery case was invoked in that fixture.
+
+The gauge/Pixel were indoors without vehicle adapters. Missing-source states are
+expected; simultaneous radio operation, sibling continuity and live values were
+not qualified. The dev.49 owner normal-page/swipe confirmation is still pending.
+The dev.50 Wi-Fi memory repair remains uninstalled and requires separate release
+approval; all three GitHub checks passed for `f12edb1` in run `38630911056`.

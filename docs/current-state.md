@@ -8,15 +8,15 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | App `0.2.0-dev.49`; published firmware dev.49, local Wi-Fi repair candidate dev.50; running dev.48 | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
-| Installed Pixel and gauge | Pixel dev.49 recovery App; gauge signed dev.48 from `f572974`, generation 30 | Exact hosted ELF and OTA health 2 passed protected readback; owner normal-page/swipe confirmation passed |
-| Gauge dashboard | Revision 49; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
-| Current setup | Gauge uses one primary transport; phone has two distinct bindings and dual mode On, pending send | Primary and both dashboard drafts preserved; [long-read recovery](evidence/gatt-long-read-recovery.md) is published as dev.49; installation is blocked by dev.48 Wi-Fi allocation crash, and dual send remains pending |
+| Source/App/firmware version | App/running firmware `0.2.0-dev.49`; local Wi-Fi repair candidate dev.50 | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Installed Pixel and gauge | Pixel dev.49 recovery App from `f12edb1`; gauge signed dev.49 from `5864046`, generation 31 | Exact hosted ELF and OTA health 2 passed App/Bluetooth recovery/readback; dev.49 owner physical page/swipe check pending |
+| Gauge dashboard | Revision 50; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
+| Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors, live coexistence remains pending |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
 | Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; two same-model adapters reported by owner | A distinct supported BLE candidate was discovered; dual-radio operation has not been measured |
 | Repository | Public `lstepnio/ESP32OBD2`; continuing review PR #51 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
 
-Latest rollout: [dev.48 shared-alert implementation and device evidence](evidence/shared-alerts-implementation.md#authorized-appwi-fi-rollout).
+Latest rollout: [dev.49 signed App/Bluetooth recovery and complete dual send](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send).
 Original phone wake settings were restored. Android and firmware are active; iOS is deferred.
 No live vehicle session or ECU clear was performed by the dev.48 rollout.
 
@@ -33,9 +33,9 @@ No live vehicle session or ECU clear was performed by the dev.48 rollout.
 | Shared alert/history framework | Threshold/MIL/synthetic producers share lifecycle, attention, bounded gauge context/journal, phone history/export and opt-in monitoring | Dev.48 Pixel/gauge synthetic Entry/Expired import and shared context/banner; 162 JVM tests, eight earlier emulator fixtures | Real vehicle alerts/context, physical attention, background/OEM and storage/power-loss matrix |
 | Pages/catalog/alerts | Five renderers; one catalog with 53 Mode 01 and two existing JSS readings; any selectable reading can alert, including named gear conditions | Software vectors, editor fixtures and preserved installed dashboard | New decimals/rendering, hidden-page alerts, dwell/stale behavior on real vehicle |
 | Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
-| Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Dev.48 authorized App/Wi-Fi install, exact healthy image, cleared journal | Power-loss, expiry, rollback and broader recovery matrix |
+| Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Dev.48 App/Wi-Fi install and dev.49 signed App/Bluetooth recovery, exact healthy images and cleared journal | Wi-Fi startup allocation crash exposed on dev.48; dev.50 repair passed CI but needs separate release authorization and physical qualification; broader recovery matrix |
 | Phone persistence | Schema 12 coupled profiles/assignments; serialized IO; cancellation-safe writes and typed pairing failures | 156 JVM tests, 18 emulator fixtures; initial Pixel migration retained data | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
-| Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Second-adapter setup review](evidence/second-adapter-setup.md); software fixtures and live discovery of a distinct second candidate | Repair long reads and send dual setup; two-adapter plus phone coexistence, sibling continuity and sustained load |
+| Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Second-adapter setup review](evidence/second-adapter-setup.md); software fixtures and live discovery of a distinct second candidate | Dev.49 repair and revision 50 dual setup installed; two-adapter plus phone coexistence, sibling continuity and sustained load remain unqualified |
 | Health measurements | Fixed worker records, queue drops and free/largest memory in minute logs | One dev.47 minute log set; continued App/UI and adapter retry progress | Longer controlled soak, measured gap/rate and memory limits |
 
 Software checks for the hardening increment: Android build/lint, 156 JVM tests,
