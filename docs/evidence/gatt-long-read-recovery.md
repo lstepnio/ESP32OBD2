@@ -136,6 +136,25 @@ recovery case was invoked in that fixture.
 
 The gauge/Pixel were indoors without vehicle adapters. Missing-source states are
 expected; simultaneous radio operation, sibling continuity and live values were
-not qualified. The dev.49 owner normal-page/swipe confirmation is still pending.
+not qualified. The owner subsequently confirmed the dev.49 normal page and responsive swipes.
 The dev.50 Wi-Fi memory repair remains uninstalled and requires separate release
 approval; all three GitHub checks passed for `f12edb1` in run `38630911056`.
+
+## Authorized dev.50 rollout
+
+The owner separately approved publishing and installing dev.50 through App/Bluetooth,
+then checking Wi-Fi startup. Workflow `38633276160` published the immutable
+[development prerelease](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.50)
+from exact approved commit `f12edb1`, generation 32. A temporary release branch kept
+workflow dispatch on that reviewed commit and was removed after publication; the
+release tag and primary development branch remain. Downloaded catalog and image
+signatures verified against the App public key, alongside board/layout/version,
+size and digest checks. Image size: 1,535,136 bytes. Expected ELF SHA-256:
+`e3d951da08830a29ed056c3c536160eccefce53db0c24725185f36cf53830b23`.
+
+The recovery App now makes a best-effort high-priority Bluetooth connection request
+only for the bounded signed BLE transfer and requests balanced timing in cleanup.
+Refusal is not a failure gate. Normal Wi-Fi selection and authentication remain
+unchanged. Android build/lint, 179 JVM tests and both recovery/maintenance fixture
+compilations passed. Installation and Wi-Fi qualification are recorded separately
+below after physical execution; publication is not an installed-image claim.

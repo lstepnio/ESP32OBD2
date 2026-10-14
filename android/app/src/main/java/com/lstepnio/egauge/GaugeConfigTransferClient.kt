@@ -92,6 +92,7 @@ class GaugeConfigTransferClient(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     private suspend fun <T> withGauge(device: BluetoothDevice, operationTimeoutMs: Long = 240_000,
+                                      highThroughput: Boolean = false,
                                       action: suspend Session.() -> T): T {
         val events = Channel<Event>(16)
         fun emit(event: Event) {
@@ -158,6 +159,9 @@ class GaugeConfigTransferClient(private val context: Context) {
             val ready = withTimeout(20_000) { events.receive() }
             if (ready is Event.Failed) throw GaugeLinkException(ready.reason)
             require(ready is Event.Ready)
+            // Recovery OTA exchanges thousands of acknowledged packets. Ask Android
+            // for faster connection timing; refusal never blocks the protected path.
+            if (highThroughput) gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
             withTimeout(operationTimeoutMs) {
                 val session = Session(gatt, events, ready.mtu, ready.control, ready.state)
                 session.establishOwner()
@@ -169,6 +173,7 @@ class GaugeConfigTransferClient(private val context: Context) {
         } finally {
             handshakeHandler.removeCallbacksAndMessages(null)
             discovery.close()
+            if (highThroughput) gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_BALANCED)
             gatt.disconnect()
             gatt.close()
             events.close()
@@ -756,7 +761,7 @@ class GaugeConfigTransferClient(private val context: Context) {
         val expectedElf = bundle.elfSha256.joinToString("") { "%02x".format(it) }
         check(before.elfSha256 != expectedElf) { "This signed firmware image is already running on the gauge" }
         progress(0)
-        withGauge(device, 1_200_000) {
+        withGauge(device, 1_200_000, highThroughput = true) {
             val current = otaCommand(0x27, sequence++)
             if (current.phase in 1..3 && current.transferId != 0L)
                 otaCommand(0x26, sequence++, le32(current.transferId))
