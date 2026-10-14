@@ -263,3 +263,52 @@ remain unchanged. `WifiFirmwareJourneyTest` exercises the ordinary signed hosted
 check/download and App Wi-Fi owner, then exact healthy alternate-slot activation,
 cleared journal and configuration/settings/profile preservation. Publication and
 physical execution remain separate gates; no same-image bypass or downgrade is used.
+
+
+## Dev.52 full hosted App/Wi-Fi outcome
+
+The owner separately authorized publishing and installing dev.52 over Wi-Fi. Commit
+`3293d6a` passed all three quality jobs in run `38642154036`; protected release run
+`38642901181` published [dev.52](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.52),
+generation 34, from that exact commit. Runtime firmware logic is unchanged from dev.51;
+only its version identity changes. Downloaded catalog and image signatures, version,
+board/layout, size and digests independently verified. Image size **1,535,360 bytes**;
+image SHA-256 `cb454e1ed06b452b859ede621026e36c5d2b8e3b80f7621783d985fe48be7efe`;
+expected/running ELF `3a3982d26baad12339c818a2fabc05be47f53011475cab046dd5c0ab4b7e828f`.
+
+The physical `WifiFirmwareJourneyTest` passed in **144.620 seconds**, including
+opening, ordinary hosted catalog check/download, installation and preservation checks.
+The actual App installation journey took **68.495 seconds**, with sampled stages:
+
+| Stage boundary | Time from installation start |
+| --- | --- |
+| Sending signed image over Wi-Fi | 15.640 s |
+| Verifying complete image | 54.683 s |
+| Restarting alternate slot | 55.940 s |
+| Confirming healthy running image | 56.010 s |
+| Installation returned healthy success | 68.495 s |
+
+The upload interval was approximately **39.043 seconds**, about **39.3 kB/s** for
+this image. These are one-run sampled observations, not a sustained benchmark or
+loaded-vehicle result. Existing App logs independently measured authenticated
+preflight **1,254 ms**, Wi-Fi startup **2,827 ms cumulative**, Android network join
+**9,238 ms**, socket connection **15 ms**, first Wi-Fi response **12,116 ms cumulative**,
+and flash preparation **2,423 ms**. Firmware measured flash preparation **2,244 ms**.
+The Android join was the largest measured component before upload in this run.
+
+The fixture confirmed exact dev.52 ELF in the alternate OTA slot, OTA health 2,
+cleared recovery journal, unchanged revision 50/digest, settings and phone profiles.
+Private pre/post backups also proved byte-identical profile, presentation and gauge
+association files. Read-only USB showed network startup and the intended update
+restart without a captured panic. The post-boot minute log reported internal free
+**48,847 bytes**, largest block **31,744 bytes**, internal minimum **42,339 bytes**,
+and PSRAM free **2,045,572 bytes**. App/UI and maintenance workers progressed with
+zero recorded queue drops; absent adapter workers resumed retries indoors. The
+pre-update network period had internal minimum **14,031 bytes**; post-boot minima
+reset with the intended reboot and do not describe the whole upload low-water mark.
+
+Original phone wake settings were restored and eGauge was left open. Owner dev.52
+physical display/touch confirmation is pending. Live ECM/TCM plus phone coexistence,
+loaded throughput/soak, expiry, interruption and power-loss cases remain separate
+gates. No USB flashing, ECU interaction, public capability promotion or main merge
+occurred. Ordinary updates continue to select Wi-Fi.
