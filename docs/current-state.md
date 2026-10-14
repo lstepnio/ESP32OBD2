@@ -9,7 +9,7 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
 | Source/App/firmware version | App `0.2.0-dev.49`; running signed firmware dev.52 | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
-| Installed Pixel and gauge | Pixel dev.49 recovery App from `1630dce`; gauge signed dev.52 from `3293d6a`, generation 34 | Exact hosted ELF and OTA health 2 passed App/Bluetooth recovery; config/settings/profiles preserved; full hosted App/Wi-Fi installation passed in 68.495 seconds with exact alternate-slot identity; owner dev.52 display/touch check pending |
+| Installed Pixel and gauge | Pixel dev.49 recovery App from `1630dce`; gauge signed dev.52 from `3293d6a`, generation 34 | Full hosted App/Wi-Fi installation passed in 68.495 seconds with exact alternate-slot ELF and OTA health 2; config/settings/profiles preserved; owner confirmed dev.52 normal page and responsive swipes |
 | Gauge dashboard | Revision 50; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
 | Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors, live coexistence remains pending |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |

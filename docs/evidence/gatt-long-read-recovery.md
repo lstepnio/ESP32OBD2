@@ -307,8 +307,9 @@ zero recorded queue drops; absent adapter workers resumed retries indoors. The
 pre-update network period had internal minimum **14,031 bytes**; post-boot minima
 reset with the intended reboot and do not describe the whole upload low-water mark.
 
-Original phone wake settings were restored and eGauge was left open. Owner dev.52
-physical display/touch confirmation is pending. Live ECM/TCM plus phone coexistence,
+Original phone wake settings were restored and eGauge was left open. The owner
+separately confirmed dev.52 shows a normal physical page and swipes work.
+Live ECM/TCM plus phone coexistence,
 loaded throughput/soak, expiry, interruption and power-loss cases remain separate
 gates. No USB flashing, ECU interaction, public capability promotion or main merge
 occurred. Ordinary updates continue to select Wi-Fi.
