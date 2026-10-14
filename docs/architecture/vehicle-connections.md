@@ -38,7 +38,13 @@ legacy TCM-only profiles. `withDashboard()` stores edits without changing bindin
 when the second adapter is enabled. Mixed-controller Dual pages are supported by
 new firmware. Page order and gesture targets survive route changes.
 
-Expert selection edits a binding, never a page source. Car always edits the primary
+Expert selection edits a binding, never a page source. **Second adapter** opens a
+focused picker directly, even when the primary binding was previously selected.
+It starts one bounded discovery when the gauge is ready, offers an explicit rescan,
+and marks the primary radio unavailable for child selection. Missing selection,
+disconnection and unsupported firmware have separate explanations. Child selection
+captures vehicle identity before the serialized save, requires an existing child,
+and never falls back to writing the primary binding. Car always edits the primary
 binding. Reconnection restores the whole vehicle editing context. Actual installed
 source roles drive protected status polling until a reviewed replacement is sent.
 Each remembered gauge retains its vehicle association and explicit second-adapter

@@ -1,6 +1,7 @@
 package com.lstepnio.egauge.ui.expert
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.*
@@ -9,6 +10,7 @@ import androidx.compose.material3.*
 import com.lstepnio.egauge.AdapterBinding
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.BuildConfig
+import com.lstepnio.egauge.samePhysicalAdapter
 import com.lstepnio.egauge.ui.ScreenContent
 import com.lstepnio.egauge.ui.state.ExpertUiState
 
@@ -26,11 +28,14 @@ data class ExpertActions(
     val attachLegacy: (String) -> Unit = {},
     val useBoth: (Boolean) -> Unit = {},
     val phoneAlertTest: () -> Unit = {},
+    val openPrimaryAdapter: () -> Unit = {},
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @Composable () -> Unit = {}) {
-    var removeOpen by rememberSaveable { mutableStateOf(false) }
+    var secondOpen by rememberSaveable(state.vehicleId) { mutableStateOf(false) }
+    var removeOpen by rememberSaveable(state.vehicleId) { mutableStateOf(false) }
     ScreenContent {
         ScreenTitle("Expert")
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -45,19 +50,16 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @C
                 SectionTitle("Vehicle connections")
                 Text(state.vehicleName, style = MaterialTheme.typography.titleMedium)
                 if (state.primarySource == "ECM") {
-                    SettingsRow("Primary adapter", "Engine (ECM)", state.canEditVehicle) { actions.selectSource("ECM") }
-                    if (state.hasTransmission || state.bothAdapters) {
+                    SettingsRow("Primary adapter", "Engine (ECM)", state.canEditVehicle, actions.openPrimaryAdapter)
+                    if (state.hasTransmission) {
+                        SettingsRow("Second adapter", if (state.secondAdapter == null) "Choose transmission adapter" else "Transmission adapter selected",
+                            state.canEditVehicle) { secondOpen = true }
                         SettingsRow("Use both adapters on this gauge", if (state.bothAdapters) "On · review and send setup" else "Off",
                             state.canEditVehicle && (state.canUseBothAdapters || state.bothAdapters)) { actions.useBoth(!state.bothAdapters) }
-                        if (!state.canUseBothAdapters && !state.bothAdapters) Text("Choose two different adapters and update the gauge to enable this development feature.")
-                    }
-                    if (state.hasTransmission) {
-                        SettingsRow("Child adapter", "Transmission (TCM)", state.canEditVehicle) { actions.selectSource("TCM") }
-                        Text("Editing the ${if (state.selectedSource == "TCM") "second" else "primary"} adapter. All readings share one vehicle dashboard.")
-                        TextButton({ removeOpen = true }, enabled = state.canEditVehicle) { Text("Remove transmission child") }
+                        if (!state.bothAdapters) state.secondAdapterSetupIssue?.let { Text(it) }
                     } else {
-                        SettingsRow("Add transmission child", "For a swap with a separate diagnostic connector",
-                            state.canEditVehicle && state.hasPrimaryAdapter, actions.addTransmission)
+                        SettingsRow("Add second adapter", "For a swap with a separate transmission connector",
+                            state.canEditVehicle && state.hasPrimaryAdapter) { actions.addTransmission(); secondOpen = true }
                         if (!state.hasPrimaryAdapter) Text("Choose the primary engine adapter in Car first.")
                     }
                 }
@@ -69,18 +71,7 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @C
                     }
                     if (state.legacyParents.isEmpty()) Text("Set up an engine vehicle and its primary adapter first.")
                 }
-                if (state.hasTransmission && state.selectedSource == "TCM") {
-                    Text(state.selectedAdapter?.let { "Selected transmission adapter · $it" } ?: "Choose the adapter used for the transmission connection.")
-                    state.adapterCandidates.forEach { candidate ->
-                        SettingsRow(candidate.name, candidate.binding.address.takeLast(5), state.canEditVehicle,
-                            { actions.chooseAdapter(candidate.binding) })
-                    }
-                    SettingsRow("Find transmission adapter", enabled = state.canFindAdapter, onClick = actions.findAdapters)
-                    state.adapterMessage?.let { Text(it) }
-                    if (state.selectedAdapter != null) TextButton({ actions.chooseAdapter(null) }, enabled = state.canEditVehicle) {
-                        Text("Remove child adapter selection")
-                    }
-                }
+
             }
             state.vehicleMessage?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
             faultCoverage()
@@ -88,9 +79,43 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @C
             DetailContent(state.details)
         }
     }
+    if (secondOpen) {
+        ModalBottomSheet(onDismissRequest = { secondOpen = false }) {
+            SecondAdapterChoices(state, actions, onRemove = { secondOpen = false; removeOpen = true })
+        }
+    }
     if (removeOpen) AlertDialog(onDismissRequest = { removeOpen = false },
         title = { Text("Remove transmission child?") },
         text = { Text("This removes the second adapter selection. All vehicle pages and gestures stay saved and will use the primary adapter after you review and send. Installed gauge settings stay unchanged.") },
         confirmButton = { TextButton({ actions.removeTransmission(); removeOpen = false }, enabled = state.canEditVehicle) { Text("Remove") } },
         dismissButton = { TextButton({ removeOpen = false }) { Text("Cancel") } })
+}
+
+@Composable
+private fun SecondAdapterChoices(state: ExpertUiState, actions: ExpertActions, onRemove: () -> Unit) {
+    var searched by remember(state.vehicleId) { mutableStateOf(false) }
+    LaunchedEffect(state.canFindAdapter, state.hasTransmission) {
+        if (state.canFindAdapter && state.hasTransmission && !searched) {
+            searched = true
+            actions.findAdapters()
+        }
+    }
+    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp)) {
+        DialogContent {
+            SectionTitle("Second adapter")
+            Text("Choose the adapter plugged into the transmission connector. Both adapters share this car's dashboard.")
+            if (state.secondAdapter != null) Text("Transmission adapter selected · ${state.secondAdapter.address.takeLast(5)}")
+            state.adapterDiscoveryBlocker?.let { Text(it) }
+            state.adapterCandidates.forEach { candidate ->
+                val primary = samePhysicalAdapter(state.primaryAdapter, candidate.binding)
+                SettingsRow(candidate.name, if (primary) "Primary engine adapter · already in use" else candidate.binding.address.takeLast(5),
+                    state.canEditVehicle && state.hasTransmission && !primary, { actions.chooseAdapter(candidate.binding) })
+            }
+            PrimaryAction("Find transmission adapter", actions.findAdapters, enabled = state.canFindAdapter && state.hasTransmission)
+            state.adapterMessage?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            state.secondAdapterSetupIssue?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            if (state.secondAdapter != null) TextButton({ actions.chooseAdapter(null) }, enabled = state.canEditVehicle) { Text("Remove adapter selection") }
+            TextButton(onRemove, enabled = state.canEditVehicle && state.hasTransmission) { Text("Remove second adapter") }
+        }
+    }
 }

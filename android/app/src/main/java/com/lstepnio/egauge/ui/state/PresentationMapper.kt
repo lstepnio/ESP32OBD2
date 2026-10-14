@@ -190,7 +190,18 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 it.draft.source == "ECM" && it.primaryAdapter != null && it.transmission == null &&
                     (it.primaryAdapter == profileCollection.active.primaryAdapter || !samePhysicalAdapter(it.primaryAdapter, profileCollection.active.primaryAdapter))
             }.map { VehicleUi(it.id, it.name) } else emptyList(), deviceMessage, bothAdapters,
-            !busy && capabilities?.dualAdapterVersion == 1 && runCatching { profileCollection.active.combinedDraft() }.isSuccess),
+            !busy && freshConnection && capabilities?.dualAdapterVersion == 1 && capabilities?.vehicleDashboardVersion == 1 && runCatching { profileCollection.active.combinedDraft() }.isSuccess,
+            vehicleId = profileCollection.activeId, primaryAdapter = profileCollection.active.primaryAdapter,
+            secondAdapter = profileCollection.active.transmission?.adapter,
+            secondAdapterSetupIssue = secondAdapterSetupIssue(profileCollection.active.primaryAdapter,
+                profileCollection.active.transmission?.adapter, freshConnection,
+                capabilities?.dualAdapterVersion == 1 && capabilities?.vehicleDashboardVersion == 1),
+            adapterDiscoveryBlocker = when {
+                !freshConnection -> "Discovery starts automatically when the gauge reconnects."
+                capabilities?.adapterRegistryVersion != 1 -> "Update the gauge to discover adapters."
+                busy -> "Waiting for the current gauge operation to finish."
+                else -> null
+            }),
         SetupUiState(found || androidBonded, ownerAccess, busy || connection.phase in setOf(ConnectionPhase.Searching, ConnectionPhase.Checking), gaugeCandidates.mapIndexed { index, candidate ->
             val shortId = candidate.id.filter(Char::isLetterOrDigit).takeLast(6).uppercase()
             val visibleName = candidate.name.removeSuffix("-$shortId").ifBlank { "Gauge ${index + 1}" }

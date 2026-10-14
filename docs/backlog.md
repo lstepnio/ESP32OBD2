@@ -1,6 +1,6 @@
 # Prioritized backlog
 
-Updated 2026-10-07. This is the only current task/status list. Outcome order belongs
+Updated 2026-10-14. This is the only current task/status list. Outcome order belongs
 in [roadmap](roadmap.md); supported/installed behavior belongs in [current state](current-state.md).
 Evidence files retain historical pending notes and do not create additional tasks.
 
@@ -29,7 +29,7 @@ are in current state and evidence, with remaining qualification listed separatel
 | QUAL-11 | P1 | Needs device | Shared alerts, context and notification qualification | [ADR-015 matrix](architecture/alerts-and-diagnostics.md#focused-acceptance-matrix): Dev.48 protected synthetic entry/expiry and App context passed; remaining autonomous gauge attention, hidden pages, Pixel lifecycle, power/storage loss, clear before/after; actual vehicle clearing only explicit parked owner action |
 | QUAL-06 | P1 | Blocked | Expand/validate JSS TCM meanings | Independent controller/calibration reference needed for sensor scale, gears 2..8, current/target divergence, shaft speeds/slip; [bounded research plan](development/tcm-values-research-plan.md); pressure remains raw |
 | QUAL-07 | P1 | Needs device | New readings/alerts, units and circular legibility | Decimal and gear rendering, hidden-page TCM alerts, dwell/stale/recovery, unit labels, arc clearance, vivid colors, daylight/night; no new support inferred from vectors |
-| QUAL-04 | P1 | Blocked | Two physical adapters plus phone | Owner currently has one adapter; re-add explicit child only after second adapter arrives; [dual matrix](development/dual-adapter-recovery.md), sibling continuity, no cross-source attribution |
+| QUAL-04 | P1 | Needs device | Two physical adapters plus phone | Owner now has two same-model adapters; second distinct BLE candidate discovered, explicit child selection/send and simultaneous polling still require qualification; [dual matrix](development/dual-adapter-recovery.md), sibling continuity, no cross-source attribution |
 | QUAL-08 | P1 | Needs device | Controlled recovery/performance soak | Worker gaps, queue drops, free/largest blocks, freshness and polling latency; compare single/dual load; durations and cycles in [quality gates](development/quality.md) |
 | FEATURE-07 | P1 | Ready | Capability-gated Auto display orientation | [Orientation policy](architecture/hardware-and-transports.md#automatic-display-orientation): bounded IMU identity/health and axis mapping, persisted mode distinct from applied angle, negotiated settings and coordinated touch transform; current board sensor path is unimplemented, advertise only after physical qualification |
 | CODE-01 | P2 | Ready | Continue typed failure migration | Replace remaining control-flow message matching at specific transport boundaries; preserve cancellation, protocol copy compatibility and verified outcomes; no broad rewrite |

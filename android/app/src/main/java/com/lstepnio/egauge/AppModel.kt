@@ -863,14 +863,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun choosePrimaryAdapter(value: AdapterBinding?) {
         adapterSelectionSource = "ECM"
-        chooseVehicleAdapter(value)
+        saveVehicleAdapter(value, profileCollection.active.draft.source, profileCollection.activeId, false)
     }
 
-    fun chooseVehicleAdapter(value: AdapterBinding?) = launchLocalMutation {
-        if (profileError != null || modifyingSetupBlocked) return@launchLocalMutation
+    /** The child picker cannot silently fall back to the primary binding. */
+    fun chooseTransmissionAdapter(value: AdapterBinding?) = saveVehicleAdapter(value, "TCM", profileCollection.activeId, true)
+
+    fun findTransmissionAdapters() {
+        if (profileCollection.active.transmission == null || localSaveBusy || modifyingSetupBlocked) return
+        adapterSelectionSource = "TCM"
+        findVehicleAdapters()
+    }
+
+    private fun saveVehicleAdapter(value: AdapterBinding?, source: String, vehicleId: String, childOnly: Boolean) = launchLocalMutation {
+        if (profileError != null || modifyingSetupBlocked || profileCollection.activeId != vehicleId) return@launchLocalMutation
         val updated = runCatching {
             profileCollection.copy(profiles = profileCollection.profiles.map {
-                if (it.id == profileCollection.activeId) it.withAdapter(if (adapterSelectionSource == "TCM" && it.transmission != null) "TCM" else it.draft.source, value) else it
+                if (it.id != vehicleId) it else if (childOnly) it.withSecondAdapter(value) else it.withAdapter(source, value)
             })
         }.getOrElse { adapterMessage = it.message; return@launchLocalMutation }
         if (!persistProfiles(updated)) { profileError = "Could not save the adapter selection"; return@launchLocalMutation }

@@ -59,3 +59,10 @@ fun VehicleProfile.withCombinedPageAction(action: PageAction?): VehicleProfile {
 /** Removing a physical route never removes the vehicle's pages or gestures. */
 fun VehicleProfile.withoutTransmissionAdapter(): VehicleProfile =
     copy(draft = dashboardDraft().copy(source = "ECM"), transmission = null, pageOrder = emptyList())
+
+/** Explicit child selection preserves the primary, pages and associations. */
+fun VehicleProfile.withSecondAdapter(value: AdapterBinding?): VehicleProfile {
+    require(draft.source == "ECM" && transmission != null) { "Add the second adapter setup first" }
+    require(value == null || !samePhysicalAdapter(primaryAdapter, value)) { "Choose a different adapter from the primary engine adapter" }
+    return copy(transmission = transmission.copy(adapter = value))
+}
