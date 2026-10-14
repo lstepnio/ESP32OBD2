@@ -17,6 +17,11 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 | Repository | Public `lstepnio/ESP32OBD2`; continuing review PR #51 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
 
 Latest rollout: [dev.52 full hosted App/Wi-Fi qualification](evidence/gatt-long-read-recovery.md#dev52-full-hosted-appwi-fi-outcome).
+During the subsequent Jeep session, the gauge booted with its owner key absent while
+the Pixel retained its old bond. Fresh pairing fails because dev.52 is compiled with
+NimBLE security level 1. Dev.53 uses neutral global level 0 with a production build guard;
+publication, authorized recovery installation and fresh-pairing qualification are pending.
+The owner-key disappearance remains unexplained; see [field diagnosis](evidence/gatt-long-read-recovery.md#jeep-fresh-pairing-regression-diagnosis).
 Original phone wake settings were restored. Android and firmware are active; iOS is deferred.
 No live vehicle session or ECU clear was performed by the dev.48 rollout.
 
@@ -24,7 +29,7 @@ No live vehicle session or ECU clear was performed by the dev.48 rollout.
 
 | Area | Implemented | Observed qualification | Remaining work |
 | --- | --- | --- | --- |
-| Pairing/connection | Android system passkey, protected owner checks, persisted owner; automatic foreground reads and bounded retries | Repeated Pixel opening/resume; Bluetooth off/on recovery; paired Jeep sessions | Bond-loss, alternate-phone and interruption matrix |
+| Pairing/connection | Android system passkey, protected owner checks, persisted owner; automatic foreground reads and bounded retries | Repeated Pixel opening/resume; Bluetooth off/on recovery; paired Jeep sessions | Dev.52 fresh pairing is blocked by security level 1; dev.53 repair prepared; owner retention, bond-loss, alternate-phone and interruption matrix |
 | Engine readings | Header-attributed replies and independently expiring values | Owner RPM agrees with dash; disappears after adapter removal and returns on reconnect | Adapter/vehicle matrix, rates and soak |
 | TCM readings | Captured `2204FE` temperature and `225503` current gear; combined pages | Owner temperature/gear display and loss/recovery checks on the JSS setup | Independent sensor/scale meaning, gears 2..8, current/target divergence |
 | Faults | Independent controller endpoints across a primary/child transport, full categories, fair polling and global presentation | Mac captured stored/pending/permanent TCM lists; software fixtures | Live full App/gauge path; TCM faults through one shared primary transport |

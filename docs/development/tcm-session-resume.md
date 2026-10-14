@@ -7,9 +7,10 @@ until another day. Do not start a live capture until the owner confirms readines
 
 - Inspect Git/worktree state and read [current state](../current-state.md) first;
   use its installed image, profile and qualification facts, not an old candidate.
-- The owner has one adapter and intentionally removed the optional child setup.
-  Use the existing whole vehicle dashboard on the primary transport. Re-add a child
-  only when the second adapter arrives; never select a TCM-only page editor.
+- Check the current adapter inventory and whole vehicle setup in current state.
+  For the installed two-adapter setup, follow the [dual recovery procedure](dual-adapter-recovery.md)
+  first; the Mac single-adapter capture procedure below is a separate explicit session.
+  Never replace a working child binding or select a TCM-only page editor to run a capture.
 - Fault integration/primary-route review is **QUAL-05**; meanings/references are
   **QUAL-06** in [the backlog](../backlog.md). Prepare bounded replay/software work
   without a vehicle. Use [research and fixed reads](tcm-values-research-plan.md).

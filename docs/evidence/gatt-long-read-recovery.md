@@ -313,3 +313,43 @@ Live ECM/TCM plus phone coexistence,
 loaded throughput/soak, expiry, interruption and power-loss cases remain separate
 gates. No USB flashing, ECU interaction, public capability promotion or main merge
 occurred. Ordinary updates continue to select Wi-Fi.
+
+
+## Jeep fresh pairing regression diagnosis
+
+The owner returned to the parked Jeep with both adapters connected and engine idling.
+Read-only serial on dev.52 showed both adapter links ready and progressing, but owner
+load returned `ESP_ERR_NVS_NOT_FOUND` for the owner key. Android still listed the old
+eGauge bond; reconnects failed and the physical display showed the pairing prompt.
+The dev.52 post-update boot had loaded an owner successfully. The later disappearance
+has no captured cause and must not be attributed to the owner or OTA without evidence.
+
+The owner explicitly authorized removing only the stale eGauge phone bond and fresh
+pairing. Android rejected pairing before a gauge passkey, with logged
+`SMP_INVALID_CMD`. It also failed with both adapters unplugged, Bluetooth refreshed
+and the gauge restarted. The Android Settings path independently rejected fresh
+pairing. Thus active ECM/TCM radio load alone does not explain this failure.
+
+Source/Git diagnosis found `CONFIG_BT_NIMBLE_SM_LVL=1`: `cfa6b321` changed the checked-in
+level from 4 to 1. ESP-IDF 5.4.1 `ble_sm_pair_req_rx` explicitly returns command-not-supported
+at level 1 before the pairing/passkey procedure. Runtime MITM/SC flags cannot override
+that compile-time check. Existing-bond reconnect/update qualification did not cover
+fresh pairing and therefore missed this regression. The original level-4-to-1 change addressed a real adapter constraint: ESP-IDF drops
+unencrypted incoming notifications at global levels >=2. Simply restoring level 4
+would break Vgate replies. Dev.53 instead uses neutral global level 0 with the existing
+authenticated GATT attributes, encrypted/authenticated/bonded saved-owner gate and
+MITM/Secure Connections requests. Legacy pairing remains disabled and the existing
+SC-only-branch workaround remains. A production compile guard, validator and invalid
+configuration fixtures protect both fresh pairing and unencrypted adapter transport.
+Release and recovery installation are pending.
+
+During Android Settings diagnosis, a moving scan row redirected one coordinate tap
+to an unrelated device. The attempt was canceled; exact bonded-section comparison
+confirmed no new bond for that device. A test-only exact-current-accessibility selector
+replaces scan-row coordinates. No unrelated saved device bond was removed. Private
+captures and device names remain outside Git.
+
+Dual source/phone coexistence, physical values and sibling isolation remain unqualified.
+Only firmware worker progress/link readiness was observed before pairing recovery.
+No ECU commands, code clearing, USB flash or new release publication occurred during
+this diagnosis. Saved phone setup and gauge configuration are retained.

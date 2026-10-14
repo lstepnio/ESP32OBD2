@@ -203,3 +203,23 @@ Do not silently change an authorized Wi-Fi update into a Bluetooth/USB repair.
 Development Bluetooth recovery requires explicit owner authorization and exact
 signed bundle/version/ELF, then uses the existing serialized update owner, durable
 journal and healthy image confirmation. Keep ordinary UI on the normal Wi-Fi path.
+
+
+## Fresh pairing and build security
+
+NimBLE's compile-time security level affects both peripheral phone pairing and
+central adapter notifications. Keep `CONFIG_BT_NIMBLE_SM_LVL=0`: level 1 rejects
+fresh pairing, while levels >=2 discard the Vgate's unencrypted notifications.
+The neutral setting delegates phone security to authenticated GATT attributes,
+MITM/bonding/Secure Connections requests and the encrypted/authenticated/bonded
+saved-owner identity gate. Secure Connections stays enabled and legacy pairing stays
+disabled. Do not weaken those per-service checks to accommodate adapter transports.
+`ble_security_policy.h` rejects conflicting build configurations; CI compiles the
+actual policy against checked-in and invalid settings. Keep the existing SC-only
+runtime branch workaround for ESP-IDF 5.4.1 independently of the global level.
+
+Existing-bond reconnect, protected reads and OTA do not qualify fresh pairing.
+Record first pairing and absent/mismatched owner/bond recovery separately, then
+verify the durable owner after restart. Never silently recreate ownership or erase
+bonds from routine retry. An absent owner record is an unresolved persistence or
+reset event until supported by evidence; do not infer its cause from a pairing screen.

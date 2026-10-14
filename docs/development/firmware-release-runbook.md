@@ -105,3 +105,22 @@ retain the existing `eGaugeUpdate` stage timings and private USB memory evidence
 phone monitoring off, take a private setup backup, keep the App visible and restore the
 awake helper at session end. Obtain owner display/touch confirmation separately.
 A successful indoor transfer does not qualify live dual-radio coexistence or interruptions.
+
+
+## Pairing recovery with an unowned gauge
+
+Confirm owner-window state, Android bond state and physical gauge behavior separately.
+A missing gauge owner and stale phone bond do not authorize a silent bond reset;
+obtain explicit authorization for removing the specific bond. Stop competing App
+reads while performing an approved fresh pairing. Exact-name Bluetooth Settings
+selection is available through the opt-in `SystemBluetoothUiTest`, using
+`allowSystemBluetoothUi=true`, `exactLabel` and optional `matchDescription=true`.
+It operates only in Android Settings and matches the current visible accessible
+control. Preserve remote shell quoting for labels containing spaces. Never use
+stale scan-row coordinates or interact with unrelated discovered devices.
+
+If firmware rejects fresh pairing before a passkey and no owner can authenticate,
+App/BLE and App/Wi-Fi installation cannot repair that image. Any USB recovery needs
+separate explicit authorization, a verified signed image, private flash backup,
+application-only partition targeting and preservation checks. Do not erase NVS,
+configuration slots or the partition table, or bypass authentication to make OTA work.

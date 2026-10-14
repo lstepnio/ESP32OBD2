@@ -86,7 +86,7 @@ Adapter scanning and connections stop while the temporary Wi-Fi maintenance netw
 
 ## Unencrypted adapter replies and owner protection
 
-ESP-IDF 5.4.1 filters incoming ATT notifications from unencrypted links when its global NimBLE security level is 2 or higher. The gauge uses global level 1 for the adapter transport. Companion control/state attributes require authentication, and their handlers independently require an encrypted, authenticated, bonded saved-owner identity. Phone pairing still requests bonding, MITM protection, and Secure Connections. Adapter transport access does not grant companion owner access.
+ESP-IDF 5.4.1 filters incoming ATT notifications from unencrypted links when its global NimBLE security level is 2 or higher. The gauge uses neutral global level 0 for per-service security: level 1 also rejects fresh phone pairing. Companion control/state attributes require authentication, and their handlers independently require an encrypted, authenticated, bonded saved-owner identity. Phone pairing still requests bonding, MITM protection, and Secure Connections. Adapter transport access does not grant companion owner access.
 
 An uncertain Android configuration result can be reconciled after reconnecting only when the saved document and healthy runtime match the exact attempted revision and payload digest. A subsequent draft edit is not substituted for that attempted payload. OTA reconciliation similarly requires the expected healthy image identity.
 

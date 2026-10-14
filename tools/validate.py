@@ -182,9 +182,14 @@ from documentation_policy import check_documentation
 md_count = check_documentation(ROOT)
 
 # NimBLE's global security floor filters every incoming adapter notification.
-# Owner protection belongs to the companion's authenticated attributes and identity gate.
+# Level 1 additionally rejects fresh pairing. Use neutral level 0 and per-service owner protection.
 sdk = (ROOT / 'firmware/gauge/sdkconfig').read_text()
-check('CONFIG_BT_NIMBLE_SM_LVL=1' in sdk, 'Unencrypted OBD replies must reach the adapter client')
+check('CONFIG_BT_NIMBLE_SM_LVL=0' in sdk, 'Neutral global security policy must permit fresh pairing and unencrypted adapter notifications')
+ble_init = (ROOT / 'firmware/gauge/main/src/ble_init.c').read_text()
+for setting in ('ble_hs_cfg.sm_mitm = 1', 'ble_hs_cfg.sm_sc = 1', 'ble_hs_cfg.sm_bonding = 1'):
+    check(setting in ble_init, f'Missing phone pairing security: {setting}')
+check('CONFIG_BT_NIMBLE_SM_SC=y' in sdk and '# CONFIG_BT_NIMBLE_SM_LEGACY is not set' in sdk,
+      'Secure Connections must remain enabled with legacy pairing disabled')
 companion = (ROOT / 'firmware/gauge/main/src/ble_companion.c').read_text()
 for guard in ('BLE_GATT_CHR_F_WRITE_AUTHEN', 'BLE_GATT_CHR_F_READ_AUTHEN',
               'desc.sec_state.encrypted', 'desc.sec_state.authenticated',

@@ -33,6 +33,8 @@ jobs:
         run: python -m unittest discover -s tools/tests -p 'test_alert*.py'
       - name: Wi-Fi driver allocation failure and retry lifecycle
         run: python -m unittest discover -s tools/tests -p 'test_wifi*.py'
+      - name: Fresh pairing build-security regression gate
+        run: python -m unittest discover -s tools/tests -p 'test_ble_security*.py'
       - name: Local gauge gesture fixtures with sanitizers
         run: |
           cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
