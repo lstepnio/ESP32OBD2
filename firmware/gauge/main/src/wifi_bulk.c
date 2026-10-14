@@ -13,6 +13,7 @@
 #include "esp_random.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
+#include "esp_wifi_default.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
@@ -159,6 +160,22 @@ static void wifi_event(void *arg, esp_event_base_t base, int32_t id, void *data)
     }
 }
 
+/* Only the maintenance command worker owns this lifecycle. Keep the shared
+ * event loop/netif runtime, but retire this AP's driver, handlers and DMA pool. */
+static void release_wifi_driver(void)
+{
+    if (wifi_initialized) {
+        esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event);
+        esp_wifi_stop();
+        esp_wifi_deinit();
+        wifi_initialized = false;
+    }
+    if (ap_netif) {
+        esp_netif_destroy_default_wifi(ap_netif);
+        ap_netif = NULL;
+    }
+}
+
 static bool initialize_wifi(void)
 {
     if (wifi_initialized) return true;
@@ -166,14 +183,17 @@ static bool initialize_wifi(void)
     if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) return false;
     err = esp_event_loop_create_default();
     if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) return false;
-    ap_netif = esp_netif_create_default_wifi_ap();
+    // The SDK convenience constructor asserts on allocation/attach failure.
+    // Use its checked primitives so memory pressure returns a failed status.
+    esp_netif_config_t netif_config = ESP_NETIF_DEFAULT_WIFI_AP();
+    ap_netif = esp_netif_new(&netif_config);
     if (!ap_netif) return false;
+    if (esp_netif_attach_wifi_ap(ap_netif) != ESP_OK ||
+        esp_wifi_set_default_wifi_ap_handlers() != ESP_OK) return false;
     wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT();
     if (esp_wifi_init(&init) != ESP_OK) return false;
-    if (esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event, NULL) != ESP_OK)
-        return false;
     wifi_initialized = true;
-    return true;
+    return esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event, NULL) == ESP_OK;
 }
 
 static bool start_maintenance_network(void)
@@ -239,8 +259,8 @@ static void stop_maintenance_network(void)
 {
     atomic_store(&wifi_active, false);
     atomic_fetch_add(&wifi_generation, 1);
+    release_wifi_driver();
     ble_mgr_set_paused(false);
-    if (wifi_initialized) esp_wifi_stop();
     xSemaphoreTake(state_lock, portMAX_DELAY);
     clear_session_locked(PHASE_OFF, RESULT_OK);
     xSemaphoreGive(state_lock);
@@ -498,6 +518,7 @@ static void worker_task(void *arg)
             if (command.op == OP_OPEN) {
                 ble_mgr_set_paused(true);
                 if (!start_maintenance_network()) {
+                    release_wifi_driver();
                     ble_mgr_set_paused(false);
                     xSemaphoreTake(state_lock, portMAX_DELAY);
                     clear_session_locked(PHASE_FAILED, RESULT_NETWORK);

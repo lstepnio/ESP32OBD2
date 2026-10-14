@@ -187,11 +187,15 @@ The one-phone maintenance AP shares internal RAM with BLE, display and workers.
 Use the board's PSRAM-first Wi-Fi/LwIP allocator for eligible buffers, retain bounded
 DMA buffers internally, and keep RX Block Ack window no larger than static RX count.
 Do not inherit desktop-like throughput defaults without measuring startup headroom.
-The current board budget is four static RX/TX, eight dynamic RX/cached TX and six
+The current board budget is two static RX/TX, eight dynamic RX/cached TX and six
 short management buffers. Check internal total and largest free block after driver
 initialization, before AP startup; defer startup through the existing failed-status
 and adapter-resume path when below the policy floors. These floors are conservative
-admission checks, not a reservation or a vendor crash guarantee. Record physical
+admission checks, not a reservation or a vendor crash guarantee. The maintenance
+worker retires its AP driver, handlers and DMA buffers on close or failed startup,
+then resumes adapter workers. Keep the shared event loop/netif runtime; use checked
+netif creation/attach instead of the SDK convenience constructor that asserts on
+allocation failure. Record physical
 startup, upload rate, post-start minimum/largest heap and repeated close/open before
 calling the budget qualified. See [startup failure evidence](../evidence/gatt-long-read-recovery.md#wi-fi-installation-blocker).
 

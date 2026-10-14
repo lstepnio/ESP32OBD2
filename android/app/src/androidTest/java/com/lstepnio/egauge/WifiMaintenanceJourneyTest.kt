@@ -9,12 +9,14 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test
+import org.junit.Rule
 import org.junit.runner.RunWith
 import java.io.File
 
-/** Explicit maintenance opt-in. Run with the App stopped to exclude other BLE owners. */
+/** Explicit maintenance opt-in. Relaunch with automatic reads disabled to isolate the transport. */
 @RunWith(AndroidJUnit4::class)
 class WifiMaintenanceJourneyTest {
+    @get:Rule val compose = activityTestRule()
     @Test fun privateNetworkReopensAndPreservesConfirmedSetup() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val args = InstrumentationRegistry.getArguments()
@@ -34,6 +36,7 @@ class WifiMaintenanceJourneyTest {
                 assertEquals(args.getString("expectedFirmwareVersion"), before.version)
                 assertEquals(args.getString("expectedFirmwareElf"), before.elfSha256)
                 assertEquals(2, before.otaState)
+                val bootNonce = requireNotNull(client.readAlertBatch(device, 0, 0)).boot
                 val document = requireNotNull(client.readActiveDocument(device))
                 val settings = client.readDisplaySettings(device)
                 var previousSession: Long? = null
@@ -55,8 +58,10 @@ class WifiMaintenanceJourneyTest {
                     } finally {
                         client.closeWifiBulk(device)
                     }
-                    assertEquals("No reset or image change during maintenance", before, client.readBootIdentity(device))
-                    report.append("Cycle ${index + 1}: protected open $opened ms; authenticated Wi-Fi status reads and protected close passed\n")
+                    assertEquals("No image change during maintenance", before, client.readBootIdentity(device))
+                    assertEquals("No gauge reboot during maintenance", bootNonce,
+                        requireNotNull(client.readAlertBatch(device, 0, 0)).boot)
+                    report.append("Cycle ${index + 1}: protected open $opened ms; authenticated Wi-Fi status reads, protected close and unchanged boot nonce passed\n")
                 }
                 val after = requireNotNull(client.readActiveDocument(device))
                 assertEquals(document.revision, after.revision)

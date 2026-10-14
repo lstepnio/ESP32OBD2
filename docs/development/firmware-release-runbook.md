@@ -64,3 +64,26 @@ for update availability, including equal/older rejection. Other version families
 retain standard ordering. Bundle/catalog signature, descriptor and post-boot
 image checks still use the exact published identity; no comparison alias changes
 what image is accepted or confirmed. Publish new candidates as `0.2.0-dev.N`.
+
+## Authorized Bluetooth repair when maintenance Wi-Fi cannot start
+
+Wi-Fi remains the ordinary installation path. If the running image crashes while
+starting its maintenance AP, an owner may explicitly authorize the existing signed
+App/Bluetooth path for repair. Do not silently switch transports or use USB flashing.
+Use the debug App and test APK, retain a private setup backup, stage only the verified
+signed bundle under the App's external files as `authorized-recovery.egauge-dev-update`,
+and opt in to `BluetoothFirmwareRecoveryTest` with `allowBluetoothFirmwareRecovery=true`
+and exact `expectedFirmwareVersion` / `expectedFirmwareElf`. The test uses the App's
+serialized update owner and journal, verifies the healthy exact boot and checks that
+configuration, display settings and phone profiles remain unchanged. Run only while
+the phone and gauge are available; stop/restore the debug awake helper afterward.
+
+After a Wi-Fi repair, `WifiMaintenanceJourneyTest` opts in with
+`allowMaintenanceWifi=true` and the same expected version/ELF. Start from an idle App,
+with phone monitoring off and its process stopped, so the fixture can keep eGauge
+visible with automatic BLE polling disabled. It opens a maintenance network twice,
+reads authenticated OTA/config status through Wi-Fi, closes each session, verifies
+fresh session identities and checks unchanged boot/configuration/settings. Network
+startup/cleanup qualification is distinct from a full firmware upload, live adapter
+coexistence, or power-loss recovery. Record the physical result and memory evidence
+under the dated rollout report; leave private credentials and identifiers out of Git.

@@ -158,3 +158,40 @@ Refusal is not a failure gate. Normal Wi-Fi selection and authentication remain
 unchanged. Android build/lint, 179 JVM tests and both recovery/maintenance fixture
 compilations passed. Installation and Wi-Fi qualification are recorded separately
 below after physical execution; publication is not an installed-image claim.
+
+## Dev.50 device outcome and next memory refinement
+
+Owner-authorized dev.50 App/Bluetooth installation passed its preservation test in
+913.182 seconds: exact signed ELF, OTA health 2, revision 50/digest, display settings,
+profiles and cleared journal. Android accepted the high-priority request with interval
+12, latency 1; this run did not demonstrate a speed improvement over the prior run.
+The runs used different active single/dual runtime configurations and included a
+foreground interruption, so this is not an isolated timing benchmark.
+
+The physical Wi-Fi fixture failed at protected OPEN with result 3. USB logs showed
+PSRAM preference and the expected bounded four RX/four TX/eight cached/eight dynamic
+RX/six management buffers, then a controlled admission refusal at **13,279 bytes
+internal free / 7,168 largest block**, below the 16 KB total floor. There was no
+beacon allocation panic. Minute logs afterward showed internal minimum 13,151 bytes,
+PSRAM minimum 2,024,064 bytes, continued App/UI/config/OTA/Wi-Fi worker progress and
+both missing-adapter retry workers; UI maximum gap was 115 ms. Source absence is
+expected indoors. This proves controlled refusal, not a usable maintenance network.
+
+Dev.51 preparation removes another approximately 6.4 KB of static DMA buffers by
+using two RX/two TX and a matching two-frame RX Block Ack window, retaining the
+16 KB / 4 KB admission floors. The maintenance worker now deinitializes the driver,
+unregisters its handlers and destroys its AP interface on failed startup or close
+before resuming adapters. Shared event-loop/netif runtime is retained. Checked
+netif create/attach primitives replace the SDK convenience function's assertions.
+Sanitized production lifecycle fixtures inject netif allocation/attach, default and
+custom event registration and driver-init failures, verify resource release, retry
+and idempotent close. The firmware builds with ESP-IDF 5.4.1. New publication and
+installation require separate owner release authorization and green checks.
+
+After the refusal, the physical read-only automatic connection journey passed in
+17.476 seconds, including resume refresh, hardware-to-firmware read chain, healthy
+dev.50 identity and unchanged revision 50/digest/settings. Thus the controlled
+network failure did not strand protected App/gauge management. All 90 host tests,
+the dev.51 firmware build, repository validation and diff checks passed locally;
+Android test fixtures compiled with the boot-nonce reset check. CI and release
+approval remain the next gates for dev.51.
