@@ -127,3 +127,13 @@ The App requires this capability before sending new catalog entries or TCM alert
 Install the compatible App first; older Apps reject an unknown capability version.
 No BLE opcode, protocol-major, public OTA/config-write flag or link qualification
 changes. See [catalog maintenance and evidence](../development/reading-catalog-alerts.md).
+
+### Development OTA status polling
+
+A protected mutation is sent once, then only its status is polled. Android uses
+5/10/20/40 ms initial pauses followed by 75 ms pauses for Bluetooth OTA replies.
+The four initial pauses total one previous 75 ms pause; three extra reads retain
+the existing nominal maximum pause budget (6 seconds for 80 legacy attempts,
+45 seconds for 600). The complete operation deadline and cancellation remain
+unchanged. Stale sequence/opcode replies never certify completion; no early poll
+replays a firmware write. Wi-Fi bulk framing and response handling are unchanged.

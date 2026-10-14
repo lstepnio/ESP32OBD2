@@ -261,7 +261,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                                attempts: Int = 80): OtaStatus {
             writeRaw(byteArrayOf(opcode.toByte()) + le32(sequence) + payload)
             if (opcode == 0x27) return readOta()
-            repeat(attempts) {
+            repeat(otaStatusPollCount(attempts)) { retry ->
                 val status = readOta()
                 if (status.sequence == sequence && status.opcode == opcode) {
                     check(status.result == 0) {
@@ -269,7 +269,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                     }
                     return status
                 }
-                delay(75)
+                delay(otaStatusPollDelay(retry))
             }
             error("Gauge did not confirm update command $opcode")
         }

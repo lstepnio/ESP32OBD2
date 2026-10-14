@@ -195,3 +195,20 @@ network failure did not strand protected App/gauge management. All 90 host tests
 the dev.51 firmware build, repository validation and diff checks passed locally;
 Android test fixtures compiled with the boot-nonce reset check. CI and release
 approval remain the next gates for dev.51.
+
+## Authorized dev.51 publication
+
+The owner separately approved dev.51 publication/installation and power-cycled the
+gauge, confirming its dev.50 normal page and swipes. This clears that image's retained
+Wi-Fi driver pool before recovery. Workflow `38638473237` published the immutable
+[dev.51 prerelease](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.51)
+from checked commit `f1a5308`, generation 33. Downloaded catalog and image signatures,
+board/layout/version, size and digests passed independent verification. Image size:
+1,535,360 bytes. Expected ELF:
+`cfab2de17841b85039c5fb2094f422fe5e4aa0732ce87d8edc6c29930296a911`.
+
+The recovery App adds bounded early OTA status polling without replaying mutations
+or reducing the nominal pause/overall operation budgets. Android build/lint, 181 JVM
+tests (including wait-budget parity) and recovery/maintenance fixture compilation
+passed. Exact installed identity/preservation and Wi-Fi startup/teardown remain
+separate physical gates, recorded after execution below.
