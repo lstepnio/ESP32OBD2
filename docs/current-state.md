@@ -8,10 +8,10 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | App/candidate firmware `0.2.0-dev.49`; running firmware dev.48 | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Source/App/firmware version | App `0.2.0-dev.49`; published firmware dev.49, local Wi-Fi repair candidate dev.50; running dev.48 | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
 | Installed Pixel and gauge | Pixel dev.49 recovery App; gauge signed dev.48 from `f572974`, generation 30 | Exact hosted ELF and OTA health 2 passed protected readback; owner normal-page/swipe confirmation passed |
 | Gauge dashboard | Revision 49; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
-| Current setup | Gauge uses one primary transport; phone has two distinct bindings and dual mode On, pending send | Primary and both dashboard drafts preserved; [long-read recovery](evidence/gatt-long-read-recovery.md) is prepared; firmware publication and dual send remain pending |
+| Current setup | Gauge uses one primary transport; phone has two distinct bindings and dual mode On, pending send | Primary and both dashboard drafts preserved; [long-read recovery](evidence/gatt-long-read-recovery.md) is published as dev.49; installation is blocked by dev.48 Wi-Fi allocation crash, and dual send remains pending |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
 | Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; two same-model adapters reported by owner | A distinct supported BLE candidate was discovered; dual-radio operation has not been measured |
 | Repository | Public `lstepnio/ESP32OBD2`; continuing review PR #51 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |

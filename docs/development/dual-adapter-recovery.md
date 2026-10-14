@@ -2,8 +2,9 @@
 
 This maintained procedure qualifies the current development runtime. Current image,
 software checks and device availability are in [current state](../current-state.md).
-The owner has one adapter; physical dual operation is **QUAL-04** in
-[the backlog](../backlog.md). Do not start vehicle/BLE work unattended.
+Physical dual operation is **QUAL-04** in [the backlog](../backlog.md).
+Check current device availability in [current state](../current-state.md); do not
+start vehicle/BLE work unattended.
 
 ## Software boundary and offline evidence
 

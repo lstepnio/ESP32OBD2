@@ -1486,32 +1486,46 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         updatePackageMessage = message
     }
-    fun installSelectedUpdate() {
+    fun installSelectedUpdate() = installSelectedUpdate(bluetoothRecovery = false)
+
+    /** Explicitly authorized bench recovery only; ordinary updates continue using Wi-Fi. */
+    internal fun installBluetoothRecoveryUpdate() {
+        check(BuildConfig.DEBUG) { "Bluetooth recovery requires the development App" }
+        installSelectedUpdate(bluetoothRecovery = true)
+    }
+
+    private fun installSelectedUpdate(bluetoothRecovery: Boolean) {
         if (updateInProgress) return
         val bundle = updateBundle()
         viewModelScope.launch {
             try {
                 foregroundConnection.runUserOperation(OperationKind.UPDATE) { id ->
                     updateStarted()
+                    val wifiVersion = capabilities?.wifiBulk
+                    val usingWifi = !bluetoothRecovery && wifiVersion in setOf(
+                        "experimental-softap-aead-v1", "experimental-softap-aead-v2")
                     operation = OperationState(id, OperationKind.UPDATE, OperationStage.CONNECTING,
-                        "Installing firmware", if (capabilities?.wifiBulk != null)
+                        "Installing firmware", if (usingWifi)
                             "Preparing a private gauge Wi-Fi connection" else "Connecting to the gauge")
                     val client = GaugeConfigTransferClient(getApplication())
                     val reportProgress: (Int) -> Unit = { percent ->
                             updateProgress(percent)
                             operation = operation.copy(stage = OperationStage.SENDING,
-                                detail = if (capabilities?.wifiBulk != null)
+                                detail = if (usingWifi)
                                     "Sending firmware over private gauge Wi-Fi" else
                                     "Sending firmware over Bluetooth", progressPercent = percent)
                         }
-                    val wifiVersion = capabilities?.wifiBulk
-                    val result = if (wifiVersion == "experimental-softap-aead-v1" ||
-                        wifiVersion == "experimental-softap-aead-v2")
+                    val reportStage: (FirmwareUpdateStage) -> Unit = { stage ->
+                        updateStageChanged(stage)
+                        if (!usingWifi && stage == FirmwareUpdateStage.TRANSFERRING)
+                            operation = operation.copy(detail = "Sending the signed image over Bluetooth")
+                    }
+                    val result = if (usingWifi)
                         client.installUpdateWifi(bleClient.selectedGauge(), bundle,
                             wifiVersion == "experimental-softap-aead-v2", reportProgress,
-                            ::updateStageChanged, debugOtaPauseBeforeActivationMs)
+                            reportStage, debugOtaPauseBeforeActivationMs)
                     else client.installUpdate(bleClient.selectedGauge(), bundle, reportProgress,
-                        ::updateStageChanged, debugOtaPauseBeforeActivationMs)
+                        reportStage, debugOtaPauseBeforeActivationMs)
                     updateSucceeded(result)
                     operation = OperationState(id, OperationKind.UPDATE, OperationStage.ACTIVE,
                         "Firmware installed", "The new image is healthy and running", 100, true)

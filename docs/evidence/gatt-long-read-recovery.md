@@ -65,3 +65,49 @@ After firmware repair, send the complete dual setup and require protected stored
 revision/hash and cleared trial. Confirm physical display/swipes separately. Live ECM/TCM
 reads, independent loss/recovery and soak remain QUAL-04; no public qualification increase.
 Private logs, identifiers and preference backups remain ignored artifacts.
+
+## Authorized signed release
+
+The owner authorized publication and App/Wi-Fi installation of dev.49. All three
+quality jobs passed for `5864046`; release workflow `38627758933` published the
+immutable [development prerelease](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.49)
+from that exact commit, generation 31. Downloaded catalog and image signatures
+verified against the App public key, alongside board/layout/version, descriptor,
+size and digest checks. Image size: 1,534,592 bytes. Expected ELF SHA-256:
+`e5fcda4f66721dc405a9add3c26e996caac21cb786849c833fcf6194e9585530`.
+
+Publication alone is not device installation. Post-boot image/health, whole dual
+configuration and physical touch remain separate gates.
+
+## Wi-Fi installation blocker
+
+Authorized App/Wi-Fi attempts reached a protected dev.48 boot preflight but did
+not transfer an image. The App reported an interrupted link (GATT 133); fresh USB
+capture established a second failure at maintenance startup: repeated vendor
+`alloc eb len=752 type=4 fail` messages followed by LoadProhibited and a CPU reset.
+The next boot remained dev.48 with revision 49. Earlier event-sync ATT 7 logs
+persisted on that older firmware; they are distinct from this startup crash.
+
+The existing Wi-Fi defaults allocate ten static RX buffers, 32 dynamic RX/TX
+buffers and 32 short management buffers without preferring PSRAM. The observed
+pre-start internal free/largest block were approximately 58 KB / 31 KB while
+about 2 MB PSRAM remained free. Dev.50 preparation enables the SDK PSRAM-first
+Wi-Fi/LwIP allocator, four static RX and four static TX buffers, eight dynamic
+RX and cached TX buffers, a matching four-frame Block Ack window and six short
+management buffers for the single maintenance client. Eligible allocations use
+PSRAM; DMA requirements remain internal. Startup additionally refuses to enable
+the AP below 16 KB internal free / 4 KB largest block and stops partial startup
+on SDK error. These conservative admission floors need physical measurements;
+they are not a proof of immunity to all vendor allocation failures.
+
+Dev.49 publication succeeded, but App/Wi-Fi installation remains blocked on
+running dev.48. The owner explicitly authorized signed App/Bluetooth recovery on 2026-10-14. It uses the
+existing protected transfer, update journal and exact post-boot check; no USB
+flash, pairing deletion or configuration change is needed. The opt-in recovery
+instrumentation is skipped unless an owner authorizes installation and supplies
+an exact signed bundle/version/ELF. Ordinary update UI continues using Wi-Fi.
+Dev.50 publication needs its own approval and green checks. Local App build/lint,
+179 JVM tests and recovery instrumentation compilation passed; dev.50 firmware
+build, sanitized core fixtures (including exhaustion/fragmentation admission cases),
+repository validation and diff checks passed. Physical recovery is recorded below
+only after the exact running-image check completes.

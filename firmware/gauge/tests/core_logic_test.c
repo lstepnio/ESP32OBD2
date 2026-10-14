@@ -245,6 +245,12 @@ static void test_scheduler(void)
 
 static void test_wifi_bulk_policy(void)
 {
+    // Plenty of total RAM must not hide fragmentation or internal exhaustion.
+    assert(wifi_bulk_policy_memory_ready(58000, 31000));
+    assert(wifi_bulk_policy_memory_ready(16384, 4096));
+    assert(!wifi_bulk_policy_memory_ready(16383, 4096));
+    assert(!wifi_bulk_policy_memory_ready(58000, 4095));
+    assert(!wifi_bulk_policy_memory_ready(0, 0));
     assert(wifi_bulk_policy_accept(true, 7, 7, 0, 1, 200, 100));
     assert(!wifi_bulk_policy_accept(false, 7, 7, 0, 1, 200, 100));
     assert(!wifi_bulk_policy_accept(true, 0, 0, 0, 1, 200, 100));

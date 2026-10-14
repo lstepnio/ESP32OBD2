@@ -198,9 +198,22 @@ static bool start_maintenance_network(void)
     config.ap.pmf_cfg.capable = true;
     config.ap.pmf_cfg.required = false;
     xSemaphoreGive(state_lock);
+    // The vendor AP startup can dereference a failed beacon allocation. Keep
+    // internal headroom after driver initialization, before enabling the radio.
+    // PSRAM holds eligible Wi-Fi/LwIP allocations; DMA buffers remain internal.
+    size_t free_internal = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    size_t largest_internal = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (!wifi_bulk_policy_memory_ready(free_internal, largest_internal)) {
+        ESP_LOGW(TAG, "Maintenance startup deferred: internal_free=%u internal_largest=%u",
+                 (unsigned)free_internal, (unsigned)largest_internal);
+        return false;
+    }
     if (esp_wifi_set_mode(WIFI_MODE_AP) != ESP_OK ||
         esp_wifi_set_config(WIFI_IF_AP, &config) != ESP_OK ||
-        esp_wifi_start() != ESP_OK) return false;
+        esp_wifi_start() != ESP_OK) {
+        esp_wifi_stop();
+        return false;
+    }
     esp_netif_ip_info_t info;
     if (esp_netif_get_ip_info(ap_netif, &info) != ESP_OK) {
         esp_wifi_stop();

@@ -180,3 +180,22 @@ unbounded diagnostic queues. Record owner-loop progress, admission drops and lar
 allocatable blocks alongside free memory. Progress during missing-adapter retry is
 healthy owner behavior. Measurements do not establish deadlock immunity or justify
 reset loops; use them to qualify failure/soak scenarios on actual hardware.
+
+## Wi-Fi maintenance memory budget
+
+The one-phone maintenance AP shares internal RAM with BLE, display and workers.
+Use the board's PSRAM-first Wi-Fi/LwIP allocator for eligible buffers, retain bounded
+DMA buffers internally, and keep RX Block Ack window no larger than static RX count.
+Do not inherit desktop-like throughput defaults without measuring startup headroom.
+The current board budget is four static RX/TX, eight dynamic RX/cached TX and six
+short management buffers. Check internal total and largest free block after driver
+initialization, before AP startup; defer startup through the existing failed-status
+and adapter-resume path when below the policy floors. These floors are conservative
+admission checks, not a reservation or a vendor crash guarantee. Record physical
+startup, upload rate, post-start minimum/largest heap and repeated close/open before
+calling the budget qualified. See [startup failure evidence](../evidence/gatt-long-read-recovery.md#wi-fi-installation-blocker).
+
+Do not silently change an authorized Wi-Fi update into a Bluetooth/USB repair.
+Development Bluetooth recovery requires explicit owner authorization and exact
+signed bundle/version/ELF, then uses the existing serialized update owner, durable
+journal and healthy image confirmation. Keep ordinary UI on the normal Wi-Fi path.
