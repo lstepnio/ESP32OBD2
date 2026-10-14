@@ -252,3 +252,14 @@ Private preference backups compared `profiles-v1.xml`, `presentation.xml` and
 The owner separately confirmed dev.51 shows a normal physical page and swipes work. No vehicle session
 or USB firmware flashing occurred. Original phone wake settings were restored;
 eGauge was left open. Public capability flags remain disabled.
+
+
+## Full Wi-Fi transfer preparation
+
+The owner requested full App/Wi-Fi qualification before returning to the Jeep. The
+updater intentionally rejects the exact running image, so dev.52 changes only the
+firmware version identity from dev.51. Runtime logic and public capability gates
+remain unchanged. `WifiFirmwareJourneyTest` exercises the ordinary signed hosted
+check/download and App Wi-Fi owner, then exact healthy alternate-slot activation,
+cleared journal and configuration/settings/profile preservation. Publication and
+physical execution remain separate gates; no same-image bypass or downgrade is used.

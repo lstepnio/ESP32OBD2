@@ -87,3 +87,21 @@ fresh session identities and checks unchanged boot/configuration/settings. Netwo
 startup/cleanup qualification is distinct from a full firmware upload, live adapter
 coexistence, or power-loss recovery. Record the physical result and memory evidence
 under the dated rollout report; leave private credentials and identifiers out of Git.
+
+
+## Full App/Wi-Fi installation qualification
+
+`WifiFirmwareJourneyTest` requires explicit `allowWifiFirmwareInstall=true` and exact
+`expectedFirmwareVersion` / `expectedFirmwareElf`. Use an authorized newly published
+signed development candidate: the production updater rejects the exact running image.
+Do not bypass that guard or downgrade solely to manufacture a transfer test. A version-only
+candidate can qualify the current firmware implementation without changing its logic.
+
+The fixture uses the ordinary hosted catalog check, signed download, App update owner,
+Wi-Fi transfer and post-restart confirmation. It checks the expected healthy ELF in the
+alternate OTA slot, cleared recovery journal and unchanged configuration/settings/profiles.
+Its sampled stage timestamps are diagnostic observations, not exact wire throughput;
+retain the existing `eGaugeUpdate` stage timings and private USB memory evidence. Keep
+phone monitoring off, take a private setup backup, keep the App visible and restore the
+awake helper at session end. Obtain owner display/touch confirmation separately.
+A successful indoor transfer does not qualify live dual-radio coexistence or interruptions.
