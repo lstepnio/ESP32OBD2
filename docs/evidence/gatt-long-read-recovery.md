@@ -249,6 +249,6 @@ snapshot followed by fresh protected firmware identity. It retained revision 50,
 digest, display settings and profiles. No Bluetooth toggle or picker case was run.
 Private preference backups compared `profiles-v1.xml`, `presentation.xml` and
 `gauge-association.xml` byte for byte with the pre-dev.51 backup; all were unchanged.
-Owner physical display/touch confirmation is pending separately. No vehicle session
+The owner separately confirmed dev.51 shows a normal physical page and swipes work. No vehicle session
 or USB firmware flashing occurred. Original phone wake settings were restored;
 eGauge was left open. Public capability flags remain disabled.
