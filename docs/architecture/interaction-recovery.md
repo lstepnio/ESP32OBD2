@@ -122,6 +122,10 @@ before extending the projection or promoting `maxAdapterLinks` above one.
 
 - Keep GAP/GATT callbacks and LVGL/touch paths bounded. Validate and copy/enqueue;
   do not wait for network replies, scan completion, flash writes or JSON processing.
+- NimBLE GATT read callbacks append the complete immutable characteristic value.
+  The host applies the ATT blob offset; never subtract it in both layers. Test long
+  responses at the minimum MTU and the installed controller MTU, including exact-end
+  and invalid offsets and allocation failure. Application document offsets are separate.
 - Published snapshots use short copy-only critical sections or nonblocking lock
   attempts. Contention returns a retryable failure, never an empty healthy packet.
   A critical section contains no flash, network, blocking queue, logging or other

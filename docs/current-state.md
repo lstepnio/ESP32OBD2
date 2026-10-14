@@ -8,10 +8,10 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | Development `0.2.0-dev.48` | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
-| Installed Pixel and gauge | Signed dev.48, published from `f572974`, generation 30; App/Wi-Fi installed | Exact hosted ELF and OTA health 2 passed protected readback; owner normal-page/swipe confirmation passed |
+| Source/App/firmware version | App/candidate firmware `0.2.0-dev.49`; running firmware dev.48 | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Installed Pixel and gauge | Pixel dev.49 recovery App; gauge signed dev.48 from `f572974`, generation 30 | Exact hosted ELF and OTA health 2 passed protected readback; owner normal-page/swipe confirmation passed |
 | Gauge dashboard | Revision 49; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
-| Current setup | One primary ECM transport; optional TCM child exists but is unbound; dual mode remains off | Pixel saved setup inspected on October 14; dashboard remains available; second-adapter App fix from `c4125ad` installed; selection/send remains pending |
+| Current setup | Gauge uses one primary transport; phone has two distinct bindings and dual mode On, pending send | Primary and both dashboard drafts preserved; [long-read recovery](evidence/gatt-long-read-recovery.md) is prepared; firmware publication and dual send remain pending |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
 | Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; two same-model adapters reported by owner | A distinct supported BLE candidate was discovered; dual-radio operation has not been measured |
 | Repository | Public `lstepnio/ESP32OBD2`; continuing review PR #51 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
@@ -35,7 +35,7 @@ No live vehicle session or ECU clear was performed by the dev.48 rollout.
 | Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
 | Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Dev.48 authorized App/Wi-Fi install, exact healthy image, cleared journal | Power-loss, expiry, rollback and broader recovery matrix |
 | Phone persistence | Schema 12 coupled profiles/assignments; serialized IO; cancellation-safe writes and typed pairing failures | 156 JVM tests, 18 emulator fixtures; initial Pixel migration retained data | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
-| Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Second-adapter setup review](evidence/second-adapter-setup.md); software fixtures and live discovery of a distinct second candidate | Select/send child; two-adapter plus phone coexistence, sibling continuity and sustained load |
+| Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Second-adapter setup review](evidence/second-adapter-setup.md); software fixtures and live discovery of a distinct second candidate | Repair long reads and send dual setup; two-adapter plus phone coexistence, sibling continuity and sustained load |
 | Health measurements | Fixed worker records, queue drops and free/largest memory in minute logs | One dev.47 minute log set; continued App/UI and adapter retry progress | Longer controlled soak, measured gap/rate and memory limits |
 
 Software checks for the hardening increment: Android build/lint, 156 JVM tests,

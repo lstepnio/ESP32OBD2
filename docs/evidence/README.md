@@ -5,6 +5,7 @@ their original measurements and old pending steps, not current instructions.
 [Current state](../current-state.md) owns support; [backlog](../backlog.md) owns work.
 Search only the relevant report when exact evidence is needed.
 
+- [GATT long-read recovery investigation](gatt-long-read-recovery.md)
 - [Second-adapter setup investigation](second-adapter-setup.md)
 - [Car workspace UX review](car-ux-review.md)
 - [Shared alerts and diagnostics implementation](shared-alerts-implementation.md)

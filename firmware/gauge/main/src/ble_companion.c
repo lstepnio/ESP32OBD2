@@ -22,6 +22,7 @@
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
 #include "ble_companion.h"
+#include "companion_gatt_read.h"
 #include "config.h"
 #include "config_store.h"
 #include "config_transfer.h"
@@ -386,71 +387,61 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
             status_snapshot_length = adapter_status_snapshot_for(extended_source, status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-                              status_snapshot_length - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if (extended_status_mode == 10) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = adapter_registry_status(status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-                              status_snapshot_length - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if (extended_status_mode == 1) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = config_transfer_status(status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-                              status_snapshot_length - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if (extended_status_mode == 2) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = ota_transfer_status(status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-                              status_snapshot_length - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if (extended_status_mode == 3) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = diagnostics_state_status(status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-                              status_snapshot_length - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if(extended_status_mode==16) {
         if(ctxt->offset==0||!status_snapshot_length)status_snapshot_length=diagnostic_clear_status(status_snapshot);
         if(!status_snapshot_length)return BLE_ATT_ERR_INSUFFICIENT_RES;
         if(ctxt->offset>status_snapshot_length)return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om,status_snapshot+ctxt->offset,status_snapshot_length-ctxt->offset)==0?0:BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if(extended_status_mode==15) {
         if(ctxt->offset==0||!status_snapshot_length)
             status_snapshot_length=alert_runtime_context(context_key,alert_boot,context_episode,alert_cursor,status_snapshot);
         if(!status_snapshot_length)return BLE_ATT_ERR_INSUFFICIENT_RES;
         if(ctxt->offset>status_snapshot_length)return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om,status_snapshot+ctxt->offset,status_snapshot_length-ctxt->offset)==0?0:BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if(extended_status_mode==17) {
         if(!status_snapshot_length)status_snapshot_length=diagnostics_endpoint_readiness(extended_source,pdTICKS_TO_MS(xTaskGetTickCount()),status_snapshot);
         if(!status_snapshot_length)return BLE_ATT_ERR_INSUFFICIENT_RES;
         if(ctxt->offset>status_snapshot_length)return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om,status_snapshot+ctxt->offset,status_snapshot_length-ctxt->offset)==0?0:BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if (extended_status_mode == 14) {
         if(ctxt->offset==0||!status_snapshot_length)
             status_snapshot_length=alert_runtime_packet(alert_boot,alert_cursor,alert_active_mode,status_snapshot);
         if(!status_snapshot_length)return BLE_ATT_ERR_INSUFFICIENT_RES;
         if(ctxt->offset>status_snapshot_length)return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om,status_snapshot+ctxt->offset,status_snapshot_length-ctxt->offset)==0?0:BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if (extended_status_mode == 13) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
@@ -458,8 +449,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
                 pdTICKS_TO_MS(xTaskGetTickCount()), status_snapshot);
         if (!status_snapshot_length) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-            status_snapshot_length - ctxt->offset) == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if (extended_status_mode == 12) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
@@ -467,18 +457,14 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
                 pdTICKS_TO_MS(xTaskGetTickCount()), status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-                              status_snapshot_length - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if (extended_status_mode == 4) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = ota_transfer_boot_identity(status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-                              status_snapshot_length - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if (extended_status_mode == 5) {
         if (ctxt->offset == 0 || status_snapshot_length == 0) {
@@ -511,18 +497,14 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
         }
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-                              status_snapshot_length - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if (extended_status_mode == 6) {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = config_runtime_status(status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-                              status_snapshot_length - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if (extended_status_mode == 7) {
 #if CONFIG_EGAUGE_WIFI_BULK_ENABLED
@@ -530,9 +512,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
             status_snapshot_length = wifi_bulk_status(status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-                              status_snapshot_length - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
 #else
         return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
 #endif
@@ -543,9 +523,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
             status_snapshot_length = hardware_probe_status(status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-                              status_snapshot_length - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     if (extended_status_mode == 9) {
         display_settings_t settings = display_settings_snapshot();
@@ -554,9 +532,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
                            (uint8_t)(settings.revision >> 16), (uint8_t)(settings.revision >> 24),
                            (uint8_t)settings.cycle_seconds, (uint8_t)(settings.cycle_seconds >> 8)};
         if (ctxt->offset > sizeof(state)) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, state + ctxt->offset,
-                              sizeof(state) - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, state, sizeof(state), ctxt->offset);
     }
     if (document_active) {
         /* Keep a protected state read available after custom activation so
@@ -565,9 +541,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
             status_snapshot_length = config_transfer_status(status_snapshot);
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
-        return os_mbuf_append(ctxt->om, status_snapshot + ctxt->offset,
-                              status_snapshot_length - ctxt->offset) == 0
-            ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
     config_t saved;
     uint32_t revision;
@@ -580,8 +554,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
                        (uint8_t)(revision >> 8), (uint8_t)(revision >> 16),
                        (uint8_t)(revision >> 24)};
     if (ctxt->offset > sizeof(state)) return BLE_ATT_ERR_INVALID_OFFSET;
-    return os_mbuf_append(ctxt->om, state + ctxt->offset,
-                          sizeof(state) - ctxt->offset) == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    return companion_gatt_read_value(ctxt->om, state, sizeof(state), ctxt->offset);
 }
 
 static int capabilities_read(uint16_t conn_handle, uint16_t attr_handle,
@@ -594,8 +567,7 @@ static int capabilities_read(uint16_t conn_handle, uint16_t attr_handle,
     const char *value = document_active ? document_capabilities : capabilities;
     size_t length = strlen(value);
     if (ctxt->offset > length) return BLE_ATT_ERR_INVALID_OFFSET;
-    return os_mbuf_append(ctxt->om, value + ctxt->offset,
-                          length - ctxt->offset) == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    return companion_gatt_read_value(ctxt->om, value, length, ctxt->offset);
 }
 
 static int pairing_status_read(uint16_t conn_handle, uint16_t attr_handle,
@@ -616,8 +588,7 @@ static int pairing_status_read(uint16_t conn_handle, uint16_t attr_handle,
         state = atomic_load(&pairing_conn) == BLE_HS_CONN_HANDLE_NONE ? 1 : 2;
     uint8_t status[] = {1, state, (uint8_t)seconds_left, (uint8_t)(seconds_left >> 8)};
     if (ctxt->offset > sizeof(status)) return BLE_ATT_ERR_INVALID_OFFSET;
-    return os_mbuf_append(ctxt->om, status + ctxt->offset,
-                          sizeof(status) - ctxt->offset) == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    return companion_gatt_read_value(ctxt->om, status, sizeof(status), ctxt->offset);
 }
 
 static const struct ble_gatt_chr_def chars[] = {

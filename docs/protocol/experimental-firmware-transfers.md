@@ -14,7 +14,18 @@ See [current state](../current-state.md) for physical limits and
 
 Every command begins with an opcode and little-endian `u32 sequence`. Transfer commands then include a nonzero little-endian `u32 transferId`. The ATT write confirms queueing only. Read state until its sequence and last opcode match the command, then inspect result and accepted offset. `STATUS` reopens extended read mode after reconnect without replacing the prior operation result. A legacy quick-selection write returns reads to the legacy eight-byte state. Only one configuration or update transfer can own the flash operation gate at a time.
 
+ATT long reads return one immutable full characteristic value from the access
+callback. ESP-IDF 5.4.1 NimBLE applies the Read Blob offset after the callback;
+application code must not slice the value by that offset again. Application-level
+configuration/document chunk offsets remain separate and unchanged. The shared
+`companion_gatt_read_value` helper enforces this for every companion read response.
+
 The owner client reads the protected state characteristic before its first write on each GATT connection. This lets Android restore encryption for the saved bond. With a custom document active, the default state read returns the 64-byte configuration status; with built-in readings it returns the legacy eight-byte state. Unauthenticated reads remain rejected. A transient public discovery disconnect is retried once on the same discovered device.
+For a cached long-response `INVALID_OFFSET` (ATT 7) on older firmware, the client may
+select the bounded configuration STATUS (`17`, sequence 1) once, then retry the owner
+read within the same operation budget. This is an encrypted/authenticated owner
+command and reads status only. It never changes pairing, configuration, faults or
+firmware; any further offset error or invalid response fails closed.
 
 | Config opcode | Payload after opcode + sequence | Effect |
 | --- | --- | --- |

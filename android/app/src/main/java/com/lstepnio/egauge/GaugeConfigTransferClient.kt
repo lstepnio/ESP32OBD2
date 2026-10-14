@@ -189,10 +189,18 @@ class GaugeConfigTransferClient(private val context: Context) {
             return event
         }
         suspend fun establishOwner() {
+            var resetReadMode = false
             repeat(4) {
                 val result = readEvent()
                 if (result.status == BluetoothGatt.GATT_SUCCESS &&
                     GaugeProtocolCodec.isProtectedStatusFrame(result.bytes)) return
+                ownerReadResetCommand(result.status, resetReadMode)?.let { command ->
+                    resetReadMode = true
+                    // This write still passes the gauge's encrypted/authenticated
+                    // owner check. 0x17 only selects the bounded status response.
+                    writeRaw(command)
+                    return@repeat
+                }
                 if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
                     result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
                     error("Gauge owner state read failed (GATT ${result.status}, version ${result.bytes.firstOrNull()?.toInt()?.and(255)}, length ${result.bytes.size})")
