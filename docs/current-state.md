@@ -8,15 +8,15 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | App `0.2.0-dev.49`; running firmware dev.50; published Wi-Fi refinement dev.51, installation in progress | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
-| Installed Pixel and gauge | Pixel dev.49 recovery App from `0778ea0`; gauge signed dev.50 from `f12edb1`, generation 32 | Exact hosted ELF and OTA health 2 passed App/Bluetooth recovery; config/settings/profiles preserved; owner dev.50 normal-page/swipe check passed after restart |
+| Source/App/firmware version | App `0.2.0-dev.49`; running signed firmware dev.51 | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Installed Pixel and gauge | Pixel dev.49 recovery App from `1630dce`; gauge signed dev.51 from `f1a5308`, generation 33 | Exact hosted ELF and OTA health 2 passed App/Bluetooth recovery; config/settings/profiles preserved; two Wi-Fi maintenance cycles passed; owner dev.51 display/touch check pending |
 | Gauge dashboard | Revision 50; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
 | Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors, live coexistence remains pending |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
 | Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; two same-model adapters reported by owner | A distinct supported BLE candidate was discovered; dual-radio operation has not been measured |
 | Repository | Public `lstepnio/ESP32OBD2`; continuing review PR #51 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
 
-Latest rollout: [dev.50 signed recovery and measured Wi-Fi refusal](evidence/gatt-long-read-recovery.md#dev50-device-outcome-and-next-memory-refinement).
+Latest rollout: [dev.51 signed recovery and Wi-Fi maintenance qualification](evidence/gatt-long-read-recovery.md#dev51-device-and-wi-fi-maintenance-outcome).
 Original phone wake settings were restored. Android and firmware are active; iOS is deferred.
 No live vehicle session or ECU clear was performed by the dev.48 rollout.
 
@@ -33,7 +33,7 @@ No live vehicle session or ECU clear was performed by the dev.48 rollout.
 | Shared alert/history framework | Threshold/MIL/synthetic producers share lifecycle, attention, bounded gauge context/journal, phone history/export and opt-in monitoring | Dev.48 Pixel/gauge synthetic Entry/Expired import and shared context/banner; 162 JVM tests, eight earlier emulator fixtures | Real vehicle alerts/context, physical attention, background/OEM and storage/power-loss matrix |
 | Pages/catalog/alerts | Five renderers; one catalog with 53 Mode 01 and two existing JSS readings; any selectable reading can alert, including named gear conditions | Software vectors, editor fixtures and preserved installed dashboard | New decimals/rendering, hidden-page alerts, dwell/stale behavior on real vehicle |
 | Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
-| Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Dev.48 App/Wi-Fi install and dev.49/dev.50 signed App/Bluetooth recovery, exact healthy images and cleared journals | Dev.50 guard rejects dual-profile Wi-Fi startup below 16 KB instead of crashing; dev.51 buffer/cleanup refinement prepared, needs separate release authorization and physical qualification; broader recovery matrix |
+| Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Dev.48 App/Wi-Fi install and dev.49/dev.50/dev.51 signed App/Bluetooth recovery, exact healthy images and cleared journals; dev.51 two authenticated Wi-Fi open/read/close cycles without reboot | Dev.51 full Wi-Fi image upload/throughput and interruption matrix; sustained memory/radio qualification with live dual adapters |
 | Phone persistence | Schema 12 coupled profiles/assignments; serialized IO; cancellation-safe writes and typed pairing failures | 156 JVM tests, 18 emulator fixtures; initial Pixel migration retained data | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
 | Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Second-adapter setup review](evidence/second-adapter-setup.md); software fixtures and live discovery of a distinct second candidate | Dev.49 repair and revision 50 dual setup installed; two-adapter plus phone coexistence, sibling continuity and sustained load remain unqualified |
 | Health measurements | Fixed worker records, queue drops and free/largest memory in minute logs | One dev.47 minute log set; continued App/UI and adapter retry progress | Longer controlled soak, measured gap/rate and memory limits |
@@ -86,6 +86,7 @@ The [paired-phone provider guide](architecture/phone-alert-providers.md) documen
 synthetic Expert test and future authorized crowd-alert integrations. No live feed is enabled.
 
 Engine clearing code and readback exist behind a default-off firmware gate. TCM clearing,
-freeze-frame collection and hardware qualification remain open. Signed dev.48 is installed;
-protected image identity and owner display/swipe checks passed. See [implementation evidence](evidence/shared-alerts-implementation.md)
+freeze-frame collection and hardware qualification remain open. The shared framework shipped
+in signed dev.48; that rollout passed protected image identity and owner display/swipe checks.
+The installed firmware is tracked in the baseline table above. See [implementation evidence](evidence/shared-alerts-implementation.md)
 for the distinct offline, Pixel and gauge scopes. The backlog owns remaining tasks.

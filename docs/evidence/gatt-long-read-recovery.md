@@ -212,3 +212,43 @@ or reducing the nominal pause/overall operation budgets. Android build/lint, 181
 tests (including wait-budget parity) and recovery/maintenance fixture compilation
 passed. Exact installed identity/preservation and Wi-Fi startup/teardown remain
 separate physical gates, recorded after execution below.
+
+## Dev.51 device and Wi-Fi maintenance outcome
+
+The owner-authorized signed App/Bluetooth recovery passed in **930.610 seconds**
+with the exact published ELF, OTA health 2, unchanged revision 50/digest, settings
+and phone profiles, and cleared recovery journal. The installed recovery App is
+from `1630dce`; its three GitHub jobs passed in run `38639602174`. This full journey
+did not demonstrate a timing improvement over dev.50's 913.182 seconds. Early
+polling observations are not a throughput benchmark; radio, restart/readback and
+foreground behavior are not isolated in these runs.
+
+The physical `WifiMaintenanceJourneyTest` passed in **54.393 seconds**, opening
+and closing two distinct temporary sessions. Protected OPEN took **1,960 ms** and
+**1,603 ms**. Each cycle performed authenticated Wi-Fi OTA/configuration status
+reads, protected CLOSE and fresh protected image/alert boot-nonce checks. The nonce
+remained unchanged, proving no reboot during either cycle; revision/digest and display
+settings also remained unchanged. No firmware, configuration or ECU mutation was
+performed by this fixture. This qualifies startup, authenticated status traffic,
+teardown and reopening, not full image upload, throughput or live adapter coexistence.
+
+Read-only USB logs independently showed both maintenance networks becoming ready
+and the owner phone joining/leaving. The first minute health record after teardown
+reported internal free **39,651 bytes**, largest internal block **8,192 bytes**,
+internal minimum **13,983 bytes**, PSRAM free **2,045,352 bytes** and minimum
+**2,013,620 bytes**. The next minute record retained **39,643 bytes** internal free and the same largest
+block. Worker progress continued with zero recorded queue drops;
+both unavailable adapter workers continued bounded retries indoors. The low-water
+mark includes the active network period; the 16 KB admission floor is a pre-start
+check, not a guaranteed runtime reserve. Longer loaded memory/radio testing remains
+required.
+
+The subsequent read-only automatic management journey passed in **14.051 seconds**:
+opening confirmation **7,204 ms**, resume/settings refresh **2,789 ms**, then hardware
+snapshot followed by fresh protected firmware identity. It retained revision 50,
+digest, display settings and profiles. No Bluetooth toggle or picker case was run.
+Private preference backups compared `profiles-v1.xml`, `presentation.xml` and
+`gauge-association.xml` byte for byte with the pre-dev.51 backup; all were unchanged.
+Owner physical display/touch confirmation is pending separately. No vehicle session
+or USB firmware flashing occurred. Original phone wake settings were restored;
+eGauge was left open. Public capability flags remain disabled.
