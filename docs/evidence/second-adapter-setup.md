@@ -49,7 +49,12 @@ dual-mode gating and existing universal status/settings behavior. These are fixt
 not simultaneous radio qualification.
 
 Repository documentation/contracts and local whitespace checks passed. Private Pixel captures and preference backup are ignored, not committed.
-The fixed APK is prepared but not installed on the owner Pixel while the owner is away.
+The owner subsequently authorized App installation. The debug APK from `c4125ad`
+installed successfully with data preserved and opened on the Pixel. Vehicle/page
+storage, presentation preferences and gauge association compared byte-for-byte
+unchanged across installation. Original phone wake settings were restored. The App
+showed Searching at the opening check; dual-adapter selection/send and vehicle
+qualification remain pending.
 
 ## Resume at the vehicle
 
