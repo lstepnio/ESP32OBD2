@@ -4,7 +4,7 @@ import com.lstepnio.egauge.*
 import com.lstepnio.egauge.core.designsystem.*
 
 fun diagnosticSources(data: GaugeConfigTransferClient.Diagnostics?, elapsedSinceRead: Long,
-                      expectedSource: String): List<FaultSourceUi> = listOf("ECM", "TCM").map { source ->
+                      expectedSource: String, filters: List<DiagnosticCodeFilter> = emptyList(), showFiltered: Boolean = false): List<FaultSourceUi> = listOf("ECM", "TCM").map { source ->
     val title = if (source == "TCM") "Transmission" else "Engine"
     if (data == null || data.source != source || data.source != expectedSource || data.simulated)
         FaultSourceUi(title, StatusUi(if (source == expectedSource) "Waiting for car" else "Not checked", "Fault checks start automatically when this car is connected.", StatusTone.Disabled), emptyList())
@@ -19,6 +19,8 @@ fun diagnosticSources(data: GaugeConfigTransferClient.Diagnostics?, elapsedSince
                 data.pendingFresh, listOfNotNull(data.pendingFirst), if (data.pendingFresh) 0 else null),
             DiagnosticCategory("Permanent", DiagnosticAvailability.Available, data.permanentFresh || data.permanentFirst != null,
                 data.permanentFresh, listOfNotNull(data.permanentFirst), if (data.permanentFresh) 0 else null))
+        val projection=DiagnosticCodeFilters.project(data,elapsedSinceRead,filters)
+        fun filtered(code: String)=filters.any { it.controller==source && it.code==code }
         val categoryUi = categories.map { category ->
             val current = data.connected && diagnosticCategoryAgeCurrent(category, elapsedSinceRead)
             val age = category.ageMs?.let { checkedAgo(it + elapsedSinceRead.coerceIn(0, 120_000)) }
@@ -30,8 +32,8 @@ fun diagnosticSources(data: GaugeConfigTransferClient.Diagnostics?, elapsedSince
                 category.codes.isEmpty() -> "No ${category.name.lowercase()} codes reported. ${age ?: "Checked just now"}"
                 else -> age ?: "Checked just now"
             }
-            FaultCategoryUi(category.name, status, category.codes.map {
-                FaultUi(it, faultDescription(it), if (current) category.name else "Last checked · ${category.name}")
+            FaultCategoryUi(category.name, status, category.codes.filter { showFiltered || !filtered(it) }.map {
+                FaultUi(it, faultDescription(it), (if (filtered(it)) "Filtered · " else "") + if (current) category.name else "Last checked · ${category.name}")
             }, incomplete = category.truncated || data.categories == null)
         }
         val partial = categories.any { it.availability != DiagnosticAvailability.Unsupported &&
@@ -40,10 +42,13 @@ fun diagnosticSources(data: GaugeConfigTransferClient.Diagnostics?, elapsedSince
         val status = when {
             !data.connected -> StatusUi("Adapter disconnected", "Previously read codes are shown as last checked.", StatusTone.Stale)
             !receiptCurrent -> StatusUi("Refreshing faults", "Last checked codes remain visible while we reconnect.", StatusTone.Stale)
-            milCurrent && data.milOn -> StatusUi("$title reports a warning", "${data.reportedCount} codes reported by this controller. Review the lists below.", StatusTone.Warning)
+            milCurrent && data.milOn && (showFiltered || !projection.suppressMil) -> StatusUi("$title reports a warning",
+                if(!showFiltered && filters.any { it.controller==source }) "The controller still reports a warning. Full diagnostics are in Advanced."
+                else "${data.reportedCount} codes reported by this controller. Review the lists below.", StatusTone.Warning)
+            !showFiltered && projection.suppressMil -> StatusUi("Only filtered codes", "The ECU warning remains recorded in Advanced.", StatusTone.Neutral)
             milCurrent && partial -> StatusUi("$title faults partially checked",
                 "Warning lamp is off. Some fault checks are unavailable or out of date.", StatusTone.Stale)
-            milCurrent && categories.any { it.codes.isNotEmpty() } -> StatusUi("$title has fault codes", "Warning lamp is off. Review stored, pending and permanent codes below.", StatusTone.Neutral)
+            milCurrent && categories.any { category -> category.codes.any { showFiltered || !filtered(it) } } -> StatusUi("$title has fault codes", "Warning lamp is off. Review stored, pending and permanent codes below.", StatusTone.Neutral)
             milCurrent -> StatusUi("$title warning is off", "Last checked controller status. Other fault categories may still contain codes.", StatusTone.Success)
             else -> StatusUi("Warning status unavailable", "Review the fault lists below; no current warning-lamp status was established.", StatusTone.Stale)
         }

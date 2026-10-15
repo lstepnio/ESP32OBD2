@@ -8,7 +8,7 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | Prepared App `0.2.0-dev.50` and firmware dev.54; signed dev.53 remains the installed gauge baseline | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Source/App/firmware version | Prepared App `0.2.0-dev.51` and firmware dev.55; signed dev.53 remains the installed gauge baseline | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
 | Installed Pixel and gauge | Pixel dev.49 recovery App from `1630dce`; gauge signed dev.53 from `bff726e`, generation 35 | Owner-authorized application-only USB repair; exact hosted ELF/health 2 and unchanged config/settings verified; fresh App pairing and owner retention after power cycle passed; owner confirmed normal page/swipes |
 | Gauge dashboard | Revision 50; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
 | Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors; dev.53 live both-source reads/resume and each adapter loss/recovery passed |
@@ -16,7 +16,7 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 | Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; two same-model adapters reported by owner | Dev.53 live simultaneous source reads and independent sibling continuity/recovery passed; sustained-load qualification remains open |
 | Repository | Public `lstepnio/ESP32OBD2`; continuing review PR #51 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
 
-Prepared UI work: [Round 3 feedback and native rendering evidence](evidence/gauge-performance-review.md#2026-10-14-prepared-dev54-screen-compositor-and-showcase). Pixel dev.50 was installed without clearing data; gauge dev.54 publication, App/Wi-Fi installation and physical screen review remain pending.
+Prepared UI work: [Round 3 feedback and native rendering evidence](evidence/gauge-performance-review.md#2026-10-14-prepared-dev54-screen-compositor-and-showcase). Pixel dev.50 was installed without clearing data; gauge dev.55 publication, App/Wi-Fi installation and physical screen review remain pending.
 
 Latest rollout: [dev.53 fresh pairing recovery](evidence/gatt-long-read-recovery.md#dev53-authorized-pairing-recovery-outcome).
 During the subsequent Jeep session, the gauge booted with its owner key absent while
@@ -54,10 +54,10 @@ phone checks are in the linked evidence, not implied by these counts.
 
 ## Compatibility and public boundaries
 
-- Phone profiles: schema 12 reads schemas 1..12. Older Apps reject new saved state;
+- Phone profiles: prepared schema 13 reads schemas 1..13. Older Apps reject new saved state;
   downgrades require an explicit compatible migration. Legacy association files remain
   read-only migration inputs. See [Android storage](architecture/android-runtime.md#storage-and-recovery).
-- Gauge configuration remains schema 2. Development `cfg:5`, `va:1`, `da:1`, `ad:1`
+- Gauge configuration remains schema 2. Prepared development `cfg:6`, `va:1`, `da:1`, `ad:1`
   and display settings `ds:3` negotiate implemented slices. Wire layouts belong in
   [protocol documents](README.md#protocols), not this status snapshot.
 - Public `configWrite:false`, `ota:false` and qualified link capacity one remain.
@@ -99,3 +99,5 @@ freeze-frame collection and hardware qualification remain open. The shared frame
 in signed dev.48; that rollout passed protected image identity and owner display/swipe checks.
 The installed firmware is tracked in the baseline table above. See [implementation evidence](evidence/shared-alerts-implementation.md)
 for the distinct offline, Pixel and gauge scopes. The backlog owns remaining tasks.
+
+Prepared Advanced CEL filtering: exact vehicle/controller rules and complete-check MIL/count reconciliation are implemented for dev.55. Raw evidence and history remain unchanged. Signed installation and live vehicle qualification are pending; [shared policy](architecture/alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters) owns semantics.

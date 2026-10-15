@@ -248,7 +248,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 if(live && connectionForeground)batch.events.firstOrNull { !it.simulated && !it.unavailable &&
                     !it.acknowledged && it.severity==AlertSeverity.Critical && it.kind in 1..2 && it.revision==config.revision }?.let { selectedAlertId=it.id(gauge) }
                 if(phoneAlertsEnabled)batch.events.filter { it.revision==config.revision }.forEach {
-                    alertNotifications.show(it,vehicle,gauge,live,connectionForeground)
+                    val source=if(it.key%2==1) "TCM" else "ECM"
+                    val raw=diagnosticsBySource[source]
+                    val rules=DiagnosticCodeFilters.fromDocument(org.json.JSONObject(config.json))
+                    val age=diagnosticsCheckedAt[source]?.let { checked -> android.os.SystemClock.elapsedRealtime()-checked } ?: Long.MAX_VALUE
+                    val filtered=DiagnosticCodeFilters.filtersAlert(it,raw,age,rules)
+                    alertNotifications.show(it,vehicle,gauge,live,connectionForeground,filtered)
                 }
                 activeAlertCursor?.let { offset ->
                     client.readAlertBatch(device,batch.boot,offset,true)?.let { active ->
@@ -1726,6 +1731,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         val profileId = profileCollection.activeId
         val capturedDraft = transmittedDraft
+        require(capturedDraft.diagnosticFilters.isEmpty() || (capabilities?.configurationVersion ?: 0)>=6) { "Update gauge firmware before sending CEL code filters" }
         val adapter = profileCollection.active.adapterFor(draft.source)
         val schemaVersion = if ((capabilities?.configurationVersion ?: 0) >= 3) 2 else 1
         require(adapter == null || schemaVersion == 2) { "Update the gauge before sending adapter settings" }
@@ -2060,6 +2066,38 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val actions = listOfNotNull(value)
         if (runCatching { ProfileActions.validate(actions, draft.pages) }.isFailure) return@launchLocalMutation
         persistDraft(editorDraft.copy(actions = actions))
+    }
+    fun addDiagnosticFilter(vehicleId: String, controller: String, code: String) {
+        if(vehicleId!=profileCollection.activeId||modifyingSetupBlocked)return
+        val rule=runCatching { DiagnosticCodeFilters.rule(controller,code) }.getOrElse { deviceMessage=it.message ?: "Invalid code filter";return }
+        val rules=(editorDraft.diagnosticFilters+rule).distinct()
+        if(rules.size>DiagnosticCodeFilters.LIMIT){deviceMessage="Use up to 16 code filters";return}
+        saveDiagnosticFilters(vehicleId,rules)
+    }
+    fun removeDiagnosticFilter(vehicleId: String, rule: DiagnosticCodeFilter) {
+        if(vehicleId!=profileCollection.activeId||modifyingSetupBlocked)return
+        saveDiagnosticFilters(vehicleId,editorDraft.diagnosticFilters.filterNot { it==rule })
+    }
+    private fun saveDiagnosticFilters(vehicleId: String, rules: List<DiagnosticCodeFilter>) = launchLocalMutation {
+        if(vehicleId!=profileCollection.activeId||modifyingSetupBlocked||profileError!=null)return@launchLocalMutation
+        DiagnosticCodeFilters.validate(rules)
+        val updated=profileCollection.copy(profiles=profileCollection.profiles.map { profile ->
+            if(profile.id==vehicleId)profile.copy(draft=profile.draft.copy(diagnosticFilters=rules),
+                transmission=profile.transmission?.let { it.copy(draft=it.draft.copy(diagnosticFilters=emptyList())) }) else profile
+        })
+        if(!persistProfiles(updated)){profileError="Could not save CEL code filters";return@launchLocalMutation}
+        profileCollection=updated;draft=updated.active.draft
+        deviceMessage="Code filters saved on phone. Review and send to apply them on the gauge."
+    }
+    fun isDiagnosticAlertFiltered(event: AlertEvent): Boolean {
+        val source=if(event.key%2==1) "TCM" else "ECM"
+        val elapsed=diagnosticsCheckedAt[source]?.let { android.os.SystemClock.elapsedRealtime()-it } ?: Long.MAX_VALUE
+        return DiagnosticCodeFilters.filtersAlert(event,diagnosticsBySource[source],elapsed,effectiveDiagnosticFilters())
+    }
+    fun effectiveDiagnosticFilters(): List<DiagnosticCodeFilter> {
+        val document=activeDocument ?: return emptyList()
+        if(document.vehicleProfileId!=profileCollection.activeId||!com.lstepnio.egauge.ui.state.isConfirmedSetup(document.revision,document.sha256,runtimeIdentity))return emptyList()
+        return runCatching { DiagnosticCodeFilters.fromDocument(org.json.JSONObject(document.json)) }.getOrDefault(emptyList())
     }
     fun removeAlert(id: String) = save(editorDraft.copy(alerts = editorDraft.alerts.filterNot { it.id == id }))
     fun setSource(value: String) = selectVehicleSource(value)

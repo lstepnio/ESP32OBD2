@@ -54,6 +54,7 @@
 #include "adapter_status.h"
 #include "elm_response.h"
 #include "diagnostics_state.h"
+#include "diagnostic_filter.h"
 #include "hardware_probe.h"
 #include "esp_heap_caps.h"
 #include "config_document.h"
@@ -367,11 +368,13 @@ static void app_tick_task(void *arg)
             }
         alert_summary_t alert = alert_engine_tick(now_ms);
         (void)alert;
+        diagnostics_snapshot_t presentation={.mil_known=true};bool presentation_complete=true;
         for (unsigned endpoint=0; endpoint<2; ++endpoint) {
+            if(!diagnostics_endpoint_enabled(endpoint))continue;
             uint8_t packet[248];
-            if (!diagnostics_endpoint_status(endpoint,now_ms,packet)) continue;
+            if (!diagnostics_endpoint_status(endpoint,now_ms,packet)){presentation_complete=false;presentation.mil_known=false;continue;}
             const char *name=endpoint?"Transmission warning":"Check engine";
-            bool fresh=(packet[2]&1)!=0;
+            bool fresh=(packet[2]&1)!=0;presentation.mil_known&=fresh;
             alert_runtime_observe(32+endpoint,fresh&&(packet[2]&2)?3:0,!fresh,
                 name,"codes",packet[22],0,now_ms,now_ms);
             unsigned count=0; bool complete=true; uint8_t severity=0;
@@ -384,6 +387,12 @@ static void app_tick_task(void *arg)
             }
             alert_runtime_observe(34+endpoint,severity,!complete && !severity,
                 endpoint?"Transmission faults":"Engine faults","codes",count,0,now_ms,now_ms);
+            diagnostic_filter_result_t visible=diagnostic_filter_project(packet,endpoint,
+                g_runtime?g_runtime->diagnostic_filters:NULL,g_runtime?g_runtime->diagnostic_filter_count:0);
+            presentation.valid|=fresh||visible.count_known;
+            presentation.mil_on|=fresh&&(packet[2]&2)&&!visible.suppress_mil;
+            presentation.count_known|=visible.count_known;presentation.distinct_count+=visible.visible_count;
+            if(!visible.complete||!visible.count_known)presentation_complete=false;
         }
         alert_runtime_tick(now_ms);
         diagnostic_clear_tick(now_ms,now_ms-engine_rpm_at<=2000 && engine_running,now_ms-speed_at<=2000 && vehicle_moving);
@@ -392,9 +401,8 @@ static void app_tick_task(void *arg)
         bool active=alert_runtime_condition_summary(now_ms,&chosen,&attention,&additional);
         ui_set_alert_condition(ui,active?(chosen.severity==4?2:chosen.severity>=3?1:3):0,
             chosen.unavailable,chosen.label,active&&chosen.severity==4&&attention,chosen.key,chosen.boot,chosen.episode,chosen.value,chosen.limit,chosen.unit,additional,(chosen.reserved&1)!=0);
-        diagnostics_snapshot_t diagnostics;
-        diagnostics_vehicle_snapshot(now_ms, &diagnostics);
-        ui_set_vehicle_diagnostics(ui,&diagnostics);
+        presentation.count_partial=presentation.count_known&&!presentation_complete;
+        ui_set_vehicle_diagnostics(ui,&presentation);
         worker_health_progress(WORKER_APP, now_ms);
         uint32_t ticks = atomic_fetch_add(&g_app_tick_count, 1) + 1;
         if (ticks % 600 == 0) {

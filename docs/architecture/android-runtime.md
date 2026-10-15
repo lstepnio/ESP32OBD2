@@ -56,10 +56,10 @@ Device-specific caches are cleared when discovery fails or a different target is
 
 ## Storage and recovery
 
-Profile schema 12 retains schemas 1 through 11 and requires coupled vehicle and gauge
+Profile schema 13 retains schemas 1 through 12 and requires coupled vehicle and gauge
 assignment storage. `LocalSetupStore` saves both documents in one `profiles-v1`
 preference commit. The old association file is a read-only migration input. Older
-Apps reject schema 12 rather than loading stale assignments. Unknown schemas and
+Apps reject newer profile schemas rather than loading stale assignments. Unknown schemas and
 invalid documents fail closed without replacing the source. Standalone TCM profiles
 remain separate until explicitly attached; that attachment moves their assignments
 in the same commit. See [vehicle connections](vehicle-connections.md).
@@ -119,3 +119,5 @@ from actual caller cancellation and closes each attempt before the next. Configu
 confirmation shares a bounded saved/running read budget; firmware uses its existing
 exact-image and trial decision deadline. Never resend an uncertain write to obtain
 confirmation. Evidence: [restart/editor rollout](../evidence/restart-and-dashboard-rollout.md).
+
+Schema 13 adds exact controller-scoped CEL filters to the primary vehicle draft. Missing rules default to empty; validation preserves malformed/newer source documents. Filters persist with existing coupled setup transactions and restore from gauge configuration readback. [Shared policy](alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters) owns their presentation and notification behavior.

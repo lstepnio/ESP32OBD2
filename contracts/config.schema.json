@@ -291,6 +291,34 @@
         ],
         "additionalProperties": false
       }
+    },
+    "diagnosticFilters": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "properties": {
+          "controller": {
+            "enum": [
+              "ecm",
+              "tcm"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[PCBU][0-3][0-9A-F]{3}$",
+            "not": {
+              "const": "P0000"
+            }
+          }
+        },
+        "required": [
+          "controller",
+          "code"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [
@@ -328,6 +356,20 @@
             }
           },
           "actions": false
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "diagnosticFilters"
+        ]
+      },
+      "then": {
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          }
         }
       }
     }

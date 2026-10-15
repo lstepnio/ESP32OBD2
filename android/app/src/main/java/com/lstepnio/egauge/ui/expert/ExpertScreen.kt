@@ -1,6 +1,8 @@
 package com.lstepnio.egauge.ui.expert
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.unit.dp
@@ -10,6 +12,8 @@ import androidx.compose.material3.*
 import com.lstepnio.egauge.AdapterBinding
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.BuildConfig
+import com.lstepnio.egauge.DiagnosticCodeFilter
+import com.lstepnio.egauge.DiagnosticCodeFilters
 import com.lstepnio.egauge.samePhysicalAdapter
 import com.lstepnio.egauge.ui.ScreenContent
 import com.lstepnio.egauge.ui.state.ExpertUiState
@@ -30,11 +34,16 @@ data class ExpertActions(
     val phoneAlertTest: () -> Unit = {},
     val openPrimaryAdapter: () -> Unit = {},
     val displayShowcase: (Boolean) -> Unit = {},
+    val addCodeFilter: (String,String,String) -> Unit = { _,_,_ -> },
+    val removeCodeFilter: (String,DiagnosticCodeFilter) -> Unit = { _,_ -> },
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @Composable () -> Unit = {}) {
+    var filtersOpen by rememberSaveable(state.vehicleId) { mutableStateOf(false) }
+    var codeInput by rememberSaveable(state.vehicleId) { mutableStateOf("") }
+    var controller by rememberSaveable(state.vehicleId) { mutableStateOf("ECM") }
     var secondOpen by rememberSaveable(state.vehicleId) { mutableStateOf(false) }
     var removeOpen by rememberSaveable(state.vehicleId) { mutableStateOf(false) }
     ScreenContent {
@@ -79,9 +88,31 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @C
 
             }
             state.vehicleMessage?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            if(state.vehicleId.isNotBlank()) SettingsRow("CEL code filters",
+                if(state.diagnosticFilters.isEmpty()) "None · all codes shown" else "${state.diagnosticFilters.size} filters · review and send changes",
+                state.canEditVehicle) { filtersOpen=true }
             faultCoverage()
             SectionTitle("Device data")
             DetailContent(state.details)
+        }
+    }
+    if(filtersOpen) ModalBottomSheet(onDismissRequest={filtersOpen=false}) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            SectionTitle("CEL code filters")
+            Text("For ${state.vehicleName}. Matching codes stay in Advanced diagnostics and history. CEL is hidden only when all current codes are filtered and checks are complete.")
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("ECM" to "Engine","TCM" to "Transmission").forEach { (id,label) ->
+                    FilterChip(selected=controller==id,onClick={controller=id},label={Text(label)})
+                }
+            }
+            OutlinedTextField(value=codeInput,onValueChange={codeInput=it.take(5)},label={Text("Code, for example P0420")},singleLine=true)
+            val valid=runCatching { DiagnosticCodeFilters.rule(controller,codeInput) }.isSuccess
+            PrimaryAction("Add filter",enabled=state.canEditVehicle&&valid&&state.diagnosticFilters.size<DiagnosticCodeFilters.LIMIT,
+                onClick={actions.addCodeFilter(state.vehicleId,controller,codeInput);codeInput=""})
+            state.diagnosticFilters.forEach { rule ->
+                SettingsRow("${rule.code} · ${if(rule.controller=="TCM") "Transmission" else "Engine"}","Remove filter",state.canEditVehicle) { actions.removeCodeFilter(state.vehicleId,rule) }
+            }
+            Text("Review and send this vehicle's setup to apply changes to the gauge.")
         }
     }
     if (secondOpen) {

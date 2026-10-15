@@ -11,10 +11,10 @@ fun VehicleProfile.withDashboard(value: Draft): VehicleProfile {
     val mappedIds = value.pages.associate { page ->
         page.id to if (page in childPages && !page.id.startsWith("child.")) "child.${page.id}" else page.id
     }
-    val primary = draft.copy(pages = primaryPages, pidId = primaryPages.firstOrNull()?.pidIds?.first() ?: draft.pidId,
+    val primary = draft.copy(diagnosticFilters = value.diagnosticFilters, pages = primaryPages, pidId = primaryPages.firstOrNull()?.pidIds?.first() ?: draft.pidId,
         layout = primaryPages.firstOrNull()?.layout ?: draft.layout, alerts = value.alerts.filter { it.pidId !in ConfigurationProjector.transmissionPidIds },
         actions = value.actions.filter { action -> primaryPages.any { it.id == action.pageId } })
-    val secondary = child.draft.copy(alerts = value.alerts.filter { it.pidId in ConfigurationProjector.transmissionPidIds }, pages = childPages.map { it.copy(id = it.id.removePrefix("child.")) },
+    val secondary = child.draft.copy(diagnosticFilters = emptyList(), alerts = value.alerts.filter { it.pidId in ConfigurationProjector.transmissionPidIds }, pages = childPages.map { it.copy(id = it.id.removePrefix("child.")) },
         pidId = childPages.firstOrNull()?.pidIds?.first() ?: child.draft.pidId, layout = childPages.firstOrNull()?.layout ?: child.draft.layout,
         actions = value.actions.filter { action -> childPages.any { it.id == action.pageId } }
             .map { it.copy(pageId = mappedIds.getValue(it.pageId).removePrefix("child.")) })

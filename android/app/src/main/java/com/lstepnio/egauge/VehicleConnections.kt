@@ -30,7 +30,7 @@ fun VehicleProfile.dashboardDraft(): Draft {
     val child = transmission ?: return draft.copy(source = "ECM")
     val pages = draft.pages + child.draft.pages.map { it.copy(id = "child.${it.id}") }
     val ordered = pageOrder.mapNotNull { id -> pages.firstOrNull { it.id == id } } + pages.filter { it.id !in pageOrder }
-    return draft.copy(source = "BOTH", alerts = draft.alerts + child.draft.alerts, actions = draft.actions + child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") }, pages = ordered)
+    return draft.copy(source = "BOTH", diagnosticFilters = (draft.diagnosticFilters + child.draft.diagnosticFilters).distinct(), alerts = draft.alerts + child.draft.alerts, actions = draft.actions + child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") }, pages = ordered)
 }
 
 /** Only execution needs two distinct physical adapters. */

@@ -55,7 +55,7 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                     alert.getDouble("warning"), alert.getDouble("critical"), alert.getDouble("hysteresis"),
                     alert.getInt("triggerDwellMs"), alert.getInt("clearDwellMs"), alert.optInt("priority", 8))
             }
-            Draft(pidId = pidId, layout = layout, source = if (saved.getJSONArray("sources").length() == 2) "ECM" else source, pages = pages, alerts = alerts, actions = ProfileActions.decode(saved.optJSONArray("actions"))).also { ProfileActions.validate(it.actions, it.pages) }
+            Draft(pidId = pidId, layout = layout, source = if (saved.getJSONArray("sources").length() == 2) "ECM" else source, pages = pages, alerts = alerts, actions = ProfileActions.decode(saved.optJSONArray("actions")), diagnosticFilters = DiagnosticCodeFilters.fromDocument(saved)).also { ProfileActions.validate(it.actions, it.pages) }
         }.getOrNull()
 
         fun from(document: GaugeConfigTransferClient.ActiveDocument,
@@ -92,6 +92,8 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                 field("Primary reading", draft.pages.firstOrNull()?.pidIds?.firstOrNull() ?: "None", primaryPid?.let(::localPid)),
                 field("Gesture actions", ProfileActions.summary(draft.actions),
                     runCatching { ProfileActions.summary(ProfileActions.decode(saved.optJSONArray("actions"))) }.getOrNull()),
+                field("CEL code filters", DiagnosticCodeFilters.json(draft.diagnosticFilters).toString(),
+                    runCatching { DiagnosticCodeFilters.json(DiagnosticCodeFilters.fromDocument(saved)).toString() }.getOrNull()),
                 field("Alert count", draft.alerts.size.toString(), saved.optJSONArray("alerts")?.length()?.toString()),
                 field("All alert settings", alertSettings(draft.alerts), savedAlertSettings()),
             ))

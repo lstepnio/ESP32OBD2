@@ -137,6 +137,12 @@ def action_case(doc, **changes):
     doc['actions'][0].update(changes)
 
 negative_cases = [
+    ('CEL filters injected into legacy schema', lambda d: d.update(diagnosticFilters=[dict(controller='ecm',code='P0420')])),
+    ('wildcard diagnostic filter', lambda d: d.update(schemaVersion=2,diagnosticFilters=[dict(controller='ecm',code='P042*')])),
+    ('padding diagnostic filter', lambda d: d.update(schemaVersion=2,diagnosticFilters=[dict(controller='ecm',code='P0000')])),
+    ('unknown diagnostic controller', lambda d: d.update(schemaVersion=2,diagnosticFilters=[dict(controller='both',code='P0420')])),
+    ('duplicate diagnostic filters', lambda d: d.update(schemaVersion=2,diagnosticFilters=[dict(controller='ecm',code='P0420')]*2)),
+    ('unbounded diagnostic filters', lambda d: d.update(schemaVersion=2,diagnosticFilters=[dict(controller='ecm',code=f'P{i:04X}') for i in range(1,18)])),
     ('unknown control action', lambda d: action_case(d, type='disableAbs')),
     ('missing action target', lambda d: action_case(d, pageId='missing')),
     ('fractional gesture count', lambda d: action_case(d, count=3.5)),

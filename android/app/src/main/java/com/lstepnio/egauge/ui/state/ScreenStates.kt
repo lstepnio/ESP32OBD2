@@ -78,7 +78,8 @@ data class ExpertUiState(val canRead: Boolean, val canReadHardware: Boolean,
     val canFindAdapter: Boolean = false, val adapterMessage: String? = null,
     val legacyParents: List<VehicleUi> = emptyList(), val vehicleMessage: String? = null, val bothAdapters: Boolean = false, val canUseBothAdapters: Boolean = false,
     val vehicleId: String = "", val primaryAdapter: com.lstepnio.egauge.AdapterBinding? = null,
-    val secondAdapter: com.lstepnio.egauge.AdapterBinding? = null, val secondAdapterSetupIssue: String? = null, val adapterDiscoveryBlocker: String? = null, val canShowcase: Boolean = false, val showcaseActive: Boolean = false)
+    val secondAdapter: com.lstepnio.egauge.AdapterBinding? = null, val secondAdapterSetupIssue: String? = null, val adapterDiscoveryBlocker: String? = null, val canShowcase: Boolean = false, val showcaseActive: Boolean = false,
+    val diagnosticFilters: List<com.lstepnio.egauge.DiagnosticCodeFilter> = emptyList(), val rawFaultSources: List<FaultSourceUi> = emptyList())
 @Immutable
 data class UpdatesUiState(val status: StatusUi, val availableVersion: String?, val installedVersion: String,
     val canCheck: Boolean, val canInstall: Boolean, val ready: Boolean, val busy: Boolean,

@@ -1,6 +1,6 @@
 # Temporary gauge display showcase
 
-Development firmware dev.54 introduces an owner-authorized presentation showcase.
+The prepared UI implementation, included in the dev.55 candidate, introduces an owner-authorized presentation showcase.
 The debug App exposes its start/stop control in Expert when the gauge reports `sc:1`.
 This is a UI review tool, not a vehicle-data source. Implementation and host renders
 are prepared; installation and physical observation remain separate gates.

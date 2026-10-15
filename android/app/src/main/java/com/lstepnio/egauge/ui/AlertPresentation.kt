@@ -18,12 +18,13 @@ fun AlertHistoryPanel(model: AppViewModel, onExport: () -> Unit) {
     val vehicle = model.profileCollection.activeId
     val entries = model.alertHistory.filter { it.vehicle == vehicle }
     var historyOpen by rememberSaveable(vehicle) { mutableStateOf(false) }
-    val active = entries.filter { model.isAlertCurrent(it) && it.event.lifecycle == AlertLifecycle.Active }
-    val recent = (active.sortedByDescending { it.event.severity } + entries).distinctBy { it.id }.take(3)
+    val active = entries.filter { model.isAlertCurrent(it) && it.event.lifecycle == AlertLifecycle.Active && !model.isDiagnosticAlertFiltered(it.event) }
+    val recent = (active.sortedByDescending { it.event.severity } + entries).distinctBy { it.id }
+        .filterNot { model.isAlertCurrent(it) && model.isDiagnosticAlertFiltered(it.event) }.take(3)
     Panel {
         SectionTitle("Alerts")
         if (model.alertFrameworkSupported == false) Text("Update the gauge to use alert history.")
-        else if (entries.isEmpty()) Text("No recorded alerts", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        else if (recent.isEmpty()) Text(if(entries.isEmpty()) "No recorded alerts" else "No visible alerts", color = MaterialTheme.colorScheme.onSurfaceVariant)
         recent.forEach { entry ->
             SettingsRow(entry.event.label, alertEntryStatus(entry.event, model.isAlertCurrent(entry)),
                 onClick = { model.selectedAlertId = entry.id })
@@ -147,7 +148,7 @@ fun AlertContextSheet(model: AppViewModel) {
 @Composable
 fun GlobalAlertBanner(model: AppViewModel) {
     val entry=model.alertHistory.filter { it.vehicle==model.profileCollection.activeId && model.isAlertCurrent(it) &&
-        it.event.lifecycle==AlertLifecycle.Active }.maxByOrNull { it.event.severity }?:return
+        it.event.lifecycle==AlertLifecycle.Active && !model.isDiagnosticAlertFiltered(it.event) }.maxByOrNull { it.event.severity }?:return
     Surface(color=if(entry.event.severity==AlertSeverity.Critical)MaterialTheme.colorScheme.errorContainer
         else MaterialTheme.colorScheme.surfaceVariant,modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=4.dp)) {
         TextButton({ model.selectedAlertId=entry.id }) { Text("${entry.event.severity.name} · ${entry.event.label}${if(entry.event.unavailable)" · unavailable" else ""}") }

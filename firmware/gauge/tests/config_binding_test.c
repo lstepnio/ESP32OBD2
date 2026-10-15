@@ -43,6 +43,12 @@ int main(int argc, char **argv)
     assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK);
     assert(!runtime.legacy_auto_discovery && !strcmp(runtime.sources[0].address,"C0:00:00:00:00:01") && runtime.sources[0].address_type==1);
     assert(runtime.pids[0].responder==0x7e8);
+    cJSON *filters=cJSON_Parse("[{\"controller\":\"ecm\",\"code\":\"P0420\"}]");
+    cJSON_AddItemToObject(root,"diagnosticFilters",filters);set(root);assert(validate()==ESP_OK);
+    assert(config_runtime_load(&runtime,&active,&previous)==ESP_OK&&runtime.diagnostic_filter_count==1&&runtime.diagnostic_filters[0].code==0x0420);
+    cJSON_AddItemToArray(filters,cJSON_Duplicate(cJSON_GetArrayItem(filters,0),true));set(root);assert(validate()!=ESP_OK);
+    cJSON_DeleteItemFromArray(filters,1);cJSON_ReplaceItemInObject(cJSON_GetArrayItem(filters,0),"code",cJSON_CreateString("P042*"));
+    set(root);assert(validate()!=ESP_OK);cJSON_DeleteItemFromObject(root,"diagnosticFilters");
     cJSON *actions = cJSON_CreateArray();
     cJSON *action = cJSON_Parse("{\"type\":\"jumpPage\",\"pageId\":\"placeholder\",\"gesture\":\"up\",\"count\":3,\"windowMs\":5000}");
     const char *first_page = cJSON_GetObjectItem(cJSON_GetArrayItem(cJSON_GetObjectItem(root,"pages"),0),"id")->valuestring;

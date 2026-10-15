@@ -110,3 +110,30 @@ exact running identity, saved-state comparison and owner display checks remain p
 
 UI contract and opt-in device fixture: [temporary showcase](../development/display-showcase.md).
 Future fault inspection/provider/maintenance/custom enum screens remain design scope.
+
+## 2026-10-14: prepared Advanced CEL-filter extension
+
+The owner explicitly selected suppression of the gauge CEL when every fully checked
+code is filtered. App dev.51 / firmware dev.55 extends the prepared screen candidate
+with sixteen exact vehicle/controller rules in Advanced. Filters persist and join the
+normal atomic configuration path; only confirmed running rules govern presentation.
+Raw lamp state, wire packets, categories, history and exports are retained.
+
+C and Android share the version-15 TCM diagnostic fixture and agree on distinct-code
+suppression. Sanitized cases cover wildcard/padding/duplicates, foreign controller,
+missing links, simulated replies, count disagreement, unknown/stale MIL, incomplete
+and truncated categories, raw evidence preservation and unchanged unrelated alerts.
+The production configuration validator/compiler checks valid rules and rejects
+duplicates/wildcards. The local SDK's third-party cJSON requires compiling that vendor
+object separately with its macOS deprecation diagnostic suppressed; project code
+retains all warnings as errors and sanitizers.
+
+Android debug/test compilation, JVM tests and lint passed; ESP-IDF 5.4.1 image is
+0x18a180 bytes with 49% OTA-slot space free. Production LVGL checks also passed,
+including suppressed CEL with known state and explicit Not checked for unknown state.
+Contract validation now includes ten examples and thirty rejection cases. The Pixel
+connection preflight for App dev.50 timed out while Android was locked, so connection
+compatibility was not qualified in this session. App dev.51 is built but not installed;
+gauge remains dev.53. Dev.54 was never published. Dev.55 combines screen/showcase and
+filter changes; release authorization, signed App/Wi-Fi installation and physical
+filter/dual-source qualification remain pending. No main merge or ECU write occurred.

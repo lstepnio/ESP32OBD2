@@ -339,4 +339,4 @@ Revision 4 raises those reading blocks by 12 pixels to centers 75/114/157, while
 keeping the warning at 194 and Demo at 213. The fifth comment confirms the existing
 CEL-above/warning-below split; that example remains byte-identical. All 36 unchanged
 approvals carry forward, with original feedback and images preserved. Unreviewed
-examples remain unreviewed. Firmware implementation and physical review are pending.
+examples remain unreviewed. The prepared compositor includes this correction; signed installation and physical review are pending.

@@ -12,7 +12,7 @@ fun readingName(id: String): String = when (id) {
 
 /** Editor cursor fields are not part of the transmitted page/alert payload. */
 fun sameSettings(first: Draft?, second: Draft): Boolean = first != null && first.pages == second.pages &&
-    first.source == second.source && first.alerts == second.alerts && first.actions == second.actions
+    first.source == second.source && first.alerts == second.alerts && first.actions == second.actions && first.diagnosticFilters == second.diagnosticFilters
 
 fun pageUi(page: GaugePageDraft, system: MeasurementSystem = MeasurementSystem.Metric): PageUi {
     val reading = demoCatalog.first { it.id == page.pidIds.first() }
@@ -41,6 +41,7 @@ fun alertUi(alert: GaugeAlertDraft, system: MeasurementSystem = MeasurementSyste
 }
 
 fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> = buildList {
+    if(draft.diagnosticFilters.isNotEmpty() && (caps?.configurationVersion ?: 0)<6) add("Update gauge firmware to use CEL code filters.")
     ConfigurationProjector.blockers(draft).forEach { raw ->
         add(when {
             "reset margin" in raw -> "Leave more space between warning and critical. Adjust the limits."
@@ -170,7 +171,8 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 "Jump to $name · ${action.count} swipes up within ${action.windowMs / 1000} seconds"
             }, editingIssue = pageEditError,
             reviewAlerts = transmittedDraft.alerts.map { alertUi(it, system) },
-            reviewNotice = null),
+            reviewNotice = if(transmittedDraft.diagnosticFilters.isNotEmpty() || transmittedDraft.diagnosticFilters!=effectiveDiagnosticFilters())
+                "CEL code filters: " + transmittedDraft.diagnosticFilters.joinToString { "${if(it.controller=="TCM") "Transmission" else "Engine"} ${it.code}" }.ifEmpty { "None" } else null),
         car,
         SettingsUiState(currentGaugeName, found, displaySettings?.rotation ?: savedGauge?.rotation,
             found && ((capabilities?.displaySettingsVersion ?: 0) >= 1 || capabilities?.displayRotationWrite == true),
@@ -198,6 +200,8 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 capabilities?.dualAdapterVersion == 1 && capabilities?.vehicleDashboardVersion == 1),
             canShowcase = found && !busy && capabilities?.displayShowcaseVersion == 1,
             showcaseActive = displayShowcase?.active == true,
+            diagnosticFilters = editorDraft.diagnosticFilters,
+            rawFaultSources = carState(nowElapsedMs,busy,details,true).faultSources,
             adapterDiscoveryBlocker = when {
                 !freshConnection -> "Discovery starts automatically when the gauge reconnects."
                 capabilities?.adapterRegistryVersion != 1 -> "Update the gauge to discover adapters."
@@ -232,7 +236,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     )
 }
 
-private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<DetailUi>): CarUiState {
+private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<DetailUi>, showFiltered: Boolean = false): CarUiState {
     val data = diagnostics?.takeIf { it.source == draft.source &&
         (it.revision == null || (activeDocument?.vehicleProfileId == profileCollection.activeId &&
             it.revision == activeDocument?.revision)) }
@@ -240,7 +244,7 @@ private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<Detail
     val sources = (vehicleSources + diagnosticsBySource.keys).distinct().flatMap { source ->
         val snapshot = diagnosticsBySource[source] ?: data?.takeIf { it.source == source }
         val age = diagnosticsCheckedAt[source]?.let { now-it } ?: elapsed
-        diagnosticSources(snapshot?.takeIf { it.revision == activeDocument?.revision || it.revision == null }, age, source)
+        diagnosticSources(snapshot?.takeIf { it.revision == activeDocument?.revision || it.revision == null }, age, source, effectiveDiagnosticFilters(), showFiltered)
             .filter { it.title == if (source == "TCM") "Transmission" else "Engine" }
     }
     val links = vehicleSources.map { source ->

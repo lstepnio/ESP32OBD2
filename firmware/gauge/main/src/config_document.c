@@ -8,6 +8,7 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "config_document.h"
+#include "diagnostic_filter.h"
 #include "config_store.h"
 #include "json_guard.h"
 #include "obd_adapter_profile.h"
@@ -397,7 +398,7 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
 {
     static const char *const keys[] = {"schemaVersion", "baseRevision", "vehicleProfileId",
         "units", "rotation", "brightness", "reducedMotion", "definitions", "pages",
-        "alerts", "sources", "actions"};
+        "alerts", "sources", "actions", "diagnosticFilters"};
     static const char *const units[] = {"metric", "imperial"};
     const cJSON *sources = cJSON_GetObjectItemCaseSensitive(root, "sources");
     const cJSON *definitions = cJSON_GetObjectItemCaseSensitive(root, "definitions");
@@ -418,6 +419,20 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
         !array_size(alerts, 0, 32) ||
         !unique_ids(sources) || !unique_ids(definitions) ||
         !unique_ids(pages) || !unique_ids(alerts)) return false;
+    const cJSON *filters=cJSON_GetObjectItemCaseSensitive(root,"diagnosticFilters");
+    if(filters) {
+        if(cJSON_GetObjectItemCaseSensitive(root,"schemaVersion")->valueint!=2||!array_size(filters,0,DIAGNOSTIC_FILTER_LIMIT))return false;
+        static const char *const filter_keys[]={"controller","code"};
+        for(const cJSON *item=filters->child;item;item=item->next) {
+            const cJSON *controller=cJSON_GetObjectItemCaseSensitive(item,"controller"),*code=cJSON_GetObjectItemCaseSensitive(item,"code");uint16_t parsed;
+            if(!fields(item,filter_keys,2)||!cJSON_IsString(controller)||
+                (strcmp(controller->valuestring,"ecm")&&strcmp(controller->valuestring,"tcm"))||
+                !cJSON_IsString(code)||!diagnostic_filter_parse(code->valuestring,&parsed))return false;
+            for(const cJSON *other=filters->child;other!=item;other=other->next)
+                if(!strcmp(cJSON_GetObjectItemCaseSensitive(other,"controller")->valuestring,controller->valuestring)&&
+                   !strcmp(cJSON_GetObjectItemCaseSensitive(other,"code")->valuestring,code->valuestring))return false;
+        }
+    }
     const cJSON *actions = cJSON_GetObjectItemCaseSensitive(root, "actions");
     if (actions) {
         if (cJSON_GetObjectItemCaseSensitive(root, "schemaVersion")->valueint != 2 || !array_size(actions, 0, 1)) return false;

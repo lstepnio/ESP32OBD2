@@ -13,6 +13,7 @@ data class VehicleProfile(
     val pageOrder: List<String> = emptyList(),
 ) {
     init {
+        DiagnosticCodeFilters.validate((draft.diagnosticFilters + transmission?.draft?.diagnosticFilters.orEmpty()).distinct())
         require(draft.pages.isNotEmpty() || transmission?.draft?.pages?.isNotEmpty() == true) { "Keep at least one vehicle page" }
         require(pageOrder.size <= 8 && pageOrder.distinct().size == pageOrder.size &&
             pageOrder.all { it.matches(Regex("[a-z][a-z0-9._-]{0,63}")) }) { "Page order is invalid" }

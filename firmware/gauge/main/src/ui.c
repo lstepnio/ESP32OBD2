@@ -85,6 +85,7 @@ typedef struct {
 typedef struct {
     bool valid;
     bool mil_on;
+    bool mil_known;
     bool transmission;
     uint8_t count;
     bool count_known, count_partial;
@@ -785,7 +786,7 @@ static ui_alert_t visible_alert(ui_t *ui) {
 static ui_diagnostics_t visible_diagnostics(ui_t *ui) {
     if(!atomic_load(&ui->showcase_active))return ui->rendered_diagnostics;
     const display_showcase_frame_t *f=display_showcase_frame(ui->showcase.index);
-    return (ui_diagnostics_t){.valid=true,.mil_on=f->mil,.count=f->faults,.count_known=f->count_known};
+    return (ui_diagnostics_t){.valid=true,.mil_known=true,.mil_on=f->mil,.count=f->faults,.count_known=f->count_known};
 }
 static void render_status(ui_t *ui) {
     ui_alert_t alert=visible_alert(ui);ui_diagnostics_t d=visible_diagnostics(ui);
@@ -795,10 +796,11 @@ static void render_status(ui_t *ui) {
     lv_obj_set_style_bg_color(ui->widgets.bar,lv_color_hex(chart_color),LV_PART_INDICATOR);
     lv_obj_set_style_line_color(ui->widgets.trend,lv_color_hex(color),LV_PART_MAIN);
     bool diagnostic=d.valid&&(d.mil_on||d.count);
-    show(ui->widgets.diagnostics_icon,diagnostic);show(ui->widgets.diagnostics_lbl,diagnostic);
+    bool unknown=!d.mil_known||(d.count_partial&&!d.count);
+    show(ui->widgets.diagnostics_icon,diagnostic);show(ui->widgets.diagnostics_lbl,diagnostic||unknown);
     if(diagnostic) {
         char count[12]="";
-        if(!d.count_known)snprintf(count,sizeof(count),"?");
+        if(!d.count_known||(d.count_partial&&!d.count))snprintf(count,sizeof(count),"?");
         else if(d.count>9)snprintf(count,sizeof(count),"9+");
         else if(d.count_partial)snprintf(count,sizeof(count),"%u+",d.count);
         else if(d.count>1)snprintf(count,sizeof(count),"%u",d.count);
@@ -807,6 +809,10 @@ static void render_status(ui_t *ui) {
         lv_obj_set_pos(ui->widgets.diagnostics_icon,count[0]?94:104,31);
         lv_obj_set_style_text_color(ui->widgets.diagnostics_lbl,lv_color_hex(dc),0);
         small_label(ui->widgets.diagnostics_lbl,count,139,42,34);
+    }
+    if(!diagnostic&&unknown) {
+        lv_obj_set_style_text_color(ui->widgets.diagnostics_lbl,lv_color_hex(color_text_secondary),0);
+        small_label(ui->widgets.diagnostics_lbl,"Not checked",120,42,120);
     }
     bool condition=alert.severity!=0;
     show(ui->widgets.alert_lbl,condition);show(ui->widgets.alert_icon,condition);
@@ -1237,7 +1243,7 @@ void ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on, bool transmission,
                         uint8_t count, const char *first_code)
 {
     if (!ui || !ui->rtos.diagnostics_que) return;
-    ui_diagnostics_t diagnostics = {.valid = valid, .mil_on = mil_on, .transmission = transmission, .count = count,.count_known=valid};
+    ui_diagnostics_t diagnostics = {.valid = valid, .mil_known = valid, .mil_on = mil_on, .transmission = transmission, .count = count,.count_known=valid};
     if (first_code) snprintf(diagnostics.first_code, sizeof(diagnostics.first_code),
                              "%s", first_code);
     xQueueOverwrite(ui->rtos.diagnostics_que, &diagnostics);
@@ -1288,7 +1294,7 @@ void ui_action_applied(ui_t *ui)
 
 void ui_set_vehicle_diagnostics(ui_t *ui,const diagnostics_snapshot_t *snapshot) {
     if(!ui||!snapshot)return;
-    ui_diagnostics_t d={.valid=snapshot->valid,.mil_on=snapshot->mil_on,.transmission=snapshot->transmission,
+    ui_diagnostics_t d={.valid=snapshot->valid,.mil_known=snapshot->mil_known,.mil_on=snapshot->mil_on,.transmission=snapshot->transmission,
         .count=snapshot->distinct_count>255?255:snapshot->distinct_count,.count_known=snapshot->count_known,.count_partial=snapshot->count_partial};
     snprintf(d.first_code,sizeof(d.first_code),"%s",snapshot->first_code);xQueueOverwrite(ui->rtos.diagnostics_que,&d);
 }

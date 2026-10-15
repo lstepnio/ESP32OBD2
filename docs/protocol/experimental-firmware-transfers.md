@@ -3,9 +3,9 @@
 This is the implemented development protocol-0 path, not a general production
 configuration contract. Owner writes use characteristic `6f1a0002`; protected
 reads use `6f1a0003`. Android configuration/readback and signed App/Wi-Fi updates
-have recorded evidence. Public `configWrite` and `ota` stay false. Current `cfg:5`
+have recorded evidence. Public `configWrite` and `ota` stay false. Current prepared `cfg:6`
 includes bindings (`cfg:3`), local page actions (`cfg:4`), expanded catalog decimals
-and TCM numeric/gear alerts. `va:1` identifies per-definition ECU routing and `da:1`
+and TCM numeric/gear alerts, plus exact CEL presentation filters (`cfg:6`). `va:1` identifies per-definition ECU routing and `da:1`
 source-index reads. Older `cfg:2`/`experimentalNumericConfig:true` are legacy variants.
 Negotiate these markers before writes; the later extension sections below define
 current semantics without changing the existing command layouts.
@@ -170,3 +170,21 @@ physical display success. The connection owner recognizes this protected frame f
 encrypted readback; disconnect resets the extended-state selector as before. The
 client sends a mutation once and polls for its sequence; uncertain writes are not
 replayed. UI-only lifecycle and preemption rules are in the [showcase guide](../development/display-showcase.md).
+
+## Exact CEL code filters, development `cfg:6`
+
+Prepared dev.55 retains cfg:5 operations and adds optional schema-2
+`diagnosticFilters`, a maximum sixteen-element array of objects containing
+`controller` (`ecm` or `tcm`) and `code` (uppercase `[PCBU][0-3][0-9A-F]{3}`, excluding
+P0000). Exact controller/code pairs must be unique. Unknown fields, wildcard codes,
+invalid controllers and legacy schema-1 injection are rejected. Omission and an
+empty array mean no filters. Rules are carried in the existing atomic authenticated-owner
+configuration transaction and readback; no new opcode or diagnostic packet layout
+is introduced. Runtime capability `cfg:6` gates sending nonempty filters; older
+firmware rejects this property. Public configuration/OTA flags remain false.
+
+The raw version-15 diagnostic packets, MIL bit, reported count and event journal
+are unchanged. Presentation suppression follows the [shared framework policy](../architecture/alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters),
+including complete fresh checks and MIL-count reconciliation. Engine/Transmission
+identity is independent of which adapter transports the replies. A filter never
+sends an ECU clear command and never changes the vehicle's own lamp.

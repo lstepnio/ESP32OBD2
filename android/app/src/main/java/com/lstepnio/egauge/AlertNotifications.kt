@@ -19,8 +19,13 @@ class AlertNotifications(private val context: Context) {
         manager.createNotificationChannel(NotificationChannel("vehicle-warning","Vehicle warnings",NotificationManager.IMPORTANCE_DEFAULT).apply { setSound(null,null) })
         manager.createNotificationChannel(NotificationChannel("vehicle-monitor","Gauge monitoring",NotificationManager.IMPORTANCE_LOW))
     }
-    fun show(event: AlertEvent, vehicle: String, gauge: String, live: Boolean, foreground: Boolean) {
+    fun show(event: AlertEvent, vehicle: String, gauge: String, live: Boolean, foreground: Boolean, filtered: Boolean = false) {
         val id=event.id(gauge).hashCode()
+        if(filtered) {
+            manager.cancel(id);delivered.add(event.transitionId(gauge))
+            while(delivered.size>256)delivered.remove(delivered.first())
+            return
+        }
         if(event.lifecycle!=AlertLifecycle.Active || event.acknowledged || event.snoozed || event.unavailable) { manager.cancel(id);return }
         if(!shouldNotifyAlert(event,live,foreground)) return
         if(Build.VERSION.SDK_INT>=33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return

@@ -42,6 +42,7 @@ idf_component_register(
         "src/page_save_policy.c"
         "src/page_action.c"
         "src/gauge_layout.c"
+        "src/diagnostic_filter.c"
         "src/display_showcase.c"
         "src/ui.c"
         ${FONT_SOURCES}

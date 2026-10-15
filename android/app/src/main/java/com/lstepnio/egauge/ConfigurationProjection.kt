@@ -27,13 +27,14 @@ data class ConfigurationProjection(
     val pages: List<ProjectedPage>,
     val alerts: List<ProjectedAlert>,
     val actions: List<PageAction> = emptyList(),
+    val diagnosticFilters: List<DiagnosticCodeFilter> = emptyList(),
 ) {
     fun reviewLines(): List<String> = pages.mapIndexed { index, page ->
         val values = listOfNotNull(page.pidId, page.secondaryPidId).joinToString(" + ")
         "${index + 1}. ${page.label} • ${page.renderer} • $values"
     } + alerts.map { alert ->
         "${alert.pidId}: warn ${alert.direction.name.lowercase()} ${alert.warning}; critical ${alert.direction.name.lowercase()} ${alert.critical}"
-    } + actions.map { "Jump to ${pages.firstOrNull { page -> page.id == it.pageId }?.label ?: "Unavailable page"}: ${it.count} swipes up in ${it.windowMs / 1000}s" }
+    } + diagnosticFilters.map { "CEL filter: ${if(it.controller=="TCM") "Transmission" else "Engine"} ${it.code}" } + actions.map { "Jump to ${pages.firstOrNull { page -> page.id == it.pageId }?.label ?: "Unavailable page"}: ${it.count} swipes up in ${it.windowMs / 1000}s" }
 }
 
 object ConfigurationProjector {
@@ -49,6 +50,7 @@ object ConfigurationProjector {
     fun blockers(draft: Draft, allowEmptyPages: Boolean = false): List<String> {
         val actionIssues = runCatching { ProfileActions.validate(draft.actions, draft.pages) }.exceptionOrNull()?.let { listOf(it.message ?: "Invalid actions") } ?: emptyList()
         return actionIssues + buildList {
+            runCatching { DiagnosticCodeFilters.validate(draft.diagnosticFilters) }.exceptionOrNull()?.let { add(it.message ?: "Invalid code filters") }
             if (draft.source == "TCM") {
                 if (!BuildConfig.DEBUG)
                     add("The TCM setup requires a development build")
@@ -105,6 +107,9 @@ object ConfigurationProjector {
         val json = JSONObject(template)
         require(schemaVersion in 1..2 && (adapter == null || schemaVersion == 2))
         require(draft.actions.isEmpty() || schemaVersion == 2) { "Gesture actions require updated gauge configuration" }
+        json.remove("diagnosticFilters")
+        require(draft.diagnosticFilters.isEmpty() || schemaVersion == 2) { "Code filters require updated gauge configuration" }
+        if(draft.diagnosticFilters.isNotEmpty()) json.put("diagnosticFilters",DiagnosticCodeFilters.json(draft.diagnosticFilters))
         json.remove("actions")
         if (draft.actions.isNotEmpty()) json.put("actions", ProfileActions.json(draft.actions))
         json.put("schemaVersion", schemaVersion)
@@ -162,6 +167,7 @@ object ConfigurationProjector {
                     page.layout.name.lowercase(Locale.ROOT),
                     page.pidIds.getOrNull(1)?.let { definitionIds.getValue(it) })
             },
+            diagnosticFilters = draft.diagnosticFilters,
             alerts = draft.alerts.map { alert -> ProjectedAlert(alert.id, definitionIds.getValue(alert.pidId),
                 alert.direction, alert.warning, alert.critical, alert.hysteresis, alert.triggerDwellMs, alert.clearDwellMs) },
         )

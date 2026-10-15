@@ -87,6 +87,18 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         cJSON_GetArraySize(alerts) > EGAUGE_RUNTIME_ALERTS) goto done;
     if (strcmp(field(root, "units")->valuestring, "metric") != 0 ||
         cJSON_IsTrue(field(root, "reducedMotion"))) goto done;
+    const cJSON *filters=field(root,"diagnosticFilters");
+    if(filters) {
+        if(field(root,"schemaVersion")->valueint!=2||!cJSON_IsArray(filters)||cJSON_GetArraySize(filters)>DIAGNOSTIC_FILTER_LIMIT)goto done;
+        for(const cJSON *item=filters->child;item;item=item->next) {
+            const cJSON *controller=field(item,"controller"),*code=field(item,"code");uint16_t parsed;
+            if(!cJSON_IsObject(item)||cJSON_GetArraySize(item)!=2||!cJSON_IsString(controller)||!cJSON_IsString(code)||!diagnostic_filter_parse(code->valuestring,&parsed))goto done;
+            if(strcmp(controller->valuestring,"ecm")&&strcmp(controller->valuestring,"tcm"))goto done;
+            diagnostic_filter_t rule={.code=parsed,.endpoint=!strcmp(controller->valuestring,"tcm")};
+            for(unsigned j=0;j<out->diagnostic_filter_count;j++)if(out->diagnostic_filters[j].code==rule.code&&out->diagnostic_filters[j].endpoint==rule.endpoint)goto done;
+            out->diagnostic_filters[out->diagnostic_filter_count++]=rule;
+        }
+    }
     out->source_count = cJSON_GetArraySize(sources);
     out->legacy_auto_discovery = field(root, "schemaVersion")->valueint == 1;
     if (!copy_text(out->vehicle_id, sizeof(out->vehicle_id), field(root, "vehicleProfileId"))) goto done;

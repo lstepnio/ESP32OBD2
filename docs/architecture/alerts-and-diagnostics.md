@@ -425,3 +425,45 @@ Never enable live clearing from offline success alone. Validate configured alert
 poll cadence and dwell; do not promise a short trigger time the adapter cannot sustain. Record task IDs and measured/source/physical evidence separately
 in the PR. Follow existing commit, release and hardware gates; this document does not
 publish firmware, enable a capability or authorize an unattended vehicle command.
+
+## Advanced vehicle-scoped CEL code filters
+
+The owner requested suppressing the gauge CEL indication when all checked codes
+are filtered. Prepared App dev.51 / firmware dev.55 implements this as presentation
+policy, separate from ECU clearing, acknowledgment, event lifecycle and raw evidence.
+
+Advanced/Expert contains the sole filter editor. A vehicle can save up to sixteen
+exact standard five-character codes, each scoped to Engine or Transmission. The
+controller role is independent of its physical adapter and supports one connector
+or an optional child connector. No wildcards, padding P0000 or duplicate pairs are
+accepted. Older profiles default to no filters; unknown future formats fail closed.
+Filters join the normal serialized vehicle configuration and review/send path.
+Only the confirmed running document governs phone display and notification policy;
+a saved phone draft does not silently change the running gauge behavior.
+
+A controller's CEL may be suppressed only when its real MIL is fresh/known, all
+supported categories have complete fresh results, all distinct returned codes are
+filtered, at least one code is present, and confirmed count equals its positive
+MIL-reported count. Unsupported categories do not invent codes; an unsupported or
+unavailable confirmed category cannot explain an active MIL. Staleness, truncation,
+failed reads, unknown MIL or count disagreement cannot suppress it. Independent
+controllers are evaluated separately; a healthy or filtered parent never masks a
+child's unfiltered warning or unknown coverage. These are decisions from the latest
+fresh polling observations, not a guarantee that an ECU cannot change between polls.
+
+The gauge top CEL/count and ordinary App lists/recent banners use this projection.
+Threshold, provider and critical attention remain independent. Filtered diagnostic
+notifications are canceled and their current transition is marked delivered so
+removing a filter does not replay an old notification. A new unfiltered event still
+uses the shared notifier. The shared journal, immutable entry context, raw ECU MIL,
+protected diagnostic packets and exports retain all codes. Advanced diagnostics
+shows all raw codes, marks matching codes Filtered and reports the real ECU lamp.
+No command is sent to turn off the vehicle's own lamp or erase ECU codes.
+
+Implementation: `DiagnosticCodeFilters.kt`, `DiagnosticPresentation.kt`,
+`AlertNotifications.kt`, existing config/profile owners and `diagnostic_filter.c`.
+Firmware runtime adds a fixed sixteen-rule array; projection uses bounded stack
+storage without persistent per-poll allocation. Production C and JVM fixtures share
+`diagnostics-tcm-v15.hex`; negative cases cover missing links, unknown/stale counts,
+partial/truncated replies, endpoint mismatch, raw evidence preservation and unrelated
+alerts. Vehicle qualification and signed installation remain separate gates.

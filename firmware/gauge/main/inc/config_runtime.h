@@ -8,6 +8,7 @@
 #include "obd.h"
 #include "config_store.h"
 #include "page_action.h"
+#include "diagnostic_filter.h"
 
 #define EGAUGE_RUNTIME_PIDS 32
 #define EGAUGE_RUNTIME_PAGES 8
@@ -72,6 +73,8 @@ typedef struct {
     uint8_t pid_count;
     uint8_t page_count;
     uint8_t alert_count;
+    uint8_t diagnostic_filter_count;
+    diagnostic_filter_t diagnostic_filters[DIAGNOSTIC_FILTER_LIMIT];
     page_action_config_t page_action;
     uint8_t rotation;
     uint8_t brightness;

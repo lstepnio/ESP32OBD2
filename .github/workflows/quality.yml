@@ -83,7 +83,7 @@ jobs:
           build-ui-host/gauge_ui_render build-ui-renders
           cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
             -Itests/stubs -Imain/inc -I"$IDF_PATH/components/json/cJSON" \
-            tests/config_binding_test.c main/src/config_document.c main/src/config_runtime.c \
+            tests/config_binding_test.c main/src/config_document.c main/src/config_runtime.c main/src/diagnostic_filter.c \
             main/src/json_guard.c main/src/obd_adapter_profile.c main/src/pid_decoder.c "$IDF_PATH/components/json/cJSON/cJSON.c" \
             -lm -o /tmp/config_binding_test
           /tmp/config_binding_test ../../contracts/examples/config-bound-adapter.json ../../android/app/src/main/assets/numeric_config_template.json

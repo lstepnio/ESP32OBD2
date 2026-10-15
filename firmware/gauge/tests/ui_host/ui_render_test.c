@@ -77,5 +77,11 @@ int main(int argc,char **argv) {
     assert(ui_request_showcase(ui,true,8,10,false,false));tick(60);
     for(unsigned i=0;i<display_showcase_count();i++){check_labels(lv_screen_active());ui_showcase_next(ui);tick(60);}
     ui_showcase_stop(ui);tick(60);assert(!ui_showcase_active(ui)&&ui->display.page.metrics[0].pid==12);
+    diagnostics_snapshot_t filtered={.valid=true,.mil_known=true,.count_known=true};
+    ui_set_vehicle_diagnostics(ui,&filtered);tick(60);
+    assert(lv_obj_has_flag(ui->widgets.diagnostics_icon,LV_OBJ_FLAG_HIDDEN));
+    filtered.mil_known=false;ui_set_vehicle_diagnostics(ui,&filtered);tick(60);
+    assert(!strcmp(lv_label_get_text(ui->widgets.diagnostics_lbl),"Not checked"));
+    assert(!lv_obj_has_flag(ui->widgets.diagnostics_lbl,LV_OBJ_FLAG_HIDDEN));
     puts("PASS: production LVGL showcase frames, circular glyphs, vehicle/maintenance/critical preemption and pairing restore");
 }
