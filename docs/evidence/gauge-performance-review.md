@@ -133,7 +133,12 @@ Android debug/test compilation, JVM tests and lint passed; ESP-IDF 5.4.1 image i
 including suppressed CEL with known state and explicit Not checked for unknown state.
 Contract validation now includes ten examples and thirty rejection cases. The Pixel
 connection preflight for App dev.50 timed out while Android was locked, so connection
-compatibility was not qualified in this session. App dev.51 is built but not installed;
-gauge remains dev.53. Dev.54 was never published. Dev.55 combines screen/showcase and
+compatibility was not qualified by that first attempt. After the Pixel became unlocked,
+App dev.51 was installed without clearing data and its scoped automatic connection
+journey passed in 12.504 seconds. It confirmed authenticated owner access, normal
+protected configuration/settings reads and refresh on resume without a connect tap,
+expected healthy dev.53 identity, and unchanged vehicle dashboard/settings/profiles.
+This was a read-only phone/gauge protocol check, not a vehicle-filter or physical LCD
+qualification. Gauge remains dev.53. Dev.54 was never published. Dev.55 combines screen/showcase and
 filter changes; release authorization, signed App/Wi-Fi installation and physical
 filter/dual-source qualification remain pending. No main merge or ECU write occurred.
