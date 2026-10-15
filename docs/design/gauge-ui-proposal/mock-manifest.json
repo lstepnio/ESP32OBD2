@@ -1,8 +1,8 @@
 {
   "status": "proposed-not-implemented",
-  "reviewRound": 3,
-  "previousRound": 2,
-  "reviewId": "gauge-ui-2026-10-14-v3",
+  "reviewRound": 4,
+  "previousRound": 3,
+  "reviewId": "gauge-ui-2026-10-14-v4",
   "logicalSize": [
     240,
     240
@@ -13,7 +13,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "numeric",
       "title": "Numeric",
       "category": "Reading layouts",
@@ -45,7 +45,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "arc",
       "title": "Arc",
       "category": "Reading layouts",
@@ -85,9 +85,9 @@
       "essentialShapes": []
     },
     {
-      "revised": true,
+      "revised": false,
       "isNew": false,
-      "changeSummary": "Reserved the lower alert row by raising the 6 px scale, with stable geometry when an alert appears.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "bar",
       "title": "Bar",
       "category": "Reading layouts",
@@ -137,9 +137,9 @@
       ]
     },
     {
-      "revised": true,
+      "revised": false,
       "isNew": false,
-      "changeSummary": "Raised the reading and chart together to reserve a separate lower alert row without alert-time reflow.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "trend",
       "title": "Trend",
       "category": "Reading layouts",
@@ -191,7 +191,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "dual",
       "title": "Dual",
       "category": "Reading layouts",
@@ -243,7 +243,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "dual-mil",
       "title": "Dual + engine warning",
       "category": "Faults and alerts",
@@ -315,7 +315,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "stored",
       "title": "Stored codes, lamp off",
       "category": "Faults and alerts",
@@ -367,7 +367,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "mil-unknown-count",
       "title": "MIL on, count unknown",
       "category": "Faults and alerts",
@@ -419,7 +419,7 @@
     {
       "revised": true,
       "isNew": false,
-      "changeSummary": "Moved the warning symbol, condition and direction below the reading, replacing page dots.",
+      "changeSummary": "Raised the reading block by 12 px to balance the warning below when no CEL is shown.",
       "id": "threshold",
       "title": "Warning threshold",
       "category": "Faults and alerts",
@@ -430,9 +430,9 @@
           "fontPx": 16,
           "bounds": [
             89.83,
-            81.0,
+            69.0,
             150.17,
-            93.0
+            81.0
           ]
         },
         {
@@ -440,9 +440,9 @@
           "fontPx": 64,
           "bounds": [
             65.0,
-            102.83,
+            90.83,
             175.0,
-            149.17
+            137.17
           ]
         },
         {
@@ -450,9 +450,9 @@
           "fontPx": 24,
           "bounds": [
             107.33,
-            160.0,
+            148.0,
             132.67,
-            178.0
+            166.0
           ]
         },
         {
@@ -488,9 +488,9 @@
       ]
     },
     {
-      "revised": true,
+      "revised": false,
       "isNew": false,
-      "changeSummary": "Kept CEL and its count at the top; moved the warning condition below both readings.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "threshold-mil",
       "title": "Threshold + MIL",
       "category": "Faults and alerts",
@@ -590,7 +590,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "critical",
       "title": "Critical attention",
       "category": "Faults and alerts",
@@ -652,7 +652,7 @@
     {
       "revised": true,
       "isNew": false,
-      "changeSummary": "Moved the acknowledged critical indicator below the reading; its condition remains active.",
+      "changeSummary": "Raised the reading block by 12 px; the retained critical condition stays below.",
       "id": "critical-acked",
       "title": "Acknowledged critical",
       "category": "Faults and alerts",
@@ -663,9 +663,9 @@
           "fontPx": 16,
           "bounds": [
             89.83,
-            81.0,
+            69.0,
             150.17,
-            93.0
+            81.0
           ]
         },
         {
@@ -673,9 +673,9 @@
           "fontPx": 64,
           "bounds": [
             65.0,
-            102.5,
+            90.5,
             175.0,
-            149.5
+            137.5
           ]
         },
         {
@@ -683,9 +683,9 @@
           "fontPx": 24,
           "bounds": [
             107.33,
-            160.0,
+            148.0,
             132.67,
-            178.0
+            166.0
           ]
         },
         {
@@ -723,7 +723,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "fault-view",
       "title": "Fault inspection",
       "category": "Faults and alerts",
@@ -775,7 +775,7 @@
     {
       "revised": true,
       "isNew": false,
-      "changeSummary": "Moved the retained last-seen warning below the reading, with its affected condition named.",
+      "changeSummary": "Raised the live reading by 12 px; retained unavailable-source context stays below.",
       "id": "last-seen",
       "title": "Warning source unavailable",
       "category": "Faults and alerts",
@@ -786,9 +786,9 @@
           "fontPx": 16,
           "bounds": [
             102.67,
-            81.33,
+            69.33,
             137.33,
-            92.67
+            80.67
           ]
         },
         {
@@ -796,9 +796,9 @@
           "fontPx": 64,
           "bounds": [
             65.0,
-            102.5,
+            90.5,
             175.0,
-            149.5
+            137.5
           ]
         },
         {
@@ -827,7 +827,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "not-checked",
       "title": "Diagnostic coverage unknown",
       "category": "Faults and alerts",
@@ -869,7 +869,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "missing-ecm",
       "title": "Missing ECM source",
       "category": "Limits and custom PIDs",
@@ -921,7 +921,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "missing-tcm",
       "title": "Missing TCM source",
       "category": "Limits and custom PIDs",
@@ -973,7 +973,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "missing",
       "title": "Reading unavailable",
       "category": "Limits and custom PIDs",
@@ -1015,7 +1015,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "long-value",
       "title": "Five-digit value",
       "category": "Limits and custom PIDs",
@@ -1057,7 +1057,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "custom-pressure",
       "title": "Custom decimal PID",
       "category": "Limits and custom PIDs",
@@ -1099,7 +1099,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "custom-enum",
       "title": "Custom numeric + enum",
       "category": "Limits and custom PIDs",
@@ -1151,7 +1151,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "negative",
       "title": "Negative and fractional",
       "category": "Limits and custom PIDs",
@@ -1193,7 +1193,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "simulated",
       "title": "Simulated data",
       "category": "System and gestures",
@@ -1235,7 +1235,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "pair-ready",
       "title": "Pairing ready",
       "category": "System and gestures",
@@ -1277,7 +1277,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "pair-waiting",
       "title": "Pairing window closed",
       "category": "System and gestures",
@@ -1319,7 +1319,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "passkey",
       "title": "Passkey entry",
       "category": "System and gestures",
@@ -1361,7 +1361,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "paired",
       "title": "Pairing success",
       "category": "System and gestures",
@@ -1403,7 +1403,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "reset",
       "title": "Owner reset confirmation",
       "category": "System and gestures",
@@ -1455,7 +1455,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "update",
       "title": "Update maintenance",
       "category": "System and gestures",
@@ -1497,7 +1497,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "checking",
       "title": "Post-update confirmation",
       "category": "System and gestures",
@@ -1529,7 +1529,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "update-paused",
       "title": "Actionable update pause",
       "category": "System and gestures",
@@ -1561,7 +1561,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "empty",
       "title": "Empty dashboard",
       "category": "System and gestures",
@@ -1603,7 +1603,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "gesture",
       "title": "Page shortcut progress",
       "category": "System and gestures",
@@ -1645,7 +1645,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "gesture-done",
       "title": "Shortcut complete",
       "category": "System and gestures",
@@ -1687,7 +1687,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "critical-missing",
       "title": "Critical input lost",
       "category": "Faults and alerts",
@@ -1749,7 +1749,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "provider",
       "title": "Future phone/provider alert",
       "category": "Faults and alerts",
@@ -1791,7 +1791,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "rollback",
       "title": "Update not applied",
       "category": "System and gestures",
@@ -1823,7 +1823,7 @@
     {
       "revised": true,
       "isNew": false,
-      "changeSummary": "Placed the warning below the reading while retaining a separate quiet Demo footer.",
+      "changeSummary": "Raised the reading block by 12 px; warning and quiet Demo footer stay separate.",
       "id": "warning-simulated",
       "title": "Warning + simulation",
       "category": "System and gestures",
@@ -1834,9 +1834,9 @@
           "fontPx": 16,
           "bounds": [
             89.83,
-            81.0,
+            69.0,
             150.17,
-            93.0
+            81.0
           ]
         },
         {
@@ -1844,9 +1844,9 @@
           "fontPx": 64,
           "bounds": [
             65.0,
-            102.83,
+            90.83,
             175.0,
-            149.17
+            137.17
           ]
         },
         {
@@ -1854,9 +1854,9 @@
           "fontPx": 24,
           "bounds": [
             107.33,
-            160.0,
+            148.0,
             132.67,
-            178.0
+            166.0
           ]
         },
         {
@@ -1904,7 +1904,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "critical-simulated",
       "title": "Critical + simulation",
       "category": "System and gestures",
@@ -1974,9 +1974,9 @@
       "essentialShapes": []
     },
     {
-      "revised": true,
-      "isNew": true,
-      "changeSummary": "New lower-alert-row example.",
+      "revised": false,
+      "isNew": false,
+      "changeSummary": "Unchanged from revision 3.",
       "id": "numeric-alert-mil",
       "title": "Numeric + CEL + alert",
       "category": "Lower alert row",
@@ -2054,9 +2054,9 @@
       ]
     },
     {
-      "revised": true,
-      "isNew": true,
-      "changeSummary": "New lower-alert-row example.",
+      "revised": false,
+      "isNew": false,
+      "changeSummary": "Unchanged from revision 3.",
       "id": "arc-alert-mil",
       "title": "Arc + CEL + alert",
       "category": "Lower alert row",
@@ -2144,9 +2144,9 @@
       ]
     },
     {
-      "revised": true,
-      "isNew": true,
-      "changeSummary": "New lower-alert-row example.",
+      "revised": false,
+      "isNew": false,
+      "changeSummary": "Unchanged from revision 3.",
       "id": "bar-alert-mil",
       "title": "Bar + CEL + alert",
       "category": "Lower alert row",
@@ -2243,9 +2243,9 @@
       ]
     },
     {
-      "revised": true,
-      "isNew": true,
-      "changeSummary": "New lower-alert-row example.",
+      "revised": false,
+      "isNew": false,
+      "changeSummary": "Unchanged from revision 3.",
       "id": "trend-alert-mil",
       "title": "Trend + CEL + alert",
       "category": "Lower alert row",
@@ -2342,9 +2342,9 @@
       ]
     },
     {
-      "revised": true,
-      "isNew": true,
-      "changeSummary": "New lower-alert-row example.",
+      "revised": false,
+      "isNew": false,
+      "changeSummary": "Unchanged from revision 3.",
       "id": "custom-pressure-alert",
       "title": "Custom decimal + alert",
       "category": "Lower alert row",
@@ -2432,9 +2432,9 @@
       ]
     },
     {
-      "revised": true,
-      "isNew": true,
-      "changeSummary": "New lower-alert-row example.",
+      "revised": false,
+      "isNew": false,
+      "changeSummary": "Unchanged from revision 3.",
       "id": "dual-units-alert",
       "title": "Dual units + alert",
       "category": "Lower alert row",
@@ -2542,9 +2542,9 @@
       ]
     },
     {
-      "revised": true,
-      "isNew": true,
-      "changeSummary": "New lower-alert-row example.",
+      "revised": false,
+      "isNew": false,
+      "changeSummary": "Unchanged from revision 3.",
       "id": "custom-enum-alert",
       "title": "Long enum + alert",
       "category": "Lower alert row",
@@ -2642,9 +2642,9 @@
       ]
     },
     {
-      "revised": true,
-      "isNew": true,
-      "changeSummary": "New lower-alert-row example.",
+      "revised": false,
+      "isNew": false,
+      "changeSummary": "Unchanged from revision 3.",
       "id": "multiple-alerts",
       "title": "Multiple alerts + CEL",
       "category": "Lower alert row",
@@ -2752,9 +2752,9 @@
       ]
     },
     {
-      "revised": true,
-      "isNew": true,
-      "changeSummary": "New lower-alert-row example.",
+      "revised": false,
+      "isNew": false,
+      "changeSummary": "Unchanged from revision 3.",
       "id": "critical-acked-mil",
       "title": "Acknowledged critical + CEL",
       "category": "Lower alert row",
@@ -2842,9 +2842,9 @@
       ]
     },
     {
-      "revised": true,
-      "isNew": true,
-      "changeSummary": "New lower-alert-row example.",
+      "revised": false,
+      "isNew": false,
+      "changeSummary": "Unchanged from revision 3.",
       "id": "below-threshold-mil",
       "title": "Below threshold + unknown CEL count",
       "category": "Lower alert row",
@@ -2932,9 +2932,9 @@
       ]
     },
     {
-      "revised": true,
-      "isNew": true,
-      "changeSummary": "New lower-alert-row example.",
+      "revised": false,
+      "isNew": false,
+      "changeSummary": "Unchanged from revision 3.",
       "id": "dual-last-seen-alert",
       "title": "Lost TCM + retained alert",
       "category": "Lower alert row",
@@ -3023,9 +3023,9 @@
       ]
     },
     {
-      "revised": true,
-      "isNew": true,
-      "changeSummary": "New lower-alert-row example.",
+      "revised": false,
+      "isNew": false,
+      "changeSummary": "Unchanged from revision 3.",
       "id": "both-missing-alert",
       "title": "Both sources absent + retained alert",
       "category": "Lower alert row",
@@ -3116,7 +3116,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "calibration-1",
       "title": "Calibration 1",
       "category": "Calibration",
@@ -3138,7 +3138,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "calibration-2",
       "title": "Calibration 2",
       "category": "Calibration",
@@ -3160,7 +3160,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "calibration-3",
       "title": "Calibration 3",
       "category": "Calibration",
@@ -3192,7 +3192,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "calibration-4",
       "title": "Calibration 4",
       "category": "Calibration",
@@ -3234,7 +3234,7 @@
     {
       "revised": false,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 2.",
+      "changeSummary": "Unchanged from revision 3.",
       "id": "calibration-5",
       "title": "Calibration 5",
       "category": "Calibration",

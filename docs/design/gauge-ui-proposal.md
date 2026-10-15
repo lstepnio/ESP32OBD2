@@ -49,10 +49,10 @@ restores saved decisions and unsaved browser drafts. A partial submission retain
 unreviewed examples as unreviewed.
 
 The review service listens only on this Mac's loopback interface. Private feedback is
-saved under ignored `artifacts/gauge-ui-review/2026-10-14-review-v3.json`; it is not committed
-to Git. The original `2026-10-14-review.json` submission and v2 saved review remain intact. Each submission
+saved under ignored `artifacts/gauge-ui-review/2026-10-14-review-v4.json`; it is not committed
+to Git. The original `2026-10-14-review.json` submission and v2/v3 saved reviews remain intact. Each submission
 retains its screen decisions separately from subsequent edits. The review is bound to the
-exact example manifest/image digest. A stale earlier page cannot approve revision 3;
+exact example manifest/image digest. A stale earlier page cannot approve revision 4;
 changed examples require a new decision. These are design decisions, not firmware
 publication authorization.
 
@@ -329,3 +329,14 @@ certification claim. [W3C's use-of-color guidance](https://www.w3.org/WAI/WCAG22
 supports redundant text/shape cues. [LVGL label documentation](https://docs.lvgl.io/9.2/widgets/label.html)
 defines text expansion, clipping, dot/scroll behavior and buffer lifetime requirements
 that the implementation must handle explicitly.
+
+## Round 3 decisions and revision 4
+
+The submitted Round 3 review approved 36 of 56 examples, requested changes on five,
+and left 15 unreviewed. Four requests identify an optically low reading block on
+warning, acknowledged critical, last-seen and warning demo screens without CEL.
+Revision 4 raises those reading blocks by 12 pixels to centers 75/114/157, while
+keeping the warning at 194 and Demo at 213. The fifth comment confirms the existing
+CEL-above/warning-below split; that example remains byte-identical. All 36 unchanged
+approvals carry forward, with original feedback and images preserved. Unreviewed
+examples remain unreviewed. Firmware implementation and physical review are pending.
