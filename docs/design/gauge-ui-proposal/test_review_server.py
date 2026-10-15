@@ -6,7 +6,7 @@ from threading import Thread
 import unittest
 from urllib.error import HTTPError
 from urllib.request import Request,urlopen
-from review_server import build_server
+from review_server import build_server, UI_DIR
 
 class ReviewHttpTest(unittest.TestCase):
     def setUp(self):
@@ -19,6 +19,9 @@ class ReviewHttpTest(unittest.TestCase):
         self.server.shutdown();self.server.server_close();self.worker.join();self.temp.cleanup()
     def call(self,payload=None,origin=None):
         headers={'Content-Type':'application/json'}
+        if payload is not None:
+            payload.setdefault('reviewId',self.server.store.review_id)
+            payload.setdefault('manifestSha256',self.server.store.manifest_hash)
         if origin:headers['Origin']=origin
         request=Request(self.url,data=json.dumps(payload).encode() if payload is not None else None,headers=headers)
         with urlopen(request) as response:return json.load(response)
@@ -45,6 +48,25 @@ class ReviewHttpTest(unittest.TestCase):
             self.assertEqual(error.exception.code,code)
             error.exception.close()
         self.assertFalse(self.storage.exists())
+    def test_old_page_cannot_approve_new_images(self):
+        with self.assertRaises(HTTPError) as error:
+            self.call({'action':'save','reviewId':'old-review','screen':{'id':'dual','status':'approved','feedback':''}})
+        self.assertEqual(error.exception.code,409);error.exception.close()
+        self.assertFalse(self.storage.exists())
+    def test_seed_retains_only_identical_approved_images(self):
+        from hashlib import sha256
+        assets=UI_DIR/'v1';raw=(assets/'mock-manifest.json').read_bytes();manifest=json.loads(raw)
+        digest=sha256(raw+b''.join(sha256((assets/(s['id']+'.png')).read_bytes()).digest() for s in manifest['screens'])).hexdigest()
+        prior={'reviewId':'previous-review','manifestSha256':digest,'submittedAt':'2026-10-14T00:00:00+00:00','submittedRevision':3,
+               'submittedScreens':{s['id']:{'status':'approved','feedback':''} for s in manifest['screens']}}
+        original=Path(self.temp.name)/'original.json';original.write_text(json.dumps(prior));before=original.read_bytes()
+        current=self.server.store.seed_from(original,assets)
+        self.assertEqual(current['screens']['numeric']['status'],'approved')
+        self.assertEqual(current['screens']['dual']['status'],'unreviewed')
+        self.assertIsNone(current['submittedAt'])
+        self.assertEqual(current['priorScreens']['dual']['status'],'approved')
+        self.assertEqual(before,original.read_bytes())
+        with self.assertRaises(ValueError):self.server.store.seed_from(original,assets)
     def test_changed_manifest_preserves_feedback(self):
         self.call({'action':'save','screen':{'id':'dual','status':'approved','feedback':'Keep'}})
         before=self.storage.read_bytes();self.server.store.manifest_hash='changed'

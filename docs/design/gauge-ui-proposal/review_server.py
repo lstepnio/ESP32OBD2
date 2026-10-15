@@ -16,21 +16,27 @@ ROOT = UI_DIR.parents[2]
 REVIEW_ID = 'gauge-ui-2026-10-14'
 STATUSES = {'unreviewed', 'approved', 'changes_requested'}
 
+class ReviewConflict(ValueError):
+    pass
+
 class ReviewStore:
-    def __init__(self, storage):
-        self.storage = Path(storage)
+    def __init__(self, storage=None):
         manifest_bytes = (UI_DIR/'mock-manifest.json').read_bytes()
         self.manifest = json.loads(manifest_bytes)
+        self.review_id=self.manifest.get('reviewId',REVIEW_ID)
+        round_number=self.manifest.get('reviewRound',1)
+        suffix=f'-v{round_number}' if round_number>1 else ''
+        self.storage=Path(storage) if storage else ROOT/f'artifacts/gauge-ui-review/2026-10-14-review{suffix}.json'
         image_hashes=b''.join(sha256((UI_DIR/(s['id']+'.png')).read_bytes()).digest() for s in self.manifest['screens'])
         self.manifest_hash = sha256(manifest_bytes+image_hashes).hexdigest()
         self.ids = {s['id'] for s in self.manifest['screens']}
         self.lock = RLock()
     def load(self):
         if not self.storage.exists():
-            return {'reviewId': REVIEW_ID, 'manifestSha256': self.manifest_hash,
+            return {'reviewId': self.review_id, 'manifestSha256': self.manifest_hash,
                     'revision': 0, 'screens': {}, 'submittedAt': None}
         data = json.loads(self.storage.read_text())
-        if data['reviewId'] != REVIEW_ID or data['manifestSha256'] != self.manifest_hash:
+        if data['reviewId'] != self.review_id or data['manifestSha256'] != self.manifest_hash:
             raise ValueError('The examples changed. Existing feedback is preserved; a new review needs a separate file.')
         return data
     def entry(self, raw):
@@ -40,6 +46,8 @@ class ReviewStore:
             raise ValueError('Invalid screen, decision or feedback length.')
         return key, {'status':status, 'feedback':note}
     def save(self, payload):
+        if payload.get('reviewId')!=self.review_id or payload.get('manifestSha256')!=self.manifest_hash:
+            raise ReviewConflict('The examples changed. Refresh the gallery; your previous review is preserved.')
         action=payload.get('action')
         if action=='save':entries=[payload.get('screen', {})]
         elif action=='submit':
@@ -59,14 +67,41 @@ class ReviewStore:
                 current['submittedRevision']=current['revision']
                 # A retained snapshot distinguishes submitted decisions from later edits.
                 current['submittedScreens']=dict(current['screens'])
-            self.storage.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
-            fd,name=tempfile.mkstemp(dir=self.storage.parent,prefix='.review-',suffix='.json')
-            try:
-                with os.fdopen(fd,'w') as out:
-                    json.dump(current,out,indent=2,ensure_ascii=False);out.write('\n');out.flush();os.fsync(out.fileno())
-                os.replace(name,self.storage)
-            finally:
-                if Path(name).exists():Path(name).unlink()
+            self.write(current)
+            return current
+
+    def write(self,current):
+        self.storage.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
+        fd,name=tempfile.mkstemp(dir=self.storage.parent,prefix='.review-',suffix='.json')
+        try:
+            with os.fdopen(fd,'w') as out:
+                json.dump(current,out,indent=2,ensure_ascii=False);out.write('\n');out.flush();os.fsync(out.fileno())
+            os.replace(name,self.storage)
+        finally:
+            if Path(name).exists():Path(name).unlink()
+
+    def seed_from(self,previous_file,previous_assets):
+        """Carry only human-approved, byte-identical images into a new review."""
+        with self.lock:
+            if self.storage.exists():raise ReviewConflict('New review already exists; preserve it.')
+            old=json.loads(Path(previous_file).read_text())
+            assets=Path(previous_assets)
+            raw=(assets/'mock-manifest.json').read_bytes()
+            old_manifest=json.loads(raw)
+            old_hash=sha256(raw+b''.join(sha256((assets/(s['id']+'.png')).read_bytes()).digest() for s in old_manifest['screens'])).hexdigest()
+            if not old.get('submittedAt') or old_hash!=old.get('manifestSha256'):
+                raise ReviewConflict('The prior submission does not match its original images.')
+            current=self.load()
+            current['priorReview']={key:old[key] for key in ('reviewId','submittedRevision','submittedAt','manifestSha256')}
+            current['priorScreens']=old['submittedScreens']
+            current['carriedApprovals']=[]
+            for screen in self.manifest['screens']:
+                key=screen['id'];prior=current['priorScreens'].get(key,{})
+                identical=(assets/(key+'.png')).exists() and (assets/(key+'.png')).read_bytes()==(UI_DIR/(key+'.png')).read_bytes()
+                carried=identical and prior.get('status')=='approved'
+                current['screens'][key]={'status':'approved' if carried else 'unreviewed','feedback':''}
+                if carried:current['carriedApprovals'].append(key)
+            self.write(current)
             return current
 
 class ReviewHandler(SimpleHTTPRequestHandler):
@@ -105,7 +140,7 @@ class ReviewHandler(SimpleHTTPRequestHandler):
         if not path.startswith(prefix):return None
         tail=path[len(prefix):] or 'index.html'
         candidate=(UI_DIR/tail).resolve()
-        if not candidate.is_relative_to(UI_DIR) or candidate.suffix not in {'.html','.png','.json'}:
+        if not candidate.is_relative_to(UI_DIR) or candidate.suffix not in {'.html','.png','.json','.js'}:
             return None
         return str(candidate)
     def do_POST(self):
@@ -120,6 +155,8 @@ class ReviewHandler(SimpleHTTPRequestHandler):
             if not isinstance(payload,dict):raise ValueError('Review object required.')
             data=self.server.store.save(payload)
             self.respond_json(data)
+        except ReviewConflict as error:
+            self.respond_json({'error':str(error)},409)
         except (ValueError,TypeError,KeyError,json.JSONDecodeError) as error:
             self.respond_json({'error':str(error)},400)
         except OSError:
@@ -127,7 +164,7 @@ class ReviewHandler(SimpleHTTPRequestHandler):
 
 def build_server(port=8769,storage=None):
     server=ThreadingHTTPServer(('127.0.0.1',port),ReviewHandler)
-    server.store=ReviewStore(storage or ROOT/'artifacts/gauge-ui-review/2026-10-14-review.json')
+    server.store=ReviewStore(storage)
     return server
 
 if __name__=='__main__':

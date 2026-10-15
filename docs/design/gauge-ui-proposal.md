@@ -1,6 +1,6 @@
 # Gauge UI/UX redesign proposal
 
-**Status: awaiting owner approval. Updated 2026-10-14.** This is a proposed design and
+**Status: revision 2 awaiting owner review. Updated 2026-10-14.** This is a proposed design and
 implementation plan. Firmware, App behavior, protocol and installed devices are unchanged.
 Existing [round-display rules](round-display-ui-guidelines.md) and
 [alert framework](../architecture/alerts-and-diagnostics.md) remain the active contracts
@@ -9,6 +9,28 @@ until the approved rules are incorporated during implementation.
 [Interactive gallery: 44 screen concepts](gauge-ui-proposal/index.html).
 [Overview](gauge-ui-proposal/overview.png), [all layouts](gauge-ui-proposal/layouts.png),
 [fault states](gauge-ui-proposal/status-states.png), [system states](gauge-ui-proposal/system-states.png).
+
+## Revision 2 response to owner review
+
+The submitted first review contained 27 approvals, 16 requests for changes and one
+unreviewed example with feedback. Revision 2 applies that feedback across shared screen
+rules, preserving the original submission and original native images for comparison.
+
+| Feedback area | Revision 2 design |
+| --- | --- |
+| CEL, recorded faults and alerts | Unboxed symbols and text higher in the status lane. A small count appears for multiple faults; unknown remains `?` |
+| Dual and missing-source screens | Both reading groups move up 16 px around a centered divider; shared enum/numeric rows follow the same geometry |
+| Bar | Title, number and unit move upward; the lower scale is 6 px thick with more separation from the unit |
+| Pairing and recovery instructions | Use `Open eGauge App` consistently |
+| Gesture progress | Show `2/3` without repeating the swipe direction |
+| Provider warning | Use a countdown arc; source attribution and exact expiry remain in context |
+| Simulation | Remove the status capsule. A quiet `Demo` footer identifies deliberate generated bench input; the gallery explains when it is used |
+
+**23 byte-identical approved screens retain approval. 21 revised screens need review.**
+Four previously approved examples changed because they share these rules: missing ECM,
+custom enum, paused update and critical demo. Their old approvals remain in the first
+submission, but do not approve the revised images. Each changed card offers the original
+image and saved first-review feedback. Raw owner feedback remains private on this Mac.
 
 ## Screen-by-screen approval form
 
@@ -20,10 +42,11 @@ restores saved decisions and unsaved browser drafts. A partial submission retain
 unreviewed examples as unreviewed.
 
 The review service listens only on this Mac's loopback interface. Private feedback is
-saved under ignored `artifacts/gauge-ui-review/2026-10-14-review.json`; it is not committed
-to Git. Each submission retains its screen decisions separately from subsequent edits.
-The review is bound to the exact example manifest/image digest; changed examples preserve
-old feedback and require a separate review file. These are design decisions, not firmware
+saved under ignored `artifacts/gauge-ui-review/2026-10-14-review-v2.json`; it is not committed
+to Git. The original `2026-10-14-review.json` submission remains intact. Each submission
+retains its screen decisions separately from subsequent edits. The review is bound to the
+exact example manifest/image digest. A stale first-review page cannot approve revision 2;
+changed examples require a new decision. These are design decisions, not firmware
 publication authorization.
 
 To reopen the local form after stopping the server:
@@ -68,11 +91,13 @@ These are source findings plus the owner's physical photo, not a new hardware te
   stay inside radius 104; nonessential ring/track decoration may extend to radius 112.
 - Compute fitting using the entire glyph rectangle and the narrowest circle chord it
   intersects. Rectangle width alone is insufficient, particularly in the lower Dual row.
-- Status lane occupies approximately y=42..78. Reading titles begin below that lane.
-  Healthy normal pages leave it quiet; they do not add a healthy/connected sentence.
-- Single: short title near y=87; dominant value near y=126; unit near y=169. Bar has its
-  own lower scale row. Trend uses a 48 px value and a separate chart region.
-- Dual: title/value centers near 88/113 and 151/176, separated by a subtle divider.
+- Status symbols center near y=42, or y=47 for the composed warning/MIL row. They have
+  no capsule fill or border. Healthy normal pages leave this lane quiet; they do not add
+  a healthy/connected sentence. Visible status keeps clear of the highest reading label.
+- Single: short title near y=87; dominant value near y=126; unit near y=169. Bar uses
+  title/value/unit centers 70/108/147 and a separate 6 px scale at y=180..186. Trend uses
+  a 48 px value and a separate chart region.
+- Dual: title/value centers near 72/97 and 135/160, with a subtle divider at y=120.
   Units sit beside the corresponding value when needed. Both readings have equal hierarchy.
 - Values use Noto SemiBold 64, 48, 40 or 32 px; titles and status text use Noto Medium 16 px;
   single-reading units use 24 px. 48/40 px are proposed font additions, not installed fonts.
@@ -98,29 +123,35 @@ contrast/glare and the physical touch targets must be checked during implementat
 
 | Situation | Gauge presentation | Meaning / interaction |
 | --- | --- | --- |
-| Fresh engine MIL On | Amber engine symbol, checked fault count if available | Lamp is on; count is known distinct controller/code entries |
-| Codes present, MIL Off | Muted wrench + count | Recorded codes; no fabricated active engine warning |
+| Fresh engine MIL On | Unboxed amber engine symbol, small checked count when multiple faults are known | Lamp is on; count is known distinct controller/code entries |
+| Codes present, MIL Off | Unboxed muted wrench; small count for multiple faults | Recorded codes; no fabricated active engine warning |
 | MIL On, count unknown | Engine symbol + `?` | Unknown never becomes zero |
 | Partial code coverage | Known count with a partial marker, such as `4+` | Complete total is unknown; inspection identifies last-checked coverage |
 | Count exceeds compact width | `9+` | Count is bounded for layout; exact total is in inspection/App |
 | Transmission warning | Distinct warning symbol and human Transmission context | One vehicle dashboard; the child transport does not create a different page family |
 | Warning threshold | Short reading alias + condition, such as `Coolant ↑` | Underlying value/title/unit remain visible |
-| Threshold and MIL together | Highest-priority chip plus a secondary engine symbol | Both conditions remain visible, with no stacked paragraphs or timed message cycling |
+| Threshold and MIL together | One measured unboxed row: warning symbol, short condition and secondary engine symbol | Both conditions remain visible, with no stacked paragraphs or timed message cycling |
 | Critical entry/escalation | One takeover: condition, current value/unit, relevant limit/context, Acknowledge | One entry cue according to the shared framework |
 | Critical acknowledged | Reading page + persistent red indicator | Attention is acknowledged; the condition and history are retained |
 | Warning input lost | Last-seen indication; affected reading becomes `--` | No fabricated live value or implied resolution |
 | No fresh diagnostic coverage | Neutral `Not checked` when relevant to inspection/state | A healthy sibling never certifies missing checks |
-| Paired-phone/provider notice | Short notice with provider attribution and bounded expiry in context | Existing trusted severity/TTL rules; local critical attention has priority |
+| Paired-phone/provider notice | Short notice inside an expiry arc; provider attribution and exact expiry in context | Existing trusted severity/TTL rules; local critical attention has priority |
 
 Counts must deduplicate a code across categories within the same controller. The same
 code on different controllers remains two entries. MIL-reported count and retrieved
-fault count are distinct facts; the compact badge cannot substitute one for the other.
+fault count are distinct facts; the compact indicator cannot substitute one for the other.
 Stored/permanent history alone does not imply a currently lit warning lamp.
+An exact count of one adds no numeral to the symbol. A hidden numeral never changes the
+underlying count or coverage state; unknown count remains visibly unknown.
 
 The top lane has one owner. Priority follows the existing shared severity/attention
 framework, preserving engine-lamp indication when another condition has priority.
-Simulation cannot be silently hidden by a warning: keep a persistent mark when the lane
-is occupied, replacing the page marker with a SIM footer when needed. Pairing/owner confirmation and update maintenance have their own view
+Demo input is explicitly selected generated bench/test data. It is not an App preview
+and is never enabled automatically when a live source disconnects. Every demo reading or
+attention view retains a quiet `Demo` footer in place of page dots; no simulation capsule
+competes with a warning. The App must also make the active demo mode clear. Provider
+expiry uses a monotonic remaining-time arc; expiration returns to the prior reading view
+without leaving a stale notice. Pairing/owner confirmation and update maintenance have their own view
 states; underlying vehicle attention is retained and restored. Calibration remains a
 bench-only mode. No status widget reinterprets a missing sample as healthy.
 
@@ -195,7 +226,7 @@ parameterized fixtures; individual screenshots are representative examples.
 | Pairing/ownership | Waiting/closed window; ready; passkey; success; reset confirmation; timeout/cancel; failed attempt/retry; identity suffix when selection needs it |
 | Configuration/maintenance | No pages; applying/restoring a dashboard; trial/confirmed/fallback outcomes; actual update progress; restart/healthy verification; paused/refused transfer; rollback |
 | Gestures and cycling | Progress; completion; cooldown; canceled swipe; hold; cycling pauses/resumes; feedback suppressed by higher-priority status |
-| Simulation and previews | Persistent simulated mark across readings, faults and overlays; App examples remain labelled previews |
+| Simulation and previews | Persistent Demo footer across generated bench readings, faults and overlays; App examples remain labelled previews; no automatic live-data fallback |
 | Bench calibration | Color transport, neutral/contrast, concentric boundaries, font/long-number fit and production reference; isolated from distributed runtime |
 | Lifecycle/rotations | Every layout in 0/90/180/270 degrees; page/config/unit changes; startup/restart and view return; Auto orientation when capability is eventually implemented |
 
@@ -258,7 +289,7 @@ sets and measured cost should be reviewed rather than adding a general font engi
 The strongest counterargument is that moving code text into inspection can hide useful
 information during a glance. The persistent lamp/issue indicator and explicit critical
 attention must therefore remain recognizable without a tap; user recognition checks
-should decide whether the compact badge needs an additional short label.
+should decide whether the unboxed indicator needs an additional short label.
 
 High confidence in the composition/fitting rules: the audit identifies the current
 collision paths and the concept glyph checks caught real lower-row failures. Confidence
