@@ -53,4 +53,3 @@ void gauge_layout_alert_alias(char *out, size_t size, const char *label) {
     else if (contains(alias, "oil temp")) alias = "Oil temp";
     snprintf(out, size, "%s", alias);
 }
-

@@ -23,4 +23,3 @@ bool display_showcase_apply(display_showcase_t *state, bool enabled, uint8_t sec
                            uint32_t sequence, uint32_t now, bool vehicle_ready, bool maintenance, bool attention);
 bool display_showcase_tick(display_showcase_t *state, uint32_t now, bool interrupt);
 void display_showcase_next(display_showcase_t *state, uint32_t now);
-

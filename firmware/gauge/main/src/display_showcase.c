@@ -53,4 +53,3 @@ bool display_showcase_tick(display_showcase_t *s,uint32_t now,bool interrupt) {
     if (now-s->changed >= (uint32_t)s->seconds*1000) { display_showcase_next(s,now);return true; }
     return false;
 }
-
