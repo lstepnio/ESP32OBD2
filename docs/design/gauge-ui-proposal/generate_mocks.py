@@ -11,28 +11,16 @@ BG = '#05080A'; WHITE = '#E4EAED'; MUTED = '#9CAAB2'
 TRACK = '#1B2A30'; GREEN = '#00FF70'; AMBER = '#FF8A00'; RED = '#FF1744'
 FONT = ROOT / 'firmware/gauge/assets/fonts'
 rows = []
+ROUND = 3
+PREVIOUS_ROUND = 2
 CHANGES = {
-    'bar': 'Moved title, value and unit upward; reduced the scale from 10 px to 6 px and added clear separation.',
-    'dual': 'Moved both reading groups upward by 16 px, centering the combined content around the panel center.',
-    'dual-mil': 'Removed the capsule; moved the engine symbol higher with a small code count. Dual rows use the centered layout.',
-    'stored': 'Removed the capsule and moved the wrench/count higher. Recorded faults remain distinct from a lit MIL.',
-    'mil-unknown-count': 'Removed the capsule and moved the engine symbol/question mark higher; unknown never becomes zero.',
-    'threshold': 'Removed the capsule and raised the warning symbol, short condition and direction arrow.',
-    'threshold-mil': 'Removed the capsule and composed the warning with a compact MIL symbol; centered both reading groups.',
-    'critical-acked': 'Removed the capsule. The red diamond and condition remain after acknowledgment.',
-    'last-seen': 'Removed the capsule around the retained warning; the last-seen wording stays explicit.',
-    'not-checked': 'Removed the capsule around the neutral coverage state and moved the text higher.',
-    'missing-ecm': 'Applied the centered shared Dual layout; the available sibling keeps its original meaning.',
-    'missing-tcm': 'Moved the shared Dual content upward to center it; only the missing reading remains unavailable.',
-    'custom-enum': 'Applied the shared Dual centering and measured long-enum fitting at the new row position.',
-    'simulated': 'Removed the SIMULATED capsule. A small Demo footer identifies generated bench data without occupying the status row.',
-    'pair-ready': 'Changed the instruction to Open eGauge App.',
-    'update-paused': 'Aligned the instruction with the same Open eGauge App wording used by pairing and rollback.',
-    'gesture': 'Removed UP; the counter now shows only 2/3.',
-    'provider': 'Replaced source/countdown sentences with a shrinking expiry arc and a concise Road hazard message.',
-    'rollback': 'Changed the next step to Open eGauge App.',
-    'warning-simulated': 'Removed the warning capsule. Demo is explained as deliberately generated bench/test data; the footer is quiet and explicit.',
-    'critical-simulated': 'Retained the approved attention layout; renamed its cryptic SIM footer to Demo for consistency.',
+    'bar': 'Reserved the lower alert row by raising the 6 px scale, with stable geometry when an alert appears.',
+    'trend': 'Raised the reading and chart together to reserve a separate lower alert row without alert-time reflow.',
+    'threshold': 'Moved the warning symbol, condition and direction below the reading, replacing page dots.',
+    'threshold-mil': 'Kept CEL and its count at the top; moved the warning condition below both readings.',
+    'critical-acked': 'Moved the acknowledged critical indicator below the reading; its condition remains active.',
+    'last-seen': 'Moved the retained last-seen warning below the reading, with its affected condition named.',
+    'warning-simulated': 'Placed the warning below the reading while retaining a separate quiet Demo footer.',
 }
 
 class Gauge:
@@ -40,6 +28,10 @@ class Gauge:
         self.im = Image.new('RGB', (240*S,240*S), BG)
         self.d = ImageDraw.Draw(self.im)
         self.bounds = []
+        self.shapes = []
+    def shape(self,name,box):
+        assert all(hypot(x-120,y-120)<=104 for x in (box[0],box[2]) for y in (box[1],box[3])), (name,box)
+        self.shapes.append({'shape':name,'bounds':list(box)})
     def font(self,size,bold=False):
         return ImageFont.truetype(str(FONT / ('NotoSans-SemiBold.ttf' if bold else 'NotoSans-Medium.ttf')), round(size*S))
     def rect(self,box,fill,outline=None,r=0,width=1):
@@ -65,24 +57,30 @@ class Gauge:
         assert all(hypot(xx-120,yy-120)<=104 for xx in (box[0],box[2]) for yy in (box[1],box[3])), (text,box)
         self.bounds.append({'text':text,'fontPx':size,'bounds':[round(v,2) for v in box]})
     def engine(self,x,y,c=AMBER,scale=1):
+        self.shape('engine',(x-17*scale,y-10*scale,x+13*scale,y+11*scale))
         def points(raw): return [(x+dx*scale,y+dy*scale) for dx,dy in raw]
         self.line(points([(-12,-6),(-4,-6),(-4,-9),(5,-9),(5,-5),(12,-5),(12,7),(5,7),(2,10),(-6,10),(-9,6),(-12,6),(-12,-6)]),c,2*scale)
         self.line(points([(-16,-3),(-16,5)]),c,2*scale)
         self.line(points([(-16,1),(-12,1)]),c,2*scale)
-    def triangle(self,x,y,c=AMBER):
-        self.line([(x,y-9),(x+10,y+8),(x-10,y+8),(x,y-9)],c,2)
-        self.line([(x,y-3),(x,y+2)],c,2)
-        self.rect((x-1,y+5,x+1,y+7),c,r=1)
-    def diamond(self,x,y,c=RED):
-        self.line([(x,y-10),(x+10,y),(x,y+10),(x-10,y),(x,y-10)],c,2)
-        self.line([(x,y-4),(x,y+1)],c,2)
-        self.rect((x-1,y+4,x+1,y+6),c,r=1)
+    def triangle(self,x,y,c=AMBER,scale=1):
+        self.shape('warning',(x-11*scale,y-10*scale,x+11*scale,y+9*scale))
+        def points(raw):return [(x+dx*scale,y+dy*scale) for dx,dy in raw]
+        self.line(points([(0,-9),(10,8),(-10,8),(0,-9)]),c,2*scale)
+        self.line(points([(0,-3),(0,2)]),c,2*scale)
+        self.rect((x-scale,y+5*scale,x+scale,y+7*scale),c,r=scale)
+    def diamond(self,x,y,c=RED,scale=1):
+        self.shape('critical',(x-11*scale,y-11*scale,x+11*scale,y+11*scale))
+        def points(raw):return [(x+dx*scale,y+dy*scale) for dx,dy in raw]
+        self.line(points([(0,-10),(10,0),(0,10),(-10,0),(0,-10)]),c,2*scale)
+        self.line(points([(0,-4),(0,1)]),c,2*scale)
+        self.rect((x-scale,y+4*scale,x+scale,y+6*scale),c,r=scale)
     def wrench(self,x,y,c=MUTED):
+        self.shape('recorded faults',(x-10,y-9,x+12,y+10))
         self.line([(x-8,y+8),(x+6,y-6)],c,3)
         self.line([(x+6,y-6),(x+10,y-3),(x+6,y+2),(x+2,y-2),(x+5,y-7)],c,2)
-    def status(self,kind='mil',text='4',secondary_mil=False):
-        """Unboxed status; all essential marks remain inside radius 104."""
-        c={'mil':AMBER,'warn':AMBER,'critical':RED,'stored':MUTED,'unknown':MUTED}.get(kind,MUTED)
+    def status(self,kind='mil',text='4'):
+        """The top lane belongs to diagnostic lamp/coverage status."""
+        c=AMBER if kind=='mil' else MUTED
         if kind in ('mil','stored'):
             counted=text not in ('0','1','')
             x=110 if counted else 120
@@ -90,16 +88,27 @@ class Gauge:
             else: self.wrench(x,42,c)
             if counted:self.text(text,42,16,c,x=137,max_width=34)
         elif kind=='unknown':self.text('Not checked',42,16,c,max_width=110)
-        else:
-            ix,tx,ax,y=(72,117,158,47) if secondary_mil else (77,124,174,42)
-            if kind=='critical':self.diamond(ix,y,c)
-            else:self.triangle(ix,y,c)
-            if text=='Coolant':
-                self.text(text,y+1,16,c,x=tx,max_width=64 if secondary_mil else 74)
-                self.line([(ax,y+6),(ax,y-6),(ax-4,y-2)],c,2)
-                self.line([(ax,y-6),(ax+4,y-2)],c,2)
-            else:self.text(text,y+1,16,c,x=132,max_width=84)
-            if secondary_mil:self.engine(178,y,AMBER,scale=.6)
+        else:raise ValueError('Use the lower alert row for reading alerts.')
+    def alert(self,alias='Coolant',kind='warn',direction='up',more=0):
+        """One bounded condition below readings; page dots yield to active alerts."""
+        y=194;c=RED if kind=='critical' else AMBER
+        width=self.font(16).getlength(alias)/S
+        count='+'+str(more) if more else ''
+        count_width=self.font(16).getlength(count)/S if count else 0
+        total=18+5+width+(5+8 if direction else 0)+(6+count_width if count else 0)
+        assert total<=124, ('Author a shorter alert alias',alias,total)
+        self.rect((48,183,192,222),BG)
+        x=120-total/2
+        if kind=='critical':self.diamond(x+9,y,c,scale=.8)
+        else:self.triangle(x+9,y,c,scale=.8)
+        x+=23;self.text(alias,y,16,c,x=x+width/2,max_width=width+1);x+=width
+        if direction:
+            assert direction in ('up','down')
+            x+=9;dy=1 if direction=='up' else -1
+            self.shape('direction',(x-4,y-7,x+4,y+7))
+            self.line([(x,y+6*dy),(x,y-6*dy),(x-3,y-2*dy)],c,2)
+            self.line([(x,y-6*dy),(x+3,y-2*dy)],c,2);x+=4
+        if count:self.text(count,y,16,c,x=x+6+count_width/2,max_width=count_width+1)
     def demo(self):
         # Normal data, a missing adapter and the phone preview do not enable this.
         self.rect((96,205,144,221),BG)
@@ -120,10 +129,25 @@ class Gauge:
         self.text(value,y,size,MUTED if unavailable else WHITE,x=120-u/2,bold=True,max_width=176-u,minimum=32)
         if unit:self.text(unit,y+7,16,MUTED,x=120+v/2+3,max_width=44)
     def dual(self,missing=None):
-        self.dual_row('Gear','--' if missing=='TCM' else 'P','',97,missing=='TCM')
+        self.dual_row('Gear','--' if missing in ('TCM','both') else 'P','',97,missing in ('TCM','both'))
         self.line([(50,120),(190,120)],TRACK)
-        self.dual_row('RPM','--' if missing=='ECM' else '675','',160,missing=='ECM')
+        self.dual_row('RPM','--' if missing in ('ECM','both') else '675','',160,missing in ('ECM','both'))
         self.dots(1)
+    def chart(self,renderer,value='112'):
+        if renderer=='arc':
+            self.d.arc((11*S,11*S,229*S,229*S),135,405,TRACK,11*S)
+            self.d.arc((11*S,11*S,229*S,229*S),135,322,GREEN,11*S)
+        if renderer=='trend':
+            self.text('Coolant',72,16,MUTED);self.text(value,102,48,bold=True);self.text('°C',132,16,MUTED)
+            self.shape('trend chart',(48,144,192,178))
+            self.line([(48,177),(192,177)],TRACK)
+            self.line([(48,173),(65,170),(82,171),(99,163),(116,165),(133,160),(150,158),(167,150),(192,146)],GREEN,3)
+            self.dots(2)
+        else:
+            self.numeric('Coolant',value,'°C',positions=(70,108,147) if renderer=='bar' else (87,126,169))
+            if renderer=='bar':
+                self.shape('bar scale',(50,174,190,180))
+                self.rect((50,174,190,180),TRACK,r=3);self.rect((50,174,145,180),GREEN,r=3)
     def button(self,text='Back'):
         self.rect((56,168,184,200),TRACK,r=16)
         self.text(text,184,16,WHITE,max_width=114)
@@ -141,39 +165,38 @@ class Gauge:
         if identifier:self.text('ID ABC123',186,16,MUTED,max_width=112)
         if button:self.button(button)
     def finish(self,slug,title,category,note):
+        elements=[b for b in self.bounds if b['text']]+self.shapes
+        for i,a in enumerate(elements):
+            for b in elements[i+1:]:
+                ax,ay,ar,ab=a['bounds'];bx,by,br,bb=b['bounds']
+                assert not (ax<br and bx<ar and ay<bb and by<ab), ('overlap',slug,a,b)
         im=self.im.resize((240,240),Image.Resampling.LANCZOS)
         mask=Image.new('L',(240,240));ImageDraw.Draw(mask).ellipse((0,0,239,239),fill=255)
         rgba=im.convert('RGBA');rgba.putalpha(mask);rgba.save(OUT/(slug+'.png'))
-        prior=OUT/'v1'/(slug+'.png')
+        prior=OUT/f'v{PREVIOUS_ROUND}'/(slug+'.png')
         revised=not prior.exists() or prior.read_bytes()!=(OUT/(slug+'.png')).read_bytes()
-        rows.append({'revised':revised,'changeSummary':CHANGES.get(slug,'Unchanged from the first review.'),'id':slug,'title':title,'category':category,'note':note,'bounds':self.bounds})
+        rows.append({'revised':revised,'isNew':not prior.exists(),'changeSummary':CHANGES.get(slug,'New lower-alert-row example.' if not prior.exists() else 'Unchanged from revision 2.'),'id':slug,'title':title,'category':category,'note':note,'bounds':self.bounds,'essentialShapes':self.shapes})
 
 for renderer in ('numeric','arc','bar','trend','dual'):
     g=Gauge()
     if renderer=='dual':g.dual()
-    elif renderer=='trend':
-        g.numeric('Coolant','92','°C',48)
-        # Trend gives its chart space instead of reusing the unit row.
-        g=Gauge();g.text('Coolant',87,16,MUTED);g.text('92',113,48,bold=True);g.text('°C',145,16,MUTED)
-        g.line([(48,191),(192,191)],TRACK)
-        g.line([(48,187),(65,183),(82,184),(99,174),(116,177),(133,171),(150,170),(167,162),(192,157)],GREEN,3);g.dots(2)
+    elif renderer in ('trend','bar'):g.chart(renderer,'92')
     else:
         if renderer=='arc':
             g.d.arc((11*S,11*S,229*S,229*S),135,405,TRACK,11*S)
             g.d.arc((11*S,11*S,229*S,229*S),135,322,GREEN,11*S)
         g.numeric('RPM' if renderer=='numeric' else 'Coolant','675' if renderer=='numeric' else '92','' if renderer=='numeric' else '°C',positions=(70,108,147) if renderer=='bar' else (87,126,169))
-        if renderer=='bar':g.rect((50,180,190,186),TRACK,r=3);g.rect((50,180,145,186),GREEN,r=3)
     g.finish(renderer,renderer.title(),'Reading layouts','Normal view; no routine status sentence or brand footer.')
 
 g=Gauge();g.status();g.dual();g.finish('dual-mil','Dual + engine warning','Faults and alerts','Unboxed engine icon higher on the display, with a small count for multiple known codes; code text stays in inspection.')
 g=Gauge();g.status('stored','2');g.numeric();g.finish('stored','Stored codes, lamp off','Faults and alerts','Muted wrench distinguishes recorded codes from a lit warning lamp.')
 g=Gauge();g.status('mil','?');g.numeric();g.finish('mil-unknown-count','MIL on, count unknown','Faults and alerts','An unknown count never becomes zero or a false all-clear.')
-g=Gauge();g.status('warn','Coolant');g.numeric('Coolant','112','°C');g.finish('threshold','Warning threshold','Faults and alerts','Unboxed condition and severity symbol, placed above the reading; no capsule or border.')
-g=Gauge();g.status('warn','Coolant',True);g.dual();g.finish('threshold-mil','Threshold + MIL','Faults and alerts','Unboxed warning and compact secondary engine symbol share one measured top row; both readings stay centered.')
+g=Gauge();g.numeric('Coolant','112','°C');g.alert();g.finish('threshold','Warning threshold','Faults and alerts','Reading first; one compact warning condition below. The lower alert row replaces page dots.')
+g=Gauge();g.status();g.dual();g.alert();g.finish('threshold-mil','Threshold + MIL','Faults and alerts','CEL and fault count stay at the top; Coolant warning stays below both readings, including when its PID is on another page.')
 g=Gauge();g.critical();g.finish('critical','Critical attention','Faults and alerts','One takeover: condition, value, limit and acknowledgment. No background labels bleed through.')
-g=Gauge();g.status('critical','Coolant');g.numeric('Coolant','118','°C');g.finish('critical-acked','Acknowledged critical','Faults and alerts','Acknowledgment returns readings; active severity stays red and is not cleared.')
+g=Gauge();g.numeric('Coolant','118','°C');g.alert(kind='critical');g.finish('critical-acked','Acknowledged critical','Faults and alerts','Acknowledgment returns readings; the active critical condition stays red in the lower row and is not cleared.')
 g=Gauge();g.text('Engine',69,16,MUTED);g.text('U0121',113,40,bold=True);g.text('Stored  1/4',150,16,MUTED);g.button();g.finish('fault-view','Fault inspection','Faults and alerts','Proposed optional status tap; one code at a time with controller and category, swipes move codes.')
-g=Gauge();g.status('warn','Last seen');g.numeric();g.finish('last-seen','Warning source unavailable','Faults and alerts','Previous warning is explicitly last seen; missing input never implies resolution.')
+g=Gauge();g.numeric();g.alert('ATF last seen',direction=None);g.finish('last-seen','Warning source unavailable','Faults and alerts','ATF warning input is missing while RPM remains live. Its retained last-seen condition stays below the reading.')
 g=Gauge();g.status('unknown');g.numeric();g.finish('not-checked','Diagnostic coverage unknown','Faults and alerts','Proposed neutral coverage state, with no green healthy claim.')
 
 for source in ('ECM','TCM'):
@@ -199,8 +222,23 @@ g=Gauge();g.numeric();g.text('Page changed',54,16,GREEN,max_width=122);g.finish(
 g=Gauge();g.text('CRITICAL',48,16,RED,bold=True);g.text('Coolant',77,16,MUTED);g.text('--',118,48,MUTED,bold=True);g.text('Last seen 118 °C',151,16,MUTED);g.button('Acknowledge');g.finish('critical-missing','Critical input lost','Faults and alerts','Severity remains active; last observed value is labelled and never presented as fresh.')
 g=Gauge();g.d.arc((11*S,11*S,229*S,229*S),135,405,TRACK,8*S);g.d.arc((11*S,11*S,229*S,229*S),135,315,AMBER,8*S);g.triangle(120,67,AMBER);g.text('Road hazard',112,24,WHITE);g.button('Back');g.finish('provider','Future phone/provider alert','Faults and alerts','Countdown arc illustrates 20 of 30 seconds remaining and drains toward expiry. No Paired phone or Expires in text. Source details stay in App context; local critical alerts retain priority.')
 g=Gauge();g.system('Not applied',['Open eGauge App']);g.finish('rollback','Update not applied','System and gestures','Proposed actionable rollback outcome; retained pages are restored when the outcome is known.')
-g=Gauge();g.status('warn','Coolant');g.numeric('Coolant','112','°C');g.demo();g.finish('warning-simulated','Warning + simulation','System and gestures','Demo means deliberately generated bench data for exercising alerts without a vehicle. The App identifies the source; the quiet footer remains useful when the phone is not visible. Never enabled by an adapter disconnect.')
+g=Gauge();g.numeric('Coolant','112','°C');g.alert();g.demo();g.finish('warning-simulated','Warning + simulation','System and gestures','Generated bench values remain labelled Demo below the alert row. Missing vehicle data never enables demo input.')
 g=Gauge();g.critical();g.demo();g.finish('critical-simulated','Critical + simulation','System and gestures','Deliberate demo data remains identified by the small Demo footer; there is no pill or extra attention text.')
+
+# Cross-layout and stressful cases for the third owner review.
+for renderer in ('numeric','arc','bar','trend'):
+    g=Gauge();g.status()
+    if renderer=='numeric':g.numeric()
+    else:g.chart(renderer)
+    g.alert();g.finish(renderer+'-alert-mil',renderer.title()+' + CEL + alert','Lower alert row','Fixed top CEL/count and lower condition. Charts and units keep dedicated space; no alert-time reflow.')
+g=Gauge();g.status();g.numeric('Fuel rail pressure','1498.25','psi',40);g.alert('Fuel rail');g.finish('custom-pressure-alert','Custom decimal + alert','Lower alert row','Full decimal value and converted unit remain readable; authored short alert alias is bounded independently.')
+g=Gauge();g.status();g.dual_row('Coolant','112','°C',97);g.line([(50,120),(190,120)],TRACK);g.dual_row('Gear','D','',160);g.alert();g.finish('dual-units-alert','Dual units + alert','Lower alert row','Units appear once beside their value; the condition stays below both rows.')
+g=Gauge();g.status();g.dual_row('Ratio','1.235','',97);g.line([(50,120),(190,120)],TRACK);g.dual_row('Transmission','LOCKED','',160);g.alert('ATF');g.finish('custom-enum-alert','Long enum + alert','Lower alert row','The complete enum keeps its 40 px fit; the lower condition never truncates its digits or label.')
+g=Gauge();g.status();g.dual();g.alert(more=2);g.finish('multiple-alerts','Multiple alerts + CEL','Lower alert row','Top 4 counts fault entries. Lower +2 means two additional active alerts. The highest-priority condition stays stable; tap opens inspection, never timed text cycling.')
+g=Gauge();g.status();g.numeric('Coolant','118','°C');g.alert(kind='critical');g.finish('critical-acked-mil','Acknowledged critical + CEL','Lower alert row','After explicit acknowledgment, CEL remains above and active critical condition below. New critical entry/escalation still uses the full attention screen.')
+g=Gauge();g.status('mil','?');g.numeric('Battery','11.5','V',48);g.alert('Voltage',direction='down');g.finish('below-threshold-mil','Below threshold + unknown CEL count','Lower alert row','Down arrow identifies a low condition; the top question mark keeps unknown fault coverage explicit.')
+g=Gauge();g.status('mil','?');g.dual('TCM');g.alert('ATF last seen',direction=None);g.finish('dual-last-seen-alert','Lost TCM + retained alert','Lower alert row','Missing gear becomes dashes, sibling RPM stays live and the prior ATF warning remains explicitly last seen.')
+g=Gauge();g.status('mil','?');g.dual('both');g.alert('ATF last seen',direction=None);g.finish('both-missing-alert','Both sources absent + retained alert','Lower alert row','Both readings are unavailable. Retained attention is not a fresh sample; unknown CEL count is not zero.')
 for i in range(5):
     g=Gauge()
     if i==0:
@@ -219,8 +257,9 @@ for i in range(5):
         g.d.arc((11*S,11*S,229*S,229*S),135,405,TRACK,11*S);g.d.arc((11*S,11*S,229*S,229*S),135,322,GREEN,11*S);g.numeric('Coolant','92','°C')
     g.finish('calibration-'+str(i+1),'Calibration '+str(i+1),'Calibration','Bench-only transport, geometry and type reference, not a production status screen.')
 
-(OUT/'mock-manifest.json').write_text(json.dumps({'status':'proposed-not-implemented','reviewRound':2,'reviewId':'gauge-ui-2026-10-14-v2','logicalSize':[240,240],'essentialRadius':104,'fonts':'production Noto TTF; rasterizer differs from LVGL','screens':rows},indent=2)+'\n')
-(OUT/'mock-data.js').write_text('window.gaugeMockScreens='+json.dumps(rows,ensure_ascii=False)+';\n')
+review_meta={'reviewRound':ROUND,'previousRound':PREVIOUS_ROUND,'reviewId':f'gauge-ui-2026-10-14-v{ROUND}'}
+(OUT/'mock-manifest.json').write_text(json.dumps({'status':'proposed-not-implemented',**review_meta,'logicalSize':[240,240],'essentialRadius':104,'fonts':'production Noto TTF; rasterizer differs from LVGL','screens':rows},indent=2)+'\n')
+(OUT/'mock-data.js').write_text('window.gaugeMockReview='+json.dumps(review_meta)+';\nwindow.gaugeMockScreens='+json.dumps(rows,ensure_ascii=False)+';\n')
 
 def board(ids,name,title,subtitle):
     cols=3;cw=352;ch=350;head=108
@@ -233,8 +272,9 @@ def board(ids,name,title,subtitle):
         im.paste(circle,(x+44,y),circle);d.text((x+44,y+280),row['title'],font=f(18,True),fill=WHITE)
         d.text((x+44,y+310),'240 × 240 concept, enlarged 1.1×',font=f(12),fill=MUTED)
     im.save(OUT/(name+'.png'))
-board(['dual','dual-mil','threshold-mil','fault-view','critical','missing-ecm'],'overview','eGauge: revised instrument UI (v2)','Unboxed status icons, centered Dual readings, and focused attention. Design concept only.')
+board(['threshold-mil','numeric-alert-mil','arc-alert-mil','bar-alert-mil','trend-alert-mil','multiple-alerts'],'overview','eGauge: top CEL, lower alerts (v3)','CEL/count above. Condition below. Stable readings and charts. Review concepts only.')
 board(['numeric','arc','bar','trend','dual','custom-pressure'],'layouts','All five reading layouts + custom PID','Production palette and Noto fonts. Text glyph bounds checked against the radius-104 safe region.')
 board(['stored','mil-unknown-count','threshold','critical-acked','last-seen','not-checked'],'status-states','Fault, warning and coverage states','Severity, fresh versus last seen, and unknown coverage remain distinct.')
 board(['pair-ready','passkey','paired','reset','update','empty'],'system-states','System screens','Proposed: preserve interaction semantics, show one instruction, avoid reading/status leakage.')
-print(f'Generated {len(rows)} bounded screen concepts and four review boards')
+board(['dual-units-alert','custom-enum-alert','custom-pressure-alert','critical-acked-mil','dual-last-seen-alert','both-missing-alert'],'alert-edge-cases','Alert layout: stressful combinations','Complete values, clear units, retained versus current data, and independent source availability.')
+print(f'Generated {len(rows)} concepts with glyph, essential-icon and non-overlap checks; five review boards')

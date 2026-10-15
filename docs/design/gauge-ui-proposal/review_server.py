@@ -89,16 +89,22 @@ class ReviewStore:
             raw=(assets/'mock-manifest.json').read_bytes()
             old_manifest=json.loads(raw)
             old_hash=sha256(raw+b''.join(sha256((assets/(s['id']+'.png')).read_bytes()).digest() for s in old_manifest['screens'])).hexdigest()
-            if not old.get('submittedAt') or old_hash!=old.get('manifestSha256'):
-                raise ReviewConflict('The prior submission does not match its original images.')
+            if old_hash!=old.get('manifestSha256'):
+                raise ReviewConflict('The prior review does not match its original images.')
+            # A new round may start before Submit review. Saved per-screen decisions
+            # remain authoritative; this never turns unreviewed images into approvals.
+            prior=old.get('screens',old.get('submittedScreens',{}))
+            if not isinstance(prior,dict):raise ReviewConflict('The prior decisions are invalid.')
+            for key,entry in prior.items():self.entry({'id':key,**entry})
             current=self.load()
-            current['priorReview']={key:old[key] for key in ('reviewId','submittedRevision','submittedAt','manifestSha256')}
-            current['priorScreens']=old['submittedScreens']
+            current['priorReview']={key:old[key] for key in ('reviewId','revision','submittedRevision','submittedAt','manifestSha256') if key in old}
+            current['priorScreens']=prior
+            current['earlierFeedback']=old.get('earlierFeedback',old.get('priorScreens',{}))
             current['carriedApprovals']=[]
             for screen in self.manifest['screens']:
-                key=screen['id'];prior=current['priorScreens'].get(key,{})
+                key=screen['id'];decision=current['priorScreens'].get(key,{})
                 identical=(assets/(key+'.png')).exists() and (assets/(key+'.png')).read_bytes()==(UI_DIR/(key+'.png')).read_bytes()
-                carried=identical and prior.get('status')=='approved'
+                carried=identical and decision.get('status')=='approved'
                 current['screens'][key]={'status':'approved' if carried else 'unreviewed','feedback':''}
                 if carried:current['carriedApprovals'].append(key)
             self.write(current)
