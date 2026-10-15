@@ -151,3 +151,25 @@ The dev.55 firmware tree is unchanged from review candidate `9c6c85c`,
 pinned at `codex/gauge-display-dev55-candidate`; the release request remains for that
 exact firmware source. Phone-only follow-up verification uses the same C/JVM policy
 plus the late-details/same-event and invalid overlong-input cases.
+
+
+## 2026-10-14 dev.55 signed publication
+
+The owner authorized publishing and installing dev.55 through App/Wi-Fi. Protected
+[release run 38675632131](https://github.com/lstepnio/ESP32OBD2/actions/runs/38675632131)
+succeeded from exact reviewed commit `9c6c85c22fe3186c28c1228d2590b78432e2bf2a`.
+The immutable [development prerelease](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.55)
+uses catalog generation 36. Independent verification passed for the catalog and
+bundle P-256 signatures, bundle/image lengths and SHA-256, board/hardware/layout,
+transfer protocol and ESP app version. The signed image is 1,614,208 bytes; its
+ELF SHA-256 is `f79a039c3c157024f5b44a88b70ed6ae3b574722a2ce5e0b65cca5158a983ac3`.
+The latest App-only follow-up `9765dcc` also passed Foundation quality CI.
+
+The Pixel disconnected immediately before the opt-in Wi-Fi installation could
+start. ADB reported no devices; no transfer or gauge mutation occurred. Installation,
+post-boot preservation checks, temporary showcase and physical display/touch review
+remain pending reconnection. The last verified gauge remains dev.53.
+
+The debug-awake helper was started while the Pixel was attached. Its stop command
+could not restore the saved wake settings after USB disconnection; its private
+restore record remains intact and must be applied when the same Pixel reconnects.

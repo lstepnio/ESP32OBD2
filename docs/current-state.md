@@ -16,7 +16,7 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 | Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; two same-model adapters reported by owner | Dev.53 live simultaneous source reads and independent sibling continuity/recovery passed; sustained-load qualification remains open |
 | Repository | Public `lstepnio/ESP32OBD2`; continuing review PR #51 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
 
-Prepared UI work: [Round 3 feedback and native rendering evidence](evidence/gauge-performance-review.md#2026-10-14-prepared-dev54-screen-compositor-and-showcase). Pixel dev.51 is installed and passed protected connection/settings/resume checks against dev.53, with saved dashboard and profiles unchanged; gauge dev.55 publication, App/Wi-Fi installation and physical screen review remain pending.
+Prepared UI work: [Round 3 feedback and native rendering evidence](evidence/gauge-performance-review.md#2026-10-14-prepared-dev54-screen-compositor-and-showcase). Pixel dev.51 is installed and passed protected connection/settings/resume checks against dev.53, with saved dashboard and profiles unchanged; signed dev.55 is published from `9c6c85c`, generation 36, with independently verified assets. App/Wi-Fi installation and physical screen review remain pending Pixel reconnection.
 
 Latest rollout: [dev.53 fresh pairing recovery](evidence/gatt-long-read-recovery.md#dev53-authorized-pairing-recovery-outcome).
 During the subsequent Jeep session, the gauge booted with its owner key absent while
@@ -100,4 +100,4 @@ in signed dev.48; that rollout passed protected image identity and owner display
 The installed firmware is tracked in the baseline table above. See [implementation evidence](evidence/shared-alerts-implementation.md)
 for the distinct offline, Pixel and gauge scopes. The backlog owns remaining tasks.
 
-Prepared Advanced CEL filtering: exact vehicle/controller rules and complete-check MIL/count reconciliation are implemented for dev.55. Raw evidence and history remain unchanged. Signed installation and live vehicle qualification are pending; [shared policy](architecture/alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters) owns semantics.
+Prepared Advanced CEL filtering: exact vehicle/controller rules and complete-check MIL/count reconciliation are implemented for dev.55. Raw evidence and history remain unchanged. Dev.55 is signed and published; installation and live vehicle qualification are pending; [shared policy](architecture/alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters) owns semantics.
