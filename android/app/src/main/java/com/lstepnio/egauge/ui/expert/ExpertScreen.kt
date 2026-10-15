@@ -105,10 +105,14 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @C
                     FilterChip(selected=controller==id,onClick={controller=id},label={Text(label)})
                 }
             }
-            OutlinedTextField(value=codeInput,onValueChange={codeInput=it.trim().take(5)},label={Text("Code, for example P0420")},singleLine=true)
-            val entry=runCatching { DiagnosticCodeFilters.rule(controller,codeInput) }.getOrNull()
+            OutlinedTextField(value=codeInput,onValueChange={codeInput=it.trim().take(6)},label={Text("Code, for example P0420")},singleLine=true)
+            val entry=codeInput.takeIf { it.length==5 }?.let { runCatching { DiagnosticCodeFilters.rule(controller,it) }.getOrNull() }
             val valid=entry!=null && entry !in state.diagnosticFilters
-            Text(if(entry in state.diagnosticFilters) "Already filtered" else "Up to 16 exact codes per vehicle.",style=MaterialTheme.typography.bodySmall)
+            Text(when {
+                entry in state.diagnosticFilters -> "Already filtered"
+                codeInput.isNotEmpty() && entry==null -> "Enter an exact five-character code."
+                else -> "Up to 16 exact codes per vehicle."
+            },style=MaterialTheme.typography.bodySmall)
             PrimaryAction("Add filter",enabled=state.canEditVehicle&&valid&&state.diagnosticFilters.size<DiagnosticCodeFilters.LIMIT,
                 onClick={actions.addCodeFilter(state.vehicleId,controller,codeInput);codeInput=""})
             state.diagnosticFilters.forEach { rule ->

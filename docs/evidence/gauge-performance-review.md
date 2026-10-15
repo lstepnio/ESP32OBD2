@@ -142,3 +142,12 @@ This was a read-only phone/gauge protocol check, not a vehicle-filter or physica
 qualification. Gauge remains dev.53. Dev.54 was never published. Dev.55 combines screen/showcase and
 filter changes; release authorization, signed App/Wi-Fi installation and physical
 filter/dual-source qualification remain pending. No main merge or ECU write occurred.
+
+An App-only follow-up reconciles already active diagnostic notifications when detailed
+checks finish without a new MIL transition. The same bounded notification receipt
+owner records filtered versus notified transitions and avoids repeated cancellation.
+Overlong code input is rejected rather than silently reduced to a different code.
+The dev.55 firmware tree is unchanged from review candidate `9c6c85c`,
+pinned at `codex/gauge-display-dev55-candidate`; the release request remains for that
+exact firmware source. Phone-only follow-up verification uses the same C/JVM policy
+plus the late-details/same-event and invalid overlong-input cases.

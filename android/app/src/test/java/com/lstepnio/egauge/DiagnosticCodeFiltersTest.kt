@@ -31,6 +31,9 @@ class DiagnosticCodeFiltersTest {
         val raw=data().copy(revision=5)
         val event=AlertEvent(1,1,1,100,32,AlertSeverity.Warning,false,AlertLifecycle.Active,1,false,1f,0f,"Check engine","codes",100,5)
         assertTrue(DiagnosticCodeFilters.filtersAlert(event,raw,0,listOf(rule)))
+        val pending=raw.copy(categories=raw.categories!!.map { it.copy(fresh=false) })
+        assertFalse(DiagnosticCodeFilters.filtersAlert(event,pending,0,listOf(rule)))
+        assertTrue(DiagnosticCodeFilters.filtersAlert(event,raw,0,listOf(rule))) // Same event; checks completed later.
         assertFalse(DiagnosticCodeFilters.filtersAlert(event.copy(key=0),raw,0,listOf(rule)))
         assertFalse(DiagnosticCodeFilters.filtersAlert(event.copy(severity=AlertSeverity.Critical),raw,0,listOf(rule)))
         assertFalse(DiagnosticCodeFilters.filtersAlert(event.copy(revision=6),raw,0,listOf(rule)))
@@ -82,7 +85,7 @@ class DiagnosticCodeFiltersTest {
         assertEquals(listOf(rule),DiagnosticCodeFilters.decode(DiagnosticCodeFilters.json(listOf(rule))))
         assertTrue(DiagnosticCodeFilters.decode(null).isEmpty())
         assertTrue(runCatching { DiagnosticCodeFilters.fromDocument(JSONObject().put("diagnosticFilters","corrupt")) }.isFailure)
-        listOf("P0000","P042*","P4420","P0G20").forEach { assertTrue(runCatching { DiagnosticCodeFilters.rule("ECM",it) }.isFailure) }
+        listOf("P0000","P042*","P4420","P0G20","P04200","P0420 abc").forEach { assertTrue(runCatching { DiagnosticCodeFilters.rule("ECM",it) }.isFailure) }
         assertTrue(runCatching { DiagnosticCodeFilters.validate(listOf(rule,rule)) }.isFailure)
         val profiles=ProfileCollection("car",listOf(VehicleProfile("car","Car",Draft(diagnosticFilters=listOf(rule)))))
         assertEquals(profiles,ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(profiles)))

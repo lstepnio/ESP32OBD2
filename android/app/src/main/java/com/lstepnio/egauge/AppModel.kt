@@ -247,18 +247,31 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 alertHistory=history
                 if(live && connectionForeground)batch.events.firstOrNull { !it.simulated && !it.unavailable &&
                     !it.acknowledged && it.severity==AlertSeverity.Critical && it.kind in 1..2 && it.revision==config.revision }?.let { selectedAlertId=it.id(gauge) }
+                val filterRules=if(phoneAlertsEnabled)DiagnosticCodeFilters.fromDocument(org.json.JSONObject(config.json)) else emptyList()
+                fun filtered(event: AlertEvent): Boolean {
+                    val source=if(event.key%2==1) "TCM" else "ECM"
+                    val age=diagnosticsCheckedAt[source]?.let { android.os.SystemClock.elapsedRealtime()-it } ?: Long.MAX_VALUE
+                    return DiagnosticCodeFilters.filtersAlert(event,diagnosticsBySource[source],age,filterRules)
+                }
                 if(phoneAlertsEnabled)batch.events.filter { it.revision==config.revision }.forEach {
-                    val source=if(it.key%2==1) "TCM" else "ECM"
-                    val raw=diagnosticsBySource[source]
-                    val rules=DiagnosticCodeFilters.fromDocument(org.json.JSONObject(config.json))
-                    val age=diagnosticsCheckedAt[source]?.let { checked -> android.os.SystemClock.elapsedRealtime()-checked } ?: Long.MAX_VALUE
-                    val filtered=DiagnosticCodeFilters.filtersAlert(it,raw,age,rules)
-                    alertNotifications.show(it,vehicle,gauge,live,connectionForeground,filtered)
+                    alertNotifications.show(it,vehicle,gauge,live,connectionForeground,filtered(it))
                 }
                 activeAlertCursor?.let { offset ->
                     client.readAlertBatch(device,batch.boot,offset,true)?.let { active ->
                         alertHistory=store(active)
                         activeAlertCursor=if(active.complete)null else active.next
+                    }
+                }
+                // Details can arrive without another MIL transition. Reconcile the
+                // latest diagnostic episode per key, without replaying old alerts.
+                if(phoneAlertsEnabled && filterRules.isNotEmpty() && currentGaugeId==gauge &&
+                    profileCollection.activeId==vehicle && activeDocument?.revision==config.revision) {
+                    alertHistory.asSequence().filter {
+                        it.vehicle==vehicle && it.gauge==gauge && it.event.boot==batch.boot &&
+                            it.event.revision==config.revision && it.event.lifecycle==AlertLifecycle.Active && it.event.key in 32..35
+                    }.groupBy { it.event.key }.values.forEach { entries ->
+                        val event=entries.maxBy { it.event.sequence }.event
+                        if(filtered(event))alertNotifications.show(event,vehicle,gauge,false,connectionForeground,true)
                     }
                 }
                 val capture=if(storageFailed)null else alertHistory.firstOrNull { it.event.key<36 && it.event.boot==batch.boot && it.id !in captureChecked &&

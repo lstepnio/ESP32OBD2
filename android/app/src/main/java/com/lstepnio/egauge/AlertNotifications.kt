@@ -11,7 +11,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 
 class AlertNotifications(private val context: Context) {
-    private val delivered=linkedSetOf<String>()
+    private val delivered=linkedMapOf<String,Boolean>() // true: filtered, false: notified
     private val postedIds=mutableMapOf<String,MutableSet<Int>>()
     private val manager=context.getSystemService(NotificationManager::class.java)
     init {
@@ -22,8 +22,10 @@ class AlertNotifications(private val context: Context) {
     fun show(event: AlertEvent, vehicle: String, gauge: String, live: Boolean, foreground: Boolean, filtered: Boolean = false) {
         val id=event.id(gauge).hashCode()
         if(filtered) {
-            manager.cancel(id);delivered.add(event.transitionId(gauge))
-            while(delivered.size>256)delivered.remove(delivered.first())
+            val transition=event.transitionId(gauge)
+            if(delivered[transition]==true)return
+            manager.cancel(id);delivered[transition]=true
+            while(delivered.size>256)delivered.remove(delivered.keys.first())
             return
         }
         if(event.lifecycle!=AlertLifecycle.Active || event.acknowledged || event.snoozed || event.unavailable) { manager.cancel(id);return }
@@ -42,7 +44,7 @@ class AlertNotifications(private val context: Context) {
             .setExtras(android.os.Bundle().apply { putString("egauge_gauge",gauge);putString("egauge_vehicle",vehicle);putString("egauge_transition",transition) }).setGroup("vehicle:$vehicle").setCategory(Notification.CATEGORY_STATUS).build()
         postedIds.getOrPut(gauge) { mutableSetOf() }.add(id)
         manager.notify(id,notification)
-        delivered.add(transition);while(delivered.size>256)delivered.remove(delivered.first())
+        delivered[transition]=false;while(delivered.size>256)delivered.remove(delivered.keys.first())
     }
     fun cancelGauge(gauge: String) {
         val ids=postedIds.remove(gauge).orEmpty()+manager.activeNotifications.filter { it.notification.extras.getString("egauge_gauge")==gauge }.map { it.id }

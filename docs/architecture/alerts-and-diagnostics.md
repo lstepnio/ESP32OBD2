@@ -454,7 +454,7 @@ fresh polling observations, not a guarantee that an ECU cannot change between po
 The gauge top CEL/count and ordinary App lists/recent banners use this projection.
 Threshold, provider and critical attention remain independent. Filtered diagnostic
 notifications are canceled and their current transition is marked delivered so
-removing a filter does not replay an old notification. A new unfiltered event still
+removing a filter does not replay an old notification. Every alert poll also reconciles filtered diagnostic notifications against newly completed details, even when there is no new MIL event; bounded delivery receipts avoid repeated cancellations. A new unfiltered event still
 uses the shared notifier. The shared journal, immutable entry context, raw ECU MIL,
 protected diagnostic packets and exports retain all codes. Advanced diagnostics
 shows all raw codes, marks matching codes Filtered and reports the real ECU lamp.
