@@ -64,5 +64,20 @@ int main(int argc, char **argv) {
  uint8_t ready[24];assert(diagnostics_endpoint_readiness(0,1001,ready)==24 && ready[2]==7 && !memcmp(ready+20,readiness,4));
  diagnostics_state_disconnected_for(3);
  diagnostics_snapshot_t vehicle;diagnostics_vehicle_snapshot(1002,&vehicle);assert(vehicle.valid && vehicle.mil_on);
- puts("Diagnostics source, full lists, expiry, reconnect and simulation passed");
+ /* Retrieved unique count is separate from reported MIL count. */
+ diagnostics_endpoint_configure(0,0,33,false);diagnostics_endpoint_configure(1,0,33,false);
+ diagnostics_state_connected_for(2);diagnostics_state_connected_for(3);
+ diagnostics_state_mil(true,99,2000);
+ diagnostics_state_codes_for(2,3,codes,8,2000);
+ diagnostics_state_codes_for(2,7,codes,4,2000);
+ diagnostics_state_codes_for(2,10,codes,4,2000);
+ diagnostics_snapshot_t distinct;diagnostics_state_snapshot_for(2,2001,&distinct);
+ assert(distinct.distinct_count==4&&distinct.count_known&&!distinct.count_partial);
+ diagnostics_vehicle_snapshot(2001,&vehicle);assert(vehicle.distinct_count==4&&vehicle.count_partial);
+ diagnostics_state_codes_for(3,3,codes,4,2000);
+ diagnostics_state_codes_for(3,7,codes,4,2000);diagnostics_state_codes_for(3,10,codes,4,2000);
+ diagnostics_vehicle_snapshot(2001,&vehicle);assert(vehicle.distinct_count==6&&!vehicle.count_partial);
+ diagnostics_state_disconnected_for(3);
+ diagnostics_vehicle_snapshot(2002,&vehicle);assert(vehicle.distinct_count==4&&vehicle.count_partial);
+ puts("Diagnostics source, distinct count, coverage, full lists, expiry, reconnect and simulation passed");
 }

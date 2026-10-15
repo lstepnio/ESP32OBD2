@@ -36,6 +36,7 @@ object GaugeProtocolCodec {
         17 -> bytes.size in 24..216 && (bytes.size - 24) % 12 == 0
         18 -> bytes.size == 32
         19 -> bytes.size == 24
+        21 -> runCatching { displayShowcase(bytes) }.isSuccess
         else -> false
     }
 
@@ -69,6 +70,7 @@ object GaugeProtocolCodec {
             ota = ota,
             wifiBulk = json.optString("wifiBulk").takeIf { it.isNotBlank() },
             hardwareCapacityVersion = hardwareCapacity.takeIf { it > 0 },
+            displayShowcaseVersion = json.optInt("sc", 0).takeIf { it == 1 } ?: 0,
             configurationVersion = configurationVersion,
             pidCatalogVersion = if (configurationVersion >= 5) 1 else 0,
             vehicleDashboardVersion = json.optInt("va", 0).also { require(it in 0..1) },
@@ -82,6 +84,18 @@ object GaugeProtocolCodec {
                 else -> emptySet()
             },
         )
+    }
+
+    fun displayShowcase(bytes: ByteArray): GaugeConfigTransferClient.DisplayShowcaseState {
+        require(bytes.size == 20 && bytes[0].toInt() == 21 && bytes[10].toInt() == 1 && bytes[11].toInt() == 0 && bytes.sliceArray(16..19).all { it.toInt() == 0 }) { "Unsupported display demo status" }
+        val active = bytes[1].toInt() and 255
+        val result = bytes[2].toInt() and 255
+        val index = bytes[3].toInt() and 255
+        val count = bytes[8].toInt() and 255
+        val seconds = bytes[9].toInt() and 255
+        val remaining = u32(bytes, 12)
+        require(active in 0..1 && result in 0..1 && count in 1..64 && index < count && seconds in 0..30 && remaining <= 600_000 && (active == 0 || seconds >= 5) && (active == 1 || remaining == 0L)) { "Invalid display demo status" }
+        return GaugeConfigTransferClient.DisplayShowcaseState(active == 1, result, u32(bytes, 4), index, count, seconds, remaining)
     }
 
     fun displaySettings(bytes: ByteArray): GaugeConfigTransferClient.DisplaySettings {

@@ -60,6 +60,8 @@ static void test_display_units(void)
     assert(lround(display_units_decimal(2840, "rpm", true)) == 2840);
     assert(lround(display_units_decimal(92, "°C", false)) == 92);
     assert(strcmp(display_units_label("°C", true), "°F") == 0);
+    assert(strcmp(display_units_label("degC", false), "°C") == 0);
+    assert(strcmp(display_units_label("kph", false), "km/h") == 0);
     assert(strcmp(display_units_label("km/h", true), "mph") == 0);
 }
 

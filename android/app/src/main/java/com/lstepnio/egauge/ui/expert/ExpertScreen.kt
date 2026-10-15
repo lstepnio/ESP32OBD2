@@ -29,6 +29,7 @@ data class ExpertActions(
     val useBoth: (Boolean) -> Unit = {},
     val phoneAlertTest: () -> Unit = {},
     val openPrimaryAdapter: () -> Unit = {},
+    val displayShowcase: (Boolean) -> Unit = {},
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,6 +42,10 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @C
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionTitle("Gauge checks")
             if(BuildConfig.DEBUG)SettingsRow("Phone alert test","Simulated road notice · expires after 30 seconds",state.canRead,actions.phoneAlertTest)
+            if(BuildConfig.DEBUG && state.canShowcase) SettingsRow(
+                if(state.showcaseActive) "Stop display demo" else "Showcase gauge screens",
+                if(state.showcaseActive) "Generated data · hold gauge to exit" else "Temporary generated examples · keeps saved dashboard",
+                true, { actions.displayShowcase(!state.showcaseActive) })
             PrimaryAction("Refresh gauge data", actions.refreshSettings, enabled = state.canRead)
             SettingsRow("Check vehicle faults", enabled = state.canRead, onClick = actions.readDiagnostics)
             SettingsRow("Read hardware capacity", enabled = state.canReadHardware, onClick = actions.readHardware)

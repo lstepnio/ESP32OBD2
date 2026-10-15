@@ -187,7 +187,7 @@ static const char document_capabilities[] =
     "\"maxAdapterLinks\":1,"
     "\"savedStateRead\":false,\"displayRotationWrite\":false,"
     "\"configWrite\":false,\"cfg\":5,\"ad\":1,\"da\":1,\"va\":1,"
-    "\"ota\":false,\"hw\":1"
+    "\"ota\":false,\"hw\":1,\"sc\":1"
     DISPLAY_SETTINGS_CAPABILITY WIFI_BULK_CAPABILITY "}";
 _Static_assert(sizeof(capabilities) - 1U <= 255U,
                "Public capability JSON exceeds the qualified Android read boundary");
@@ -232,6 +232,13 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle,
         extended_status_mode = request[0] == 0x53 ? 11 : 12;
         status_snapshot_length = 0;
         return 0;
+    }
+    if(request[0]==0x65 && length==5) {extended_status_mode=18;status_snapshot_length=0;return 0;}
+    if(request[0]==0x64) {
+        if(length!=7||request[1]>1||!read_u32(request+3)||(request[2]&&(request[2]<5||request[2]>30))||(request[1]&&!request[2]))return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        companion_command_t command={.opcode=0x64,.value=request[1],.brightness=request[2],.base_revision=read_u32(request+3)};
+        if(!g_command_queue||xQueueSend(g_command_queue,&command,0)!=pdTRUE)return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode=18;status_snapshot_length=0;return 0;
     }
     if(request[0]==0x63 && length==6 && request[5]<2) { extended_status_mode=17;extended_source=request[5];status_snapshot_length=0;return 0; }
     if(request[0]==0x60 || request[0]==0x61 || request[0]==0x62) {
@@ -524,6 +531,12 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle,
         if (status_snapshot_length == 0) return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length) return BLE_ATT_ERR_INVALID_OFFSET;
         return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
+    }
+    if(extended_status_mode==18) {
+        uint8_t state[20];size_t length=ui_showcase_status(g_ui,pdTICKS_TO_MS(xTaskGetTickCount()),state);
+        if(!length)return BLE_ATT_ERR_INSUFFICIENT_RES;
+        if(ctxt->offset>length)return BLE_ATT_ERR_INVALID_OFFSET;
+        return companion_gatt_read_value(ctxt->om,state,length,ctxt->offset);
     }
     if (extended_status_mode == 9) {
         display_settings_t settings = display_settings_snapshot();

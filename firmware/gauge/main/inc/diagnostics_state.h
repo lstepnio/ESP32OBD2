@@ -18,6 +18,8 @@ typedef struct {
     uint8_t stored_count;
     char first_code[6];
     bool transmission;
+    bool count_known, count_partial, mil_known;
+    uint16_t distinct_count;
 } diagnostics_snapshot_t;
 
 esp_err_t diagnostics_state_init(void);

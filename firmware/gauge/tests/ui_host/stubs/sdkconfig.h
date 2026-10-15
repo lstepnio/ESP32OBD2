@@ -1,0 +1,2 @@
+#pragma once
+#define CONFIG_EGAUGE_UI_PERFORMANCE_LOG 0

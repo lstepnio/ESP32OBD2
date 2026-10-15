@@ -137,3 +137,36 @@ the existing nominal maximum pause budget (6 seconds for 80 legacy attempts,
 45 seconds for 600). The complete operation deadline and cancellation remain
 unchanged. Stale sequence/opcode replies never certify completion; no early poll
 replays a firmware write. Wi-Fi bulk framing and response handling are unchanged.
+
+## Temporary display showcase
+
+Dev.54 adds `sc:1` to document-mode development capabilities only. The legacy
+capability frame remains within its 255-byte budget and does not advertise this tool.
+Public configuration and OTA capability flags remain disabled. No config schema,
+saved settings or diagnostic wire packet changes are introduced.
+
+Authenticated owner command `64` is seven bytes: enabled (0/1), interval seconds
+(5..30 when enabled, zero allowed for stop), then nonzero request sequence `u32`.
+It queues one nonblocking UI operation. Duplicate sequences do not restart playback
+or extend its deadline. Command `65` is five bytes with a `u32` read selector and
+selects the protected twenty-byte version `15` (decimal 21) status response:
+
+| Offset | Meaning |
+| --- | --- |
+| 0 | Tag 21 |
+| 1 | Active, 0 or 1 |
+| 2 | Result: 0 applied, 1 refused |
+| 3 | Zero-based frame index |
+| 4..7 | Acknowledged request sequence, little endian |
+| 8 | Frame count (currently 21; reader bounds 1..64) |
+| 9 | Interval seconds |
+| 10 | Schema 1 |
+| 11 | Reserved zero |
+| 12..15 | Remaining duration ms, little endian, maximum 600000; zero when inactive |
+| 16..19 | Reserved zero |
+
+Reader validates structure, identity and bounds. Command acceptance does not prove
+physical display success. The connection owner recognizes this protected frame for
+encrypted readback; disconnect resets the extended-state selector as before. The
+client sends a mutation once and polls for its sequence; uncertain writes are not
+replayed. UI-only lifecycle and preemption rules are in the [showcase guide](../development/display-showcase.md).

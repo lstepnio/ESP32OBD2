@@ -24,7 +24,7 @@ relative to `android/app/src/main/java/com/lstepnio/egauge/` unless specified.
 
 | Area | Source entry points | Maintained contract |
 | --- | --- | --- |
-| Gauge startup/display/settings/gestures | `main.c`, `src/ui.c`, `src/display_settings.c`, `src/page_action.c` | [Firmware ownership](architecture/firmware-runtime.md), [actions](architecture/vehicle-actions.md) |
+| Gauge startup/display/settings/gestures | `main.c`, `src/ui.c`, `src/display_settings.c`, `src/page_action.c` | [Firmware ownership](architecture/firmware-runtime.md), [actions](architecture/vehicle-actions.md), [temporary display showcase](development/display-showcase.md) |
 | Adapter/routing/ELM replies | `src/ble_mgr.c`, `src/ble_obd.c`, `src/elm_response.c`, `src/obd_adapter_profile.c` | [Bindings](protocol/adapter-bindings-v1.md), [vehicle model](architecture/vehicle-connections.md) |
 | Fault state and presentation | `src/diagnostics_state.c`; `VehicleDiagnostics.kt`, `ui/state/DiagnosticPresentation.kt` | [Implemented diagnostics](protocol/diagnostics-and-alerts.md), [shared alert/CEL architecture](architecture/alerts-and-diagnostics.md) |
 | Shared events/history/providers | `src/alert_events.c`, `src/alert_runtime.c`, `src/diagnostic_clear.c`; `AlertEvents.kt`, `AlertRepository.kt`, `AlertNotifications.kt`, `AlertMonitoringService.kt`, `ExternalAlerts.kt`, `ui/AlertPresentation.kt` | [Shared alerts](architecture/alerts-and-diagnostics.md), [phone providers](architecture/phone-alert-providers.md) |

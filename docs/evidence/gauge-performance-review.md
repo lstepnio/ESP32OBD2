@@ -81,3 +81,32 @@ Both default and timing-enabled dev.26 ESP-IDF builds passed, as did repository 
 Primary touch references: [CST816S register description](https://files.waveshare.com/wiki/common/CST816S_register_declaration.pdf), [CST816S datasheet](https://files.waveshare.com/wiki/common/CST816S_Datasheet_EN.pdf).
 
 Primary references: [LVGL 9.2 display buffers](https://lvgl.io/docs/open/9.2/porting/display), [ESP-IDF performance guidance](https://docs.espressif.com/projects/esp-idf/en/v5.4.1/esp32s3/api-guides/performance/speed.html), and the pinned component sources under `firmware/gauge/managed_components/` after dependency resolution.
+
+## 2026-10-14: prepared dev.54 screen compositor and showcase
+
+The owner submitted Round 3: 36 approvals, five change requests and 15 unreviewed.
+Four centering requests are implemented in revision 4; the fifth confirms the
+CEL-above/condition-below split. Exact original assets and private submitted feedback
+are retained. The local gallery carries forward all 36 byte-identical approvals.
+
+Prepared source is App dev.50 and firmware dev.54. The new compositor uses production
+Noto fonts, actual glyph fitting, separate diagnostics/condition slots and full-screen
+critical/pairing views. Twenty-one isolated generated frames can be played without
+modifying the saved dashboard, samples or shared alert journal.
+
+Local checks passed: ESP-IDF 5.4.1 firmware build (image 0x189cb0 bytes, 49% OTA-slot
+space free); Android debug and instrumentation compilation, unit tests and lint;
+production LVGL 9.2.2 software rendering for all frames, metric/imperial fitting,
+font stability, generated acknowledgment isolation and preemption; sanitized
+showcase/layout, core logic, shared alert projection and distinct diagnostic count
+fixtures; Android diagnostic packet parity; security build guards; seven local review
+server tests; documentation/schema/token validation. CI remains a separate gate.
+
+Pixel dev.50 APK and its instrumentation package installed through ADB without data
+clearing. A private pre-install preference backup is retained in ignored artifacts.
+The gauge is not updated by these checks: no signed dev.54 release has been published
+and no physical screen legibility or touch outcome is claimed. App/Wi-Fi installation,
+exact running identity, saved-state comparison and owner display checks remain pending.
+
+UI contract and opt-in device fixture: [temporary showcase](../development/display-showcase.md).
+Future fault inspection/provider/maintenance/custom enum screens remain design scope.

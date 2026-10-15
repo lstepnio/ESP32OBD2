@@ -142,6 +142,7 @@ data class CapabilitySnapshot(
     val pageActionsVersion: Int = 0,
     val maxPages: Int = 0,
     val supportedRenderers: Set<GaugeLayout> = emptySet(),
+    val displayShowcaseVersion: Int = 0,
 )
 
 data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revision: Long)

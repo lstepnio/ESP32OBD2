@@ -41,6 +41,8 @@ idf_component_register(
         "src/poll_scheduler.c"
         "src/page_save_policy.c"
         "src/page_action.c"
+        "src/gauge_layout.c"
+        "src/display_showcase.c"
         "src/ui.c"
         ${FONT_SOURCES}
     INCLUDE_DIRS

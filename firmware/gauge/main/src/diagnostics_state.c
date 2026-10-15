@@ -114,13 +114,27 @@ void diagnostics_state_snapshot_for(unsigned source, uint32_t now, diagnostics_s
     if (source >= 4 || !lock) return;
     if (xSemaphoreTake(lock, 0) != pdTRUE) return;
     out->transmission = snapshots[source].transmission;
-    if (mil_fresh(source, now)) { out->mil_on = snapshots[source].mil_on; out->reported_count = snapshots[source].reported_count; out->valid = true; }
+    if (mil_fresh(source, now)) { out->mil_known=true;out->mil_on = snapshots[source].mil_on; out->reported_count = snapshots[source].reported_count; out->valid = true; }
     if (codes_fresh(source, 0, now)) {
         out->stored_count = snapshots[source].categories[0].count;
         /* Stored count is not the controller-reported MIL count. */
         format_code(snapshots[source].categories[0].codes[0], out->first_code);
         out->valid = true;
     }
+    uint16_t seen[3*DIAGNOSTICS_MAX_CODES];unsigned distinct=0;bool complete=true;
+    for(unsigned i=0;i<3;i++) {
+        bool fresh=codes_fresh(source,i,now);
+        if(!fresh && snapshots[source].categories[i].result!=DIAGNOSTICS_UNSUPPORTED)complete=false;
+        if(!fresh)continue;
+        out->count_known=out->valid=true;
+        for(unsigned j=0;j<snapshots[source].categories[i].count;j++) {
+            uint16_t code=snapshots[source].categories[i].codes[j];bool duplicate=false;
+            for(unsigned k=0;k<distinct;k++)if(seen[k]==code){duplicate=true;break;}
+            if(code&&!duplicate)seen[distinct++]=code;
+            if(!out->first_code[0]&&code)format_code(code,out->first_code);
+        }
+    }
+    out->distinct_count=distinct;out->count_partial=out->count_known&&!complete;
     xSemaphoreGive(lock);
 }
 size_t diagnostics_state_status(uint8_t out[DIAGNOSTICS_STATUS_SIZE]) {
@@ -199,17 +213,22 @@ size_t diagnostics_endpoint_status(unsigned endpoint, uint32_t now, uint8_t out[
 void diagnostics_vehicle_snapshot(uint32_t now, diagnostics_snapshot_t *out) {
     if (!out) return;
     memset(out, 0, sizeof(*out));
+    bool complete=true;
     for (unsigned i = 0; i < 2; ++i) {
         if (!endpoint_enabled[i]) continue;
         diagnostics_snapshot_t item;
         diagnostics_state_snapshot_for(2 + i, now, &item);
+        if (!item.count_known||item.count_partial)complete=false;
         if (!item.valid) continue;
         out->valid = true;
         out->mil_on |= item.mil_on;
         out->reported_count += item.reported_count;
         out->stored_count += item.stored_count;
-        if (!out->first_code[0] && item.first_code[0]) memcpy(out->first_code, item.first_code, 6);
+        out->mil_known|=item.mil_known;out->count_known|=item.count_known;
+        out->distinct_count+=item.distinct_count;
+        if (!out->first_code[0] && item.first_code[0]) {memcpy(out->first_code, item.first_code, 6);out->transmission=item.transmission;}
     }
+    out->count_partial=out->count_known&&!complete;
 }
 
 void diagnostics_state_mil_payload(unsigned source,const uint8_t payload[4],uint32_t now) {

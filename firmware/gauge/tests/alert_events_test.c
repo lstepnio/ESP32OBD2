@@ -64,6 +64,16 @@ int main(int argc,char **argv) {
     alert_events_observe(&events,2,4,true,"Wrap","",0,0,100,101);
     alert_events_observe(&events,3,4,false,"Fresh critical","",1,2,101,101);
     assert(alert_events_summary(&events,priorities,101,&chosen,&attention) && chosen.key==3 && attention);
+    /* The shared event store has two projections, never competing producers. */
+    alert_events_t projection;alert_events_init(&projection,11);
+    alert_events_observe(&projection,0,3,false,"Coolant","degC",112,110,100,100);
+    alert_events_observe(&projection,1,2,false,"Voltage","V",11,12,100,100);
+    alert_events_observe(&projection,32,3,false,"Engine warning","",1,0,100,100);
+    priorities[32]=255;uint8_t additional=255;
+    assert(alert_events_summary(&projection,priorities,100,&chosen,&attention)&&chosen.key==32);
+    assert(alert_events_condition_summary(&projection,priorities,100,&chosen,&attention,&additional)&&chosen.key==0&&additional==1);
+    alert_events_observe(&projection,32,4,false,"Critical diagnostic","",1,0,101,101);
+    assert(alert_events_condition_summary(&projection,priorities,101,&chosen,&attention,&additional)&&chosen.key==32&&attention&&additional==2);
     threshold_integration();
     uint8_t external[64]={0x3e,0,2,1,7,0,0,0,1,0,0,0,0xe8,3};memcpy(external+16,"Road hazard",11);
     assert(alert_external_validate(external));external[2]=4;assert(!alert_external_validate(external));external[2]=2;

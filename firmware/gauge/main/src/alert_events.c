@@ -129,16 +129,25 @@ bool alert_external_validate(const uint8_t request[64]) {
         valid_text(request+16,32,true) && valid_text(request+48,12,false) && !get(request+60);
 }
 
-bool alert_events_summary(const alert_events_t *events,const uint8_t priorities[44],uint32_t now,alert_event_t *out,bool *attention) {
+static bool summary(const alert_events_t *events,const uint8_t priorities[44],uint32_t now,alert_event_t *out,bool *attention,bool conditions,uint8_t *additional) {
     if(!events || !out || !attention)return false;
-    bool found=false;*attention=false;
+    bool found=false;*attention=false;unsigned count=0;
     for(unsigned key=0;key<44;key++) {
         const alert_episode_t *p=&events->episodes[key];if(p->current.lifecycle!=1)continue;
+        if(conditions&&key>=32&&key<36&&p->current.severity<4)continue;
+        count++;
         bool wants_attention=alert_events_attention(p,now);
         if(!found || p->current.severity>out->severity || (p->current.severity==out->severity &&
             ((wants_attention && !*attention) || (wants_attention==*attention && priorities[key]>priorities[out->key])))) {
             *out=p->current;*attention=wants_attention;found=true;
         }
     }
+    if(additional)*additional=count?count-1:0;
     return found;
+}
+bool alert_events_summary(const alert_events_t *events,const uint8_t priorities[44],uint32_t now,alert_event_t *out,bool *attention) {
+    return summary(events,priorities,now,out,attention,false,NULL);
+}
+bool alert_events_condition_summary(const alert_events_t *events,const uint8_t priorities[44],uint32_t now,alert_event_t *out,bool *attention,uint8_t *additional) {
+    return summary(events,priorities,now,out,attention,true,additional);
 }

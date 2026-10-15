@@ -538,6 +538,35 @@ class GaugeConfigTransferClient(private val context: Context) {
         return GaugeProtocolCodec.hardwareSnapshot(bytes)
     }
 
+    data class DisplayShowcaseState(val active: Boolean, val result: Int, val sequence: Long,
+        val frame: Int, val count: Int, val intervalSeconds: Int, val remainingMs: Long)
+
+    suspend fun readDisplayShowcase(device: BluetoothDevice): DisplayShowcaseState {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x65) + le32(1))
+            GaugeProtocolCodec.displayShowcase(readRaw())
+        }
+    }
+
+    suspend fun setDisplayShowcase(device: BluetoothDevice, enabled: Boolean, seconds: Int = 8): DisplayShowcaseState {
+        require(seconds in 5..30 && device.bondState == BluetoothDevice.BOND_BONDED) { "Invalid display demo request" }
+        val sequence = (SecureRandom().nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x64, if (enabled) 1 else 0, seconds.toByte()) + le32(sequence))
+            repeat(30) {
+                val state = GaugeProtocolCodec.displayShowcase(readRaw())
+                if (state.sequence == sequence) {
+                    check(state.result == 0) { "Display demo needs an idle gauge with vehicle adapters disconnected" }
+                    check(state.active == enabled) { "Display demo was interrupted; check the gauge" }
+                    return@withGauge state
+                }
+                delay(100)
+            }
+            error("Gauge did not confirm the display demo request")
+        }
+    }
+
     suspend fun readDisplaySettings(device: BluetoothDevice): DisplaySettings {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         return withGauge(device) {

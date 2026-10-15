@@ -78,6 +78,9 @@ jobs:
         run: |
           . /opt/esp/idf/export.sh
           idf.py build
+          cmake -S tests/ui_host -B build-ui-host
+          cmake --build build-ui-host -j 2
+          build-ui-host/gauge_ui_render build-ui-renders
           cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
             -Itests/stubs -Imain/inc -I"$IDF_PATH/components/json/cJSON" \
             tests/config_binding_test.c main/src/config_document.c main/src/config_runtime.c \

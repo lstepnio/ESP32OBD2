@@ -167,6 +167,11 @@ bool alert_runtime_summary(uint32_t now,alert_event_t *out,bool *attention) {
     bool found=alert_events_summary(&events,priorities,now,out,attention);
     xSemaphoreGive(mutex);return found;
 }
+bool alert_runtime_condition_summary(uint32_t now,alert_event_t *out,bool *attention,uint8_t *additional) {
+    if(!mutex||!out||!attention||!additional||xSemaphoreTake(mutex,0)!=pdTRUE)return false;
+    bool found=alert_events_condition_summary(&events,priorities,now,out,attention,additional);
+    xSemaphoreGive(mutex);return found;
+}
 
 void alert_runtime_sample(unsigned pid,float value,uint32_t at) {
     if(!context_store||pid>=32||!mutex||xSemaphoreTake(mutex,0)!=pdTRUE)return;

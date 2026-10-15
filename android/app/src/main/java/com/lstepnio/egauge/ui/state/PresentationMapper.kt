@@ -196,6 +196,8 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             secondAdapterSetupIssue = secondAdapterSetupIssue(profileCollection.active.primaryAdapter,
                 profileCollection.active.transmission?.adapter, freshConnection,
                 capabilities?.dualAdapterVersion == 1 && capabilities?.vehicleDashboardVersion == 1),
+            canShowcase = found && !busy && capabilities?.displayShowcaseVersion == 1,
+            showcaseActive = displayShowcase?.active == true,
             adapterDiscoveryBlocker = when {
                 !freshConnection -> "Discovery starts automatically when the gauge reconnects."
                 capabilities?.adapterRegistryVersion != 1 -> "Update the gauge to discover adapters."

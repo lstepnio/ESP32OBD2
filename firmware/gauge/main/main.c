@@ -388,13 +388,13 @@ static void app_tick_task(void *arg)
         alert_runtime_tick(now_ms);
         diagnostic_clear_tick(now_ms,now_ms-engine_rpm_at<=2000 && engine_running,now_ms-speed_at<=2000 && vehicle_moving);
         alert_event_t chosen={0}; bool attention=false;
-        bool active=alert_runtime_summary(now_ms,&chosen,&attention);
-        ui_set_alert_event(ui,active?(chosen.severity==4?2:chosen.severity>=3?1:3):0,
-            chosen.unavailable,chosen.label,active&&chosen.severity==4&&attention,chosen.key,chosen.boot,chosen.episode,chosen.value,chosen.limit,chosen.unit);
+        uint8_t additional=0;
+        bool active=alert_runtime_condition_summary(now_ms,&chosen,&attention,&additional);
+        ui_set_alert_condition(ui,active?(chosen.severity==4?2:chosen.severity>=3?1:3):0,
+            chosen.unavailable,chosen.label,active&&chosen.severity==4&&attention,chosen.key,chosen.boot,chosen.episode,chosen.value,chosen.limit,chosen.unit,additional,(chosen.reserved&1)!=0);
         diagnostics_snapshot_t diagnostics;
         diagnostics_vehicle_snapshot(now_ms, &diagnostics);
-        ui_set_diagnostics(ui, diagnostics.valid, diagnostics.mil_on, diagnostics.transmission,
-                           diagnostics.reported_count, diagnostics.first_code);
+        ui_set_vehicle_diagnostics(ui,&diagnostics);
         worker_health_progress(WORKER_APP, now_ms);
         uint32_t ticks = atomic_fetch_add(&g_app_tick_count, 1) + 1;
         if (ticks % 600 == 0) {
@@ -598,6 +598,16 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
     if (event_code == LV_EVENT_CLICKED) ui_next_display_calibration(ui);
     return;
 #endif
+    /* A press that starts in demo cannot become a pairing/reset gesture when
+     * demo exits on its long-press event. Consume the entire press sequence. */
+    static bool press_started_showcase;
+    if(event_code==LV_EVENT_PRESSED)press_started_showcase=ui_showcase_active(ui);
+    if(ui_showcase_active(ui)||press_started_showcase) {
+        if(event_code==LV_EVENT_CLICKED)ui_showcase_next(ui);
+        else if(event_code==LV_EVENT_LONG_PRESSED)ui_showcase_stop(ui);
+        if(event_code==LV_EVENT_RELEASED||event_code==LV_EVENT_CLICKED)press_started_showcase=false;
+        return;
+    }
     switch (event_code)
     {
     case LV_EVENT_PRESSED:
@@ -617,6 +627,7 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         ui_page_t page;
         page_ui(selected, &page);
         ui_set_page(ui, &page);
+        ui_set_page_position(ui,selected,page_count());
         atomic_store(&g_selected_page, selected);
         atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
         ble_companion_selection_applied(selected);
@@ -752,8 +763,9 @@ void app_main(void)
     ui_t          *ui             = ui_init(&initial_page, ui_interval_ms, ui_touch_callback,
                                             pairing_required, display_settings_snapshot().units == 1);
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
-    if (g_runtime && lvgl_port_lock(portMAX_DELAY)) {
-        ui_configure_page_action(ui, g_runtime->page_action);
+    if (lvgl_port_lock(portMAX_DELAY)) {
+        ui_set_page_position(ui,g_config.cfg_idx,page_count());
+        if(g_runtime)ui_configure_page_action(ui, g_runtime->page_action);
         lvgl_port_unlock();
     }
     bsp_display_on_off(true);
@@ -829,6 +841,7 @@ void app_main(void)
                     ui_page_t page;
                     page_ui(command.value, &page);
                     ui_set_page(ui, &page);
+                    ui_set_page_position(ui,command.value,page_count());
                     atomic_store(&g_selected_page, command.value);
                     atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
                     lvgl_port_unlock();
@@ -898,6 +911,10 @@ void app_main(void)
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u cycle=%us",
                      (unsigned)saved.rotation * 90, (unsigned)saved.brightness,
                      (unsigned)saved.units, (unsigned)saved.cycle_seconds);
+        } else if(has_command&&command.opcode==0x64) {
+            ui_request_showcase(ui,command.value!=0,command.brightness,command.base_revision,
+                adapter_status_ready_for(0)||adapter_status_ready_for(1),transfer_gate_current()!=0);
+            atomic_store(&g_page_activity_ms,pdTICKS_TO_MS(xTaskGetTickCount()));
         } else if (has_command && command.opcode == 3) ble_companion_forget_owner();
 
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
@@ -905,7 +922,7 @@ void app_main(void)
         bool owner_ready = ble_companion_has_owner();
         bool transfer_idle = transfer_gate_current() == 0;
         ui_set_action_context(ui, owner_ready && transfer_idle);
-        if (!owner_ready || !transfer_idle) atomic_store(&g_page_activity_ms, now_ms);
+        if (!owner_ready || !transfer_idle || ui_showcase_active(ui)) atomic_store(&g_page_activity_ms, now_ms);
         if (page_cycle_due(cycle.cycle_seconds, page_count(), owner_ready,
             transfer_idle && !ui_action_pending(ui), atomic_load(&g_page_activity_ms), now_ms) &&
             lvgl_port_lock(0)) {
@@ -913,6 +930,7 @@ void app_main(void)
             ui_page_t page;
             page_ui(selected, &page);
             ui_set_page(ui, &page);
+            ui_set_page_position(ui,selected,page_count());
             atomic_store(&g_selected_page, selected);
             ble_companion_selection_applied(selected);
             atomic_store(&g_page_activity_ms, now_ms);

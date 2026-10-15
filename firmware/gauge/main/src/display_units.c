@@ -17,6 +17,8 @@ const char *display_units_label(const char *unit, bool imperial)
         if (!strcmp(unit, "L/h")) return "US gal/h";
         if (!strcmp(unit, "Nm")) return "lb·ft";
     }
+    if (!strcmp(unit, "degC")) return "°C";
+    if (!strcmp(unit, "kph")) return "km/h";
     return unit;
 }
 

@@ -121,6 +121,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     private var preparedClearScope: Pair<String,String>?=null
     private val clearJournal=application.getSharedPreferences("diagnostic-clear",android.content.Context.MODE_PRIVATE)
+    var displayShowcase by mutableStateOf<GaugeConfigTransferClient.DisplayShowcaseState?>(null)
+        private set
+    fun setDisplayShowcase(enabled: Boolean) = launchGaugeOperation(OperationKind.READ, if(enabled) "Starting display demo" else "Stopping display demo") { id ->
+        require(BuildConfig.DEBUG && capabilities?.displayShowcaseVersion == 1) { "Update the gauge to use display demo" }
+        displayShowcase = GaugeConfigTransferClient(getApplication()).setDisplayShowcase(bleClient.selectedGauge(), enabled)
+        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
+            if(enabled) "Display demo running" else "Vehicle dashboard restored",
+            if(enabled) "Generated examples cycle every eight seconds. Hold the gauge to exit; stops after ten minutes." else "Saved pages and settings are unchanged", terminal = true)
+        nextSettingsPollReset()
+    }
+    private fun nextSettingsPollReset() { settingsPoll.reset(); foregroundConnection.retrySoon() }
+
     fun sendSyntheticPhoneAlert() = launchGaugeOperation(OperationKind.READ,"Sending phone alert test") { id ->
         require(BuildConfig.DEBUG && alertFrameworkSupported==true)
         val device=bleClient.selectedGauge()
@@ -452,6 +464,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             withTimeout(8_000) {
                 if (caps.displaySettingsVersion >= 1) displaySettingsRead(client.readDisplaySettings(device))
                 else snapshotRead(bleClient.readSavedSnapshot())
+                if (caps.displayShowcaseVersion == 1) displayShowcase = client.readDisplayShowcase(device)
                 healthy = true
             }
         } catch (_: TimeoutCancellationException) {
@@ -1125,6 +1138,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ownerAccess = OwnerAccess.UNKNOWN
         savedGauge = null
         displaySettings = null
+        displayShowcase = null
         settingsObservedAtElapsedMs = null
         settingsCheckFailed = false
         diagnostics = null
@@ -1152,6 +1166,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (!preserveSent) {
             savedGauge = null
             displaySettings = null
+            displayShowcase = null
             settingsObservedAtElapsedMs = null
             settingsCheckFailed = false
             diagnostics = null
@@ -1449,6 +1464,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         // after the update lease closes instead of keeping the previous image's snapshot.
         capabilities = null
         displaySettings = null
+        displayShowcase = null
         settingsObservedAtElapsedMs = null
         settingsCheckFailed = false
         rediscoverGauge = true

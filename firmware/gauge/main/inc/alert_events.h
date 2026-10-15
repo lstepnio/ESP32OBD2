@@ -44,3 +44,4 @@ bool alert_event_decode(const uint8_t in[ALERT_EVENT_WIRE], alert_event_t *out);
 bool alert_external_validate(const uint8_t request[64]);
 
 bool alert_events_summary(const alert_events_t *events,const uint8_t priorities[44],uint32_t now,alert_event_t *out,bool *attention);
+bool alert_events_condition_summary(const alert_events_t *events,const uint8_t priorities[44],uint32_t now,alert_event_t *out,bool *attention,uint8_t *additional);
