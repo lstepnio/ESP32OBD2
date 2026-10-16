@@ -1,9 +1,9 @@
 # Temporary gauge display showcase
 
-The prepared UI implementation, included in the dev.55 candidate, introduces an owner-authorized presentation showcase.
+The UI implementation, installed in signed dev.55, introduces an owner-authorized presentation showcase.
 The debug App exposes its start/stop control in Expert when the gauge reports `sc:1`.
-This is a UI review tool, not a vehicle-data source. Implementation and host renders
-are prepared; installation and physical observation remain separate gates.
+This is a UI review tool, not a vehicle-data source. Host renders and the opt-in dev.55 physical protocol journey passed on 2026-10-16.
+Physical screen appearance and touch observations remain separate owner checks.
 
 ## Behavior and boundaries
 

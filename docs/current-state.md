@@ -1,6 +1,6 @@
 # Current implementation and evidence
 
-Updated 2026-10-14. This is the current support and installed-device snapshot.
+Updated 2026-10-16. This is the current support and installed-device snapshot.
 [Backlog](backlog.md) owns unfinished work; [roadmap](roadmap.md) orders outcomes.
 Dated [evidence](evidence/README.md) preserves measurements without defining today's plan.
 
@@ -8,15 +8,15 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | Prepared App `0.2.0-dev.51` and firmware dev.55; signed dev.53 remains the installed gauge baseline | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
-| Installed Pixel and gauge | Pixel App dev.51 installed without data clearing; gauge signed dev.53 from `bff726e`, generation 35 | Owner-authorized application-only USB repair; exact hosted ELF/health 2 and unchanged config/settings verified; fresh App pairing and owner retention after power cycle passed; owner confirmed normal page/swipes |
+| Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-read retry; signed firmware dev.55 installed | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Installed Pixel and gauge | Pixel App dev.51 installed without data clearing; gauge signed dev.55 from `9c6c85c`, generation 36 | Full hosted App/Wi-Fi transfer, exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; dev.55 physical display/touch review pending |
 | Gauge dashboard | Revision 50; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
 | Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors; dev.53 live both-source reads/resume and each adapter loss/recovery passed |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
 | Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; two same-model adapters reported by owner | Dev.53 live simultaneous source reads and independent sibling continuity/recovery passed; sustained-load qualification remains open |
 | Repository | Public `lstepnio/ESP32OBD2`; continuing review PR #51 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
 
-Prepared UI work: [Round 3 feedback and native rendering evidence](evidence/gauge-performance-review.md#2026-10-14-prepared-dev54-screen-compositor-and-showcase). Pixel dev.51 is installed and passed protected connection/settings/resume checks against dev.53, with saved dashboard and profiles unchanged; signed dev.55 is published from `9c6c85c`, generation 36, with independently verified assets. App/Wi-Fi installation and physical screen review remain pending Pixel reconnection.
+UI rollout: [Round 3 feedback and native rendering evidence](evidence/gauge-performance-review.md#2026-10-14-prepared-dev54-screen-compositor-and-showcase). Pixel dev.51 is installed with a bounded ATT resource-pressure read retry. Signed dev.55 from `9c6c85c`, generation 36, passed full App/Wi-Fi installation and post-boot preservation checks. The 21-frame showcase start/advance/stop/preservation journey passed and playback was restarted for owner review. Physical screen review remains pending.
 
 Latest rollout: [dev.53 fresh pairing recovery](evidence/gatt-long-read-recovery.md#dev53-authorized-pairing-recovery-outcome).
 During the subsequent Jeep session, the gauge booted with its owner key absent while
@@ -100,4 +100,4 @@ in signed dev.48; that rollout passed protected image identity and owner display
 The installed firmware is tracked in the baseline table above. See [implementation evidence](evidence/shared-alerts-implementation.md)
 for the distinct offline, Pixel and gauge scopes. The backlog owns remaining tasks.
 
-Prepared Advanced CEL filtering: exact vehicle/controller rules and complete-check MIL/count reconciliation are implemented for dev.55. Raw evidence and history remain unchanged. Dev.55 is signed and published; installation and live vehicle qualification are pending; [shared policy](architecture/alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters) owns semantics.
+Prepared Advanced CEL filtering: exact vehicle/controller rules and complete-check MIL/count reconciliation are implemented for dev.55. Raw evidence and history remain unchanged. Dev.55 is signed and installed through App/Wi-Fi; live vehicle qualification remains pending; [shared policy](architecture/alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters) owns semantics.

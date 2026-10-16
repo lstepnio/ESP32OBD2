@@ -24,6 +24,9 @@ import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
+// Bluetooth ATT error 0x11, not exposed as a BluetoothGatt constant.
+private const val ATT_INSUFFICIENT_RESOURCES = 0x11
+
 internal open class GaugeLinkException(message: String) : IllegalStateException(message)
 internal class GaugeCommandRejectedException(val status: Int) :
     GaugeLinkException("Protected write failed (GATT $status)")
@@ -207,17 +210,25 @@ class GaugeConfigTransferClient(private val context: Context) {
                     return@repeat
                 }
                 if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
-                    result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
+                    result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION &&
+                    result.status != ATT_INSUFFICIENT_RESOURCES)
                     error("Gauge owner state read failed (GATT ${result.status}, version ${result.bytes.firstOrNull()?.toInt()?.and(255)}, length ${result.bytes.size})")
                 delay(250)
             }
             error("Gauge owner link did not become authenticated")
         }
         suspend fun readRaw(): ByteArray {
-            val event = readEvent()
-            if (event.status != BluetoothGatt.GATT_SUCCESS)
-                throw GaugeLinkException("Protected read failed (GATT ${event.status})")
-            return event.bytes
+            // Firmware callbacks never block on worker-owned locks. ATT resource
+            // pressure can therefore be temporary during Wi-Fi startup. Retry only
+            // the read; never replay a command or hide a disconnect/auth failure.
+            repeat(4) { attempt ->
+                val event = readEvent()
+                if (event.status == BluetoothGatt.GATT_SUCCESS) return event.bytes
+                if (event.status != ATT_INSUFFICIENT_RESOURCES || attempt == 3)
+                    throw GaugeLinkException("Protected read failed (GATT ${event.status})")
+                delay(100L * (attempt + 1))
+            }
+            error("Protected status read retry budget exhausted")
         }
         suspend fun read(): Status {
             val bytes = readRaw()

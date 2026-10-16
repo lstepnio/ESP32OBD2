@@ -88,6 +88,12 @@ See [offline hardening](../evidence/offline-hardening.md) for evidence and limit
 
 ## Protocol and transport rules
 
+Protected status reads may receive ATT `0x11` while a firmware worker owns a
+zero-wait snapshot lock. Retry that read at most four times, with 100/200/300 ms
+delays; never replay the preceding write. The existing owner-establishment budget
+also accepts this transient status. Other GATT errors, authentication requirements,
+disconnects and coroutine cancellation keep their existing handling.
+
 Pure codecs validate capability JSON, diagnostics, and runtime identity before UI state changes. Invalid versions, lengths, reserved bits, and ranges are errors. Transfer callbacks enter a bounded channel. The process-level operation coordinator serializes sessions, and each client connection owns its callback queue and deadline. A callback cannot complete another connection's deferred result.
 
 Production support still requires a shared reusable GATT request layer if the protocol surface grows. The current bounded and serialized behavior is the compatibility-preserving foundation. `WifiBulkClient` implements the authenticated private Wi-Fi update path using the

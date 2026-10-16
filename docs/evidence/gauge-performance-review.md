@@ -173,3 +173,48 @@ remain pending reconnection. The last verified gauge remains dev.53.
 The debug-awake helper was started while the Pixel was attached. Its stop command
 could not restore the saved wake settings after USB disconnection; its private
 restore record remains intact and must be applied when the same Pixel reconnects.
+
+
+## 2026-10-16 dev.55 App/Wi-Fi installation
+
+The Pixel and gauge reconnected. A fresh private phone-settings backup was taken;
+the previously saved debug-awake preferences were retained for eventual restoration.
+Both signed release assets were independently reverified before installation.
+
+The initial two attempts failed before sending firmware: protected Wi-Fi status
+reads returned ATT `0x11` (insufficient resources). The gauge log showed successful
+SoftAP startup, not a Wi-Fi allocation crash. `wifi_bulk_status()` deliberately
+uses a zero-wait mutex; a busy worker can therefore produce a temporary unavailable
+status. Android now retries only that read response, at most four total attempts
+with 100/200/300 ms delays. Owner-establishment reads also tolerate it within their
+existing four-attempt budget. Writes are never replayed; disconnects, authentication
+errors and other failed status reads retain their prior handling.
+
+After the App replacement, a service-discovery attempt timed out while the previous
+maintenance session was still active. This timeout is recorded separately; the
+status-lock explanation does not establish its cause. The owner power-cycled only
+the gauge. The next full hosted installation passed `WifiFirmwareJourneyTest` in
+100.449 seconds including setup/download. The update journey was 70,966 ms:
+
+- Authenticated preflight: 1,107 ms.
+- Gauge Wi-Fi startup: 2,677 ms cumulative.
+- Android network availability: 10,197 ms after request.
+- First authenticated Wi-Fi reply: 13,292 ms cumulative.
+- Sending stage: 16,892 ms; verification: 56,994 ms.
+- Restart: 58,341 ms; running-image confirmation followed.
+
+The gauge confirmed `0.2.0-dev.55`, signed ELF
+`f79a039c3c157024f5b44a88b70ed6ae3b574722a2ce5e0b65cca5158a983ac3`,
+alternate OTA slot, health 2 and cleared recovery journal. Revision 50, document
+digest, display settings and all phone profiles were unchanged. Android debug/test
+APK compilation and JVM tests passed for the App retry change; the replacement
+was installed without clearing data. No USB firmware flashing or ECU write occurred.
+Physical display/touch, live CEL filtering and loaded dual-adapter transfer recovery
+remain separate qualification gates.
+
+The opt-in `DisplayShowcaseJourneyTest` then passed in 37.428 seconds: capability
+`sc:1`, twenty-one frames, observed advancement, explicit stop, unchanged dashboard
+revision/digest/settings/profiles and a successful restart for owner viewing.
+Playback was left active for its bounded ten-minute review window. These are
+physical App/gauge protocol results; owner visual/touch confirmation was requested
+separately. The phone's original wake settings were restored after the session.
