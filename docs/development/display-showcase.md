@@ -3,7 +3,8 @@
 The UI implementation, installed in signed dev.55, introduces an owner-authorized presentation showcase.
 The debug App exposes its start/stop control in Expert when the gauge reports `sc:1`.
 This is a UI review tool, not a vehicle-data source. Host renders and the opt-in dev.55 physical protocol journey passed on 2026-10-16.
-Physical screen appearance and touch observations remain separate owner checks.
+On 2026-10-16 the owner confirmed the demo looks good, screens cycle, hold exits,
+and normal pages and swipes work. This does not qualify live CEL filtering.
 
 ## Behavior and boundaries
 

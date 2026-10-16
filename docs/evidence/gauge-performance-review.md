@@ -218,3 +218,14 @@ revision/digest/settings/profiles and a successful restart for owner viewing.
 Playback was left active for its bounded ten-minute review window. These are
 physical App/gauge protocol results; owner visual/touch confirmation was requested
 separately. The phone's original wake settings were restored after the session.
+
+
+## 2026-10-16 owner display and touch confirmation
+
+After a successful showcase restart (41.202-second protocol fixture), the owner
+confirmed physical demo cycling, then reported: "The demo looks good. Hold to exit
+works and normal pages and swipes work." This closes the indoor visual acceptance
+and touch/normal-dashboard return checks for installed dev.55. It does not establish
+live CEL-filter behavior, every future screen contract, daylight readability or
+loaded dual-adapter update recovery. No additional firmware release is required
+for the next parked-vehicle qualification of this installed image.
