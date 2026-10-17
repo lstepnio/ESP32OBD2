@@ -24,6 +24,8 @@ class WifiFirmwareJourneyTest {
         val model = (compose.activity.application as EGaugeApplication).model
         val expectedVersion = requireNotNull(args.getString("expectedFirmwareVersion"))
         val expectedElf = requireNotNull(args.getString("expectedFirmwareElf"))
+        val activationPauseMs = args.getString("pauseBeforeActivationMs")?.toLong() ?: 0L
+        require(activationPauseMs in 0..60_000)
         compose.waitUntil(90_000) { model.connection.phase == ConnectionPhase.Ready &&
             model.activeDocument != null && model.displaySettings != null && model.bootIdentity != null }
         assertTrue(model.capabilities?.wifiBulk in setOf(
@@ -44,12 +46,19 @@ class WifiFirmwareJourneyTest {
         assertEquals(expectedElf, bundle.elfSha256.joinToString("") { "%02x".format(it) })
         val started = SystemClock.elapsedRealtime()
         val observations = mutableListOf<Pair<Long, OperationState>>()
-        compose.runOnUiThread { model.installSelectedUpdate() }
-        compose.waitUntil(1_200_000) {
-            val state = model.operation
-            if (observations.lastOrNull()?.second != state)
-                observations += SystemClock.elapsedRealtime() - started to state
-            state.kind == OperationKind.UPDATE && state.terminal
+        compose.runOnUiThread {
+            model.setDebugOtaPauseBeforeActivationMs(activationPauseMs)
+            model.installSelectedUpdate()
+        }
+        try {
+            compose.waitUntil(1_200_000) {
+                val state = model.operation
+                if (observations.lastOrNull()?.second != state)
+                    observations += SystemClock.elapsedRealtime() - started to state
+                state.kind == OperationKind.UPDATE && state.terminal
+            }
+        } finally {
+            compose.runOnUiThread { model.setDebugOtaPauseBeforeActivationMs(0) }
         }
         val elapsed = SystemClock.elapsedRealtime() - started
         assertEquals(model.operation.detail, "Firmware installed", model.operation.title)
@@ -72,7 +81,7 @@ class WifiFirmwareJourneyTest {
         }
         File(context.getExternalFilesDir(null), "wifi-firmware-result.txt").writeText(
             "Hosted signed App/Wi-Fi installation verified: $expectedVersion\nELF: $expectedElf\n" +
-            "Image bytes: ${bundle.image.size}; install journey: $elapsed ms\n$stages\n" +
+            "Image bytes: ${bundle.image.size}; install journey: $elapsed ms; debug activation pause: $activationPauseMs ms\n$stages\n" +
             "Alternate OTA slot, health 2 and cleared journal confirmed\n" +
             "Revision ${before.revision}, digest, settings and profiles preserved\n")
     }

@@ -39,7 +39,10 @@ Wi-Fi credentials, keys or raw vehicle captures. Serial capture is read-only.
    it as normal. Variable connection allocations must be compared at the same phase.
 4. Run a full hosted signed upload of a different authorized image using
    `WifiFirmwareJourneyTest`; exact image, health, alternate slot, cleared journal
-   and setup preservation must pass. A network-open test alone is insufficient.
+   and setup preservation must pass. Optional `pauseBeforeActivationMs=60000` uses
+   the existing bounded debug pause after verification so a minute health sample
+   records the receiver heap minimum before reboot. The fixture resets that debug
+   setting in `finally`; default is zero. A network-open test alone is insufficient.
 5. During active AP/transfer, require at least 32 KiB internal free and an 8 KiB
    largest internal 8-bit block in captured samples, no ordinary allocation failures,
    no reboot and continued essential task progress. Check sampled worker stack

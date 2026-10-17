@@ -51,8 +51,9 @@ Installed dev.56 [memory hardening](evidence/esp32-memory-hardening.md) relocate
 fixed LVGL arena and SDK-supported BSS to PSRAM, reducing linked internal static
 use by 84,664 bytes. It adds build budgets, checked Wi-Fi service creation, stronger
 admission, immutable status snapshots and allocation/stack diagnostics. Local/CI checks and signed App/Wi-Fi installation passed, with setup preserved and
-owner-confirmed normal pages/swipes. A 30-cycle maintenance test is running; loaded
-soak remains pending. Dev.57 adds 1 KiB application-stack headroom after a measured 552-byte margin,
+owner-confirmed normal pages/swipes. Thirty maintenance cycles passed in 284.124 seconds with no recorded allocation
+failures/reboot or accumulating cleanup loss; active internal free was about 100 KB.
+Loaded soak remains pending. Dev.57 adds 1 KiB application-stack headroom after a measured 552-byte margin,
 and a distinct version to qualify a full transfer received by optimized dev.56; its publication requires separate approval.
 
 Software checks for the hardening increment: Android build/lint, 156 JVM tests,

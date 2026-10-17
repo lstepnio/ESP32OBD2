@@ -120,3 +120,47 @@ spending 1 KiB of recovered internal heap for a measured safety margin. All othe
 task stacks and memory placement/lifecycle logic remain unchanged. It requires
 separate release authorization. Reinstalling/bypassing the identical-image guard is not a
 qualification method.
+
+
+## Dev.56 thirty-cycle bench result
+
+`WifiMaintenanceJourneyTest` completed all thirty requested cycles in **284.124
+seconds**, with fresh session identities, authenticated Wi-Fi OTA/config reads,
+protected closes, unchanged boot nonce, retained exact dev.56 ELF/health 2 and
+unchanged revision 50/digest/settings. The owner separately confirmed physical
+normal pages and working swipes after installation. No ECU write occurred.
+
+| Metric | Captured dev.56 range/result |
+| --- | --- |
+| Internal 8-bit free at network ready | 99,559..100,019 bytes |
+| Internal 8-bit free after close | 123,611..123,875 bytes |
+| Smallest largest internal 8-bit block | 31,744 bytes |
+| Minimum internal 8-bit heap recorded | 98,091 bytes |
+| PSRAM free at network-ready samples, minimum | 1,942,432 bytes |
+| Allocation failure counter | 0 throughout captured lifecycle samples |
+| Queue drops | No nonzero reported worker drops |
+| Reset during the thirty-cycle test | None; unchanged protocol boot nonce |
+
+After-close internal samples varied by only 264 bytes, within the 2 KiB investigation
+threshold, with no accumulating loss demonstrated over these thirty cycles. Largest
+block stayed 31,744 bytes. This is a short indoor lifecycle test with unavailable
+adapter workers, not an hours-long leak proof or loaded three-link/vehicle soak.
+The old baseline's legacy internal-capability aggregate and the new explicit 8-bit
+measurement are not an exact identical-capability A/B comparison. The linked
+84,664-byte static reduction is independent evidence of the allocation correction.
+
+Sampled stack minima were application 552, UI 2,960, primary adapter 952, child
+adapter 992, configuration 4,256, OTA 3,036, Wi-Fi server 6,040 and command worker
+2,560 bytes. The application margin is too close to the 512-byte bench floor for
+future alert paths. Prepared dev.57 raises only that stack by 1 KiB; no task stack
+is reduced. Full upload while dev.56 receives with external BSS/arena, post-dev.57
+stack observations, and loaded recovery qualification remain pending.
+
+
+Prepared dev.57 source `8af369b` passed local IDF/link-budget checks and all jobs in
+[quality run 38998481809](https://github.com/lstepnio/ESP32OBD2/actions/runs/38998481809).
+Its only firmware changes from dev.56 are application-stack 3,072 to 4,096 bytes
+and version identity. A separate App-test-only option compiles successfully and
+exposes the existing bounded debug pre-activation pause for memory observation;
+it defaults to zero and resets in `finally`. The firmware release source is pinned
+at `codex/memory-dev57-candidate`; publication/installation require owner approval.
