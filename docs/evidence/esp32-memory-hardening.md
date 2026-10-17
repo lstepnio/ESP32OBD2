@@ -324,6 +324,8 @@ The read-only USB logger was closed and normal eGauge was reopened. The shared
 debug-awake record had already been removed by another session when final stop
 was attempted; status confirmed the helper inactive, screen timeout 60,000 ms and
 charging-wake value 15. No missing original values were guessed or overwritten.
-Owner normal-page/clean-text/swipe confirmation is pending separately. Loaded
+On 2026-10-16 the owner separately confirmed dev.57 shows a normal page with clean
+text and working swipes. This confirmation does not cover the subsequent unchecked-
+caption removal or expanded display envelope, which have not been installed. Loaded
 ECM/TCM/phone soak, unattended Bluetooth recovery and interrupted maintenance/OTA
 remain open; no OOM-immunity or production-capability claim is made.
