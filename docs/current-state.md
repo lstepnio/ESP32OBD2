@@ -8,8 +8,8 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-read retry; firmware source dev.56 prepared, signed dev.55 installed | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
-| Installed Pixel and gauge | Pixel App dev.51 installed without data clearing; gauge signed dev.55 from `9c6c85c`, generation 36 | Full hosted App/Wi-Fi transfer, exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; owner confirmed dev.55 demo appearance/cycling, hold-to-exit and normal pages/swipes |
+| Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-read retry; firmware source dev.57 prepared for transfer qualification, signed dev.56 installed | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Installed Pixel and gauge | Pixel App dev.51 installed without data clearing; gauge signed dev.56 from `90347ce`, generation 37 | Full hosted App/Wi-Fi transfer, exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; owner confirmed dev.55 demo appearance/hold exit and dev.56 normal pages/swipes |
 | Gauge dashboard | Revision 50; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
 | Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors; dev.53 live both-source reads/resume and each adapter loss/recovery passed |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
@@ -47,12 +47,13 @@ No live vehicle session or ECU clear was performed by the dev.48 rollout.
 | Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Setup review](evidence/second-adapter-setup.md); [dev.53 live reads/resume, independent loss/recovery and phone off/on](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification); owner confirmed live ECM/TCM display and independent expiry/return | Startup absence, loaded maintenance, rates and sustained soak remain open |
 | Health measurements | Fixed worker records, queue drops and free/largest memory in minute logs | Dev.47 sample and dev.53 approximately ten-minute dual field capture; App/UI progress, zero recorded queue drops and internal minimum 44,843 bytes | Longer controlled soak, measured gap/rate and memory limits |
 
-Prepared dev.56 [memory hardening](evidence/esp32-memory-hardening.md) relocates the
+Installed dev.56 [memory hardening](evidence/esp32-memory-hardening.md) relocates the
 fixed LVGL arena and SDK-supported BSS to PSRAM, reducing linked internal static
 use by 84,664 bytes. It adds build budgets, checked Wi-Fi service creation, stronger
-admission, immutable status snapshots and allocation/stack diagnostics. Local build
-and host checks passed; the installed gauge remains dev.55. Signed publication,
-installation, repeated lifecycle measurements and loaded soak remain pending.
+admission, immutable status snapshots and allocation/stack diagnostics. Local/CI checks and signed App/Wi-Fi installation passed, with setup preserved and
+owner-confirmed normal pages/swipes. A 30-cycle maintenance test is running; loaded
+soak remains pending. Version-only dev.57 is prepared to qualify a full transfer
+received by the optimized dev.56 code; its publication requires separate approval.
 
 Software checks for the hardening increment: Android build/lint, 156 JVM tests,
 18 emulator tests, 75 host tests, sanitized production C fixtures, firmware build,

@@ -92,3 +92,28 @@ requires separate owner authorization and green CI. The [qualification runbook](
 owns the next repeated AP lifecycle, signed full upload, memory/stack measurements,
 physical display/touch and loaded dual-source soak. Public capability flags remain
 disabled; no main merge, USB flashing, vehicle mutation or owner/bond reset occurred.
+
+
+## Authorized dev.56 publication and installation
+
+All jobs in [quality run 38997376649](https://github.com/lstepnio/ESP32OBD2/actions/runs/38997376649)
+passed for `90347ce`. The owner explicitly authorized publication, App/Wi-Fi
+installation and repeated memory tests. Protected [release run 38997833006](https://github.com/lstepnio/ESP32OBD2/actions/runs/38997833006)
+published immutable dev.56 from exact source `90347ceb3f41a094086c4a387a7a5d4172ac6dba`,
+using catalog generation 37. Independent verification passed for both signatures,
+package/image hashes and sizes, board/layout/protocol, version and signed ELF
+`782875f89d3307b1a8e25147f068c15b70a4e5555bc99c2360b1693974a9dec1`.
+
+`WifiFirmwareJourneyTest` passed in 109.889 seconds. The update portion took
+71,890 ms, with sending at 16,039 ms, verifying at 55,839 ms and restart at 57,301 ms.
+The exact image ran in the alternate slot with health 2, cleared recovery journal
+and unchanged revision 50/digest, display settings and phone profiles. The owner
+confirmed normal physical pages and working swipes. The 30-cycle maintenance test
+then started with private serial capture; its final result is not inferred here.
+
+The incoming transfer was executed by the previous dev.55 runtime. To exercise
+full reception/flash/signature verification while the optimized PSRAM layout is
+running, a **version-only dev.57** candidate is prepared. It changes only firmware
+version identity, preserves the same memory implementation and requires separate
+release authorization. Reinstalling/bypassing the identical-image guard is not a
+qualification method.
