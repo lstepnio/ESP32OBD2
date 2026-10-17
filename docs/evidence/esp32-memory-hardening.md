@@ -265,7 +265,7 @@ unchanged boot nonce and retained exact dev.57 image/health 2/revision 51/settin
 Network-ready internal free was 98,711..98,995 bytes; both closes recovered to
 122,711 bytes with a 31,744-byte largest block. Recorded internal minimum was
 97,243 bytes and allocation failures remained zero. The measured application
-stack margin reached 1,576 bytes during subsequent rendering/health logging.
+stack minimum reached 1,512 bytes during subsequent rendering/health logging.
 The complete twenty-one-frame protected showcase and owner display/touch check
 are being collected separately from these maintenance results.
 
@@ -288,3 +288,42 @@ This addresses the demonstrated ownership race without establishing it as the
 cause of every earlier GATT failure.
 All eighteen focused foreground/owner/cleanup JVM cases, both APK builds and lint
 passed after the fix; the new regression failed against the previous controller.
+All jobs in [quality run 39001134847](https://github.com/lstepnio/ESP32OBD2/actions/runs/39001134847)
+passed for `d393490`. Its App/test APKs were installed without data clearing.
+
+An external Maps experiment then replaced the production APK while the next
+showcase fixture was starting. Android recorded PACKAGE UPDATED at 22:04:25;
+that interrupted attempt is not an App runtime crash or a valid showcase result.
+The experiment subsequently restored the exact local `d393490` production APK,
+verified by SHA-256 equality, and finished in a separate sandbox package. It was
+left installed. The shared phone wake helper was restarted for the remaining
+qualification, and USB capture was extended. A POWERON reset was observed when
+that capture reopened; it occurred between the completed maintenance checks and
+the final graphics attempt, not inside the two-cycle unchanged-boot assertion.
+The logs alone do not establish the reset's cause. The gauge retained its owner
+and signed dev.57 identity. Final graphics/physical results follow separately.
+
+### Final graphics and session teardown
+
+`DisplayShowcaseJourneyTest` passed in **221.939 seconds** using App source
+`d393490`. Protected reads observed every distinct frame index **0..20** on the
+physical gauge. App-owned stop completed, followed by actual protected document/
+settings readback confirming revision 51/digest/settings and retained phone
+profiles. This is protocol/render-path qualification, not camera capture or owner
+approval of every pixel, unit, rotation and daylight condition.
+
+Across captured dev.57 maintenance/rendering boots, minimum sampled stack margins
+were application **1,512**, UI **2,496**, primary adapter **968**, child **992**,
+configuration **4,256**, OTA **3,036**, Wi-Fi server **6,040** and command **2,576**
+bytes. The final graphics boot alone recorded application 1,544 and UI 2,528 bytes.
+All captured allocation counters and reported worker queue drops stayed zero.
+These are exercised-path minima, not proof of every possible call path; adapters
+were unavailable indoors and the full upload's signature work ran on dev.56.
+
+The read-only USB logger was closed and normal eGauge was reopened. The shared
+debug-awake record had already been removed by another session when final stop
+was attempted; status confirmed the helper inactive, screen timeout 60,000 ms and
+charging-wake value 15. No missing original values were guessed or overwritten.
+Owner normal-page/clean-text/swipe confirmation is pending separately. Loaded
+ECM/TCM/phone soak, unattended Bluetooth recovery and interrupted maintenance/OTA
+remain open; no OOM-immunity or production-capability claim is made.

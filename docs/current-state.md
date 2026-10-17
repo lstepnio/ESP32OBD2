@@ -9,7 +9,7 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
 | Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-session cleanup/owner-read recovery; firmware `0.2.0-dev.57` | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
-| Installed Pixel and gauge | Pixel App dev.51 from `ad302d4` installed without data clearing; gauge signed dev.57 from `8af369b`, generation 38 | Full hosted App/Wi-Fi transfer, exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; dev.57 physical display/touch check remains separate from earlier owner confirmations |
+| Installed Pixel and gauge | Pixel App dev.51 from `d393490` installed without data clearing and APK hash verified after an external restore; gauge signed dev.57 from `8af369b`, generation 38 | Full hosted App/Wi-Fi transfer used App `ad302d4`; exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; dev.57 physical display/touch check remains separate from earlier owner confirmations |
 | Gauge dashboard | Revision 51; saved whole-vehicle dashboard retained | Exact revision/digest preservation passed; successful readback does not qualify every reading or alert on a vehicle |
 | Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors; dev.53 live both-source reads/resume and each adapter loss/recovery passed |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
@@ -45,7 +45,7 @@ No live vehicle session or ECU clear was performed by the dev.48 rollout.
 | Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Full signed dev.57 App/Wi-Fi upload received by optimized dev.56; exact healthy alternate image, cleared journal and setup preservation; thirty dev.56 maintenance cycles and two dev.57 cycles passed | Initial Bluetooth preparation failures needed a Pixel Bluetooth reset; unattended recovery, Wi-Fi interruption and loaded live-adapter qualification remain |
 | Phone persistence | Schema 12 coupled profiles/assignments; serialized IO; cancellation-safe writes and typed pairing failures | 156 JVM tests, 18 emulator fixtures; initial Pixel migration retained data | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
 | Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Setup review](evidence/second-adapter-setup.md); [dev.53 live reads/resume, independent loss/recovery and phone off/on](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification); owner confirmed live ECM/TCM display and independent expiry/return | Startup absence, loaded maintenance, rates and sustained soak remain open |
-| Health measurements | Fixed worker records, queue drops, explicit internal/DMA/PSRAM lifecycle logs, allocation failure hook and sampled stack minima | [Memory bench](evidence/esp32-memory-hardening.md): zero recorded allocation failures/queue drops; full-transfer receiver internal minimum 94,991 bytes; dev.57 application stack margin observed at 1,576 bytes | Longer controlled loaded soak, missed transient/vendor-private failures and complete stack-path coverage |
+| Health measurements | Fixed worker records, queue drops, explicit internal/DMA/PSRAM lifecycle logs, allocation failure hook and sampled stack minima | [Memory bench](evidence/esp32-memory-hardening.md): zero recorded allocation failures/queue drops; full-transfer receiver internal minimum 94,991 bytes; dev.57 application stack margin observed at 1,512 bytes | Longer controlled loaded soak, missed transient/vendor-private failures and complete stack-path coverage |
 
 Installed dev.57 [memory hardening](evidence/esp32-memory-hardening.md) retains dev.56's relocation of the
 fixed LVGL arena and SDK-supported BSS to PSRAM, reducing linked internal static
@@ -57,7 +57,9 @@ The complete upload/signature verification received by optimized dev.56 retained
 94,991 bytes minimum internal heap and a 31,744-byte largest block, with zero
 recorded allocation failures. Dev.57 adds 1 KiB application stack after earlier
 488..552-byte margins; two subsequent Wi-Fi cycles passed and sampled application
-headroom reached 1,576 bytes. Graphics/physical observations are recorded separately.
+headroom reached 1,512 bytes. All 21 protected showcase frame indices, stop and
+actual saved-state readback passed on dev.57; owner display/touch confirmation
+remains separate. The USB logger is closed and the shared wake helper is inactive.
 Early Bluetooth failures and one duplicate-chat force-stop preceded the successful
 upload, which required a Pixel Bluetooth reset. The App now has bounded protected
 GATT cleanup and owner-read retries; the original failure cause and broader automatic
