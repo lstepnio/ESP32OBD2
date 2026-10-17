@@ -8,9 +8,9 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | App `0.2.0-dev.51` with prepared protected-session cleanup/owner-read recovery; signed firmware dev.57 published for stack/transfer qualification, dev.56 installed | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
-| Installed Pixel and gauge | Pixel App dev.51 installed without data clearing; gauge signed dev.56 from `90347ce`, generation 37 | Full hosted App/Wi-Fi transfer, exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; owner confirmed dev.55 demo appearance/hold exit and dev.56 normal pages/swipes |
-| Gauge dashboard | Revision 50; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
+| Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-session cleanup/owner-read recovery; firmware `0.2.0-dev.57` | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Installed Pixel and gauge | Pixel App dev.51 from `ad302d4` installed without data clearing; gauge signed dev.57 from `8af369b`, generation 38 | Full hosted App/Wi-Fi transfer, exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; dev.57 physical display/touch check remains separate from earlier owner confirmations |
+| Gauge dashboard | Revision 51; saved whole-vehicle dashboard retained | Exact revision/digest preservation passed; successful readback does not qualify every reading or alert on a vehicle |
 | Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors; dev.53 live both-source reads/resume and each adapter loss/recovery passed |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
 | Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; two same-model adapters reported by owner | Dev.53 live simultaneous source reads and independent sibling continuity/recovery passed; sustained-load qualification remains open |
@@ -18,7 +18,7 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 UI rollout: [Round 3 feedback and native rendering evidence](evidence/gauge-performance-review.md#2026-10-14-prepared-dev54-screen-compositor-and-showcase). Pixel dev.51 is installed with a bounded ATT resource-pressure read retry. Signed dev.55 from `9c6c85c`, generation 36, passed full App/Wi-Fi installation and post-boot preservation checks. The 21-frame showcase start/advance/stop/preservation journey passed and playback was restarted for owner review. Owner confirmed the demo looks good, cycles correctly, exits on hold and returns to normal pages with working swipes. Live vehicle CEL/alert qualification remains open.
 
-Latest rollout: [dev.53 fresh pairing recovery](evidence/gatt-long-read-recovery.md#dev53-authorized-pairing-recovery-outcome).
+Latest vehicle qualification: [dev.53 fresh pairing recovery](evidence/gatt-long-read-recovery.md#dev53-authorized-pairing-recovery-outcome).
 During the subsequent Jeep session, the gauge booted with its owner key absent while
 the Pixel retained its old bond. Fresh pairing failed because dev.52 was compiled with
 NimBLE security level 1. Dev.53 uses neutral global level 0 with a production build guard.
@@ -42,23 +42,26 @@ No live vehicle session or ECU clear was performed by the dev.48 rollout.
 | Shared alert/history framework | Threshold/MIL/synthetic producers share lifecycle, attention, bounded gauge context/journal, phone history/export and opt-in monitoring | Dev.48 Pixel/gauge synthetic Entry/Expired import and shared context/banner; 162 JVM tests, eight earlier emulator fixtures | Real vehicle alerts/context, physical attention, background/OEM and storage/power-loss matrix |
 | Pages/catalog/alerts | Five renderers; one catalog with 53 Mode 01 and two existing JSS readings; any selectable reading can alert, including named gear conditions | Software vectors, editor fixtures and preserved installed dashboard | New decimals/rendering, hidden-page alerts, dwell/stale behavior on real vehicle |
 | Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
-| Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Dev.48 App/Wi-Fi install and dev.49/dev.50/dev.51 signed App/Bluetooth recovery, exact healthy images and cleared journals; dev.51 two authenticated Wi-Fi open/read/close cycles without reboot; dev.52 full signed hosted Wi-Fi upload/alternate-slot activation with unchanged setup | Wi-Fi interruption and sustained transfer matrix; memory/radio qualification with live dual adapters |
+| Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Full signed dev.57 App/Wi-Fi upload received by optimized dev.56; exact healthy alternate image, cleared journal and setup preservation; thirty dev.56 maintenance cycles and two dev.57 cycles passed | Initial Bluetooth preparation failures needed a Pixel Bluetooth reset; unattended recovery, Wi-Fi interruption and loaded live-adapter qualification remain |
 | Phone persistence | Schema 12 coupled profiles/assignments; serialized IO; cancellation-safe writes and typed pairing failures | 156 JVM tests, 18 emulator fixtures; initial Pixel migration retained data | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
 | Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Setup review](evidence/second-adapter-setup.md); [dev.53 live reads/resume, independent loss/recovery and phone off/on](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification); owner confirmed live ECM/TCM display and independent expiry/return | Startup absence, loaded maintenance, rates and sustained soak remain open |
-| Health measurements | Fixed worker records, queue drops and free/largest memory in minute logs | Dev.47 sample and dev.53 approximately ten-minute dual field capture; App/UI progress, zero recorded queue drops and internal minimum 44,843 bytes | Longer controlled soak, measured gap/rate and memory limits |
+| Health measurements | Fixed worker records, queue drops, explicit internal/DMA/PSRAM lifecycle logs, allocation failure hook and sampled stack minima | [Memory bench](evidence/esp32-memory-hardening.md): zero recorded allocation failures/queue drops; full-transfer receiver internal minimum 94,991 bytes; dev.57 application stack margin observed at 1,576 bytes | Longer controlled loaded soak, missed transient/vendor-private failures and complete stack-path coverage |
 
-Installed dev.56 [memory hardening](evidence/esp32-memory-hardening.md) relocates the
+Installed dev.57 [memory hardening](evidence/esp32-memory-hardening.md) retains dev.56's relocation of the
 fixed LVGL arena and SDK-supported BSS to PSRAM, reducing linked internal static
 use by 84,664 bytes. It adds build budgets, checked Wi-Fi service creation, stronger
-admission, immutable status snapshots and allocation/stack diagnostics. Local/CI checks and signed App/Wi-Fi installation passed, with setup preserved and
-owner-confirmed normal pages/swipes. Thirty maintenance cycles passed in 284.124 seconds with no recorded allocation
-failures/reboot or accumulating cleanup loss; active internal free was about 100 KB.
-Loaded soak remains pending. Dev.57 adds 1 KiB application-stack headroom after a measured 552-byte margin,
-and a distinct version to qualify a full transfer received by optimized dev.56.
-The owner authorized its publication/installation; signed dev.57 from `8af369b`,
-generation 38, is published. Installation/peak-memory qualification is in progress
-after pre-send Bluetooth failures and an externally interrupted duplicate-chat
-attempt. These failures do not establish OOM; the evidence records their separate scopes.
+admission, immutable status snapshots and allocation/stack diagnostics. Local/CI,
+signed App/Wi-Fi installation and saved-state checks passed. Thirty dev.56 cycles
+passed in 284.124 seconds without a reboot or accumulating close-memory loss.
+The complete upload/signature verification received by optimized dev.56 retained
+94,991 bytes minimum internal heap and a 31,744-byte largest block, with zero
+recorded allocation failures. Dev.57 adds 1 KiB application stack after earlier
+488..552-byte margins; two subsequent Wi-Fi cycles passed and sampled application
+headroom reached 1,576 bytes. Graphics/physical observations are recorded separately.
+Early Bluetooth failures and one duplicate-chat force-stop preceded the successful
+upload, which required a Pixel Bluetooth reset. The App now has bounded protected
+GATT cleanup and owner-read retries; the original failure cause and broader automatic
+recovery remain open. Loaded dual-adapter/phone soak is still pending.
 
 Software checks for the hardening increment: Android build/lint, 156 JVM tests,
 18 emulator tests, 75 host tests, sanitized production C fixtures, firmware build,

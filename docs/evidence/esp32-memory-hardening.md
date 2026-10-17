@@ -211,5 +211,68 @@ session, and no transaction write is replayed. Focused JVM cases cover delayed o
 absent disconnect callbacks, cancellation, synchronous cleanup failure, transient
 owner proof, retry exhaustion, malformed/denied proof and the one-time legacy reset.
 This closes a source-level handover gap; the original field failure's precise
-cause is not inferred from the change. App installation and physical qualification
-of this addition are pending.
+cause is not inferred from the change. Ten focused JVM cases, App/test APK builds,
+lint and all jobs in [quality run 39000168256](https://github.com/lstepnio/ESP32OBD2/actions/runs/39000168256)
+passed for `ad302d4`. The App was installed without data clearing. Its first
+attempt still exhausted initial owner-read retries before sending. A Pixel
+Bluetooth off/on reset then restored the path; no bonds or saved data were removed.
+Successful installation after that reset does not prove the original handover
+failure is eliminated. Broader automatic recovery/soak remains a separate gate.
+
+### Completed optimized-receiver transfer
+
+The next `WifiFirmwareJourneyTest` passed in **166.884 seconds**. The installation
+portion took **132,638 ms**, including the requested **60,000 ms** debug pause
+after verification; excluding that pause it took 72,638 ms. Sending began at
+16,608 ms, verifying at 56,606 ms and running-image confirmation at 117,961 ms.
+These are sampled App stages, not wire-only throughput. App diagnostics measured
+1,123 ms authenticated preflight, 2,905 ms total through gauge AP startup, 9,924 ms
+Android network acquisition and 2,546 ms flash preparation.
+
+The receiver was optimized dev.56. Its pause before activation captured the
+post-upload/signature-verification heap minimum before reboot:
+
+| Receiver measurement | Captured result |
+| --- | ---: |
+| Internal 8-bit free at Wi-Fi ready | 100,151 bytes |
+| Minimum internal 8-bit heap through upload/verification | 94,991 bytes |
+| Smallest largest internal 8-bit block | 31,744 bytes |
+| Lowest periodic sampled internal free | 98,763 bytes |
+| Lowest periodic sampled PSRAM free | 1,940,252 bytes |
+| Internal free after Wi-Fi close, before activation | 123,791 bytes |
+| Allocation failures / reported queue drops | 0 / 0 |
+| OTA worker sampled stack margin | 1,868 bytes |
+
+Application stack observations reached 488 bytes on this dev.56 boot, reinforcing
+the already prepared 1 KiB correction in dev.57. UI/primary/child/configuration/
+Wi-Fi server/command sampled stack minima were 2,976/1,000/992/4,256/7,304/2,576
+bytes. The OTA worker's 2,485 ms maximum progress gap is consistent with the
+measured bounded flash preparation, not evidence of a stalled task. Stage samples
+and the registered hook do not detect every possible vendor private-pool failure.
+
+The App verified exact signed dev.57 ELF, alternate OTA slot, health 2, cleared
+recovery journal and unchanged revision **51**, digest, display settings and phone
+profiles. Revision 51 was already present before this test; the installation did
+not restore the earlier revision 50 snapshot. USB boot logs show the retained
+owner association and healthy confirmation after UI/BLE/application progress.
+No USB flashing, ECU write, capability promotion or main merge occurred.
+
+### Dev.57 maintenance and graphics checks
+
+Two fresh protected maintenance cycles passed in **35.106 seconds**, with opens
+of 1,589 and 1,951 ms, authenticated Wi-Fi OTA/config reads, protected close,
+unchanged boot nonce and retained exact dev.57 image/health 2/revision 51/settings.
+Network-ready internal free was 98,711..98,995 bytes; both closes recovered to
+122,711 bytes with a 31,744-byte largest block. Recorded internal minimum was
+97,243 bytes and allocation failures remained zero. The measured application
+stack margin reached 1,576 bytes during subsequent rendering/health logging.
+The complete twenty-one-frame protected showcase and owner display/touch check
+are being collected separately from these maintenance results.
+
+The first all-frame observer attempt timed out after 220 seconds (231.055 seconds
+overall), because it sampled App state through the ordinary approximately
+twenty-second Settings cadence while frames advance every eight seconds. Its
+`finally` stop completed. This was an observer error, not a demonstrated rendering
+or memory failure. The fixture now isolates foreground polling, directly observes
+protected showcase state, preserves App-owned start/stop, checks actual document/
+settings readback after stop and restores foreground polling in `finally`.
