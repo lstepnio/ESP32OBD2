@@ -53,6 +53,12 @@ static elm_result_t identifier(const char *wire, size_t fragment, elm_payload_t 
 int main(void)
 {
     elm_payload_t payload;
+    elm_response_t clear;elm_response_reset(&clear);
+    const char *ack="7E80144\r>";for(const char *p=ack;*p;p++)elm_response_push(&clear,*p);
+    assert(elm_response_decode_for_ecu(&clear,4,0,0x7e8,&payload)==ELM_OK && payload.length==0);
+    assert(elm_response_decode_for_ecu(&clear,4,0,0x7e9,&payload)!=ELM_OK);
+    elm_response_reset(&clear);ack="7E80144\r7E80144\r>";for(const char *p=ack;*p;p++)elm_response_push(&clear,*p);
+    assert(elm_response_decode_for_ecu(&clear,4,0,0x7e8,&payload)==ELM_AMBIGUOUS);
     for (unsigned gear = 0; gear < 4; ++gear) {
         static const char *const wires[] = {"7E9046255030D\r>", "7E9046255030B\r>", "7E90462550300\r>", "7E90462550301\r>"};
         static const uint8_t values[] = {13, 11, 0, 1};

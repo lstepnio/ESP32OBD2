@@ -9,11 +9,12 @@ import json
 import math
 import re
 from pathlib import Path
-from urllib.parse import unquote
 from jsonschema import Draft202012Validator, ValidationError
 from referencing import Registry, Resource
 
 ROOT = Path(__file__).resolve().parents[1]
+from generate_reading_catalog import run as check_catalog
+check_catalog(check=True)
 schemas = {p.name: json.loads(p.read_text()) for p in (ROOT / 'contracts').glob('*.schema.json')}
 registry = Registry().with_resources((x['$id'], Resource.from_contents(x)) for x in schemas.values())
 for schema in schemas.values():
@@ -71,11 +72,18 @@ def config(doc):
     for page in doc['pages']:
         check(len(page['pidIds']) == (2 if page['renderer'] == 'dual' else 1), 'Renderer channel count')
         check(all(x in defs for x in page['pidIds']), 'Page references unknown PID')
+    for action in doc.get('actions', []):
+        check(action['pageId'] in {page['id'] for page in doc['pages']}, 'Action references unknown page')
     for alert in doc['alerts']:
         check(alert['pidId'] in defs, 'Alert references unknown PID')
         d = defs[alert['pidId']]
         levels = [alert[k] for k in ('warning', 'critical') if k in alert]
         check(all(d['range']['min'] <= v <= d['range']['max'] for v in levels), 'Alert threshold outside PID range')
+        if alert['direction'] == 'equals':
+            check(d['unit'] == 'gear' and alert['hysteresis'] == 0, 'Equals requires gear and zero reset distance')
+            check(all(v in [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13] for v in levels), 'Unknown gear position')
+            continue
+        check(d['unit'] != 'gear', 'Gear requires equals')
         if len(levels) == 2:
             check((levels[0] < levels[1]) if alert['direction'] == 'above' else (levels[0] > levels[1]), 'Alert severity order')
         for level in levels:
@@ -91,6 +99,15 @@ def release_catalog(doc):
     check(doc['generatedAt'] < doc['expiresAt'], 'Catalog expiry order')
     unique(doc['releases'], 'releaseSequence')
 
+catalog = json.loads((ROOT / 'contracts/reading-catalog.json').read_text())
+for row in catalog['readings']:
+    pid(row['definition'])
+    check(len(row['gaugeLabel']) <= 32, 'Catalog gauge label too long')
+    # Exercise one selected definition at a time; catalog itself exceeds the runtime selection limit.
+    selected = json.loads((ROOT / 'android/app/src/main/assets/numeric_config_template.json').read_text())
+    definition = copy.deepcopy(row['definition']); definition['sourceId'] = 'ecm'
+    selected.update(schemaVersion=2, definitions=[definition], pages=[dict(id='page.catalog', name=row['gaugeLabel'], renderer='numeric', pidIds=[definition['id']])], alerts=[])
+    config(selected)
 count = 0
 for p in (ROOT / 'contracts/examples').glob('*.json'):
     d = json.loads(p.read_text())
@@ -114,7 +131,24 @@ def bad_binding(doc):
     bound(doc)
     doc['sources'][0]['adapter']['addressType'] = 'guess'
 
+def action_case(doc, **changes):
+    doc['schemaVersion'] = 2
+    doc['actions'] = [dict(type='jumpPage', pageId=doc['pages'][0]['id'], gesture='up', count=3, windowMs=5000)]
+    doc['actions'][0].update(changes)
+
 negative_cases = [
+    ('CEL filters injected into legacy schema', lambda d: d.update(diagnosticFilters=[dict(controller='ecm',code='P0420')])),
+    ('wildcard diagnostic filter', lambda d: d.update(schemaVersion=2,diagnosticFilters=[dict(controller='ecm',code='P042*')])),
+    ('padding diagnostic filter', lambda d: d.update(schemaVersion=2,diagnosticFilters=[dict(controller='ecm',code='P0000')])),
+    ('unknown diagnostic controller', lambda d: d.update(schemaVersion=2,diagnosticFilters=[dict(controller='both',code='P0420')])),
+    ('duplicate diagnostic filters', lambda d: d.update(schemaVersion=2,diagnosticFilters=[dict(controller='ecm',code='P0420')]*2)),
+    ('unbounded diagnostic filters', lambda d: d.update(schemaVersion=2,diagnosticFilters=[dict(controller='ecm',code=f'P{i:04X}') for i in range(1,18)])),
+    ('unknown control action', lambda d: action_case(d, type='disableAbs')),
+    ('missing action target', lambda d: action_case(d, pageId='missing')),
+    ('fractional gesture count', lambda d: action_case(d, count=3.5)),
+    ('unbounded gesture time', lambda d: action_case(d, windowMs=10001)),
+    ('unsupported gesture direction', lambda d: action_case(d, gesture='down')),
+    ('action injected into legacy schema', lambda d: (action_case(d), d.update(schemaVersion=1))),
     ('duplicate bound adapter', duplicate_binding),
     ('invalid binding address type', bad_binding),
     ('binding injected into legacy schema', lambda d: (bound(d), d.update(schemaVersion=1))),
@@ -149,22 +183,19 @@ signed['decoder'].update(endian='little', signed=True, denominator=1)
 signed['range'] = {'min': -32768, 'max': 32767}
 check(decode(signed, 'FEFF') == -2, 'Signed little-endian decoding')
 
-# Verify authored Markdown targets. External URLs are intentionally not network-tested.
-mds = [ROOT / 'README.md', ROOT / 'AGENTS.md', ROOT / 'CONTRIBUTING.md', ROOT / 'THIRD_PARTY_NOTICES.md']
-mds += list((ROOT / 'docs').rglob('*.md')) + [ROOT / 'android/README.md', ROOT / 'firmware/gauge/README.md']
-for p in mds:
-    destinations = re.findall(r'\]\(([^)]+)\)', p.read_text())
-    destinations += re.findall(r'<img\b[^>]*\bsrc=[\"\']([^\"\']+)', p.read_text())
-    for dest in destinations:
-        if '://' in dest or dest.startswith(('#', 'mailto:')):
-            continue
-        target = unquote(dest.split('#')[0])
-        check((p.parent / target).exists(), f'Broken link in {p.relative_to(ROOT)}: {dest}')
+# Documentation roles, source context, local files and heading anchors are offline gates.
+from documentation_policy import check_documentation
+md_count = check_documentation(ROOT)
 
 # NimBLE's global security floor filters every incoming adapter notification.
-# Owner protection belongs to the companion's authenticated attributes and identity gate.
+# Level 1 additionally rejects fresh pairing. Use neutral level 0 and per-service owner protection.
 sdk = (ROOT / 'firmware/gauge/sdkconfig').read_text()
-check('CONFIG_BT_NIMBLE_SM_LVL=1' in sdk, 'Unencrypted OBD replies must reach the adapter client')
+check('CONFIG_BT_NIMBLE_SM_LVL=0' in sdk, 'Neutral global security policy must permit fresh pairing and unencrypted adapter notifications')
+ble_init = (ROOT / 'firmware/gauge/main/src/ble_init.c').read_text()
+for setting in ('ble_hs_cfg.sm_mitm = 1', 'ble_hs_cfg.sm_sc = 1', 'ble_hs_cfg.sm_bonding = 1'):
+    check(setting in ble_init, f'Missing phone pairing security: {setting}')
+check('CONFIG_BT_NIMBLE_SM_SC=y' in sdk and '# CONFIG_BT_NIMBLE_SM_LEGACY is not set' in sdk,
+      'Secure Connections must remain enabled with legacy pairing disabled')
 companion = (ROOT / 'firmware/gauge/main/src/ble_companion.c').read_text()
 for guard in ('BLE_GATT_CHR_F_WRITE_AUTHEN', 'BLE_GATT_CHR_F_READ_AUTHEN',
               'desc.sec_state.encrypted', 'desc.sec_state.authenticated',
@@ -183,4 +214,4 @@ css = (ROOT / 'design/prototype/tokens.css').read_text()
 for name, color in tokens['color'].items():
     match = re.search(r'--' + re.escape(name) + r'\s*:\s*(#[0-9a-fA-F]{6})', css)
     check(match and match.group(1).lower() == color.lower(), f'Prototype token mismatch: {name}')
-print(f'PASS: {len(schemas)} schemas, {count} examples, {len(negative_cases)} rejection cases, signed decode vector, {len(mds)} document link sets, color token parity.')
+print(f'PASS: {len(schemas)} schemas, {count} examples, {len(negative_cases)} rejection cases, signed decode vector, {md_count} document link sets, color token parity.')

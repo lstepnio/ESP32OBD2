@@ -3,7 +3,7 @@ package com.lstepnio.egauge.core.designsystem
 import androidx.compose.runtime.Immutable
 
 /** Only presentation values belong here. No device or protocol objects. */
-enum class StatusTone { Neutral, Loading, Disabled, Error, Success, Stale, Offline, Critical }
+enum class StatusTone { Neutral, Loading, Disabled, Error, Success, Stale, Offline, Critical, Warning }
 @Immutable
 data class StatusUi(val title: String, val detail: String = "", val tone: StatusTone = StatusTone.Neutral)
 @Immutable

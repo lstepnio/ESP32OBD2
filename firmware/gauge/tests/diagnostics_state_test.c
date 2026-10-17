@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include "diagnostics_state.h"
 int test_lock_busy;
 int test_critical_depth;
@@ -37,5 +38,46 @@ int main(int argc, char **argv) {
  diagnostics_state_snapshot(1000, &unavailable); assert(!unavailable.valid);
  test_lock_busy = 0;
  read_at(1000); assert(packet[2]==12);
- puts("Diagnostics source, full lists, expiry, reconnect and simulation passed");
+ /* Independent controller evidence survives loss and reconnect of the other. */
+ diagnostics_state_configure_for(0,false,31,false);
+ diagnostics_state_configure_for(1,true,31,false);
+ diagnostics_state_connected_for(0); diagnostics_state_connected_for(1);
+ diagnostics_state_codes_for(0,3,codes,8,900);
+ diagnostics_state_codes_for(1,3,codes,4,900);
+ diagnostics_state_disconnected_for(1);
+ assert(diagnostics_state_full_status_for(0,1000,packet)==248);
+ assert(packet[2]==4 && packet[33]==3 && packet[34]==4 && packet[1]==0);
+ assert(diagnostics_state_full_status_for(1,1000,packet)==248);
+ assert(packet[2]==0 && packet[33]==1 && packet[34]==2 && packet[1]==1);
+ diagnostics_state_connected_for(1);
+ assert(diagnostics_state_full_status_for(1,1000,packet)==248 && packet[8]==2 && packet[34]==0);
+ assert(diagnostics_state_full_status_for(0,1000,packet)==248 && packet[8]==1 && packet[34]==4);
+ /* One physical link can carry independent engine and transmission endpoints. */
+ diagnostics_endpoint_configure(0,0,32,false);diagnostics_endpoint_configure(1,0,32,false);
+ diagnostics_state_connected_for(2);diagnostics_state_connected_for(3);
+ uint8_t readiness[]={0x82,0x07,0xaa,0x55};diagnostics_state_mil_payload(2,readiness,1000);
+ diagnostics_state_codes_for(3,3,codes,4,1000);
+ assert(diagnostics_endpoint_status(0,1000,packet)==248 && packet[2]==7 && packet[1]==0);
+ assert(diagnostics_endpoint_status(1,1000,packet)==248 && packet[2]==4 && packet[34]==2 && packet[1]==1);
+ diagnostics_state_failed_for(3,1,DIAGNOSTICS_UNAVAILABLE);
+ assert(diagnostics_endpoint_status(0,1001,packet)==248 && packet[2]==7);
+ uint8_t ready[24];assert(diagnostics_endpoint_readiness(0,1001,ready)==24 && ready[2]==7 && !memcmp(ready+20,readiness,4));
+ diagnostics_state_disconnected_for(3);
+ diagnostics_snapshot_t vehicle;diagnostics_vehicle_snapshot(1002,&vehicle);assert(vehicle.valid && vehicle.mil_on);
+ /* Retrieved unique count is separate from reported MIL count. */
+ diagnostics_endpoint_configure(0,0,33,false);diagnostics_endpoint_configure(1,0,33,false);
+ diagnostics_state_connected_for(2);diagnostics_state_connected_for(3);
+ diagnostics_state_mil(true,99,2000);
+ diagnostics_state_codes_for(2,3,codes,8,2000);
+ diagnostics_state_codes_for(2,7,codes,4,2000);
+ diagnostics_state_codes_for(2,10,codes,4,2000);
+ diagnostics_snapshot_t distinct;diagnostics_state_snapshot_for(2,2001,&distinct);
+ assert(distinct.distinct_count==4&&distinct.count_known&&!distinct.count_partial);
+ diagnostics_vehicle_snapshot(2001,&vehicle);assert(vehicle.distinct_count==4&&vehicle.count_partial);
+ diagnostics_state_codes_for(3,3,codes,4,2000);
+ diagnostics_state_codes_for(3,7,codes,4,2000);diagnostics_state_codes_for(3,10,codes,4,2000);
+ diagnostics_vehicle_snapshot(2001,&vehicle);assert(vehicle.distinct_count==6&&!vehicle.count_partial);
+ diagnostics_state_disconnected_for(3);
+ diagnostics_vehicle_snapshot(2002,&vehicle);assert(vehicle.distinct_count==4&&vehicle.count_partial);
+ puts("Diagnostics source, distinct count, coverage, full lists, expiry, reconnect and simulation passed");
 }

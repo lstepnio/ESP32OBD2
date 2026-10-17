@@ -9,10 +9,13 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -21,6 +24,9 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+
+// Bluetooth ATT error 0x11, not exposed as a BluetoothGatt constant.
+private const val ATT_INSUFFICIENT_RESOURCES = 0x11
 
 internal open class GaugeLinkException(message: String) : IllegalStateException(message)
 internal class GaugeCommandRejectedException(val status: Int) :
@@ -37,14 +43,14 @@ enum class FirmwareUpdateStage {
     CONFIRMING,
 }
 
-/** Experimental protocol-0 owner transaction for the firmware's numeric ECM subset. */
+/** Experimental protocol-0 authenticated gauge transactions. */
 @SuppressLint("MissingPermission")
 class GaugeConfigTransferClient(private val context: Context) {
     private val serviceId = UUID.fromString("6f1a0000-9e3b-4f45-a714-69c9d23b6c00")
     private val controlId = UUID.fromString("6f1a0002-9e3b-4f45-a714-69c9d23b6c00")
     private val stateId = UUID.fromString("6f1a0003-9e3b-4f45-a714-69c9d23b6c00")
     private sealed interface Event {
-        data class Ready(val mtu: Int) : Event
+        data class Ready(val mtu: Int, val control: BluetoothGattCharacteristic, val state: BluetoothGattCharacteristic) : Event
         data class Read(val bytes: ByteArray, val status: Int) : Event
         data class Write(val status: Int) : Event
         data class Failed(val reason: String) : Event
@@ -90,34 +96,60 @@ class GaugeConfigTransferClient(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     private suspend fun <T> withGauge(device: BluetoothDevice, operationTimeoutMs: Long = 240_000,
+                                      highThroughput: Boolean = false,
                                       action: suspend Session.() -> T): T {
         val events = Channel<Event>(16)
+        val closing = AtomicBoolean(false)
+        val disconnected = CompletableDeferred<Unit>()
         fun emit(event: Event) {
-            if (events.trySend(event).isFailure)
+            if (!closing.get() && events.trySend(event).isFailure)
                 events.close(GaugeLinkException("Gauge event queue overflowed"))
         }
         var requestedMtu = 23
         val readySent = AtomicBoolean(false)
+        val readyPublished = AtomicBoolean(false)
+        val discoveryGeneration = java.util.concurrent.atomic.AtomicInteger(0)
+        val handshakeHandler = Handler(Looper.getMainLooper())
+        val discovery = GattDiscovery { emit(Event.Failed("Could not discover gauge services")) }
         val callback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+                if (newState == BluetoothProfile.STATE_DISCONNECTED) disconnected.complete(Unit)
+                if (closing.get()) return
                 if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED)
                     emit(Event.Failed("Gauge disconnected during configuration ($status)"))
-                else if (newState == BluetoothProfile.STATE_CONNECTED && !gatt.requestMtu(185))
-                    gatt.discoverServices()
+                else if (newState == BluetoothProfile.STATE_CONNECTED)
+                    discovery.connect(gatt)
             }
             override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+                if (closing.get()) return
                 if (status == BluetoothGatt.GATT_SUCCESS) requestedMtu = mtu
-                if (!gatt.discoverServices()) emit(Event.Failed("Could not discover gauge services"))
+                discovery.discover(gatt)
             }
             override fun onServiceChanged(gatt: BluetoothGatt) {
-                emit(Event.Failed("Gauge services changed. Reconnect to reload its settings."))
+                if (closing.get()) return
+                if (readyPublished.get()) emit(Event.Failed("Gauge services changed. Reconnect to reload its settings."))
+                else {
+                    discoveryGeneration.incrementAndGet()
+                    handshakeHandler.removeCallbacksAndMessages(null)
+                    readySent.set(false)
+                    discovery.rediscover(gatt)
+                }
             }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-                if (status != BluetoothGatt.GATT_SUCCESS ||
-                    gatt.getService(serviceId)?.getCharacteristic(controlId) == null ||
-                    gatt.getService(serviceId)?.getCharacteristic(stateId) == null)
-                    emit(Event.Failed("Gauge transfer service is unavailable"))
-                else if (readySent.compareAndSet(false, true)) emit(Event.Ready(requestedMtu))
+                if (closing.get()) return
+                if (!readySent.compareAndSet(false, true)) return
+                val service = if (status == BluetoothGatt.GATT_SUCCESS) gatt.getService(serviceId) else null
+                val control = service?.getCharacteristic(controlId)
+                val state = service?.getCharacteristic(stateId)
+                if (control == null || state == null) emit(Event.Failed("Gauge transfer service is unavailable"))
+                else {
+                    // Cache invalidation can follow discovery success. Only publish the latest database.
+                    val generation = discoveryGeneration.get()
+                    handshakeHandler.postDelayed({
+                        if (discoveryGeneration.get() == generation && readyPublished.compareAndSet(false, true))
+                            emit(Event.Ready(requestedMtu, control, state))
+                    }, 750)
+                }
             }
             @Deprecated("Required for Android 10 through 12")
             override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
@@ -138,21 +170,34 @@ class GaugeConfigTransferClient(private val context: Context) {
             val ready = withTimeout(20_000) { events.receive() }
             if (ready is Event.Failed) throw GaugeLinkException(ready.reason)
             require(ready is Event.Ready)
+            // Recovery OTA exchanges thousands of acknowledged packets. Ask Android
+            // for faster connection timing; refusal never blocks the protected path.
+            if (highThroughput) gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
             withTimeout(operationTimeoutMs) {
-                val session = Session(gatt, events, ready.mtu)
+                val session = Session(gatt, events, ready.mtu, ready.control, ready.state)
                 session.establishOwner()
                 session.action()
             }
+        } catch (failure: Exception) {
+            if (BuildConfig.DEBUG) Log.w("eGaugeLink", "Protected session failed (${failure.javaClass.simpleName}): ${failure.message}")
+            throw failure
         } finally {
-            gatt.disconnect()
-            gatt.close()
-            events.close()
+            closing.set(true)
+            handshakeHandler.removeCallbacksAndMessages(null)
+            discovery.close()
+            if (highThroughput) gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_BALANCED)
+            try {
+                val confirmed = closeGattSession({ gatt.disconnect() }, { disconnected.await() }, { gatt.close() })
+                if (!confirmed && BuildConfig.DEBUG) Log.w("eGaugeLink", "GATT disconnect callback missed cleanup deadline")
+            } finally {
+                events.close()
+            }
         }
     }
 
-    private inner class Session(private val gatt: BluetoothGatt, private val events: Channel<Event>, val mtu: Int) {
-        private val control = gatt.getService(serviceId).getCharacteristic(controlId)
-        private val state = gatt.getService(serviceId).getCharacteristic(stateId)
+    private inner class Session(private val gatt: BluetoothGatt, private val events: Channel<Event>, val mtu: Int,
+                                private val control: BluetoothGattCharacteristic,
+                                private val state: BluetoothGattCharacteristic) {
         private suspend fun next(): Event = withTimeout(12_000) { events.receive() }.also {
             if (it is Event.Failed) throw GaugeLinkException(it.reason)
         }
@@ -164,34 +209,23 @@ class GaugeConfigTransferClient(private val context: Context) {
             return event
         }
         suspend fun establishOwner() {
-            repeat(4) {
-                val result = readEvent()
-                if (result.status == BluetoothGatt.GATT_SUCCESS &&
-                    ((result.bytes.size == 8 && result.bytes[0].toInt() == 2) ||
-                     (result.bytes.size == 64 && result.bytes[0].toInt() == 3) ||
-                     (result.bytes.size == 56 && result.bytes[0].toInt() == 4) ||
-                     (result.bytes.size == 32 && result.bytes[0].toInt() == 5) ||
-                     (result.bytes.size == 60 && result.bytes[0].toInt() == 6) ||
-                     (result.bytes.size in 52..180 && result.bytes[0].toInt() == 7) ||
-                     (result.bytes.size == 44 && result.bytes[0].toInt() == 8) ||
-                     (result.bytes.size == 112 && result.bytes[0].toInt() == 9) ||
-                     (result.bytes.size == 8 && result.bytes[0].toInt() in 10..11) ||
-                     (result.bytes.size == 10 && result.bytes[0].toInt() == 12) ||
-                     (result.bytes.size == 140 && result.bytes[0].toInt() == 13) ||
-                     (result.bytes.size == 160 && result.bytes[0].toInt() == 14) ||
-                     (result.bytes.size == 248 && result.bytes[0].toInt() == 15))) return
-                if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
-                    result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION)
-                    error("Gauge owner state read failed (${result.status})")
-                delay(250)
-            }
-            error("Gauge owner link did not become authenticated")
+            establishProtectedOwner(
+                read = { readEvent().let { OwnerStateRead(it.status, it.bytes) } },
+                writeStatusReset = { writeRaw(it) },
+            )
         }
         suspend fun readRaw(): ByteArray {
-            val event = readEvent()
-            if (event.status != BluetoothGatt.GATT_SUCCESS)
-                throw GaugeLinkException("Protected read failed (GATT ${event.status})")
-            return event.bytes
+            // Firmware callbacks never block on worker-owned locks. ATT resource
+            // pressure can therefore be temporary during Wi-Fi startup. Retry only
+            // the read; never replay a command or hide a disconnect/auth failure.
+            repeat(4) { attempt ->
+                val event = readEvent()
+                if (event.status == BluetoothGatt.GATT_SUCCESS) return event.bytes
+                if (event.status != ATT_INSUFFICIENT_RESOURCES || attempt == 3)
+                    throw GaugeLinkException("Protected read failed (GATT ${event.status})")
+                delay(100L * (attempt + 1))
+            }
+            error("Protected status read retry budget exhausted")
         }
         suspend fun read(): Status {
             val bytes = readRaw()
@@ -235,7 +269,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                                attempts: Int = 80): OtaStatus {
             writeRaw(byteArrayOf(opcode.toByte()) + le32(sequence) + payload)
             if (opcode == 0x27) return readOta()
-            repeat(attempts) {
+            repeat(otaStatusPollCount(attempts)) { retry ->
                 val status = readOta()
                 if (status.sequence == sequence && status.opcode == opcode) {
                     check(status.result == 0) {
@@ -243,7 +277,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                     }
                     return status
                 }
-                delay(75)
+                delay(otaStatusPollDelay(retry))
             }
             error("Gauge did not confirm update command $opcode")
         }
@@ -255,10 +289,11 @@ class GaugeConfigTransferClient(private val context: Context) {
         return ConfigurationProjector.project(template, draft, profileId, baseRevision, adapter, schemaVersion).second
     }
 
-    suspend fun readAdapterStatus(device: BluetoothDevice): AdapterSourceStatus {
+    suspend fun readAdapterStatus(device: BluetoothDevice, sourceIndex: Int? = null): AdapterSourceStatus {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         return withGauge(device) {
-            writeRaw(byteArrayOf(0x52) + le32(1))
+            require(sourceIndex == null || sourceIndex in 0..1)
+            writeRaw(if (sourceIndex == null) byteArrayOf(0x52) + le32(1) else byteArrayOf(0x53) + le32(1) + byteArrayOf(sourceIndex.toByte()))
             decodeAdapterStatus(readRaw())
         }
     }
@@ -346,20 +381,135 @@ class GaugeConfigTransferClient(private val context: Context) {
         }
     }
 
-    suspend fun readDiagnostics(device: BluetoothDevice): Diagnostics {
+    suspend fun readDiagnostics(device: BluetoothDevice, sourceIndex: Int? = null): Diagnostics {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         val bytes = withGauge(device) {
             try {
-                writeRaw(byteArrayOf(0x39) + le32(1))
+                require(sourceIndex == null || sourceIndex in 0..1)
+                writeRaw(if (sourceIndex == null) byteArrayOf(0x39) + le32(1) else byteArrayOf(0x3a) + le32(1) + byteArrayOf(sourceIndex.toByte()))
             } catch (error: GaugeCommandRejectedException) {
                 // Only explicit unsupported opcode/length permits legacy fallback.
                 // Link loss, auth failure and malformed snapshots are never downgraded.
-                if (error.status !in setOf(6, 13)) throw error
+                if (sourceIndex != null || error.status !in setOf(6, 13)) throw error
                 writeRaw(byteArrayOf(0x30) + le32(1))
             }
             readRaw()
         }
         return GaugeProtocolCodec.diagnostics(bytes)
+    }
+
+    data class ClearStatus(val phase: Int,val supported: Boolean,val endpoint: Int,val operation: Long,
+        val token: Long,val revision: Long,val session: Long) {
+        val message: String get() = when(phase) {
+            0 -> "Code clearing is not available for this vehicle yet"
+            1 -> "Ready to prepare a clear request"
+            2 -> "Confirm the vehicle is parked with ignition on and engine off"
+            3,4 -> "Checking the clear result"
+            5 -> "Clear acknowledged and checked. Readiness may need to run again."
+            6 -> "Fault codes remain. Review the diagnostic report."
+            7 -> "Permanent codes remain. They clear only after the controller verifies the repair."
+            8 -> "Clear outcome is unknown. Checking current faults without sending again."
+            else -> "The clear request did not complete"
+        }
+    }
+    private fun clearStatus(bytes: ByteArray): ClearStatus {
+        require(bytes.size==32 && bytes[0].toInt()==18 && bytes[1].toInt() in 0..9 &&
+            bytes[2].toInt() in 0..1 && bytes[3].toInt()==0 && bytes.drop(24).all { it==0.toByte() })
+        return ClearStatus(bytes[1].toInt(),bytes[2].toInt()==1,0,u32(bytes,4),u32(bytes,8),u32(bytes,12),u32(bytes,16))
+    }
+    suspend fun readReadiness(device: BluetoothDevice,endpoint: Int,revision: Long,session: Long?): JSONObject = withGauge(device) {
+        require(endpoint in 0..1 && session!=null)
+        writeRaw(byteArrayOf(0x63)+le32(1)+byteArrayOf(endpoint.toByte()))
+        val bytes=readRaw()
+        require(bytes.size==24 && bytes[0].toInt()==19 && bytes[1].toInt()==endpoint && bytes[2].toInt() and 0xf0==0 && bytes[3]==0.toByte() && u32(bytes,4)==revision && u32(bytes,8)==session)
+        JSONObject().put("known",bytes[2].toInt() and 1!=0).put("fresh",bytes[2].toInt() and 2!=0)
+            .put("observedAtMs",u32(bytes,12)).put("rawMode01Pid01",bytes.copyOfRange(20,24).joinToString("") { "%02X".format(it.toInt() and 255) })
+    }
+    suspend fun readClearStatus(device: BluetoothDevice): ClearStatus = withGauge(device) {
+        writeRaw(byteArrayOf(0x62)+le32(1));clearStatus(readRaw())
+    }
+    suspend fun prepareClear(device: BluetoothDevice, operation: Long, revision: Long): ClearStatus = withGauge(device) {
+        writeRaw(byteArrayOf(0x60,0)+le32(operation)+le32(revision))
+        var status=clearStatus(readRaw())
+        repeat(10) { if(status.operation==operation || !status.supported)return@withGauge status
+            delay(100);status=clearStatus(readRaw()) }
+        error("Could not prepare the clear request")
+    }
+    suspend fun confirmClear(device: BluetoothDevice, prepared: ClearStatus): ClearStatus = withGauge(device) {
+        // One send only. A timeout is reconciled by status and diagnostics reads.
+        writeRaw(byteArrayOf(0x61,1)+le32(prepared.operation)+le32(prepared.token)+le32(prepared.revision))
+        var status=clearStatus(readRaw())
+        repeat(60) {
+            if(status.operation==prepared.operation && status.phase in 5..9)return@withGauge status
+            delay(150);writeRaw(byteArrayOf(0x62)+le32(1));status=clearStatus(readRaw())
+        }
+        error("Clear verification is incomplete. Read current faults before deciding whether to try another clear.")
+    }
+
+    suspend fun readAlertBatch(device: BluetoothDevice, boot: Long, cursor: Long, active: Boolean = false): AlertBatch? {
+        return try {
+            val bytes = withGauge(device) {
+                writeRaw(byteArrayOf(0x3c, if (active) 1 else 0) + AlertCodec.le32(boot) + AlertCodec.le32(cursor))
+                readRaw()
+            }
+            AlertCodec.decode(bytes)
+        } catch(error: GaugeCommandRejectedException) {
+            if(error.status !in setOf(6,13)) throw error
+            null
+        }
+    }
+    suspend fun readAlertContext(device: BluetoothDevice, event: AlertEvent): JSONObject = withGauge(device) {
+        var offset=0L
+        var total=0L
+        var flags=0
+        val samples=org.json.JSONArray()
+        do {
+            writeRaw(byteArrayOf(0x3f,event.key.toByte())+AlertCodec.le32(event.boot)+AlertCodec.le32(event.episode)+AlertCodec.le32(offset))
+            val bytes=readRaw()
+            require(bytes.size>=24 && bytes[0].toInt()==17 && bytes[2].toInt()==event.key &&
+                u32(bytes,4)==event.boot && u32(bytes,8)==event.episode && u32(bytes,20)==offset && (bytes.size-24)%12==0)
+            flags=bytes[1].toInt() and 255
+            if(flags and 1==0)break
+            require(u32(bytes,12)==event.revision)
+            total=u32(bytes,16);require(total<=480 && offset<=total)
+            val count=(bytes.size-24)/12;require(count in 0..16 && offset+count<=total)
+            for(i in 0 until count) {
+                val at=24+i*12;val value=Float.fromBits(u32(bytes,at+4).toInt())
+                val valid=bytes[at+9].toInt()==1
+                require(bytes[at+8].toInt() in 0..31 && bytes[at+9].toInt() in 0..1 && bytes[at+10].toInt()==0 && bytes[at+11].toInt()==0)
+                samples.put(JSONObject().put("atMs",u32(bytes,at)).put("pidIndex",bytes[at+8].toInt())
+                    .put("valid",valid && value.isFinite()).put("value",value.takeIf { valid && it.isFinite() }))
+            }
+            offset+=count
+            if(count==0)break
+        } while(offset<total)
+        JSONObject().put("available",flags and 1!=0).put("complete",flags and 2!=0 && offset==total)
+            .put("partial",flags and 4!=0 || flags and 1==0).put("volatileGaugeWindow",true)
+            .put("samples",samples)
+    }
+
+    suspend fun acknowledgeAlert(device: BluetoothDevice, event: AlertEvent, snoozeMs: Long = 0) {
+        withGauge(device) { writeRaw(AlertCodec.acknowledge(event,snoozeMs)) }
+    }
+    suspend fun relayExternalAlert(device: BluetoothDevice, slot: Int, boot: Long, sequence: Long,
+        severity: AlertSeverity, ttlMs: Long, title: String, context: String, simulated: Boolean = false) {
+        withGauge(device) { writeRaw(AlertCodec.external(slot,boot,sequence,severity,ttlMs,title,context,simulated)) }
+    }
+
+    suspend fun readDiagnosticEndpoint(device: BluetoothDevice, endpoint: Int): Diagnostics? {
+        require(endpoint in 0..1)
+        return try {
+            val bytes = withGauge(device) {
+                writeRaw(byteArrayOf(0x3b) + le32(1) + byteArrayOf(endpoint.toByte()))
+                readRaw()
+            }
+            GaugeProtocolCodec.diagnostics(bytes).also {
+                require(it.source == if (endpoint == 1) "TCM" else "ECM")
+            }
+        } catch (error: GaugeCommandRejectedException) {
+            if (error.status !in setOf(6, 13)) throw error
+            null
+        }
     }
 
     suspend fun readBootIdentity(device: BluetoothDevice): BootIdentity {
@@ -394,6 +544,35 @@ class GaugeConfigTransferClient(private val context: Context) {
             readRaw()
         }
         return GaugeProtocolCodec.hardwareSnapshot(bytes)
+    }
+
+    data class DisplayShowcaseState(val active: Boolean, val result: Int, val sequence: Long,
+        val frame: Int, val count: Int, val intervalSeconds: Int, val remainingMs: Long)
+
+    suspend fun readDisplayShowcase(device: BluetoothDevice): DisplayShowcaseState {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x65) + le32(1))
+            GaugeProtocolCodec.displayShowcase(readRaw())
+        }
+    }
+
+    suspend fun setDisplayShowcase(device: BluetoothDevice, enabled: Boolean, seconds: Int = 8): DisplayShowcaseState {
+        require(seconds in 5..30 && device.bondState == BluetoothDevice.BOND_BONDED) { "Invalid display demo request" }
+        val sequence = (SecureRandom().nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x64, if (enabled) 1 else 0, seconds.toByte()) + le32(sequence))
+            repeat(30) {
+                val state = GaugeProtocolCodec.displayShowcase(readRaw())
+                if (state.sequence == sequence) {
+                    check(state.result == 0) { "Display demo needs an idle gauge with vehicle adapters disconnected" }
+                    check(state.active == enabled) { "Display demo was interrupted; check the gauge" }
+                    return@withGauge state
+                }
+                delay(100)
+            }
+            error("Gauge did not confirm the display demo request")
+        }
     }
 
     suspend fun readDisplaySettings(device: BluetoothDevice): DisplaySettings {
@@ -586,9 +765,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 check(verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
                     verified.digest.contentEquals(bundle.sha256)) { "Gauge did not verify the signed image" }
             } catch (error: Exception) {
-                withTimeoutOrNull(WIFI_ABORT_CLEANUP_TIMEOUT_MS) {
-                    runCatching { command(0x26, id) }
-                }
+                boundedCleanup(WIFI_ABORT_CLEANUP_TIMEOUT_MS) { command(0x26, id) }
                 throw error
             }
                 stage(FirmwareUpdateStage.READY_TO_ACTIVATE)
@@ -598,9 +775,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 stage(FirmwareUpdateStage.RESTARTING)
             }
         } catch (error: Exception) {
-            withTimeoutOrNull(WIFI_CLOSE_CLEANUP_TIMEOUT_MS) {
-                runCatching { closeWifiBulk(device) }
-            }
+            boundedCleanup(WIFI_CLOSE_CLEANUP_TIMEOUT_MS) { closeWifiBulk(device) }
             throw error
         }
         stage(FirmwareUpdateStage.CONFIRMING)
@@ -623,7 +798,7 @@ class GaugeConfigTransferClient(private val context: Context) {
         val expectedElf = bundle.elfSha256.joinToString("") { "%02x".format(it) }
         check(before.elfSha256 != expectedElf) { "This signed firmware image is already running on the gauge" }
         progress(0)
-        withGauge(device, 1_200_000) {
+        withGauge(device, 1_200_000, highThroughput = true) {
             val current = otaCommand(0x27, sequence++)
             if (current.phase in 1..3 && current.transferId != 0L)
                 otaCommand(0x26, sequence++, le32(current.transferId))
@@ -659,7 +834,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 check(verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
                     verified.digest.contentEquals(bundle.sha256)) { "Gauge did not verify the signed image" }
             } catch (error: Exception) {
-                runCatching { otaCommand(0x26, sequence++, id) }
+                boundedCleanup(3_000) { otaCommand(0x26, sequence++, id) }
                 throw error
             }
             stage(FirmwareUpdateStage.READY_TO_ACTIVATE)
@@ -681,12 +856,8 @@ class GaugeConfigTransferClient(private val context: Context) {
         var sawNewPartition = false
         var last: BootIdentity? = null
         do {
-            last = try {
+            last = restartRead(minOf(20_000, deadline - SystemClock.elapsedRealtime())) {
                 readBootIdentity(device)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Exception) {
-                null
             }
             when (updateBootDecision(before, last, expectedElf, sawNewPartition, false)) {
                 UpdateBootDecision.CONFIRMED -> return UpdateResult(requireNotNull(last))
@@ -704,7 +875,7 @@ class GaugeConfigTransferClient(private val context: Context) {
 
     suspend fun apply(device: BluetoothDevice, draft: Draft, profileId: String,
                       expectedBaseRevision: Long, expectedBaseSha256: String,
-                      adapter: AdapterBinding? = null, schemaVersion: Int = 1,
+                      adapter: AdapterBinding? = null, schemaVersion: Int = 1, preparedDocument: ByteArray? = null,
                       stage: (OperationStage) -> Unit = {}): Applied {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         require(expectedBaseRevision >= 0 && expectedBaseSha256.matches(Regex("[0-9a-f]{64}"))) {
@@ -724,7 +895,11 @@ class GaugeConfigTransferClient(private val context: Context) {
                 "Gauge configuration changed from verified revision $expectedBaseRevision to ${current.revision}. " +
                     "Refresh and review the differences before sending."
             }
-            val bytes = document(draft, profileId, current.revision, adapter, schemaVersion)
+            val bytes = preparedDocument?.copyOf() ?: document(draft, profileId, current.revision, adapter, schemaVersion)
+            val projected = JSONObject(bytes.toString(Charsets.UTF_8))
+            require(projected.getLong("baseRevision") == current.revision && projected.getString("vehicleProfileId") == profileId) {
+                "Prepared setup no longer matches the checked vehicle/revision"
+            }
             expectedRevision = current.revision + 1
             digest = MessageDigest.getInstance("SHA-256").digest(bytes)
             val id = le32(transferId)
@@ -745,30 +920,28 @@ class GaugeConfigTransferClient(private val context: Context) {
                 stage(OperationStage.VERIFYING)
                 command(0x14, sequence++, id)
             } catch (error: Exception) {
-                runCatching { command(0x16, sequence++, id) }
+                boundedCleanup(3_000) { command(0x16, sequence++, id) }
                 throw error
             }
             // A disconnect during COMMIT is ambiguous. Reconnect and inspect the durable slot.
-            val commit = runCatching { command(0x15, sequence++, id) }.getOrNull()
+            val commit = suspendResult { command(0x15, sequence++, id) }.getOrNull()
             if (commit != null) check(commit.phase == 4 && commit.revision == expectedRevision &&
                 commit.hash.contentEquals(digest)) { "Gauge commit readback did not match the document" }
         }
         stage(OperationStage.SAVED)
         stage(OperationStage.RESTARTING)
         delay(6500)
+        val confirmationDeadline = SystemClock.elapsedRealtime() + 90_000
+        stage(OperationStage.CHECKING_RUNNING)
         var confirmed: Status? = null
         repeat(5) {
-            if (confirmed == null) {
-                val observed = try {
+            if (confirmed == null && SystemClock.elapsedRealtime() < confirmationDeadline) {
+                val observed = restartRead(minOf(20_000, confirmationDeadline - SystemClock.elapsedRealtime())) {
                     withGauge(device) { command(0x17, sequence++) }
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    null
                 }
                 if (observed?.phase in 1..3 && observed?.transferId == transferId &&
                     observed.opcode == 0x15 && observed.result != 0) {
-                    runCatching { withGauge(device) { command(0x16, sequence++, le32(transferId)) } }
+                    suspendResult { withGauge(device) { command(0x16, sequence++, le32(transferId)) } }
                     error("Gauge rejected configuration commit (result ${observed.result})")
                 }
                 if (observed?.phase == 0) confirmed = observed
@@ -778,20 +951,16 @@ class GaugeConfigTransferClient(private val context: Context) {
         val durable = confirmed ?: error("Gauge commit succeeded, but reboot readback is unavailable")
         if (durable.revision != expectedRevision || !durable.hash.contentEquals(digest)) {
             if (durable.phase in 1..3 && durable.transferId == transferId)
-                runCatching { withGauge(device) { command(0x16, sequence++, le32(transferId)) } }
+                suspendResult { withGauge(device) { command(0x16, sequence++, le32(transferId)) } }
             error("Gauge did not activate the sent configuration (result ${durable.result}); active revision ${durable.revision}")
         }
         val expectedHash = digest.joinToString("") { "%02x".format(it) }
         var runtime: RuntimeIdentity? = null
         stage(OperationStage.CHECKING_RUNNING)
         repeat(8) {
-            if (runtime == null) {
-                val observed = try {
+            if (runtime == null && SystemClock.elapsedRealtime() < confirmationDeadline) {
+                val observed = restartRead(minOf(20_000, confirmationDeadline - SystemClock.elapsedRealtime())) {
                     readRuntimeIdentity(device)
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    null
                 }
                 when (if (observed == null) null else confirmRuntime(durable.revision, expectedHash, observed)) {
                     null, RuntimeConfirmation.WAITING -> delay(1000)

@@ -2,7 +2,6 @@ package com.lstepnio.egauge
 
 import android.graphics.Bitmap
 import androidx.compose.ui.test.*
-import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.ui.state.isConfirmedSetup
@@ -23,7 +22,7 @@ class PhysicalConfigurationJourneyTest {
     @Test fun threeReadingSendWaitsForRunningProofAndRestoresTheOriginalGaugeLayout() {
         assumeTrue("Physical writes require an explicit bench run",
             InstrumentationRegistry.getArguments().getString("allowGaugeWrite") == "true")
-        val model = ViewModelProvider(compose.activity)[AppViewModel::class.java]
+        val model = (compose.activity.application as EGaugeApplication).model
         val output = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),
             "physical-journey").apply { mkdirs() }
         fun runOperation(action: () -> Unit) {

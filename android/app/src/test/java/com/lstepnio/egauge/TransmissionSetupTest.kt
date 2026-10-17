@@ -20,7 +20,7 @@ class TransmissionSetupTest {
         assertEquals("gear", gear.getString("unit"))
         assertEquals(draft, GaugeDraftComparison.savedDraft(GaugeConfigTransferClient.ActiveDocument(
             28, "0".repeat(64), bytes.size, "same-profile", 2, 1, 0, json.toString()), "same-profile"))
-        assertTrue(ConfigurationProjector.blockers(draft.copy(source = "ECM")).isNotEmpty())
+        assertTrue(ConfigurationProjector.blockers(draft.copy(source = "ECM")).isEmpty())
         val arc = draft.copy(pages = listOf(draft.pages.single().copy(layout = GaugeLayout.Arc, pidIds = listOf("tcmgear"))))
         assertTrue(ConfigurationProjector.blockers(arc).contains("Gear uses Numeric or Dual layout"))
     }

@@ -34,6 +34,87 @@ claim that every hardware failure scenario has already been qualified.
   have their own retry schedules and must not turn a successful gauge check into a
   false phone-link failure.
 
+## Durable local changes
+
+Use the coupled `LocalSetupStore` transaction for profiles and gauge assignments.
+Serialize writes on IO and publish UI state only after the commit acknowledges
+success. An admitted commit finishes before releasing its writer lease; cancellation
+while waiting never admits a write. Preserve malformed/newer source documents.
+Failed save keeps the prior visible model and blocks setup changes until reopening
+and review; rollback of the platform memory map is best-effort, not a guarantee
+against storage hardware failure. Journal cleanup failure must not reverse a
+protected, verified gauge outcome. Read-only page navigation needs no durable write.
+
+Use typed pairing/read errors and cancellation-preserving `suspendResult` for optional
+suspending work. Limit noncancellable cleanup to an explicit deadline. Reconcile
+unknown/corrupt update evidence only from authenticated healthy running identity.
+
+## Recovery implementation patterns
+
+- Give each external operation one monotonic budget. A fragmented response, a retry
+  or a cleanup step must not silently renew that budget. Use a single clock sample
+  for remaining time and explicit bounded cleanup sub-budgets.
+- Cancellation must reach the underlying resource. Moving blocking work to an IO
+  thread does not make it cancellable: close its socket to unblock streams, join the
+  child, then release the operation lease. `SocketIo.kt` is the Android pattern;
+  firmware `wifi_bulk_io.c` uses short syscall slices with one total IO budget.
+- A single task owns firmware socket close. Network stop, expiry and reopen
+  invalidate a session generation; old clients and queued batches check it before
+  further admission. Retired Android callbacks cannot modify the current request.
+- Resume immediately schedules settings and each configured source for readback.
+  Success resets the relevant backoff. Scope changes invalidate old completions;
+  repeated foreground signals do not create duplicate workers.
+- Optimize the successful path with existing connection reuse and bounded batches.
+  Do not lower deadlines without measurements of healthy and failure paths. Record
+  time to fresh authenticated state and time to released resources separately.
+- Keep routine loss/retry in the universal status widget, without recurring dialogs
+  or toasts. Explain a persistent failure once when an explicit user action really
+  is needed. Automatic discovery and protected reads can recover silently;
+  ambiguous writes must retain their outcome until identity/readback resolves it.
+- Log diagnostic causes and timings for development without exposing session keys,
+  private adapter identities or raw transport errors in normal user messages.
+
+See [recovery audit and qualification](../evidence/recovery-hardening.md) for the
+current application of these patterns and the remaining physical gates.
+
+## Android read scheduling and hosted HTTP
+
+Gauge health, settings and each adapter have independent `VehiclePollSchedule`
+instances. Healthy reads run at 20 seconds; scope changes and foreground resume
+make checks due. Adapter failure ticks do not repeat a still-current protected
+gauge check. Nominal 2/5/10/20/30-second retries receive 80..100% jitter, retain a
+one-second minimum and cap at 30 seconds. User reads still preempt and await
+automatic cleanup before acquiring the shared lease. An unexpected platform
+exception records a failure and backs off instead of terminating the foreground loop.
+
+Protected `GaugeConfigTransferClient` sessions retire discovery/read callbacks before
+cleanup. `closeGattSession` requests disconnect and waits for the platform callback
+for at most 1.5 seconds before closing the registered client, including cancellation.
+The shared operation lease stays held through that cleanup. When foreground
+`collectLatest` is cancelled, its controller retains the automatic job reference
+until the child finishes cleanup; a simultaneous user action can still await the
+owner instead of racing an apparently idle controller against a held lease.
+The initial owner read
+can retry authentication/encryption/resource pressure and Android GATT error 133
+at most four times; every successful handshake still requires a successful protected
+status frame. Only the existing one-time authenticated status-selector reset is
+permitted. Transaction commands, failed writes and uncertain mutations are never
+replayed by this handshake policy. Other BLE client paths retain their current
+cleanup and need separate qualification; this is not an app-wide disconnect guarantee.
+
+`resourceIo` closes blocking resources on cancellation and awaits the IO child.
+`socketIo` and `boundedHttpDownload` share it. Hosted responses have a 45-second
+total budget plus byte/connect/read bounds; the whole catalog search has a
+120-second budget. Candidate iteration rethrows cancellation. Manual checks and
+downloads mark busy before launch and cancel/join the automatic HTTP job before
+handover. Online failures do not invalidate an independently checked gauge.
+Signatures, compatibility, generation/conflict protection and reviewed installation
+remain mandatory. Background HTTP failure uses the existing 15-minute retry;
+a successful check waits six hours. No failed mutation is automatically replayed.
+
+[Product optimization evidence](../evidence/product-optimization.md) separates
+unit/HTTP fixtures, rendered UI and physical owner readback from hardware recovery.
+
 ## Multiple adapters
 
 Each required link has a stable ID, source title and independent status. The pill's
@@ -44,7 +125,9 @@ One lost source must not stop retries, data or alerts for another healthy source
 
 `ConnectionLinkUi` and the widget accept multiple links. Vehicles may have an
 optional transmission child in local storage; current firmware readback exposes
-one active source per selected gauge, so the app presently supplies one link. See
+one or two selected sources through the gated development path. The app supplies
+independent links, read schedules and failure state; one healthy adapter never makes
+the whole connection pill healthy when its required sibling is unavailable. See
 [vehicle connections](vehicle-connections.md) for the hierarchy and per-gauge contexts.
 Do not fabricate a second link or advertise simultaneous adapters from UI support.
 Complete source-specific firmware snapshots, bindings and coexistence validation
@@ -54,6 +137,10 @@ before extending the projection or promoting `maxAdapterLinks` above one.
 
 - Keep GAP/GATT callbacks and LVGL/touch paths bounded. Validate and copy/enqueue;
   do not wait for network replies, scan completion, flash writes or JSON processing.
+- NimBLE GATT read callbacks append the complete immutable characteristic value.
+  The host applies the ATT blob offset; never subtract it in both layers. Test long
+  responses at the minimum MTU and the installed controller MTU, including exact-end
+  and invalid offsets and allocation failure. Application document offsets are separate.
 - Published snapshots use short copy-only critical sections or nonblocking lock
   attempts. Contention returns a retryable failure, never an empty healthy packet.
   A critical section contains no flash, network, blocking queue, logging or other
@@ -100,3 +187,54 @@ to every possible deadlock.
   during commit, failed commit, stale revision, writer contention and clock expiry.
 - Physical foreground/background, adapter-loss and settings persistence checks with
   this exact build, flood testing and prolonged coexistence soak remain required.
+
+## Firmware health observation
+
+Extend `worker_health` and the existing minute health log, rather than creating
+unbounded diagnostic queues. Record owner-loop progress, admission drops and largest
+allocatable blocks alongside free memory. Progress during missing-adapter retry is
+healthy owner behavior. Measurements do not establish deadlock immunity or justify
+reset loops; use them to qualify failure/soak scenarios on actual hardware.
+
+## Wi-Fi maintenance memory budget
+
+The one-phone maintenance AP shares internal RAM with BLE, display and workers.
+Use the board's PSRAM-first Wi-Fi/LwIP allocator for eligible buffers, retain bounded
+DMA buffers internally, and keep RX Block Ack window no larger than static RX count.
+Do not inherit desktop-like throughput defaults without measuring startup headroom.
+The current board budget is two static RX/TX, eight dynamic RX/cached TX and six
+short management buffers. Check internal total and largest free block after driver
+initialization, before AP startup; defer startup through the existing failed-status
+and adapter-resume path when below the policy floors. These floors are conservative
+admission checks, not a reservation or a vendor crash guarantee. The maintenance
+worker retires its AP driver, handlers and DMA buffers on close or failed startup,
+then resumes adapter workers. Keep the shared event loop/netif runtime; use checked
+netif creation/attach instead of the SDK convenience constructor that asserts on
+allocation failure. Record physical
+startup, upload rate, post-start minimum/largest heap and repeated close/open before
+calling the budget qualified. See [startup failure evidence](../evidence/gatt-long-read-recovery.md#wi-fi-installation-blocker).
+
+Do not silently change an authorized Wi-Fi update into a Bluetooth/USB repair.
+Development Bluetooth recovery requires explicit owner authorization and exact
+signed bundle/version/ELF, then uses the existing serialized update owner, durable
+journal and healthy image confirmation. Keep ordinary UI on the normal Wi-Fi path.
+
+
+## Fresh pairing and build security
+
+NimBLE's compile-time security level affects both peripheral phone pairing and
+central adapter notifications. Keep `CONFIG_BT_NIMBLE_SM_LVL=0`: level 1 rejects
+fresh pairing, while levels >=2 discard the Vgate's unencrypted notifications.
+The neutral setting delegates phone security to authenticated GATT attributes,
+MITM/bonding/Secure Connections requests and the encrypted/authenticated/bonded
+saved-owner identity gate. Secure Connections stays enabled and legacy pairing stays
+disabled. Do not weaken those per-service checks to accommodate adapter transports.
+`ble_security_policy.h` rejects conflicting build configurations; CI compiles the
+actual policy against checked-in and invalid settings. Keep the existing SC-only
+runtime branch workaround for ESP-IDF 5.4.1 independently of the global level.
+
+Existing-bond reconnect, protected reads and OTA do not qualify fresh pairing.
+Record first pairing and absent/mismatched owner/bond recovery separately, then
+verify the durable owner after restart. Never silently recreate ownership or erase
+bonds from routine retry. An absent owner record is an unresolved persistence or
+reset event until supported by evidence; do not infer its cause from a pairing screen.

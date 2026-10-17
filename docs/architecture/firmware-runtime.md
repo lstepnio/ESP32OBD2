@@ -1,19 +1,21 @@
 # Firmware runtime ownership and recovery
 
-Updated 2026-10-06. Implemented development architecture. Public capability flags remain gated by hardware evidence.
+Updated 2026-10-16. Implemented development architecture. Public capability flags remain gated by hardware evidence.
 
 ## Task and resource inventory
 
 | Owner | Priority | Stack | Bounded input | Blocking boundary |
 | --- | ---: | ---: | --- | --- |
 | ESP main application owner | IDF default | 3,584 bytes | phone command queue: 4 | Applies selection and rotation commands. Persistence is serialized at the application boundary. |
-| `app_tick` | 5 | 3,072 bytes | alert sample queue: 16 | Ticks companion expiry, alert freshness, and UI snapshots every 100 ms. It does not wait for an adapter transaction. |
+| `app_tick` | 5 | 4,096 bytes | alert sample queue: 16 | Ticks companion expiry, alert freshness, and UI snapshots every 100 ms. It does not wait for an adapter transaction. |
 | `obd_task` | 5 | 4,096 bytes | one ELM request, RX bytes: 512 | Owns ECM connect, initialization, request/response, and bounded reconnect backoff. |
 | `tcm_link` | 5 | 4,096 bytes | one ELM request, RX bytes: 512 | Owns the optional second adapter lifecycle. TCM polling remains unavailable without a configured adapter and vehicle contract. |
 | `cfg_transfer` | 4 | 6,144 bytes | request queue: 4 | Owns config erase, write, hash, validation, and commit. Publishes a short immutable status snapshot. |
 | `ota_transfer` | 4 | 6,144 bytes | request queue: 4 | Owns inactive-slot writes, verification, signature checks, and activation. Publishes a short immutable status snapshot. |
 | `owner_store` | 4 | 3,072 bytes | owner-save queue: 1 | Moves NVS bond-owner persistence outside the NimBLE callback. Authorization remains closed until persistence succeeds. |
 | `boot_health` | 5 | 3,072 bytes | progress counter | Confirms configuration and OTA trials only after essential startup and at least five seconds of application tick progress. |
+| `wifi_control` | 4 | 5,120 bytes | owner command queue: 2 | Owns AP lifecycle, checked initialization and driver/netif cleanup. |
+| `wifi_bulk` | 4 | 8,192 bytes | one client, two 8,448-byte PSRAM frame buffers | Owns bounded socket IO; invalidated generations cannot write to a later transfer. |
 | NimBLE host | 5 | 4,096 bytes | manager result queue: 1 per link | GAP/GATT callbacks validate, copy, enqueue, or copy a published snapshot. No JSON validation or flash operation runs in an application GATT callback. |
 | LVGL owner | component managed | component configured | value: 1, touch: 4, pairing/alert/diagnostics: 1 each | Owns widgets and touch detection. Touch produces an application command. Numeric updates include PID identity and late samples are rejected. |
 
@@ -30,8 +32,10 @@ FreeRTOS stack canaries are enabled. The application health log reports the `app
 7. No subsystem lock is held while acquiring another subsystem lock. Queue admission from BLE callbacks is nonblocking.
 
 Display settings snapshots use a copy-only critical section independent of the NVS
-writer mutex; writer admission is bounded to 250 ms. Adapter status uses a short
-critical section. Diagnostics, adapter discovery and Wi-Fi status return a retryable
+writer mutex; writer admission is bounded to 250 ms. Adapter and Wi-Fi status use
+short copy-only critical sections. Wi-Fi GATT reads never acquire the maintenance
+worker mutex and recompute expiry/scrub expired credentials on the copied snapshot.
+Diagnostics and adapter discovery return a retryable
 failure when their short snapshot lock is busy. GATT rejects a missing snapshot
 rather than returning an empty packet. Adapter discovery callbacks do not wait for
 its worker mutex. ELM prompt waits use one clock observation for deadline arithmetic,
@@ -95,10 +99,85 @@ A pending image is confirmed only after display, touch, BLE companion startup, a
 | ELM response | 512 bytes |
 | Simultaneous NimBLE connections configured | 3 |
 
-The normal runtime selects one active Engine or Transmission source. Engine uses
-bounded Mode 01 definitions; Transmission permits the captured Mode 22 temperature
-and current-gear definitions. Five renderers, ordered pages, canonical-unit alerts
-and independent persisted display settings are implemented within compiler bounds.
-Transmission gear uses Numeric/Dual and its profile currently excludes alerts.
-PID 01 is reserved for MIL diagnostics. Schema-valid unsupported features are rejected
-before commit. Legacy second-link scaffolding is not simultaneous telemetry support.
+One whole vehicle dashboard compiles onto one primary adapter by default, or an
+explicitly configured primary/child pair. Each physical source has an independent
+poll worker, scheduler, parser, reconnect backoff and diagnostic session; shared
+discovery consumes one bounded deadline. Source loss invalidates only its samples
+and displayed values. Queued samples carry source generation. The shared catalog
+contains 53 bounded Mode 01 readings and captured Mode 22 temperature/current gear.
+Only selected pages and alerts are polled. Mixed-controller Dual pages and TCM
+alerts are supported by development cfg:5. Arbitrary enhanced definitions remain
+unsupported. PID 01 is reserved for MIL diagnostics. The configuration owns both
+bindings; three-link radio behavior and sustained rates remain unqualified.
+
+## Worker progress and memory evidence
+
+`worker_health.c` holds eight fixed atomic records: application, UI, primary adapter,
+child adapter, configuration, OTA, Wi-Fi server and Wi-Fi command. Owning loops
+publish progress, including adapter maintenance pauses and idle queue waits.
+Nonblocking queue rejection increments the relevant drop count. The existing
+minute health log includes progress age/count, maximum loop gap, admission drops,
+current free and largest allocatable internal/PSRAM blocks, existing heap minima,
+application/UI stack margins and alert queue/drop counts.
+
+The prepared dev.57 increases the application task from 3,072 to 4,096 bytes
+after dev.56 bench telemetry measured only 552 bytes of remaining stack. This
+uses 1 KiB of the recovered internal headroom; other task stacks are unchanged.
+
+Each worker additionally samples its own stack watermark once per 64 progress
+reports, starting with its first report. The log distinguishes an unobserved margin
+from a real zero margin. `memory_health.c` logs internal **8-bit** free/largest/minimum,
+internal DMA free/largest, PSRAM free/largest and allocation-failure count/last
+size/capabilities at boot, each Wi-Fi lifecycle boundary and the minute interval.
+The IRAM allocation hook updates three internal counters under a tiny copy-only
+critical section. It never allocates, logs, queries a heap, takes a mutex or performs
+IO. Logging occurs after releasing that section. It records failed allocation API
+calls after registration, not every SDK private-pool failure or historical boot OOM.
+
+These are approximate diagnostics, not synchronized transaction snapshots or an
+automatic reset policy. An unavailable adapter is normal recovery work, not a
+stalled task. No metric feeds a watchdog to disguise a stall. Firmware build and
+sanitized host fixtures qualify arithmetic and bounds only; physical soak,
+interruption and memory/rate measurements remain pending. See
+[offline hardening](../evidence/offline-hardening.md).
+
+## Memory placement and admission budget
+
+The Waveshare ESP32-S3R2 has 512 KiB on-chip SRAM, 2 MiB QSPI PSRAM and 16 MiB
+flash. Flash/PSRAM capacity does not establish internal RAM availability. DMA,
+cache-disabled operations and normal task stacks have stricter requirements.
+Follow the pinned [ESP-IDF 5.4.1 memory guidance](https://docs.espressif.com/projects/esp-idf/en/v5.4.1/esp32s3/api-guides/performance/ram-usage.html)
+and [external RAM constraints](https://docs.espressif.com/projects/esp-idf/en/v5.4.1/esp32s3/api-guides/external-ram.html).
+
+- LVGL retains its bounded 64 KiB TLSF arena. `lvgl_memory.h` places that CPU-only
+  arena in external BSS through LVGL's supported attribute hook. No managed vendor
+  source is patched. PSRAM initialization remains mandatory. The IDF external-BSS
+  option also relocates SDK-supported network/host data; keep the S3 PSRAM atomic
+  workaround enabled. PSRAM stays QSPI at the qualified 40 MHz setting.
+- The 240 × 10 × RGB565 LCD draw buffer is explicitly DMA-capable and internal.
+  Do not place DMA descriptors, ISR state or flash-writing task stacks in PSRAM.
+  Configuration trees/runtime and the two 8,448-byte Wi-Fi frame buffers already
+  use explicit PSRAM allocation without falling back into the internal radio heap.
+- `check_firmware_memory.py` runs after linking in ordinary and signed-release
+  builds. It requires the 64 KiB LVGL arena in external BSS, the failure hook in
+  IRAM and at most **192 KiB** combined `.dram0.data`, `.dram0.bss`, `.iram0.text`
+  and `.iram0.vectors`. This is a reviewed static budget, not a runtime-free guarantee.
+  Pool/budget changes require a new measured budget and matching negative tests.
+- Wi-Fi admission requires at least **64 KiB internal 8-bit free / 16 KiB largest**
+  before initializing a new driver and **32 KiB / 8 KiB** after initialization,
+  before enabling the AP. PSRAM is never substituted for those floors. The existing
+  two static RX/two static TX buffers, eight dynamic RX/cache TX buffers and PSRAM-
+  preferred eligible Wi-Fi/LwIP allocation remain. These floors need physical
+  qualification and cannot prevent all vendor private-pool allocation failures.
+- Allocate mandatory frame buffers before starting workers. Partial buffer/task/
+  queue creation releases its resources. A failed optional Wi-Fi service does not
+  abort the whole gauge: retain UI/owner/BLE management and omit `wifiBulk` from
+  capabilities if service initialization failed for that boot. No silent runtime task restart
+  or firmware transport switch is introduced by the qualification fixtures.
+- Deinitialize the driver, unregister AP handlers and destroy the AP netif after
+  close/start failure. Keep the shared event loop/netif runtime. Do not reduce
+  stack sizes or connection capacity merely to make a startup sample fit. Measure
+  worst-case signing/verification, rendering, three BLE links and Wi-Fi first.
+
+See [memory audit evidence](../evidence/esp32-memory-hardening.md) and the
+[repeatable qualification procedure](../development/memory-qualification.md).

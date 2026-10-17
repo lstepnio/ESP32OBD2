@@ -47,11 +47,11 @@ config EGAUGE_ECM_ADAPTER_MAC
         Six octets separated by colons. The adapter must advertise service 18F0.
         Configure this for deterministic source binding.
 
-config EGAUGE_TCM_ADAPTER_MAC
-    string "TCM BLE adapter MAC address (blank disables second link)"
-    default ""
-    help
-        Must differ from the ECM address. The second link connects only to this
-        address and remains idle until TCM PID definitions are configured.
-
 endmenu
+
+config EGAUGE_DTC_CLEAR_ENABLED
+    bool "Enable qualified addressed ECM emissions clearing"
+    default n
+    help
+        Development qualification switch. Never enable for an unqualified vehicle
+        or JSS transmission controller. Reading faults does not qualify clearing.

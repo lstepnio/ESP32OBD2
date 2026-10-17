@@ -205,6 +205,10 @@ esp_err_t bsp_lvgl_init(void)
                 .mirror_y = false,
             },
         .flags = {
+            // A small, fixed internal DMA draw buffer avoids hidden SPI bounce
+            // allocations. Only LVGL's CPU-side arena lives in PSRAM.
+            .buff_dma = true,
+            .buff_spiram = false,
             // GC9A01 SPI transactions carry each RGB565 pixel most-significant byte first.
             .swap_bytes = true,
         },

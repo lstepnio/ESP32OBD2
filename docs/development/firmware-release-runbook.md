@@ -16,7 +16,11 @@ The development app and firmware pin the public half of the development P-256 ke
 
 The workflow is `.github/workflows/development-release.yml`. Actions are pinned to commit SHAs. The build uses the same ESP-IDF version as quality CI, requires the ESP app descriptor version to equal the requested release version, signs the application-only image, creates a bounded `.egauge-dev-update` bundle, creates and signs `egauge-release-catalog.json`, and publishes an immutable prerelease.
 
-The workflow becomes dispatchable after it exists on the default branch. Until this integration branch is merged, a release may be bootstrapped with the exact workflow commands and uploaded as immutable GitHub release assets targeting the reviewed commit. A clean GitHub download must be compared byte for byte and its catalog signature independently verified before the app can install it. After merge, all releases use the protected workflow. Device installation and validation always start from GitHub Releases; local bundles are limited to explicit recovery engineering and are not a release path.
+The protected workflow is available on the default branch. Dispatch it against the
+exact reviewed feature ref and verify the run's Git SHA before publication. Every
+release uses this workflow; keep signing credentials in its protected environment.
+Device installation and validation start from GitHub Releases. Local bundles are
+limited to explicit recovery engineering and are not a release path.
 
 ## Publish
 
@@ -37,7 +41,7 @@ For a bad development release, mark it withdrawn in the next signed catalog by o
 
 `dev-v0.2.0-dev.11` is the first recorded withdrawal. Its catalog accidentally reused generation 3, which had already been consumed by dev.3. The companion's conflicting-generation guard rejected it before download or installation. Its assets remain immutable, its release notes identify the withdrawal, and dev.12 consumes generation 4.
 
-The companion currently searches published GitHub releases for the first signed catalog, verifies its signature and freshness, rejects a generation older than one previously trusted on the phone, and rejects different content reused under the same generation. It then selects the highest compatible sequence for the exact board, hardware range, layout, channel, and transfer protocol. A wrong board or layout cannot enter the updater. GitHub availability does not bypass the gauge's independent signature and image checks.
+The companion searches bounded published GitHub release candidates, verifies signatures and freshness, rejects a generation older than one previously trusted on the phone, and rejects different content reused under the same generation. It then selects the highest compatible sequence for the exact board, hardware range, layout, channel, and transfer protocol. A wrong board or layout cannot enter the updater. GitHub availability does not bypass the gauge's independent signature and image checks.
 
 ## Qualification gates
 
@@ -60,3 +64,63 @@ for update availability, including equal/older rejection. Other version families
 retain standard ordering. Bundle/catalog signature, descriptor and post-boot
 image checks still use the exact published identity; no comparison alias changes
 what image is accepted or confirmed. Publish new candidates as `0.2.0-dev.N`.
+
+## Authorized Bluetooth repair when maintenance Wi-Fi cannot start
+
+Wi-Fi remains the ordinary installation path. If the running image crashes while
+starting its maintenance AP, an owner may explicitly authorize the existing signed
+App/Bluetooth path for repair. Do not silently switch transports or use USB flashing.
+Use the debug App and test APK, retain a private setup backup, stage only the verified
+signed bundle under the App's external files as `authorized-recovery.egauge-dev-update`,
+and opt in to `BluetoothFirmwareRecoveryTest` with `allowBluetoothFirmwareRecovery=true`
+and exact `expectedFirmwareVersion` / `expectedFirmwareElf`. The test uses the App's
+serialized update owner and journal, verifies the healthy exact boot and checks that
+configuration, display settings and phone profiles remain unchanged. Run only while
+the phone and gauge are available; stop/restore the debug awake helper afterward.
+
+After a Wi-Fi repair, `WifiMaintenanceJourneyTest` opts in with
+`allowMaintenanceWifi=true` and the same expected version/ELF. Start from an idle App,
+with phone monitoring off and its process stopped, so the fixture can keep eGauge
+visible with automatic BLE polling disabled. It opens a maintenance network twice,
+reads authenticated OTA/config status through Wi-Fi, closes each session, verifies
+fresh session identities and checks unchanged boot/configuration/settings. Network
+startup/cleanup qualification is distinct from a full firmware upload, live adapter
+coexistence, or power-loss recovery. Record the physical result and memory evidence
+under the dated rollout report; leave private credentials and identifiers out of Git.
+
+
+## Full App/Wi-Fi installation qualification
+
+`WifiFirmwareJourneyTest` requires explicit `allowWifiFirmwareInstall=true` and exact
+`expectedFirmwareVersion` / `expectedFirmwareElf`. Use an authorized newly published
+signed development candidate: the production updater rejects the exact running image.
+Do not bypass that guard or downgrade solely to manufacture a transfer test. A version-only
+candidate can qualify the current firmware implementation without changing its logic.
+
+The fixture uses the ordinary hosted catalog check, signed download, App update owner,
+Wi-Fi transfer and post-restart confirmation. It checks the expected healthy ELF in the
+alternate OTA slot, cleared recovery journal and unchanged configuration/settings/profiles.
+Its sampled stage timestamps are diagnostic observations, not exact wire throughput;
+retain the existing `eGaugeUpdate` stage timings and private USB memory evidence. Keep
+phone monitoring off, take a private setup backup, keep the App visible and restore the
+awake helper at session end. Obtain owner display/touch confirmation separately.
+A successful indoor transfer does not qualify live dual-radio coexistence or interruptions.
+
+
+## Pairing recovery with an unowned gauge
+
+Confirm owner-window state, Android bond state and physical gauge behavior separately.
+A missing gauge owner and stale phone bond do not authorize a silent bond reset;
+obtain explicit authorization for removing the specific bond. Stop competing App
+reads while performing an approved fresh pairing. Exact-name Bluetooth Settings
+selection is available through the opt-in `SystemBluetoothUiTest`, using
+`allowSystemBluetoothUi=true`, `exactLabel` and optional `matchDescription=true`.
+It operates only in Android Settings and matches the current visible accessible
+control. Preserve remote shell quoting for labels containing spaces. Never use
+stale scan-row coordinates or interact with unrelated discovered devices.
+
+If firmware rejects fresh pairing before a passkey and no owner can authenticate,
+App/BLE and App/Wi-Fi installation cannot repair that image. Any USB recovery needs
+separate explicit authorization, a verified signed image, private flash backup,
+application-only partition targeting and preservation checks. Do not erase NVS,
+configuration slots or the partition table, or bypass authentication to make OTA work.

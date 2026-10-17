@@ -1,92 +1,121 @@
 # Current implementation and evidence
 
-Updated 2026-10-07. This is the authoritative status summary for this checkout.
-A source build, a simulated response and an owner observation are different evidence.
-Recheck Git, installed firmware and connected devices before a new hardware session.
+Updated 2026-10-16. This is the current support and installed-device snapshot.
+[Backlog](backlog.md) owns unfinished work; [roadmap](roadmap.md) orders outcomes.
+Dated [evidence](evidence/README.md) preserves measurements without defining today's plan.
 
-## Baseline
+## Verified baseline
 
-- Board: Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S touch,
-  16 MB flash and 2 MB PSRAM. ESP-IDF 5.4.1 with pinned components.
-- App: native Kotlin/Jetpack Compose Android, package `com.lstepnio.egauge`.
-  iOS work is deferred. Normal app gauge values are labelled previews, not live telemetry.
-- Repository: public `lstepnio/ESP32OBD2`, verified 2026-10-06. Release discovery
-  verifies signatures and compatibility; visibility alone does not prove feed availability.
-- Latest recorded physical gauge: `0.2.0-dev.40`, configuration revision 29.
-  Source version is in `firmware/gauge/version.txt`; it may be newer than the installed image.
-- The owner has one Vgate, swapped between separate ECM and TCM connectors on a
-  2010 Wrangler with 5.7 L Hemi / JSS ZF 8HP70 swap and confirmed PCS TCM-2800.
-  Diagnostic endpoint/bridge topology is not fully identified.
-
-## Feature status
-
-| Area | Implemented and evidence | Remaining qualification |
+| Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Pairing | Foreground Android discovery, system passkey dialog, protected owner readback and firmware owner persistence; subsequent Jeep work used the paired phone | Broader bond-loss/recovery and alternate phone matrix |
-| Engine telemetry | Gauge reads attributed 7E8 replies. Owner reported RPM agrees with dash, disappears after unplugging adapter and returns after reconnect | Vehicle/adapter matrix, long soak and achieved polling rates |
-| Transmission | One active TCM profile routes 7E1/7E9; combined Gear + Temperature page. Owner confirmed page worked and both readings cleared/returned on adapter loss/recovery | Independent temperature sensor/scale reference, gears 2..8, current/target divergence |
-| Faults | Mac captured full stored/pending/permanent TCM lists. Version 15 protected full snapshots and Android source/category groups implemented and tested offline | New long-read transfer on Pixel and full fault polling alongside Gear + Temperature |
-| Settings | Brightness, orientation, Metric/Imperial units and automatic saved-page interval persisted through existing settings path; initial app units follow locale region, saved choice/confirmed gauge wins | Physical units/persistence and automatic-cycle checks remain separate from protected readback |
-| Dashboards/alerts | Numeric, Arc, Bar, Trend and Dual renderers; bounded page/alert configuration, stronger palette and enlarged arc; host logic tests | Daylight/color review, alert transitions and hidden-page behavior on real vehicle |
-| Configuration | Atomic slots, exact review/projection, revision/hash conflict checks, trial/fallback and stored/running identity | Physical interruption matrix and all supported layouts/alerts on hardware |
-| Updates | Signed development catalog/bundle verification, owner BLE bootstrap, authenticated private Wi-Fi transfer, A/B trial confirmation and recovery journal; App/Wi-Fi installs recorded | Hardware power-loss/expiry matrix, production trust and performance measurements |
-| Multiple adapters | Android vehicles have an optional Expert TCM child, profile schema 6; remembered gauges retain independent vehicle/source contexts. Normal firmware uses one active source | Simultaneous adapters plus phone are unqualified; public link capacity is one |
+| Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-session cleanup/owner-read recovery; firmware `0.2.0-dev.57` | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Installed Pixel and gauge | Pixel App dev.51 from `d393490` installed without data clearing and APK hash verified after an external restore; gauge signed dev.57 from `8af369b`, generation 38 | Full hosted App/Wi-Fi transfer used App `ad302d4`; exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; owner confirmed dev.57 normal page, clean text and working swipes |
+| Gauge dashboard | Revision 51; saved whole-vehicle dashboard retained | Exact revision/digest preservation passed; successful readback does not qualify every reading or alert on a vehicle |
+| Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors; dev.53 live both-source reads/resume and each adapter loss/recovery passed |
+| Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
+| Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; two same-model adapters reported by owner | Dev.53 live simultaneous source reads and independent sibling continuity/recovery passed; sustained-load qualification remains open |
+| Repository | Public `lstepnio/ESP32OBD2`; continuing review PR #51 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
 
-## Public and experimental boundaries
+UI rollout: [Round 3 feedback and native rendering evidence](evidence/gauge-performance-review.md#2026-10-14-prepared-dev54-screen-compositor-and-showcase). Pixel dev.51 is installed with a bounded ATT resource-pressure read retry. Signed dev.55 from `9c6c85c`, generation 36, passed full App/Wi-Fi installation and post-boot preservation checks. The 21-frame showcase start/advance/stop/preservation journey passed and playback was restarted for owner review. Owner confirmed the demo looks good, cycles correctly, exits on hold and returns to normal pages with working swipes. Live vehicle CEL/alert qualification remains open.
 
-Public capability JSON keeps `configWrite:false` and `ota:false`. The bounded
-extensions (`cfg:3`, `ad:1`, `ds:3`, hardware and optional Wi-Fi features) expose
-specific development paths; they are not general production support claims.
-Public flags must follow implementation and physical evidence.
+Latest vehicle qualification: [dev.53 fresh pairing recovery](evidence/gatt-long-read-recovery.md#dev53-authorized-pairing-recovery-outcome).
+During the subsequent Jeep session, the gauge booted with its owner key absent while
+the Pixel retained its old bond. Fresh pairing failed because dev.52 was compiled with
+NimBLE security level 1. Dev.53 uses neutral global level 0 with a production build guard.
+Its separately authorized signed USB repair, fresh pairing and one owner-retention
+power cycle passed. Live both-source reads/resume, independent ECM/TCM loss/recovery
+and a phone Bluetooth off/on journey passed; the wider dual qualification matrix remains open.
+The owner-key disappearance remains unexplained; see [field diagnosis](evidence/gatt-long-read-recovery.md#jeep-fresh-pairing-regression-diagnosis).
+Original phone wake settings were restored after the Jeep session. Android and firmware are active; iOS is deferred.
+No live vehicle session or ECU clear was performed by the dev.48 rollout.
 
-TCM temperature request 2204FE uses only the first byte as A−40 °C. Other bytes
-remain uninterpreted. Captured current/target gear requests 225503/225504 compare
-P=0D, R=0B, N=00 and stationary Drive=01; Drive is not a distinct selector value.
-Pressure 225034 remains raw only. Shaft speed, converter slip/lockup and complete
-OEM fault inventory lack matching validated definitions. Code clearing is a design,
-not an implemented action. Simulated data never establishes vehicle compatibility.
+## Support and evidence
 
-## Next work
+| Area | Implemented | Observed qualification | Remaining work |
+| --- | --- | --- | --- |
+| Pairing/connection | Android system passkey, protected owner checks, persisted owner; automatic foreground reads and bounded retries | Repeated Pixel opening/resume; Bluetooth off/on recovery; paired Jeep sessions | Dev.53 fresh pairing/one power-cycle retention passed; original owner-key loss remains unexplained; additional retention, bond-loss, alternate-phone and interruption matrix |
+| Engine readings | Header-attributed replies and independently expiring values | Owner RPM agrees with dash; disappears after adapter removal and returns on reconnect | Adapter/vehicle matrix, rates and soak |
+| TCM readings | Captured `2204FE` temperature and `225503` current gear; combined pages | Owner temperature/gear display and loss/recovery checks on the JSS setup | Independent sensor/scale meaning, gears 2..8, current/target divergence |
+| Faults | Independent controller endpoints across a primary/child transport, full categories, fair polling and global presentation | Mac captured stored/pending/permanent TCM lists; software fixtures | Live full App/gauge path; TCM faults through one shared primary transport |
+| Display settings | Persisted brightness, orientation, Metric/Imperial and page interval; regional first-use units | Protected post-restart reads, owner five-second cycling/cooldown; App Metric save and Imperial restoration | Physical unit rendering, cycling/gesture interaction and daylight readability |
+| Car workspace | Selected car, compact health/recent alerts, focused code/history sheets; exact coverage in Expert | [Pixel visual review and fifteen focused emulator fixtures](evidence/car-ux-review.md); existing phone setup preserved | Live vehicle alert/fault UX qualification |
+| Shared alert/history framework | Threshold/MIL/synthetic producers share lifecycle, attention, bounded gauge context/journal, phone history/export and opt-in monitoring | Dev.48 Pixel/gauge synthetic Entry/Expired import and shared context/banner; 162 JVM tests, eight earlier emulator fixtures | Real vehicle alerts/context, physical attention, background/OEM and storage/power-loss matrix |
+| Pages/catalog/alerts | Five renderers; one catalog with 53 Mode 01 and two existing JSS readings; any selectable reading can alert, including named gear conditions | Software vectors, editor fixtures and preserved installed dashboard | New decimals/rendering, hidden-page alerts, dwell/stale behavior on real vehicle |
+| Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
+| Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Full signed dev.57 App/Wi-Fi upload received by optimized dev.56; exact healthy alternate image, cleared journal and setup preservation; thirty dev.56 maintenance cycles and two dev.57 cycles passed | Initial Bluetooth preparation failures needed a Pixel Bluetooth reset; unattended recovery, Wi-Fi interruption and loaded live-adapter qualification remain |
+| Phone persistence | Schema 12 coupled profiles/assignments; serialized IO; cancellation-safe writes and typed pairing failures | 156 JVM tests, 18 emulator fixtures; initial Pixel migration retained data | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
+| Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Setup review](evidence/second-adapter-setup.md); [dev.53 live reads/resume, independent loss/recovery and phone off/on](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification); owner confirmed live ECM/TCM display and independent expiry/return | Startup absence, loaded maintenance, rates and sustained soak remain open |
+| Health measurements | Fixed worker records, queue drops, explicit internal/DMA/PSRAM lifecycle logs, allocation failure hook and sampled stack minima | [Memory bench](evidence/esp32-memory-hardening.md): zero recorded allocation failures/queue drops; full-transfer receiver internal minimum 94,991 bytes; dev.57 application stack margin observed at 1,512 bytes | Longer controlled loaded soak, missed transient/vendor-private failures and complete stack-path coverage |
 
-Follow [TCM resume instructions](development/tcm-session-resume.md) for the next
-parked session. The owner deferred vehicle/BLE work; do not start it unattended.
-Install through App/Wi-Fi, confirm exact firmware identity, check full fault lists
-and reconnect behavior, and retain the working combined page.
+Installed dev.57 [memory hardening](evidence/esp32-memory-hardening.md) retains dev.56's relocation of the
+fixed LVGL arena and SDK-supported BSS to PSRAM, reducing linked internal static
+use by 84,664 bytes. It adds build budgets, checked Wi-Fi service creation, stronger
+admission, immutable status snapshots and allocation/stack diagnostics. Local/CI,
+signed App/Wi-Fi installation and saved-state checks passed. Thirty dev.56 cycles
+passed in 284.124 seconds without a reboot or accumulating close-memory loss.
+The complete upload/signature verification received by optimized dev.56 retained
+94,991 bytes minimum internal heap and a 31,744-byte largest block, with zero
+recorded allocation failures. Dev.57 adds 1 KiB application stack after earlier
+488..552-byte margins; two subsequent Wi-Fi cycles passed and sampled application
+headroom reached 1,512 bytes. All 21 protected showcase frame indices, stop and
+actual saved-state readback passed on dev.57; owner separately confirmed a normal
+page, clean text and working swipes. The USB logger is closed and the shared wake helper is inactive.
+Early Bluetooth failures and one duplicate-chat force-stop preceded the successful
+upload, which required a Pixel Bluetooth reset. The App now has bounded protected
+GATT cleanup and owner-read retries; the original failure cause and broader automatic
+recovery remain open. Loaded dual-adapter/phone soak is still pending.
 
-[Roadmap](roadmap.md) tracks remaining priorities. [Evidence index](README.md)
-links historical records. New observations update this file and the relevant
-focused evidence record, rather than repeating status in every document.
+Software checks for the hardening increment: Android build/lint, 156 JVM tests,
+18 emulator tests, 75 host tests, sanitized production C fixtures, firmware build,
+repository validation and all three GitHub jobs passed. Exact scope and later
+phone checks are in the linked evidence, not implied by these counts.
 
-## Provenance
+## Compatibility and public boundaries
+
+- Phone profiles: prepared schema 13 reads schemas 1..13. Older Apps reject new saved state;
+  downgrades require an explicit compatible migration. Legacy association files remain
+  read-only migration inputs. See [Android storage](architecture/android-runtime.md#storage-and-recovery).
+- Gauge configuration remains schema 2. Prepared development `cfg:6`, `va:1`, `da:1`, `ad:1`
+  and display settings `ds:3` negotiate implemented slices. Wire layouts belong in
+  [protocol documents](README.md#protocols), not this status snapshot.
+- Public `configWrite:false`, `ota:false` and qualified link capacity one remain.
+  Three NimBLE slots and independent workers do not establish physical coexistence.
+- Phone gauge values remain labelled previews; live companion telemetry, code clearing,
+  high idle and ABS/ESC control are not enabled. Local page-jump gestures are implemented.
+- TCM temperature interprets only the first byte as A−40 °C. Current/target candidates
+  compare P=0D, R=0B, N=00 and stationary Drive=01. Pressure `225034` remains raw only.
+  Drive is not a distinct selector value. The diagnostic endpoint/PCS bridge topology
+  remains unresolved. Definitions are calibration-specific; standard catalog membership
+  is not vehicle support.
+
+Auto orientation is specified in the [hardware policy](architecture/hardware-and-transports.md#automatic-display-orientation)
+and tracked as FEATURE-07. The current IMU path is unimplemented; manual rotation
+and timed page cycling remain independent implemented controls.
+
+## Next session
+
+Use [backlog](backlog.md) to select the highest ready item and its acceptance gate.
+For parked vehicle work use [TCM resume](development/tcm-session-resume.md); field
+firmware installation uses App/Wi-Fi. Keep the working dashboard and private captures.
+No task should silently enable controls, promote capabilities or claim physical
+verification from source, an emulator, transfer percentage or serial startup alone.
 
 Firmware board support originated from Janos Kutscherauer's esp32-obd2-meter at
-`e1f4d8ffbb2bfe0fb38369e44d532319770ddc00`. Upstream MIT and font OFL notices remain
-in the repository. Runtime, transport, ownership and UI have since changed;
-the imported baseline behavior is not the current architecture.
+`e1f4d8ffbb2bfe0fb38369e44d532319770ddc00`. Upstream MIT/font OFL notices remain.
 
-## Automatic connection and settings UX update
+## Shared alerts and diagnostics baseline
 
-Source implements one shared connection widget across native pages, an expandable
-phone/gauge/active-adapter summary, concise active-source Car faults and automatic
-foreground settings/adapter/diagnostics reads. Read failures back off independently;
-ordinary Settings rows no longer require a read tap. Multiple-link aggregation is
-tested, but current profiles and firmware expose only one active adapter.
+Dev.48 implements [ADR-015](architecture/alerts-and-diagnostics.md): threshold/MIL/fault
+producers share severity/lifecycle, autonomous gauge attention and scoped acknowledgment,
+bounded transitions/context, transactional phone history/export and opt-in Android
+notifications through one connection owner. Threshold dwell/hysteresis remains unchanged.
+The [paired-phone provider guide](architecture/phone-alert-providers.md) documents a
+synthetic Expert test and future authorized crowd-alert integrations. No live feed is enabled.
 
-Firmware candidate `0.2.0-dev.40` hardening separates display snapshots from NVS persistence, bounds writer
-admission, makes busy status reads retryable, and bounds prompt deadline arithmetic
-and RX draining. See [interaction/recovery policy](architecture/interaction-recovery.md)
-for exact behavior, simulated screenshots and remaining physical checks. These
-changes are installed on the Pixel and physical gauge through the signed App/Wi-Fi path.
-The owner confirmed a normal physical page and working swipes.
+Engine clearing code and readback exist behind a default-off firmware gate. TCM clearing,
+freeze-frame collection and hardware qualification remain open. The shared framework shipped
+in signed dev.48; that rollout passed protected image identity and owner display/swipe checks.
+The installed firmware is tracked in the baseline table above. See [implementation evidence](evidence/shared-alerts-implementation.md)
+for the distinct offline, Pixel and gauge scopes. The backlog owns remaining tasks.
 
-Verification: 78 Android unit tests, debug APK and instrumentation compilation,
-Android lint, eight isolated Pixel UI tests including 76 screenshot comparisons,
-72 offline host tests, repository validation and the ESP-IDF firmware build passed.
-The physical post-update test passed automatic protected reads on open/resume,
-Bluetooth off/on recovery and Add gauge cancellation recovery, retaining settings,
-vehicle profile contents and configuration revision/hash within that test. Exact
-firmware version/ELF identity and healthy OTA state were asserted before reconnect.
-Wire packet layouts, opcodes and public capacity flags are unchanged; busy snapshot
-reads now return a retryable ATT resource error. See the focused
-[rollout evidence](development/car-connection-rollout.md) for evidence boundaries
-and remaining hardware qualification.
+Prepared Advanced CEL filtering: exact vehicle/controller rules and complete-check MIL/count reconciliation are implemented for dev.55. Raw evidence and history remain unchanged. Dev.55 is signed and installed through App/Wi-Fi; live vehicle qualification remains pending; [shared policy](architecture/alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters) owns semantics.

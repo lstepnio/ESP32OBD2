@@ -36,6 +36,7 @@ data class CustomizeActions(
 fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestination: (Int) -> Unit,
                           onBack: () -> Unit, actions: CustomizeActions) {
     var picker by rememberSaveable { mutableStateOf<String?>(null) }
+    var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
     var alertReading by rememberSaveable { mutableStateOf<String?>(null) }
     var alertReturn by rememberSaveable { mutableIntStateOf(0) }
     val current = state.pages.getOrNull(state.editingPage) ?: state.pages.firstOrNull()
@@ -63,6 +64,10 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
             }, second = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     PageToolbar(state, { picker = "add" }, { onDestination(2) })
+                    TextButton({ deleteId = current.id }, enabled = state.editingEnabled && state.pages.size > 1) {
+                        Text("Delete page")
+                    }
+                    if (state.pages.size == 1) Text("Keep at least one page.", style = MaterialTheme.typography.bodySmall)
                     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
                         Column {
                             EditorRow("Reading", current.readingName, state.editingEnabled) { picker = "reading" }
@@ -75,10 +80,12 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
                             }
                         }
                     }
-                    if (state.readings.any { it.id in com.lstepnio.egauge.ConfigurationProjector.supportedPidIds }) {
+                    if (state.readings.any { it.id in com.lstepnio.egauge.ConfigurationProjector.pagePidIds("ECM") }) {
                         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
                             Column {
-                                listOfNotNull(current.readingId, current.secondaryId).forEachIndexed { index, id ->
+                                listOfNotNull(current.readingId, current.secondaryId).filter { id ->
+                                    state.readings.any { it.id == id }
+                                }.forEachIndexed { index, id ->
                                     if (index > 0) HorizontalDivider(Modifier.padding(horizontal = 18.dp))
                                     val reading = state.readings.firstOrNull { it.id == id }
                                     val alert = state.alerts.firstOrNull { it.readingId == id }
@@ -90,11 +97,14 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
                         }
                         TextButton({ onDestination(3) }, Modifier.fillMaxWidth()) { Text("All alerts (${state.alerts.size})") }
                     }
-                    state.blockers.firstOrNull()?.let { StatusCard(StatusUi("Check your settings", it, StatusTone.Error)) }
+                    (state.editingIssue ?: state.blockers.firstOrNull())?.let { StatusCard(StatusUi("Check your settings", it, StatusTone.Error)) }
                 }
             })
         }
     }
+    val deletion = state.pages.indexOfFirst { it.id == deleteId }
+    if (deletion >= 0) DeletePageDialog(state.pages[deletion], deletion, state.editingEnabled && state.pages.size > 1,
+        { deleteId = null }, { actions.removePage(deletion); deleteId = null })
     if (picker != null) {
         val purpose = picker
         if (purpose == "layout" && current != null) LayoutPicker(state, current, { picker = null }) {
@@ -119,13 +129,13 @@ internal fun EditorScaffold(title: String, onBack: () -> Unit, primary: String, 
                             enabled: Boolean = true,
                             content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxSize().imePadding()) {
-        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+        Box(Modifier.fillMaxWidth().padding(horizontal = EGaugeTokens.Spacing.lg.dp, vertical = 12.dp)) {
             ScreenTitle(title, onBack)
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = EGaugeTokens.Spacing.lg.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
         Surface(color = MaterialTheme.colorScheme.background, tonalElevation = 2.dp) {
-            Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), contentAlignment = Alignment.CenterEnd) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = EGaugeTokens.Spacing.lg.dp, vertical = 12.dp), contentAlignment = Alignment.CenterEnd) {
                 PrimaryAction(primary, onPrimary, Modifier.widthIn(max = 480.dp), enabled)
             }
         }
@@ -199,17 +209,25 @@ internal fun EditorRow(title: String, detail: String, enabled: Boolean = true, o
     }
 }
 
-internal fun AlertUi.summary() = "Warn $direction $warning $unit · Critical $direction $critical $unit"
+internal fun AlertUi.summary(): String {
+    fun target(value: Double) = if (direction == "equals") com.lstepnio.egauge.gearPositions[value] ?: "Unavailable"
+        else com.lstepnio.egauge.MeasurementUnits.format(value)
+    val condition = if (direction == "equals") "in" else direction
+    return "Warn $condition ${target(warning)} $unit · Critical $condition ${target(critical)} $unit"
+}
 
 @Composable
 private fun SendReview(state: CustomizeUiState, onBack: () -> Unit, actions: CustomizeActions) {
+    val pages = state.reviewPages ?: state.pages
+    val alerts = state.reviewAlerts ?: state.alerts
     EditorScaffold("Review and send", onBack,
         when { !state.found -> "Set up gauge"; state.needsCheck -> "Check gauge"; else -> "Send to gauge" },
         { when { !state.found -> actions.setup(); state.needsCheck -> actions.check(); else -> actions.send() } },
         !state.busy && (!state.found || state.needsCheck || state.canSend)) {
-        SectionTitle("${state.pages.size} pages")
+        state.reviewNotice?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        SectionTitle("${pages.size} pages")
         Panel {
-            state.pages.forEachIndexed { index, page ->
+            pages.forEachIndexed { index, page ->
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("${index + 1}. ${page.readingName}" + (page.secondaryId?.let { " + ${readingName(it)}" } ?: ""),
                         style = MaterialTheme.typography.titleMedium)
@@ -217,9 +235,10 @@ private fun SendReview(state: CustomizeUiState, onBack: () -> Unit, actions: Cus
                 }
             }
         }
+        state.actionSummary?.let { SectionTitle("Gesture action"); Text(it) }
         SectionTitle("Alerts")
-        if (state.alerts.isEmpty()) Text("No alerts set") else Panel {
-            state.alerts.forEach { alert ->
+        if (alerts.isEmpty()) Text("No alerts set") else Panel {
+            alerts.forEach { alert ->
                 Text(alert.readingName, style = MaterialTheme.typography.titleMedium)
                 Text(alert.summary(), style = MaterialTheme.typography.bodyMedium)
             }

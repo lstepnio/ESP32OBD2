@@ -16,7 +16,8 @@ import com.lstepnio.egauge.ui.state.SetupUiState
 @Composable
 fun SetupScreen(state: SetupUiState, onFind: () -> Unit, onPair: () -> Unit,
     onRefreshPairing: () -> Unit, onBluetoothSettings: () -> Unit,
-    onChoose: (String) -> Unit, onCustomize: () -> Unit, onBack: () -> Unit) {
+    onChoose: (String) -> Unit, onCustomize: () -> Unit, onBack: () -> Unit,
+    onCar: () -> Unit = onCustomize) {
     val step = when { state.owner == OwnerAccess.AUTHENTICATED -> 2; state.found -> 1; else -> 0 }
     var candidate by rememberSaveable { mutableStateOf<String?>(null) }
     ScreenContent(scrollKey = step) {
@@ -71,12 +72,15 @@ fun SetupScreen(state: SetupUiState, onFind: () -> Unit, onPair: () -> Unit,
                     PairingWindowState.CODE_DISPLAYED -> "Check pairing status"
                     else -> if (state.busy) "Pairing..." else "Pair gauge"
                 }
-                PrimaryAction(actionLabel, action, enabled = !state.busy)
+                if (!state.androidBonded || state.status.tone in setOf(StatusTone.Error, StatusTone.Stale))
+                    PrimaryAction(actionLabel, action, enabled = !state.busy)
             }
             else -> {
                 StatusCard(StatusUi("Your phone is paired", "Your gauge confirmed access.", StatusTone.Success))
-                EmptyState("Adapter setup is not available yet", "You can choose readings and send your display layout. Car readings stay unavailable until an adapter is connected and verified.")
-                PrimaryAction("Choose readings", onCustomize)
+                Text("Select the adapter plugged into your car. You can customize your pages any time.",
+                    style = MaterialTheme.typography.bodyLarge)
+                PrimaryAction("Choose adapter", onCar)
+                TextButton(onCustomize) { Text("Customize pages") }
             }
         }
     }
