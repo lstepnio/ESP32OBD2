@@ -81,7 +81,7 @@ int main(int argc,char **argv) {
     ui_set_vehicle_diagnostics(ui,&filtered);tick(60);
     assert(lv_obj_has_flag(ui->widgets.diagnostics_icon,LV_OBJ_FLAG_HIDDEN));
     filtered.mil_known=false;ui_set_vehicle_diagnostics(ui,&filtered);tick(60);
-    assert(!strcmp(lv_label_get_text(ui->widgets.diagnostics_lbl),"Not checked"));
-    assert(!lv_obj_has_flag(ui->widgets.diagnostics_lbl,LV_OBJ_FLAG_HIDDEN));
+    assert(lv_obj_has_flag(ui->widgets.diagnostics_icon,LV_OBJ_FLAG_HIDDEN));
+    assert(lv_obj_has_flag(ui->widgets.diagnostics_lbl,LV_OBJ_FLAG_HIDDEN));
     puts("PASS: production LVGL showcase frames, circular glyphs, vehicle/maintenance/critical preemption and pairing restore");
 }

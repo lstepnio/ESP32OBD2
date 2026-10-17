@@ -796,8 +796,7 @@ static void render_status(ui_t *ui) {
     lv_obj_set_style_bg_color(ui->widgets.bar,lv_color_hex(chart_color),LV_PART_INDICATOR);
     lv_obj_set_style_line_color(ui->widgets.trend,lv_color_hex(color),LV_PART_MAIN);
     bool diagnostic=d.valid&&(d.mil_on||d.count);
-    bool unknown=!d.mil_known||(d.count_partial&&!d.count);
-    show(ui->widgets.diagnostics_icon,diagnostic);show(ui->widgets.diagnostics_lbl,diagnostic||unknown);
+    show(ui->widgets.diagnostics_icon,diagnostic);show(ui->widgets.diagnostics_lbl,diagnostic);
     if(diagnostic) {
         char count[12]="";
         if(!d.count_known||(d.count_partial&&!d.count))snprintf(count,sizeof(count),"?");
@@ -809,10 +808,6 @@ static void render_status(ui_t *ui) {
         lv_obj_set_pos(ui->widgets.diagnostics_icon,count[0]?94:104,31);
         lv_obj_set_style_text_color(ui->widgets.diagnostics_lbl,lv_color_hex(dc),0);
         small_label(ui->widgets.diagnostics_lbl,count,139,42,34);
-    }
-    if(!diagnostic&&unknown) {
-        lv_obj_set_style_text_color(ui->widgets.diagnostics_lbl,lv_color_hex(color_text_secondary),0);
-        small_label(ui->widgets.diagnostics_lbl,"Not checked",120,42,120);
     }
     bool condition=alert.severity!=0;
     show(ui->widgets.alert_lbl,condition);show(ui->widgets.alert_icon,condition);

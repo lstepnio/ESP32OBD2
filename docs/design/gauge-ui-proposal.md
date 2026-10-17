@@ -149,7 +149,7 @@ contrast/glare and the physical touch targets must be checked during implementat
 | Critical entry/escalation | One takeover: condition, current value/unit, relevant limit/context, Acknowledge | One entry cue according to the shared framework |
 | Critical acknowledged | Reading page + persistent red lower condition; diagnostic slot remains available above | Attention is acknowledged; the condition and history are retained |
 | Warning input lost | Named last-seen lower condition, such as `ATF last seen`; affected reading becomes `--` | No fabricated live value or implied resolution |
-| No fresh diagnostic coverage | Neutral `Not checked` when relevant to inspection/state | A healthy sibling never certifies missing checks |
+| No fresh diagnostic coverage | No routine diagnostic caption; unavailable readings retain `--` | Coverage remains unknown internally and in App inspection; a healthy sibling never certifies missing checks |
 | Paired-phone/provider notice | Short notice inside an expiry arc; provider attribution and exact expiry in context | Existing trusted severity/TTL rules; local critical attention has priority |
 
 Counts must deduplicate a code across categories within the same controller. The same
