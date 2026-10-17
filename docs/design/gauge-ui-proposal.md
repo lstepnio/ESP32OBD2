@@ -96,7 +96,9 @@ These are source findings plus the owner's physical photo, not a new hardware te
 ## 1. Circular layout and typography contract
 
 - Native surface: 240 × 240, center (120,120). Essential glyphs, visible status and controls
-  stay inside radius 104; nonessential ring/track decoration may extend to radius 112.
+  stay inside radius 112 (8 px inset); nonessential ring/track decoration may extend to
+  radius 116 (4 px inset). Native glyph-bound checks enforce this envelope; physical
+  bezel clearance remains a separate hardware check.
 - Compute fitting using the entire glyph rectangle and the narrowest circle chord it
   intersects. Rectangle width alone is insufficient, particularly in the lower Dual row.
 - Diagnostic symbols center near y=42 with no capsule fill or border. They keep CEL,
@@ -104,7 +106,7 @@ These are source findings plus the owner's physical photo, not a new hardware te
   lane quiet; no healthy/connected sentence. Gesture progress uses it only when clear.
 - Ordinary alert symbols and conditions center at y=194 below readings. The entire
   composed row, including symbol, alias, arrow and optional additional-alert count, fits
-  within 124 px and the radius-104 envelope. No capsule or paragraph. Page dots yield to
+  within 124 px and the radius-112 envelope. No capsule or paragraph. Page dots yield to
   an active condition; Demo remains on its separate footer at y=213.
 - Single: short title near y=87; dominant value near y=126; unit near y=169. Bar uses
   title/value/unit centers 70/108/147 and a separate 6 px scale at y=174..180. Trend uses

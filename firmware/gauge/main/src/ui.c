@@ -221,9 +221,9 @@ static const uint32_t color_accent = 0x00FF70;
 static const uint32_t color_warning = 0xFF8A00;
 static const uint32_t color_critical = 0xFF1744;
 
-// The arc is decorative: its 109 px outer radius stays inside the physically
-// checked 112 px band while essential text remains within the 104 px limit.
-#define GAUGE_ARC_DIAMETER 218
+// Keep essential glyphs 8 px from the circle; decoration retains a 4 px inset.
+// Physical bezel clearance is qualified separately from native render bounds.
+#define GAUGE_ARC_DIAMETER (2 * GAUGE_DECORATION_RADIUS)
 #define GAUGE_ARC_WIDTH 11
 
 #define CALIBRATION_PAGE_COUNT 5
@@ -645,17 +645,17 @@ static void render_page(ui_t *ui) {
             format_reading(text,metric,available[i],values[i],ui->imperial_units);
             const char *label=gauge_layout_label(metric->name,metric->unit);
             const char *unit=gauge_layout_unit(label,display_units_label(metric->unit,ui->imperial_units));
-            small_label(ui->widgets.dual_info[i],label,120,i?135:72,166);
+            small_label(ui->widgets.dual_info[i],label,120,i?135:72,184);
             int cy=i?160:97;ink_t u;
             if(!ink(unit,font_subtitle,&u)){unit="Unit?";ink(unit,font_subtitle,&u);}
             int uw=u.right-u.left;
             const lv_font_t *preferred=font_dual;
             if(ui->display.rendered_once){const lv_font_t *previous=lv_obj_get_style_text_font(ui->widgets.dual_value[i],0);if(previous==font_dual||previous==font_compact)preferred=previous;}
-            const lv_font_t *font=fit_value(text,120-(uw?uw/2+3:0),cy,176-(uw?uw+6:0),preferred);
+            const lv_font_t *font=fit_value(text,120-(uw?uw/2+3:0),cy,192-(uw?uw+6:0),preferred);
             bool placed=false;
             if(font){
                 ink_t v;ink(text,font,&v);int vw=v.right-v.left;
-                placed=label_at(ui->widgets.dual_value[i],text,font,120-(uw?uw/2+3:0),cy,176-(uw?uw+6:0));
+                placed=label_at(ui->widgets.dual_value[i],text,font,120-(uw?uw/2+3:0),cy,192-(uw?uw+6:0));
                 if(uw)placed=label_at(ui->widgets.dual_unit[i],unit,font_subtitle,120+vw/2+3,cy+7,48)&&placed;
             }
             if(!placed)small_label(ui->widgets.dual_value[i],"Value too wide",120,cy,166);
@@ -670,13 +670,13 @@ static void render_page(ui_t *ui) {
         int value_y=renderer==UI_RENDERER_BAR?108:renderer==UI_RENDERER_TREND?102:126;
         int unit_y=renderer==UI_RENDERER_BAR?147:renderer==UI_RENDERER_TREND?132:169;
         title_y+=offset;value_y+=offset;unit_y+=offset;
-        small_label(ui->widgets.info_lbl,label,120,title_y,166);
+        small_label(ui->widgets.info_lbl,label,120,title_y,184);
         const lv_font_t *preferred=renderer==UI_RENDERER_TREND?font_large:font_title;
         if(ui->display.rendered_once){
             const lv_font_t *previous=lv_obj_get_style_text_font(ui->widgets.value_lbl,0);
             if(previous==font_title||previous==font_large||previous==font_dual||previous==font_compact)preferred=previous;
         }
-        value_label(ui->widgets.value_lbl,text,120,value_y,176,preferred);
+        value_label(ui->widgets.value_lbl,text,120,value_y,192,preferred);
         if(renderer==UI_RENDERER_TREND)small_label(ui->widgets.unit_lbl,unit,120,unit_y,156);
         else if(!label_at(ui->widgets.unit_lbl,unit,font_unit,120,unit_y,156))small_label(ui->widgets.unit_lbl,"Unit?",120,unit_y,140);
         lv_obj_set_style_text_color(ui->widgets.value_lbl,lv_color_hex(available[0]?color_text_primary:color_text_secondary),0);

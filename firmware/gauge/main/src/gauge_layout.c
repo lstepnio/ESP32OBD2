@@ -8,7 +8,7 @@ bool gauge_layout_fits(int left, int top, int right, int bottom) {
     int xs[2] = {left - 120, right - 120}, ys[2] = {top - 120, bottom - 120};
     for (unsigned x = 0; x < 2; ++x)
         for (unsigned y = 0; y < 2; ++y)
-            if (xs[x] * xs[x] + ys[y] * ys[y] > 104 * 104) return false;
+            if (xs[x] * xs[x] + ys[y] * ys[y] > GAUGE_CONTENT_RADIUS * GAUGE_CONTENT_RADIUS) return false;
     return true;
 }
 static bool contains(const char *text, const char *word) {

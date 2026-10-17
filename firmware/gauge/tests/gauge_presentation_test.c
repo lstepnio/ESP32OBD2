@@ -7,6 +7,10 @@
 
 int main(void) {
     assert(gauge_layout_fits(80,180,160,202));
+    assert(gauge_layout_fits(8,120,232,120));
+    assert(!gauge_layout_fits(7,120,233,120));
+    assert(gauge_layout_fits(24,70,216,170));
+    assert(!gauge_layout_fits(24,60,216,180));
     assert(!gauge_layout_fits(20,180,220,220));
     assert(!gauge_layout_fits(120,120,119,121));
     assert(!strcmp(gauge_layout_label("Engine RPM","rpm"),"RPM"));

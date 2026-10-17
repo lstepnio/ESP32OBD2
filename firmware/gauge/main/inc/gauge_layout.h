@@ -2,6 +2,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define GAUGE_CONTENT_RADIUS 112
+#define GAUGE_DECORATION_RADIUS 116
+
 /* Native 240 px coordinates. Bounds describe actual glyph ink, not label boxes. */
 bool gauge_layout_fits(int left, int top, int right, int bottom);
 const char *gauge_layout_label(const char *name, const char *unit);
