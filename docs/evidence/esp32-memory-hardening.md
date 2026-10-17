@@ -113,7 +113,10 @@ then started with private serial capture; its final result is not inferred here.
 
 The incoming transfer was executed by the previous dev.55 runtime. To exercise
 full reception/flash/signature verification while the optimized PSRAM layout is
-running, a **version-only dev.57** candidate is prepared. It changes only firmware
-version identity, preserves the same memory implementation and requires separate
-release authorization. Reinstalling/bypassing the identical-image guard is not a
+running, a dev.57 candidate is prepared with a new firmware version identity. During
+ongoing dev.56 cycles, the new diagnostics recorded an application-stack minimum
+of 552 bytes. Dev.57 therefore also increases `app_tick` from 3,072 to 4,096 bytes,
+spending 1 KiB of recovered internal heap for a measured safety margin. All other
+task stacks and memory placement/lifecycle logic remain unchanged. It requires
+separate release authorization. Reinstalling/bypassing the identical-image guard is not a
 qualification method.

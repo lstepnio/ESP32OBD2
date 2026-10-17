@@ -7,7 +7,7 @@ Updated 2026-10-16. Implemented development architecture. Public capability flag
 | Owner | Priority | Stack | Bounded input | Blocking boundary |
 | --- | ---: | ---: | --- | --- |
 | ESP main application owner | IDF default | 3,584 bytes | phone command queue: 4 | Applies selection and rotation commands. Persistence is serialized at the application boundary. |
-| `app_tick` | 5 | 3,072 bytes | alert sample queue: 16 | Ticks companion expiry, alert freshness, and UI snapshots every 100 ms. It does not wait for an adapter transaction. |
+| `app_tick` | 5 | 4,096 bytes | alert sample queue: 16 | Ticks companion expiry, alert freshness, and UI snapshots every 100 ms. It does not wait for an adapter transaction. |
 | `obd_task` | 5 | 4,096 bytes | one ELM request, RX bytes: 512 | Owns ECM connect, initialization, request/response, and bounded reconnect backoff. |
 | `tcm_link` | 5 | 4,096 bytes | one ELM request, RX bytes: 512 | Owns the optional second adapter lifecycle. TCM polling remains unavailable without a configured adapter and vehicle contract. |
 | `cfg_transfer` | 4 | 6,144 bytes | request queue: 4 | Owns config erase, write, hash, validation, and commit. Publishes a short immutable status snapshot. |
@@ -119,6 +119,10 @@ Nonblocking queue rejection increments the relevant drop count. The existing
 minute health log includes progress age/count, maximum loop gap, admission drops,
 current free and largest allocatable internal/PSRAM blocks, existing heap minima,
 application/UI stack margins and alert queue/drop counts.
+
+The prepared dev.57 increases the application task from 3,072 to 4,096 bytes
+after dev.56 bench telemetry measured only 552 bytes of remaining stack. This
+uses 1 KiB of the recovered internal headroom; other task stacks are unchanged.
 
 Each worker additionally samples its own stack watermark once per 64 progress
 reports, starting with its first report. The log distinguishes an unobserved margin

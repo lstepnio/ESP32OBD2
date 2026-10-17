@@ -831,7 +831,7 @@ void app_main(void)
             g_running_config_record.revision, g_runtime && g_runtime->sources[transport].simulated);
     }
     init_obd_task(ui);
-    BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 3072, ui, 5, NULL);
+    BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 4096, ui, 5, NULL);
     ESP_CHECK(tick_started == pdPASS, TAG, "Application tick task creation failed");
     bool config_trial = g_runtime &&
         config_trial_needs_confirmation(g_running_config_record.revision);
