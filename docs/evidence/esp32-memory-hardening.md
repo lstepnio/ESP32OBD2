@@ -276,3 +276,15 @@ twenty-second Settings cadence while frames advance every eight seconds. Its
 or memory failure. The fixture now isolates foreground polling, directly observes
 protected showcase state, preserves App-owned start/stop, checks actual document/
 settings readback after stop and restores foreground polling in `finally`.
+
+A subsequent isolated-observer start did not reach active playback in 30 seconds
+(40.385 seconds overall). Source review identified a foreground cancellation
+handover race exposed by the new suspending transport cleanup: `collectLatest`
+could clear the automatic-job reference while its child was still releasing the
+shared lease. A deterministic JVM regression reproduced the lost-owner gap before
+the fix. The controller now awaits that child's cleanup before clearing its
+reference, so a simultaneous user operation can join the same still-owned job.
+This addresses the demonstrated ownership race without establishing it as the
+cause of every earlier GATT failure.
+All eighteen focused foreground/owner/cleanup JVM cases, both APK builds and lint
+passed after the fix; the new regression failed against the previous controller.

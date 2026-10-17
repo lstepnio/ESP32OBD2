@@ -90,7 +90,11 @@ exception records a failure and backs off instead of terminating the foreground 
 Protected `GaugeConfigTransferClient` sessions retire discovery/read callbacks before
 cleanup. `closeGattSession` requests disconnect and waits for the platform callback
 for at most 1.5 seconds before closing the registered client, including cancellation.
-The shared operation lease stays held through that cleanup. The initial owner read
+The shared operation lease stays held through that cleanup. When foreground
+`collectLatest` is cancelled, its controller retains the automatic job reference
+until the child finishes cleanup; a simultaneous user action can still await the
+owner instead of racing an apparently idle controller against a held lease.
+The initial owner read
 can retry authentication/encryption/resource pressure and Android GATT error 133
 at most four times; every successful handshake still requires a successful protected
 status frame. Only the existing one-time authenticated status-selector reset is

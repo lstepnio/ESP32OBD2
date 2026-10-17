@@ -123,5 +123,42 @@ class ForegroundConnectionTest {
         finally { scope.cancel() }
     }
 
+    @Test fun backgroundCancellationKeepsAutomaticOwnerUntilCleanupFinishes() = runBlocking {
+        val scope = CoroutineScope(coroutineContext + SupervisorJob())
+        val started = CompletableDeferred<Unit>()
+        val cleanupStarted = CompletableDeferred<Unit>()
+        val finishCleanup = CompletableDeferred<Unit>()
+        val steps = mutableListOf<String>()
+        val controller = ForegroundConnectionController(scope, OperationCoordinator()) {
+            started.complete(Unit)
+            try { awaitCancellation() }
+            finally { withContext(NonCancellable) {
+                cleanupStarted.complete(Unit)
+                finishCleanup.await()
+                steps += "cleaned"
+            } }
+        }
+        try {
+            controller.setForeground(true)
+            started.await()
+            controller.setForeground(false)
+            cleanupStarted.await()
+            yield()
+            val user = scope.async(start = CoroutineStart.UNDISPATCHED) {
+                controller.runUserOperation(OperationKind.READ) { steps += "user"; "confirmed" }
+            }
+            yield()
+            assertFalse("A user read must await the still-cleaning automatic owner", user.isCompleted)
+            assertTrue(steps.isEmpty())
+            finishCleanup.complete(Unit)
+            assertEquals("confirmed", withTimeout(2_000) { user.await() })
+            assertEquals(listOf("cleaned", "user"), steps)
+        } finally {
+            finishCleanup.complete(Unit)
+            scope.cancel()
+            scope.coroutineContext[Job]?.join()
+        }
+    }
+
     private suspend fun await(predicate: () -> Boolean) = withTimeout(2_000) { while (!predicate()) delay(2) }
 }

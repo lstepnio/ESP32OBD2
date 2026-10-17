@@ -43,7 +43,13 @@ class ForegroundConnectionController(
                         }
                         automatic = job
                         try { job.start(); job.join() }
-                        finally { if (automatic === job) automatic = null }
+                        finally {
+                            // collectLatest cancellation interrupts join before the child's
+                            // bounded transport cleanup finishes. Keep its owner discoverable
+                            // so a simultaneous user operation can await that same cleanup.
+                            withContext(NonCancellable) { job.cancelAndJoin() }
+                            if (automatic === job) automatic = null
+                        }
                     }
                     if (userOperations == 0) withTimeoutOrNull(pauseMs.coerceAtLeast(1)) { wake.receive() }
                 }
