@@ -21,6 +21,8 @@ uses a separately authorized signed App/Wi-Fi development release.
 Start/stop the debug-awake helper with the selected Pixel serial. Keep logs and
 preference backups under ignored `artifacts/`; never publish device identifiers,
 Wi-Fi credentials, keys or raw vehicle captures. Serial capture is read-only.
+Use one active test owner for the phone/gauge. Coordinate duplicate sessions before
+starting; an external App force-stop invalidates the affected test attempt.
 
 1. Verify exact installed signed version, ELF, health 2, saved configuration
    revision/digest, settings and phone profiles. Record current free/largest and
@@ -50,7 +52,10 @@ Wi-Fi credentials, keys or raw vehicle captures. Serial capture is read-only.
    margin requires investigation or code/stack correction, not hiding the metric.
 6. Obtain owner physical normal-page/swipe confirmation. Exercise the 21-frame
    display showcase with metric/imperial/rotation cases while the new arena is in
-   PSRAM; software screenshots are not physical cache/display qualification.
+   PSRAM; `DisplayShowcaseJourneyTest` accepts `showcaseFrames=21` to observe every
+   frame through protected state and stop playback in `finally`. Its default remains
+   two frames. This protocol observation does not establish physical pixel appearance,
+   touch behavior or all unit/rotation combinations; keep those checks separate.
 
 Sampling misses transient lows; allocation failure hooks, heap minima and stack
 watermarks complement stage snapshots. The static budget and admission checks do

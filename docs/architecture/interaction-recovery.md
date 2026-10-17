@@ -87,6 +87,17 @@ one-second minimum and cap at 30 seconds. User reads still preempt and await
 automatic cleanup before acquiring the shared lease. An unexpected platform
 exception records a failure and backs off instead of terminating the foreground loop.
 
+Protected `GaugeConfigTransferClient` sessions retire discovery/read callbacks before
+cleanup. `closeGattSession` requests disconnect and waits for the platform callback
+for at most 1.5 seconds before closing the registered client, including cancellation.
+The shared operation lease stays held through that cleanup. The initial owner read
+can retry authentication/encryption/resource pressure and Android GATT error 133
+at most four times; every successful handshake still requires a successful protected
+status frame. Only the existing one-time authenticated status-selector reset is
+permitted. Transaction commands, failed writes and uncertain mutations are never
+replayed by this handshake policy. Other BLE client paths retain their current
+cleanup and need separate qualification; this is not an app-wide disconnect guarantee.
+
 `resourceIo` closes blocking resources on cancellation and awaits the IO child.
 `socketIo` and `boundedHttpDownload` share it. Hosted responses have a 45-second
 total budget plus byte/connect/read bounds; the whole catalog search has a

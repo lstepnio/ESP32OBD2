@@ -8,7 +8,7 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-read retry; firmware source dev.57 prepared for stack/transfer qualification, signed dev.56 installed | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Source/App/firmware version | App `0.2.0-dev.51` with prepared protected-session cleanup/owner-read recovery; signed firmware dev.57 published for stack/transfer qualification, dev.56 installed | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
 | Installed Pixel and gauge | Pixel App dev.51 installed without data clearing; gauge signed dev.56 from `90347ce`, generation 37 | Full hosted App/Wi-Fi transfer, exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; owner confirmed dev.55 demo appearance/hold exit and dev.56 normal pages/swipes |
 | Gauge dashboard | Revision 50; three mixed-reading pages and one alert retained | Successful readback does not qualify every new reading or alert on a vehicle |
 | Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors; dev.53 live both-source reads/resume and each adapter loss/recovery passed |
@@ -54,7 +54,11 @@ admission, immutable status snapshots and allocation/stack diagnostics. Local/CI
 owner-confirmed normal pages/swipes. Thirty maintenance cycles passed in 284.124 seconds with no recorded allocation
 failures/reboot or accumulating cleanup loss; active internal free was about 100 KB.
 Loaded soak remains pending. Dev.57 adds 1 KiB application-stack headroom after a measured 552-byte margin,
-and a distinct version to qualify a full transfer received by optimized dev.56; its publication requires separate approval.
+and a distinct version to qualify a full transfer received by optimized dev.56.
+The owner authorized its publication/installation; signed dev.57 from `8af369b`,
+generation 38, is published. Installation/peak-memory qualification is in progress
+after pre-send Bluetooth failures and an externally interrupted duplicate-chat
+attempt. These failures do not establish OOM; the evidence records their separate scopes.
 
 Software checks for the hardening increment: Android build/lint, 156 JVM tests,
 18 emulator tests, 75 host tests, sanitized production C fixtures, firmware build,

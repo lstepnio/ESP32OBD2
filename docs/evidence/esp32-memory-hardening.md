@@ -1,12 +1,13 @@
-# ESP32 memory audit and prepared hardening
+# ESP32 memory audit and hardening
 
 > Historical evidence. Current support is in [current state](../current-state.md);
 > remaining qualification belongs in [the backlog](../backlog.md). This report
 > records this session and is not a replacement for the maintained memory policy.
 
-Date: 2026-10-16. Firmware dev.55 is the installed baseline; dev.56 is the prepared
-candidate. This report distinguishes source/link measurements, host fault injection,
-serial baseline observations and future physical qualification.
+Date: 2026-10-16. Firmware dev.55 is the comparison baseline. Dev.56 introduces
+memory placement/lifecycle hardening; dev.57 adds measured application-stack
+headroom. This report separates source/link measurements, host fault injection,
+serial observations and physical bench qualification.
 
 ## Findings
 
@@ -63,7 +64,9 @@ silently moving the arena back into SRAM.
 Wi-Fi startup has separate internal 8-bit free/largest admission floors: 64/16 KiB
 before initializing a new driver and 32/8 KiB before AP start. These are sampled
 floors, not reserved heap or proof against all vendor/private-pool failures.
-Partial driver startup and close retain checked deinitialization/netif cleanup.
+SDK initialization failures unwind driver/netif state; fixtures cover injected
+initialization failures and normal/idempotent close, not every possible SDK
+stop/deinitialization failure.
 Both mandatory PSRAM frame buffers and both workers are created transactionally;
 any partial creation frees buffers, tasks, queue and mutex. A failed optional
 maintenance service no longer aborts the gauge or advertises unavailable Wi-Fi.
@@ -87,10 +90,11 @@ and excess combined static use. Production LVGL host renders passed all twenty-o
 showcase frames and existing preemption/restore/glyph cases. The Android test APK
 compiled with the bounded 1..30 maintenance-cycle option.
 
-The candidate is not installed or physically qualified by these results. Publication
-requires separate owner authorization and green CI. The [qualification runbook](../development/memory-qualification.md)
-owns the next repeated AP lifecycle, signed full upload, memory/stack measurements,
-physical display/touch and loaded dual-source soak. Public capability flags remain
+These offline checks alone do not establish physical qualification. Publication
+uses separate owner authorization and green CI; the authorized outcomes follow.
+The [qualification runbook](../development/memory-qualification.md) owns repeated
+AP lifecycle, signed full upload, memory/stack measurements, physical display/touch
+and loaded dual-source soak. Public capability flags remain
 disabled; no main merge, USB flashing, vehicle mutation or owner/bond reset occurred.
 
 
@@ -108,18 +112,18 @@ package/image hashes and sizes, board/layout/protocol, version and signed ELF
 71,890 ms, with sending at 16,039 ms, verifying at 55,839 ms and restart at 57,301 ms.
 The exact image ran in the alternate slot with health 2, cleared recovery journal
 and unchanged revision 50/digest, display settings and phone profiles. The owner
-confirmed normal physical pages and working swipes. The 30-cycle maintenance test
-then started with private serial capture; its final result is not inferred here.
+confirmed normal physical pages and working swipes. The 30-cycle result with
+private serial capture is documented below.
 
 The incoming transfer was executed by the previous dev.55 runtime. To exercise
 full reception/flash/signature verification while the optimized PSRAM layout is
-running, a dev.57 candidate is prepared with a new firmware version identity. During
+running, dev.57 uses a new firmware version identity. During
 ongoing dev.56 cycles, the new diagnostics recorded an application-stack minimum
 of 552 bytes. Dev.57 therefore also increases `app_tick` from 3,072 to 4,096 bytes,
 spending 1 KiB of recovered internal heap for a measured safety margin. All other
-task stacks and memory placement/lifecycle logic remain unchanged. It requires
-separate release authorization. Reinstalling/bypassing the identical-image guard is not a
-qualification method.
+task stacks and memory placement/lifecycle logic remain unchanged. The owner
+separately authorized its publication and installation. Reinstalling/bypassing the
+identical-image guard is not a qualification method.
 
 
 ## Dev.56 thirty-cycle bench result
@@ -152,9 +156,9 @@ measurement are not an exact identical-capability A/B comparison. The linked
 Sampled stack minima were application 552, UI 2,960, primary adapter 952, child
 adapter 992, configuration 4,256, OTA 3,036, Wi-Fi server 6,040 and command worker
 2,560 bytes. The application margin is too close to the 512-byte bench floor for
-future alert paths. Prepared dev.57 raises only that stack by 1 KiB; no task stack
-is reduced. Full upload while dev.56 receives with external BSS/arena, post-dev.57
-stack observations, and loaded recovery qualification remain pending.
+future alert paths. Dev.57 raises only that stack by 1 KiB; no task stack is reduced.
+The following qualification separates a full upload received by dev.56 from
+post-dev.57 stack observations. Loaded recovery qualification remains open.
 
 
 Prepared dev.57 source `8af369b` passed local IDF/link-budget checks and all jobs in
@@ -163,4 +167,49 @@ Its only firmware changes from dev.56 are application-stack 3,072 to 4,096 bytes
 and version identity. A separate App-test-only option compiles successfully and
 exposes the existing bounded debug pre-activation pause for memory observation;
 it defaults to zero and resets in `finally`. The firmware release source is pinned
-at `codex/memory-dev57-candidate`; publication/installation require owner approval.
+at `codex/memory-dev57-candidate`; separate owner approval was received.
+
+## Authorized dev.57 publication and full-transfer qualification
+
+The owner authorized publication/installation and the one-minute pre-activation
+measurement pause. Protected [release run 38998977297](https://github.com/lstepnio/ESP32OBD2/actions/runs/38998977297)
+published immutable [dev.57](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.57)
+from exact source `8af369b0b48e6696d13a6342bce8661e2c04b614`, catalog generation 38.
+Independent catalog/bundle signature, size/hash, board/layout/protocol and app
+descriptor verification passed. The signed application is 1,616,160 bytes with ELF
+`dacbcb6d4fb4f458f925ed8020748ddf1dc429a4f3267a308efe129441de7cfc`.
+
+The first installation attempt stopped in authenticated Bluetooth preparation:
+the protected session timed out after 20 seconds before any Wi-Fi startup/sending
+stage. The fixture ended in 39.447 seconds. A fresh-App retry could not reach its
+initial ready condition within 90 seconds (91.156 seconds overall). The Pixel
+showed Searching, Android reported its gauge link disconnected, and the last
+firmware phone-connect event had no corresponding disconnect in the captured
+interval. Gauge task/adapter retry progress continued, with zero allocation
+failures and approximately 133 KB internal 8-bit free in nearby periodic samples.
+These facts do not identify the Bluetooth failure's root cause or establish OOM.
+Both failed attempts are retained privately. No firmware sending occurred; a
+gauge power-cycle was requested before further App/Wi-Fi qualification.
+
+After the owner restarted the gauge, the third attempt was externally force-stopped
+by another shell command at 21:39:18, just after a successful 1,044 ms authenticated
+preflight. Android exit information identifies USER REQUESTED / FORCE STOP; this was
+not an App runtime crash. A duplicate active chat was using the same devices and
+worktree. The owner authorized coordination and that chat paused its device work.
+The fourth attempt then failed on an initial owner read with Android GATT 133 in
+20.034 seconds, again before Wi-Fi/image sending. The general Android status is
+defined as `GATT_ERROR = 0x85` in [AOSP](https://android.googlesource.com/platform/packages/modules/Bluetooth/+/cdb1c6dca4/system/stack/include/gatt_api.h);
+it does not identify an ESP32 allocation failure.
+
+Source review found that protected session cleanup requested disconnect and
+immediately closed GATT without awaiting the platform callback. The App now retires
+callbacks, awaits disconnect for at most 1.5 seconds under bounded cancellation-safe
+cleanup, and retains the shared lease until that cleanup finishes. Initial owner
+reads retry transient 133 alongside existing authentication/encryption/resource
+statuses within four reads; only a successful protected frame authenticates the
+session, and no transaction write is replayed. Focused JVM cases cover delayed or
+absent disconnect callbacks, cancellation, synchronous cleanup failure, transient
+owner proof, retry exhaustion, malformed/denied proof and the one-time legacy reset.
+This closes a source-level handover gap; the original field failure's precise
+cause is not inferred from the change. App installation and physical qualification
+of this addition are pending.

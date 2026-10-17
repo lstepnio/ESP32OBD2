@@ -41,7 +41,10 @@ metric/imperial cases, generated acknowledgment isolation, preemption and pairin
 restore. Its captures are software renders, not physical display observations.
 `DisplayShowcaseJourneyTest` is opt-in with `allowDisplayShowcase=true`; it verifies
 playback advancement, stop and unchanged saved dashboard/settings/profiles. Optional
-`keepShowcaseRunning=true` restarts playback for owner viewing. Only run with owner
+`showcaseFrames=21` observes all twenty-one distinct frame indices with a bounded
+wait; the default is two. Playback stop runs in `finally`, and a private result file
+records observed indices and preservation. This confirms protocol advancement,
+not physical pixel appearance. Optional `keepShowcaseRunning=true` restarts playback for owner viewing. Only run with owner
 permission to show generated data and no connected vehicle sources.
 
 Wire ownership: [development firmware transfers](../protocol/experimental-firmware-transfers.md#temporary-display-showcase).

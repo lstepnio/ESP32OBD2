@@ -15,6 +15,7 @@ import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -42,7 +43,7 @@ enum class FirmwareUpdateStage {
     CONFIRMING,
 }
 
-/** Experimental protocol-0 owner transaction for the firmware's numeric ECM subset. */
+/** Experimental protocol-0 authenticated gauge transactions. */
 @SuppressLint("MissingPermission")
 class GaugeConfigTransferClient(private val context: Context) {
     private val serviceId = UUID.fromString("6f1a0000-9e3b-4f45-a714-69c9d23b6c00")
@@ -98,8 +99,10 @@ class GaugeConfigTransferClient(private val context: Context) {
                                       highThroughput: Boolean = false,
                                       action: suspend Session.() -> T): T {
         val events = Channel<Event>(16)
+        val closing = AtomicBoolean(false)
+        val disconnected = CompletableDeferred<Unit>()
         fun emit(event: Event) {
-            if (events.trySend(event).isFailure)
+            if (!closing.get() && events.trySend(event).isFailure)
                 events.close(GaugeLinkException("Gauge event queue overflowed"))
         }
         var requestedMtu = 23
@@ -110,16 +113,20 @@ class GaugeConfigTransferClient(private val context: Context) {
         val discovery = GattDiscovery { emit(Event.Failed("Could not discover gauge services")) }
         val callback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+                if (newState == BluetoothProfile.STATE_DISCONNECTED) disconnected.complete(Unit)
+                if (closing.get()) return
                 if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED)
                     emit(Event.Failed("Gauge disconnected during configuration ($status)"))
                 else if (newState == BluetoothProfile.STATE_CONNECTED)
                     discovery.connect(gatt)
             }
             override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+                if (closing.get()) return
                 if (status == BluetoothGatt.GATT_SUCCESS) requestedMtu = mtu
                 discovery.discover(gatt)
             }
             override fun onServiceChanged(gatt: BluetoothGatt) {
+                if (closing.get()) return
                 if (readyPublished.get()) emit(Event.Failed("Gauge services changed. Reconnect to reload its settings."))
                 else {
                     discoveryGeneration.incrementAndGet()
@@ -129,6 +136,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 }
             }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                if (closing.get()) return
                 if (!readySent.compareAndSet(false, true)) return
                 val service = if (status == BluetoothGatt.GATT_SUCCESS) gatt.getService(serviceId) else null
                 val control = service?.getCharacteristic(controlId)
@@ -174,12 +182,16 @@ class GaugeConfigTransferClient(private val context: Context) {
             if (BuildConfig.DEBUG) Log.w("eGaugeLink", "Protected session failed (${failure.javaClass.simpleName}): ${failure.message}")
             throw failure
         } finally {
+            closing.set(true)
             handshakeHandler.removeCallbacksAndMessages(null)
             discovery.close()
             if (highThroughput) gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_BALANCED)
-            gatt.disconnect()
-            gatt.close()
-            events.close()
+            try {
+                val confirmed = closeGattSession({ gatt.disconnect() }, { disconnected.await() }, { gatt.close() })
+                if (!confirmed && BuildConfig.DEBUG) Log.w("eGaugeLink", "GATT disconnect callback missed cleanup deadline")
+            } finally {
+                events.close()
+            }
         }
     }
 
@@ -197,25 +209,10 @@ class GaugeConfigTransferClient(private val context: Context) {
             return event
         }
         suspend fun establishOwner() {
-            var resetReadMode = false
-            repeat(4) {
-                val result = readEvent()
-                if (result.status == BluetoothGatt.GATT_SUCCESS &&
-                    GaugeProtocolCodec.isProtectedStatusFrame(result.bytes)) return
-                ownerReadResetCommand(result.status, resetReadMode)?.let { command ->
-                    resetReadMode = true
-                    // This write still passes the gauge's encrypted/authenticated
-                    // owner check. 0x17 only selects the bounded status response.
-                    writeRaw(command)
-                    return@repeat
-                }
-                if (result.status != BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION &&
-                    result.status != BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION &&
-                    result.status != ATT_INSUFFICIENT_RESOURCES)
-                    error("Gauge owner state read failed (GATT ${result.status}, version ${result.bytes.firstOrNull()?.toInt()?.and(255)}, length ${result.bytes.size})")
-                delay(250)
-            }
-            error("Gauge owner link did not become authenticated")
+            establishProtectedOwner(
+                read = { readEvent().let { OwnerStateRead(it.status, it.bytes) } },
+                writeStatusReset = { writeRaw(it) },
+            )
         }
         suspend fun readRaw(): ByteArray {
             // Firmware callbacks never block on worker-owned locks. ATT resource
