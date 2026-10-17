@@ -35,7 +35,7 @@ relative to `android/app/src/main/java/com/lstepnio/egauge/` unless specified.
 | App lifecycle/state/operations | `AppModel.kt`, `GaugeModels.kt`, `AppOperation.kt`, `connection/`, `ui/state/` | [Android ownership](architecture/android-runtime.md), [recovery rules](architecture/interaction-recovery.md) |
 | UI/style/accessibility | `ui/`, `android/core/designsystem/`, `design/tokens.json` | [Design system](design/design-system.md) |
 | Reading/alert catalog | `contracts/reading-catalog.json`, `tools/generate_reading_catalog.py`; `ReadingCatalog.kt`, `ui/customize/AlertForm.kt`; `src/alert_engine.c` | [Catalog maintenance](development/reading-catalog-alerts.md) |
-| Worker health and resource observations | `src/worker_health.c`, `main.c`, worker loops | [Firmware health](architecture/firmware-runtime.md#worker-progress-and-memory-evidence) |
+| Worker health and memory budget | `src/worker_health.c`, `src/memory_health.c`, `firmware/gauge/lvgl_memory.h`, `tools/check_firmware_memory.py` | [Firmware health](architecture/firmware-runtime.md#worker-progress-and-memory-evidence), [placement budget](architecture/firmware-runtime.md#memory-placement-and-admission-budget) |
 | Parked capture/replay | `tools/obd_capture.py`, `tools/obd_explore.py`, `tools/obd_tcm_values.py`, `tools/tests/` | [TCM resume](development/tcm-session-resume.md), [capture runbook](development/vehicle-capture-runbook.md) |
 | Research definitions | `tools/research/`, `data/vehicle-definitions/` | [Scope/license](vehicles/catalog-research.md); not executable vehicle support |
 

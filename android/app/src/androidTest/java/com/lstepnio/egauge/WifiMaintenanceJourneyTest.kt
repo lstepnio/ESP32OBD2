@@ -22,6 +22,8 @@ class WifiMaintenanceJourneyTest {
         val args = InstrumentationRegistry.getArguments()
         assumeTrue("Requires owner authorization for maintenance Wi-Fi checks",
             args.getString("allowMaintenanceWifi") == "true")
+        val cycles = args.getString("maintenanceCycles")?.toInt() ?: 2
+        require(cycles in 1..30) { "Maintenance cycles must be between 1 and 30" }
         val context = instrumentation.targetContext
         val model = (context.applicationContext as EGaugeApplication).model
         assertFalse("Stop App monitoring before an isolated transport check", model.alertMonitoring)
@@ -31,7 +33,7 @@ class WifiMaintenanceJourneyTest {
         val client = GaugeConfigTransferClient(context)
         val report = StringBuilder("Physical maintenance Wi-Fi validation\n")
         runBlocking {
-            withTimeout(240_000) {
+            withTimeout(120_000L + cycles * 90_000L) {
                 val before = client.readBootIdentity(device)
                 assertEquals(args.getString("expectedFirmwareVersion"), before.version)
                 assertEquals(args.getString("expectedFirmwareElf"), before.elfSha256)
@@ -40,7 +42,7 @@ class WifiMaintenanceJourneyTest {
                 val document = requireNotNull(client.readActiveDocument(device))
                 val settings = client.readDisplaySettings(device)
                 var previousSession: Long? = null
-                repeat(2) { index ->
+                repeat(cycles) { index ->
                     val started = SystemClock.elapsedRealtime()
                     val session = client.openWifiBulk(device)
                     val opened = SystemClock.elapsedRealtime() - started

@@ -14,10 +14,13 @@ typedef struct {
     uint32_t age_ms;
     uint32_t maximum_gap_ms;
     uint32_t queue_drops;
+    bool stack_observed;
+    uint32_t minimum_stack_free;
 } worker_health_t;
 
 /* Nonblocking diagnostics, not an automatic reboot policy. One progress writer per slot. */
 void worker_health_progress(worker_id_t worker, uint32_t now_ms);
 void worker_health_queue_drop(worker_id_t worker);
+void worker_health_stack_margin(worker_id_t worker, uint32_t bytes);
 worker_health_t worker_health_snapshot(worker_id_t worker, uint32_t now_ms);
 const char *worker_health_name(worker_id_t worker);

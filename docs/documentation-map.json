@@ -53,6 +53,7 @@
       "docs/development/display-showcase.md",
       "docs/development/dual-adapter-recovery.md",
       "docs/development/firmware-release-runbook.md",
+      "docs/development/memory-qualification.md",
       "docs/development/ota-recovery-matrix.md",
       "docs/development/quality.md",
       "docs/development/reading-catalog-alerts.md",
@@ -166,6 +167,12 @@
       "tools/tests/",
       "tools/research/",
       "data/vehicle-definitions/"
+    ],
+    "firmware-memory": [
+      "firmware/gauge/lvgl_memory.h",
+      "firmware/gauge/main/src/memory_health.c",
+      "firmware/gauge/main/src/worker_health.c",
+      "tools/check_firmware_memory.py"
     ]
   }
 }

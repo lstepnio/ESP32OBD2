@@ -1,4 +1,5 @@
 #include "worker_health.h"
+#include "memory_health.h"
 // ---------------------------------------------------------------------------------------------------------------------
 // Includes
 // ---------------------------------------------------------------------------------------------------------------------
@@ -420,10 +421,13 @@ static void app_tick_task(void *arg)
             for (worker_id_t id = 0; id < WORKER_COUNT; ++id) {
                 worker_health_t health = worker_health_snapshot(id, now_ms);
                 if (health.observed) ESP_LOGI(TAG, "health worker=%s progress=%" PRIu32
-                    " age_ms=%" PRIu32 " max_gap_ms=%" PRIu32 " queue_drops=%" PRIu32,
+                    " age_ms=%" PRIu32 " max_gap_ms=%" PRIu32 " queue_drops=%" PRIu32
+                    " stack_seen=%u stack_free=%" PRIu32,
                     worker_health_name(id), health.progress_count, health.age_ms,
-                    health.maximum_gap_ms, health.queue_drops);
+                    health.maximum_gap_ms, health.queue_drops,
+                    health.stack_observed ? 1U : 0U, health.minimum_stack_free);
             }
+            memory_health_log("periodic");
         }
     }
 }
@@ -686,7 +690,8 @@ static void init_config(void)
     }
     ESP_ERROR_CHECK(config_transfer_init());
 #if CONFIG_EGAUGE_WIFI_BULK_ENABLED
-    ESP_ERROR_CHECK(wifi_bulk_init());
+    if (wifi_bulk_init() != ESP_OK)
+        ESP_LOGE(TAG, "Wi-Fi maintenance unavailable; preserving gauge and App/BLE operation");
 #endif
 
     esp_err_t err = config_load(&g_config);
@@ -737,6 +742,8 @@ void app_main(void)
     // esp_log_level_set("OBD", ESP_LOG_DEBUG);
     // esp_log_level_set("UI", ESP_LOG_DEBUG);
     esp_log_level_set("main", ESP_LOG_INFO);
+
+    memory_health_init();
 
     config_document_init();
     init_config();

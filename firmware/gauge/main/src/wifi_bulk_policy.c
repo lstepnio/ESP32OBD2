@@ -13,5 +13,10 @@ bool wifi_bulk_policy_accept(bool ready, uint32_t expected_session_id,
 
 bool wifi_bulk_policy_memory_ready(size_t free_internal, size_t largest_internal)
 {
-    return free_internal >= 16U * 1024U && largest_internal >= 4U * 1024U;
+    return free_internal >= 32U * 1024U && largest_internal >= 8U * 1024U;
+}
+
+bool wifi_bulk_policy_init_memory_ready(size_t free_internal, size_t largest_internal)
+{
+    return free_internal >= 64U * 1024U && largest_internal >= 16U * 1024U;
 }

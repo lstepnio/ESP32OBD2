@@ -26,5 +26,15 @@ int main(void)
     worker_health_queue_drop(WORKER_COUNT);
     assert(!worker_health_snapshot(WORKER_COUNT, 1).observed);
     assert(worker_health_snapshot(WORKER_ECM, 40).queue_drops == 1);
+    assert(!worker_health_snapshot(WORKER_ECM, 40).stack_observed);
+    worker_health_stack_margin(WORKER_ECM, 2048);
+    worker_health_stack_margin(WORKER_ECM, 900);
+    worker_health_stack_margin(WORKER_ECM, 1600);
+    assert(worker_health_snapshot(WORKER_ECM, 40).minimum_stack_free == 900);
+    worker_health_stack_margin(WORKER_ECM, 0);
+    worker_health_stack_margin(WORKER_ECM, 2000);
+    assert(worker_health_snapshot(WORKER_ECM, 40).stack_observed);
+    assert(worker_health_snapshot(WORKER_ECM, 40).minimum_stack_free == 0);
+    worker_health_stack_margin(WORKER_COUNT, 1);
     puts("worker health fixtures passed");
 }

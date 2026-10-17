@@ -1,9 +1,15 @@
 #include "worker_health.h"
 #include <stdatomic.h>
+#ifdef ESP_PLATFORM
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#endif
 
 typedef struct {
     atomic_bool observed;
     atomic_uint_least32_t count, last_ms, maximum_gap_ms, drops;
+    atomic_bool stack_observed;
+    atomic_uint_least32_t minimum_stack_free;
 } worker_record_t;
 static worker_record_t workers[WORKER_COUNT];
 
@@ -20,8 +26,25 @@ void worker_health_progress(worker_id_t worker, uint32_t now_ms)
         uint_least32_t maximum = atomic_load(&record->maximum_gap_ms);
         while (gap > maximum && !atomic_compare_exchange_weak(&record->maximum_gap_ms, &maximum, gap)) {}
     }
-    atomic_fetch_add(&record->count, 1);
+    uint32_t count = atomic_fetch_add(&record->count, 1);
+#ifdef ESP_PLATFORM
+    // Stack scanning is diagnostic work. Sample once per 64 progress reports,
+    // on the owning task, rather than on every frame or GATT operation.
+    if ((count & 63U) == 0) worker_health_stack_margin(worker, uxTaskGetStackHighWaterMark(NULL));
+#else
+    (void)count;
+#endif
     atomic_store(&record->observed, true);
+}
+
+void worker_health_stack_margin(worker_id_t worker, uint32_t bytes)
+{
+    if (!valid(worker)) return;
+    worker_record_t *record = &workers[worker];
+    // Same single writer as progress. Zero is a real exhausted margin.
+    if (!atomic_load(&record->stack_observed) || bytes < atomic_load(&record->minimum_stack_free))
+        atomic_store(&record->minimum_stack_free, bytes);
+    atomic_store(&record->stack_observed, true);
 }
 
 void worker_health_queue_drop(worker_id_t worker)
@@ -43,6 +66,8 @@ worker_health_t worker_health_snapshot(worker_id_t worker, uint32_t now_ms)
     snapshot.progress_count = atomic_load(&record->count);
     snapshot.maximum_gap_ms = atomic_load(&record->maximum_gap_ms);
     snapshot.queue_drops = atomic_load(&record->drops);
+    snapshot.stack_observed = atomic_load(&record->stack_observed);
+    snapshot.minimum_stack_free = atomic_load(&record->minimum_stack_free);
     return snapshot;
 }
 

@@ -81,6 +81,10 @@ These are the current entry points; historical reports are evidence, not instruc
 - Extend the existing firmware minute health log for task progress, queue saturation
   and memory fragmentation. Adapter absence is not a task failure; do not add reset
   loops or watchdog feeding that hides stalled owners. Qualify recovery on hardware.
+- Follow the [memory placement and admission budget](docs/architecture/firmware-runtime.md#memory-placement-and-admission-budget).
+  Keep CPU-only bulk storage in PSRAM and required DMA/ISR/flash stacks internal.
+  Preserve the linked-image memory gate, bounded allocation failure cleanup and
+  repeated Wi-Fi lifecycle measurements; never claim OOM immunity from free PSRAM.
 
 ## Hardware sessions
 

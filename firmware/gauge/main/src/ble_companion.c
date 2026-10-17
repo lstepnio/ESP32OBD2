@@ -175,20 +175,24 @@ static void owner_save_worker(void *arg)
 #define DISPLAY_SETTINGS_CAPABILITY ""
 #endif
 
-static const char capabilities[] =
-    "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
-    "\"maxAdapterLinks\":1,"
-    "\"savedStateRead\":true,\"displayRotationWrite\":true,"
-    "\"configWrite\":false,\"cfg\":6,\"ad\":1,\"da\":1,\"va\":1,"
-    "\"qs\":true,\"ota\":false,\"hw\":1"
-    DISPLAY_SETTINGS_CAPABILITY WIFI_BULK_CAPABILITY "}";
-static const char document_capabilities[] =
-    "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","
-    "\"maxAdapterLinks\":1,"
-    "\"savedStateRead\":false,\"displayRotationWrite\":false,"
-    "\"configWrite\":false,\"cfg\":6,\"ad\":1,\"da\":1,\"va\":1,"
-    "\"ota\":false,\"hw\":1,\"sc\":1"
-    DISPLAY_SETTINGS_CAPABILITY WIFI_BULK_CAPABILITY "}";
+#define LEGACY_CAPABILITY_BASE \
+    "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\"," \
+    "\"maxAdapterLinks\":1," \
+    "\"savedStateRead\":true,\"displayRotationWrite\":true," \
+    "\"configWrite\":false,\"cfg\":6,\"ad\":1,\"da\":1,\"va\":1," \
+    "\"qs\":true,\"ota\":false,\"hw\":1" DISPLAY_SETTINGS_CAPABILITY
+#define DOCUMENT_CAPABILITY_BASE \
+    "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\"," \
+    "\"maxAdapterLinks\":1," \
+    "\"savedStateRead\":false,\"displayRotationWrite\":false," \
+    "\"configWrite\":false,\"cfg\":6,\"ad\":1,\"da\":1,\"va\":1," \
+    "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY
+static const char capabilities[] = LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
+static const char document_capabilities[] = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
+#if CONFIG_EGAUGE_WIFI_BULK_ENABLED
+static const char capabilities_without_wifi[] = LEGACY_CAPABILITY_BASE "}";
+static const char document_capabilities_without_wifi[] = DOCUMENT_CAPABILITY_BASE "}";
+#endif
 _Static_assert(sizeof(capabilities) - 1U <= 255U,
                "Public capability JSON exceeds the qualified Android read boundary");
 _Static_assert(sizeof(document_capabilities) - 1U <= 255U,
@@ -578,6 +582,10 @@ static int capabilities_read(uint16_t conn_handle, uint16_t attr_handle,
     (void)arg;
     if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
     const char *value = document_active ? document_capabilities : capabilities;
+#if CONFIG_EGAUGE_WIFI_BULK_ENABLED
+    if (!wifi_bulk_available()) value = document_active
+        ? document_capabilities_without_wifi : capabilities_without_wifi;
+#endif
     size_t length = strlen(value);
     if (ctxt->offset > length) return BLE_ATT_ERR_INVALID_OFFSET;
     return companion_gatt_read_value(ctxt->om, value, length, ctxt->offset);

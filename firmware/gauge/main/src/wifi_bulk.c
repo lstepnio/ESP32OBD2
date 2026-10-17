@@ -1,4 +1,5 @@
 #include "worker_health.h"
+#include "memory_health.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdatomic.h>
@@ -56,6 +57,9 @@ static SemaphoreHandle_t state_lock;
 static esp_netif_t *ap_netif;
 static bool wifi_initialized;
 static bool server_started;
+static uint8_t *frame_ciphertext, *frame_plaintext;
+static portMUX_TYPE status_mux = portMUX_INITIALIZER_UNLOCKED;
+static uint32_t status_expires_at;
 static atomic_bool wifi_active;
 static atomic_uint wifi_generation;
 static atomic_uint abandoned_ota_session;
@@ -98,6 +102,9 @@ static void write_u32(uint8_t *p, uint32_t value)
 
 static void publish_locked(void)
 {
+    // Workers own state_lock. GATT copies only this short published snapshot,
+    // without competing for that mutex during network allocation/startup.
+    portENTER_CRITICAL(&status_mux);
     memset(status_cache, 0, sizeof(status_cache));
     status_cache[0] = 9;
     status_cache[1] = state.phase;
@@ -119,6 +126,8 @@ static void publish_locked(void)
         memcpy(status_cache + 58, state.ssid, ssid_length);
         memcpy(status_cache + 90, state.password, password_length);
     }
+    status_expires_at = state.expires_at;
+    portEXIT_CRITICAL(&status_mux);
 }
 
 static void rotate_session_locked(void)
@@ -202,7 +211,15 @@ static bool start_maintenance_network(void)
     atomic_store(&wifi_active, false);
     atomic_fetch_add(&wifi_generation, 1);
     if (wifi_initialized) esp_wifi_stop();
+    memory_health_log("wifi_before_init");
+    if (!wifi_initialized && !wifi_bulk_policy_init_memory_ready(
+            heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+            heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT))) {
+        ESP_LOGW(TAG, "Maintenance initialization deferred: insufficient internal headroom");
+        return false;
+    }
     if (!initialize_wifi()) return false;
+    memory_health_log("wifi_initialized");
     uint8_t mac[6];
     if (esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP) != ESP_OK) return false;
     xSemaphoreTake(state_lock, portMAX_DELAY);
@@ -250,6 +267,7 @@ static bool start_maintenance_network(void)
     publish_locked();
     xSemaphoreGive(state_lock);
     atomic_store(&wifi_active, true);
+    memory_health_log("wifi_ready");
     ESP_LOGI(TAG, "Temporary Wi-Fi maintenance network ready at " IPSTR ":%d",
              IP2STR(&info.ip), PORT);
     return true;
@@ -260,6 +278,7 @@ static void stop_maintenance_network(void)
     atomic_store(&wifi_active, false);
     atomic_fetch_add(&wifi_generation, 1);
     release_wifi_driver();
+    memory_health_log("wifi_released");
     ble_mgr_set_paused(false);
     xSemaphoreTake(state_lock, portMAX_DELAY);
     clear_session_locked(PHASE_OFF, RESULT_OK);
@@ -441,17 +460,8 @@ static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext, ui
 static void server_task(void *arg)
 {
     (void)arg;
-    uint8_t *ciphertext = heap_caps_malloc(FRAME_MAX_PLAINTEXT,
-        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    uint8_t *plaintext = heap_caps_malloc(FRAME_MAX_PLAINTEXT,
-        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!ciphertext || !plaintext) {
-        ESP_LOGE(TAG, "Could not allocate Wi-Fi frame buffers in PSRAM");
-        heap_caps_free(ciphertext);
-        heap_caps_free(plaintext);
-        vTaskDelete(NULL);
-        return;
-    }
+    uint8_t *ciphertext = frame_ciphertext;
+    uint8_t *plaintext = frame_plaintext;
     for (;;) {
         worker_health_progress(WORKER_WIFI_SERVER, (uint32_t)(esp_timer_get_time() / 1000));
         while (!atomic_load(&wifi_active)) {
@@ -519,6 +529,7 @@ static void worker_task(void *arg)
                 ble_mgr_set_paused(true);
                 if (!start_maintenance_network()) {
                     release_wifi_driver();
+                    memory_health_log("wifi_failed_released");
                     ble_mgr_set_paused(false);
                     xSemaphoreTake(state_lock, portMAX_DELAY);
                     clear_session_locked(PHASE_FAILED, RESULT_NETWORK);
@@ -549,18 +560,36 @@ static void worker_task(void *arg)
 
 esp_err_t wifi_bulk_init(void)
 {
+    if (server_started) return ESP_OK;
+    TaskHandle_t control_task = NULL, bulk_task = NULL;
     state_lock = xSemaphoreCreateMutex();
     command_queue = xQueueCreate(2, sizeof(command_t));
-    if (!state_lock || !command_queue) return ESP_ERR_NO_MEM;
+    // Allocate mandatory service buffers before publishing availability. A task
+    // must not silently die and leave a READY AP with no receiving server.
+    frame_ciphertext = heap_caps_malloc(FRAME_MAX_PLAINTEXT, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    frame_plaintext = heap_caps_malloc(FRAME_MAX_PLAINTEXT, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!state_lock || !command_queue || !frame_ciphertext || !frame_plaintext) goto fail;
     xSemaphoreTake(state_lock, portMAX_DELAY);
     clear_session_locked(PHASE_OFF, RESULT_OK);
     xSemaphoreGive(state_lock);
-    if (xTaskCreate(worker_task, "wifi_control", 5120, NULL, 4, NULL) != pdPASS ||
-        xTaskCreate(server_task, "wifi_bulk", 8192, NULL, 4, NULL) != pdPASS)
-        return ESP_ERR_NO_MEM;
+    if (xTaskCreate(server_task, "wifi_bulk", 8192, NULL, 4, &bulk_task) != pdPASS ||
+        xTaskCreate(worker_task, "wifi_control", 5120, NULL, 4, &control_task) != pdPASS) goto fail;
     server_started = true;
     return ESP_OK;
+fail:
+    if (control_task) vTaskDelete(control_task);
+    if (bulk_task) vTaskDelete(bulk_task);
+    if (command_queue) vQueueDelete(command_queue);
+    if (state_lock) vSemaphoreDelete(state_lock);
+    heap_caps_free(frame_ciphertext);
+    heap_caps_free(frame_plaintext);
+    frame_ciphertext = frame_plaintext = NULL;
+    command_queue = NULL;
+    state_lock = NULL;
+    return ESP_ERR_NO_MEM;
 }
+
+bool wifi_bulk_available(void) { return server_started; }
 
 bool wifi_bulk_command(const uint8_t *bytes, size_t length)
 {
@@ -574,10 +603,15 @@ bool wifi_bulk_command(const uint8_t *bytes, size_t length)
 
 size_t wifi_bulk_status(uint8_t out[WIFI_BULK_STATUS_SIZE])
 {
-    if (!out || !state_lock) return 0;
-    if (xSemaphoreTake(state_lock, 0) != pdTRUE) return 0;
-    publish_locked();
+    if (!out || !server_started) return 0;
+    portENTER_CRITICAL(&status_mux);
     memcpy(out, status_cache, sizeof(status_cache));
-    xSemaphoreGive(state_lock);
+    uint32_t expires = status_expires_at;
+    portEXIT_CRITICAL(&status_mux);
+    int32_t remaining = (int32_t)(expires - xTaskGetTickCount());
+    if (out[1] == PHASE_READY) {
+        if (remaining > 0) write_u32(out + 52, (uint32_t)remaining / configTICK_RATE_HZ);
+        else memset(out + 20, 0, WIFI_BULK_STATUS_SIZE - 20U);
+    }
     return sizeof(status_cache);
 }
