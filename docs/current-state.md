@@ -1,8 +1,14 @@
 # Current implementation and evidence
 
-Updated 2026-10-18. This is the current support and installed-device snapshot.
+Updated 2026-10-19. This is the current support and installed-device snapshot.
 [Backlog](backlog.md) owns unfinished work; [roadmap](roadmap.md) orders outcomes.
 Dated [evidence](evidence/README.md) preserves measurements without defining today's plan.
+
+Prepared, not installed: page changes now reuse fresh source/session-scoped readings,
+and the local upward shortcut has tap/hold arbitration, reconnect-safe progress and
+CEL-visible feedback. Production LVGL/cache and pure gesture fixtures pass. The
+[review](evidence/gauge-browsing-reliability.md) records source findings and remaining
+QUAL-13 device acceptance; installed image identity below is unchanged.
 
 ## Verified baseline
 

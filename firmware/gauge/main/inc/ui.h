@@ -43,6 +43,7 @@ typedef enum {
 
 typedef struct {
     uint16_t pid;
+    uint8_t source;
     const char *name;
     const char *unit;
     double minimum;
@@ -65,10 +66,11 @@ typedef void (*ui_touch_callback_t)(ui_t *ui, lv_event_code_t event_code);
 
 ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t touch_cb,
               bool pairing_required, bool imperial_units);
-/* Thread-safe presentation mailbox. Samples are accepted only when their PID
- * still matches the selected page, preventing late replies from crossing a
- * page change. Passing NULL publishes an unavailable sample for that PID. */
-void  ui_set_value(ui_t *ui, uint16_t pid, double const *value);
+/* Thread-safe, fixed latest-value cache. Samples retain their observation time
+ * across navigation and are rendered only for the matching ready source/session.
+ * Passing NULL explicitly invalidates a PID, including on a hidden page. */
+void ui_set_value(ui_t *ui, unsigned source, uint32_t generation, uint16_t pid, double const *value);
+void ui_invalidate_source(ui_t *ui, unsigned source, uint32_t generation);
 void  ui_set_page(ui_t *ui, ui_page_t const *page);
 void ui_set_page_position(ui_t *ui,unsigned index,unsigned count);
 /* LVGL owner only for configuration and target access. Context mailbox is thread-safe. */

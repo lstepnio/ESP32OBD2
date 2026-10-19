@@ -70,7 +70,29 @@ remains useful when an adapter is disconnected. Pairing, calibration,
 updates and other overlays must consume input without arming vehicle actions.
 Maintain existing click/hold behavior and test it explicitly.
 
-Show a small progress indicator during recognition and a named result after execution.
+The local page shortcut accepts deliberate 40..800 ms upward strokes, with at
+least 32 px travel, at most 24 px lateral drift and a 2:1 upward/lateral ratio.
+More than 16 px downward excursion cancels a stroke. The 40 ms floor replaces
+80 ms so quick deliberate flicks are not rejected solely for their speed; it is a
+prepared interaction adjustment, not hardware-qualified noise rejection.
+
+Input arbitration keeps motion over 12 px separate from a stationary tap/hold.
+A rejected upward/diagonal attempt cannot fall through to page navigation or open
+pairing. Clear horizontal strokes still browse pages; without an enabled shortcut,
+ordinary swipe-to-browse behavior remains. Lost presses and actual context changes
+cancel progress. Repeated `UI_PAIRING_HIDDEN` notifications do not. Publish pending
+input immediately and recheck cycle eligibility under LVGL ownership before changing
+a page, preventing automatic cycling from interrupting a stroke admitted first.
+
+Progress (`1/3`), success (`Done`) and attempted-cooldown (`Wait`) use the bottom
+page-position lane and temporarily replace the dots. CEL status stays above and
+condition text stays below the readings; critical attention takes precedence.
+Result feedback lasts up to two seconds; cooldown feedback ends when the cooldown
+expires. The five-second cooldown and saved count/window/target remain unchanged.
+The [browsing review](../evidence/gauge-browsing-reliability.md) distinguishes
+software findings from loaded hardware acceptance and compares alternative inputs.
+
+Show a small progress indicator during recognition and a concise result after execution.
 One-shot bindings execute at most once per sequence, have a cooldown and cannot overlap
 another action on the same source. Actions requiring continuous refresh use an explicit
 active state and Stop operation, rather than repeated gestures generating new jobs.

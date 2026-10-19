@@ -147,7 +147,7 @@ static void page_ui(unsigned index, ui_page_t *out)
     for (unsigned i = 0; i < page->pid_count; ++i) {
         const runtime_pid_t *pid = &g_runtime->pids[page->pid_indices[i]];
         out->metrics[i] = (ui_metric_t){
-            .pid = pid->obd.pid, .name = pid->name, .unit = pid->unit,
+            .pid = pid->obd.pid, .source = pid->source_index, .name = pid->name, .unit = pid->unit,
             .minimum = pid->obd.decoder.minimum,
             .maximum = pid->obd.decoder.maximum,
             .stale_after_ms = pid->stale_ms,
@@ -167,18 +167,7 @@ static bool runtime_simulated(void)
 }
 static void clear_source(ui_t *ui, unsigned source)
 {
-    /* Only visible metrics need queue entries; page switches reset hidden samples.
-     * Bound invalidation to two entries even when an absent source owns 32 PIDs. */
-    ui_page_t page;
-    page_ui(atomic_load(&g_selected_page), &page);
-    for (unsigned metric=0; metric<page.metric_count; ++metric) {
-        if (!g_runtime) { ui_set_value(ui, page.metrics[metric].pid, NULL); continue; }
-        for (unsigned i=0; i<g_runtime->pid_count; ++i)
-            if (g_runtime->pids[i].source_index == source && g_runtime->pids[i].obd.pid == page.metrics[metric].pid) {
-                ui_set_value(ui, page.metrics[metric].pid, NULL);
-                break;
-            }
-    }
+    ui_invalidate_source(ui, source, adapter_status_generation(source));
 }
 
 static const obd_pid_cfg_t *poll_cfg(unsigned index)
@@ -291,26 +280,27 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
         return;
     }
 
-    if (data == NULL || len == 0)
-    {
-        ESP_LOGE(TAG, "Received empty data for PID 0x%02X", pid);
-        queue_alert_sample(source, pid, generation, NAN);
-        ui_set_value(ui, pid, NULL);
-        return;
-    }
-
-    /* Diagnostic PID replies are consumed synchronously with endpoint identity. */
+    /* Only configured live PIDs enter the fixed presentation cache. Diagnostic
+     * replies are consumed synchronously with endpoint identity. */
     if (pid == 0x01) return;
-
     const obd_pid_cfg_t *definition = NULL;
     for (unsigned i = 0; i < poll_count(); ++i)
         if (poll_cfg(i)->pid == pid && (!g_runtime || g_runtime->pids[i].source_index == source)) { definition = poll_cfg(i); break; }
     if (!definition) return;
+
+    if (data == NULL || len == 0)
+    {
+        ESP_LOGE(TAG, "Received empty data for PID 0x%02X", pid);
+        queue_alert_sample(source, pid, generation, NAN);
+        ui_set_value(ui, source, generation, pid, NULL);
+        return;
+    }
+
     if (len != definition->len)
     {
         ESP_LOGW(TAG, "Invalid length for PID 0x%02X: expected %zu, got %zu", pid, definition->len, len);
         queue_alert_sample(source, pid, generation, NAN);
-        ui_set_value(ui, pid, NULL);
+        ui_set_value(ui, source, generation, pid, NULL);
         return;
     }
 
@@ -318,20 +308,20 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     if (g_runtime && pid == 0x5503 &&
         !transmission_gear_label(data[0])) {
         queue_alert_sample(source, pid, generation, NAN);
-        ui_set_value(ui, pid, NULL);
+        ui_set_value(ui, source, generation, pid, NULL);
         return;
     }
     if (!pid_decoder_eval(&definition->decoder, data, len, &decoded)) {
         ESP_LOGW(TAG, "Rejected invalid value for PID 0x%02X", pid);
         queue_alert_sample(source, pid, generation, NAN);
-        ui_set_value(ui, pid, NULL);
+        ui_set_value(ui, source, generation, pid, NULL);
         return;
     }
 
     queue_alert_sample(source, pid, generation, decoded);
 
     ESP_LOGD(TAG, "Received PID 0x%02X (%s): %.3f", pid, definition->name, decoded);
-    ui_set_value(ui, pid, &decoded);
+    ui_set_value(ui, source, generation, pid, &decoded);
 }
 
 static void app_tick_task(void *arg)
@@ -578,7 +568,7 @@ static void obd_task(void *arg)
         if (status != 0)
         {
             queue_alert_sample(source, requested->pid, poll_generation, NAN);
-            ui_set_value(ui, requested->pid, NULL);
+            ui_set_value(ui, source, poll_generation, requested->pid, NULL);
             ESP_LOGW(TAG, "Failed to send request: %d", status);
         }
     }
@@ -941,14 +931,21 @@ void app_main(void)
         if (page_cycle_due(cycle.cycle_seconds, page_count(), owner_ready,
             transfer_idle && !ui_action_pending(ui), atomic_load(&g_page_activity_ms), now_ms) &&
             lvgl_port_lock(0)) {
-            uint8_t selected = (atomic_load(&g_selected_page) + 1) % page_count();
-            ui_page_t page;
-            page_ui(selected, &page);
-            ui_set_page(ui, &page);
-            ui_set_page_position(ui,selected,page_count());
-            atomic_store(&g_selected_page, selected);
-            ble_companion_selection_applied(selected);
-            atomic_store(&g_page_activity_ms, now_ms);
+            /* Touch may have arrived between eligibility and taking LVGL.
+             * Recheck under the same lock that owns touch/page mutation. */
+            now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+            if (page_cycle_due(cycle.cycle_seconds, page_count(), ble_companion_has_owner(),
+                transfer_gate_current() == 0 && !ui_action_pending(ui),
+                atomic_load(&g_page_activity_ms), now_ms)) {
+                uint8_t selected = (atomic_load(&g_selected_page) + 1) % page_count();
+                ui_page_t page;
+                page_ui(selected, &page);
+                ui_set_page(ui, &page);
+                ui_set_page_position(ui,selected,page_count());
+                atomic_store(&g_selected_page, selected);
+                ble_companion_selection_applied(selected);
+                atomic_store(&g_page_activity_ms, now_ms);
+            }
             lvgl_port_unlock();
         }
         page_save_observe(&page_save, atomic_load(&g_local_page_generation), now_ms);
