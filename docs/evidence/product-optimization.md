@@ -306,3 +306,48 @@ still runs signed dev.58. A new separately authorized release is required to dep
 Live ECU/pairing/OTA interruption, TalkBack/OEM/fold/RTL qualification and real vehicle
 alert observations remain under their existing backlog gates. No claim of complete
 physical or radio qualification follows from these UI checks.
+
+### Dev.59 signed Wi-Fi rollout
+
+The owner authorized merging PR #53 after CI, publishing the updated development
+firmware and installing through App/Wi-Fi. Version identity dev.59 was added as
+`0e6ebcc`; all three quality jobs passed before merge `4932860`. Protected release
+workflow [39195241392](https://github.com/lstepnio/ESP32OBD2/actions/runs/39195241392)
+built that exact merged source and published immutable development
+[dev.59](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.59), generation
+**40**. The pinned public key verified both catalog and image signatures locally;
+bundle hash/length, board, layout, descriptor and exact version also matched.
+
+- Image: **1,615,904 bytes**; ELF SHA-256
+  `a4a68d78ad5275e9f9d0c20b8dfc8fafcb7405fcb4195b1faad3267a3ad5ab64`.
+- Updated App dev.51 debug APK SHA-256:
+  `3f05a494b5dc60fbffde3cdd7f09feadbd853819b646813e806b5079c670313e`.
+- `WifiFirmwareJourneyTest` passed in **108.895 seconds**, including preparation,
+  hosted download and preservation reads. The installation owner took **75,515 ms**:
+  Wi-Fi sending observed at 19,163 ms, verification at 58,215 ms and running-image
+  confirmation at 60,806 ms. No artificial activation pause was used.
+- Exact dev.59 running identity, healthy OTA state **2**, alternate slot and cleared
+  recovery journal passed. Dashboard revision **51**, digest, display settings and
+  phone profiles stayed unchanged. The upload was received by signed dev.58 at
+  240 MHz, qualifying this particular full transfer at that clock.
+- Two dev.59 private Wi-Fi open/read/close cycles passed in **34.626 seconds**.
+  Protected network opens took **1,548 / 1,615 ms**; each cycle preserved boot nonce,
+  exact image, configuration and settings. This is a short lifecycle check, not a soak.
+- Captured allocation-failure counters remained zero. A receiver sample reported
+  minimum internal heap **98,419 bytes** and largest block **31,744 bytes**; subsequent
+  maintenance reported minimum **97,359 bytes**. Samples do not prove every transient
+  peak or qualify loaded ECM/TCM/phone operation.
+
+No USB firmware flashing, bond reset, configuration send or ECU operation was used.
+The existing default-off public capability and code-clearing boundaries are unchanged.
+`DisplayShowcaseJourneyTest` passed in **24.424 seconds**, observing two distinct
+frames (0 and 1), App-owned stop and authenticated preservation reads. Playback was
+restarted for owner review. The owner separately confirmed **no Demo footer**, hold
+exit, normal pages and working swipes. This physical observation is distinct from
+the production LVGL twenty-one-frame footer assertions and from the protocol check.
+
+Final private comparisons found phone profiles, gauge associations and presentation
+preferences byte-for-byte unchanged. Normal eGauge was reopened, the read-only USB
+logger was closed and the original phone wake settings were restored. Release and
+quality workflows both passed. These results do not qualify broader vehicle loads,
+all panel pixels/units/rotations, thermal behavior or interruption recovery.
