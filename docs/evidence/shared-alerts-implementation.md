@@ -135,3 +135,26 @@ settings were restored. No App-data reset, phone instrumentation, USB flashing,
 live adapter session, ECU command, public-capability promotion or main merge occurred.
 Physical vehicle transitions/context, phone monitoring/OEM behavior, sensor/storage
 fault injection and simultaneous dual adapters remain qualification work.
+
+## 2026-10-19 TCM CEL filter configuration
+
+Owner requested testing exact Transmission filters for `U0140`, `U0121`, `P1DCA`
+and `P1DF3` on the existing Jeep setup. Added them through Expert > Code filters,
+reviewed and sent through the normal App configuration path. Running signed dev.60
+confirmed revision 52, matching protected document digest and cleared trial.
+
+Readback comparison with the verified revision-51 document changed only
+`diagnosticFilters` and `baseRevision`. All pages, alerts, gestures, source/adapter
+bindings and other document fields were identical. Saved phone profiles were also
+identical after excluding the four intended rules. The focused read-only automatic
+connection/resume journey passed; display settings and firmware identity were retained.
+Private backups and raw readback remain ignored local artifacts; phone wake settings
+were restored. No firmware installation or ECU-clear operation was performed.
+
+Both adapter links were unavailable during this indoor configuration check. Live
+filter projection remains unqualified: reconnect the TCM with fresh, complete fault
+categories and matching MIL count, verify the four codes leave ordinary lists and
+the TCM no longer contributes to the gauge CEL, while raw Fault diagnostics/history
+retain them. An unfiltered Engine warning remains independent. Any additional
+unfiltered code or incomplete/stale check must keep its warning/unknown state.
+The code descriptions supplied by the owner were not used to infer controller meanings.
