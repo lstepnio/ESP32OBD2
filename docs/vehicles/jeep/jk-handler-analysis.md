@@ -27,3 +27,19 @@ Its general JK coverage is not evidence that the swapped Hemi PCM matches the
 petrol handler above, nor a complete ABS/ESC disable/restore procedure. Next controller
 qualification needs exact identities and complete command/result/restore definitions;
 retain these as research candidates until that evidence is available.
+
+## Temporary-idle follow-up, 2026-10-19
+
+The versioned inventory places `33 05` in the constructor, initial adaptation and
+recurring work method. `StopAdaptation` delegates to an unexpanded base method;
+navigation-away delegates to that Stop method. The inventory alone therefore does
+not identify the actual release transaction or prove that ceasing `33 05` restores
+idle. The exposed RPM labels include 800 through 2000, but they are UI choices in
+the reference implementation, not validated limits or a decoder for our PCM.
+The adaptation's `22 0122` field is not a complete execution procedure.
+
+The captured engine calibration `68059434AD` and CVN `CA36378C` at `7E8` are the
+first [qualification target](../../evidence/jeep-direct-exploration-results.md#placement-correction-and-identity).
+No new vehicle requests were made for this follow-up. The implementation and test
+sequence belongs in [ADR-013's temporary-idle proposal](../../architecture/vehicle-actions.md#first-vehicle-command-temporary-high-idle);
+do not duplicate a command procedure here or infer compatibility from the JK name.

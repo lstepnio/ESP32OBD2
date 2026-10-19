@@ -71,6 +71,11 @@ Auto orientation is specified in the [hardware policy](architecture/hardware-and
 and tracked as FEATURE-07. The current IMU path is unimplemented; manual rotation
 and timed page cycling remain independent implemented controls.
 
+FEATURE-04 now has a [temporary-idle delivery proposal](architecture/vehicle-actions.md#first-vehicle-command-temporary-high-idle)
+for Air up and Winch presets using the existing gesture/profile foundation.
+The captured engine identity is a research target; no command contract, controller
+driver or high-idle Start/Stop UI has been implemented or installed.
+
 ## Known reliability limits
 
 - Owner-key disappearance preceding dev.53 remains unexplained. Fresh pairing and one
