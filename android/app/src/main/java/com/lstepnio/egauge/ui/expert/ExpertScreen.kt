@@ -41,6 +41,7 @@ data class ExpertActions(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @Composable () -> Unit = {}) {
+    var tool by rememberSaveable(state.vehicleId) { mutableStateOf<String?>(null) }
     var filtersOpen by rememberSaveable(state.vehicleId) { mutableStateOf(false) }
     var codeInput by rememberSaveable(state.vehicleId) { mutableStateOf("") }
     var controller by rememberSaveable(state.vehicleId) { mutableStateOf("ECM") }
@@ -49,57 +50,76 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @C
     ScreenContent {
         ScreenTitle("Expert")
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SectionTitle("Gauge checks")
-            if(BuildConfig.DEBUG)SettingsRow("Phone alert test","Simulated road notice · expires after 30 seconds",state.canRead,actions.phoneAlertTest)
-            if(BuildConfig.DEBUG && state.canShowcase) SettingsRow(
-                if(state.showcaseActive) "Stop display demo" else "Showcase gauge screens",
-                if(state.showcaseActive) "Generated data · hold gauge to exit" else "Temporary generated examples · keeps saved dashboard",
-                true, { actions.displayShowcase(!state.showcaseActive) })
-            PrimaryAction("Refresh gauge data", actions.refreshSettings, enabled = state.canRead)
-            SettingsRow("Check vehicle faults", enabled = state.canRead, onClick = actions.readDiagnostics)
-            SettingsRow("Read hardware capacity", enabled = state.canReadHardware, onClick = actions.readHardware)
-            SettingsRow("Check installed firmware", enabled = state.canRead, onClick = actions.readFirmware)
-            if (state.canAdoptGaugeSettings) SettingsRow("Use saved gauge setup", enabled = state.canRead, onClick = actions.adoptGaugeSettings)
-            if (BuildConfig.DEBUG && state.vehicleName.isNotBlank()) {
-                SectionTitle("Vehicle connections")
-                Text(state.vehicleName, style = MaterialTheme.typography.titleMedium)
-                if (state.primarySource == "ECM") {
-                    SettingsRow("Primary adapter", "Engine (ECM)", state.canEditVehicle, actions.openPrimaryAdapter)
-                    if (state.hasTransmission) {
-                        SettingsRow("Second adapter", if (state.secondAdapter == null) "Choose transmission adapter" else "Transmission adapter selected",
-                            state.canEditVehicle) { secondOpen = true }
-                        SettingsRow("Use both adapters on this gauge", if (state.bothAdapters) "On · review and send setup" else "Off",
-                            state.canEditVehicle && (state.canUseBothAdapters || state.bothAdapters)) { actions.useBoth(!state.bothAdapters) }
-                        if (!state.bothAdapters) state.secondAdapterSetupIssue?.let { Text(it) }
-                    } else {
-                        SettingsRow("Add second adapter", "For a swap with a separate transmission connector",
-                            state.canEditVehicle && state.hasPrimaryAdapter) { actions.addTransmission(); secondOpen = true }
-                        if (!state.hasPrimaryAdapter) Text("Choose the primary engine adapter in Car first.")
-                    }
+            Text("Advanced setup and troubleshooting", style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (state.vehicleId.isNotBlank() || state.vehicleName.isNotBlank()) {
+                SectionTitle(state.vehicleName.ifBlank { "Vehicle" })
+                if (BuildConfig.DEBUG && state.primarySource == "ECM") SettingsRow("Second adapter",
+                    when {
+                        state.bothAdapters -> "Engine and transmission share one dashboard"
+                        state.hasTransmission -> "Transmission connection saved"
+                        else -> "Optional · for a separate transmission connector"
+                    }, state.canEditVehicle && (state.hasTransmission || state.hasPrimaryAdapter)) {
+                    if (!state.hasTransmission) actions.addTransmission()
+                    secondOpen = true
                 }
-                if (state.legacyParents.isNotEmpty()) {
-                    Text("Legacy transmission setup. Choose its engine vehicle to move the pages and adapter into a child connection.")
-                    state.legacyParents.forEach { parent ->
-                        SettingsRow("Attach to ${parent.name}", "Keeps transmission pages; review and send afterward",
-                            state.canEditVehicle, { actions.attachLegacy(parent.id) })
-                    }
-                    if (state.legacyParents.isEmpty()) Text("Set up an engine vehicle and its primary adapter first.")
-                }
-
+                if (BuildConfig.DEBUG && !state.hasPrimaryAdapter && state.primarySource == "ECM")
+                    Text("Choose your vehicle adapter in Car before adding a second one.", style = MaterialTheme.typography.bodyMedium)
+                SettingsRow("Code filters",
+                    if (state.diagnosticFilters.isEmpty()) "Choose which fault codes to hide" else "${state.diagnosticFilters.size} codes filtered",
+                    state.canEditVehicle) { filtersOpen = true }
+                if (state.legacyParents.isNotEmpty()) SettingsRow("Connect transmission setup",
+                    "Link an existing setup to its vehicle") { tool = "legacy" }
             }
             state.vehicleMessage?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-            if(state.vehicleId.isNotBlank()) SettingsRow("CEL code filters",
-                if(state.diagnosticFilters.isEmpty()) "None · all codes shown" else "${state.diagnosticFilters.size} filters · review and send changes",
-                state.canEditVehicle) { filtersOpen=true }
-            faultCoverage()
-            SectionTitle("Device data")
-            DetailContent(state.details)
+            SectionTitle("Troubleshooting")
+            SettingsRow("Fault diagnostics", "See which vehicle checks have completed") { tool = "faults" }
+            SettingsRow("Device data", "Gauge information and support checks") { tool = "device" }
+            if (BuildConfig.DEBUG) SettingsRow("Demos", if (state.showcaseActive) "Display demo running" else "Preview gauge screens and a sample notice") { tool = "demos" }
+
+        }
+    }
+    if (tool != null) ModalBottomSheet(onDismissRequest = { tool = null }) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            when (tool) {
+                "faults" -> {
+                    SectionTitle("Fault diagnostics")
+                    Text("Checks update automatically while connected. Missing checks do not mean there are no faults.")
+                    faultCoverage()
+                    SettingsRow("Check again", "Retry the vehicle fault check", state.canRead, actions.readDiagnostics)
+                }
+                "device" -> {
+                    SectionTitle("Device data")
+                    DetailContent(state.details)
+                    SectionTitle("Support checks")
+                    SettingsRow("Reload gauge data", "Retry reading the saved setup", state.canRead, actions.refreshSettings)
+                    SettingsRow("Hardware information", "Read display, memory and processor information", state.canReadHardware, actions.readHardware)
+                    SettingsRow("Installed firmware", "Read the version running on the gauge", state.canRead, actions.readFirmware)
+                    if (state.canAdoptGaugeSettings) SettingsRow("Use saved gauge setup", "Import the setup stored on this gauge",
+                        state.canRead, actions.adoptGaugeSettings)
+                }
+                "demos" -> {
+                    SectionTitle("Demos")
+                    Text("Examples use generated data. Your saved dashboard is kept.")
+                    if (state.canShowcase) SettingsRow(if (state.showcaseActive) "Stop display demo" else "Start display demo",
+                        "You can also hold the gauge screen to exit", onClick = { actions.displayShowcase(!state.showcaseActive) })
+                    SettingsRow("Send sample notice", "Disappears after 30 seconds", state.canRead, actions.phoneAlertTest)
+                }
+                "legacy" -> {
+                    SectionTitle("Connect transmission setup")
+                    Text("Choose the vehicle this transmission belongs to. Pages and adapter settings stay together. Review and send afterward.")
+                    state.legacyParents.forEach { parent ->
+                        SettingsRow(parent.name, enabled = state.canEditVehicle) { actions.attachLegacy(parent.id); tool = null }
+                    }
+                }
+            }
         }
     }
     if(filtersOpen) ModalBottomSheet(onDismissRequest={filtersOpen=false}) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-            SectionTitle("CEL code filters")
-            Text("For ${state.vehicleName}. Matching codes stay in Advanced diagnostics and history. CEL is hidden only when all current codes are filtered and checks are complete.")
+            SectionTitle("Code filters")
+            Text("For ${state.vehicleName}. Matching codes stay in Fault diagnostics and history. CEL is hidden only when all current codes are filtered and checks are complete.")
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 listOf("ECM" to "Engine","TCM" to "Transmission").forEach { (id,label) ->
                     FilterChip(selected=controller==id,onClick={controller=id},label={Text(label)})
@@ -127,7 +147,7 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @C
         }
     }
     if (removeOpen) AlertDialog(onDismissRequest = { removeOpen = false },
-        title = { Text("Remove transmission child?") },
+        title = { Text("Remove second adapter?") },
         text = { Text("This removes the second adapter selection. All vehicle pages and gestures stay saved and will use the primary adapter after you review and send. Installed gauge settings stay unchanged.") },
         confirmButton = { TextButton({ actions.removeTransmission(); removeOpen = false }, enabled = state.canEditVehicle) { Text("Remove") } },
         dismissButton = { TextButton({ removeOpen = false }) { Text("Cancel") } })
@@ -147,6 +167,9 @@ private fun SecondAdapterChoices(state: ExpertUiState, actions: ExpertActions, o
             SectionTitle("Second adapter")
             Text("Choose the adapter plugged into the transmission connector. Both adapters share this car's dashboard.")
             if (state.secondAdapter != null) Text("Transmission adapter selected · ${state.secondAdapter.address.takeLast(5)}")
+            if (state.hasTransmission) SettingsRow("Use both adapters on this gauge",
+                if (state.bothAdapters) "On · review and send changes" else "Off · use the primary adapter",
+                state.canEditVehicle && (state.canUseBothAdapters || state.bothAdapters)) { actions.useBoth(!state.bothAdapters) }
             state.adapterDiscoveryBlocker?.let { Text(it) }
             state.adapterCandidates.forEach { candidate ->
                 val primary = samePhysicalAdapter(state.primaryAdapter, candidate.binding)

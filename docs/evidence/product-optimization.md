@@ -212,3 +212,21 @@ small steps with explicit state-contract tests, not replaced speculatively.
 Private artifacts under ignored `artifacts/product-optimization/` hold phone timing,
 protected readback, preference comparisons and rendered captures. No personal device
 IDs, adapter captures, credentials or signing material are committed.
+
+## 2026-10-18 Expert task-menu simplification
+
+Expert now starts with vehicle-scoped Second adapter and Code filters rows, followed
+by Fault diagnostics, Device data and debug-only Demos. Raw snapshots and manual
+support checks no longer occupy the landing page. The adapter sheet combines
+selection and the existing dual-link switch, keeps one initial automatic search,
+rejects the primary adapter as a child and retains explicit removal confirmation.
+Legacy migration is shown only when there is a parent to choose. Compatibility
+messages now point to the actual Device data destination.
+
+The debug App and instrumentation APK compile and Android lint passes. Nine focused
+`VehicleHierarchyUiTest` emulator cases cover child discovery/removal, firmware gates,
+vehicle-change sheet dismissal, hidden support actions and scrolling at 1.8x font
+scale. Native captures are retained under ignored `artifacts/expert-ux/`; these use
+fixture state on an isolated emulator, not phone or live-vehicle observations.
+The running Pixel/gauge firmware session was not modified for this UI review.
+No persistence, BLE protocol, fault filtering semantics or firmware behavior changes.

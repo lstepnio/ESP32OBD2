@@ -77,3 +77,20 @@ profile/association/preference failures, not each routine connection retry.
 See [product assessment and implementation evidence](../evidence/product-optimization.md)
 for the dated review and workflow evidence. Current remaining qualification belongs
 to [the backlog](../backlog.md).
+
+## Expert task menu
+
+Expert is a compact task menu, not an engineering dashboard. Show vehicle-scoped
+Second adapter and Code filters entries, then Fault diagnostics and Device data.
+Debug-only Demos has a separate sheet; never place generated notices alongside
+real fault state. Raw values, manual support retries and setup-import actions belong
+inside Device data. Normal foreground refresh and the universal connection pill
+remain automatic and shared across destinations.
+
+Second adapter opens one setup sheet with discovery, selection and the dual-link
+switch together. Preserve primary/child routing, firmware capability gates,
+independent freshness and explicit removal confirmation. Legacy transmission
+migration appears only when a migration target exists. Sheets scroll with large
+text, retain keyboard/system insets and reset when the active vehicle changes.
+Use familiar task names; transport addresses and coverage details stay inside their
+specific tool. Hiding detail never changes diagnostic truth or saved settings.
