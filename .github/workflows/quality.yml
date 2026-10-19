@@ -23,8 +23,7 @@ jobs:
           java-version: '17'
       - name: Formatting
         run: |
-          python tools/dev.py format --language python --check
-          python tools/dev.py format --language c --check
+          python tools/dev.py format --check
       - name: Shared host lint and tests
         run: |
           python tools/dev.py lint --target host

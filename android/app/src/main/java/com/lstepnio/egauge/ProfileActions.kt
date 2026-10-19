@@ -26,7 +26,10 @@ object ProfileActions {
         require(array.length() <= 1)
         return (0 until array.length()).map { index ->
             val value = array.getJSONObject(index)
-            require(value.keys().asSequence().toSet() == setOf("type", "pageId", "gesture", "count", "windowMs"))
+            require(
+                value.keys().asSequence().toSet() ==
+                    setOf("type", "pageId", "gesture", "count", "windowMs")
+            )
             require(value.getString("type") == "jumpPage" && value.getString("gesture") == "up")
             fun integer(key: String): Int {
                 val raw = value.get(key)

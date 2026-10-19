@@ -1,40 +1,43 @@
 package com.lstepnio.egauge
 
-import android.app.Application
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Application
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.pm.PackageManager
 import android.os.Build
-import com.lstepnio.egauge.connection.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import com.lstepnio.egauge.ui.state.*
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.delay
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.lstepnio.egauge.connection.*
+import com.lstepnio.egauge.ui.state.*
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
-    private val alertRepository=AlertRepository(application)
-    private val alertNotifications=AlertNotifications(application)
-    private val alertPreferences=application.getSharedPreferences("alert-policy",android.content.Context.MODE_PRIVATE)
-    var phoneAlertsEnabled by mutableStateOf(alertPreferences.getBoolean("enabled",false))
+    private val alertRepository = AlertRepository(application)
+    private val alertNotifications = AlertNotifications(application)
+    private val alertPreferences = application.getSharedPreferences(
+        "alert-policy",
+        android.content.Context.MODE_PRIVATE
+    )
+    var phoneAlertsEnabled by mutableStateOf(alertPreferences.getBoolean("enabled", false))
         private set
     var alertMonitoring by mutableStateOf(false)
         private set
@@ -47,71 +50,161 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var selectedAlertId by mutableStateOf<String?>(null)
     var notificationAlert by mutableStateOf<StoredAlert?>(null)
         private set
-    private var alertScope=""
-    private var nextAlertPoll=0L
-    private var alertFailures=0
-    private var activeAlertCursor: Long?=null
-    private var lastAlertBoot=0L
-    private var lastAlertChecked=0L
-    fun isAlertCurrent(entry: StoredAlert): Boolean = connection.phase==ConnectionPhase.Ready && entry.current && entry.vehicle==profileCollection.activeId && entry.gauge==currentGaugeId && entry.event.revision==activeDocument?.revision && entry.event.boot==lastAlertBoot && android.os.SystemClock.elapsedRealtime()-lastAlertChecked<15000
-    private val captureChecked=mutableSetOf<String>()
+    private var alertScope = ""
+    private var nextAlertPoll = 0L
+    private var alertFailures = 0
+    private var activeAlertCursor: Long? = null
+    private var lastAlertBoot = 0L
+    private var lastAlertChecked = 0L
+    fun isAlertCurrent(entry: StoredAlert): Boolean = connection.phase == ConnectionPhase.Ready && entry.current &&
+        entry.vehicle == profileCollection.activeId &&
+        entry.gauge == currentGaugeId &&
+        entry.event.revision == activeDocument?.revision &&
+        entry.event.boot == lastAlertBoot &&
+        android.os.SystemClock.elapsedRealtime() - lastAlertChecked < 15000
+    private val captureChecked = mutableSetOf<String>()
     fun setPhoneAlertsPolicy(value: Boolean, saved: () -> Unit = {}) {
         viewModelScope.launch {
-            val success=durableWrites.write { alertPreferences.edit().putBoolean("enabled",value).commit() }
-            if(success) { phoneAlertsEnabled=value;saved() }
-            else alertHistoryError="Could not save phone alert settings"
+            val success = durableWrites.write {
+                alertPreferences.edit().putBoolean("enabled", value).commit()
+            }
+            if (success) {
+                phoneAlertsEnabled = value
+                saved()
+            } else {
+                alertHistoryError = "Could not save phone alert settings"
+            }
         }
     }
     fun updateAlertMonitoring(value: Boolean) {
-        alertMonitoring=value
-        foregroundConnection.setForeground(connectionForeground||value)
+        alertMonitoring = value
+        foregroundConnection.setForeground(connectionForeground || value)
     }
-    fun acknowledgeAlert(entry: StoredAlert, snooze: Boolean = false) = launchGaugeOperation(OperationKind.READ,"Updating alert attention") { id ->
+    fun acknowledgeAlert(entry: StoredAlert, snooze: Boolean = false) = launchGaugeOperation(OperationKind.READ, "Updating alert attention") { id ->
         require(isAlertCurrent(entry))
-        GaugeConfigTransferClient(getApplication()).acknowledgeAlert(bleClient.selectedGauge(),entry.event,if(snooze)300000 else 0)
-        nextAlertPoll=0;foregroundConnection.retrySoon()
-        operation=OperationState(id,OperationKind.READ,OperationStage.ACTIVE,"Alert request queued","Checking gauge acknowledgment automatically",terminal=true)
+        GaugeConfigTransferClient(
+            getApplication()
+        ).acknowledgeAlert(bleClient.selectedGauge(), entry.event, if (snooze) 300000 else 0)
+        nextAlertPoll = 0
+        foregroundConnection.retrySoon()
+        operation =
+            OperationState(
+                id,
+                OperationKind.READ,
+                OperationStage.ACTIVE,
+                "Alert request queued",
+                "Checking gauge acknowledgment automatically",
+                terminal = true
+            )
     }
     fun clearAlertHistory() {
         viewModelScope.launch {
             try {
-                val vehicle=profileCollection.activeId
-                alertHistory=withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.deleteHistory(vehicle);alertRepository.list(vehicle,currentGaugeId) }
-            } catch(cancelled: CancellationException) { throw cancelled }
-            catch(_: Exception) { alertHistoryError="Could not delete alert history" }
+                val vehicle = profileCollection.activeId
+                alertHistory =
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        alertRepository.deleteHistory(vehicle)
+                        alertRepository.list(vehicle, currentGaugeId)
+                    }
+            } catch (
+                cancelled: CancellationException
+            ) {
+                throw cancelled
+            } catch (
+                _: Exception
+            ) {
+                alertHistoryError = "Could not delete alert history"
+            }
         }
     }
     fun pinAlert(entry: StoredAlert, value: Boolean) {
-        viewModelScope.launch { try { withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.pin(entry.id,value) }
-            alertHistory=withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(profileCollection.activeId,currentGaugeId) }
-        } catch(cancelled: CancellationException) { throw cancelled } catch(_: Exception) { alertHistoryError="Could not save this report" } }
+        viewModelScope.launch {
+            try {
+                withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    alertRepository.pin(entry.id, value)
+                }
+                alertHistory =
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        alertRepository.list(profileCollection.activeId, currentGaugeId)
+                    }
+            } catch (
+                cancelled: CancellationException
+            ) {
+                throw cancelled
+            } catch (_: Exception) {
+                alertHistoryError =
+                    "Could not save this report"
+            }
+        }
     }
     fun refreshAlertHistory() {
-        val vehicle=profileCollection.activeId
+        val vehicle = profileCollection.activeId
         viewModelScope.launch {
-            try { val history=withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(vehicle) }
-                if(profileCollection.activeId==vehicle)alertHistory=history
-            } catch(cancelled: CancellationException) { throw cancelled }
-            catch(_: Exception) { alertHistoryError="Could not load alert history" }
+            try {
+                val history =
+                    withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(vehicle) }
+                if (profileCollection.activeId == vehicle) alertHistory = history
+            } catch (
+                cancelled: CancellationException
+            ) {
+                throw cancelled
+            } catch (
+                _: Exception
+            ) {
+                alertHistoryError = "Could not load alert history"
+            }
         }
     }
     fun exportAlerts(onReady: (android.net.Uri) -> Unit) {
-        viewModelScope.launch { try {
-            val vehicle=profileCollection.activeId;val history=alertHistory.filter { it.vehicle==vehicle }
-            val uri=withContext(kotlinx.coroutines.Dispatchers.IO) { exportAlertReport(getApplication(),history,alertRepository,vehicle) }
-            onReady(uri)
-        } catch(cancelled: CancellationException) { throw cancelled }
-        catch(_: Exception) { alertHistoryError="Could not create diagnostic report" } }
+        viewModelScope.launch {
+            try {
+                val vehicle = profileCollection.activeId
+                val history = alertHistory.filter {
+                    it.vehicle ==
+                        vehicle
+                }
+                val uri =
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        exportAlertReport(getApplication(), history, alertRepository, vehicle)
+                    }
+                onReady(uri)
+            } catch (
+                cancelled: CancellationException
+            ) {
+                throw cancelled
+            } catch (
+                _: Exception
+            ) {
+                alertHistoryError = "Could not create diagnostic report"
+            }
+        }
     }
     fun openAlertIntent(intent: android.content.Intent) {
-        val id=intent.getStringExtra("alert_id")?:return
-        val vehicle=intent.getStringExtra("alert_vehicle")?:return
-        val gauge=intent.getStringExtra("alert_gauge")?:return
+        val id = intent.getStringExtra("alert_id") ?: return
+        val vehicle = intent.getStringExtra("alert_vehicle") ?: return
+        val gauge = intent.getStringExtra("alert_gauge") ?: return
         viewModelScope.launch {
-            val records=try { withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(vehicle,gauge) } }
-                catch(cancelled: CancellationException) { throw cancelled }
-                catch(_: Exception) { alertHistoryError="Saved context is unavailable. Previous data has been preserved.";alertHistory.filter { it.vehicle==vehicle && it.gauge==gauge } }
-            records.firstOrNull { it.id==id }?.let { notificationAlert=it;selectedAlertId=id }
+            val records = try {
+                withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    alertRepository.list(vehicle, gauge)
+                }
+            } catch (
+                cancelled: CancellationException
+            ) {
+                throw cancelled
+            } catch (_: Exception) {
+                alertHistoryError =
+                    "Saved context is unavailable. Previous data has been preserved."
+                alertHistory.filter {
+                    it.vehicle ==
+                        vehicle &&
+                        it.gauge == gauge
+                }
+            }
+            records.firstOrNull { it.id == id }?.let {
+                notificationAlert = it
+                selectedAlertId = id
+            }
         }
     }
     var clearStatus by mutableStateOf<GaugeConfigTransferClient.ClearStatus?>(null)
@@ -119,166 +212,491 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var clearConfirmationOpen by mutableStateOf(false)
     var clearMessage by mutableStateOf<String?>(null)
         private set
-    private var preparedClearScope: Pair<String,String>?=null
-    private val clearJournal=application.getSharedPreferences("diagnostic-clear",android.content.Context.MODE_PRIVATE)
+    private var preparedClearScope: Pair<String, String>? = null
+    private val clearJournal = application.getSharedPreferences(
+        "diagnostic-clear",
+        android.content.Context.MODE_PRIVATE
+    )
     var displayShowcase by mutableStateOf<GaugeConfigTransferClient.DisplayShowcaseState?>(null)
         private set
-    fun setDisplayShowcase(enabled: Boolean) = launchGaugeOperation(OperationKind.READ, if(enabled) "Starting display demo" else "Stopping display demo") { id ->
-        require(BuildConfig.DEBUG && capabilities?.displayShowcaseVersion == 1) { "Update the gauge to use display demo" }
-        displayShowcase = GaugeConfigTransferClient(getApplication()).setDisplayShowcase(bleClient.selectedGauge(), enabled)
-        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-            if(enabled) "Display demo running" else "Vehicle dashboard restored",
-            if(enabled) "Generated examples cycle every eight seconds. Hold the gauge to exit; stops after ten minutes." else "Saved pages and settings are unchanged", terminal = true)
+    fun setDisplayShowcase(enabled: Boolean) = launchGaugeOperation(
+        OperationKind.READ,
+        if (enabled) "Starting display demo" else "Stopping display demo"
+    ) { id ->
+        require(BuildConfig.DEBUG && capabilities?.displayShowcaseVersion == 1) {
+            "Update the gauge to use display demo"
+        }
+        displayShowcase =
+            GaugeConfigTransferClient(
+                getApplication()
+            ).setDisplayShowcase(bleClient.selectedGauge(), enabled)
+        operation = OperationState(
+            id,
+            OperationKind.READ,
+            OperationStage.ACTIVE,
+            if (enabled) "Display demo running" else "Vehicle dashboard restored",
+            if (enabled) "Generated examples cycle every eight seconds. Hold the gauge to exit; stops after ten minutes." else "Saved pages and settings are unchanged",
+            terminal = true
+        )
         nextSettingsPollReset()
     }
-    private fun nextSettingsPollReset() { settingsPoll.reset(); foregroundConnection.retrySoon() }
-
-    fun prepareCodeClear() = launchGaugeOperation(OperationKind.READ,"Preparing diagnostic report") { id ->
-        val gauge=currentGaugeId?:error("Connect your gauge first")
-        val vehicle=profileCollection.activeId
-        val config=activeDocument?.takeIf { it.vehicleProfileId==vehicle }?:error("Confirm this vehicle's setup first")
-        val client=GaugeConfigTransferClient(getApplication())
-        val device=bleClient.selectedGauge()
-        val support=client.readClearStatus(device)
-        require(support.supported) { support.message }
-        val before=client.readDiagnosticEndpoint(device,0)?:error("Controller-scoped diagnostics are required")
-        validateDiagnosticScope(before,"ECM",config.revision)
-        diagnosticsBySource=diagnosticsBySource+("ECM" to before)
-        val operation=(java.security.SecureRandom().nextInt().toLong() and 0x7fffffffL).coerceAtLeast(1)
-        val readiness=client.readReadiness(device,0,config.revision,before.session)
-        val report=org.json.JSONObject().put("vehicle",vehicle).put("operation",operation).put("stage","before clear").put("configurationRevision",config.revision)
-            .put("diagnostics",org.json.JSONObject(diagnosticContext())).put("capturedAt",System.currentTimeMillis())
-            .put("readiness",readiness).put("freezeFrame","Not captured")
-        withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.saveReport("clear:$gauge:$operation",report,System.currentTimeMillis()) }
-        val prepared=client.prepareClear(device,operation,config.revision)
-        require(prepared.phase==2 && prepared.operation==operation && prepared.revision==config.revision) { prepared.message }
-        preparedClearScope=gauge to vehicle;clearStatus=prepared;clearMessage=null;clearConfirmationOpen=true
-        this.operation=OperationState(id,OperationKind.READ,OperationStage.ACTIVE,"Diagnostic report saved",terminal=true)
+    private fun nextSettingsPollReset() {
+        settingsPoll.reset()
+        foregroundConnection.retrySoon()
     }
-    fun confirmCodeClear() = launchGaugeOperation(OperationKind.DIAGNOSTIC_CLEAR,"Clearing engine fault codes") { id ->
-        val prepared=clearStatus?:error("Prepare a new clear request")
-        val gauge=currentGaugeId?:error("Connect your gauge first")
-        require(prepared.phase==2 && activeDocument?.revision==prepared.revision && preparedClearScope==(gauge to profileCollection.activeId))
-        val journal=org.json.JSONObject().put("gauge",gauge).put("vehicle",profileCollection.activeId)
-            .put("operation",prepared.operation).put("revision",prepared.revision).put("confirmedAt",System.currentTimeMillis()).toString()
-        check(durableWrites.write { clearJournal.edit().putString("pending",journal).commit() }) { "Could not preserve this operation. Nothing was sent." }
-        clearConfirmationOpen=false
-        clearMessage="Checking the clear result"
+
+    fun prepareCodeClear() = launchGaugeOperation(OperationKind.READ, "Preparing diagnostic report") { id ->
+        val gauge = currentGaugeId ?: error("Connect your gauge first")
+        val vehicle = profileCollection.activeId
+        val config =
+            activeDocument?.takeIf { it.vehicleProfileId == vehicle }
+                ?: error("Confirm this vehicle's setup first")
+        val client = GaugeConfigTransferClient(getApplication())
+        val device = bleClient.selectedGauge()
+        val support = client.readClearStatus(device)
+        require(support.supported) { support.message }
+        val before =
+            client.readDiagnosticEndpoint(
+                device,
+                0
+            ) ?: error("Controller-scoped diagnostics are required")
+        validateDiagnosticScope(before, "ECM", config.revision)
+        diagnosticsBySource = diagnosticsBySource + ("ECM" to before)
+        val operation = (java.security.SecureRandom().nextInt().toLong() and 0x7fffffffL).coerceAtLeast(
+            1
+        )
+        val readiness = client.readReadiness(device, 0, config.revision, before.session)
+        val report = org.json.JSONObject().put(
+            "vehicle",
+            vehicle
+        ).put(
+            "operation",
+            operation
+        ).put("stage", "before clear").put("configurationRevision", config.revision)
+            .put(
+                "diagnostics",
+                org.json.JSONObject(diagnosticContext())
+            ).put("capturedAt", System.currentTimeMillis())
+            .put("readiness", readiness).put("freezeFrame", "Not captured")
+        withContext(kotlinx.coroutines.Dispatchers.IO) {
+            alertRepository.saveReport(
+                "clear:$gauge:$operation",
+                report,
+                System.currentTimeMillis()
+            )
+        }
+        val prepared = client.prepareClear(device, operation, config.revision)
+        require(
+            prepared.phase == 2 && prepared.operation == operation &&
+                prepared.revision == config.revision
+        ) {
+            prepared.message
+        }
+        preparedClearScope = gauge to vehicle
+        clearStatus = prepared
+        clearMessage = null
+        clearConfirmationOpen =
+            true
+        this.operation =
+            OperationState(
+                id,
+                OperationKind.READ,
+                OperationStage.ACTIVE,
+                "Diagnostic report saved",
+                terminal = true
+            )
+    }
+    fun confirmCodeClear() = launchGaugeOperation(OperationKind.DIAGNOSTIC_CLEAR, "Clearing engine fault codes") { id ->
+        val prepared = clearStatus ?: error("Prepare a new clear request")
+        val gauge = currentGaugeId ?: error("Connect your gauge first")
+        require(
+            prepared.phase == 2 && activeDocument?.revision == prepared.revision &&
+                preparedClearScope == (gauge to profileCollection.activeId)
+        )
+        val journal = org.json.JSONObject().put(
+            "gauge",
+            gauge
+        ).put("vehicle", profileCollection.activeId)
+            .put(
+                "operation",
+                prepared.operation
+            ).put(
+                "revision",
+                prepared.revision
+            ).put("confirmedAt", System.currentTimeMillis()).toString()
+        check(
+            durableWrites.write {
+                clearJournal.edit().putString("pending", journal).commit()
+            }
+        ) { "Could not preserve this operation. Nothing was sent." }
+        clearConfirmationOpen = false
+        clearMessage = "Checking the clear result"
         try {
-            val result=GaugeConfigTransferClient(getApplication()).confirmClear(bleClient.selectedGauge(),prepared)
-            clearStatus=result;clearMessage=result.message
-            val after=GaugeConfigTransferClient(getApplication()).readDiagnosticEndpoint(bleClient.selectedGauge(),0)
-            after?.let { validateDiagnosticScope(it,"ECM",prepared.revision);diagnosticsBySource=diagnosticsBySource+("ECM" to it) }
-            val context=diagnosticContext()
-            val readiness=after?.let { GaugeConfigTransferClient(getApplication()).readReadiness(bleClient.selectedGauge(),0,prepared.revision,it.session) }
-            withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.saveReport("clear-result:$gauge:${prepared.operation}",org.json.JSONObject()
-                .put("vehicle",profileCollection.activeId).put("readiness",readiness).put("stage","after clear").put("operation",result.operation).put("diagnostics",org.json.JSONObject(context)).put("phase",result.phase).put("revision",result.revision).put("capturedAt",System.currentTimeMillis()),System.currentTimeMillis()) }
-        } catch(cancelled: CancellationException) {
-            clearMessage="Outcome unknown. Current faults will be checked without sending again.";throw cancelled
-        } catch(_: Exception) { clearMessage="Outcome unknown. Current faults will be checked without sending again." }
-        vehiclePoll.reset();nextAlertPoll=0;foregroundConnection.retrySoon()
-        operation=OperationState(id,OperationKind.DIAGNOSTIC_CLEAR,when(clearStatus?.phase) { in 5..7 -> OperationStage.ACTIVE;9 -> OperationStage.FAILED;else -> OperationStage.OUTCOME_UNKNOWN },clearMessage?:"Clear result checked",terminal=true)
+            val result = GaugeConfigTransferClient(
+                getApplication()
+            ).confirmClear(bleClient.selectedGauge(), prepared)
+            clearStatus = result
+            clearMessage = result.message
+            val after = GaugeConfigTransferClient(
+                getApplication()
+            ).readDiagnosticEndpoint(bleClient.selectedGauge(), 0)
+            after?.let {
+                validateDiagnosticScope(it, "ECM", prepared.revision)
+                diagnosticsBySource =
+                    diagnosticsBySource + ("ECM" to it)
+            }
+            val context = diagnosticContext()
+            val readiness = after?.let {
+                GaugeConfigTransferClient(
+                    getApplication()
+                ).readReadiness(bleClient.selectedGauge(), 0, prepared.revision, it.session)
+            }
+            withContext(kotlinx.coroutines.Dispatchers.IO) {
+                alertRepository.saveReport(
+                    "clear-result:$gauge:${prepared.operation}",
+                    org.json.JSONObject()
+                        .put(
+                            "vehicle",
+                            profileCollection.activeId
+                        ).put(
+                            "readiness",
+                            readiness
+                        ).put(
+                            "stage",
+                            "after clear"
+                        ).put(
+                            "operation",
+                            result.operation
+                        ).put(
+                            "diagnostics",
+                            org.json.JSONObject(context)
+                        ).put(
+                            "phase",
+                            result.phase
+                        ).put(
+                            "revision",
+                            result.revision
+                        ).put("capturedAt", System.currentTimeMillis()),
+                    System.currentTimeMillis()
+                )
+            }
+        } catch (cancelled: CancellationException) {
+            clearMessage =
+                "Outcome unknown. Current faults will be checked without sending again."
+            throw cancelled
+        } catch (_: Exception) {
+            clearMessage =
+                "Outcome unknown. Current faults will be checked without sending again."
+        }
+        vehiclePoll.reset()
+        nextAlertPoll = 0
+        foregroundConnection.retrySoon()
+        operation =
+            OperationState(
+                id,
+                OperationKind.DIAGNOSTIC_CLEAR,
+                when (clearStatus?.phase) {
+                    in 5..7 -> OperationStage.ACTIVE
+                    9 -> OperationStage.FAILED
+                    else -> OperationStage.OUTCOME_UNKNOWN
+                },
+                clearMessage ?: "Clear result checked",
+                terminal = true
+            )
     }
     private fun diagnosticContext(): String = org.json.JSONObject().apply {
-        diagnosticsBySource.forEach { (source,data) -> put(source,org.json.JSONObject().put("milOn",data.milOn)
-            .put("milFresh",data.milFresh).put("connected",data.connected).put("responder",data.responder)
-            .put("categories",org.json.JSONArray().apply { data.categories?.forEach { category ->
-                put(org.json.JSONObject().put("name",category.name).put("availability",category.availability.name)
-                    .put("fresh",category.fresh).put("codes",org.json.JSONArray(category.codes)))
-            } })) }
-    }.toString()
-    private suspend fun pollAlerts(client: GaugeConfigTransferClient, device: BluetoothDevice): Long {
-        val gauge=currentGaugeId?:return 20000
-        val vehicle=profileCollection.activeId
-        val config=activeDocument?.takeIf { it.vehicleProfileId==vehicle }?:return 20000
-        val scope="$vehicle:$gauge:${config.revision}"
-        val now=android.os.SystemClock.elapsedRealtime()
-        if(alertScope!=scope) {
-            alertScope=scope;nextAlertPoll=0;activeAlertCursor=null;alertFrameworkSupported=null;captureChecked.clear()
-            alertHistory=withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(vehicle,gauge) }
+        diagnosticsBySource.forEach { (source, data) ->
+            put(
+                source,
+                org.json.JSONObject().put("milOn", data.milOn)
+                    .put(
+                        "milFresh",
+                        data.milFresh
+                    ).put("connected", data.connected).put("responder", data.responder)
+                    .put(
+                        "categories",
+                        org.json.JSONArray().apply {
+                            data.categories?.forEach { category ->
+                                put(
+                                    org.json.JSONObject().put(
+                                        "name",
+                                        category.name
+                                    ).put("availability", category.availability.name)
+                                        .put(
+                                            "fresh",
+                                            category.fresh
+                                        ).put("codes", org.json.JSONArray(category.codes))
+                                )
+                            }
+                        }
+                    )
+            )
         }
-        if(alertFrameworkSupported==false)return 20000
-        if(now<nextAlertPoll)return nextAlertPoll-now
+    }.toString()
+    private suspend fun pollAlerts(
+        client: GaugeConfigTransferClient,
+        device: BluetoothDevice
+    ): Long {
+        val gauge = currentGaugeId ?: return 20000
+        val vehicle = profileCollection.activeId
+        val config = activeDocument?.takeIf { it.vehicleProfileId == vehicle } ?: return 20000
+        val scope = "$vehicle:$gauge:${config.revision}"
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (alertScope != scope) {
+            alertScope = scope
+            nextAlertPoll = 0
+            activeAlertCursor = null
+            alertFrameworkSupported = null
+            captureChecked.clear()
+            alertHistory =
+                withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    alertRepository.list(vehicle, gauge)
+                }
+        }
+        if (alertFrameworkSupported == false) return 20000
+        if (now < nextAlertPoll) return nextAlertPoll - now
         try {
             withTimeout(15000) {
-                val cursor=withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.cursor("$vehicle:$gauge") }
-                val batch=client.readAlertBatch(device,cursor.boot,cursor.sequence)?:run { alertFrameworkSupported=false;return@withTimeout }
-                if(currentGaugeId!=gauge || profileCollection.activeId!=vehicle || activeDocument?.revision!=config.revision)return@withTimeout
-                alertFrameworkSupported=true
-                if(clearStatus==null || clearStatus?.phase in 3..4 || clearJournal.contains("pending")) {
-                    val checked=client.readClearStatus(device)
-                    val pending=clearJournal.getString("pending",null)?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
-                    if(pending!=null && pending.optString("gauge")==gauge && pending.optString("vehicle")==vehicle) {
-                        clearMessage=if(checked.operation==pending.getLong("operation"))checked.message else "The previous clear outcome is unknown. Current faults remain available."
-                        if(checked.operation==pending.getLong("operation") && checked.phase in 5..9) {
+                val cursor =
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        alertRepository.cursor("$vehicle:$gauge")
+                    }
+                val batch =
+                    client.readAlertBatch(device, cursor.boot, cursor.sequence) ?: run {
+                        alertFrameworkSupported =
+                            false
+                        return@withTimeout
+                    }
+                if (currentGaugeId != gauge || profileCollection.activeId != vehicle ||
+                    activeDocument?.revision != config.revision
+                ) {
+                    return@withTimeout
+                }
+                alertFrameworkSupported = true
+                if (clearStatus == null || clearStatus?.phase in 3..4 ||
+                    clearJournal.contains("pending")
+                ) {
+                    val checked = client.readClearStatus(device)
+                    val pending = clearJournal.getString("pending", null)?.let {
+                        runCatching { org.json.JSONObject(it) }.getOrNull()
+                    }
+                    if (pending != null && pending.optString("gauge") == gauge &&
+                        pending.optString("vehicle") == vehicle
+                    ) {
+                        clearMessage =
+                            if (checked.operation ==
+                                pending.getLong("operation")
+                            ) {
+                                checked.message
+                            } else {
+                                "The previous clear outcome is unknown. Current faults remain available."
+                            }
+                        if (checked.operation == pending.getLong("operation") &&
+                            checked.phase in 5..9
+                        ) {
                             durableWrites.write { clearJournal.edit().remove("pending").commit() }
                         }
                     }
-                    clearStatus=checked
+                    clearStatus = checked
                 }
-                if(batch.gap || batch.boot!=lastAlertBoot) { alertNotifications.cancelGauge(gauge);activeAlertCursor=0;lastAlertBoot=batch.boot }
-                val live=cursor.boot==batch.boot && cursor.sequence>0 && !batch.gap
-                val diagnostics=diagnosticContext()
-                var storageFailed=false
+                if (batch.gap ||
+                    batch.boot != lastAlertBoot
+                ) {
+                    alertNotifications.cancelGauge(gauge)
+                    activeAlertCursor =
+                        0
+                    lastAlertBoot = batch.boot
+                }
+                val live = cursor.boot == batch.boot && cursor.sequence > 0 && !batch.gap
+                val diagnostics = diagnosticContext()
+                var storageFailed = false
                 suspend fun store(page: AlertBatch): List<StoredAlert> = try {
-                    withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.ingest(vehicle,gauge,page,config.json,diagnostics,System.currentTimeMillis()) }
-                } catch(failure: android.database.sqlite.SQLiteException) {
-                    storageFailed=true
-                    alertHistoryError=if(failure is android.database.sqlite.SQLiteFullException)"Phone storage is full. Free space to save alert history." else "Alert history could not be saved. Current alerts remain available."
-                    volatileAlertHistory(alertHistory,vehicle,gauge,page.copy(events=page.events.filter { it.revision==config.revision }),System.currentTimeMillis())
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        alertRepository.ingest(
+                            vehicle,
+                            gauge,
+                            page,
+                            config.json,
+                            diagnostics,
+                            System.currentTimeMillis()
+                        )
+                    }
+                } catch (failure: android.database.sqlite.SQLiteException) {
+                    storageFailed = true
+                    alertHistoryError =
+                        if (failure is android.database.sqlite.SQLiteFullException) "Phone storage is full. Free space to save alert history." else "Alert history could not be saved. Current alerts remain available."
+                    volatileAlertHistory(
+                        alertHistory,
+                        vehicle,
+                        gauge,
+                        page.copy(
+                            events = page.events.filter {
+                                it.revision ==
+                                    config.revision
+                            }
+                        ),
+                        System.currentTimeMillis()
+                    )
                 }
-                val history=store(batch)
-                alertHistory=history
-                if(live && connectionForeground)batch.events.firstOrNull { !it.simulated && !it.unavailable &&
-                    !it.acknowledged && it.severity==AlertSeverity.Critical && it.kind in 1..2 && it.revision==config.revision }?.let { selectedAlertId=it.id(gauge) }
-                val filterRules=if(phoneAlertsEnabled)DiagnosticCodeFilters.fromDocument(org.json.JSONObject(config.json)) else emptyList()
+                val history = store(batch)
+                alertHistory = history
+                if (live &&
+                    connectionForeground
+                ) {
+                    batch.events.firstOrNull {
+                        !it.simulated && !it.unavailable &&
+                            !it.acknowledged && it.severity == AlertSeverity.Critical &&
+                            it.kind in 1..2 &&
+                            it.revision == config.revision
+                    }?.let { selectedAlertId = it.id(gauge) }
+                }
+                val filterRules = if (phoneAlertsEnabled) {
+                    DiagnosticCodeFilters.fromDocument(
+                        org.json.JSONObject(config.json)
+                    )
+                } else {
+                    emptyList()
+                }
                 fun filtered(event: AlertEvent): Boolean {
-                    val source=if(event.key%2==1) "TCM" else "ECM"
-                    val age=diagnosticsCheckedAt[source]?.let { android.os.SystemClock.elapsedRealtime()-it } ?: Long.MAX_VALUE
-                    return DiagnosticCodeFilters.filtersAlert(event,diagnosticsBySource[source],age,filterRules)
+                    val source = if (event.key % 2 == 1) "TCM" else "ECM"
+                    val age =
+                        diagnosticsCheckedAt[source]?.let {
+                            android.os.SystemClock.elapsedRealtime() -
+                                it
+                        }
+                            ?: Long.MAX_VALUE
+                    return DiagnosticCodeFilters.filtersAlert(
+                        event,
+                        diagnosticsBySource[source],
+                        age,
+                        filterRules
+                    )
                 }
-                if(phoneAlertsEnabled)batch.events.filter { it.revision==config.revision }.forEach {
-                    alertNotifications.show(it,vehicle,gauge,live,connectionForeground,filtered(it))
+                if (phoneAlertsEnabled) {
+                    batch.events.filter { it.revision == config.revision }.forEach {
+                        alertNotifications.show(
+                            it,
+                            vehicle,
+                            gauge,
+                            live,
+                            connectionForeground,
+                            filtered(it)
+                        )
+                    }
                 }
                 activeAlertCursor?.let { offset ->
-                    client.readAlertBatch(device,batch.boot,offset,true)?.let { active ->
-                        alertHistory=store(active)
-                        activeAlertCursor=if(active.complete)null else active.next
+                    client.readAlertBatch(device, batch.boot, offset, true)?.let { active ->
+                        alertHistory = store(active)
+                        activeAlertCursor = if (active.complete) null else active.next
                     }
                 }
                 // Details can arrive without another MIL transition. Reconcile the
                 // latest diagnostic episode per key, without replaying old alerts.
-                if(phoneAlertsEnabled && filterRules.isNotEmpty() && currentGaugeId==gauge &&
-                    profileCollection.activeId==vehicle && activeDocument?.revision==config.revision) {
+                if (phoneAlertsEnabled && filterRules.isNotEmpty() && currentGaugeId == gauge &&
+                    profileCollection.activeId == vehicle &&
+                    activeDocument?.revision == config.revision
+                ) {
                     alertHistory.asSequence().filter {
-                        it.vehicle==vehicle && it.gauge==gauge && it.event.boot==batch.boot &&
-                            it.event.revision==config.revision && it.event.lifecycle==AlertLifecycle.Active && it.event.key in 32..35
+                        it.vehicle == vehicle && it.gauge == gauge && it.event.boot == batch.boot &&
+                            it.event.revision == config.revision &&
+                            it.event.lifecycle == AlertLifecycle.Active &&
+                            it.event.key in 32..35
                     }.groupBy { it.event.key }.values.forEach { entries ->
-                        val event=entries.maxBy { it.event.sequence }.event
-                        if(filtered(event))alertNotifications.show(event,vehicle,gauge,false,connectionForeground,true)
+                        val event = entries.maxBy { it.event.sequence }.event
+                        if (filtered(
+                                event
+                            )
+                        ) {
+                            alertNotifications.show(
+                                event,
+                                vehicle,
+                                gauge,
+                                false,
+                                connectionForeground,
+                                true
+                            )
+                        }
                     }
                 }
-                val capture=if(storageFailed)null else alertHistory.firstOrNull { it.event.key<36 && it.event.boot==batch.boot && it.id !in captureChecked &&
-                    it.context.optJSONObject("capture")?.optBoolean("complete")!=true && ((System.currentTimeMillis()-it.recordedAt)>=20000) }
-                if(capture!=null) {
-                    val context=client.readAlertContext(device,capture.event)
-                    withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.saveCapture(capture.id,context) }
-                    if(context.optBoolean("complete")||!context.optBoolean("available"))captureChecked+=capture.id
-                    alertHistory=withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(vehicle,gauge) }
+                val capture = if (storageFailed) {
+                    null
+                } else {
+                    alertHistory.firstOrNull {
+                        it.event.key < 36 &&
+                            it.event.boot == batch.boot &&
+                            it.id !in captureChecked &&
+                            it.context.optJSONObject("capture")?.optBoolean("complete") != true &&
+                            ((System.currentTimeMillis() - it.recordedAt) >= 20000)
+                    }
                 }
-                if(currentGaugeId!=gauge || profileCollection.activeId!=vehicle || activeDocument?.revision!=config.revision)return@withTimeout
-                lastAlertChecked=android.os.SystemClock.elapsedRealtime();if(!storageFailed)alertHistoryError=null;alertFailures=0
+                if (capture != null) {
+                    val context = client.readAlertContext(device, capture.event)
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        alertRepository.saveCapture(capture.id, context)
+                    }
+                    if (context.optBoolean("complete") ||
+                        !context.optBoolean("available")
+                    ) {
+                        captureChecked += capture.id
+                    }
+                    alertHistory =
+                        withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            alertRepository.list(vehicle, gauge)
+                        }
+                }
+                if (currentGaugeId != gauge || profileCollection.activeId != vehicle ||
+                    activeDocument?.revision != config.revision
+                ) {
+                    return@withTimeout
+                }
+                lastAlertChecked = android.os.SystemClock.elapsedRealtime()
+                if (!storageFailed) {
+                    alertHistoryError =
+                        null
+                }
+                alertFailures = 0
             }
-        } catch(cancelled: TimeoutCancellationException) { currentCoroutineContext().ensureActive();alertFailures++;alertHistoryError="Alert history is last checked. Retrying automatically." }
-        catch(cancelled: CancellationException) { throw cancelled }
-        catch(failure: Exception) { if(BuildConfig.DEBUG)android.util.Log.w("EGaugeAlerts","Alert synchronization failed",failure);alertFailures++;alertHistoryError="Alert history is last checked. Reconnecting automatically." }
-        val pause=if(alertFailures==0)2000L else com.lstepnio.egauge.connection.jitteredRetryDelay(com.lstepnio.egauge.connection.reconnectDelayMs(alertFailures))
-        nextAlertPoll=android.os.SystemClock.elapsedRealtime()+pause
+        } catch (
+            cancelled: TimeoutCancellationException
+        ) {
+            currentCoroutineContext().ensureActive()
+            alertFailures++
+            alertHistoryError =
+                "Alert history is last checked. Retrying automatically."
+        } catch (
+            cancelled: CancellationException
+        ) {
+            throw cancelled
+        } catch (
+            failure: Exception
+        ) {
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w(
+                    "EGaugeAlerts",
+                    "Alert synchronization failed",
+                    failure
+                )
+            }
+            alertFailures++
+            alertHistoryError =
+                "Alert history is last checked. Reconnecting automatically."
+        }
+        val pause = if (alertFailures ==
+            0
+        ) {
+            2000L
+        } else {
+            com.lstepnio.egauge.connection.jitteredRetryDelay(
+                com.lstepnio.egauge.connection.reconnectDelayMs(alertFailures)
+            )
+        }
+        nextAlertPoll = android.os.SystemClock.elapsedRealtime() + pause
         return pause
     }
     private val durableWrites = DurableWrites()
     private val setupStore = LocalSetupStore(application)
-    private val setupTransactions = LocalSetupTransactions(setupStore::load, setupStore::save, durableWrites)
+    private val setupTransactions =
+        LocalSetupTransactions(setupStore::load, setupStore::save, durableWrites)
     var localSaveBusy by mutableStateOf(false)
         private set
 
@@ -287,26 +705,51 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (localSaveBusy) return
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             localSaveBusy = true
-            try { foregroundConnection.runUserOperation(OperationKind.READ) { block() } }
-            catch (cancelled: CancellationException) { throw cancelled }
-            catch (failure: Exception) {
-                if (failure is LocalSetupSaveFailure) gaugeAssociationError = "Could not save gauge assignments. Reopen the App before changing vehicle setup."
+            try {
+                foregroundConnection.runUserOperation(OperationKind.READ) { block() }
+            } catch (
+                cancelled: CancellationException
+            ) {
+                throw cancelled
+            } catch (failure: Exception) {
+                if (failure is LocalSetupSaveFailure) {
+                    gaugeAssociationError =
+                        "Could not save gauge assignments. Reopen the App before changing vehicle setup."
+                }
                 presentationError = failure.message ?: "Could not save changes on this phone"
+            } finally {
+                localSaveBusy = false
             }
-            finally { localSaveBusy = false }
         }
     }
-    private suspend fun persistProfiles(value: ProfileCollection, assignSelected: Boolean = false,
-        associations: (GaugeAssociations) -> GaugeAssociations = { it }): Boolean {
+    private suspend fun persistProfiles(
+        value: ProfileCollection,
+        assignSelected: Boolean = false,
+        associations: (GaugeAssociations) -> GaugeAssociations = { it }
+    ): Boolean {
         val saved = try {
             setupTransactions.update { current ->
                 val savedAssociations = associations(current.associations)
-                LocalSetup(value, if (assignSelected) savedAssociations.selectedId?.let {
-                    savedAssociations.assign(it, value.activeId, value.active.draft.source)
-                } ?: savedAssociations else savedAssociations)
+                LocalSetup(
+                    value,
+                    if (assignSelected) {
+                        savedAssociations.selectedId?.let {
+                            savedAssociations.assign(it, value.activeId, value.active.draft.source)
+                        } ?: savedAssociations
+                    } else {
+                        savedAssociations
+                    }
+                )
             }
-        } catch (cancelled: CancellationException) { throw cancelled }
-        catch (failure: Exception) { profileError = failure.message ?: "Could not save vehicle setup"; return false }
+        } catch (
+            cancelled: CancellationException
+        ) {
+            throw cancelled
+        } catch (failure: Exception) {
+            profileError =
+                failure.message ?: "Could not save vehicle setup"
+            return false
+        }
         knownGauges = saved.associations.gauges
         return true
     }
@@ -318,9 +761,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private var currentGaugeId: String? = null
     private var rediscoverGauge = true
     private val foregroundConnection by lazy {
-        ForegroundConnectionController(viewModelScope, operationCoordinator,
+        ForegroundConnectionController(
+            viewModelScope,
+            operationCoordinator,
             onUnexpectedFailure = { connectionRetry(it.message ?: "Gauge check interrupted") },
-            attempt = ::automaticConnectionAttempt)
+            attempt = ::automaticConnectionAttempt
+        )
     }
     private val updatePersistence = FirmwareUpdatePersistence(application, durableWrites)
     private val gaugePoll = VehiclePollSchedule()
@@ -351,15 +797,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             nextAutomaticUpdateCheckAtElapsedMs = 0L
         }
     }
-    fun retryConnection() { gaugePoll.reset(); foregroundConnection.retrySoon() }
+    fun retryConnection() {
+        gaugePoll.reset()
+        foregroundConnection.retrySoon()
+    }
 
     @SuppressLint("MissingPermission")
     private suspend fun automaticConnectionAttempt(): Long {
         if (localSaveBusy) return 250L
         val app = getApplication<Application>()
-        val permissions = if (Build.VERSION.SDK_INT >= 31)
+        val permissions = if (Build.VERSION.SDK_INT >= 31) {
             listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
-        else listOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        } else {
+            listOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
         if (permissions.any { app.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }) {
             connection = ConnectionState(ConnectionPhase.PermissionRequired)
             rediscoverGauge = true
@@ -373,7 +824,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             return 5_000
         }
         if (gaugeAssociationError != null) {
-            connection = ConnectionState(ConnectionPhase.Unavailable, detail = "Saved gauges need attention")
+            connection =
+                ConnectionState(ConnectionPhase.Unavailable, detail = "Saved gauges need attention")
             return 30_000
         }
         if (choosingGauge) return 15_000
@@ -383,68 +835,107 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val gaugeDue = gaugePoll.due(gaugeScope, now)
             val checkGauge = rediscoverGauge || capabilities == null || currentGaugeId == null ||
                 connection.phase != ConnectionPhase.Ready ||
-                (configurationNeedsReview && !configurationRecoveryRead) || pendingUpdateRecovery != null ||
+                (configurationNeedsReview && !configurationRecoveryRead) ||
+                pendingUpdateRecovery != null ||
                 gaugeDue
-            val gaugePause = if (checkGauge) withTimeout(35_000) {
-                if (rediscoverGauge || capabilities == null || currentGaugeId == null) {
-                    connection = connection.copy(phase = ConnectionPhase.Searching, checkedAtElapsedMs = null)
-                    val candidates = bleClient.scanNearbyCandidates()
-                    val id = automaticCandidateId(candidates.map { it.id }, rememberedGaugeId)
-                    if (id == null) {
-                        gaugeCandidates = candidates
-                        connection = ConnectionState(if (rememberedGaugeId == null)
-                            ConnectionPhase.ChooseGauge else ConnectionPhase.Retrying,
-                            attempts = connection.attempts + 1)
-                        return@withTimeout jitteredRetryDelay(reconnectDelayMs(connection.attempts))
+            val gaugePause = if (checkGauge) {
+                withTimeout(35_000) {
+                    if (rediscoverGauge || capabilities == null || currentGaugeId == null) {
+                        connection =
+                            connection.copy(
+                                phase = ConnectionPhase.Searching,
+                                checkedAtElapsedMs = null
+                            )
+                        val candidates = bleClient.scanNearbyCandidates()
+                        val id = automaticCandidateId(candidates.map { it.id }, rememberedGaugeId)
+                        if (id == null) {
+                            gaugeCandidates = candidates
+                            connection = ConnectionState(
+                                if (rememberedGaugeId == null) {
+                                    ConnectionPhase.ChooseGauge
+                                } else {
+                                    ConnectionPhase.Retrying
+                                },
+                                attempts = connection.attempts + 1
+                            )
+                            return@withTimeout jitteredRetryDelay(
+                                reconnectDelayMs(connection.attempts)
+                            )
+                        }
+                        connection = connection.copy(phase = ConnectionPhase.Checking)
+                        connectDiscoveredCandidate(candidates.single { it.id == id })
+                    }
+                    val device = bleClient.selectedGauge()
+                    if (device.bondState != BluetoothDevice.BOND_BONDED) {
+                        ownerAccess = OwnerAccess.DISCOVERED
+                        connection = ConnectionState(ConnectionPhase.PairRequired)
+                        return@withTimeout 5_000L
                     }
                     connection = connection.copy(phase = ConnectionPhase.Checking)
-                    connectDiscoveredCandidate(candidates.single { it.id == id })
-                }
-                val device = bleClient.selectedGauge()
-                if (device.bondState != BluetoothDevice.BOND_BONDED) {
-                    ownerAccess = OwnerAccess.DISCOVERED
-                    connection = ConnectionState(ConnectionPhase.PairRequired)
-                    return@withTimeout 5_000L
-                }
-                connection = connection.copy(phase = ConnectionPhase.Checking)
-                val client = GaugeConfigTransferClient(app)
-                if (pendingUpdateRecovery != null || updatePersistence.pending() != null) {
-                    bootIdentityRead(client.readBootIdentity(device))
-                    if (updateRecoveryResult?.state == UpdateRecoveryState.INSTALLED && operation.kind == OperationKind.UPDATE) {
-                        operation = operation.copy(stage = OperationStage.ACTIVE, title = "Update confirmed on gauge",
-                            detail = "The expected firmware is healthy and running", progressPercent = 100, terminal = true)
-                        updatePreparation = "current"
+                    val client = GaugeConfigTransferClient(app)
+                    if (pendingUpdateRecovery != null || updatePersistence.pending() != null) {
+                        bootIdentityRead(client.readBootIdentity(device))
+                        if (updateRecoveryResult?.state == UpdateRecoveryState.INSTALLED &&
+                            operation.kind == OperationKind.UPDATE
+                        ) {
+                            operation =
+                                operation.copy(
+                                    stage = OperationStage.ACTIVE,
+                                    title = "Update confirmed on gauge",
+                                    detail = "The expected firmware is healthy and running",
+                                    progressPercent = 100,
+                                    terminal = true
+                                )
+                            updatePreparation = "current"
+                        }
                     }
+                    // Public discovery never establishes ownership. Only read an already bonded target.
+                    if (capabilities?.experimentalNumericConfig == true) {
+                        val runtime = client.readRuntimeIdentity(device)
+                        if (activeDocument == null ||
+                            activeDocument?.revision != runtime.storedRevision ||
+                            activeDocument?.sha256 != runtime.sha256 ||
+                            ownerAccess != OwnerAccess.AUTHENTICATED
+                        ) {
+                            activeDocumentRead(client.readActiveDocument(device))
+                        }
+                        runtimeIdentityRead(runtime)
+                        if (configurationNeedsReview) configurationRecoveryRead = true
+                    } else if (capabilities?.savedStateRead == true) {
+                        snapshotRead(bleClient.readSavedSnapshot())
+                    } else {
+                        connection = ConnectionState(ConnectionPhase.Unavailable)
+                        return@withTimeout 30_000L
+                    }
+                    connectionChecked()
+                    rediscoverGauge = false
+                    maybeCheckForFirmware(client, device)
+                    // Clear transient read failures only. Never erase a send/update recovery outcome.
+                    if (operation.terminal &&
+                        operation.kind in setOf(OperationKind.READ, OperationKind.DISCOVERY) &&
+                        operation.stage != OperationStage.RECOVERED
+                    ) {
+                        operation = OperationState.Idle
+                    }
+                    gaugePoll.completed(android.os.SystemClock.elapsedRealtime(), true)
+                    20_000L
                 }
-                // Public discovery never establishes ownership. Only read an already bonded target.
-                if (capabilities?.experimentalNumericConfig == true) {
-                    val runtime = client.readRuntimeIdentity(device)
-                    if (activeDocument == null || activeDocument?.revision != runtime.storedRevision ||
-                        activeDocument?.sha256 != runtime.sha256 || ownerAccess != OwnerAccess.AUTHENTICATED)
-                        activeDocumentRead(client.readActiveDocument(device))
-                    runtimeIdentityRead(runtime)
-                    if (configurationNeedsReview) configurationRecoveryRead = true
-                } else if (capabilities?.savedStateRead == true) {
-                    snapshotRead(bleClient.readSavedSnapshot())
-                } else {
-                    connection = ConnectionState(ConnectionPhase.Unavailable)
-                    return@withTimeout 30_000L
-                }
-                connectionChecked()
-                rediscoverGauge = false
-                maybeCheckForFirmware(client, device)
-                // Clear transient read failures only. Never erase a send/update recovery outcome.
-                if (operation.terminal && operation.kind in setOf(OperationKind.READ, OperationKind.DISCOVERY) &&
-                    operation.stage != OperationStage.RECOVERED) operation = OperationState.Idle
-                gaugePoll.completed(android.os.SystemClock.elapsedRealtime(), true)
-                20_000L
-            } else gaugePoll.pause(now)
+            } else {
+                gaugePoll.pause(now)
+            }
             return if (connection.phase == ConnectionPhase.Ready) {
                 val client = GaugeConfigTransferClient(app)
                 val device = bleClient.selectedGauge()
                 val settingsPause = pollSettings(client, device)
-                minOf(gaugePoll.pause(android.os.SystemClock.elapsedRealtime()), settingsPause, pollVehicle(client, device), pollAlerts(client, device))
-            } else gaugePause
+                minOf(
+                    gaugePoll.pause(android.os.SystemClock.elapsedRealtime()),
+                    settingsPause,
+                    pollVehicle(client, device),
+                    pollAlerts(client, device)
+                )
+            } else {
+                gaugePause
+            }
         } catch (error: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()
             return connectionRetry("Gauge connection check timed out")
@@ -455,18 +946,30 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun pollSettings(client: GaugeConfigTransferClient, device: BluetoothDevice): Long {
+    private suspend fun pollSettings(
+        client: GaugeConfigTransferClient,
+        device: BluetoothDevice
+    ): Long {
         val caps = capabilities ?: return 20_000L
         if (caps.displaySettingsVersion < 1 && !caps.savedStateRead) return 20_000L
-        val key = "${currentGaugeId}:${caps.displaySettingsVersion}"
+        val key = "$currentGaugeId:${caps.displaySettingsVersion}"
         val now = android.os.SystemClock.elapsedRealtime()
         if (!settingsPoll.due(key, now)) return settingsPoll.pause(now)
         var healthy = false
         try {
             withTimeout(8_000) {
-                if (caps.displaySettingsVersion >= 1) displaySettingsRead(client.readDisplaySettings(device))
-                else snapshotRead(bleClient.readSavedSnapshot())
-                if (caps.displayShowcaseVersion == 1) displayShowcase = client.readDisplayShowcase(device)
+                if (caps.displaySettingsVersion >=
+                    1
+                ) {
+                    displaySettingsRead(client.readDisplaySettings(device))
+                } else {
+                    snapshotRead(bleClient.readSavedSnapshot())
+                }
+                if (caps.displayShowcaseVersion ==
+                    1
+                ) {
+                    displayShowcase = client.readDisplayShowcase(device)
+                }
                 healthy = true
             }
         } catch (_: TimeoutCancellationException) {
@@ -491,15 +994,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val updated = presentationPreferences.copy(measurementSystem = value.units)
             suspendResult { durableWrites.write { presentationStore.write(updated) } }
                 .onSuccess { saved ->
-                    if (saved) presentationPreferences = updated
-                    else presentationError = "Could not save the confirmed measurement units on this phone"
+                    if (saved) {
+                        presentationPreferences = updated
+                    } else {
+                        presentationError =
+                            "Could not save the confirmed measurement units on this phone"
+                    }
                 }
-                .onFailure { presentationError = "Could not save the confirmed measurement units on this phone" }
+                .onFailure {
+                    presentationError =
+                        "Could not save the confirmed measurement units on this phone"
+                }
         }
     }
 
     /** Uses the same cancellable read lease as reconnecting; never writes vehicle setup. */
-    private suspend fun pollVehicle(client: GaugeConfigTransferClient, device: BluetoothDevice): Long {
+    private suspend fun pollVehicle(
+        client: GaugeConfigTransferClient,
+        device: BluetoothDevice
+    ): Long {
         if (capabilities?.adapterRegistryVersion != 1) return 20_000L
         val profile = profileCollection.active
         val requested = vehicleSources
@@ -508,16 +1021,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         var pause = 20_000L
         for (source in requested) {
             val schedule = if (source == "TCM" && requested.size == 2) childPoll else vehiclePoll
-            val scope = "$gaugeId:${profile.id}:${profile.adapterFor(source)}:$source:${activeDocument?.revision}:${requested.size}"
+            val scope = "$gaugeId:${profile.id}:${profile.adapterFor(
+                source
+            )}:$source:${activeDocument?.revision}:${requested.size}"
             val now = android.os.SystemClock.elapsedRealtime()
-            if (!schedule.due(scope, now)) { pause = minOf(pause, schedule.pause(now)); continue }
+            if (!schedule.due(scope, now)) {
+                pause = minOf(pause, schedule.pause(now))
+                continue
+            }
             var healthy = false
             try {
                 withTimeout(12_000) {
                     val index = if (requested.size == 2) indices[source] else null
-                    if (requested.size == 2 && (capabilities?.dualAdapterVersion != 1 || index == null)) return@withTimeout
+                    if (requested.size == 2 &&
+                        (capabilities?.dualAdapterVersion != 1 || index == null)
+                    ) {
+                        return@withTimeout
+                    }
                     val status = client.readAdapterStatus(device, index)
-                    if (profileCollection.active != profile || vehicleSources != requested || currentGaugeId != gaugeId) return@withTimeout
+                    if (profileCollection.active != profile || vehicleSources != requested ||
+                        currentGaugeId != gaugeId
+                    ) {
+                        return@withTimeout
+                    }
                     val checked = android.os.SystemClock.elapsedRealtime()
                     adapterStatuses = adapterStatuses + (source to status)
                     adapterCheckedAt = adapterCheckedAt + (source to checked)
@@ -525,25 +1051,55 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     adapterStatusCheckedAt = adapterCheckedAt[draft.source]
                     vehicleFailures = vehicleFailures - source
                     vehicleCheckFailed = vehicleFailures.isNotEmpty()
-                    if (status.vehicleId == profile.id && status.sourceId == configuredSourceId(activeDocument, source) &&
+                    if (status.vehicleId == profile.id &&
+                        status.sourceId == configuredSourceId(activeDocument, source) &&
                         status.bound && !status.simulated && profile.adapterFor(source) != null &&
-                        vehicleSetupMatches(activeDocument, profile.id, source, profile.adapterFor(source))) {
+                        vehicleSetupMatches(
+                            activeDocument,
+                            profile.id,
+                            source,
+                            profile.adapterFor(source)
+                        )
+                    ) {
                         // Read disconnected snapshots too, so old codes cannot remain current.
-                        val snapshot = (client.readDiagnosticEndpoint(device, if (source == "TCM") 1 else 0)
-                            ?: client.readDiagnostics(device, index)).let {
+                        val snapshot = (
+                            client.readDiagnosticEndpoint(
+                                device,
+                                if (source ==
+                                    "TCM"
+                                ) {
+                                    1
+                                } else {
+                                    0
+                                }
+                            )
+                                ?: client.readDiagnostics(device, index)
+                            ).let {
                             if (status.phase == 4) it else it.copy(connected = false)
                         }
-                        if (profileCollection.active != profile || vehicleSources != requested || currentGaugeId != gaugeId) return@withTimeout
+                        if (profileCollection.active != profile || vehicleSources != requested ||
+                            currentGaugeId != gaugeId
+                        ) {
+                            return@withTimeout
+                        }
                         validateDiagnosticScope(snapshot, source, activeDocument?.revision)
                         diagnosticsBySource = diagnosticsBySource + (source to snapshot)
-                        diagnosticsCheckedAt = diagnosticsCheckedAt + (source to android.os.SystemClock.elapsedRealtime())
+                        diagnosticsCheckedAt =
+                            diagnosticsCheckedAt +
+                            (source to android.os.SystemClock.elapsedRealtime())
                         if (source == draft.source) diagnosticsRead(snapshot)
                         if (requested.size == 1 && source == "ECM") {
                             client.readDiagnosticEndpoint(device, 1)?.let { child ->
-                                if(profileCollection.active!=profile || currentGaugeId!=gaugeId)return@withTimeout
+                                if (profileCollection.active != profile ||
+                                    currentGaugeId != gaugeId
+                                ) {
+                                    return@withTimeout
+                                }
                                 validateDiagnosticScope(child, "TCM", activeDocument?.revision)
                                 diagnosticsBySource = diagnosticsBySource + ("TCM" to child)
-                                diagnosticsCheckedAt = diagnosticsCheckedAt + ("TCM" to android.os.SystemClock.elapsedRealtime())
+                                diagnosticsCheckedAt =
+                                    diagnosticsCheckedAt +
+                                    ("TCM" to android.os.SystemClock.elapsedRealtime())
                             }
                         }
                         healthy = status.phase == 4 && snapshot.connected
@@ -552,8 +1108,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             } catch (_: TimeoutCancellationException) {
                 currentCoroutineContext().ensureActive()
                 vehicleFailures = vehicleFailures + source
-            } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { vehicleFailures = vehicleFailures + source }
+            } catch (
+                cancelled: CancellationException
+            ) {
+                throw cancelled
+            } catch (
+                _: Exception
+            ) {
+                vehicleFailures = vehicleFailures + source
+            }
             vehicleCheckFailed = vehicleFailures.isNotEmpty()
             val finished = android.os.SystemClock.elapsedRealtime()
             schedule.completed(finished, healthy)
@@ -564,14 +1127,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Discovery stays a foreground concern. GitHub work is quiet and never starts an OTA. */
     @SuppressLint("MissingPermission")
-    private suspend fun maybeCheckForFirmware(client: GaugeConfigTransferClient, device: BluetoothDevice) {
+    private suspend fun maybeCheckForFirmware(
+        client: GaugeConfigTransferClient,
+        device: BluetoothDevice
+    ) {
         val caps = capabilities ?: return
         val gaugeId = rememberedGaugeId ?: return
         if (!connectionForeground || ownerAccess != OwnerAccess.AUTHENTICATED ||
             caps.board != "ESP32-S3-Touch-LCD-1.28" || !caps.experimentalNumericConfig ||
             updateInProgress || hostedUpdateBusy || automaticUpdateJob?.isActive == true ||
             updateRecoveryResult?.state !in setOf(null, UpdateRecoveryState.INSTALLED) ||
-            (selectedUpdate != null && hostedUpdate == null)) return
+            (selectedUpdate != null && hostedUpdate == null)
+        ) {
+            return
+        }
         val now = android.os.SystemClock.elapsedRealtime()
         if (now < nextAutomaticUpdateCheckAtElapsedMs) return
         nextAutomaticUpdateCheckAtElapsedMs = now + 15 * 60_000L
@@ -585,7 +1154,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         bootIdentity = running
         if (running.otaState != 2) {
             updatePreparation = "held"
-            hostedUpdateMessage = "Your gauge is still checking its current update. Check its installed version before trying again."
+            hostedUpdateMessage =
+                "Your gauge is still checking its current update. Check its installed version before trying again."
             return
         }
         automaticUpdateJob = viewModelScope.launch {
@@ -593,44 +1163,66 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val source = GitHubFirmwareSource(getApplication())
                 val candidate = source.check(caps)
                 currentCoroutineContext().ensureActive()
-                if (!connectionForeground || rememberedGaugeId != gaugeId || updateInProgress) return@launch
-                when (automaticUpdateDecision(running.version, running.otaState,
-                    candidate.release.version, candidate.release.bundleSha256,
-                    updatePersistence.heldDigest(gaugeId),
-                    updateRecoveryResult?.state !in setOf(null, UpdateRecoveryState.INSTALLED))) {
+                if (!connectionForeground || rememberedGaugeId != gaugeId ||
+                    updateInProgress
+                ) {
+                    return@launch
+                }
+                when (
+                    automaticUpdateDecision(
+                        running.version,
+                        running.otaState,
+                        candidate.release.version,
+                        candidate.release.bundleSha256,
+                        updatePersistence.heldDigest(gaugeId),
+                        updateRecoveryResult?.state !in setOf(null, UpdateRecoveryState.INSTALLED)
+                    )
+                ) {
                     AutomaticUpdateDecision.CURRENT -> {
                         hostedUpdate = null
                         selectedUpdate = null
                         updatePreparation = "current"
                     }
+
                     AutomaticUpdateDecision.HELD, AutomaticUpdateDecision.WAIT_FOR_GAUGE -> {
                         hostedUpdate = null
                         selectedUpdate = null
                         updatePreparation = "held"
-                        hostedUpdateMessage = "This update did not finish last time. Check the installed version before trying again."
+                        hostedUpdateMessage =
+                            "This update did not finish last time. Check the installed version before trying again."
                     }
+
                     AutomaticUpdateDecision.READY -> {
-                        if (hostedUpdate?.release?.bundleSha256 != candidate.release.bundleSha256 || selectedUpdate == null) {
+                        if (hostedUpdate?.release?.bundleSha256 != candidate.release.bundleSha256 ||
+                            selectedUpdate == null
+                        ) {
                             hostedUpdate = null
                             selectedUpdate = null
                             val downloaded = source.download(candidate)
                             currentCoroutineContext().ensureActive()
-                            if (!connectionForeground || rememberedGaugeId != gaugeId || updateInProgress) return@launch
+                            if (!connectionForeground || rememberedGaugeId != gaugeId ||
+                                updateInProgress
+                            ) {
+                                return@launch
+                            }
                             // The source verifies the signed catalog and complete bundle before either becomes visible.
                             hostedUpdate = downloaded
                             selectedUpdate = requireNotNull(downloaded.bundle)
-                            updatePackageMessage = "Signed development update ${downloaded.release.version} is ready"
+                            updatePackageMessage =
+                                "Signed development update ${downloaded.release.version} is ready"
                         }
                         updatePreparation = "ready"
                     }
                 }
-                nextAutomaticUpdateCheckAtElapsedMs = android.os.SystemClock.elapsedRealtime() + 6 * 60 * 60_000L
+                nextAutomaticUpdateCheckAtElapsedMs =
+                    android.os.SystemClock.elapsedRealtime() + 6 * 60 * 60_000L
             } catch (cancelled: CancellationException) {
                 nextAutomaticUpdateCheckAtElapsedMs = 0L
                 throw cancelled
             } catch (_: Exception) {
                 // A background network failure does not change the gauge's connection or show a false update.
-                nextAutomaticUpdateCheckAtElapsedMs = android.os.SystemClock.elapsedRealtime() + 15 * 60_000L
+                nextAutomaticUpdateCheckAtElapsedMs =
+                    android.os.SystemClock.elapsedRealtime() + 15 * 60_000L
             }
         }
     }
@@ -638,23 +1230,36 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private fun connectionRetry(message: String): Long {
         rediscoverGauge = true
         ownerAccess = OwnerAccess.UNKNOWN
-        connection = ConnectionState(ConnectionPhase.Retrying, attempts = connection.attempts + 1, detail = message)
+        connection =
+            ConnectionState(
+                ConnectionPhase.Retrying,
+                attempts = connection.attempts + 1,
+                detail = message
+            )
         return jitteredRetryDelay(reconnectDelayMs(connection.attempts))
     }
 
     private fun updatePairingWindow(value: GaugePairingWindow?) {
         pairingWindow = value
-        pairingWindowReadAtElapsedMs = if (value == null) 0L else android.os.SystemClock.elapsedRealtime()
+        pairingWindowReadAtElapsedMs =
+            if (value == null) 0L else android.os.SystemClock.elapsedRealtime()
     }
 
     fun pairingWindowForUi(nowElapsedMs: Long): GaugePairingWindow? {
         val window = pairingWindow ?: return null
-        val elapsedSeconds = if (pairingWindowReadAtElapsedMs == 0L) 0 else
+        val elapsedSeconds = if (pairingWindowReadAtElapsedMs == 0L) {
+            0
+        } else {
             ((nowElapsedMs - pairingWindowReadAtElapsedMs).coerceAtLeast(0) / 1_000).toInt()
+        }
         val remaining = (window.secondsRemaining - elapsedSeconds).coerceAtLeast(0)
-        val state = if (remaining == 0 && window.state in setOf(
-                PairingWindowState.READY, PairingWindowState.CODE_DISPLAYED)) PairingWindowState.CLOSED
-            else window.state
+        val state = if (remaining == 0 &&
+            window.state in setOf(PairingWindowState.READY, PairingWindowState.CODE_DISPLAYED)
+        ) {
+            PairingWindowState.CLOSED
+        } else {
+            window.state
+        }
         return window.copy(state = state, secondsRemaining = remaining)
     }
 
@@ -668,7 +1273,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun connectionChecked() {
-        connection = ConnectionState(ConnectionPhase.Ready, android.os.SystemClock.elapsedRealtime())
+        connection =
+            ConnectionState(ConnectionPhase.Ready, android.os.SystemClock.elapsedRealtime())
     }
 
     private suspend fun connectDiscoveredCandidate(candidate: GaugeCandidate) {
@@ -678,7 +1284,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val saved = setupTransactions.update { current ->
             val associations = current.associations.remember(candidate.id, candidate.name)
             val profileId = associations.context(candidate.id, current.profiles)?.first
-            LocalSetup(if (profileId == null) current.profiles else current.profiles.copy(activeId = profileId), associations)
+            LocalSetup(
+                if (profileId ==
+                    null
+                ) {
+                    current.profiles
+                } else {
+                    current.profiles.copy(activeId = profileId)
+                },
+                associations
+            )
         }
         connected(value, preserveSent = sameGauge)
         currentGaugeId = candidate.id
@@ -702,8 +1317,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var presentationError by mutableStateOf<String?>(null)
         private set
-    private data class PendingConfiguration(val gaugeId: String?, val profileId: String,
-        val draft: Draft, val revision: Long, val bytes: ByteArray)
+    private data class PendingConfiguration(
+        val gaugeId: String?,
+        val profileId: String,
+        val draft: Draft,
+        val revision: Long,
+        val bytes: ByteArray
+    )
     private var pendingConfiguration: PendingConfiguration? = null
     var configurationNeedsReview by mutableStateOf(false)
         private set
@@ -724,20 +1344,35 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val id = rememberedGaugeId
             if (id == null) {
                 val updated = presentationPreferences.copy(gaugeName = name)
-                if (durableWrites.write { presentationStore.write(updated) }) presentationPreferences = updated
-                else presentationError = "Could not save the gauge name"
+                if (durableWrites.write { presentationStore.write(updated) }) {
+                    presentationPreferences =
+                        updated
+                } else {
+                    presentationError = "Could not save the gauge name"
+                }
             } else {
-                val saved = setupTransactions.update { current -> current.copy(associations =
-                    current.associations.copy(gauges = current.associations.gauges.map {
-                        if (it.id == id) it.copy(name = name) else it
-                    })) }
+                val saved = setupTransactions.update { current ->
+                    current.copy(
+                        associations =
+                            current.associations.copy(
+                                gauges = current.associations.gauges.map {
+                                    if (it.id == id) it.copy(name = name) else it
+                                }
+                            )
+                    )
+                }
                 knownGauges = saved.associations.gauges
             }
         }
     }
     private fun savePresentation(value: PresentationPreferences) = launchLocalMutation {
-        if (durableWrites.write { presentationStore.write(value) }) { presentationPreferences = value; presentationError = null }
-        else presentationError = "Could not save appearance settings. Try again."
+        if (durableWrites.write { presentationStore.write(value) }) {
+            presentationPreferences =
+                value
+            presentationError = null
+        } else {
+            presentationError = "Could not save appearance settings. Try again."
+        }
     }
 
     private val associationStore = GaugeAssociationStore(application)
@@ -748,12 +1383,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var knownGauges by mutableStateOf(loadedAssociations.getOrNull()?.gauges.orEmpty())
         private set
-    val currentGaugeName: String get() = knownGauges.firstOrNull { it.id == rememberedGaugeId }?.name
+    val currentGaugeName: String get() = knownGauges.firstOrNull {
+        it.id == rememberedGaugeId
+    }?.name
         ?: presentationPreferences.gaugeName
     var adapterSelectionSource by mutableStateOf("ECM")
         private set
-    val selectedVehicleAdapter: AdapterBinding? get() = if (adapterSelectionSource == "TCM" && profileCollection.active.transmission != null)
-        profileCollection.active.transmission?.adapter else profileCollection.active.primaryAdapter
+    val selectedVehicleAdapter: AdapterBinding? get() = if (adapterSelectionSource == "TCM" &&
+        profileCollection.active.transmission != null
+    ) {
+        profileCollection.active.transmission?.adapter
+    } else {
+        profileCollection.active.primaryAdapter
+    }
     private val modifyingSetupBlocked: Boolean get() = updateInProgress ||
         (operation.stage != OperationStage.IDLE && !operation.terminal)
     private var choosingGauge = false
@@ -764,9 +1406,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val initialGaugeContext = loadedAssociations.getOrNull()?.let { saved ->
         saved.selectedId?.let { saved.context(it, loadedProfiles.collection) }
     }
-    var profileCollection by mutableStateOf(initialGaugeContext?.let {
-        loadedProfiles.collection.copy(activeId = it.first)
-    } ?: loadedProfiles.collection)
+    var profileCollection by mutableStateOf(
+        initialGaugeContext?.let {
+            loadedProfiles.collection.copy(activeId = it.first)
+        } ?: loadedProfiles.collection
+    )
         private set
     var profileError by mutableStateOf(loadedProfiles.error)
         private set
@@ -776,6 +1420,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var editingPageIndex by mutableStateOf(0)
         private set
+
     // Capability reads from the gauge do not populate vehicle PID observations.
     var vehicleObservations by mutableStateOf<List<VehiclePidObservation>>(emptyList())
         private set
@@ -812,14 +1457,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var updateInProgress by mutableStateOf(false)
         private set
     private var pendingUpdateRecovery = updatePersistence.pending()
-    var updateRecoveryResult by mutableStateOf(pendingUpdateRecovery?.let {
-        UpdateRecoveryResult(UpdateRecoveryState.CHECK_REQUIRED,
-            "A previous update was interrupted. Check installed firmware before retrying.", false)
-    })
+    var updateRecoveryResult by mutableStateOf(
+        pendingUpdateRecovery?.let {
+            UpdateRecoveryResult(
+                UpdateRecoveryState.CHECK_REQUIRED,
+                "A previous update was interrupted. Check installed firmware before retrying.",
+                false
+            )
+        }
+    )
         private set
-    var updatePackageMessage by mutableStateOf(pendingUpdateRecovery?.let {
-        "A previous update was interrupted. Reconnect and check running firmware before retrying."
-    } ?: "No update package selected")
+    var updatePackageMessage by mutableStateOf(
+        pendingUpdateRecovery?.let {
+            "A previous update was interrupted. Reconnect and check running firmware before retrying."
+        } ?: "No update package selected"
+    )
         private set
     var hostedUpdate by mutableStateOf<HostedUpdate?>(null)
         private set
@@ -838,7 +1490,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var documentReadFailed by mutableStateOf(false)
         private set
     val draftComparison: GaugeDraftComparison?
-        get() = activeDocument?.let { GaugeDraftComparison.from(it, profileCollection.activeId, transmittedDraft, profileCollection.active.adapterFor(draft.source)) }
+        get() = activeDocument?.let {
+            GaugeDraftComparison.from(
+                it,
+                profileCollection.activeId,
+                transmittedDraft,
+                profileCollection.active.adapterFor(draft.source)
+            )
+        }
     val canAdoptGaugeDraft: Boolean
         get() = activeDocument?.let {
             GaugeDraftComparison.savedDraft(it, profileCollection.activeId) != null ||
@@ -854,8 +1513,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var operation by mutableStateOf(OperationState.Idle)
         private set
 
-    fun navigate(value: Destination) { destination = value }
-    fun editProfileName(value: String) { profileNameInput = value.take(32) }
+    fun navigate(value: Destination) {
+        destination = value
+    }
+    fun editProfileName(value: String) {
+        profileNameInput = value.take(32)
+    }
     var adapterCandidates by mutableStateOf<List<AdapterCandidate>>(emptyList())
         private set
     var adapterSourceStatus by mutableStateOf<AdapterSourceStatus?>(null)
@@ -866,38 +1529,86 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     fun findVehicleAdapters() = launchGaugeOperation(OperationKind.READ, "Finding vehicle adapter") { id ->
-        require(capabilities?.adapterRegistryVersion == 1) { "Update the gauge before setting up an adapter" }
+        require(capabilities?.adapterRegistryVersion == 1) {
+            "Update the gauge before setting up an adapter"
+        }
         adapterCandidates = emptyList()
-        val found = GaugeConfigTransferClient(getApplication()).findAdapters(bleClient.selectedGauge())
+        val found = GaugeConfigTransferClient(
+            getApplication()
+        ).findAdapters(bleClient.selectedGauge())
         adapterCandidates = found
-        adapterMessage = if (found.isEmpty()) "No adapter found. Plug it into the vehicle and try again."
-            else "Choose the adapter plugged into this vehicle."
-        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-            "Adapter search finished", adapterMessage, terminal = true)
+        adapterMessage =
+            if (found.isEmpty()) {
+                "No adapter found. Plug it into the vehicle and try again."
+            } else {
+                "Choose the adapter plugged into this vehicle."
+            }
+        operation = OperationState(
+            id,
+            OperationKind.READ,
+            OperationStage.ACTIVE,
+            "Adapter search finished",
+            adapterMessage,
+            terminal = true
+        )
     }
 
     fun choosePrimaryAdapter(value: AdapterBinding?) {
         adapterSelectionSource = "ECM"
-        saveVehicleAdapter(value, profileCollection.active.draft.source, profileCollection.activeId, false)
+        saveVehicleAdapter(
+            value,
+            profileCollection.active.draft.source,
+            profileCollection.activeId,
+            false
+        )
     }
 
     /** The child picker cannot silently fall back to the primary binding. */
     fun chooseTransmissionAdapter(value: AdapterBinding?) = saveVehicleAdapter(value, "TCM", profileCollection.activeId, true)
 
     fun findTransmissionAdapters() {
-        if (profileCollection.active.transmission == null || localSaveBusy || modifyingSetupBlocked) return
+        if (profileCollection.active.transmission == null || localSaveBusy ||
+            modifyingSetupBlocked
+        ) {
+            return
+        }
         adapterSelectionSource = "TCM"
         findVehicleAdapters()
     }
 
-    private fun saveVehicleAdapter(value: AdapterBinding?, source: String, vehicleId: String, childOnly: Boolean) = launchLocalMutation {
-        if (profileError != null || modifyingSetupBlocked || profileCollection.activeId != vehicleId) return@launchLocalMutation
+    private fun saveVehicleAdapter(
+        value: AdapterBinding?,
+        source: String,
+        vehicleId: String,
+        childOnly: Boolean
+    ) = launchLocalMutation {
+        if (profileError != null || modifyingSetupBlocked ||
+            profileCollection.activeId != vehicleId
+        ) {
+            return@launchLocalMutation
+        }
         val updated = runCatching {
-            profileCollection.copy(profiles = profileCollection.profiles.map {
-                if (it.id != vehicleId) it else if (childOnly) it.withSecondAdapter(value) else it.withAdapter(source, value)
-            })
-        }.getOrElse { adapterMessage = it.message; return@launchLocalMutation }
-        if (!persistProfiles(updated)) { profileError = "Could not save the adapter selection"; return@launchLocalMutation }
+            profileCollection.copy(
+                profiles = profileCollection.profiles.map {
+                    if (it.id !=
+                        vehicleId
+                    ) {
+                        it
+                    } else if (childOnly) {
+                        it.withSecondAdapter(value)
+                    } else {
+                        it.withAdapter(source, value)
+                    }
+                }
+            )
+        }.getOrElse {
+            adapterMessage = it.message
+            return@launchLocalMutation
+        }
+        if (!persistProfiles(updated)) {
+            profileError = "Could not save the adapter selection"
+            return@launchLocalMutation
+        }
         profileCollection = updated
         clearVehicleEvidence()
         adapterMessage = "Saved on this phone. Send setup to use it on the gauge."
@@ -924,9 +1635,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectProfile(id: String) = launchLocalMutation {
-        if (profileError != null || modifyingSetupBlocked || profileCollection.profiles.none { it.id == id }) return@launchLocalMutation
+        if (profileError != null || modifyingSetupBlocked ||
+            profileCollection.profiles.none { it.id == id }
+        ) {
+            return@launchLocalMutation
+        }
         val updated = profileCollection.copy(activeId = id)
-        if (!persistProfiles(updated, associations = { LocalSetup(profileCollection, it).select(id).associations })) { profileError = "Could not save the selected vehicle"; return@launchLocalMutation }
+        if (!persistProfiles(updated, associations = {
+                LocalSetup(profileCollection, it).select(id).associations
+            })
+        ) {
+            profileError =
+                "Could not save the selected vehicle"
+            return@launchLocalMutation
+        }
         clearVehicleEvidence()
         profileCollection = updated
         draft = profileCollection.active.draft
@@ -934,108 +1656,211 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         editingPageIndex = 0
     }
 
-    val vehicleSources: List<String> get() = activeDocument?.takeIf { it.vehicleProfileId == profileCollection.activeId }
+    val vehicleSources: List<String> get() = activeDocument?.takeIf {
+        it.vehicleProfileId ==
+            profileCollection.activeId
+    }
         ?.let { configuredSourceIndices(it).keys.toList().takeIf(List<String>::isNotEmpty) }
         ?: if (bothAdapters) listOf("ECM", "TCM") else listOf("ECM")
     var adapterStatuses by mutableStateOf<Map<String, AdapterSourceStatus>>(emptyMap())
         private set
     var adapterCheckedAt by mutableStateOf<Map<String, Long>>(emptyMap())
         private set
-    var diagnosticsBySource by mutableStateOf<Map<String, GaugeConfigTransferClient.Diagnostics>>(emptyMap())
+    var diagnosticsBySource by mutableStateOf<Map<String, GaugeConfigTransferClient.Diagnostics>>(
+        emptyMap()
+    )
         private set
     var diagnosticsCheckedAt by mutableStateOf<Map<String, Long>>(emptyMap())
         private set
     var vehicleFailures by mutableStateOf<Set<String>>(emptySet())
         private set
-    val bothAdapters: Boolean get() = knownGauges.firstOrNull { it.id == rememberedGaugeId }?.bothAdapters == true
+    val bothAdapters: Boolean get() = knownGauges.firstOrNull {
+        it.id == rememberedGaugeId
+    }?.bothAdapters ==
+        true
     var pageEditError by mutableStateOf<String?>(null)
         private set
     val editorDraft: Draft get() = profileCollection.active.dashboardDraft()
     val transmittedDraft: Draft get() = editorDraft.copy(source = "ECM")
     fun setBothAdapters(enabled: Boolean) = launchLocalMutation {
-        if (!BuildConfig.DEBUG || modifyingSetupBlocked || gaugeAssociationError != null) return@launchLocalMutation
-        if (enabled && (capabilities?.dualAdapterVersion != 1 || runCatching { profileCollection.active.combinedDraft() }.isFailure)) {
-            deviceMessage = "Choose distinct engine and transmission adapters and update the gauge first"
+        if (!BuildConfig.DEBUG || modifyingSetupBlocked ||
+            gaugeAssociationError != null
+        ) {
+            return@launchLocalMutation
+        }
+        if (enabled &&
+            (
+                capabilities?.dualAdapterVersion != 1 ||
+                    runCatching { profileCollection.active.combinedDraft() }.isFailure
+                )
+        ) {
+            deviceMessage =
+                "Choose distinct engine and transmission adapters and update the gauge first"
             return@launchLocalMutation
         }
         val id = rememberedGaugeId ?: return@launchLocalMutation
-        val saved = setupTransactions.update { current -> current.copy(associations =
-            current.associations.copy(gauges = current.associations.gauges.map {
-                if (it.id == id) it.copy(bothAdapters = enabled) else it
-            })) }
+        val saved = setupTransactions.update { current ->
+            current.copy(
+                associations =
+                    current.associations.copy(
+                        gauges = current.associations.gauges.map {
+                            if (it.id == id) it.copy(bothAdapters = enabled) else it
+                        }
+                    )
+            )
+        }
         knownGauges = saved.associations.gauges
         clearVehicleEvidence()
         foregroundConnection.retrySoon()
     }
 
-    private fun configurationBytes(template: String, baseRevision: Long, schemaVersion: Int): ByteArray {
+    private fun configurationBytes(
+        template: String,
+        baseRevision: Long,
+        schemaVersion: Int
+    ): ByteArray {
         require(transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) {
             "Update the gauge before sending gesture actions"
         }
-        require(!requiresPidCatalogFirmware(transmittedDraft) || capabilities?.pidCatalogVersion == 1) {
+        require(
+            !requiresPidCatalogFirmware(transmittedDraft) || capabilities?.pidCatalogVersion == 1
+        ) {
             "Update the gauge before sending the expanded readings and alerts"
         }
-        require(!requiresVehicleDashboardFirmware(transmittedDraft, bothAdapters) || capabilities?.vehicleDashboardVersion == 1) {
+        require(
+            !requiresVehicleDashboardFirmware(transmittedDraft, bothAdapters) ||
+                capabilities?.vehicleDashboardVersion == 1
+        ) {
             "Update the gauge before sending the complete vehicle dashboard"
         }
-        if (bothAdapters) require(BuildConfig.DEBUG && capabilities?.dualAdapterVersion == 1 && schemaVersion == 2) {
-            "Update the gauge before using the second adapter"
+        if (bothAdapters) {
+            require(
+                BuildConfig.DEBUG && capabilities?.dualAdapterVersion == 1 && schemaVersion == 2
+            ) {
+                "Update the gauge before using the second adapter"
+            }
         }
-        return ConfigurationProjector.projectVehicle(template, profileCollection.active, baseRevision, bothAdapters, schemaVersion).second
+        return ConfigurationProjector.projectVehicle(
+            template,
+            profileCollection.active,
+            baseRevision,
+            bothAdapters,
+            schemaVersion
+        ).second
     }
 
     /** Expert selects a binding to edit, never a subset of the vehicle dashboard. */
     fun selectVehicleSource(source: String) {
-        if (localSaveBusy || profileError != null || modifyingSetupBlocked || source !in setOf("ECM", "TCM")) return
+        if (localSaveBusy || profileError != null || modifyingSetupBlocked ||
+            source !in setOf("ECM", "TCM")
+        ) {
+            return
+        }
         if (source == "TCM" && profileCollection.active.transmission == null) return
         adapterSelectionSource = source
     }
 
     fun addTransmissionChild() = launchLocalMutation {
-        if (!BuildConfig.DEBUG || profileError != null || modifyingSetupBlocked) return@launchLocalMutation
+        if (!BuildConfig.DEBUG || profileError != null ||
+            modifyingSetupBlocked
+        ) {
+            return@launchLocalMutation
+        }
         val profile = profileCollection.active
         if (profile.transmission != null) return@launchLocalMutation
         if (profile.primaryAdapter == null) {
             deviceMessage = "Choose an engine vehicle and its primary adapter first"
             return@launchLocalMutation
         }
-        val updated = profileCollection.copy(profiles = profileCollection.profiles.map {
-            if (it.id == profile.id) it.copy(draft = it.dashboardDraft().copy(source = "ECM"), transmission = it.transmission ?: TransmissionConnection(draft = TransmissionSetup.draft().copy(pages = emptyList()))) else it
-        })
-        if (!persistProfiles(updated)) { profileError = "Could not save transmission setup"; return@launchLocalMutation }
+        val updated = profileCollection.copy(
+            profiles = profileCollection.profiles.map {
+                if (it.id ==
+                    profile.id
+                ) {
+                    it.copy(
+                        draft = it.dashboardDraft().copy(source = "ECM"),
+                        transmission =
+                            it.transmission
+                                ?: TransmissionConnection(
+                                    draft = TransmissionSetup.draft().copy(pages = emptyList())
+                                )
+                    )
+                } else {
+                    it
+                }
+            }
+        )
+        if (!persistProfiles(updated)) {
+            profileError = "Could not save transmission setup"
+            return@launchLocalMutation
+        }
         profileCollection = updated
         draft = updated.active.draft
         adapterSelectionSource = "TCM"
-        deviceMessage = "Choose the separate transmission adapter. Send setup to use it on this gauge."
+        deviceMessage =
+            "Choose the separate transmission adapter. Send setup to use it on this gauge."
     }
 
     fun removeTransmissionChild() = launchLocalMutation {
-        if (profileError != null || modifyingSetupBlocked || profileCollection.active.transmission == null) return@launchLocalMutation
-        val updated = profileCollection.copy(profiles = profileCollection.profiles.map {
-            if (it.id == profileCollection.activeId) it.withoutTransmissionAdapter() else it
-        })
+        if (profileError != null || modifyingSetupBlocked ||
+            profileCollection.active.transmission == null
+        ) {
+            return@launchLocalMutation
+        }
+        val updated = profileCollection.copy(
+            profiles = profileCollection.profiles.map {
+                if (it.id == profileCollection.activeId) it.withoutTransmissionAdapter() else it
+            }
+        )
         if (!persistProfiles(updated, associations = { saved ->
-            saved.copy(gauges = saved.gauges.map {
-                if (it.vehicleId == updated.activeId) it.copy(source = "ECM", bothAdapters = false) else it
+                saved.copy(
+                    gauges = saved.gauges.map {
+                        if (it.vehicleId ==
+                            updated.activeId
+                        ) {
+                            it.copy(source = "ECM", bothAdapters = false)
+                        } else {
+                            it
+                        }
+                    }
+                )
             })
-        })) { profileError = "Could not remove transmission setup"; return@launchLocalMutation }
+        ) {
+            profileError = "Could not remove transmission setup"
+            return@launchLocalMutation
+        }
         profileCollection = updated
         draft = updated.active.draft
         adapterSelectionSource = "ECM"
-        deviceMessage = "Second adapter removed. Vehicle pages stay saved. Review and send to use the primary adapter."
+        deviceMessage =
+            "Second adapter removed. Vehicle pages stay saved. Review and send to use the primary adapter."
     }
 
     fun switchRememberedGauge(id: String) = launchGaugeOperation(OperationKind.READ, "Connecting gauge") {
         val stored = associationStore.load()
-        require(gaugeAssociationError == null) { "Saved gauges need attention before switching" }
-        require(pendingConfiguration == null && updatePersistence.pending() == null && !configurationNeedsReview) {
+        require(gaugeAssociationError == null) {
+            "Saved gauges need attention before switching"
+        }
+        require(
+            pendingConfiguration == null && updatePersistence.pending() == null &&
+                !configurationNeedsReview
+        ) {
             "Confirm the previous gauge operation before switching gauges"
         }
         require(stored.gauges.any { it.id == id }) { "Gauge is not saved on this phone" }
         val saved = setupTransactions.update { current ->
             val selected = current.associations.copy(selectedId = id)
             val profileId = selected.context(id, current.profiles)?.first
-            LocalSetup(if (profileId == null) current.profiles else current.profiles.copy(activeId = profileId), selected)
+            LocalSetup(
+                if (profileId ==
+                    null
+                ) {
+                    current.profiles
+                } else {
+                    current.profiles.copy(activeId = profileId)
+                },
+                selected
+            )
         }
         profileCollection = saved.profiles
         knownGauges = saved.associations.gauges
@@ -1053,19 +1878,39 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun discoverAdditionalGauge() = launchGaugeOperation(OperationKind.DISCOVERY, "Finding another gauge") { id ->
-        require(gaugeAssociationError == null) { "Saved gauges need attention before switching" }
-        require(pendingConfiguration == null && updatePersistence.pending() == null && !configurationNeedsReview) {
+        require(gaugeAssociationError == null) {
+            "Saved gauges need attention before switching"
+        }
+        require(
+            pendingConfiguration == null && updatePersistence.pending() == null &&
+                !configurationNeedsReview
+        ) {
             "Confirm the previous gauge operation before adding a gauge"
         }
         choosingGauge = true
-        val candidates = try { bleClient.scanNearbyCandidates() }
-            catch (error: Exception) { choosingGauge = false; throw error }
-        if (!choosingGauge) { operation = OperationState.Idle; return@launchGaugeOperation }
+        val candidates = try {
+            bleClient.scanNearbyCandidates()
+        } catch (
+            error: Exception
+        ) {
+            choosingGauge = false
+            throw error
+        }
+        if (!choosingGauge) {
+            operation = OperationState.Idle
+            return@launchGaugeOperation
+        }
         connectionError("Choose the gauge to connect")
         gaugeCandidates = candidates
         connection = ConnectionState(ConnectionPhase.ChooseGauge)
-        operation = OperationState(id, OperationKind.DISCOVERY, OperationStage.ACTIVE,
-            "Choose your gauge", "Match its ID to the screen", terminal = true)
+        operation = OperationState(
+            id,
+            OperationKind.DISCOVERY,
+            OperationStage.ACTIVE,
+            "Choose your gauge",
+            "Match its ID to the screen",
+            terminal = true
+        )
     }
 
     fun cancelAdditionalGaugeSelection() {
@@ -1078,18 +1923,32 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun attachLegacyTransmission(parentId: String) = launchLocalMutation {
-        if (profileError != null || gaugeAssociationError != null || modifyingSetupBlocked) return@launchLocalMutation
-        val updated = runCatching { profileCollection.attachTransmission(profileCollection.activeId, parentId) }
-            .getOrElse { deviceMessage = it.message ?: "These adapter selections cannot be combined"; return@launchLocalMutation }
+        if (profileError != null || gaugeAssociationError != null ||
+            modifyingSetupBlocked
+        ) {
+            return@launchLocalMutation
+        }
+        val updated = runCatching {
+            profileCollection.attachTransmission(profileCollection.activeId, parentId)
+        }
+            .getOrElse {
+                deviceMessage = it.message ?: "These adapter selections cannot be combined"
+                return@launchLocalMutation
+            }
         if (!persistProfiles(updated, associations = {
-            LocalSetup(profileCollection, it).attachTransmission(parentId).associations
-        })) { profileError = "Could not move transmission setup"; return@launchLocalMutation }
+                LocalSetup(profileCollection, it).attachTransmission(parentId).associations
+            })
+        ) {
+            profileError = "Could not move transmission setup"
+            return@launchLocalMutation
+        }
         profileCollection = updated
         draft = updated.active.draft
         editingPageIndex = 0
         clearVehicleEvidence()
         adapterSelectionSource = "TCM"
-        deviceMessage = "Transmission now belongs to this car. Review and send to update the gauge's vehicle identity."
+        deviceMessage =
+            "Transmission now belongs to this car. Review and send to update the gauge's vehicle identity."
     }
 
     val canManageVehicles: Boolean get() = profileError == null && gaugeAssociationError == null &&
@@ -1098,8 +1957,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteVehicle(id: String) = launchLocalMutation {
         if (!canManageVehicles || profileCollection.profiles.size <= 1) return@launchLocalMutation
-        val updated = runCatching { profileCollection.withoutVehicle(id) }.getOrNull() ?: return@launchLocalMutation
-        if (!persistProfiles(updated)) { profileError = "Could not delete the vehicle"; return@launchLocalMutation }
+        val updated =
+            runCatching { profileCollection.withoutVehicle(id) }.getOrNull()
+                ?: return@launchLocalMutation
+        if (!persistProfiles(updated)) {
+            profileError = "Could not delete the vehicle"
+            return@launchLocalMutation
+        }
         val deletedActive = id == profileCollection.activeId
         profileCollection = updated
         if (deletedActive) {
@@ -1115,11 +1979,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun createProfile() = launchLocalMutation {
         val name = profileNameInput.trim()
-        if (profileError != null || modifyingSetupBlocked || name.isEmpty() || profileCollection.profiles.size >= 8 ||
-            profileCollection.profiles.any { it.name.equals(name, ignoreCase = true) }) return@launchLocalMutation
+        if (profileError != null || modifyingSetupBlocked || name.isEmpty() ||
+            profileCollection.profiles.size >= 8 ||
+            profileCollection.profiles.any { it.name.equals(name, ignoreCase = true) }
+        ) {
+            return@launchLocalMutation
+        }
         val profile = VehicleProfile(ProfileStore.newId(), name, Draft())
-        val updated = profileCollection.copy(activeId = profile.id, profiles = profileCollection.profiles + profile)
-        if (!persistProfiles(updated, associations = { LocalSetup(profileCollection, it).create(profile).associations })) {
+        val updated = profileCollection.copy(
+            activeId = profile.id,
+            profiles =
+                profileCollection.profiles + profile
+        )
+        if (!persistProfiles(updated, associations = {
+                LocalSetup(profileCollection, it).create(profile).associations
+            })
+        ) {
             profileError = "Could not save the new vehicle profile"
             return@launchLocalMutation
         }
@@ -1130,7 +2005,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         profileNameInput = ""
     }
 
-    fun markScanning(value: Boolean) { scanning = value }
+    fun markScanning(value: Boolean) {
+        scanning = value
+    }
     fun connectionError(message: String) {
         presentationError = message
         scanning = false
@@ -1185,11 +2062,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             sentProfileId = null
             sentDigest = null
         }
-        deviceMessage = if (value.experimentalNumericConfig)
+        deviceMessage = if (value.experimentalNumericConfig) {
             "Gauge found. Pair this phone as owner to send a supported dashboard."
-        else if (value.quickSelect)
+        } else if (value.quickSelect) {
             "Gauge identified. Built-in reading selection is available after pairing."
-        else "Gauge identified. Discovery link closed; protocol ${value.protocolMajor} is read only."
+        } else {
+            "Gauge identified. Discovery link closed; protocol ${value.protocolMajor} is read only."
+        }
     }
     fun snapshotRead(value: GaugeSavedSnapshot) {
         scanning = false
@@ -1199,11 +2078,31 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ownerAccess = OwnerAccess.AUTHENTICATED
         deviceMessage = "Gauge saved state read at revision ${value.revision}."
     }
-    suspend fun configApplied(value: GaugeConfigTransferClient.Applied, profileId: String, appliedDraft: Draft) {
+    suspend fun configApplied(
+        value: GaugeConfigTransferClient.Applied,
+        profileId: String,
+        appliedDraft: Draft
+    ) {
         rememberedGaugeId?.let { id ->
-            suspendResult { durableWrites.write { associationStore.assign(id, profileId, if (appliedDraft.source == "BOTH") draft.source else appliedDraft.source) }
+            suspendResult {
+                durableWrites.write {
+                    associationStore.assign(
+                        id,
+                        profileId,
+                        if (appliedDraft.source ==
+                            "BOTH"
+                        ) {
+                            draft.source
+                        } else {
+                            appliedDraft.source
+                        }
+                    )
+                }
                 knownGauges = associationStore.load().gauges
-            }.onFailure { presentationError = "Setup is running, but its phone assignment could not be saved" }
+            }.onFailure {
+                presentationError =
+                    "Setup is running, but its phone assignment could not be saved"
+            }
         }
         pendingConfiguration = null
         configurationNeedsReview = false
@@ -1221,7 +2120,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         savedGauge = null
         runtimeIdentity = value.runtime
         ownerAccess = OwnerAccess.AUTHENTICATED
-        deviceMessage = "Configuration revision ${value.revision} is healthy and running on the gauge."
+        deviceMessage =
+            "Configuration revision ${value.revision} is healthy and running on the gauge."
         connectionChecked()
     }
     fun configStatusRead(value: GaugeConfigTransferClient.ActiveStatus) {
@@ -1241,10 +2141,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         activeConfigRevision = value.revision.takeIf { it > 0 }
         ownerAccess = OwnerAccess.AUTHENTICATED
-        deviceMessage = if (value.revision == 0L)
+        deviceMessage = if (value.revision == 0L) {
             "Gauge is using built-in readings. Transfer phase ${value.transferPhase}."
-        else "Gauge active config revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…; " +
-            "transfer phase ${value.transferPhase}, last result ${value.lastResult}."
+        } else {
+            "Gauge active config revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…; " +
+                "transfer phase ${value.transferPhase}, last result ${value.lastResult}."
+        }
     }
     suspend fun runtimeIdentityRead(value: GaugeConfigTransferClient.RuntimeIdentity) {
         scanning = false
@@ -1255,22 +2157,42 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val document = activeDocument
         if (pending != null && pending.gaugeId == rememberedGaugeId && document != null &&
             document.revision == pending.revision && document.sha256 == verifiedConfigHash &&
-            matchesRunningPayload(pending.bytes, pending.revision, document.sha256, value)) {
-            configApplied(GaugeConfigTransferClient.Applied(pending.revision, document.sha256, value),
-                pending.profileId, pending.draft)
-            operation = operation.copy(stage = OperationStage.ACTIVE, title = "Setup confirmed on gauge",
-                detail = "The exact sent settings are healthy and running", progressPercent = 100, terminal = true)
+            matchesRunningPayload(pending.bytes, pending.revision, document.sha256, value)
+        ) {
+            configApplied(
+                GaugeConfigTransferClient.Applied(pending.revision, document.sha256, value),
+                pending.profileId,
+                pending.draft
+            )
+            operation =
+                operation.copy(
+                    stage = OperationStage.ACTIVE,
+                    title = "Setup confirmed on gauge",
+                    detail = "The exact sent settings are healthy and running",
+                    progressPercent = 100,
+                    terminal = true
+                )
         }
         recognizeRunningPhoneSettings()
         deviceMessage = when {
             !value.running -> "Gauge is running built-in readings; no custom configuration is active."
+
             value.usedPreviousGeneration ->
-                "Gauge stored revision ${value.storedRevision}, but recovered with executable revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…."
+                "Gauge stored revision ${value.storedRevision}, but recovered with executable revision ${value.revision}, SHA-256 ${value.sha256.take(
+                    12
+                )}…."
+
             value.trial ->
-                "Gauge is validating configuration revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…."
-            else -> "Gauge stored and running configuration revision ${value.revision}, SHA-256 ${value.sha256.take(12)}…."
+                "Gauge is validating configuration revision ${value.revision}, SHA-256 ${value.sha256.take(
+                    12
+                )}…."
+
+            else -> "Gauge stored and running configuration revision ${value.revision}, SHA-256 ${value.sha256.take(
+                12
+            )}…."
         }
     }
+
     /** Reopening the app need not prompt another send when every expected byte is already running. */
     private suspend fun recognizeRunningPhoneSettings() {
         if (configurationNeedsReview || profileError != null) return
@@ -1279,15 +2201,30 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val expected = runCatching {
             val template = getApplication<Application>().assets.open("numeric_config_template.json")
                 .bufferedReader().use { it.readText() }
-            configurationBytes(template, document.revision - 1, org.json.JSONObject(document.json).getInt("schemaVersion"))
+            configurationBytes(
+                template,
+                document.revision - 1,
+                org.json.JSONObject(document.json).getInt("schemaVersion")
+            )
         }.getOrNull()
         if (matchesRunningPayload(expected, document.revision, document.sha256, runtimeIdentity)) {
             sentDraft = transmittedDraft
             sentProfileId = profileCollection.activeId
             sentDigest = document.sha256
             rememberedGaugeId?.let { id ->
-                suspendResult { durableWrites.write { associationStore.assign(id, profileCollection.activeId, profileCollection.active.draft.source) } }
-                    .onFailure { presentationError = "Could not save this gauge's vehicle assignment" }
+                suspendResult {
+                    durableWrites.write {
+                        associationStore.assign(
+                            id,
+                            profileCollection.activeId,
+                            profileCollection.active.draft.source
+                        )
+                    }
+                }
+                    .onFailure {
+                        presentationError =
+                            "Could not save this gauge's vehicle assignment"
+                    }
             }
         }
     }
@@ -1303,44 +2240,85 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             sentProfileId = null
             sentDigest = null
         }
-        deviceMessage = if (value == null) "Gauge is using built-in readings. No custom document is saved."
-        else "Saved configuration revision ${value.revision} verified against SHA-256 ${value.sha256.take(12)}…"
-        documentMessage = if (value == null) "No custom document is saved on the gauge."
-        else "Verified saved revision ${value.revision}. Compare it with this phone draft below."
+        deviceMessage =
+            if (value == null) {
+                "Gauge is using built-in readings. No custom document is saved."
+            } else {
+                "Saved configuration revision ${value.revision} verified against SHA-256 ${value.sha256.take(
+                    12
+                )}…"
+            }
+        documentMessage = if (value == null) {
+            "No custom document is saved on the gauge."
+        } else {
+            "Verified saved revision ${value.revision}. Compare it with this phone draft below."
+        }
         documentReadFailed = false
     }
     fun adoptGaugeDraft() = launchLocalMutation {
-        if (modifyingSetupBlocked || profileError != null || ownerAccess != OwnerAccess.AUTHENTICATED) return@launchLocalMutation
+        if (modifyingSetupBlocked || profileError != null ||
+            ownerAccess != OwnerAccess.AUTHENTICATED
+        ) {
+            return@launchLocalMutation
+        }
         val document = activeDocument ?: return@launchLocalMutation
-        if (!com.lstepnio.egauge.ui.state.isConfirmedSetup(document.revision, document.sha256, runtimeIdentity)) {
+        if (!com.lstepnio.egauge.ui.state.isConfirmedSetup(
+                document.revision,
+                document.sha256,
+                runtimeIdentity
+            )
+        ) {
             documentMessage = "Wait for the gauge to confirm its saved setup before recovering it."
             return@launchLocalMutation
         }
         if (profileCollection.profiles.none { it.id == document.vehicleProfileId }) {
-            val recovered = runCatching { GaugeProfileRecovery.recover(profileCollection, document) }
-                .getOrElse { documentMessage = it.message; documentReadFailed = true; return@launchLocalMutation }
-            if (!persistProfiles(recovered, assignSelected = true)) { profileError = "Could not save the recovered car"; return@launchLocalMutation }
+            val recovered = runCatching {
+                GaugeProfileRecovery.recover(profileCollection, document)
+            }
+                .getOrElse {
+                    documentMessage = it.message
+                    documentReadFailed = true
+                    return@launchLocalMutation
+                }
+            if (!persistProfiles(recovered, assignSelected = true)) {
+                profileError =
+                    "Could not save the recovered car"
+                return@launchLocalMutation
+            }
             clearVehicleEvidence()
             profileCollection = recovered
             draft = recovered.active.draft
             editingPageIndex = 0
             recognizeRunningPhoneSettings()
-            documentMessage = "Saved gauge setup recovered on this phone. The gauge was not changed."
+            documentMessage =
+                "Saved gauge setup recovered on this phone. The gauge was not changed."
             documentReadFailed = false
             return@launchLocalMutation
         }
-        val restored = runCatching { GaugeProfileRecovery.restore(profileCollection.active, document) }
-            .getOrElse { documentMessage = it.message; documentReadFailed = true; return@launchLocalMutation }
-        val updated = profileCollection.copy(profiles = profileCollection.profiles.map {
-            if (it.id == restored.id) restored else it
-        })
-        if (!persistProfiles(updated)) { profileError = "Could not save recovered vehicle settings"; return@launchLocalMutation }
+        val restored = runCatching {
+            GaugeProfileRecovery.restore(profileCollection.active, document)
+        }
+            .getOrElse {
+                documentMessage = it.message
+                documentReadFailed = true
+                return@launchLocalMutation
+            }
+        val updated = profileCollection.copy(
+            profiles = profileCollection.profiles.map {
+                if (it.id == restored.id) restored else it
+            }
+        )
+        if (!persistProfiles(updated)) {
+            profileError = "Could not save recovered vehicle settings"
+            return@launchLocalMutation
+        }
         profileCollection = updated
         draft = restored.draft
         adapterSelectionSource = "ECM"
         editingPageIndex = 0
         clearVehicleEvidence()
-        documentMessage = "Saved revision ${document.revision} copied into the phone draft. The gauge was not changed."
+        documentMessage =
+            "Saved revision ${document.revision} copied into the phone draft. The gauge was not changed."
         documentReadFailed = false
     }
 
@@ -1384,8 +2362,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (recovery != null) updatePackageMessage = recovery.message
         if (recovery?.terminal == true) {
             val cleared = suspendResult { updatePersistence.clearRecovery() }
-            if (cleared.isSuccess) pendingUpdateRecovery = null
-            else presentationError = "Gauge identity checked, but phone recovery history could not be cleared"
+            if (cleared.isSuccess) {
+                pendingUpdateRecovery = null
+            } else {
+                presentationError =
+                    "Gauge identity checked, but phone recovery history could not be cleared"
+            }
         }
         deviceMessage = recovery?.message ?: "Protected running firmware identity read."
     }
@@ -1397,7 +2379,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         updatePreparation = "ready"
         hostedUpdateMessage = "Signed development package ready to install"
         val hash = value.sha256.joinToString("") { "%02x".format(it) }
-        updatePackageMessage = "Development signature valid • ${value.image.size} bytes • SHA-256 ${hash.take(12)}…"
+        updatePackageMessage =
+            "Development signature valid • ${value.image.size} bytes • SHA-256 ${hash.take(12)}…"
     }
     suspend fun updateStarted() {
         updateInProgress = true
@@ -1406,8 +2389,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val bundle = updateBundle()
         updatePersistence.start(rememberedGaugeId, bundle, hostedUpdate)
         pendingUpdateRecovery = updatePersistence.pending()
-        updateRecoveryResult = UpdateRecoveryResult(UpdateRecoveryState.CHECK_REQUIRED,
-            "Update started. Running identity will be checked if the operation is interrupted.", false)
+        updateRecoveryResult = UpdateRecoveryResult(
+            UpdateRecoveryState.CHECK_REQUIRED,
+            "Update started. Running identity will be checked if the operation is interrupted.",
+            false
+        )
         updatePackageMessage = "Connecting to gauge for signed update…"
     }
     fun updateProgress(percent: Int) {
@@ -1417,43 +2403,88 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun updateStageChanged(stage: FirmwareUpdateStage) {
         operation = when (stage) {
-            FirmwareUpdateStage.PREPARING -> operation.copy(stage = OperationStage.PREPARING,
-                title = "Preparing firmware update", detail = "Authenticating the gauge and opening the transfer path",
-                progressPercent = null)
-            FirmwareUpdateStage.CONNECTING_WIFI -> operation.copy(stage = OperationStage.PREPARING,
-                title = "Joining gauge Wi-Fi", detail = "Android is connecting to the gauge's temporary network",
-                progressPercent = null)
-            FirmwareUpdateStage.PREPARING_FLASH -> operation.copy(stage = OperationStage.PREPARING,
-                title = "Preparing gauge flash", detail = "Sending the signed image details and clearing space",
-                progressPercent = null)
-            FirmwareUpdateStage.TRANSFERRING -> operation.copy(stage = OperationStage.SENDING,
-                title = "Sending firmware", detail = if (capabilities?.wifiBulk != null)
-                    "Sending the signed image over private gauge Wi-Fi" else
-                    "Sending the signed image over Bluetooth")
-            FirmwareUpdateStage.VERIFYING -> operation.copy(stage = OperationStage.VERIFYING,
-                title = "Verifying firmware", detail = "The gauge is checking the complete signed image",
-                progressPercent = 100)
-            FirmwareUpdateStage.READY_TO_ACTIVATE -> operation.copy(stage = OperationStage.VERIFYING,
-                title = "Firmware verified", detail = if (debugOtaPauseBeforeActivationMs > 0)
-                    "Debug activation pause active" else "Preparing the alternate image for boot",
-                progressPercent = 100)
-            FirmwareUpdateStage.RESTARTING -> operation.copy(stage = OperationStage.RESTARTING,
-                title = "Restarting gauge", detail = "Booting the verified alternate image",
-                progressPercent = 100)
-            FirmwareUpdateStage.CONFIRMING -> operation.copy(stage = OperationStage.CHECKING_RUNNING,
-                title = "Confirming firmware", detail = "Waiting for the gauge health check and authenticated identity",
-                progressPercent = 100)
+            FirmwareUpdateStage.PREPARING -> operation.copy(
+                stage = OperationStage.PREPARING,
+                title = "Preparing firmware update",
+                detail = "Authenticating the gauge and opening the transfer path",
+                progressPercent = null
+            )
+
+            FirmwareUpdateStage.CONNECTING_WIFI -> operation.copy(
+                stage = OperationStage.PREPARING,
+                title = "Joining gauge Wi-Fi",
+                detail = "Android is connecting to the gauge's temporary network",
+                progressPercent = null
+            )
+
+            FirmwareUpdateStage.PREPARING_FLASH -> operation.copy(
+                stage = OperationStage.PREPARING,
+                title = "Preparing gauge flash",
+                detail = "Sending the signed image details and clearing space",
+                progressPercent = null
+            )
+
+            FirmwareUpdateStage.TRANSFERRING -> operation.copy(
+                stage = OperationStage.SENDING,
+                title = "Sending firmware",
+                detail = if (capabilities?.wifiBulk != null) {
+                    "Sending the signed image over private gauge Wi-Fi"
+                } else {
+                    "Sending the signed image over Bluetooth"
+                }
+            )
+
+            FirmwareUpdateStage.VERIFYING -> operation.copy(
+                stage = OperationStage.VERIFYING,
+                title = "Verifying firmware",
+                detail = "The gauge is checking the complete signed image",
+                progressPercent = 100
+            )
+
+            FirmwareUpdateStage.READY_TO_ACTIVATE -> operation.copy(
+                stage = OperationStage.VERIFYING,
+                title = "Firmware verified",
+                detail = if (debugOtaPauseBeforeActivationMs > 0) {
+                    "Debug activation pause active"
+                } else {
+                    "Preparing the alternate image for boot"
+                },
+                progressPercent = 100
+            )
+
+            FirmwareUpdateStage.RESTARTING -> operation.copy(
+                stage = OperationStage.RESTARTING,
+                title = "Restarting gauge",
+                detail = "Booting the verified alternate image",
+                progressPercent = 100
+            )
+
+            FirmwareUpdateStage.CONFIRMING -> operation.copy(
+                stage = OperationStage.CHECKING_RUNNING,
+                title = "Confirming firmware",
+                detail = "Waiting for the gauge health check and authenticated identity",
+                progressPercent = 100
+            )
         }
         updatePackageMessage = when (stage) {
             FirmwareUpdateStage.PREPARING -> "Preparing the authenticated update path…"
+
             FirmwareUpdateStage.CONNECTING_WIFI -> "Joining the temporary gauge Wi-Fi network…"
+
             FirmwareUpdateStage.PREPARING_FLASH -> "Preparing the gauge to receive the image…"
+
             FirmwareUpdateStage.TRANSFERRING -> "Sending the signed image to the gauge…"
+
             FirmwareUpdateStage.VERIFYING -> "Transfer complete. Verifying the signed image on the gauge…"
-            FirmwareUpdateStage.READY_TO_ACTIVATE -> if (debugOtaPauseBeforeActivationMs > 0)
+
+            FirmwareUpdateStage.READY_TO_ACTIVATE -> if (debugOtaPauseBeforeActivationMs > 0) {
                 "Firmware verified. Debug activation pause active."
-                else "Firmware verified. Preparing activation…"
+            } else {
+                "Firmware verified. Preparing activation…"
+            }
+
             FirmwareUpdateStage.RESTARTING -> "Firmware activated. The gauge is restarting…"
+
             FirmwareUpdateStage.CONFIRMING -> "Gauge restarted. Confirming the healthy running image…"
         }
     }
@@ -1475,27 +2506,46 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         hostedUpdate = null
         selectedUpdate = null
         updatePreparation = "current"
-        nextAutomaticUpdateCheckAtElapsedMs = android.os.SystemClock.elapsedRealtime() + 6 * 60 * 60_000L
+        nextAutomaticUpdateCheckAtElapsedMs =
+            android.os.SystemClock.elapsedRealtime() + 6 * 60 * 60_000L
         val cleanup = suspendResult { updatePersistence.complete(rememberedGaugeId) }
         pendingUpdateRecovery = if (cleanup.isSuccess) null else updatePersistence.pending()
-        if (cleanup.isFailure) presentationError = "Firmware is running, but phone recovery history could not be cleared"
-        updateRecoveryResult = UpdateRecoveryResult(UpdateRecoveryState.INSTALLED,
-            "The new firmware is confirmed healthy.", true)
-        updatePackageMessage = "Gauge confirmed new image at 0x${value.running.partitionAddress.toString(16)} • ELF SHA-256 ${value.running.elfSha256.take(12)}…"
+        if (cleanup.isFailure) {
+            presentationError =
+                "Firmware is running, but phone recovery history could not be cleared"
+        }
+        updateRecoveryResult = UpdateRecoveryResult(
+            UpdateRecoveryState.INSTALLED,
+            "The new firmware is confirmed healthy.",
+            true
+        )
+        updatePackageMessage =
+            "Gauge confirmed new image at 0x${value.running.partitionAddress.toString(
+                16
+            )} • ELF SHA-256 ${value.running.elfSha256.take(12)}…"
     }
     suspend fun updateFailed(message: String) {
         updateInProgress = false
         scanning = false
         val cleanup = suspendResult {
-            if (updateMayHaveChangedGauge) selectedUpdate?.let { updatePersistence.interrupted(rememberedGaugeId, it) }
-            else updatePersistence.clearRecovery()
+            if (updateMayHaveChangedGauge) {
+                selectedUpdate?.let { updatePersistence.interrupted(rememberedGaugeId, it) }
+            } else {
+                updatePersistence.clearRecovery()
+            }
         }
         pendingUpdateRecovery = updatePersistence.pending()
         updateRecoveryResult = pendingUpdateRecovery?.let {
-            UpdateRecoveryResult(UpdateRecoveryState.CHECK_REQUIRED,
-                "The update outcome needs a fresh gauge check before retrying.", false)
+            UpdateRecoveryResult(
+                UpdateRecoveryState.CHECK_REQUIRED,
+                "The update outcome needs a fresh gauge check before retrying.",
+                false
+            )
         }
-        if (cleanup.isFailure) presentationError = "Phone recovery history could not be saved. Check your gauge before retrying."
+        if (cleanup.isFailure) {
+            presentationError =
+                "Phone recovery history could not be saved. Check your gauge before retrying."
+        }
         updateMayHaveChangedGauge = false
         if (hostedUpdate != null) {
             hostedUpdate = null
@@ -1521,44 +2571,88 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     updateStarted()
                     val wifiVersion = capabilities?.wifiBulk
                     val usingWifi = !bluetoothRecovery && wifiVersion in setOf(
-                        "experimental-softap-aead-v1", "experimental-softap-aead-v2")
-                    operation = OperationState(id, OperationKind.UPDATE, OperationStage.CONNECTING,
-                        "Installing firmware", if (usingWifi)
-                            "Preparing a private gauge Wi-Fi connection" else "Connecting to the gauge")
+                        "experimental-softap-aead-v1",
+                        "experimental-softap-aead-v2"
+                    )
+                    operation = OperationState(
+                        id,
+                        OperationKind.UPDATE,
+                        OperationStage.CONNECTING,
+                        "Installing firmware",
+                        if (usingWifi) {
+                            "Preparing a private gauge Wi-Fi connection"
+                        } else {
+                            "Connecting to the gauge"
+                        }
+                    )
                     val client = GaugeConfigTransferClient(getApplication())
                     val reportProgress: (Int) -> Unit = { percent ->
-                            updateProgress(percent)
-                            operation = operation.copy(stage = OperationStage.SENDING,
-                                detail = if (usingWifi)
-                                    "Sending firmware over private gauge Wi-Fi" else
-                                    "Sending firmware over Bluetooth", progressPercent = percent)
-                        }
+                        updateProgress(percent)
+                        operation = operation.copy(
+                            stage = OperationStage.SENDING,
+                            detail = if (usingWifi) {
+                                "Sending firmware over private gauge Wi-Fi"
+                            } else {
+                                "Sending firmware over Bluetooth"
+                            },
+                            progressPercent = percent
+                        )
+                    }
                     val reportStage: (FirmwareUpdateStage) -> Unit = { stage ->
                         updateStageChanged(stage)
-                        if (!usingWifi && stage == FirmwareUpdateStage.TRANSFERRING)
-                            operation = operation.copy(detail = "Sending the signed image over Bluetooth")
+                        if (!usingWifi && stage == FirmwareUpdateStage.TRANSFERRING) {
+                            operation =
+                                operation.copy(detail = "Sending the signed image over Bluetooth")
+                        }
                     }
-                    val result = if (usingWifi)
-                        client.installUpdateWifi(bleClient.selectedGauge(), bundle,
-                            wifiVersion == "experimental-softap-aead-v2", reportProgress,
-                            reportStage, debugOtaPauseBeforeActivationMs)
-                    else client.installUpdate(bleClient.selectedGauge(), bundle, reportProgress,
-                        reportStage, debugOtaPauseBeforeActivationMs)
+                    val result = if (usingWifi) {
+                        client.installUpdateWifi(
+                            bleClient.selectedGauge(),
+                            bundle,
+                            wifiVersion == "experimental-softap-aead-v2",
+                            reportProgress,
+                            reportStage,
+                            debugOtaPauseBeforeActivationMs
+                        )
+                    } else {
+                        client.installUpdate(
+                            bleClient.selectedGauge(),
+                            bundle,
+                            reportProgress,
+                            reportStage,
+                            debugOtaPauseBeforeActivationMs
+                        )
+                    }
                     updateSucceeded(result)
-                    operation = OperationState(id, OperationKind.UPDATE, OperationStage.ACTIVE,
-                        "Firmware installed", "The new image is healthy and running", 100, true)
+                    operation = OperationState(
+                        id,
+                        OperationKind.UPDATE,
+                        OperationStage.ACTIVE,
+                        "Firmware installed",
+                        "The new image is healthy and running",
+                        100,
+                        true
+                    )
                 }
             } catch (_: OperationBusyException) {
                 deviceMessage = "Finish the current gauge operation before installing firmware"
             } catch (error: TimeoutCancellationException) {
-                updateFailed("Gauge update timed out. Reconnect and read running firmware before retrying.")
+                updateFailed(
+                    "Gauge update timed out. Reconnect and read running firmware before retrying."
+                )
                 operationFailed("Firmware update timed out", outcomeUnknown = true)
             } catch (error: CancellationException) {
-                withContext(NonCancellable) { updateFailed("Update interrupted. Reconnect and read the running firmware before retrying.") }
+                withContext(NonCancellable) {
+                    updateFailed(
+                        "Update interrupted. Reconnect and read the running firmware before retrying."
+                    )
+                }
                 operationFailed("Firmware update was interrupted", outcomeUnknown = true)
                 throw error
             } catch (error: GaugeLinkException) {
-                updateFailed("Gauge connection interrupted during update. Reconnect and read running firmware before retrying. ${error.message}")
+                updateFailed(
+                    "Gauge connection interrupted during update. Reconnect and read running firmware before retrying. ${error.message}"
+                )
                 operationFailed("Gauge connection was interrupted", outcomeUnknown = true)
             } catch (error: Exception) {
                 updateFailed(error.message ?: "Signed update did not complete")
@@ -1568,158 +2662,333 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun discoverGauge() = launchGaugeOperation(OperationKind.DISCOVERY, "Finding your gauge") { id ->
-        operation = OperationState(id, OperationKind.DISCOVERY, OperationStage.FINDING_GAUGE,
-            "Finding your gauge", "Keep the gauge powered and nearby")
+        operation = OperationState(
+            id,
+            OperationKind.DISCOVERY,
+            OperationStage.FINDING_GAUGE,
+            "Finding your gauge",
+            "Keep the gauge powered and nearby"
+        )
         val candidates = bleClient.scanNearbyCandidates()
         val selected = automaticCandidateId(candidates.map { it.id }, rememberedGaugeId)
         when {
             selected != null -> connectCandidate(id, candidates.single { it.id == selected })
+
             else -> {
                 gaugeCandidates = candidates
                 connection = ConnectionState(ConnectionPhase.ChooseGauge)
                 scanning = false
-                operation = OperationState(id, OperationKind.DISCOVERY, OperationStage.ACTIVE,
-                    "Choose your gauge", "${candidates.size} compatible gauges are nearby", terminal = true)
+                operation = OperationState(
+                    id,
+                    OperationKind.DISCOVERY,
+                    OperationStage.ACTIVE,
+                    "Choose your gauge",
+                    "${candidates.size} compatible gauges are nearby",
+                    terminal = true
+                )
             }
         }
     }
 
-    fun selectGaugeCandidate(candidate: GaugeCandidate) =
-        launchGaugeOperation(OperationKind.DISCOVERY, "Connecting to your gauge") { id ->
-            connectCandidate(id, candidate)
-        }
+    fun selectGaugeCandidate(candidate: GaugeCandidate) = launchGaugeOperation(OperationKind.DISCOVERY, "Connecting to your gauge") { id ->
+        connectCandidate(id, candidate)
+    }
 
     private suspend fun connectCandidate(operationId: Long, candidate: GaugeCandidate) {
-        operation = OperationState(operationId, OperationKind.DISCOVERY, OperationStage.CONNECTING,
-            "Connecting to your gauge", candidate.name)
+        operation = OperationState(
+            operationId,
+            OperationKind.DISCOVERY,
+            OperationStage.CONNECTING,
+            "Connecting to your gauge",
+            candidate.name
+        )
         connectDiscoveredCandidate(candidate)
-        updatePairingWindow(try { bleClient.readPairingWindowStatus() }
-            catch (error: CancellationException) { throw error }
-            catch (_: Exception) { null })
+        updatePairingWindow(
+            try {
+                bleClient.readPairingWindowStatus()
+            } catch (
+                error: CancellationException
+            ) {
+                throw error
+            } catch (_: Exception) {
+                null
+            }
+        )
         connection = ConnectionState(ConnectionPhase.PairRequired)
-        operation = OperationState(operationId, OperationKind.DISCOVERY, OperationStage.ACTIVE,
-            "Gauge found", "Ready for owner access and supported settings", terminal = true)
+        operation = OperationState(
+            operationId,
+            OperationKind.DISCOVERY,
+            OperationStage.ACTIVE,
+            "Gauge found",
+            "Ready for owner access and supported settings",
+            terminal = true
+        )
     }
 
     fun rotateGauge(rotation: Int) = launchGaugeOperation(OperationKind.CONFIGURATION, "Rotating display") { id ->
-        require(capabilities?.displayRotationWrite == true) { "Gauge does not offer display rotation control" }
-        operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
-            "Rotating display", "Waiting for saved-state confirmation")
+        require(capabilities?.displayRotationWrite == true) {
+            "Gauge does not offer display rotation control"
+        }
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.SENDING,
+            "Rotating display",
+            "Waiting for saved-state confirmation"
+        )
         snapshotRead(bleClient.rotateNearby(rotation))
-        operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
-            "Display rotation saved", "The gauge confirmed ${rotation * 90}°", terminal = true)
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.ACTIVE,
+            "Display rotation saved",
+            "The gauge confirmed ${rotation * 90}°",
+            terminal = true
+        )
     }
 
-    fun saveDisplaySettings(rotation: Int, brightness: Int) =
-        launchGaugeOperation(OperationKind.CONFIGURATION, "Saving display settings") { id ->
-            require((capabilities?.displaySettingsVersion ?: 0) >= 1) { "Gauge does not offer display settings" }
-            operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
-                "Saving display settings", "Waiting for gauge confirmation")
-            displaySettingsRead(GaugeConfigTransferClient(getApplication()).saveDisplaySettings(
-                bleClient.selectedGauge(), rotation, brightness))
-            ownerAccess = OwnerAccess.AUTHENTICATED
-            operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
-                "Display settings saved", "The gauge confirmed ${rotation * 90}° and $brightness% brightness", terminal = true)
+    fun saveDisplaySettings(rotation: Int, brightness: Int) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving display settings") { id ->
+        require((capabilities?.displaySettingsVersion ?: 0) >= 1) {
+            "Gauge does not offer display settings"
         }
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.SENDING,
+            "Saving display settings",
+            "Waiting for gauge confirmation"
+        )
+        displaySettingsRead(
+            GaugeConfigTransferClient(
+                getApplication()
+            ).saveDisplaySettings(bleClient.selectedGauge(), rotation, brightness)
+        )
+        ownerAccess = OwnerAccess.AUTHENTICATED
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.ACTIVE,
+            "Display settings saved",
+            "The gauge confirmed ${rotation * 90}° and $brightness% brightness",
+            terminal = true
+        )
+    }
 
-    fun saveMeasurementSystem(system: MeasurementSystem) =
-        launchGaugeOperation(OperationKind.CONFIGURATION, "Saving measurement units") { id ->
-            require((capabilities?.displaySettingsVersion ?: 0) >= 2) { "Gauge does not offer measurement units" }
-            operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
-                "Saving measurement units", "Waiting for gauge confirmation")
-            val client = GaugeConfigTransferClient(getApplication())
-            val current = client.readDisplaySettings(bleClient.selectedGauge())
-            displaySettingsRead(client.saveDisplaySettings(bleClient.selectedGauge(),
-                current.rotation, current.brightness, system))
-            ownerAccess = OwnerAccess.AUTHENTICATED
-            operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
-                "Measurement units saved", "The gauge confirmed ${system.name.lowercase()} units", terminal = true)
+    fun saveMeasurementSystem(system: MeasurementSystem) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving measurement units") { id ->
+        require((capabilities?.displaySettingsVersion ?: 0) >= 2) {
+            "Gauge does not offer measurement units"
         }
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.SENDING,
+            "Saving measurement units",
+            "Waiting for gauge confirmation"
+        )
+        val client = GaugeConfigTransferClient(getApplication())
+        val current = client.readDisplaySettings(bleClient.selectedGauge())
+        displaySettingsRead(
+            client.saveDisplaySettings(
+                bleClient.selectedGauge(),
+                current.rotation,
+                current.brightness,
+                system
+            )
+        )
+        ownerAccess = OwnerAccess.AUTHENTICATED
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.ACTIVE,
+            "Measurement units saved",
+            "The gauge confirmed ${system.name.lowercase()} units",
+            terminal = true
+        )
+    }
 
-    fun savePageCycleSeconds(seconds: Int) =
-        launchGaugeOperation(OperationKind.CONFIGURATION, "Saving page cycle interval") { id ->
-            require((capabilities?.displaySettingsVersion ?: 0) >= 3) { "Gauge does not offer page cycling" }
-            require(seconds in setOf(0, 5, 10, 15, 30, 60)) { "Invalid page cycle interval" }
-            operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.SENDING,
-                "Saving page cycle interval", "Waiting for gauge confirmation")
-            val client = GaugeConfigTransferClient(getApplication())
-            val current = client.readDisplaySettings(bleClient.selectedGauge())
-            displaySettingsRead(client.saveDisplaySettings(bleClient.selectedGauge(),
-                current.rotation, current.brightness, current.units, seconds))
-            ownerAccess = OwnerAccess.AUTHENTICATED
-            operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
-                "Page cycling saved", if (seconds == 0) "Automatic cycling is off" else "The gauge will cycle pages every $seconds seconds",
-                terminal = true)
+    fun savePageCycleSeconds(seconds: Int) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving page cycle interval") { id ->
+        require((capabilities?.displaySettingsVersion ?: 0) >= 3) {
+            "Gauge does not offer page cycling"
         }
+        require(seconds in setOf(0, 5, 10, 15, 30, 60)) { "Invalid page cycle interval" }
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.SENDING,
+            "Saving page cycle interval",
+            "Waiting for gauge confirmation"
+        )
+        val client = GaugeConfigTransferClient(getApplication())
+        val current = client.readDisplaySettings(bleClient.selectedGauge())
+        displaySettingsRead(
+            client.saveDisplaySettings(
+                bleClient.selectedGauge(),
+                current.rotation,
+                current.brightness,
+                current.units,
+                seconds
+            )
+        )
+        ownerAccess = OwnerAccess.AUTHENTICATED
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.ACTIVE,
+            "Page cycling saved",
+            if (seconds ==
+                0
+            ) {
+                "Automatic cycling is off"
+            } else {
+                "The gauge will cycle pages every $seconds seconds"
+            },
+            terminal = true
+        )
+    }
 
     fun pairGauge() = launchGaugeOperation(OperationKind.READ, "Pairing your gauge") { id ->
-        require(Build.VERSION.SDK_INT < 31 || getApplication<Application>().checkSelfPermission(
-            Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) { "Bluetooth permission is required" }
+        require(
+            Build.VERSION.SDK_INT < 31 || getApplication<Application>().checkSelfPermission(
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            "Bluetooth permission is required"
+        }
         val device = bleClient.selectedGauge()
-        if (device.bondState == BluetoothDevice.BOND_BONDING) throw PairingFailure(PairingFailureReason.InProgress)
+        if (device.bondState ==
+            BluetoothDevice.BOND_BONDING
+        ) {
+            throw PairingFailure(PairingFailureReason.InProgress)
+        }
         val currentWindow = pairingWindowForUi(android.os.SystemClock.elapsedRealtime())
         if (device.bondState != BluetoothDevice.BOND_BONDED) {
             when (currentWindow?.state) {
                 PairingWindowState.CLOSED -> throw PairingFailure(PairingFailureReason.WindowClosed)
-                PairingWindowState.CODE_DISPLAYED -> throw PairingFailure(PairingFailureReason.InProgress)
-                PairingWindowState.OWNER_PRESENT -> throw PairingFailure(PairingFailureReason.AlreadyOwned)
+
+                PairingWindowState.CODE_DISPLAYED -> throw PairingFailure(
+                    PairingFailureReason.InProgress
+                )
+
+                PairingWindowState.OWNER_PRESENT -> throw PairingFailure(
+                    PairingFailureReason.AlreadyOwned
+                )
+
                 else -> Unit
             }
         }
-        operation = if (device.bondState == BluetoothDevice.BOND_BONDED)
-            OperationState(id, OperationKind.READ, OperationStage.PREPARING,
-                "Checking gauge access", "Confirming the saved owner and phone bond")
-        else OperationState(id, OperationKind.READ, OperationStage.PREPARING,
-            "Waiting for Android", "Enter the code shown on the gauge in Android's pairing prompt")
+        operation = if (device.bondState == BluetoothDevice.BOND_BONDED) {
+            OperationState(
+                id,
+                OperationKind.READ,
+                OperationStage.PREPARING,
+                "Checking gauge access",
+                "Confirming the saved owner and phone bond"
+            )
+        } else {
+            OperationState(
+                id,
+                OperationKind.READ,
+                OperationStage.PREPARING,
+                "Waiting for Android",
+                "Enter the code shown on the gauge in Android's pairing prompt"
+            )
+        }
         try {
-            snapshotRead(bleClient.pairOwner { progress ->
-                operation = when (progress) {
-                    PairingProgress.WAITING_FOR_ANDROID -> OperationState(id, OperationKind.READ,
-                        OperationStage.PREPARING, "Waiting for Android", "Enter the code shown on the gauge")
-                    PairingProgress.CHECKING_GAUGE_ACCESS -> OperationState(id, OperationKind.READ,
-                        OperationStage.PREPARING, "Checking gauge access", "Confirming the saved owner and phone bond")
+            snapshotRead(
+                bleClient.pairOwner { progress ->
+                    operation = when (progress) {
+                        PairingProgress.WAITING_FOR_ANDROID -> OperationState(
+                            id,
+                            OperationKind.READ,
+                            OperationStage.PREPARING,
+                            "Waiting for Android",
+                            "Enter the code shown on the gauge"
+                        )
+
+                        PairingProgress.CHECKING_GAUGE_ACCESS -> OperationState(
+                            id,
+                            OperationKind.READ,
+                            OperationStage.PREPARING,
+                            "Checking gauge access",
+                            "Confirming the saved owner and phone bond"
+                        )
+                    }
                 }
-            })
+            )
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
             if ((error as? PairingFailure)?.reason == PairingFailureReason.OwnerVerificationPending &&
-                device.bondState == BluetoothDevice.BOND_BONDED) {
+                device.bondState == BluetoothDevice.BOND_BONDED
+            ) {
                 updatePairingWindow(null)
-                operation = OperationState(id, OperationKind.READ, OperationStage.OUTCOME_UNKNOWN,
-                    "Android paired", "The app is still checking gauge owner access", terminal = true)
+                operation = OperationState(
+                    id,
+                    OperationKind.READ,
+                    OperationStage.OUTCOME_UNKNOWN,
+                    "Android paired",
+                    "The app is still checking gauge owner access",
+                    terminal = true
+                )
                 foregroundConnection.retrySoon()
                 return@launchGaugeOperation
             }
             if ((error as? PairingFailure)?.reason?.refreshWindow == true) {
-                val freshStatus = try { bleClient.readPairingWindowStatus() }
-                    catch (cancelled: CancellationException) { throw cancelled }
-                    catch (_: Exception) { null }
+                val freshStatus = try {
+                    bleClient.readPairingWindowStatus()
+                } catch (
+                    cancelled: CancellationException
+                ) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
                 updatePairingWindow(freshStatus)
             }
             throw error
         }
         updatePairingWindow(null)
         connectionChecked()
-        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-            "Phone paired", "The gauge confirmed owner access.", terminal = true)
+        operation = OperationState(
+            id,
+            OperationKind.READ,
+            OperationStage.ACTIVE,
+            "Phone paired",
+            "The gauge confirmed owner access.",
+            terminal = true
+        )
     }
 
     fun refreshPairingStatus() = launchGaugeOperation(OperationKind.READ, "Checking pairing status") { id ->
-        require(Build.VERSION.SDK_INT < 31 || getApplication<Application>().checkSelfPermission(
-            Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) { "Bluetooth permission is required" }
+        require(
+            Build.VERSION.SDK_INT < 31 || getApplication<Application>().checkSelfPermission(
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            "Bluetooth permission is required"
+        }
         val device = bleClient.selectedGauge()
         if (device.bondState == BluetoothDevice.BOND_BONDING) {
-            updatePairingWindow(pairingWindow?.copy(state = PairingWindowState.CODE_DISPLAYED)
-                ?: GaugePairingWindow(PairingWindowState.CODE_DISPLAYED, 120))
-        } else updatePairingWindow(bleClient.readPairingWindowStatus())
-        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-            "Pairing status checked", when (pairingWindow?.state) {
+            updatePairingWindow(
+                pairingWindow?.copy(state = PairingWindowState.CODE_DISPLAYED)
+                    ?: GaugePairingWindow(PairingWindowState.CODE_DISPLAYED, 120)
+            )
+        } else {
+            updatePairingWindow(bleClient.readPairingWindowStatus())
+        }
+        operation = OperationState(
+            id,
+            OperationKind.READ,
+            OperationStage.ACTIVE,
+            "Pairing status checked",
+            when (pairingWindow?.state) {
                 PairingWindowState.READY -> "The gauge is ready for pairing"
                 PairingWindowState.CODE_DISPLAYED -> "Enter the code shown on the gauge in Android"
                 PairingWindowState.OWNER_PRESENT -> "The gauge still has an owner"
                 else -> "The pairing window is closed"
-            }, terminal = true)
+            },
+            terminal = true
+        )
     }
 
     fun sendNumericConfiguration() = launchGaugeOperation(OperationKind.CONFIGURATION, "Sending gauge setup") { id ->
@@ -1728,64 +2997,152 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         val profileId = profileCollection.activeId
         val capturedDraft = transmittedDraft
-        require(capturedDraft.diagnosticFilters.isEmpty() || (capabilities?.configurationVersion ?: 0)>=6) { "Update gauge firmware before sending CEL code filters" }
+        require(
+            capturedDraft.diagnosticFilters.isEmpty() ||
+                (capabilities?.configurationVersion ?: 0) >= 6
+        ) {
+            "Update gauge firmware before sending CEL code filters"
+        }
         val adapter = profileCollection.active.adapterFor(draft.source)
         val schemaVersion = if ((capabilities?.configurationVersion ?: 0) >= 3) 2 else 1
-        require(adapter == null || schemaVersion == 2) { "Update the gauge before sending adapter settings" }
-        val baseRevision = activeConfigRevision ?: error("Refresh gauge settings before sending")
+        require(adapter == null || schemaVersion == 2) {
+            "Update the gauge before sending adapter settings"
+        }
+        val baseRevision =
+            activeConfigRevision ?: error("Refresh gauge settings before sending")
         val baseHash = verifiedConfigHash ?: error("Refresh gauge settings before sending")
-        operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.PREPARING,
-            "Sending gauge setup", "Checking the current saved revision")
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.PREPARING,
+            "Sending gauge setup",
+            "Checking the current saved revision"
+        )
         val template = getApplication<Application>().assets.open("numeric_config_template.json")
             .bufferedReader().use { it.readText() }
         val expectedBytes = configurationBytes(template, baseRevision, schemaVersion)
-        pendingConfiguration = PendingConfiguration(rememberedGaugeId, profileId, capturedDraft,
-            baseRevision + 1, expectedBytes)
+        pendingConfiguration = PendingConfiguration(
+            rememberedGaugeId,
+            profileId,
+            capturedDraft,
+            baseRevision + 1,
+            expectedBytes
+        )
         val applied = GaugeConfigTransferClient(getApplication()).apply(
-            bleClient.selectedGauge(), capturedDraft, profileId, baseRevision, baseHash, adapter, schemaVersion, preparedDocument = expectedBytes,
-        ) { stage -> operation = operation.copy(stage = stage, detail = operationDetail(stage)) }
+            bleClient.selectedGauge(),
+            capturedDraft,
+            profileId,
+            baseRevision,
+            baseHash,
+            adapter,
+            schemaVersion,
+            preparedDocument = expectedBytes
+        ) { stage ->
+            operation = operation.copy(stage = stage, detail = operationDetail(stage))
+        }
         configApplied(applied, profileId, capturedDraft)
-        operation = OperationState(id, OperationKind.CONFIGURATION, OperationStage.ACTIVE,
-            "Setup running on gauge", "Revision ${applied.revision} is healthy and active", 100, true)
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.ACTIVE,
+            "Setup running on gauge",
+            "Revision ${applied.revision} is healthy and active",
+            100,
+            true
+        )
     }
 
     fun readConfiguration() = launchGaugeOperation(OperationKind.READ, "Checking running setup") { id ->
         val client = GaugeConfigTransferClient(getApplication())
         configStatusRead(client.readActive(bleClient.selectedGauge()))
-        operation = OperationState(id, OperationKind.READ, OperationStage.CHECKING_RUNNING,
-            "Checking running setup", "Comparing saved and running revisions")
+        operation = OperationState(
+            id,
+            OperationKind.READ,
+            OperationStage.CHECKING_RUNNING,
+            "Checking running setup",
+            "Comparing saved and running revisions"
+        )
         runtimeIdentityRead(client.readRuntimeIdentity(bleClient.selectedGauge()))
-        operation = OperationState(id, OperationKind.READ,
-            if (runtimeIdentity?.usedPreviousGeneration == true) OperationStage.RECOVERED else OperationStage.ACTIVE,
-            if (runtimeIdentity?.usedPreviousGeneration == true) "Gauge recovered an earlier setup" else "Running setup checked",
-            deviceMessage, terminal = true)
+        operation = OperationState(
+            id,
+            OperationKind.READ,
+            if (runtimeIdentity?.usedPreviousGeneration ==
+                true
+            ) {
+                OperationStage.RECOVERED
+            } else {
+                OperationStage.ACTIVE
+            },
+            if (runtimeIdentity?.usedPreviousGeneration ==
+                true
+            ) {
+                "Gauge recovered an earlier setup"
+            } else {
+                "Running setup checked"
+            },
+            deviceMessage,
+            terminal = true
+        )
     }
 
     fun readGaugeDiagnostics() = launchGaugeOperation(OperationKind.READ, "Checking vehicle faults") { id ->
         if (capabilities?.adapterRegistryVersion == 1) {
-            val source = GaugeConfigTransferClient(getApplication()).readAdapterStatus(bleClient.selectedGauge())
-            require(source.vehicleId == profileCollection.activeId && source.phase == 4 && !source.simulated) {
+            val source = GaugeConfigTransferClient(
+                getApplication()
+            ).readAdapterStatus(bleClient.selectedGauge())
+            require(
+                source.vehicleId == profileCollection.activeId && source.phase == 4 &&
+                    !source.simulated
+            ) {
                 "Select this car's adapter and send its setup to the gauge before checking vehicle faults"
             }
         }
         val client = GaugeConfigTransferClient(getApplication())
         for (source in vehicleSources) {
-            val index = if (bothAdapters) configuredSourceIndices(activeDocument)[source]
-                ?: error("Send both adapter connections before checking their faults") else null
+            val index = if (bothAdapters) {
+                configuredSourceIndices(activeDocument)[source]
+                    ?: error("Send both adapter connections before checking their faults")
+            } else {
+                null
+            }
             val snapshot = client.readDiagnostics(bleClient.selectedGauge(), index)
-            validateDiagnosticScope(snapshot, source, activeDocument?.takeIf { it.vehicleProfileId == profileCollection.activeId }?.revision)
+            validateDiagnosticScope(
+                snapshot,
+                source,
+                activeDocument?.takeIf {
+                    it.vehicleProfileId ==
+                        profileCollection.activeId
+                }?.revision
+            )
             diagnosticsBySource = diagnosticsBySource + (source to snapshot)
-            diagnosticsCheckedAt = diagnosticsCheckedAt + (source to android.os.SystemClock.elapsedRealtime())
+            diagnosticsCheckedAt =
+                diagnosticsCheckedAt + (source to android.os.SystemClock.elapsedRealtime())
             if (source == draft.source) diagnosticsRead(snapshot)
         }
-        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-            "Fault snapshot read", "Review each category's last checked status", terminal = true)
+        operation = OperationState(
+            id,
+            OperationKind.READ,
+            OperationStage.ACTIVE,
+            "Fault snapshot read",
+            "Review each category's last checked status",
+            terminal = true
+        )
     }
 
     fun readRunningFirmware() = launchGaugeOperation(OperationKind.READ, "Checking firmware") { id ->
-        bootIdentityRead(GaugeConfigTransferClient(getApplication()).readBootIdentity(bleClient.selectedGauge()))
-        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-            "Firmware checked", bootIdentity?.version, terminal = true)
+        bootIdentityRead(
+            GaugeConfigTransferClient(
+                getApplication()
+            ).readBootIdentity(bleClient.selectedGauge())
+        )
+        operation = OperationState(
+            id,
+            OperationKind.READ,
+            OperationStage.ACTIVE,
+            "Firmware checked",
+            bootIdentity?.version,
+            terminal = true
+        )
     }
 
     fun readHardwareCapacity() = launchGaugeOperation(OperationKind.READ, "Checking hardware") { id ->
@@ -1796,11 +3153,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             .readHardwareSnapshot(bleClient.selectedGauge())
         ownerAccess = OwnerAccess.AUTHENTICATED
         deviceMessage = "Protected hardware capacity snapshot read."
-        operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-            "Hardware checked", "Live memory, flash, processor, and subsystem state", terminal = true)
+        operation = OperationState(
+            id,
+            OperationKind.READ,
+            OperationStage.ACTIVE,
+            "Hardware checked",
+            "Live memory, flash, processor, and subsystem state",
+            terminal = true
+        )
     }
 
-    private fun launchGaugeOperation(kind: OperationKind, title: String, block: suspend (Long) -> Unit) {
+    private fun launchGaugeOperation(
+        kind: OperationKind,
+        title: String,
+        block: suspend (Long) -> Unit
+    ) {
         if (localSaveBusy) return
         viewModelScope.launch {
             try {
@@ -1815,13 +3182,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 deviceMessage = "Finish the current gauge operation before starting another"
             } catch (error: CancellationException) {
                 scanning = false
-                operationFailed("$title was interrupted", outcomeUnknown = kind != OperationKind.READ)
+                operationFailed(
+                    "$title was interrupted",
+                    outcomeUnknown =
+                        kind != OperationKind.READ
+                )
                 throw error
             } catch (error: Exception) {
                 scanning = false
                 val message = error.message ?: "$title did not complete"
                 deviceMessage = message
-                operationFailed(message, outcomeUnknown = kind in setOf(OperationKind.CONFIGURATION,OperationKind.DIAGNOSTIC_CLEAR))
+                operationFailed(
+                    message,
+                    outcomeUnknown =
+                        kind in setOf(OperationKind.CONFIGURATION, OperationKind.DIAGNOSTIC_CLEAR)
+                )
             }
         }
     }
@@ -1830,7 +3205,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         operation = operation.copy(
             stage = if (outcomeUnknown) OperationStage.OUTCOME_UNKNOWN else OperationStage.FAILED,
             detail = message,
-            terminal = true,
+            terminal = true
         )
         if (operation.kind == OperationKind.CONFIGURATION) {
             configurationNeedsReview = true
@@ -1868,13 +3243,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 automaticUpdateJob?.cancelAndJoin()
                 selectedUpdate = null
                 foregroundConnection.runUserOperation(OperationKind.READ) { id ->
-                    operation = OperationState(id, OperationKind.READ, OperationStage.CONNECTING,
-                        "Checking for firmware", "Reading the installed gauge version")
+                    operation = OperationState(
+                        id,
+                        OperationKind.READ,
+                        OperationStage.CONNECTING,
+                        "Checking for firmware",
+                        "Reading the installed gauge version"
+                    )
                     val running = GaugeConfigTransferClient(getApplication())
                         .readBootIdentity(bleClient.selectedGauge())
                     bootIdentityRead(running)
-                    operation = operation.copy(stage = OperationStage.PREPARING,
-                        detail = "Checking signed GitHub releases")
+                    operation = operation.copy(
+                        stage = OperationStage.PREPARING,
+                        detail = "Checking signed GitHub releases"
+                    )
                     val update = GitHubFirmwareSource(getApplication()).check(caps)
                     if (isFirmwareNewer(update.release.version, running.version)) {
                         hostedUpdate = update
@@ -1885,12 +3267,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         updatePreparation = "current"
                         hostedUpdateMessage = "Installed ${running.version} is up to date"
                     }
-                    operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-                        "Firmware check complete", hostedUpdateMessage, terminal = true)
+                    operation = OperationState(
+                        id,
+                        OperationKind.READ,
+                        OperationStage.ACTIVE,
+                        "Firmware check complete",
+                        hostedUpdateMessage,
+                        terminal = true
+                    )
                 }
             } catch (_: OperationBusyException) {
                 updatePreparation = "failed"
-                hostedUpdateMessage = "Finish the current gauge operation before checking for firmware"
+                hostedUpdateMessage =
+                    "Finish the current gauge operation before checking for firmware"
             } catch (error: CancellationException) {
                 hostedUpdateMessage = "Hosted update check was interrupted"
                 updatePreparation = "failed"
@@ -1917,21 +3306,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 automaticUpdateJob?.cancelAndJoin()
                 foregroundConnection.runUserOperation(OperationKind.UPDATE) { id ->
-                    operation = OperationState(id, OperationKind.UPDATE, OperationStage.PREPARING,
-                        "Downloading update", "Verifying the signed package")
+                    operation = OperationState(
+                        id,
+                        OperationKind.UPDATE,
+                        OperationStage.PREPARING,
+                        "Downloading update",
+                        "Verifying the signed package"
+                    )
                     val downloaded = GitHubFirmwareSource(getApplication()).download(available)
                     hostedUpdate = downloaded
                     selectedUpdate = requireNotNull(downloaded.bundle)
-                    updatePackageMessage = "GitHub development firmware ${downloaded.release.version} verified and ready"
-                    hostedUpdateMessage = "Download verified. Review and install when the gauge has stable power."
+                    updatePackageMessage =
+                        "GitHub development firmware ${downloaded.release.version} verified and ready"
+                    hostedUpdateMessage =
+                        "Download verified. Review and install when the gauge has stable power."
                     updatePreparation = "ready"
                     downloadedSuccessfully = true
-                    operation = OperationState(id, OperationKind.READ, OperationStage.ACTIVE,
-                        "Update ready", terminal = true)
+                    operation = OperationState(
+                        id,
+                        OperationKind.READ,
+                        OperationStage.ACTIVE,
+                        "Update ready",
+                        terminal = true
+                    )
                 }
             } catch (_: OperationBusyException) {
                 updatePreparation = "failed"
-                hostedUpdateMessage = "Finish the current gauge operation before downloading an update"
+                hostedUpdateMessage =
+                    "Finish the current gauge operation before downloading an update"
             } catch (error: CancellationException) {
                 hostedUpdateMessage = "Firmware download was interrupted"
                 updatePreparation = "failed"
@@ -1966,25 +3368,53 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addPage(pidId: String = "rpm") {
         val working = editorDraft
-        if (working.pages.size >= 8 || pidId !in ConfigurationProjector.pagePidIds(working.source)) return
+        if (working.pages.size >= 8 ||
+            pidId !in ConfigurationProjector.pagePidIds(working.source)
+        ) {
+            return
+        }
         val used = working.pages.map { it.id.removePrefix("child.") }.toSet()
         val sequence = (1..99).first { "page.custom.$it" !in used }
-        val page = GaugePageDraft("page.custom.$sequence", demoCatalog.first { it.id == pidId }.gaugeLabel,
-            GaugeLayout.Numeric, listOf(pidId))
-        save(working.copy(pidId = pidId, layout = GaugeLayout.Numeric,
-            pages = working.pages + page), selectedIndex = working.pages.size)
+        val page =
+            GaugePageDraft(
+                "page.custom.$sequence",
+                demoCatalog.first { it.id == pidId }.gaugeLabel,
+                GaugeLayout.Numeric,
+                listOf(pidId)
+            )
+        save(
+            working.copy(
+                pidId = pidId,
+                layout = GaugeLayout.Numeric,
+                pages = working.pages + page
+            ),
+            selectedIndex = working.pages.size
+        )
     }
 
     fun removePage(index: Int) {
         val working = editorDraft
-        if (modifyingSetupBlocked || working.pages.size <= 1 || index !in working.pages.indices) return
+        if (modifyingSetupBlocked || working.pages.size <= 1 ||
+            index !in working.pages.indices
+        ) {
+            return
+        }
         val selectedId = working.pages.getOrNull(editingPageIndex)?.id
         val pages = working.pages.toMutableList().also { it.removeAt(index) }
         val selectedIndex = pages.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
             ?: index.coerceAtMost(pages.lastIndex)
         val selected = pages[selectedIndex]
-        save(working.copy(pidId = selected.pidIds[0], layout = selected.layout, pages = pages,
-            actions = working.actions.filter { action -> pages.any { it.id == action.pageId } }), selectedIndex)
+        save(
+            working.copy(
+                pidId = selected.pidIds[0],
+                layout = selected.layout,
+                pages = pages,
+                actions = working.actions.filter { action ->
+                    pages.any { it.id == action.pageId }
+                }
+            ),
+            selectedIndex
+        )
     }
 
     fun movePage(index: Int, delta: Int) {
@@ -2003,19 +3433,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val pages = working.pages.toMutableList()
         val current = pages[editingPageIndex]
         val ids = if (current.layout == GaugeLayout.Dual) {
-            val second = current.pidIds.getOrNull(1)?.takeIf { it != pid.id && it in ConfigurationProjector.pagePidIds(working.source) }
-                ?: ConfigurationProjector.pagePidIds(working.source).first { it != pid.id }
+            val second =
+                current.pidIds.getOrNull(1)?.takeIf {
+                    it != pid.id &&
+                        it in ConfigurationProjector.pagePidIds(working.source)
+                }
+                    ?: ConfigurationProjector.pagePidIds(working.source).first { it != pid.id }
             listOf(pid.id, second)
-        } else listOf(pid.id)
-        val layout = if (pid.id == "tcmgear" && current.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual))
-            GaugeLayout.Numeric else current.layout
+        } else {
+            listOf(pid.id)
+        }
+        val layout = if (pid.id == "tcmgear" &&
+            current.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual)
+        ) {
+            GaugeLayout.Numeric
+        } else {
+            current.layout
+        }
         pages[editingPageIndex] = current.copy(name = pid.gaugeLabel, pidIds = ids, layout = layout)
         save(working.copy(pidId = pid.id, layout = layout, source = working.source, pages = pages))
     }
 
     fun selectSecondaryPid(pid: PidExample) {
         val working = editorDraft
-        if (editingPageIndex !in working.pages.indices || pid.id !in ConfigurationProjector.pagePidIds(working.source)) return
+        if (editingPageIndex !in working.pages.indices ||
+            pid.id !in ConfigurationProjector.pagePidIds(working.source)
+        ) {
+            return
+        }
         val pages = working.pages.toMutableList()
         val current = pages[editingPageIndex]
         if (current.layout != GaugeLayout.Dual || current.pidIds.first() == pid.id) return
@@ -2030,84 +3475,174 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val current = pages[editingPageIndex]
         val ids = if (layout == GaugeLayout.Dual) {
             val secondary = current.pidIds.getOrNull(1)
-                ?: ConfigurationProjector.pagePidIds(working.source).first { it != current.pidIds.first() }
+                ?: ConfigurationProjector.pagePidIds(working.source).first {
+                    it !=
+                        current.pidIds.first()
+                }
             listOf(current.pidIds.first(), secondary)
-        } else listOf(current.pidIds.first())
+        } else {
+            listOf(current.pidIds.first())
+        }
         pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids)
         save(working.copy(layout = layout, pages = pages))
     }
+
     /** Commit a completed form once. Opening or cancelling the editor never creates an alert. */
     fun saveAlert(alert: GaugeAlertDraft) {
         val working = editorDraft
         if (alert.pidId !in ConfigurationProjector.pagePidIds(working.source)) return
         val previous = working.alerts.firstOrNull { it.pidId == alert.pidId }
         if (previous != null && previous.id != alert.id) return
-        val alerts = if (previous == null) working.alerts + alert else working.alerts.map {
-            if (it.id == previous.id) alert else it
+        val alerts = if (previous == null) {
+            working.alerts + alert
+        } else {
+            working.alerts.map {
+                if (it.id == previous.id) alert else it
+            }
         }
         if (alerts.size > 32 || alerts.map { it.id }.distinct().size != alerts.size ||
-            ConfigurationProjector.blockers(working.copy(alerts = alerts)).isNotEmpty()) return
+            ConfigurationProjector.blockers(working.copy(alerts = alerts)).isNotEmpty()
+        ) {
+            return
+        }
         save(working.copy(alerts = alerts))
     }
     fun savePageAction(value: PageAction?) = launchLocalMutation {
         if (modifyingSetupBlocked || profileError != null) return@launchLocalMutation
         if (profileCollection.active.transmission != null) {
-            val updated = runCatching { profileCollection.copy(profiles = profileCollection.profiles.map {
-                if (it.id == profileCollection.activeId) it.withCombinedPageAction(value) else it
-            }) }.getOrElse { deviceMessage = it.message ?: "Could not update the vehicle action"; return@launchLocalMutation }
-            if (!persistProfiles(updated)) { profileError = "Could not save changes on this phone"; return@launchLocalMutation }
+            val updated = runCatching {
+                profileCollection.copy(
+                    profiles = profileCollection.profiles.map {
+                        if (it.id ==
+                            profileCollection.activeId
+                        ) {
+                            it.withCombinedPageAction(value)
+                        } else {
+                            it
+                        }
+                    }
+                )
+            }.getOrElse {
+                deviceMessage = it.message ?: "Could not update the vehicle action"
+                return@launchLocalMutation
+            }
+            if (!persistProfiles(updated)) {
+                profileError = "Could not save changes on this phone"
+                return@launchLocalMutation
+            }
             profileCollection = updated
             draft = updated.active.draft
             return@launchLocalMutation
         }
         val actions = listOfNotNull(value)
-        if (runCatching { ProfileActions.validate(actions, draft.pages) }.isFailure) return@launchLocalMutation
+        if (runCatching {
+                ProfileActions.validate(actions, draft.pages)
+            }.isFailure
+        ) {
+            return@launchLocalMutation
+        }
         persistDraft(editorDraft.copy(actions = actions))
     }
     fun addDiagnosticFilter(vehicleId: String, controller: String, code: String) {
-        if(vehicleId!=profileCollection.activeId||modifyingSetupBlocked)return
-        val rule=runCatching { DiagnosticCodeFilters.rule(controller,code) }.getOrElse { deviceMessage=it.message ?: "Invalid code filter";return }
-        val rules=(editorDraft.diagnosticFilters+rule).distinct()
-        if(rules.size>DiagnosticCodeFilters.LIMIT){deviceMessage="Use up to 16 code filters";return}
-        saveDiagnosticFilters(vehicleId,rules)
+        if (vehicleId != profileCollection.activeId || modifyingSetupBlocked) return
+        val rule = runCatching { DiagnosticCodeFilters.rule(controller, code) }.getOrElse {
+            deviceMessage =
+                it.message ?: "Invalid code filter"
+            return
+        }
+        val rules = (editorDraft.diagnosticFilters + rule).distinct()
+        if (rules.size > DiagnosticCodeFilters.LIMIT) {
+            deviceMessage = "Use up to 16 code filters"
+            return
+        }
+        saveDiagnosticFilters(vehicleId, rules)
     }
     fun removeDiagnosticFilter(vehicleId: String, rule: DiagnosticCodeFilter) {
-        if(vehicleId!=profileCollection.activeId||modifyingSetupBlocked)return
-        saveDiagnosticFilters(vehicleId,editorDraft.diagnosticFilters.filterNot { it==rule })
+        if (vehicleId != profileCollection.activeId || modifyingSetupBlocked) return
+        saveDiagnosticFilters(vehicleId, editorDraft.diagnosticFilters.filterNot { it == rule })
     }
     private fun saveDiagnosticFilters(vehicleId: String, rules: List<DiagnosticCodeFilter>) = launchLocalMutation {
-        if(vehicleId!=profileCollection.activeId||modifyingSetupBlocked||profileError!=null)return@launchLocalMutation
+        if (vehicleId != profileCollection.activeId || modifyingSetupBlocked ||
+            profileError != null
+        ) {
+            return@launchLocalMutation
+        }
         DiagnosticCodeFilters.validate(rules)
-        val updated=profileCollection.copy(profiles=profileCollection.profiles.map { profile ->
-            if(profile.id==vehicleId)profile.copy(draft=profile.draft.copy(diagnosticFilters=rules),
-                transmission=profile.transmission?.let { it.copy(draft=it.draft.copy(diagnosticFilters=emptyList())) }) else profile
-        })
-        if(!persistProfiles(updated)){profileError="Could not save CEL code filters";return@launchLocalMutation}
-        profileCollection=updated;draft=updated.active.draft
-        deviceMessage="Code filters saved on phone. Review and send to apply them on the gauge."
+        val updated = profileCollection.copy(
+            profiles = profileCollection.profiles.map { profile ->
+                if (profile.id == vehicleId) {
+                    profile.copy(
+                        draft = profile.draft.copy(diagnosticFilters = rules),
+                        transmission = profile.transmission?.let {
+                            it.copy(draft = it.draft.copy(diagnosticFilters = emptyList()))
+                        }
+                    )
+                } else {
+                    profile
+                }
+            }
+        )
+        if (!persistProfiles(updated)) {
+            profileError = "Could not save CEL code filters"
+            return@launchLocalMutation
+        }
+        profileCollection = updated
+        draft = updated.active.draft
+        deviceMessage =
+            "Code filters saved on phone. Review and send to apply them on the gauge."
     }
     fun isDiagnosticAlertFiltered(event: AlertEvent): Boolean {
-        val source=if(event.key%2==1) "TCM" else "ECM"
-        val elapsed=diagnosticsCheckedAt[source]?.let { android.os.SystemClock.elapsedRealtime()-it } ?: Long.MAX_VALUE
-        return DiagnosticCodeFilters.filtersAlert(event,diagnosticsBySource[source],elapsed,effectiveDiagnosticFilters())
+        val source = if (event.key % 2 == 1) "TCM" else "ECM"
+        val elapsed =
+            diagnosticsCheckedAt[source]?.let { android.os.SystemClock.elapsedRealtime() - it }
+                ?: Long.MAX_VALUE
+        return DiagnosticCodeFilters.filtersAlert(
+            event,
+            diagnosticsBySource[source],
+            elapsed,
+            effectiveDiagnosticFilters()
+        )
     }
     fun effectiveDiagnosticFilters(): List<DiagnosticCodeFilter> {
-        val document=activeDocument ?: return emptyList()
-        if(document.vehicleProfileId!=profileCollection.activeId||!com.lstepnio.egauge.ui.state.isConfirmedSetup(document.revision,document.sha256,runtimeIdentity))return emptyList()
-        return runCatching { DiagnosticCodeFilters.fromDocument(org.json.JSONObject(document.json)) }.getOrDefault(emptyList())
+        val document = activeDocument ?: return emptyList()
+        if (document.vehicleProfileId != profileCollection.activeId ||
+            !com.lstepnio.egauge.ui.state.isConfirmedSetup(
+                document.revision,
+                document.sha256,
+                runtimeIdentity
+            )
+        ) {
+            return emptyList()
+        }
+        return runCatching {
+            DiagnosticCodeFilters.fromDocument(org.json.JSONObject(document.json))
+        }.getOrDefault(emptyList())
     }
-    fun removeAlert(id: String) = save(editorDraft.copy(alerts = editorDraft.alerts.filterNot { it.id == id }))
+    fun removeAlert(id: String) = save(
+        editorDraft.copy(
+            alerts = editorDraft.alerts.filterNot {
+                it.id ==
+                    id
+            }
+        )
+    )
     fun setSource(value: String) = selectVehicleSource(value)
     private fun save(value: Draft, selectedIndex: Int = editingPageIndex) = launchLocalMutation {
         persistDraft(value, selectedIndex)
     }
     private suspend fun persistDraft(value: Draft, selectedIndex: Int = editingPageIndex) {
         if (profileError != null) return
-        val updated = runCatching { profileCollection.copy(profiles = profileCollection.profiles.map { profile ->
-            if (profile.id == profileCollection.activeId) {
-                profile.withDashboard(value)
-            } else profile
-        }) }.getOrElse {
+        val updated = runCatching {
+            profileCollection.copy(
+                profiles = profileCollection.profiles.map { profile ->
+                    if (profile.id == profileCollection.activeId) {
+                        profile.withDashboard(value)
+                    } else {
+                        profile
+                    }
+                }
+            )
+        }.getOrElse {
             pageEditError = it.message ?: "These readings cannot share this page"
             editingPageIndex = editingPageIndex.coerceIn(editorDraft.pages.indices)
             deviceMessage = pageEditError!!
@@ -2115,23 +3650,46 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         pageEditError = null
         val previousSource = draft.source
-        if (!persistProfiles(updated, assignSelected = previousSource != updated.active.draft.source)) { profileError = "Could not save changes on this phone"; return }
+        if (!persistProfiles(
+                updated,
+                assignSelected = previousSource != updated.active.draft.source
+            )
+        ) {
+            profileError =
+                "Could not save changes on this phone"
+            return
+        }
         profileCollection = updated
         draft = updated.active.draft
         editingPageIndex = selectedIndex.coerceIn(editorDraft.pages.indices)
     }
     fun checkGaugeForReview() = launchGaugeOperation(OperationKind.READ, "Checking gauge settings") { id ->
         val client = GaugeConfigTransferClient(getApplication())
-        if (ownerAccess != OwnerAccess.AUTHENTICATED && capabilities?.savedStateRead == true)
+        if (ownerAccess != OwnerAccess.AUTHENTICATED && capabilities?.savedStateRead == true) {
             snapshotRead(bleClient.readSavedSnapshot())
-        operation = OperationState(id, OperationKind.READ, OperationStage.CHECKING_RUNNING,
-            "Checking gauge settings")
+        }
+        operation = OperationState(
+            id,
+            OperationKind.READ,
+            OperationStage.CHECKING_RUNNING,
+            "Checking gauge settings"
+        )
         activeDocumentRead(client.readActiveDocument(bleClient.selectedGauge()))
         runtimeIdentityRead(client.readRuntimeIdentity(bleClient.selectedGauge()))
         configurationRecoveryRead = true
-        operation = OperationState(id, OperationKind.READ,
-            if (runtimeIdentity?.usedPreviousGeneration == true) OperationStage.RECOVERED else OperationStage.ACTIVE,
-            "Gauge settings checked", terminal = true)
+        operation = OperationState(
+            id,
+            OperationKind.READ,
+            if (runtimeIdentity?.usedPreviousGeneration ==
+                true
+            ) {
+                OperationStage.RECOVERED
+            } else {
+                OperationStage.ACTIVE
+            },
+            "Gauge settings checked",
+            terminal = true
+        )
     }
 
     /** Changes to existing snapshot state are observed without moving protocol ownership into the UI. */
@@ -2142,14 +3700,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             delay(1_000)
         }
     }.flatMapLatest { snapshotFlow { presentationState(android.os.SystemClock.elapsedRealtime()) } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000),
-            presentationState(android.os.SystemClock.elapsedRealtime()))
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            presentationState(android.os.SystemClock.elapsedRealtime())
+        )
 
     init {
         viewModelScope.launch {
             snapshotFlow { profileCollection.activeId }.collectLatest {
-                lastAlertChecked=0;alertScope="";clearStatus=null;clearMessage=null;clearConfirmationOpen=false
-                selectedAlertId=null;refreshAlertHistory()
+                lastAlertChecked = 0
+                alertScope = ""
+                clearStatus = null
+                clearMessage = null
+                clearConfirmationOpen =
+                    false
+                selectedAlertId = null
+                refreshAlertHistory()
             }
         }
     }

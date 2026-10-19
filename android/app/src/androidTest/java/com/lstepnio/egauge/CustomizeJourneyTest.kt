@@ -32,9 +32,26 @@ class CustomizeJourneyTest {
         selectPage = { state = state.copy(editingPage = it) },
         layout = { layout ->
             val page = state.pages[state.editingPage]
-            val ids = if (layout == GaugeLayout.Dual) listOf(page.readingId, "coolant") else listOf(page.readingId)
+            val ids = if (layout ==
+                GaugeLayout.Dual
+            ) {
+                listOf(page.readingId, "coolant")
+            } else {
+                listOf(page.readingId)
+            }
             val changed = pageUi(GaugePageDraft(page.id, page.name, layout, ids))
-            state = state.copy(pages = state.pages.mapIndexed { index, value -> if (index == state.editingPage) changed else value })
+            state =
+                state.copy(
+                    pages = state.pages.mapIndexed { index, value ->
+                        if (index ==
+                            state.editingPage
+                        ) {
+                            changed
+                        } else {
+                            value
+                        }
+                    }
+                )
         },
         movePage = { index, delta ->
             val pages = state.pages.toMutableList()
@@ -43,24 +60,47 @@ class CustomizeJourneyTest {
         },
         addPage = { id ->
             added += id
-            state = state.copy(pages = state.pages + pageUi(GaugePageDraft("new", id, GaugeLayout.Numeric, listOf(id))),
-                editingPage = state.pages.size)
+            state =
+                state.copy(
+                    pages =
+                        state.pages + pageUi(
+                            GaugePageDraft("new", id, GaugeLayout.Numeric, listOf(id))
+                        ),
+                    editingPage = state.pages.size
+                )
         },
         removePage = { index ->
             removed += index
-            state = state.copy(pages = state.pages.filterIndexed { i, _ -> i != index }, editingPage = 0)
+            state =
+                state.copy(
+                    pages = state.pages.filterIndexed { i, _ ->
+                        i != index
+                    },
+                    editingPage = 0
+                )
         },
-        saveAlert = { value -> saved += value; state = state.copy(alerts = state.alerts.filterNot { it.readingId == value.pidId } + alertUi(value)) },
-        removeAlert = { id -> state = state.copy(alerts = state.alerts.filterNot { it.id == id }) },
+        saveAlert = { value ->
+            saved += value
+            state =
+                state.copy(
+                    alerts =
+                        state.alerts.filterNot { it.readingId == value.pidId } + alertUi(value)
+                )
+        },
+        removeAlert = { id -> state = state.copy(alerts = state.alerts.filterNot { it.id == id }) }
     )
 
     private fun launch() {
-        compose.setContent { EGaugeTheme { Surface {
-            Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-                Text("Example · UI preview")
-                DashboardEditorScreen(state, route, { route = it }, {}, actions)
+        compose.setContent {
+            EGaugeTheme {
+                Surface {
+                    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+                        Text("Example · UI preview")
+                        DashboardEditorScreen(state, route, { route = it }, {}, actions)
+                    }
+                }
             }
-        } } }
+        }
     }
 
     @Test fun swipeChangesThePageAndKeepsItsControlsTogether() {
@@ -119,7 +159,9 @@ class CustomizeJourneyTest {
         compose.onNodeWithText("Coolant temperature alert").performScrollTo().performClick()
         compose.onNodeWithText("Falls below").performClick()
         compose.onNodeWithText("Save alert").assertIsNotEnabled()
-        compose.onNodeWithText("Set critical lower than warning.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(
+            "Set critical lower than warning."
+        ).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Warning").performTextReplacement("0")
         compose.onNodeWithText("Critical").performTextReplacement("-10")
         // Dismiss the keyboard without leaving the editor.
@@ -180,9 +222,14 @@ class CustomizeJourneyTest {
     }
 
     @Test fun anUnavailableLegacyReadingCanBeReplacedWithoutOpeningItsAlertEditor() {
-        val legacy = state.pages.first().copy(readingId = "legacy-unknown-reading", readingName = "Unknown reading")
-        state = state.copy(pages = listOf(legacy),
-            blockers = listOf("This reading is not supported. Choose an available reading."))
+        val legacy = state.pages.first().copy(
+            readingId = "legacy-unknown-reading",
+            readingName = "Unknown reading"
+        )
+        state = state.copy(
+            pages = listOf(legacy),
+            blockers = listOf("This reading is not supported. Choose an available reading.")
+        )
         launch()
         compose.onAllNodesWithText("Unknown reading alert").assertCountEquals(0)
         compose.onNodeWithText("Reading").performScrollTo().performClick()
@@ -192,10 +239,19 @@ class CustomizeJourneyTest {
     private fun capture(name: String) {
         val variant = InstrumentationRegistry.getArguments().getString("captureScreens") ?: return
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val folder = File(instrumentation.targetContext.getExternalFilesDir(null), "customize-captures/$variant").apply { mkdirs() }
+        val folder = File(
+            instrumentation.targetContext.getExternalFilesDir(null),
+            "customize-captures/$variant"
+        ).apply {
+            mkdirs()
+        }
         compose.waitForIdle()
         File(folder, "$name.png").outputStream().use {
-            instrumentation.uiAutomation.takeScreenshot().compress(Bitmap.CompressFormat.PNG, 100, it)
+            instrumentation.uiAutomation.takeScreenshot().compress(
+                Bitmap.CompressFormat.PNG,
+                100,
+                it
+            )
         }
     }
 }

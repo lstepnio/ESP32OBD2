@@ -15,29 +15,31 @@ import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Build
-import android.os.ParcelUuid
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelUuid
 import android.util.Log
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 
 class GaugeCandidate internal constructor(
     val id: String,
     val name: String,
     val signalDbm: Int,
-    internal val device: BluetoothDevice,
+    internal val device: BluetoothDevice
 )
 
 /** Protocol-0 public discovery and bounded paired reading selection. */
 class BleCapabilityClient(private val context: Context) {
-    private companion object { const val TAG = "EGaugePairing" }
+    private companion object {
+        const val TAG = "EGaugePairing"
+    }
     private val serviceId = UUID.fromString("6f1a0000-9e3b-4f45-a714-69c9d23b6c00")
     private val capabilityId = UUID.fromString("6f1a0001-9e3b-4f45-a714-69c9d23b6c00")
     private val controlId = UUID.fromString("6f1a0002-9e3b-4f45-a714-69c9d23b6c00")
@@ -57,36 +59,66 @@ class BleCapabilityClient(private val context: Context) {
         val servicesHandled = java.util.concurrent.atomic.AtomicBoolean(false)
         val callback = object : BluetoothGattCallback() {
             private fun fail(message: String) {
-                if (!result.isCompleted) result.completeExceptionally(IllegalStateException(message))
+                if (!result.isCompleted) {
+                    result.completeExceptionally(
+                        IllegalStateException(message)
+                    )
+                }
             }
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-                if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED)
+                if (status != BluetoothGatt.GATT_SUCCESS ||
+                    newState == BluetoothProfile.STATE_DISCONNECTED
+                ) {
                     fail("Gauge disconnected while checking pairing readiness ($status)")
-                else if (newState == BluetoothProfile.STATE_CONNECTED &&
-                    discoveryStarted.compareAndSet(false, true) && !gatt.discoverServices())
+                } else if (newState == BluetoothProfile.STATE_CONNECTED &&
+                    discoveryStarted.compareAndSet(false, true) && !gatt.discoverServices()
+                ) {
                     fail("Could not check gauge pairing readiness")
+                }
             }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
                 if (!servicesHandled.compareAndSet(false, true)) return
                 if (result.isCompleted) return
-                val characteristic = if (status == BluetoothGatt.GATT_SUCCESS)
-                    gatt.getService(service)?.getCharacteristic(statusId) else null
-                if (characteristic == null) result.complete(null)
-                else if (!gatt.readCharacteristic(characteristic)) fail("Could not read gauge pairing readiness")
-            }
-            @Deprecated("Required for Android 10 through 12")
-            override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic,
-                                              status: Int) {
-                if (Build.VERSION.SDK_INT < 33 && characteristic.uuid == statusId) {
-                    if (status == BluetoothGatt.GATT_SUCCESS) result.complete(characteristic.value?.copyOf())
-                    else fail("Gauge pairing readiness read failed ($status)")
+                val characteristic = if (status == BluetoothGatt.GATT_SUCCESS) {
+                    gatt.getService(service)?.getCharacteristic(statusId)
+                } else {
+                    null
+                }
+                if (characteristic == null) {
+                    result.complete(null)
+                } else if (!gatt.readCharacteristic(characteristic)) {
+                    fail("Could not read gauge pairing readiness")
                 }
             }
-            override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic,
-                                              value: ByteArray, status: Int) {
+
+            @Deprecated("Required for Android 10 through 12")
+            override fun onCharacteristicRead(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                status: Int
+            ) {
+                if (Build.VERSION.SDK_INT < 33 && characteristic.uuid == statusId) {
+                    if (status ==
+                        BluetoothGatt.GATT_SUCCESS
+                    ) {
+                        result.complete(characteristic.value?.copyOf())
+                    } else {
+                        fail("Gauge pairing readiness read failed ($status)")
+                    }
+                }
+            }
+            override fun onCharacteristicRead(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                value: ByteArray,
+                status: Int
+            ) {
                 if (characteristic.uuid != statusId || result.isCompleted) return
-                if (status == BluetoothGatt.GATT_SUCCESS) result.complete(value.copyOf())
-                else fail("Gauge pairing readiness read failed ($status)")
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    result.complete(value.copyOf())
+                } else {
+                    fail("Gauge pairing readiness read failed ($status)")
+                }
             }
         }
         val gatt = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
@@ -126,33 +158,56 @@ class BleCapabilityClient(private val context: Context) {
                 val started = device.createBond()
                 Log.i(TAG, "android_bond_request_started=$started")
                 if (!started && device.bondState != BluetoothDevice.BOND_BONDING &&
-                    device.bondState != BluetoothDevice.BOND_BONDED) {
+                    device.bondState != BluetoothDevice.BOND_BONDED
+                ) {
                     throw PairingFailure(PairingFailureReason.StartFailed)
                 }
             }
             awaitAndroidBond(device)
         }
-        if (device.bondState != BluetoothDevice.BOND_BONDED) throw PairingFailure(PairingFailureReason.BondIncomplete)
+        if (device.bondState !=
+            BluetoothDevice.BOND_BONDED
+        ) {
+            throw PairingFailure(PairingFailureReason.BondIncomplete)
+        }
         onProgress(PairingProgress.CHECKING_GAUGE_ACCESS)
         val deadline = android.os.SystemClock.elapsedRealtime() + 20_000
         var attempt = 0
         while (true) {
-            if (device.bondState != BluetoothDevice.BOND_BONDED) throw PairingFailure(PairingFailureReason.BondIncomplete)
+            if (device.bondState !=
+                BluetoothDevice.BOND_BONDED
+            ) {
+                throw PairingFailure(PairingFailureReason.BondIncomplete)
+            }
             attempt++
             try {
-                val remaining = (deadline - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(1)
+                val remaining = (deadline - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(
+                    1
+                )
                 val snapshot = readSavedSnapshotInternal(timeoutMs = minOf(6_000L, remaining))
-                if (device.bondState != BluetoothDevice.BOND_BONDED) throw PairingFailure(PairingFailureReason.BondIncomplete)
+                if (device.bondState !=
+                    BluetoothDevice.BOND_BONDED
+                ) {
+                    throw PairingFailure(PairingFailureReason.BondIncomplete)
+                }
                 Log.i(TAG, "owner_verification=passed attempt=$attempt")
                 return snapshot
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                if (device.bondState != BluetoothDevice.BOND_BONDED) throw PairingFailure(PairingFailureReason.BondIncomplete)
+                if (device.bondState !=
+                    BluetoothDevice.BOND_BONDED
+                ) {
+                    throw PairingFailure(PairingFailureReason.BondIncomplete)
+                }
                 if (!retryableOwnerReadFailure(failure)) throw failure
                 Log.w(TAG, "owner_verification_retry attempt=$attempt reason=${failure.message}")
                 val remaining = deadline - android.os.SystemClock.elapsedRealtime()
-                if (remaining <= 0) throw PairingFailure(PairingFailureReason.OwnerVerificationPending)
+                if (remaining <=
+                    0
+                ) {
+                    throw PairingFailure(PairingFailureReason.OwnerVerificationPending)
+                }
                 delay(minOf(500L, remaining))
             }
         }
@@ -173,11 +228,14 @@ class BleCapabilityClient(private val context: Context) {
             }
             when (state) {
                 BluetoothDevice.BOND_BONDED -> return
+
                 BluetoothDevice.BOND_BONDING -> sawBonding = true
+
                 else -> {
                     if (sawBonding) throw PairingFailure(PairingFailureReason.Failed)
-                    if (android.os.SystemClock.elapsedRealtime() - startedAt >= 10_000)
+                    if (android.os.SystemClock.elapsedRealtime() - startedAt >= 10_000) {
                         throw PairingFailure(PairingFailureReason.StartFailed)
+                    }
                 }
             }
             delay(250)
@@ -194,7 +252,11 @@ class BleCapabilityClient(private val context: Context) {
         var sawBonding = false
         var authenticatedRetries = 0
         val discovery = GattDiscovery {
-            if (!result.isCompleted) result.completeExceptionally(OwnerReadFailure("Could not discover gauge snapshot"))
+            if (!result.isCompleted) {
+                result.completeExceptionally(
+                    OwnerReadFailure("Could not discover gauge snapshot")
+                )
+            }
         }
         val servicesHandled = java.util.concurrent.atomic.AtomicBoolean(false)
         val callback = object : BluetoothGattCallback() {
@@ -202,53 +264,91 @@ class BleCapabilityClient(private val context: Context) {
                 if (!result.isCompleted) result.completeExceptionally(OwnerReadFailure(message))
             }
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-                if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED)
+                if (status != BluetoothGatt.GATT_SUCCESS ||
+                    newState == BluetoothProfile.STATE_DISCONNECTED
+                ) {
                     fail("Gauge disconnected during saved state read ($status)")
-                else if (newState == BluetoothProfile.STATE_CONNECTED)
+                } else if (newState == BluetoothProfile.STATE_CONNECTED) {
                     discovery.connect(gatt)
+                }
             }
-            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) { discovery.discover(gatt) }
+            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+                discovery.discover(gatt)
+            }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
                 if (!servicesHandled.compareAndSet(false, true)) return
-                snapshot = if (status == BluetoothGatt.GATT_SUCCESS)
-                    gatt.getService(serviceId)?.getCharacteristic(stateId) else null
-                if (snapshot == null || !gatt.readCharacteristic(snapshot))
+                snapshot = if (status == BluetoothGatt.GATT_SUCCESS) {
+                    gatt.getService(serviceId)?.getCharacteristic(stateId)
+                } else {
+                    null
+                }
+                if (snapshot == null || !gatt.readCharacteristic(snapshot)) {
                     fail("Gauge secure state read is unavailable")
+                }
             }
+
             @Deprecated("Required for Android 10 through 12")
-            override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-                if (Build.VERSION.SDK_INT < 33) onRead(gatt, characteristic.uuid, characteristic.value, status)
+            override fun onCharacteristicRead(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                status: Int
+            ) {
+                if (Build.VERSION.SDK_INT <
+                    33
+                ) {
+                    onRead(gatt, characteristic.uuid, characteristic.value, status)
+                }
             }
-            override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic,
-                                              value: ByteArray, status: Int) {
+            override fun onCharacteristicRead(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                value: ByteArray,
+                status: Int
+            ) {
                 onRead(gatt, characteristic.uuid, value, status)
             }
             private fun onRead(gatt: BluetoothGatt, uuid: UUID, value: ByteArray, status: Int) {
                 if (result.isCompleted || uuid != stateId) return
                 Log.i(TAG, "saved_state_read status=$status android_bond=${device.bondState}")
                 if (status == BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION ||
-                    status == BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION) { awaitBond(gatt); return }
-                if (status == BluetoothGatt.GATT_SUCCESS) result.complete(value.copyOf())
-                else fail("Saved gauge state read failed ($status)")
+                    status == BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION
+                ) {
+                    awaitBond(gatt)
+                    return
+                }
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    result.complete(value.copyOf())
+                } else {
+                    fail("Saved gauge state read failed ($status)")
+                }
             }
             private fun awaitBond(gatt: BluetoothGatt) {
                 if (result.isCompleted) return
                 val bondState = device.bondState
                 when (bondState) {
                     BluetoothDevice.BOND_BONDED -> {
-                        if (++authenticatedRetries > 20)
+                        if (++authenticatedRetries > 20) {
                             return fail("bonded_not_owner")
+                        }
                         handler.postDelayed({
-                            if (!result.isCompleted && !gatt.readCharacteristic(snapshot))
+                            if (!result.isCompleted && !gatt.readCharacteristic(snapshot)) {
                                 fail("Could not retry saved state read")
+                            }
                         }, 250)
                     }
+
                     BluetoothDevice.BOND_BONDING -> {
                         sawBonding = true
                         handler.postDelayed({ awaitBond(gatt) }, 250)
                     }
+
                     else -> {
-                        if (sawBonding) { result.completeExceptionally(PairingFailure(PairingFailureReason.Cancelled)); return }
+                        if (sawBonding) {
+                            result.completeExceptionally(
+                                PairingFailure(PairingFailureReason.Cancelled)
+                            )
+                            return
+                        }
                         return fail("pairing_required")
                     }
                 }
@@ -259,7 +359,11 @@ class BleCapabilityClient(private val context: Context) {
         return try {
             val bytes = withTimeoutOrNull(timeoutMs) { result.await() }
                 ?: throw OwnerReadFailure("gauge_owner_read_timeout")
-            if (bytes.size != 8 || bytes[0].toInt() != 2) error("Gauge does not offer durable saved state")
+            if (bytes.size != 8 ||
+                bytes[0].toInt() != 2
+            ) {
+                error("Gauge does not offer durable saved state")
+            }
             val index = bytes[2].toInt() and 0xff
             val rotation = bytes[3].toInt() and 0xff
             if (index !in 0..4 || rotation !in 0..3) error("Invalid saved gauge state")
@@ -301,77 +405,147 @@ class BleCapabilityClient(private val context: Context) {
         val target = value
         var sawBonding = false
         val discovery = GattDiscovery {
-            if (!result.isCompleted) result.completeExceptionally(IllegalStateException("Could not discover gauge control service"))
+            if (!result.isCompleted) {
+                result.completeExceptionally(
+                    IllegalStateException("Could not discover gauge control service")
+                )
+            }
         }
         val servicesHandled = java.util.concurrent.atomic.AtomicBoolean(false)
         val callback = object : BluetoothGattCallback() {
             private fun fail(message: String) {
-                if (!result.isCompleted) result.completeExceptionally(IllegalStateException(message))
+                if (!result.isCompleted) {
+                    result.completeExceptionally(
+                        IllegalStateException(message)
+                    )
+                }
             }
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-                if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED)
+                if (status != BluetoothGatt.GATT_SUCCESS ||
+                    newState == BluetoothProfile.STATE_DISCONNECTED
+                ) {
                     fail("Gauge disconnected during selection ($status)")
-                else if (newState == BluetoothProfile.STATE_CONNECTED)
+                } else if (newState == BluetoothProfile.STATE_CONNECTED) {
                     discovery.connect(gatt)
+                }
             }
-            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) { discovery.discover(gatt) }
+            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+                discovery.discover(gatt)
+            }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
                 if (!servicesHandled.compareAndSet(false, true)) return
-                val service = if (status == BluetoothGatt.GATT_SUCCESS) gatt.getService(serviceId) else null
+                val service = if (status ==
+                    BluetoothGatt.GATT_SUCCESS
+                ) {
+                    gatt.getService(serviceId)
+                } else {
+                    null
+                }
                 stateCharacteristic = service?.getCharacteristic(stateId)
                 controlCharacteristic = service?.getCharacteristic(controlId)
-                if (stateCharacteristic == null || controlCharacteristic == null)
+                if (stateCharacteristic == null || controlCharacteristic == null) {
                     fail("Gauge firmware does not support paired selection")
-                else if (!gatt.readCharacteristic(stateCharacteristic)) fail("Could not start secure state read")
+                } else if (!gatt.readCharacteristic(stateCharacteristic)) {
+                    fail("Could not start secure state read")
+                }
             }
+
             @Deprecated("Required for Android 10 through 12")
             override fun onCharacteristicRead(
-                gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int,
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                status: Int
             ) {
-                if (Build.VERSION.SDK_INT < 33) onStateRead(gatt, characteristic.uuid, characteristic.value, status)
+                if (Build.VERSION.SDK_INT <
+                    33
+                ) {
+                    onStateRead(gatt, characteristic.uuid, characteristic.value, status)
+                }
             }
             override fun onCharacteristicRead(
-                gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic,
-                value: ByteArray, status: Int,
-            ) { onStateRead(gatt, characteristic.uuid, value, status) }
-            private fun onStateRead(gatt: BluetoothGatt, uuid: UUID, value: ByteArray, status: Int) {
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                value: ByteArray,
+                status: Int
+            ) {
+                onStateRead(gatt, characteristic.uuid, value, status)
+            }
+            private fun onStateRead(
+                gatt: BluetoothGatt,
+                uuid: UUID,
+                value: ByteArray,
+                status: Int
+            ) {
                 if (result.isCompleted || uuid != stateId) return
-                if ((status == BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION ||
-                     status == BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION) && !writeSent) {
+                if ((
+                        status == BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION ||
+                            status == BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION
+                        ) && !writeSent
+                ) {
                     awaitBond(gatt)
                     return
                 }
                 val legacy = value.size == 4 && value[0].toInt() == 1
                 val extended = value.size == 8 && value[0].toInt() == 2
                 if (status != BluetoothGatt.GATT_SUCCESS || (!legacy && !extended)) {
-                    fail("Secure gauge state read failed ($status). Open pairing on the gauge and accept Android's prompt.")
+                    fail(
+                        "Secure gauge state read failed ($status). Open pairing on the gauge and accept Android's prompt."
+                    )
                     return
                 }
-                if (extended && ((value[1].toInt() and 0xff) > 4 ||
-                                 (value[2].toInt() and 0xff) > 4 ||
-                                 (value[3].toInt() and 0xff) > 3)) {
+                if (extended && (
+                        (value[1].toInt() and 0xff) > 4 ||
+                            (value[2].toInt() and 0xff) > 4 ||
+                            (value[3].toInt() and 0xff) > 3
+                        )
+                ) {
                     fail("Gauge returned invalid saved state")
                     return
                 }
                 if (!writeSent) {
-                    if (opcode == 2 && !extended) return fail("Gauge does not support saved rotation")
-                    if (extended) baseRevision = (4..7).fold(0L) { acc, offset ->
-                        acc or ((value[offset].toLong() and 0xff) shl ((offset - 4) * 8))
+                    if (opcode == 2 &&
+                        !extended
+                    ) {
+                        return fail("Gauge does not support saved rotation")
+                    }
+                    if (extended) {
+                        baseRevision = (4..7).fold(0L) { acc, offset ->
+                            acc or ((value[offset].toLong() and 0xff) shl ((offset - 4) * 8))
+                        }
                     }
                     if (opcode == 2 && (value[3].toInt() and 0xff) == target) {
-                        result.complete(GaugeSavedSnapshot(value[2].toInt() and 0xff,
-                            target, baseRevision))
+                        result.complete(
+                            GaugeSavedSnapshot(
+                                value[2].toInt() and 0xff,
+                                target,
+                                baseRevision
+                            )
+                        )
                         return
                     }
                     writeSent = true
-                    val control = controlCharacteristic ?: return fail("Control characteristic missing")
-                    val bytes = if (opcode == 1) byteArrayOf(1, target.toByte()) else byteArrayOf(
-                        2, target.toByte(), baseRevision.toByte(), (baseRevision shr 8).toByte(),
-                        (baseRevision shr 16).toByte(), (baseRevision shr 24).toByte(),
-                    )
-                    val started = if (Build.VERSION.SDK_INT >= 33)
-                        gatt.writeCharacteristic(control, bytes, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothStatusCodes.SUCCESS
-                    else {
+                    val control =
+                        controlCharacteristic ?: return fail("Control characteristic missing")
+                    val bytes = if (opcode == 1) {
+                        byteArrayOf(1, target.toByte())
+                    } else {
+                        byteArrayOf(
+                            2,
+                            target.toByte(),
+                            baseRevision.toByte(),
+                            (baseRevision shr 8).toByte(),
+                            (baseRevision shr 16).toByte(),
+                            (baseRevision shr 24).toByte()
+                        )
+                    }
+                    val started = if (Build.VERSION.SDK_INT >= 33) {
+                        gatt.writeCharacteristic(
+                            control,
+                            bytes,
+                            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                        ) ==
+                            BluetoothStatusCodes.SUCCESS
+                    } else {
                         @Suppress("DEPRECATION")
                         control.value = bytes
                         @Suppress("DEPRECATION")
@@ -382,26 +556,40 @@ class BleCapabilityClient(private val context: Context) {
                     val revision = (4..7).fold(0L) { acc, offset ->
                         acc or ((value[offset].toLong() and 0xff) shl ((offset - 4) * 8))
                     }
-                    val snapshot = GaugeSavedSnapshot(value[2].toInt() and 0xff,
-                        value[3].toInt() and 0xff, revision)
-                    val confirmed = if (opcode == 1) value[1].toInt() == target &&
-                        snapshot.readingIndex == target
-                        else snapshot.rotation == target && revision > baseRevision
-                    if (confirmed) result.complete(snapshot)
-                    else if (opcode == 2 && revision > baseRevision)
-                        fail("Gauge state changed before rotation was applied. Read saved state and retry")
-                    else retryState(gatt)
+                    val snapshot = GaugeSavedSnapshot(
+                        value[2].toInt() and 0xff,
+                        value[3].toInt() and 0xff,
+                        revision
+                    )
+                    val confirmed = if (opcode == 1) {
+                        value[1].toInt() == target &&
+                            snapshot.readingIndex == target
+                    } else {
+                        snapshot.rotation == target && revision > baseRevision
+                    }
+                    if (confirmed) {
+                        result.complete(snapshot)
+                    } else if (opcode == 2 && revision > baseRevision) {
+                        fail(
+                            "Gauge state changed before rotation was applied. Read saved state and retry"
+                        )
+                    } else {
+                        retryState(gatt)
+                    }
                 } else if (opcode == 1 && value[1].toInt() == target) {
                     result.complete(GaugeSavedSnapshot(target, 0, 0))
-                } else retryState(gatt)
+                } else {
+                    retryState(gatt)
+                }
             }
             private fun retryState(gatt: BluetoothGatt) {
                 if (++readAttempts >= 10) {
                     fail("Gauge did not confirm the new setting")
                 } else {
                     handler.postDelayed({
-                        if (!result.isCompleted && !gatt.readCharacteristic(stateCharacteristic))
+                        if (!result.isCompleted && !gatt.readCharacteristic(stateCharacteristic)) {
                             fail("Could not read applied gauge state")
+                        }
                     }, 200)
                 }
             }
@@ -409,13 +597,21 @@ class BleCapabilityClient(private val context: Context) {
                 if (result.isCompleted) return
                 when (device.bondState) {
                     BluetoothDevice.BOND_BONDED -> {
-                        val state = stateCharacteristic ?: return fail("State characteristic missing")
-                        if (!gatt.readCharacteristic(state)) fail("Could not retry secure state read")
+                        val state =
+                            stateCharacteristic ?: return fail("State characteristic missing")
+                        if (!gatt.readCharacteristic(
+                                state
+                            )
+                        ) {
+                            fail("Could not retry secure state read")
+                        }
                     }
+
                     BluetoothDevice.BOND_BONDING -> {
                         sawBonding = true
                         handler.postDelayed({ awaitBond(gatt) }, 250)
                     }
+
                     else -> {
                         if (sawBonding) return fail("pairing_cancelled")
                         fail("pairing_required")
@@ -423,20 +619,27 @@ class BleCapabilityClient(private val context: Context) {
                 }
             }
             override fun onCharacteristicWrite(
-                gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int,
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                status: Int
             ) {
                 if (characteristic.uuid != controlId || result.isCompleted) return
-                if (status != BluetoothGatt.GATT_SUCCESS) fail("Gauge rejected selection ($status)")
-                else handler.postDelayed({
-                    if (!result.isCompleted && !gatt.readCharacteristic(stateCharacteristic))
-                        fail("Could not confirm applied gauge state")
-                }, 200)
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    fail("Gauge rejected selection ($status)")
+                } else {
+                    handler.postDelayed({
+                        if (!result.isCompleted && !gatt.readCharacteristic(stateCharacteristic)) {
+                            fail("Could not confirm applied gauge state")
+                        }
+                    }, 200)
+                }
             }
         }
         val gatt = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
             ?: error("Could not connect to the gauge")
-        return try { withTimeout(60_000) { result.await() } }
-        finally {
+        return try {
+            withTimeout(60_000) { result.await() }
+        } finally {
             result.cancel()
             handler.removeCallbacksAndMessages(null)
             gatt.disconnect()
@@ -459,7 +662,12 @@ class BleCapabilityClient(private val context: Context) {
     suspend fun readCandidate(candidate: GaugeCandidate): CapabilitySnapshot {
         selectedDevice = null
         val device = candidate.device
-        Log.i(TAG, "candidate_selected short_id=${device.address.filter(Char::isLetterOrDigit).takeLast(6)} android_bond=${device.bondState}")
+        Log.i(
+            TAG,
+            "candidate_selected short_id=${device.address.filter(
+                Char::isLetterOrDigit
+            ).takeLast(6)} android_bond=${device.bondState}"
+        )
         val capabilities = try {
             readCapabilities(device)
         } catch (error: IllegalStateException) {
@@ -488,20 +696,23 @@ class BleCapabilityClient(private val context: Context) {
                     name = result.scanRecord?.deviceName?.takeIf(String::isNotBlank)
                         ?: device.name?.takeIf(String::isNotBlank) ?: "eGauge",
                     signalDbm = result.rssi,
-                    device = device,
+                    device = device
                 )
                 if (!found.isCompleted) found.complete(Unit)
             }
             override fun onScanFailed(errorCode: Int) {
-                if (!found.isCompleted) found.completeExceptionally(
-                    IllegalStateException("BLE scan failed ($errorCode)"))
+                if (!found.isCompleted) {
+                    found.completeExceptionally(
+                        IllegalStateException("BLE scan failed ($errorCode)")
+                    )
+                }
             }
         }
         val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(serviceId)).build()
         scanner.startScan(
             listOf(filter),
             ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),
-            callback,
+            callback
         )
         try {
             withTimeout(15_000) { found.await() }
@@ -518,14 +729,23 @@ class BleCapabilityClient(private val context: Context) {
     private suspend fun readCapabilities(device: BluetoothDevice): CapabilitySnapshot {
         val result = CompletableDeferred<ByteArray>()
         val discovery = GattDiscovery {
-            if (!result.isCompleted) result.completeExceptionally(IllegalStateException("Could not discover gauge services"))
+            if (!result.isCompleted) {
+                result.completeExceptionally(
+                    IllegalStateException("Could not discover gauge services")
+                )
+            }
         }
         val servicesHandled = java.util.concurrent.atomic.AtomicBoolean(false)
         val callback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-                if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED) {
-                    if (!result.isCompleted) result.completeExceptionally(
-                        IllegalStateException("Gauge disconnected ($status)"))
+                if (status != BluetoothGatt.GATT_SUCCESS ||
+                    newState == BluetoothProfile.STATE_DISCONNECTED
+                ) {
+                    if (!result.isCompleted) {
+                        result.completeExceptionally(
+                            IllegalStateException("Gauge disconnected ($status)")
+                        )
+                    }
                 } else if (newState == BluetoothProfile.STATE_CONNECTED) {
                     discovery.connect(gatt)
                 }
@@ -535,29 +755,49 @@ class BleCapabilityClient(private val context: Context) {
             }
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
                 if (!servicesHandled.compareAndSet(false, true)) return
-                val value = if (status == BluetoothGatt.GATT_SUCCESS)
-                    gatt.getService(serviceId)?.getCharacteristic(capabilityId) else null
+                val value = if (status == BluetoothGatt.GATT_SUCCESS) {
+                    gatt.getService(serviceId)?.getCharacteristic(capabilityId)
+                } else {
+                    null
+                }
                 if (value == null || !gatt.readCharacteristic(value)) {
-                    if (!result.isCompleted) result.completeExceptionally(
-                        IllegalStateException("Gauge capability read is unavailable"))
+                    if (!result.isCompleted) {
+                        result.completeExceptionally(
+                            IllegalStateException("Gauge capability read is unavailable")
+                        )
+                    }
                 }
             }
+
             @Deprecated("Required for Android 10 through 12")
             override fun onCharacteristicRead(
-                gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int,
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                status: Int
             ) {
-                if (Build.VERSION.SDK_INT < 33) finish(characteristic.uuid, characteristic.value, status)
+                if (Build.VERSION.SDK_INT <
+                    33
+                ) {
+                    finish(characteristic.uuid, characteristic.value, status)
+                }
             }
             override fun onCharacteristicRead(
-                gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic,
-                value: ByteArray, status: Int,
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                value: ByteArray,
+                status: Int
             ) {
                 finish(characteristic.uuid, value, status)
             }
             private fun finish(uuid: UUID, bytes: ByteArray, status: Int) {
                 if (result.isCompleted || uuid != capabilityId) return
-                if (status == BluetoothGatt.GATT_SUCCESS) result.complete(bytes.copyOf())
-                else result.completeExceptionally(IllegalStateException("Gauge read failed ($status)"))
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    result.complete(bytes.copyOf())
+                } else {
+                    result.completeExceptionally(
+                        IllegalStateException("Gauge read failed ($status)")
+                    )
+                }
             }
         }
         val gatt = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
@@ -571,5 +811,4 @@ class BleCapabilityClient(private val context: Context) {
             gatt.close()
         }
     }
-
 }

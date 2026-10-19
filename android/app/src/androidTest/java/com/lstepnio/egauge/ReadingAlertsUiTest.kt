@@ -18,10 +18,21 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ReadingAlertsUiTest {
     @get:Rule val compose = createComposeRule()
-    private val state = ScreenFixtures.customize.copy(readings = readingCatalog.map { readingUi(it) }, alerts = emptyList(), editingEnabled = true)
+    private val state = ScreenFixtures.customize.copy(
+        readings = readingCatalog.map {
+            readingUi(it)
+        },
+        alerts = emptyList(),
+        editingEnabled = true
+    )
+
     @Test fun alertSearchFindsTransmissionAndNewCommonReadings() {
         var selected: String? = null
-        compose.setContent { EGaugeTheme { AlertManager(state, {}, { selected = it }, ScreenFixtures.customizeActions) } }
+        compose.setContent {
+            EGaugeTheme {
+                AlertManager(state, {}, { selected = it }, ScreenFixtures.customizeActions)
+            }
+        }
         compose.onNodeWithText("Search readings").performTextInput("transmission")
         compose.onNodeWithText("Transmission temperature").performScrollTo().performClick()
         assertEquals("tcmtemp", selected)
@@ -30,10 +41,25 @@ class ReadingAlertsUiTest {
         compose.onNodeWithText("Control module voltage").performScrollTo().performClick()
         assertEquals("voltage", selected)
     }
+
     @Test fun fractionalVoltageLimitsCanBeSavedWithoutInventingAnAlertOnOpen() {
         var saved: GaugeAlertDraft? = null
-        compose.setContent { EGaugeTheme { AlertEditor(state, readingUi(readingCatalog.first { it.id == "voltage" }), null, {},
-            ScreenFixtures.customizeActions.copy(saveAlert = { saved = it })) } }
+        compose.setContent {
+            EGaugeTheme {
+                AlertEditor(
+                    state,
+                    readingUi(
+                        readingCatalog.first {
+                            it.id ==
+                                "voltage"
+                        }
+                    ),
+                    null,
+                    {},
+                    ScreenFixtures.customizeActions.copy(saveAlert = { saved = it })
+                )
+            }
+        }
         compose.onNodeWithText("Save alert").assertIsNotEnabled()
         compose.onNodeWithText("Falls below").performScrollTo().performClick()
         compose.onNodeWithText("Warning").performTextInput("12.2")
@@ -45,10 +71,25 @@ class ReadingAlertsUiTest {
             assertEquals(AlertDirection.Below, saved!!.direction)
         }
     }
+
     @Test fun gearAlertUsesNamedPositionsAndZeroResetDistance() {
         var saved: GaugeAlertDraft? = null
-        compose.setContent { EGaugeTheme { AlertEditor(state, readingUi(readingCatalog.first { it.id == "tcmgear" }), null, {},
-            ScreenFixtures.customizeActions.copy(saveAlert = { saved = it })) } }
+        compose.setContent {
+            EGaugeTheme {
+                AlertEditor(
+                    state,
+                    readingUi(
+                        readingCatalog.first {
+                            it.id ==
+                                "tcmgear"
+                        }
+                    ),
+                    null,
+                    {},
+                    ScreenFixtures.customizeActions.copy(saveAlert = { saved = it })
+                )
+            }
+        }
         compose.onNodeWithText("Matches position").assertExists()
         compose.onNodeWithText("Rises above").assertDoesNotExist()
         compose.onAllNodesWithText("R")[0].performScrollTo().performClick()
@@ -61,9 +102,20 @@ class ReadingAlertsUiTest {
             assertEquals(0.0, saved!!.hysteresis, 0.0)
         }
     }
+
     @Test fun aTransmissionPageOffersAnAlertWithoutChangingExpertTransport() {
-        val page = pageUi(GaugePageDraft("page.temp", "TRANS TEMP", GaugeLayout.Numeric, listOf("tcmtemp")))
-        compose.setContent { EGaugeTheme { DashboardEditorScreen(state.copy(pages = listOf(page)), 0, {}, {}, ScreenFixtures.customizeActions) } }
-        compose.onNodeWithText("Transmission temperature alert").performScrollTo().assertIsDisplayed()
+        val page =
+            pageUi(
+                GaugePageDraft("page.temp", "TRANS TEMP", GaugeLayout.Numeric, listOf("tcmtemp"))
+            )
+        compose.setContent {
+            EGaugeTheme {
+                DashboardEditorScreen(state.copy(pages = listOf(page)), 0, {
+                }, {}, ScreenFixtures.customizeActions)
+            }
+        }
+        compose.onNodeWithText(
+            "Transmission temperature alert"
+        ).performScrollTo().assertIsDisplayed()
     }
 }

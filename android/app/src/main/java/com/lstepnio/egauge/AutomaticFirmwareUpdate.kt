@@ -12,7 +12,7 @@ internal fun automaticUpdateDecision(
     candidateVersion: String,
     candidateDigest: String,
     heldDigest: String?,
-    unresolvedOutcome: Boolean,
+    unresolvedOutcome: Boolean
 ): AutomaticUpdateDecision = when {
     unresolvedOutcome || otaState != 2 -> AutomaticUpdateDecision.WAIT_FOR_GAUGE
     !isFirmwareNewer(candidateVersion, runningVersion) -> AutomaticUpdateDecision.CURRENT
@@ -22,7 +22,10 @@ internal fun automaticUpdateDecision(
 
 /** Keeps only the exact release that failed, scoped to its paired gauge. No image is stored here. */
 internal class AutomaticUpdateHoldStore(context: Context) {
-    private val preferences = context.getSharedPreferences("automatic-update-hold", Context.MODE_PRIVATE)
+    private val preferences = context.getSharedPreferences(
+        "automatic-update-hold",
+        Context.MODE_PRIVATE
+    )
     private fun key(gaugeId: String): String = "held-" + MessageDigest.getInstance("SHA-256")
         .digest(gaugeId.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
 
@@ -36,6 +39,8 @@ internal class AutomaticUpdateHoldStore(context: Context) {
     }
 
     fun clear(gaugeId: String) {
-        check(preferences.edit().remove(key(gaugeId)).commit()) { "Could not clear update retry history" }
+        check(preferences.edit().remove(key(gaugeId)).commit()) {
+            "Could not clear update retry history"
+        }
     }
 }

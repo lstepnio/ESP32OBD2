@@ -20,20 +20,40 @@ object ProfileDocumentCodec {
                 id,
                 name,
                 draft,
-                if (schemaVersion >= 5) item.optJSONObject("primaryAdapter")?.let(AdapterBinding::decode) else null,
-                if (schemaVersion >= 6) item.optJSONObject("transmission")?.let { child ->
-                    TransmissionConnection(child.optJSONObject("adapter")?.let(AdapterBinding::decode),
-                        decodeDraft(child.getJSONObject("draft"), schemaVersion))
-                } else null,
+                if (schemaVersion >=
+                    5
+                ) {
+                    item.optJSONObject("primaryAdapter")?.let(AdapterBinding::decode)
+                } else {
+                    null
+                },
+                if (schemaVersion >= 6) {
+                    item.optJSONObject("transmission")?.let { child ->
+                        TransmissionConnection(
+                            child.optJSONObject("adapter")?.let(AdapterBinding::decode),
+                            decodeDraft(child.getJSONObject("draft"), schemaVersion)
+                        )
+                    }
+                } else {
+                    null
+                },
                 item.optJSONArray("pageOrder")?.let { order ->
                     (0 until order.length()).map { order.getString(it) }.also { ids ->
-                        require(ids.size <= 8 && ids.distinct().size == ids.size &&
-                            ids.all { it.matches(Regex("[a-z][a-z0-9._-]{0,63}")) }) { "Page order is invalid" }
+                        require(
+                            ids.size <= 8 && ids.distinct().size == ids.size &&
+                                ids.all {
+                                    it.matches(Regex("[a-z][a-z0-9._-]{0,63}"))
+                                }
+                        ) { "Page order is invalid" }
                     }
-                } ?: emptyList(),
+                } ?: emptyList()
             )
         }
-        require(profiles.map { it.id }.distinct().size == profiles.size) { "Profile IDs are duplicated" }
+        require(
+            profiles.map {
+                it.id
+            }.distinct().size == profiles.size
+        ) { "Profile IDs are duplicated" }
         val activeId = root.getString("activeId")
         require(profiles.any { it.id == activeId }) { "Active profile is missing" }
         return ProfileCollection(activeId, profiles)
@@ -41,29 +61,50 @@ object ProfileDocumentCodec {
 
     private fun decodeDraft(saved: JSONObject, schemaVersion: Int): Draft {
         val pidId = saved.getString("pidId").takeIf { pid -> demoCatalog.any { it.id == pid } }
-                ?: error("Profile reading is not supported by this app")
+            ?: error("Profile reading is not supported by this app")
         val layout = GaugeLayout.entries.firstOrNull { it.name == saved.getString("layout") }
-                ?: error("Profile layout is not supported by this app")
+            ?: error("Profile layout is not supported by this app")
         val pages = if (schemaVersion >= 3) {
             val pageItems = saved.getJSONArray("pages")
-            require(pageItems.length() in (if (schemaVersion >= 9) 0..8 else 1..8)) { "Profile page count is invalid" }
+            require(
+                pageItems.length() in (
+                    if (schemaVersion >=
+                        9
+                    ) {
+                        0..8
+                    } else {
+                        1..8
+                    }
+                    )
+            ) { "Profile page count is invalid" }
             (0 until pageItems.length()).map { pageIndex ->
                 val page = pageItems.getJSONObject(pageIndex)
-                val pageLayout = GaugeLayout.entries.firstOrNull { it.name == page.getString("layout") }
-                    ?: error("Profile page layout is not supported")
+                val pageLayout =
+                    GaugeLayout.entries.firstOrNull { it.name == page.getString("layout") }
+                        ?: error("Profile page layout is not supported")
                 val ids = page.getJSONArray("pidIds")
                 require(ids.length() == if (pageLayout == GaugeLayout.Dual) 2 else 1)
                 val pagePids = (0 until ids.length()).map { ids.getString(it) }
-                require(pagePids.distinct().size == pagePids.size &&
-                    pagePids.all { value -> demoCatalog.any { it.id == value } })
+                require(
+                    pagePids.distinct().size == pagePids.size &&
+                        pagePids.all { value -> demoCatalog.any { it.id == value } }
+                )
                 val pageId = page.getString("id")
                 val pageName = page.getString("name")
-                require(pageId.matches(Regex("[a-z][a-z0-9._-]{0,63}")) &&
-                    pageName.length in 1..32) { "Profile page identity is invalid" }
+                require(
+                    pageId.matches(Regex("[a-z][a-z0-9._-]{0,63}")) &&
+                        pageName.length in 1..32
+                ) { "Profile page identity is invalid" }
                 GaugePageDraft(pageId, pageName, pageLayout, pagePids)
             }
-        } else defaultGaugePages(pidId, layout)
-        require(pages.map { it.id }.distinct().size == pages.size) { "Profile page IDs are duplicated" }
+        } else {
+            defaultGaugePages(pidId, layout)
+        }
+        require(
+            pages.map {
+                it.id
+            }.distinct().size == pages.size
+        ) { "Profile page IDs are duplicated" }
         val alerts = if (schemaVersion >= 4) {
             val values = saved.getJSONArray("alerts")
             require(values.length() <= 32) { "Profile alert count is invalid" }
@@ -71,17 +112,47 @@ object ProfileDocumentCodec {
                 val alert = values.getJSONObject(alertIndex)
                 val alertId = alert.getString("id")
                 val alertPid = alert.getString("pidId")
-                require(alertId.matches(Regex("[a-z][a-z0-9._-]{0,63}")) &&
-                    demoCatalog.any { it.id == alertPid }) { "Profile alert identity is invalid" }
-                GaugeAlertDraft(alertId, alertPid,
-                    AlertDirection.valueOf(alert.optString("direction", "above").replaceFirstChar(Char::uppercase)),
-                    alert.getDouble("warning"), alert.getDouble("critical"), alert.optDouble("hysteresis", 3.0),
-                    alert.optInt("triggerDwellMs", 1000), alert.optInt("clearDwellMs", 2000), alert.optInt("priority", 8))
+                require(
+                    alertId.matches(Regex("[a-z][a-z0-9._-]{0,63}")) &&
+                        demoCatalog.any { it.id == alertPid }
+                ) { "Profile alert identity is invalid" }
+                GaugeAlertDraft(
+                    alertId, alertPid,
+                    AlertDirection.valueOf(
+                        alert.optString("direction", "above").replaceFirstChar(Char::uppercase)
+                    ),
+                    alert.getDouble(
+                        "warning"
+                    ),
+                    alert.getDouble("critical"), alert.optDouble("hysteresis", 3.0),
+                    alert.optInt(
+                        "triggerDwellMs",
+                        1000
+                    ),
+                    alert.optInt("clearDwellMs", 2000), alert.optInt("priority", 8)
+                )
             }
-        } else listOf(GaugeAlertDraft("alert.coolant", "coolant", AlertDirection.Above,
-            saved.getInt("warning"), saved.getInt("critical"), saved.optInt("hysteresis", 3),
-            saved.optInt("triggerDwellMs", 1000), saved.optInt("clearDwellMs", 2000)))
-        val actions = if (schemaVersion >= 7) ProfileActions.decode(saved.getJSONArray("actions")) else emptyList()
+        } else {
+            listOf(
+                GaugeAlertDraft(
+                    "alert.coolant",
+                    "coolant",
+                    AlertDirection.Above,
+                    saved.getInt("warning"),
+                    saved.getInt("critical"),
+                    saved.optInt("hysteresis", 3),
+                    saved.optInt("triggerDwellMs", 1000),
+                    saved.optInt("clearDwellMs", 2000)
+                )
+            )
+        }
+        val actions = if (schemaVersion >=
+            7
+        ) {
+            ProfileActions.decode(saved.getJSONArray("actions"))
+        } else {
+            emptyList()
+        }
         ProfileActions.validate(actions, pages)
         val draft = Draft(
             pidId = pidId,
@@ -90,15 +161,27 @@ object ProfileDocumentCodec {
             pages = pages,
             alerts = alerts,
             actions = actions,
-            diagnosticFilters = DiagnosticCodeFilters.fromDocument(saved),
+            diagnosticFilters = DiagnosticCodeFilters.fromDocument(saved)
         )
         require(draft.source == "ECM" || draft.source == "TCM") { "Profile source is invalid" }
-        require(draft.alerts.map { it.id }.distinct().size == draft.alerts.size &&
-            draft.alerts.all { alert ->
-                // Older apps accepted 16384. Keep those profiles readable so the editor can fix the limit.
-                val storedRange = if (alert.pidId == "rpm") 0.0..16384.0 else readingBounds(alert.pidId)
-                alert.warning in storedRange && alert.critical in storedRange && alert.hysteresis.isFinite() && alert.hysteresis >= 0 && alert.hysteresis < storedRange.endInclusive - storedRange.start &&
-                alert.triggerDwellMs in 0..60000 && alert.clearDwellMs in 0..60000 }) {
+        require(
+            draft.alerts.map { it.id }.distinct().size == draft.alerts.size &&
+                draft.alerts.all { alert ->
+                    // Older apps accepted 16384. Keep those profiles readable so the editor can fix the limit.
+                    val storedRange = if (alert.pidId ==
+                        "rpm"
+                    ) {
+                        0.0..16384.0
+                    } else {
+                        readingBounds(alert.pidId)
+                    }
+                    alert.warning in storedRange && alert.critical in storedRange &&
+                        alert.hysteresis.isFinite() &&
+                        alert.hysteresis >= 0 &&
+                        alert.hysteresis < storedRange.endInclusive - storedRange.start &&
+                        alert.triggerDwellMs in 0..60000 && alert.clearDwellMs in 0..60000
+                }
+        ) {
             "Profile alert settings are invalid"
         }
         return draft
@@ -111,37 +194,61 @@ object ProfileDocumentCodec {
         value.profiles.forEach { profile ->
             ProfileActions.validate(profile.draft.actions, profile.draft.pages)
             profile.transmission?.draft?.let { ProfileActions.validate(it.actions, it.pages) }
-            items.put(JSONObject().put("id", profile.id).put("name", profile.name)
-                .put("pageOrder", JSONArray(profile.pageOrder))
-                .put("primaryAdapter", profile.primaryAdapter?.json())
-                .put("transmission", profile.transmission?.let { child ->
-                    JSONObject().put("adapter", child.adapter?.json()).put("draft", draftJson(child.draft))
-                })
-                .put("draft", draftJson(profile.draft)))
+            items.put(
+                JSONObject().put("id", profile.id).put("name", profile.name)
+                    .put("pageOrder", JSONArray(profile.pageOrder))
+                    .put("primaryAdapter", profile.primaryAdapter?.json())
+                    .put(
+                        "transmission",
+                        profile.transmission?.let { child ->
+                            JSONObject().put(
+                                "adapter",
+                                child.adapter?.json()
+                            ).put("draft", draftJson(child.draft))
+                        }
+                    )
+                    .put("draft", draftJson(profile.draft))
+            )
         }
         return root.put("profiles", items).toString()
     }
 
     private fun draftJson(draft: Draft): JSONObject = JSONObject()
-                    .put("actions", ProfileActions.json(draft.actions))
-                    .put("diagnosticFilters", DiagnosticCodeFilters.json(draft.diagnosticFilters))
-                    .put("pidId", draft.pidId)
-                    .put("layout", draft.layout.name)
-                    .put("source", draft.source)
-                    .put("pages", JSONArray().also { pages ->
-                        draft.pages.forEach { page ->
-                            pages.put(JSONObject().put("id", page.id).put("name", page.name)
-                                .put("layout", page.layout.name)
-                                .put("pidIds", JSONArray(page.pidIds)))
-                        }
-                    })
-                    .put("alerts", JSONArray().also { alerts ->
-                        draft.alerts.forEach { alert ->
-                            alerts.put(JSONObject().put("id", alert.id).put("pidId", alert.pidId)
-                                .put("direction", alert.direction.name.lowercase())
-                                .put("warning", alert.warning).put("critical", alert.critical)
-                                .put("hysteresis", alert.hysteresis).put("triggerDwellMs", alert.triggerDwellMs)
-                                .put("clearDwellMs", alert.clearDwellMs).put("priority", alert.priority))
-                        }
-                    })
+        .put("actions", ProfileActions.json(draft.actions))
+        .put("diagnosticFilters", DiagnosticCodeFilters.json(draft.diagnosticFilters))
+        .put("pidId", draft.pidId)
+        .put("layout", draft.layout.name)
+        .put("source", draft.source)
+        .put(
+            "pages",
+            JSONArray().also { pages ->
+                draft.pages.forEach { page ->
+                    pages.put(
+                        JSONObject().put("id", page.id).put("name", page.name)
+                            .put("layout", page.layout.name)
+                            .put("pidIds", JSONArray(page.pidIds))
+                    )
+                }
+            }
+        )
+        .put(
+            "alerts",
+            JSONArray().also { alerts ->
+                draft.alerts.forEach { alert ->
+                    alerts.put(
+                        JSONObject().put("id", alert.id).put("pidId", alert.pidId)
+                            .put("direction", alert.direction.name.lowercase())
+                            .put("warning", alert.warning).put("critical", alert.critical)
+                            .put(
+                                "hysteresis",
+                                alert.hysteresis
+                            ).put("triggerDwellMs", alert.triggerDwellMs)
+                            .put(
+                                "clearDwellMs",
+                                alert.clearDwellMs
+                            ).put("priority", alert.priority)
+                    )
+                }
+            }
+        )
 }

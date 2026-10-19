@@ -19,7 +19,11 @@ internal class GattDiscovery(private val failed: () -> Unit) {
     }
 
     fun discover(gatt: BluetoothGatt) {
-        if (!closed.get() && started.compareAndSet(false, true) && !gatt.discoverServices()) failed()
+        if (!closed.get() && started.compareAndSet(false, true) &&
+            !gatt.discoverServices()
+        ) {
+            failed()
+        }
     }
 
     fun rediscover(gatt: BluetoothGatt) {

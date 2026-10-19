@@ -17,7 +17,9 @@ import androidx.compose.ui.unit.dp
 enum class GaugeIcon(val path: String) {
     Gauge("M4 17a9 9 0 1 1 16 0M7 15l-2 1M17 15l2 1M12 4v3M12 14l4-4M9 20h6"),
     Car("M4 11l2-6h12l2 6M3 11h18v8H3zM6 19v2M18 19v2M6 14h2M16 14h2"),
-    Settings("M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1z"),
+    Settings(
+        "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1z"
+    ),
     Check("M5 12l4 4L19 6"),
     Back("M19 12H5M11 6l-6 6 6 6"),
     Next("M5 12h14M13 6l6 6-6 6"),
@@ -31,19 +33,40 @@ enum class GaugeIcon(val path: String) {
     Copy("M9 8h12v14H9zM5 17H2V2h13v3"),
     Add("M12 5v14M5 12h14"),
     Remove("M5 12h14"),
-    Close("M5 5l14 14M19 5L5 19"),
+    Close("M5 5l14 14M19 5L5 19")
 }
 
 @Composable
-fun EGaugeIcon(icon: GaugeIcon, description: String? = null, modifier: Modifier = Modifier,
-               color: Color = LocalContentColor.current) {
+fun EGaugeIcon(
+    icon: GaugeIcon,
+    description: String? = null,
+    modifier: Modifier = Modifier,
+    color: Color = LocalContentColor.current
+) {
     val path = remember(icon) { PathParser().parsePathString(icon.path).toPath() }
-    Canvas(modifier.size(24.dp).then(if (description == null) Modifier else
-        Modifier.semantics { contentDescription = description })) {
-        scale(size.width / 24f, size.height / 24f, pivot = androidx.compose.ui.geometry.Offset.Zero) {
-            drawPath(path, color, style = Stroke(width = 1.7f,
-                cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    Canvas(
+        modifier.size(24.dp).then(
+            if (description == null) {
+                Modifier
+            } else {
+                Modifier.semantics { contentDescription = description }
+            }
+        )
+    ) {
+        scale(
+            size.width / 24f,
+            size.height / 24f,
+            pivot = androidx.compose.ui.geometry.Offset.Zero
+        ) {
+            drawPath(
+                path,
+                color,
+                style = Stroke(
+                    width = 1.7f,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                )
+            )
         }
     }
 }

@@ -13,7 +13,7 @@ class ForegroundConnectionController(
     scope: CoroutineScope,
     private val coordinator: OperationCoordinator,
     private val onUnexpectedFailure: (Exception) -> Unit = {},
-    private val attempt: suspend () -> Long,
+    private val attempt: suspend () -> Long
 ) {
     private val foreground = MutableStateFlow(false)
     private val wake = Channel<Unit>(Channel.CONFLATED)
@@ -24,41 +24,60 @@ class ForegroundConnectionController(
     init {
         scope.launch {
             foreground.collectLatest { visible ->
-                if (visible) while (currentCoroutineContext().isActive) {
-                    if (userOperations > 0) { wake.receive(); continue }
-                    var pauseMs = 1_000L
-                    coroutineScope {
-                        val job = launch(start = CoroutineStart.LAZY) {
-                            try {
-                                pauseMs = coordinator.run(OperationKind.READ) { attempt() }
-                                unexpectedFailures = 0
+                if (visible) {
+                    while (currentCoroutineContext().isActive) {
+                        if (userOperations > 0) {
+                            wake.receive()
+                            continue
+                        }
+                        var pauseMs = 1_000L
+                        coroutineScope {
+                            val job = launch(start = CoroutineStart.LAZY) {
+                                try {
+                                    pauseMs = coordinator.run(OperationKind.READ) { attempt() }
+                                    unexpectedFailures = 0
+                                } catch (
+                                    _: OperationBusyException
+                                ) { /* A user operation owns the lease. */ } catch (
+                                    cancelled: CancellationException
+                                ) {
+                                    throw cancelled
+                                } catch (error: Exception) {
+                                    unexpectedFailures = (unexpectedFailures + 1).coerceAtMost(5)
+                                    onUnexpectedFailure(error)
+                                    pauseMs =
+                                        jitteredRetryDelay(reconnectDelayMs(unexpectedFailures))
+                                }
                             }
-                            catch (_: OperationBusyException) { /* A user operation owns the lease. */ }
-                            catch (cancelled: CancellationException) { throw cancelled }
-                            catch (error: Exception) {
-                                unexpectedFailures = (unexpectedFailures + 1).coerceAtMost(5)
-                                onUnexpectedFailure(error)
-                                pauseMs = jitteredRetryDelay(reconnectDelayMs(unexpectedFailures))
+                            automatic = job
+                            try {
+                                job.start()
+                                job.join()
+                            } finally {
+                                // collectLatest cancellation interrupts join before the child's
+                                // bounded transport cleanup finishes. Keep its owner discoverable
+                                // so a simultaneous user operation can await that same cleanup.
+                                withContext(NonCancellable) { job.cancelAndJoin() }
+                                if (automatic === job) automatic = null
                             }
                         }
-                        automatic = job
-                        try { job.start(); job.join() }
-                        finally {
-                            // collectLatest cancellation interrupts join before the child's
-                            // bounded transport cleanup finishes. Keep its owner discoverable
-                            // so a simultaneous user operation can await that same cleanup.
-                            withContext(NonCancellable) { job.cancelAndJoin() }
-                            if (automatic === job) automatic = null
+                        if (userOperations ==
+                            0
+                        ) {
+                            withTimeoutOrNull(pauseMs.coerceAtLeast(1)) { wake.receive() }
                         }
                     }
-                    if (userOperations == 0) withTimeoutOrNull(pauseMs.coerceAtLeast(1)) { wake.receive() }
                 }
             }
         }
     }
 
-    fun setForeground(value: Boolean) { foreground.value = value }
-    fun retrySoon() { wake.trySend(Unit) }
+    fun setForeground(value: Boolean) {
+        foreground.value = value
+    }
+    fun retrySoon() {
+        wake.trySend(Unit)
+    }
 
     suspend fun <T> runUserOperation(kind: OperationKind, block: suspend (Long) -> T): T {
         userOperations++
@@ -80,15 +99,14 @@ data class ConnectionState(
     val phase: ConnectionPhase = ConnectionPhase.Idle,
     val checkedAtElapsedMs: Long? = null,
     val attempts: Int = 0,
-    val detail: String? = null,
+    val detail: String? = null
 ) {
     fun fresh(now: Long): Boolean = checkedAtElapsedMs?.let { now >= it && now - it <= 30_000 } == true &&
         phase in setOf(ConnectionPhase.Ready, ConnectionPhase.Checking)
 }
 
 /** Never silently substitutes another gauge for the remembered target. */
-fun automaticCandidateId(ids: List<String>, remembered: String?): String? =
-    if (remembered != null) ids.singleOrNull { it == remembered } else ids.singleOrNull()
+fun automaticCandidateId(ids: List<String>, remembered: String?): String? = if (remembered != null) ids.singleOrNull { it == remembered } else ids.singleOrNull()
 
 fun reconnectDelayMs(failures: Int): Long = when (failures) {
     0, 1 -> 2_000

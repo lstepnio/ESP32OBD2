@@ -14,9 +14,12 @@ import com.lstepnio.egauge.core.designsystem.EGaugeTokens
 @Composable
 fun ScreenContent(scrollKey: Any? = null, content: @Composable ColumnScope.() -> Unit) {
     key(scrollKey) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding()
-        .padding(horizontal = 24.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp), content = content)
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding()
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+            content = content
+        )
     }
 }
 
@@ -25,11 +28,19 @@ fun ResponsivePanels(first: @Composable () -> Unit, second: @Composable () -> Un
     val fontScale = LocalDensity.current.fontScale
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         if (maxWidth >= (EGaugeTokens.Layout.paneBreakpoint - 120).dp && fontScale <= 1.3f) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(32.dp),
-                verticalAlignment = Alignment.Top) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(32.dp),
+                verticalAlignment = Alignment.Top
+            ) {
                 Box(Modifier.weight(1f)) { first() }
                 Box(Modifier.weight(1f)) { second() }
             }
-        } else Column(verticalArrangement = Arrangement.spacedBy(20.dp)) { first(); second() }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                first()
+                second()
+            }
+        }
     }
 }

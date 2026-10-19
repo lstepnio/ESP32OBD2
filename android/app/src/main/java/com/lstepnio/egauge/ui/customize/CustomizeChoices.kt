@@ -19,38 +19,88 @@ import com.lstepnio.egauge.ui.state.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChoiceSheet(title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).imePadding().padding(horizontal = 20.dp)) {
+private fun ChoiceSheet(
+    title: String,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            Modifier.fillMaxWidth().fillMaxHeight(.9f).imePadding().padding(horizontal = 20.dp)
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    title,
+                    Modifier.weight(1f).semantics {
+                        heading()
+                    },
+                    style = MaterialTheme.typography.headlineSmall
+                )
                 IconButton(onDismiss) { EGaugeIcon(GaugeIcon.Close, "Close choices") }
             }
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+            Column(
+                Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                content = content
+            )
         }
     }
 }
 
 @Composable
-internal fun ReadingPicker(readings: List<ReadingUi>, title: String, selectedId: String?, enabled: Boolean,
-                           onDismiss: () -> Unit, onSelect: (String) -> Unit) {
+internal fun ReadingPicker(
+    readings: List<ReadingUi>,
+    title: String,
+    selectedId: String?,
+    enabled: Boolean,
+    onDismiss: () -> Unit,
+    onSelect: (String) -> Unit
+) {
     ChoiceSheet(title, onDismiss) {
         var query by rememberSaveable { mutableStateOf("") }
-        OutlinedTextField(query, { query = it }, label = { Text("Search readings") },
-            singleLine = true, modifier = Modifier.fillMaxWidth())
-        val matches = readings.filter { "${it.name} ${it.unit}".contains(query.trim(), ignoreCase = true) }
-        if (matches.isEmpty()) EmptyState("No matching readings", "Try a different name or clear your search.")
-        matches.forEach { reading -> ReadingTile(reading.name, reading.unit, selectedId == reading.id,
-            { onSelect(reading.id) }, enabled = enabled) }
-        Text("Vehicle support has not been checked.", style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedTextField(
+            query,
+            { query = it },
+            label = { Text("Search readings") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        val matches = readings.filter {
+            "${it.name} ${it.unit}".contains(query.trim(), ignoreCase = true)
+        }
+        if (matches.isEmpty()) {
+            EmptyState(
+                "No matching readings",
+                "Try a different name or clear your search."
+            )
+        }
+        matches.forEach { reading ->
+            ReadingTile(
+                reading.name,
+                reading.unit,
+                selectedId == reading.id,
+                { onSelect(reading.id) },
+                enabled = enabled
+            )
+        }
+        Text(
+            "Vehicle support has not been checked.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
-internal fun LayoutPicker(state: CustomizeUiState, current: PageUi, onDismiss: () -> Unit, onSelect: (GaugeLayout) -> Unit) {
+internal fun LayoutPicker(
+    state: CustomizeUiState,
+    current: PageUi,
+    onDismiss: () -> Unit,
+    onSelect: (GaugeLayout) -> Unit
+) {
     ChoiceSheet("Choose layout", onDismiss) { LayoutChoices(state, current, onSelect) }
 }
 
@@ -59,29 +109,92 @@ internal fun LayoutPicker(state: CustomizeUiState, current: PageUi, onDismiss: (
 fun LayoutChoices(state: CustomizeUiState, current: PageUi, onSelect: (GaugeLayout) -> Unit) {
     val fontScale = LocalDensity.current.fontScale
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val columns = if (fontScale > 1.3f || maxWidth < 300.dp) 1 else if (maxWidth >= 700.dp) 3 else 2
+        val columns = if (fontScale > 1.3f ||
+            maxWidth < 300.dp
+        ) {
+            1
+        } else if (maxWidth >= 700.dp) {
+            3
+        } else {
+            2
+        }
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            GaugeLayout.entries.filter { current.readingId != "tcmgear" || it in listOf(GaugeLayout.Numeric, GaugeLayout.Dual) }.chunked(columns).forEach { group ->
+            GaugeLayout.entries.filter {
+                current.readingId != "tcmgear" ||
+                    it in listOf(GaugeLayout.Numeric, GaugeLayout.Dual)
+            }.chunked(columns).forEach { group ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     group.forEach { layout ->
                         val selected = current.layout == layout
-                        Surface(onClick = { onSelect(layout) }, enabled = state.editingEnabled,
-                            shape = MaterialTheme.shapes.large, modifier = Modifier.weight(1f).semantics { this.selected = selected },
-                            border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-                            color = MaterialTheme.colorScheme.surface) {
-                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally) {
-                                RoundPreview(current.preview.copy(layout = PreviewLayout.valueOf(layout.name),
-                                    secondaryName = current.preview.secondaryName ?: "Coolant temperature",
-                                    secondaryValue = current.preview.secondaryValue ?: com.lstepnio.egauge.MeasurementUnits.displayValue("92", "°C", state.measurementSystem),
-                                    secondaryUnit = current.preview.secondaryUnit ?: com.lstepnio.egauge.MeasurementUnits.label("°C", state.measurementSystem)),
-                                    Modifier.width(80.dp).clearAndSetSemantics {}, showDescription = false)
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    if (selected) EGaugeIcon(GaugeIcon.Check, modifier = Modifier.size(18.dp))
+                        Surface(
+                            onClick = { onSelect(layout) },
+                            enabled = state.editingEnabled,
+                            shape = MaterialTheme.shapes.large,
+                            modifier = Modifier.weight(1f).semantics {
+                                this.selected =
+                                    selected
+                            },
+                            border = if (selected) {
+                                BorderStroke(
+                                    2.dp,
+                                    MaterialTheme.colorScheme.primary
+                                )
+                            } else {
+                                null
+                            },
+                            color = MaterialTheme.colorScheme.surface
+                        ) {
+                            Column(
+                                Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                RoundPreview(
+                                    current.preview.copy(
+                                        layout = PreviewLayout.valueOf(layout.name),
+                                        secondaryName =
+                                            current.preview.secondaryName ?: "Coolant temperature",
+                                        secondaryValue =
+                                            current.preview.secondaryValue
+                                                ?: com.lstepnio.egauge.MeasurementUnits.displayValue(
+                                                    "92",
+                                                    "°C",
+                                                    state.measurementSystem
+                                                ),
+                                        secondaryUnit =
+                                            current.preview.secondaryUnit
+                                                ?: com.lstepnio.egauge.MeasurementUnits.label(
+                                                    "°C",
+                                                    state.measurementSystem
+                                                )
+                                    ),
+                                    Modifier.width(80.dp).clearAndSetSemantics {
+                                    },
+                                    showDescription = false
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    if (selected) {
+                                        EGaugeIcon(
+                                            GaugeIcon.Check,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                     Text(layout.label, style = MaterialTheme.typography.titleMedium)
                                 }
-                                Text(if (state.found && layout !in state.supportedLayouts) "Preview only on this gauge" else layoutDescription(layout),
-                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    if (state.found &&
+                                        layout !in state.supportedLayouts
+                                    ) {
+                                        "Preview only on this gauge"
+                                    } else {
+                                        layoutDescription(layout)
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -93,36 +206,102 @@ fun LayoutChoices(state: CustomizeUiState, current: PageUi, onSelect: (GaugeLayo
 }
 
 @Composable
-internal fun PageManager(state: CustomizeUiState, onBack: () -> Unit, onAdd: () -> Unit, actions: CustomizeActions) {
+internal fun PageManager(
+    state: CustomizeUiState,
+    onBack: () -> Unit,
+    onAdd: () -> Unit,
+    actions: CustomizeActions
+) {
     var removeId by rememberSaveable { mutableStateOf<String?>(null) }
     EditorScaffold("Manage pages", onBack, "Done", onBack) {
-        OutlinedButton(onAdd, enabled = state.editingEnabled && state.pages.size < 8, modifier = Modifier.fillMaxWidth()) {
-            EGaugeIcon(GaugeIcon.Add); Spacer(Modifier.width(8.dp)); Text("Add page")
+        OutlinedButton(
+            onAdd,
+            enabled = state.editingEnabled && state.pages.size < 8,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            EGaugeIcon(GaugeIcon.Add)
+            Spacer(Modifier.width(8.dp))
+            Text("Add page")
         }
-        if (state.pages.size == 1) Text("Keep at least one page.", style = MaterialTheme.typography.bodyMedium)
-        if (state.pages.size >= 8) Text("All 8 pages are in use. Remove one to add another.", style = MaterialTheme.typography.bodyMedium)
+        if (state.pages.size ==
+            1
+        ) {
+            Text("Keep at least one page.", style = MaterialTheme.typography.bodyMedium)
+        }
+        if (state.pages.size >=
+            8
+        ) {
+            Text(
+                "All 8 pages are in use. Remove one to add another.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
         state.pages.forEachIndexed { index, page ->
             key(page.id) {
                 var menu by remember { mutableStateOf(false) }
-                Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface,
-                    border = if (index == state.editingPage) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null) {
-                    Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Row(Modifier.weight(1f).clickable { actions.selectPage(index); onBack() }.padding(10.dp)
-                            .semantics { contentDescription = "Edit page ${index + 1}, ${page.name}" },
-                            horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("${index + 1}", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = if (index ==
+                        state.editingPage
+                    ) {
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                    } else {
+                        null
+                    }
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            Modifier.weight(1f).clickable {
+                                actions.selectPage(index)
+                                onBack()
+                            }.padding(10.dp)
+                                .semantics {
+                                    contentDescription = "Edit page ${index + 1}, ${page.name}"
+                                },
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "${index + 1}",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(page.readingName, style = MaterialTheme.typography.titleMedium)
-                                Text(page.layout.label + (page.secondaryId?.let { " · ${readingName(it)}" } ?: ""),
-                                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    page.layout.label +
+                                        (page.secondaryId?.let { " · ${readingName(it)}" } ?: ""),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
-                        TextButton({ removeId = page.id }, enabled = state.editingEnabled && state.pages.size > 1) { Text("Delete") }
+                        TextButton(
+                            { removeId = page.id },
+                            enabled =
+                                state.editingEnabled && state.pages.size > 1
+                        ) { Text("Delete") }
                         Box {
-                            IconButton({ menu = true }, enabled = state.editingEnabled) { EGaugeIcon(GaugeIcon.Settings, "Options for page ${index + 1}") }
+                            IconButton({
+                                menu = true
+                            }, enabled = state.editingEnabled) {
+                                EGaugeIcon(GaugeIcon.Settings, "Options for page ${index + 1}")
+                            }
                             DropdownMenu(menu, { menu = false }) {
-                                DropdownMenuItem({ Text("Move earlier") }, { actions.movePage(index, -1); menu = false }, enabled = index > 0)
-                                DropdownMenuItem({ Text("Move later") }, { actions.movePage(index, 1); menu = false }, enabled = index < state.pages.lastIndex)
+                                DropdownMenuItem({ Text("Move earlier") }, {
+                                    actions.movePage(index, -1)
+                                    menu =
+                                        false
+                                }, enabled = index > 0)
+                                DropdownMenuItem({ Text("Move later") }, {
+                                    actions.movePage(index, 1)
+                                    menu =
+                                        false
+                                }, enabled = index < state.pages.lastIndex)
                             }
                         }
                     }
@@ -131,32 +310,76 @@ internal fun PageManager(state: CustomizeUiState, onBack: () -> Unit, onAdd: () 
         }
     }
     val removal = state.pages.indexOfFirst { it.id == removeId }
-    if (removal >= 0) DeletePageDialog(state.pages[removal], removal, state.editingEnabled && state.pages.size > 1,
-        { removeId = null }, { actions.removePage(removal); removeId = null })
+    if (removal >=
+        0
+    ) {
+        DeletePageDialog(
+            state.pages[removal],
+            removal,
+            state.editingEnabled && state.pages.size > 1,
+            { removeId = null },
+            {
+                actions.removePage(removal)
+                removeId = null
+            }
+        )
+    }
 }
 
 @Composable
-internal fun DeletePageDialog(page: PageUi, index: Int, enabled: Boolean, onDismiss: () -> Unit, onDelete: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss,
+internal fun DeletePageDialog(
+    page: PageUi,
+    index: Int,
+    enabled: Boolean,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
         title = { Text("Delete page ${index + 1}?") },
-        text = { Text("${page.readingName} will be removed from this phone's page list. Its gesture action will be removed; alerts stay saved. Review and send to update the gauge.") },
+        text = {
+            Text(
+                "${page.readingName} will be removed from this phone's page list. Its gesture action will be removed; alerts stay saved. Review and send to update the gauge."
+            )
+        },
         confirmButton = { TextButton(onDelete, enabled = enabled) { Text("Delete page") } },
-        dismissButton = { TextButton(onDismiss) { Text("Keep page") } })
+        dismissButton = { TextButton(onDismiss) { Text("Keep page") } }
+    )
 }
 
 @Composable
-internal fun AlertManager(state: CustomizeUiState, onBack: () -> Unit, onEdit: (String) -> Unit, actions: CustomizeActions) {
+internal fun AlertManager(
+    state: CustomizeUiState,
+    onBack: () -> Unit,
+    onEdit: (String) -> Unit,
+    actions: CustomizeActions
+) {
     EditorScaffold("All alerts", onBack, "Done", onBack) {
-        Text("Alerts follow a reading across all pages, even when it is not on the screen.",
-            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            "Alerts follow a reading across all pages, even when it is not on the screen.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         var query by rememberSaveable { mutableStateOf("") }
-        OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Search readings") }, singleLine = true)
-        val matches = state.readings.filter { "${it.name} ${it.unit}".contains(query.trim(), ignoreCase = true) }
+        OutlinedTextField(query, {
+            query = it
+        }, modifier = Modifier.fillMaxWidth(), label = {
+            Text("Search readings")
+        }, singleLine = true)
+        val matches = state.readings.filter {
+            "${it.name} ${it.unit}".contains(query.trim(), ignoreCase = true)
+        }
             .sortedByDescending { reading -> state.alerts.any { it.readingId == reading.id } }
         if (matches.isEmpty()) Text("No matching readings")
         matches.forEach { reading ->
             Surface(shape = MaterialTheme.shapes.large) {
-                EditorRow(reading.name, state.alerts.firstOrNull { it.readingId == reading.id }?.summary() ?: "Off", state.editingEnabled) {
+                EditorRow(
+                    reading.name,
+                    state.alerts.firstOrNull {
+                        it.readingId == reading.id
+                    }?.summary() ?: "Off",
+                    state.editingEnabled
+                ) {
                     onEdit(reading.id)
                 }
             }
@@ -165,7 +388,9 @@ internal fun AlertManager(state: CustomizeUiState, onBack: () -> Unit, onEdit: (
 }
 
 private fun layoutDescription(layout: GaugeLayout): String = when (layout) {
-    GaugeLayout.Numeric -> "One large number"; GaugeLayout.Arc -> "A curved scale"
-    GaugeLayout.Bar -> "A horizontal scale"; GaugeLayout.Trend -> "Changes over time"
+    GaugeLayout.Numeric -> "One large number"
+    GaugeLayout.Arc -> "A curved scale"
+    GaugeLayout.Bar -> "A horizontal scale"
+    GaugeLayout.Trend -> "Changes over time"
     GaugeLayout.Dual -> "Two readings"
 }

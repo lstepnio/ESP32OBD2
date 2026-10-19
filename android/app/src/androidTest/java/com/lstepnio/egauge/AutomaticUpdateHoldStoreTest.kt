@@ -10,7 +10,8 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AutomaticUpdateHoldStoreTest {
     @Test fun aFailedReleaseIsHeldOnlyForItsGaugeAndCanBeClearedAfterConfirmation() {
-        val store = AutomaticUpdateHoldStore(InstrumentationRegistry.getInstrumentation().targetContext)
+        val store =
+            AutomaticUpdateHoldStore(InstrumentationRegistry.getInstrumentation().targetContext)
         val first = "test-gauge-first"
         val second = "test-gauge-second"
         try {

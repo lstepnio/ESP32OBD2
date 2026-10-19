@@ -1,5 +1,9 @@
 package com.lstepnio.egauge
 
+import com.lstepnio.egauge.ui.state.alertUi
+import java.net.URL
+import java.security.KeyPairGenerator
+import java.security.Signature
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
@@ -8,10 +12,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import com.lstepnio.egauge.ui.state.alertUi
-import java.security.KeyPairGenerator
-import java.security.Signature
-import java.net.URL
 
 class AppCoreTest {
     @Test fun legacyTcmDevelopmentLabelsCompareByTheirDevelopmentNumber() {
@@ -34,12 +34,24 @@ class AppCoreTest {
     }
 
     @Test fun hostedDownloadsAcceptOnlyGitHubHttpsEndpoints() {
-        assertTrue(isTrustedGitHubDownloadUrl(URL("https://api.github.com/repos/lstepnio/ESP32OBD2/releases")))
-        assertTrue(isTrustedGitHubDownloadUrl(URL("https://github.com/lstepnio/ESP32OBD2/releases/download/x/y")))
-        assertTrue(isTrustedGitHubDownloadUrl(URL("https://release-assets.githubusercontent.com/file")))
+        assertTrue(
+            isTrustedGitHubDownloadUrl(
+                URL("https://api.github.com/repos/lstepnio/ESP32OBD2/releases")
+            )
+        )
+        assertTrue(
+            isTrustedGitHubDownloadUrl(
+                URL("https://github.com/lstepnio/ESP32OBD2/releases/download/x/y")
+            )
+        )
+        assertTrue(
+            isTrustedGitHubDownloadUrl(URL("https://release-assets.githubusercontent.com/file"))
+        )
         assertFalse(isTrustedGitHubDownloadUrl(URL("http://api.github.com/repos/x")))
         assertFalse(isTrustedGitHubDownloadUrl(URL("https://github.com.example.org/file")))
-        assertFalse(isTrustedGitHubDownloadUrl(URL("https://githubusercontent.com.example.org/file")))
+        assertFalse(
+            isTrustedGitHubDownloadUrl(URL("https://githubusercontent.com.example.org/file"))
+        )
     }
 
     @Test fun catalogGenerationIsImmutableAndCannotRollBack() {
@@ -59,46 +71,81 @@ class AppCoreTest {
         val newRelease = hostedRelease("0.2.0-dev.11", 3)
         val oldCatalog = HostedFirmwareCatalog(2, 1, 2, listOf(oldRelease))
         val newCatalog = HostedFirmwareCatalog(3, 1, 2, listOf(newRelease))
-        val selected = selectHighestHostedCatalog(listOf(
-            HostedCatalogCandidate(oldCatalog, "12".repeat(32), oldRelease),
-            HostedCatalogCandidate(newCatalog, "34".repeat(32), newRelease),
-        ))
+        val selected = selectHighestHostedCatalog(
+            listOf(
+                HostedCatalogCandidate(oldCatalog, "12".repeat(32), oldRelease),
+                HostedCatalogCandidate(newCatalog, "34".repeat(32), newRelease)
+            )
+        )
         assertEquals("0.2.0-dev.11", selected.release.version)
         assertThrows {
-            selectHighestHostedCatalog(listOf(
-                HostedCatalogCandidate(newCatalog, "34".repeat(32), newRelease),
-                HostedCatalogCandidate(newCatalog, "56".repeat(32), newRelease),
-            ))
+            selectHighestHostedCatalog(
+                listOf(
+                    HostedCatalogCandidate(newCatalog, "34".repeat(32), newRelease),
+                    HostedCatalogCandidate(newCatalog, "56".repeat(32), newRelease)
+                )
+            )
         }
     }
 
     @Test fun runtimeMustMatchAndCompleteTrialBeforeActive() {
         val hash = "ab".repeat(32)
-        assertEquals(RuntimeConfirmation.WAITING,
-            confirmRuntime(4, hash, runtime(revision = 4, stored = 4, hash = hash, trial = true)))
-        assertEquals(RuntimeConfirmation.ACTIVE,
-            confirmRuntime(4, hash, runtime(revision = 4, stored = 4, hash = hash)))
-        assertEquals(RuntimeConfirmation.RECOVERED,
-            confirmRuntime(4, hash, runtime(revision = 3, stored = 4, hash = "cd".repeat(32), previous = true)))
-        assertEquals(RuntimeConfirmation.REJECTED,
-            confirmRuntime(4, hash, runtime(revision = 3, stored = 3, hash = hash)))
+        assertEquals(
+            RuntimeConfirmation.WAITING,
+            confirmRuntime(4, hash, runtime(revision = 4, stored = 4, hash = hash, trial = true))
+        )
+        assertEquals(
+            RuntimeConfirmation.ACTIVE,
+            confirmRuntime(4, hash, runtime(revision = 4, stored = 4, hash = hash))
+        )
+        assertEquals(
+            RuntimeConfirmation.RECOVERED,
+            confirmRuntime(
+                4,
+                hash,
+                runtime(revision = 3, stored = 4, hash = "cd".repeat(32), previous = true)
+            )
+        )
+        assertEquals(
+            RuntimeConfirmation.REJECTED,
+            confirmRuntime(4, hash, runtime(revision = 3, stored = 3, hash = hash))
+        )
     }
 
     @Test fun interruptedUpdateRequiresExactAuthenticatedIdentity() {
         val expected = "ab".repeat(32)
-        val pending = PendingUpdateRecovery("gauge-a", "cd".repeat(32), expected,
-            "needs-reconciliation", 1)
-        assertEquals(UpdateRecoveryState.CHECK_REQUIRED,
-            reconcilePendingUpdate(pending, "gauge-b", expected, 2).state)
-        assertEquals(UpdateRecoveryState.WAITING_FOR_CONFIRMATION,
-            reconcilePendingUpdate(pending, "gauge-a", expected, 1).state)
-        assertEquals(UpdateRecoveryState.INSTALLED,
-            reconcilePendingUpdate(pending, "gauge-a", expected, 2).state)
-        assertEquals(UpdateRecoveryState.PREVIOUS_FIRMWARE,
-            reconcilePendingUpdate(pending, "gauge-a", "ef".repeat(32), 2).state)
-        assertEquals(UpdateRecoveryState.IDENTITY_CHECKED,
-            reconcilePendingUpdate(pending.copy(expectedElfSha256 = null),
-                "gauge-a", "ef".repeat(32), 2).state)
+        val pending = PendingUpdateRecovery(
+            "gauge-a",
+            "cd".repeat(32),
+            expected,
+            "needs-reconciliation",
+            1
+        )
+        assertEquals(
+            UpdateRecoveryState.CHECK_REQUIRED,
+            reconcilePendingUpdate(pending, "gauge-b", expected, 2).state
+        )
+        assertEquals(
+            UpdateRecoveryState.WAITING_FOR_CONFIRMATION,
+            reconcilePendingUpdate(pending, "gauge-a", expected, 1).state
+        )
+        assertEquals(
+            UpdateRecoveryState.INSTALLED,
+            reconcilePendingUpdate(pending, "gauge-a", expected, 2).state
+        )
+        assertEquals(
+            UpdateRecoveryState.PREVIOUS_FIRMWARE,
+            reconcilePendingUpdate(pending, "gauge-a", "ef".repeat(32), 2).state
+        )
+        assertEquals(
+            UpdateRecoveryState.IDENTITY_CHECKED,
+            reconcilePendingUpdate(
+                pending.copy(expectedElfSha256 = null),
+                "gauge-a",
+                "ef".repeat(32),
+                2
+            ).state
+        )
     }
 
     @Test fun observationsAgeAndNeverBecomeFreshAcrossClockReset() {
@@ -132,35 +179,70 @@ class AppCoreTest {
     }
 
     @Test fun projectionAndPayloadDescribeTheSameNumericPages() {
-        val draft = Draft(pidId = "coolant", layout = GaugeLayout.Numeric,
-            alerts = listOf(GaugeAlertDraft("alert.coolant", "coolant", AlertDirection.Above,
-                warning = 104.0, critical = 114.0, hysteresis = 3.0, triggerDwellMs = 2000, clearDwellMs = 5000)))
+        val draft = Draft(
+            pidId = "coolant",
+            layout = GaugeLayout.Numeric,
+            alerts = listOf(
+                GaugeAlertDraft(
+                    "alert.coolant",
+                    "coolant",
+                    AlertDirection.Above,
+                    warning = 104.0,
+                    critical = 114.0,
+                    hysteresis = 3.0,
+                    triggerDwellMs = 2000,
+                    clearDwellMs = 5000
+                )
+            )
+        )
         val (projection, bytes) = ConfigurationProjector.project(template, draft, "vehicle-1", 9)
         val json = JSONObject(bytes.toString(Charsets.UTF_8))
         assertEquals("engine.coolant", projection.pages.first().pidId)
-        assertEquals("engine.coolant", json.getJSONArray("pages").getJSONObject(0)
-            .getJSONArray("pidIds").getString(0))
+        assertEquals(
+            "engine.coolant",
+            json.getJSONArray("pages").getJSONObject(0)
+                .getJSONArray("pidIds").getString(0)
+        )
         assertTrue(projection.pages.all { it.renderer == "numeric" })
         assertEquals(104, json.getJSONArray("alerts").getJSONObject(0).getInt("warning"))
-        assertTrue(ConfigurationProjector.blockers(draft.copy(
-            pages = draft.pages.mapIndexed { index, page ->
-                if (index == 0) page.copy(layout = GaugeLayout.Arc) else page
-            })).isEmpty())
+        assertTrue(
+            ConfigurationProjector.blockers(
+                draft.copy(
+                    pages = draft.pages.mapIndexed {
+                            index,
+                            page
+                        ->
+                        if (index == 0) page.copy(layout = GaugeLayout.Arc) else page
+                    }
+                )
+            ).isEmpty()
+        )
         assertTrue(ConfigurationProjector.blockers(draft.copy(source = "TCM")).isNotEmpty())
     }
 
     @Test fun draftComparisonChecksEveryPageRendererAndReading() {
-        val draft = Draft(pages = listOf(
-            GaugePageDraft("page.speed", "SPEED", GaugeLayout.Trend, listOf("speed")),
-            GaugePageDraft("page.engine", "ENGINE", GaugeLayout.Dual, listOf("rpm", "coolant")),
-        ))
+        val draft = Draft(
+            pages = listOf(
+                GaugePageDraft("page.speed", "SPEED", GaugeLayout.Trend, listOf("speed")),
+                GaugePageDraft("page.engine", "ENGINE", GaugeLayout.Dual, listOf("rpm", "coolant"))
+            )
+        )
         val (_, bytes) = ConfigurationProjector.project(template, draft, "default", 2)
         fun document(json: String) = GaugeConfigTransferClient.ActiveDocument(
-            revision = 3, sha256 = "ab".repeat(32), length = json.length,
-            vehicleProfileId = "default", definitionCount = 3, pageCount = 2,
-            alertCount = 1, json = json,
+            revision = 3,
+            sha256 = "ab".repeat(32),
+            length = json.length,
+            vehicleProfileId = "default",
+            definitionCount = 3,
+            pageCount = 2,
+            alertCount = 1,
+            json = json
         )
-        val matching = GaugeDraftComparison.from(document(bytes.toString(Charsets.UTF_8)), "default", draft)
+        val matching = GaugeDraftComparison.from(
+            document(bytes.toString(Charsets.UTF_8)),
+            "default",
+            draft
+        )
         assertTrue(matching.fields.single { it.label == "All page settings" }.matches == true)
 
         val changed = JSONObject(bytes.toString(Charsets.UTF_8)).apply {
@@ -171,10 +253,12 @@ class AppCoreTest {
     }
 
     @Test fun projectionKeepsAlertsForEachChosenReading() {
-        val draft = Draft(alerts = listOf(
-            defaultAlert("coolant"),
-            defaultAlert("speed").copy(warning = 110.0, critical = 130.0),
-        ))
+        val draft = Draft(
+            alerts = listOf(
+                defaultAlert("coolant"),
+                defaultAlert("speed").copy(warning = 110.0, critical = 130.0)
+            )
+        )
         val (_, bytes) = ConfigurationProjector.project(template, draft, "default", 2)
         val alerts = JSONObject(bytes.toString(Charsets.UTF_8)).getJSONArray("alerts")
         assertEquals(2, alerts.length())
@@ -199,11 +283,14 @@ class AppCoreTest {
         val capabilities = """{"board":"board","protocolMajor":0,"maxAdapterLinks":2,
           "configWrite":false,"ota":false,"experimentalNumericConfig":true,
           "savedStateRead":true,"quickSelect":true,
-          "displayRotationWrite":true}""".trimIndent().toByteArray()
+          "displayRotationWrite":true}
+        """.trimIndent().toByteArray()
         val parsedCapabilities = GaugeProtocolCodec.capabilities(capabilities)
         assertEquals(2, parsedCapabilities.maxAdapterLinks)
         assertFalse(parsedCapabilities.simultaneousVerified)
-        val invalid = capabilities.toString(Charsets.UTF_8).replace("\"maxAdapterLinks\":2", "\"maxAdapterLinks\":3")
+        val invalid = capabilities.toString(
+            Charsets.UTF_8
+        ).replace("\"maxAdapterLinks\":2", "\"maxAdapterLinks\":3")
         assertThrows { GaugeProtocolCodec.capabilities(invalid.toByteArray()) }
 
         val runtimeBytes = ByteArray(44)
@@ -219,28 +306,50 @@ class AppCoreTest {
 
     @Test fun displaySettingsCodecChecksCapabilityAndSavedStateBounds() {
         val capability = """{"board":"board","protocolMajor":0,"maxAdapterLinks":2,
-            "configWrite":false,"ota":false,"ds":1}""".trimIndent().toByteArray()
+            "configWrite":false,"ota":false,"ds":1}
+        """.trimIndent().toByteArray()
         assertEquals(1, GaugeProtocolCodec.capabilities(capability).displaySettingsVersion)
-        assertEquals(2, GaugeProtocolCodec.capabilities(
-            capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":2").toByteArray()).displaySettingsVersion)
-        assertEquals(3, GaugeProtocolCodec.capabilities(
-            capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":3").toByteArray()).displaySettingsVersion)
-        assertThrows { GaugeProtocolCodec.capabilities(
-            capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":4").toByteArray()) }
+        assertEquals(
+            2,
+            GaugeProtocolCodec.capabilities(
+                capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":2").toByteArray()
+            ).displaySettingsVersion
+        )
+        assertEquals(
+            3,
+            GaugeProtocolCodec.capabilities(
+                capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":3").toByteArray()
+            ).displaySettingsVersion
+        )
+        assertThrows {
+            GaugeProtocolCodec.capabilities(
+                capability.toString(Charsets.UTF_8).replace("\"ds\":1", "\"ds\":4").toByteArray()
+            )
+        }
 
         val state = byteArrayOf(10, 1, 55, 0, 7, 0, 0, 0)
-        assertEquals(GaugeConfigTransferClient.DisplaySettings(1, 55, 7),
-            GaugeProtocolCodec.displaySettings(state))
+        assertEquals(
+            GaugeConfigTransferClient.DisplaySettings(1, 55, 7),
+            GaugeProtocolCodec.displaySettings(state)
+        )
         assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf(7)) }
         assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[1] = 4 }) }
         assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[2] = 4 }) }
         assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[3] = 1 }) }
-        val imperial = state.copyOf().apply { this[0] = 11; this[3] = 1 }
+        val imperial = state.copyOf().apply {
+            this[0] = 11
+            this[3] = 1
+        }
         assertEquals(MeasurementSystem.Imperial, GaugeProtocolCodec.displaySettings(imperial).units)
         assertThrows { GaugeProtocolCodec.displaySettings(imperial.copyOf().apply { this[3] = 2 }) }
-        val cycling = imperial.copyOf(10).apply { this[0] = 12; this[8] = 15 }
-        assertEquals(GaugeConfigTransferClient.DisplaySettings(1, 55, 7, MeasurementSystem.Imperial, 3, 15),
-            GaugeProtocolCodec.displaySettings(cycling))
+        val cycling = imperial.copyOf(10).apply {
+            this[0] = 12
+            this[8] = 15
+        }
+        assertEquals(
+            GaugeConfigTransferClient.DisplaySettings(1, 55, 7, MeasurementSystem.Imperial, 3, 15),
+            GaugeProtocolCodec.displaySettings(cycling)
+        )
         assertThrows { GaugeProtocolCodec.displaySettings(cycling.copyOf().apply { this[8] = 4 }) }
     }
 
@@ -252,14 +361,21 @@ class AppCoreTest {
         assertEquals(121, MeasurementUnits.canonical(75, "km/h", MeasurementSystem.Imperial))
         assertEquals(5, MeasurementUnits.canonicalDistance(9, "°C", MeasurementSystem.Imperial))
         assertEquals(2840, MeasurementUnits.value(2840, "rpm", MeasurementSystem.Imperial))
-        assertEquals("2,840", MeasurementUnits.displayValue("2,840", "rpm", MeasurementSystem.Imperial))
+        assertEquals(
+            "2,840",
+            MeasurementUnits.displayValue("2,840", "rpm", MeasurementSystem.Imperial)
+        )
     }
 
     @Test fun imperialAlertPresentationRetainsCanonicalThresholds() {
         val original = defaultAlert("coolant")
         val shown = alertUi(original, MeasurementSystem.Imperial)
         assertEquals("°F", shown.unit)
-        assertEquals(MeasurementUnits.value(original.warning, "°C", MeasurementSystem.Imperial), shown.warning, 1e-9)
+        assertEquals(
+            MeasurementUnits.value(original.warning, "°C", MeasurementSystem.Imperial),
+            shown.warning,
+            1e-9
+        )
         assertEquals(original.warning, shown.canonicalWarning, 1e-9)
         assertEquals(original.critical, shown.canonicalCritical, 1e-9)
         assertEquals(original.hysteresis, shown.canonicalResetMargin, 1e-9)
@@ -274,46 +390,113 @@ class AppCoreTest {
           "partitionLayout":"egauge-16m-ab-v1","transferProtocol":0,"bundleBytes":2048,
           "bundleSha256":"${"12".repeat(32)}",
           "bundleUrl":"https://github.com/lstepnio/ESP32OBD2/releases/download/dev-v0.2.0-dev.4/firmware.egauge-dev-update",
-          "releaseNotes":"Test release","sourceTag":"dev-v0.2.0-dev.4"}]}""".trimIndent().toByteArray()
+          "releaseNotes":"Test release","sourceTag":"dev-v0.2.0-dev.4"}]}
+        """.trimIndent().toByteArray()
         val signer = Signature.getInstance("SHA256withECDSA")
         signer.initSign(keyPair.private)
         signer.update(raw)
         val signature = signer.sign()
-        val catalog = HostedFirmwareCatalogCodec.verifyAndParse(raw, signature, keyPair.public, 1_796_000_000)
+        val catalog = HostedFirmwareCatalogCodec.verifyAndParse(
+            raw,
+            signature,
+            keyPair.public,
+            1_796_000_000
+        )
         assertEquals(9, catalog.generation)
-        assertEquals("0.2.0-dev.4", HostedFirmwareCatalogCodec.select(catalog,
-            "waveshare-esp32-s3-touch-lcd-1.28", "all", "egauge-16m-ab-v1",
-            FirmwareChannel.DEVELOPMENT, 0)?.version)
-        assertEquals(null, HostedFirmwareCatalogCodec.select(catalog,
-            "another-board", "all", "egauge-16m-ab-v1", FirmwareChannel.DEVELOPMENT, 0))
-        assertEquals(null, HostedFirmwareCatalogCodec.select(catalog,
-            "waveshare-esp32-s3-touch-lcd-1.28", "all", "wrong-layout",
-            FirmwareChannel.DEVELOPMENT, 0))
-        assertEquals(null, HostedFirmwareCatalogCodec.select(catalog,
-            "waveshare-esp32-s3-touch-lcd-1.28", "all", "egauge-16m-ab-v1",
-            FirmwareChannel.STABLE, 0))
-        assertEquals(null, HostedFirmwareCatalogCodec.select(catalog,
-            "waveshare-esp32-s3-touch-lcd-1.28", "all", "egauge-16m-ab-v1",
-            FirmwareChannel.DEVELOPMENT, 1))
+        assertEquals(
+            "0.2.0-dev.4",
+            HostedFirmwareCatalogCodec.select(
+                catalog,
+                "waveshare-esp32-s3-touch-lcd-1.28",
+                "all",
+                "egauge-16m-ab-v1",
+                FirmwareChannel.DEVELOPMENT,
+                0
+            )?.version
+        )
+        assertEquals(
+            null,
+            HostedFirmwareCatalogCodec.select(
+                catalog,
+                "another-board",
+                "all",
+                "egauge-16m-ab-v1",
+                FirmwareChannel.DEVELOPMENT,
+                0
+            )
+        )
+        assertEquals(
+            null,
+            HostedFirmwareCatalogCodec.select(
+                catalog,
+                "waveshare-esp32-s3-touch-lcd-1.28",
+                "all",
+                "wrong-layout",
+                FirmwareChannel.DEVELOPMENT,
+                0
+            )
+        )
+        assertEquals(
+            null,
+            HostedFirmwareCatalogCodec.select(
+                catalog,
+                "waveshare-esp32-s3-touch-lcd-1.28",
+                "all",
+                "egauge-16m-ab-v1",
+                FirmwareChannel.STABLE,
+                0
+            )
+        )
+        assertEquals(
+            null,
+            HostedFirmwareCatalogCodec.select(
+                catalog,
+                "waveshare-esp32-s3-touch-lcd-1.28",
+                "all",
+                "egauge-16m-ab-v1",
+                FirmwareChannel.DEVELOPMENT,
+                1
+            )
+        )
         val tampered = raw.copyOf().also { it[it.lastIndex - 10] = 'X'.code.toByte() }
-        assertThrows { HostedFirmwareCatalogCodec.verifyAndParse(tampered, signature, keyPair.public, 1_796_000_000) }
-        assertThrows { HostedFirmwareCatalogCodec.verifyAndParse(raw, signature, keyPair.public, 1_900_000_000) }
-        assertThrows { HostedFirmwareCatalogCodec.verifyAndParse(raw, signature, keyPair.public, 1_700_000_000) }
+        assertThrows {
+            HostedFirmwareCatalogCodec.verifyAndParse(
+                tampered,
+                signature,
+                keyPair.public,
+                1_796_000_000
+            )
+        }
+        assertThrows {
+            HostedFirmwareCatalogCodec.verifyAndParse(raw, signature, keyPair.public, 1_900_000_000)
+        }
+        assertThrows {
+            HostedFirmwareCatalogCodec.verifyAndParse(raw, signature, keyPair.public, 1_700_000_000)
+        }
     }
 
-    private fun runtime(revision: Long, stored: Long, hash: String, trial: Boolean = false,
-                        previous: Boolean = false) = GaugeConfigTransferClient.RuntimeIdentity(
+    private fun runtime(
+        revision: Long,
+        stored: Long,
+        hash: String,
+        trial: Boolean = false,
+        previous: Boolean = false
+    ) = GaugeConfigTransferClient.RuntimeIdentity(
         running = true,
         usedPreviousGeneration = previous,
         trial = trial,
         revision = revision,
         storedRevision = stored,
-        sha256 = hash,
+        sha256 = hash
     )
 
     private fun assertThrows(block: () -> Unit) {
         var threw = false
-        try { block() } catch (_: Exception) { threw = true }
+        try {
+            block()
+        } catch (_: Exception) {
+            threw = true
+        }
         assertTrue(threw)
     }
 
@@ -333,7 +516,7 @@ class AppCoreTest {
         bundleSha256 = "12".repeat(32),
         bundleUrl = "https://github.com/lstepnio/ESP32OBD2/releases/download/dev-v$version/fw.egauge-dev-update",
         releaseNotes = "Test",
-        sourceTag = "dev-v$version",
+        sourceTag = "dev-v$version"
     )
 
     private val template = """{
@@ -349,5 +532,6 @@ class AppCoreTest {
         {"id":"page.speed","label":"Speed","renderer":"numeric","pidIds":["vehicle.speed"]}],
       "alerts":[{"pidId":"engine.coolant","direction":"above","warning":105,"critical":115,
         "hysteresis":3,"triggerDwellMs":1000,"clearDwellMs":2000}]
-    }""".trimIndent()
+    }
+    """.trimIndent()
 }

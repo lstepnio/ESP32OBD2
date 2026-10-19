@@ -12,278 +12,746 @@ fun readingName(id: String): String = when (id) {
 
 /** Editor cursor fields are not part of the transmitted page/alert payload. */
 fun sameSettings(first: Draft?, second: Draft): Boolean = first != null && first.pages == second.pages &&
-    first.source == second.source && first.alerts == second.alerts && first.actions == second.actions && first.diagnosticFilters == second.diagnosticFilters
+    first.source == second.source && first.alerts == second.alerts &&
+    first.actions == second.actions &&
+    first.diagnosticFilters == second.diagnosticFilters
 
 fun pageUi(page: GaugePageDraft, system: MeasurementSystem = MeasurementSystem.Metric): PageUi {
     val reading = demoCatalog.first { it.id == page.pidIds.first() }
     val secondary = page.pidIds.getOrNull(1)?.let { id -> demoCatalog.first { it.id == id } }
-    return PageUi(page.id, readingName(reading.id), reading.id, readingName(reading.id), MeasurementUnits.label(reading.unit, system), page.layout,
-        ReadingPreviewUi(readingName(reading.id), MeasurementUnits.displayValue(reading.demoValue, reading.unit, system), MeasurementUnits.label(reading.unit, system),
-            PreviewLayout.valueOf(page.layout.name), secondaryName = secondary?.let { readingName(it.id) },
-            secondaryValue = secondary?.let { MeasurementUnits.displayValue(it.demoValue, it.unit, system) },
-            secondaryUnit = secondary?.let { MeasurementUnits.label(it.unit, system) }), secondary?.id)
+    return PageUi(
+        page.id,
+        readingName(reading.id),
+        reading.id,
+        readingName(reading.id),
+        MeasurementUnits.label(reading.unit, system),
+        page.layout,
+        ReadingPreviewUi(
+            readingName(reading.id),
+            MeasurementUnits.displayValue(reading.demoValue, reading.unit, system),
+            MeasurementUnits.label(reading.unit, system),
+            PreviewLayout.valueOf(page.layout.name),
+            secondaryName = secondary?.let {
+                readingName(it.id)
+            },
+            secondaryValue = secondary?.let {
+                MeasurementUnits.displayValue(it.demoValue, it.unit, system)
+            },
+            secondaryUnit = secondary?.let {
+                MeasurementUnits.label(it.unit, system)
+            }
+        ),
+        secondary?.id
+    )
 }
 
-fun readingUi(pid: PidExample, system: MeasurementSystem = MeasurementSystem.Metric) = ReadingUi(pid.id, readingName(pid.id), MeasurementUnits.label(pid.unit, system), listOf(
-    DetailUi("PID identifier", pid.id), DetailUi("Service / request", pid.request),
-    DetailUi("ECU / source", pid.source), DetailUi("Category", pid.category),
-    DetailUi("Availability", "Example only. Vehicle support has not been checked."),
-), source = pid.source)
+fun readingUi(pid: PidExample, system: MeasurementSystem = MeasurementSystem.Metric) = ReadingUi(
+    pid.id,
+    readingName(pid.id),
+    MeasurementUnits.label(pid.unit, system),
+    listOf(
+        DetailUi("PID identifier", pid.id),
+        DetailUi("Service / request", pid.request),
+        DetailUi("ECU / source", pid.source),
+        DetailUi("Category", pid.category),
+        DetailUi("Availability", "Example only. Vehicle support has not been checked.")
+    ),
+    source = pid.source
+)
 
 fun alertUi(alert: GaugeAlertDraft, system: MeasurementSystem = MeasurementSystem.Metric): AlertUi {
     val reading = demoCatalog.first { it.id == alert.pidId }
-    return AlertUi(alert.id, alert.pidId, readingName(alert.pidId), MeasurementUnits.label(reading.unit, system),
+    return AlertUi(
+        alert.id, alert.pidId,
+        readingName(
+            alert.pidId
+        ),
+        MeasurementUnits.label(reading.unit, system),
         alert.direction.name.lowercase(),
-        MeasurementUnits.value(alert.warning, reading.unit, system), MeasurementUnits.value(alert.critical, reading.unit, system),
-        MeasurementUnits.distance(alert.hysteresis, reading.unit, system), alert.triggerDwellMs / 1000f,
-        alert.clearDwellMs / 1000f, MeasurementUnits.range(readingRange(alert.pidId), reading.unit, system),
-        alert.priority, alert.warning, alert.critical, alert.hysteresis)
+        MeasurementUnits.value(
+            alert.warning,
+            reading.unit,
+            system
+        ),
+        MeasurementUnits.value(alert.critical, reading.unit, system),
+        MeasurementUnits.distance(alert.hysteresis, reading.unit, system),
+        alert.triggerDwellMs / 1000f,
+        alert.clearDwellMs / 1000f,
+        MeasurementUnits.range(
+            readingRange(alert.pidId),
+            reading.unit,
+            system
+        ),
+        alert.priority, alert.warning, alert.critical, alert.hysteresis
+    )
 }
 
 fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> = buildList {
-    if(draft.diagnosticFilters.isNotEmpty() && (caps?.configurationVersion ?: 0)<6) add("Update gauge firmware to use CEL code filters.")
+    if (draft.diagnosticFilters.isNotEmpty() &&
+        (caps?.configurationVersion ?: 0) < 6
+    ) {
+        add("Update gauge firmware to use CEL code filters.")
+    }
     ConfigurationProjector.blockers(draft).forEach { raw ->
-        add(when {
-            "reset margin" in raw -> "Leave more space between warning and critical. Adjust the limits."
-            "adapter" in raw -> "This reading cannot be sent from the second adapter. Choose a main-adapter reading."
-            "cannot execute" in raw -> "A page uses an unavailable reading. Choose a supported reading."
-            "critical limit" in raw -> "Move the critical limit farther than the warning limit."
-            "outside its supported range" in raw -> "Choose limits within this reading's supported range."
-            "timing" in raw -> "The alert delay is out of range. Choose a delay of 60 seconds or less."
-            "action" in raw || "swipe" in raw || "page for" in raw -> raw
-            else -> "A page needs a valid reading and layout. Review your pages."
-        })
+        add(
+            when {
+                "reset margin" in raw -> "Leave more space between warning and critical. Adjust the limits."
+                "adapter" in raw -> "This reading cannot be sent from the second adapter. Choose a main-adapter reading."
+                "cannot execute" in raw -> "A page uses an unavailable reading. Choose a supported reading."
+                "critical limit" in raw -> "Move the critical limit farther than the warning limit."
+                "outside its supported range" in raw -> "Choose limits within this reading's supported range."
+                "timing" in raw -> "The alert delay is out of range. Choose a delay of 60 seconds or less."
+                "action" in raw || "swipe" in raw || "page for" in raw -> raw
+                else -> "A page needs a valid reading and layout. Review your pages."
+            }
+        )
     }
     caps?.let {
-        if (requiresPidCatalogFirmware(draft) && it.pidCatalogVersion != 1)
+        if (requiresPidCatalogFirmware(draft) && it.pidCatalogVersion != 1) {
             add("Update the gauge before sending the expanded readings and alerts")
-        if (draft.actions.isNotEmpty() && it.pageActionsVersion != 1) add("Update the gauge before sending gesture actions")
-        if (requiresVehicleDashboardFirmware(draft, false) && it.vehicleDashboardVersion != 1)
+        }
+        if (draft.actions.isNotEmpty() &&
+            it.pageActionsVersion != 1
+        ) {
+            add("Update the gauge before sending gesture actions")
+        }
+        if (requiresVehicleDashboardFirmware(draft, false) && it.vehicleDashboardVersion != 1) {
             add("Update the gauge before sending the complete vehicle dashboard")
-        if (draft.pages.size > it.maxPages) add("Your gauge supports ${it.maxPages} pages. Remove an extra page.")
-        val unsupported = draft.pages.map { it.layout }.distinct().filter { layout -> layout !in it.supportedRenderers }
-        if (unsupported.isNotEmpty()) add("${unsupported.joinToString { layout -> layout.label }} is preview-only on this gauge. Choose a supported layout.")
-        if (!it.experimentalNumericConfig || it.configurationVersion == 0)
+        }
+        if (draft.pages.size >
+            it.maxPages
+        ) {
+            add("Your gauge supports ${it.maxPages} pages. Remove an extra page.")
+        }
+        val unsupported = draft.pages.map { it.layout }.distinct().filter { layout ->
+            layout !in
+                it.supportedRenderers
+        }
+        if (unsupported.isNotEmpty()) {
+            add(
+                "${unsupported.joinToString { layout ->
+                    layout.label
+                }} is preview-only on this gauge. Choose a supported layout."
+            )
+        }
+        if (!it.experimentalNumericConfig || it.configurationVersion == 0) {
             add("This gauge cannot receive dashboard changes. You can keep designing a preview.")
+        }
     }
 }.distinct()
 
 fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val prefs = presentationPreferences
     val freshConnection = connection.fresh(nowElapsedMs)
-    val disconnected = connection.phase in setOf(ConnectionPhase.Retrying, ConnectionPhase.BluetoothOff, ConnectionPhase.PermissionRequired)
-    val found = capabilities != null && !disconnected && connection.phase != ConnectionPhase.Searching
+    val disconnected =
+        connection.phase in
+            setOf(
+                ConnectionPhase.Retrying,
+                ConnectionPhase.BluetoothOff,
+                ConnectionPhase.PermissionRequired
+            )
+    val found =
+        capabilities != null && !disconnected && connection.phase != ConnectionPhase.Searching
     val androidBonded = capabilities != null && connection.phase !in setOf(
-        ConnectionPhase.BluetoothOff, ConnectionPhase.PermissionRequired) && androidBondedForUi()
+        ConnectionPhase.BluetoothOff,
+        ConnectionPhase.PermissionRequired
+    ) && androidBondedForUi()
     val busy = localSaveBusy || scanning || hostedUpdateBusy || updateInProgress ||
         (operation.stage != OperationStage.IDLE && !operation.terminal)
     val system = displaySettings?.takeIf { it.version >= 2 }?.units ?: prefs.measurementSystem
     val pages = editorDraft.pages.map { pageUi(it, system) }
-    val confirmed = !disconnected && ownerAccess == OwnerAccess.AUTHENTICATED && sentProfileId == profileCollection.activeId && sameSettings(sentDraft, transmittedDraft) &&
-        isConfirmedSetup(activeConfigRevision, expectedSentDigest, runtimeIdentity)
-    val combinedIssue = if (bothAdapters) runCatching { profileCollection.active.combinedDraft() }
-        .exceptionOrNull()?.let { it.message ?: "Check both adapter setups before sending" } else null
-    val blockers = presentationBlockers(transmittedDraft, capabilities) + listOfNotNull(combinedIssue) +
-        (if (bothAdapters && capabilities?.vehicleDashboardVersion != 1) listOf("Update the gauge before using the second adapter") else emptyList()) +
-        if (runtimeIdentity?.trial == true) listOf("Your gauge is still checking its settings. Wait, then check again.") else emptyList()
-    val needsCheck = activeConfigRevision == null || verifiedConfigHash == null || ownerAccess != OwnerAccess.AUTHENTICATED ||
-        (configurationNeedsReview && !configurationRecoveryRead) || disconnected
+    val confirmed =
+        !disconnected && ownerAccess == OwnerAccess.AUTHENTICATED &&
+            sentProfileId == profileCollection.activeId &&
+            sameSettings(sentDraft, transmittedDraft) &&
+            isConfirmedSetup(activeConfigRevision, expectedSentDigest, runtimeIdentity)
+    val combinedIssue = if (bothAdapters) {
+        runCatching { profileCollection.active.combinedDraft() }
+            .exceptionOrNull()?.let { it.message ?: "Check both adapter setups before sending" }
+    } else {
+        null
+    }
+    val blockers =
+        presentationBlockers(transmittedDraft, capabilities) + listOfNotNull(combinedIssue) +
+            (
+                if (bothAdapters &&
+                    capabilities?.vehicleDashboardVersion != 1
+                ) {
+                    listOf("Update the gauge before using the second adapter")
+                } else {
+                    emptyList()
+                }
+                ) +
+            if (runtimeIdentity?.trial ==
+                true
+            ) {
+                listOf("Your gauge is still checking its settings. Wait, then check again.")
+            } else {
+                emptyList()
+            }
+    val needsCheck =
+        activeConfigRevision == null || verifiedConfigHash == null ||
+            ownerAccess != OwnerAccess.AUTHENTICATED ||
+            (configurationNeedsReview && !configurationRecoveryRead) || disconnected
     val details = presentationDetails()
     var op = operationUi(operation, confirmed)
-    if (updatePreparation == "downloading") op = op.copy(status = StatusUi("Downloading update",
-        "Keep the app open while the update is checked.", StatusTone.Loading), busy = true, visible = true)
+    if (updatePreparation == "downloading") {
+        op = op.copy(
+            status = StatusUi(
+                "Downloading update",
+                "Keep the app open while the update is checked.",
+                StatusTone.Loading
+            ),
+            busy = true,
+            visible = true
+        )
+    }
     // A subsequent read or navigation must not erase an unresolved configuration outcome.
     if (!busy && configurationNeedsReview && lastConfigurationOutcome != null) {
         op = operationUi(requireNotNull(lastConfigurationOutcome), confirmed).copy(
-            status = if (configurationRecoveryRead) StatusUi("Your gauge has been checked",
-                "Review its current settings before sending again.", StatusTone.Stale)
-            else operationUi(requireNotNull(lastConfigurationOutcome)).status,
-            needsCheck = true)
+            status = if (configurationRecoveryRead) {
+                StatusUi(
+                    "Your gauge has been checked",
+                    "Review its current settings before sending again.",
+                    StatusTone.Stale
+                )
+            } else {
+                operationUi(requireNotNull(lastConfigurationOutcome)).status
+            },
+            needsCheck = true
+        )
     }
     val updateRecovery = updateRecoveryResult
     if (!busy && updateRecovery != null && updateRecovery.state != UpdateRecoveryState.INSTALLED) {
-        op = op.copy(status = updateRecoveryUi(updateRecovery), visible = true, needsCheck = true, update = true)
+        op =
+            op.copy(
+                status = updateRecoveryUi(updateRecovery),
+                visible = true,
+                needsCheck = true,
+                update = true
+            )
     }
     val status = when {
-        profileError != null -> StatusUi("Your saved profiles need attention", "Editing is paused to protect your settings. Review the problem in Expert > Device data.", StatusTone.Error)
+        profileError != null -> StatusUi(
+            "Your saved profiles need attention",
+            "Editing is paused to protect your settings. Review the problem in Expert > Device data.",
+            StatusTone.Error
+        )
+
         presentationError != null -> friendlyFailure(presentationError)
+
         op.visible && (op.busy || op.needsCheck) -> op.status
-        runtimeIdentity?.usedPreviousGeneration == true -> StatusUi("Earlier settings are running", "Your gauge restored an earlier setup. Review your pages before sending again.", StatusTone.Stale)
-        runtimeIdentity?.trial == true -> StatusUi("Your gauge is still checking these settings", "Keep it powered and check again.", StatusTone.Stale)
-        !freshConnection && connection.phase != ConnectionPhase.Idle -> connectionStatus(connection, nowElapsedMs)
-        updatePreparation == "held" -> StatusUi("Update needs attention", hostedUpdateMessage, StatusTone.Stale)
-        confirmed -> StatusUi("Saved & running on gauge", "Your gauge confirmed the pages sent to it.", StatusTone.Success)
-        !found -> StatusUi("Your gauge is not connected", "Connect to check its current settings.", StatusTone.Neutral)
-        needsCheck -> StatusUi("Check your gauge before sending", "We will read its current settings so newer changes are protected.")
-        blockers.isNotEmpty() -> StatusUi("A page needs attention", blockers.first(), StatusTone.Stale)
-        else -> StatusUi("Changes ready to send", "${transmittedDraft.pages.size} pages · ${transmittedDraft.alerts.size} alerts")
+
+        runtimeIdentity?.usedPreviousGeneration == true -> StatusUi(
+            "Earlier settings are running",
+            "Your gauge restored an earlier setup. Review your pages before sending again.",
+            StatusTone.Stale
+        )
+
+        runtimeIdentity?.trial == true -> StatusUi(
+            "Your gauge is still checking these settings",
+            "Keep it powered and check again.",
+            StatusTone.Stale
+        )
+
+        !freshConnection && connection.phase != ConnectionPhase.Idle -> connectionStatus(
+            connection,
+            nowElapsedMs
+        )
+
+        updatePreparation == "held" -> StatusUi(
+            "Update needs attention",
+            hostedUpdateMessage,
+            StatusTone.Stale
+        )
+
+        confirmed -> StatusUi(
+            "Saved & running on gauge",
+            "Your gauge confirmed the pages sent to it.",
+            StatusTone.Success
+        )
+
+        !found -> StatusUi(
+            "Your gauge is not connected",
+            "Connect to check its current settings.",
+            StatusTone.Neutral
+        )
+
+        needsCheck -> StatusUi(
+            "Check your gauge before sending",
+            "We will read its current settings so newer changes are protected."
+        )
+
+        blockers.isNotEmpty() -> StatusUi(
+            "A page needs attention",
+            blockers.first(),
+            StatusTone.Stale
+        )
+
+        else -> StatusUi(
+            "Changes ready to send",
+            "${transmittedDraft.pages.size} pages · ${transmittedDraft.alerts.size} alerts"
+        )
     }
     val homeAction = when {
-        connection.phase in setOf(ConnectionPhase.PermissionRequired, ConnectionPhase.BluetoothOff,
-            ConnectionPhase.PairRequired, ConnectionPhase.ChooseGauge) -> HomeAction.SetUp
+        connection.phase in setOf(
+            ConnectionPhase.PermissionRequired,
+            ConnectionPhase.BluetoothOff,
+            ConnectionPhase.PairRequired,
+            ConnectionPhase.ChooseGauge
+        ) -> HomeAction.SetUp
+
         !freshConnection && connection.phase != ConnectionPhase.Idle -> HomeAction.Customize
-        !found -> HomeAction.SetUp; confirmed -> HomeAction.Customize
-        needsCheck -> HomeAction.Check; else -> HomeAction.Review }
+
+        !found -> HomeAction.SetUp
+
+        confirmed -> HomeAction.Customize
+
+        needsCheck -> HomeAction.Check
+
+        else -> HomeAction.Review
+    }
     val canSend = found && !busy && profileError == null && !needsCheck && blockers.isEmpty() &&
         capabilities?.experimentalNumericConfig == true
     val car = carState(nowElapsedMs, busy, details)
     val updateStatus = when {
         updateInProgress || updatePreparation == "downloading" -> op.status
-        updateRecovery != null && updateRecovery.state != UpdateRecoveryState.INSTALLED -> updateRecoveryUi(updateRecovery)
-        updatePreparation == "held" -> StatusUi("Update needs attention", hostedUpdateMessage, StatusTone.Stale)
+
+        updateRecovery != null && updateRecovery.state != UpdateRecoveryState.INSTALLED -> updateRecoveryUi(
+            updateRecovery
+        )
+
+        updatePreparation == "held" -> StatusUi(
+            "Update needs attention",
+            hostedUpdateMessage,
+            StatusTone.Stale
+        )
+
         updatePreparation == "failed" -> friendlyFailure(hostedUpdateMessage, true)
-        updateReady -> StatusUi("Update ready to install", "A signed development update is ready. Keep your gauge powered during installation.")
-        hostedUpdate != null -> StatusUi("Update available", "A signed development update is available.")
+
+        updateReady -> StatusUi(
+            "Update ready to install",
+            "A signed development update is ready. Keep your gauge powered during installation."
+        )
+
+        hostedUpdate != null -> StatusUi(
+            "Update available",
+            "A signed development update is available."
+        )
+
         updateRecovery != null -> updateRecoveryUi(updateRecovery)
-        updatePreparation == "current" -> StatusUi("Your gauge is up to date", "No newer signed update is available.", StatusTone.Success)
+
+        updatePreparation == "current" -> StatusUi(
+            "Your gauge is up to date",
+            "No newer signed update is available.",
+            StatusTone.Success
+        )
+
         else -> StatusUi("Development updates", "Signed test releases are available here.")
     }
     val updateNotice = when {
         !freshConnection || !found -> UpdateNotice.None
-        updateRecovery?.state !in setOf(null, UpdateRecoveryState.INSTALLED) || updatePreparation == "held" -> UpdateNotice.NeedsCheck
+
+        updateRecovery?.state !in setOf(null, UpdateRecoveryState.INSTALLED) ||
+            updatePreparation == "held" -> UpdateNotice.NeedsCheck
+
         hostedUpdate != null && updateReady -> UpdateNotice.Ready
+
         else -> UpdateNotice.None
     }
     return CompanionUiState(
-        HomeUiState(currentGaugeName, when (updateNotice) {
-            UpdateNotice.Ready -> "Update ready"
-            UpdateNotice.NeedsCheck -> "Update needs check"
-            UpdateNotice.None -> if (connection.phase == ConnectionPhase.Idle && found) "Last checked"
-                else connectionLabel(connection, nowElapsedMs)
-        }, freshConnection, status, pages,
-            !confirmed, when (homeAction) { HomeAction.SetUp -> when (connection.phase) {
-                ConnectionPhase.PermissionRequired -> "Allow nearby devices"
-                ConnectionPhase.BluetoothOff -> "Turn on Bluetooth"
-                ConnectionPhase.PairRequired -> "Pair gauge"
-                ConnectionPhase.ChooseGauge -> "Choose gauge"
-                else -> if (rememberedGaugeId != null) "Connect gauge" else "Set up gauge"
-            }; HomeAction.Check -> "Check gauge"
-                HomeAction.Review -> "Review and send"; HomeAction.Customize -> "Customize" }, homeAction, busy, details,
-            updateNotice, showStatus = profileError == null && gaugeAssociationError == null &&
+        HomeUiState(
+            currentGaugeName,
+            when (updateNotice) {
+                UpdateNotice.Ready -> "Update ready"
+
+                UpdateNotice.NeedsCheck -> "Update needs check"
+
+                UpdateNotice.None -> if (connection.phase == ConnectionPhase.Idle &&
+                    found
+                ) {
+                    "Last checked"
+                } else {
+                    connectionLabel(connection, nowElapsedMs)
+                }
+            },
+            freshConnection, status, pages,
+            !confirmed,
+            when (homeAction) {
+                HomeAction.SetUp -> when (connection.phase) {
+                    ConnectionPhase.PermissionRequired -> "Allow nearby devices"
+                    ConnectionPhase.BluetoothOff -> "Turn on Bluetooth"
+                    ConnectionPhase.PairRequired -> "Pair gauge"
+                    ConnectionPhase.ChooseGauge -> "Choose gauge"
+                    else -> if (rememberedGaugeId != null) "Connect gauge" else "Set up gauge"
+                }
+
+                HomeAction.Check -> "Check gauge"
+
+                HomeAction.Review -> "Review and send"
+
+                HomeAction.Customize -> "Customize"
+            },
+            homeAction, busy, details,
+            updateNotice,
+            showStatus = profileError == null && gaugeAssociationError == null &&
                 presentationError == null && !(op.visible && (op.busy || op.needsCheck)) &&
-                (runtimeIdentity?.usedPreviousGeneration == true || runtimeIdentity?.trial == true ||
-                    updatePreparation == "held" || blockers.isNotEmpty())),
-        CustomizeUiState(pages, editingPageIndex, demoCatalog.filter { it.id in ConfigurationProjector.pagePidIds(editorDraft.source) }.map { readingUi(it, system) },
-            editorDraft.alerts.map { alertUi(it, system) }, blockers, canSend, needsCheck, found, busy, profileError == null && !busy, prefs.advanced,
-            capabilities?.supportedRenderers.orEmpty(), details, system, transmittedDraft.pages.map { pageUi(it, system) },
-            actionSummary = transmittedDraft.actions.takeIf { it.isNotEmpty() }?.joinToString("\n") { action ->
-                val name = transmittedDraft.pages.firstOrNull { it.id == action.pageId }?.name ?: "Unavailable page"
+                (
+                    runtimeIdentity?.usedPreviousGeneration == true ||
+                        runtimeIdentity?.trial == true ||
+                        updatePreparation == "held" || blockers.isNotEmpty()
+                    )
+        ),
+        CustomizeUiState(
+            pages, editingPageIndex,
+            demoCatalog.filter {
+                it.id in
+                    ConfigurationProjector.pagePidIds(editorDraft.source)
+            }.map { readingUi(it, system) },
+            editorDraft.alerts.map {
+                alertUi(it, system)
+            },
+            blockers, canSend, needsCheck, found, busy,
+            profileError == null && !busy, prefs.advanced,
+            capabilities?.supportedRenderers.orEmpty(), details, system,
+            transmittedDraft.pages.map {
+                pageUi(it, system)
+            },
+            actionSummary = transmittedDraft.actions.takeIf {
+                it.isNotEmpty()
+            }?.joinToString("\n") { action ->
+                val name =
+                    transmittedDraft.pages.firstOrNull { it.id == action.pageId }?.name
+                        ?: "Unavailable page"
                 "Jump to $name · ${action.count} swipes up within ${action.windowMs / 1000} seconds"
-            }, editingIssue = pageEditError,
+            },
+            editingIssue = pageEditError,
             reviewAlerts = transmittedDraft.alerts.map { alertUi(it, system) },
-            reviewNotice = if(transmittedDraft.diagnosticFilters.isNotEmpty() || transmittedDraft.diagnosticFilters!=effectiveDiagnosticFilters())
-                "CEL code filters: " + transmittedDraft.diagnosticFilters.joinToString { "${if(it.controller=="TCM") "Transmission" else "Engine"} ${it.code}" }.ifEmpty { "None" } else null),
+            reviewNotice = if (transmittedDraft.diagnosticFilters.isNotEmpty() ||
+                transmittedDraft.diagnosticFilters != effectiveDiagnosticFilters()
+            ) {
+                "CEL code filters: " +
+                    transmittedDraft.diagnosticFilters.joinToString {
+                        "${if (it.controller == "TCM") "Transmission" else "Engine"} ${it.code}"
+                    }.ifEmpty { "None" }
+            } else {
+                null
+            }
+        ),
         car,
-        SettingsUiState(currentGaugeName, found, displaySettings?.rotation ?: savedGauge?.rotation,
-            found && ((capabilities?.displaySettingsVersion ?: 0) >= 1 || capabilities?.displayRotationWrite == true),
+        SettingsUiState(
+            currentGaugeName, found, displaySettings?.rotation ?: savedGauge?.rotation,
+            found &&
+                (
+                    (capabilities?.displaySettingsVersion ?: 0) >= 1 ||
+                        capabilities?.displayRotationWrite == true
+                    ),
             busy, prefs.advanced, prefs.dynamicColor, bootIdentity?.version ?: "Not checked", details,
             capabilities?.displaySettingsVersion ?: 0, displaySettings?.brightness, system, displaySettings?.cycleSeconds,
-            settingsReadCurrent(settingsObservedAtElapsedMs, nowElapsedMs, settingsCheckFailed) && freshConnection,
-            knownGauges.map { GaugeUi(it.id, it.name, profileCollection.profiles.firstOrNull { p -> p.id == it.vehicleId }?.name,
-                it.source, it.vehicleId != null && GaugeAssociations(it.id, listOf(it)).context(it.id, profileCollection) == null, it.bothAdapters)
-            }, rememberedGaugeId),
-        ExpertUiState(found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
+            settingsReadCurrent(settingsObservedAtElapsedMs, nowElapsedMs, settingsCheckFailed) &&
+                freshConnection,
+            knownGauges.map {
+                GaugeUi(
+                    it.id,
+                    it.name,
+                    profileCollection.profiles.firstOrNull { p ->
+                        p.id ==
+                            it.vehicleId
+                    }?.name,
+                    it.source,
+                    it.vehicleId != null &&
+                        GaugeAssociations(it.id, listOf(it)).context(it.id, profileCollection) ==
+                        null,
+                    it.bothAdapters
+                )
+            },
+            rememberedGaugeId
+        ),
+        ExpertUiState(
+            found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
             canAdoptGaugeDraft, details, profileCollection.active.name, "ECM",
-            profileCollection.active.primaryAdapter != null, profileCollection.active.transmission != null,
+            profileCollection.active.primaryAdapter != null,
+            profileCollection.active.transmission != null,
             !busy && profileError == null, adapterCandidates,
             capabilities?.adapterRegistryVersion == 1 && freshConnection && !busy,
-            adapterMessage, if (profileCollection.active.draft.source == "TCM") profileCollection.profiles.filter {
-                it.draft.source == "ECM" && it.primaryAdapter != null && it.transmission == null &&
-                    (it.primaryAdapter == profileCollection.active.primaryAdapter || !samePhysicalAdapter(it.primaryAdapter, profileCollection.active.primaryAdapter))
-            }.map { VehicleUi(it.id, it.name) } else emptyList(), bothAdapters,
-            !busy && freshConnection && capabilities?.dualAdapterVersion == 1 && capabilities?.vehicleDashboardVersion == 1 && runCatching { profileCollection.active.combinedDraft() }.isSuccess,
+            adapterMessage,
+            if (profileCollection.active.draft.source ==
+                "TCM"
+            ) {
+                profileCollection.profiles.filter {
+                    it.draft.source == "ECM" && it.primaryAdapter != null && it.transmission == null &&
+                        (
+                            it.primaryAdapter == profileCollection.active.primaryAdapter ||
+                                !samePhysicalAdapter(
+                                    it.primaryAdapter,
+                                    profileCollection.active.primaryAdapter
+                                )
+                            )
+                }.map { VehicleUi(it.id, it.name) }
+            } else {
+                emptyList()
+            },
+            bothAdapters,
+            !busy && freshConnection && capabilities?.dualAdapterVersion == 1 &&
+                capabilities?.vehicleDashboardVersion == 1 &&
+                runCatching { profileCollection.active.combinedDraft() }.isSuccess,
             vehicleId = profileCollection.activeId, primaryAdapter = profileCollection.active.primaryAdapter,
             secondAdapter = profileCollection.active.transmission?.adapter,
-            secondAdapterSetupIssue = secondAdapterSetupIssue(profileCollection.active.primaryAdapter,
-                profileCollection.active.transmission?.adapter, freshConnection,
-                capabilities?.dualAdapterVersion == 1 && capabilities?.vehicleDashboardVersion == 1),
+            secondAdapterSetupIssue = secondAdapterSetupIssue(
+                profileCollection.active.primaryAdapter,
+                profileCollection.active.transmission?.adapter,
+                freshConnection,
+                capabilities?.dualAdapterVersion == 1 && capabilities?.vehicleDashboardVersion == 1
+            ),
             canShowcase = found && !busy && capabilities?.displayShowcaseVersion == 1,
             showcaseActive = displayShowcase?.active == true,
             diagnosticFilters = editorDraft.diagnosticFilters,
-            rawFaultSources = carState(nowElapsedMs,busy,details,true).faultSources,
+            rawFaultSources = carState(nowElapsedMs, busy, details, true).faultSources,
             adapterDiscoveryBlocker = when {
                 !freshConnection -> "Discovery starts automatically when the gauge reconnects."
                 capabilities?.adapterRegistryVersion != 1 -> "Update the gauge to discover adapters."
                 busy -> "Waiting for the current gauge operation to finish."
                 else -> null
-            }),
-        SetupUiState(found || androidBonded, ownerAccess, busy || connection.phase in setOf(ConnectionPhase.Searching, ConnectionPhase.Checking), gaugeCandidates.mapIndexed { index, candidate ->
-            val shortId = candidate.id.filter(Char::isLetterOrDigit).takeLast(6).uppercase()
-            val visibleName = candidate.name.removeSuffix("-$shortId").ifBlank { "Gauge ${index + 1}" }
-            CandidateUi(candidate.id, visibleName, shortId, listOf(
-                DetailUi("Gauge identifier", candidate.id), DetailUi("Signal", "${candidate.signalDbm} dBm")))
-        }, if (presentationError != null) friendlyFailure(presentationError) else if (op.needsCheck || op.busy) op.status
-            else if (connection.phase != ConnectionPhase.Idle) connectionStatus(connection, nowElapsedMs)
-            else StatusUi(if (ownerAccess == OwnerAccess.AUTHENTICATED) "Your phone is paired" else if (found) "Gauge found" else "Ready to find your gauge",
-                if (ownerAccess == OwnerAccess.AUTHENTICATED) "Your gauge confirmed access." else "Keep your gauge powered and nearby."), details,
-            pairingWindowForUi(nowElapsedMs), androidBonded),
-        UpdatesUiState(updateStatus, hostedUpdate?.release?.version, bootIdentity?.version ?: "Not checked",
-            found && !busy, updateReady && found && !busy && capabilities?.experimentalNumericConfig == true &&
-                updateRecovery?.state !in setOf(UpdateRecoveryState.CHECK_REQUIRED, UpdateRecoveryState.WAITING_FOR_CONFIRMATION),
+            }
+        ),
+        SetupUiState(
+            found || androidBonded,
+            ownerAccess,
+            busy || connection.phase in setOf(ConnectionPhase.Searching, ConnectionPhase.Checking),
+            gaugeCandidates.mapIndexed {
+                    index,
+                    candidate
+                ->
+                val shortId = candidate.id.filter(Char::isLetterOrDigit).takeLast(6).uppercase()
+                val visibleName = candidate.name.removeSuffix("-$shortId").ifBlank {
+                    "Gauge ${index + 1}"
+                }
+                CandidateUi(
+                    candidate.id,
+                    visibleName,
+                    shortId,
+                    listOf(
+                        DetailUi("Gauge identifier", candidate.id),
+                        DetailUi("Signal", "${candidate.signalDbm} dBm")
+                    )
+                )
+            },
+            if (presentationError !=
+                null
+            ) {
+                friendlyFailure(presentationError)
+            } else if (op.needsCheck || op.busy) {
+                op.status
+            } else if (connection.phase !=
+                ConnectionPhase.Idle
+            ) {
+                connectionStatus(connection, nowElapsedMs)
+            } else {
+                StatusUi(
+                    if (ownerAccess ==
+                        OwnerAccess.AUTHENTICATED
+                    ) {
+                        "Your phone is paired"
+                    } else if (found) {
+                        "Gauge found"
+                    } else {
+                        "Ready to find your gauge"
+                    },
+                    if (ownerAccess ==
+                        OwnerAccess.AUTHENTICATED
+                    ) {
+                        "Your gauge confirmed access."
+                    } else {
+                        "Keep your gauge powered and nearby."
+                    }
+                )
+            },
+            details,
+            pairingWindowForUi(nowElapsedMs),
+            androidBonded
+        ),
+        UpdatesUiState(
+            updateStatus, hostedUpdate?.release?.version,
+            bootIdentity?.version ?: "Not checked",
+            found && !busy,
+            updateReady && found && !busy && capabilities?.experimentalNumericConfig == true &&
+                updateRecovery?.state !in
+                setOf(
+                    UpdateRecoveryState.CHECK_REQUIRED,
+                    UpdateRecoveryState.WAITING_FOR_CONFIRMATION
+                ),
             updateReady, busy,
-            updateRecovery?.state in setOf(UpdateRecoveryState.CHECK_REQUIRED, UpdateRecoveryState.WAITING_FOR_CONFIRMATION), details,
+            updateRecovery?.state in
+                setOf(
+                    UpdateRecoveryState.CHECK_REQUIRED,
+                    UpdateRecoveryState.WAITING_FOR_CONFIRMATION
+                ),
+            details,
             updatePreparation == "held",
-            updatePreparation == "failed" && hostedUpdateMessage == HOSTED_RELEASE_FEED_UNAVAILABLE),
+            updatePreparation == "failed" && hostedUpdateMessage == HOSTED_RELEASE_FEED_UNAVAILABLE
+        ),
         op,
-        if (gaugeAssociationError != null) StatusUi("Your saved gauges need attention",
-            "Connection is paused to protect your saved associations. Review in Expert.", StatusTone.Error)
-        else if (profileError != null) StatusUi("Your saved profiles need attention",
-            "Editing is paused to protect your settings. Review the problem in Expert > Device data.", StatusTone.Error)
-        else presentationError?.let { friendlyFailure(it) }
-            ?: null,
-        connection,
+        if (gaugeAssociationError != null) {
+            StatusUi(
+                "Your saved gauges need attention",
+                "Connection is paused to protect your saved associations. Review in Expert.",
+                StatusTone.Error
+            )
+        } else if (profileError != null) {
+            StatusUi(
+                "Your saved profiles need attention",
+                "Editing is paused to protect your settings. Review the problem in Expert > Device data.",
+                StatusTone.Error
+            )
+        } else {
+            presentationError?.let { friendlyFailure(it) }
+                ?: null
+        },
+        connection
     )
 }
 
-private fun AppViewModel.carState(now: Long, busy: Boolean, details: List<DetailUi>, showFiltered: Boolean = false): CarUiState {
-    val data = diagnostics?.takeIf { it.source == draft.source &&
-        (it.revision == null || (activeDocument?.vehicleProfileId == profileCollection.activeId &&
-            it.revision == activeDocument?.revision)) }
+private fun AppViewModel.carState(
+    now: Long,
+    busy: Boolean,
+    details: List<DetailUi>,
+    showFiltered: Boolean = false
+): CarUiState {
+    val data = diagnostics?.takeIf {
+        it.source == draft.source &&
+            (
+                it.revision == null || (
+                    activeDocument?.vehicleProfileId == profileCollection.activeId &&
+                        it.revision == activeDocument?.revision
+                    )
+                )
+    }
     val elapsed = diagnosticsObservedAtElapsedMs?.let { now - it } ?: Long.MAX_VALUE
     val sources = (vehicleSources + diagnosticsBySource.keys).distinct().flatMap { source ->
         val snapshot = diagnosticsBySource[source] ?: data?.takeIf { it.source == source }
-        val age = diagnosticsCheckedAt[source]?.let { now-it } ?: elapsed
-        diagnosticSources(snapshot?.takeIf { it.revision == activeDocument?.revision || it.revision == null }, age, source, effectiveDiagnosticFilters(), showFiltered)
+        val age = diagnosticsCheckedAt[source]?.let { now - it } ?: elapsed
+        diagnosticSources(
+            snapshot?.takeIf {
+                it.revision == activeDocument?.revision ||
+                    it.revision == null
+            },
+            age,
+            source,
+            effectiveDiagnosticFilters(),
+            showFiltered
+        )
             .filter { it.title == if (source == "TCM") "Transmission" else "Engine" }
     }
     val links = vehicleSources.map { source ->
-        val adapter = if (source == "ECM") profileCollection.active.primaryAdapter else profileCollection.active.transmission?.adapter ?: profileCollection.active.primaryAdapter
-        ConnectionLinkUi("${profileCollection.activeId}:$source", "${if (source == "TCM") "Transmission" else "Engine"} adapter",
-            vehicleConnectionStatus(adapterStatuses[source] ?: adapterSourceStatus?.takeIf { it.sourceId.equals(source, true) },
-                (adapterCheckedAt[source] ?: adapterStatusCheckedAt)?.let { now-it }, profileCollection.activeId,
-                configuredSourceId(activeDocument, source) ?: "", adapter != null,
-                vehicleSetupMatches(activeDocument, profileCollection.activeId, source, adapter), source in vehicleFailures))
+        val adapter = if (source ==
+            "ECM"
+        ) {
+            profileCollection.active.primaryAdapter
+        } else {
+            profileCollection.active.transmission?.adapter
+                ?: profileCollection.active.primaryAdapter
+        }
+        ConnectionLinkUi(
+            "${profileCollection.activeId}:$source",
+            "${if (source == "TCM") "Transmission" else "Engine"} adapter",
+            vehicleConnectionStatus(
+                adapterStatuses[source]
+                    ?: adapterSourceStatus?.takeIf { it.sourceId.equals(source, true) },
+                (adapterCheckedAt[source] ?: adapterStatusCheckedAt)?.let {
+                    now - it
+                },
+                profileCollection.activeId,
+                configuredSourceId(activeDocument, source) ?: "",
+                adapter != null,
+                vehicleSetupMatches(activeDocument, profileCollection.activeId, source, adapter),
+                source in vehicleFailures
+            )
+        )
     }
     val status = vehicleFaultStatus(sources)
     val faults = sources.flatMap { it.categories.flatMap { category -> category.faults } }
-    return CarUiState(profileCollection.active.name, profileCollection.profiles.map { VehicleUi(it.id, it.name) },
-        profileCollection.activeId, status, faults, !busy && capabilities?.experimentalNumericConfig == true,
-        sources.any { source -> source.categories.any { category -> category.incomplete } }, profileError != null, details,
+    return CarUiState(
+        profileCollection.active.name,
+        profileCollection.profiles.map {
+            VehicleUi(it.id, it.name)
+        },
+        profileCollection.activeId, status, faults,
+        !busy && capabilities?.experimentalNumericConfig == true,
+        sources.any { source -> source.categories.any { category -> category.incomplete } },
+        profileError != null, details,
         faultSources = sources, connectionLinks = links,
-        connectionStatus = links.firstOrNull { it.status.tone != StatusTone.Success }?.status ?: links.first().status,
-        setupNeeded = !sameSettings(sentDraft, transmittedDraft) || vehicleSources.any { !vehicleSetupMatches(activeDocument, profileCollection.activeId, it, profileCollection.active.adapterFor(it)) },
-        adapterAvailable = capabilities?.adapterRegistryVersion == 1 && !busy && connection.fresh(now),
-        adapterSelected = profileCollection.active.primaryAdapter?.let { "${if (it.driver == "elm-bench-v1") "Bench simulator" else "Vehicle adapter"} · ${it.address.takeLast(5)}" },
-        adapterMessage = if (adapterSourceStatus != null && (adapterStatusCheckedAt == null ||
-            now - adapterStatusCheckedAt!! > 15_000)) "Last checked connection. Rechecking automatically."
-        else adapterMessage ?: if (activeDocument?.vehicleProfileId != profileCollection.activeId)
-            "This car's setup has not been confirmed on the gauge."
-        else runCatching {
-            val savedSources = org.json.JSONObject(activeDocument!!.json).getJSONArray("sources")
-            val saved = (0 until savedSources.length()).map { savedSources.getJSONObject(it) }
-                .firstOrNull()?.optJSONObject("adapter")
-            if (saved == null && profileCollection.active.primaryAdapter == null)
-                "No adapter selected on the gauge. Find your adapter when it is powered."
-            else if (saved?.optString("id") == profileCollection.active.primaryAdapter?.id && saved != null)
-                "Adapter saved on gauge."
-            else "Adapter selection differs from the gauge. Send setup to use this selection."
-        }.getOrDefault("Waiting for the gauge to confirm its adapter."),
+        connectionStatus =
+            links.firstOrNull { it.status.tone != StatusTone.Success }?.status
+                ?: links.first().status,
+        setupNeeded =
+            !sameSettings(sentDraft, transmittedDraft) ||
+                vehicleSources.any {
+                    !vehicleSetupMatches(
+                        activeDocument,
+                        profileCollection.activeId,
+                        it,
+                        profileCollection.active.adapterFor(it)
+                    )
+                },
+        adapterAvailable =
+            capabilities?.adapterRegistryVersion == 1 && !busy && connection.fresh(now),
+        adapterSelected = profileCollection.active.primaryAdapter?.let {
+            "${if (it.driver == "elm-bench-v1") "Bench simulator" else "Vehicle adapter"} · ${it.address.takeLast(
+                5
+            )}"
+        },
+        adapterMessage = if (adapterSourceStatus != null &&
+            (
+                adapterStatusCheckedAt == null ||
+                    now - adapterStatusCheckedAt!! > 15_000
+                )
+        ) {
+            "Last checked connection. Rechecking automatically."
+        } else {
+            adapterMessage ?: if (activeDocument?.vehicleProfileId != profileCollection.activeId) {
+                "This car's setup has not been confirmed on the gauge."
+            } else {
+                runCatching {
+                    val savedSources = org.json.JSONObject(
+                        activeDocument!!.json
+                    ).getJSONArray("sources")
+                    val saved = (0 until savedSources.length()).map {
+                        savedSources.getJSONObject(it)
+                    }
+                        .firstOrNull()?.optJSONObject("adapter")
+                    if (saved == null && profileCollection.active.primaryAdapter == null) {
+                        "No adapter selected on the gauge. Find your adapter when it is powered."
+                    } else if (saved?.optString(
+                            "id"
+                        ) == profileCollection.active.primaryAdapter?.id &&
+                        saved != null
+                    ) {
+                        "Adapter saved on gauge."
+                    } else {
+                        "Adapter selection differs from the gauge. Send setup to use this selection."
+                    }
+                }.getOrDefault("Waiting for the gauge to confirm its adapter.")
+            }
+        },
         adapterCandidates = adapterCandidates,
-        canSendAdapter = !busy && connection.fresh(now) && profileError == null && capabilities?.adapterRegistryVersion == 1 &&
-            activeConfigRevision != null && verifiedConfigHash != null && ConfigurationProjector.blockers(transmittedDraft).isEmpty() && (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) && (!bothAdapters || capabilities?.dualAdapterVersion == 1) &&
-            (!requiresVehicleDashboardFirmware(transmittedDraft, bothAdapters) || capabilities?.vehicleDashboardVersion == 1),
-        actionPages = editorDraft.pages, actions = editorDraft.actions, canEditActions = !busy && profileError == null,
-        actionsSupported = capabilities?.pageActionsVersion == 1, canManageVehicles = canManageVehicles, gaugeKnown = rememberedGaugeId != null)
+        canSendAdapter =
+            !busy && connection.fresh(now) && profileError == null &&
+                capabilities?.adapterRegistryVersion == 1 &&
+                activeConfigRevision != null && verifiedConfigHash != null &&
+                ConfigurationProjector.blockers(transmittedDraft).isEmpty() &&
+                (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) &&
+                (!bothAdapters || capabilities?.dualAdapterVersion == 1) &&
+                (
+                    !requiresVehicleDashboardFirmware(transmittedDraft, bothAdapters) ||
+                        capabilities?.vehicleDashboardVersion == 1
+                    ),
+        actionPages = editorDraft.pages, actions = editorDraft.actions,
+        canEditActions =
+            !busy && profileError == null,
+        actionsSupported = capabilities?.pageActionsVersion == 1, canManageVehicles = canManageVehicles,
+        gaugeKnown =
+            rememberedGaugeId != null
+    )
 }
 
 fun faultDescription(code: String): String = when (code) {

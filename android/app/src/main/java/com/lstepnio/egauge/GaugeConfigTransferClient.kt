@@ -13,24 +13,23 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
-import org.json.JSONObject
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONObject
 
 // Bluetooth ATT error 0x11, not exposed as a BluetoothGatt constant.
 private const val ATT_INSUFFICIENT_RESOURCES = 0x11
 
 internal open class GaugeLinkException(message: String) : IllegalStateException(message)
-internal class GaugeCommandRejectedException(val status: Int) :
-    GaugeLinkException("Protected write failed (GATT $status)")
+internal class GaugeCommandRejectedException(val status: Int) : GaugeLinkException("Protected write failed (GATT $status)")
 
 enum class FirmwareUpdateStage {
     PREPARING,
@@ -40,7 +39,7 @@ enum class FirmwareUpdateStage {
     VERIFYING,
     READY_TO_ACTIVATE,
     RESTARTING,
-    CONFIRMING,
+    CONFIRMING
 }
 
 /** Experimental protocol-0 authenticated gauge transactions. */
@@ -50,60 +49,135 @@ class GaugeConfigTransferClient(private val context: Context) {
     private val controlId = UUID.fromString("6f1a0002-9e3b-4f45-a714-69c9d23b6c00")
     private val stateId = UUID.fromString("6f1a0003-9e3b-4f45-a714-69c9d23b6c00")
     private sealed interface Event {
-        data class Ready(val mtu: Int, val control: BluetoothGattCharacteristic, val state: BluetoothGattCharacteristic) : Event
+        data class Ready(
+            val mtu: Int,
+            val control: BluetoothGattCharacteristic,
+            val state: BluetoothGattCharacteristic
+        ) : Event
         data class Read(val bytes: ByteArray, val status: Int) : Event
         data class Write(val status: Int) : Event
         data class Failed(val reason: String) : Event
     }
     data class Applied(val revision: Long, val sha256: String, val runtime: RuntimeIdentity)
-    data class ActiveStatus(val revision: Long, val sha256: String, val transferPhase: Int,
-                            val lastResult: Int)
-    data class ActiveDocument(val revision: Long, val sha256: String, val length: Int,
-                              val vehicleProfileId: String, val definitionCount: Int,
-                              val pageCount: Int, val alertCount: Int, val json: String)
-    data class Diagnostics(val milFresh: Boolean, val milOn: Boolean, val reportedCount: Int,
-                           val confirmedFresh: Boolean, val confirmedCount: Int, val confirmedFirst: String?,
-                           val pendingFresh: Boolean, val pendingCount: Int, val pendingFirst: String?,
-                           val permanentFresh: Boolean, val permanentCount: Int, val permanentFirst: String?,
-                           val source: String = "ECM", val responder: Int = 0x7e8,
-                           val revision: Long? = null, val session: Long? = null,
-                           val connected: Boolean = true, val simulated: Boolean = false,
-                           val milKnown: Boolean = milFresh,
-                           val milAvailability: DiagnosticAvailability = if (milFresh) DiagnosticAvailability.Available else DiagnosticAvailability.NotChecked,
-                           val milAgeMs: Long? = null, val categories: List<DiagnosticCategory>? = null)
-    data class BootIdentity(val otaState: Int, val partitionSubtype: Int, val secureVersion: Long,
-                            val elfSha256: String, val version: String, val partitionAddress: Long)
-    data class RuntimeIdentity(val running: Boolean, val usedPreviousGeneration: Boolean,
-                               val trial: Boolean, val revision: Long, val storedRevision: Long,
-                               val sha256: String)
-    data class HardwareSnapshot(val chipModel: Int, val cores: Int, val chipRevision: Int,
-                                val cpuMhz: Int, val resetReason: Int, val wifiMode: Int,
-                                val declaredFeatures: Long, val initializedFeatures: Long,
-                                val flashBytes: Long, val internalTotalBytes: Long,
-                                val internalFreeBytes: Long, val internalMinimumFreeBytes: Long,
-                                val internalLargestBlockBytes: Long, val psramTotalBytes: Long,
-                                val psramFreeBytes: Long, val psramMinimumFreeBytes: Long,
-                                val uptimeSeconds: Long)
-    data class DisplaySettings(val rotation: Int, val brightness: Int, val revision: Long,
-                               val units: MeasurementSystem = MeasurementSystem.Metric,
-                               val version: Int = 1, val cycleSeconds: Int = 0)
+    data class ActiveStatus(
+        val revision: Long,
+        val sha256: String,
+        val transferPhase: Int,
+        val lastResult: Int
+    )
+    data class ActiveDocument(
+        val revision: Long,
+        val sha256: String,
+        val length: Int,
+        val vehicleProfileId: String,
+        val definitionCount: Int,
+        val pageCount: Int,
+        val alertCount: Int,
+        val json: String
+    )
+    data class Diagnostics(
+        val milFresh: Boolean,
+        val milOn: Boolean,
+        val reportedCount: Int,
+        val confirmedFresh: Boolean,
+        val confirmedCount: Int,
+        val confirmedFirst: String?,
+        val pendingFresh: Boolean,
+        val pendingCount: Int,
+        val pendingFirst: String?,
+        val permanentFresh: Boolean,
+        val permanentCount: Int,
+        val permanentFirst: String?,
+        val source: String = "ECM",
+        val responder: Int = 0x7e8,
+        val revision: Long? = null,
+        val session: Long? = null,
+        val connected: Boolean = true,
+        val simulated: Boolean = false,
+        val milKnown: Boolean = milFresh,
+        val milAvailability: DiagnosticAvailability = if (milFresh) DiagnosticAvailability.Available else DiagnosticAvailability.NotChecked,
+        val milAgeMs: Long? = null,
+        val categories: List<DiagnosticCategory>? = null
+    )
+    data class BootIdentity(
+        val otaState: Int,
+        val partitionSubtype: Int,
+        val secureVersion: Long,
+        val elfSha256: String,
+        val version: String,
+        val partitionAddress: Long
+    )
+    data class RuntimeIdentity(
+        val running: Boolean,
+        val usedPreviousGeneration: Boolean,
+        val trial: Boolean,
+        val revision: Long,
+        val storedRevision: Long,
+        val sha256: String
+    )
+    data class HardwareSnapshot(
+        val chipModel: Int,
+        val cores: Int,
+        val chipRevision: Int,
+        val cpuMhz: Int,
+        val resetReason: Int,
+        val wifiMode: Int,
+        val declaredFeatures: Long,
+        val initializedFeatures: Long,
+        val flashBytes: Long,
+        val internalTotalBytes: Long,
+        val internalFreeBytes: Long,
+        val internalMinimumFreeBytes: Long,
+        val internalLargestBlockBytes: Long,
+        val psramTotalBytes: Long,
+        val psramFreeBytes: Long,
+        val psramMinimumFreeBytes: Long,
+        val uptimeSeconds: Long
+    )
+    data class DisplaySettings(
+        val rotation: Int,
+        val brightness: Int,
+        val revision: Long,
+        val units: MeasurementSystem = MeasurementSystem.Metric,
+        val version: Int = 1,
+        val cycleSeconds: Int = 0
+    )
     data class UpdateResult(val running: BootIdentity)
-    private data class Status(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
-                              val transferId: Long, val accepted: Long, val revision: Long, val hash: ByteArray)
-    private data class OtaStatus(val phase: Int, val result: Int, val opcode: Int, val sequence: Long,
-                                 val transferId: Long, val accepted: Long, val total: Long,
-                                 val digest: ByteArray)
+    private data class Status(
+        val phase: Int,
+        val result: Int,
+        val opcode: Int,
+        val sequence: Long,
+        val transferId: Long,
+        val accepted: Long,
+        val revision: Long,
+        val hash: ByteArray
+    )
+    private data class OtaStatus(
+        val phase: Int,
+        val result: Int,
+        val opcode: Int,
+        val sequence: Long,
+        val transferId: Long,
+        val accepted: Long,
+        val total: Long,
+        val digest: ByteArray
+    )
 
     @SuppressLint("MissingPermission")
-    private suspend fun <T> withGauge(device: BluetoothDevice, operationTimeoutMs: Long = 240_000,
-                                      highThroughput: Boolean = false,
-                                      action: suspend Session.() -> T): T {
+    private suspend fun <T> withGauge(
+        device: BluetoothDevice,
+        operationTimeoutMs: Long = 240_000,
+        highThroughput: Boolean = false,
+        action: suspend Session.() -> T
+    ): T {
         val events = Channel<Event>(16)
         val closing = AtomicBoolean(false)
         val disconnected = CompletableDeferred<Unit>()
         fun emit(event: Event) {
-            if (!closing.get() && events.trySend(event).isFailure)
+            if (!closing.get() && events.trySend(event).isFailure) {
                 events.close(GaugeLinkException("Gauge event queue overflowed"))
+            }
         }
         var requestedMtu = 23
         val readySent = AtomicBoolean(false)
@@ -115,10 +189,13 @@ class GaugeConfigTransferClient(private val context: Context) {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 if (newState == BluetoothProfile.STATE_DISCONNECTED) disconnected.complete(Unit)
                 if (closing.get()) return
-                if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED)
+                if (status != BluetoothGatt.GATT_SUCCESS ||
+                    newState == BluetoothProfile.STATE_DISCONNECTED
+                ) {
                     emit(Event.Failed("Gauge disconnected during configuration ($status)"))
-                else if (newState == BluetoothProfile.STATE_CONNECTED)
+                } else if (newState == BluetoothProfile.STATE_CONNECTED) {
                     discovery.connect(gatt)
+                }
             }
             override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
                 if (closing.get()) return
@@ -127,8 +204,9 @@ class GaugeConfigTransferClient(private val context: Context) {
             }
             override fun onServiceChanged(gatt: BluetoothGatt) {
                 if (closing.get()) return
-                if (readyPublished.get()) emit(Event.Failed("Gauge services changed. Reconnect to reload its settings."))
-                else {
+                if (readyPublished.get()) {
+                    emit(Event.Failed("Gauge services changed. Reconnect to reload its settings."))
+                } else {
                     discoveryGeneration.incrementAndGet()
                     handshakeHandler.removeCallbacksAndMessages(null)
                     readySent.set(false)
@@ -138,29 +216,55 @@ class GaugeConfigTransferClient(private val context: Context) {
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
                 if (closing.get()) return
                 if (!readySent.compareAndSet(false, true)) return
-                val service = if (status == BluetoothGatt.GATT_SUCCESS) gatt.getService(serviceId) else null
+                val service = if (status ==
+                    BluetoothGatt.GATT_SUCCESS
+                ) {
+                    gatt.getService(serviceId)
+                } else {
+                    null
+                }
                 val control = service?.getCharacteristic(controlId)
                 val state = service?.getCharacteristic(stateId)
-                if (control == null || state == null) emit(Event.Failed("Gauge transfer service is unavailable"))
-                else {
+                if (control == null ||
+                    state == null
+                ) {
+                    emit(Event.Failed("Gauge transfer service is unavailable"))
+                } else {
                     // Cache invalidation can follow discovery success. Only publish the latest database.
                     val generation = discoveryGeneration.get()
                     handshakeHandler.postDelayed({
-                        if (discoveryGeneration.get() == generation && readyPublished.compareAndSet(false, true))
+                        if (discoveryGeneration.get() == generation &&
+                            readyPublished.compareAndSet(false, true)
+                        ) {
                             emit(Event.Ready(requestedMtu, control, state))
+                        }
                     }, 750)
                 }
             }
+
             @Deprecated("Required for Android 10 through 12")
-            override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-                if (Build.VERSION.SDK_INT < 33 && characteristic.uuid == stateId)
+            override fun onCharacteristicRead(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                status: Int
+            ) {
+                if (Build.VERSION.SDK_INT < 33 && characteristic.uuid == stateId) {
                     emit(Event.Read(characteristic.value.copyOf(), status))
+                }
             }
-            override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic,
-                                              value: ByteArray, status: Int) {
+            override fun onCharacteristicRead(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                value: ByteArray,
+                status: Int
+            ) {
                 if (characteristic.uuid == stateId) emit(Event.Read(value.copyOf(), status))
             }
-            override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+            override fun onCharacteristicWrite(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                status: Int
+            ) {
                 if (characteristic.uuid == controlId) emit(Event.Write(status))
             }
         }
@@ -172,46 +276,73 @@ class GaugeConfigTransferClient(private val context: Context) {
             require(ready is Event.Ready)
             // Recovery OTA exchanges thousands of acknowledged packets. Ask Android
             // for faster connection timing; refusal never blocks the protected path.
-            if (highThroughput) gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
+            if (highThroughput) {
+                gatt.requestConnectionPriority(
+                    BluetoothGatt.CONNECTION_PRIORITY_HIGH
+                )
+            }
             withTimeout(operationTimeoutMs) {
                 val session = Session(gatt, events, ready.mtu, ready.control, ready.state)
                 session.establishOwner()
                 session.action()
             }
         } catch (failure: Exception) {
-            if (BuildConfig.DEBUG) Log.w("eGaugeLink", "Protected session failed (${failure.javaClass.simpleName}): ${failure.message}")
+            if (BuildConfig.DEBUG) {
+                Log.w(
+                    "eGaugeLink",
+                    "Protected session failed (${failure.javaClass.simpleName}): ${failure.message}"
+                )
+            }
             throw failure
         } finally {
             closing.set(true)
             handshakeHandler.removeCallbacksAndMessages(null)
             discovery.close()
-            if (highThroughput) gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_BALANCED)
+            if (highThroughput) {
+                gatt.requestConnectionPriority(
+                    BluetoothGatt.CONNECTION_PRIORITY_BALANCED
+                )
+            }
             try {
-                val confirmed = closeGattSession({ gatt.disconnect() }, { disconnected.await() }, { gatt.close() })
-                if (!confirmed && BuildConfig.DEBUG) Log.w("eGaugeLink", "GATT disconnect callback missed cleanup deadline")
+                val confirmed =
+                    closeGattSession({
+                        gatt.disconnect()
+                    }, { disconnected.await() }, { gatt.close() })
+                if (!confirmed &&
+                    BuildConfig.DEBUG
+                ) {
+                    Log.w("eGaugeLink", "GATT disconnect callback missed cleanup deadline")
+                }
             } finally {
                 events.close()
             }
         }
     }
 
-    private inner class Session(private val gatt: BluetoothGatt, private val events: Channel<Event>, val mtu: Int,
-                                private val control: BluetoothGattCharacteristic,
-                                private val state: BluetoothGattCharacteristic) {
+    private inner class Session(
+        private val gatt: BluetoothGatt,
+        private val events: Channel<Event>,
+        val mtu: Int,
+        private val control: BluetoothGattCharacteristic,
+        private val state: BluetoothGattCharacteristic
+    ) {
         private suspend fun next(): Event = withTimeout(12_000) { events.receive() }.also {
             if (it is Event.Failed) throw GaugeLinkException(it.reason)
         }
+
         @SuppressLint("MissingPermission")
         private suspend fun readEvent(): Event.Read {
             check(gatt.readCharacteristic(state)) { "Could not request transfer status" }
             val event = next()
-            require(event is Event.Read) { "Expected GATT read, received ${event.javaClass.simpleName}" }
+            require(event is Event.Read) {
+                "Expected GATT read, received ${event.javaClass.simpleName}"
+            }
             return event
         }
         suspend fun establishOwner() {
             establishProtectedOwner(
                 read = { readEvent().let { OwnerStateRead(it.status, it.bytes) } },
-                writeStatusReset = { writeRaw(it) },
+                writeStatusReset = { writeRaw(it) }
             )
         }
         suspend fun readRaw(): ByteArray {
@@ -221,23 +352,40 @@ class GaugeConfigTransferClient(private val context: Context) {
             repeat(4) { attempt ->
                 val event = readEvent()
                 if (event.status == BluetoothGatt.GATT_SUCCESS) return event.bytes
-                if (event.status != ATT_INSUFFICIENT_RESOURCES || attempt == 3)
+                if (event.status != ATT_INSUFFICIENT_RESOURCES || attempt == 3) {
                     throw GaugeLinkException("Protected read failed (GATT ${event.status})")
+                }
                 delay(100L * (attempt + 1))
             }
             error("Protected status read retry budget exhausted")
         }
         suspend fun read(): Status {
             val bytes = readRaw()
-            require(bytes.size == 64 && bytes[0].toInt() == 3) { "Gauge returned an unsupported status version" }
-            return Status(bytes[1].toInt() and 255, bytes[2].toInt() and 255, bytes[3].toInt() and 255,
-                u32(bytes, 4), u32(bytes, 8), u32(bytes, 12), u32(bytes, 20), bytes.copyOfRange(32, 64))
+            require(bytes.size == 64 && bytes[0].toInt() == 3) {
+                "Gauge returned an unsupported status version"
+            }
+            return Status(
+                bytes[1].toInt() and 255,
+                bytes[2].toInt() and 255,
+                bytes[3].toInt() and 255,
+                u32(bytes, 4),
+                u32(bytes, 8),
+                u32(bytes, 12),
+                u32(bytes, 20),
+                bytes.copyOfRange(32, 64)
+            )
         }
+
         @SuppressLint("MissingPermission")
         suspend fun writeRaw(bytes: ByteArray) {
-            val started = if (Build.VERSION.SDK_INT >= 33)
-                gatt.writeCharacteristic(control, bytes, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothStatusCodes.SUCCESS
-            else {
+            val started = if (Build.VERSION.SDK_INT >= 33) {
+                gatt.writeCharacteristic(
+                    control,
+                    bytes,
+                    BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                ) ==
+                    BluetoothStatusCodes.SUCCESS
+            } else {
                 @Suppress("DEPRECATION")
                 control.value = bytes
                 @Suppress("DEPRECATION")
@@ -245,28 +393,41 @@ class GaugeConfigTransferClient(private val context: Context) {
             }
             check(started) { "Could not queue protected gauge command" }
             val write = next()
-            if (write !is Event.Write) throw GaugeLinkException("Unexpected gauge response during write")
-            if (write.status != BluetoothGatt.GATT_SUCCESS)
+            if (write !is Event.Write) {
+                throw GaugeLinkException(
+                    "Unexpected gauge response during write"
+                )
+            }
+            if (write.status != BluetoothGatt.GATT_SUCCESS) {
                 throw GaugeCommandRejectedException(write.status)
+            }
         }
-        suspend fun command(opcode: Int, sequence: Long, payload: ByteArray = byteArrayOf()): Status {
+        suspend fun command(
+            opcode: Int,
+            sequence: Long,
+            payload: ByteArray = byteArrayOf()
+        ): Status {
             writeRaw(byteArrayOf(opcode.toByte()) + le32(sequence) + payload)
             if (opcode == 0x17) return read()
             repeat(80) {
                 val status = read()
                 if (status.sequence == sequence && status.opcode == opcode) {
-                    check(status.result == 0) { "Gauge configuration command $opcode failed (result ${status.result})" }
+                    check(status.result == 0) {
+                        "Gauge configuration command $opcode failed (result ${status.result})"
+                    }
                     return status
                 }
                 delay(75)
             }
             error("Gauge did not confirm configuration command $opcode")
         }
-        suspend fun readOta(): OtaStatus {
-            return otaStatus(readRaw())
-        }
-        suspend fun otaCommand(opcode: Int, sequence: Long, payload: ByteArray = byteArrayOf(),
-                               attempts: Int = 80): OtaStatus {
+        suspend fun readOta(): OtaStatus = otaStatus(readRaw())
+        suspend fun otaCommand(
+            opcode: Int,
+            sequence: Long,
+            payload: ByteArray = byteArrayOf(),
+            attempts: Int = 80
+        ): OtaStatus {
             writeRaw(byteArrayOf(opcode.toByte()) + le32(sequence) + payload)
             if (opcode == 0x27) return readOta()
             repeat(otaStatusPollCount(attempts)) { retry ->
@@ -284,30 +445,65 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
 
     /** Generates only the schema subset that config_runtime currently executes. */
-    private fun document(draft: Draft, profileId: String, baseRevision: Long, adapter: AdapterBinding?, schemaVersion: Int): ByteArray {
-        val template = context.assets.open("numeric_config_template.json").bufferedReader().use { it.readText() }
-        return ConfigurationProjector.project(template, draft, profileId, baseRevision, adapter, schemaVersion).second
+    private fun document(
+        draft: Draft,
+        profileId: String,
+        baseRevision: Long,
+        adapter: AdapterBinding?,
+        schemaVersion: Int
+    ): ByteArray {
+        val template = context.assets.open("numeric_config_template.json").bufferedReader().use {
+            it.readText()
+        }
+        return ConfigurationProjector.project(
+            template,
+            draft,
+            profileId,
+            baseRevision,
+            adapter,
+            schemaVersion
+        ).second
     }
 
-    suspend fun readAdapterStatus(device: BluetoothDevice, sourceIndex: Int? = null): AdapterSourceStatus {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+    suspend fun readAdapterStatus(
+        device: BluetoothDevice,
+        sourceIndex: Int? = null
+    ): AdapterSourceStatus {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         return withGauge(device) {
             require(sourceIndex == null || sourceIndex in 0..1)
-            writeRaw(if (sourceIndex == null) byteArrayOf(0x52) + le32(1) else byteArrayOf(0x53) + le32(1) + byteArrayOf(sourceIndex.toByte()))
+            writeRaw(
+                if (sourceIndex ==
+                    null
+                ) {
+                    byteArrayOf(0x52) + le32(1)
+                } else {
+                    byteArrayOf(0x53) + le32(1) +
+                        byteArrayOf(sourceIndex.toByte())
+                }
+            )
             decodeAdapterStatus(readRaw())
         }
     }
 
     suspend fun findAdapters(device: BluetoothDevice): List<AdapterCandidate> {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         val sequence = (SecureRandom().nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         return withGauge(device, 25_000) {
             writeRaw(byteArrayOf(0x50) + le32(sequence))
             repeat(40) {
                 val bytes = readRaw()
-                require(bytes.size == 140 && bytes[0].toInt() == 13) { "Gauge returned an unsupported adapter search" }
+                require(bytes.size == 140 && bytes[0].toInt() == 13) {
+                    "Gauge returned an unsupported adapter search"
+                }
                 if (u32(bytes, 4) == sequence && bytes[1].toInt() != 1) {
-                    check(bytes[1].toInt() == 2 && bytes[2].toInt() == 0) { "Adapter search was interrupted. Try again." }
+                    check(bytes[1].toInt() == 2 && bytes[2].toInt() == 0) {
+                        "Adapter search was interrupted. Try again."
+                    }
                     return@withGauge decodeAdapters(bytes)
                 }
                 delay(250)
@@ -317,15 +513,23 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
 
     suspend fun readActive(device: BluetoothDevice): ActiveStatus {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         val status = withGauge(device) { command(0x17, 1) }
-        return ActiveStatus(status.revision, status.hash.joinToString("") { "%02x".format(it) },
-            status.phase, status.result)
+        return ActiveStatus(
+            status.revision,
+            status.hash.joinToString("") { "%02x".format(it) },
+            status.phase,
+            status.result
+        )
     }
 
     /** Read only the currently committed document over the authenticated owner link. */
     suspend fun readActiveDocument(device: BluetoothDevice): ActiveDocument? {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         return withGauge(device, operationTimeoutMs = 600_000) {
             var offset = 0
             var revision = 0L
@@ -339,11 +543,15 @@ class GaugeConfigTransferClient(private val context: Context) {
                 }
                 val present = response[1].toInt() and 255
                 if (present == 0) {
-                    require(offset == 0 && response.size == 52) { "Gauge document disappeared during read" }
+                    require(offset == 0 && response.size == 52) {
+                        "Gauge document disappeared during read"
+                    }
                     return@withGauge null
                 }
-                require(present == 1 && response.sliceArray(2..3).all { it == 0.toByte() } &&
-                    response.sliceArray(17..19).all { it == 0.toByte() }) {
+                require(
+                    present == 1 && response.sliceArray(2..3).all { it == 0.toByte() } &&
+                        response.sliceArray(17..19).all { it == 0.toByte() }
+                ) {
                     "Gauge returned malformed document metadata"
                 }
                 val receivedRevision = u32(response, 4)
@@ -351,42 +559,70 @@ class GaugeConfigTransferClient(private val context: Context) {
                 val receivedOffset = u32(response, 12)
                 val count = response[16].toInt() and 255
                 val receivedDigest = response.copyOfRange(20, 52)
-                require(receivedRevision > 0 && length in 1..65536 && receivedOffset == offset.toLong() &&
-                    count in 1..128 && count <= length - offset && response.size == 52 + count) {
+                require(
+                    receivedRevision > 0 && length in 1..65536 && receivedOffset == offset.toLong() &&
+                        count in 1..128 && count <= length - offset && response.size == 52 + count
+                ) {
                     "Gauge returned an invalid document range"
                 }
                 if (document == null) {
                     revision = receivedRevision
                     digest = receivedDigest
                     document = ByteArray(length.toInt())
-                } else require(receivedRevision == revision && document.size == length.toInt() &&
-                    receivedDigest.contentEquals(requireNotNull(digest))) {
-                    "Gauge configuration changed during read"
+                } else {
+                    require(
+                        receivedRevision == revision && document.size == length.toInt() &&
+                            receivedDigest.contentEquals(requireNotNull(digest))
+                    ) {
+                        "Gauge configuration changed during read"
+                    }
                 }
                 response.copyInto(requireNotNull(document), offset, 52, 52 + count)
                 offset += count
             } while (offset < requireNotNull(document).size)
             val bytes = requireNotNull(document)
             val hash = MessageDigest.getInstance("SHA-256").digest(bytes)
-            check(hash.contentEquals(requireNotNull(digest))) { "Gauge document failed SHA-256 readback" }
+            check(hash.contentEquals(requireNotNull(digest))) {
+                "Gauge document failed SHA-256 readback"
+            }
             val jsonText = bytes.toString(Charsets.UTF_8)
             val json = JSONObject(jsonText)
-            require(json.getInt("schemaVersion") in 1..2 &&
-                json.getLong("baseRevision") == revision - 1) {
+            require(
+                json.getInt("schemaVersion") in 1..2 &&
+                    json.getLong("baseRevision") == revision - 1
+            ) {
                 "Gauge returned an unsupported document schema"
             }
-            ActiveDocument(revision, hash.joinToString("") { "%02x".format(it) }, bytes.size,
-                json.getString("vehicleProfileId"), json.getJSONArray("definitions").length(),
-                json.getJSONArray("pages").length(), json.getJSONArray("alerts").length(), jsonText)
+            ActiveDocument(
+                revision,
+                hash.joinToString("") { "%02x".format(it) },
+                bytes.size,
+                json.getString("vehicleProfileId"),
+                json.getJSONArray("definitions").length(),
+                json.getJSONArray("pages").length(),
+                json.getJSONArray("alerts").length(),
+                jsonText
+            )
         }
     }
 
     suspend fun readDiagnostics(device: BluetoothDevice, sourceIndex: Int? = null): Diagnostics {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         val bytes = withGauge(device) {
             try {
                 require(sourceIndex == null || sourceIndex in 0..1)
-                writeRaw(if (sourceIndex == null) byteArrayOf(0x39) + le32(1) else byteArrayOf(0x3a) + le32(1) + byteArrayOf(sourceIndex.toByte()))
+                writeRaw(
+                    if (sourceIndex ==
+                        null
+                    ) {
+                        byteArrayOf(0x39) + le32(1)
+                    } else {
+                        byteArrayOf(0x3a) + le32(1) +
+                            byteArrayOf(sourceIndex.toByte())
+                    }
+                )
             } catch (error: GaugeCommandRejectedException) {
                 // Only explicit unsupported opcode/length permits legacy fallback.
                 // Link loss, auth failure and malformed snapshots are never downgraded.
@@ -398,13 +634,20 @@ class GaugeConfigTransferClient(private val context: Context) {
         return GaugeProtocolCodec.diagnostics(bytes)
     }
 
-    data class ClearStatus(val phase: Int,val supported: Boolean,val endpoint: Int,val operation: Long,
-        val token: Long,val revision: Long,val session: Long) {
-        val message: String get() = when(phase) {
+    data class ClearStatus(
+        val phase: Int,
+        val supported: Boolean,
+        val endpoint: Int,
+        val operation: Long,
+        val token: Long,
+        val revision: Long,
+        val session: Long
+    ) {
+        val message: String get() = when (phase) {
             0 -> "Code clearing is not available for this vehicle yet"
             1 -> "Ready to prepare a clear request"
             2 -> "Confirm the vehicle is parked with ignition on and engine off"
-            3,4 -> "Checking the clear result"
+            3, 4 -> "Checking the clear result"
             5 -> "Clear acknowledged and checked. Readiness may need to run again."
             6 -> "Fault codes remain. Review the diagnostic report."
             7 -> "Permanent codes remain. They clear only after the controller verifies the repair."
@@ -413,87 +656,200 @@ class GaugeConfigTransferClient(private val context: Context) {
         }
     }
     private fun clearStatus(bytes: ByteArray): ClearStatus {
-        require(bytes.size==32 && bytes[0].toInt()==18 && bytes[1].toInt() in 0..9 &&
-            bytes[2].toInt() in 0..1 && bytes[3].toInt()==0 && bytes.drop(24).all { it==0.toByte() })
-        return ClearStatus(bytes[1].toInt(),bytes[2].toInt()==1,0,u32(bytes,4),u32(bytes,8),u32(bytes,12),u32(bytes,16))
+        require(
+            bytes.size == 32 && bytes[0].toInt() == 18 && bytes[1].toInt() in 0..9 &&
+                bytes[2].toInt() in 0..1 && bytes[3].toInt() == 0 && bytes.drop(24).all {
+                    it == 0.toByte()
+                }
+        )
+        return ClearStatus(
+            bytes[1].toInt(),
+            bytes[2].toInt() == 1,
+            0,
+            u32(bytes, 4),
+            u32(bytes, 8),
+            u32(bytes, 12),
+            u32(bytes, 16)
+        )
     }
-    suspend fun readReadiness(device: BluetoothDevice,endpoint: Int,revision: Long,session: Long?): JSONObject = withGauge(device) {
-        require(endpoint in 0..1 && session!=null)
-        writeRaw(byteArrayOf(0x63)+le32(1)+byteArrayOf(endpoint.toByte()))
-        val bytes=readRaw()
-        require(bytes.size==24 && bytes[0].toInt()==19 && bytes[1].toInt()==endpoint && bytes[2].toInt() and 0xf0==0 && bytes[3]==0.toByte() && u32(bytes,4)==revision && u32(bytes,8)==session)
-        JSONObject().put("known",bytes[2].toInt() and 1!=0).put("fresh",bytes[2].toInt() and 2!=0)
-            .put("observedAtMs",u32(bytes,12)).put("rawMode01Pid01",bytes.copyOfRange(20,24).joinToString("") { "%02X".format(it.toInt() and 255) })
+    suspend fun readReadiness(
+        device: BluetoothDevice,
+        endpoint: Int,
+        revision: Long,
+        session: Long?
+    ): JSONObject = withGauge(device) {
+        require(endpoint in 0..1 && session != null)
+        writeRaw(byteArrayOf(0x63) + le32(1) + byteArrayOf(endpoint.toByte()))
+        val bytes = readRaw()
+        require(
+            bytes.size == 24 && bytes[0].toInt() == 19 && bytes[1].toInt() == endpoint &&
+                bytes[2].toInt() and 0xf0 == 0 &&
+                bytes[3] == 0.toByte() &&
+                u32(bytes, 4) == revision &&
+                u32(bytes, 8) == session
+        )
+        JSONObject().put(
+            "known",
+            bytes[2].toInt() and 1 != 0
+        ).put("fresh", bytes[2].toInt() and 2 != 0)
+            .put("observedAtMs", u32(bytes, 12)).put(
+                "rawMode01Pid01",
+                bytes.copyOfRange(20, 24).joinToString("") {
+                    "%02X".format(it.toInt() and 255)
+                }
+            )
     }
     suspend fun readClearStatus(device: BluetoothDevice): ClearStatus = withGauge(device) {
-        writeRaw(byteArrayOf(0x62)+le32(1));clearStatus(readRaw())
+        writeRaw(byteArrayOf(0x62) + le32(1))
+        clearStatus(readRaw())
     }
-    suspend fun prepareClear(device: BluetoothDevice, operation: Long, revision: Long): ClearStatus = withGauge(device) {
-        writeRaw(byteArrayOf(0x60,0)+le32(operation)+le32(revision))
-        var status=clearStatus(readRaw())
-        repeat(10) { if(status.operation==operation || !status.supported)return@withGauge status
-            delay(100);status=clearStatus(readRaw()) }
+    suspend fun prepareClear(
+        device: BluetoothDevice,
+        operation: Long,
+        revision: Long
+    ): ClearStatus = withGauge(device) {
+        writeRaw(byteArrayOf(0x60, 0) + le32(operation) + le32(revision))
+        var status = clearStatus(readRaw())
+        repeat(10) {
+            if (status.operation == operation || !status.supported) return@withGauge status
+            delay(100)
+            status = clearStatus(readRaw())
+        }
         error("Could not prepare the clear request")
     }
     suspend fun confirmClear(device: BluetoothDevice, prepared: ClearStatus): ClearStatus = withGauge(device) {
         // One send only. A timeout is reconciled by status and diagnostics reads.
-        writeRaw(byteArrayOf(0x61,1)+le32(prepared.operation)+le32(prepared.token)+le32(prepared.revision))
-        var status=clearStatus(readRaw())
+        writeRaw(
+            byteArrayOf(0x61, 1) + le32(prepared.operation) + le32(prepared.token) +
+                le32(prepared.revision)
+        )
+        var status = clearStatus(readRaw())
         repeat(60) {
-            if(status.operation==prepared.operation && status.phase in 5..9)return@withGauge status
-            delay(150);writeRaw(byteArrayOf(0x62)+le32(1));status=clearStatus(readRaw())
+            if (status.operation == prepared.operation &&
+                status.phase in 5..9
+            ) {
+                return@withGauge status
+            }
+            delay(150)
+            writeRaw(byteArrayOf(0x62) + le32(1))
+            status = clearStatus(readRaw())
         }
-        error("Clear verification is incomplete. Read current faults before deciding whether to try another clear.")
+        error(
+            "Clear verification is incomplete. Read current faults before deciding whether to try another clear."
+        )
     }
 
-    suspend fun readAlertBatch(device: BluetoothDevice, boot: Long, cursor: Long, active: Boolean = false): AlertBatch? {
-        return try {
-            val bytes = withGauge(device) {
-                writeRaw(byteArrayOf(0x3c, if (active) 1 else 0) + AlertCodec.le32(boot) + AlertCodec.le32(cursor))
-                readRaw()
-            }
-            AlertCodec.decode(bytes)
-        } catch(error: GaugeCommandRejectedException) {
-            if(error.status !in setOf(6,13)) throw error
-            null
+    suspend fun readAlertBatch(
+        device: BluetoothDevice,
+        boot: Long,
+        cursor: Long,
+        active: Boolean = false
+    ): AlertBatch? = try {
+        val bytes = withGauge(device) {
+            writeRaw(
+                byteArrayOf(0x3c, if (active) 1 else 0) + AlertCodec.le32(boot) +
+                    AlertCodec.le32(cursor)
+            )
+            readRaw()
         }
+        AlertCodec.decode(bytes)
+    } catch (error: GaugeCommandRejectedException) {
+        if (error.status !in setOf(6, 13)) throw error
+        null
     }
     suspend fun readAlertContext(device: BluetoothDevice, event: AlertEvent): JSONObject = withGauge(device) {
-        var offset=0L
-        var total=0L
-        var flags=0
-        val samples=org.json.JSONArray()
+        var offset = 0L
+        var total = 0L
+        var flags = 0
+        val samples = org.json.JSONArray()
         do {
-            writeRaw(byteArrayOf(0x3f,event.key.toByte())+AlertCodec.le32(event.boot)+AlertCodec.le32(event.episode)+AlertCodec.le32(offset))
-            val bytes=readRaw()
-            require(bytes.size>=24 && bytes[0].toInt()==17 && bytes[2].toInt()==event.key &&
-                u32(bytes,4)==event.boot && u32(bytes,8)==event.episode && u32(bytes,20)==offset && (bytes.size-24)%12==0)
-            flags=bytes[1].toInt() and 255
-            if(flags and 1==0)break
-            require(u32(bytes,12)==event.revision)
-            total=u32(bytes,16);require(total<=480 && offset<=total)
-            val count=(bytes.size-24)/12;require(count in 0..16 && offset+count<=total)
-            for(i in 0 until count) {
-                val at=24+i*12;val value=Float.fromBits(u32(bytes,at+4).toInt())
-                val valid=bytes[at+9].toInt()==1
-                require(bytes[at+8].toInt() in 0..31 && bytes[at+9].toInt() in 0..1 && bytes[at+10].toInt()==0 && bytes[at+11].toInt()==0)
-                samples.put(JSONObject().put("atMs",u32(bytes,at)).put("pidIndex",bytes[at+8].toInt())
-                    .put("valid",valid && value.isFinite()).put("value",value.takeIf { valid && it.isFinite() }))
+            writeRaw(
+                byteArrayOf(0x3f, event.key.toByte()) + AlertCodec.le32(event.boot) +
+                    AlertCodec.le32(event.episode) +
+                    AlertCodec.le32(offset)
+            )
+            val bytes = readRaw()
+            require(
+                bytes.size >= 24 && bytes[0].toInt() == 17 && bytes[2].toInt() == event.key &&
+                    u32(
+                        bytes,
+                        4
+                    ) == event.boot && u32(bytes, 8) == event.episode &&
+                    u32(bytes, 20) == offset &&
+                    (bytes.size - 24) % 12 == 0
+            )
+            flags = bytes[1].toInt() and 255
+            if (flags and 1 == 0) break
+            require(u32(bytes, 12) == event.revision)
+            total = u32(bytes, 16)
+            require(total <= 480 && offset <= total)
+            val count = (bytes.size - 24) / 12
+            require(count in 0..16 && offset + count <= total)
+            for (i in 0 until count) {
+                val at = 24 + i * 12
+                val value = Float.fromBits(u32(bytes, at + 4).toInt())
+                val valid = bytes[at + 9].toInt() == 1
+                require(
+                    bytes[at + 8].toInt() in 0..31 && bytes[at + 9].toInt() in 0..1 &&
+                        bytes[at + 10].toInt() == 0 &&
+                        bytes[at + 11].toInt() == 0
+                )
+                samples.put(
+                    JSONObject().put(
+                        "atMs",
+                        u32(bytes, at)
+                    ).put("pidIndex", bytes[at + 8].toInt())
+                        .put("valid", valid && value.isFinite()).put(
+                            "value",
+                            value.takeIf {
+                                valid &&
+                                    it.isFinite()
+                            }
+                        )
+                )
             }
-            offset+=count
-            if(count==0)break
-        } while(offset<total)
-        JSONObject().put("available",flags and 1!=0).put("complete",flags and 2!=0 && offset==total)
-            .put("partial",flags and 4!=0 || flags and 1==0).put("volatileGaugeWindow",true)
-            .put("samples",samples)
+            offset += count
+            if (count == 0) break
+        } while (offset < total)
+        JSONObject().put(
+            "available",
+            flags and 1 != 0
+        ).put("complete", flags and 2 != 0 && offset == total)
+            .put(
+                "partial",
+                flags and 4 != 0 || flags and 1 == 0
+            ).put("volatileGaugeWindow", true)
+            .put("samples", samples)
     }
 
     suspend fun acknowledgeAlert(device: BluetoothDevice, event: AlertEvent, snoozeMs: Long = 0) {
-        withGauge(device) { writeRaw(AlertCodec.acknowledge(event,snoozeMs)) }
+        withGauge(device) { writeRaw(AlertCodec.acknowledge(event, snoozeMs)) }
     }
-    suspend fun relayExternalAlert(device: BluetoothDevice, slot: Int, boot: Long, sequence: Long,
-        severity: AlertSeverity, ttlMs: Long, title: String, context: String, simulated: Boolean = false) {
-        withGauge(device) { writeRaw(AlertCodec.external(slot,boot,sequence,severity,ttlMs,title,context,simulated)) }
+    suspend fun relayExternalAlert(
+        device: BluetoothDevice,
+        slot: Int,
+        boot: Long,
+        sequence: Long,
+        severity: AlertSeverity,
+        ttlMs: Long,
+        title: String,
+        context: String,
+        simulated: Boolean = false
+    ) {
+        withGauge(device) {
+            writeRaw(
+                AlertCodec.external(
+                    slot,
+                    boot,
+                    sequence,
+                    severity,
+                    ttlMs,
+                    title,
+                    context,
+                    simulated
+                )
+            )
+        }
     }
 
     suspend fun readDiagnosticEndpoint(device: BluetoothDevice, endpoint: Int): Diagnostics? {
@@ -513,22 +869,33 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
 
     suspend fun readBootIdentity(device: BluetoothDevice): BootIdentity {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         val bytes = withGauge(device) {
             writeRaw(byteArrayOf(0x31) + le32(1))
             readRaw()
         }
-        require(bytes.size == 60 && bytes[0].toInt() == 6) { "Gauge returned an unsupported boot identity" }
+        require(bytes.size == 60 && bytes[0].toInt() == 6) {
+            "Gauge returned an unsupported boot identity"
+        }
         val versionBytes = bytes.copyOfRange(40, 56)
         val versionEnd = versionBytes.indexOf(0).let { if (it < 0) versionBytes.size else it }
-        return BootIdentity(bytes[1].toInt() and 255, bytes[2].toInt() and 255,
-            u32(bytes, 4), bytes.copyOfRange(8, 40).joinToString("") { "%02x".format(it) },
-            versionBytes.copyOfRange(0, versionEnd).toString(Charsets.UTF_8), u32(bytes, 56))
+        return BootIdentity(
+            bytes[1].toInt() and 255,
+            bytes[2].toInt() and 255,
+            u32(bytes, 4),
+            bytes.copyOfRange(8, 40).joinToString("") { "%02x".format(it) },
+            versionBytes.copyOfRange(0, versionEnd).toString(Charsets.UTF_8),
+            u32(bytes, 56)
+        )
     }
 
     /** Reports the configuration generation that this boot actually compiled and activated. */
     suspend fun readRuntimeIdentity(device: BluetoothDevice): RuntimeIdentity {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         val bytes = withGauge(device) {
             writeRaw(byteArrayOf(0x33) + le32(1))
             readRaw()
@@ -538,7 +905,9 @@ class GaugeConfigTransferClient(private val context: Context) {
 
     /** Reads capacities and initialized board subsystems without changing gauge state. */
     suspend fun readHardwareSnapshot(device: BluetoothDevice): HardwareSnapshot {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         val bytes = withGauge(device) {
             writeRaw(byteArrayOf(0x34) + le32(1))
             readRaw()
@@ -546,27 +915,46 @@ class GaugeConfigTransferClient(private val context: Context) {
         return GaugeProtocolCodec.hardwareSnapshot(bytes)
     }
 
-    data class DisplayShowcaseState(val active: Boolean, val result: Int, val sequence: Long,
-        val frame: Int, val count: Int, val intervalSeconds: Int, val remainingMs: Long)
+    data class DisplayShowcaseState(
+        val active: Boolean,
+        val result: Int,
+        val sequence: Long,
+        val frame: Int,
+        val count: Int,
+        val intervalSeconds: Int,
+        val remainingMs: Long
+    )
 
     suspend fun readDisplayShowcase(device: BluetoothDevice): DisplayShowcaseState {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         return withGauge(device) {
             writeRaw(byteArrayOf(0x65) + le32(1))
             GaugeProtocolCodec.displayShowcase(readRaw())
         }
     }
 
-    suspend fun setDisplayShowcase(device: BluetoothDevice, enabled: Boolean, seconds: Int = 8): DisplayShowcaseState {
-        require(seconds in 5..30 && device.bondState == BluetoothDevice.BOND_BONDED) { "Invalid display demo request" }
+    suspend fun setDisplayShowcase(
+        device: BluetoothDevice,
+        enabled: Boolean,
+        seconds: Int = 8
+    ): DisplayShowcaseState {
+        require(seconds in 5..30 && device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Invalid display demo request"
+        }
         val sequence = (SecureRandom().nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         return withGauge(device) {
             writeRaw(byteArrayOf(0x64, if (enabled) 1 else 0, seconds.toByte()) + le32(sequence))
             repeat(30) {
                 val state = GaugeProtocolCodec.displayShowcase(readRaw())
                 if (state.sequence == sequence) {
-                    check(state.result == 0) { "Display demo needs an idle gauge with vehicle adapters disconnected" }
-                    check(state.active == enabled) { "Display demo was interrupted; check the gauge" }
+                    check(state.result == 0) {
+                        "Display demo needs an idle gauge with vehicle adapters disconnected"
+                    }
+                    check(state.active == enabled) {
+                        "Display demo was interrupted; check the gauge"
+                    }
                     return@withGauge state
                 }
                 delay(100)
@@ -576,42 +964,86 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
 
     suspend fun readDisplaySettings(device: BluetoothDevice): DisplaySettings {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         return withGauge(device) {
             writeRaw(byteArrayOf(0x35) + le32(1))
             GaugeProtocolCodec.displaySettings(readRaw())
         }
     }
 
-    suspend fun saveDisplaySettings(device: BluetoothDevice, rotation: Int,
-                                    brightness: Int, units: MeasurementSystem? = null,
-                                    cycleSeconds: Int? = null): DisplaySettings {
-        require(rotation in 0..3 && brightness in 5..100 &&
-            (cycleSeconds == null || cycleSeconds in setOf(0, 5, 10, 15, 30, 60))) { "Invalid display setting" }
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+    suspend fun saveDisplaySettings(
+        device: BluetoothDevice,
+        rotation: Int,
+        brightness: Int,
+        units: MeasurementSystem? = null,
+        cycleSeconds: Int? = null
+    ): DisplaySettings {
+        require(
+            rotation in 0..3 && brightness in 5..100 &&
+                (cycleSeconds == null || cycleSeconds in setOf(0, 5, 10, 15, 30, 60))
+        ) {
+            "Invalid display setting"
+        }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         return withGauge(device) {
             writeRaw(byteArrayOf(0x35) + le32(1))
             val before = GaugeProtocolCodec.displaySettings(readRaw())
             val requestedUnits = units ?: before.units
             val requestedCycle = cycleSeconds ?: before.cycleSeconds
-            require(units == null || before.version >= 2) { "Gauge does not offer measurement units" }
-            require(cycleSeconds == null || before.version >= 3) { "Gauge does not offer page cycling" }
-            if (before.rotation == rotation && before.brightness == brightness && before.units == requestedUnits &&
-                before.cycleSeconds == requestedCycle)
+            require(units == null || before.version >= 2) {
+                "Gauge does not offer measurement units"
+            }
+            require(cycleSeconds == null || before.version >= 3) {
+                "Gauge does not offer page cycling"
+            }
+            if (before.rotation == rotation && before.brightness == brightness &&
+                before.units == requestedUnits &&
+                before.cycleSeconds == requestedCycle
+            ) {
                 return@withGauge before
-            if (before.version >= 3)
-                writeRaw(byteArrayOf(0x38, rotation.toByte(), brightness.toByte(),
-                    requestedUnits.ordinal.toByte(), requestedCycle.toByte(), 0) + le32(before.revision))
-            else if (before.version >= 2)
-                writeRaw(byteArrayOf(0x37, rotation.toByte(), brightness.toByte(),
-                    requestedUnits.ordinal.toByte()) + le32(before.revision))
-            else writeRaw(byteArrayOf(0x36, rotation.toByte(), brightness.toByte()) + le32(before.revision))
+            }
+            if (before.version >= 3) {
+                writeRaw(
+                    byteArrayOf(
+                        0x38,
+                        rotation.toByte(),
+                        brightness.toByte(),
+                        requestedUnits.ordinal.toByte(),
+                        requestedCycle.toByte(),
+                        0
+                    ) +
+                        le32(before.revision)
+                )
+            } else if (before.version >= 2) {
+                writeRaw(
+                    byteArrayOf(
+                        0x37,
+                        rotation.toByte(),
+                        brightness.toByte(),
+                        requestedUnits.ordinal.toByte()
+                    ) + le32(before.revision)
+                )
+            } else {
+                writeRaw(
+                    byteArrayOf(
+                        0x36,
+                        rotation.toByte(),
+                        brightness.toByte()
+                    ) + le32(before.revision)
+                )
+            }
             repeat(20) {
                 val after = GaugeProtocolCodec.displaySettings(readRaw())
                 if (after.revision > before.revision) {
-                    check(after.revision == before.revision + 1 &&
-                        after.rotation == rotation && after.brightness == brightness &&
-                        after.units == requestedUnits && after.cycleSeconds == requestedCycle) {
+                    check(
+                        after.revision == before.revision + 1 &&
+                            after.rotation == rotation && after.brightness == brightness &&
+                            after.units == requestedUnits && after.cycleSeconds == requestedCycle
+                    ) {
                         "Gauge settings changed during save; refresh and retry"
                     }
                     return@withGauge after
@@ -624,7 +1056,9 @@ class GaugeConfigTransferClient(private val context: Context) {
 
     /** Opens a random, time-limited gauge access point through the authenticated BLE owner link. */
     suspend fun openWifiBulk(device: BluetoothDevice): WifiBulkSession {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         val sequence = (SecureRandom().nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         return withGauge(device, 90_000) {
             writeRaw(byteArrayOf(0x40) + le32(sequence))
@@ -636,7 +1070,13 @@ class GaugeConfigTransferClient(private val context: Context) {
                 if (u32(bytes, 4) == sequence && (bytes[3].toInt() and 255) == 0x40) {
                     val phase = bytes[1].toInt() and 255
                     val result = bytes[2].toInt() and 255
-                    if (phase == 3) error("Gauge could not start its temporary Wi-Fi network (result $result)")
+                    if (phase ==
+                        3
+                    ) {
+                        error(
+                            "Gauge could not start its temporary Wi-Fi network (result $result)"
+                        )
+                    }
                     if (phase == 2 && result == 0) {
                         val ssidLength = bytes[56].toInt() and 255
                         val passwordLength = bytes[57].toInt() and 255
@@ -650,7 +1090,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                             bytes.copyOfRange(20, 52),
                             u32(bytes, 52),
                             bytes.copyOfRange(58, 58 + ssidLength).toString(Charsets.UTF_8),
-                            bytes.copyOfRange(90, 90 + passwordLength).toString(Charsets.UTF_8),
+                            bytes.copyOfRange(90, 90 + passwordLength).toString(Charsets.UTF_8)
                         )
                     }
                 }
@@ -661,7 +1101,9 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
 
     suspend fun closeWifiBulk(device: BluetoothDevice) {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         val sequence = (SecureRandom().nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         withGauge(device) {
             writeRaw(byteArrayOf(0x42) + le32(sequence))
@@ -671,7 +1113,10 @@ class GaugeConfigTransferClient(private val context: Context) {
                     "Gauge returned an unsupported Wi-Fi status"
                 }
                 if (u32(bytes, 4) == sequence && (bytes[3].toInt() and 255) == 0x42 &&
-                    bytes[1].toInt() == 0) return@withGauge
+                    bytes[1].toInt() == 0
+                ) {
+                    return@withGauge
+                }
                 delay(100)
             }
             error("Gauge did not close its temporary Wi-Fi network")
@@ -679,95 +1124,149 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
 
     /** Uses Wi-Fi only for signed image transfer. BLE remains the trust bootstrap and boot check. */
-    suspend fun installUpdateWifi(device: BluetoothDevice, bundle: DevUpdateBundle,
-                                  batchChunks: Boolean,
-                                  progress: (Int) -> Unit,
-                                  stage: (FirmwareUpdateStage) -> Unit = {},
-                                  pauseBeforeActivationMs: Long = 0): UpdateResult {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+    suspend fun installUpdateWifi(
+        device: BluetoothDevice,
+        bundle: DevUpdateBundle,
+        batchChunks: Boolean,
+        progress: (Int) -> Unit,
+        stage: (FirmwareUpdateStage) -> Unit = {},
+        pauseBeforeActivationMs: Long = 0
+    ): UpdateResult {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         require(pauseBeforeActivationMs in 0..60_000)
         val startedAt = SystemClock.elapsedRealtime()
         stage(FirmwareUpdateStage.PREPARING)
         val before = readBootIdentity(device)
-        Log.i("eGaugeUpdate", "Authenticated preflight took ${SystemClock.elapsedRealtime() - startedAt} ms")
+        Log.i(
+            "eGaugeUpdate",
+            "Authenticated preflight took ${SystemClock.elapsedRealtime() - startedAt} ms"
+        )
         val expectedElf = bundle.elfSha256.joinToString("") { "%02x".format(it) }
-        check(before.elfSha256 != expectedElf) { "This signed firmware image is already running on the gauge" }
+        check(before.elfSha256 != expectedElf) {
+            "This signed firmware image is already running on the gauge"
+        }
         val random = SecureRandom()
         val transferId = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         var sequence = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         val id = le32(transferId)
         val wifiSession = openWifiBulk(device)
-        Log.i("eGaugeUpdate", "Gauge Wi-Fi startup took ${SystemClock.elapsedRealtime() - startedAt} ms total")
+        Log.i(
+            "eGaugeUpdate",
+            "Gauge Wi-Fi startup took ${SystemClock.elapsedRealtime() - startedAt} ms total"
+        )
         stage(FirmwareUpdateStage.CONNECTING_WIFI)
         try {
             WifiBulkClient(context, wifiSession).use { wifi ->
-            suspend fun command(opcode: Int, payload: ByteArray = byteArrayOf()): OtaStatus {
-                val commandSequence = sequence++
-                val response = if (opcode == 0x27) wifi.otaStatus()
-                    else wifi.ota(byteArrayOf(opcode.toByte()) + le32(commandSequence) + payload)
-                val status = otaStatus(response)
-                if (opcode != 0x27) {
-                    check(status.sequence == commandSequence && status.opcode == opcode && status.result == 0) {
-                        "Gauge update command $opcode failed over Wi-Fi (result ${status.result}, phase ${status.phase})"
+                suspend fun command(opcode: Int, payload: ByteArray = byteArrayOf()): OtaStatus {
+                    val commandSequence = sequence++
+                    val response = if (opcode == 0x27) {
+                        wifi.otaStatus()
+                    } else {
+                        wifi.ota(byteArrayOf(opcode.toByte()) + le32(commandSequence) + payload)
                     }
-                }
-                return status
-            }
-            val current = command(0x27)
-            Log.i("eGaugeUpdate", "First gauge Wi-Fi response took ${SystemClock.elapsedRealtime() - startedAt} ms total")
-            if (current.phase in 1..3 && current.transferId != 0L)
-                command(0x26, le32(current.transferId))
-            else check(current.phase == 0) { "Gauge is already activating an update" }
-            stage(FirmwareUpdateStage.PREPARING_FLASH)
-            command(0x20, id + le32(bundle.image.size.toLong()) + le32(0x31534745))
-            try {
-                for (part in 0..3) command(0x21, id + byteArrayOf(part.toByte()) +
-                    bundle.sha256.copyOfRange(part * 8, part * 8 + 8))
-                for (part in 0 until (bundle.signatureDer.size + 7) / 8) {
-                    val start = part * 8
-                    command(0x28, id + byteArrayOf(part.toByte(), bundle.signatureDer.size.toByte()) +
-                        bundle.signatureDer.copyOfRange(start, minOf(start + 8, bundle.signatureDer.size)))
-                }
-                val flashStartedAt = SystemClock.elapsedRealtime()
-                command(0x22, id)
-                Log.i("eGaugeUpdate", "Gauge flash preparation took ${SystemClock.elapsedRealtime() - flashStartedAt} ms")
-                stage(FirmwareUpdateStage.TRANSFERRING)
-                progress(0)
-                var offset = 0
-                var lastProgress = 0
-                while (offset < bundle.image.size) {
-                    val commands = mutableListOf<ByteArray>()
-                    var expectedOffset = offset
-                    do {
-                        val chunk = bundle.image.copyOfRange(expectedOffset,
-                            minOf(expectedOffset + 1024, bundle.image.size))
-                        val commandSequence = sequence++
-                        commands += byteArrayOf(0x23) + le32(commandSequence) + id +
-                            le32(expectedOffset.toLong()) + chunk
-                        expectedOffset += chunk.size
-                    } while (batchChunks && commands.size < 8 && expectedOffset < bundle.image.size)
-                    val response = if (batchChunks) wifi.otaBatch(commands) else wifi.ota(commands.single())
                     val status = otaStatus(response)
-                    val finalSequence = u32(commands.last(), 1)
-                    check(status.sequence == finalSequence && status.opcode == 0x23 &&
-                        status.result == 0 && status.accepted == expectedOffset.toLong()) {
-                        "Gauge accepted an unexpected Wi-Fi update offset"
+                    if (opcode != 0x27) {
+                        check(
+                            status.sequence == commandSequence && status.opcode == opcode &&
+                                status.result == 0
+                        ) {
+                            "Gauge update command $opcode failed over Wi-Fi (result ${status.result}, phase ${status.phase})"
+                        }
                     }
-                    offset = expectedOffset
-                    val percent = offset * 100 / bundle.image.size
-                    if (percent > lastProgress) {
-                        lastProgress = percent
-                        progress(percent)
-                    }
+                    return status
                 }
-                stage(FirmwareUpdateStage.VERIFYING)
-                val verified = command(0x24, id)
-                check(verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
-                    verified.digest.contentEquals(bundle.sha256)) { "Gauge did not verify the signed image" }
-            } catch (error: Exception) {
-                boundedCleanup(WIFI_ABORT_CLEANUP_TIMEOUT_MS) { command(0x26, id) }
-                throw error
-            }
+                val current = command(0x27)
+                Log.i(
+                    "eGaugeUpdate",
+                    "First gauge Wi-Fi response took ${SystemClock.elapsedRealtime() - startedAt} ms total"
+                )
+                if (current.phase in 1..3 && current.transferId != 0L) {
+                    command(0x26, le32(current.transferId))
+                } else {
+                    check(current.phase == 0) { "Gauge is already activating an update" }
+                }
+                stage(FirmwareUpdateStage.PREPARING_FLASH)
+                command(0x20, id + le32(bundle.image.size.toLong()) + le32(0x31534745))
+                try {
+                    for (part in 0..3) {
+                        command(
+                            0x21,
+                            id + byteArrayOf(part.toByte()) +
+                                bundle.sha256.copyOfRange(part * 8, part * 8 + 8)
+                        )
+                    }
+                    for (part in 0 until (bundle.signatureDer.size + 7) / 8) {
+                        val start = part * 8
+                        command(
+                            0x28,
+                            id + byteArrayOf(part.toByte(), bundle.signatureDer.size.toByte()) +
+                                bundle.signatureDer.copyOfRange(
+                                    start,
+                                    minOf(start + 8, bundle.signatureDer.size)
+                                )
+                        )
+                    }
+                    val flashStartedAt = SystemClock.elapsedRealtime()
+                    command(0x22, id)
+                    Log.i(
+                        "eGaugeUpdate",
+                        "Gauge flash preparation took ${SystemClock.elapsedRealtime() - flashStartedAt} ms"
+                    )
+                    stage(FirmwareUpdateStage.TRANSFERRING)
+                    progress(0)
+                    var offset = 0
+                    var lastProgress = 0
+                    while (offset < bundle.image.size) {
+                        val commands = mutableListOf<ByteArray>()
+                        var expectedOffset = offset
+                        do {
+                            val chunk = bundle.image.copyOfRange(
+                                expectedOffset,
+                                minOf(expectedOffset + 1024, bundle.image.size)
+                            )
+                            val commandSequence = sequence++
+                            commands += byteArrayOf(0x23) + le32(commandSequence) + id +
+                                le32(expectedOffset.toLong()) + chunk
+                            expectedOffset += chunk.size
+                        } while (batchChunks && commands.size < 8 &&
+                            expectedOffset < bundle.image.size
+                        )
+                        val response = if (batchChunks) {
+                            wifi.otaBatch(
+                                commands
+                            )
+                        } else {
+                            wifi.ota(commands.single())
+                        }
+                        val status = otaStatus(response)
+                        val finalSequence = u32(commands.last(), 1)
+                        check(
+                            status.sequence == finalSequence && status.opcode == 0x23 &&
+                                status.result == 0 && status.accepted == expectedOffset.toLong()
+                        ) {
+                            "Gauge accepted an unexpected Wi-Fi update offset"
+                        }
+                        offset = expectedOffset
+                        val percent = offset * 100 / bundle.image.size
+                        if (percent > lastProgress) {
+                            lastProgress = percent
+                            progress(percent)
+                        }
+                    }
+                    stage(FirmwareUpdateStage.VERIFYING)
+                    val verified = command(0x24, id)
+                    check(
+                        verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
+                            verified.digest.contentEquals(bundle.sha256)
+                    ) {
+                        "Gauge did not verify the signed image"
+                    }
+                } catch (error: Exception) {
+                    boundedCleanup(WIFI_ABORT_CLEANUP_TIMEOUT_MS) { command(0x26, id) }
+                    throw error
+                }
                 stage(FirmwareUpdateStage.READY_TO_ACTIVATE)
                 if (pauseBeforeActivationMs > 0) delay(pauseBeforeActivationMs)
                 val activated = command(0x25, id)
@@ -783,11 +1282,16 @@ class GaugeConfigTransferClient(private val context: Context) {
     }
 
     /** Development-only update path. The gauge independently verifies the signed image. */
-    suspend fun installUpdate(device: BluetoothDevice, bundle: DevUpdateBundle,
-                              progress: (Int) -> Unit,
-                              stage: (FirmwareUpdateStage) -> Unit = {},
-                              pauseBeforeActivationMs: Long = 0): UpdateResult {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+    suspend fun installUpdate(
+        device: BluetoothDevice,
+        bundle: DevUpdateBundle,
+        progress: (Int) -> Unit,
+        stage: (FirmwareUpdateStage) -> Unit = {},
+        pauseBeforeActivationMs: Long = 0
+    ): UpdateResult {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         require(pauseBeforeActivationMs in 0..60_000)
         stage(FirmwareUpdateStage.PREPARING)
         val before = readBootIdentity(device)
@@ -796,22 +1300,39 @@ class GaugeConfigTransferClient(private val context: Context) {
         var sequence = (random.nextInt().toLong() and 0xffffffffL).coerceAtLeast(1)
         val id = le32(transferId)
         val expectedElf = bundle.elfSha256.joinToString("") { "%02x".format(it) }
-        check(before.elfSha256 != expectedElf) { "This signed firmware image is already running on the gauge" }
+        check(before.elfSha256 != expectedElf) {
+            "This signed firmware image is already running on the gauge"
+        }
         progress(0)
         withGauge(device, 1_200_000, highThroughput = true) {
             val current = otaCommand(0x27, sequence++)
-            if (current.phase in 1..3 && current.transferId != 0L)
+            if (current.phase in 1..3 && current.transferId != 0L) {
                 otaCommand(0x26, sequence++, le32(current.transferId))
-            else check(current.phase == 0) { "Gauge is already activating an update" }
+            } else {
+                check(current.phase == 0) { "Gauge is already activating an update" }
+            }
             otaCommand(0x20, sequence++, id + le32(bundle.image.size.toLong()) + le32(0x31534745))
             stage(FirmwareUpdateStage.TRANSFERRING)
             try {
-                for (part in 0..3) otaCommand(0x21, sequence++, id + byteArrayOf(part.toByte()) +
-                    bundle.sha256.copyOfRange(part * 8, part * 8 + 8))
+                for (part in 0..3) {
+                    otaCommand(
+                        0x21,
+                        sequence++,
+                        id + byteArrayOf(part.toByte()) +
+                            bundle.sha256.copyOfRange(part * 8, part * 8 + 8)
+                    )
+                }
                 for (part in 0 until (bundle.signatureDer.size + 7) / 8) {
                     val start = part * 8
-                    otaCommand(0x28, sequence++, id + byteArrayOf(part.toByte(), bundle.signatureDer.size.toByte()) +
-                        bundle.signatureDer.copyOfRange(start, minOf(start + 8, bundle.signatureDer.size)))
+                    otaCommand(
+                        0x28,
+                        sequence++,
+                        id + byteArrayOf(part.toByte(), bundle.signatureDer.size.toByte()) +
+                            bundle.signatureDer.copyOfRange(
+                                start,
+                                minOf(start + 8, bundle.signatureDer.size)
+                            )
+                    )
                 }
                 otaCommand(0x22, sequence++, id)
                 val chunkSize = minOf(160, mtu - 16)
@@ -819,9 +1340,14 @@ class GaugeConfigTransferClient(private val context: Context) {
                 var offset = 0
                 var lastProgress = 0
                 while (offset < bundle.image.size) {
-                    val chunk = bundle.image.copyOfRange(offset, minOf(offset + chunkSize, bundle.image.size))
+                    val chunk = bundle.image.copyOfRange(
+                        offset,
+                        minOf(offset + chunkSize, bundle.image.size)
+                    )
                     val status = otaCommand(0x23, sequence++, id + le32(offset.toLong()) + chunk)
-                    check(status.accepted == offset.toLong() + chunk.size) { "Gauge accepted an unexpected update offset" }
+                    check(status.accepted == offset.toLong() + chunk.size) {
+                        "Gauge accepted an unexpected update offset"
+                    }
                     offset += chunk.size
                     val percent = offset * 100 / bundle.image.size
                     if (percent > lastProgress) {
@@ -831,8 +1357,12 @@ class GaugeConfigTransferClient(private val context: Context) {
                 }
                 stage(FirmwareUpdateStage.VERIFYING)
                 val verified = otaCommand(0x24, sequence++, id, attempts = 600)
-                check(verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
-                    verified.digest.contentEquals(bundle.sha256)) { "Gauge did not verify the signed image" }
+                check(
+                    verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
+                        verified.digest.contentEquals(bundle.sha256)
+                ) {
+                    "Gauge did not verify the signed image"
+                }
             } catch (error: Exception) {
                 boundedCleanup(3_000) { otaCommand(0x26, sequence++, id) }
                 throw error
@@ -849,8 +1379,11 @@ class GaugeConfigTransferClient(private val context: Context) {
         return confirmUpdatedBoot(device, before, expectedElf)
     }
 
-    private suspend fun confirmUpdatedBoot(device: BluetoothDevice, before: BootIdentity,
-                                           expectedElf: String): UpdateResult {
+    private suspend fun confirmUpdatedBoot(
+        device: BluetoothDevice,
+        before: BootIdentity,
+        expectedElf: String
+    ): UpdateResult {
         delay(10000)
         val deadline = SystemClock.elapsedRealtime() + 90_000
         var sawNewPartition = false
@@ -861,23 +1394,45 @@ class GaugeConfigTransferClient(private val context: Context) {
             }
             when (updateBootDecision(before, last, expectedElf, sawNewPartition, false)) {
                 UpdateBootDecision.CONFIRMED -> return UpdateResult(requireNotNull(last))
+
                 UpdateBootDecision.PREVIOUS_IMAGE ->
                     error("Gauge returned to its previous valid firmware after the trial update.")
+
                 UpdateBootDecision.WAIT -> Unit
             }
-            if (last != null && last.partitionAddress != before.partitionAddress) sawNewPartition = true
+            if (last != null &&
+                last.partitionAddress != before.partitionAddress
+            ) {
+                sawNewPartition = true
+            }
             delay(1500)
         } while (SystemClock.elapsedRealtime() < deadline)
-        if (updateBootDecision(before, last, expectedElf, sawNewPartition, true) == UpdateBootDecision.PREVIOUS_IMAGE)
-            error("Gauge is still running its previous valid firmware after the update attempt.")
-        error("Update was sent, but the new image was not confirmed as running. Check the gauge before retrying.")
+        if (updateBootDecision(before, last, expectedElf, sawNewPartition, true) ==
+            UpdateBootDecision.PREVIOUS_IMAGE
+        ) {
+            error(
+                "Gauge is still running its previous valid firmware after the update attempt."
+            )
+        }
+        error(
+            "Update was sent, but the new image was not confirmed as running. Check the gauge before retrying."
+        )
     }
 
-    suspend fun apply(device: BluetoothDevice, draft: Draft, profileId: String,
-                      expectedBaseRevision: Long, expectedBaseSha256: String,
-                      adapter: AdapterBinding? = null, schemaVersion: Int = 1, preparedDocument: ByteArray? = null,
-                      stage: (OperationStage) -> Unit = {}): Applied {
-        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+    suspend fun apply(
+        device: BluetoothDevice,
+        draft: Draft,
+        profileId: String,
+        expectedBaseRevision: Long,
+        expectedBaseSha256: String,
+        adapter: AdapterBinding? = null,
+        schemaVersion: Int = 1,
+        preparedDocument: ByteArray? = null,
+        stage: (OperationStage) -> Unit = {}
+    ): Applied {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) {
+            "Pair this phone as gauge owner first"
+        }
         require(expectedBaseRevision >= 0 && expectedBaseSha256.matches(Regex("[0-9a-f]{64}"))) {
             "Refresh the saved gauge configuration before sending"
         }
@@ -895,9 +1450,14 @@ class GaugeConfigTransferClient(private val context: Context) {
                 "Gauge configuration changed from verified revision $expectedBaseRevision to ${current.revision}. " +
                     "Refresh and review the differences before sending."
             }
-            val bytes = preparedDocument?.copyOf() ?: document(draft, profileId, current.revision, adapter, schemaVersion)
+            val bytes =
+                preparedDocument?.copyOf()
+                    ?: document(draft, profileId, current.revision, adapter, schemaVersion)
             val projected = JSONObject(bytes.toString(Charsets.UTF_8))
-            require(projected.getLong("baseRevision") == current.revision && projected.getString("vehicleProfileId") == profileId) {
+            require(
+                projected.getLong("baseRevision") == current.revision &&
+                    projected.getString("vehicleProfileId") == profileId
+            ) {
                 "Prepared setup no longer matches the checked vehicle/revision"
             }
             expectedRevision = current.revision + 1
@@ -906,7 +1466,13 @@ class GaugeConfigTransferClient(private val context: Context) {
             command(0x10, sequence++, id + le32(current.revision) + le32(bytes.size.toLong()))
             stage(OperationStage.SENDING)
             try {
-                for (part in 0..3) command(0x11, sequence++, id + byteArrayOf(part.toByte()) + digest.copyOfRange(part * 8, part * 8 + 8))
+                for (part in 0..3) {
+                    command(
+                        0x11,
+                        sequence++,
+                        id + byteArrayOf(part.toByte()) + digest.copyOfRange(part * 8, part * 8 + 8)
+                    )
+                }
                 command(0x12, sequence++, id)
                 val chunkSize = minOf(160, mtu - 16)
                 check(chunkSize > 0) { "Gauge MTU is too small for configuration chunks" }
@@ -914,7 +1480,9 @@ class GaugeConfigTransferClient(private val context: Context) {
                 while (offset < bytes.size) {
                     val chunk = bytes.copyOfRange(offset, minOf(bytes.size, offset + chunkSize))
                     val status = command(0x13, sequence++, id + le32(offset.toLong()) + chunk)
-                    check(status.accepted == offset.toLong() + chunk.size) { "Gauge accepted an unexpected offset" }
+                    check(status.accepted == offset.toLong() + chunk.size) {
+                        "Gauge accepted an unexpected offset"
+                    }
                     offset += chunk.size
                 }
                 stage(OperationStage.VERIFYING)
@@ -925,8 +1493,14 @@ class GaugeConfigTransferClient(private val context: Context) {
             }
             // A disconnect during COMMIT is ambiguous. Reconnect and inspect the durable slot.
             val commit = suspendResult { command(0x15, sequence++, id) }.getOrNull()
-            if (commit != null) check(commit.phase == 4 && commit.revision == expectedRevision &&
-                commit.hash.contentEquals(digest)) { "Gauge commit readback did not match the document" }
+            if (commit != null) {
+                check(
+                    commit.phase == 4 && commit.revision == expectedRevision &&
+                        commit.hash.contentEquals(digest)
+                ) {
+                    "Gauge commit readback did not match the document"
+                }
+            }
         }
         stage(OperationStage.SAVED)
         stage(OperationStage.RESTARTING)
@@ -936,70 +1510,138 @@ class GaugeConfigTransferClient(private val context: Context) {
         var confirmed: Status? = null
         repeat(5) {
             if (confirmed == null && SystemClock.elapsedRealtime() < confirmationDeadline) {
-                val observed = restartRead(minOf(20_000, confirmationDeadline - SystemClock.elapsedRealtime())) {
+                val observed = restartRead(
+                    minOf(
+                        20_000,
+                        confirmationDeadline - SystemClock.elapsedRealtime()
+                    )
+                ) {
                     withGauge(device) { command(0x17, sequence++) }
                 }
                 if (observed?.phase in 1..3 && observed?.transferId == transferId &&
-                    observed.opcode == 0x15 && observed.result != 0) {
-                    suspendResult { withGauge(device) { command(0x16, sequence++, le32(transferId)) } }
+                    observed.opcode == 0x15 && observed.result != 0
+                ) {
+                    suspendResult {
+                        withGauge(device) { command(0x16, sequence++, le32(transferId)) }
+                    }
                     error("Gauge rejected configuration commit (result ${observed.result})")
                 }
                 if (observed?.phase == 0) confirmed = observed
                 if (confirmed == null) delay(1200)
             }
         }
-        val durable = confirmed ?: error("Gauge commit succeeded, but reboot readback is unavailable")
+        val durable =
+            confirmed ?: error("Gauge commit succeeded, but reboot readback is unavailable")
         if (durable.revision != expectedRevision || !durable.hash.contentEquals(digest)) {
-            if (durable.phase in 1..3 && durable.transferId == transferId)
+            if (durable.phase in 1..3 && durable.transferId == transferId) {
                 suspendResult { withGauge(device) { command(0x16, sequence++, le32(transferId)) } }
-            error("Gauge did not activate the sent configuration (result ${durable.result}); active revision ${durable.revision}")
+            }
+            error(
+                "Gauge did not activate the sent configuration (result ${durable.result}); active revision ${durable.revision}"
+            )
         }
         val expectedHash = digest.joinToString("") { "%02x".format(it) }
         var runtime: RuntimeIdentity? = null
         stage(OperationStage.CHECKING_RUNNING)
         repeat(8) {
             if (runtime == null && SystemClock.elapsedRealtime() < confirmationDeadline) {
-                val observed = restartRead(minOf(20_000, confirmationDeadline - SystemClock.elapsedRealtime())) {
+                val observed = restartRead(
+                    minOf(
+                        20_000,
+                        confirmationDeadline - SystemClock.elapsedRealtime()
+                    )
+                ) {
                     readRuntimeIdentity(device)
                 }
-                when (if (observed == null) null else confirmRuntime(durable.revision, expectedHash, observed)) {
+                when (
+                    if (observed ==
+                        null
+                    ) {
+                        null
+                    } else {
+                        confirmRuntime(durable.revision, expectedHash, observed)
+                    }
+                ) {
                     null, RuntimeConfirmation.WAITING -> delay(1000)
+
                     RuntimeConfirmation.RECOVERED -> error(
-                        "Gauge recovered with configuration revision ${requireNotNull(observed).revision} after sending revision ${durable.revision}"
+                        "Gauge recovered with configuration revision ${requireNotNull(
+                            observed
+                        ).revision} after sending revision ${durable.revision}"
                     )
+
                     RuntimeConfirmation.ACTIVE -> runtime = observed
-                    RuntimeConfirmation.REJECTED -> error("Gauge is not running the sent configuration")
+
+                    RuntimeConfirmation.REJECTED -> error(
+                        "Gauge is not running the sent configuration"
+                    )
                 }
             }
         }
-        return Applied(durable.revision, expectedHash,
-            runtime ?: error("Gauge saved configuration revision ${durable.revision}, but did not confirm it healthy and running"))
+        return Applied(
+            durable.revision,
+            expectedHash,
+            runtime
+                ?: error(
+                    "Gauge saved configuration revision ${durable.revision}, but did not confirm it healthy and running"
+                )
+        )
     }
 
     companion object {
         fun decodeAdapterStatus(bytes: ByteArray): AdapterSourceStatus {
-            require(bytes.size == 160 && bytes[0].toInt() == 14 && bytes[1].toInt() in 0..6 && bytes[3].toInt() in 0..3)
-            fun text(start: Int, end: Int) = bytes.copyOfRange(start, end).takeWhile { it.toInt() != 0 }
+            require(
+                bytes.size == 160 && bytes[0].toInt() == 14 && bytes[1].toInt() in 0..6 &&
+                    bytes[3].toInt() in 0..3
+            )
+            fun text(start: Int, end: Int) = bytes.copyOfRange(start, end).takeWhile {
+                it.toInt() !=
+                    0
+            }
                 .toByteArray().toString(Charsets.US_ASCII)
             val known = bytes[120].toInt() and 255
             val maps = (0..7).filter { known and (1 shl it) != 0 }.associate { index ->
-                index * 32 to (0..3).fold(0L) { acc, part -> (acc shl 8) or (bytes[121+index*4+part].toLong() and 255) }
+                index * 32 to
+                    (0..3).fold(0L) { acc, part ->
+                        (acc shl 8) or
+                            (bytes[121 + index * 4 + part].toLong() and 255)
+                    }
             }
-            return AdapterSourceStatus(bytes[1].toInt(), bytes[2].toInt() and 255, bytes[3].toInt() and 1 != 0,
-                u32(bytes, 4), u32(bytes, 8), u32(bytes, 12), text(16, 80), text(80, 112), bytes[3].toInt() and 2 != 0, maps, u32(bytes, 153))
+            return AdapterSourceStatus(
+                bytes[1].toInt(), bytes[2].toInt() and 255,
+                bytes[3].toInt() and 1 != 0,
+                u32(bytes, 4), u32(bytes, 8), u32(bytes, 12), text(16, 80), text(80, 112),
+                bytes[3].toInt() and 2 != 0, maps, u32(bytes, 153)
+            )
         }
 
         fun decodeAdapters(bytes: ByteArray): List<AdapterCandidate> {
             require(bytes.size == 140 && bytes[0].toInt() == 13 && bytes[8].toInt() in 0..4)
             val values = (0 until bytes[8].toInt()).map { index ->
                 val start = 12 + 32 * index
-                val address = (5 downTo 0).joinToString(":") { "%02X".format(bytes[start + it].toInt() and 255) }
+                val address = (5 downTo 0).joinToString(":") {
+                    "%02X".format(bytes[start + it].toInt() and 255)
+                }
                 val type = bytes[start + 6].toInt()
                 require(type in 0..1 && bytes[start + 7].toInt() in 1..2)
-                val name = bytes.copyOfRange(start + 8, start + 32).takeWhile { it.toInt() != 0 }.toByteArray().toString(Charsets.US_ASCII)
-                AdapterCandidate(name.ifBlank { "Vehicle adapter" },
-                    AdapterBinding("adapter-" + address.replace(":", "").lowercase(), address, if (type == 0) "public" else "random",
-                        if (bytes[start + 7].toInt() == 2) "elm-bench-v1" else "elm-18f0-v1"))
+                val name = bytes.copyOfRange(start + 8, start + 32).takeWhile {
+                    it.toInt() != 0
+                }.toByteArray().toString(Charsets.US_ASCII)
+                AdapterCandidate(
+                    name.ifBlank { "Vehicle adapter" },
+                    AdapterBinding(
+                        "adapter-" + address.replace(":", "").lowercase(),
+                        address,
+                        if (type ==
+                            0
+                        ) {
+                            "public"
+                        } else {
+                            "random"
+                        },
+                        if (bytes[start + 7].toInt() == 2) "elm-bench-v1" else "elm-18f0-v1"
+                    )
+                )
             }
             require(values.map { it.binding.address }.distinct().size == values.size)
             return values
@@ -1011,9 +1653,16 @@ class GaugeConfigTransferClient(private val context: Context) {
             require(bytes.size == 56 && bytes[0].toInt() == 4) {
                 "Gauge returned an unsupported update status"
             }
-            return OtaStatus(bytes[1].toInt() and 255, bytes[2].toInt() and 255,
-                bytes[3].toInt() and 255, u32(bytes, 4), u32(bytes, 8), u32(bytes, 12),
-                u32(bytes, 16), bytes.copyOfRange(24, 56))
+            return OtaStatus(
+                bytes[1].toInt() and 255,
+                bytes[2].toInt() and 255,
+                bytes[3].toInt() and 255,
+                u32(bytes, 4),
+                u32(bytes, 8),
+                u32(bytes, 12),
+                u32(bytes, 16),
+                bytes.copyOfRange(24, 56)
+            )
         }
         private fun le32(value: Long) = ByteArray(4) { ((value ushr (it * 8)) and 255).toByte() }
         private fun u32(value: ByteArray, offset: Int) = (0..3).fold(0L) { result, index ->

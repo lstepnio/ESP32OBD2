@@ -11,11 +11,14 @@ internal suspend fun closeGattSession(
     disconnect: () -> Unit,
     awaitDisconnected: suspend () -> Unit,
     close: () -> Unit,
-    timeoutMs: Long = 1_500,
+    timeoutMs: Long = 1_500
 ): Boolean = withContext(NonCancellable) {
     try {
         disconnect()
-        withTimeoutOrNull(timeoutMs) { awaitDisconnected(); true } ?: false
+        withTimeoutOrNull(timeoutMs) {
+            awaitDisconnected()
+            true
+        } ?: false
     } finally {
         close()
     }

@@ -8,6 +8,8 @@ import com.lstepnio.egauge.gearPositions
 fun alertContextReading(value: Double, unit: String, system: MeasurementSystem): String {
     if (!value.isFinite()) return "Unavailable"
     if (unit == "gear") return gearPositions[value] ?: "Unavailable"
-    return listOf(MeasurementUnits.displayValue(value.toString(), unit, system),
-        MeasurementUnits.label(unit, system)).filter { it.isNotBlank() }.joinToString(" ")
+    return listOf(
+        MeasurementUnits.displayValue(value.toString(), unit, system),
+        MeasurementUnits.label(unit, system)
+    ).filter { it.isNotBlank() }.joinToString(" ")
 }

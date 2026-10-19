@@ -18,13 +18,29 @@ class TransferBannerStateTest {
     @get:Rule val compose = createComposeRule()
 
     @Test fun confirmedSuccessClearsAfterDelay() {
-        val success = operationUi(OperationState(1, OperationKind.CONFIGURATION,
-            OperationStage.ACTIVE, "raw", terminal = true), confirmedSetup = true)
+        val success = operationUi(
+            OperationState(
+                1,
+                OperationKind.CONFIGURATION,
+                OperationStage.ACTIVE,
+                "raw",
+                terminal = true
+            ),
+            confirmedSetup = true
+        )
         compose.mainClock.autoAdvance = false
-        compose.setContent { EGaugeTheme {
-            val banner = rememberTransferBannerState(success)
-            if (banner.visible) Button(banner.dismiss) { Text("Dismiss success") } else Text("Banner cleared")
-        } }
+        compose.setContent {
+            EGaugeTheme {
+                val banner = rememberTransferBannerState(success)
+                if (banner.visible) {
+                    Button(banner.dismiss) {
+                        Text("Dismiss success")
+                    }
+                } else {
+                    Text("Banner cleared")
+                }
+            }
+        }
         compose.onNodeWithText("Dismiss success").assertExists()
         compose.mainClock.advanceTimeBy(5_000)
         compose.onNodeWithText("Dismiss success").assertExists()
@@ -33,24 +49,48 @@ class TransferBannerStateTest {
     }
 
     @Test fun confirmedSuccessCanBeDismissedImmediately() {
-        val success = operationUi(OperationState(3, OperationKind.UPDATE,
-            OperationStage.ACTIVE, "raw", terminal = true))
-        compose.setContent { EGaugeTheme {
-            val banner = rememberTransferBannerState(success)
-            if (banner.visible) Button(banner.dismiss) { Text("Dismiss success") } else Text("Banner cleared")
-        } }
+        val success = operationUi(
+            OperationState(
+                3,
+                OperationKind.UPDATE,
+                OperationStage.ACTIVE,
+                "raw",
+                terminal = true
+            )
+        )
+        compose.setContent {
+            EGaugeTheme {
+                val banner = rememberTransferBannerState(success)
+                if (banner.visible) {
+                    Button(banner.dismiss) {
+                        Text("Dismiss success")
+                    }
+                } else {
+                    Text("Banner cleared")
+                }
+            }
+        }
         compose.onNodeWithText("Dismiss success").performClick()
         compose.onNodeWithText("Banner cleared").assertExists()
     }
 
     @Test fun uncertainOutcomeNeverClearsOnTheSuccessTimer() {
-        val unknown = operationUi(OperationState(2, OperationKind.UPDATE,
-            OperationStage.OUTCOME_UNKNOWN, "raw", terminal = true))
+        val unknown = operationUi(
+            OperationState(
+                2,
+                OperationKind.UPDATE,
+                OperationStage.OUTCOME_UNKNOWN,
+                "raw",
+                terminal = true
+            )
+        )
         compose.mainClock.autoAdvance = false
-        compose.setContent { EGaugeTheme {
-            val banner = rememberTransferBannerState(unknown)
-            Text(if (banner.visible) "Check required" else "Banner cleared")
-        } }
+        compose.setContent {
+            EGaugeTheme {
+                val banner = rememberTransferBannerState(unknown)
+                Text(if (banner.visible) "Check required" else "Banner cleared")
+            }
+        }
         compose.mainClock.advanceTimeBy(10_000)
         compose.onNodeWithText("Check required").assertExists()
     }
