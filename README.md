@@ -5,6 +5,8 @@ readings, pages, alerts and display settings, then let the gauge run independent
 Owner-protected Bluetooth handles setup; authenticated private Wi-Fi carries signed
 firmware updates. Normal use needs no account.
 
+[Project website](https://egauge.majjix.com/) · [Website maintenance](website/README.md)
+
 ## Android App
 
 | Gauge | Car | Settings |

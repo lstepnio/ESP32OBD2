@@ -21,6 +21,7 @@ def authored_documents(root: Path) -> list[Path]:
                 "CONTRIBUTING.md",
                 "THIRD_PARTY_NOTICES.md",
                 "android/README.md",
+                "website/README.md",
                 "firmware/gauge/README.md",
                 "firmware/gauge/assets/fonts/README.md",
                 "mechanical/jk-dash-pod/README.md",

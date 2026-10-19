@@ -36,6 +36,8 @@ Read only the affected contract/runbook before source work; evidence is not requ
 - [Reading catalog and alert maintenance](development/reading-catalog-alerts.md)
 - [TCM session resume](development/tcm-session-resume.md), [bounded TCM research/test plan](development/tcm-values-research-plan.md), [vehicle capture](development/vehicle-capture-runbook.md)
 
+- [Public website source, build and deployment](../website/README.md)
+
 ## Product, design and research
 
 - [Requirements](requirements.md): product goals and acceptance, not an implementation checklist

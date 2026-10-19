@@ -1,0 +1,10 @@
+{
+  "reviewedOn": "2026-10-19",
+  "sourceDocuments": [
+    "docs/current-state.md",
+    "docs/roadmap.md",
+    "docs/backlog.md",
+    "docs/development/reading-catalog-alerts.md",
+    "docs/architecture/alerts-and-diagnostics.md"
+  ]
+}
