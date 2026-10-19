@@ -2,14 +2,14 @@
 
 Updated 2026-10-19. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-Latest update records the protected TCM filter configuration check below; no new
-firmware installation, physical display/touch or live-vehicle observation.
+Latest device update installs the merged Car fault experience on the Pixel; no new
+firmware installation, physical gauge display/touch or live-vehicle observation.
 
 ## Installed baseline
 
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
-| Pixel | App `0.2.0-dev.51`, UX cleanup and bounded protected-session recovery; local setup retained | [App review and rollout](evidence/product-optimization.md) |
+| Pixel | App `0.2.0-dev.51` built from merged `b8205f5`, decoded fault UX and shared 55-code lookup; local setup retained | [PR #63 Pixel rollout](evidence/product-optimization.md#pr-63-pixel-rollout) |
 | Gauge | Signed `0.2.0-dev.60` from `860dc3f`, catalog generation 41, 240 MHz, configuration revision 52 | [Signed OTA reset/process-loss matrix and full upload](evidence/esp32-memory-hardening.md#2026-10-18-dev60-signed-ota-interruption-qualification); exact healthy alternate image, cleared journal, preserved setup |
 | Physical display/touch | No-footer showcase, hold exit, normal pages and swipes confirmed on dev.59 | [Owner confirmation](evidence/product-optimization.md#dev59-signed-wi-fi-rollout); no new dev.60 display/touch observation |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
@@ -38,14 +38,15 @@ release or installation. Public repository: `lstepnio/ESP32OBD2`.
 | Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Setup review](evidence/second-adapter-setup.md); [dev.53 live reads/resume, independent loss/recovery and phone off/on](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification); owner confirmed live ECM/TCM display and independent expiry/return | Startup absence, loaded maintenance, rates and sustained soak remain open |
 | Health measurements | Fixed worker records, queue drops, explicit internal/DMA/PSRAM lifecycle logs, allocation failure hook and sampled stack minima | [Bench and upload evidence](evidence/esp32-memory-hardening.md): zero recorded allocation failures/queue drops; 30 dev.59 close samples stable within 144 bytes after warm-up; dev.60 receiver internal minimum 93,975 bytes, largest block 31,744 bytes and OTA stack margin 1,340 bytes | Longer controlled loaded soak, missed transient/vendor-private failures and complete stack/progress-path coverage |
 
-## Prepared Car fault experience
+## Installed Car fault experience
 
-The working branch prepares inline decoded code summaries under Car > Vehicle
+Merged PR #63 implements inline decoded code summaries under Car > Vehicle
 health, one whole-vehicle list and focused explanations. Saved alert context and
 notifications share a 55-code offline lookup with named manufacturer references; unknown/controller-specific codes
-remain explicit. Technical category coverage stays in Expert. No new firmware,
-protocol, device installation or physical acceptance is established by this UI
-work. Lookup extension rules and reference provenance are in the
+remain explicit. Technical category coverage stays in Expert. The matching APK is
+installed on the Pixel: Gauge ready, all four saved TCM explanations and historical
+context were observed. Live vehicle filtering and real notification appearance
+remain unqualified. Lookup extension rules and reference provenance are in the
 [shared alert contract](architecture/alerts-and-diagnostics.md#offline-code-explanations).
 
 ## Compatibility and public boundaries
