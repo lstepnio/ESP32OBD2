@@ -381,3 +381,134 @@ visual/touch confirmation.
 
 Loaded ECM/TCM/phone soak, enclosure power/thermal measurements and a full upload
 received at 240 MHz remain unqualified. No public capability flag was enabled.
+
+## 2026-10-18 dev.59 indoor recovery and memory qualification
+
+The owner requested indoor recovery/memory testing and a roadmap refresh. The
+installed App APK matched the previously qualified dev.51 hash
+`3f05a494b5dc60fbffde3cdd7f09feadbd853819b646813e806b5079c670313e`.
+Firmware was signed dev.59, source `4932860`, ELF
+`a4a68d78ad5275e9f9d0c20b8dfc8fafcb7405fcb4195b1faad3267a3ad5ab64`,
+healthy OTA state 2 at 240 MHz, dashboard revision 51. Both adapters were absent;
+their retry activity does not qualify connected ECM/TCM traffic or radio load.
+Raw serial logs, phone preference backups and device identifiers remain private.
+
+### Thirty-cycle lifecycle baseline
+
+`WifiMaintenanceJourneyTest` passed **30 cycles in 361.910 seconds**. Each cycle
+opened a distinct protected session, authenticated OTA/config status over Wi-Fi,
+closed it and checked unchanged image and boot nonce. Final authenticated readback
+retained revision/digest and display settings. There was no firmware/configuration
+send, ECU command or bond reset. The serial capture included an initial POWERON
+boot; no further boot banner occurred during this baseline, and its protected boot
+nonce remained unchanged. Do not infer an unexplained reset from the initial banner.
+
+| Measurement | Observed |
+| --- | --- |
+| Complete memory samples through baseline/readback | 127 |
+| Recorded allocation failures | 0 |
+| Internal heap low watermark | 94,179 bytes |
+| Lowest sampled current internal free | 97,899 bytes |
+| Smallest sampled/lifecycle-close largest block | 31,744 bytes |
+| First close / second warm close / final close free | 122,843 / 122,839 / 122,719 bytes |
+| Close free range after first warm-up | 122,707..122,851 bytes (144-byte range) |
+| Sampled minimum stack: App / UI | 1,512 / 2,976 bytes |
+| Sampled minimum stack: primary / child adapter workers | 888 / 992 bytes |
+| Sampled minimum stack: config / OTA | 4,256 / 3,036 bytes |
+| Sampled minimum stack: Wi-Fi server / command | 6,040 / 2,576 bytes |
+
+Recorded worker queue drops and alert drops remained zero. Every sampled stack
+margin exceeded the runbook's 512-byte floor. This shows no accumulating close
+loss in this bounded bench run, not leak freedom, thermal qualification, every
+transient minimum or safety under connected dual-adapter load.
+
+### Offline failure boundaries
+
+Five memory-budget/allocation-hook/service-failure tests, one Wi-Fi driver lifecycle
+failure/retry fixture, one worker-health fixture, one production Wi-Fi IO fixture
+(silence/trickle/backpressure/close/session loss) and sanitized core firmware policy
+fixtures passed. Four socket-cancellation/deadline, four bounded GATT cleanup and
+six protected-owner recovery JVM tests passed. A further fourteen JVM cases covered
+boot confirmation, automatic update policy and durable setup. These are injected
+software cases, not physical flash/power interruption evidence.
+
+### Deliberate phone Wi-Fi loss
+
+The new opt-in `WifiMaintenanceRecoveryJourneyTest` passed in **33.839 seconds**
+against the unchanged installed App/firmware. After an authenticated status read,
+the fixture disabled phone Wi-Fi. The old socket raised `SocketException` in
+**191 ms** rather than reporting success. Bounded cleanup restored Wi-Fi and
+closed the protected session; a distinct fresh session authenticated both OTA and
+configuration status and closed in **4,703 ms**. Exact image/health, boot nonce,
+revision 51/digest and settings remained unchanged. Only the instrumentation APK
+was updated; the installed product APK hash remained the recorded baseline.
+
+This is a real radio-loss check of a read-only session, not an interrupted image
+upload, activation or rollback test. The fixture is documented in
+[memory qualification](../development/memory-qualification.md#indoor-interruption-checks-without-another-firmware-image).
+
+### App lifecycle and phone Bluetooth recovery
+
+`AutomaticConnectionJourneyTest` passed in **58.261 seconds** with phone Bluetooth
+off/on, cancelled gauge selection and hardware-then-firmware reads enabled. Opening
+reached protected confirmation in **7,664 ms**, resume refreshed protected state
+and settings in **2,775 ms**, and Bluetooth return recovered in **12,251 ms** without
+a reconnect tap. Revision/digest, display settings, gauge identity and profiles were
+unchanged. No pairing reset or configuration/firmware write was invoked.
+
+After an explicit App force-stop, a separate read-only invocation passed in
+**12.813 seconds**. Its fresh process reached protected confirmation in **7,591 ms**
+and refreshed after resume in **2,864 ms**, retaining the same state and healthy
+image. This tests reconstruction after this process stop, not every Android/OEM
+background-kill condition or device power loss. These isolated attempts do not
+establish a recovery success rate or explain the earlier GATT 133 cause.
+
+### Controlled gauge reset and foreground resume
+
+An initial new reset fixture failed its final independent protected read with
+`Could not queue protected gauge command`, after detecting the changed boot and
+automatic state refresh. Source review found that its independent client was
+outside the App coordinator while automatic polling remained active. That attempt
+is not counted as a passing reset/readback qualification or as a diagnosed product
+regression. The corrected observer pauses polling, drains the App's operation lease
+through an ordinary read, then exclusively observes the protected boot nonce.
+
+The corrected `GaugeRestartRecoveryJourneyTest` passed in **40.183 seconds**.
+After its explicit ready checkpoint, the Mac closed its logger and invoked esptool
+`run` with hard reset, without flash writes or erasure, then reopened read-only
+logging. A changed protected boot nonce proved the new boot. Resuming foreground
+polling in the same App automatically refreshed connection/settings in **3,501 ms**;
+the entire checkpoint/reset/readback sequence took **29,464 ms**. Exact healthy
+image, authenticated owner, revision 51/digest, settings and profiles were retained.
+No reconnect tap or setup resend was used. The first and corrected attempts each
+included one host-controlled serial-reset sequence; neither qualifies rail-power
+loss, brownouts, long retention or physical display/touch behavior.
+
+### Display sweep, preservation and teardown
+
+`DisplayShowcaseJourneyTest` passed in **174.069 seconds**, observing all **21**
+distinct protected frame indices 0..20, stopping playback and reading back the
+unchanged dashboard/settings/profiles. This is protocol/runtime evidence; no new
+owner pixel, touch or all-rotation confirmation was collected in this session.
+The prior dev.59 physical footer/hold/swipe confirmation remains separate.
+
+Final private comparisons found profiles, gauge associations and presentation
+preferences byte-for-byte unchanged. Across the serial captures, recorded
+allocation-failure and queue/alert-drop counters remained zero. After the corrected
+reset, sampled showcase App stack minimum was **1,576 bytes**, internal low watermark
+**131,751 bytes** and the smallest sampled largest block **36,864 bytes** without
+an active Wi-Fi driver. These are a different lifecycle phase from the 30-cycle
+Wi-Fi baseline and must not be combined as a like-for-like improvement claim.
+Normal eGauge was reopened, the read-only logger closed and original phone wake
+settings restored. No firmware was installed during these tests.
+
+### Next interruption candidate preparation
+
+Dev.60 changes only the firmware version identity from dev.59; test/runbook/roadmap
+updates do not alter the product runtime. Its ESP-IDF 5.4.1 build and linked memory
+guard passed locally: **163,898 bytes** reviewed internal static use against the
+**196,608-byte** ceiling; the single **65,536-byte** LVGL arena remains in external
+BSS, and the allocation hook remains in IRAM. The candidate is not signed, published
+or installed by this preparation. QUAL-02 retains the separate release-approval
+gate and controlled OTA reset/identity-reconciliation matrix. Bench socket loss
+does not substitute for that work.
