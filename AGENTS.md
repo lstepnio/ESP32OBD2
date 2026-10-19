@@ -1,107 +1,97 @@
 # Repository agent instructions
 
-Start with [AI context and code map](docs/ai-context.md), then [current state](docs/current-state.md).
-These are the current entry points; historical reports are evidence, not instructions.
+Read [current state](docs/current-state.md), then the affected row in the
+[source map](docs/ai-context.md) and [backlog](docs/backlog.md). Historical reports
+are evidence, not operating instructions. Android and firmware are active; iOS is deferred.
 
-## Efficient implementation
+## Commands and layout
 
-- Verify the current branch/worktree and dirty files before editing. Reuse a suitable active worktree.
-- Search the affected area with `rg`; read its implementation, tests and relevant contract. Avoid loading the entire docs tree or third-party catalog.
-- Prefer the smallest cohesive change that preserves architecture and styling. Remove dead code and superseded active guidance when verified.
-- Ask for input only when critical information or authorization is missing. Continue independent authorized work.
-- Run meaningful checks for the changed boundary using the context guide. Do not repeat broad tests without a concrete remaining risk.
-- Android and firmware are active; iOS is deferred. Ordinary UI stays simple and technical data belongs in Expert.
-- Current field firmware installation is App/Wi-Fi. Do not use USB flashing as an incidental fallback.
-- Never turn source, replay or simulated results into physical verification. Keep unqualified public capabilities disabled.
-- Follow [documentation ownership](docs/documentation.md): current state owns verified facts, backlog owns tasks/status/blockers, roadmap owns outcome order, and evidence owns dated measurements. Update the relevant authority with the code; do not duplicate status or treat historical pending notes as instructions.
+Prerequisites and fresh-clone setup: [README](README.md#development).
+Run from root, after activating `.venv`; source ESP-IDF before firmware checks.
+
+```sh
+python tools/dev.py lint                         # host + firmware + Android
+python tools/dev.py format --check               # Python, C, Kotlin; generated files excluded
+python tools/dev.py test                         # Python, native C, firmware fixtures, Android JVM
+python tools/dev.py build                        # host fixtures, firmware image, debug APK
+python tools/dev.py test --target android-ui      # disposable managed emulator, no physical phone
+# Focus work: --target host|firmware|android; format: --language python|c|kotlin
+```
+
+`firmware/gauge/main/` owns embedded runtime; `android/app/` owns the companion;
+`android/core/designsystem/` owns shared Compose UI; `contracts/` owns wire/data
+schemas and reading catalog; `tools/` owns checks/capture; `docs/` owns maintained
+contracts/status and dated evidence. `data/vehicle-definitions/` is research only.
+
+## Efficient changes
+
+- Inspect branch/worktree, upstream and dirty files first; preserve unrelated work.
+- Search the affected area with `rg`; read its implementation, tests and contract.
+  Do not load entire evidence trees, imported catalogs or managed dependencies.
+- Make the smallest cohesive change that preserves architecture/styling. Remove dead
+  code or stale guidance only after verifying references and remaining acceptance.
+- Ask only for critical missing information/authorization; continue independent work.
+- Run checks for the changed boundary. Repeat broad tests only for a concrete risk.
+  A build, fixture or serial log is not physical qualification.
+- Follow [documentation ownership](docs/documentation.md). Keep one topic authority;
+  update code/contracts together. Major choices belong in [ADRs](docs/decisions/README.md).
 - Do not use an em dash in user-facing responses.
 
-## Interaction and recovery rules
+## Runtime boundaries
 
-- Follow [automatic refresh and resilient interactions](docs/architecture/interaction-recovery.md)
-  for every App/firmware change. Automatically read settings and known connection state;
-  use cancellable foreground polling and bounded retry backoff instead of routine refresh taps.
-- Normal vehicles have one primary OBD-II adapter. Put a swap's optional TCM adapter
-  under the primary ECM connection within the same vehicle, configured in Expert.
-  Follow [vehicle connections](docs/architecture/vehicle-connections.md): preserve
-  separate per-gauge vehicle/source assignments, independent recovery and legacy data.
-  Ordinary reading/page/action editors and review/send use the same whole vehicle
-  dashboard, including legacy TCM-only profiles and single-adapter vehicles. Expert
-  edits transport bindings only. A second adapter changes PID routing, never the
-  page list; each missing source expires independently while its sibling continues.
-  Follow the [dual recovery matrix](docs/development/dual-adapter-recovery.md) for
-  two-source changes; development capability support never qualifies radio coexistence.
-- Reuse the universal connection widget and source-specific status projection. Account for
-  independent ECM/TCM links; do not let a healthy link hide a failed required link or promote
-  dual-adapter capability before the full path is qualified.
-- Keep BLE/UI callbacks nonblocking, snapshots short, writes serialized and external waits
-  deadline-bounded. Review lock ordering, queue saturation, late replies, disconnect cleanup,
-  failed persistence and interruption recovery. Test the relevant negative scenarios.
-- For external IO, use one monotonic operation budget, propagate cancellation to
-  the underlying socket/resource, and await cleanup before releasing the lease.
-  Reject retired callbacks/session generations. Follow the shared patterns in
-  [interaction recovery](docs/architecture/interaction-recovery.md), with qualification
-  recorded in [recovery hardening](docs/evidence/recovery-hardening.md).
-- Use one status/progress surface for each task. Routine connection recovery stays
-  in the universal widget; actionable profile, mutation and security failures stay
-  visible. Keep settings/profile dialogs scrollable and scope unsaved choices to
-  the selected gauge/vehicle. A healthy parent never certifies child fault checks.
-- Recover routine transient loss through the shared status widget and automatic
-  protected reads; avoid recurring prompts/toasts and arbitrary shorter timeouts.
-- Preserve last committed/last checked state honestly. Never show stale or simulated data
-  as current, infer success from queued work, replay uncertain writes blindly, or claim
-  deadlock immunity from source inspection or a build alone.
-
-## Shared alert framework and extensions
-
-- Use [ADR-015](docs/architecture/alerts-and-diagnostics.md) for every threshold,
-  MIL/fault and phone/provider alert. Extend existing producer adapters and shared
-  lifecycle, severity, attention, context, history and notification owners. Do not
-  create feature-specific alert stores, notification services or BLE owners.
-- Preserve autonomous gauge truth, independent availability, immutable entry context,
-  scoped vehicle/gauge/endpoint identities and silent replay. Acknowledgment, snooze,
-  history deletion and ECU clearing are distinct operations.
-- Follow the ADR's extension checklist in the same change: bounded producer contract,
-  wire/storage compatibility, negative/parity tests, architecture/protocol updates,
-  current support and backlog gates, then dated qualification evidence. Use the
-  [phone provider guide](docs/architecture/phone-alert-providers.md) for external feeds.
-- Advertise sensor-driven features only after runtime capability checks and relevant
-  qualification. Auto orientation follows the [hardware orientation policy](docs/architecture/hardware-and-transports.md#automatic-display-orientation),
-  independently of automatic page cycling.
-
-## Durable state and health patterns
-
-- Save coupled vehicle/profile and gauge assignments in one `LocalSetupStore` commit.
-  Use `LocalSetupTransactions`/`DurableWrites` off the UI thread, publish acknowledged
-  state only after success and retain legacy documents as read-only migration inputs.
-  Do not silently overwrite malformed/newer saved state or replay uncertain writes.
-- Preserve cancellation through `suspendResult`; use typed pairing/read failures.
-  Noncancellable work is limited to admitted platform commits and bounded cleanup.
-  A verified gauge outcome remains authoritative if phone journal cleanup fails.
-- Extend the existing firmware minute health log for task progress, queue saturation
-  and memory fragmentation. Adapter absence is not a task failure; do not add reset
-  loops or watchdog feeding that hides stalled owners. Qualify recovery on hardware.
-- Follow the [memory placement and admission budget](docs/architecture/firmware-runtime.md#memory-placement-and-admission-budget).
+- Follow [interaction/recovery](docs/architecture/interaction-recovery.md) for automatic
+  settings/connection reads, cancellable polling, bounded backoff and quiet recovery.
+  Reuse the universal connection widget; technical data belongs in Expert.
+- A normal vehicle has one primary adapter. An optional swap TCM is its child and changes
+  transport routing only, never page/reading/alert availability. Preserve per-gauge
+  assignments, legacy inputs and sibling operation during independent source loss.
+  Follow [vehicle connections](docs/architecture/vehicle-connections.md) and the
+  [dual recovery matrix](docs/development/dual-adapter-recovery.md).
+- Keep missing/stale/invalid values unavailable, never zero. Preserve ECU/source,
+  revision, session and monotonic age. Never present stale/fixture data as current.
+- BLE/UI callbacks must not block. Serialize writes; keep snapshots short, queue
+  admission bounded, external waits on one monotonic budget, and cancellation coupled
+  to the underlying resource. Await bounded cleanup before releasing the operation
+  lease. Reject retired callbacks; never blindly replay uncertain writes.
+- Coupled setup uses `LocalSetupTransactions`/`DurableWrites` and one off-main
+  `LocalSetupStore` commit. Publish only acknowledged state; retain malformed/newer
+  records and legacy read-only migration inputs. Preserve cancellation through
+  `suspendResult`; verified gauge truth survives phone journal cleanup failure.
+- Configuration success requires exact running revision/hash and cleared trial.
+  Update success requires exact signed post-boot identity and healthy OTA state.
+- Reuse [shared alerts](docs/architecture/alerts-and-diagnostics.md) for thresholds,
+  MIL/fault and provider notices: one lifecycle/history/attention/notification owner.
+  Follow its extension checklist and [provider guide](docs/architecture/phone-alert-providers.md).
+  Preserve autonomous gauge truth, immutable context, scoped identities and silent
+  replay. Acknowledge, snooze, history deletion and ECU clearing are distinct.
+- Follow [memory admission/placement](docs/architecture/firmware-runtime.md#memory-placement-and-admission-budget).
   Keep CPU-only bulk storage in PSRAM and required DMA/ISR/flash stacks internal.
-  Preserve the linked-image memory gate, bounded allocation failure cleanup and
-  repeated Wi-Fi lifecycle measurements; never claim OOM immunity from free PSRAM.
+  Extend existing worker/queue/memory health logs; adapter absence is not a task stall.
+  Never hide stalls with watchdog feeding/reset loops or claim OOM immunity.
+- Sensor-driven capabilities require runtime presence/support checks and qualification;
+  [Auto orientation](docs/architecture/hardware-and-transports.md#automatic-display-orientation)
+  is independent of page cycling. Public capability flags remain disabled until qualified.
 
-## Hardware sessions
+## Generated and sensitive areas
 
-Keep one active test owner per physical phone/gauge. Coordinate duplicate chats
-before device mutations or shared-worktree edits; do not interrupt another session's
-App, transfer, logger or debug-awake helper.
+- Do not hand-edit generated catalog, tokens, wire fixtures or fonts. Use their
+  generator (`tools/generate_*.py --check`, [font procedure](firmware/gauge/assets/fonts/README.md)).
+- Do not edit downloaded `managed_components`, `.gradle`, build output or research
+  imports as a runtime fix. Explicit dependency pins, locks and checksums require review.
+- Keep signing keys, private captures, device addresses and preference backups out of Git.
+  Do not erase bonds/config/App data, change eFuses or promote capability flags incidentally.
 
-For live Android debugging, run `python3 tools/adb_debug_awake.py start` before the session and `python3 tools/adb_debug_awake.py stop` when finished. The script saves and restores the phone's timeout and charging wake settings. The debug APK keeps its window awake while eGauge is visible. A manual device lock still requires the user to unlock it.
+## Hardware and delivery
 
-Record physical gauge and phone observations separately from simulated or source-level behavior. Keep public BLE capability flags disabled until the corresponding full path is implemented and verified.
-
-## Git workflow agreed with the owner
-
-- Commit each completed, meaningfully tested change on the active feature branch. Keep related code, tests, protocol notes and evidence documentation together.
-- Push the active feature branch to `origin` after each work session. The owner authorizes routine commits and branch pushes without another confirmation. Respect any later instruction to keep work local.
-- Use `codex/` for new feature branches. Reuse the current suitable branch/worktree when continuing existing work.
-- Keep secrets, signing keys, private vehicle captures and personal device identifiers out of commits. Do not force-push or rewrite shared history without explicit authorization.
-- Merge into `main` through a reviewed pull request after required checks and applicable physical validation pass. Routine push authorization does not authorize merging.
-- Publish firmware releases separately after required hardware testing and explicit release authorization. A branch push is not a release or device installation.
-- At the end of a session, report the branch, latest commit, whether it was pushed, verification results and remaining physical checks. If pushing fails, retain the local commits and explain the blocker.
+- Keep one active owner per phone/gauge; coordinate other chats before device mutations.
+  Never run broad connected tests on the owner phone. Use the managed emulator offline.
+- For authorized live Android debugging, run `python3 tools/adb_debug_awake.py start`
+  before the session and `stop` afterward to restore timeout/wake settings. Manual
+  locks still require the user to unlock. Record phone and gauge observations separately.
+- Field firmware installation is App/Wi-Fi. USB recovery requires separate explicit
+  authorization and the [release/recovery procedure](docs/development/firmware-release-runbook.md).
+- Follow [CONTRIBUTING](CONTRIBUTING.md): small tested commits, `codex/` branches,
+  push at session end, no shared-history rewriting. Routine commits/pushes are authorized;
+  main merge and firmware publication require separate owner authorization and checks.
+- Report branch/commit, push result, verification scope and remaining physical gates.
+  Never equate a pushed branch, green CI, release publication and installed firmware.

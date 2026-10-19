@@ -1,0 +1,4 @@
+#!/bin/sh
+# Optional: enable with git config core.hooksPath .githooks.
+set -eu
+exec .venv/bin/python tools/dev.py lint --target host

@@ -1,11 +1,7 @@
-# Architecture decisions
+# Architecture decision records
 
-Decisions describe chosen architecture, not proof every proposed extension is shipped.
-ADR-001..004, 006..009 and 012 are implemented development choices. ADR-005 has
-bounded implemented slices; broader discovery is proposed. ADR-010 public contract
-freezing and ADR-011 simultaneous radio operation remain qualification gates.
-ADR-013 implements local page jumps only; controller writes are proposed. ADR-014
-records current durable phone setup. ADR-015 proposes shared alerts and diagnostics. [Current state](../current-state.md) owns support.
+Accepted development decisions and their tradeoffs. Implementation details are linked
+below; [current state](../current-state.md) owns qualification, not this ledger.
 
 | ID | Decision | Reason and tradeoff | Revisit when |
 | --- | --- | --- | --- |
@@ -25,10 +21,16 @@ records current durable phone setup. ADR-015 proposes shared alerts and diagnost
 | ADR-014 | Coupled vehicle/gauge setup in one SharedPreferences commit | Existing bounded offline storage and backward reads; publish only acknowledged state via serialized off-main writes, not a second independently saved association document | Storage scale or a concrete transaction requirement warrants a migration |
 | ADR-015 | Shared alert lifecycle and history across threshold, MIL/fault and external producers; diagnostic endpoint independent of adapter | Autonomous gauge truth, consistent UX, bounded context and recoverable sync; event storage separate from setup; clearing remains explicit and qualified | Phased implementation, resource measurements and controller/Android qualification |
 
-[System architecture](system.md) records module boundaries. [Backlog](../backlog.md) records outstanding acceptance; [roadmap](../roadmap.md) orders outcomes.
 
-[Multi-adapter design](multi-adapter.md) details ADR-011. [Configuration storage](config-storage.md) details ADR-012 and its migration gate.
+## Implementation details
 
-[Profile actions and gauge gestures](vehicle-actions.md) records ADR-013 and its local foundation; no vehicle controls are enabled.
+- [System boundaries](../architecture/system.md): ADR-001 through ADR-010.
+- [Vehicle routing](../architecture/multi-adapter.md): ADR-011.
+- [Configuration storage](../architecture/config-storage.md): ADR-012.
+- [Profile actions](../architecture/vehicle-actions.md): ADR-013.
+- [Phone storage](../architecture/android-runtime.md#storage-and-recovery): ADR-014.
+- [Shared alerts and diagnostics](../architecture/alerts-and-diagnostics.md): ADR-015.
 
-[Shared alerts and diagnostics](alerts-and-diagnostics.md) records ADR-015 and its implementation sequence.
+Add a short numbered record here for a major choice, explaining the reason, tradeoff
+and revisit condition. Use a separate file only when the decision needs substantial
+context. Keep task status in the [backlog](../backlog.md).

@@ -73,9 +73,11 @@ Configuration permits eight pages, two channels per Dual page, 32 active definit
 32 alerts and 64 KiB. Runtime response buffers and worker deadlines are documented
 beside their owners in [firmware runtime](firmware-runtime.md), not inferred from
 larger research/discovery proposals. Curated definitions have bounded decoders;
-arbitrary scripts, controller writes and code clearing are not implemented.
+arbitrary scripts and controller actions are not implemented. Addressed Engine code
+clearing and readback exist behind a default-off gate; see [shared diagnostics](alerts-and-diagnostics.md#clearing-codes-and-preserving-evidence).
 
-Simultaneous two-adapter-plus-phone software exists; physical coexistence remains
-unqualified. Broader discovery, telemetry, sensors and production trust are tracked
+Simultaneous two-adapter-plus-phone software exists with recorded live source-loss
+and recovery checks. Sustained coexistence and loaded recovery remain qualification gates;
+see [current state](../current-state.md). Broader discovery, telemetry, sensors and production trust are tracked
 in the [backlog](../backlog.md). Proposed hardware choices live in
 [hardware strategy](hardware-and-transports.md), not the current ownership model.

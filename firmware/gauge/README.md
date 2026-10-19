@@ -1,9 +1,24 @@
 # Gauge firmware
 
-The firmware supports configurable pages and alerts, protected companion configuration, and experimental signed updates. Its upstream origin is documented in [current state](../../docs/current-state.md); the MIT notice is retained in [LICENSE](LICENSE). Capability flags remain the authority for what a particular build exposes.
+ESP-IDF/NimBLE/LVGL firmware for the Waveshare ESP32-S3-Touch-LCD-1.28: autonomous
+vehicle readings, configurable pages, shared alerts and protected configuration/updates.
 
-Build with ESP-IDF 5.4.1: source its `export.sh`, then run `idf.py build` in this folder. The direct registry dependencies are pinned in `main/idf_component.yml`. `dependencies.lock` contains machine-specific local BSP paths with this component-manager version and is generated locally; review resolved dependencies against the manifest pins.
+Source ESP-IDF 5.4.1, then from repository root:
 
-The tracked partition table uses 16 MB flash with two 3 MB OTA slots. A full `idf.py flash` also replaces OTA metadata; use it only for an intentional board migration. Current field updates use App/Wi-Fi. Direct flashing requires explicit board-migration/recovery authorization. An authorized application-only bench flash must first identify the running slot and preserve NVS, configuration partitions and OTA metadata. See [development setup](../../docs/development/setup.md) and [OTA design](../../docs/protocol/firmware-update.md).
+```sh
+.venv/bin/python tools/dev.py build --target firmware
+.venv/bin/python tools/dev.py test --target firmware
+```
 
-The tracked configuration enables the board's 2 MB QSPI PSRAM and uses performance compiler optimization with assertions retained. CPU and peripheral clocks remain at their existing settings. The [performance review](../../docs/evidence/gauge-performance-review.md) records touch-path changes, persistence behavior, optional timing instrumentation, and the distinction between source checks and physical measurements.
+The second command uses native production UI/config fixtures, not a physical gauge.
+[Setup](../../README.md#development) lists prerequisites. The build checks exact
+registry resolutions against `main/idf_component.yml`; the machine-specific BSP lock
+is regenerated locally. [Fonts](assets/fonts/README.md) has the sole generation procedure.
+
+See [runtime ownership/memory](../../docs/architecture/firmware-runtime.md),
+[current support](../../docs/current-state.md), [source map](../../docs/ai-context.md)
+and [development release procedure](../../docs/development/firmware-release-runbook.md).
+Field installation uses App/Wi-Fi. USB flashing requires explicit provisioning/recovery
+authorization because full flashing changes OTA metadata; preserve NVS/config/owner state.
+
+The upstream [MIT license](LICENSE) and font notices remain intact.

@@ -4,73 +4,32 @@ Use an existing working environment first. Commands below run from the repositor
 root unless stated otherwise. Hardware work needs the owner's readiness/authorization;
 normal firmware installation is through App/Wi-Fi. Building does not install anything.
 
-## Offline tooling
+## Toolchains and shared checks
 
-Python 3.10+ and a C compiler are needed for host checks. `bleak` is imported by mocked
-adapter tests even when no Bluetooth connection is made.
+[Root README](../../README.md#development) owns fresh-clone prerequisites and the
+single lint/format/test/build commands. [Quality](quality.md) owns test scope and
+hardware safety. This page contains environment-specific troubleshooting and sessions.
 
-```sh
-python3 -m venv .venv
-.venv/bin/pip install -r tools/requirements-test.txt
-.venv/bin/python tools/validate.py
-.venv/bin/python -m unittest discover -s tools/tests -p 'test_obd*.py'
-.venv/bin/python tools/obd_capture.py self-test
-```
-
-`python tools/dev.py lint|test|build --target host|android|firmware|all` is the shared
-local and CI entry point (choose one action and target). The default target is all;
-host checks do not access hardware. It discovers all Python suites, including the
-review server, and owns the standalone C sanitizer and config-binding commands. Diagnostics host tests also compare the
-production C snapshot with the Android wire fixture.
-
-## Android
-
-Use JDK 17, Android SDK platform/build-tools 36 and the checked-in Gradle wrapper.
-Set `ANDROID_HOME`, or use ignored `android/local.properties` with `sdk.dir`.
-
-```sh
-cd android
-./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --no-daemon
-# When instrumentation contracts change:
-./gradlew :app:compileDebugAndroidTestKotlin --no-daemon
-```
-
-The debug APK is `android/app/build/outputs/apk/debug/app-debug.apk` from the root.
-[Android README](../../android/README.md) covers screenshots, phone test constraints
-and release signing. Do not run connected tests on the user's phone incidentally:
-they can replace its app and remove local data.
-
-For an authorized live Android session, run `python3 tools/adb_debug_awake.py start`
-beforehand and `stop` afterward. This restores the phone's original wake settings.
-A manually locked phone still requires the owner to unlock it.
-
-## Firmware
-
-Use ESP-IDF 5.4.1 targeting ESP32-S3, then:
-
-```sh
-. "$IDF_PATH/export.sh"
-cd firmware/gauge
-idf.py build
-```
-
-On the existing Mac, select the managed environment before exporting IDF; this
-avoids accidentally choosing a newer Homebrew Python:
+Use the existing ESP-IDF Python environment before exporting IDF on the known Mac:
 
 ```sh
 export IDF_PYTHON_ENV_PATH="$HOME/.espressif/python_env/idf5.4_py3.9_env"
 export PATH="$IDF_PYTHON_ENV_PATH/bin:$PATH"
 . "$HOME/esp/esp-idf-v5.4.1/export.sh"
+. .venv/bin/activate
 ```
 
-These Mac paths describe the known local installation. New machines should use a
-supported clean IDF setup or the pinned CI container. Do not recreate old package
-metadata workarounds unless an actual error requires them.
+These paths describe one installation, not fresh-clone requirements. Do not recreate
+old package-metadata workarounds or reinstall working tools without an actual failure.
+The build invokes IDF's own selected Python for dependency checks. Registry components
+must match exact manifest pins; the local resolver lock embeds an absolute BSP path
+and stays ignored. Do not broaden the ignore rule to all lockfiles.
 
-Component manifests pin dependencies; generated component downloads and the local
-BSP lockfile remain ignored. `firmware/gauge/version.txt` supplies image identity.
-Build outputs are not signed release packages. Use the [release runbook](firmware-release-runbook.md)
-for authorized publication and the [recovery matrix](ota-recovery-matrix.md) for qualification.
+To intentionally update Android dependencies, edit explicit declarations, run the
+relevant wrapper tasks with `--write-locks`, review each resolved change and update
+verification metadata only against trusted artifacts. Never regenerate checksums just
+to bypass a mismatch. Formatter versions/checksum live in `tools/requirements-dev.txt`
+and `tools/tooling.json`; CI consumes the same pins. No global formatter install is needed.
 
 ## Adapter and vehicle sessions
 

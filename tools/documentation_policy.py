@@ -22,6 +22,9 @@ def authored_documents(root: Path) -> list[Path]:
                 "THIRD_PARTY_NOTICES.md",
                 "android/README.md",
                 "firmware/gauge/README.md",
+                "firmware/gauge/assets/fonts/README.md",
+                "mechanical/jk-dash-pod/README.md",
+                "data/vehicle-definitions/README.md",
             )
         ]
         + list((root / "docs").rglob("*.md"))
@@ -139,6 +142,8 @@ def check_map(root: Path, documents: list[Path]) -> None:
 
 def check_documentation(root: Path) -> int:
     documents = authored_documents(root)
+    if len((root / "AGENTS.md").read_text().splitlines()) > 150:
+        raise ValueError("Keep AGENTS.md under 150 lines; link topic owners instead")
     check_links(root, documents)
     check_map(root, documents)
     return len(documents)

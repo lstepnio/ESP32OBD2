@@ -16,15 +16,15 @@ Read only the affected contract/runbook before source work; evidence is not requ
 - [System overview](architecture/system.md), [Android ownership](architecture/android-runtime.md), [firmware ownership](architecture/firmware-runtime.md)
 - [Interaction/recovery rules](architecture/interaction-recovery.md)
 - [Vehicle connections and dashboard](architecture/vehicle-connections.md), [multi-adapter qualification](architecture/multi-adapter.md)
-- [Configuration storage](architecture/config-storage.md), [architecture decisions](architecture/decisions.md)
+- [Configuration storage](architecture/config-storage.md), [architecture decisions](decisions/README.md)
 - [Hardware strategy](architecture/hardware-and-transports.md), [local gestures and proposed controller actions](architecture/vehicle-actions.md)
 
-- [Shared alerts, notifications and CEL/MIL plan](architecture/alerts-and-diagnostics.md): proposed lifecycle, context/history, clearing and implementation/test sequence
+- [Shared alerts, notifications and CEL/MIL](architecture/alerts-and-diagnostics.md): implemented development lifecycle, context/history, gated clearing and extension rules
 
 ## Protocols
 
 - Implemented development: [protected BLE/config/update wire](protocol/experimental-firmware-transfers.md), [adapter bindings](protocol/adapter-bindings-v1.md), [Wi-Fi bulk](protocol/wifi-bulk-v1.md), [hardware snapshot](protocol/hardware-probe.md)
-- [Diagnostics and alerts](protocol/diagnostics-and-alerts.md): current read/threshold path plus explicitly proposed clearing/attention extensions
+- [Diagnostics and alerts](protocol/diagnostics-and-alerts.md): implemented reads, threshold/attention/history commands and default-off clearing
 - Proposed public interfaces: [BLE v1](protocol/ble-v1.md), [PID discovery/import](protocol/pid-discovery.md), [production update contract](protocol/firmware-update.md)
 - [Schemas and examples](../contracts/): shape coverage is broader than current runtime support
 
@@ -49,6 +49,6 @@ Read only the affected contract/runbook before source work; evidence is not requ
 [Dated implementation/device evidence](evidence/README.md) retains rollout, capture,
 review and measured behavior. Old pending instructions are historical. Use current
 state and backlog to decide today's work, not the latest-looking archive title.
-Screenshots remain labelled as simulated fixtures or physical captures in their records.
+Screen provenance is recorded with its capture procedure; gallery captions use screen names.
 
 Paired-phone provider integration: [typed notices, review and qualification](architecture/phone-alert-providers.md).

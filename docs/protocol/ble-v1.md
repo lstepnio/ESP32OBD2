@@ -9,49 +9,9 @@ and [adapter bindings](adapter-bindings-v1.md) define the implemented bytes.
 
 ## Implemented protocol 0 quick selection
 
-The public JSON advertises protocol major 0, one qualified adapter link and bounded
-extensions including `hw:1`, `cfg:5`, `ad:1`, `va:1`, `da:1` and `ds:3`/Wi-Fi features. Legacy
-quick-selection flags are offered only in the built-in state variant. The active
-configuration variant uses protected document/runtime reads instead. Config version 5
-includes schema-2 bindings, mixed-controller pages, decimal readings and TCM alerts. Current
-runtime supports Engine Mode 01 and the exact captured Transmission Mode 22
-definitions; it does not offer arbitrary OBD requests or general v1 operations.
-
-
-The authenticated display-settings extension advertises `ds: 1` beginning with dev.28 after physical qualification of the protected path on dev.27. Dev.27 implements the path without advertising the public flag. The owner writes `35 01 00 00 00` to the protected control characteristic and reads the protected state characteristic. State version `0A` is eight bytes: version, rotation `0`..`3`, brightness `5`..`100`, reserved zero, and little-endian `u32` revision. To save, the owner writes opcode `36`, rotation, brightness, then the revision it just read. Firmware validates bounds, queues the command, saves a versioned NVS record, applies rotation and backlight, then advances the revision. The app reports success only after a read confirms the requested values and the next revision. Default values come from the active document or built-in gauge; a saved owner adjustment survives restart and document updates. The extension uses the existing protected characteristics and requires no GATT database change.
-
-Display settings version `ds: 2` extends the same eight-byte state to version `0B`. Byte 3 is the display units enum (`0` metric, `1` imperial); the other fields retain their offsets. Opcode `37` writes rotation, brightness, units, and the little-endian `u32` revision last read, for eight bytes total. Firmware rejects invalid values and stale revisions. The existing opcode `36` remains supported and preserves units. The saved NVS display record migrates version 1 to version 2 without changing rotation, brightness, or revision. Built-in and document readings remain canonical metric values; the gauge converts Celsius and kilometers per hour for display, and the app converts previews and alert editing at the presentation boundary. No configuration document or GATT database change is required.
-
-Display settings version `ds: 3` adds saved-page cycling. State version `0C` is ten bytes: version, rotation, brightness, units, little-endian `u32` revision, then little-endian `u16` cycle interval in seconds. The interval accepts `0` (Off) or `5`, `10`, `15`, `30`, and `60`. Opcode `38` writes rotation, brightness, units, little-endian `u16` interval, then little-endian `u32` expected revision, for ten bytes total. Older opcodes `36` and `37` preserve the cycle interval. Existing NVS records migrate to a disabled interval without changing their display values or revision. The gauge advances only when more than one saved page exists, resets the interval after a manual page change or owner selection, and pauses during a transfer. Automatic page changes are runtime only; they do not repeatedly write flash. The app verifies the saved interval by reading the next revision. This extension uses the existing protected characteristics and requires no GATT database or configuration document change.
-
-The device uses LE Secure Connections, authenticated passkey entry, encryption and bonding. An unowned gauge starts on an exclusive pairing screen and automatically opens a 120-second association window. When the window expires, the screen shows **HOLD TO OPEN PAIRING** and a gauge long press opens another window. While the window is open, the screen says **OPEN APP TO PAIR GAUGE**. Readings, renderer graphics, alerts, and diagnostics stay hidden throughout pairing. The six-digit passkey appears on its LCD and Android shows the system pairing prompt. The first authenticated bonded phone identity is stored in NVS as owner, which closes pairing and restores the selected gauge page. Subsequent boots with a saved owner start on that page even when the phone is disconnected. Protected GATT access also checks the owner identity. A 12-second physical hold now opens a 30-second confirmation screen; a tap confirms erasing the owner association and bond, then restarts the gauge. This reset is intentionally local.
-
-Owner adoption requires a passkey event on the same connection within the active association window. A previously bonded phone that reconnects after owner reset cannot silently reclaim ownership during the next window. If bond deletion fails, the owner association is still cleared and old encrypted links remain unauthorized; the user may need to forget stale bonds on the phone before a fresh pairing.
-
-The public read-only pairing status characteristic uses UUID `6f1a0004-9e3b-4f45-a714-69c9d23b6c00`. It returns four bytes: version `01`, state (`00` closed and unowned, `01` ready, `02` passkey displayed, `03` owner saved), and remaining association-window seconds as little-endian `u16`. It contains no passkey or owner identity. Clients treat the characteristic as optional for older firmware. Android starts bonding only from the explicit Pair gauge action; ordinary protected reads and controls never initiate a bond. The advertised name includes a six-character suffix from the BLE identity address. The LCD repeats this short ID during pairing so a user can match a nearby gauge to the app when several are present.
-
-Protocol 0 uses two extra characteristics under the service UUID below:
-
-| Prefix | Access | Value |
-| --- | --- | --- |
-| `6f1a0002` | Authenticated write with response | Opcode `01`: two bytes with built-in reading index `00`..`04`. Opcode `02`: six bytes with rotation enum `00`..`03` and little-endian `u32` base legacy revision. |
-| `6f1a0003` | Authenticated read | Legacy version `01`: four bytes with applied index and volatile session revision `u16`. Current version `02`: eight bytes with applied index, saved index, display rotation enum `00`..`03`, and little-endian durable legacy revision `u32` |
-
-Indices are RPM, speed, engine load, coolant temperature, and fuel level. A successful ATT write means the bounded request entered the firmware queue. Android reads state after the write and reports success only when the applied index matches. Firmware saves the choice in existing NVS before publishing it. The old session revision resets on reboot. The version `02` legacy revision persists in NVS, starts at zero for an older saved selection, and increments on each successful legacy save. It is not a v1 full-document revision. A retry of the same index is safe. A failed or ambiguous readback must not be displayed as applied. Android shows the saved snapshot separately from the phone's design draft. Version `02` reuses the existing characteristic so bonded Android devices with a cached GATT database can still read it after an app update.
-
-Rotation writes require the owner and the revision read immediately before the request. Firmware discards a queued rotation if a local touch or another command changed that revision first. Android confirms the requested saved rotation and a higher revision after the write. On the connected development gauge, the Pixel selected 90 degrees and read it back at revision 26; after a firmware monitor reset, an authenticated read still reported 90 degrees. The user confirmed the display looked correctly rotated and touch selected one reading per tap. The revision had advanced to 41 during the intervening period, so the exact source of those additional legacy saves remains to be inspected.
-
-This is a development slice requiring phone pairing and LCD review before a production security claim. The pairing UI, Android system dialog behavior, bond recovery, and simultaneous OBD-adapter compatibility need hardware evidence. Runtime Secure Connections-only policy may exclude adapters that require legacy pairing; verify actual adapters before relying on dual-link operation.
-
-The current development image has neither secure boot nor NVS encryption enabled. Bond and owner records therefore need a production storage-protection decision before distributing trusted update or vehicle-changing operations. Development owner writes include bounded configuration, display settings and signed
-updates; arbitrary vehicle writes and code clearing are not implemented. See [Espressif's ESP32-S3 security guide](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/security/security.html).
-
-The implementation follows the ESP-IDF NimBLE security settings and Android's system-managed bonding API. See [Espressif's security option reference](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/api-reference/kconfig.html) and [Android `BluetoothDevice.createBond`](https://developer.android.com/reference/android/bluetooth/BluetoothDevice#createBond()). Those references describe platform behavior; they do not prove this exact phone/gauge exchange until observed.
-
-In v1, firmware is peripheral to the Android central and central to the OBD adapter. One authorized phone session initially. A bonded device identity, not a changing BLE MAC address, identifies the gauge.
-
-**Proposed, not implemented:** the general v1 sections below describe future contracts,
-not the protocol-0 operations above. Capability flags do not enable them.
+See the maintained [development owner protocol](experimental-firmware-transfers.md#legacy-selection-pairing-and-display-settings)
+for legacy selection, pairing and display settings. This document owns the proposed
+public v1 envelope below, not a second copy of implemented wire layouts.
 
 ## Proposed v1 discovery, ownership, and capabilities
 
@@ -128,4 +88,7 @@ Wi-Fi bulk transfer uses the same operation/hash/offset semantics with an exclus
 
 ## Development adapter selection extension
 
-The implemented private `cfg:5`, `ad:1`, `va:1` and `da:1` extensions add schema-2 bindings, per-definition routing, owner-only discovery/status and catalog alerts using the existing protected characteristics. See [adapter binding contract](adapter-bindings-v1.md). The public configuration and simultaneous-adapter flags remain disabled pending physical qualification. Pairing status is appended to preserve the control/state handles, and Service Changed announces database updates.
+The [adapter binding contract](adapter-bindings-v1.md) and
+[development owner protocol](experimental-firmware-transfers.md) own implemented
+configuration/discovery/routing markers. Public capability promotion remains gated
+by [current qualification](../current-state.md).
