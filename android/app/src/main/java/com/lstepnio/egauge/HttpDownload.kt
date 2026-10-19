@@ -5,9 +5,13 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /** A size bound and one total deadline also cover a slow, fragmented response. */
-internal suspend fun boundedHttpDownload(url: URL, maximumBytes: Int, timeoutMs: Long = 45_000,
+internal suspend fun boundedHttpDownload(
+    url: URL,
+    maximumBytes: Int,
+    timeoutMs: Long = 45_000,
     open: () -> HttpURLConnection = { url.openConnection() as HttpURLConnection },
-    trusted: (URL) -> Boolean = ::isTrustedGitHubDownloadUrl): ByteArray {
+    trusted: (URL) -> Boolean = ::isTrustedGitHubDownloadUrl
+): ByteArray {
     require(url.protocol == "https" && maximumBytes > 0)
     val connection = open().apply {
         connectTimeout = 15_000
@@ -27,7 +31,9 @@ internal suspend fun boundedHttpDownload(url: URL, maximumBytes: Int, timeoutMs:
                 }
             }
             require(trusted(connection.url)) { "GitHub redirected to an untrusted host" }
-            require(connection.contentLengthLong < 0 || connection.contentLengthLong <= maximumBytes) {
+            require(
+                connection.contentLengthLong < 0 || connection.contentLengthLong <= maximumBytes
+            ) {
                 "GitHub asset is larger than allowed"
             }
             connection.inputStream.use { input ->
@@ -36,7 +42,9 @@ internal suspend fun boundedHttpDownload(url: URL, maximumBytes: Int, timeoutMs:
                 while (true) {
                     val count = input.read(buffer)
                     if (count < 0) break
-                    require(count <= maximumBytes - output.size()) { "GitHub asset is larger than allowed" }
+                    require(count <= maximumBytes - output.size()) {
+                        "GitHub asset is larger than allowed"
+                    }
                     output.write(buffer, 0, count)
                 }
                 output.toByteArray()

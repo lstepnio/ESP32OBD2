@@ -19,7 +19,8 @@ int main(void)
     worker_health_progress(WORKER_CONFIG, 101);
     assert(worker_health_snapshot(WORKER_CONFIG, 100).age_ms == 0);
     /* A responding sibling does not refresh a stalled worker. */
-    for (unsigned i = 1; i <= 10000; ++i) worker_health_progress(WORKER_APP, i);
+    for (unsigned i = 1; i <= 10000; ++i)
+        worker_health_progress(WORKER_APP, i);
     assert(worker_health_snapshot(WORKER_APP, 10000).maximum_gap_ms == 1);
     assert(worker_health_snapshot(WORKER_UI, 10000).age_ms == 10000);
     worker_health_progress((worker_id_t)-1, 1);

@@ -33,7 +33,8 @@
 
 typedef struct _ui_t ui_t;
 
-typedef enum {
+typedef enum
+{
     UI_RENDERER_NUMERIC = 0,
     UI_RENDERER_ARC,
     UI_RENDERER_BAR,
@@ -41,20 +42,22 @@ typedef enum {
     UI_RENDERER_DUAL,
 } ui_renderer_t;
 
-typedef struct {
-    uint16_t pid;
+typedef struct
+{
+    uint16_t    pid;
     const char *name;
     const char *unit;
-    double minimum;
-    double maximum;
-    uint32_t stale_after_ms;
+    double      minimum;
+    double      maximum;
+    uint32_t    stale_after_ms;
 } ui_metric_t;
 
-typedef struct {
-    const char *name;
+typedef struct
+{
+    const char   *name;
     ui_renderer_t renderer;
-    uint8_t metric_count;
-    ui_metric_t metrics[2];
+    uint8_t       metric_count;
+    ui_metric_t   metrics[2];
 } ui_page_t;
 
 typedef void (*ui_touch_callback_t)(ui_t *ui, lv_event_code_t event_code);
@@ -63,44 +66,73 @@ typedef void (*ui_touch_callback_t)(ui_t *ui, lv_event_code_t event_code);
 // Public Function Declarations
 // ---------------------------------------------------------------------------------------------------------------------
 
-ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t touch_cb,
-              bool pairing_required, bool imperial_units);
+ui_t *ui_init(ui_page_t const    *page,
+              uint32_t            interval_ms,
+              ui_touch_callback_t touch_cb,
+              bool                pairing_required,
+              bool                imperial_units);
 /* Thread-safe presentation mailbox. Samples are accepted only when their PID
  * still matches the selected page, preventing late replies from crossing a
  * page change. Passing NULL publishes an unavailable sample for that PID. */
-void  ui_set_value(ui_t *ui, uint16_t pid, double const *value);
-void  ui_set_page(ui_t *ui, ui_page_t const *page);
-void ui_set_page_position(ui_t *ui,unsigned index,unsigned count);
+void ui_set_value(ui_t *ui, uint16_t pid, double const *value);
+void ui_set_page(ui_t *ui, ui_page_t const *page);
+void ui_set_page_position(ui_t *ui, unsigned index, unsigned count);
 /* LVGL owner only for configuration and target access. Context mailbox is thread-safe. */
-void ui_configure_page_action(ui_t *ui, page_action_config_t config);
-void ui_set_action_context(ui_t *ui, bool allowed);
+void    ui_configure_page_action(ui_t *ui, page_action_config_t config);
+void    ui_set_action_context(ui_t *ui, bool allowed);
 uint8_t ui_action_target(ui_t *ui);
-void ui_reset_action_sequence(ui_t *ui);
-bool ui_action_pending(ui_t *ui);
-void ui_action_applied(ui_t *ui);
+void    ui_reset_action_sequence(ui_t *ui);
+bool    ui_action_pending(ui_t *ui);
+void    ui_action_applied(ui_t *ui);
 /* Call on the LVGL task or while holding its lock. */
-void  ui_set_units(ui_t *ui, bool imperial_units);
+void ui_set_units(ui_t *ui, bool imperial_units);
 /* Thread-safe: displays pairing or owner-reset instructions. Accepts a six-digit
  * passkey or UI_PAIRING_* state. UI_PAIRING_HIDDEN restores the gauge view. */
-void  ui_show_pairing_code(ui_t *ui, uint32_t passkey);
-void  ui_set_pairing_identifier(ui_t *ui, const char *identifier);
-void  ui_set_alert(ui_t *ui, uint8_t severity, bool unavailable, const char *label);
-void  ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on, bool transmission,
-                         uint8_t count, const char *first_code);
-void  ui_start_display_calibration(ui_t *ui);
-void  ui_next_display_calibration(ui_t *ui);
+void ui_show_pairing_code(ui_t *ui, uint32_t passkey);
+void ui_set_pairing_identifier(ui_t *ui, const char *identifier);
+void ui_set_alert(ui_t *ui, uint8_t severity, bool unavailable, const char *label);
+void ui_set_diagnostics(ui_t *ui, bool valid, bool mil_on, bool transmission, uint8_t count, const char *first_code);
+void ui_start_display_calibration(ui_t *ui);
+void ui_next_display_calibration(ui_t *ui);
 
 /* Call at boot with the LVGL lock held for a trace-build bench source. */
 void ui_set_simulated(ui_t *ui);
 
-void ui_set_alert_full(ui_t *ui,uint8_t severity,bool unavailable,const char *label,bool attention);
+void ui_set_alert_full(ui_t *ui, uint8_t severity, bool unavailable, const char *label, bool attention);
 
-void ui_set_alert_event(ui_t *ui,uint8_t severity,bool unavailable,const char *label,bool attention,uint16_t key,uint32_t boot,uint32_t episode,float value,float limit,const char *unit);
-void ui_set_alert_condition(ui_t *ui,uint8_t severity,bool unavailable,const char *label,bool attention,uint16_t key,uint32_t boot,uint32_t episode,float value,float limit,const char *unit,uint8_t additional,bool simulated);
-void ui_set_vehicle_diagnostics(ui_t *ui,const diagnostics_snapshot_t *snapshot);
+void ui_set_alert_event(ui_t       *ui,
+                        uint8_t     severity,
+                        bool        unavailable,
+                        const char *label,
+                        bool        attention,
+                        uint16_t    key,
+                        uint32_t    boot,
+                        uint32_t    episode,
+                        float       value,
+                        float       limit,
+                        const char *unit);
+void ui_set_alert_condition(ui_t       *ui,
+                            uint8_t     severity,
+                            bool        unavailable,
+                            const char *label,
+                            bool        attention,
+                            uint16_t    key,
+                            uint32_t    boot,
+                            uint32_t    episode,
+                            float       value,
+                            float       limit,
+                            const char *unit,
+                            uint8_t     additional,
+                            bool        simulated);
+void ui_set_vehicle_diagnostics(ui_t *ui, const diagnostics_snapshot_t *snapshot);
 /* Ephemeral, authenticated bench presentation. Does not change vehicle data or NVS. */
-bool ui_request_showcase(ui_t *ui,bool enabled,uint8_t seconds,uint32_t sequence,bool vehicle_ready,bool maintenance);
-size_t ui_showcase_status(ui_t *ui,uint32_t now,uint8_t out[20]);
-bool ui_showcase_active(ui_t *ui);
-void ui_showcase_next(ui_t *ui);
-void ui_showcase_stop(ui_t *ui);
+bool   ui_request_showcase(ui_t    *ui,
+                           bool     enabled,
+                           uint8_t  seconds,
+                           uint32_t sequence,
+                           bool     vehicle_ready,
+                           bool     maintenance);
+size_t ui_showcase_status(ui_t *ui, uint32_t now, uint8_t out[20]);
+bool   ui_showcase_active(ui_t *ui);
+void   ui_showcase_next(ui_t *ui);
+void   ui_showcase_stop(ui_t *ui);

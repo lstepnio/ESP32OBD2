@@ -1,36 +1,63 @@
 package com.lstepnio.egauge
 
 /** Optional swap-specific child owned by the vehicle's primary ECM connection. */
-data class TransmissionConnection(val adapter: AdapterBinding? = null,
-                                  val draft: Draft = TransmissionSetup.draft()) {
+data class TransmissionConnection(
+    val adapter: AdapterBinding? = null,
+    val draft: Draft = TransmissionSetup.draft()
+) {
     init {
-        require(draft.source == "TCM" && draft.alerts.all { it.pidId in ConfigurationProjector.transmissionPidIds } &&
-            draft.pages.flatMap { it.pidIds }.all { it in ConfigurationProjector.transmissionPidIds }) {
+        require(
+            draft.source == "TCM" &&
+                draft.alerts.all { it.pidId in ConfigurationProjector.transmissionPidIds } &&
+                draft.pages.flatMap {
+                    it.pidIds
+                }.all { it in ConfigurationProjector.transmissionPidIds }
+        ) {
             "Transmission child must use supported TCM readings"
         }
     }
 }
 
-fun samePhysicalAdapter(first: AdapterBinding?, second: AdapterBinding?): Boolean =
-    first != null && second != null && (first.address == second.address || first.id == second.id)
+fun samePhysicalAdapter(first: AdapterBinding?, second: AdapterBinding?): Boolean = first != null && second != null && (first.address == second.address || first.id == second.id)
 
 /** Explicit migration only: a legacy TCM profile never guesses its parent vehicle. */
 fun ProfileCollection.attachTransmission(legacyId: String, parentId: String): ProfileCollection {
     val legacy = profiles.single { it.id == legacyId }
     val parent = profiles.single { it.id == parentId }
-    require(legacy.draft.source == "TCM" && parent.draft.source == "ECM" && parent.transmission == null)
-    val attached = parent.copy(transmission = TransmissionConnection(legacy.primaryAdapter, legacy.draft))
-    return copy(activeId = parent.id, profiles = profiles.filter { it.id != legacy.id }.map {
-        if (it.id == parent.id) attached else it
-    })
+    require(
+        legacy.draft.source == "TCM" && parent.draft.source == "ECM" && parent.transmission == null
+    )
+    val attached = parent.copy(
+        transmission = TransmissionConnection(legacy.primaryAdapter, legacy.draft)
+    )
+    return copy(
+        activeId = parent.id,
+        profiles = profiles.filter { it.id != legacy.id }.map {
+            if (it.id == parent.id) attached else it
+        }
+    )
 }
 
 /** Vehicle editing is independent of the adapter currently connected to the gauge. */
 fun VehicleProfile.dashboardDraft(): Draft {
     val child = transmission ?: return draft.copy(source = "ECM")
     val pages = draft.pages + child.draft.pages.map { it.copy(id = "child.${it.id}") }
-    val ordered = pageOrder.mapNotNull { id -> pages.firstOrNull { it.id == id } } + pages.filter { it.id !in pageOrder }
-    return draft.copy(source = "BOTH", diagnosticFilters = (draft.diagnosticFilters + child.draft.diagnosticFilters).distinct(), alerts = draft.alerts + child.draft.alerts, actions = draft.actions + child.draft.actions.map { it.copy(pageId = "child.${it.pageId}") }, pages = ordered)
+    val ordered =
+        pageOrder.mapNotNull { id -> pages.firstOrNull { it.id == id } } +
+            pages.filter { it.id !in pageOrder }
+    return draft.copy(
+        source = "BOTH",
+        diagnosticFilters = (
+            draft.diagnosticFilters +
+                child.draft.diagnosticFilters
+            ).distinct(),
+        alerts = draft.alerts + child.draft.alerts,
+        actions =
+            draft.actions + child.draft.actions.map {
+                it.copy(pageId = "child.${it.pageId}")
+            },
+        pages = ordered
+    )
 }
 
 /** Only execution needs two distinct physical adapters. */
@@ -46,23 +73,47 @@ fun VehicleProfile.withCombinedPageAction(action: PageAction?): VehicleProfile {
     val child = requireNotNull(transmission)
     val combined = dashboardDraft()
     ProfileActions.validate(listOfNotNull(action), combined.pages)
-    require(combined.pages.map { it.id }.distinct().size == combined.pages.size) { "Page identities must be unique across the vehicle" }
+    require(
+        combined.pages.map {
+            it.id
+        }.distinct().size == combined.pages.size
+    ) {
+        "Page identities must be unique across the vehicle"
+    }
     val childTarget = action != null && draft.pages.none { it.id == action.pageId }
-    val primary = draft.copy(actions = if (action != null && !childTarget) listOf(action) else emptyList())
-    val secondary = child.draft.copy(actions = if (action != null && childTarget)
-        listOf(action.copy(pageId = action.pageId.removePrefix("child."))) else emptyList())
+    val primary = draft.copy(
+        actions = if (action != null &&
+            !childTarget
+        ) {
+            listOf(action)
+        } else {
+            emptyList()
+        }
+    )
+    val secondary = child.draft.copy(
+        actions = if (action != null && childTarget) {
+            listOf(action.copy(pageId = action.pageId.removePrefix("child.")))
+        } else {
+            emptyList()
+        }
+    )
     ProfileActions.validate(primary.actions, primary.pages)
     ProfileActions.validate(secondary.actions, secondary.pages)
     return copy(draft = primary, transmission = child.copy(draft = secondary))
 }
 
 /** Removing a physical route never removes the vehicle's pages or gestures. */
-fun VehicleProfile.withoutTransmissionAdapter(): VehicleProfile =
-    copy(draft = dashboardDraft().copy(source = "ECM"), transmission = null, pageOrder = emptyList())
+fun VehicleProfile.withoutTransmissionAdapter(): VehicleProfile = copy(
+    draft = dashboardDraft().copy(source = "ECM"),
+    transmission = null,
+    pageOrder = emptyList()
+)
 
 /** Explicit child selection preserves the primary, pages and associations. */
 fun VehicleProfile.withSecondAdapter(value: AdapterBinding?): VehicleProfile {
     require(draft.source == "ECM" && transmission != null) { "Add the second adapter setup first" }
-    require(value == null || !samePhysicalAdapter(primaryAdapter, value)) { "Choose a different adapter from the primary engine adapter" }
+    require(value == null || !samePhysicalAdapter(primaryAdapter, value)) {
+        "Choose a different adapter from the primary engine adapter"
+    }
     return copy(transmission = transmission.copy(adapter = value))
 }

@@ -6,24 +6,41 @@ data class LocalSetup(val profiles: ProfileCollection, val associations: GaugeAs
     fun select(id: String): LocalSetup {
         require(profiles.profiles.any { it.id == id })
         val selected = profiles.copy(activeId = id)
-        return copy(profiles = selected, associations = associations.selectedId?.let {
-            associations.assign(it, id, selected.active.draft.source)
-        } ?: associations)
+        return copy(
+            profiles = selected,
+            associations = associations.selectedId?.let {
+                associations.assign(it, id, selected.active.draft.source)
+            } ?: associations
+        )
     }
 
     fun create(profile: VehicleProfile): LocalSetup {
-        require(profiles.profiles.size < 8 && profiles.profiles.none {
-            it.id == profile.id || it.name.equals(profile.name, ignoreCase = true)
-        })
-        return copy(profiles = profiles.copy(profiles = profiles.profiles + profile)).select(profile.id)
+        require(
+            profiles.profiles.size < 8 && profiles.profiles.none {
+                it.id == profile.id || it.name.equals(profile.name, ignoreCase = true)
+            }
+        )
+        return copy(
+            profiles = profiles.copy(profiles = profiles.profiles + profile)
+        ).select(profile.id)
     }
 
     fun attachTransmission(parentId: String): LocalSetup {
         val legacyId = profiles.activeId
-        return copy(profiles = profiles.attachTransmission(legacyId, parentId),
-            associations = associations.copy(gauges = associations.gauges.map {
-                if (it.vehicleId == legacyId) it.copy(vehicleId = parentId, source = "TCM") else it
-            }))
+        return copy(
+            profiles = profiles.attachTransmission(legacyId, parentId),
+            associations = associations.copy(
+                gauges = associations.gauges.map {
+                    if (it.vehicleId ==
+                        legacyId
+                    ) {
+                        it.copy(vehicleId = parentId, source = "TCM")
+                    } else {
+                        it
+                    }
+                }
+            )
+        )
     }
 }
 
@@ -53,11 +70,25 @@ class LocalSetupStore(context: Context) {
             // Android updates its memory map even if disk commit fails. Restore the previous
             // map conservatively; the caller stays blocked until the saved setup is reviewed.
             preferences.edit().also { editor ->
-                if (previousProfiles == null) editor.remove("collection") else editor.putString("collection", previousProfiles)
-                if (previousAssociations == null) editor.remove(ASSOCIATIONS) else editor.putString(ASSOCIATIONS, previousAssociations)
+                if (previousProfiles ==
+                    null
+                ) {
+                    editor.remove("collection")
+                } else {
+                    editor.putString("collection", previousProfiles)
+                }
+                if (previousAssociations ==
+                    null
+                ) {
+                    editor.remove(ASSOCIATIONS)
+                } else {
+                    editor.putString(ASSOCIATIONS, previousAssociations)
+                }
             }.commit()
         }
         return committed
     }
-    companion object { const val ASSOCIATIONS = "gauge-association-collection" }
+    companion object {
+        const val ASSOCIATIONS = "gauge-association-collection"
+    }
 }

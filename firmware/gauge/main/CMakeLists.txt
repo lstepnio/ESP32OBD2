@@ -1,4 +1,4 @@
-file(GLOB FONT_SOURCES "fonts/*.c")
+include("${CMAKE_CURRENT_LIST_DIR}/../assets/fonts/sources.cmake")
 
 idf_component_register(
     SRCS

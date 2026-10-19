@@ -6,6 +6,7 @@ import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -17,7 +18,6 @@ import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 
 /** Owner opt-in: interrupt a read-only maintenance socket, restore Wi-Fi, then reconcile. */
 @RunWith(AndroidJUnit4::class)
@@ -27,21 +27,29 @@ class WifiMaintenanceRecoveryJourneyTest {
     @Test fun wifiLossFailsTheOldSessionAndFreshSessionPreservesSetup() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val args = InstrumentationRegistry.getArguments()
-        assumeTrue("Requires owner authorization for maintenance Wi-Fi checks",
-            args.getString("allowMaintenanceWifi") == "true")
+        assumeTrue(
+            "Requires owner authorization for maintenance Wi-Fi checks",
+            args.getString("allowMaintenanceWifi") == "true"
+        )
         val context = instrumentation.targetContext
         val model = (context.applicationContext as EGaugeApplication).model
         assertFalse(model.alertMonitoring)
         assertFalse(model.phoneAlertsEnabled)
         val wifiManager = context.getSystemService(WifiManager::class.java)
-        assumeTrue("Wi-Fi must already be enabled so the test can restore its original state", wifiManager.isWifiEnabled)
+        assumeTrue(
+            "Wi-Fi must already be enabled so the test can restore its original state",
+            wifiManager.isWifiEnabled
+        )
         val device = context.getSystemService(BluetoothManager::class.java).adapter
             .getRemoteDevice(requireNotNull(model.rememberedGaugeId))
         val client = GaugeConfigTransferClient(context)
         fun wifiEnabled(enabled: Boolean) {
             val command = "svc wifi ${if (enabled) "enable" else "disable"}"
             ParcelFileDescriptor.AutoCloseInputStream(
-                instrumentation.uiAutomation.executeShellCommand(command)).use { it.readBytes() }
+                instrumentation.uiAutomation.executeShellCommand(command)
+            ).use {
+                it.readBytes()
+            }
         }
         runBlocking {
             withTimeout(240_000) {
@@ -63,7 +71,9 @@ class WifiMaintenanceRecoveryJourneyTest {
                         val started = SystemClock.elapsedRealtime()
                         try {
                             wifi.configurationStatus()
-                            fail("An interrupted maintenance socket must not report a successful read")
+                            fail(
+                                "An interrupted maintenance socket must not report a successful read"
+                            )
                         } catch (error: Exception) {
                             if (error is CancellationException) throw error
                             failureType = error.javaClass.simpleName
@@ -79,8 +89,10 @@ class WifiMaintenanceRecoveryJourneyTest {
                     }
                 }
                 assertNotNull("The lost network must fail explicitly", failureType)
-                assertTrue("Lost read must finish within its 20-second IO deadline plus cleanup margin",
-                    failureMs < 25_000)
+                assertTrue(
+                    "Lost read must finish within its 20-second IO deadline plus cleanup margin",
+                    failureMs < 25_000
+                )
                 val reopenedAt = SystemClock.elapsedRealtime()
                 val fresh = client.openWifiBulk(device)
                 try {
@@ -89,7 +101,9 @@ class WifiMaintenanceRecoveryJourneyTest {
                         assertEquals(56, wifi.otaStatus().size)
                         assertEquals(64, wifi.configurationStatus().size)
                     }
-                } finally { client.closeWifiBulk(device) }
+                } finally {
+                    client.closeWifiBulk(device)
+                }
                 val recoveryMs = SystemClock.elapsedRealtime() - reopenedAt
                 assertEquals(before, client.readBootIdentity(device))
                 assertEquals(boot, requireNotNull(client.readAlertBatch(device, 0, 0)).boot)
@@ -102,7 +116,8 @@ class WifiMaintenanceRecoveryJourneyTest {
                         "Lost socket failed explicitly: $failureType after $failureMs ms\n" +
                         "Fresh session authenticated both status reads and closed in $recoveryMs ms\n" +
                         "Exact image/health, boot nonce, revision ${document.revision}, digest and settings unchanged\n" +
-                        "Phone Wi-Fi restored; no firmware/configuration/ECU writes or bond changes\n")
+                        "Phone Wi-Fi restored; no firmware/configuration/ECU writes or bond changes\n"
+                )
             }
         }
     }

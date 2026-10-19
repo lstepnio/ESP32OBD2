@@ -98,23 +98,30 @@ static void bsp_touch_configure_input(esp_lcd_panel_io_handle_t io)
      * Keep the powered gauge responsive after idle; this trades the touch
      * controller's standby saving for dynamic scanning (typically 1.6 mA).
      * Optional tuning must never prevent the display/BLE from starting. */
-    const struct { uint8_t reg; uint8_t value; } settings[] = {
+    const struct
+    {
+        uint8_t reg;
+        uint8_t value;
+    } settings[] = {
         {CST816S_DISABLE_AUTO_SLEEP, 0x01},
         {CST816S_IRQ_CONTROL, 0x60}, /* Touch and state change, no gesture wait. */
     };
-    for (size_t i = 0; i < sizeof(settings) / sizeof(settings[0]); ++i) {
-        uint8_t before = 0, after = 0;
+    for (size_t i = 0; i < sizeof(settings) / sizeof(settings[0]); ++i)
+    {
+        uint8_t   before = 0, after = 0;
         esp_err_t err = esp_lcd_panel_io_rx_param(io, settings[i].reg, &before, 1);
         if (err == ESP_OK)
             err = esp_lcd_panel_io_tx_param(io, settings[i].reg, &settings[i].value, 1);
         if (err == ESP_OK)
             err = esp_lcd_panel_io_rx_param(io, settings[i].reg, &after, 1);
-        if (err == ESP_OK && after == settings[i].value) {
-            ESP_LOGI(TAG, "Touch input register 0x%02x: 0x%02x -> 0x%02x",
-                     settings[i].reg, before, after);
-        } else {
-            ESP_LOGW(TAG, "Touch input tuning unconfirmed at 0x%02x (%s, value=0x%02x)",
-                     settings[i].reg, esp_err_to_name(err), after);
+        if (err == ESP_OK && after == settings[i].value)
+        {
+            ESP_LOGI(TAG, "Touch input register 0x%02x: 0x%02x -> 0x%02x", settings[i].reg, before, after);
+        }
+        else
+        {
+            ESP_LOGW(TAG, "Touch input tuning unconfirmed at 0x%02x (%s, value=0x%02x)", settings[i].reg,
+                     esp_err_to_name(err), after);
         }
     }
 }
@@ -204,14 +211,15 @@ esp_err_t bsp_lvgl_init(void)
                 .mirror_x = true,
                 .mirror_y = false,
             },
-        .flags = {
-            // A small, fixed internal DMA draw buffer avoids hidden SPI bounce
-            // allocations. Only LVGL's CPU-side arena lives in PSRAM.
-            .buff_dma = true,
-            .buff_spiram = false,
-            // GC9A01 SPI transactions carry each RGB565 pixel most-significant byte first.
-            .swap_bytes = true,
-        },
+        .flags =
+            {
+                // A small, fixed internal DMA draw buffer avoids hidden SPI bounce
+                // allocations. Only LVGL's CPU-side arena lives in PSRAM.
+                .buff_dma    = true,
+                .buff_spiram = false,
+                // GC9A01 SPI transactions carry each RGB565 pixel most-significant byte first.
+                .swap_bytes = true,
+            },
     };
     ESP_LOGI(TAG, "Creating LVGL display (HRES=%d, VRES=%d)", BSP_LCD_H_RES, BSP_LCD_V_RES);
     disp_handle = lvgl_port_add_disp(&disp_cfg);
@@ -267,21 +275,21 @@ esp_err_t bsp_init(void)
     ESP_ERROR_CHECK(gpio_set_level(BSP_LCD_GPIO_BL, 0));
 
     const ledc_timer_config_t backlight_timer = {
-        .speed_mode = BSP_LCD_BACKLIGHT_MODE,
+        .speed_mode      = BSP_LCD_BACKLIGHT_MODE,
         .duty_resolution = BSP_LCD_BACKLIGHT_DUTY_BITS,
-        .timer_num = BSP_LCD_BACKLIGHT_TIMER,
-        .freq_hz = BSP_LCD_BACKLIGHT_FREQUENCY_HZ,
-        .clk_cfg = LEDC_AUTO_CLK,
+        .timer_num       = BSP_LCD_BACKLIGHT_TIMER,
+        .freq_hz         = BSP_LCD_BACKLIGHT_FREQUENCY_HZ,
+        .clk_cfg         = LEDC_AUTO_CLK,
     };
     ESP_ERROR_CHECK(ledc_timer_config(&backlight_timer));
     const ledc_channel_config_t backlight_channel = {
-        .gpio_num = BSP_LCD_GPIO_BL,
-        .speed_mode = BSP_LCD_BACKLIGHT_MODE,
-        .channel = BSP_LCD_BACKLIGHT_CHANNEL,
-        .intr_type = LEDC_INTR_DISABLE,
-        .timer_sel = BSP_LCD_BACKLIGHT_TIMER,
-        .duty = 0,
-        .hpoint = 0,
+        .gpio_num            = BSP_LCD_GPIO_BL,
+        .speed_mode          = BSP_LCD_BACKLIGHT_MODE,
+        .channel             = BSP_LCD_BACKLIGHT_CHANNEL,
+        .intr_type           = LEDC_INTR_DISABLE,
+        .timer_sel           = BSP_LCD_BACKLIGHT_TIMER,
+        .duty                = 0,
+        .hpoint              = 0,
         .flags.output_invert = 0,
     };
     ESP_ERROR_CHECK(ledc_channel_config(&backlight_channel));
@@ -313,11 +321,14 @@ esp_err_t bsp_display_backlight_set(bool on)
 
 esp_err_t bsp_display_backlight_set_percent(uint8_t percent)
 {
-    if (percent > 100) return ESP_ERR_INVALID_ARG;
-    uint32_t duty = ((uint32_t)percent * BSP_LCD_BACKLIGHT_MAX_DUTY + 50U) / 100U;
-    esp_err_t err = ledc_set_duty(BSP_LCD_BACKLIGHT_MODE, BSP_LCD_BACKLIGHT_CHANNEL, duty);
-    if (err == ESP_OK) err = ledc_update_duty(BSP_LCD_BACKLIGHT_MODE, BSP_LCD_BACKLIGHT_CHANNEL);
-    if (err == ESP_OK) ESP_LOGI(TAG, "Backlight set to %u%%", percent);
+    if (percent > 100)
+        return ESP_ERR_INVALID_ARG;
+    uint32_t  duty = ((uint32_t)percent * BSP_LCD_BACKLIGHT_MAX_DUTY + 50U) / 100U;
+    esp_err_t err  = ledc_set_duty(BSP_LCD_BACKLIGHT_MODE, BSP_LCD_BACKLIGHT_CHANNEL, duty);
+    if (err == ESP_OK)
+        err = ledc_update_duty(BSP_LCD_BACKLIGHT_MODE, BSP_LCD_BACKLIGHT_CHANNEL);
+    if (err == ESP_OK)
+        ESP_LOGI(TAG, "Backlight set to %u%%", percent);
     return err;
 }
 

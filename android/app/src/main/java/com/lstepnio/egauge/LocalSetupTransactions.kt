@@ -6,7 +6,7 @@ class LocalSetupSaveFailure : IllegalStateException("Could not save the complete
 class LocalSetupTransactions(
     private val load: () -> LocalSetup,
     private val commit: (LocalSetup) -> Boolean,
-    private val writes: DurableWrites,
+    private val writes: DurableWrites
 ) {
     suspend fun update(transform: (LocalSetup) -> LocalSetup): LocalSetup = writes.write {
         val previous = load()

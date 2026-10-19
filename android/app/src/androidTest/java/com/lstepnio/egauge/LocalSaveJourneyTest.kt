@@ -14,24 +14,42 @@ class LocalSaveJourneyTest {
         assumeTrue(Build.HARDWARE in setOf("ranchu", "goldfish"))
         val model = (compose.activity.application as EGaugeApplication).model
         val before = model.profileCollection
-        compose.runOnUiThread { model.editProfileName("Fixture saved car"); model.createProfile() }
-        compose.waitUntil(10_000) { !model.localSaveBusy && model.profileCollection.active.name == "Fixture saved car" }
+        compose.runOnUiThread {
+            model.editProfileName("Fixture saved car")
+            model.createProfile()
+        }
+        compose.waitUntil(10_000) {
+            !model.localSaveBusy &&
+                model.profileCollection.active.name == "Fixture saved car"
+        }
         assertNull(model.profileError)
         val created = model.profileCollection.activeId
         val count = model.editorDraft.pages.size
         compose.runOnUiThread { model.addPage("voltage") }
-        compose.waitUntil(10_000) { !model.localSaveBusy && model.editorDraft.pages.size == count + 1 }
+        compose.waitUntil(10_000) {
+            !model.localSaveBusy &&
+                model.editorDraft.pages.size == count + 1
+        }
         assertEquals(count, model.editingPageIndex)
         assertEquals(listOf("voltage"), model.editorDraft.pages.last().pidIds)
         assertEquals(model.profileCollection, ProfileStore(compose.activity).load().collection)
         val action = PageAction(model.editorDraft.pages.last().id)
         compose.runOnUiThread { model.savePageAction(action) }
-        compose.waitUntil(10_000) { !model.localSaveBusy && model.editorDraft.actions == listOf(action) }
+        compose.waitUntil(10_000) {
+            !model.localSaveBusy &&
+                model.editorDraft.actions == listOf(action)
+        }
         assertEquals(model.profileCollection, ProfileStore(compose.activity).load().collection)
         compose.runOnUiThread { model.selectProfile(before.activeId) }
-        compose.waitUntil(10_000) { !model.localSaveBusy && model.profileCollection.activeId == before.activeId }
+        compose.waitUntil(10_000) {
+            !model.localSaveBusy &&
+                model.profileCollection.activeId == before.activeId
+        }
         compose.runOnUiThread { model.deleteVehicle(created) }
-        compose.waitUntil(10_000) { !model.localSaveBusy && model.profileCollection.profiles.none { it.id == created } }
+        compose.waitUntil(10_000) {
+            !model.localSaveBusy &&
+                model.profileCollection.profiles.none { it.id == created }
+        }
         assertEquals(before, model.profileCollection)
     }
 }

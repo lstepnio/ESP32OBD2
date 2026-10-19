@@ -1,7 +1,7 @@
 package com.lstepnio.egauge
 
-import kotlinx.coroutines.sync.Mutex
 import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.sync.Mutex
 
 enum class OperationKind { DISCOVERY, READ, CONFIGURATION, UPDATE, DIAGNOSTIC_CLEAR }
 
@@ -18,7 +18,7 @@ enum class OperationStage {
     ACTIVE,
     RECOVERED,
     FAILED,
-    OUTCOME_UNKNOWN,
+    OUTCOME_UNKNOWN
 }
 
 data class OperationState(
@@ -28,7 +28,7 @@ data class OperationState(
     val title: String,
     val detail: String? = null,
     val progressPercent: Int? = null,
-    val terminal: Boolean = false,
+    val terminal: Boolean = false
 ) {
     init {
         require(progressPercent == null || progressPercent in 0..100)
@@ -55,4 +55,3 @@ class OperationCoordinator {
         }
     }
 }
-

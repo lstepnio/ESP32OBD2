@@ -23,7 +23,7 @@ def decompress_lz4(source: bytes, target_size: int) -> bytes:
                 literal_size += extension
                 if extension != 255:
                     break
-        output.extend(source[index:index + literal_size])
+        output.extend(source[index : index + literal_size])
         index += literal_size
         if index >= len(source):
             break
@@ -59,7 +59,7 @@ def extract(apk: Path, output: Path, prefix: str) -> int:
     for _ in range(count):
         size = struct.unpack_from("<I", data, name_position)[0]
         name_position += 4
-        names.append(data[name_position:name_position + size].decode("utf-8"))
+        names.append(data[name_position : name_position + size].decode("utf-8"))
         name_position += size
     output.mkdir(parents=True, exist_ok=True)
     extracted = 0
@@ -67,7 +67,7 @@ def extract(apk: Path, output: Path, prefix: str) -> int:
         if not name.startswith(prefix):
             continue
         _, blob_offset, blob_size = struct.unpack_from("<3I", data, start + index * 28)
-        blob = data[offset + blob_offset:offset + blob_offset + blob_size]
+        blob = data[offset + blob_offset : offset + blob_offset + blob_size]
         if blob.startswith(b"XALZ"):
             original_size = struct.unpack_from("<I", blob, 8)[0]
             assembly = decompress_lz4(blob[12:], original_size)
@@ -88,7 +88,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("apk", type=Path, help="APK split containing libassembly-store.so")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--prefix", default="", help="Only extract assemblies with this name prefix")
+    parser.add_argument(
+        "--prefix", default="", help="Only extract assemblies with this name prefix"
+    )
     args = parser.parse_args()
     if not args.apk.is_file():
         parser.error(f"APK does not exist: {args.apk}")

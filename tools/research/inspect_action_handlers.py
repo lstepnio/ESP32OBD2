@@ -102,8 +102,12 @@ def inspect(path: Path, selected_types: list[str]) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("assembly", type=Path)
-    parser.add_argument("--type", dest="types", action="append",
-                        help="Managed type to inspect; repeat for multiple types")
+    parser.add_argument(
+        "--type",
+        dest="types",
+        action="append",
+        help="Managed type to inspect; repeat for multiple types",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if not args.assembly.is_file():

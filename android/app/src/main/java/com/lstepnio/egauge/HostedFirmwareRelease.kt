@@ -1,15 +1,6 @@
 package com.lstepnio.egauge
 
 import android.content.Context
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.net.URL
@@ -20,6 +11,15 @@ import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 import java.time.Instant
 import java.util.Base64
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import org.json.JSONArray
+import org.json.JSONObject
 
 enum class FirmwareChannel { DEVELOPMENT, BETA, STABLE }
 
@@ -29,7 +29,7 @@ internal data class FirmwareVersion(
     val major: Long,
     val minor: Long,
     val patch: Long,
-    val prerelease: List<String>?,
+    val prerelease: List<String>?
 ) : Comparable<FirmwareVersion> {
     override fun compareTo(other: FirmwareVersion): Int {
         compareValues(major, other.major).takeIf { it != 0 }?.let { return it }
@@ -68,8 +68,8 @@ internal data class FirmwareVersion(
 
 /** Historical TCM test images appended a label to the numeric development segment.
  * Compare that known family by its development number; preserve all other SemVer rules. */
-private fun firmwareComparisonVersion(value: String): String =
-    Regex("([0-9]+\\.[0-9]+\\.[0-9]+-dev\\.[0-9]+)-tcm").matchEntire(value)?.groupValues?.get(1) ?: value
+private fun firmwareComparisonVersion(value: String): String = Regex("([0-9]+\\.[0-9]+\\.[0-9]+-dev\\.[0-9]+)-tcm").matchEntire(value)?.groupValues?.get(1)
+    ?: value
 
 internal fun isFirmwareNewer(candidate: String, running: String): Boolean {
     val candidateVersion = FirmwareVersion.parse(firmwareComparisonVersion(candidate))
@@ -79,14 +79,19 @@ internal fun isFirmwareNewer(candidate: String, running: String): Boolean {
     return candidateVersion > runningVersion
 }
 
-internal fun isTrustedGitHubDownloadUrl(url: URL): Boolean =
-    url.protocol == "https" && (url.host == "github.com" || url.host == "api.github.com" ||
-        url.host.endsWith(".githubusercontent.com"))
+internal fun isTrustedGitHubDownloadUrl(url: URL): Boolean = url.protocol == "https" && (
+    url.host == "github.com" || url.host == "api.github.com" ||
+        url.host.endsWith(".githubusercontent.com")
+    )
 
 internal data class CatalogTrustDecision(val persist: Boolean)
 
-internal fun evaluateCatalogTrust(generation: Long, digest: String, highestGeneration: Long,
-                                  trustedDigest: String?): CatalogTrustDecision {
+internal fun evaluateCatalogTrust(
+    generation: Long,
+    digest: String,
+    highestGeneration: Long,
+    trustedDigest: String?
+): CatalogTrustDecision {
     require(generation in 1..0xffffffffL && digest.matches(Regex("[a-f0-9]{64}"))) {
         "Firmware catalog identity is invalid"
     }
@@ -113,25 +118,37 @@ data class HostedFirmwareRelease(
     val bundleSha256: String,
     val bundleUrl: String,
     val releaseNotes: String,
-    val sourceTag: String,
+    val sourceTag: String
 )
 
 data class HostedFirmwareCatalog(
     val generation: Long,
     val generatedAtEpochSeconds: Long,
     val expiresAtEpochSeconds: Long,
-    val releases: List<HostedFirmwareRelease>,
+    val releases: List<HostedFirmwareRelease>
 )
 
 object HostedFirmwareCatalogCodec {
-    private val rootFields = setOf("schemaVersion", "repository", "generation", "generatedAt",
-        "expiresAt", "releases")
-    private val releaseFields = setOf("version", "releaseSequence", "channel", "boardId",
+    private val rootFields = setOf(
+        "schemaVersion",
+        "repository",
+        "generation",
+        "generatedAt",
+        "expiresAt",
+        "releases"
+    )
+    private val releaseFields = setOf(
+        "version", "releaseSequence", "channel", "boardId",
         "boardRevisions", "partitionLayout", "transferProtocol", "bundleBytes", "bundleSha256",
-        "bundleUrl", "releaseNotes", "sourceTag")
+        "bundleUrl", "releaseNotes", "sourceTag"
+    )
 
-    fun verifyAndParse(bytes: ByteArray, signatureDer: ByteArray, publicKey: PublicKey,
-                       nowEpochSeconds: Long): HostedFirmwareCatalog {
+    fun verifyAndParse(
+        bytes: ByteArray,
+        signatureDer: ByteArray,
+        publicKey: PublicKey,
+        nowEpochSeconds: Long
+    ): HostedFirmwareCatalog {
         require(bytes.size in 1..131_072) { "Firmware catalog is too large" }
         require(signatureDer.size in 64..72) { "Firmware catalog signature is invalid" }
         val verifier = Signature.getInstance("SHA256withECDSA")
@@ -139,11 +156,15 @@ object HostedFirmwareCatalogCodec {
         verifier.update(bytes)
         require(verifier.verify(signatureDer)) { "Firmware catalog signature is invalid" }
         val root = JSONObject(bytes.toString(Charsets.UTF_8))
-        require(root.keys().asSequence().toSet() == rootFields && root.getInt("schemaVersion") == 1 &&
-            root.getString("repository") == "lstepnio/ESP32OBD2") { "Unsupported firmware catalog" }
+        require(
+            root.keys().asSequence().toSet() == rootFields && root.getInt("schemaVersion") == 1 &&
+                root.getString("repository") == "lstepnio/ESP32OBD2"
+        ) { "Unsupported firmware catalog" }
         val generated = Instant.parse(root.getString("generatedAt")).epochSecond
         val expires = Instant.parse(root.getString("expiresAt")).epochSecond
-        require(generated <= nowEpochSeconds + 300 && expires > generated && expires >= nowEpochSeconds) {
+        require(
+            generated <= nowEpochSeconds + 300 && expires > generated && expires >= nowEpochSeconds
+        ) {
             "Firmware catalog is expired or dated in the future"
         }
         val array = root.getJSONArray("releases")
@@ -157,9 +178,14 @@ object HostedFirmwareCatalogCodec {
         return HostedFirmwareCatalog(generation, generated, expires, releases)
     }
 
-    fun select(catalog: HostedFirmwareCatalog, boardId: String, boardRevision: String,
-               partitionLayout: String, channel: FirmwareChannel,
-               transferProtocol: Int): HostedFirmwareRelease? = catalog.releases
+    fun select(
+        catalog: HostedFirmwareCatalog,
+        boardId: String,
+        boardRevision: String,
+        partitionLayout: String,
+        channel: FirmwareChannel,
+        transferProtocol: Int
+    ): HostedFirmwareRelease? = catalog.releases
         .filter { release ->
             release.boardId == boardId && boardRevision in release.boardRevisions &&
                 release.partitionLayout == partitionLayout && release.channel == channel &&
@@ -167,9 +193,12 @@ object HostedFirmwareCatalogCodec {
         }.maxByOrNull { it.releaseSequence }
 
     fun publicKey(pem: String): PublicKey {
-        val encoded = pem.lineSequence().filter { !it.startsWith("-----") && it.isNotBlank() }.joinToString("")
-        return KeyFactory.getInstance("EC").generatePublic(
-            X509EncodedKeySpec(Base64.getDecoder().decode(encoded)))
+        val encoded = pem.lineSequence().filter {
+            !it.startsWith("-----") && it.isNotBlank()
+        }.joinToString("")
+        return KeyFactory.getInstance(
+            "EC"
+        ).generatePublic(X509EncodedKeySpec(Base64.getDecoder().decode(encoded)))
     }
 
     private fun parseRelease(value: JSONObject): HostedFirmwareRelease {
@@ -179,7 +208,11 @@ object HostedFirmwareCatalogCodec {
             "Firmware version is invalid"
         }
         val revisions = value.getJSONArray("boardRevisions").strings()
-        require(revisions.isNotEmpty() && revisions.size <= 16 && revisions.all { it.length in 1..32 }) {
+        require(
+            revisions.isNotEmpty() && revisions.size <= 16 && revisions.all {
+                it.length in 1..32
+            }
+        ) {
             "Board revision list is invalid"
         }
         val digest = value.getString("bundleSha256")
@@ -198,7 +231,9 @@ object HostedFirmwareCatalogCodec {
             digest,
             url,
             value.getString("releaseNotes").also { require(it.length <= 2000) },
-            value.getString("sourceTag").also { require(it.matches(Regex("[A-Za-z0-9._-]{1,80}"))) },
+            value.getString("sourceTag").also {
+                require(it.matches(Regex("[A-Za-z0-9._-]{1,80}")))
+            }
         )
     }
 
@@ -216,11 +251,15 @@ data class HostedUpdate(val release: HostedFirmwareRelease, val bundle: DevUpdat
 internal data class HostedCatalogCandidate(
     val catalog: HostedFirmwareCatalog,
     val digest: String,
-    val release: HostedFirmwareRelease,
+    val release: HostedFirmwareRelease
 )
 
-internal fun selectHighestHostedCatalog(candidates: List<HostedCatalogCandidate>): HostedCatalogCandidate {
-    require(candidates.isNotEmpty()) { "No compatible development firmware is published for this gauge" }
+internal fun selectHighestHostedCatalog(
+    candidates: List<HostedCatalogCandidate>
+): HostedCatalogCandidate {
+    require(candidates.isNotEmpty()) {
+        "No compatible development firmware is published for this gauge"
+    }
     val highestGeneration = candidates.maxOf { it.catalog.generation }
     val newest = candidates.filter { it.catalog.generation == highestGeneration }
     require(newest.map { it.digest }.distinct().size == 1) {
@@ -244,8 +283,11 @@ class GitHubFirmwareSource(private val context: Context) {
             "ESP32-S3-Touch-LCD-1.28" -> "waveshare-esp32-s3-touch-lcd-1.28"
             else -> error("This gauge board is not registered for hosted updates")
         }
-        val releases = JSONArray(boundedHttpDownload(URL(releasesUrl), 1_048_576).toString(Charsets.UTF_8))
-        val pem = context.assets.open("dev-update-public.pem").bufferedReader().use { it.readText() }
+        val releases =
+            JSONArray(boundedHttpDownload(URL(releasesUrl), 1_048_576).toString(Charsets.UTF_8))
+        val pem = context.assets.open("dev-update-public.pem").bufferedReader().use {
+            it.readText()
+        }
         val publicKey = HostedFirmwareCatalogCodec.publicKey(pem)
         val candidates = mutableListOf<HostedCatalogCandidate>()
         for (index in 0 until releases.length()) {
@@ -258,22 +300,39 @@ class GitHubFirmwareSource(private val context: Context) {
             for (assetIndex in 0 until assets.length()) {
                 val asset = assets.getJSONObject(assetIndex)
                 when (asset.getString("name")) {
-                    "egauge-release-catalog.json" -> catalog = URL(asset.getString("browser_download_url"))
-                    "egauge-release-catalog.sig" -> signature = URL(asset.getString("browser_download_url"))
+                    "egauge-release-catalog.json" ->
+                        catalog =
+                            URL(asset.getString("browser_download_url"))
+
+                    "egauge-release-catalog.sig" ->
+                        signature =
+                            URL(asset.getString("browser_download_url"))
                 }
             }
             if (catalog != null && signature != null) {
                 runCatching {
-                    require(HostedFirmwareCatalogCodec.isTrustedAssetUrl(catalog.toString()) &&
-                        HostedFirmwareCatalogCodec.isTrustedAssetUrl(signature.toString())) {
+                    require(
+                        HostedFirmwareCatalogCodec.isTrustedAssetUrl(catalog.toString()) &&
+                            HostedFirmwareCatalogCodec.isTrustedAssetUrl(signature.toString())
+                    ) {
                         "GitHub returned an untrusted catalog location"
                     }
                     val catalogBytes = boundedHttpDownload(catalog, 131_072)
                     val signatureBytes = boundedHttpDownload(signature, 256)
-                    val parsed = HostedFirmwareCatalogCodec.verifyAndParse(catalogBytes, signatureBytes,
-                        publicKey, Instant.now().epochSecond)
-                    val compatible = HostedFirmwareCatalogCodec.select(parsed, boardId, "all",
-                        "egauge-16m-ab-v1", FirmwareChannel.DEVELOPMENT, 0)
+                    val parsed = HostedFirmwareCatalogCodec.verifyAndParse(
+                        catalogBytes,
+                        signatureBytes,
+                        publicKey,
+                        Instant.now().epochSecond
+                    )
+                    val compatible = HostedFirmwareCatalogCodec.select(
+                        parsed,
+                        boardId,
+                        "all",
+                        "egauge-16m-ab-v1",
+                        FirmwareChannel.DEVELOPMENT,
+                        0
+                    )
                     if (compatible != null) {
                         val digest = MessageDigest.getInstance("SHA-256").digest(catalogBytes)
                             .joinToString("") { "%02x".format(it) }
@@ -284,15 +343,24 @@ class GitHubFirmwareSource(private val context: Context) {
         }
         val selected = selectHighestHostedCatalog(candidates)
         val catalog = selected.catalog
-        val catalogState = context.getSharedPreferences("firmware-catalog", Context.MODE_PRIVATE)
+        val catalogState = context.getSharedPreferences(
+            "firmware-catalog",
+            Context.MODE_PRIVATE
+        )
         val highestGeneration = catalogState.getLong("highest-generation", 0)
-        val decision = evaluateCatalogTrust(catalog.generation, selected.digest, highestGeneration,
-            catalogState.getString("highest-generation-sha256", null))
+        val decision = evaluateCatalogTrust(
+            catalog.generation,
+            selected.digest,
+            highestGeneration,
+            catalogState.getString("highest-generation-sha256", null)
+        )
         if (decision.persist) {
-            check(catalogState.edit()
-                .putLong("highest-generation", catalog.generation)
-                .putString("highest-generation-sha256", selected.digest)
-                .commit()) {
+            check(
+                catalogState.edit()
+                    .putLong("highest-generation", catalog.generation)
+                    .putString("highest-generation-sha256", selected.digest)
+                    .commit()
+            ) {
                 "Could not save firmware catalog state"
             }
         }
@@ -302,17 +370,25 @@ class GitHubFirmwareSource(private val context: Context) {
     suspend fun download(update: HostedUpdate): HostedUpdate = withContext(Dispatchers.IO) {
         currentCoroutineContext().ensureActive()
         val release = update.release
-        val bytes = try { boundedHttpDownload(URL(release.bundleUrl), release.bundleBytes + 1) }
-        catch (timeout: TimeoutCancellationException) {
+        val bytes = try {
+            boundedHttpDownload(URL(release.bundleUrl), release.bundleBytes + 1)
+        } catch (
+            timeout: TimeoutCancellationException
+        ) {
             currentCoroutineContext().ensureActive()
             throw IOException("Firmware download timed out", timeout)
         }
         currentCoroutineContext().ensureActive()
-        require(bytes.size == release.bundleBytes) { "Downloaded firmware bundle size does not match the catalog" }
-        val digest = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
-        require(digest == release.bundleSha256) { "Downloaded firmware bundle failed catalog verification" }
+        require(bytes.size == release.bundleBytes) {
+            "Downloaded firmware bundle size does not match the catalog"
+        }
+        val digest = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") {
+            "%02x".format(it)
+        }
+        require(digest == release.bundleSha256) {
+            "Downloaded firmware bundle failed catalog verification"
+        }
         val bundle = DevUpdateBundle.read(context, ByteArrayInputStream(bytes))
         HostedUpdate(release, bundle)
     }
-
 }

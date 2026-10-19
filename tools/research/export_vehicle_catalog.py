@@ -72,9 +72,12 @@ def decode(raw: bytes) -> tuple[object, str]:
         except ValueError:
             try:
                 import json5
+
                 return json5.loads(source), "json5"
             except ImportError as exc:
-                raise SystemExit("Install research dependencies: python3 -m pip install dnfile json5") from exc
+                raise SystemExit(
+                    "Install research dependencies: python3 -m pip install dnfile json5"
+                ) from exc
             except ValueError as exc:
                 raise ValueError("Resource contains malformed JSON") from exc
     try:
@@ -138,7 +141,9 @@ def export(paths: list[Path], output: Path) -> None:
     try:
         import dnfile
     except ImportError as exc:
-        raise SystemExit("Install research dependencies: python3 -m pip install dnfile json5") from exc
+        raise SystemExit(
+            "Install research dependencies: python3 -m pip install dnfile json5"
+        ) from exc
     output.parent.mkdir(parents=True, exist_ok=True)
     partial = output.with_suffix(output.suffix + ".partial")
     if partial.exists():
@@ -170,8 +175,15 @@ def export(paths: list[Path], output: Path) -> None:
                         """INSERT INTO resources
                         (input_id, name, category, module, encoding, item_count, payload_json)
                         VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                        (input_id, name, category, module, encoding, item_count,
-                         json.dumps(payload, ensure_ascii=False, separators=(",", ":"))),
+                        (
+                            input_id,
+                            name,
+                            category,
+                            module,
+                            encoding,
+                            item_count,
+                            json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+                        ),
                     ).lastrowid
                     database.executemany(
                         """INSERT INTO entries
@@ -210,8 +222,9 @@ def export(paths: list[Path], output: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("assemblies", nargs="+", type=Path, help="Managed assemblies to inspect")
-    parser.add_argument("--output", type=Path,
-                        default=Path("references/vehicle-catalog/catalog.sqlite"))
+    parser.add_argument(
+        "--output", type=Path, default=Path("references/vehicle-catalog/catalog.sqlite")
+    )
     arguments = parser.parse_args()
     for path in arguments.assemblies:
         if not path.is_file():

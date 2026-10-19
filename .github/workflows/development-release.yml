@@ -17,12 +17,33 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: development-release
+  cancel-in-progress: false
 
 jobs:
-  build:
+  quality-prerequisite:
     runs-on: ubuntu-24.04
-    container: espressif/idf:v5.4.1
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require successful quality checks for the exact source commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/check_release_ready.py
+
+  build:
+    needs: quality-prerequisite
+    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    container: espressif/idf:v5.4.1@sha256:6b4adab7b282e9261a154d7130fb4945a3c28bd35c2e914357c2f522643cb92a
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -32,7 +53,7 @@ jobs:
         working-directory: firmware/gauge
         run: |
           . /opt/esp/idf/export.sh
-          idf.py build
+          python ../../tools/dev.py build --target firmware
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: waveshare-esp32-s3-touch-lcd-1.28
@@ -41,6 +62,9 @@ jobs:
 
   publish:
     needs: build
+    timeout-minutes: 10
+    permissions:
+      contents: write
     runs-on: ubuntu-24.04
     environment: development-release
     env:
@@ -102,3 +126,8 @@ jobs:
           gh release create "$TAG" "$BUNDLE" egauge-release-catalog.json egauge-release-catalog.sig \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
             --title "eGauge development firmware $RELEASE_VERSION" --notes "$RELEASE_NOTES"
+
+      - name: Remove temporary signing material
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/dev-update-key.pem"

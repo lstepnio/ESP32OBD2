@@ -1,6 +1,6 @@
 # Development firmware release runbook
 
-Date: 2026-09-26. This runbook covers signed development prereleases hosted in GitHub Releases. It does not define production signing or stable-channel approval.
+Updated 2026-10-19. This runbook covers signed development prereleases hosted in GitHub Releases. It does not define production signing or stable-channel approval.
 
 ## Supported board matrix
 
@@ -15,6 +15,15 @@ Adding a catalog row does not support a board. Each new target needs its own sdk
 The development app and firmware pin the public half of the development P-256 key. The private key is stored as the `DEVELOPMENT_UPDATE_SIGNING_KEY` secret in the GitHub `development-release` environment. Do not put it in Git, an APK, a release asset, or logs. Beta and stable channels require new keys and an explicit provisioning and revocation decision.
 
 The workflow is `.github/workflows/development-release.yml`. Actions are pinned to commit SHAs. The build uses the same ESP-IDF version as quality CI, requires the ESP app descriptor version to equal the requested release version, signs the application-only image, creates a bounded `.egauge-dev-update` bundle, creates and signs `egauge-release-catalog.json`, and publishes an immutable prerelease.
+
+Main is protected by pull requests and strict quality checks. The `development-release`
+environment requires the repository owner's review and allows only `main` and
+`codex/**` refs, so explicitly approved pre-merge hardware candidates remain possible.
+Publication is serialized across the workflow, and its prerequisite rejects a source
+SHA whose latest Foundation quality run is absent, incomplete or unsuccessful.
+The build uses the same digest-pinned IDF image as CI; only the publish job has write
+permission. Temporary signing material is removed even on failure. Environment review
+is a technical gate, not a replacement for explicit owner release authorization.
 
 The protected workflow is available on the default branch. Dispatch it against the
 exact reviewed feature ref and verify the run's Git SHA before publication. Every

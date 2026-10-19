@@ -15,7 +15,7 @@ data class PidExample(
     val minimum: Double = 0.0,
     val maximum: Double = 100.0,
     val alertKind: String = "numeric",
-    val configurationVersion: Int = 5,
+    val configurationVersion: Int = 5
 )
 
 /** Populated only from an adapter session with a known vehicle and ECU source. */
@@ -29,25 +29,34 @@ data class VehiclePidObservation(
     val pidId: String,
     val source: String,
     val status: VehiclePidStatus,
-    val observedAtMillis: Long,
+    val observedAtMillis: Long
 )
 
 // Preserve legacy local profiles; synthetic input speed cannot be sent.
-val demoCatalog = readingCatalog + PidExample("tcm", "Transmission input speed", "TCM", "Vehicle specific", "rpm", "2,120", "Synthetic only", "Transmission", "INPUT SPEED")
+val demoCatalog =
+    readingCatalog +
+        PidExample("tcm", "Transmission input speed", "TCM", "Vehicle specific", "rpm", "2,120", "Synthetic only", "Transmission", "INPUT SPEED")
 
 enum class Destination(val label: String, val glyph: String) {
-    Gauge("Gauge", "◉"), Readings("Readings", "≡"), Vehicle("Vehicle", "⌂"), Settings("Settings", "⚙")
+    Gauge("Gauge", "◉"),
+    Readings("Readings", "≡"),
+    Vehicle("Vehicle", "⌂"),
+    Settings("Settings", "⚙")
 }
 
 enum class GaugeLayout(val label: String) {
-    Numeric("Numeric"), Arc("Arc"), Bar("Bar"), Trend("Trend"), Dual("Dual")
+    Numeric("Numeric"),
+    Arc("Arc"),
+    Bar("Bar"),
+    Trend("Trend"),
+    Dual("Dual")
 }
 
 data class GaugePageDraft(
     val id: String,
     val name: String,
     val layout: GaugeLayout,
-    val pidIds: List<String>,
+    val pidIds: List<String>
 )
 
 enum class AlertDirection { Above, Below, Equals }
@@ -61,12 +70,22 @@ data class GaugeAlertDraft(
     val hysteresis: Double = 3.0,
     val triggerDwellMs: Int = 1000,
     val clearDwellMs: Int = 2000,
-    val priority: Int = 8,
+    val priority: Int = 8
 ) {
-    constructor(id: String, pidId: String, direction: AlertDirection = AlertDirection.Above,
-                warning: Int, critical: Int, hysteresis: Int = 3, triggerDwellMs: Int = 1000,
-                clearDwellMs: Int = 2000, priority: Int = 8) : this(id, pidId, direction,
-        warning.toDouble(), critical.toDouble(), hysteresis.toDouble(), triggerDwellMs, clearDwellMs, priority)
+    constructor(
+        id: String,
+        pidId: String,
+        direction: AlertDirection = AlertDirection.Above,
+        warning: Int,
+        critical: Int,
+        hysteresis: Int = 3,
+        triggerDwellMs: Int = 1000,
+        clearDwellMs: Int = 2000,
+        priority: Int = 8
+    ) : this(
+        id, pidId, direction,
+        warning.toDouble(), critical.toDouble(), hysteresis.toDouble(), triggerDwellMs, clearDwellMs, priority
+    )
 }
 
 fun readingRange(id: String): IntRange = readingBounds(id).let {
@@ -75,8 +94,16 @@ fun readingRange(id: String): IntRange = readingBounds(id).let {
 
 fun defaultAlert(pidId: String = "coolant"): GaugeAlertDraft {
     val reading = readingCatalog.first { it.id == pidId }
-    if (reading.alertKind == "gear") return GaugeAlertDraft("alert.$pidId", pidId,
-        AlertDirection.Equals, warning = 11.0, critical = 13.0, hysteresis = 0.0)
+    if (reading.alertKind == "gear") {
+        return GaugeAlertDraft(
+            "alert.$pidId",
+            pidId,
+            AlertDirection.Equals,
+            warning = 11.0,
+            critical = 13.0,
+            hysteresis = 0.0
+        )
+    }
     val span = reading.maximum - reading.minimum
     val warning = when (pidId) {
         "coolant" -> 105.0
@@ -92,17 +119,42 @@ fun defaultAlert(pidId: String = "coolant"): GaugeAlertDraft {
         "load", "fuel" -> 90.0
         else -> reading.minimum + span * .9
     }
-    val margin = if (reading.configurationVersion == 1) (span.toInt() / 50).coerceIn(1, 20).toDouble()
-        else minOf(span * .02, (critical - warning) / 4)
-    return GaugeAlertDraft("alert.$pidId", pidId, AlertDirection.Above, warning, critical, hysteresis = margin)
+    val margin = if (reading.configurationVersion ==
+        1
+    ) {
+        (span.toInt() / 50).coerceIn(1, 20).toDouble()
+    } else {
+        minOf(span * .02, (critical - warning) / 4)
+    }
+    return GaugeAlertDraft(
+        "alert.$pidId",
+        pidId,
+        AlertDirection.Above,
+        warning,
+        critical,
+        hysteresis = margin
+    )
 }
 
-fun defaultGaugePages(primary: String = "rpm", layout: GaugeLayout = GaugeLayout.Numeric): List<GaugePageDraft> {
+fun defaultGaugePages(
+    primary: String = "rpm",
+    layout: GaugeLayout = GaugeLayout.Numeric
+): List<GaugePageDraft> {
     val ordered = listOf(primary, "rpm", "coolant", "speed").distinct().take(3)
     return ordered.mapIndexed { index, pidId ->
         val definition = demoCatalog.first { it.id == pidId }
-        GaugePageDraft("page.${index + 1}.${pidId}", definition.gaugeLabel, if (index == 0) layout else GaugeLayout.Numeric,
-            listOf(pidId))
+        GaugePageDraft(
+            "page.${index + 1}.$pidId",
+            definition.gaugeLabel,
+            if (index ==
+                0
+            ) {
+                layout
+            } else {
+                GaugeLayout.Numeric
+            },
+            listOf(pidId)
+        )
     }
 }
 
@@ -118,7 +170,7 @@ data class Draft(
     val pages: List<GaugePageDraft> = defaultGaugePages(pidId, layout),
     val alerts: List<GaugeAlertDraft> = listOf(defaultAlert()),
     val actions: List<PageAction> = emptyList(),
-    val diagnosticFilters: List<DiagnosticCodeFilter> = emptyList(),
+    val diagnosticFilters: List<DiagnosticCodeFilter> = emptyList()
 )
 
 data class CapabilitySnapshot(
@@ -143,7 +195,7 @@ data class CapabilitySnapshot(
     val pageActionsVersion: Int = 0,
     val maxPages: Int = 0,
     val supportedRenderers: Set<GaugeLayout> = emptySet(),
-    val displayShowcaseVersion: Int = 0,
+    val displayShowcaseVersion: Int = 0
 )
 
 data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revision: Long)

@@ -1,21 +1,9 @@
-# AI context and task routing
+# AI context and source map
 
-Read root [AGENTS.md](../AGENTS.md), this file and [current state](current-state.md).
-Read only the relevant [backlog](backlog.md) item, contract and source after that.
-Do not load the evidence archive or imported catalogs to start ordinary work.
-
-## Session workflow
-
-1. Inspect branch/upstream, `git status --short` and attached worktree. Reuse a suitable
-   active checkout; preserve dirty files and other tasks' work.
-2. Identify the requested outcome and, when relevant, its backlog ID/acceptance gate.
-   Separate implementation, simulated checks, phone/gauge observations and vehicle qualification.
-3. Search affected source/tests with `rg`. Verify names/constants before using dated
-   notes. Use the map below and the machine-readable [documentation map](documentation-map.json).
-4. Implement the smallest cohesive change. Preserve architecture/styling and automatic
-   bounded recovery. Ask only for critical missing input or required authorization.
-5. Run the minimum meaningful checks below. Record remaining limits honestly, update
-   the authoritative documents, commit and push under root instructions.
+Start with [AGENTS.md](../AGENTS.md) for commands and boundaries, then
+[current state](current-state.md). Read the affected [backlog](backlog.md) row,
+source/tests and contract below. Search dated evidence only for a specific question.
+The [documentation map](documentation-map.json) validates these source entry points.
 
 ## Source map
 
@@ -38,55 +26,3 @@ relative to `android/app/src/main/java/com/lstepnio/egauge/` unless specified.
 | Worker health and memory budget | `src/worker_health.c`, `src/memory_health.c`, `firmware/gauge/lvgl_memory.h`, `tools/check_firmware_memory.py` | [Firmware health](architecture/firmware-runtime.md#worker-progress-and-memory-evidence), [placement budget](architecture/firmware-runtime.md#memory-placement-and-admission-budget) |
 | Parked capture/replay | `tools/obd_capture.py`, `tools/obd_explore.py`, `tools/obd_tcm_values.py`, `tools/tests/` | [TCM resume](development/tcm-session-resume.md), [capture runbook](development/vehicle-capture-runbook.md) |
 | Research definitions | `tools/research/`, `data/vehicle-definitions/` | [Scope/license](vehicles/catalog-research.md); not executable vehicle support |
-
-## Nonnegotiable boundaries
-
-- The gauge owns each adapter; a Mac capture requires releasing its single-client link.
-  One adapter is normal. An optional child changes routing, never the vehicle page list.
-- Missing/invalid/stale values are unavailable, never zero. Keep ECU, source, revision,
-  session and monotonic age through parsing and presentation; healthy siblings continue.
-- BLE/UI callbacks are nonblocking; owning workers hold external resources. Use one
-  monotonic budget, cancellation-safe IO and bounded cleanup before lease release.
-- Coupled phone state uses one off-main serialized commit; publish only acknowledged
-  state. Retain invalid/newer documents and uncertain outcomes rather than guessing.
-- Config success requires expected running revision/hash and cleared trial. Update
-  success requires the exact post-reboot signed image and healthy OTA state.
-- Previews remain labelled examples; technical detail belongs in Expert. Controls,
-  clearing and public capability promotion need a complete qualified protected path.
-- Keep private captures, identifiers, preference backups and signing material out of Git.
-  Ordinary commit/push authorization does not authorize main merge or release publication.
-
-Details belong in [standing recovery rules](architecture/interaction-recovery.md),
-not a second copy here. Owner instructions take precedence over repository guidance.
-
-## Extending alerts and sensor capabilities
-
-For an alert-related task, read [ADR-015's extension checklist](architecture/alerts-and-diagnostics.md#framework-extension-checklist)
-first. Reuse its producer/reducer/history/presentation owners and update the owning
-contracts with the change. External feeds also use the [provider guide](architecture/phone-alert-providers.md).
-For Auto screen rotation use the [orientation policy](architecture/hardware-and-transports.md#automatic-display-orientation):
-sensor presence, implemented support and advertised usable capability are separate.
-
-## Verification by impact
-
-| Changed boundary | Minimum meaningful checks |
-| --- | --- |
-| Documentation | `.venv/bin/python tools/validate.py`, `git diff --check`; inspect authority/link/backlog changes |
-| Catalog/schema/tokens | Validator and corresponding generator `--check`; affected decode/projection fixtures |
-| OBD/capture/parser/diagnostics | Relevant host tests and C sanitizer fixtures; firmware build for C changes |
-| Android state/codec/UI | Relevant JVM tests, debug build and lint; compile instrumentation when its contracts change |
-| Firmware runtime/config/update | ESP-IDF build and affected host C fixtures; physical gates are distinct |
-| Visible UI | Inspect relevant fixtures or focused screens; avoid repeating every golden without a concrete risk |
-
-Exact commands and toolchains are in [setup](development/setup.md); hardware gates
-are in [quality](development/quality.md). Never run broad connected tests on the owner
-phone, reset its App data, flash, publish or access a vehicle as incidental validation.
-Do not reinstall working toolchains or repeat broad checks after the risk is verified.
-
-## Documentation updates
-
-[Documentation ownership](documentation.md) defines where each fact belongs.
-Current state owns support/devices, backlog owns tasks/status/blockers, roadmap owns
-outcome order, protocols own bytes, architecture owns implementation responsibilities,
-and evidence owns dated measurements. Replace stale active text; do not append a
-competing summary. Update related facts/gates in the same commit as the code.

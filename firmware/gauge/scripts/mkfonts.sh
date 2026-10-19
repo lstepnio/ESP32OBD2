@@ -1,50 +1,58 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-CYAN='\033[0;36m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
+PROJ_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MODE="${1:---write}"
+[[ "$MODE" == --write || "$MODE" == --check ]] || { echo 'Usage: mkfonts.sh [--check|--write]' >&2; exit 2; }
+CONVERTER_VERSION=1.5.3
+convert() {
+    if [[ -n "${FONT_CONVERTER:-}" ]]; then
+        "$FONT_CONVERTER" "$@"
+    else
+        npm exec --yes --package="lv_font_conv@$CONVERTER_VERSION" -- lv_font_conv "$@"
+    fi
+}
+[[ "$(convert --version)" == "$CONVERTER_VERSION" ]] || { echo "Expected lv_font_conv $CONVERTER_VERSION" >&2; exit 1; }
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJ_DIR="$(dirname "$SCRIPT_DIR")"
-CSV_PATH="assets/fonts/fonts.csv"
-CSV_DIR="assets/fonts"
-
-if ! command -v lv_font_conv >/dev/null 2>&1; then
-    echo -e "${RED}Error: lv_font_conv not found in PATH.${NC}"
-    exit 1
-fi
-
-if [[ ! -f "$PROJ_DIR/$CSV_PATH" ]]; then
-    echo -e "${RED}Error: Fonts config file not found at $PROJ_DIR/$CSV_PATH${NC}"
-    exit 1
-fi
-
-cd "$PROJ_DIR" || exit 1
-
-if ! (rm -rf main/fonts && mkdir -p main/fonts); then
-    echo -e "${RED}Error: Failed to recreate main/fonts directory.${NC}"
-    exit 1
-fi
-
-while IFS=, read -r INPUT_FONT OUTPUT_PREFIX SIZES; do
-    IFS=',' read -ra FIELDS <<< "$INPUT_FONT,$OUTPUT_PREFIX,$SIZES"
-    INPUT_FONT="${FIELDS[0]}"
-    OUTPUT_PREFIX="${FIELDS[1]}"
-    for ((i=2; i<${#FIELDS[@]}; i++)); do
-        SIZE="${FIELDS[i]}"
-        INPUT_PATH="$CSV_DIR/$INPUT_FONT"
-        OUTPUT_PATH="main/fonts/${OUTPUT_PREFIX}_${SIZE}.c"
-        echo -e "${CYAN}[${OUTPUT_PREFIX}_$SIZE] $INPUT_PATH -> $OUTPUT_PATH${NC}"
-        lv_font_conv \
-            --font "$INPUT_PATH" \
-            -r 0x20-0x7F,0xB0 \
-            --size "$SIZE" \
-            --format lvgl \
-            --bpp 4 \
-            --no-compress \
-            -o "$OUTPUT_PATH"
+# Stage on the same filesystem. Failed conversion never removes working fonts.
+STAGE=$(mktemp -d "$PROJ_DIR/.fonts.XXXXXX")
+cleanup() {
+    result=$?
+    if [[ -d "$STAGE/original" && ! -d "$PROJ_DIR/main/fonts" ]]; then
+        mv "$STAGE/original" "$PROJ_DIR/main/fonts"
+    fi
+    rm -rf "$STAGE"
+    exit "$result"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+mkdir -p "$STAGE/main/fonts"
+ln -s "$PROJ_DIR/assets" "$STAGE/assets"
+cd "$STAGE"
+while IFS=, read -r input prefix sizes; do
+    [[ -n "$input" && -n "$prefix" && -n "$sizes" ]] || { echo 'Invalid font inventory' >&2; exit 1; }
+    # Labels retain their middle-dot glyph; value fonts keep the smaller original set.
+    ranges=0x20-0x7F,0xB0
+    [[ "$prefix" != notosans_medium ]] || ranges+=,0xB7
+    IFS=, read -r -a dimensions <<< "$sizes"
+    for size in "${dimensions[@]}"; do
+        [[ "$prefix" =~ ^[a-z_]+$ && "$size" =~ ^[1-9][0-9]*$ && "$input" != */* ]] || exit 1
+        convert --font "assets/fonts/$input" -r "$ranges" --size "$size" \
+            --format lvgl --bpp 4 --no-compress -o "main/fonts/${prefix}_${size}.c"
+        test -s "main/fonts/${prefix}_${size}.c"
     done
-done < "$CSV_PATH"
-
-# Invalidate the cmake to force a full rebuild, next time we run `idf build``
-touch main/CMakeLists.txt
+done < "$PROJ_DIR/assets/fonts/fonts.csv"
+# The converter adds a blank EOF line; retain the checked-in newline convention.
+python3 - "$STAGE/main/fonts" <<'PYTHON'
+from pathlib import Path
+import sys
+for path in Path(sys.argv[1]).glob("*.c"):
+    path.write_bytes(path.read_bytes().rstrip(b"\n") + b"\n")
+PYTHON
+if [[ "$MODE" == --check ]]; then
+    diff -qr "$PROJ_DIR/main/fonts" main/fonts
+else
+    mv "$PROJ_DIR/main/fonts" "$STAGE/original"
+    mv main/fonts "$PROJ_DIR/main/fonts"
+fi

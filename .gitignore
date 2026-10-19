@@ -6,7 +6,7 @@
 **/build/
 **/managed_components/
 **/sdkconfig.old
-**/dependencies.lock
+/firmware/gauge/dependencies.lock
 .venv/
 __pycache__/
 *.pyc
@@ -20,3 +20,10 @@ artifacts/
 
 # Gradle Kotlin incremental compiler cache
 /android/.kotlin/
+
+# Transactional font generation
+/firmware/gauge/.fonts.*/
+
+# Development tooling caches
+.ruff_cache/
+node_modules/

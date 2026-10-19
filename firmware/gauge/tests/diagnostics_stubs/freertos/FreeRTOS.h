@@ -8,5 +8,15 @@
 typedef int portMUX_TYPE;
 #define portMUX_INITIALIZER_UNLOCKED 0
 extern int test_critical_depth;
-#define portENTER_CRITICAL(m) do { (void)(m); ++test_critical_depth; } while (0)
-#define portEXIT_CRITICAL(m) do { (void)(m); --test_critical_depth; } while (0)
+#define portENTER_CRITICAL(m)                                                                                          \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        (void)(m);                                                                                                     \
+        ++test_critical_depth;                                                                                         \
+    } while (0)
+#define portEXIT_CRITICAL(m)                                                                                           \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        (void)(m);                                                                                                     \
+        --test_critical_depth;                                                                                         \
+    } while (0)

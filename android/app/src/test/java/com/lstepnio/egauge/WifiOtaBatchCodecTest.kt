@@ -43,7 +43,11 @@ class WifiOtaBatchCodecTest {
 
     private fun assertThrows(block: () -> Unit) {
         var threw = false
-        try { block() } catch (_: IllegalArgumentException) { threw = true }
+        try {
+            block()
+        } catch (_: IllegalArgumentException) {
+            threw = true
+        }
         assertTrue(threw)
     }
 }

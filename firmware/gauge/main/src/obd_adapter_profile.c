@@ -6,8 +6,10 @@ static const obd_adapter_profile_t profiles[] = {
 };
 const obd_adapter_profile_t *obd_adapter_profile_find(const char *id)
 {
-    if (!id) return 0;
-    for (unsigned i=0; i<sizeof(profiles)/sizeof(profiles[0]); ++i)
-        if (!strcmp(profiles[i].id,id)) return &profiles[i];
+    if (!id)
+        return 0;
+    for (unsigned i = 0; i < sizeof(profiles) / sizeof(profiles[0]); ++i)
+        if (!strcmp(profiles[i].id, id))
+            return &profiles[i];
     return 0;
 }

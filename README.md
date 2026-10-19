@@ -1,75 +1,79 @@
 # eGauge
 
-A standalone round OBD-II gauge and native Android companion for vehicle readings,
-saved dashboard pages, display settings and signed development firmware updates.
+A standalone round OBD-II gauge with a native Android companion. Configure vehicle
+readings, pages, alerts and display settings, then let the gauge run independently.
+Owner-protected Bluetooth handles setup; authenticated private Wi-Fi carries signed
+firmware updates. Normal use needs no account.
 
-The gauge runs independently after setup. The app configures it over owner-protected
-BLE and transfers firmware over authenticated private Wi-Fi. Normal use needs no account.
+## Android App
 
-## Current status
+| Gauge | Car | Settings |
+| :---: | :---: | :---: |
+| <img src="docs/assets/app/gauge.png" width="250" alt="Gauge screen"> | <img src="docs/assets/app/car.png" width="250" alt="Car screen"> | <img src="docs/assets/app/settings.png" width="250" alt="Settings screen"> |
 
-Working development hardware: Waveshare ESP32-S3-Touch-LCD-1.28 and Pixel companion.
-Jeep testing recorded live engine RPM matching the dash, loss/recovery after adapter
-removal, and a combined transmission Gear + Temperature page. Full transmission
-fault lists are integrated and tested offline; their new App/gauge path still needs
-physical qualification. Simultaneous adapters, additional drivetrain signals and
-production releases remain open. See [current implementation and evidence](docs/current-state.md).
+## eGauge display
 
-## App examples
+| Numeric | Arc | Dual | Alerts |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/assets/gauge/numeric.png" width="180" alt="Numeric reading"> | <img src="docs/assets/gauge/arc.png" width="180" alt="Arc reading"> | <img src="docs/assets/gauge/dual.png" width="180" alt="Dual readings"> | <img src="docs/assets/gauge/alerts.png" width="180" alt="Alert and engine warning indicators"> |
 
-These checked-in native UI fixtures use example readings. They are a recorded visual
-baseline, not live vehicle data or a new hardware check. The round preview illustrates
-a saved gauge layout; current behavior is described in the status summary.
+[Current support and installed-device evidence](docs/current-state.md) ·
+[Roadmap](docs/roadmap.md) · [Backlog](docs/backlog.md)
 
-<p>
-  <img src="android/app/src/androidTest/assets/goldens/gauge-dark-390.png" width="270" alt="Simulated Android gauge preview">
-  <img src="android/app/src/androidTest/assets/goldens/layouts-dark-390.png" width="270" alt="Example Android gauge layout choices">
-</p>
+## Development
 
-## Start here
+Clone this repository and enter its root. Prerequisites:
 
-- **AI/project work:** [AGENTS.md](AGENTS.md), [context and code map](docs/ai-context.md).
-- **Build and test:** [development setup](docs/development/setup.md), [quality gates](docs/development/quality.md).
-- **Resume Jeep testing:** [saved TCM session](docs/development/tcm-session-resume.md).
-- **Understand the system:** [architecture](docs/architecture/system.md), [Android](android/README.md), [firmware](firmware/gauge/README.md).
-- **Wire behavior:** [BLE](docs/protocol/ble-v1.md), [adapter bindings](docs/protocol/adapter-bindings-v1.md), [diagnostics](docs/protocol/diagnostics-and-alerts.md), [updates](docs/protocol/firmware-update.md).
-- **Product and remaining work:** [requirements](docs/requirements.md), [roadmap](docs/roadmap.md), [backlog and acceptance](docs/backlog.md), [design system](docs/design/design-system.md).
-- **All documentation and historical evidence:** [documentation index](docs/README.md).
-
-## Quick offline checks
+- Python 3.10+ with venv, Node.js/npm, a C11 compiler, CMake, Git and curl.
+- JDK 17 and Android SDK: set `JAVA_HOME` and `ANDROID_HOME`, accept SDK licenses,
+  then `sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"`.
+- [ESP-IDF 5.4.1](https://docs.espressif.com/projects/esp-idf/en/v5.4.1/esp32s3/get-started/):
+  install its ESP32-S3 tools and source its `export.sh`. CI pins the same container digest.
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install -r tools/requirements-test.txt
-.venv/bin/python tools/validate.py
-.venv/bin/python -m unittest discover -s tools/tests -p 'test_obd*.py'
+. .venv/bin/activate
+python -m pip install -r tools/requirements-dev.txt
+python tools/dev.py bootstrap                   # checksum-verified Kotlin formatter
+python tools/dev.py lint
+python tools/dev.py format --check
+python tools/dev.py test
+python tools/dev.py build
 ```
 
-Android uses JDK 17/SDK 36. Firmware uses ESP-IDF 5.4.1. Exact build and hardware
-session instructions are in [setup](docs/development/setup.md). Offline tests use
-fixtures and mocked adapters; they do not connect to a vehicle.
+Lint, test and build support `--target host|firmware|android`; default is all. Use
+`python tools/dev.py format` to apply formatting. Firmware checks require ESP-IDF
+exported even while the repository venv is active; the launcher selects IDF's own Python. Android uses the checked-in wrapper,
+resolved dependency locks and checksum verification. No command above accesses hardware.
 
-## Repository map
+Run isolated Android UI tests with `python tools/dev.py test --target android-ui`.
+It downloads a disposable API 35 Pixel 2 image and needs hardware virtualization
+(KVM on Linux, Apple Silicon or supported Intel acceleration on macOS). It never
+installs on a connected phone. [More testing/capture details](docs/development/quality.md).
 
-| Path | Responsibility |
+Build outputs: `android/app/build/outputs/apk/debug/app-debug.apk` and
+`firmware/gauge/build/esp32-idf-project.bin`. An authorized debug APK installation uses
+`adb -s SERIAL install -r PATH_TO_APK`. Firmware build output is not a signed release;
+use the [release procedure](docs/development/firmware-release-runbook.md) for installation.
+
+## Project guide
+
+- [AGENTS.md](AGENTS.md): commands, conventions and do-not-touch boundaries.
+- [Source map](docs/ai-context.md), [architecture](docs/architecture/system.md),
+  [ADRs](docs/decisions/README.md), [protocols](docs/README.md#protocols).
+- [Contributing](CONTRIBUTING.md), [setup details](docs/development/setup.md),
+  [all documentation](docs/README.md).
+
+| Folder | Responsibility |
 | --- | --- |
-| `firmware/gauge/` | ESP-IDF, LVGL display, adapter worker, owner BLE, configuration and signed update state |
-| `android/` | Kotlin/Compose app, local profiles, exact configuration review and protected transport |
-| `contracts/` | Versioned schemas and examples; runtime support is narrower than design contracts |
-| `design/` | Shared visual tokens and explicitly simulated browser prototype |
-| `docs/` | Current status, runtime maps, protocols, setup, evidence and remaining work |
-| `tools/` | Validation, bounded vehicle capture, offline replay and research utilities |
-| `data/vehicle-definitions/` | Research archive; not executable or qualified vehicle support |
+| `firmware/gauge/` | Autonomous embedded runtime, display, adapters and protected updates |
+| `android/` | Compose companion, local setup, presentation and serialized transport |
+| `contracts/` | Versioned schemas, reading catalog and compatibility examples |
+| `tools/` | Shared checks, generators and bounded capture/research utilities |
+| `docs/`, `design/` | Maintained contracts/evidence and shared design tokens |
+| `data/vehicle-definitions/` | Research archive; provenance/license review recorded separately |
 
-[Vehicle research](docs/vehicles/README.md) and the [catalog scope/license record](docs/vehicles/catalog-research.md)
-explain the imported reference data. Broad schema/catalog coverage does not imply
-compatible hardware or permission to execute vehicle-changing commands.
-
-## Contribution and licensing
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md). Commit tested changes and push the feature
-branch after each session; review before merging into `main`. Firmware releases
-are separate authorized actions after their required hardware checks.
+## Licensing
 
 Imported firmware retains its [MIT license](firmware/gauge/LICENSE); fonts retain
 [SIL OFL](third_party/NotoSans-OFL.txt). See [third-party notices](THIRD_PARTY_NOTICES.md).

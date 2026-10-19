@@ -10,10 +10,14 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 fun activityTestRule(automaticConnection: Boolean = false) = AndroidComposeTestRule(
     activityRule = ActivityScenarioRule<MainActivity>(
         Intent(ApplicationProvider.getApplicationContext<Context>(), MainActivity::class.java)
-            .putExtra("debug_reset_model",true).putExtra("debug_disable_auto_connect", !automaticConnection)),
+            .putExtra(
+                "debug_reset_model",
+                true
+            ).putExtra("debug_disable_auto_connect", !automaticConnection)
+    ),
     activityProvider = { rule ->
         lateinit var activity: MainActivity
         rule.scenario.onActivity { activity = it }
         activity
-    },
+    }
 )

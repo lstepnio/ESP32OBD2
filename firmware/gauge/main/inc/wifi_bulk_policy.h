@@ -7,9 +7,12 @@
 
 /* Pure authorization policy kept separate from sockets and cryptography so
  * expiry, session binding and replay rejection can run in host fixtures. */
-bool wifi_bulk_policy_accept(bool ready, uint32_t expected_session_id,
-                             uint32_t received_session_id, uint32_t last_sequence,
-                             uint32_t received_sequence, uint32_t expires_at,
+bool wifi_bulk_policy_accept(bool     ready,
+                             uint32_t expected_session_id,
+                             uint32_t received_session_id,
+                             uint32_t last_sequence,
+                             uint32_t received_sequence,
+                             uint32_t expires_at,
                              uint32_t now);
 
 /* Internal 8-bit free/largest floors: 64/16 KiB before driver initialization,

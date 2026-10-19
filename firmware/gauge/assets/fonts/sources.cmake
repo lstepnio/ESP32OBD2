@@ -1,0 +1,13 @@
+# Use the same reviewed inventory for production and host rendering.
+set(FONT_SOURCES)
+file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/fonts.csv" font_inventory)
+foreach(row IN LISTS font_inventory)
+    string(REPLACE "," ";" fields "${row}")
+    list(POP_FRONT fields input_font prefix)
+    foreach(size IN LISTS fields)
+        list(APPEND FONT_SOURCES "${CMAKE_CURRENT_LIST_DIR}/../../main/fonts/${prefix}_${size}.c")
+    endforeach()
+endforeach()
+if(NOT CMAKE_SCRIPT_MODE_FILE)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/fonts.csv")
+endif()

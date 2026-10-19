@@ -1,6 +1,6 @@
 # Paired-phone alert providers
 
-Maintained integration contract for FEATURE-06. Updated 2026-10-07.
+Maintained integration contract for FEATURE-06. Updated 2026-10-19.
 [ADR-015](alerts-and-diagnostics.md) owns the common event model;
 [wire contract](../protocol/diagnostics-and-alerts.md) owns byte layouts;
 [backlog](../backlog.md) owns provider activation and qualification.
@@ -8,10 +8,10 @@ Maintained integration contract for FEATURE-06. Updated 2026-10-07.
 ## Current implementation and scope
 
 `ExternalAlerts.kt` provides `PhoneAlertProvider`, typed notices, a reviewed-provider
-registry and validation. A debug Expert action sends an explicitly simulated,
-30-second advisory through the same protected owner connection, gauge reducer,
-history and context UI as vehicle alerts. It cannot become a Critical alert or
-produce a live vehicle notification. This is a test seam, not a live crowd feed.
+registry and validation. The synthetic adapter is a bounded fixture seam through the
+protected owner connection, gauge reducer, history and context UI. The former Expert
+send action has been removed. Fixtures cannot become Critical alerts or produce live
+vehicle notifications; no consumer test-notice action is exposed.
 No commercial provider, location collection, notification scraping or account
 integration is enabled. The App receives gauge-originated threshold and fault
 alerts automatically; providers never evaluate those thresholds independently.

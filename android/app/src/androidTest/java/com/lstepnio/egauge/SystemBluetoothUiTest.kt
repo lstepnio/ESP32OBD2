@@ -25,18 +25,26 @@ class SystemBluetoothUiTest {
             if (root?.packageName?.toString() == "com.android.settings") {
                 fun matches(node: AccessibilityNodeInfo): List<AccessibilityNodeInfo> {
                     val value = if (description) node.contentDescription else node.text
-                    val here = if (value?.toString() == label && node.isVisibleToUser) listOf(node) else emptyList()
+                    val here = if (value?.toString() == label &&
+                        node.isVisibleToUser
+                    ) {
+                        listOf(node)
+                    } else {
+                        emptyList()
+                    }
                     return here + (0 until node.childCount).flatMap { index ->
                         node.getChild(index)?.let(::matches) ?: emptyList()
                     }
                 }
                 val match = matches(root).singleOrNull()
                 if (match != null && match.refresh() &&
-                    (if (description) match.contentDescription else match.text)?.toString() == label) {
+                    (if (description) match.contentDescription else match.text)?.toString() == label
+                ) {
                     var current: AccessibilityNodeInfo? = match
                     while (current != null && !current.isClickable) current = current.parent
-                    if (current?.refresh() == true && matches(current).size == 1)
+                    if (current?.refresh() == true && matches(current).size == 1) {
                         clicked = current.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    }
                 }
             }
             if (!clicked) SystemClock.sleep(100)

@@ -6,7 +6,51 @@ Quality is demonstrated with reproducible evidence for the behavior being claime
 
 `tools/validate.py`: validates schema definitions and all example documents; checks semantic references, layouts, units/ranges, alert ordering, decoder vector results and invalid-case rejection; verifies repository Markdown local link targets and documented visual token parity. The schemas are draft shape contracts, not a secure production parser. Example release hashes are intentionally zeros and not trusted artifacts.
 
-CI runs these checks, host sanitizer fixtures, the firmware build with ESP-IDF 5.4.1, and the Android debug build plus unit tests. Jobs use read-only repository permission. Toolchain/container and action provenance should be locked and reviewed for releases; source-level component versions are pinned. Firmware version identity comes from `firmware/gauge/version.txt`.
+The shared `tools/dev.py` commands are the only local/CI command definitions;
+[README](../../README.md#development) lists invocation and prerequisites. Host tests
+discover every `test_*.py` suite under tools and the review server, plus native C
+sanitizers. Firmware tests use production LVGL/fonts and config binding. Android
+checks include JVM tests, instrumentation compilation, lint and an isolated UI lane.
+Quality jobs have read-only repository access and bounded execution times.
+The shared JVM gate is `testDebugUnitTest`. Release-variant fixture isolation is
+tracked as CODE-04; release build/lint do not establish that separate test coverage.
+
+Pinned formatters cover authored Python, C and Kotlin. Generated catalogs, tokens,
+fixtures and fonts are checked by their generators, not hand formatted. C include
+order is preserved because FreeRTOS and BSP header order has semantic dependencies.
+
+## Android UI and screen captures
+
+`python tools/dev.py test --target android-ui` runs only allowlisted fixture suites
+on a Gradle-managed API 35 Pixel 2. It has no adapter/gauge owner, saved-profile writes
+or physical-phone installation. CI publishes test reports and additional output.
+This lane checks interactions and accessibility-related semantics, not the old Pixel
+pixel baseline; API/font rasterizers differ.
+
+`RepositoryGalleryTest` captures current production Gauge/Car/Settings composables
+with fixed fixture state and the compact navigation shell. Copy its three PNGs from
+`android/app/build/outputs/managed_device_android_test_additional_output/` into
+`docs/assets/app/` after visual review. The neutral README captions are screen names;
+these files are rendered fixtures, not vehicle observations. No privacy-sensitive
+phone capture is needed. For gauge images run firmware tests, then
+`python tools/render_gauge_gallery.py`; the script converts selected production LVGL
+RGB frames into `docs/assets/gauge/`. It adds no independent mock renderer.
+
+`GoldenScreenshotTest` is a separate reviewed baseline. Its recorded environment is
+the Pixel 10 Pro/API 37 with fixed density/font scale. Missing images or differences
+above 0.05% of pixels (three channel levels of antialias allowance) fail. Ordinary
+runs never update goldens. Recording requires explicit `recordGoldens=true`, visual
+review of every intended change and a second comparison without that flag.
+
+For authorized physical sessions, start/stop `tools/adb_debug_awake.py` and always
+select the exact device serial. Never use broad `connectedDebugAndroidTest` on the
+owner phone: it previously uninstalled the target and cleared its data. Build both
+APKs, install with `adb -s SERIAL install -r`, then use `adb -s SERIAL shell am instrument`
+with an exact class. Activity fixtures disable automatic discovery using the existing
+debug-only intent extra. Physical configuration, Bluetooth and OTA journeys require
+their explicit opt-in arguments and the corresponding owner authorization. Back up
+private setup, preserve uncertain outcomes and restore wake/radio settings afterward.
+A fixture, golden or passed compilation never substitutes for hardware qualification.
 
 ## Required implementation checks
 

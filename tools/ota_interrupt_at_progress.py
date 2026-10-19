@@ -18,10 +18,16 @@ from pathlib import Path
 PERCENT = re.compile(r"([0-9]{1,3})%")
 
 
-def run(command: list[str], timeout: float = 20, capture: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(command, check=True, timeout=timeout,
-                          stdout=subprocess.PIPE if capture else None,
-                          stderr=subprocess.PIPE if capture else None)
+def run(
+    command: list[str], timeout: float = 20, capture: bool = True
+) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        command,
+        check=True,
+        timeout=timeout,
+        stdout=subprocess.PIPE if capture else None,
+        stderr=subprocess.PIPE if capture else None,
+    )
 
 
 def visible_state(adb: str) -> tuple[int | None, set[str]]:
@@ -42,14 +48,20 @@ def visible_state(adb: str) -> tuple[int | None, set[str]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--adb", default=str(Path.home() / "Library/Android/sdk/platform-tools/adb"))
+    parser.add_argument(
+        "--adb", default=str(Path.home() / "Library/Android/sdk/platform-tools/adb")
+    )
     parser.add_argument("--serial-port", required=True)
     target = parser.add_mutually_exclusive_group(required=True)
     target.add_argument("--target-percent", type=int)
-    target.add_argument("--target-text",
-                        help="Reset when an exact visible Android text node appears")
-    parser.add_argument("--esptool-python", required=True,
-                        help="Python interpreter whose environment contains esptool")
+    target.add_argument(
+        "--target-text", help="Reset when an exact visible Android text node appears"
+    )
+    parser.add_argument(
+        "--esptool-python",
+        required=True,
+        help="Python interpreter whose environment contains esptool",
+    )
     parser.add_argument("--timeout-seconds", type=int, default=120)
     parser.add_argument("--poll-seconds", type=float, default=1.0)
     parser.add_argument("--output", type=Path)
@@ -84,11 +96,23 @@ def main() -> None:
         raise SystemExit("Timed out before observing the requested update target")
 
     reset_started = time.monotonic()
-    result = run([
-        args.esptool_python, "-m", "esptool", "--chip", "esp32s3",
-        "--port", args.serial_port, "--before", "default_reset",
-        "--after", "hard_reset", "run",
-    ], timeout=30)
+    result = run(
+        [
+            args.esptool_python,
+            "-m",
+            "esptool",
+            "--chip",
+            "esp32s3",
+            "--port",
+            args.serial_port,
+            "--before",
+            "default_reset",
+            "--after",
+            "hard_reset",
+            "run",
+        ],
+        timeout=30,
+    )
     evidence = {
         "schemaVersion": 2,
         "targetPercent": args.target_percent,

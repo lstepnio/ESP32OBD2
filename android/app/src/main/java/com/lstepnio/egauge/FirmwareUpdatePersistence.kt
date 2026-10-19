@@ -10,13 +10,24 @@ internal class FirmwareUpdatePersistence(context: Context, private val writes: D
     fun heldDigest(gaugeId: String): String? = hold.digestFor(gaugeId)
 
     suspend fun start(gaugeId: String?, bundle: DevUpdateBundle, hosted: HostedUpdate?) = writes.write {
-        journal.write(gaugeId ?: "unknown", bundle.sha256.hex(), bundle.elfSha256.hex(), "preparing")
-        if (gaugeId != null && hosted?.bundle?.sha256?.contentEquals(bundle.sha256) == true)
+        journal.write(
+            gaugeId ?: "unknown",
+            bundle.sha256.hex(),
+            bundle.elfSha256.hex(),
+            "preparing"
+        )
+        if (gaugeId != null && hosted?.bundle?.sha256?.contentEquals(bundle.sha256) == true) {
             hold.hold(gaugeId, hosted.release.bundleSha256)
+        }
     }
 
     suspend fun interrupted(gaugeId: String?, bundle: DevUpdateBundle) = writes.write {
-        journal.write(gaugeId ?: "unknown", bundle.sha256.hex(), bundle.elfSha256.hex(), "needs-reconciliation")
+        journal.write(
+            gaugeId ?: "unknown",
+            bundle.sha256.hex(),
+            bundle.elfSha256.hex(),
+            "needs-reconciliation"
+        )
     }
 
     suspend fun clearRecovery() = writes.write { journal.clear() }

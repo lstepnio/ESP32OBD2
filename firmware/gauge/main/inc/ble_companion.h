@@ -4,11 +4,12 @@
 #include <stdint.h>
 #include "freertos/queue.h"
 
-typedef struct {
-    uint8_t opcode;
-    uint8_t value;
-    uint8_t brightness;
-    uint8_t units;
+typedef struct
+{
+    uint8_t  opcode;
+    uint8_t  value;
+    uint8_t  brightness;
+    uint8_t  units;
     uint16_t cycle_seconds;
     uint32_t base_revision;
 } companion_command_t;
@@ -26,8 +27,7 @@ void ble_companion_start(void);
 void ble_companion_reset(void);
 
 /* Call before BLE host startup. Owner commands are applied by app_main. */
-void ble_companion_set_control(ui_t *ui, QueueHandle_t command_queue,
-                               uint8_t selected_index, bool document_active);
+void ble_companion_set_control(ui_t *ui, QueueHandle_t command_queue, uint8_t selected_index, bool document_active);
 void ble_companion_open_pairing_window(void);
 void ble_companion_selection_applied(uint8_t selected_index);
 void ble_companion_tick(void);

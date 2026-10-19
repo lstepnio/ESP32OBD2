@@ -13,7 +13,9 @@ class OtaStatusPollingTest {
             assertTrue(delays.first() < 75L)
         }
     }
-    @Test(expected = IllegalArgumentException::class) fun noUnboundedPolling() {
+
+    @Test(expected = IllegalArgumentException::class)
+    fun noUnboundedPolling() {
         otaStatusPollCount(0)
     }
 }

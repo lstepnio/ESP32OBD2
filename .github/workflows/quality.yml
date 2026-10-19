@@ -9,6 +9,7 @@ permissions:
 jobs:
   contracts-and-docs:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -16,59 +17,21 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
-      - run: pip install -r tools/requirements-test.txt
-      - run: python tools/validate.py
-      - name: Documentation policy regression cases
-        run: python -m unittest discover -s tools/tests -p 'test_documentation*.py'
-      - run: node --check design/prototype/app.js
-      - name: OBD capture policy, framing, and simulated adapter workflow
+      - run: pip install -r tools/requirements-dev.txt
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Formatting
         run: |
-          python -m unittest discover -s tools/tests -p 'test_obd*.py'
-          python tools/obd_capture.py self-test
-          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
-            -Ifirmware/gauge/main/inc firmware/gauge/tests/obd_trace_test.c \
-            firmware/gauge/main/src/obd_trace_format.c -o /tmp/obd_trace_test
-          /tmp/obd_trace_test
-      - name: Shared alerts and clear policy with production parity
-        run: python -m unittest discover -s tools/tests -p 'test_alert*.py'
-      - name: Wi-Fi driver allocation failure and retry lifecycle
+          python tools/dev.py format --check
+      - name: Shared host lint and tests
         run: |
-          python -m unittest discover -s tools/tests -p 'test_wifi*.py'
-          python -m unittest discover -s tools/tests -p 'test_firmware_memory.py'
-      - name: Fresh pairing build-security regression gate
-        run: python -m unittest discover -s tools/tests -p 'test_ble_security*.py'
-      - name: Local gauge gesture fixtures with sanitizers
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
-            -Ifirmware/gauge/main/inc firmware/gauge/tests/page_action_test.c \
-            firmware/gauge/main/src/page_action.c firmware/gauge/main/src/page_save_policy.c -o /tmp/page_action_test
-          /tmp/page_action_test
-      - name: ELM parser fixtures with sanitizers
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
-            -Ifirmware/gauge/main/inc \
-            firmware/gauge/tests/elm_response_test.c \
-            firmware/gauge/main/src/elm_response.c \
-            -o /tmp/elm_response_test
-          /tmp/elm_response_test
-      - name: Core firmware logic fixtures with sanitizers
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
-            -Ifirmware/gauge/tests/stubs -Ifirmware/gauge/main/inc \
-            firmware/gauge/tests/core_logic_test.c \
-            firmware/gauge/main/src/alert_engine.c \
-            firmware/gauge/main/src/config_trial_policy.c \
-            firmware/gauge/main/src/display_units.c \
-            firmware/gauge/main/src/json_guard.c \
-            firmware/gauge/main/src/pid_decoder.c \
-            firmware/gauge/main/src/poll_scheduler.c \
-            firmware/gauge/main/src/page_save_policy.c \
-            firmware/gauge/main/src/wifi_bulk_policy.c \
-            -lm -o /tmp/core_logic_test
-          /tmp/core_logic_test
+          python tools/dev.py lint --target host
+          python tools/dev.py test --target host
   firmware-build:
     runs-on: ubuntu-24.04
-    container: espressif/idf:v5.4.1
+    container: espressif/idf:v5.4.1@sha256:6b4adab7b282e9261a154d7130fb4945a3c28bd35c2e914357c2f522643cb92a
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -76,19 +39,10 @@ jobs:
           persist-credentials: false
       - name: Build gauge firmware
         shell: bash
-        working-directory: firmware/gauge
         run: |
           . /opt/esp/idf/export.sh
-          idf.py build
-          cmake -S tests/ui_host -B build-ui-host
-          cmake --build build-ui-host -j 2
-          build-ui-host/gauge_ui_render build-ui-renders
-          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
-            -Itests/stubs -Imain/inc -I"$IDF_PATH/components/json/cJSON" \
-            tests/config_binding_test.c main/src/config_document.c main/src/config_runtime.c main/src/diagnostic_filter.c \
-            main/src/json_guard.c main/src/obd_adapter_profile.c main/src/pid_decoder.c "$IDF_PATH/components/json/cJSON/cJSON.c" \
-            -lm -o /tmp/config_binding_test
-          /tmp/config_binding_test ../../contracts/examples/config-bound-adapter.json ../../android/app/src/main/assets/numeric_config_template.json
+          python tools/dev.py build --target firmware
+          python tools/dev.py test --target firmware
 
   android-app:
     runs-on: ubuntu-24.04
@@ -107,5 +61,36 @@ jobs:
       - name: Install Android SDK platform
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - name: Build, lint, and test Android app
-        working-directory: android
-        run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:compileDebugAndroidTestKotlin :app:lintDebug --no-daemon
+        run: |
+          python3 tools/dev.py build --target android
+          python3 tools/dev.py test --target android
+          python3 tools/dev.py lint --target android
+
+  android-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools emulator
+      - name: Enable disposable emulator acceleration
+        run: sudo chmod a+rw /dev/kvm
+      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Isolated UI suite and repository screen captures
+        run: python3 tools/dev.py test --target android-ui
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: android-ui-results
+          path: |
+            android/app/build/reports/androidTests/
+            android/app/build/outputs/managed_device_android_test_additional_output/
+            android/app/build/outputs/androidTest-results/
+          if-no-files-found: warn

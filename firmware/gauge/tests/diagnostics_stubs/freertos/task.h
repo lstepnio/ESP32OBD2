@@ -1,2 +1,5 @@
 #pragma once
-static inline unsigned xTaskGetTickCount(void) { return 1000; }
+static inline unsigned xTaskGetTickCount(void)
+{
+    return 1000;
+}

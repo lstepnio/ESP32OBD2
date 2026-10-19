@@ -1,8 +1,8 @@
 package com.lstepnio.egauge
 
+import android.graphics.Bitmap
 import androidx.compose.ui.test.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import android.graphics.Bitmap
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.ui.state.readingName
 import java.io.File
@@ -55,16 +55,28 @@ class PrimaryJourneyTest {
         capture("review")
         compose.onAllNodesWithTag("primary-action").assertCountEquals(1)
         assertNoJargon()
-        org.junit.Assert.assertEquals("Read-only journey must preserve every saved choice", original, model.draft)
+        org.junit.Assert.assertEquals(
+            "Read-only journey must preserve every saved choice",
+            original,
+            model.draft
+        )
     }
 
     private fun capture(name: String) {
         val variant = InstrumentationRegistry.getArguments().getString("captureScreens") ?: return
         val instrument = InstrumentationRegistry.getInstrumentation()
-        val folder = File(instrument.targetContext.getExternalFilesDir(null), "journey-captures/$variant").apply { mkdirs() }
+        val folder = File(
+            instrument.targetContext.getExternalFilesDir(null),
+            "journey-captures/$variant"
+        ).apply {
+            mkdirs()
+        }
         compose.waitForIdle()
-        org.junit.Assert.assertEquals("Capture requires the app in the foreground",
-            "com.lstepnio.egauge", instrument.uiAutomation.rootInActiveWindow?.packageName?.toString())
+        org.junit.Assert.assertEquals(
+            "Capture requires the app in the foreground",
+            "com.lstepnio.egauge",
+            instrument.uiAutomation.rootInActiveWindow?.packageName?.toString()
+        )
         File(folder, "$name.png").outputStream().use {
             instrument.uiAutomation.takeScreenshot().compress(Bitmap.CompressFormat.PNG, 100, it)
         }
@@ -72,7 +84,9 @@ class PrimaryJourneyTest {
 
     private fun assertNoJargon() {
         listOf("SHA-256", "revision", "ECM", "TCM", "PID", "Hysteresis", "PHONE DRAFT", "GitHub", "projection", "evidence").forEach { word ->
-            compose.onAllNodes(hasText(word, substring = true, ignoreCase = true)).assertCountEquals(0)
+            compose.onAllNodes(
+                hasText(word, substring = true, ignoreCase = true)
+            ).assertCountEquals(0)
         }
     }
 }

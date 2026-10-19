@@ -10,17 +10,31 @@ data class VehicleProfile(
     val draft: Draft,
     val primaryAdapter: AdapterBinding? = null,
     val transmission: TransmissionConnection? = null,
-    val pageOrder: List<String> = emptyList(),
+    val pageOrder: List<String> = emptyList()
 ) {
     init {
-        DiagnosticCodeFilters.validate((draft.diagnosticFilters + transmission?.draft?.diagnosticFilters.orEmpty()).distinct())
-        require(draft.pages.isNotEmpty() || transmission?.draft?.pages?.isNotEmpty() == true) { "Keep at least one vehicle page" }
-        require(pageOrder.size <= 8 && pageOrder.distinct().size == pageOrder.size &&
-            pageOrder.all { it.matches(Regex("[a-z][a-z0-9._-]{0,63}")) }) { "Page order is invalid" }
+        DiagnosticCodeFilters.validate(
+            (
+                draft.diagnosticFilters +
+                    transmission?.draft?.diagnosticFilters.orEmpty()
+                ).distinct()
+        )
+        require(draft.pages.isNotEmpty() || transmission?.draft?.pages?.isNotEmpty() == true) {
+            "Keep at least one vehicle page"
+        }
+        require(
+            pageOrder.size <= 8 && pageOrder.distinct().size == pageOrder.size &&
+                pageOrder.all {
+                    it.matches(Regex("[a-z][a-z0-9._-]{0,63}"))
+                }
+        ) { "Page order is invalid" }
         require(transmission == null || (draft.source == "ECM" && primaryAdapter != null)) {
             "A transmission child needs a primary engine adapter"
         }
-        require(transmission?.adapter == null || primaryAdapter == transmission.adapter || !samePhysicalAdapter(primaryAdapter, transmission.adapter)) {
+        require(
+            transmission?.adapter == null || primaryAdapter == transmission.adapter ||
+                !samePhysicalAdapter(primaryAdapter, transmission.adapter)
+        ) {
             "The same adapter must keep the same identity for both connections"
         }
     }
@@ -30,13 +44,41 @@ data class VehicleProfile(
         "TCM" -> transmission?.draft
         else -> null
     }
-    fun adapterFor(source: String): AdapterBinding? = if (source == draft.source) primaryAdapter
-        else if (source == "TCM") transmission?.adapter else if (source == "ECM") primaryAdapter else null
-    fun withDraft(value: Draft): VehicleProfile = if (value.source == draft.source) copy(draft = value)
-        else copy(transmission = (transmission ?: error("Set up the transmission child first")).copy(draft = value))
+    fun adapterFor(source: String): AdapterBinding? = if (source == draft.source) {
+        primaryAdapter
+    } else if (source ==
+        "TCM"
+    ) {
+        transmission?.adapter
+    } else if (source == "ECM") {
+        primaryAdapter
+    } else {
+        null
+    }
+    fun withDraft(value: Draft): VehicleProfile = if (value.source ==
+        draft.source
+    ) {
+        copy(draft = value)
+    } else {
+        copy(
+            transmission = (
+                transmission ?: error(
+                    "Set up the transmission child first"
+                )
+                ).copy(draft = value)
+        )
+    }
     fun withAdapter(source: String, value: AdapterBinding?): VehicleProfile = when (source) {
         draft.source -> copy(primaryAdapter = value)
-        "TCM" -> copy(transmission = (transmission ?: error("Set up the transmission child first")).copy(adapter = value))
+
+        "TCM" -> copy(
+            transmission = (
+                transmission ?: error(
+                    "Set up the transmission child first"
+                )
+                ).copy(adapter = value)
+        )
+
         else -> error("Vehicle source is invalid")
     }
 }
@@ -47,7 +89,16 @@ data class ProfileCollection(val activeId: String, val profiles: List<VehiclePro
         require(profiles.any { it.id == id }) { "Vehicle no longer exists" }
         require(profiles.size > 1) { "Keep at least one vehicle" }
         val remaining = profiles.filterNot { it.id == id }
-        return copy(activeId = if (activeId == id) remaining.first().id else activeId, profiles = remaining)
+        return copy(
+            activeId = if (activeId ==
+                id
+            ) {
+                remaining.first().id
+            } else {
+                activeId
+            },
+            profiles = remaining
+        )
     }
 }
 
@@ -68,21 +119,33 @@ class ProfileStore(private val context: Context) {
 
     fun save(value: ProfileCollection): Boolean {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        return LocalSetupStore(context).save(LocalSetup(value, GaugeAssociationStore(context).load()))
+        return LocalSetupStore(
+            context
+        ).save(LocalSetup(value, GaugeAssociationStore(context).load()))
     }
 
     private fun migrateLegacy(): ProfileLoad {
         val layout = runCatching { GaugeLayout.valueOf(legacy.getString("layout", "Arc") ?: "Arc") }
             .getOrDefault(GaugeLayout.Arc)
         val draft = Draft(
-            pidId = legacy.getString("pid", "rpm")?.takeIf { id -> demoCatalog.any { it.id == id } } ?: "rpm",
+            pidId =
+                legacy.getString("pid", "rpm")?.takeIf { id -> demoCatalog.any { it.id == id } }
+                    ?: "rpm",
             layout = layout,
-            source = legacy.getString("source", "ECM")?.takeIf { it == "ECM" || it == "TCM" } ?: "ECM",
-            alerts = listOf(GaugeAlertDraft("alert.coolant", "coolant", AlertDirection.Above,
-                legacy.getInt("warning", 105).coerceIn(readingRange("coolant")),
-                legacy.getInt("critical", 115).coerceIn(readingRange("coolant")))),
+            source =
+                legacy.getString("source", "ECM")?.takeIf { it == "ECM" || it == "TCM" } ?: "ECM",
+            alerts = listOf(
+                GaugeAlertDraft(
+                    "alert.coolant",
+                    "coolant",
+                    AlertDirection.Above,
+                    legacy.getInt("warning", 105).coerceIn(readingRange("coolant")),
+                    legacy.getInt("critical", 115).coerceIn(readingRange("coolant"))
+                )
+            )
         )
-        val collection = ProfileCollection("default", listOf(VehicleProfile("default", "My vehicle", draft)))
+        val collection =
+            ProfileCollection("default", listOf(VehicleProfile("default", "My vehicle", draft)))
         // Read-only migration; first successful off-main save persists the complete setup.
         return ProfileLoad(collection)
     }
@@ -91,7 +154,8 @@ class ProfileStore(private val context: Context) {
         // Compatible with the future device configuration ID pattern.
         fun newId(): String = "vehicle-${UUID.randomUUID()}"
         private fun defaultCollection() = ProfileCollection(
-            "default", listOf(VehicleProfile("default", "My vehicle", Draft())),
+            "default",
+            listOf(VehicleProfile("default", "My vehicle", Draft()))
         )
     }
 }

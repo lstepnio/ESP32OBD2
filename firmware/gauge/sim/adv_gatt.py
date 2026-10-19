@@ -4,6 +4,7 @@
 sudo apt install bluez python3-dbus python3-gi libcairo2-dev libgirepository1.0-dev
 pip install bluezero pydbus
 """
+
 import logging
 from time import sleep
 
@@ -24,7 +25,7 @@ SERVICE_DEF = {
             "id": 2,
             "flags": ["write"],
         },
-    ]
+    ],
 }
 
 SERVICE_DEF2 = {
@@ -35,7 +36,7 @@ SERVICE_DEF2 = {
             "id": 1,
             "flags": ["notify", "write"],
         },
-    ]
+    ],
 }
 
 SERVICE_DEF3 = {
@@ -51,27 +52,27 @@ SERVICE_DEF3 = {
             "id": 2,
             "flags": ["write"],
         },
-    ]
+    ],
 }
 
 SERVICE_DEF = SERVICE_DEF3
 
-class OBD2Peripheral:
 
+class OBD2Peripheral:
     def __init__(self, service_def) -> None:
         self.service_def = service_def
 
         self.obd_values = {
-            '010C': {'name': 'RPM', 'value': 1000, 'min': 1000, 'max': 8000, 'step': 100},
-            '010D': {'name': 'Speed', 'value': 40, 'min': 40, 'max': 200, 'step': 5},
-            '012F': {'name': 'Fuel', 'value': 100, 'min': 0, 'max': 100, 'step': -1},
-            '0104': {'name': 'Engine Load', 'value': 50, 'min': 0, 'max': 100, 'step': 5},
-            '0105': {'name': 'Coolant Temp', 'value': 90, 'min': -40, 'max': 215, 'step': 5},
+            "010C": {"name": "RPM", "value": 1000, "min": 1000, "max": 8000, "step": 100},
+            "010D": {"name": "Speed", "value": 40, "min": 40, "max": 200, "step": 5},
+            "012F": {"name": "Fuel", "value": 100, "min": 0, "max": 100, "step": -1},
+            "0104": {"name": "Engine Load", "value": 50, "min": 0, "max": 100, "step": 5},
+            "0105": {"name": "Coolant Temp", "value": 90, "min": -40, "max": 215, "step": 5},
         }
 
         self.periph = peripheral.Peripheral(
             adapter_address=adapter.list_adapters()[0],
-            local_name='ESP32-OBD2',
+            local_name="ESP32-OBD2",
             appearance=0,
         )
 
@@ -87,7 +88,7 @@ class OBD2Peripheral:
                 "srv_id": 1,
                 "chr_id": char["id"],
                 "uuid": char["uuid"],
-                "value": b'',
+                "value": b"",
                 "notifying": "notify" in char.get("flags", []),
                 "flags": char.get("flags", []),
             }
@@ -103,45 +104,45 @@ class OBD2Peripheral:
             raise ValueError("TX characteristic not found in service definition (notify).")
 
     def rx_write(self, value, options):
-        command = value.decode(errors='ignore').strip()
+        command = value.decode(errors="ignore").strip()
         logging.info(f"Received from central: {command}")
         response = self.handle_command(command)
 
-        self.notify_char.set_value((command + '\r').encode())
-        self.notify_char.set_value((response + '\r').encode())
-        self.notify_char.set_value(('>\r').encode())
+        self.notify_char.set_value((command + "\r").encode())
+        self.notify_char.set_value((response + "\r").encode())
+        self.notify_char.set_value((">\r").encode())
         logging.info(f"Sent response: {response}")
 
     def handle_command(self, command: str) -> str:
         if command in self.obd_values:
             entry = self.obd_values[command]
             # Update value
-            entry['value'] += entry['step']
-            if entry['step'] > 0 and entry['value'] > entry['max']:
-                entry['value'] = entry['min']
-            elif entry['step'] < 0 and entry['value'] < entry['min']:
-                entry['value'] = entry['max']
+            entry["value"] += entry["step"]
+            if entry["step"] > 0 and entry["value"] > entry["max"]:
+                entry["value"] = entry["min"]
+            elif entry["step"] < 0 and entry["value"] < entry["min"]:
+                entry["value"] = entry["max"]
 
-            if command == '010C':  # RPM
-                rpm_val = int(entry['value'] * 4)
+            if command == "010C":  # RPM
+                rpm_val = int(entry["value"] * 4)
                 A = (rpm_val >> 8) & 0xFF
                 B = rpm_val & 0xFF
-                return f'41 0C {A:02X} {B:02X}'
-            elif command == '010D':  # Speed
-                return f'41 0D {entry["value"]:02X}'
-            elif command == '012F':  # Fuel Level
-                return f'41 2F {entry["value"]:02X}'
-            elif command == '0104':  # Engine Load
-                return f'41 04 {entry["value"]:02X}'
-            elif command == '0105':  # Coolant Temp
-                coolant_val = entry['value'] + 40
-                return f'41 05 {coolant_val:02X}'
-            return '?'
+                return f"41 0C {A:02X} {B:02X}"
+            elif command == "010D":  # Speed
+                return f"41 0D {entry['value']:02X}"
+            elif command == "012F":  # Fuel Level
+                return f"41 2F {entry['value']:02X}"
+            elif command == "0104":  # Engine Load
+                return f"41 04 {entry['value']:02X}"
+            elif command == "0105":  # Coolant Temp
+                coolant_val = entry["value"] + 40
+                return f"41 05 {coolant_val:02X}"
+            return "?"
         else:
-            return '?'
+            return "?"
 
     def start(self):
-        logging.info(f"Advertising as:         ESP32-OBD2")
+        logging.info("Advertising as:         ESP32-OBD2")
         logging.info(f"Adapter address:        {adapter.list_adapters()[0]}")
         logging.info(f"Service UUID:           {self.service_def['uuid']}")
         self.periph.publish()
@@ -153,21 +154,21 @@ class OBD2Peripheral:
         """Reset the Bluetooth adapter to clear any errors."""
         logging.info("Resetting Bluetooth adapter...")
         bus = SystemBus()
-        adapter = bus.get('org.bluez', '/org/bluez/hci0')
+        adapter = bus.get("org.bluez", "/org/bluez/hci0")
         adapter.Powered = False
         sleep(0.1)
         adapter.Powered = True
 
+
 def main() -> None:
     logging.basicConfig(
-        level=logging.INFO,
-        format='[%(asctime)s.%(msecs)03d] %(message)s',
-        datefmt='%H:%M:%S'
+        level=logging.INFO, format="[%(asctime)s.%(msecs)03d] %(message)s", datefmt="%H:%M:%S"
     )
 
     obd2 = OBD2Peripheral(SERVICE_DEF)
     obd2.start()
     logging.info("Exiting...")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

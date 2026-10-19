@@ -1,6 +1,6 @@
 # Shared alerts, notifications and vehicle diagnostics
 
-**ADR-015, accepted for development implementation.** Updated 2026-10-07. Decider: project owner; implementation
+**Implements [ADR-015](../decisions/README.md).** Updated 2026-10-07. Decider: project owner; implementation
 review follows repository gates. This is the maintained design and implementation
 sequence for QUAL-05, FEATURE-03 and FEATURE-05. Dev.48 implements the software
 slice below; physical qualification and live clearing/provider gates remain separate.

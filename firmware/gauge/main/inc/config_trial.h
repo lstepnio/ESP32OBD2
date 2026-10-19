@@ -4,7 +4,8 @@
 #include <stdint.h>
 #include "esp_err.h"
 
-typedef enum {
+typedef enum
+{
     CONFIG_TRIAL_USE_ACTIVE,
     CONFIG_TRIAL_USE_ACTIVE_TRIAL,
     CONFIG_TRIAL_USE_PREVIOUS,
@@ -15,9 +16,7 @@ typedef enum {
 esp_err_t config_trial_init(void);
 esp_err_t config_trial_prepare(uint32_t revision);
 esp_err_t config_trial_cancel(uint32_t revision);
-esp_err_t config_trial_decide(uint32_t active_revision,
-                              config_trial_decision_t *decision);
+esp_err_t config_trial_decide(uint32_t active_revision, config_trial_decision_t *decision);
 esp_err_t config_trial_reject(uint32_t revision);
 esp_err_t config_trial_confirm(uint32_t revision);
-bool config_trial_needs_confirmation(uint32_t revision);
-
+bool      config_trial_needs_confirmation(uint32_t revision);

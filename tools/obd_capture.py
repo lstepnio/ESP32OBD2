@@ -4,6 +4,7 @@
 No arbitrary command option, vehicle writes, DTC clear, VIN query, or Mode 22
 probe. Raw files stay under ignored artifacts/vehicle-captures by default.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -17,15 +18,29 @@ import subprocess
 import sys
 import time
 
-from obd_capture_core import (STANDARD_PIDS, allowed_command,
-                              support_replies, supports, transactions, validate_record)
+from obd_capture_core import (
+    STANDARD_PIDS,
+    allowed_command,
+    support_replies,
+    supports,
+    transactions,
+    validate_record,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "artifacts" / "vehicle-captures"
 PREFIX = "EGAUGE_OBD "
 BLE_PROFILES = (
-    ("000018f0-0000-1000-8000-00805f9b34fb", "00002af1-0000-1000-8000-00805f9b34fb", "00002af0-0000-1000-8000-00805f9b34fb"),
-    ("0000fff0-0000-1000-8000-00805f9b34fb", "0000fff2-0000-1000-8000-00805f9b34fb", "0000fff1-0000-1000-8000-00805f9b34fb"),
+    (
+        "000018f0-0000-1000-8000-00805f9b34fb",
+        "00002af1-0000-1000-8000-00805f9b34fb",
+        "00002af0-0000-1000-8000-00805f9b34fb",
+    ),
+    (
+        "0000fff0-0000-1000-8000-00805f9b34fb",
+        "0000fff2-0000-1000-8000-00805f9b34fb",
+        "0000fff1-0000-1000-8000-00805f9b34fb",
+    ),
 )
 
 
@@ -40,12 +55,27 @@ class Recording:
         self.stream = os.fdopen(fd, "w", encoding="utf-8")
         self.start = time.monotonic_ns()
         self.sequence = 0
-        self.write({"schema": 1, "event": "manifest", "origin": origin,
-                    "evidence": "simulated" if origin == "simulated" else "hardware_capture",
-                    "environment": "simulated" if origin == "simulated" else "bench" if source == "bench" else "vehicle",
-                    "source_label": source, "utc": stamp,
-                    "vehicle": None if source == "bench" else "2010 Wrangler / owner-reported 5.7L Hemi + ZFHP70 swap",
-                    "adapter": None if source == "bench" else "owner-reported Vgate iCar Pro BLE4.0 / B06XGB4873"})
+        self.write(
+            {
+                "schema": 1,
+                "event": "manifest",
+                "origin": origin,
+                "evidence": "simulated" if origin == "simulated" else "hardware_capture",
+                "environment": "simulated"
+                if origin == "simulated"
+                else "bench"
+                if source == "bench"
+                else "vehicle",
+                "source_label": source,
+                "utc": stamp,
+                "vehicle": None
+                if source == "bench"
+                else "2010 Wrangler / owner-reported 5.7L Hemi + ZFHP70 swap",
+                "adapter": None
+                if source == "bench"
+                else "owner-reported Vgate iCar Pro BLE4.0 / B06XGB4873",
+            }
+        )
 
     def write(self, record: dict):
         if self.stream.closed:
@@ -54,10 +84,20 @@ class Recording:
         self.stream.flush()
 
     def event(self, event: str, data: bytes = b"", status: int = 0, generation: int = 1):
-        self.write({"schema": 1, "seq": self.sequence,
-                    "t_us": (time.monotonic_ns() - self.start) // 1000,
-                    "source": 0, "generation": generation, "event": event,
-                    "status": status, "offset": 0, "total": len(data), "hex": data.hex()})
+        self.write(
+            {
+                "schema": 1,
+                "seq": self.sequence,
+                "t_us": (time.monotonic_ns() - self.start) // 1000,
+                "source": 0,
+                "generation": generation,
+                "event": event,
+                "status": status,
+                "offset": 0,
+                "total": len(data),
+                "hex": data.hex(),
+            }
+        )
         self.sequence += 1
 
     def close(self):
@@ -75,13 +115,27 @@ def parser_binary() -> Path:
     output = ROOT / "artifacts" / "capture-tools"
     output.mkdir(parents=True, exist_ok=True)
     binary = output / "elm_capture_replay"
-    inputs = [ROOT / "firmware/gauge/tests/elm_capture_replay.c",
-              ROOT / "firmware/gauge/main/src/elm_response.c",
-              ROOT / "firmware/gauge/main/inc/elm_response.h"]
+    inputs = [
+        ROOT / "firmware/gauge/tests/elm_capture_replay.c",
+        ROOT / "firmware/gauge/main/src/elm_response.c",
+        ROOT / "firmware/gauge/main/inc/elm_response.h",
+    ]
     if not binary.exists() or any(p.stat().st_mtime > binary.stat().st_mtime for p in inputs):
-        subprocess.run(["cc", "-std=c11", "-Wall", "-Wextra", "-Werror",
-                        "-I" + str(ROOT / "firmware/gauge/main/inc"),
-                        str(inputs[0]), str(inputs[1]), "-o", str(binary)], check=True)
+        subprocess.run(
+            [
+                "cc",
+                "-std=c11",
+                "-Wall",
+                "-Wextra",
+                "-Werror",
+                "-I" + str(ROOT / "firmware/gauge/main/inc"),
+                str(inputs[0]),
+                str(inputs[1]),
+                "-o",
+                str(binary),
+            ],
+            check=True,
+        )
     return binary
 
 
@@ -96,21 +150,41 @@ def replay(path: Path, write_summary: bool = True) -> dict:
         item = {key: value for key, value in frame.items() if key != "raw"}
         item["raw_hex"] = frame["raw"].hex()
         if re.fullmatch(r"01[0-9A-Fa-f]{2}", command) or command.upper() in ("03", "07", "0A"):
-            response = subprocess.run([str(binary), command[:2], command[2:] or "00", item["raw_hex"]],
-                                      text=True, capture_output=True, check=True)
+            response = subprocess.run(
+                [str(binary), command[:2], command[2:] or "00", item["raw_hex"]],
+                text=True,
+                capture_output=True,
+                check=True,
+            )
             item["production_parser"] = json.loads(response.stdout)
         results.append(item)
-    simulated = any(r.get("event") == "source_simulated" or
-                    r.get("event") == "manifest" and r.get("evidence") == "simulated" for r in records)
-    summary = {"evidence": "simulated" if simulated else "hardware_capture",
-               "complete_transactions": len(results), "records": len(records),
-               "mode01_accepted": sum(r["command"].startswith("01") and r.get("production_parser", {}).get("status") == 1 for r in results),
-               "service_reads_accepted": sum(r["command"] in ("03", "07", "0A") and r.get("production_parser", {}).get("status") == 1 for r in results),
-               "timeouts": sum(r.get("event") == "timeout" for r in records),
-               "failed_connections": sum(r.get("event") == "connect_failed" for r in records),
-               "incomplete_or_aborted_queries": sum(r.get("event") == "tx" and r.get("offset") == 0 for r in records) - len(results),
-               "transactions": results,
-               "limit": "Production parser accepts headerless or CAN single-frame Mode 01 and bounded emissions replies; multiple responders and ISO-TP multi-frame replies fail closed."}
+    simulated = any(
+        r.get("event") == "source_simulated"
+        or r.get("event") == "manifest"
+        and r.get("evidence") == "simulated"
+        for r in records
+    )
+    summary = {
+        "evidence": "simulated" if simulated else "hardware_capture",
+        "complete_transactions": len(results),
+        "records": len(records),
+        "mode01_accepted": sum(
+            r["command"].startswith("01") and r.get("production_parser", {}).get("status") == 1
+            for r in results
+        ),
+        "service_reads_accepted": sum(
+            r["command"] in ("03", "07", "0A") and r.get("production_parser", {}).get("status") == 1
+            for r in results
+        ),
+        "timeouts": sum(r.get("event") == "timeout" for r in records),
+        "failed_connections": sum(r.get("event") == "connect_failed" for r in records),
+        "incomplete_or_aborted_queries": sum(
+            r.get("event") == "tx" and r.get("offset") == 0 for r in records
+        )
+        - len(results),
+        "transactions": results,
+        "limit": "Production parser accepts headerless or CAN single-frame Mode 01 and bounded emissions replies; multiple responders and ISO-TP multi-frame replies fail closed.",
+    }
     if write_summary:
         target = path.parent / "replay-summary.json"
         # Re-running replay deliberately replaces only its derived summary.
@@ -121,13 +195,16 @@ def replay(path: Path, write_summary: bool = True) -> dict:
 
 def print_summary(path: Path):
     summary = replay(path)
-    print(f"Saved {summary['complete_transactions']} complete transactions; "
-          f"{summary['mode01_accepted']} accepted by the firmware parser.")
+    print(
+        f"Saved {summary['complete_transactions']} complete transactions; "
+        f"{summary['mode01_accepted']} accepted by the firmware parser."
+    )
     print(f"Private recording: {path}")
 
 
 def record_serial(args):
     import serial
+
     recording = Recording(args.output, args.source, "gauge_usb")
     fd = os.open(recording.directory / "serial.log", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     count = 0
@@ -165,36 +242,48 @@ def record_serial(args):
     finally:
         recording.close()
     if malformed:
-        raise ValueError(f"{malformed} damaged trace lines; repeat capture. Raw log: {recording.directory}")
+        raise ValueError(
+            f"{malformed} damaged trace lines; repeat capture. Raw log: {recording.directory}"
+        )
     if not count:
-        raise ValueError(f"No trace events received. Check capture firmware/USB. Log: {recording.directory}")
+        raise ValueError(
+            f"No trace events received. Check capture firmware/USB. Log: {recording.directory}"
+        )
     print_summary(recording.file)
 
 
 async def scan_adapters() -> list:
     from bleak import BleakScanner
+
     found = await BleakScanner.discover(timeout=8, return_adv=True)
     result = []
     for device, adv in found.values():
         name = adv.local_name or device.name or ""
         services = {x.lower() for x in adv.service_uuids}
-        if any(word in name.lower() for word in ("vgate", "vlink", "icar", "obd")) or any(p[0] in services for p in BLE_PROFILES):
+        if any(word in name.lower() for word in ("vgate", "vlink", "icar", "obd")) or any(
+            p[0] in services for p in BLE_PROFILES
+        ):
             result.append((device, adv))
     return result
 
 
 async def choose_adapter(address: str | None):
     from bleak import BleakScanner
+
     if address:
         device = await BleakScanner.find_device_by_address(address, timeout=8)
         if device is None:
-            raise ValueError("Selected adapter is not advertising. Check its power and close other OBD apps.")
+            raise ValueError(
+                "Selected adapter is not advertising. Check its power and close other OBD apps."
+            )
         return device
     candidates = await scan_adapters()
     if len(candidates) != 1:
         for index, (device, adv) in enumerate(candidates, 1):
             print(f"{index}: {adv.local_name or device.name} ({device.address}), RSSI {adv.rssi}")
-        raise ValueError("Expected one adapter; use scan, then pass its observed identifier with --adapter.")
+        raise ValueError(
+            "Expected one adapter; use scan, then pass its observed identifier with --adapter."
+        )
     return candidates[0][0]
 
 
@@ -238,7 +327,9 @@ class AdapterSession:
         deadline = time.monotonic() + timeout
         try:
             while time.monotonic() < deadline:
-                data = await asyncio.wait_for(self.rx.get(), max(0.001, deadline - time.monotonic()))
+                data = await asyncio.wait_for(
+                    self.rx.get(), max(0.001, deadline - time.monotonic())
+                )
                 frame.extend(data)
                 if len(frame) > 4096 or self.rx_lost:
                     raise ValueError("Adapter response overflow; capture stopped")
@@ -254,19 +345,41 @@ class AdapterSession:
 
 async def capture_ble(args):
     from bleak import BleakClient
+
     device = await choose_adapter(args.adapter)
-    recording = Recording(args.output, args.source, "simulated" if getattr(args, "simulated", False) else "mac_ble")
+    recording = Recording(
+        args.output, args.source, "simulated" if getattr(args, "simulated", False) else "mac_ble"
+    )
     session = AdapterSession(recording)
     try:
-        async with BleakClient(device, timeout=15,
-                               disconnected_callback=lambda _: recording.event("disconnected", generation=2)) as client:
+        async with BleakClient(
+            device,
+            timeout=15,
+            disconnected_callback=lambda _: recording.event("disconnected", generation=2),
+        ) as client:
             session.client = client
-            gatt = {"name": device.name, "identifier": device.address, "services": [
-                {"uuid": service.uuid, "handle": service.handle,
-                 "characteristics": [{"uuid": char.uuid, "handle": char.handle,
-                                       "properties": char.properties,
-                                       "descriptors": [{"uuid": d.uuid, "handle": d.handle} for d in char.descriptors]}
-                                      for char in service.characteristics]} for service in client.services]}
+            gatt = {
+                "name": device.name,
+                "identifier": device.address,
+                "services": [
+                    {
+                        "uuid": service.uuid,
+                        "handle": service.handle,
+                        "characteristics": [
+                            {
+                                "uuid": char.uuid,
+                                "handle": char.handle,
+                                "properties": char.properties,
+                                "descriptors": [
+                                    {"uuid": d.uuid, "handle": d.handle} for d in char.descriptors
+                                ],
+                            }
+                            for char in service.characteristics
+                        ],
+                    }
+                    for service in client.services
+                ],
+            }
             save_private(recording.directory / "gatt.json", gatt)
             profile = None
             for service_uuid, tx_uuid, rx_uuid in BLE_PROFILES:
@@ -274,11 +387,18 @@ async def capture_ble(args):
                 if service:
                     tx = service.get_characteristic(tx_uuid)
                     rx = service.get_characteristic(rx_uuid)
-                    if tx and rx and "notify" in rx.properties and any(p in tx.properties for p in ("write", "write-without-response")):
+                    if (
+                        tx
+                        and rx
+                        and "notify" in rx.properties
+                        and any(p in tx.properties for p in ("write", "write-without-response"))
+                    ):
                         profile = (tx, rx)
                         break
             if not profile:
-                raise ValueError("GATT map saved, but no implemented UART driver matches. Add a driver from this evidence before sending commands.")
+                raise ValueError(
+                    "GATT map saved, but no implemented UART driver matches. Add a driver from this evidence before sending commands."
+                )
             session.tx, rx = profile
             session.response = "write" in session.tx.properties
             await client.start_notify(rx, session.notification)
@@ -297,9 +417,14 @@ async def capture_ble(args):
                     break
             for command in ("ATDP", "ATDPN"):
                 await session.request(command)
-            save_private(recording.directory / "discovery.json", {
-                "source": args.source, "bitmaps": bitmaps,
-                "limit": "Only recognized support replies. Missing or unrecognized replies do not establish unsupported readings."})
+            save_private(
+                recording.directory / "discovery.json",
+                {
+                    "source": args.source,
+                    "bitmaps": bitmaps,
+                    "limit": "Only recognized support replies. Missing or unrecognized replies do not establish unsupported readings.",
+                },
+            )
             pids = [pid for pid in STANDARD_PIDS if supports(bitmaps, pid)]
             if args.source == "engine" and pids:
                 end = time.monotonic() + args.duration
@@ -316,7 +441,9 @@ async def capture_ble(args):
                     if pid in pids:
                         await session.request(f"01{pid:02X}")
             elif args.source == "transmission":
-                print("Transmission port identity and standard support captured. Enhanced reads await a documented controller definition.")
+                print(
+                    "Transmission port identity and standard support captured. Enhanced reads await a documented controller definition."
+                )
             await client.stop_notify(rx)
     finally:
         recording.close()
@@ -327,10 +454,12 @@ async def capture_ble(args):
 def self_test(args):
     recording = Recording(args.output, "engine", "simulated")
     recording.event("trace_start", generation=0)
-    for command, blocks in ((b"010C\r", (b"010C\r41", b"0C1A", b"F8\r", b">")),
-                            (b"0105\r", (b"41057B\r>",)),
-                            (b"010D\r", (b"NO DATA\r>",)),
-                            (b"03\r", (b"4301330000\r>",))):
+    for command, blocks in (
+        (b"010C\r", (b"010C\r41", b"0C1A", b"F8\r", b">")),
+        (b"0105\r", (b"41057B\r>",)),
+        (b"010D\r", (b"NO DATA\r>",)),
+        (b"03\r", (b"4301330000\r>",)),
+    ):
         recording.event("tx", command)
         for block in blocks:
             recording.event("rx", block)
@@ -338,9 +467,16 @@ def self_test(args):
     recording.close()
     summary = replay(recording.file)
     results = [r["production_parser"] for r in summary["transactions"]]
-    if results != [{"status": 1, "payload": "1af8"}, {"status": 1, "payload": "7b"}, {"status": 2, "payload": ""}, {"status": 1, "payload": "01330000"}]:
+    if results != [
+        {"status": 1, "payload": "1af8"},
+        {"status": 1, "payload": "7b"},
+        {"status": 2, "payload": ""},
+        {"status": 1, "payload": "01330000"},
+    ]:
         raise ValueError(f"Replay mismatch: {results}")
-    print("Recorder and production firmware parser replay passed for split RPM, coolant, NO DATA, and stored fault reads.")
+    print(
+        "Recorder and production firmware parser replay passed for split RPM, coolant, NO DATA, and stored fault reads."
+    )
     print(f"Simulated fixture: {recording.file}")
 
 
@@ -352,7 +488,13 @@ def main():
         p = sub.add_parser(name)
         p.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
         if name != "self-test":
-            p.add_argument("--source", choices=("engine", "transmission", "bench") if name == "serial" else ("engine", "transmission"), required=True)
+            p.add_argument(
+                "--source",
+                choices=("engine", "transmission", "bench")
+                if name == "serial"
+                else ("engine", "transmission"),
+                required=True,
+            )
             p.add_argument("--duration", type=float, default=60)
         if name == "serial":
             p.add_argument("--port", required=True)
@@ -365,7 +507,9 @@ def main():
         parser.error("duration must be between 1 and 3600 seconds")
     if args.action == "scan":
         for device, adv in asyncio.run(scan_adapters()):
-            print(f"{adv.local_name or device.name}: {device.address}, RSSI {adv.rssi}, services {adv.service_uuids}")
+            print(
+                f"{adv.local_name or device.name}: {device.address}, RSSI {adv.rssi}, services {adv.service_uuids}"
+            )
     elif args.action == "serial":
         record_serial(args)
     elif args.action == "ble":

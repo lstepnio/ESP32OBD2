@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Interactive Mac companion for the first parked, read-only vehicle session."""
-import argparse
+
 import asyncio
-from pathlib import Path
 import subprocess
 import sys
 
@@ -26,25 +25,43 @@ def main():
         choice = input("Choose a step: ").strip()
         if choice in ("1", "2"):
             source = "engine" if choice == "1" else "transmission"
-            print(f"\nPlug the Vgate into the {source} port. Power off the gauge and close other OBD apps so this Mac can connect.")
+            print(
+                f"\nPlug the Vgate into the {source} port. Power off the gauge and close other OBD apps so this Mac can connect."
+            )
             input("Turn ignition on, then press Return when ready. ")
             candidates = asyncio.run(scan_adapters())
             if not candidates:
                 print("No candidate adapter found. Check power and macOS Bluetooth permission.")
                 continue
             for i, (device, adv) in enumerate(candidates, 1):
-                print(f"{i}. {adv.local_name or device.name or 'Unnamed adapter'} ({device.address})")
+                print(
+                    f"{i}. {adv.local_name or device.name or 'Unnamed adapter'} ({device.address})"
+                )
             try:
                 index = int(input("Choose the physical Vgate number: ")) - 1
-                if index < 0 or index >= len(candidates): raise ValueError()
+                if index < 0 or index >= len(candidates):
+                    raise ValueError()
             except ValueError:
                 print("Selection cancelled.")
                 continue
-            run("ble", "--source", source, "--adapter", candidates[index][0].address, "--duration", "45")
-            print("Capture closed its connection. Move the adapter only after this step has finished.\n")
+            run(
+                "ble",
+                "--source",
+                source,
+                "--adapter",
+                candidates[index][0].address,
+                "--duration",
+                "45",
+            )
+            print(
+                "Capture closed its connection. Move the adapter only after this step has finished.\n"
+            )
         elif choice == "3":
             import serial.tools.list_ports
-            ports = [p.device for p in serial.tools.list_ports.comports() if 'usb' in p.device.lower()]
+
+            ports = [
+                p.device for p in serial.tools.list_ports.comports() if "usb" in p.device.lower()
+            ]
             if not ports:
                 print("No gauge USB serial port found. Connect its data cable.")
                 continue
@@ -53,7 +70,9 @@ def main():
             if source not in ("engine", "transmission"):
                 print("Use the actual port name so evidence is attributed correctly.")
                 continue
-            print("Connect the capture firmware gauge, open eGauge on the Pixel, and observe the physical display. The Mac will record for two minutes.")
+            print(
+                "Connect the capture firmware gauge, open eGauge on the Pixel, and observe the physical display. The Mac will record for two minutes."
+            )
             input("Press Return when ready. ")
             run("serial", "--source", source, "--port", port, "--duration", "120")
         elif choice == "4":

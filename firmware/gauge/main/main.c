@@ -80,33 +80,43 @@ static const char *TAG = "main";
 // ---------------------------------------------------------------------------------------------------------------------
 
 static const obd_pid_cfg_t g_obd_pids[] = {
-    {.pid = 0x0C, .len = 2, .name = "RPM", .unit = "/min",
-     .decoder = {.byte_length = 2, .numerator = 1, .denominator = 4,
-                 .minimum = 0, .maximum = 16383.75}},
-    {.pid = 0x0D, .len = 1, .name = "SPEED", .unit = "km/h",
-     .decoder = {.byte_length = 1, .numerator = 1, .denominator = 1,
-                 .minimum = 0, .maximum = 255}},
-    {.pid = 0x04, .len = 1, .name = "ENGINE", .unit = "%",
-     .decoder = {.byte_length = 1, .numerator = 100, .denominator = 255,
-                 .minimum = 0, .maximum = 100}},
-    {.pid = 0x05, .len = 1, .name = "TEMP", .unit = "°C",
-     .decoder = {.byte_length = 1, .numerator = 1, .denominator = 1,
-                 .offset = -40, .minimum = -40, .maximum = 215}},
-    {.pid = 0x2F, .len = 1, .name = "FUEL", .unit = "%",
-     .decoder = {.byte_length = 1, .numerator = 100, .denominator = 255,
-                 .minimum = 0, .maximum = 100}},
+    {.pid     = 0x0C,
+     .len     = 2,
+     .name    = "RPM",
+     .unit    = "/min",
+     .decoder = {.byte_length = 2, .numerator = 1, .denominator = 4, .minimum = 0, .maximum = 16383.75}},
+    {.pid     = 0x0D,
+     .len     = 1,
+     .name    = "SPEED",
+     .unit    = "km/h",
+     .decoder = {.byte_length = 1, .numerator = 1, .denominator = 1, .minimum = 0, .maximum = 255}},
+    {.pid     = 0x04,
+     .len     = 1,
+     .name    = "ENGINE",
+     .unit    = "%",
+     .decoder = {.byte_length = 1, .numerator = 100, .denominator = 255, .minimum = 0, .maximum = 100}},
+    {.pid     = 0x05,
+     .len     = 1,
+     .name    = "TEMP",
+     .unit    = "°C",
+     .decoder = {.byte_length = 1, .numerator = 1, .denominator = 1, .offset = -40, .minimum = -40, .maximum = 215}},
+    {.pid     = 0x2F,
+     .len     = 1,
+     .name    = "FUEL",
+     .unit    = "%",
+     .decoder = {.byte_length = 1, .numerator = 100, .denominator = 255, .minimum = 0, .maximum = 100}},
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Global Variables
 // ---------------------------------------------------------------------------------------------------------------------
 
-static atomic_uchar g_selected_page;
-static atomic_uint g_local_page_generation;
-static atomic_uint g_page_activity_ms;
-static config_runtime_t *g_runtime;
+static atomic_uchar          g_selected_page;
+static atomic_uint           g_local_page_generation;
+static atomic_uint           g_page_activity_ms;
+static config_runtime_t     *g_runtime;
 static config_store_record_t g_running_config_record;
-static bool g_running_previous_config;
+static bool                  g_running_previous_config;
 
 static unsigned page_count(void)
 {
@@ -116,53 +126,68 @@ static unsigned page_count(void)
 static ui_renderer_t ui_renderer(runtime_renderer_t renderer)
 {
     _Static_assert((int)RUNTIME_RENDERER_NUMERIC == (int)UI_RENDERER_NUMERIC &&
-                   (int)RUNTIME_RENDERER_ARC == (int)UI_RENDERER_ARC &&
-                   (int)RUNTIME_RENDERER_BAR == (int)UI_RENDERER_BAR &&
-                   (int)RUNTIME_RENDERER_TREND == (int)UI_RENDERER_TREND &&
-                   (int)RUNTIME_RENDERER_DUAL == (int)UI_RENDERER_DUAL,
+                       (int)RUNTIME_RENDERER_ARC == (int)UI_RENDERER_ARC &&
+                       (int)RUNTIME_RENDERER_BAR == (int)UI_RENDERER_BAR &&
+                       (int)RUNTIME_RENDERER_TREND == (int)UI_RENDERER_TREND &&
+                       (int)RUNTIME_RENDERER_DUAL == (int)UI_RENDERER_DUAL,
                    "Runtime and UI renderer values must remain aligned");
     return (ui_renderer_t)renderer;
 }
 
-
 static void page_ui(unsigned index, ui_page_t *out)
 {
     memset(out, 0, sizeof(*out));
-    if (!g_runtime) {
+    if (!g_runtime)
+    {
         const obd_pid_cfg_t *pid = &g_obd_pids[index % ARRAY_SIZE(g_obd_pids)];
-        out->name = pid->name;
-        out->renderer = UI_RENDERER_NUMERIC;
-        out->metric_count = 1;
-        out->metrics[0] = (ui_metric_t){
-            .pid = pid->pid, .name = pid->name, .unit = pid->unit,
-            .minimum = pid->decoder.minimum,
-            .maximum = pid->decoder.maximum, .stale_after_ms = 1500,
+        out->name                = pid->name;
+        out->renderer            = UI_RENDERER_NUMERIC;
+        out->metric_count        = 1;
+        out->metrics[0]          = (ui_metric_t){
+            .pid            = pid->pid,
+            .name           = pid->name,
+            .unit           = pid->unit,
+            .minimum        = pid->decoder.minimum,
+            .maximum        = pid->decoder.maximum,
+            .stale_after_ms = 1500,
         };
         return;
     }
     const runtime_page_t *page = &g_runtime->pages[index % g_runtime->page_count];
-    out->name = page->name;
-    out->renderer = ui_renderer(page->renderer);
-    out->metric_count = page->pid_count;
-    for (unsigned i = 0; i < page->pid_count; ++i) {
+    out->name                  = page->name;
+    out->renderer              = ui_renderer(page->renderer);
+    out->metric_count          = page->pid_count;
+    for (unsigned i = 0; i < page->pid_count; ++i)
+    {
         const runtime_pid_t *pid = &g_runtime->pids[page->pid_indices[i]];
-        out->metrics[i] = (ui_metric_t){
-            .pid = pid->obd.pid, .name = pid->name, .unit = pid->unit,
-            .minimum = pid->obd.decoder.minimum,
-            .maximum = pid->obd.decoder.maximum,
+        out->metrics[i]          = (ui_metric_t){
+            .pid            = pid->obd.pid,
+            .name           = pid->name,
+            .unit           = pid->unit,
+            .minimum        = pid->obd.decoder.minimum,
+            .maximum        = pid->obd.decoder.maximum,
             .stale_after_ms = pid->stale_ms,
         };
     }
 }
 
-typedef struct { ui_t *ui; unsigned source; } source_worker_t;
+typedef struct
+{
+    ui_t    *ui;
+    unsigned source;
+} source_worker_t;
 static source_worker_t source_workers[2];
-static unsigned runtime_source_count(void) { return g_runtime ? g_runtime->source_count : 1; }
+static unsigned        runtime_source_count(void)
+{
+    return g_runtime ? g_runtime->source_count : 1;
+}
 static bool runtime_simulated(void)
 {
-    if (!g_runtime) return false;
-    for (unsigned source=0; source<g_runtime->source_count; ++source)
-        if (g_runtime->sources[source].simulated) return true;
+    if (!g_runtime)
+        return false;
+    for (unsigned source = 0; source < g_runtime->source_count; ++source)
+        if (g_runtime->sources[source].simulated)
+            return true;
     return false;
 }
 static void clear_source(ui_t *ui, unsigned source)
@@ -171,10 +196,16 @@ static void clear_source(ui_t *ui, unsigned source)
      * Bound invalidation to two entries even when an absent source owns 32 PIDs. */
     ui_page_t page;
     page_ui(atomic_load(&g_selected_page), &page);
-    for (unsigned metric=0; metric<page.metric_count; ++metric) {
-        if (!g_runtime) { ui_set_value(ui, page.metrics[metric].pid, NULL); continue; }
-        for (unsigned i=0; i<g_runtime->pid_count; ++i)
-            if (g_runtime->pids[i].source_index == source && g_runtime->pids[i].obd.pid == page.metrics[metric].pid) {
+    for (unsigned metric = 0; metric < page.metric_count; ++metric)
+    {
+        if (!g_runtime)
+        {
+            ui_set_value(ui, page.metrics[metric].pid, NULL);
+            continue;
+        }
+        for (unsigned i = 0; i < g_runtime->pid_count; ++i)
+            if (g_runtime->pids[i].source_index == source && g_runtime->pids[i].obd.pid == page.metrics[metric].pid)
+            {
                 ui_set_value(ui, page.metrics[metric].pid, NULL);
                 break;
             }
@@ -196,33 +227,40 @@ static config_t g_config = {
     .disp_rot = LV_DISPLAY_ROTATION_0,
 };
 static QueueHandle_t g_phone_command_queue;
-typedef struct {
-    uint8_t pid_index;
+typedef struct
+{
+    uint8_t  pid_index;
     uint32_t generation;
-    double value;
+    double   value;
     uint32_t observed_at_ms;
 } alert_sample_event_t;
 #define ALERT_SAMPLE_QUEUE_LENGTH 16U
 _Static_assert(EGAUGE_RUNTIME_PIDS <= 32, "Lost PID mask must cover every runtime reading");
 static QueueHandle_t g_alert_sample_queue;
-static atomic_uint g_app_tick_count;
-static atomic_uint g_alert_sample_drops;
-static atomic_uint g_alert_lost_pids;
-static uint32_t engine_rpm_at,speed_at;
-static bool engine_running,vehicle_moving;
+static atomic_uint   g_app_tick_count;
+static atomic_uint   g_alert_sample_drops;
+static atomic_uint   g_alert_lost_pids;
+static uint32_t      engine_rpm_at, speed_at;
+static bool          engine_running, vehicle_moving;
 
 /* NaN is an internal unavailable marker, never a decoded numeric sample.
  * The application task owns alert state. Queue loss also breaks pending dwell. */
 static void queue_alert_sample(unsigned source, uint16_t pid, uint32_t generation, double value)
 {
-    if (!g_runtime) return;
-    for (unsigned i=0; i<g_runtime->pid_count; ++i) {
-        if (g_runtime->pids[i].obd.pid != pid || g_runtime->pids[i].source_index != source) continue;
-        alert_sample_event_t event = {.pid_index=i, .generation=generation, .value=value,
-            .observed_at_ms=pdTICKS_TO_MS(xTaskGetTickCount())};
-        if (g_alert_sample_queue && xQueueSend(g_alert_sample_queue,&event,0) != pdTRUE) {
-            atomic_fetch_add(&g_alert_sample_drops,1);
-            atomic_fetch_or(&g_alert_lost_pids,UINT32_C(1)<<i);
+    if (!g_runtime)
+        return;
+    for (unsigned i = 0; i < g_runtime->pid_count; ++i)
+    {
+        if (g_runtime->pids[i].obd.pid != pid || g_runtime->pids[i].source_index != source)
+            continue;
+        alert_sample_event_t event = {.pid_index      = i,
+                                      .generation     = generation,
+                                      .value          = value,
+                                      .observed_at_ms = pdTICKS_TO_MS(xTaskGetTickCount())};
+        if (g_alert_sample_queue && xQueueSend(g_alert_sample_queue, &event, 0) != pdTRUE)
+        {
+            atomic_fetch_add(&g_alert_sample_drops, 1);
+            atomic_fetch_or(&g_alert_lost_pids, UINT32_C(1) << i);
         }
         return;
     }
@@ -231,33 +269,37 @@ static void queue_alert_sample(unsigned source, uint16_t pid, uint32_t generatio
 static bool ota_trial_pending(void)
 {
     const esp_partition_t *running = esp_ota_get_running_partition();
-    esp_ota_img_states_t state;
-    return running && esp_ota_get_state_partition(running, &state) == ESP_OK &&
-           state == ESP_OTA_IMG_PENDING_VERIFY;
+    esp_ota_img_states_t   state;
+    return running && esp_ota_get_state_partition(running, &state) == ESP_OK && state == ESP_OTA_IMG_PENDING_VERIFY;
 }
 
 static void boot_health_task(void *arg)
 {
     (void)arg;
     uint32_t initial_ticks = atomic_load(&g_app_tick_count);
-    for (unsigned i = 0; i < 60; ++i) {
-        if (ble_companion_ready() &&
-            atomic_load(&g_app_tick_count) - initial_ticks >= 50) {
-            if (g_runtime && config_trial_needs_confirmation(g_running_config_record.revision)) {
+    for (unsigned i = 0; i < 60; ++i)
+    {
+        if (ble_companion_ready() && atomic_load(&g_app_tick_count) - initial_ticks >= 50)
+        {
+            if (g_runtime && config_trial_needs_confirmation(g_running_config_record.revision))
+            {
                 esp_err_t err = config_trial_confirm(g_running_config_record.revision);
-                if (err != ESP_OK) {
-                    ESP_LOGE(TAG, "Failed to confirm configuration trial: %s",
-                             esp_err_to_name(err));
-                    if (ota_trial_pending()) esp_ota_mark_app_invalid_rollback_and_reboot();
-                    else esp_restart();
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "Failed to confirm configuration trial: %s", esp_err_to_name(err));
+                    if (ota_trial_pending())
+                        esp_ota_mark_app_invalid_rollback_and_reboot();
+                    else
+                        esp_restart();
                 }
                 config_runtime_mark_confirmed();
-                ESP_LOGI(TAG, "Configuration revision %" PRIu32 " confirmed healthy",
-                         g_running_config_record.revision);
+                ESP_LOGI(TAG, "Configuration revision %" PRIu32 " confirmed healthy", g_running_config_record.revision);
             }
-            if (ota_trial_pending()) {
+            if (ota_trial_pending())
+            {
                 esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
-                if (err != ESP_OK) {
+                if (err != ESP_OK)
+                {
                     ESP_LOGE(TAG, "Failed to confirm trial firmware: %s", esp_err_to_name(err));
                     esp_ota_mark_app_invalid_rollback_and_reboot();
                 }
@@ -268,8 +310,10 @@ static void boot_health_task(void *arg)
         vTaskDelay(pdMS_TO_TICKS(500));
     }
     ESP_LOGE(TAG, "Boot health confirmation timed out");
-    if (ota_trial_pending()) esp_ota_mark_app_invalid_rollback_and_reboot();
-    else esp_restart();
+    if (ota_trial_pending())
+        esp_ota_mark_app_invalid_rollback_and_reboot();
+    else
+        esp_restart();
     vTaskDelete(NULL);
 }
 
@@ -281,9 +325,10 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
 {
     ESP_NULL_CHECK(usr_ctx, TAG, "User context is NULL");
     source_worker_t *worker = usr_ctx;
-    ui_t *ui = worker->ui;
-    unsigned source = worker->source;
-    if (!adapter_status_ready_for(source) || generation != adapter_status_generation(source)) return;
+    ui_t            *ui     = worker->ui;
+    unsigned         source = worker->source;
+    if (!adapter_status_ready_for(source) || generation != adapter_status_generation(source))
+        return;
 
     if (pid < 0)
     {
@@ -300,12 +345,18 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     }
 
     /* Diagnostic PID replies are consumed synchronously with endpoint identity. */
-    if (pid == 0x01) return;
+    if (pid == 0x01)
+        return;
 
     const obd_pid_cfg_t *definition = NULL;
     for (unsigned i = 0; i < poll_count(); ++i)
-        if (poll_cfg(i)->pid == pid && (!g_runtime || g_runtime->pids[i].source_index == source)) { definition = poll_cfg(i); break; }
-    if (!definition) return;
+        if (poll_cfg(i)->pid == pid && (!g_runtime || g_runtime->pids[i].source_index == source))
+        {
+            definition = poll_cfg(i);
+            break;
+        }
+    if (!definition)
+        return;
     if (len != definition->len)
     {
         ESP_LOGW(TAG, "Invalid length for PID 0x%02X: expected %zu, got %zu", pid, definition->len, len);
@@ -315,13 +366,14 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     }
 
     double decoded;
-    if (g_runtime && pid == 0x5503 &&
-        !transmission_gear_label(data[0])) {
+    if (g_runtime && pid == 0x5503 && !transmission_gear_label(data[0]))
+    {
         queue_alert_sample(source, pid, generation, NAN);
         ui_set_value(ui, pid, NULL);
         return;
     }
-    if (!pid_decoder_eval(&definition->decoder, data, len, &decoded)) {
+    if (!pid_decoder_eval(&definition->decoder, data, len, &decoded))
+    {
         ESP_LOGW(TAG, "Rejected invalid value for PID 0x%02X", pid);
         queue_alert_sample(source, pid, generation, NAN);
         ui_set_value(ui, pid, NULL);
@@ -336,77 +388,125 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
 
 static void app_tick_task(void *arg)
 {
-    ui_t *ui = arg;
+    ui_t      *ui        = arg;
     TickType_t last_wake = xTaskGetTickCount();
-    for (;;) {
+    for (;;)
+    {
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(100));
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
         ble_companion_tick();
         alert_sample_event_t event;
-        for (unsigned drained=0; drained<ALERT_SAMPLE_QUEUE_LENGTH && xQueueReceive(g_alert_sample_queue, &event, 0)==pdTRUE; ++drained) {
-            if (!g_runtime || event.pid_index >= g_runtime->pid_count) continue;
+        for (unsigned drained = 0;
+             drained < ALERT_SAMPLE_QUEUE_LENGTH && xQueueReceive(g_alert_sample_queue, &event, 0) == pdTRUE; ++drained)
+        {
+            if (!g_runtime || event.pid_index >= g_runtime->pid_count)
+                continue;
             unsigned source = g_runtime ? g_runtime->pids[event.pid_index].source_index : 0;
             if (adapter_status_ready_for(source) && event.generation == adapter_status_generation(source))
             {
-                if((!g_runtime || g_runtime->pids[event.pid_index].responder!=0x7e9) && poll_cfg(event.pid_index)->pid==0x0c && isfinite(event.value)) {
-                    engine_rpm_at=event.observed_at_ms;engine_running=event.value>0;
+                if ((!g_runtime || g_runtime->pids[event.pid_index].responder != 0x7e9) &&
+                    poll_cfg(event.pid_index)->pid == 0x0c && isfinite(event.value))
+                {
+                    engine_rpm_at  = event.observed_at_ms;
+                    engine_running = event.value > 0;
                 }
-                if((!g_runtime || g_runtime->pids[event.pid_index].responder!=0x7e9) && poll_cfg(event.pid_index)->pid==0x0d && isfinite(event.value)) {
-                    speed_at=event.observed_at_ms;vehicle_moving=event.value>0;
+                if ((!g_runtime || g_runtime->pids[event.pid_index].responder != 0x7e9) &&
+                    poll_cfg(event.pid_index)->pid == 0x0d && isfinite(event.value))
+                {
+                    speed_at       = event.observed_at_ms;
+                    vehicle_moving = event.value > 0;
                 }
-                alert_runtime_sample(event.pid_index,event.value,event.observed_at_ms);
+                alert_runtime_sample(event.pid_index, event.value, event.observed_at_ms);
                 alert_engine_sample(event.pid_index, event.value, event.observed_at_ms);
             }
         }
-        unsigned lost = atomic_exchange(&g_alert_lost_pids,0);
-        for (unsigned i=0; i<EGAUGE_RUNTIME_PIDS; ++i)
-            if (lost & (UINT32_C(1)<<i)) { alert_engine_invalidate_pid(i);alert_runtime_sample(i,NAN,now_ms); }
-        for (unsigned source=0; source<runtime_source_count(); ++source)
-            if (!adapter_status_ready_for(source)) {
+        unsigned lost = atomic_exchange(&g_alert_lost_pids, 0);
+        for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+            if (lost & (UINT32_C(1) << i))
+            {
+                alert_engine_invalidate_pid(i);
+                alert_runtime_sample(i, NAN, now_ms);
+            }
+        for (unsigned source = 0; source < runtime_source_count(); ++source)
+            if (!adapter_status_ready_for(source))
+            {
                 alert_engine_invalidate_source(source);
-                if(g_runtime)for(unsigned i=0;i<g_runtime->pid_count;i++)
-                    if(g_runtime->pids[i].source_index==source)alert_runtime_sample(i,NAN,now_ms);
+                if (g_runtime)
+                    for (unsigned i = 0; i < g_runtime->pid_count; i++)
+                        if (g_runtime->pids[i].source_index == source)
+                            alert_runtime_sample(i, NAN, now_ms);
             }
         alert_summary_t alert = alert_engine_tick(now_ms);
         (void)alert;
-        diagnostics_snapshot_t presentation={.mil_known=true};bool presentation_complete=true;
-        for (unsigned endpoint=0; endpoint<2; ++endpoint) {
-            if(!diagnostics_endpoint_enabled(endpoint))continue;
+        diagnostics_snapshot_t presentation          = {.mil_known = true};
+        bool                   presentation_complete = true;
+        for (unsigned endpoint = 0; endpoint < 2; ++endpoint)
+        {
+            if (!diagnostics_endpoint_enabled(endpoint))
+                continue;
             uint8_t packet[248];
-            if (!diagnostics_endpoint_status(endpoint,now_ms,packet)){presentation_complete=false;presentation.mil_known=false;continue;}
-            const char *name=endpoint?"Transmission warning":"Check engine";
-            bool fresh=(packet[2]&1)!=0;presentation.mil_known&=fresh;
-            alert_runtime_observe(32+endpoint,fresh&&(packet[2]&2)?3:0,!fresh,
-                name,"codes",packet[22],0,now_ms,now_ms);
-            unsigned count=0; bool complete=true; uint8_t severity=0;
-            for(unsigned i=0;i<3;i++) {
-                const uint8_t *category=packet+32+i*72;
-                if(category[0]==3)continue;
-                if(!(category[1]&2)){complete=false;continue;}
-                count+=category[2];
-                if(category[2])severity=i==2?(severity?severity:1):2;
+            if (!diagnostics_endpoint_status(endpoint, now_ms, packet))
+            {
+                presentation_complete  = false;
+                presentation.mil_known = false;
+                continue;
             }
-            alert_runtime_observe(34+endpoint,severity,!complete && !severity,
-                endpoint?"Transmission faults":"Engine faults","codes",count,0,now_ms,now_ms);
-            diagnostic_filter_result_t visible=diagnostic_filter_project(packet,endpoint,
-                g_runtime?g_runtime->diagnostic_filters:NULL,g_runtime?g_runtime->diagnostic_filter_count:0);
-            presentation.valid|=fresh||visible.count_known;
-            presentation.mil_on|=fresh&&(packet[2]&2)&&!visible.suppress_mil;
-            presentation.count_known|=visible.count_known;presentation.distinct_count+=visible.visible_count;
-            if(!visible.complete||!visible.count_known)presentation_complete=false;
+            const char *name  = endpoint ? "Transmission warning" : "Check engine";
+            bool        fresh = (packet[2] & 1) != 0;
+            presentation.mil_known &= fresh;
+            alert_runtime_observe(32 + endpoint, fresh && (packet[2] & 2) ? 3 : 0, !fresh, name, "codes", packet[22], 0,
+                                  now_ms, now_ms);
+            unsigned count    = 0;
+            bool     complete = true;
+            uint8_t  severity = 0;
+            for (unsigned i = 0; i < 3; i++)
+            {
+                const uint8_t *category = packet + 32 + i * 72;
+                if (category[0] == 3)
+                    continue;
+                if (!(category[1] & 2))
+                {
+                    complete = false;
+                    continue;
+                }
+                count += category[2];
+                if (category[2])
+                    severity = i == 2 ? (severity ? severity : 1) : 2;
+            }
+            alert_runtime_observe(34 + endpoint, severity, !complete && !severity,
+                                  endpoint ? "Transmission faults" : "Engine faults", "codes", count, 0, now_ms,
+                                  now_ms);
+            diagnostic_filter_result_t visible =
+                diagnostic_filter_project(packet, endpoint, g_runtime ? g_runtime->diagnostic_filters : NULL,
+                                          g_runtime ? g_runtime->diagnostic_filter_count : 0);
+            presentation.valid |= fresh || visible.count_known;
+            presentation.mil_on |= fresh && (packet[2] & 2) && !visible.suppress_mil;
+            presentation.count_known |= visible.count_known;
+            presentation.distinct_count += visible.visible_count;
+            if (!visible.complete || !visible.count_known)
+                presentation_complete = false;
         }
         alert_runtime_tick(now_ms);
-        diagnostic_clear_tick(now_ms,now_ms-engine_rpm_at<=2000 && engine_running,now_ms-speed_at<=2000 && vehicle_moving);
-        alert_event_t chosen={0}; bool attention=false;
-        uint8_t additional=0;
-        bool active=alert_runtime_condition_summary(now_ms,&chosen,&attention,&additional);
-        ui_set_alert_condition(ui,active?(chosen.severity==4?2:chosen.severity>=3?1:3):0,
-            chosen.unavailable,chosen.label,active&&chosen.severity==4&&attention,chosen.key,chosen.boot,chosen.episode,chosen.value,chosen.limit,chosen.unit,additional,(chosen.reserved&1)!=0);
-        presentation.count_partial=presentation.count_known&&!presentation_complete;
-        ui_set_vehicle_diagnostics(ui,&presentation);
+        diagnostic_clear_tick(now_ms, now_ms - engine_rpm_at <= 2000 && engine_running,
+                              now_ms - speed_at <= 2000 && vehicle_moving);
+        alert_event_t chosen     = {0};
+        bool          attention  = false;
+        uint8_t       additional = 0;
+        bool          active     = alert_runtime_condition_summary(now_ms, &chosen, &attention, &additional);
+        ui_set_alert_condition(ui,
+                               active ? (chosen.severity == 4   ? 2
+                                         : chosen.severity >= 3 ? 1
+                                                                : 3)
+                                      : 0,
+                               chosen.unavailable, chosen.label, active && chosen.severity == 4 && attention,
+                               chosen.key, chosen.boot, chosen.episode, chosen.value, chosen.limit, chosen.unit,
+                               additional, (chosen.reserved & 1) != 0);
+        presentation.count_partial = presentation.count_known && !presentation_complete;
+        ui_set_vehicle_diagnostics(ui, &presentation);
         worker_health_progress(WORKER_APP, now_ms);
         uint32_t ticks = atomic_fetch_add(&g_app_tick_count, 1) + 1;
-        if (ticks % 600 == 0) {
+        if (ticks % 600 == 0)
+        {
             ESP_LOGI(TAG, "health app_stack=%u internal_min=%u psram_min=%u alert_free=%u alert_drops=%u",
                      (unsigned)uxTaskGetStackHighWaterMark(NULL),
                      (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
@@ -418,14 +518,15 @@ static void app_tick_task(void *arg)
                      (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
                      (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
                      (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
-            for (worker_id_t id = 0; id < WORKER_COUNT; ++id) {
+            for (worker_id_t id = 0; id < WORKER_COUNT; ++id)
+            {
                 worker_health_t health = worker_health_snapshot(id, now_ms);
-                if (health.observed) ESP_LOGI(TAG, "health worker=%s progress=%" PRIu32
-                    " age_ms=%" PRIu32 " max_gap_ms=%" PRIu32 " queue_drops=%" PRIu32
-                    " stack_seen=%u stack_free=%" PRIu32,
-                    worker_health_name(id), health.progress_count, health.age_ms,
-                    health.maximum_gap_ms, health.queue_drops,
-                    health.stack_observed ? 1U : 0U, health.minimum_stack_free);
+                if (health.observed)
+                    ESP_LOGI(TAG,
+                             "health worker=%s progress=%" PRIu32 " age_ms=%" PRIu32 " max_gap_ms=%" PRIu32
+                             " queue_drops=%" PRIu32 " stack_seen=%u stack_free=%" PRIu32,
+                             worker_health_name(id), health.progress_count, health.age_ms, health.maximum_gap_ms,
+                             health.queue_drops, health.stack_observed ? 1U : 0U, health.minimum_stack_free);
             }
             memory_health_log("periodic");
         }
@@ -435,27 +536,28 @@ static void app_tick_task(void *arg)
 static void obd_task(void *arg)
 {
     ESP_NULL_CHECK(arg, TAG, "task arg is NULL");
-    source_worker_t *worker = arg;
-    ui_t *ui = worker->ui;
-    unsigned source = worker->source;
-    const runtime_source_t *configured = g_runtime ? &g_runtime->sources[source] : NULL;
-    bool transmission = configured && configured->transmission;
-    bool simulated = configured && configured->simulated;
-    uint32_t responder = transmission ? 0x7e9 : 0x7e8;
-    uint8_t pid_indices[POLL_SCHEDULER_MAX_PIDS];
-    uint8_t count = 0;
-    for (unsigned i=0; i<poll_count(); ++i)
-        if (!g_runtime || g_runtime->pids[i].source_index == source) pid_indices[count++] = i;
+    source_worker_t        *worker       = arg;
+    ui_t                   *ui           = worker->ui;
+    unsigned                source       = worker->source;
+    const runtime_source_t *configured   = g_runtime ? &g_runtime->sources[source] : NULL;
+    bool                    transmission = configured && configured->transmission;
+    bool                    simulated    = configured && configured->simulated;
+    uint32_t                responder    = transmission ? 0x7e9 : 0x7e8;
+    uint8_t                 pid_indices[POLL_SCHEDULER_MAX_PIDS];
+    uint8_t                 count = 0;
+    for (unsigned i = 0; i < poll_count(); ++i)
+        if (!g_runtime || g_runtime->pids[i].source_index == source)
+            pid_indices[count++] = i;
     ESP_LOGI(TAG, "RX/TX source %u task started", source);
 
-    ble_obd_ctx_t *obd = NULL;
-    uint32_t reconnect_delay_ms = 500;
+    ble_obd_ctx_t *obd                = NULL;
+    uint32_t       reconnect_delay_ms = 500;
 
-    const uint32_t period_ms  = 100;
-    const uint32_t timeout_ms = 300;
-    const uint8_t dtc_modes[3] = {3, 7, 10};
+    const uint32_t   period_ms    = 100;
+    const uint32_t   timeout_ms   = 300;
+    const uint8_t    dtc_modes[3] = {3, 7, 10};
     poll_scheduler_t scheduler;
-    uint8_t endpoints[2], endpoint_count = 0;
+    uint8_t          endpoints[2], endpoint_count = 0;
     for (unsigned e = 0; e < 2; ++e)
         if (diagnostics_endpoint_enabled(e) && diagnostics_endpoint_transport(e) == source)
             endpoints[endpoint_count++] = e;
@@ -466,113 +568,161 @@ static void obd_task(void *arg)
     {
         vTaskDelay(pdMS_TO_TICKS(period_ms));
         worker_health_progress(source == 0 ? WORKER_ECM : WORKER_TCM, (uint32_t)(esp_timer_get_time() / 1000));
-        if (transfer_gate_current() == 2 || ble_mgr_is_paused()) {
+        if (transfer_gate_current() == 2 || ble_mgr_is_paused())
+        {
             clear_source(ui, source);
             diagnostics_state_disconnected_for(source);
-            for (unsigned e = 0; e < endpoint_count; ++e) diagnostics_state_disconnected_for(2 + endpoints[e]);
+            for (unsigned e = 0; e < endpoint_count; ++e)
+                diagnostics_state_disconnected_for(2 + endpoints[e]);
             continue;
         }
 
-        if (obd == NULL || !ble_obd_is_connected(obd)) {
+        if (obd == NULL || !ble_obd_is_connected(obd))
+        {
             clear_source(ui, source);
             diagnostics_state_disconnected_for(source);
-            for (unsigned e = 0; e < endpoint_count; ++e) diagnostics_state_disconnected_for(2 + endpoints[e]);
+            for (unsigned e = 0; e < endpoint_count; ++e)
+                diagnostics_state_disconnected_for(2 + endpoints[e]);
             if (g_runtime && !g_runtime->legacy_auto_discovery && !configured->address[0])
                 continue;
-            const char *address = configured && configured->address[0]
-                ? configured->address : CONFIG_EGAUGE_ECM_ADAPTER_MAC;
+            const char *address =
+                configured && configured->address[0] ? configured->address : CONFIG_EGAUGE_ECM_ADAPTER_MAC;
             uint8_t address_type = configured ? configured->address_type : 0;
-            obd = ble_obd_connect_profile_ecu(source, address, address_type,
-                simulated ? "elm-bench-v1" : "elm-18f0-v1",
-                responder, obd_response_cb, worker);
-            if (!obd) {
-                ESP_LOGW(TAG, "Vehicle adapter unavailable; retrying in %" PRIu32 " ms",
-                         reconnect_delay_ms);
+            obd = ble_obd_connect_profile_ecu(source, address, address_type, simulated ? "elm-bench-v1" : "elm-18f0-v1",
+                                              responder, obd_response_cb, worker);
+            if (!obd)
+            {
+                ESP_LOGW(TAG, "Vehicle adapter unavailable; retrying in %" PRIu32 " ms", reconnect_delay_ms);
                 vTaskDelay(pdMS_TO_TICKS(reconnect_delay_ms));
-                if (reconnect_delay_ms < 8000) reconnect_delay_ms *= 2;
+                if (reconnect_delay_ms < 8000)
+                    reconnect_delay_ms *= 2;
                 continue;
             }
             ESP_LOGI(TAG, "Vehicle adapter link ready");
             diagnostics_state_connected_for(source);
-            for (unsigned e = 0; e < endpoint_count; ++e) diagnostics_state_connected_for(2 + endpoints[e]);
+            for (unsigned e = 0; e < endpoint_count; ++e)
+                diagnostics_state_connected_for(2 + endpoints[e]);
             reconnect_delay_ms = 500;
             poll_scheduler_init(&scheduler);
             poll_scheduler_endpoints(&scheduler, endpoint_count);
             continue;
         }
 
-        uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        uint32_t      now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
         clear_state_t clear;
-        if(diagnostic_clear_take(source,now_ms,&clear)) {
-            uint8_t bytes[64];size_t length=sizeof(bytes);elm_result_t response;
-            int result=ble_obd_read_service_status_ecu(obd,4,0x7e8,1500,bytes,&length,&response);
-            clear_phase_t phase=CLEAR_UNKNOWN;
-            if(result==0) {
-                phase=CLEAR_VERIFYING;
-                bool verified=true;unsigned counts[3]={0};
+        if (diagnostic_clear_take(source, now_ms, &clear))
+        {
+            uint8_t       bytes[64];
+            size_t        length = sizeof(bytes);
+            elm_result_t  response;
+            int           result = ble_obd_read_service_status_ecu(obd, 4, 0x7e8, 1500, bytes, &length, &response);
+            clear_phase_t phase  = CLEAR_UNKNOWN;
+            if (result == 0)
+            {
+                phase              = CLEAR_VERIFYING;
+                bool     verified  = true;
+                unsigned counts[3] = {0};
                 vTaskDelay(pdMS_TO_TICKS(500));
-                for(unsigned i=0;i<3;i++) {
-                    length=sizeof(bytes);
-                    if(ble_obd_read_service_status_ecu(obd,dtc_modes[i],0x7e8,1500,bytes,&length,&response)==0) {
-                        for(size_t j=0;j+1<length;j+=2)if(bytes[j]||bytes[j+1])counts[i]++;
-                        diagnostics_state_codes_for(2,dtc_modes[i],bytes,length,pdTICKS_TO_MS(xTaskGetTickCount()));
-                        if(!transmission)diagnostics_state_codes_for(source,dtc_modes[i],bytes,length,pdTICKS_TO_MS(xTaskGetTickCount()));
-                    } else { diagnostics_state_failed_for(2,dtc_modes[i],response==ELM_UNSUPPORTED?DIAGNOSTICS_UNSUPPORTED:DIAGNOSTICS_UNAVAILABLE);if(response!=ELM_UNSUPPORTED)verified=false; }
+                for (unsigned i = 0; i < 3; i++)
+                {
+                    length = sizeof(bytes);
+                    if (ble_obd_read_service_status_ecu(obd, dtc_modes[i], 0x7e8, 1500, bytes, &length, &response) == 0)
+                    {
+                        for (size_t j = 0; j + 1 < length; j += 2)
+                            if (bytes[j] || bytes[j + 1])
+                                counts[i]++;
+                        diagnostics_state_codes_for(2, dtc_modes[i], bytes, length, pdTICKS_TO_MS(xTaskGetTickCount()));
+                        if (!transmission)
+                            diagnostics_state_codes_for(source, dtc_modes[i], bytes, length,
+                                                        pdTICKS_TO_MS(xTaskGetTickCount()));
+                    }
+                    else
+                    {
+                        diagnostics_state_failed_for(2, dtc_modes[i],
+                                                     response == ELM_UNSUPPORTED ? DIAGNOSTICS_UNSUPPORTED
+                                                                                 : DIAGNOSTICS_UNAVAILABLE);
+                        if (response != ELM_UNSUPPORTED)
+                            verified = false;
+                    }
                 }
                 elm_payload_t mil;
-                if(ble_obd_read_pid(obd,1,1,0x7e8,700,&response,&mil)==0 && mil.length>=4) {
-                    diagnostics_state_mil_payload(2,mil.bytes,pdTICKS_TO_MS(xTaskGetTickCount()));
-                    if(!transmission)diagnostics_state_mil_for(source,(mil.bytes[0]&0x80)!=0,mil.bytes[0]&0x7f,pdTICKS_TO_MS(xTaskGetTickCount()));
-                    if(mil.bytes[0]&0x80)counts[0]++;
-                } else { verified=false;diagnostics_state_failed_for(2,1,DIAGNOSTICS_UNAVAILABLE); }
-                phase=!verified?CLEAR_UNKNOWN:counts[0]||counts[1]?CLEAR_CODES_REMAIN:
-                    counts[2]?CLEAR_PERMANENT_REMAIN:CLEAR_VERIFIED;
+                if (ble_obd_read_pid(obd, 1, 1, 0x7e8, 700, &response, &mil) == 0 && mil.length >= 4)
+                {
+                    diagnostics_state_mil_payload(2, mil.bytes, pdTICKS_TO_MS(xTaskGetTickCount()));
+                    if (!transmission)
+                        diagnostics_state_mil_for(source, (mil.bytes[0] & 0x80) != 0, mil.bytes[0] & 0x7f,
+                                                  pdTICKS_TO_MS(xTaskGetTickCount()));
+                    if (mil.bytes[0] & 0x80)
+                        counts[0]++;
+                }
+                else
+                {
+                    verified = false;
+                    diagnostics_state_failed_for(2, 1, DIAGNOSTICS_UNAVAILABLE);
+                }
+                phase = !verified                ? CLEAR_UNKNOWN
+                        : counts[0] || counts[1] ? CLEAR_CODES_REMAIN
+                        : counts[2]              ? CLEAR_PERMANENT_REMAIN
+                                                 : CLEAR_VERIFIED;
             }
-            diagnostic_clear_finish(clear.operation,phase);
-            poll_scheduler_init(&scheduler);poll_scheduler_endpoints(&scheduler,endpoint_count);
+            diagnostic_clear_finish(clear.operation, phase);
+            poll_scheduler_init(&scheduler);
+            poll_scheduler_endpoints(&scheduler, endpoint_count);
             continue;
         }
         uint32_t intervals[POLL_SCHEDULER_MAX_PIDS];
         for (uint8_t i = 0; i < count; ++i)
             intervals[i] = g_runtime ? g_runtime->pids[pid_indices[i]].poll_ms : 500;
         poll_job_t job = poll_scheduler_next(&scheduler, now_ms, intervals, count);
-        if (job.kind == POLL_JOB_NONE) continue;
-        if (simulated &&
-            (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC)) continue;
-        if (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC) {
-            if (!endpoint_count) continue;
-            unsigned endpoint = endpoints[job.endpoint];
-            uint32_t ecu = endpoint == 1 ? 0x7e9 : 0x7e8;
-            unsigned slots[2] = {2 + endpoint, source};
-            unsigned slot_count = (transmission == (endpoint == 1)) ? 2 : 1;
-            elm_result_t response = ELM_ADAPTER_ERROR;
-            uint8_t previous[248];bool had_previous=diagnostics_endpoint_status(endpoint,now_ms,previous)!=0 && (previous[2]&1);
-            uint32_t generation = adapter_status_generation(source);
-            uint8_t mode = job.kind == POLL_JOB_MIL ? 1 : dtc_modes[job.index];
+        if (job.kind == POLL_JOB_NONE)
+            continue;
+        if (simulated && (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC))
+            continue;
+        if (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC)
+        {
+            if (!endpoint_count)
+                continue;
+            unsigned     endpoint   = endpoints[job.endpoint];
+            uint32_t     ecu        = endpoint == 1 ? 0x7e9 : 0x7e8;
+            unsigned     slots[2]   = {2 + endpoint, source};
+            unsigned     slot_count = (transmission == (endpoint == 1)) ? 2 : 1;
+            elm_result_t response   = ELM_ADAPTER_ERROR;
+            uint8_t      previous[248];
+            bool     had_previous = diagnostics_endpoint_status(endpoint, now_ms, previous) != 0 && (previous[2] & 1);
+            uint32_t generation   = adapter_status_generation(source);
+            uint8_t  mode         = job.kind == POLL_JOB_MIL ? 1 : dtc_modes[job.index];
             elm_payload_t payload = {0};
-            uint8_t codes[64]; size_t length = sizeof(codes);
+            uint8_t       codes[64];
+            size_t        length = sizeof(codes);
             int result = mode == 1 ? ble_obd_read_pid(obd, 1, 1, ecu, 700, &response, &payload)
-                : ble_obd_read_service_status_ecu(obd, mode, ecu, 1500, codes, &length, &response);
-            if (generation != adapter_status_generation(source) || !adapter_status_ready_for(source)) continue;
-            poll_scheduler_background_result(&scheduler,job,result==0 && (mode!=1 || payload.length>=4));
-            if(mode==1 && result==0 && payload.length>=4 && had_previous && ((previous[2]&2)!=0)!=((payload.bytes[0]&0x80)!=0))poll_scheduler_mil_changed(&scheduler,job.endpoint);
-            for (unsigned slot = 0; slot < slot_count; ++slot) {
+                                   : ble_obd_read_service_status_ecu(obd, mode, ecu, 1500, codes, &length, &response);
+            if (generation != adapter_status_generation(source) || !adapter_status_ready_for(source))
+                continue;
+            poll_scheduler_background_result(&scheduler, job, result == 0 && (mode != 1 || payload.length >= 4));
+            if (mode == 1 && result == 0 && payload.length >= 4 && had_previous &&
+                ((previous[2] & 2) != 0) != ((payload.bytes[0] & 0x80) != 0))
+                poll_scheduler_mil_changed(&scheduler, job.endpoint);
+            for (unsigned slot = 0; slot < slot_count; ++slot)
+            {
                 if (result == 0 && mode == 1 && payload.length >= 4)
-                    diagnostics_state_mil_payload(slots[slot],payload.bytes,pdTICKS_TO_MS(xTaskGetTickCount()));
+                    diagnostics_state_mil_payload(slots[slot], payload.bytes, pdTICKS_TO_MS(xTaskGetTickCount()));
                 else if (result == 0 && mode != 1)
                     diagnostics_state_codes_for(slots[slot], mode, codes, length, pdTICKS_TO_MS(xTaskGetTickCount()));
-                else diagnostics_state_failed_for(slots[slot], mode, response == ELM_UNSUPPORTED ?
-                    DIAGNOSTICS_UNSUPPORTED : DIAGNOSTICS_UNAVAILABLE);
+                else
+                    diagnostics_state_failed_for(slots[slot], mode,
+                                                 response == ELM_UNSUPPORTED ? DIAGNOSTICS_UNSUPPORTED
+                                                                             : DIAGNOSTICS_UNAVAILABLE);
             }
             continue;
         }
 
         const obd_pid_cfg_t *requested = poll_cfg(pid_indices[job.index]);
-        const uint8_t obd_mode = g_runtime ? g_runtime->pids[pid_indices[job.index]].service : 0x01;
+        const uint8_t        obd_mode  = g_runtime ? g_runtime->pids[pid_indices[job.index]].service : 0x01;
 
         uint32_t poll_generation = adapter_status_generation(source);
-        int status = ble_obd_rxtx_ecu(obd, obd_mode, requested->pid,
-            g_runtime ? g_runtime->pids[pid_indices[job.index]].responder : ELM_ECU_ANY, timeout_ms);
+        int      status =
+            ble_obd_rxtx_ecu(obd, obd_mode, requested->pid,
+                             g_runtime ? g_runtime->pids[pid_indices[job.index]].responder : ELM_ECU_ANY, timeout_ms);
 
         poll_scheduler_result(&scheduler, job.index, status == 0);
         if (status != 0)
@@ -586,20 +736,28 @@ static void obd_task(void *arg)
 
 static bool adapter_mac_valid(const char *mac)
 {
-    if (strlen(mac) != 17) return false;
-    for (size_t i = 0; i < 17; i++) {
-        if (i % 3 == 2) { if (mac[i] != ':') return false; }
-        else if (!isxdigit((unsigned char)mac[i])) return false;
+    if (strlen(mac) != 17)
+        return false;
+    for (size_t i = 0; i < 17; i++)
+    {
+        if (i % 3 == 2)
+        {
+            if (mac[i] != ':')
+                return false;
+        }
+        else if (!isxdigit((unsigned char)mac[i]))
+            return false;
     }
     return true;
 }
 
 static void init_obd_task(ui_t *ui)
 {
-    for (unsigned source=0; source<runtime_source_count(); ++source) {
-        source_workers[source] = (source_worker_t){.ui=ui, .source=source};
-        BaseType_t started = xTaskCreate(obd_task, source ? "obd_child" : "obd_primary",
-            4096, &source_workers[source], 5, NULL);
+    for (unsigned source = 0; source < runtime_source_count(); ++source)
+    {
+        source_workers[source] = (source_worker_t){.ui = ui, .source = source};
+        BaseType_t started =
+            xTaskCreate(obd_task, source ? "obd_child" : "obd_primary", 4096, &source_workers[source], 5, NULL);
         ESP_CHECK(started == pdPASS, TAG, "Failed to create source worker");
     }
 }
@@ -607,17 +765,23 @@ static void init_obd_task(ui_t *ui)
 static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
 {
 #if CONFIG_EGAUGE_DISPLAY_CALIBRATION
-    if (event_code == LV_EVENT_CLICKED) ui_next_display_calibration(ui);
+    if (event_code == LV_EVENT_CLICKED)
+        ui_next_display_calibration(ui);
     return;
 #endif
     /* A press that starts in demo cannot become a pairing/reset gesture when
      * demo exits on its long-press event. Consume the entire press sequence. */
     static bool press_started_showcase;
-    if(event_code==LV_EVENT_PRESSED)press_started_showcase=ui_showcase_active(ui);
-    if(ui_showcase_active(ui)||press_started_showcase) {
-        if(event_code==LV_EVENT_CLICKED)ui_showcase_next(ui);
-        else if(event_code==LV_EVENT_LONG_PRESSED)ui_showcase_stop(ui);
-        if(event_code==LV_EVENT_RELEASED||event_code==LV_EVENT_CLICKED)press_started_showcase=false;
+    if (event_code == LV_EVENT_PRESSED)
+        press_started_showcase = ui_showcase_active(ui);
+    if (ui_showcase_active(ui) || press_started_showcase)
+    {
+        if (event_code == LV_EVENT_CLICKED)
+            ui_showcase_next(ui);
+        else if (event_code == LV_EVENT_LONG_PRESSED)
+            ui_showcase_stop(ui);
+        if (event_code == LV_EVENT_RELEASED || event_code == LV_EVENT_CLICKED)
+            press_started_showcase = false;
         return;
     }
     switch (event_code)
@@ -626,25 +790,28 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
         break;
     case UI_EVENT_PAGE_ACTION:
-        if (transfer_gate_current() != 0 || !ble_companion_has_owner()) break;
+        if (transfer_gate_current() != 0 || !ble_companion_has_owner())
+            break;
         /* Fall through to the same local selection/persistence path. */
         __attribute__((fallthrough));
     case LV_EVENT_CLICKED:
     {
         /* Already on the LVGL task with its lock held. Browsing must not wait
          * for app_main, a flash commit, or another UI mailbox interval. */
-        uint8_t selected = event_code == UI_EVENT_PAGE_ACTION ? ui_action_target(ui) :
-            (atomic_load(&g_selected_page) + 1) % page_count();
-        if (selected >= page_count()) break;
+        uint8_t selected = event_code == UI_EVENT_PAGE_ACTION ? ui_action_target(ui)
+                                                              : (atomic_load(&g_selected_page) + 1) % page_count();
+        if (selected >= page_count())
+            break;
         ui_page_t page;
         page_ui(selected, &page);
         ui_set_page(ui, &page);
-        ui_set_page_position(ui,selected,page_count());
+        ui_set_page_position(ui, selected, page_count());
         atomic_store(&g_selected_page, selected);
         atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
         ble_companion_selection_applied(selected);
         atomic_fetch_add(&g_local_page_generation, 1);
-        if (event_code == UI_EVENT_PAGE_ACTION) ui_action_applied(ui);
+        if (event_code == UI_EVENT_PAGE_ACTION)
+            ui_action_applied(ui);
         break;
     }
     case LV_EVENT_LONG_PRESSED:
@@ -652,13 +819,15 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         break;
     case LV_EVENT_RELEASED:
     {
-        if (ble_companion_has_owner()) ui_show_pairing_code(ui, UI_PAIRING_RESET_CONFIRM);
+        if (ble_companion_has_owner())
+            ui_show_pairing_code(ui, UI_PAIRING_RESET_CONFIRM);
         break;
     }
     case LV_EVENT_VALUE_CHANGED:
     {
         companion_command_t command = {.opcode = 3};
-        if (g_phone_command_queue) xQueueSend(g_phone_command_queue, &command, 0);
+        if (g_phone_command_queue)
+            xQueueSend(g_phone_command_queue, &command, 0);
         break;
     }
     default:
@@ -678,14 +847,16 @@ static void init_config(void)
     ESP_ERROR_CHECK(diagnostics_state_init());
 
     g_runtime = heap_caps_malloc(sizeof(*g_runtime), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (g_runtime && config_runtime_load(g_runtime, &g_running_config_record,
-                                         &g_running_previous_config) == ESP_OK) {
+    if (g_runtime && config_runtime_load(g_runtime, &g_running_config_record, &g_running_previous_config) == ESP_OK)
+    {
         ESP_LOGI(TAG, "Running configuration revision %" PRIu32 "%s with %u PIDs, %u pages, %u alerts",
-                 g_running_config_record.revision,
-                 g_running_previous_config ? " (previous compatible generation)" : "",
+                 g_running_config_record.revision, g_running_previous_config ? " (previous compatible generation)" : "",
                  g_runtime->pid_count, g_runtime->page_count, g_runtime->alert_count);
-    } else {
-        if (g_runtime) heap_caps_free(g_runtime);
+    }
+    else
+    {
+        if (g_runtime)
+            heap_caps_free(g_runtime);
         g_runtime = NULL;
     }
     ESP_ERROR_CHECK(config_transfer_init());
@@ -696,11 +867,11 @@ static void init_config(void)
 
     esp_err_t err = config_load(&g_config);
 
-    if (err == ESP_OK && (g_config.cfg_idx >= page_count() ||
-                          g_config.disp_rot > LV_DISPLAY_ROTATION_270)) {
+    if (err == ESP_OK && (g_config.cfg_idx >= page_count() || g_config.disp_rot > LV_DISPLAY_ROTATION_270))
+    {
         ESP_LOGE(TAG, "Saved legacy configuration is invalid");
         g_config = (config_t){.cfg_idx = 0, .disp_rot = LV_DISPLAY_ROTATION_0};
-        err = ESP_ERR_INVALID_ARG;
+        err      = ESP_ERR_INVALID_ARG;
     }
 
     if (err != ESP_OK)
@@ -721,7 +892,7 @@ static void init_config(void)
     {
         ESP_LOGI(TAG, "Configuration loaded successfully: idx=%d, disp_rot=%d", g_config.cfg_idx, g_config.disp_rot);
     }
-    uint8_t default_rotation = g_runtime ? g_runtime->rotation : (uint8_t)g_config.disp_rot;
+    uint8_t default_rotation   = g_runtime ? g_runtime->rotation : (uint8_t)g_config.disp_rot;
     uint8_t default_brightness = g_runtime ? g_runtime->brightness : 80;
     ESP_ERROR_CHECK(display_settings_init(default_rotation, default_brightness, 0));
     g_config.disp_rot = (lv_display_rotation_t)display_settings_snapshot().rotation;
@@ -747,40 +918,46 @@ void app_main(void)
 
     config_document_init();
     init_config();
-    for (unsigned source=0; source<runtime_source_count(); ++source)
+    for (unsigned source = 0; source < runtime_source_count(); ++source)
         diagnostics_state_configure_for(source, g_runtime && g_runtime->sources[source].transmission,
-            g_runtime ? g_running_config_record.revision : 0,
-            g_runtime && g_runtime->sources[source].simulated);
+                                        g_runtime ? g_running_config_record.revision : 0,
+                                        g_runtime && g_runtime->sources[source].simulated);
     bool pairing_required = !ble_companion_load_owner();
     alert_engine_init(g_runtime);
     ESP_ERROR_CHECK(alert_runtime_init(g_runtime ? g_running_config_record.revision : 0));
     ESP_ERROR_CHECK(diagnostic_clear_init());
     alert_engine_set_sink(alert_runtime_observe);
-    if(g_runtime) {
-        for(unsigned i=0;i<g_runtime->alert_count;i++)alert_runtime_priority(i,g_runtime->alerts[i].priority);
-        for(unsigned i=0;i<g_runtime->pid_count;i++)alert_runtime_stale(i,g_runtime->pids[i].stale_ms);
+    if (g_runtime)
+    {
+        for (unsigned i = 0; i < g_runtime->alert_count; i++)
+            alert_runtime_priority(i, g_runtime->alerts[i].priority);
+        for (unsigned i = 0; i < g_runtime->pid_count; i++)
+            alert_runtime_stale(i, g_runtime->pids[i].stale_ms);
     }
-    if(g_runtime)for(unsigned i=0;i<g_runtime->alert_count;i++)
-        alert_runtime_simulated(i,g_runtime->sources[g_runtime->pids[g_runtime->alerts[i].pid_index].source_index].simulated);
+    if (g_runtime)
+        for (unsigned i = 0; i < g_runtime->alert_count; i++)
+            alert_runtime_simulated(
+                i, g_runtime->sources[g_runtime->pids[g_runtime->alerts[i].pid_index].source_index].simulated);
 
     bsp_init();
     bsp_display_start();
     bsp_lvgl_init();
     bsp_touch_init();
-    hardware_probe_set_ready(HARDWARE_FEATURE_DISPLAY | HARDWARE_FEATURE_TOUCH |
-                             HARDWARE_FEATURE_BACKLIGHT, true);
+    hardware_probe_set_ready(HARDWARE_FEATURE_DISPLAY | HARDWARE_FEATURE_TOUCH | HARDWARE_FEATURE_BACKLIGHT, true);
 
     bsp_lv_disp_set_rotation(g_config.disp_rot);
 
     const uint32_t ui_interval_ms = 50;
-    ui_page_t initial_page;
+    ui_page_t      initial_page;
     page_ui(g_config.cfg_idx, &initial_page);
-    ui_t          *ui             = ui_init(&initial_page, ui_interval_ms, ui_touch_callback,
-                                            pairing_required, display_settings_snapshot().units == 1);
+    ui_t *ui = ui_init(&initial_page, ui_interval_ms, ui_touch_callback, pairing_required,
+                       display_settings_snapshot().units == 1);
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
-    if (lvgl_port_lock(portMAX_DELAY)) {
-        ui_set_page_position(ui,g_config.cfg_idx,page_count());
-        if(g_runtime)ui_configure_page_action(ui, g_runtime->page_action);
+    if (lvgl_port_lock(portMAX_DELAY))
+    {
+        ui_set_page_position(ui, g_config.cfg_idx, page_count());
+        if (g_runtime)
+            ui_configure_page_action(ui, g_runtime->page_action);
         lvgl_port_unlock();
     }
     bsp_display_on_off(true);
@@ -800,44 +977,53 @@ void app_main(void)
 
     ESP_NULL_CHECK(ble_mgr_init(0, 2000), TAG, "BLE ECM slot initialization failed");
     ESP_NULL_CHECK(ble_mgr_init(1, 2000), TAG, "BLE TCM slot initialization failed");
-    if (CONFIG_EGAUGE_ECM_ADAPTER_MAC[0] && !adapter_mac_valid(CONFIG_EGAUGE_ECM_ADAPTER_MAC)) {
+    if (CONFIG_EGAUGE_ECM_ADAPTER_MAC[0] && !adapter_mac_valid(CONFIG_EGAUGE_ECM_ADAPTER_MAC))
+    {
         ESP_LOGE(TAG, "Invalid ECM adapter MAC in firmware configuration");
         return;
     }
     adapter_status_init(g_runtime);
-    if (runtime_simulated() && lvgl_port_lock(portMAX_DELAY)) {
+    if (runtime_simulated() && lvgl_port_lock(portMAX_DELAY))
+    {
         ui_set_simulated(ui);
         lvgl_port_unlock();
     }
     ESP_ERROR_CHECK(adapter_registry_init());
     obd_trace_init();
-    for (unsigned source=0; source<runtime_source_count(); ++source)
+    for (unsigned source = 0; source < runtime_source_count(); ++source)
         if (g_runtime && g_runtime->sources[source].simulated)
             obd_trace_emit(source, 0, "source_simulated", NULL, 0, 1);
-    for (unsigned e = 0; e < 2; ++e) {
+    for (unsigned e = 0; e < 2; ++e)
+    {
         int transport = -1;
-        for (unsigned i = 0; i < poll_count(); ++i) {
+        for (unsigned i = 0; i < poll_count(); ++i)
+        {
             unsigned role = g_runtime && g_runtime->pids[i].responder == 0x7e9 ? 1 : 0;
-            if (role == e) transport = g_runtime ? g_runtime->pids[i].source_index : 0;
+            if (role == e)
+                transport = g_runtime ? g_runtime->pids[i].source_index : 0;
         }
-        if (e == 0 && transport < 0 && (!g_runtime || !g_runtime->sources[0].transmission)) transport = 0;
-        if (g_runtime) for (unsigned i = 0; i < g_runtime->source_count; ++i)
-            if (g_runtime->sources[i].transmission == (e == 1)) transport = (int)i;
-        if(transport>=0) {
-            alert_runtime_simulated(32+e,g_runtime&&g_runtime->sources[transport].simulated);
-            alert_runtime_simulated(34+e,g_runtime&&g_runtime->sources[transport].simulated);
+        if (e == 0 && transport < 0 && (!g_runtime || !g_runtime->sources[0].transmission))
+            transport = 0;
+        if (g_runtime)
+            for (unsigned i = 0; i < g_runtime->source_count; ++i)
+                if (g_runtime->sources[i].transmission == (e == 1))
+                    transport = (int)i;
+        if (transport >= 0)
+        {
+            alert_runtime_simulated(32 + e, g_runtime && g_runtime->sources[transport].simulated);
+            alert_runtime_simulated(34 + e, g_runtime && g_runtime->sources[transport].simulated);
         }
-        if (transport >= 0) diagnostics_endpoint_configure(e, transport,
-            g_running_config_record.revision, g_runtime && g_runtime->sources[transport].simulated);
+        if (transport >= 0)
+            diagnostics_endpoint_configure(e, transport, g_running_config_record.revision,
+                                           g_runtime && g_runtime->sources[transport].simulated);
     }
     init_obd_task(ui);
     BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 4096, ui, 5, NULL);
     ESP_CHECK(tick_started == pdPASS, TAG, "Application tick task creation failed");
-    bool config_trial = g_runtime &&
-        config_trial_needs_confirmation(g_running_config_record.revision);
-    if (ota_trial_pending() || config_trial) {
-        BaseType_t started = xTaskCreate(boot_health_task, "boot_health", 3072,
-                                         NULL, 5, NULL);
+    bool config_trial = g_runtime && config_trial_needs_confirmation(g_running_config_record.revision);
+    if (ota_trial_pending() || config_trial)
+    {
+        BaseType_t started = xTaskCreate(boot_health_task, "boot_health", 3072, NULL, 5, NULL);
         ESP_CHECK(started == pdPASS, TAG, "Boot health task creation failed");
     }
 
@@ -846,76 +1032,96 @@ void app_main(void)
     while (true)
     {
         companion_command_t command;
-        bool has_command = xQueueReceive(g_phone_command_queue, &command, pdMS_TO_TICKS(20)) == pdTRUE;
-        if (has_command && command.opcode == 1 && command.value < page_count()) {
+        bool                has_command = xQueueReceive(g_phone_command_queue, &command, pdMS_TO_TICKS(20)) == pdTRUE;
+        if (has_command && command.opcode == 1 && command.value < page_count())
+        {
             config_t updated = g_config;
-            updated.cfg_idx = command.value;
-            if (config_save(&updated) == ESP_OK) {
+            updated.cfg_idx  = command.value;
+            if (config_save(&updated) == ESP_OK)
+            {
                 g_config = updated;
-                if (lvgl_port_lock(portMAX_DELAY)) {
+                if (lvgl_port_lock(portMAX_DELAY))
+                {
                     ui_page_t page;
                     page_ui(command.value, &page);
                     ui_set_page(ui, &page);
-                    ui_set_page_position(ui,command.value,page_count());
+                    ui_set_page_position(ui, command.value, page_count());
                     atomic_store(&g_selected_page, command.value);
                     atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
                     lvgl_port_unlock();
                     ble_companion_selection_applied(command.value);
                 }
             }
-        } else if (has_command && command.opcode == 2 && command.value <= LV_DISPLAY_ROTATION_270) {
+        }
+        else if (has_command && command.opcode == 2 && command.value <= LV_DISPLAY_ROTATION_270)
+        {
             config_t saved;
             uint32_t revision;
-            if (config_read_snapshot(&saved, &revision) != ESP_OK) continue;
+            if (config_read_snapshot(&saved, &revision) != ESP_OK)
+                continue;
             saved.disp_rot = (lv_display_rotation_t)command.value;
-            if (config_save_if_revision(&saved, command.base_revision, NULL) != ESP_OK) continue;
+            if (config_save_if_revision(&saved, command.base_revision, NULL) != ESP_OK)
+                continue;
             display_settings_t display = display_settings_snapshot();
             if (display.rotation != command.value &&
-                display_settings_save(command.value, display.brightness, display.units, display.cycle_seconds, display.revision,
-                                      NULL) != ESP_OK)
+                display_settings_save(command.value, display.brightness, display.units, display.cycle_seconds,
+                                      display.revision, NULL) != ESP_OK)
                 ESP_LOGW(TAG, "Legacy rotation saved but display preference update failed");
             g_config = saved;
-            if (lvgl_port_lock(portMAX_DELAY)) {
+            if (lvgl_port_lock(portMAX_DELAY))
+            {
                 ui_reset_action_sequence(ui);
                 bsp_lv_disp_set_rotation(saved.disp_rot);
                 lvgl_port_unlock();
             }
             ESP_LOGI(TAG, "Display rotation saved: %u", (unsigned)command.value * 90);
-        } else if (has_command && command.opcode == 0x36) {
+        }
+        else if (has_command && command.opcode == 0x36)
+        {
             display_settings_t saved;
             display_settings_t before = display_settings_snapshot();
             if (display_settings_save(command.value, command.brightness, before.units, before.cycle_seconds,
-                                      command.base_revision, &saved) != ESP_OK) continue;
+                                      command.base_revision, &saved) != ESP_OK)
+                continue;
             g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
-            if (lvgl_port_lock(portMAX_DELAY)) {
+            if (lvgl_port_lock(portMAX_DELAY))
+            {
                 ui_reset_action_sequence(ui);
                 bsp_lv_disp_set_rotation(g_config.disp_rot);
                 lvgl_port_unlock();
             }
             ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
-            ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%%",
-                     (unsigned)saved.rotation * 90, (unsigned)saved.brightness);
-        } else if (has_command && command.opcode == 0x37) {
+            ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%%", (unsigned)saved.rotation * 90,
+                     (unsigned)saved.brightness);
+        }
+        else if (has_command && command.opcode == 0x37)
+        {
             display_settings_t saved;
             display_settings_t before = display_settings_snapshot();
             if (display_settings_save(command.value, command.brightness, command.units, before.cycle_seconds,
-                                      command.base_revision, &saved) != ESP_OK) continue;
+                                      command.base_revision, &saved) != ESP_OK)
+                continue;
             g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
-            if (lvgl_port_lock(portMAX_DELAY)) {
+            if (lvgl_port_lock(portMAX_DELAY))
+            {
                 ui_reset_action_sequence(ui);
                 bsp_lv_disp_set_rotation(g_config.disp_rot);
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
             }
             ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
-            ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u",
-                     (unsigned)saved.rotation * 90, (unsigned)saved.brightness, (unsigned)saved.units);
-        } else if (has_command && command.opcode == 0x38) {
+            ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u", (unsigned)saved.rotation * 90,
+                     (unsigned)saved.brightness, (unsigned)saved.units);
+        }
+        else if (has_command && command.opcode == 0x38)
+        {
             display_settings_t saved;
             if (display_settings_save(command.value, command.brightness, command.units, command.cycle_seconds,
-                                      command.base_revision, &saved) != ESP_OK) continue;
+                                      command.base_revision, &saved) != ESP_OK)
+                continue;
             g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
-            if (lvgl_port_lock(portMAX_DELAY)) {
+            if (lvgl_port_lock(portMAX_DELAY))
+            {
                 ui_reset_action_sequence(ui);
                 bsp_lv_disp_set_rotation(g_config.disp_rot);
                 ui_set_units(ui, saved.units == 1);
@@ -924,49 +1130,60 @@ void app_main(void)
             ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
             atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u cycle=%us",
-                     (unsigned)saved.rotation * 90, (unsigned)saved.brightness,
-                     (unsigned)saved.units, (unsigned)saved.cycle_seconds);
-        } else if(has_command&&command.opcode==0x64) {
-            ui_request_showcase(ui,command.value!=0,command.brightness,command.base_revision,
-                adapter_status_ready_for(0)||adapter_status_ready_for(1),transfer_gate_current()!=0);
-            atomic_store(&g_page_activity_ms,pdTICKS_TO_MS(xTaskGetTickCount()));
-        } else if (has_command && command.opcode == 3) ble_companion_forget_owner();
+                     (unsigned)saved.rotation * 90, (unsigned)saved.brightness, (unsigned)saved.units,
+                     (unsigned)saved.cycle_seconds);
+        }
+        else if (has_command && command.opcode == 0x64)
+        {
+            ui_request_showcase(ui, command.value != 0, command.brightness, command.base_revision,
+                                adapter_status_ready_for(0) || adapter_status_ready_for(1),
+                                transfer_gate_current() != 0);
+            atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
+        }
+        else if (has_command && command.opcode == 3)
+            ble_companion_forget_owner();
 
-        uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
-        display_settings_t cycle = display_settings_snapshot();
-        bool owner_ready = ble_companion_has_owner();
-        bool transfer_idle = transfer_gate_current() == 0;
+        uint32_t           now_ms        = pdTICKS_TO_MS(xTaskGetTickCount());
+        display_settings_t cycle         = display_settings_snapshot();
+        bool               owner_ready   = ble_companion_has_owner();
+        bool               transfer_idle = transfer_gate_current() == 0;
         ui_set_action_context(ui, owner_ready && transfer_idle);
-        if (!owner_ready || !transfer_idle || ui_showcase_active(ui)) atomic_store(&g_page_activity_ms, now_ms);
-        if (page_cycle_due(cycle.cycle_seconds, page_count(), owner_ready,
-            transfer_idle && !ui_action_pending(ui), atomic_load(&g_page_activity_ms), now_ms) &&
-            lvgl_port_lock(0)) {
-            uint8_t selected = (atomic_load(&g_selected_page) + 1) % page_count();
+        if (!owner_ready || !transfer_idle || ui_showcase_active(ui))
+            atomic_store(&g_page_activity_ms, now_ms);
+        if (page_cycle_due(cycle.cycle_seconds, page_count(), owner_ready, transfer_idle && !ui_action_pending(ui),
+                           atomic_load(&g_page_activity_ms), now_ms) &&
+            lvgl_port_lock(0))
+        {
+            uint8_t   selected = (atomic_load(&g_selected_page) + 1) % page_count();
             ui_page_t page;
             page_ui(selected, &page);
             ui_set_page(ui, &page);
-            ui_set_page_position(ui,selected,page_count());
+            ui_set_page_position(ui, selected, page_count());
             atomic_store(&g_selected_page, selected);
             ble_companion_selection_applied(selected);
             atomic_store(&g_page_activity_ms, now_ms);
             lvgl_port_unlock();
         }
         page_save_observe(&page_save, atomic_load(&g_local_page_generation), now_ms);
-        if (page_save_due(&page_save, now_ms) && transfer_gate_current() == 0) {
+        if (page_save_due(&page_save, now_ms) && transfer_gate_current() == 0)
+        {
             config_t updated = g_config;
             uint32_t generation;
             /* Snapshot the page and generation together, then release LVGL
              * before any flash access. A tap during the save stays pending. */
-            if (!lvgl_port_lock(0)) continue;
-            generation = atomic_load(&g_local_page_generation);
+            if (!lvgl_port_lock(0))
+                continue;
+            generation      = atomic_load(&g_local_page_generation);
             updated.cfg_idx = atomic_load(&g_selected_page);
             lvgl_port_unlock();
-            if (generation != page_save.generation) {
+            if (generation != page_save.generation)
+            {
                 page_save_observe(&page_save, generation, pdTICKS_TO_MS(xTaskGetTickCount()));
                 continue;
             }
             bool saved = updated.cfg_idx == g_config.cfg_idx || config_save(&updated) == ESP_OK;
-            if (saved) g_config = updated;
+            if (saved)
+                g_config = updated;
             page_save_finished(&page_save, generation, saved, now_ms);
         }
     }

@@ -8,7 +8,7 @@ data class PendingUpdateRecovery(
     val imageSha256: String,
     val expectedElfSha256: String?,
     val stage: String,
-    val updatedAtEpochMs: Long,
+    val updatedAtEpochMs: Long
 )
 
 enum class UpdateRecoveryState {
@@ -16,13 +16,13 @@ enum class UpdateRecoveryState {
     INSTALLED,
     PREVIOUS_FIRMWARE,
     WAITING_FOR_CONFIRMATION,
-    IDENTITY_CHECKED,
+    IDENTITY_CHECKED
 }
 
 data class UpdateRecoveryResult(
     val state: UpdateRecoveryState,
     val message: String,
-    val terminal: Boolean,
+    val terminal: Boolean
 )
 
 /** Resolve a durable journal entry only from authenticated running identity. */
@@ -30,46 +30,50 @@ fun reconcilePendingUpdate(
     pending: PendingUpdateRecovery,
     gaugeId: String?,
     runningElfSha256: String,
-    otaState: Int,
+    otaState: Int
 ): UpdateRecoveryResult {
     if (pending.gaugeId != "unknown" && pending.gaugeId != gaugeId) {
         return UpdateRecoveryResult(
             UpdateRecoveryState.CHECK_REQUIRED,
             "The interrupted update belongs to another gauge. Reconnect that gauge to finish recovery.",
-            false,
+            false
         )
     }
     if (otaState !in 0..2 || (pending.expectedElfSha256 == null && otaState != 2) ||
-        (pending.expectedElfSha256 != runningElfSha256 && otaState != 2)) {
-        return UpdateRecoveryResult(UpdateRecoveryState.WAITING_FOR_CONFIRMATION,
-            "The running firmware has not confirmed its health yet. Recovery will check again.", false)
+        (pending.expectedElfSha256 != runningElfSha256 && otaState != 2)
+    ) {
+        return UpdateRecoveryResult(
+            UpdateRecoveryState.WAITING_FOR_CONFIRMATION,
+            "The running firmware has not confirmed its health yet. Recovery will check again.",
+            false
+        )
     }
     val expected = pending.expectedElfSha256
     if (expected == null) {
         return UpdateRecoveryResult(
             UpdateRecoveryState.IDENTITY_CHECKED,
             "Running firmware identity was verified. The older recovery record cannot identify the candidate image.",
-            true,
+            true
         )
     }
     if (runningElfSha256 == expected && otaState == 2) {
         return UpdateRecoveryResult(
             UpdateRecoveryState.INSTALLED,
             "The interrupted update completed and the new firmware is confirmed healthy.",
-            true,
+            true
         )
     }
     if (runningElfSha256 == expected && otaState in 0..1) {
         return UpdateRecoveryResult(
             UpdateRecoveryState.WAITING_FOR_CONFIRMATION,
             "The candidate firmware is running but has not passed its health check yet. Check again before retrying.",
-            false,
+            false
         )
     }
     return UpdateRecoveryResult(
         UpdateRecoveryState.PREVIOUS_FIRMWARE,
         "The gauge is running a different confirmed image. The interrupted candidate was not activated or was rolled back.",
-        true,
+        true
     )
 }
 
@@ -85,7 +89,7 @@ class UpdateRecoveryJournal(context: Context) {
                 value.getString("imageSha256"),
                 value.optString("expectedElfSha256").takeIf { it.length == 64 },
                 value.getString("stage"),
-                value.getLong("updatedAtEpochMs"),
+                value.getLong("updatedAtEpochMs")
             )
         }.getOrElse {
             // A corrupt journal is evidence of uncertainty, never evidence that no update ran.
@@ -109,5 +113,7 @@ class UpdateRecoveryJournal(context: Context) {
         check(preferences.edit().remove(KEY).commit()) { "Could not clear update recovery state" }
     }
 
-    companion object { private const val KEY = "pending-update" }
+    companion object {
+        private const val KEY = "pending-update"
+    }
 }

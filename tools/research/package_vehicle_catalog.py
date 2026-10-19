@@ -22,17 +22,26 @@ def digest(path: Path) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--database", type=Path,
-                        default=Path("references/vehicle-catalog/catalog.sqlite"))
-    parser.add_argument("--output", type=Path,
-                        default=Path("data/vehicle-definitions"))
+    parser.add_argument(
+        "--database", type=Path, default=Path("references/vehicle-catalog/catalog.sqlite")
+    )
+    parser.add_argument("--output", type=Path, default=Path("data/vehicle-definitions"))
     parser.add_argument("--chunk-mib", type=int, default=64)
-    parser.add_argument("--provenance", required=True,
-                        help="Exact source package and version for the manifest")
-    parser.add_argument("--redistribution-rights", default="unconfirmed",
-                        help="Human-reviewed rights status for the manifest")
-    parser.add_argument("--source-package", type=Path, action="append", default=[],
-                        help="Source APK file to record by size and SHA-256; repeat as needed")
+    parser.add_argument(
+        "--provenance", required=True, help="Exact source package and version for the manifest"
+    )
+    parser.add_argument(
+        "--redistribution-rights",
+        default="unconfirmed",
+        help="Human-reviewed rights status for the manifest",
+    )
+    parser.add_argument(
+        "--source-package",
+        type=Path,
+        action="append",
+        default=[],
+        help="Source APK file to record by size and SHA-256; repeat as needed",
+    )
     args = parser.parse_args()
     if args.output.exists() and any(args.output.iterdir()):
         parser.error(f"Output directory is not empty: {args.output}")
@@ -64,15 +73,17 @@ def main() -> None:
         current.stdin.close()
         if current.wait() != 0:
             raise RuntimeError(f"Compression failed for {current_path}")
-        shards.append({
-            "file": current_path.name,
-            "category": current_category,
-            "sha256": digest(current_path),
-            "bytes": current_path.stat().st_size,
-            "uncompressed_bytes": raw_bytes,
-            "resources": resource_count,
-            "top_level_items": item_count,
-        })
+        shards.append(
+            {
+                "file": current_path.name,
+                "category": current_category,
+                "sha256": digest(current_path),
+                "bytes": current_path.stat().st_size,
+                "uncompressed_bytes": raw_bytes,
+                "resources": resource_count,
+                "top_level_items": item_count,
+            }
+        )
         print(f"Wrote {current_path.name}: {resource_count} resources", flush=True)
         current = None
         current_path = None
@@ -93,12 +104,20 @@ def main() -> None:
             "SELECT name, category, module, item_count, payload_json "
             "FROM resources ORDER BY category, name"
         ):
-            line = (json.dumps({"resource": name, "category": category,
-                                "module": module}, ensure_ascii=False,
-                               separators=(",", ":"))[:-1]
-                    + ',"definitions":' + payload + "}\n").encode("utf-8")
-            if current is None or current_category != category or (
-                raw_bytes + len(line) > args.chunk_mib * 1024 * 1024 and resource_count
+            line = (
+                json.dumps(
+                    {"resource": name, "category": category, "module": module},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )[:-1]
+                + ',"definitions":'
+                + payload
+                + "}\n"
+            ).encode("utf-8")
+            if (
+                current is None
+                or current_category != category
+                or (raw_bytes + len(line) > args.chunk_mib * 1024 * 1024 and resource_count)
             ):
                 finish()
                 start(category)
@@ -107,9 +126,10 @@ def main() -> None:
             resource_count += 1
             item_count += count
         finish()
-        inputs = [dict(filename=row[0], sha256=row[1], resources=row[2]) for row in db.execute(
-            "SELECT filename, sha256, resource_count FROM inputs ORDER BY id"
-        )]
+        inputs = [
+            dict(filename=row[0], sha256=row[1], resources=row[2])
+            for row in db.execute("SELECT filename, sha256, resource_count FROM inputs ORDER BY id")
+        ]
         manifest = {
             "format": "diagnostic-resource-jsonl-zstd-v1",
             "status": "extracted research definitions; not vehicle verified or enabled",

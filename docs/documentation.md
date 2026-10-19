@@ -13,6 +13,7 @@ The [documentation map](documentation-map.json) is validated by `tools/validate.
 | What is implemented, installed and actually observed? | `docs/current-state.md` | Source compatibility, release/device state or qualification changes |
 | What should happen next and in what order? | `docs/roadmap.md` | Outcome order/scope changes |
 | Which tasks are ready, blocked or deferred? | `docs/backlog.md` | Task status, dependency or acceptance changes |
+| Why was an architectural choice made? | `docs/decisions/` | A major tradeoff or revisit condition changes |
 | How does the current implementation work? | `docs/architecture/` | Runtime ownership, persistence or recovery changes |
 | Which bytes/schema are accepted? | `docs/protocol/`, `contracts/`, codecs | Wire or compatibility changes; explicitly separate proposed contracts |
 | What should the consumer UI do? | `docs/design/design-system.md`, tokens | Shared UI rules or components change |

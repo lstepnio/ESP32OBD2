@@ -29,7 +29,7 @@
       "docs/architecture/alerts-and-diagnostics.md",
       "docs/architecture/android-runtime.md",
       "docs/architecture/config-storage.md",
-      "docs/architecture/decisions.md",
+      "docs/decisions/README.md",
       "docs/architecture/firmware-runtime.md",
       "docs/architecture/hardware-and-transports.md",
       "docs/architecture/interaction-recovery.md",
@@ -60,7 +60,10 @@
       "docs/development/setup.md",
       "docs/development/tcm-session-resume.md",
       "docs/development/tcm-values-research-plan.md",
-      "docs/development/vehicle-capture-runbook.md"
+      "docs/development/vehicle-capture-runbook.md",
+      "firmware/gauge/assets/fonts/README.md",
+      "mechanical/jk-dash-pod/README.md",
+      "data/vehicle-definitions/README.md"
     ],
     "vehicle-research": [
       "docs/vehicles/README.md",
