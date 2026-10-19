@@ -152,11 +152,13 @@ def host(action):
     if action == "lint":
         run([Path(sys.executable).parent / "ruff", "check", *tracked_files((".py",))])
         run([sys.executable, "tools/validate.py"])
+        run([sys.executable, "tools/build_website.py", "--check"])
         for source in tracked_files((".js",)):
             run(["node", "--check", source])
         run(["git", "diff", "--check"])
         return
     if action == "test":
+        run(["npm", "test", "--prefix", "web-recovery"])
         # Whole discovery prevents a new suite disappearing behind filename-specific CI globs.
         run([sys.executable, "-m", "unittest", "discover", "-s", "tools/tests", "-p", "test_*.py"])
         run(

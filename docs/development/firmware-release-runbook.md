@@ -52,6 +52,15 @@ For a bad development release, mark it withdrawn in the next signed catalog by o
 
 The companion searches bounded published GitHub release candidates, verifies signatures and freshness, rejects a generation older than one previously trusted on the phone, and rejects different content reused under the same generation. It then selects the highest compatible sequence for the exact board, hardware range, layout, channel, and transfer protocol. A wrong board or layout cannot enter the updater. GitHub availability does not bypass the gauge's independent signature and image checks.
 
+## Browser USB bootstrap
+
+The unsupported Waveshare DIY tool at [egauge.majjix.com/recovery/](https://egauge.majjix.com/recovery/)
+uses an existing signed published application plus separately identified bootstrap
+regions. Its [package and preservation contract](../../web-recovery/README.md) owns
+USB offsets, provenance and the physical acceptance matrix. This does not authorize
+a new firmware release, erase-all operation or device installation. Normal field
+updates remain App/Wi-Fi.
+
 ## Qualification gates
 
 - Hosted check from a fresh install without a file picker.

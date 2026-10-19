@@ -1,0 +1,7 @@
+/*! Adapted from Emviary recovery-core.mjs. Copyright (c) 2026 Emviary contributors.
+ * MIT license: EMVIARY-LICENSE.txt */
+
+Bundled license information:
+
+pako/dist/pako.esm.mjs:
+  /*! pako 2.2.0 https://github.com/nodeca/pako @license (MIT AND Zlib) */
