@@ -239,6 +239,29 @@ def android(action):
     run([ROOT / "android/gradlew", *tasks[action], "--no-daemon"], cwd=ROOT / "android")
 
 
+def android_ui(action):
+    if action != "test":
+        raise SystemExit("android-ui supports test only; use android for build/lint.")
+    classes = (
+        "ConnectionStatusUiTest",
+        "AppCleanupUiTest",
+        "ReadingAlertsUiTest",
+        "OptimizationUiTest",
+        "RepositoryGalleryTest",
+    )
+    run(
+        [
+            ROOT / "android/gradlew",
+            ":app:ciPhoneDebugAndroidTest",
+            "--no-daemon",
+            "-Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect",
+            "-Pandroid.testInstrumentationRunnerArguments.class="
+            + ",".join("com.lstepnio.egauge." + name for name in classes),
+        ],
+        cwd=ROOT / "android",
+    )
+
+
 def tracked_files(suffixes):
     paths = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT).decode().split("\0")
     return [p for p in paths if p.endswith(suffixes)]
@@ -247,7 +270,9 @@ def tracked_files(suffixes):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("lint", "test", "build", "format", "bootstrap"))
-    parser.add_argument("--target", choices=("host", "firmware", "android", "all"), default="all")
+    parser.add_argument(
+        "--target", choices=("host", "firmware", "android", "android-ui", "all"), default="all"
+    )
     parser.add_argument(
         "--check", action="store_true", help="Check formatting without rewriting files"
     )
@@ -258,6 +283,9 @@ def main():
         return
     if args.action == "format":
         format_sources(args.check, args.language)
+        return
+    if args.target == "android-ui":
+        android_ui(args.action)
         return
     targets = {"host": host, "firmware": firmware, "android": android}
     for target, check in targets.items():

@@ -9,6 +9,7 @@ permissions:
 jobs:
   contracts-and-docs:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,7 +31,7 @@ jobs:
           python tools/dev.py test --target host
   firmware-build:
     runs-on: ubuntu-24.04
-    container: espressif/idf:v5.4.1
+    container: espressif/idf:v5.4.1@sha256:6b4adab7b282e9261a154d7130fb4945a3c28bd35c2e914357c2f522643cb92a
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -64,3 +65,32 @@ jobs:
           python3 tools/dev.py build --target android
           python3 tools/dev.py test --target android
           python3 tools/dev.py lint --target android
+
+  android-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools emulator
+      - name: Enable disposable emulator acceleration
+        run: sudo chmod a+rw /dev/kvm
+      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Isolated UI suite and repository screen captures
+        run: python3 tools/dev.py test --target android-ui
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: android-ui-results
+          path: |
+            android/app/build/reports/androidTests/
+            android/app/build/outputs/managed_device_android_test_additional_output/
+            android/app/build/outputs/androidTest-results/
+          if-no-files-found: warn

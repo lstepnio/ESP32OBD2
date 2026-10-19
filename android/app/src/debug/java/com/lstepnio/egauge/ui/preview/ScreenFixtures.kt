@@ -97,17 +97,19 @@ object ScreenFixtures {
     private val expertActions = ExpertActions({}, {}, {}, {})
 
     @Composable
-    fun Screen(name: String) {
+    fun Screen(name: String, showPreviewLabel: Boolean = true) {
         Column(Modifier.fillMaxSize()) {
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    "Example · UI preview",
-                    Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.labelMedium
-                )
+            if (showPreviewLabel) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "Example · UI preview",
+                        Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
             }
             Box(Modifier.weight(1f)) {
                 when (name) {
