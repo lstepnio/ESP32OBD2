@@ -10,6 +10,13 @@ idf_component_get_property(gauge_lvgl_lib lvgl__lvgl COMPONENT_LIB)
 target_compile_options(${gauge_lvgl_lib} PRIVATE
     "-include${CMAKE_CURRENT_SOURCE_DIR}/lvgl_memory.h")
 idf_build_get_property(gauge_python PYTHON)
+execute_process(
+    COMMAND ${gauge_python} ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/check_firmware_dependencies.py
+    RESULT_VARIABLE gauge_dependency_status)
+if(NOT gauge_dependency_status EQUAL 0)
+    message(FATAL_ERROR "Resolved firmware dependency check failed")
+endif()
+
 add_custom_command(TARGET ${CMAKE_PROJECT_NAME}.elf POST_BUILD
     COMMAND ${gauge_python} ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/check_firmware_memory.py
         $<TARGET_FILE:${CMAKE_PROJECT_NAME}.elf>

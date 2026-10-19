@@ -4,3 +4,8 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.3.21" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.3.21" apply false
 }
+
+// Locks resolved transitive versions as well as explicit dependency declarations.
+subprojects {
+    dependencyLocking { lockAllConfigurations() }
+}
