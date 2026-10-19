@@ -10,6 +10,7 @@ ESP-IDF, LVGL, and ESP registry dependencies retain their respective license fil
 
 The browser recovery core adapts the MIT-licensed Emviary recovery approach;
 [notice](web-recovery/EMVIARY-LICENSE.txt). Its bundled `esptool-js` 0.7.0 is Apache-2.0
-and `spark-md5` 3.0.2 is MIT. Their full licenses are retained in
+and `spark-md5` 3.0.2 is MIT. The bundled transitive `pako` 2.2.0 is MIT AND Zlib.
+Their full licenses are retained in
 [website/recovery](website/recovery/); generated code retains esbuild legal notices.
 `esbuild` 0.25.12 is a build-only MIT dependency, pinned in the npm lockfile.
