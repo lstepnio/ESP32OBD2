@@ -22,6 +22,23 @@ firmware updates. Normal use needs no account.
 [Current support and installed-device evidence](docs/current-state.md) ·
 [Roadmap](docs/roadmap.md) · [Backlog](docs/backlog.md)
 
+## Try the development hardware
+
+Current board: [Waveshare ESP32-S3-Touch-LCD-1.28](https://www.waveshare.com/esp32-s3-touch-lcd-1.28.htm),
+240 × 240 touch display, ESP32-S3, 16 MB flash and 2 MB PSRAM. Use the touch model;
+similar non-touch boards are not interchangeable.
+
+An **unsupported experimental DIY option** is available: buy the board, bootstrap
+current development firmware using [browser USB recovery](https://egauge.majjix.com/recovery/),
+then sideload the Android APK linked there. Vehicle readings also require a compatible
+BLE OBD-II adapter. This is not a production product or a blanket compatibility claim.
+Existing paired gauges normally update through App/Wi-Fi.
+
+Additional boards, displays and form factors are planned as hardware is evaluated.
+[Contact us about custom needs](https://egauge.majjix.com/#custom-form).
+Phone-only virtual gauges and possible Android Auto solutions are being investigated;
+neither is available today. [Recovery maintenance and verification](web-recovery/README.md).
+
 ## Development
 
 Clone this repository and enter its root. Prerequisites:

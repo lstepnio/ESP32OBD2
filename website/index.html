@@ -15,7 +15,7 @@
   <a class="skip" href="#main">Skip to content</a>
   <header class="header wrap">
     <a class="brand" href="#" aria-label="eGauge home"><span class="brand-symbol" aria-hidden="true"></span>eGauge<span class="brand-dot">.</span></a>
-    <nav aria-label="Main navigation"><a href="#experience">The gauge</a><a href="#app">Android App</a><a href="#roadmap">Progress</a><a href="https://github.com/lstepnio/ESP32OBD2">GitHub ↗</a></nav>
+    <nav aria-label="Main navigation"><a href="#experience">The gauge</a><a href="#app">Android App</a><a href="#roadmap">Progress</a><a href="/recovery/">Recovery</a><a href="https://github.com/lstepnio/ESP32OBD2">GitHub ↗</a></nav>
     <a class="nav-cta" href="#availability">Get updates <span aria-hidden="true">↗</span></a>
   </header>
   <main id="main">
@@ -70,6 +70,11 @@
         <article><h3>Advanced fault filters.</h3><p>Choose exact Engine or Transmission codes to hide from ordinary views. The gauge can suppress a controller's CEL indication only when fresh, complete checks account for every reported code. Raw diagnostic evidence is retained.</p></article>
       </div>
       <p class="section-note">Android and the autonomous gauge are the current focus. Phone reading previews are for setup; live companion telemetry and iOS are future work.</p>
+    </section>
+    <section class="wrap section-space" id="hardware" aria-labelledby="hardware-title">
+      <div class="section-heading"><p class="eyebrow">EXPERIMENTAL DIY / CURRENT HARDWARE</p><h2 id="hardware-title">Build on what<br>is working.</h2><p>The current development board is the <a href="https://www.waveshare.com/esp32-s3-touch-lcd-1.28.htm">Waveshare ESP32-S3-Touch-LCD-1.28 ↗</a>: a 1.28-inch, 240 × 240 touch display, ESP32-S3, 16 MB flash and 2 MB PSRAM. Choose the touch model; similar-looking boards are not interchangeable.</p></div>
+      <div class="hardware-card"><h3>Try the development platform.</h3><p>For an unsupported DIY setup, purchase the board directly, install current development firmware through our browser-based USB recovery page, then sideload the Android App. You will also need a compatible BLE OBD-II adapter to read your vehicle. Compatibility and long-term reliability testing continue.</p><a class="button primary" href="/recovery/">Install firmware &amp; Android App ↗</a><a href="https://www.waveshare.com/esp32-s3-touch-lcd-1.28.htm">View the development board ↗</a></div>
+      <div class="hardware-card"><h3>Different screen. Different possibilities.</h3><p>We plan to support additional boards, displays and form factors as hardware is evaluated. Have a custom dash or another requirement? <a href="#custom-form">Tell us what you need</a> so we can discuss feasibility together.</p><p>We are also investigating virtual gauges running only on an Android phone, and possible Android Auto solutions. These are exploratory directions, not available features or promised compatibility. Today's phone reading previews are for setup.</p></div>
     </section>
     <section class="roadmap wrap section-space" id="roadmap" aria-labelledby="roadmap-title">
       <div class="section-heading"><p class="eyebrow">04 / PROJECT PROGRESS</p><h2 id="roadmap-title">Working today.<br>Proving what is next.</h2><p>A working development platform, with testing kept separate from promises. The current vehicle is a Hemi-swapped 2010 Jeep Wrangler with a JSS transmission setup.</p></div>
