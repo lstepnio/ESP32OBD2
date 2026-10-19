@@ -40,6 +40,81 @@ static bool equals(const char *line, size_t len, const char *text)
     return len == strlen(text) && memcmp(line, text, len) == 0;
 }
 
+elm_result_t elm_response_decode_control_frame(const elm_response_t *response, uint32_t ecu, elm_payload_t *payload)
+{
+    if (!payload)
+        return ELM_MALFORMED;
+    memset(payload, 0, sizeof(*payload));
+    if (!response || ecu > 0x7ffU || response->length >= sizeof(response->text))
+        return ELM_MALFORMED;
+    if (response->overflow)
+        return ELM_OVERFLOW;
+    elm_payload_t candidate = {0};
+    bool          matched = false, no_data = false;
+    for (size_t offset = 0; offset < response->length;)
+    {
+        const char *line = response->text + offset;
+        size_t      len  = 0;
+        while (offset + len < response->length && line[len] != '\r' && line[len] != '\n')
+            ++len;
+        offset += len;
+        while (offset < response->length && (response->text[offset] == '\r' || response->text[offset] == '\n'))
+            ++offset;
+        while (len && (*line == ' ' || *line == '\t'))
+            ++line, --len;
+        while (len && (line[len - 1] == ' ' || line[len - 1] == '\t'))
+            --len;
+        if (!len)
+            continue;
+        if (equals(line, len, "NO DATA"))
+        {
+            no_data = true;
+            continue;
+        }
+        if (equals(line, len, "?") || equals(line, len, "STOPPED") || equals(line, len, "BUFFER FULL") ||
+            equals(line, len, "CAN ERROR") || equals(line, len, "BUS ERROR") || equals(line, len, "UNABLE TO CONNECT"))
+            return ELM_ADAPTER_ERROR;
+        char   compact[19];
+        size_t digits = 0;
+        for (size_t i = 0; i < len; ++i)
+        {
+            if (line[i] == ' ' || line[i] == '\t')
+            {
+                if (digits < 3 || ((digits - 3) & 1U))
+                    return ELM_MALFORMED;
+                continue;
+            }
+            if (hex(line[i]) < 0 || digits >= sizeof(compact))
+                return ELM_MALFORMED;
+            compact[digits++] = line[i];
+        }
+        if (digits < 7 || !(digits & 1U))
+            return ELM_MALFORMED;
+        uint32_t responder = (hex(compact[0]) << 8) | (hex(compact[1]) << 4) | hex(compact[2]);
+        if (responder != ecu)
+            return ELM_MALFORMED;
+        if (matched)
+            return ELM_AMBIGUOUS;
+        uint8_t frame[8];
+        size_t  count = (digits - 3) / 2;
+        for (size_t i = 0; i < count; ++i)
+            frame[i] = (hex(compact[3 + 2 * i]) << 4) | hex(compact[4 + 2 * i]);
+        if (!frame[0] || frame[0] > 7 || count < 1U + frame[0])
+            return ELM_MALFORMED;
+        candidate.length = frame[0];
+        memcpy(candidate.bytes, frame + 1, candidate.length);
+        candidate.has_responder = true;
+        candidate.responder     = responder;
+        matched                 = true;
+    }
+    if (no_data)
+        return matched ? ELM_MALFORMED : ELM_NO_DATA;
+    if (!matched)
+        return ELM_MALFORMED;
+    *payload = candidate;
+    return ELM_OK;
+}
+
 /* CAN headers include the ISO-TP single-frame length. Multi-frame replies
  * require a separate bounded assembler and are deliberately not accepted here. */
 static elm_result_t decode_pid(const elm_response_t *response,

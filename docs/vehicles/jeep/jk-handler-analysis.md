@@ -92,3 +92,15 @@ operation. A reference capture needs JScan logging or an authorized phone Blueto
 trace; a second BLE client cannot share the adapter as an independent recorder.
 Do not induce adapter/gauge loss before ordinary release behavior is established.
 No actual vehicle packets were sent for this analysis.
+
+## Trail View reference follow-up, 2026-10-19
+
+The owner identified the working control as **Trail View's second bottom button**.
+The [parked reference record](../../evidence/jeep-high-idle-reference.md) separates
+phone and physical observations, retained trace scope and remaining qualification.
+The archived Trail View JK definition includes an explicit return-control command;
+it is a different path from `RpmPbKWPAdaptationViewModel`. The recovered trace now
+confirms positive ECM Start/Report/Return replies for that Trail View path. Do not
+promote the adaptation handler's Stop-by-ending-refresh behavior to the vehicle
+driver. Fresh identity, target conversion/range and lost-refresh release remain
+unqualified; the linked evidence and sanitized fixtures retain the actual boundary.

@@ -76,10 +76,18 @@ for Air up and Winch presets using the existing gesture/profile foundation.
 The owner [reports successful high idle through JScan on this Hemi swap](vehicles/jeep/jk-handler-analysis.md#owner-reference-confirmation-2026-10-19).
 Prepared source now implements phone-only Air up/Winch drafts and App controls,
 a fixed-size native lifecycle policy and shared offline inner-request vectors.
-Start/Stop/countdown are tested with fixtures only. No registered BLE execution,
-source-worker driver or physical gauge command menu is implemented or installed.
+Start/Stop/countdown are tested with fixtures only. The prepared Jeep driver candidate
+now replays captured Start/Report/Return replies with bounded cancellation, strict
+framing and uncertainty/reconciliation tests. It is compiled but not instantiated
+or connected to an adapter worker. No registered BLE execution or physical gauge
+command menu is implemented or installed.
 The [offline foundation](architecture/vehicle-actions.md#implemented-offline-foundation)
-records the exact boundary; matched PCM replies/release timing remain the vehicle gate.
+records the exact boundary. The [parked JScan Trail View reference](evidence/jeep-high-idle-reference.md)
+observed two raised-idle/ordinary Stop cycles; the owner physically confirmed the
+first. The recovered trace confirms positive ECM Start/Report/Return replies;
+sanitized offline fixtures are saved and temporary phone settings restored.
+Current calibration, target range and loss-of-refresh release remain unqualified;
+this is JScan reference evidence, not enabled eGauge control.
 
 ## Known reliability limits
 
