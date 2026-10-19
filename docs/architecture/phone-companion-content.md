@@ -1,9 +1,17 @@
 # ADR-016: Phone companion content integration
 
-**Status: Proposed, not implemented.** Prepared 2026-10-18 for owner review.
-Decider: product owner. This document proposes architecture and implementation
-gates; it does not authorize implementation, permissions, publication or a device update.
+**Status: Architecture approved; initial experimental slice implemented.**
+Prepared 2026-10-18; owner approved the plan and reusable-session/synthetic-test
+slice on 2026-10-19, with an explicit removable-experiment requirement. Decider:
+product owner. Live adapters, broader streaming and device/release gates remain.
 [Backlog](../backlog.md) owns FEATURE-02/FEATURE-06 readiness and priority.
+
+The [experiment runbook](../development/companion-session-experiment.md) describes
+the bounded session extraction, explicitly invoked synthetic road probe and removal
+steps. The owner permits its marked package in debug/release APKs; it is inactive
+without a future explicit developer entry point, with no special build variant.
+The normal App retains one-shot sessions. Background reuse/preemption and the
+proposed typed content wire/state are not implemented by this initial slice.
 
 ## Recommendation and product scope
 
@@ -368,7 +376,7 @@ in the backlog own approval/readiness; existing reliability priorities remain.
 | --- | --- | --- |
 | A. Contracts and design | Approve this ADR, source admission criteria, type models, clock/scope/framing design and screen examples. Inventory owned POC code/provenance and sanitized fixtures | Explicit product scope; no assumed Maps/Waze access; reviewed protocol/UX and fixed budgets |
 | B. Session boundary | Extract protected session mechanics while retaining `withGauge`; add bounded scheduler and feature-off rollback | Existing pairing/read/config/OTA regression gates pass; same single BLE owner; cancellation/cleanup and priority tests pass |
-| C. Synthetic content | Add protected typed ingress/status, volatile navigation/media state, shared road adapter and display fixtures; debug-only fixtures through the real path | Parity/negative tests, local TTL, scope invalidation, no history churn; old App/new firmware and new App/old firmware pass |
+| C. Synthetic content | Add protected typed ingress/status, volatile navigation/media state, shared road adapter and display fixtures; explicitly activated synthetic fixtures through the real path | Parity/negative tests, local TTL, scope invalidation, no history churn; old App/new firmware and new App/old firmware pass |
 | D. Source adapters | Port bounded read-only SABRE policies and tests; add modern location lifecycle and reviewed opt-in pilot. Independently prototype media-session metadata and consent. Keep navigation synthetic until supported acquisition is demonstrated | Rights/trust/attribution review, provider failure/privacy checks; no copied prototype UI/recording stack; per-adapter qualification |
 | E. Hardware/vehicle qualification | Indoor fragmentation/flood/reconnect/process/permission/maintenance matrix; then parked single/dual OBD plus phone load, screen review and labelled moving-road pilot | Measured memory/latency/sample-age/thermal evidence, two-hour loaded soak, 100 reconnects, full Wi-Fi update after stress; explicit degraded/unsupported outcomes |
 | F. Delivery | Default-off rollout per content kind with compatible signed release, App/Wi-Fi install and preserved setup; update contracts/current support/evidence | Separate release authorization and physical confirmation; advertise only the qualified path |
@@ -431,7 +439,8 @@ Existing authority: [ADR-015](alerts-and-diagnostics.md),
 [firmware memory policy](firmware-runtime.md#memory-placement-and-admission-budget),
 [recovery rules](interaction-recovery.md) and [wire](../protocol/diagnostics-and-alerts.md).
 External API references above were checked 2026-10-18; recheck versions, terms and
-availability at implementation. This plan adds no source, permissions or device state.
+availability at provider implementation. The initial experiment adds no permissions
+or device changes; its implementation/limits are recorded in the runbook above.
 
 Sibling `WzSabrePOC` files inspected on 2026-10-18, SHA-256:
 

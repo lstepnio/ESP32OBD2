@@ -17,11 +17,14 @@ No commercial provider, location collection, notification scraping or account
 integration is enabled. The App receives gauge-originated threshold and fault
 alerts automatically; providers never evaluate those thresholds independently.
 
-[Proposed ADR-016](phone-companion-content.md) covers carrying WzSabrePOC findings
+[ADR-016](phone-companion-content.md) covers carrying WzSabrePOC findings
 into this seam and a common delivery boundary for future directions/now-playing.
-It is not implemented: navigation/media use expiring state rather than alert
-episodes, and live Google Maps/Waze maneuver access remains unproven. ADR-015 and
-this guide continue to own road-alert lifecycle and provider admission.
+Its [removable experiment](../development/companion-session-experiment.md) implements
+bounded session reuse and scripted synthetic-road tests in a marked, inactive
+package included in debug/release builds, with no live source or
+device entry point. Proposed navigation/media state and background delivery remain
+unimplemented, and live Google Maps/Waze maneuver access remains unproven. ADR-015
+and this guide continue to own road-alert lifecycle and provider admission.
 
 A crowd hazard is contextual information, not proof of a vehicle fault. It may
 expire, be withdrawn or become unavailable; none of these clears ECU codes. An

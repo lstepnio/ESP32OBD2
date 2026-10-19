@@ -1,6 +1,6 @@
 # Current implementation and evidence
 
-Updated 2026-10-18. This is the current support and installed-device snapshot.
+Updated 2026-10-19. This is the current support and installed-device snapshot.
 [Backlog](backlog.md) owns unfinished work; [roadmap](roadmap.md) orders outcomes.
 Dated [evidence](evidence/README.md) preserves measurements without defining today's plan.
 
@@ -149,8 +149,16 @@ notifications through one connection owner. Threshold dwell/hysteresis remains u
 The [paired-phone provider guide](architecture/phone-alert-providers.md) documents the
 synthetic fixture/relay seam and future authorized crowd-alert integrations. The
 former synthetic Expert button was removed; no live feed is enabled. The
-[companion-content proposal](architecture/phone-companion-content.md) is planning
-only, with no navigation/media integration or new permissions implemented.
+[companion-content architecture](architecture/phone-companion-content.md) has an
+initial [removable, inactive experiment](development/companion-session-experiment.md):
+shared authenticated session extraction and scripted synthetic road-alert tests.
+Normal App operations still use one-shot sessions. No background content stream,
+navigation/media integration, new permissions, firmware change or device installation
+is part of this slice; physical session reuse remains unqualified. The owner permits
+the clearly marked experimental package in both debug/release APKs; packaging does
+not activate it or add a device/UI entry point. Local JVM tests, debug/release
+assembly, lint, instrumentation compilation and documentation checks passed;
+APK inspection confirmed the marked harness in both ordinary application packages.
 
 Engine clearing code and readback exist behind a default-off firmware gate. TCM clearing,
 freeze-frame collection and hardware qualification remain open. The shared framework shipped

@@ -30,7 +30,7 @@ relative to `android/app/src/main/java/com/lstepnio/egauge/` unless specified.
 | Shared events/history/providers | `src/alert_events.c`, `src/alert_runtime.c`, `src/diagnostic_clear.c`; `AlertEvents.kt`, `AlertRepository.kt`, `AlertNotifications.kt`, `AlertMonitoringService.kt`, `ExternalAlerts.kt`, `ui/AlertPresentation.kt` | [Shared alerts](architecture/alerts-and-diagnostics.md), [phone providers](architecture/phone-alert-providers.md) |
 | Config compile/project/trial | `src/config_document.c`, `src/config_runtime.c`; `ConfigurationProjection.kt`, `GaugeDraftComparison.kt` | [Config storage](architecture/config-storage.md) |
 | Phone setup and assignments | `ProfileStore.kt`, `ProfileDocumentCodec.kt`, `LocalSetupStore.kt`, `LocalSetupTransactions.kt`, `DurableWrites.kt`, `VehicleConnections.kt` | [Android storage](architecture/android-runtime.md#storage-and-recovery) |
-| BLE bytes, owner and pairing | `src/ble_companion.c`; `GaugeConfigTransferClient.kt`, `GattSessionCleanup.kt`, `OwnerReadRecovery.kt`, `GaugeProtocolCodec.kt`, `BleCapabilityClient.kt`, `PairingFailure.kt` | [Implemented development wire](protocol/experimental-firmware-transfers.md); [bounded recovery](architecture/interaction-recovery.md#android-read-scheduling-and-hosted-http); public BLE v1 is proposed |
+| BLE bytes, owner and pairing | `src/ble_companion.c`; `GaugeConfigTransferClient.kt`, `AndroidGaugeOwnerSessions.kt`, `GaugeOwnerSession.kt`, `GattSessionCleanup.kt`, `OwnerReadRecovery.kt`, `GaugeProtocolCodec.kt`, `BleCapabilityClient.kt`, `PairingFailure.kt` | [Implemented development wire](protocol/experimental-firmware-transfers.md); [bounded recovery](architecture/interaction-recovery.md#android-read-scheduling-and-hosted-http); public BLE v1 is proposed |
 | Updates/Wi-Fi/recovery | `src/ota_transfer.c`, `src/wifi_bulk.c`, `src/wifi_bulk_io.c`; `WifiBulkClient.kt`, `FirmwareUpdatePersistence.kt`, `UpdateRecoveryJournal.kt`, `SocketIo.kt` | [Wi-Fi](protocol/wifi-bulk-v1.md), [release runbook](development/firmware-release-runbook.md) |
 | App lifecycle/state/operations | `AppModel.kt`, `GaugeModels.kt`, `AppOperation.kt`, `connection/`, `ui/state/` | [Android ownership](architecture/android-runtime.md), [recovery rules](architecture/interaction-recovery.md) |
 | UI/style/accessibility | `ui/`, `android/core/designsystem/`, `design/tokens.json` | [Design system](design/design-system.md) |
@@ -65,9 +65,12 @@ For an alert-related task, read [ADR-015's extension checklist](architecture/ale
 first. Reuse its producer/reducer/history/presentation owners and update the owning
 contracts with the change. External feeds also use the [provider guide](architecture/phone-alert-providers.md).
 For WzSabrePOC, navigation or media integration, read the
-[proposed companion-content architecture](architecture/phone-companion-content.md)
-and FEATURE-02/FEATURE-06 first. It preserves consumer Maps/Waze and read-only music
-scope; it does not establish live provider support or authorize implementation.
+[companion-content architecture](architecture/phone-companion-content.md),
+[removable experiment](development/companion-session-experiment.md) and
+FEATURE-02/FEATURE-06 first. The owner approved the architecture and initial
+session/synthetic-test slice. This does not establish live provider support or
+authorize broader implementation/device work; preserve consumer Maps/Waze and
+read-only music scope.
 For Auto screen rotation use the [orientation policy](architecture/hardware-and-transports.md#automatic-display-orientation):
 sensor presence, implemented support and advertised usable capability are separate.
 
