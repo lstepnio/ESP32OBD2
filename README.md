@@ -41,9 +41,9 @@ python tools/dev.py test
 python tools/dev.py build
 ```
 
-Each command supports `--target host|firmware|android`; default is all. Use
+Lint, test and build support `--target host|firmware|android`; default is all. Use
 `python tools/dev.py format` to apply formatting. Firmware checks require ESP-IDF
-on PATH even while the repository venv is active. Android uses the checked-in wrapper,
+exported even while the repository venv is active; the launcher selects IDF's own Python. Android uses the checked-in wrapper,
 resolved dependency locks and checksum verification. No command above accesses hardware.
 
 Run isolated Android UI tests with `python tools/dev.py test --target android-ui`.

@@ -171,10 +171,24 @@ def host(action):
         native(name, sources, execute=action == "test")
 
 
+def idf_command():
+    # The repository venv owns lint/tests, while IDF needs its separately installed
+    # Python dependencies. Activation order must not choose the wrong interpreter.
+    sdk = os.environ.get("IDF_PATH")
+    environment = os.environ.get("IDF_PYTHON_ENV_PATH")
+    if not sdk or not environment:
+        raise SystemExit("Source ESP-IDF 5.4.1 export.sh before firmware checks.")
+    python = Path(environment) / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    script = Path(sdk) / "tools/idf.py"
+    if not python.is_file() or not script.is_file():
+        raise SystemExit("ESP-IDF environment is incomplete; verify its export.sh setup.")
+    return [python, script]
+
+
 def firmware(action):
-    require("idf.py")
+    idf = idf_command()
     if action == "build":
-        run(["idf.py", "-C", FIRMWARE, "build"])
+        run([*idf, "-C", FIRMWARE, "build"])
     elif action == "test":
         idf = os.environ.get("IDF_PATH")
         if not idf:
@@ -227,7 +241,7 @@ def firmware(action):
         )
     elif action == "lint":
         # Compiler warnings are errors; the linked-image memory gate is part of the build.
-        run(["idf.py", "-C", FIRMWARE, "build"])
+        run([*idf, "-C", FIRMWARE, "build"])
 
 
 def android(action):

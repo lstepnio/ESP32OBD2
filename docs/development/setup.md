@@ -21,7 +21,7 @@ export PATH="$IDF_PYTHON_ENV_PATH/bin:$PATH"
 
 These paths describe one installation, not fresh-clone requirements. Do not recreate
 old package-metadata workarounds or reinstall working tools without an actual failure.
-The build invokes IDF's own selected Python for dependency checks. Registry components
+The launcher invokes IDF with its own selected Python, independent of venv activation order. Registry components
 must match exact manifest pins; the local resolver lock embeds an absolute BSP path
 and stays ignored. Do not broaden the ignore rule to all lockfiles.
 
