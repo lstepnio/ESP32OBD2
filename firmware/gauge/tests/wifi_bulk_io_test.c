@@ -18,16 +18,25 @@ static uint32_t now_ms(void *context)
     assert(clock_gettime(CLOCK_MONOTONIC, &now) == 0);
     return (uint32_t)((uint64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000);
 }
-static bool live(void *context) { (void)context; return true; }
-static bool paused(void *context) { return now_ms(NULL) - *(uint32_t *)context < 40; }
-static atomic_bool stop_writer;
-static void *trickle(void *context)
+static bool live(void *context)
 {
-    int fd = *(int *)context;
-    uint8_t byte = 1;
+    (void)context;
+    return true;
+}
+static bool paused(void *context)
+{
+    return now_ms(NULL) - *(uint32_t *)context < 40;
+}
+static atomic_bool stop_writer;
+static void       *trickle(void *context)
+{
+    int             fd    = *(int *)context;
+    uint8_t         byte  = 1;
     struct timespec pause = {.tv_nsec = 20000000};
-    while (!atomic_load(&stop_writer)) {
-        if (send(fd, &byte, 1, 0) != 1) break;
+    while (!atomic_load(&stop_writer))
+    {
+        if (send(fd, &byte, 1, 0) != 1)
+            break;
         nanosleep(&pause, NULL);
     }
     return NULL;
@@ -35,7 +44,8 @@ static void *trickle(void *context)
 int main(void)
 {
     signal(SIGPIPE, SIG_IGN);
-    for (unsigned phase = 0; phase <= 4; ++phase) {
+    for (unsigned phase = 0; phase <= 4; ++phase)
+    {
         assert(!ota_recovery_abandon(phase, false, false));
         assert(!ota_recovery_abandon(phase, true, true));
         assert(ota_recovery_abandon(phase, true, false) == (phase >= 1 && phase <= 3));
@@ -46,7 +56,8 @@ int main(void)
     assert(!ota_recovery_close_network(123, 123, false));
     assert(obd_wait_remaining(UINT32_MAX - 4, 5, 20) == 10);
     assert(obd_wait_remaining(100, 150, 50) == 0);
-    int pair[2]; uint8_t bytes[100] = {0};
+    int     pair[2];
+    uint8_t bytes[100] = {0};
     assert(socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == 0);
     uint32_t start = now_ms(NULL);
     assert(send(pair[1], "abcd", 4, 0) == 4);
@@ -65,8 +76,10 @@ int main(void)
     start = now_ms(NULL);
     assert(wifi_bulk_io(pair[0], bytes, sizeof(bytes), false, start, 110, now_ms, live, NULL) == -1);
     assert(now_ms(NULL) - start < 600);
-    atomic_store(&stop_writer, true); assert(pthread_join(writer, NULL) == 0);
-    close(pair[0]); close(pair[1]);
+    atomic_store(&stop_writer, true);
+    assert(pthread_join(writer, NULL) == 0);
+    close(pair[0]);
+    close(pair[1]);
     // Backpressure on writes shares the total budget too.
     assert(socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == 0);
     int buffer = 1024;

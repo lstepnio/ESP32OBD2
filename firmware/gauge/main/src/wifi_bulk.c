@@ -43,45 +43,58 @@
 #define COMMAND_STATUS_POLL_TICKS 1U
 #define COMMAND_STATUS_TIMEOUT_TICKS pdMS_TO_TICKS(60000)
 
-enum { PHASE_OFF, PHASE_STARTING, PHASE_READY, PHASE_FAILED };
-enum { RESULT_OK, RESULT_PENDING, RESULT_INVALID, RESULT_NETWORK };
+enum
+{
+    PHASE_OFF,
+    PHASE_STARTING,
+    PHASE_READY,
+    PHASE_FAILED
+};
+enum
+{
+    RESULT_OK,
+    RESULT_PENDING,
+    RESULT_INVALID,
+    RESULT_NETWORK
+};
 
-typedef struct {
-    uint8_t op;
+typedef struct
+{
+    uint8_t  op;
     uint32_t sequence;
 } command_t;
 
-static const char *TAG = "wifi_bulk";
-static QueueHandle_t command_queue;
+static const char       *TAG = "wifi_bulk";
+static QueueHandle_t     command_queue;
 static SemaphoreHandle_t state_lock;
-static esp_netif_t *ap_netif;
-static bool wifi_initialized;
-static bool server_started;
-static uint8_t *frame_ciphertext, *frame_plaintext;
-static portMUX_TYPE status_mux = portMUX_INITIALIZER_UNLOCKED;
-static uint32_t status_expires_at;
-static atomic_bool wifi_active;
-static atomic_uint wifi_generation;
-static atomic_uint abandoned_ota_session;
-static struct {
-    uint8_t phase;
-    uint8_t result;
-    uint8_t last_op;
+static esp_netif_t      *ap_netif;
+static bool              wifi_initialized;
+static bool              server_started;
+static uint8_t          *frame_ciphertext, *frame_plaintext;
+static portMUX_TYPE      status_mux = portMUX_INITIALIZER_UNLOCKED;
+static uint32_t          status_expires_at;
+static atomic_bool       wifi_active;
+static atomic_uint       wifi_generation;
+static atomic_uint       abandoned_ota_session;
+static struct
+{
+    uint8_t  phase;
+    uint8_t  result;
+    uint8_t  last_op;
     uint32_t sequence;
-    uint8_t ip[4];
+    uint8_t  ip[4];
     uint32_t session_id;
-    uint8_t key[32];
+    uint8_t  key[32];
     uint32_t expires_at;
     uint32_t last_frame_sequence;
-    char ssid[33];
-    char password[17];
+    char     ssid[33];
+    char     password[17];
 } state;
 static uint8_t status_cache[WIFI_BULK_STATUS_SIZE];
 
 static uint32_t read_u32(const uint8_t *p)
 {
-    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
-           ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
 static void write_u16(uint8_t *p, uint16_t value)
@@ -97,7 +110,8 @@ static uint16_t read_u16(const uint8_t *p)
 
 static void write_u32(uint8_t *p, uint32_t value)
 {
-    for (unsigned i = 0; i < 4; ++i) p[i] = value >> (8 * i);
+    for (unsigned i = 0; i < 4; ++i)
+        p[i] = value >> (8 * i);
 }
 
 static void publish_locked(void)
@@ -114,15 +128,15 @@ static void publish_locked(void)
     memcpy(status_cache + 8, state.ip, sizeof(state.ip));
     write_u16(status_cache + 12, PORT);
     write_u32(status_cache + 16, state.session_id);
-    if (state.phase == PHASE_READY &&
-        (int32_t)(state.expires_at - xTaskGetTickCount()) > 0) {
+    if (state.phase == PHASE_READY && (int32_t)(state.expires_at - xTaskGetTickCount()) > 0)
+    {
         memcpy(status_cache + 20, state.key, sizeof(state.key));
         uint32_t remaining = (state.expires_at - xTaskGetTickCount()) / configTICK_RATE_HZ;
         write_u32(status_cache + 52, remaining);
-        size_t ssid_length = strlen(state.ssid);
+        size_t ssid_length     = strlen(state.ssid);
         size_t password_length = strlen(state.password);
-        status_cache[56] = ssid_length;
-        status_cache[57] = password_length;
+        status_cache[56]       = ssid_length;
+        status_cache[57]       = password_length;
         memcpy(status_cache + 58, state.ssid, ssid_length);
         memcpy(status_cache + 90, state.password, password_length);
     }
@@ -133,24 +147,26 @@ static void publish_locked(void)
 static void rotate_session_locked(void)
 {
     static const char alphabet[] = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-    do state.session_id = esp_random(); while (state.session_id == 0);
+    do
+        state.session_id = esp_random();
+    while (state.session_id == 0);
     esp_fill_random(state.key, sizeof(state.key));
     for (size_t i = 0; i < sizeof(state.password) - 1; ++i)
         state.password[i] = alphabet[esp_random() % (sizeof(alphabet) - 1)];
     state.password[sizeof(state.password) - 1] = '\0';
-    state.expires_at = xTaskGetTickCount() + pdMS_TO_TICKS(SESSION_MS);
-    state.last_frame_sequence = 0;
+    state.expires_at                           = xTaskGetTickCount() + pdMS_TO_TICKS(SESSION_MS);
+    state.last_frame_sequence                  = 0;
 }
 
 static void clear_session_locked(uint8_t phase, uint8_t result)
 {
-    state.phase = phase;
+    state.phase  = phase;
     state.result = result;
     memset(state.ip, 0, sizeof(state.ip));
     state.session_id = 0;
     memset(state.key, 0, sizeof(state.key));
     memset(state.password, 0, sizeof(state.password));
-    state.expires_at = 0;
+    state.expires_at          = 0;
     state.last_frame_sequence = 0;
     publish_locked();
 }
@@ -161,7 +177,8 @@ static void wifi_event(void *arg, esp_event_base_t base, int32_t id, void *data)
     (void)data;
     if (base == WIFI_EVENT && id == WIFI_EVENT_AP_STACONNECTED)
         ESP_LOGI(TAG, "Owner phone joined temporary maintenance network");
-    else if (base == WIFI_EVENT && id == WIFI_EVENT_AP_STADISCONNECTED) {
+    else if (base == WIFI_EVENT && id == WIFI_EVENT_AP_STADISCONNECTED)
+    {
         // Leave the bounded session available, but release the departed client's
         // socket promptly. Never replay an already admitted transfer command.
         atomic_fetch_add(&wifi_generation, 1);
@@ -173,13 +190,15 @@ static void wifi_event(void *arg, esp_event_base_t base, int32_t id, void *data)
  * event loop/netif runtime, but retire this AP's driver, handlers and DMA pool. */
 static void release_wifi_driver(void)
 {
-    if (wifi_initialized) {
+    if (wifi_initialized)
+    {
         esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event);
         esp_wifi_stop();
         esp_wifi_deinit();
         wifi_initialized = false;
     }
-    if (ap_netif) {
+    if (ap_netif)
+    {
         esp_netif_destroy_default_wifi(ap_netif);
         ap_netif = NULL;
     }
@@ -187,20 +206,25 @@ static void release_wifi_driver(void)
 
 static bool initialize_wifi(void)
 {
-    if (wifi_initialized) return true;
+    if (wifi_initialized)
+        return true;
     esp_err_t err = esp_netif_init();
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) return false;
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE)
+        return false;
     err = esp_event_loop_create_default();
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) return false;
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE)
+        return false;
     // The SDK convenience constructor asserts on allocation/attach failure.
     // Use its checked primitives so memory pressure returns a failed status.
     esp_netif_config_t netif_config = ESP_NETIF_DEFAULT_WIFI_AP();
-    ap_netif = esp_netif_new(&netif_config);
-    if (!ap_netif) return false;
-    if (esp_netif_attach_wifi_ap(ap_netif) != ESP_OK ||
-        esp_wifi_set_default_wifi_ap_handlers() != ESP_OK) return false;
+    ap_netif                        = esp_netif_new(&netif_config);
+    if (!ap_netif)
+        return false;
+    if (esp_netif_attach_wifi_ap(ap_netif) != ESP_OK || esp_wifi_set_default_wifi_ap_handlers() != ESP_OK)
+        return false;
     wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT();
-    if (esp_wifi_init(&init) != ESP_OK) return false;
+    if (esp_wifi_init(&init) != ESP_OK)
+        return false;
     wifi_initialized = true;
     return esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event, NULL) == ESP_OK;
 }
@@ -210,66 +234,71 @@ static bool start_maintenance_network(void)
     // Retire the prior client/transfer even if a subsequent startup step fails.
     atomic_store(&wifi_active, false);
     atomic_fetch_add(&wifi_generation, 1);
-    if (wifi_initialized) esp_wifi_stop();
+    if (wifi_initialized)
+        esp_wifi_stop();
     memory_health_log("wifi_before_init");
-    if (!wifi_initialized && !wifi_bulk_policy_init_memory_ready(
-            heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
-            heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT))) {
+    if (!wifi_initialized &&
+        !wifi_bulk_policy_init_memory_ready(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                                            heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)))
+    {
         ESP_LOGW(TAG, "Maintenance initialization deferred: insufficient internal headroom");
         return false;
     }
-    if (!initialize_wifi()) return false;
+    if (!initialize_wifi())
+        return false;
     memory_health_log("wifi_initialized");
     uint8_t mac[6];
-    if (esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP) != ESP_OK) return false;
+    if (esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP) != ESP_OK)
+        return false;
     xSemaphoreTake(state_lock, portMAX_DELAY);
     snprintf(state.ssid, sizeof(state.ssid), "eGauge-%02X%02X", mac[4], mac[5]);
     rotate_session_locked();
     wifi_config_t config = {0};
     strlcpy((char *)config.ap.ssid, state.ssid, sizeof(config.ap.ssid));
     strlcpy((char *)config.ap.password, state.password, sizeof(config.ap.password));
-    config.ap.ssid_len = strlen(state.ssid);
-    config.ap.channel = 1;
-    config.ap.max_connection = 1;
-    config.ap.authmode = WIFI_AUTH_WPA2_PSK;
-    config.ap.pmf_cfg.capable = true;
+    config.ap.ssid_len         = strlen(state.ssid);
+    config.ap.channel          = 1;
+    config.ap.max_connection   = 1;
+    config.ap.authmode         = WIFI_AUTH_WPA2_PSK;
+    config.ap.pmf_cfg.capable  = true;
     config.ap.pmf_cfg.required = false;
     xSemaphoreGive(state_lock);
     // The vendor AP startup can dereference a failed beacon allocation. Keep
     // internal headroom after driver initialization, before enabling the radio.
     // PSRAM holds eligible Wi-Fi/LwIP allocations; DMA buffers remain internal.
-    size_t free_internal = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    size_t free_internal    = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     size_t largest_internal = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    if (!wifi_bulk_policy_memory_ready(free_internal, largest_internal)) {
-        ESP_LOGW(TAG, "Maintenance startup deferred: internal_free=%u internal_largest=%u",
-                 (unsigned)free_internal, (unsigned)largest_internal);
+    if (!wifi_bulk_policy_memory_ready(free_internal, largest_internal))
+    {
+        ESP_LOGW(TAG, "Maintenance startup deferred: internal_free=%u internal_largest=%u", (unsigned)free_internal,
+                 (unsigned)largest_internal);
         return false;
     }
-    if (esp_wifi_set_mode(WIFI_MODE_AP) != ESP_OK ||
-        esp_wifi_set_config(WIFI_IF_AP, &config) != ESP_OK ||
-        esp_wifi_start() != ESP_OK) {
+    if (esp_wifi_set_mode(WIFI_MODE_AP) != ESP_OK || esp_wifi_set_config(WIFI_IF_AP, &config) != ESP_OK ||
+        esp_wifi_start() != ESP_OK)
+    {
         esp_wifi_stop();
         return false;
     }
     esp_netif_ip_info_t info;
-    if (esp_netif_get_ip_info(ap_netif, &info) != ESP_OK) {
+    if (esp_netif_get_ip_info(ap_netif, &info) != ESP_OK)
+    {
         esp_wifi_stop();
         return false;
     }
     xSemaphoreTake(state_lock, portMAX_DELAY);
     uint32_t address = info.ip.addr;
-    state.ip[0] = address & 0xff;
-    state.ip[1] = (address >> 8) & 0xff;
-    state.ip[2] = (address >> 16) & 0xff;
-    state.ip[3] = (address >> 24) & 0xff;
-    state.phase = PHASE_READY;
-    state.result = RESULT_OK;
+    state.ip[0]      = address & 0xff;
+    state.ip[1]      = (address >> 8) & 0xff;
+    state.ip[2]      = (address >> 16) & 0xff;
+    state.ip[3]      = (address >> 24) & 0xff;
+    state.phase      = PHASE_READY;
+    state.result     = RESULT_OK;
     publish_locked();
     xSemaphoreGive(state_lock);
     atomic_store(&wifi_active, true);
     memory_health_log("wifi_ready");
-    ESP_LOGI(TAG, "Temporary Wi-Fi maintenance network ready at " IPSTR ":%d",
-             IP2STR(&info.ip), PORT);
+    ESP_LOGI(TAG, "Temporary Wi-Fi maintenance network ready at " IPSTR ":%d", IP2STR(&info.ip), PORT);
     return true;
 }
 
@@ -303,8 +332,7 @@ static uint32_t clock_ms(void *context)
     return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
-static void make_nonce(uint8_t nonce[12], uint32_t session_id,
-                       uint32_t sequence, uint8_t direction)
+static void make_nonce(uint8_t nonce[12], uint32_t session_id, uint32_t sequence, uint8_t direction)
 {
     memset(nonce, 0, 12);
     write_u32(nonce, session_id);
@@ -312,18 +340,25 @@ static void make_nonce(uint8_t nonce[12], uint32_t session_id,
     nonce[8] = direction;
 }
 
-static bool wait_status(uint8_t kind, const uint8_t *command, size_t command_length,
-                        uint8_t *out, size_t *out_length, uint32_t generation)
+static bool wait_status(uint8_t        kind,
+                        const uint8_t *command,
+                        size_t         command_length,
+                        uint8_t       *out,
+                        size_t        *out_length,
+                        uint32_t       generation)
 {
-    if (!client_active(&generation)) return false;
-    bool admitted = kind == 1
-        ? config_transfer_command(command, command_length)
-        : ota_transfer_wifi_command(command, command_length, generation);
-    if (!admitted) return false;
-    uint32_t sequence = read_u32(command + 1);
-    TickType_t started = xTaskGetTickCount();
-    while (xTaskGetTickCount() - started < COMMAND_STATUS_TIMEOUT_TICKS) {
-        if (!client_active(&generation)) return false;
+    if (!client_active(&generation))
+        return false;
+    bool admitted = kind == 1 ? config_transfer_command(command, command_length)
+                              : ota_transfer_wifi_command(command, command_length, generation);
+    if (!admitted)
+        return false;
+    uint32_t   sequence = read_u32(command + 1);
+    TickType_t started  = xTaskGetTickCount();
+    while (xTaskGetTickCount() - started < COMMAND_STATUS_TIMEOUT_TICKS)
+    {
+        if (!client_active(&generation))
+            return false;
         *out_length = kind == 1 ? config_transfer_status(out) : ota_transfer_status(out);
         if (*out_length >= 8 && out[3] == command[0] && read_u32(out + 4) == sequence)
             return true;
@@ -334,14 +369,18 @@ static bool wait_status(uint8_t kind, const uint8_t *command, size_t command_len
 
 static bool validate_ota_batch(const uint8_t *batch, size_t length)
 {
-    if (length < 1 || batch[0] == 0 || batch[0] > OTA_BATCH_MAX_COMMANDS) return false;
+    if (length < 1 || batch[0] == 0 || batch[0] > OTA_BATCH_MAX_COMMANDS)
+        return false;
     size_t offset = 1;
-    for (uint8_t i = 0; i < batch[0]; ++i) {
-        if (offset + 2 > length) return false;
+    for (uint8_t i = 0; i < batch[0]; ++i)
+    {
+        if (offset + 2 > length)
+            return false;
         size_t command_length = read_u16(batch + offset);
         offset += 2;
-        if (command_length < 13 || command_length > OTA_TRANSFER_MAX_REQUEST ||
-            offset + command_length > length || batch[offset] != 0x23) return false;
+        if (command_length < 13 || command_length > OTA_TRANSFER_MAX_REQUEST || offset + command_length > length ||
+            batch[offset] != 0x23)
+            return false;
         offset += command_length;
     }
     return offset == length;
@@ -349,14 +388,17 @@ static bool validate_ota_batch(const uint8_t *batch, size_t length)
 
 static bool run_ota_batch(const uint8_t *batch, uint8_t *response, size_t *response_length, uint32_t generation)
 {
-    size_t offset = 1;
+    size_t  offset = 1;
     uint8_t status[OTA_TRANSFER_STATUS_SIZE];
-    size_t status_length = 0;
-    for (uint8_t i = 0; i < batch[0]; ++i) {
+    size_t  status_length = 0;
+    for (uint8_t i = 0; i < batch[0]; ++i)
+    {
         size_t command_length = read_u16(batch + offset);
         offset += 2;
-        if (!wait_status(2, batch + offset, command_length, status, &status_length, generation)) return false;
-        if (status_length != OTA_TRANSFER_STATUS_SIZE || status[2] != RESULT_OK) return false;
+        if (!wait_status(2, batch + offset, command_length, status, &status_length, generation))
+            return false;
+        if (status_length != OTA_TRANSFER_STATUS_SIZE || status[2] != RESULT_OK)
+            return false;
         offset += command_length;
     }
     response[0] = batch[0];
@@ -365,52 +407,66 @@ static bool run_ota_batch(const uint8_t *batch, uint8_t *response, size_t *respo
     return true;
 }
 
-static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext, uint32_t generation, uint32_t *ota_session)
+static bool handle_frame(int       client,
+                         uint8_t  *ciphertext,
+                         uint8_t  *plaintext,
+                         uint32_t  generation,
+                         uint32_t *ota_session)
 {
     uint8_t header[FRAME_HEADER], tag[FRAME_TAG];
     // Idle allowance retains the bounded development activation pause. Once a
     // frame starts, all remaining header/tag/payload fragments share 20 seconds.
     uint32_t idle_at = clock_ms(NULL);
-    if (wifi_bulk_io(client, header, 1, false, idle_at, CLIENT_IDLE_BUDGET_MS,
-                     clock_ms, client_active, &generation) != 0) return false;
+    if (wifi_bulk_io(client, header, 1, false, idle_at, CLIENT_IDLE_BUDGET_MS, clock_ms, client_active, &generation) !=
+        0)
+        return false;
     uint32_t received_at = clock_ms(NULL);
-    if (wifi_bulk_io(client, header + 1, sizeof(header) - 1, false, received_at,
-                     FRAME_IO_BUDGET_MS, clock_ms, client_active, &generation) != 0 ||
-        memcmp(header, "EGW1", 4) != 0) return false;
+    if (wifi_bulk_io(client, header + 1, sizeof(header) - 1, false, received_at, FRAME_IO_BUDGET_MS, clock_ms,
+                     client_active, &generation) != 0 ||
+        memcmp(header, "EGW1", 4) != 0)
+        return false;
     uint32_t session_id = read_u32(header + 4);
-    uint32_t sequence = read_u32(header + 8);
-    uint8_t kind = header[12];
-    uint16_t length = read_u16(header + 14);
+    uint32_t sequence   = read_u32(header + 8);
+    uint8_t  kind       = header[12];
+    uint16_t length     = read_u16(header + 14);
     if ((kind < 1 || kind > 4) || length == 0 || length > FRAME_MAX_PLAINTEXT ||
-        wifi_bulk_io(client, tag, sizeof(tag), false, received_at, FRAME_IO_BUDGET_MS, clock_ms, client_active, &generation) != 0 ||
-        wifi_bulk_io(client, ciphertext, length, false, received_at, FRAME_IO_BUDGET_MS, clock_ms, client_active, &generation) != 0) return false;
+        wifi_bulk_io(client, tag, sizeof(tag), false, received_at, FRAME_IO_BUDGET_MS, clock_ms, client_active,
+                     &generation) != 0 ||
+        wifi_bulk_io(client, ciphertext, length, false, received_at, FRAME_IO_BUDGET_MS, clock_ms, client_active,
+                     &generation) != 0)
+        return false;
 
     uint8_t key[32];
-    bool authorized = false;
+    bool    authorized = false;
     xSemaphoreTake(state_lock, portMAX_DELAY);
-    if (wifi_bulk_policy_accept(state.phase == PHASE_READY, state.session_id, session_id,
-        state.last_frame_sequence, sequence, state.expires_at, xTaskGetTickCount())) {
+    if (wifi_bulk_policy_accept(state.phase == PHASE_READY, state.session_id, session_id, state.last_frame_sequence,
+                                sequence, state.expires_at, xTaskGetTickCount()))
+    {
         memcpy(key, state.key, sizeof(key));
         authorized = true;
     }
     xSemaphoreGive(state_lock);
-    if (!authorized) return false;
+    if (!authorized)
+        return false;
 
     uint8_t nonce[12];
     make_nonce(nonce, session_id, sequence, 0);
     mbedtls_gcm_context gcm;
     mbedtls_gcm_init(&gcm);
     int rc = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, 256);
-    if (rc == 0) rc = mbedtls_gcm_auth_decrypt(&gcm, length, nonce, sizeof(nonce),
-        header, sizeof(header), tag, sizeof(tag), ciphertext, plaintext);
+    if (rc == 0)
+        rc = mbedtls_gcm_auth_decrypt(&gcm, length, nonce, sizeof(nonce), header, sizeof(header), tag, sizeof(tag),
+                                      ciphertext, plaintext);
     memset(key, 0, sizeof(key));
-    if (rc != 0) {
+    if (rc != 0)
+    {
         mbedtls_gcm_free(&gcm);
         return false;
     }
     xSemaphoreTake(state_lock, portMAX_DELAY);
-    if (!wifi_bulk_policy_accept(state.phase == PHASE_READY, state.session_id, session_id,
-        state.last_frame_sequence, sequence, state.expires_at, xTaskGetTickCount())) {
+    if (!wifi_bulk_policy_accept(state.phase == PHASE_READY, state.session_id, session_id, state.last_frame_sequence,
+                                 sequence, state.expires_at, xTaskGetTickCount()))
+    {
         xSemaphoreGive(state_lock);
         mbedtls_gcm_free(&gcm);
         return false;
@@ -419,23 +475,31 @@ static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext, ui
     xSemaphoreGive(state_lock);
 
     if ((kind == 2 && length >= 9 && plaintext[0] >= 0x20 && plaintext[0] <= 0x28) ||
-        (kind == 4 && validate_ota_batch(plaintext, length))) *ota_session = session_id;
+        (kind == 4 && validate_ota_batch(plaintext, length)))
+        *ota_session = session_id;
 
     uint8_t response[CONFIG_TRANSFER_STATUS_SIZE];
-    size_t response_length = 0;
-    bool ok;
-    if (kind == 3 && length == 1 && (plaintext[0] == 1 || plaintext[0] == 2)) {
-        response_length = plaintext[0] == 1
-            ? config_transfer_status(response) : ota_transfer_status(response);
-        ok = true;
-    } else if (kind == 4 && validate_ota_batch(plaintext, length)) {
+    size_t  response_length = 0;
+    bool    ok;
+    if (kind == 3 && length == 1 && (plaintext[0] == 1 || plaintext[0] == 2))
+    {
+        response_length = plaintext[0] == 1 ? config_transfer_status(response) : ota_transfer_status(response);
+        ok              = true;
+    }
+    else if (kind == 4 && validate_ota_batch(plaintext, length))
+    {
         ok = run_ota_batch(plaintext, response, &response_length, generation);
-    } else if ((kind == 1 && plaintext[0] >= 0x10 && plaintext[0] <= 0x17) ||
-               (kind == 2 && plaintext[0] >= 0x20 && plaintext[0] <= 0x28)) {
+    }
+    else if ((kind == 1 && plaintext[0] >= 0x10 && plaintext[0] <= 0x17) ||
+             (kind == 2 && plaintext[0] >= 0x20 && plaintext[0] <= 0x28))
+    {
         ok = wait_status(kind, plaintext, length, response, &response_length, generation);
-    } else ok = false;
-    if (!ok) {
-        response[0] = 1;
+    }
+    else
+        ok = false;
+    if (!ok)
+    {
+        response[0]     = 1;
         response_length = 1;
     }
 
@@ -444,61 +508,74 @@ static bool handle_frame(int client, uint8_t *ciphertext, uint8_t *plaintext, ui
     header[13] = ok ? 0 : 1;
     write_u16(header + 14, response_length);
     make_nonce(nonce, session_id, sequence, 1);
-    rc = mbedtls_gcm_crypt_and_tag(&gcm, MBEDTLS_GCM_ENCRYPT, response_length,
-        nonce, sizeof(nonce), header, sizeof(header), response, ciphertext,
-        sizeof(tag), tag);
+    rc = mbedtls_gcm_crypt_and_tag(&gcm, MBEDTLS_GCM_ENCRYPT, response_length, nonce, sizeof(nonce), header,
+                                   sizeof(header), response, ciphertext, sizeof(tag), tag);
     mbedtls_gcm_free(&gcm);
     uint32_t sent_at = clock_ms(NULL);
-    return rc == 0 && wifi_bulk_io(client, header, sizeof(header), true, sent_at,
-            FRAME_IO_BUDGET_MS, clock_ms, client_active, &generation) == 0 &&
-        wifi_bulk_io(client, tag, sizeof(tag), true, sent_at,
-            FRAME_IO_BUDGET_MS, clock_ms, client_active, &generation) == 0 &&
-        wifi_bulk_io(client, ciphertext, response_length, true, sent_at,
-            FRAME_IO_BUDGET_MS, clock_ms, client_active, &generation) == 0;
+    return rc == 0 &&
+           wifi_bulk_io(client, header, sizeof(header), true, sent_at, FRAME_IO_BUDGET_MS, clock_ms, client_active,
+                        &generation) == 0 &&
+           wifi_bulk_io(client, tag, sizeof(tag), true, sent_at, FRAME_IO_BUDGET_MS, clock_ms, client_active,
+                        &generation) == 0 &&
+           wifi_bulk_io(client, ciphertext, response_length, true, sent_at, FRAME_IO_BUDGET_MS, clock_ms, client_active,
+                        &generation) == 0;
 }
 
 static void server_task(void *arg)
 {
     (void)arg;
     uint8_t *ciphertext = frame_ciphertext;
-    uint8_t *plaintext = frame_plaintext;
-    for (;;) {
+    uint8_t *plaintext  = frame_plaintext;
+    for (;;)
+    {
         worker_health_progress(WORKER_WIFI_SERVER, (uint32_t)(esp_timer_get_time() / 1000));
-        while (!atomic_load(&wifi_active)) {
+        while (!atomic_load(&wifi_active))
+        {
             worker_health_progress(WORKER_WIFI_SERVER, (uint32_t)(esp_timer_get_time() / 1000));
             vTaskDelay(pdMS_TO_TICKS(250));
         }
         int server = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-        if (server < 0) { vTaskDelay(pdMS_TO_TICKS(1000)); continue; }
+        if (server < 0)
+        {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            continue;
+        }
         int yes = 1;
         setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
         struct sockaddr_in address = {
-            .sin_family = AF_INET,
-            .sin_port = htons(PORT),
+            .sin_family      = AF_INET,
+            .sin_port        = htons(PORT),
             .sin_addr.s_addr = htonl(INADDR_ANY),
         };
-        if (bind(server, (struct sockaddr *)&address, sizeof(address)) != 0 ||
-            listen(server, 1) != 0) {
+        if (bind(server, (struct sockaddr *)&address, sizeof(address)) != 0 || listen(server, 1) != 0)
+        {
             close(server);
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
-        while (atomic_load(&wifi_active)) {
+        while (atomic_load(&wifi_active))
+        {
             worker_health_progress(WORKER_WIFI_SERVER, (uint32_t)(esp_timer_get_time() / 1000));
             // SO_RCVTIMEO does not portably bound accept; select owns its deadline.
             fd_set readable;
             FD_ZERO(&readable);
             FD_SET(server, &readable);
             struct timeval timeout = {.tv_sec = 0, .tv_usec = 250000};
-            int ready = select(server + 1, &readable, NULL, NULL, &timeout);
-            if (ready < 0) break;
-            if (ready == 0 || !atomic_load(&wifi_active)) continue;
+            int            ready   = select(server + 1, &readable, NULL, NULL, &timeout);
+            if (ready < 0)
+                break;
+            if (ready == 0 || !atomic_load(&wifi_active))
+                continue;
             uint32_t generation = atomic_load(&wifi_generation);
-            int client = accept(server, NULL, NULL);
-            if (client < 0) continue;
+            int      client     = accept(server, NULL, NULL);
+            if (client < 0)
+                continue;
             uint32_t ota_session = 0;
-            while (handle_frame(client, ciphertext, plaintext, generation, &ota_session)) {}
-            if (ota_session) {
+            while (handle_frame(client, ciphertext, plaintext, generation, &ota_session))
+            {
+            }
+            if (ota_session)
+            {
                 // Only an authenticated OTA participant can abandon its transfer.
                 // Read-only or rejected probes cannot invalidate another session.
                 unsigned expected = generation;
@@ -515,103 +592,124 @@ static void worker_task(void *arg)
 {
     (void)arg;
     command_t command;
-    for (;;) {
+    for (;;)
+    {
         worker_health_progress(WORKER_WIFI_COMMAND, (uint32_t)(esp_timer_get_time() / 1000));
-        if (xQueueReceive(command_queue, &command, pdMS_TO_TICKS(1000)) == pdTRUE) {
+        if (xQueueReceive(command_queue, &command, pdMS_TO_TICKS(1000)) == pdTRUE)
+        {
             xSemaphoreTake(state_lock, portMAX_DELAY);
-            state.last_op = command.op;
+            state.last_op  = command.op;
             state.sequence = command.sequence;
-            state.result = RESULT_PENDING;
-            state.phase = command.op == OP_OPEN ? PHASE_STARTING : PHASE_OFF;
+            state.result   = RESULT_PENDING;
+            state.phase    = command.op == OP_OPEN ? PHASE_STARTING : PHASE_OFF;
             publish_locked();
             xSemaphoreGive(state_lock);
-            if (command.op == OP_OPEN) {
+            if (command.op == OP_OPEN)
+            {
                 ble_mgr_set_paused(true);
-                if (!start_maintenance_network()) {
+                if (!start_maintenance_network())
+                {
                     release_wifi_driver();
                     memory_health_log("wifi_failed_released");
                     ble_mgr_set_paused(false);
                     xSemaphoreTake(state_lock, portMAX_DELAY);
                     clear_session_locked(PHASE_FAILED, RESULT_NETWORK);
-                    state.last_op = command.op;
+                    state.last_op  = command.op;
                     state.sequence = command.sequence;
                     publish_locked();
                     xSemaphoreGive(state_lock);
                 }
-            } else if (command.op == OP_CLOSE) {
+            }
+            else if (command.op == OP_CLOSE)
+            {
                 stop_maintenance_network();
                 xSemaphoreTake(state_lock, portMAX_DELAY);
-                state.last_op = command.op;
+                state.last_op  = command.op;
                 state.sequence = command.sequence;
                 publish_locked();
                 xSemaphoreGive(state_lock);
             }
         }
         uint32_t abandoned = atomic_exchange(&abandoned_ota_session, 0);
-        bool should_close;
+        bool     should_close;
         xSemaphoreTake(state_lock, portMAX_DELAY);
-        should_close = (state.phase == PHASE_READY &&
-            (int32_t)(state.expires_at - xTaskGetTickCount()) <= 0) ||
-            ota_recovery_close_network(abandoned, state.session_id, state.phase == PHASE_READY);
+        should_close = (state.phase == PHASE_READY && (int32_t)(state.expires_at - xTaskGetTickCount()) <= 0) ||
+                       ota_recovery_close_network(abandoned, state.session_id, state.phase == PHASE_READY);
         xSemaphoreGive(state_lock);
-        if (should_close) stop_maintenance_network();
+        if (should_close)
+            stop_maintenance_network();
     }
 }
 
 esp_err_t wifi_bulk_init(void)
 {
-    if (server_started) return ESP_OK;
+    if (server_started)
+        return ESP_OK;
     TaskHandle_t control_task = NULL, bulk_task = NULL;
-    state_lock = xSemaphoreCreateMutex();
+    state_lock    = xSemaphoreCreateMutex();
     command_queue = xQueueCreate(2, sizeof(command_t));
     // Allocate mandatory service buffers before publishing availability. A task
     // must not silently die and leave a READY AP with no receiving server.
     frame_ciphertext = heap_caps_malloc(FRAME_MAX_PLAINTEXT, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    frame_plaintext = heap_caps_malloc(FRAME_MAX_PLAINTEXT, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!state_lock || !command_queue || !frame_ciphertext || !frame_plaintext) goto fail;
+    frame_plaintext  = heap_caps_malloc(FRAME_MAX_PLAINTEXT, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!state_lock || !command_queue || !frame_ciphertext || !frame_plaintext)
+        goto fail;
     xSemaphoreTake(state_lock, portMAX_DELAY);
     clear_session_locked(PHASE_OFF, RESULT_OK);
     xSemaphoreGive(state_lock);
     if (xTaskCreate(server_task, "wifi_bulk", 8192, NULL, 4, &bulk_task) != pdPASS ||
-        xTaskCreate(worker_task, "wifi_control", 5120, NULL, 4, &control_task) != pdPASS) goto fail;
+        xTaskCreate(worker_task, "wifi_control", 5120, NULL, 4, &control_task) != pdPASS)
+        goto fail;
     server_started = true;
     return ESP_OK;
 fail:
-    if (control_task) vTaskDelete(control_task);
-    if (bulk_task) vTaskDelete(bulk_task);
-    if (command_queue) vQueueDelete(command_queue);
-    if (state_lock) vSemaphoreDelete(state_lock);
+    if (control_task)
+        vTaskDelete(control_task);
+    if (bulk_task)
+        vTaskDelete(bulk_task);
+    if (command_queue)
+        vQueueDelete(command_queue);
+    if (state_lock)
+        vSemaphoreDelete(state_lock);
     heap_caps_free(frame_ciphertext);
     heap_caps_free(frame_plaintext);
     frame_ciphertext = frame_plaintext = NULL;
-    command_queue = NULL;
-    state_lock = NULL;
+    command_queue                      = NULL;
+    state_lock                         = NULL;
     return ESP_ERR_NO_MEM;
 }
 
-bool wifi_bulk_available(void) { return server_started; }
+bool wifi_bulk_available(void)
+{
+    return server_started;
+}
 
 bool wifi_bulk_command(const uint8_t *bytes, size_t length)
 {
-    if (!server_started || !bytes || length != 5 ||
-        (bytes[0] != OP_OPEN && bytes[0] != OP_CLOSE)) return false;
+    if (!server_started || !bytes || length != 5 || (bytes[0] != OP_OPEN && bytes[0] != OP_CLOSE))
+        return false;
     command_t command = {.op = bytes[0], .sequence = read_u32(bytes + 1)};
-    bool queued = xQueueSend(command_queue, &command, 0) == pdTRUE;
-    if (!queued) worker_health_queue_drop(WORKER_WIFI_COMMAND);
+    bool      queued  = xQueueSend(command_queue, &command, 0) == pdTRUE;
+    if (!queued)
+        worker_health_queue_drop(WORKER_WIFI_COMMAND);
     return queued;
 }
 
 size_t wifi_bulk_status(uint8_t out[WIFI_BULK_STATUS_SIZE])
 {
-    if (!out || !server_started) return 0;
+    if (!out || !server_started)
+        return 0;
     portENTER_CRITICAL(&status_mux);
     memcpy(out, status_cache, sizeof(status_cache));
     uint32_t expires = status_expires_at;
     portEXIT_CRITICAL(&status_mux);
     int32_t remaining = (int32_t)(expires - xTaskGetTickCount());
-    if (out[1] == PHASE_READY) {
-        if (remaining > 0) write_u32(out + 52, (uint32_t)remaining / configTICK_RATE_HZ);
-        else memset(out + 20, 0, WIFI_BULK_STATUS_SIZE - 20U);
+    if (out[1] == PHASE_READY)
+    {
+        if (remaining > 0)
+            write_u32(out + 52, (uint32_t)remaining / configTICK_RATE_HZ);
+        else
+            memset(out + 20, 0, WIFI_BULK_STATUS_SIZE - 20U);
     }
     return sizeof(status_cache);
 }

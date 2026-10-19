@@ -3,13 +3,19 @@
 #include <stdint.h>
 
 /* Pure bounded local-action recognizer. No adapter/vehicle commands. */
-typedef struct { bool enabled; uint8_t target_page, count; uint32_t window_ms; } page_action_config_t;
-typedef struct {
+typedef struct
+{
+    bool     enabled;
+    uint8_t  target_page, count;
+    uint32_t window_ms;
+} page_action_config_t;
+typedef struct
+{
     page_action_config_t config;
-    uint8_t progress;
-    uint32_t first_ms, press_ms, executed_ms;
-    int16_t x, y;
-    bool pressed, cancelled, cooling;
+    uint8_t              progress;
+    uint32_t             first_ms, press_ms, executed_ms;
+    int16_t              x, y;
+    bool                 pressed, cancelled, cooling;
 } page_action_t;
 void page_action_init(page_action_t *state, page_action_config_t config);
 void page_action_reset(page_action_t *state);

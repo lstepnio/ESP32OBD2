@@ -2,18 +2,22 @@
 #include <math.h>
 #include "alert_engine.h"
 
-typedef struct {
-    uint8_t severity;
-    uint8_t pending;
+typedef struct
+{
+    uint8_t  severity;
+    uint8_t  pending;
     uint32_t pending_since;
     uint32_t last_sample;
-    bool sampled;
-    double value;
+    bool     sampled;
+    double   value;
 } alert_state_t;
 
 static const config_runtime_t *rules;
 static alert_transition_sink_t transition_sink;
-void alert_engine_set_sink(alert_transition_sink_t sink) { transition_sink = sink; }
+void                           alert_engine_set_sink(alert_transition_sink_t sink)
+{
+    transition_sink = sink;
+}
 static alert_state_t states[EGAUGE_RUNTIME_ALERTS];
 
 static bool crosses(const runtime_alert_t *rule, double value, double limit)
@@ -23,8 +27,9 @@ static bool crosses(const runtime_alert_t *rule, double value, double limit)
 
 static bool releases(const runtime_alert_t *rule, double value, double limit)
 {
-    return rule->equals ? value != limit : rule->above ? value <= limit - rule->hysteresis
-                       : value >= limit + rule->hysteresis;
+    return rule->equals  ? value != limit
+           : rule->above ? value <= limit - rule->hysteresis
+                         : value >= limit + rule->hysteresis;
 }
 
 void alert_engine_init(const config_runtime_t *runtime)
@@ -35,73 +40,107 @@ void alert_engine_init(const config_runtime_t *runtime)
 
 void alert_engine_sample(uint8_t pid_index, double value, uint32_t now_ms)
 {
-    if (!rules || pid_index >= rules->pid_count) return;
-    if (!isfinite(value)) { alert_engine_invalidate_pid(pid_index); return; }
-    for (unsigned i = 0; i < rules->alert_count; ++i) {
+    if (!rules || pid_index >= rules->pid_count)
+        return;
+    if (!isfinite(value))
+    {
+        alert_engine_invalidate_pid(pid_index);
+        return;
+    }
+    for (unsigned i = 0; i < rules->alert_count; ++i)
+    {
         const runtime_alert_t *rule = &rules->alerts[i];
-        if (rule->pid_index != pid_index) continue;
+        if (rule->pid_index != pid_index)
+            continue;
         alert_state_t *state = &states[i];
-        uint32_t stale = rules->pids[pid_index].stale_ms;
-        if (state->sampled && now_ms - state->last_sample > stale) {
-            state->pending = 0;
+        uint32_t       stale = rules->pids[pid_index].stale_ms;
+        if (state->sampled && now_ms - state->last_sample > stale)
+        {
+            state->pending       = 0;
             state->pending_since = 0;
         }
-        state->value = value;
-        state->sampled = true;
+        state->value       = value;
+        state->sampled     = true;
         state->last_sample = now_ms;
-        uint8_t target = 0;
-        if (rule->has_critical && crosses(rule, value, rule->critical)) target = 2;
-        else if (rule->has_warning && crosses(rule, value, rule->warning)) target = 1;
-        if (target > state->severity) {
-            if (rule->trigger_dwell_ms == 0) {
+        uint8_t target     = 0;
+        if (rule->has_critical && crosses(rule, value, rule->critical))
+            target = 2;
+        else if (rule->has_warning && crosses(rule, value, rule->warning))
+            target = 1;
+        if (target > state->severity)
+        {
+            if (rule->trigger_dwell_ms == 0)
+            {
                 state->severity = target;
-                state->pending = 0;
-            } else if (state->pending != target) {
-                state->pending = target;
-                state->pending_since = now_ms;
-            } else if (now_ms - state->pending_since >= rule->trigger_dwell_ms) {
-                state->severity = target;
-                state->pending = 0;
+                state->pending  = 0;
             }
-        } else if (target < state->severity) {
+            else if (state->pending != target)
+            {
+                state->pending       = target;
+                state->pending_since = now_ms;
+            }
+            else if (now_ms - state->pending_since >= rule->trigger_dwell_ms)
+            {
+                state->severity = target;
+                state->pending  = 0;
+            }
+        }
+        else if (target < state->severity)
+        {
             double active_limit = state->severity == 2 ? rule->critical : rule->warning;
-            if (!releases(rule, value, active_limit)) {
-                state->pending = 0;
-            } else if (rule->clear_dwell_ms == 0) {
-                state->severity = target;
-                state->pending = 0;
-            } else if (state->pending != 3) {
-                state->pending = 3;
-                state->pending_since = now_ms;
-            } else if (now_ms - state->pending_since >= rule->clear_dwell_ms) {
-                state->severity = target;
+            if (!releases(rule, value, active_limit))
+            {
                 state->pending = 0;
             }
-        } else state->pending = 0;
+            else if (rule->clear_dwell_ms == 0)
+            {
+                state->severity = target;
+                state->pending  = 0;
+            }
+            else if (state->pending != 3)
+            {
+                state->pending       = 3;
+                state->pending_since = now_ms;
+            }
+            else if (now_ms - state->pending_since >= rule->clear_dwell_ms)
+            {
+                state->severity = target;
+                state->pending  = 0;
+            }
+        }
+        else
+            state->pending = 0;
     }
 }
 
 alert_summary_t alert_engine_tick(uint32_t now_ms)
 {
-    alert_summary_t summary = {0};
-    uint8_t chosen_priority = 0;
-    if (!rules) return summary;
-    for (unsigned i = 0; i < rules->alert_count; ++i) {
-        const runtime_alert_t *rule = &rules->alerts[i];
-        alert_state_t *state = &states[i];
-        bool stale = !state->sampled ||
-            now_ms - state->last_sample > rules->pids[rule->pid_index].stale_ms;
-        if (stale) state->pending = 0;
-        if (transition_sink) transition_sink(i, state->severity == 2 ? 4 : state->severity == 1 ? 3 : 0,
-            stale, rules->pids[rule->pid_index].name, rules->pids[rule->pid_index].unit,
-            (float)state->value, (float)(state->severity == 2 ? rule->critical : rule->warning), state->last_sample, now_ms);
+    alert_summary_t summary         = {0};
+    uint8_t         chosen_priority = 0;
+    if (!rules)
+        return summary;
+    for (unsigned i = 0; i < rules->alert_count; ++i)
+    {
+        const runtime_alert_t *rule  = &rules->alerts[i];
+        alert_state_t         *state = &states[i];
+        bool stale = !state->sampled || now_ms - state->last_sample > rules->pids[rule->pid_index].stale_ms;
+        if (stale)
+            state->pending = 0;
+        if (transition_sink)
+            transition_sink(i,
+                            state->severity == 2   ? 4
+                            : state->severity == 1 ? 3
+                                                   : 0,
+                            stale, rules->pids[rule->pid_index].name, rules->pids[rule->pid_index].unit,
+                            (float)state->value, (float)(state->severity == 2 ? rule->critical : rule->warning),
+                            state->last_sample, now_ms);
         if (state->severity > summary.severity ||
-            (state->severity != 0 && state->severity == summary.severity &&
-             rule->priority > chosen_priority)) {
-            summary.severity = state->severity;
+            (state->severity != 0 && state->severity == summary.severity && rule->priority > chosen_priority))
+        {
+            summary.severity    = state->severity;
             summary.unavailable = stale;
-            summary.label = rules->pids[rule->pid_index].name;
-            chosen_priority = rule->priority;
+            summary.label       = rules->pids[rule->pid_index].name;
+            chosen_priority     = rule->priority;
         }
     }
     return summary;
@@ -109,31 +148,41 @@ alert_summary_t alert_engine_tick(uint32_t now_ms)
 
 void alert_engine_invalidate(void)
 {
-    for (unsigned i=0; i<EGAUGE_RUNTIME_ALERTS; ++i) {
-        states[i].sampled = false;
-        states[i].pending = 0;
+    for (unsigned i = 0; i < EGAUGE_RUNTIME_ALERTS; ++i)
+    {
+        states[i].sampled       = false;
+        states[i].pending       = 0;
         states[i].pending_since = 0;
     }
 }
 
 void alert_engine_invalidate_source(unsigned source)
 {
-    if (!rules) { alert_engine_invalidate(); return; }
-    for (unsigned i=0; i<rules->alert_count; ++i) {
-        if (rules->pids[rules->alerts[i].pid_index].source_index != source) continue;
-        states[i].sampled = false;
-        states[i].pending = 0;
+    if (!rules)
+    {
+        alert_engine_invalidate();
+        return;
+    }
+    for (unsigned i = 0; i < rules->alert_count; ++i)
+    {
+        if (rules->pids[rules->alerts[i].pid_index].source_index != source)
+            continue;
+        states[i].sampled       = false;
+        states[i].pending       = 0;
         states[i].pending_since = 0;
     }
 }
 
 void alert_engine_invalidate_pid(uint8_t pid_index)
 {
-    if (!rules) return;
-    for (unsigned i=0; i<rules->alert_count; ++i) {
-        if (rules->alerts[i].pid_index != pid_index) continue;
-        states[i].sampled = false;
-        states[i].pending = 0;
+    if (!rules)
+        return;
+    for (unsigned i = 0; i < rules->alert_count; ++i)
+    {
+        if (rules->alerts[i].pid_index != pid_index)
+            continue;
+        states[i].sampled       = false;
+        states[i].pending       = 0;
         states[i].pending_since = 0;
     }
 }

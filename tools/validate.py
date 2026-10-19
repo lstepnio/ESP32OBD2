@@ -344,8 +344,11 @@ check(
     "Neutral global security policy must permit fresh pairing and unencrypted adapter notifications",
 )
 ble_init = (ROOT / "firmware/gauge/main/src/ble_init.c").read_text()
-for setting in ("ble_hs_cfg.sm_mitm = 1", "ble_hs_cfg.sm_sc = 1", "ble_hs_cfg.sm_bonding = 1"):
-    check(setting in ble_init, f"Missing phone pairing security: {setting}")
+for field in ("sm_mitm", "sm_sc", "sm_bonding"):
+    check(
+        re.search(rf"\bble_hs_cfg\.{field}\s*=\s*1\s*;", ble_init),
+        f"Missing phone pairing security: {field}=1",
+    )
 check(
     "CONFIG_BT_NIMBLE_SM_SC=y" in sdk and "# CONFIG_BT_NIMBLE_SM_LEGACY is not set" in sdk,
     "Secure Connections must remain enabled with legacy pairing disabled",

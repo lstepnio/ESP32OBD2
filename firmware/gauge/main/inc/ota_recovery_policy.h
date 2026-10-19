@@ -11,8 +11,7 @@ static inline bool ota_recovery_abandon(uint8_t phase, bool wifi_owned, bool ses
 
 /* Only authenticated OTA participants provide abandoned_session. A late signal
  * from an older session cannot close a newly opened maintenance network. */
-static inline bool ota_recovery_close_network(uint32_t abandoned_session,
-                                              uint32_t current_session, bool ready)
+static inline bool ota_recovery_close_network(uint32_t abandoned_session, uint32_t current_session, bool ready)
 {
     return ready && abandoned_session != 0 && abandoned_session == current_session;
 }
