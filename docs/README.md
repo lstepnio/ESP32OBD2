@@ -20,6 +20,7 @@ Read only the affected contract/runbook before source work; evidence is not requ
 - [Hardware strategy](architecture/hardware-and-transports.md), [local gestures and proposed controller actions](architecture/vehicle-actions.md)
 
 - [Shared alerts, notifications and CEL/MIL plan](architecture/alerts-and-diagnostics.md): proposed lifecycle, context/history, clearing and implementation/test sequence
+- [Proposed phone companion content](architecture/phone-companion-content.md): WzSabrePOC integration, directions/now-playing boundaries, source feasibility, bounded delivery and review gates
 
 ## Protocols
 

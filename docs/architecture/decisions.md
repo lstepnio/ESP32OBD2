@@ -5,7 +5,9 @@ ADR-001..004, 006..009 and 012 are implemented development choices. ADR-005 has
 bounded implemented slices; broader discovery is proposed. ADR-010 public contract
 freezing and ADR-011 simultaneous radio operation remain qualification gates.
 ADR-013 implements local page jumps only; controller writes are proposed. ADR-014
-records current durable phone setup. ADR-015 proposes shared alerts and diagnostics. [Current state](../current-state.md) owns support.
+records current durable phone setup. ADR-015 proposes shared alerts and diagnostics.
+ADR-016 is a proposed phone-content integration, with no new runtime implementation.
+[Current state](../current-state.md) owns support.
 
 | ID | Decision | Reason and tradeoff | Revisit when |
 | --- | --- | --- | --- |
@@ -24,6 +26,7 @@ records current durable phone setup. ADR-015 proposes shared alerts and diagnost
 | ADR-013 | Curated off-road profile actions with bounded gauge gestures | Simple autonomous controls with explicit controller support, source routing and uncertain-outcome handling | Action contract and controller qualification complete |
 | ADR-014 | Coupled vehicle/gauge setup in one SharedPreferences commit | Existing bounded offline storage and backward reads; publish only acknowledged state via serialized off-main writes, not a second independently saved association document | Storage scale or a concrete transaction requirement warrants a migration |
 | ADR-015 | Shared alert lifecycle and history across threshold, MIL/fault and external producers; diagnostic endpoint independent of adapter | Autonomous gauge truth, consistent UX, bounded context and recoverable sync; event storage separate from setup; clearing remains explicit and qualified | Phased implementation, resource measurements and controller/Android qualification |
+| ADR-016 (Proposed) | Typed road/navigation/media content through one existing phone/gauge owner; alerts and transient state retain different lifecycles | Small source-independent boundary, local expiry and bounded resources; reusable GATT sessions and supported source acquisition require review/testing | Owner approval, Maps/Waze feasibility, provider access and loaded memory/radio measurements |
 
 [System architecture](system.md) records module boundaries. [Backlog](../backlog.md) records outstanding acceptance; [roadmap](../roadmap.md) orders outcomes.
 
@@ -32,3 +35,6 @@ records current durable phone setup. ADR-015 proposes shared alerts and diagnost
 [Profile actions and gauge gestures](vehicle-actions.md) records ADR-013 and its local foundation; no vehicle controls are enabled.
 
 [Shared alerts and diagnostics](alerts-and-diagnostics.md) records ADR-015 and its implementation sequence.
+
+[Phone companion content](phone-companion-content.md) records proposed ADR-016,
+WzSabrePOC findings, source constraints and phased acceptance.

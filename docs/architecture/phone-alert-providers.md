@@ -1,20 +1,27 @@
 # Paired-phone alert providers
 
-Maintained integration contract for FEATURE-06. Updated 2026-10-07.
+Maintained integration contract for FEATURE-06. Updated 2026-10-18.
 [ADR-015](alerts-and-diagnostics.md) owns the common event model;
 [wire contract](../protocol/diagnostics-and-alerts.md) owns byte layouts;
 [backlog](../backlog.md) owns provider activation and qualification.
 
 ## Current implementation and scope
 
-`ExternalAlerts.kt` provides `PhoneAlertProvider`, typed notices, a reviewed-provider
-registry and validation. A debug Expert action sends an explicitly simulated,
-30-second advisory through the same protected owner connection, gauge reducer,
-history and context UI as vehicle alerts. It cannot become a Critical alert or
-produce a live vehicle notification. This is a test seam, not a live crowd feed.
+`ExternalAlerts.kt` provides `PhoneAlertProvider`, typed notices, reviewed-provider
+validation and an explicitly simulated, 30-second advisory fixture. The protected
+relay/codec, gauge reducer, history and context path remain available for focused
+tests; the former synthetic Expert button has been removed. The fixture cannot
+become a Critical alert or produce a live vehicle notification. Only the synthetic
+provider review is registered. This is a test seam, not a live crowd feed.
 No commercial provider, location collection, notification scraping or account
 integration is enabled. The App receives gauge-originated threshold and fault
 alerts automatically; providers never evaluate those thresholds independently.
+
+[Proposed ADR-016](phone-companion-content.md) covers carrying WzSabrePOC findings
+into this seam and a common delivery boundary for future directions/now-playing.
+It is not implemented: navigation/media use expiring state rather than alert
+episodes, and live Google Maps/Waze maneuver access remains unproven. ADR-015 and
+this guide continue to own road-alert lifecycle and provider admission.
 
 A crowd hazard is contextual information, not proof of a vehicle fault. It may
 expire, be withdrawn or become unavailable; none of these clears ECU codes. An
