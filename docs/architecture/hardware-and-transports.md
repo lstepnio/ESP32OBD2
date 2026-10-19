@@ -134,3 +134,11 @@ interruption, **QUAL-04/QUAL-08** track radio coexistence and resource/power mea
 and **FEATURE-02** covers optional sensors and power/sleep integrations in
 [the backlog](../backlog.md). This strategy does not install extra sensors or qualify
 permanent automotive power. Exact board revision/pin and ADC decisions precede use.
+
+## Mechanical prototype
+
+The [JK upper-dash TPU pod](../../mechanical/jk-dash-pod/README.md) contains editable
+mesh CAD, three STL fit-prototype parts and geometry checks for the bare Waveshare
+board plus the owner's Pololu D36V28F5 converter. The base is generic and flat;
+vehicle contour, PCB grip, connector clearance, attachment, hot-cabin retention,
+thermal behavior and vibration remain unqualified. Print the fit coupon first.
