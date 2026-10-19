@@ -1,8 +1,8 @@
 # ADR-013: Profile actions and gauge gesture triggers
 
-**Status:** Accepted for the local page-action foundation; vehicle controls proposed
+**Status:** Accepted for local page actions and the offline idle foundation; vehicle execution proposed
 **Date:** 2026-10-07
-**High-idle delivery proposal updated:** 2026-10-19; not implemented
+**High-idle updated:** 2026-10-19; offline foundation implemented, vehicle execution disabled
 **Deciders:** Project owner for interaction choices; implementation and physical
 qualification determine which controller definitions become available.
 
@@ -169,7 +169,7 @@ insufficient to enable high idle or ABS on this Jeep.
 
 ## First vehicle command: temporary high idle
 
-**Proposed, not implemented.** Reuse ADR-013 for configurable commands. The first
+**Offline foundation implemented; vehicle execution proposed and disabled.** Reuse ADR-013 for configurable commands. The first
 scope is temporary engine idle for air-up and winching; ABS/ESC and persistent PCM
 adaptations remain outside this increment. The command does not operate the winch
 or compressor. Its remaining work is owned by FEATURE-04, not a separate backlog.
@@ -188,13 +188,12 @@ Treat this as the working reference. The next gate is matching the complete
 procedure to eGauge and the current PCM, not asking whether a stock-JK feature
 exists. This report does not supply the test's RPM, wire sequence or release timing.
 
-The [handler inventory](../vehicles/jeep/jk-handler-analysis.md) supplies only
-partial control-flow evidence. In particular `33 05` occurs before starting and
-inside the recurring work method. Do not label it a Stop packet or infer that
-stopping traffic releases the override. Recover the complete setup/session,
-RPM encoding, replies, refresh deadlines, stop/release and loss-of-contact behavior
-from a matching procedure or reference trace before admitting a real driver.
-`22 0122` in the adaptation record is not the complete high-idle command.
+The [detailed offline review](../vehicles/jeep/jk-handler-analysis.md#detailed-offline-control-flow-review-2026-10-19)
+now establishes two-byte RPM encoding, session/refresh call order and a Stop that
+ends the refresh loop. It does not establish accepted replies or the PCM's release
+timeout. `33 05` is not a discovered Stop packet, and `22 0122` is not the complete
+high-idle command. Match the current controller, verify results and measure release
+before admitting a real driver; do not copy the reference's discarded-result behavior.
 
 JScan's [FAQ](https://jscan.net/faq/) describes its raised-idle feature as temporary
 and returning to normal when its screen is left or the App disconnects. This is
@@ -275,6 +274,33 @@ generation, duplicate Start, lost Start/Stop replies, timer wrap, timeout during
 diagnostic request, cancellation, queue pressure, profile changes and reboot. A
 forced disconnect test may run on a real PCM only after its documented timeout and
 recovery procedure are established. These slices do not authorize release or flashing.
+
+### Implemented offline foundation
+
+- `temporary_idle.c` is a pure fixed-size policy with no IO, task or allocation.
+  It emits Start/Refresh/Release intents only for an independently qualified
+  definition and matching fresh context. Tests connect the existing page-action
+  recognizer to the policy without changing its production page-jump path.
+- Duplicate/old Starts, overlapping operations, retired completion tickets,
+  changed revision/link, missed deadlines, cancellation, expiry and timer wrap are
+  covered. Unknown never becomes success implicitly. Explicit release retry needs
+  definition-declared idempotence; independent release evidence permits reconciliation.
+- `IdlePreset`/schema 14 store two phone-only drafts with no inferred target RPM.
+  They use the coupled setup store, stay on the parent, survive gauge restoration,
+  and do not enter configuration bytes or alter exact gauge comparisons.
+- Car > Air up & winch configures RPM/duration and removal. The presenter has
+  countdown/Start/Stop states exercised only by fixture handlers; normal App state
+  remains Unavailable and has no transport callbacks. This is not live telemetry.
+- The [offline inner codec](../protocol/experimental-firmware-transfers.md#offline-temporary-idle-inner-codec)
+  shares a C/Kotlin vector. It is not registered with BLE, advertised as a capability
+  or connected to an adapter worker. No real or selectable fixture controller driver
+  is installed. The policy object is not instantiated in the firmware runtime.
+
+Remaining integration includes the qualified controller definition, protected
+Start/Stop/status dispatch, source-worker scheduling, shared operation history and
+physical gauge Quick actions menu. Those boundaries remain gated while the actual
+PCM replies and release behavior are unknown. This delivers the reusable offline
+parts without pretending the planned vehicle-control vertical slice is complete.
 
 ## Remaining qualification
 

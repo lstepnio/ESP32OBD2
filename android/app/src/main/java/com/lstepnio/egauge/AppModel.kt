@@ -3516,6 +3516,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         save(working.copy(alerts = alerts))
     }
+    fun saveIdlePresets(values: List<IdlePreset>) = launchLocalMutation {
+        if (modifyingSetupBlocked || profileError != null) return@launchLocalMutation
+        IdlePresets.validate(values)
+        persistDraft(editorDraft.copy(idlePresets = values))
+    }
     fun savePageAction(value: PageAction?) = launchLocalMutation {
         if (modifyingSetupBlocked || profileError != null) return@launchLocalMutation
         if (profileCollection.active.transmission != null) {

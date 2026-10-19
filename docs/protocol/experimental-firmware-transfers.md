@@ -227,3 +227,37 @@ In v1, firmware is peripheral to the Android central and central to the OBD adap
 
 **Proposed, not implemented:** the general v1 sections below describe future contracts,
 not the protocol-0 operations above. Capability flags do not enable them.
+
+## Offline temporary-idle inner codec
+
+Implemented as an **offline codec and policy foundation only** in `temporary_idle.c`
+and `IdleCommandProtocol`. No owner BLE opcode, status version, execution capability
+or vehicle driver is registered. These bytes cannot execute through the installed
+firmware. Authentication, running identity and source-worker admission remain
+required integration work under [ADR-013](../architecture/vehicle-actions.md#first-vehicle-command-temporary-high-idle).
+
+The 24-byte inner request uses little-endian integers and exact length/version.
+The same [Start vector](../../contracts/examples/temporary-idle-start.hex) is consumed
+by native C and Kotlin tests; there is no outer opcode in this vector.
+
+| Offset | Size | Field |
+| --- | --- | --- |
+| 0 | 1 | Inner version, 1 |
+| 1 | 1 | Start 1, Stop 2, Status 3 |
+| 2 | 1 | Start preset: Air up 1 or Winch 2; otherwise zero |
+| 3 | 1 | Reserved/source, must be zero; no child-controller target |
+| 4 | 4 | Nonzero operation ID; Start IDs increase during the policy instance lifetime, without wrap |
+| 8 | 4 | Nonzero running configuration revision |
+| 12 | 4 | Nonzero primary link generation |
+| 16 | 2 | Start target RPM, structural envelope 400..3000; otherwise zero |
+| 18 | 2 | Start duration seconds, 10..600; otherwise zero |
+| 20 | 4 | Reserved, zero |
+
+These structural bounds are not supported PCM limits. The independently qualified
+controller definition further restricts RPM/step, duration, IO/refresh and known ECU
+lease timeout before any Start intent is admitted. A packet cannot grant qualification.
+The codec does not define status replies or freeze the future authenticated envelope.
+The worker policy rejects duplicate/old Starts and overlapping operations, isolates
+completion tickets, and marks lost/late/unverified results Unknown. A repeated explicit
+release from Unknown requires a definition-declared idempotent release; context loss
+prevents traffic. Verified reconciliation is required before another Start.

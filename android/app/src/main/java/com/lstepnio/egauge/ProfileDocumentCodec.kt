@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..13) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..14) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -31,7 +31,7 @@ object ProfileDocumentCodec {
                     item.optJSONObject("transmission")?.let { child ->
                         TransmissionConnection(
                             child.optJSONObject("adapter")?.let(AdapterBinding::decode),
-                            decodeDraft(child.getJSONObject("draft"), schemaVersion)
+                            decodeDraft(child.getJSONObject("draft"), schemaVersion).also { require(it.idlePresets.isEmpty()) { "Idle presets belong to the parent vehicle" } }
                         )
                     }
                 } else {
@@ -161,7 +161,8 @@ object ProfileDocumentCodec {
             pages = pages,
             alerts = alerts,
             actions = actions,
-            diagnosticFilters = DiagnosticCodeFilters.fromDocument(saved)
+            diagnosticFilters = DiagnosticCodeFilters.fromDocument(saved),
+            idlePresets = if (schemaVersion >= 14) IdlePresets.decode(saved.getJSONArray("idlePresets")) else emptyList()
         )
         require(draft.source == "ECM" || draft.source == "TCM") { "Profile source is invalid" }
         require(
@@ -189,9 +190,11 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 13).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 14).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
+            IdlePresets.validate(profile.draft.idlePresets)
+            require(profile.transmission?.draft?.idlePresets.isNullOrEmpty())
             ProfileActions.validate(profile.draft.actions, profile.draft.pages)
             profile.transmission?.draft?.let { ProfileActions.validate(it.actions, it.pages) }
             items.put(
@@ -215,6 +218,7 @@ object ProfileDocumentCodec {
 
     private fun draftJson(draft: Draft): JSONObject = JSONObject()
         .put("actions", ProfileActions.json(draft.actions))
+        .put("idlePresets", IdlePresets.json(draft.idlePresets))
         .put("diagnosticFilters", DiagnosticCodeFilters.json(draft.diagnosticFilters))
         .put("pidId", draft.pidId)
         .put("layout", draft.layout.name)

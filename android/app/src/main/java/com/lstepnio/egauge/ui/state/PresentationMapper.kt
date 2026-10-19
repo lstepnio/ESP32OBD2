@@ -10,7 +10,7 @@ fun readingName(id: String): String = when (id) {
     else -> demoCatalog.firstOrNull { it.id == id }?.name ?: "Unknown reading"
 }
 
-/** Editor cursor fields are not part of the transmitted page/alert payload. */
+/** Editor cursor and phone-only idle drafts are not part of the transmitted payload. */
 fun sameSettings(first: Draft?, second: Draft): Boolean = first != null && first.pages == second.pages &&
     first.source == second.source && first.alerts == second.alerts &&
     first.actions == second.actions &&
@@ -745,7 +745,7 @@ private fun AppViewModel.carState(
                     !requiresVehicleDashboardFirmware(transmittedDraft, bothAdapters) ||
                         capabilities?.vehicleDashboardVersion == 1
                     ),
-        actionPages = editorDraft.pages, actions = editorDraft.actions,
+        actionPages = editorDraft.pages, actions = editorDraft.actions, idlePresets = editorDraft.idlePresets,
         canEditActions =
             !busy && profileError == null,
         actionsSupported = capabilities?.pageActionsVersion == 1, canManageVehicles = canManageVehicles,

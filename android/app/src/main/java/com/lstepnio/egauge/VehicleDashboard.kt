@@ -21,6 +21,7 @@ fun VehicleProfile.withDashboard(value: Draft): VehicleProfile {
             if (page in childPages && !page.id.startsWith("child.")) "child.${page.id}" else page.id
     }
     val primary = draft.copy(
+        idlePresets = value.idlePresets,
         diagnosticFilters = value.diagnosticFilters,
         pages = primaryPages,
         pidId =
@@ -33,6 +34,7 @@ fun VehicleProfile.withDashboard(value: Draft): VehicleProfile {
         actions = value.actions.filter { action -> primaryPages.any { it.id == action.pageId } }
     )
     val secondary = child.draft.copy(
+        idlePresets = emptyList(),
         diagnosticFilters = emptyList(),
         alerts = value.alerts.filter {
             it.pidId in

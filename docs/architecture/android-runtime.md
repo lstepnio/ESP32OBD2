@@ -56,7 +56,7 @@ Device-specific caches are cleared when discovery fails or a different target is
 
 ## Storage and recovery
 
-Profile schema 13 retains schemas 1 through 12 and requires coupled vehicle and gauge
+Profile schema 14 retains schemas 1 through 13 and requires coupled vehicle and gauge
 assignment storage. `LocalSetupStore` saves both documents in one `profiles-v1`
 preference commit. The old association file is a read-only migration input. Older
 Apps reject newer profile schemas rather than loading stale assignments. Unknown schemas and
@@ -127,3 +127,16 @@ exact-image and trial decision deadline. Never resend an uncertain write to obta
 confirmation. Evidence: [restart/editor rollout](../evidence/restart-and-dashboard-rollout.md).
 
 Schema 13 adds exact controller-scoped CEL filters to the primary vehicle draft. Missing rules default to empty; validation preserves malformed/newer source documents. Filters persist with existing coupled setup transactions and restore from gauge configuration readback. [Shared policy](alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters) owns their presentation and notification behavior.
+
+
+### Phone-only idle presets
+
+Schema 14 adds up to two validated Air up/Winch preset drafts to the parent vehicle.
+Older schemas load with no presets; unknown IDs, fractional numbers, duplicate IDs
+and out-of-envelope drafts reject the document rather than replacing it. Children
+cannot store their own idle presets. Existing coupled setup commits own persistence.
+Preset drafts survive dashboard splitting and explicit gauge-setup restoration.
+They are deliberately excluded from gauge configuration bytes and comparison until
+a qualified command path exists. Saving a local preset therefore cannot mark an
+otherwise identical gauge configuration out of sync or overwrite its running state.
+Older Apps reject schema 14; downgrade needs a compatible backup/migration.

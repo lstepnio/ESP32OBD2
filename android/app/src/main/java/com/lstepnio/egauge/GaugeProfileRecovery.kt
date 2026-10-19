@@ -31,7 +31,8 @@ object GaugeProfileRecovery {
         require(existing.id == document.vehicleProfileId) {
             "Saved setup belongs to another vehicle"
         }
-        return restoredProfile(document).copy(name = existing.name)
+        val restored = restoredProfile(document)
+        return restored.copy(name = existing.name, draft = restored.draft.copy(idlePresets = existing.draft.idlePresets))
     }
 
     private fun restoredProfile(

@@ -50,7 +50,7 @@ source roles drive protected status polling until a reviewed replacement is sent
 Each remembered gauge retains its vehicle association and explicit second-adapter
 mode. Separate vehicles and gauges never inherit one another's bindings.
 
-Profile schema 13 retains mixed primary pages and reads schemas 1..13. Coupled
+Profile schema 14 retains mixed primary pages and reads schemas 1..14. Coupled
 vehicle/gauge assignments commit together; see [Android storage](android-runtime.md#storage-and-recovery). Child page
 identities keep their existing `child.` prefix; this is an internal identity rather
 than a separate dashboard. A legacy TCM profile keeps its ID and binding, offers

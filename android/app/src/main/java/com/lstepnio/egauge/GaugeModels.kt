@@ -170,7 +170,8 @@ data class Draft(
     val pages: List<GaugePageDraft> = defaultGaugePages(pidId, layout),
     val alerts: List<GaugeAlertDraft> = listOf(defaultAlert()),
     val actions: List<PageAction> = emptyList(),
-    val diagnosticFilters: List<DiagnosticCodeFilter> = emptyList()
+    val diagnosticFilters: List<DiagnosticCodeFilter> = emptyList(),
+    val idlePresets: List<IdlePreset> = emptyList()
 )
 
 data class CapabilitySnapshot(

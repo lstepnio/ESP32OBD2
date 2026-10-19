@@ -51,7 +51,7 @@ remain unqualified. Lookup extension rules and reference provenance are in the
 
 ## Compatibility and public boundaries
 
-- Phone profiles: schema 13 reads schemas 1..13. Older Apps reject new saved state;
+- Phone profiles: prepared schema 14 reads schemas 1..14 (installed Pixel remains schema 13). Older Apps reject new saved state;
   downgrades require an explicit compatible migration. Legacy association files remain
   read-only migration inputs. See [Android storage](architecture/android-runtime.md#storage-and-recovery).
 - Gauge configuration remains schema 2. Prepared development `cfg:6`, `va:1`, `da:1`, `ad:1`
@@ -74,8 +74,12 @@ and timed page cycling remain independent implemented controls.
 FEATURE-04 now has a [temporary-idle delivery proposal](architecture/vehicle-actions.md#first-vehicle-command-temporary-high-idle)
 for Air up and Winch presets using the existing gesture/profile foundation.
 The owner [reports successful high idle through JScan on this Hemi swap](vehicles/jeep/jk-handler-analysis.md#owner-reference-confirmation-2026-10-19).
-That is the reference for matching the current PCM procedure; no eGauge command
-contract, controller driver or high-idle Start/Stop UI has been implemented or installed.
+Prepared source now implements phone-only Air up/Winch drafts and App controls,
+a fixed-size native lifecycle policy and shared offline inner-request vectors.
+Start/Stop/countdown are tested with fixtures only. No registered BLE execution,
+source-worker driver or physical gauge command menu is implemented or installed.
+The [offline foundation](architecture/vehicle-actions.md#implemented-offline-foundation)
+records the exact boundary; matched PCM replies/release timing remain the vehicle gate.
 
 ## Known reliability limits
 
