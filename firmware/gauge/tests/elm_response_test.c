@@ -57,6 +57,53 @@ static elm_result_t identifier(const char *wire, size_t fragment, elm_payload_t 
     return elm_response_decode_identifier(&response, 0x04fe, 0x7e9, payload);
 }
 
+static void strict_frame_boundaries(void)
+{
+    const char *good[] = {"7e8027105\r>", "\t7E8 02 71 05 AA AA AA AA AA\r\r>", "7E8\t02\t71\t05\r>"};
+    const char *bad[]  = {"7E8 02 7 1 05\r>",
+                          "7E80 02 71 05\r>",
+                          "000007E8 02 71 05\r>",
+                          "7E8 00 71 05\r>",
+                          "7E8 08 71 05 00 00 00 00 00 00\r>",
+                          "7E8 02 71 05 00 00 00 00 00 00\r>",
+                          "SEARCHING...\r7E8 02 71 05\r>",
+                          "31 05 06 80 1\r7E8 02 71 05\r>"};
+    for (unsigned group = 0; group < 2; ++group)
+    {
+        const char **cases = group ? bad : good;
+        size_t       count = group ? sizeof(bad) / sizeof(*bad) : sizeof(good) / sizeof(*good);
+        for (size_t i = 0; i < count; ++i)
+        {
+            elm_response_t response;
+            elm_response_reset(&response);
+            for (size_t j = 0; j < strlen(cases[i]); ++j)
+                elm_response_push(&response, (uint8_t)cases[i][j]);
+            elm_payload_t out;
+            memset(&out, 0xff, sizeof(out));
+            elm_result_t result = elm_response_decode_control_frame(&response, 0x7e8, &out);
+            if (group)
+                assert(result != ELM_OK && out.length == 0);
+            else
+                assert(result == ELM_OK && out.length == 2 && out.bytes[0] == 0x71 && out.bytes[1] == 5);
+        }
+    }
+    /* Short arbitrary framing exercises bounds under both sanitizers. */
+    uint32_t random = 1;
+    for (unsigned n = 0; n < 1000; ++n)
+    {
+        elm_response_t response;
+        elm_response_reset(&response);
+        for (unsigned j = 0; j < n % 40; ++j)
+        {
+            random = random * 1664525U + 1013904223U;
+            elm_response_push(&response, (uint8_t)(random >> 24));
+        }
+        elm_payload_t out;
+        elm_result_t  result = elm_response_decode_control_frame(&response, 0x7e8, &out);
+        if (result != ELM_OK)
+            assert(out.length == 0);
+    }
+}
 int main(void)
 {
     elm_payload_t  payload;
@@ -184,5 +231,6 @@ int main(void)
     assert(faults("7E9037F0731\r>", 7, 0x7e9, 1, &payload) == ELM_UNSUPPORTED);
     assert(faults("7E9037F0322\r>", 3, 0x7e9, 1, &payload) != ELM_UNSUPPORTED);
     assert(faults("7E8037F0311\r>", 3, 0x7e9, 1, &payload) != ELM_UNSUPPORTED);
+    strict_frame_boundaries();
     puts("ELM response fixtures passed");
 }

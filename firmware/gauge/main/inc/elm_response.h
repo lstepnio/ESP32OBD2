@@ -65,3 +65,8 @@ elm_result_t elm_response_decode_identifier(const elm_response_t *response,
                                             uint16_t              identifier,
                                             uint32_t              ecu,
                                             elm_payload_t        *payload);
+
+/* Strict control-reply framing only: one headered 11-bit CAN single frame,
+ * no echo, extra responder or informational lines. Caller validates service,
+ * parameter, exact payload length and negative replies. Does not authorize IO. */
+elm_result_t elm_response_decode_control_frame(const elm_response_t *response, uint32_t ecu, elm_payload_t *payload);
