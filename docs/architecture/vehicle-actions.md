@@ -297,14 +297,100 @@ recovery procedure are established. These slices do not authorize release or fla
   remains Unavailable and has no transport callbacks. This is not live telemetry.
 - The [offline inner codec](../protocol/experimental-firmware-transfers.md#offline-temporary-idle-inner-codec)
   shares a C/Kotlin vector. It is not registered with BLE, advertised as a capability
-  or connected to an adapter worker. No real or selectable fixture controller driver
-  is installed. The policy object is not instantiated in the firmware runtime.
+  or connected to an adapter worker. The policy and candidate driver objects are
+  not instantiated in the firmware runtime; no controller driver is selectable.
+
+### Captured Jeep driver candidate
+
+`jeep_idle_driver.c` implements the [Trail View reference](../evidence/jeep-high-idle-reference.md)
+as a pure, fixed-size stepper. `START_CAPTURED` uses only the captured `06 80`
+word. There is no API for arbitrary bytes or a numeric RPM conversion. A caller
+cannot treat a saved target RPM as a qualified mapping to this operation. The
+candidate is built but never registered, selected or advertised; live commands
+remain unreachable through the App, gesture and firmware workers.
+
+| Job | Required protocol evidence |
+| --- | --- |
+| Captured Start | Engine route setup, positive diagnostic-session reply, pre-Start report 01, one Start acknowledgment, active report 02 |
+| Report | Engine route setup and exactly one known report 01 or 02 |
+| Return | Engine route setup, one Return acknowledgment, then inactive report 01 |
+
+The post-Return report is a new verification requirement exercised synthetically
+with captured pre-Start report bytes. It was not read after Stop in the Jeep.
+Report meanings remain scoped inferences; unknown codes cannot establish success.
+An explicit Return acknowledgment alone does not complete the job. Even
+`RETURN_CONFIRMED` is protocol evidence only: Start remains fenced until the
+qualified identity/state/settled-RPM owner calls reconciliation. The current
+candidate does not implement that live evidence owner or promote the lifecycle's
+Release to verified automatically. A status read never clears Unknown on its own.
+Reconciliation preserves operation and ticket replay fences.
+
+The primary source worker must own one exclusive route/transaction lease for the
+whole bounded job. It executes each returned command with its existing transport,
+adds CR once, feeds only that ticket's bytes and advances the monotonic clock.
+No transaction or route-changing normal poll may overlap. Normal polling and the
+independent child worker retain their existing ownership; normal primary polling
+runs between jobs. The candidate has no IO callback, loop, new task or allocation.
+The host fixture measures a 592-byte object, not device heap/stack qualification.
+
+Each transaction has a 1200 ms candidate deadline and the entire job a 9000 ms
+budget, including cancellation/Return. Neither fragmented data nor NRC 78 extends
+these budgets. They are scheduling limits, not a measured ECU lease timeout.
+Admission must account for the entire job plus normal polling and freshness before
+the lifecycle can enable this driver. It must refuse timing that would starve
+readings or miss release deadlines; this stepper does not qualify a refresh cadence.
+It does not copy the reference's unrelated polling or functional keepalive loop.
+
+Cancel/failed guards before Start prevent the control write. After Start, a known,
+prompt-completed transaction allows prioritized Return; an in-flight request first
+finishes or times out. A lost reply or context becomes Unknown and does not issue
+blind Start/Return retries. Return can still proceed when an ordinary Start guard
+fails, but cannot target a different source, operation, revision or link. Retired
+completion tickets and ticket exhaustion cannot advance a job. After uncertainty,
+the external owner must resynchronize the adapter and verify the same controller
+and normal control independently; reinitializing the driver is not recovery.
+
+The new strict ELM control-frame decoder accepts one 11-bit headered single-frame
+reply from the exact engine ECU and validates declared length before dispatch.
+The driver checks service, parameter, exact data length and known state. Wrong
+ECU/service, headerless or duplicate replies, malformed/truncated/oversized data,
+negative replies and unsupported response-pending outcomes never count as success.
+Existing read decoders are unchanged. Transport prompt recovery and stale-RX
+quarantine remain responsibilities of the adapter owner before a later job.
+
+Offline tests generate their temporary C fixture from the sanitized JSON capture,
+then exercise the production stepper/decoder under address and undefined-behavior
+sanitizers. They cover both captured Start/Return pairs plus synthetic inactive
+post-Return reports, guard/cancel boundaries, duplicate/retired operations, scoped
+links, lost replies, bounded waits, timer wrap, reconciliation and malformed inputs.
+Run `python -m unittest tools.tests.test_jeep_idle_driver` or the normal host suite.
 
 Remaining integration includes the qualified controller definition, protected
 Start/Stop/status dispatch, source-worker scheduling, shared operation history and
-physical gauge Quick actions menu. Those boundaries remain gated while the actual
-PCM replies and release behavior are unknown. This delivers the reusable offline
-parts without pretending the planned vehicle-control vertical slice is complete.
+physical gauge Quick actions menu. Fresh calibration identity, target conversion,
+post-Return state and lost-refresh behavior still require Jeep qualification.
+This delivers the offline driver without claiming a complete vehicle-control path.
+
+### Next parked Jeep increment
+
+The offline driver can proceed without phone or vehicle access. The next hardware
+increment must gather these missing inputs before live registration is considered:
+
+1. Read current ECM calibration/CVN and check the existing engine target, keeping
+   the TCM child out of control routing. Establish the actual fresh Park/Neutral,
+   stationary and engine-running inputs required by the controller definition.
+2. Identify whether JScan exposes a documented target setting and capture that
+   setting's exact command/reply. Until target conversion/range is established,
+   the fixed Trail View word must not accept arbitrary App RPM preferences.
+3. Verify the report after ordinary Return and observe stable normal RPM. Compare
+   the candidate's synthetic post-Return requirement with the real controller.
+4. Establish a bounded controller release/recovery procedure before deliberately
+   removing communication. Only then schedule lost-refresh/link tests and the
+   later eGauge/dual-source recovery matrix. Ordinary Stop is not timeout evidence.
+
+These are vehicle evidence gates, not authorization to publish, install or send
+new commands. The next session can start with identity/reference reads and the
+known-working JScan path; no moving or equipment-load test is needed for that work.
 
 ## Remaining qualification
 
