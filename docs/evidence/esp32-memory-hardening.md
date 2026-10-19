@@ -633,9 +633,12 @@ immunity. No public capability or default-off clearing boundary was promoted.
 ## 2026-10-19 owner-reported display freeze
 
 Owner reported a blank, nonresponsive gauge with only “Demo” visible; manual
-reboot recovered operation. No failure-time capture, running-image identity, uptime,
-source connection state or heap measurement accompanied the observation. The last
-recorded installed baseline is dev.60, not a freshly verified incident identity.
+reboot recovered operation. Owner subsequently confirmed no vehicle adapters were
+connected and that the problem was noticed immediately before reboot. Time to
+failure, showcase state, phone connection and specific hold/swipe response remain
+unknown. No failure-time capture, running-image identity or heap measurement was
+collected. The last recorded installed baseline is dev.60, not a freshly verified
+incident identity.
 
 Source inspection: the App-started showcase hides its footer in `render_status`.
 A distinct `demo_lbl` remains for simulated runtime/alert provenance. It is created
@@ -650,6 +653,10 @@ adapter workers timing out and retrying. No panic or allocation-failure message
 was present in that capture. It does not contain the original failure and does
 not prove physical UI responsiveness or exclude an earlier memory failure.
 The private capture is retained under `artifacts/display-freeze/`.
+
+Prioritize normal operation with configured adapters absent for reproduction; the
+report does not support treating simultaneous active ECM/TCM traffic as a required
+trigger. Adapter retry activity remains possible and is not established as causal.
 
 Next evidence: operating mode and uptime before failure, touch/hold response,
 phone connection response, serial UI/application progress and memory/stack margins,
