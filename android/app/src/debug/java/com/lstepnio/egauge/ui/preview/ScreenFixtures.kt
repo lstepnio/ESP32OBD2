@@ -54,7 +54,7 @@ object ScreenFixtures {
     private val updates = UpdatesUiState(update.status, "Example 1.1", "Example 1.0", false, false,
         true, true, false, details)
     private val expert = ExpertUiState(true, true, false, details)
-    private val expertActions = ExpertActions({}, {}, {}, {}, {})
+    private val expertActions = ExpertActions({}, {}, {}, {})
 
     @Composable
     fun Screen(name: String) {

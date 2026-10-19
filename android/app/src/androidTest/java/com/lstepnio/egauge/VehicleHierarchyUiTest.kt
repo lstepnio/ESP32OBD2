@@ -2,6 +2,8 @@ package com.lstepnio.egauge
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
+import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.*
@@ -25,21 +27,45 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class VehicleHierarchyUiTest {
     @get:Rule val compose = createComposeRule()
-    private fun frame(content: @Composable () -> Unit) {
+    private fun frame(fontScale: Float = 1f, content: @Composable () -> Unit) {
         compose.setContent { EGaugeTheme {
-            CompositionLocalProvider(LocalDensity provides Density(1f)) {
+            CompositionLocalProvider(LocalDensity provides Density(1f, fontScale)) {
                 Surface(Modifier.size(390.dp, 1000.dp)) { content() }
             }
         } }
     }
+    private fun capture(name: String) {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        compose.waitForIdle()
+        val image = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        File(context.getExternalFilesDir(null), "expert-$name.png").outputStream().use {
+            image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }
+    }
+    @Test fun expertMenuRemainsScrollableAtLargeText() {
+        frame(fontScale = 1.8f) { ExpertScreen(ExpertUiState(false, false, false, emptyList(),
+            vehicleName = "Jeep", vehicleId = "jeep", hasPrimaryAdapter = true, canEditVehicle = true),
+            ExpertActions({}, {}, {}, {})) }
+        compose.onNodeWithText("Device data").performScrollTo().assertIsDisplayed()
+        capture("large-text")
+    }
+    @Test fun expertKeepsRawDataAndRecoveryActionsInsideFocusedTools() {
+        frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
+            vehicleId = "jeep", hasPrimaryAdapter = true, canEditVehicle = true), ExpertActions({}, {}, {}, {})) }
+        compose.onAllNodesWithText("Reload gauge data").assertCountEquals(0)
+        compose.onAllNodesWithText("Hardware information").assertCountEquals(0)
+        capture("menu")
+        compose.onNodeWithText("Device data").performScrollTo().performClick()
+        compose.onNodeWithText("Reload gauge data").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Hardware information").performScrollTo().assertIsNotEnabled()
+        capture("device-data")
+    }
     @Test fun transmissionIsAnExpertChildWithExplicitRemoval() {
-        var source = ""
         var removed = false
         frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
-            hasPrimaryAdapter = true, hasTransmission = true, selectedSource = "TCM", canEditVehicle = true),
-            ExpertActions({}, {}, {}, {}, {}, selectSource = { source = it }, removeTransmission = { removed = true })) }
+            hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true),
+            ExpertActions({}, {}, {}, {}, removeTransmission = { removed = true })) }
         compose.onNodeWithText("Second adapter").performScrollTo().performClick()
-        assertEquals("", source)
         compose.onNodeWithText("Find transmission adapter").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithText("Remove second adapter").performScrollTo().performClick()
         assertEquals(false, removed)
@@ -52,10 +78,10 @@ class VehicleHierarchyUiTest {
         var searches = 0
         var selected: AdapterBinding? = null
         frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
-            hasPrimaryAdapter = true, hasTransmission = true, selectedSource = "ECM", canEditVehicle = true,
+            hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true,
             canFindAdapter = true, primaryAdapter = primary, adapterCandidates = listOf(
                 AdapterCandidate("Primary fixture", primary), AdapterCandidate("Second fixture", child))),
-            ExpertActions({}, {}, {}, {}, {}, findAdapters = { searches++ }, chooseAdapter = { selected = it })) }
+            ExpertActions({}, {}, {}, {}, findAdapters = { searches++ }, chooseAdapter = { selected = it })) }
         compose.onNodeWithText("Second adapter").performScrollTo().performClick()
         compose.waitForIdle()
         assertEquals(1, searches)
@@ -67,7 +93,7 @@ class VehicleHierarchyUiTest {
         var searches = 0
         var state by mutableStateOf(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
             vehicleId = "jeep", hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true))
-        frame { ExpertScreen(state, ExpertActions({}, {}, {}, {}, {}, findAdapters = { searches++ })) }
+        frame { ExpertScreen(state, ExpertActions({}, {}, {}, {}, findAdapters = { searches++ })) }
         compose.onNodeWithText("Second adapter").performScrollTo().performClick()
         assertEquals(0, searches)
         compose.runOnIdle { state = state.copy(canFindAdapter = true) }
@@ -100,13 +126,15 @@ class VehicleHierarchyUiTest {
         var selected = false
         frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
             hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true, canUseBothAdapters = true),
-            ExpertActions({}, {}, {}, {}, {}, useBoth = { selected = it })) }
+            ExpertActions({}, {}, {}, {}, useBoth = { selected = it })) }
+        compose.onNodeWithText("Second adapter").performScrollTo().performClick()
         compose.onNodeWithText("Use both adapters on this gauge").performScrollTo().performClick()
         assertEquals(true, selected)
     }
     @Test fun oldFirmwareCannotEnableBothAdapters() {
         frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
-            hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true), ExpertActions({}, {}, {}, {}, {})) }
+            hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true), ExpertActions({}, {}, {}, {})) }
+        compose.onNodeWithText("Second adapter").performScrollTo().performClick()
         compose.onNodeWithText("Use both adapters on this gauge").performScrollTo().assertIsNotEnabled()
     }
 

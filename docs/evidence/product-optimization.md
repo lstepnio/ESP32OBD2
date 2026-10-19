@@ -212,3 +212,44 @@ small steps with explicit state-contract tests, not replaced speculatively.
 Private artifacts under ignored `artifacts/product-optimization/` hold phone timing,
 protected readback, preference comparisons and rendered captures. No personal device
 IDs, adapter captures, credentials or signing material are committed.
+
+## 2026-10-18 Expert task-menu simplification
+
+Expert now starts with vehicle-scoped Second adapter and Code filters rows, followed
+by Fault diagnostics, Device data and debug-only Demos. Raw snapshots and manual
+support checks no longer occupy the landing page. The adapter sheet combines
+selection and the existing dual-link switch, keeps one initial automatic search,
+rejects the primary adapter as a child and retains explicit removal confirmation.
+Legacy migration is shown only when there is a parent to choose. Compatibility
+messages now point to the actual Device data destination.
+
+The debug App and instrumentation APK compile and Android lint passes. Nine focused
+`VehicleHierarchyUiTest` emulator cases cover child discovery/removal, firmware gates,
+vehicle-change sheet dismissal, hidden support actions and scrolling at 1.8x font
+scale. Native captures are retained under ignored `artifacts/expert-ux/`; these use
+fixture state on an isolated emulator, not phone or live-vehicle observations.
+The running Pixel/gauge firmware session was not modified for this UI review.
+No persistence, BLE protocol, fault filtering semantics or firmware behavior changes.
+
+### Expert usefulness and installed-device review
+
+The follow-up audit removed the obsolete five-reading saved-selection projection,
+full catalog enumeration, inline configuration JSON, raw capability/hardware/fault
+object dumps, duplicate alert technical fields and signature bytes from Device data.
+Unchanged comparison rows are omitted; differences and unavailable comparisons
+remain. Support checks now precede facts. Kept facts cover identity, errors, scoped
+configuration/recovery, exact running image, signature verification and memory/reset
+health. Removed unused source-selection/primary-adapter callbacks and view-state
+fields. The synthetic phone-notice menu action and its unused AppViewModel wrapper
+were removed; shared provider/alert framework and its qualification fixtures remain.
+Firmware recheck stays in Updates; display preview is one direct debug-only action.
+
+The initial menu build was installed on the Pixel without clearing data. Protected
+status reached Gauge ready, and Device data and Code filters opened successfully.
+The final cleanup build was then installed without clearing data. Protected status
+again reported Gauge ready; Device data opened with support checks first and Fault
+diagnostics opened with explicit missing/stale coverage. Profiles, gauge associations
+and presentation preferences matched their private pre-install backups byte-for-byte.
+Debug-awake settings were restored and no ECU operation or configuration write was
+used. Build/lint, all 199 JVM tests and nine isolated emulator UI cases passed.
+Physical vehicle-reading/ECU behavior is outside this UI-only verification.

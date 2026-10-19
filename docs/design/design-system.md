@@ -77,3 +77,29 @@ profile/association/preference failures, not each routine connection retry.
 See [product assessment and implementation evidence](../evidence/product-optimization.md)
 for the dated review and workflow evidence. Current remaining qualification belongs
 to [the backlog](../backlog.md).
+
+## Expert task menu
+
+Expert is a compact task menu, not an engineering dashboard. Show vehicle-scoped
+Second adapter and Code filters entries, then Fault diagnostics and Device data.
+The debug-only display preview is a direct start/stop action with generated-data
+copy; synthetic phone notices belong in test fixtures, not the product menu. Curated values, manual support retries and setup-import actions belong
+inside Device data. Normal foreground refresh and the universal connection pill
+remain automatic and shared across destinations.
+
+Second adapter opens one setup sheet with discovery, selection and the dual-link
+switch together. Preserve primary/child routing, firmware capability gates,
+independent freshness and explicit removal confirmation. Legacy transmission
+migration appears only when a migration target exists. Sheets scroll with large
+text, retain keyboard/system insets and reset when the active vehicle changes.
+Use familiar task names; transport addresses and coverage details stay inside their
+specific tool. Hiding detail never changes diagnostic truth or saved settings.
+
+Device data is an allowlist of actionable support facts, not an object dump. Keep
+identity, access failures, configuration comparison differences, exact firmware
+identity, update verification and memory/reset health. Do not list the whole reading
+catalog, obsolete fixed-index selections, complete configuration JSON, raw protocol
+objects, duplicate alert fields or signature bytes. Fault-category evidence belongs
+in Fault diagnostics; firmware rechecks belong in Updates. Support actions precede
+support facts so long readbacks never bury recovery controls. Routine successful
+read messages stay inside Device data, not on the Expert landing page.

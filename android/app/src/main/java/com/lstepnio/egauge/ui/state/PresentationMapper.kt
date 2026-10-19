@@ -185,13 +185,12 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         ExpertUiState(found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
             canAdoptGaugeDraft, details, profileCollection.active.name, "ECM",
             profileCollection.active.primaryAdapter != null, profileCollection.active.transmission != null,
-            adapterSelectionSource, !busy && profileError == null,
-            selectedVehicleAdapter?.address?.takeLast(5), adapterCandidates,
+            !busy && profileError == null, adapterCandidates,
             capabilities?.adapterRegistryVersion == 1 && freshConnection && !busy,
             adapterMessage, if (profileCollection.active.draft.source == "TCM") profileCollection.profiles.filter {
                 it.draft.source == "ECM" && it.primaryAdapter != null && it.transmission == null &&
                     (it.primaryAdapter == profileCollection.active.primaryAdapter || !samePhysicalAdapter(it.primaryAdapter, profileCollection.active.primaryAdapter))
-            }.map { VehicleUi(it.id, it.name) } else emptyList(), deviceMessage, bothAdapters,
+            }.map { VehicleUi(it.id, it.name) } else emptyList(), bothAdapters,
             !busy && freshConnection && capabilities?.dualAdapterVersion == 1 && capabilities?.vehicleDashboardVersion == 1 && runCatching { profileCollection.active.combinedDraft() }.isSuccess,
             vehicleId = profileCollection.activeId, primaryAdapter = profileCollection.active.primaryAdapter,
             secondAdapter = profileCollection.active.transmission?.adapter,
