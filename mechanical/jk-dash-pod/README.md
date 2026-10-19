@@ -1,101 +1,103 @@
-# JK upper-dash eGauge pod: fit prototype 1
+# JK upper-dash compact dome: TPU fit prototype 2
 
 Status: dimensioned concept and test-print files, **not a qualified vehicle mount**.
-No hardware fit, vehicle installation, vibration or temperature testing has occurred.
-The housing is for the bare Waveshare board, not its optional CNC metal case.
+This revision replaces the broad screw-mount base with a compact rounded dome and
+an oval double-sided-tape foot. No hardware fit, tape bond, vehicle installation,
+vibration or temperature testing has occurred. Intended for the bare Waveshare
+board, not the optional CNC metal case. Previous geometry is retained in Git.
 
-## Files
+## Files and geometry
 
-- `gauge-fit-coupon.stl`: print FIRST. A 5 mm-high version of the perimeter seat and
-  pressure ribs. Check the actual PCB edge, LCD stack and connector relief before
-  inserting a powered assembly. Do not force the display or press the glass to insert.
-- `pod-prototype.stl`: integrated round pod and generic flat dash foot.
-- `rear-cover-converter-tray.stl`: removable friction cap with converter ledges,
-  strap slots, cable exit, and pull tab. It is exported exterior face down at Z=0.
-- `build.py`: editable parametric source. All dimensions are millimetres. `P` owns
-  the principal dimensions. This is mesh CAD, not an exported STEP solid.
-- `parameters.json`, `mesh-checks.json`: actual generated parameters and geometry checks.
-- `preview.png`: assembly concept rendered from generated meshes with simplified
-  board/display/converter envelopes. No simulated dashboard screenshot is implied.
+- `gauge-fit-coupon.stl`: print FIRST. A 5 mm-high perimeter seat and pressure-rib
+  test. Inspect actual PCB/component clearance and never force or press the glass.
+- `pod-prototype.stl`: 47 mm round bezel, curved rear dome and blended oval foot.
+  Flat adhesive contact is 48 x 40 mm. There are no mounting holes or screw wings.
+  The rear-to-front shell depth is 31 mm, down from 39 mm in revision 1.
+- `rear-cover-converter-tray.stl`: smaller removable rear friction cap, with
+  converter edge ledges, strap slots, cable exit and rounded pull tab. Print flat,
+  exterior face down, as exported.
+- `tape-template.svg`: 1:1 outline, inset 1 mm from the foot. Print at actual size
+  with scaling disabled; verify a dimension with a ruler before cutting tape.
+- `build.py`: editable parametric mesh CAD, dimensions in millimetres, inputs in
+  `P`. This is not STEP or a complete component-level mechanical assembly.
+- `parameters.json`, `mesh-checks.json`: generated parameters and actual STL sizes.
+- `preview.png`: views rendered from the generated meshes, with simplified board,
+  display and converter envelopes.
 
-## Design
+The face still points 20 degrees above horizontal. The converter lies behind the
+gauge on a removable cover; its wiring assumes flexible soldered leads, not
+upright header pins. The rear opening is smaller than the front bore, preserving
+a curved shoulder. USB and top connector reliefs remain in the shell. No battery
+pocket, drilling pattern, adhesive product or factory JK attachment is assumed.
+The entire underside is flat for tape; a measured dash contour can replace it.
 
-The face points 20 degrees above horizontal (70 degrees from horizontal face plane).
-The pod is 47 mm outside diameter; the base is 70 x 58 mm. The back-to-front shell
-is 39 mm deep. The nominal PCB rim seat is 32 mm forward of the rear opening.
-Three small radial TPU ribs grip the board perimeter; a peripheral ledge provides
-an axial stop. The screen remains open and no retention feature crosses its face.
-The converter sits behind the gauge on the removable cover with an air space
-between the two electronic assemblies. There is no battery pocket.
+The gauge uses three small radial TPU ribs and a peripheral axial-stop ledge.
+Retaining features do not cross the screen face. The seat and rib positions are
+provisional until inspected against the actual PCB, glass and components.
+The converter pocket has a center void beneath the PCB and exposed component
+clearance. A removable insulated strap can use the slots only if its route clears
+solder, traces and components; its retention is not physically qualified.
 
-The base currently has a flat underside and four optional 3.6 mm through holes
-on a 56 x 32 mm pattern. These are **new mounting holes**, not claimed factory JK
-fastener locations. There is no assumed vehicle drilling authorization. A flat
-TPU foot is only an initial template for the top plastic above the radio stack;
-its contour, viewing direction and attachment remain to be fitted to the Jeep.
-The base is integrated in this first mesh; later angle/base adjustments regenerate
-it from the parameters rather than an articulated joint.
-
-## Dimensions and sources
+## Inputs and sources
 
 | Input | Value | Confidence |
 | --- | --- | --- |
-| Waveshare lens outside diameter | 38.51 +/- 0.05 mm | Vendor drawing |
-| Lens visible area | 33.40 +/- 0.1 mm | Vendor drawing |
+| Waveshare lens OD / visible area | 38.51 +/- 0.05 / 33.40 +/- 0.1 mm | Vendor drawing |
 | Face to PCB rear | 5.00 mm | Vendor drawing |
-| Board assembly height including USB | 41.0 mm | Vendor drawing; not a circular PCB diameter |
-| Circular PCB diameter | 38.6 mm | PROVISIONAL; measure actual board before final fit |
+| Assembly height including USB | 41.0 mm | Vendor drawing, not circular PCB diameter |
+| Circular PCB diameter | 38.6 mm | PROVISIONAL: measure actual board |
 | Converter | Pololu D36V28F5, 17.8 x 20.3 x 8.8 mm | Manufacturer envelope |
-| Board radial clearance | 0.30 mm | Prototype allowance |
-| Rib radial interference | 0.15 mm | TPU fit trial, material/printer dependent |
-| Rear plug radial interference | 0.15 mm | TPU fit trial |
-| Converter edge pocket | 18.4 x 20.9 mm | 0.30 mm clearance each side |
+| Board radial clearance / grip interference | 0.30 / 0.15 mm | Fit trial, printer/material dependent |
+| Rear plug radial interference | 0.15 mm | Fit trial |
+| Regulator pocket | 18.4 x 20.9 mm | 0.30 mm clearance per side |
+| Gauge rear-component keepout depth | 8 mm | Assumed envelope, not measured |
 
-Sources checked 2026-10-18:
+Source references checked 2026-10-18:
 - [Owner's converter listing](https://www.amazon.com/dp/B0BJKVWR2D)
-- [Pololu manufacturer dimensions, connections and thermal guidance](https://www.pololu.com/product/3782)
-- [Waveshare hardware resources](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.28/Resources-And-Documents)
-- [Vendor mechanical archive with dimensioned PDF and STEP](https://files.waveshare.com/wiki/ESP32-S3-Touch-LCD-1.28/ESP32-S3-Touch-LCD-1.28.zip)
+- [Pololu dimensions, connections and thermal guidance](https://www.pololu.com/product/3782)
+- [Waveshare resources](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.28/Resources-And-Documents)
+- [Vendor mechanical PDF and STEP archive](https://files.waveshare.com/wiki/ESP32-S3-Touch-LCD-1.28/ESP32-S3-Touch-LCD-1.28.zip)
 
-Vendor CAD remains external and is not redistributed here. The simplified envelopes
-are not a full component collision check. PCB edge clearance at the selected ribs,
-underside ledge, regulator strap and actual solder joints must be inspected. The
-USB relief is provisional, particularly for a large molded USB-C plug or adapter.
-Converter wiring assumes flexible soldered leads, not upright header pins.
+Vendor CAD remains external. Simplified envelopes and mesh intersection checks
+are not full vendor-STEP collision analysis. Inspect PCB edge and seat contact,
+antenna clearance, USB plug and regulator solder joints before final printing.
 
-## First print and fit sequence
+## Print, tape and fit sequence
 
-1. Start with a small unpowered fit coupon in the intended TPU. TPU 95A is the
-   initial geometry assumption, not a universal approved filament specification.
-   Use the filament maker's printer and temperature settings. Starting slicing
-   parameters: 0.2 mm layers, 4 walls, 5 top/bottom layers, 25-35% infill.
-2. Support the PCB rather than the display during insertion/removal. Inspect every
-   contact point. Adjust `pcb_diameter`, `clearance` and `radial_grip` before the
-   full print if it bends the board, touches components, or offers weak retention.
-3. Print the cap flat and trial the converter separately. Secure the converter with
-   an insulated strap through the slots only if its route clears all components,
-   solder and traces. Add insulation where required; TPU alone is not electrical
-   qualification. Leave the component face unobstructed.
-4. Print the pod only after fit approval. Its tilted bore has overhangs; review
-   supports in the slicer and their removal access. Prefer manual support away
-   from grip ribs, PCB seat and USB opening. The prototype is not support-free.
-5. Trial the assembled housing on the dash while parked. Check driver view, touch,
-   glare, cable routing, removal access, vents and vehicle equipment clearances.
-   Provide a photo with ruler and available mounting dimensions before tailoring
-   the underside or selecting the final attachment.
-6. Bench-power at the intended load and test the enclosed regulator/gauge
-   temperature, wireless reception and touch. Then test parked hot-cabin retention
-   and vibration before relying on a road/off-road installation. TPU creep,
-   compound-specific heat limits and friction change must be measured.
+1. Print the unpowered fit coupon in the intended TPU. TPU 95A is the initial
+   assumption, not an approved universal filament. Start with 0.2 mm layers,
+   4 walls, 5 top/bottom layers and 25-35% infill, using filament-maker temperatures.
+   Support the PCB during insertion/removal, never the glass. Adjust grip and
+   clearance rather than forcing a tight part.
+2. Print the rear cover and trial the converter, strap and flexible wiring. The
+   tray must not grip components or solder joints. Check insulation and removal.
+3. Print the pod after the coupon fits. The curved shell and tilted bore require
+   slicer review and accessible supports. Avoid supports on pressure ribs and the
+   PCB seat. This is not a support-free or slicer-qualified design.
+4. Trial on the dash while parked. Supply a photo with ruler, available dimensions
+   and TPU hardness to tune the footprint, contour and viewing angle. A flat foot
+   will not bond across a curved/textured surface just because the TPU can flex.
+5. Use tape explicitly compatible with the actual printed TPU, dash plastic,
+   surface texture and anticipated temperature. TPU and textured trim may bond
+   poorly; no specific tape or primer is qualified by this design. Test a printed
+   scrap first and check for trim damage before using cleaner, primer or adhesive.
+   Keep the underside flat and free of support scars. Use the 1 mm-inset template
+   for a broad contact patch; do not stack thick foam to bridge an unmeasured gap.
+6. Follow the tape manufacturer's preparation, application and dwell instructions.
+   Test parked hot-cabin creep, pull/peel resistance and touch-induced rocking
+   before road/off-road use. The smaller base gives less bond area and leverage
+   resistance than revision 1. Do not obstruct sightlines, vents or vehicle equipment.
+7. Bench-power at intended load; measure converter/gauge temperature and check
+   touch, USB access and wireless reception. Then qualify heat/vibration retention.
+   The friction cap and grip ribs also need testing for TPU creep.
 
-The manufacturer notes that converter continuous output depends on thermal
-conditions. A vented pocket is not proof of adequate heat dissipation. Likewise,
-this enclosure does not establish automotive transient protection for the power
-circuit. Choose and verify wiring/protection separately before permanent power.
+A vented cavity is not thermal qualification. Pololu's continuous-output rating
+varies with thermal conditions. The enclosure does not establish automotive power
+transient protection; qualify wiring and power protection separately.
 
-## Rebuild
+## Rebuild and checks
 
-Use a separate Python 3.12 environment. Do not add CAD dependencies to the App/FW environment.
+Use an isolated Python 3.12 environment, separate from App/FW dependencies:
 
 ```sh
 python3.12 -m venv /tmp/egauge-cad-env
@@ -103,6 +105,8 @@ python3.12 -m venv /tmp/egauge-cad-env
 /tmp/egauge-cad-env/bin/python mechanical/jk-dash-pod/build.py
 ```
 
-The build checks each exported and reloaded STL for a closed surface and one
-connected part, and checks positive volume and consistent winding before export.
-These mesh checks do not certify printer tolerances, structural strength or fit.
+Generation removes sub-resolution boolean slivers, checks closed surfaces, positive
+volume, consistent winding and one connected component before export, then reloads
+each STL to check closure/connectivity. Simplified converter-to-shell and
+converter-to-gauge-component keepouts are also checked. These tests do not certify
+printing tolerances, components, structural strength, thermal performance or tape.

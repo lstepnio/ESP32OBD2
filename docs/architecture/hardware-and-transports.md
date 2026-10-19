@@ -139,6 +139,6 @@ permanent automotive power. Exact board revision/pin and ADC decisions precede u
 
 The [JK upper-dash TPU pod](../../mechanical/jk-dash-pod/README.md) contains editable
 mesh CAD, three STL fit-prototype parts and geometry checks for the bare Waveshare
-board plus the owner's Pololu D36V28F5 converter. The base is generic and flat;
-vehicle contour, PCB grip, connector clearance, attachment, hot-cabin retention,
+board plus the owner's Pololu D36V28F5 converter. The compact dome has a smaller flat oval tape foot and no drilling holes;
+vehicle contour, PCB grip, connector clearance, adhesive bond, attachment, hot-cabin retention,
 thermal behavior and vibration remain unqualified. Print the fit coupon first.
