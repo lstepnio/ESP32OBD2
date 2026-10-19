@@ -1,8 +1,11 @@
 package com.lstepnio.egauge
 
+import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
+import com.lstepnio.egauge.ui.state.CarFaultUi
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -10,6 +13,9 @@ class AlertNotificationTest {
     @Test fun replayForegroundSimulationAndLossNeverProduceDuplicateVehicleWarnings() {
         check(android.os.Build.HARDWARE in setOf("ranchu", "goldfish"))
         val context = ApplicationProvider.getApplicationContext<Context>()
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS").close()
+        }
         val manager = context.getSystemService(NotificationManager::class.java)
         fun awaitCount(count: Int) {
             val deadline = android.os.SystemClock.elapsedRealtime() + 2000
@@ -40,6 +46,14 @@ class AlertNotificationTest {
         notifications.show(event.copy(sequence = 2, kind = 2), "car", "gauge", true, false)
         awaitCount(1)
         notifications.cancelGauge("gauge")
+        awaitCount(0)
+        val diagnostic = event.copy(sequence = 3, episode = 2, key = 35, severity = AlertSeverity.Warning, label = "TCM faults", unit = "codes")
+        notifications.show(diagnostic, "car", "gauge", true, false, codes = listOf(CarFaultUi("U0121", "", "Transmission", "Stored")))
+        awaitCount(1)
+        val posted = manager.activeNotifications.single().notification
+        assertEquals("Transmission fault codes", posted.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals("U0121 · ABS communication lost", posted.extras.getString(Notification.EXTRA_TEXT))
+        notifications.show(diagnostic, "car", "gauge", true, false, filtered = true)
         awaitCount(0)
     }
 }

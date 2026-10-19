@@ -57,8 +57,10 @@ is not replaced with arbitrary app layout tokens. Home exposes edit, next and
 previous page accessibility actions alongside touch gestures.
 
 Car starts with the selected vehicle and any required setup action, followed by one
-Vehicle health card and a compact Alerts card. Fault codes open a named, focused
-sheet; empty Stored/Pending/Permanent lists and exact coverage stay in Expert.
+Vehicle health card and a compact Alerts card. Show up to three decoded fault summaries directly inside Vehicle health, with the
+code and Engine/Transmission attribution visible before any tap. View all codes opens
+one vehicle list; selecting a code opens What it means and Next step. Empty
+Stored/Pending/Permanent lists and exact coverage stay in Expert.
 Recent alerts prioritize current active events; Alert history contains export and
 history deletion. No disabled report-management controls occupy the main screen.
 Adapter and Gauge gestures use shared settings rows; routine connection retries
@@ -126,3 +128,24 @@ read messages stay inside Device data, not on the Expert landing page.
   examples and captured alert values use the same unit policy, with named gear states.
 - Connections and activity sheets scroll at large text sizes. Genuine failures,
   unknown outcomes and source-specific missing checks must never disappear as cleanup.
+
+
+## Fault explanations and notification continuity
+
+Car, saved alert context, recent alerts, banners and phone notifications share the
+offline code catalog and friendly producer names. Prefer a plain-language condition
+title with the exact code below. No generic ECM/TCM landing step is required. A
+code explanation describes the detected condition, never a failed-part diagnosis
+or a driving-safety verdict. Unknown/manufacturer-specific meanings stay explicit.
+The [shared alert contract](../architecture/alerts-and-diagnostics.md#offline-code-explanations)
+owns lookup provenance and extension rules.
+
+Keep Last checked on retained stale codes. Historical alert codes say Saved with
+alert and never become current through reconnection or vehicle switching. Selecting
+another vehicle dismisses live fault sheets. Explain category meaning in ordinary
+language inside a code explanation; keep raw category/coverage reports in Expert.
+
+Phone notifications name the system and, when captured, the first unfiltered code
+and its explanation. Threshold notifications use the selected units. Tapping opens
+the same saved episode, not a fresh scan or a code-clearing action. Preserve existing
+opt-in, severity channels, foreground suppression, quiet replay, privacy and filters.

@@ -754,12 +754,4 @@ private fun AppViewModel.carState(
     )
 }
 
-fun faultDescription(code: String): String = when (code) {
-    "P0300" -> "Engine misfire detected in one or more cylinders"
-    "P0301", "P0302", "P0303", "P0304", "P0305", "P0306", "P0307", "P0308" -> "Engine misfire in cylinder ${code.last()}"
-    "P0171" -> "The engine is running too lean on bank 1"
-    "P0174" -> "The engine is running too lean on bank 2"
-    "P0420" -> "Catalyst efficiency is below the expected range on bank 1"
-    "P0128" -> "Coolant is taking longer than expected to reach operating temperature"
-    else -> "An explanation is not available for this code. Check your vehicle's service information."
-}
+fun faultDescription(code: String): String = FaultCodeCatalog.lookup(code).title

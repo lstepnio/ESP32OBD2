@@ -83,7 +83,8 @@ fun diagnosticSources(
                         it,
                         faultDescription(it),
                         (if (filtered(it)) "Filtered · " else "") +
-                            if (current) category.name else "Last checked · ${category.name}"
+                            if (current) category.name else "Last checked · ${category.name}",
+                        current = current
                     )
                 },
                 incomplete = category.truncated || data.categories == null

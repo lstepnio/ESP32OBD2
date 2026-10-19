@@ -105,6 +105,38 @@ describes diagnostic context and the loss of freeze-frame data when clearing.
 Manufacturer descriptions require licensed, versioned provenance; unknown meanings
 remain explicit. ABS/SRS/body faults require separate documented module profiles.
 
+## Offline code explanations
+
+`FaultCodeCatalog.kt` owns the versioned, authored offline lookup. The initial table
+covers 20 common standardized codes, including U0121/U0140; it is a small curated
+subset, not a complete licensed DTC database. No runtime network or AI dependency,
+lookup telemetry, new permission, firmware/protocol change or catalog import is used.
+
+Meanings were checked on 2026-10-19 against primary reference material:
+
+- P0300/P0301..P0310, P0171/P0172/P0174/P0175, P0420/P0430:
+  [Ford PCED diagnostic descriptions](https://www.fordservicecontent.dealerconnection.com/pubs/content/~WVX2/~MUS~LEN/14/VX24002.HTM).
+- P0128: [Ford 2018 gasoline OBD summary, thermostat monitor](https://www.fordservicecontent.com/Ford_Content/catalog/motorcraft/OBDSM1802-2018.pdf).
+- U0121/U0140: [Ford 2017 diesel OBD summary, communication monitor](https://www.fordservicecontent.com/ford_content/catalog/motorcraft/DOBDSM1701.pdf).
+
+These are original short explanations of standardized conditions, not imported
+repair tables or vehicle-specific test thresholds. Catalog entries carry a source
+label; this section owns reference URLs. Before expansion, verify exact meaning,
+code namespace, source version and redistribution rights; add lookup/fallback tests
+and update the catalog version. Do not classify a code as generic solely because
+its second character is zero. Reserved ranges vary by system and revision.
+Manufacturer-specific mappings require validated vehicle/controller scope; a free
+profile name or adapter role is insufficient. P1DCA/P1DF3 remain unknown pending
+such evidence. Keep the exact code visible and advise matching service information.
+
+`AlertCopy.kt` projects immutable recorded diagnostic context into the same code
+explanations. Deduplicate categories only within one controller, preserve source,
+and label historical data. Notification wording uses the matching controller's
+captured, unfiltered codes; absence of those codes falls back to a clear warning
+message. Presentation never changes stored snapshots, event identities, filters,
+severity, MIL truth or ECU clearing. Notification taps retain vehicle/gauge/episode
+scope. No new inference of repair, current fault state or safe-to-drive status.
+
 ## Shared model and lifecycle
 
 | Record | Required information |

@@ -351,3 +351,34 @@ preferences byte-for-byte unchanged. Normal eGauge was reopened, the read-only U
 logger was closed and the original phone wake settings were restored. Release and
 quality workflows both passed. These results do not qualify broader vehicle loads,
 all panel pixels/units/rotations, thermal behavior or interruption recovery.
+
+
+## 2026-10-19 Car fault and notification usability pass
+
+Owner identified buried fault codes, generic controller navigation and technical
+context. Source review confirmed a generic Fault codes entry and an inline decoder
+covering a small engine-only subset. The revised presentation surfaces three
+decoded rows immediately under Vehicle health, links to the whole-vehicle list when
+needed, and opens What it means / Next step without a controller landing screen.
+
+Engine/Transmission remains attribution beneath each code, not a separate vehicle
+or navigation prerequisite. Repeated category appearances merge per controller;
+independent controllers, stale checks, partial coverage and filters remain distinct.
+Category explanations replace raw Stored/Pending/Permanent lists in consumer sheets.
+The raw category report remains in Expert.
+
+The authored offline table covers 20 standardized codes, including the captured
+U0121/U0140 communication conditions. Manufacturer P1DCA/P1DF3 meanings are not
+guessed from an adapter role or profile name. The maintained lookup references
+and contribution rules belong in the shared alert contract, not this evidence.
+
+Recent/history/banner/system-notification titles share friendly system names.
+Notifications include an attributed unfiltered recorded code where available, or
+a warning explanation while code data is absent. Threshold text uses selected
+units. Notification taps retain the existing scoped saved episode. Recorded code
+context is decoded using the same catalog and explicitly separated from current
+status. No permissions, dependencies, firmware bytes or ECU actions were added.
+
+Verification and remaining physical acceptance are recorded in the implementation
+PR. Phone installation, real notification appearance and live adapter behavior are
+not established by source, JVM or emulator checks.
