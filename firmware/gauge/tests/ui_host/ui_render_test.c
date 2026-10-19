@@ -6,6 +6,7 @@
 #include "lvgl.h"
 #include "../../main/src/ui.c"
 
+bool            host_psram_failure;
 uint32_t        host_ms;
 static bool     vehicle, maintenance;
 static unsigned acknowledgments;
@@ -90,7 +91,8 @@ static void touch(ui_t *ui, lv_event_code_t event)
 }
 int main(int argc, char **argv)
 {
-    assert(argc == 2);
+    assert(argc == 2 || (argc == 3 && !strcmp(argv[2], "--no-psram")));
+    host_psram_failure = argc == 3;
     mkdir(argv[1], 0700);
     lv_init();
     lv_display_t *display = lv_display_create(240, 240);
@@ -104,6 +106,7 @@ int main(int argc, char **argv)
         .metrics      = {{.pid = 12, .name = "Engine RPM", .unit = "rpm", .maximum = 8000, .stale_after_ms = 2000}}};
     ui_t *ui = ui_init(&saved, 50, touch, false, false);
     assert(ui);
+    assert((ui->display.trend_mask == NULL) == host_psram_failure);
     ui_set_page_position(ui, 1, 3);
     assert(ui_request_showcase(ui, true, 8, 7, false, false));
     tick(60);
