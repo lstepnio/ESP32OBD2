@@ -154,6 +154,7 @@ were restored. No firmware installation or ECU-clear operation was performed.
 Both adapter links were unavailable during this indoor configuration check. Live
 filter projection remains unqualified: reconnect the TCM with fresh, complete fault
 categories and matching MIL count, verify the four codes leave ordinary lists and
-the gauge CEL, and confirm raw Fault diagnostics/history retain them. Any additional
+the TCM no longer contributes to the gauge CEL, while raw Fault diagnostics/history
+retain them. An unfiltered Engine warning remains independent. Any additional
 unfiltered code or incomplete/stale check must keep its warning/unknown state.
 The code descriptions supplied by the owner were not used to infer controller meanings.

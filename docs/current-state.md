@@ -2,7 +2,8 @@
 
 Updated 2026-10-19. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-This maintenance update contains no new physical observations or device installation.
+Latest update records the protected TCM filter configuration check below; no new
+firmware installation, physical display/touch or live-vehicle observation.
 
 ## Installed baseline
 
