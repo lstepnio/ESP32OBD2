@@ -7,7 +7,7 @@ import struct
 import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
-FRAMES = {"numeric": 1, "arc": 2, "dual": 5, "alerts": 16}
+FRAMES = {"numeric": 1, "arc": 2, "bar": 3, "trend": 4, "dual": 5, "alerts": 16}
 
 
 def png(rgb):
@@ -44,7 +44,7 @@ def main():
         else:
             output.mkdir(parents=True, exist_ok=True)
             target.write_bytes(rendered)
-    print("PASS: four production gauge screens " + ("match" if args.check else "written"))
+    print(f"PASS: {len(FRAMES)} production gauge screens " + ("match" if args.check else "written"))
 
 
 if __name__ == "__main__":

@@ -27,3 +27,7 @@ artifacts/
 # Development tooling caches
 .ruff_cache/
 node_modules/
+
+# Website browser verification
+/.playwright-cli/
+/output/playwright/
