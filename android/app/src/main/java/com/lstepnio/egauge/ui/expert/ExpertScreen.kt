@@ -22,17 +22,13 @@ data class ExpertActions(
     val refreshSettings: () -> Unit,
     val readDiagnostics: () -> Unit,
     val readHardware: () -> Unit,
-    val readFirmware: () -> Unit,
     val adoptGaugeSettings: () -> Unit,
     val addTransmission: () -> Unit = {},
-    val selectSource: (String) -> Unit = {},
     val removeTransmission: () -> Unit = {},
     val findAdapters: () -> Unit = {},
     val chooseAdapter: (AdapterBinding?) -> Unit = {},
     val attachLegacy: (String) -> Unit = {},
     val useBoth: (Boolean) -> Unit = {},
-    val phoneAlertTest: () -> Unit = {},
-    val openPrimaryAdapter: () -> Unit = {},
     val displayShowcase: (Boolean) -> Unit = {},
     val addCodeFilter: (String,String,String) -> Unit = { _,_,_ -> },
     val removeCodeFilter: (String,DiagnosticCodeFilter) -> Unit = { _,_ -> },
@@ -71,11 +67,12 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @C
                 if (state.legacyParents.isNotEmpty()) SettingsRow("Connect transmission setup",
                     "Link an existing setup to its vehicle") { tool = "legacy" }
             }
-            state.vehicleMessage?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
             SectionTitle("Troubleshooting")
             SettingsRow("Fault diagnostics", "See which vehicle checks have completed") { tool = "faults" }
             SettingsRow("Device data", "Gauge information and support checks") { tool = "device" }
-            if (BuildConfig.DEBUG) SettingsRow("Demos", if (state.showcaseActive) "Display demo running" else "Preview gauge screens and a sample notice") { tool = "demos" }
+            if (BuildConfig.DEBUG && state.canShowcase) SettingsRow(
+                if (state.showcaseActive) "Stop display demo" else "Preview gauge screens",
+                "Generated examples · hold the gauge to exit", onClick = { actions.displayShowcase(!state.showcaseActive) })
 
         }
     }
@@ -91,20 +88,15 @@ fun ExpertScreen(state: ExpertUiState, actions: ExpertActions, faultCoverage: @C
                 }
                 "device" -> {
                     SectionTitle("Device data")
-                    DetailContent(state.details)
                     SectionTitle("Support checks")
                     SettingsRow("Reload gauge data", "Retry reading the saved setup", state.canRead, actions.refreshSettings)
                     SettingsRow("Hardware information", "Read display, memory and processor information", state.canReadHardware, actions.readHardware)
-                    SettingsRow("Installed firmware", "Read the version running on the gauge", state.canRead, actions.readFirmware)
                     if (state.canAdoptGaugeSettings) SettingsRow("Use saved gauge setup", "Import the setup stored on this gauge",
                         state.canRead, actions.adoptGaugeSettings)
-                }
-                "demos" -> {
-                    SectionTitle("Demos")
-                    Text("Examples use generated data. Your saved dashboard is kept.")
-                    if (state.canShowcase) SettingsRow(if (state.showcaseActive) "Stop display demo" else "Start display demo",
-                        "You can also hold the gauge screen to exit", onClick = { actions.displayShowcase(!state.showcaseActive) })
-                    SettingsRow("Send sample notice", "Disappears after 30 seconds", state.canRead, actions.phoneAlertTest)
+                    if (state.details.isNotEmpty()) {
+                        SectionTitle("Gauge information")
+                        DetailContent(state.details)
+                    }
                 }
                 "legacy" -> {
                     SectionTitle("Connect transmission setup")

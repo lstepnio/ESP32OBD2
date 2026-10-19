@@ -73,10 +73,10 @@ data class SetupUiState(val found: Boolean, val owner: OwnerAccess, val busy: Bo
 data class ExpertUiState(val canRead: Boolean, val canReadHardware: Boolean,
     val canAdoptGaugeSettings: Boolean, val details: List<DetailUi>,
     val vehicleName: String = "", val primarySource: String = "ECM", val hasPrimaryAdapter: Boolean = false,
-    val hasTransmission: Boolean = false, val selectedSource: String = "ECM", val canEditVehicle: Boolean = false,
-    val selectedAdapter: String? = null, val adapterCandidates: List<com.lstepnio.egauge.AdapterCandidate> = emptyList(),
+    val hasTransmission: Boolean = false, val canEditVehicle: Boolean = false,
+    val adapterCandidates: List<com.lstepnio.egauge.AdapterCandidate> = emptyList(),
     val canFindAdapter: Boolean = false, val adapterMessage: String? = null,
-    val legacyParents: List<VehicleUi> = emptyList(), val vehicleMessage: String? = null, val bothAdapters: Boolean = false, val canUseBothAdapters: Boolean = false,
+    val legacyParents: List<VehicleUi> = emptyList(), val bothAdapters: Boolean = false, val canUseBothAdapters: Boolean = false,
     val vehicleId: String = "", val primaryAdapter: com.lstepnio.egauge.AdapterBinding? = null,
     val secondAdapter: com.lstepnio.egauge.AdapterBinding? = null, val secondAdapterSetupIssue: String? = null, val adapterDiscoveryBlocker: String? = null, val canShowcase: Boolean = false, val showcaseActive: Boolean = false,
     val diagnosticFilters: List<com.lstepnio.egauge.DiagnosticCodeFilter> = emptyList(), val rawFaultSources: List<FaultSourceUi> = emptyList())

@@ -133,22 +133,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     private fun nextSettingsPollReset() { settingsPoll.reset(); foregroundConnection.retrySoon() }
 
-    fun sendSyntheticPhoneAlert() = launchGaugeOperation(OperationKind.READ,"Sending phone alert test") { id ->
-        require(BuildConfig.DEBUG && alertFrameworkSupported==true)
-        val device=bleClient.selectedGauge()
-        val gauge=currentGaugeId?:error("Connect your gauge first")
-        val vehicle=profileCollection.activeId
-        val client=GaugeConfigTransferClient(getApplication())
-        val batch=client.readAlertBatch(device,0,0)?:error("Update the gauge first")
-        val notice=PhoneAlertBridge.fixtures.validate(SyntheticPhoneAlertProvider().notices(vehicle,android.os.SystemClock.elapsedRealtime()).single(),vehicle,android.os.SystemClock.elapsedRealtime())
-        val sequenceKey="external:$gauge:${batch.boot}:0"
-        val sequence=alertPreferences.getLong(sequenceKey,0)+1
-        require(sequence<=0x7fffffffL)
-        check(durableWrites.write { alertPreferences.edit().putLong(sequenceKey,sequence).commit() })
-        client.relayExternalAlert(device,0,batch.boot,sequence,notice.severity,notice.ttlMs,notice.title,notice.context,true)
-        nextAlertPoll=0;foregroundConnection.retrySoon()
-        operation=OperationState(id,OperationKind.READ,OperationStage.ACTIVE,"Phone alert test requested","Checking gauge presentation automatically",terminal=true)
-    }
     fun prepareCodeClear() = launchGaugeOperation(OperationKind.READ,"Preparing diagnostic report") { id ->
         val gauge=currentGaugeId?:error("Connect your gauge first")
         val vehicle=profileCollection.activeId

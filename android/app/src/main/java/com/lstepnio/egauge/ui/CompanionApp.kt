@@ -171,9 +171,9 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                     ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate)
                                 Route.Expert -> ExpertScreen(state.expert, ExpertActions(
                                     model::checkGaugeForReview, model::readGaugeDiagnostics,
-                                    model::readHardwareCapacity, model::readRunningFirmware, model::adoptGaugeDraft, model::addTransmissionChild,
-                                    model::selectVehicleSource, model::removeTransmissionChild,
-                                    model::findTransmissionAdapters, model::chooseTransmissionAdapter, model::attachLegacyTransmission, model::setBothAdapters, model::sendSyntheticPhoneAlert, openPrimaryAdapter = { route = Route.Car }, displayShowcase = model::setDisplayShowcase, addCodeFilter = model::addDiagnosticFilter, removeCodeFilter = model::removeDiagnosticFilter), faultCoverage = { com.lstepnio.egauge.ui.car.VehicleFaultCoverage(state.car.copy(faultSources=state.expert.rawFaultSources)) })
+                                    model::readHardwareCapacity, model::adoptGaugeDraft, model::addTransmissionChild,
+                                    model::removeTransmissionChild,
+                                    model::findTransmissionAdapters, model::chooseTransmissionAdapter, model::attachLegacyTransmission, model::setBothAdapters, displayShowcase = model::setDisplayShowcase, addCodeFilter = model::addDiagnosticFilter, removeCodeFilter = model::removeDiagnosticFilter), faultCoverage = { com.lstepnio.egauge.ui.car.VehicleFaultCoverage(state.car.copy(faultSources=state.expert.rawFaultSources)) })
                             }
                         }
                     }

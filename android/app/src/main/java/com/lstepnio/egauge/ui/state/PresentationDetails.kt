@@ -8,26 +8,22 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
     fun fact(name: String, value: Any?) { if (value != null) add(DetailUi(name, value.toString())) }
     fact("Gauge identifier", rememberedGaugeId)
     fact("Connection check", connection.phase.name)
-    fact("Connection retries", connection.attempts.toString())
+    if (connection.attempts > 0) fact("Connection retries", connection.attempts)
     fact("Connection detail", connection.detail)
     fact("Owner access", ownerAccess.name)
     fact("Last device response", deviceMessage)
     fact("Profile identifier", profileCollection.activeId)
     fact("Profile problem", profileError)
     fact("Gauge association problem", gaugeAssociationError)
-    fact("Operation", "${operation.id} · ${operation.kind} · ${operation.stage}")
-    fact("Operation response", operation.detail)
+    if (operation.stage != OperationStage.IDLE) {
+        fact("Operation", "${operation.kind} · ${operation.stage}")
+        fact("Operation response", operation.detail)
+    }
     capabilities?.let { caps ->
         fact("Board", caps.board)
         fact("Protocol", caps.protocolMajor)
-        fact("Capability flags", caps)
         fact("Adapter links", "${caps.maxAdapterLinks}; simultaneous use ${if (caps.simultaneousVerified) "verified" else "unverified"}")
         fact("Transfer", caps.wifiBulk ?: "Bluetooth")
-    }
-    savedGauge?.let {
-        fact("Saved selection", listOf("RPM", "Speed", "Engine load", "Coolant", "Fuel").getOrNull(it.readingIndex))
-        fact("Saved selection revision", it.revision)
-        fact("Rotation", "${it.rotation * 90}°")
     }
     runtimeIdentity?.let {
         fact("Running revision", it.revision); fact("Stored revision", it.storedRevision)
@@ -40,11 +36,10 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
         fact("Document profile", it.vehicleProfileId); fact("Document revision", it.revision)
         fact("Document SHA-256", it.sha256); fact("Document bytes", it.length)
         fact("Definitions / pages / alerts", "${it.definitionCount} / ${it.pageCount} / ${it.alertCount}")
-        fact("Complete saved configuration", it.json)
     }
     draftComparison?.let { comparison ->
         fact("Saved comparison scope", "${comparison.matchingCount} match; ${comparison.differingCount} differ; ${comparison.unknownCount} unavailable. Saved settings only; no live vehicle support is implied.")
-        comparison.fields.forEach { field ->
+        comparison.fields.filter { it.matches != true }.forEach { field ->
             fact(field.label, "On this phone: ${field.phone}\nOn gauge: ${field.gauge ?: "Unavailable"}\n" +
                 when (field.matches) { true -> "Matches"; false -> "Different"; null -> "Not comparable" })
         }
@@ -54,19 +49,8 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
         val reading = demoCatalog.firstOrNull { it.id == alert.pidId }
         fact("${reading?.let { readingName(it.id) } ?: alert.pidId} alert",
             "Warn ${alert.direction.name.lowercase()} ${alert.warning} ${reading?.unit.orEmpty()}; critical ${alert.direction.name.lowercase()} ${alert.critical} ${reading?.unit.orEmpty()}. Reset margin ${alert.hysteresis}. Trigger after ${alert.triggerDwellMs} ms; clear after ${alert.clearDwellMs} ms.")
-        fact("${alert.id} technical fields", "Direction=${alert.direction}; hysteresis=${alert.hysteresis}; triggerDwellMs=${alert.triggerDwellMs}; clearDwellMs=${alert.clearDwellMs}; priority=${alert.priority}")
     }
-    draft.pages.forEachIndexed { index, page ->
-        fact("Page ${index + 1}", "${page.id} · ${page.name} · ${page.layout}\n${page.pidIds.joinToString()}")
-    }
-    demoCatalog.forEach { pid -> fact("${readingName(pid.id)} definition", "ID=${pid.id}; source=${pid.source}; request=${pid.request}; unit=${pid.unit}; ${pid.exampleKind}") }
     fact("Vehicle observations", if (vehicleObservations.isEmpty()) "None" else vehicleObservations.joinToString("\n"))
-    fact("Diagnostics receipt time (elapsed ms)", diagnosticsObservedAtElapsedMs)
-    fact("Diagnostic raw snapshot", diagnostics)
-    diagnosticsBySource.forEach { (source, snapshot) ->
-        fact("$source fault snapshot", snapshot)
-    }
-    fact("Diagnostic limitations", "Bounded full category lists on supported firmware; legacy snapshots contain only the first code. Freshness is checked per category and receipt. Engine code clearing is implemented behind a default-off qualification gate; Transmission clearing is unsupported.")
     bootIdentity?.let {
         fact("Installed version", it.version); fact("OTA state", it.otaState)
         fact("Partition", "0x${it.partitionAddress.toString(16)}"); fact("Partition subtype", it.partitionSubtype)
@@ -82,7 +66,6 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
         fact("Wi-Fi state", wifiLabel(h.wifiMode))
         fact("Initialized subsystems", hardwareLabels(h.initializedFeatures))
         fact("Declared subsystems", hardwareLabels(h.declaredFeatures))
-        fact("Hardware raw snapshot", h)
     }
     fact("Hosted update response", hostedUpdateMessage)
     hostedUpdate?.let { fact("Release metadata", it.release) }
@@ -90,7 +73,6 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
         fact("Package bytes", bundle.image.size)
         fact("Package SHA-256", bundle.sha256.hex())
         fact("Package ELF SHA-256", bundle.elfSha256.hex())
-        fact("Signature (DER)", bundle.signatureDer.hex())
         fact("Signature verification", "Verified with the pinned development public key; not production signing.")
     }
     fact("Update response", updatePackageMessage)
