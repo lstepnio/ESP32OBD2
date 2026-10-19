@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "origin": "captured",
+  "physicalPort": "engine",
+  "protocol": "CAN 11-bit 500 kbit/s",
+  "ecu": "7E8",
+  "captureTransport": "Android Bluetooth HCI to ELM adapter, not direct CAN recording",
+  "evidence": "docs/evidence/jeep-high-idle-reference.md",
+  "sourceHciSha256": "65edcfa50feb728b4f87650e1118c58b7d6d492ef3f070f0658880333112c308",
+  "cases": [
+    {
+      "command": "AT SH 7E0",
+      "responseHex": "4f4b0d0d3e",
+      "latencyUs": 47121
+    },
+    {
+      "command": "AT FC SH 7E0",
+      "responseHex": "4f4b0d0d3e",
+      "latencyUs": 49366
+    },
+    {
+      "command": "AT CRA 7E8",
+      "responseHex": "4f4b0d0d3e",
+      "latencyUs": 51547
+    },
+    {
+      "command": "10 92 1",
+      "responseHex": "374538203032203530203932200d0d3e",
+      "latencyUs": 64950
+    },
+    {
+      "command": "33 05 1",
+      "responseHex": "374538203033203733203035203031200d0d3e",
+      "latencyUs": 69803
+    },
+    {
+      "command": "31 05 06 80 1",
+      "responseHex": "374538203032203731203035200d0d3e",
+      "latencyUs": 51835
+    },
+    {
+      "command": "33 05 1",
+      "responseHex": "374538203033203733203035203032200d0d3e",
+      "latencyUs": 44644
+    },
+    {
+      "command": "32 05 1",
+      "responseHex": "374538203032203732203035200d0d3e",
+      "latencyUs": 38655
+    },
+    {
+      "command": "33 05 1",
+      "responseHex": "374538203033203733203035203031200d0d3e",
+      "latencyUs": 68776
+    },
+    {
+      "command": "31 05 06 80 1",
+      "responseHex": "374538203032203731203035200d0d3e",
+      "latencyUs": 38301
+    },
+    {
+      "command": "33 05 1",
+      "responseHex": "374538203033203733203035203032200d0d3e",
+      "latencyUs": 81551
+    },
+    {
+      "command": "32 05 1",
+      "responseHex": "374538203032203732203035200d0d3e",
+      "latencyUs": 43891
+    }
+  ],
+  "limit": "Offline response vectors only. No executable command allowlist or controller qualification. One Trail View target observed; RPM mapping/range, fresh calibration identity, negative replies and lost-refresh release remain unqualified. Cases are selected ordered excerpts, not a complete adapter initialization or refresh schedule."
+}

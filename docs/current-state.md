@@ -81,8 +81,10 @@ source-worker driver or physical gauge command menu is implemented or installed.
 The [offline foundation](architecture/vehicle-actions.md#implemented-offline-foundation)
 records the exact boundary. The [parked JScan Trail View reference](evidence/jeep-high-idle-reference.md)
 observed two raised-idle/ordinary Stop cycles; the owner physically confirmed the
-first. The saved post-cycle trace still needs retrieval after USB disconnected.
-Matched replies, target range and loss-of-refresh release remain unqualified.
+first. The recovered trace confirms positive ECM Start/Report/Return replies;
+sanitized offline fixtures are saved and temporary phone settings restored.
+Current calibration, target range and loss-of-refresh release remain unqualified;
+this is JScan reference evidence, not enabled eGauge control.
 
 ## Known reliability limits
 
