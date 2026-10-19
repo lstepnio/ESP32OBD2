@@ -57,6 +57,45 @@ starting; an external App force-stop invalidates the affected test attempt.
    two frames. This protocol observation does not establish physical pixel appearance,
    touch behavior or all unit/rotation combinations; keep those checks separate.
 
+## Indoor interruption checks without another firmware image
+
+After the lifecycle baseline, run only the selected instrumentation classes on the
+authorized paired phone. Do not use the broad connected-test task on an owner phone.
+Compile/install only the test APK if the installed application source is unchanged.
+
+- `WifiMaintenanceRecoveryJourneyTest`, with `allowMaintenanceWifi=true` and the
+  exact expected version/ELF, authenticates read-only Wi-Fi status, disables phone
+  Wi-Fi and requires an explicit old-socket failure. It restores Wi-Fi in bounded
+  cleanup, closes the protected session, opens a fresh one and verifies both status
+  replies, unchanged boot nonce, image/health, configuration and display settings.
+  The phone must start with Wi-Fi enabled; the fixture does not change bonds or
+  send firmware/configuration/ECU commands.
+- `AutomaticConnectionJourneyTest`, with `allowGaugeRead=true`,
+  `toggleBluetooth=true`, `checkGaugePickerRecovery=true` and
+  `checkHardwareReadChain=true`, verifies automatic opening/resume, phone radio
+  off/on, cancelled gauge selection and sequential protected reads. Preserve the
+  exact-image arguments and compare setup/preferences before and after the session.
+- A separate ordinary App process restart followed by the read-only automatic
+  connection check covers reconstruction from durable phone state. It does not
+  establish gauge power-loss or bond-loss recovery.
+- `GaugeRestartRecoveryJourneyTest`, with `allowGaugeRestart=true` and exact-image
+  arguments, emits `READY_FOR_GAUGE_RESTART` after recording protected state. Only
+  then close the serial logger and perform one authorized host-controlled serial
+  reset using the recovery runbook's esptool `run` command, without flashing.
+  Reopen read-only logging. The observer pauses automatic polling and drains the
+  App operation lease before using its own GATT session. After observing a changed
+  protected boot nonce, it resumes foreground polling in the same App and requires
+  automatic fresh connection/settings, authenticated owner and
+  unchanged exact healthy image/dashboard/settings/profiles. It does not reset
+  bonds or request a configuration resend. A missing host reset fails after its
+  bounded wait; never count that as recovery evidence. This covers foreground
+  resume after a serial reset, not an uninterrupted foreground observer during reset.
+
+Keep interrupted read-only maintenance separate from interrupted image reception.
+The [OTA recovery matrix](ota-recovery-matrix.md) still requires a different signed,
+authorized candidate and controlled reset points. A socket-loss pass does not
+qualify activation, rollback, flash interruption or physical rail-power removal.
+
 Sampling misses transient lows; allocation failure hooks, heap minima and stack
 watermarks complement stage snapshots. The static budget and admission checks do
 not reserve RAM or prove immunity to vendor bugs. Do not deliberately exhaust a
