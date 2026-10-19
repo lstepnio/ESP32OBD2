@@ -17,8 +17,10 @@ python3 -m venv .venv
 .venv/bin/python tools/obd_capture.py self-test
 ```
 
-[Quality workflow](../../.github/workflows/quality.yml) contains the exact standalone
-C sanitizer and config-binding commands. Diagnostics host tests also compare the
+`python tools/dev.py lint|test|build --target host|android|firmware|all` is the shared
+local and CI entry point (choose one action and target). The default target is all;
+host checks do not access hardware. It discovers all Python suites, including the
+review server, and owns the standalone C sanitizer and config-binding commands. Diagnostics host tests also compare the
 production C snapshot with the Android wire fixture.
 
 ## Android
