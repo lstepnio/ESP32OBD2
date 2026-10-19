@@ -12,7 +12,8 @@ and normal pages and swipes work. This does not qualify live CEL filtering.
   negative values, CEL, warnings, critical entry/acknowledgment, lost sources and codes.
 - Default eight seconds per frame; accepted intervals are five to thirty seconds.
   Playback expires after ten minutes and is never persisted across restart.
-- Every frame has a quiet Demo footer. Tap advances; hold exits. The whole hold
+- The showcase has no on-gauge Demo footer; the App labels its generated examples.
+  Other simulated operating modes retain their marker. Tap advances; hold exits. The whole hold
   sequence is consumed, so a longer demo hold cannot become pairing or owner reset.
 - Saved dashboard, selected page, source bindings, real samples, settings, bonds,
   shared event history and notification state are unchanged. Generated attention

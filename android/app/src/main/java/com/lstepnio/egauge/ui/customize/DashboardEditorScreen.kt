@@ -52,8 +52,10 @@ fun DashboardEditorScreen(state: CustomizeUiState, destination: Int, onDestinati
         destination == 2 -> PageManager(state, ::done, { picker = "add" }, actions)
         destination == 3 -> AlertManager(state, ::done, ::editAlert, actions)
         destination == 4 -> {
-            val reading = state.readings.firstOrNull { it.id == alertReading } ?: state.readings.first()
-            AlertEditor(state, reading, state.alerts.firstOrNull { it.readingId == reading.id },
+            val reading = state.readings.firstOrNull { it.id == alertReading } ?: state.readings.firstOrNull()
+            if (reading == null) EditorScaffold("Edit alert", { onDestination(alertReturn) }, "Back to pages", ::done) {
+                EmptyState("No readings available", "Return to your pages and choose a reading.")
+            } else AlertEditor(state, reading, state.alerts.firstOrNull { it.readingId == reading.id },
                 { onDestination(alertReturn) }, actions)
         }
         destination == 5 -> SendReview(state, ::done, actions)
@@ -174,7 +176,7 @@ private fun PagePreview(state: CustomizeUiState, onSelect: (Int) -> Unit, onEdit
                     }
                 }
             }
-            Text("Swipe between pages · Hold to edit", modifier = Modifier.fillMaxWidth(),
+            Text(if (state.pages.size > 1) "Swipe between pages · Hold to edit" else "Hold to edit", modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         }

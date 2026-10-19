@@ -82,7 +82,7 @@ object ScreenFixtures {
                     "alert" -> AlertEditor(customize, readingUi(demoCatalog.first { it.id == "rpm" }),
                         alertUi(defaultAlert("rpm")), {}, customizeActions)
                     "car" -> CarScreen(car, {}, {}, {})
-                    "updates" -> UpdatesScreen(updates, update, true, {}, {}, {}, {}, {})
+                    "updates" -> UpdatesScreen(updates, update, {}, {}, {}, {}, {})
                     "settings" -> SettingsScreen(settings, {}, {}, {}, {}, { _, _ -> }, {}, {}, {})
                     "expert", "expert-data" -> ExpertScreen(expert, expertActions)
                     else -> error("Unknown screen fixture: $name")

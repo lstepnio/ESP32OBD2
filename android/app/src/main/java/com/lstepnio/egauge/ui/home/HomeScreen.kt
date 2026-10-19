@@ -39,7 +39,7 @@ fun HomeScreen(state: HomeUiState, onPrimary: () -> Unit, onCustomize: () -> Uni
                         }
                     }
                 }
-                Text("Swipe between pages · Hold to edit", modifier = Modifier.fillMaxWidth(),
+                Text(if (state.pages.size > 1) "Swipe between pages · Hold to edit" else "Hold to edit", modifier = Modifier.fillMaxWidth(),
                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center)
             }

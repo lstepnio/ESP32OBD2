@@ -29,6 +29,7 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
     var brightnessOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var unitsOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var cycleOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
+    var pairingHelpOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var forgetOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var moveOwnerOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     ScreenContent {
@@ -40,38 +41,41 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                     Text("Last checked settings", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 SettingsRow("Your gauges", state.name, !state.busy) { gaugesOpen = true }
-                SettingsRow("Gauge name", state.name) { nameOpen = true }
-                SettingsRow("Brightness", state.brightness?.let { "$it%" } ?:
-                    if (state.displaySettingsVersion >= 1) "Reading settings…" else "Not available on this gauge",
+                SettingsRow("Brightness", state.brightness?.let { "$it%" } ?: if (!state.found) "Connect a gauge"
+                    else if (state.displaySettingsVersion >= 1) "Reading settings…" else "Not available on this gauge",
                     state.displaySettingsVersion >= 1 && state.found && !state.busy && state.settingsCurrent && state.brightness != null) {
                     brightnessOpen = true
                 }
-                SettingsRow("Rotation", state.rotation?.let { "${it * 90}°" } ?: "Reading settings…", state.found && !state.busy && state.settingsCurrent && state.rotation != null) {
+                SettingsRow("Rotation", state.rotation?.let { "${it * 90}°" } ?: if (state.found) "Reading settings…" else "Connect a gauge", state.found && !state.busy && state.settingsCurrent && state.rotation != null) {
                     rotationOpen = true
                 }
-                SettingsRow("Units", if (state.displaySettingsVersion < 2) "Not available on this gauge"
+                SettingsRow("Units", if (!state.found && state.brightness == null) "Connect a gauge" else if (state.displaySettingsVersion < 2) "Not available on this gauge"
                     else if (state.brightness == null) "Reading settings…" else state.measurementSystem.name,
                     state.displaySettingsVersion >= 2 && state.found && !state.busy && state.settingsCurrent && state.brightness != null) {
                     unitsOpen = true
                 }
-                SettingsRow("Auto-cycle pages", if (state.displaySettingsVersion < 3) "Not available on this gauge"
+                SettingsRow("Auto-cycle pages", if (!state.found && state.cycleSeconds == null) "Connect a gauge" else if (state.displaySettingsVersion < 3) "Not available on this gauge"
                     else when (state.cycleSeconds) { null -> "Reading settings…"; 0 -> "Off"; else -> "Every ${state.cycleSeconds} seconds" },
                     state.displaySettingsVersion >= 3 && state.found && !state.busy && state.settingsCurrent && state.cycleSeconds != null) {
                     cycleOpen = true
                 }
                 if (!state.found) TextButton(onSetup) { Text("Set up gauge") }
-                TextButton({ forgetOpen = true }) { Text("Remove from this phone") }
-                TextButton({ moveOwnerOpen = true }) { Text("Move gauge to another phone") }
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 SectionTitle("Alerts")
                 PreferenceToggle("Phone alerts",phoneAlerts,onPhoneAlerts)
-                Text(if(monitoring)"Monitoring your connected gauge" else "Gauge alerts work independently. Phone monitoring is off.",style=MaterialTheme.typography.bodySmall)
+                Text(when {
+                    monitoring -> "Monitoring your connected gauge"
+                    phoneAlerts -> "Phone alerts enabled · monitoring is not active yet"
+                    else -> "Gauge alerts work independently. Phone monitoring is off."
+                }, style = MaterialTheme.typography.bodySmall)
                 SectionTitle("Appearance and tools")
                 PreferenceToggle("Use phone colours", state.dynamicColor, onDynamic)
                 PreferenceToggle("Show advanced tools", state.advanced, onAdvanced)
+                SectionTitle("Support")
                 PrimaryAction("Check updates", onUpdates)
+                SettingsRow("Pairing help", "Reconnect or move a gauge to another phone") { pairingHelpOpen = true }
             }
         })
     }
@@ -83,6 +87,7 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                         if (gauge.needsReview) "Setup needs review" else if (gauge.id == state.selectedGaugeId) "Selected" else null).joinToString(" · "), !state.busy,
                     { onSelectGauge(gauge.id); gaugesOpen = false })
             }
+            SettingsRow("Gauge name", state.name, !state.busy) { gaugesOpen = false; nameOpen = true }
             TextButton({ onAddGauge(); gaugesOpen = false }, enabled = !state.busy) { Text("Add gauge") }
         }
     }, confirmButton = { TextButton({ gaugesOpen = false }) { Text("Close") } })
@@ -167,6 +172,17 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
             Text("Save to gauge")
         } }, dismissButton = { TextButton({ cycleOpen = false }) { Text("Cancel") } })
     }
+    if (pairingHelpOpen) AlertDialog(onDismissRequest = { pairingHelpOpen = false }, title = { Text("Pairing help") }, text = {
+        DialogContent {
+            Text("The app reconnects automatically. Use these steps only to change pairing.")
+            SettingsRow("Remove Bluetooth pairing", "Open Android's saved Bluetooth devices", !state.busy) {
+                pairingHelpOpen = false; forgetOpen = true
+            }
+            SettingsRow("Move gauge to another phone", "Keep the saved display settings", !state.busy) {
+                pairingHelpOpen = false; moveOwnerOpen = true
+            }
+        }
+    }, confirmButton = { TextButton({ pairingHelpOpen = false }) { Text("Close") } })
     if (forgetOpen) AlertDialog(onDismissRequest = { forgetOpen = false }, title = { Text("Remove this phone's bond?") },
         text = { Text("This opens Android Bluetooth settings so you can remove the saved eGauge bond. The gauge owner remains saved. Your display settings stay on the gauge.") },
         confirmButton = { Button({ forgetOpen = false; onBluetoothSettings() }) { Text("Open Bluetooth settings") } },

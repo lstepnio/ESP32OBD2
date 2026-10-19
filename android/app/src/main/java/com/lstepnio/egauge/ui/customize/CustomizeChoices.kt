@@ -73,8 +73,8 @@ fun LayoutChoices(state: CustomizeUiState, current: PageUi, onSelect: (GaugeLayo
                                 horizontalAlignment = Alignment.CenterHorizontally) {
                                 RoundPreview(current.preview.copy(layout = PreviewLayout.valueOf(layout.name),
                                     secondaryName = current.preview.secondaryName ?: "Coolant temperature",
-                                    secondaryValue = current.preview.secondaryValue ?: "92",
-                                    secondaryUnit = current.preview.secondaryUnit ?: "°C"),
+                                    secondaryValue = current.preview.secondaryValue ?: com.lstepnio.egauge.MeasurementUnits.displayValue("92", "°C", state.measurementSystem),
+                                    secondaryUnit = current.preview.secondaryUnit ?: com.lstepnio.egauge.MeasurementUnits.label("°C", state.measurementSystem)),
                                     Modifier.width(80.dp).clearAndSetSemantics {}, showDescription = false)
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     if (selected) EGaugeIcon(GaugeIcon.Check, modifier = Modifier.size(18.dp))

@@ -41,7 +41,6 @@ fun PageActionsSheet(state: CarUiState, onDismiss: () -> Unit, onSave: (PageActi
             if (!state.actionsSupported) Text("You can save this choice now. Update the gauge before sending it.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             PrimaryAction("Save action", { onSave(target?.let { PageAction(it, count, seconds * 1000) }); onDismiss() }, enabled = state.canEditActions && (target == null || state.actionPages.any { it.id == target }))
-            Text("Vehicle controls will appear when supported for this profile.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

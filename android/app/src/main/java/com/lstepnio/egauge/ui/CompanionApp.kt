@@ -4,6 +4,8 @@ import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -167,7 +169,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
                                     model::savePageCycleSeconds, model::switchRememberedGauge,
                                     { model.discoverAdditionalGauge(); route = Route.Setup },
                                     model.phoneAlertsEnabled, model.alertMonitoring, onPhoneAlerts)
-                                Route.Updates -> UpdatesScreen(state.updates, state.operation, false,
+                                Route.Updates -> UpdatesScreen(state.updates, state.operation,
                                     ::back, model::checkHostedFirmware, onInstallUpdate, model::readRunningFirmware, onSelectUpdate)
                                 Route.Expert -> ExpertScreen(state.expert, ExpertActions(
                                     model::checkGaugeForReview, model::readGaugeDiagnostics,
@@ -184,7 +186,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
         AlertContextSheet(model)
         ClearCodeConfirmation(model)
         if (connectionsOpen) ModalBottomSheet(onDismissRequest = { connectionsOpen = false }) {
-            Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp),
+            Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 SectionTitle("Connections")
                 Text("Phone to gauge", style = MaterialTheme.typography.labelLarge)
@@ -205,7 +207,7 @@ fun CompanionApp(model: AppViewModel, onFindGauge: () -> Unit, onInstallUpdate: 
             }
         }
         if (progressOpen) ModalBottomSheet(onDismissRequest = { progressOpen = false }) {
-            Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp),
+            Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("Gauge activity", style = MaterialTheme.typography.headlineSmall)
                 StatusCard(state.operation.status)

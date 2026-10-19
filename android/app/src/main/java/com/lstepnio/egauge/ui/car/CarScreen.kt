@@ -24,6 +24,13 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
     var adapterOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var actionsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var faultsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
+    var searched by remember(state.activeId, adapterOpen) { mutableStateOf(false) }
+    LaunchedEffect(adapterOpen, state.adapterAvailable) {
+        if (adapterOpen && state.adapterAvailable && !searched) {
+            searched = true
+            onFindAdapters()
+        }
+    }
     val faults = com.lstepnio.egauge.ui.state.carFaults(state)
     ScreenContent(scrollKey = state.activeId) {
         ScreenTitle("Car")
@@ -34,8 +41,6 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
                     PrimaryAction("Set up gauge", onSetup)
                 else if (state.setupNeeded && state.adapterSelected != null && state.adapterAvailable)
                     PrimaryAction("Use this car on gauge", onSendAdapter, enabled = state.canSendAdapter)
-                else if (state.adapterSelected == null && state.adapterAvailable)
-                    PrimaryAction("Choose adapter", { adapterOpen = true }, enabled = state.adapterAvailable)
                 Panel {
                     SectionTitle("Vehicle health")
                     val summary = com.lstepnio.egauge.ui.state.carHealthStatus(state)
@@ -53,7 +58,8 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                SettingsRow("Adapter", if (state.adapterSelected == null) "Not selected" else "Manage adapter",
+                SettingsRow(if (state.adapterSelected == null && state.adapterAvailable) "Choose adapter" else "Adapter",
+                    if (state.adapterSelected == null) "Select the adapter plugged into this car" else "Manage adapter",
                     state.adapterAvailable, { adapterOpen = true })
                 SettingsRow("Gauge gestures", if (state.actions.isEmpty()) "No gesture assigned" else "Jump to page",
                     state.canEditActions, { actionsOpen = true })
@@ -87,9 +93,6 @@ fun CarScreen(state: CarUiState, onSetup: () -> Unit,
                     SectionTitle("Vehicle adapter")
                     Text(if (state.adapterSelected == null) "Choose the adapter plugged into this car."
                         else "An adapter is saved for this car. Connection checks run automatically.")
-                    if (state.adapterCandidates.isNotEmpty()) {
-                        Text("Choose the adapter plugged into this car.")
-                    }
                     state.adapterCandidates.forEach { candidate ->
                         SettingsRow(candidate.name, candidate.binding.address.takeLast(5), state.adapterAvailable,
                             { onChooseAdapter(candidate.binding) })
@@ -124,18 +127,6 @@ fun VehicleFaultCoverage(state: CarUiState) {
             }
         }
     }
-}
-
-@Composable
-fun ClearCodesDialog(onDismiss: () -> Unit, example: Boolean = false, onExampleClear: () -> Unit = {}) {
-    AlertDialog(onDismissRequest = onDismiss,
-        title = { Text(if (example) "Example: clear fault codes?" else "Clearing codes is not available yet") },
-        text = { Text("Clearing codes erases diagnostic information and may reset emissions checks. It does not fix the cause. Permanent codes may remain." +
-            if (example) " This example never sends a command to a car." else " Keep the codes for diagnosis.") },
-        confirmButton = {
-            if (example) Button(onExampleClear) { Text("Clear example codes") }
-            else TextButton(onDismiss) { Text("Close") }
-        }, dismissButton = { if (example) TextButton(onDismiss) { Text("Cancel") } })
 }
 
 @Composable

@@ -834,7 +834,7 @@ static void render_status(ui_t *ui) {
         }
     }
     bool demo=atomic_load(&ui->showcase_active)||ui->simulated||alert.simulated;
-    show(ui->widgets.demo_lbl,demo);
+    show(ui->widgets.demo_lbl,demo&&!atomic_load(&ui->showcase_active));
     bool position=!condition&&!demo&&!alert.attention;
     for(unsigned i=0;i<8;i++) {
         bool dot=position&&ui->page_count<=8&&ui->page_count>1&&i<ui->page_count;

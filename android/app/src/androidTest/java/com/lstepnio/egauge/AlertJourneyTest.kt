@@ -34,7 +34,7 @@ class AlertJourneyTest {
         compose.onNode(hasText("Coolant fixture") and hasAnyAncestor(hasTestTag("alert-history"))).performScrollTo().performClick()
         compose.onNode(hasText("Coolant fixture") and hasAnyAncestor(hasTestTag("alert-context"))).assertIsDisplayed()
         compose.onNodeWithText("Simulated alert. This does not establish a vehicle fault.").assertIsDisplayed()
-        compose.onNodeWithText("Configured boundary:",substring=true).assertIsDisplayed()
+        compose.onNodeWithText("Alert limit:",substring=true).assertIsDisplayed()
         val uri=exportAlertReport(compose.activity,repository.list(vehicle),repository,vehicle)
         val zip=java.util.zip.ZipInputStream(compose.activity.contentResolver.openInputStream(uri)!!)
         assertEquals("alerts.json",zip.nextEntry.name)

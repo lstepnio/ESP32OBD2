@@ -26,7 +26,7 @@ examples. The **This round** filter opens these 19 examples first; all 56 remain
 | Multiple alerts | One stable highest-priority condition with a bounded `+N` additional-alert count; inspection contains the other conditions |
 | Lost data | Affected readings show dashes while a prior warning is explicitly named as last seen; sibling readings remain usable |
 | Critical attention | Retain the dedicated entry/escalation takeover. After acknowledgment, CEL returns above and the still-active red condition appears below |
-| Simulation | Retain the small Demo footer below the alert row; no simulated data is silently promoted to live data |
+| Simulation | Retain simulation markers outside the explicit App-started showcase; showcase mode is labelled in the App and never becomes live data |
 
 **22 byte-identical approved screens retain approval. 34 examples are unreviewed:**
 19 new/revised in this round and 15 earlier unreviewed examples. Normal Trend had prior
@@ -107,7 +107,8 @@ These are source findings plus the owner's physical photo, not a new hardware te
 - Ordinary alert symbols and conditions center at y=194 below readings. The entire
   composed row, including symbol, alias, arrow and optional additional-alert count, fits
   within 124 px and the radius-112 envelope. No capsule or paragraph. Page dots yield to
-  an active condition; Demo remains on its separate footer at y=213.
+  an active condition. Explicit App-started showcase playback leaves the footer clear;
+  other simulated operating modes retain their marker at y=213.
 - Single: short title near y=87; dominant value near y=126; unit near y=169. Bar uses
   title/value/unit centers 70/108/147 and a separate 6 px scale at y=174..180. Trend uses
   centers 72/102/132 and a separate chart envelope y=144..178. Both layouts reserve lower
@@ -167,9 +168,10 @@ remains independently visible on reading pages. Additional-condition counts are 
 from fault-entry counts. Bound both counts rather than displacing the alias or shrinking
 it below 16 px. A full critical takeover retains the diagnostic state for restoration.
 Demo input is explicitly selected generated bench/test data. It is not an App preview
-and is never enabled automatically when a live source disconnects. Every demo reading or
-attention view retains a quiet `Demo` footer in place of page dots; no simulation capsule
-competes with a warning. The App must also make the active demo mode clear. Provider
+and is never enabled automatically when a live source disconnects. App-started showcase
+playback omits its on-gauge `Demo` footer by owner request; the App makes generated data
+and active playback explicit. Other simulated operating modes retain their footer;
+no simulation capsule competes with a warning. Provider
 expiry uses a monotonic remaining-time arc; expiration returns to the prior reading view
 without leaving a stale notice. Pairing/owner confirmation and update maintenance have their own view
 states; underlying vehicle attention is retained and restored. Calibration remains a
@@ -247,7 +249,7 @@ parameterized fixtures; individual screenshots are representative examples.
 | Pairing/ownership | Waiting/closed window; ready; passkey; success; reset confirmation; timeout/cancel; failed attempt/retry; identity suffix when selection needs it |
 | Configuration/maintenance | No pages; applying/restoring a dashboard; trial/confirmed/fallback outcomes; actual update progress; restart/healthy verification; paused/refused transfer; rollback |
 | Gestures and cycling | Progress; completion; cooldown; canceled swipe; hold; cycling pauses/resumes; feedback suppressed by higher-priority status |
-| Simulation and previews | Persistent Demo footer across generated bench readings, faults and overlays; App examples remain labelled previews; no automatic live-data fallback |
+| Simulation and previews | Simulation markers outside App-started showcase; App examples and showcase remain labelled previews; no automatic live-data fallback |
 | Bench calibration | Color transport, neutral/contrast, concentric boundaries, font/long-number fit and production reference; isolated from distributed runtime |
 | Lifecycle/rotations | Every layout in 0/90/180/270 degrees; page/config/unit changes; startup/restart and view return; Auto orientation when capability is eventually implemented |
 
