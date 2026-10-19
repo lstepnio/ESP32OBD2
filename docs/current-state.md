@@ -8,22 +8,22 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-session cleanup/owner-read recovery; firmware source `0.2.0-dev.59`, installed dev.58 (240 MHz bench trial) | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
-| Installed Pixel and gauge | Pixel App dev.51 with the app-wide UX cleanup installed without data clearing; gauge signed dev.58 from `555971e`, generation 39 | Full hosted App/Wi-Fi transfer passed using App `d393490`; exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; boot log confirms 240 MHz; owner reports clear screens/no bezel clipping and normal page/swipes |
+| Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-session cleanup/owner-read recovery; firmware `0.2.0-dev.59` installed (240 MHz development baseline) | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Installed Pixel and gauge | Pixel App dev.51 with the app-wide UX cleanup installed without data clearing; gauge signed dev.59 from `4932860`, generation 40 | Full hosted App/Wi-Fi dev.59 transfer passed using the updated App; exact ELF/health 2, alternate slot, cleared journal and unchanged dashboard/settings/profiles verified; owner confirmed no Demo footer, hold exit and normal pages/swipes |
 | Gauge dashboard | Revision 51; saved whole-vehicle dashboard retained | Exact revision/digest preservation passed; successful readback does not qualify every reading or alert on a vehicle |
 | Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors; dev.53 live both-source reads/resume and each adapter loss/recovery passed |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
 | Vehicle/adapters | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / confirmed PCS TCM-2800; two same-model adapters reported by owner | Dev.53 live simultaneous source reads and independent sibling continuity/recovery passed; sustained-load qualification remains open |
-| Repository | Public `lstepnio/ESP32OBD2`; PRs #51 and #52 merged; app-wide cleanup under review | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
+| Repository | Public `lstepnio/ESP32OBD2`; app-wide cleanup merged through PR #53 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
 
 UI rollout: [Round 3 feedback and native rendering evidence](evidence/gauge-performance-review.md#2026-10-14-prepared-dev54-screen-compositor-and-showcase). Pixel dev.51 is installed with a bounded ATT resource-pressure read retry. Signed dev.55 from `9c6c85c`, generation 36, passed full App/Wi-Fi installation and post-boot preservation checks. The 21-frame showcase start/advance/stop/preservation journey passed and playback was restarted for owner review. Owner confirmed the demo looks good, cycles correctly, exits on hold and returns to normal pages with working swipes. Live vehicle CEL/alert qualification remains open.
 
 Latest App cleanup: [screen/function audit and verification](evidence/product-optimization.md#2026-10-18-app-wide-ux-and-functionality-cleanup).
 The updated debug App is installed on Pixel; protected connection, focused settings/
 pairing-help/update checks and unchanged phone setup passed. Build/lint, 201 JVM tests
-and 64 distinct isolated UI/history cases passed. Source also hides Demo text during
-explicit gauge showcase playback; its firmware build/native checks passed, but it is
-not installed and the signed dev.58 baseline is unchanged.
+and 64 distinct isolated UI/history cases passed. Signed dev.59 now hides Demo text during
+explicit gauge showcase playback. Its hosted App/Wi-Fi rollout and two maintenance
+cycles passed; see the [deployment record](evidence/product-optimization.md#dev59-signed-wi-fi-rollout).
 
 Latest indoor CPU/display trial: signed dev.58 is installed through App/Wi-Fi.
 Boot logging confirms 240 MHz versus the dev.57 160 MHz baseline. Two maintenance
@@ -32,7 +32,8 @@ versus 1,837/1,936 ms, an insufficient sample for a reliable performance claim.
 The untouched 21-frame showcase/stop/readback passed; the owner reports no
 clipping/corruption and normal page/swipes. See the
 [dated trial](evidence/esp32-memory-hardening.md#2026-10-18-dev58-240-mhz-bench-trial).
-Loaded/thermal qualification and full-transfer reception at 240 MHz remain open.
+Dev.58 subsequently received the complete signed dev.59 App/Wi-Fi upload at 240 MHz.
+Loaded/thermal qualification remains open.
 
 Latest vehicle qualification: [dev.53 fresh pairing recovery](evidence/gatt-long-read-recovery.md#dev53-authorized-pairing-recovery-outcome).
 During the subsequent Jeep session, the gauge booted with its owner key absent while
