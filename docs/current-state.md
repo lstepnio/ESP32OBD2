@@ -8,7 +8,7 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-session cleanup/owner-read recovery; firmware `0.2.0-dev.57` | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-session cleanup/owner-read recovery; firmware source `0.2.0-dev.58` (240 MHz trial), installed dev.57 | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
 | Installed Pixel and gauge | Pixel App dev.51 from `d393490` installed without data clearing and APK hash verified after an external restore; gauge signed dev.57 from `8af369b`, generation 38 | Full hosted App/Wi-Fi transfer used App `ad302d4`; exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; owner confirmed dev.57 normal page, clean text and working swipes |
 | Gauge dashboard | Revision 51; saved whole-vehicle dashboard retained | Exact revision/digest preservation passed; successful readback does not qualify every reading or alert on a vehicle |
 | Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors; dev.53 live both-source reads/resume and each adapter loss/recovery passed |

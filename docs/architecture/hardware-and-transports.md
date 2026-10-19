@@ -16,7 +16,7 @@ Deferred sensor/telemetry work belongs to FEATURE-02 in [the backlog](../backlog
 | --- | --- | --- |
 | ESP32-S3 Wi-Fi, 2.4 GHz 802.11 b/g/n | Faster local OTA and profile/diagnostic transfer; optional local integrations | Shares radio resources with BLE; no 5 GHz assumption |
 | BLE central + peripheral | One/two OBD adapters; phone association/config/control/telemetry | Three-link feasibility is unresolved; limits advertised |
-| Dual-core CPU / RTOS | Isolate rendering from transaction/parser work; measured task priorities | Do not fix core affinity without workload measurement |
+| Dual-core CPU / RTOS, 240 MHz development candidate | Isolate rendering from transaction/parser work; measured task priorities | Do not fix core affinity without workload measurement |
 | 16 MB flash configuration | A/B app slots, bounded profiles, diagnostic records | Verify actual flash geometry before migration; firmware files currently use 16 MB |
 | 2 MB embedded QSPI PSRAM | Frame buffers, bounded trends, larger profile cache | Enabled in the current build; keep radio, DMA and latency-critical allocations in internal RAM |
 | 240 × 240 GC9A01 SPI LCD | Bright readable templates, attention overlays, update/recovery status | Board pins/bus bandwidth and partial DMA buffer constraints |
@@ -29,6 +29,23 @@ Deferred sensor/telemetry work belongs to FEATURE-02 in [the backlog](../backlog
 | Six-pin SH1.0 expansion connector | Future ambient-light input, ignition sense, protected external sensor or future accessory | Verify the exact revision pinout, occupied pins, voltage, current and automotive protection before connecting hardware |
 
 ESP32-S3 feature reference: [Espressif datasheet](https://documentation.espressif.com/esp32_s3_datasheet_en.pdf). Board details are from the [Waveshare board documentation](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.28), its linked Rev3 schematic and the checked-out BSP. The product must still record and probe the exact assembled revision because Waveshare lists two SKUs and more than one schematic. Native Bluetooth Classic is not a fallback for this S3 design. An onboard CAN transceiver, GNSS, ambient light sensor, buzzer and vehicle-grade power protection are not present in the documented design.
+
+## CPU clock qualification
+
+Dev.58 raises the configured CPU clock from the inherited 160 MHz baseline to
+240 MHz. Dynamic power management remains disabled; flash, PSRAM and peripheral
+clocks are unchanged. This is a development trial, not a measured performance gain
+or memory-capacity increase. The protected hardware capacity snapshot reports the
+configured clock so installation can be verified without a new protocol.
+
+Before qualification, verify exact signed image/health and 240 MHz readback, saved
+settings/pages and swipes, showcase rendering, repeated maintenance Wi-Fi cycles
+and a full signed transfer. Compare worker gaps, stack margins, allocation failures,
+free/largest internal blocks and end-to-end timings against dev.57, then run loaded
+dual-adapter/phone soak. Record power/temperature observations with the enclosure
+and ambient conditions; no CPU temperature measurement should be inferred from the
+board IMU. Retain signed dev.57 recovery artifacts; reverting the clock on-device
+requires a newly versioned signed release, not bypassing update rollback guards.
 
 ## Automatic display orientation
 
