@@ -1,0 +1,37 @@
+package com.lstepnio.egauge
+
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.lstepnio.egauge.ui.state.presentationState
+import org.junit.Assert.*
+import org.junit.Assume.assumeTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+/** Read stored phone state only, with automatic discovery disabled. Does not edit or send. */
+@RunWith(AndroidJUnit4::class)
+class StoredVehicleDashboardTest {
+    @get:Rule val compose = activityTestRule()
+    @Test fun childReadingsAndEngineReadingsShareTheActualVehicleEditor() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("allowStoredVehicleRead") == "true")
+        val model = (compose.activity.application as EGaugeApplication).model
+        compose.runOnIdle {
+            assertTrue(model.editorDraft.source in setOf("ECM", "BOTH"))
+            val state = model.presentationState(android.os.SystemClock.elapsedRealtime())
+            assertTrue(state.customize.readings.map { it.id }.containsAll(setOf("rpm", "coolant", "tcmtemp", "tcmgear")))
+            assertEquals(model.editorDraft.pages, state.car.actionPages)
+            assertEquals(model.transmittedDraft.pages.map { it.id }, state.customize.reviewPages!!.map { it.id })
+            assertEquals(model.transmittedDraft.alerts.size, state.customize.reviewAlerts!!.size)
+            assertNull(state.customize.reviewNotice)
+            assertEquals(model.editorDraft.pages.map { it.id }, model.transmittedDraft.pages.map { it.id })
+            val original = model.profileCollection
+            val pages = model.editorDraft.pages
+            model.selectVehicleSource("TCM")
+            assertEquals(pages, model.editorDraft.pages)
+            assertEquals(original, model.profileCollection)
+            assertEquals(pages.map { it.id }, model.transmittedDraft.pages.map { it.id })
+            model.selectVehicleSource("ECM")
+        }
+    }
+}

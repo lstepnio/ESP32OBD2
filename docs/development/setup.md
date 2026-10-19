@@ -73,8 +73,11 @@ for authorized publication and the [recovery matrix](ota-recovery-matrix.md) for
 ## Adapter and vehicle sessions
 
 The companion selects and saves a source-specific adapter binding in the configuration.
-The normal runtime polls one active Engine or Transmission source. Legacy menuconfig
-MAC fields are fallback/scaffolding, not the normal setup or qualified dual-adapter support.
+The default setup uses one primary adapter for the whole vehicle dashboard, including
+any supported transmission requests. An explicitly configured child adapter changes
+request routing, not the visible reading/page list. The per-gauge Expert option requires
+`da:1` and distinct bindings. Menuconfig ECM MAC is a legacy fallback; the idle TCM
+worker is retired. See [dual recovery qualification](dual-adapter-recovery.md).
 Keep real addresses and raw recordings in ignored local artifacts.
 
 Use [TCM resume](tcm-session-resume.md) for the next Jeep session and the
@@ -90,6 +93,6 @@ python3 -m http.server 8765 --bind 127.0.0.1
 ```
 
 Open `http://127.0.0.1:8765/design/prototype/`. It does not access real Bluetooth.
-Full USB flashing changes OTA metadata; use the [migration procedure](usb-partition-migration.md)
+Full USB flashing changes OTA metadata; use the [migration procedure](../evidence/usb-partition-migration.md)
 only for explicitly authorized provisioning/recovery. Never erase bonds/config or
 change eFuses as an incidental repair. Current field updates use App/Wi-Fi.

@@ -11,12 +11,16 @@
 #include "misc/lv_event.h"
 
 #include "obd.h"
+#include "page_action.h"
+#include "diagnostics_state.h"
+
+/* Internal callback event; no external vehicle control operation. */
+#define UI_EVENT_PAGE_ACTION LV_EVENT_REFRESH
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
-#define DISPLAY_VALUE_INVALID INT32_MAX
 #define UI_PAIRING_HIDDEN 0U
 #define UI_PAIRING_READY UINT32_MAX
 #define UI_PAIRING_WAITING (UINT32_MAX - 1U)
@@ -41,8 +45,8 @@ typedef struct {
     uint16_t pid;
     const char *name;
     const char *unit;
-    int32_t minimum;
-    int32_t maximum;
+    double minimum;
+    double maximum;
     uint32_t stale_after_ms;
 } ui_metric_t;
 
@@ -64,8 +68,16 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
 /* Thread-safe presentation mailbox. Samples are accepted only when their PID
  * still matches the selected page, preventing late replies from crossing a
  * page change. Passing NULL publishes an unavailable sample for that PID. */
-void  ui_set_value(ui_t *ui, uint16_t pid, int32_t const *value);
+void  ui_set_value(ui_t *ui, uint16_t pid, double const *value);
 void  ui_set_page(ui_t *ui, ui_page_t const *page);
+void ui_set_page_position(ui_t *ui,unsigned index,unsigned count);
+/* LVGL owner only for configuration and target access. Context mailbox is thread-safe. */
+void ui_configure_page_action(ui_t *ui, page_action_config_t config);
+void ui_set_action_context(ui_t *ui, bool allowed);
+uint8_t ui_action_target(ui_t *ui);
+void ui_reset_action_sequence(ui_t *ui);
+bool ui_action_pending(ui_t *ui);
+void ui_action_applied(ui_t *ui);
 /* Call on the LVGL task or while holding its lock. */
 void  ui_set_units(ui_t *ui, bool imperial_units);
 /* Thread-safe: displays pairing or owner-reset instructions. Accepts a six-digit
@@ -80,3 +92,15 @@ void  ui_next_display_calibration(ui_t *ui);
 
 /* Call at boot with the LVGL lock held for a trace-build bench source. */
 void ui_set_simulated(ui_t *ui);
+
+void ui_set_alert_full(ui_t *ui,uint8_t severity,bool unavailable,const char *label,bool attention);
+
+void ui_set_alert_event(ui_t *ui,uint8_t severity,bool unavailable,const char *label,bool attention,uint16_t key,uint32_t boot,uint32_t episode,float value,float limit,const char *unit);
+void ui_set_alert_condition(ui_t *ui,uint8_t severity,bool unavailable,const char *label,bool attention,uint16_t key,uint32_t boot,uint32_t episode,float value,float limit,const char *unit,uint8_t additional,bool simulated);
+void ui_set_vehicle_diagnostics(ui_t *ui,const diagnostics_snapshot_t *snapshot);
+/* Ephemeral, authenticated bench presentation. Does not change vehicle data or NVS. */
+bool ui_request_showcase(ui_t *ui,bool enabled,uint8_t seconds,uint32_t sequence,bool vehicle_ready,bool maintenance);
+size_t ui_showcase_status(ui_t *ui,uint32_t now,uint8_t out[20]);
+bool ui_showcase_active(ui_t *ui);
+void ui_showcase_next(ui_t *ui);
+void ui_showcase_stop(ui_t *ui);

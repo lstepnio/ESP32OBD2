@@ -4,7 +4,7 @@ The development gauge now runs the two-slot layout and a rollback-enabled bootlo
 
 For local integration work, `python3 tools/sign_dev_update.py firmware/gauge/build/esp32-idf-project.bin --bundle /tmp/egauge-dev-update.zip` creates a development ZIP with exactly `metadata.json` and `firmware.bin`. The metadata carries board tag, image length, SHA-256, and a DER P-256 signature over the firmware transfer's 40 signed bytes. The private key remains outside Git. The Android development installer imports this package and separately verifies its image and signature; creating the package alone does not activate an update. It is not a production release manifest.
 
-## Proposed 16 MiB layout
+## Development 16 MiB layout
 
 | Partition | Offset | Size | Purpose |
 | --- | --- | --- | --- |
@@ -21,13 +21,18 @@ The remaining flash is unassigned. This table is installed on the development ga
 
 ## Artifact trust
 
-**Implemented development distribution:** GitHub Releases hosts per-board bundles plus a signed, expiring compatibility catalog. The companion verifies the catalog with its pinned development key, requires monotonic generations, pins the accepted content hash for each generation, selects the highest exact board/revision/layout/channel/protocol match, reads the installed firmware, rejects equal or older versions, bounds the HTTPS download, checks its catalog hash, then applies the existing bundle checks before transfer. The protected workflow and operating procedure are in the [release runbook](../development/firmware-release-runbook.md). The catalog can describe multiple boards, but only the Waveshare target is registered. Physical evidence covers GitHub-hosted installation through dev15, including signed catalog verification, authenticated post-boot identity, up-to-date suppression, and reset recovery; see [GitHub-hosted validation](../development/github-hosted-update-validation.md) and the [recovery matrix](../development/ota-recovery-matrix.md).
+**Implemented development distribution:** GitHub Releases hosts per-board bundles plus a signed, expiring compatibility catalog. The companion verifies the catalog with its pinned development key, requires monotonic generations, pins the accepted content hash for each generation, selects the highest exact board/revision/layout/channel/protocol match, reads the installed firmware, rejects equal or older versions, bounds the HTTPS download, checks its catalog hash, then applies the existing bundle checks before transfer. The protected workflow and operating procedure are in the [release runbook](../development/firmware-release-runbook.md). The catalog can describe multiple boards, but only the Waveshare target is registered. Latest installed image evidence belongs in [current state](../current-state.md). Earlier [GitHub-hosted validation](../evidence/github-hosted-update-validation.md) and [reset measurements](../evidence/ota-recovery-history.md) retain version-scoped results; the [recovery matrix](../development/ota-recovery-matrix.md) defines the procedure.
 
 Release bundle should include exact board ID/revision, chip target, image size/hash, monotonically increasing release sequence, semantic version, protocol/config compatibility ranges, minimum bootloader, partition-layout ID, release notes hash, channel and signing key ID. See [manifest schema](../../contracts/release-manifest.schema.json). The experimental firmware path currently verifies a pinned P-256 signature over its board tag, image size and SHA-256. A production release should sign canonical UTF-8 JSON (RFC 8785/JCS) bytes as detached metadata, and both phone and gauge should validate metadata signature, board/partition compatibility, size and SHA-256. ESP-IDF signed-app verification would provide an independent image check. Specify and validate the ESP secure-image key format separately from the metadata key, rather than assuming those signatures are interchangeable.
 
 Keep private signing keys outside the repo/ordinary CI; a protected release job receives narrow signing access. Plan key rotation with an old-key-signed trust-set change before revocation. Reject normal version downgrades; an explicit recovery policy can select the last known valid slot. No eFuse anti-rollback or secure-boot provisioning during prototype setup. Application verification without secure boot does not protect against hostile replacement through physical flashing.
 
 ## State machine
+
+**Proposed production contract:** the generic operations, credits and manifest checks
+below are design requirements. Current protocol-0 bytes and actual trial health
+are authoritative in [development transfers](experimental-firmware-transfers.md)
+and [firmware runtime](../architecture/firmware-runtime.md#ota-states-and-trial-health).
 
 `idle -> preflight -> receiving -> verifying -> ready -> activating -> pending_boot -> confirmed`
 
@@ -48,6 +53,6 @@ Power interruption before/after every erase/write/boot-selection boundary must r
 
 ## Hardware-aware transport extension
 
-BLE provides association/control and a universal update path; Wi-Fi is designed as a negotiated faster bulk transport sharing the same operation state, trust checks and recovery semantics. Two-adapter radio coexistence, board sensors, PSRAM, USB and power management are covered in the [hardware and transport strategy](../architecture/hardware-and-transports.md). Preferred production update transport remains subject to WIFI-001/RADIO-001 measurements.
+BLE provides association/control and a universal update path; Wi-Fi is designed as a negotiated faster bulk transport sharing the same operation state, trust checks and recovery semantics. Two-adapter radio coexistence, board sensors, PSRAM, USB and power management are covered in the [hardware and transport strategy](../architecture/hardware-and-transports.md). Preferred production update transport remains subject to QUAL-02/QUAL-04/QUAL-08 measurements in [the backlog](../backlog.md).
 
 The implemented experimental transport uses an automatic temporary gauge network and application-layer AEAD. Its wire contract, capability gate and remaining qualification work are documented in [Wi-Fi bulk transport](wifi-bulk-v1.md).

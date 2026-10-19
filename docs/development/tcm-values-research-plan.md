@@ -2,13 +2,16 @@
 
 Researched 2026-10-06, America/Denver. This is a preparation plan, not a new
 vehicle capture or a firmware release. Existing temperature and gear behavior
-is recorded in [gear capture](tcm-gear-capture.md) and
-[temperature verification](tcm-temperature-goal.md).
+is recorded in [gear capture](../evidence/tcm-gear-capture.md) and
+[temperature verification](../evidence/tcm-temperature-goal.md).
+
+Task readiness and dependencies live in **QUAL-05/QUAL-06** in [the backlog](../backlog.md).
+This document owns bounded candidate reads and acceptance, not a separate ranked queue.
 
 ## Recommended reference model
 
 Start with **2016 Dodge Challenger LA, 5.7 L, FCA ZF 8HP70** definitions.
-The previous [identity investigation](jeep-direct-exploration-results.md)
+The previous [identity investigation](../evidence/jeep-direct-exploration-results.md)
 associated the observed calibration 68274867AE with that application in FCA's
 calibration catalog. This is a calibration-family lead, not proof of the donor
 vehicle or an unmodified calibration. The installed external PCS TCM-2800 is
@@ -225,7 +228,7 @@ not new physical readings. The host replay entry point now uses the production
 ECU-specific DTC parser when an explicit response address is provided.
 
 This work needs no new app profile or firmware update. After qualification, add
-definitions to the existing Transmission profile and scheduler, keeping consumer
+definitions to the shared catalog and logical vehicle dashboard, keeping consumer
 labels simple and provenance/status in Expert. Complete full TCM fault-list
 transport separately; a successful Mac read is not an app feature. Firmware
 installation remains App/Wi-Fi, and public capability flags remain unchanged.
@@ -264,7 +267,10 @@ Each value advances independently; a model-family match is not blanket approval.
 - [OBD Solutions standard reads](https://www.obdsol.com/knowledgebase/obd-software-development/reading-real-time-data/):
   standard RPM/speed request meanings.
 
-## Offline follow-up, 2026-10-06
+## Recorded offline follow-up, 2026-10-06
+
+This dated research/replay record does not update installed-device state or task
+priority. Current readiness is in the backlog.
 
 The [current OBDb Challenger definitions](https://github.com/OBDb/Dodge-Challenger/blob/main/signalsets/v3/default.json)
 were rechecked. They retain 04FE, 5503/5504 and raw 5034 candidates. They also list

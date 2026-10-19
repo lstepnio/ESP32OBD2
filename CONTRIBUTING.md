@@ -8,6 +8,13 @@ Contract changes need a version/compatibility note and examples. New PID definit
 
 Use short-lived feature branches and reviewed PRs after repository bootstrap. Require documentation/schema checks and relevant build jobs. Keep signing keys and personal vehicle identifiers out of Git. Product-wide license remains an owner decision; third-party notices must stay intact.
 
+## Documentation maintenance
+
+Follow [documentation ownership](docs/documentation.md). Keep verified support in
+current state, stable task IDs/status in backlog, outcome order in roadmap and dated
+measurements in evidence. Update the documentation map for new maintained documents
+or source entry points. Validate links and heading anchors with the repository validator.
+
 ## Commit and backup routine
 
 Commit completed, tested changes on the active feature branch and push that branch

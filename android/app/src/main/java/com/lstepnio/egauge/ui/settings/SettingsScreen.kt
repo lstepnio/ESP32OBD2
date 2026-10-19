@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -19,20 +22,23 @@ import com.lstepnio.egauge.ui.state.SettingsUiState
 fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDynamic: (Boolean) -> Unit,
     onRename: (String) -> Unit, onRotate: (Int) -> Unit, onSaveDisplay: (Int, Int) -> Unit, onUpdates: () -> Unit,
     onSetup: () -> Unit, onBluetoothSettings: () -> Unit, onSaveUnits: (MeasurementSystem) -> Unit = {},
-    onSaveCycle: (Int) -> Unit = {}, onSelectGauge: (String) -> Unit = {}, onAddGauge: () -> Unit = {}) {
-    var gaugesOpen by rememberSaveable { mutableStateOf(false) }
-    var nameOpen by rememberSaveable { mutableStateOf(false) }
-    var rotationOpen by rememberSaveable { mutableStateOf(false) }
-    var brightnessOpen by rememberSaveable { mutableStateOf(false) }
-    var unitsOpen by rememberSaveable { mutableStateOf(false) }
-    var cycleOpen by rememberSaveable { mutableStateOf(false) }
-    var forgetOpen by rememberSaveable { mutableStateOf(false) }
-    var moveOwnerOpen by rememberSaveable { mutableStateOf(false) }
+    onSaveCycle: (Int) -> Unit = {}, onSelectGauge: (String) -> Unit = {}, onAddGauge: () -> Unit = {}, phoneAlerts: Boolean = false, monitoring: Boolean = false, onPhoneAlerts: (Boolean) -> Unit = {}) {
+    var gaugesOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
+    var nameOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
+    var rotationOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
+    var brightnessOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
+    var unitsOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
+    var cycleOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
+    var forgetOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
+    var moveOwnerOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     ScreenContent {
         ScreenTitle("Settings")
         ResponsivePanels(first = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SectionTitle("Gauge")
+                if (!state.settingsCurrent && state.brightness != null)
+                    Text("Last checked settings", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 SettingsRow("Your gauges", state.name, !state.busy) { gaugesOpen = true }
                 SettingsRow("Gauge name", state.name) { nameOpen = true }
                 SettingsRow("Brightness", state.brightness?.let { "$it%" } ?:
@@ -53,14 +59,15 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
                     state.displaySettingsVersion >= 3 && state.found && !state.busy && state.settingsCurrent && state.cycleSeconds != null) {
                     cycleOpen = true
                 }
-                if (!state.settingsCurrent && state.found) Text("Refreshing settings automatically…",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (!state.found) TextButton(onSetup) { Text("Set up gauge") }
                 TextButton({ forgetOpen = true }) { Text("Remove from this phone") }
                 TextButton({ moveOwnerOpen = true }) { Text("Move gauge to another phone") }
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                SectionTitle("Alerts")
+                PreferenceToggle("Phone alerts",phoneAlerts,onPhoneAlerts)
+                Text(if(monitoring)"Monitoring your connected gauge" else "Gauge alerts work independently. Phone monitoring is off.",style=MaterialTheme.typography.bodySmall)
                 SectionTitle("Appearance and tools")
                 PreferenceToggle("Use phone colours", state.dynamicColor, onDynamic)
                 PreferenceToggle("Show advanced tools", state.advanced, onAdvanced)
@@ -69,10 +76,10 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
         })
     }
     if (gaugesOpen) AlertDialog(onDismissRequest = { gaugesOpen = false }, title = { Text("Your gauges") }, text = {
-        Column {
+        DialogContent {
             state.gauges.forEach { gauge ->
                 SettingsRow(gauge.name,
-                    listOfNotNull(gauge.vehicleName, gauge.source?.let { if (it == "TCM") "Transmission" else "Engine" },
+                    listOfNotNull(gauge.vehicleName,
                         if (gauge.needsReview) "Setup needs review" else if (gauge.id == state.selectedGaugeId) "Selected" else null).joinToString(" · "), !state.busy,
                     { onSelectGauge(gauge.id); gaugesOpen = false })
             }
@@ -80,9 +87,9 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
         }
     }, confirmButton = { TextButton({ gaugesOpen = false }) { Text("Close") } })
     if (nameOpen) {
-        var name by rememberSaveable { mutableStateOf(state.name) }
+        var name by rememberSaveable(state.selectedGaugeId) { mutableStateOf(state.name) }
         AlertDialog(onDismissRequest = { nameOpen = false }, title = { Text("Name your gauge") }, text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            DialogContent {
                 OutlinedTextField(name, { name = it.take(32) }, label = { Text("Gauge name") }, singleLine = true)
                 Text("This name is used on this phone.", style = MaterialTheme.typography.bodyMedium)
             }
@@ -90,9 +97,9 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
             dismissButton = { TextButton({ nameOpen = false }) { Text("Cancel") } })
     }
     if (rotationOpen) {
-        var rotation by rememberSaveable { mutableIntStateOf(state.rotation ?: 0) }
+        var rotation by rememberSaveable(state.selectedGaugeId) { mutableIntStateOf(state.rotation ?: 0) }
         AlertDialog(onDismissRequest = { rotationOpen = false }, title = { Text("Rotate your display") }, text = {
-            Column {
+            DialogContent {
                 (0..3).forEach { value ->
                     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(rotation == value, role = Role.RadioButton, onClick = { rotation = value }),
                         verticalAlignment = Alignment.CenterVertically) {
@@ -110,12 +117,14 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
             dismissButton = { TextButton({ rotationOpen = false }) { Text("Cancel") } })
     }
     if (brightnessOpen) {
-        var brightness by rememberSaveable { mutableIntStateOf(state.brightness ?: 80) }
+        var brightness by rememberSaveable(state.selectedGaugeId) { mutableIntStateOf(state.brightness ?: 80) }
         AlertDialog(onDismissRequest = { brightnessOpen = false }, title = { Text("Display brightness") }, text = {
-            Column {
+            DialogContent {
                 Text("$brightness%")
                 Slider(value = brightness.toFloat(), onValueChange = { brightness = it.toInt().coerceIn(5, 100) },
-                    valueRange = 5f..100f)
+                    valueRange = 5f..100f, modifier = Modifier.semantics {
+                        contentDescription = "Brightness"; stateDescription = "$brightness percent"
+                    })
             }
         }, confirmButton = { Button({
             onSaveDisplay(state.rotation ?: 0, brightness)
@@ -124,9 +133,9 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
             dismissButton = { TextButton({ brightnessOpen = false }) { Text("Cancel") } })
     }
     if (unitsOpen) {
-        var choice by rememberSaveable { mutableStateOf(state.measurementSystem) }
+        var choice by rememberSaveable(state.selectedGaugeId) { mutableStateOf(state.measurementSystem) }
         AlertDialog(onDismissRequest = { unitsOpen = false }, title = { Text("Display units") }, text = {
-            Column {
+            DialogContent {
                 MeasurementSystem.entries.forEach { system ->
                     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(choice == system,
                         role = Role.RadioButton, onClick = { choice = system }), verticalAlignment = Alignment.CenterVertically) {
@@ -142,9 +151,9 @@ fun SettingsScreen(state: SettingsUiState, onAdvanced: (Boolean) -> Unit, onDyna
         } }, dismissButton = { TextButton({ unitsOpen = false }) { Text("Cancel") } })
     }
     if (cycleOpen) {
-        var choice by rememberSaveable { mutableIntStateOf(state.cycleSeconds ?: 0) }
+        var choice by rememberSaveable(state.selectedGaugeId) { mutableIntStateOf(state.cycleSeconds ?: 0) }
         AlertDialog(onDismissRequest = { cycleOpen = false }, title = { Text("Auto-cycle saved pages") }, text = {
-            Column {
+            DialogContent {
                 listOf(0, 5, 10, 15, 30, 60).forEach { seconds ->
                     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(choice == seconds,
                         role = Role.RadioButton, onClick = { choice = seconds }), verticalAlignment = Alignment.CenterVertically) {

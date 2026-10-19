@@ -41,7 +41,7 @@ static elm_result_t decode_pid(const elm_response_t *response, uint8_t mode,
     memset(payload, 0, sizeof(*payload));
     if (response->overflow) return ELM_OVERFLOW;
     bool service = mode != 1;
-    if (service && mode != 3 && mode != 7 && mode != 10) return ELM_MALFORMED;
+    if (service && mode != 4 && mode != 3 && mode != 7 && mode != 10) return ELM_MALFORMED;
     unsigned matches = 0;
     elm_result_t result = ELM_MALFORMED;
     bool failed = false;

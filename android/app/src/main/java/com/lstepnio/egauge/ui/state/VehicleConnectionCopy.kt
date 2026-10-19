@@ -51,3 +51,11 @@ fun configuredSourceId(document: com.lstepnio.egauge.GaugeConfigTransferClient.A
 
 fun settingsReadCurrent(checkedAt: Long?, now: Long, failed: Boolean): Boolean =
     !failed && checkedAt != null && now >= checkedAt && now - checkedAt <= 60_000
+
+fun configuredSourceIndices(document: com.lstepnio.egauge.GaugeConfigTransferClient.ActiveDocument?): Map<String, Int> = runCatching {
+    val entries = org.json.JSONObject(document?.json ?: return emptyMap()).getJSONArray("sources")
+    require(entries.length() in 1..2)
+    val roles = (0 until entries.length()).map { entries.getJSONObject(it).getString("role").uppercase(java.util.Locale.ROOT) }
+    require(roles.distinct().size == roles.size && roles.all { it in setOf("ECM", "TCM") })
+    roles.mapIndexed { index, role -> role to index }.toMap()
+}.getOrDefault(emptyMap())

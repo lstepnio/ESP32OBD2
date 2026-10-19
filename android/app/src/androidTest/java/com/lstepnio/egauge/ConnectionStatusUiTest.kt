@@ -52,13 +52,14 @@ class ConnectionStatusUiTest {
             connectionStatus = ready)
         frame { CarScreen(state, {}, {}, {}) }
         compose.onNodeWithText("Connected").assertIsDisplayed()
-        compose.onNodeWithText("P0301").assertIsDisplayed()
+        compose.onNodeWithText("Fault codes").assertIsDisplayed()
         listOf("Check faults", "Check adapter", "Transmission", "Find adapter").forEach {
             compose.onAllNodesWithText(it).assertCountEquals(0)
         }
         capture("car")
-        compose.onNodeWithText("Check coverage").performClick()
-        compose.onNodeWithText("Stored: Checked just now").assertIsDisplayed()
+        compose.onNodeWithText("Fault codes").performClick()
+        compose.onNodeWithText("P0301").assertIsDisplayed()
+        compose.onAllNodesWithText("Check coverage").assertCountEquals(0)
     }
     @Test fun settingsUsesTheSameWidgetAndReadsWithoutATap() {
         val state = SettingsUiState("eGauge", true, 1, true, false, false, false, "Example", emptyList(),
@@ -79,7 +80,7 @@ class ConnectionStatusUiTest {
         compose.onNodeWithText("Rotation").assertIsNotEnabled()
         compose.onNodeWithText("Units").assertIsNotEnabled()
         compose.onNodeWithText("Auto-cycle pages").assertIsNotEnabled()
-        compose.onNodeWithText("Refreshing settings automatically…").assertIsDisplayed()
+        compose.onNodeWithText("Last checked settings").assertIsDisplayed()
         compose.onAllNodesWithText("Refresh").assertCountEquals(0)
     }
     @Test fun partialDualConnectionCannotShowAllConnected() {

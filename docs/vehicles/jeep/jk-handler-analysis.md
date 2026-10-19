@@ -11,3 +11,19 @@ Status: static analysis of the managed diagnostic handlers, recorded on 2026-09-
 | Z test routine | The JK adaptation entry is inactive. A handler exists and describes routine steps. | No claim of JK support or safe operation follows from the inactive entry. |
 
 The strings above identify command fragments in executable methods. Branch conditions, adapter setup, diagnostic session, security access, timing, error handling, and readback can change the actual sequence. No action is enabled in eGauge. The [JK research notes](wrangler-jk.md) define the physical validation needed before implementation.
+
+## Primary vendor cross-check, 2026-10-07
+
+The [JScan FAQ](https://jscan.net/faq/) describes raised idle as a temporary
+adaptation that returns to normal when the app disconnects or leaves the adaptation
+screen. This supports modelling high idle as an active operation with Stop and
+verified refresh/loss-of-contact behavior, rather than a persistent RPM preference.
+The FAQ does not provide encoding, refresh timing, a stop packet or a compatibility
+identity for this Jeep's swapped PCM. It does not establish eGauge support.
+
+The [official JK feature page](https://jscan.net/jeep-wrangler-jk/) lists module
+identification (VIN, part number and version) and vehicle-specific actuator testing.
+Its general JK coverage is not evidence that the swapped Hemi PCM matches the
+petrol handler above, nor a complete ABS/ESC disable/restore procedure. Next controller
+qualification needs exact identities and complete command/result/restore definitions;
+retain these as research candidates until that evidence is available.

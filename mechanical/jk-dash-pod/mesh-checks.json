@@ -1,0 +1,71 @@
+{
+  "pod-prototype": {
+    "bounds_mm": [
+      [
+        -24.0,
+        -36.745,
+        0.0
+      ],
+      [
+        24.0,
+        11.0,
+        56.763
+      ]
+    ],
+    "size_mm": [
+      48.0,
+      47.745,
+      56.763
+    ],
+    "volume_cm3": 20.62,
+    "watertight": true,
+    "components": 1,
+    "triangles": 26552
+  },
+  "rear-cover-converter-tray": {
+    "bounds_mm": [
+      [
+        -17.664,
+        -17.664,
+        0.0
+      ],
+      [
+        17.664,
+        20.664,
+        9.0
+      ]
+    ],
+    "size_mm": [
+      35.327,
+      38.327,
+      9.0
+    ],
+    "volume_cm3": 3.04,
+    "watertight": true,
+    "components": 1,
+    "triangles": 3274
+  },
+  "gauge-fit-coupon": {
+    "bounds_mm": [
+      [
+        -23.5,
+        -22.267,
+        0.0
+      ],
+      [
+        23.5,
+        23.5,
+        5.0
+      ]
+    ],
+    "size_mm": [
+      47.0,
+      45.767,
+      5.0
+    ],
+    "volume_cm3": 2.11,
+    "watertight": true,
+    "components": 1,
+    "triangles": 2524
+  }
+}

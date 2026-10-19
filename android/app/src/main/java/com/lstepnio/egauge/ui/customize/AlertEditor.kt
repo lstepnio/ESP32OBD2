@@ -15,7 +15,8 @@ import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.AlertDirection
 import com.lstepnio.egauge.MeasurementUnits
 import com.lstepnio.egauge.demoCatalog
-import com.lstepnio.egauge.readingRange
+import com.lstepnio.egauge.readingBounds
+import com.lstepnio.egauge.gearPositions
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.ResponsivePanels
 import com.lstepnio.egauge.ui.state.*
@@ -34,9 +35,12 @@ fun AlertEditor(state: CustomizeUiState, reading: ReadingUi, original: AlertUi?,
     var behavior by rememberSaveable { mutableStateOf(false) }
     var showPreview by rememberSaveable { mutableStateOf(false) }
     var preview by rememberSaveable { mutableStateOf(PreviewCondition.Normal) }
-    val canonicalUnit = demoCatalog.first { it.id == reading.id }.unit
-    val range = MeasurementUnits.range(readingRange(reading.id), canonicalUnit, state.measurementSystem)
-    val maxReset = MeasurementUnits.distance(20, canonicalUnit, state.measurementSystem)
+    val definition = demoCatalog.first { it.id == reading.id }
+    val canonicalUnit = definition.unit
+    val gear = definition.alertKind == "gear"
+    LaunchedEffect(gear) { if (gear) form = form.copy(direction = AlertDirection.Equals, reset = "0") }
+    val range = MeasurementUnits.range(readingBounds(reading.id), canonicalUnit, state.measurementSystem)
+    val maxReset = MeasurementUnits.distance((definition.maximum - definition.minimum), canonicalUnit, state.measurementSystem)
     val errors = form.errors(range, maxReset)
     val displayedResult = form.saved(reading.id, range, original, maxReset)
     val result = displayedResult?.let { draft ->
@@ -47,7 +51,8 @@ fun AlertEditor(state: CustomizeUiState, reading: ReadingUi, original: AlertUi?,
                 else MeasurementUnits.canonical(draft.critical, canonicalUnit, state.measurementSystem),
             hysteresis = if (original != null && draft.hysteresis == original.resetMargin) original.canonicalResetMargin
                 else MeasurementUnits.canonicalDistance(draft.hysteresis, canonicalUnit, state.measurementSystem),
-        ).takeIf { it.warning in readingRange(reading.id) && it.critical in readingRange(reading.id) && it.hysteresis in 0..20 }
+        ).takeIf { it.warning in readingBounds(reading.id) && it.critical in readingBounds(reading.id) && it.hysteresis >= 0 && it.hysteresis < definition.maximum - definition.minimum &&
+            com.lstepnio.egauge.ConfigurationProjector.blockers(com.lstepnio.egauge.Draft(alerts = listOf(it))).isEmpty() }
     }
     EditorScaffold("Edit alert", onBack, "Save alert", { result?.let { actions.saveAlert(it); onBack() } },
         state.editingEnabled && result != null) {
@@ -58,23 +63,31 @@ fun AlertEditor(state: CustomizeUiState, reading: ReadingUi, original: AlertUi?,
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SectionTitle("Alert when the reading")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AlertDirection.entries.forEach { direction ->
+                    AlertDirection.entries.filter { if (gear) it == AlertDirection.Equals else it != AlertDirection.Equals }.forEach { direction ->
                         FilterChip(form.direction == direction, { form = form.copy(direction = direction) },
-                            enabled = state.editingEnabled, label = { Text(if (direction == AlertDirection.Above) "Rises above" else "Falls below") })
+                            enabled = state.editingEnabled, label = { Text(when (direction) { AlertDirection.Above -> "Rises above"; AlertDirection.Below -> "Falls below"; AlertDirection.Equals -> "Matches position" }) })
                     }
                 }
+                if (gear) {
+                    Text("Warning position")
+                    GearPositionField(form.warning, { form = form.copy(warning = it) }, state.editingEnabled)
+                    Text("Critical position")
+                    GearPositionField(form.critical, { form = form.copy(critical = it) }, state.editingEnabled)
+                    Text("If both positions match, Critical takes priority.", style = MaterialTheme.typography.bodySmall)
+                } else {
                 LimitField("Warning", form.warning, reading.unit, { form = form.copy(warning = it) }, state.editingEnabled,
-                    errors["warning"]?.takeIf { form.warning.isNotBlank() }, "${range.first} to ${range.last} ${reading.unit}")
+                    errors["warning"]?.takeIf { form.warning.isNotBlank() }, "${MeasurementUnits.format(range.start)} to ${MeasurementUnits.format(range.endInclusive)} ${reading.unit}")
                 LimitField("Critical", form.critical, reading.unit, { form = form.copy(critical = it) }, state.editingEnabled,
-                    errors["critical"]?.takeIf { form.critical.isNotBlank() }, "${range.first} to ${range.last} ${reading.unit}")
+                    errors["critical"]?.takeIf { form.critical.isNotBlank() }, "${MeasurementUnits.format(range.start)} to ${MeasurementUnits.format(range.endInclusive)} ${reading.unit}")
+                }
                 TextButton({ behavior = !behavior }) { Text(if (behavior) "Hide alert behavior" else "Alert behavior") }
                 if (behavior) {
                     Text("Wait before showing or clearing an alert to avoid brief changes.", style = MaterialTheme.typography.bodyMedium)
                     LimitField("Show after", form.trigger, "s", { form = form.copy(trigger = it) }, state.editingEnabled, errors["trigger"])
                     LimitField("Clear after", form.clear, "s", { form = form.copy(clear = it) }, state.editingEnabled, errors["clear"])
-                    LimitField("Reset distance", form.reset, reading.unit, { form = form.copy(reset = it) }, state.editingEnabled,
+                    if (!gear) LimitField("Reset distance", form.reset, reading.unit, { form = form.copy(reset = it) }, state.editingEnabled,
                         errors["reset"], "0 to $maxReset ${reading.unit}")
-                    Text("The reading must move back past the limit by this amount before the alert clears.",
+                    if (!gear) Text("The reading must move back past the limit by this amount before the alert clears.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else if (errors.keys.any { it in setOf("reset", "trigger", "clear") }) {
                     Text("Check the reset distance or delay. Open Alert behavior to adjust it.",
@@ -85,14 +98,18 @@ fun AlertEditor(state: CustomizeUiState, reading: ReadingUi, original: AlertUi?,
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (!wide) TextButton({ showPreview = !showPreview }) { Text(if (showPreview) "Hide preview" else "Preview alert") }
                 if (wide || showPreview) {
-                    val warn = form.warning.toIntOrNull()
-                    val urgent = form.critical.toIntOrNull()
-                    val step = if (form.direction == AlertDirection.Above) 1L else -1L
-                    val value = when (preview) {
-                        PreviewCondition.Warning -> warn?.toLong()?.plus(step)
-                        PreviewCondition.Critical -> urgent?.toLong()?.plus(step)
-                        else -> warn?.toLong()?.minus(step * ((range.last - range.first) / 10).coerceAtLeast(1))
-                    }?.coerceIn(range.first.toLong(), range.last.toLong())?.toString() ?: "--"
+                    val warn = form.warning.toDoubleOrNull()
+                    val urgent = form.critical.toDoubleOrNull()
+                    val step = if (form.direction == AlertDirection.Above) 1.0 else -1.0
+                    val value = if (gear) when (preview) {
+                        PreviewCondition.Warning -> gearPositions[warn]
+                        PreviewCondition.Critical -> gearPositions[urgent]
+                        else -> "--"
+                    } ?: "--" else when (preview) {
+                        PreviewCondition.Warning -> warn?.plus(step)
+                        PreviewCondition.Critical -> urgent?.plus(step)
+                        else -> warn?.minus(step * ((range.endInclusive - range.start) / 10).coerceAtLeast(0.001))
+                    }?.coerceIn(range.start, range.endInclusive)?.let(MeasurementUnits::format) ?: "--"
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         RoundPreview(ReadingPreviewUi(reading.name, value, reading.unit, PreviewLayout.Arc, preview), Modifier.widthIn(max = 200.dp))
                     }
@@ -108,5 +125,16 @@ fun AlertEditor(state: CustomizeUiState, reading: ReadingUi, original: AlertUi?,
             }
         })
     }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GearPositionField(value: String, onChange: (String) -> Unit, enabled: Boolean) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        gearPositions.forEach { (code, label) ->
+            FilterChip(value.toDoubleOrNull() == code, { onChange(com.lstepnio.egauge.alertNumber(code)) },
+                enabled = enabled, label = { Text(label) })
+        }
     }
 }

@@ -3,7 +3,6 @@ package com.lstepnio.egauge
 import androidx.compose.ui.test.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import android.graphics.Bitmap
-import androidx.lifecycle.ViewModelProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.ui.state.readingName
 import java.io.File
@@ -37,7 +36,7 @@ class PrimaryJourneyTest {
     }
 
     @Test fun customizeUsesOneWorkspaceWithoutChangingSavedSettings() {
-        val model = ViewModelProvider(compose.activity)[AppViewModel::class.java]
+        val model = (compose.activity.application as EGaugeApplication).model
         val original = model.draft
         compose.onNodeWithText("Customize").performScrollTo().performClick()
         compose.onNodeWithText("Reading").performScrollTo().assertIsDisplayed()

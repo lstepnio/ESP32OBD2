@@ -1,0 +1,3 @@
+#pragma once
+#define BLE_ATT_ERR_INVALID_OFFSET 7
+#define BLE_ATT_ERR_INSUFFICIENT_RES 17

@@ -67,7 +67,7 @@ Firmware `0.2.0-dev.29` uses a stronger palette for the track and active data: t
 
 The next firmware palette increases saturation after the dev.30 gauge appeared washed out in physical review: track `#1B2A30`, normal `#00FF70`, warning `#FF8A00`, and critical `#FF1744`. Android previews and semantic colors use matching shared tokens. Physical review of the new image is still required.
 
-The build, signed release, and Pixel update evidence for this change are recorded in [Arc visual refresh validation](../development/arc-visual-refresh-validation.md).
+The build, signed release, and Pixel update evidence for this change are recorded in [Arc visual refresh validation](../evidence/arc-visual-refresh-validation.md).
 
 ## Physical review checklist
 
@@ -82,3 +82,36 @@ For a new renderer or a layout change:
 7. Record the firmware version, rotation, brightness and physical observation in the validation document.
 
 The optional calibration build provides color, neutral, ring, typography and production-reference pages. Enable `CONFIG_EGAUGE_DISPLAY_CALIBRATION` only for a USB bench build. It disables the BLE and OBD runtime by design and must be off in distributed images.
+
+## Prepared dev.54 compositor and Round 3 feedback
+
+This implementation is prepared for device review; the earlier physical calibration
+remains the color/geometry baseline, not proof of the new screens.
+
+One compositor places unboxed CEL/count at y42, reading content in the middle,
+condition/direction at y194 and Demo or page position at y213. Single numeric
+centers are 87/126/169. The owner's Round 3 correction uses 75/114/157 for Numeric
+conditions without CEL, raising the reading block by twelve pixels. CEL combinations
+retain their approved geometry. Bar uses 70/108/147 with a six-pixel scale at174;
+Trend uses 72/102/132 above its chart; Dual labels72/135 and values97/160.
+
+Measure actual production glyph ink, not character count or advance width alone.
+Complete values fit fonts64/48/40/32, step down only while the page/unit context is
+unchanged, and show an explicit unavailable-layout state if none fits. Labels may
+use bounded ellipsis; values must never be silently chopped. Unsupported units stay
+explicit. RPM labels suppress a duplicate rpm unit; selected/target/actual gear and
+input/output shaft roles remain distinct. Units follow the owner's saved setting.
+Do not rename an unqualified controller temperature to ATF.
+
+Top fault counts represent retrieved distinct codes across fresh categories per
+controller. The same code on different controllers counts separately. Unknown counts
+use a question mark; partial coverage uses a plus. MIL-reported count is a separate
+quantity. Diagnostic and lower-condition projections reuse the shared event owner;
+noncritical MIL does not obscure a simultaneous threshold warning. Critical diagnostic
+attention can still take over. Missing readings are dashes and trend gaps stay gaps.
+
+Critical attention and pairing use separate full-screen compositions. The showcase
+is temporary presentation state, described in the [development guide](../development/display-showcase.md).
+Production software captures and regression checks use `firmware/gauge/tests/ui_host`.
+Future fault inspection, provider focus, new maintenance screens and custom enum
+metadata remain design work; not all review mocks are implemented in dev.54.

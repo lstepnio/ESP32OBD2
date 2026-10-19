@@ -112,6 +112,9 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
 
 ble_mgr_status_t ble_mgr_send(ble_mgr_ctx_t *mgr_ctx, uint16_t chr_handle, const char *data, size_t len);
 
+/* Propagate the caller's remaining operation budget through ATT completion. */
+ble_mgr_status_t ble_mgr_send_with_timeout(ble_mgr_ctx_t *mgr_ctx, uint16_t chr_handle, const char *data, size_t len, uint32_t timeout_ms);
+
 bool ble_mgr_is_connected(ble_mgr_ctx_t *mgr_ctx);
 void ble_mgr_disconnect(ble_mgr_ctx_t *mgr_ctx);
 

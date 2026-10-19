@@ -1,3 +1,5 @@
+#include "esp_timer.h"
+#include "worker_health.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -209,6 +211,7 @@ static void worker(void *arg)
     (void)arg;
     request_t request;
     for (;;) {
+        worker_health_progress(WORKER_CONFIG, (uint32_t)(esp_timer_get_time() / 1000));
         if (xQueueReceive(requests, &request, pdMS_TO_TICKS(1000)) == pdTRUE)
             process(&request);
         xSemaphoreTake(lock, portMAX_DELAY);
@@ -246,7 +249,9 @@ bool config_transfer_command(const uint8_t *bytes, size_t length)
         bytes[0] < OP_BEGIN || bytes[0] > OP_STATUS) return false;
     request_t request = {.length = length};
     memcpy(request.data, bytes, length);
-    return xQueueSend(requests, &request, 0) == pdTRUE;
+    bool queued = xQueueSend(requests, &request, 0) == pdTRUE;
+    if (!queued) worker_health_queue_drop(WORKER_CONFIG);
+    return queued;
 }
 
 size_t config_transfer_status(uint8_t out[CONFIG_TRANSFER_STATUS_SIZE])

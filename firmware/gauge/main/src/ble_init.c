@@ -21,6 +21,8 @@
 
 #include "ble_init.h"
 #include "ble_companion.h"
+#include "sdkconfig.h"
+#include "ble_security_policy.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Forward Declarations

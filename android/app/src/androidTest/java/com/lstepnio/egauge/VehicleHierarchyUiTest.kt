@@ -38,12 +38,47 @@ class VehicleHierarchyUiTest {
         frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
             hasPrimaryAdapter = true, hasTransmission = true, selectedSource = "TCM", canEditVehicle = true),
             ExpertActions({}, {}, {}, {}, {}, selectSource = { source = it }, removeTransmission = { removed = true })) }
-        compose.onNodeWithText("Child adapter").performScrollTo().performClick()
-        assertEquals("TCM", source)
-        compose.onNodeWithText("Remove transmission child").performScrollTo().performClick()
+        compose.onNodeWithText("Second adapter").performScrollTo().performClick()
+        assertEquals("", source)
+        compose.onNodeWithText("Find transmission adapter").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Remove second adapter").performScrollTo().performClick()
         assertEquals(false, removed)
         compose.onNodeWithText("Remove", useUnmergedTree = true).performClick()
         assertEquals(true, removed)
+    }
+    @Test fun secondAdapterPickerSearchesOnceAndRejectsPrimaryEvenWhenPrimaryEditorWasSelected() {
+        val primary = AdapterBinding("engine", "AA:BB:CC:DD:EE:01", "public")
+        val child = AdapterBinding("child", "AA:BB:CC:DD:EE:02", "public")
+        var searches = 0
+        var selected: AdapterBinding? = null
+        frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
+            hasPrimaryAdapter = true, hasTransmission = true, selectedSource = "ECM", canEditVehicle = true,
+            canFindAdapter = true, primaryAdapter = primary, adapterCandidates = listOf(
+                AdapterCandidate("Primary fixture", primary), AdapterCandidate("Second fixture", child))),
+            ExpertActions({}, {}, {}, {}, {}, findAdapters = { searches++ }, chooseAdapter = { selected = it })) }
+        compose.onNodeWithText("Second adapter").performScrollTo().performClick()
+        compose.waitForIdle()
+        assertEquals(1, searches)
+        compose.onNodeWithText("Primary fixture").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Second fixture").performScrollTo().performClick()
+        assertEquals(child, selected)
+    }
+    @Test fun secondAdapterWaitsForConnectionSearchesOnceAndClosesWhenVehicleChanges() {
+        var searches = 0
+        var state by mutableStateOf(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
+            vehicleId = "jeep", hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true))
+        frame { ExpertScreen(state, ExpertActions({}, {}, {}, {}, {}, findAdapters = { searches++ })) }
+        compose.onNodeWithText("Second adapter").performScrollTo().performClick()
+        assertEquals(0, searches)
+        compose.runOnIdle { state = state.copy(canFindAdapter = true) }
+        compose.waitForIdle()
+        assertEquals(1, searches)
+        compose.runOnIdle { state = state.copy(canFindAdapter = false) }
+        compose.runOnIdle { state = state.copy(canFindAdapter = true) }
+        compose.waitForIdle()
+        assertEquals(1, searches)
+        compose.runOnIdle { state = state.copy(vehicleId = "other", vehicleName = "Other") }
+        compose.onAllNodesWithText("Find transmission adapter").assertCountEquals(0)
     }
     @Test fun savedGaugePickerShowsVehicleAndSourceAndDispatchesOnlyTheChosenIdentity() {
         var selected = ""
@@ -51,15 +86,28 @@ class VehicleHierarchyUiTest {
             gauges = listOf(GaugeUi("one", "Main gauge", "Jeep", "ECM"), GaugeUi("two", "TCM gauge", "Jeep", "TCM")),
             selectedGaugeId = "one"), {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, onSelectGauge = { selected = it }) }
         compose.onNodeWithText("Your gauges").performClick()
-        compose.onNodeWithText("Jeep · Transmission").assertIsDisplayed()
+        compose.onAllNodesWithText("Transmission", substring = true).assertCountEquals(0)
         compose.onNodeWithText("TCM gauge").performClick()
         assertEquals("two", selected)
     }
-    @Test fun carSendsTransmissionAdapterSetupToExpert() {
-        var expert = false
-        frame { CarScreen(CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", StatusUi("Waiting for car", "Checks run automatically"), emptyList(), false, false, false, emptyList(), transmissionChild = true, adapterAvailable = true), {}, {}, {}, onExpert = { expert = true }) }
+    @Test fun carAlwaysEditsThePrimaryVehicleAdapter() {
+        frame { CarScreen(CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", StatusUi("Waiting for car", "Checks run automatically"), emptyList(), false, false, false, emptyList(), adapterAvailable = true), {}, {}, {}) }
         compose.onNodeWithText("Choose adapter").performScrollTo().performClick()
-        assertEquals(true, expert)
-        compose.onAllNodesWithText("Vehicle adapter").assertCountEquals(0)
+        compose.onNodeWithText("Vehicle adapter").assertIsDisplayed()
+        compose.onAllNodesWithText("Transmission child").assertCountEquals(0)
     }
+    @Test fun bothAdaptersAreExplicitAndGatedInExpert() {
+        var selected = false
+        frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
+            hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true, canUseBothAdapters = true),
+            ExpertActions({}, {}, {}, {}, {}, useBoth = { selected = it })) }
+        compose.onNodeWithText("Use both adapters on this gauge").performScrollTo().performClick()
+        assertEquals(true, selected)
+    }
+    @Test fun oldFirmwareCannotEnableBothAdapters() {
+        frame { ExpertScreen(ExpertUiState(false, false, false, emptyList(), vehicleName = "Jeep",
+            hasPrimaryAdapter = true, hasTransmission = true, canEditVehicle = true), ExpertActions({}, {}, {}, {}, {})) }
+        compose.onNodeWithText("Use both adapters on this gauge").performScrollTo().assertIsNotEnabled()
+    }
+
 }

@@ -1,0 +1,231 @@
+# Gauge touch and firmware performance review
+
+> Historical evidence. Versions, measurements and unfinished steps below describe that session.
+> Current support is in [current state](../current-state.md); remaining work is in
+> [the backlog](../backlog.md). These notes are not standing implementation instructions.
+
+> Reference record: implementation/evidence from its recorded session. Current status and next work are maintained in [current state](../current-state.md) and [roadmap](../roadmap.md). Do not treat old pending steps or tool instructions as the current plan.
+
+## Scope and observations
+
+The reported delay occurs with the phone app closed. The USB console identified the bench gauge as `0.2.0-dev.24`, ELF prefix `24d277bce`, with configuration revision 17, two pages and no alerts. This is an identity observation, not a measured touch latency.
+
+The review uses the dev.24 firmware as its baseline. No vehicle requests, simulated readings, capability changes, pairing changes or update-protocol changes are part of this work.
+
+## Source audit
+
+| Path | Finding | Change or decision |
+| --- | --- | --- |
+| Touch dispatch | Clicks waited for the 50 ms UI timer, then entered a second command queue | Normal touch callbacks run directly on the LVGL task. Calibration keeps deferred dispatch because it deletes screen objects. |
+| Page selection | Each tap wrote NVS before changing the display. Rapid taps could enqueue the same next-page index while the earlier write was pending. | Change the visible page immediately. Save only the last selected page after 750 ms without another tap. |
+| Storage contention | Browsing could write flash while a configuration or firmware transfer was active | Defer local page persistence until the transfer gate is idle. Phone commands retain their existing save and confirmation order. |
+| Status rendering | Identical alert and diagnostic summaries reapplied styles and labels every 100 ms | Compare semantic fields and update widgets only on a change. Preserve an active alert while switching pages. |
+| Page renderer | Dual-page content could wait for the next 50 ms data timer | Prepare the selected renderer immediately, on the LVGL task. First drawing remains on that task. |
+| Logging | Every decoded value and page change generated an info log | Move those messages to debug and restore the application task's normal info level. |
+| Compiler | Firmware used `-Og` | Build with `-O2`; keep assertions and the existing CPU, bus clocks and stack allocation. IDF no longer selects its debug-only task wrapper in this configuration. |
+| Touch driver | The pinned LVGL port uses the CST816S interrupt to wake its task, but leaves the controller's standby defaults unchanged | Keep event-driven input; dev.26 disables automatic standby and redundant gesture interrupts, with readback verification. |
+| Display buffers | One 10-row buffer; a second DMA buffer could overlap drawing and SPI transfer | Defer until heap and frame measurements justify the extra allocation, including during Wi-Fi OTA. |
+| Scheduling | LVGL priority 4, application/OBD workers priority 5 | Keep priorities and affinity until measurements demonstrate contention. |
+
+Only the last-viewed-page cursor is saved later. Power loss inside the settling window can restore the previously persisted page. Dashboard configuration, signed-update checks, ownership, and confirmed-running rules are unchanged. Storage failure leaves the selection pending for a bounded retry; a tap arriving during a save cannot be lost.
+
+## Timing and verification
+
+`CONFIG_EGAUGE_UI_PERFORMANCE_LOG` is an optional bench setting, disabled by default. After physical taps, it reports a 30-second summary of click-dispatch-to-render-submission mean/max and LVGL stack headroom. It does not generate input or vehicle data. The measurement excludes finger-down-to-release time, touch-controller detection before the LVGL callback, and final LCD scanout. Several taps before a single rendered frame count as one frame, timed from the earliest pending click.
+
+Source-level validation:
+
+- Host tests with address/undefined-behavior sanitizers cover a 100-tap burst, taps during persistence, failed saves, and millisecond-counter wraparound.
+- The ESP-IDF 5.4.1 build validates the pinned LVGL 9.2.2 / port 2.7.2 integration.
+- `tools/validate.py` checks schemas, examples, signed decode vectors and documentation links.
+
+Physical acceptance still requires page changes with the phone closed and open, quick successive taps, reboot after the save interval, normal pairing/long-hold behavior, and stable display/stack headroom. An OTA and concurrent vehicle workload are separate performance checks. No latency improvement percentage is claimed from source inspection or compilation.
+
+## Physical bench image, 2026-09-29
+
+The dev.24 running slot was identified from valid OTA metadata as `ota_0` at `0x60000`. A complete 3 MB recovery copy was read before writing. During that read the user observed a black screen and no BLE connection, which is expected in the USB bootloader; the user confirmed that the display returned when dev.24 restarted. The reliable serial rate for this session was 115200 baud.
+
+The application-only dev.25 test image is built from commit `57be6f9` with `CONFIG_EGAUGE_UI_PERFORMANCE_LOG=y` in a separate bench configuration. The tracked default leaves that instrumentation disabled.
+
+| Image identity | Value |
+| --- | --- |
+| Version | `0.2.0-dev.25` |
+| Image size | 1,492,016 bytes |
+| Binary SHA-256 | `f89296ccdd06b7ef42b7cd18154826450f8a1f594e82c8c2b0338c01e3e16c21` |
+| ELF SHA-256 | `2bbd0fb591d22900aad276707a32614b145c2af0867d2f8cfbf18e008c9998e7` |
+
+The USB write and independent `verify_flash` both matched the image digest. Startup reported dev.25, the matching ELF prefix, configuration revision 17, two pages, no alerts, and successful display/touch initialization. NVS, configuration partitions, bootloader and OTA metadata were not written. This was a USB bench installation, not a signed OTA qualification.
+
+**Physical user observation:** normal display, little or no improvement in touch response with the phone app closed. The first pass has not resolved the reported problem.
+
+**Device instrumentation:** one frame measured 53,794 microseconds from click callback to drawing submission. A later four-frame group averaged 66,268 microseconds, maximum 81,643. LVGL stack low-water was 2,988 bytes; application stack 1,308 bytes, internal heap minimum 81,027 bytes. These are small samples, exclude touch detection and final panel completion, and do not establish an improvement over dev.24.
+
+## Second touch-input experiment: dev.26
+
+The pinned CST816S driver resets and reads the controller but leaves its input registers at their defaults. Waveshare documents automatic standby after two seconds and a slower scan rate in standby. This is a hypothesis for idle-to-touch delay, not an established root cause.
+
+The BSP now sets and reads back `DisAutoSleep` (`0xFE`) to `1`, and `IrqCtl` (`0xFA`) to `0x60` for touch/state-change interrupts. LVGL still handles short and long presses, with no page change on finger-down. Startup logs record original and applied register values. Tuning failure logs a warning and does not prevent display/BLE startup. Driver dependencies, display buffers, clocks and renderer settings are unchanged from dev.25.
+
+This trades controller standby savings for dynamic scanning while powered (datasheet typical dynamic current 1.6 mA versus 6 microamps in standby). Future device sleep support must explicitly revisit this choice. Bench instrumentation adds recognized press/release/click/hold counts, without per-event logging or artificial input.
+
+The bench image was built from `f33c16b` with performance logging enabled. Its 1,492,528-byte binary SHA-256 is `923fe2d329139ded5e20a0270aab09add93b9fb1883e47a7b3dbaf5c3e849950`; ELF SHA-256 is `26af65461f004e7c8d5757fd84e334b7bfe2af0215fd77d08cc5721a12a7d226`. Application-only USB write and independent flash verification matched. Startup reported dev.26, the matching ELF, retained revision 17/two pages, and successful display/touch initialization.
+
+**Hardware register observation:** `0xFE` changed from `0x00` to `0x01`; `0xFA` changed from `0x70` to `0x60`. This board already enabled touch/change interrupts, so waiting exclusively for completed hardware gestures was not its problem. The second setting removes additional gesture interrupts; disabled standby is the main input-path change under evaluation. Neither successful initialization nor register readback proves normal visible display or improved physical touch response.
+
+**Physical user observation:** after testing a tap following five seconds idle and several quick taps with the phone app closed, the user reported "Normal display, touch is better." This supports keeping the second change; it does not quantify end-to-end latency or independently isolate the two register changes.
+
+**Device instrumentation:** five recognized presses, five releases, five clicks and five rendered frames; no holds in this sample. Click-to-render-submission averaged 65,571 microseconds, maximum 84,135, with 2,988 bytes LVGL stack low-water. Drawing time is similar to dev.25 despite better perceived response, which points toward touch detection as the useful improvement. The controller-to-finger timing was not measured directly and there is no claimed percentage reduction.
+
+Both default and timing-enabled dev.26 ESP-IDF builds passed, as did repository validation and optimized sanitizer host fixtures. No simulated touch or vehicle data was used. Long holds, phone-open contention, Wi-Fi OTA memory headroom, sustained vehicle load and broader device variants remain unqualified by this bench check. The installed image retains timing instrumentation for further observation.
+
+Primary touch references: [CST816S register description](https://files.waveshare.com/wiki/common/CST816S_register_declaration.pdf), [CST816S datasheet](https://files.waveshare.com/wiki/common/CST816S_Datasheet_EN.pdf).
+
+Primary references: [LVGL 9.2 display buffers](https://lvgl.io/docs/open/9.2/porting/display), [ESP-IDF performance guidance](https://docs.espressif.com/projects/esp-idf/en/v5.4.1/esp32s3/api-guides/performance/speed.html), and the pinned component sources under `firmware/gauge/managed_components/` after dependency resolution.
+
+## 2026-10-14: prepared dev.54 screen compositor and showcase
+
+The owner submitted Round 3: 36 approvals, five change requests and 15 unreviewed.
+Four centering requests are implemented in revision 4; the fifth confirms the
+CEL-above/condition-below split. Exact original assets and private submitted feedback
+are retained. The local gallery carries forward all 36 byte-identical approvals.
+
+Prepared source is App dev.50 and firmware dev.54. The new compositor uses production
+Noto fonts, actual glyph fitting, separate diagnostics/condition slots and full-screen
+critical/pairing views. Twenty-one isolated generated frames can be played without
+modifying the saved dashboard, samples or shared alert journal.
+
+Local checks passed: ESP-IDF 5.4.1 firmware build (image 0x189cb0 bytes, 49% OTA-slot
+space free); Android debug and instrumentation compilation, unit tests and lint;
+production LVGL 9.2.2 software rendering for all frames, metric/imperial fitting,
+font stability, generated acknowledgment isolation and preemption; sanitized
+showcase/layout, core logic, shared alert projection and distinct diagnostic count
+fixtures; Android diagnostic packet parity; security build guards; seven local review
+server tests; documentation/schema/token validation. CI remains a separate gate.
+
+Pixel dev.50 APK and its instrumentation package installed through ADB without data
+clearing. A private pre-install preference backup is retained in ignored artifacts.
+The gauge is not updated by these checks: no signed dev.54 release has been published
+and no physical screen legibility or touch outcome is claimed. App/Wi-Fi installation,
+exact running identity, saved-state comparison and owner display checks remain pending.
+
+UI contract and opt-in device fixture: [temporary showcase](../development/display-showcase.md).
+Future fault inspection/provider/maintenance/custom enum screens remain design scope.
+
+## 2026-10-14: prepared Advanced CEL-filter extension
+
+The owner explicitly selected suppression of the gauge CEL when every fully checked
+code is filtered. App dev.51 / firmware dev.55 extends the prepared screen candidate
+with sixteen exact vehicle/controller rules in Advanced. Filters persist and join the
+normal atomic configuration path; only confirmed running rules govern presentation.
+Raw lamp state, wire packets, categories, history and exports are retained.
+
+C and Android share the version-15 TCM diagnostic fixture and agree on distinct-code
+suppression. Sanitized cases cover wildcard/padding/duplicates, foreign controller,
+missing links, simulated replies, count disagreement, unknown/stale MIL, incomplete
+and truncated categories, raw evidence preservation and unchanged unrelated alerts.
+The production configuration validator/compiler checks valid rules and rejects
+duplicates/wildcards. The local SDK's third-party cJSON requires compiling that vendor
+object separately with its macOS deprecation diagnostic suppressed; project code
+retains all warnings as errors and sanitizers.
+
+Android debug/test compilation, JVM tests and lint passed; ESP-IDF 5.4.1 image is
+0x18a180 bytes with 49% OTA-slot space free. Production LVGL checks also passed,
+including suppressed CEL with known state and explicit Not checked for unknown state.
+Contract validation now includes ten examples and thirty rejection cases. The Pixel
+connection preflight for App dev.50 timed out while Android was locked, so connection
+compatibility was not qualified by that first attempt. After the Pixel became unlocked,
+App dev.51 was installed without clearing data and its scoped automatic connection
+journey passed in 12.504 seconds. It confirmed authenticated owner access, normal
+protected configuration/settings reads and refresh on resume without a connect tap,
+expected healthy dev.53 identity, and unchanged vehicle dashboard/settings/profiles.
+This was a read-only phone/gauge protocol check, not a vehicle-filter or physical LCD
+qualification. Gauge remains dev.53. Dev.54 was never published. Dev.55 combines screen/showcase and
+filter changes; release authorization, signed App/Wi-Fi installation and physical
+filter/dual-source qualification remain pending. No main merge or ECU write occurred.
+
+An App-only follow-up reconciles already active diagnostic notifications when detailed
+checks finish without a new MIL transition. The same bounded notification receipt
+owner records filtered versus notified transitions and avoids repeated cancellation.
+Overlong code input is rejected rather than silently reduced to a different code.
+The dev.55 firmware tree is unchanged from review candidate `9c6c85c`,
+pinned at `codex/gauge-display-dev55-candidate`; the release request remains for that
+exact firmware source. Phone-only follow-up verification uses the same C/JVM policy
+plus the late-details/same-event and invalid overlong-input cases.
+
+
+## 2026-10-14 dev.55 signed publication
+
+The owner authorized publishing and installing dev.55 through App/Wi-Fi. Protected
+[release run 38675632131](https://github.com/lstepnio/ESP32OBD2/actions/runs/38675632131)
+succeeded from exact reviewed commit `9c6c85c22fe3186c28c1228d2590b78432e2bf2a`.
+The immutable [development prerelease](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.55)
+uses catalog generation 36. Independent verification passed for the catalog and
+bundle P-256 signatures, bundle/image lengths and SHA-256, board/hardware/layout,
+transfer protocol and ESP app version. The signed image is 1,614,208 bytes; its
+ELF SHA-256 is `f79a039c3c157024f5b44a88b70ed6ae3b574722a2ce5e0b65cca5158a983ac3`.
+The latest App-only follow-up `9765dcc` also passed Foundation quality CI.
+
+The Pixel disconnected immediately before the opt-in Wi-Fi installation could
+start. ADB reported no devices; no transfer or gauge mutation occurred. Installation,
+post-boot preservation checks, temporary showcase and physical display/touch review
+remain pending reconnection. The last verified gauge remains dev.53.
+
+The debug-awake helper was started while the Pixel was attached. Its stop command
+could not restore the saved wake settings after USB disconnection; its private
+restore record remains intact and must be applied when the same Pixel reconnects.
+
+
+## 2026-10-16 dev.55 App/Wi-Fi installation
+
+The Pixel and gauge reconnected. A fresh private phone-settings backup was taken;
+the previously saved debug-awake preferences were retained for eventual restoration.
+Both signed release assets were independently reverified before installation.
+
+The initial two attempts failed before sending firmware: protected Wi-Fi status
+reads returned ATT `0x11` (insufficient resources). The gauge log showed successful
+SoftAP startup, not a Wi-Fi allocation crash. `wifi_bulk_status()` deliberately
+uses a zero-wait mutex; a busy worker can therefore produce a temporary unavailable
+status. Android now retries only that read response, at most four total attempts
+with 100/200/300 ms delays. Owner-establishment reads also tolerate it within their
+existing four-attempt budget. Writes are never replayed; disconnects, authentication
+errors and other failed status reads retain their prior handling.
+
+After the App replacement, a service-discovery attempt timed out while the previous
+maintenance session was still active. This timeout is recorded separately; the
+status-lock explanation does not establish its cause. The owner power-cycled only
+the gauge. The next full hosted installation passed `WifiFirmwareJourneyTest` in
+100.449 seconds including setup/download. The update journey was 70,966 ms:
+
+- Authenticated preflight: 1,107 ms.
+- Gauge Wi-Fi startup: 2,677 ms cumulative.
+- Android network availability: 10,197 ms after request.
+- First authenticated Wi-Fi reply: 13,292 ms cumulative.
+- Sending stage: 16,892 ms; verification: 56,994 ms.
+- Restart: 58,341 ms; running-image confirmation followed.
+
+The gauge confirmed `0.2.0-dev.55`, signed ELF
+`f79a039c3c157024f5b44a88b70ed6ae3b574722a2ce5e0b65cca5158a983ac3`,
+alternate OTA slot, health 2 and cleared recovery journal. Revision 50, document
+digest, display settings and all phone profiles were unchanged. Android debug/test
+APK compilation and JVM tests passed for the App retry change; the replacement
+was installed without clearing data. No USB firmware flashing or ECU write occurred.
+Physical display/touch, live CEL filtering and loaded dual-adapter transfer recovery
+remain separate qualification gates.
+
+The opt-in `DisplayShowcaseJourneyTest` then passed in 37.428 seconds: capability
+`sc:1`, twenty-one frames, observed advancement, explicit stop, unchanged dashboard
+revision/digest/settings/profiles and a successful restart for owner viewing.
+Playback was left active for its bounded ten-minute review window. These are
+physical App/gauge protocol results; owner visual/touch confirmation was requested
+separately. The phone's original wake settings were restored after the session.
+
+
+## 2026-10-16 owner display and touch confirmation
+
+After a successful showcase restart (41.202-second protocol fixture), the owner
+confirmed physical demo cycling, then reported: "The demo looks good. Hold to exit
+works and normal pages and swipes work." This closes the indoor visual acceptance
+and touch/normal-dashboard return checks for installed dev.55. It does not establish
+live CEL-filter behavior, every future screen contract, daylight readability or
+loaded dual-adapter update recovery. No additional firmware release is required
+for the next parked-vehicle qualification of this installed image.

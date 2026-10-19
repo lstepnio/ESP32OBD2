@@ -74,10 +74,20 @@ fun operationUi(state: OperationState, confirmedSetup: Boolean = false): Operati
 
 fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
     val message = reason.orEmpty().lowercase()
+    val updateTrust = update || listOf("firmware", "update", "catalog", "github").any { it in message }
     return when {
         "appearance settings" in message -> StatusUi("Your preference was not saved", "Try changing it again.", StatusTone.Error)
         reason == HOSTED_RELEASE_FEED_UNAVAILABLE -> StatusUi("Online updates unavailable",
             "This app cannot access the development release feed. Choose a signed package saved on your phone.", StatusTone.Stale)
+        "signature" in message || "digest" in message || "sha-256" in message || "catalog" in message ||
+            "untrusted" in message || "not trusted" in message || "bundle hash" in message ->
+            StatusUi(if (updateTrust) "This update could not be verified" else "Your settings could not be verified",
+                if (updateTrust) "Choose a new signed update package." else "Check your gauge, then review your settings.", StatusTone.Error)
+        "no compatible development firmware" in message -> StatusUi("No compatible update available",
+            "No signed release matches this gauge yet. Try again later.", StatusTone.Neutral)
+        "rate limited" in message -> StatusUi("Update service is busy", "Try again later.", StatusTone.Offline)
+        "github" in message || "online update" in message || "firmware download" in message ->
+            StatusUi("Online updates unavailable", "Check your internet connection and try again.", StatusTone.Offline)
         "permission" in message -> StatusUi("Nearby devices permission is needed", "Allow Nearby devices in Android settings, then reconnect.", StatusTone.Error)
         "bluetooth" in message && ("off" in message || "disabled" in message) ->
             StatusUi("Bluetooth is turned off", "Turn on Bluetooth, then find your gauge.", StatusTone.Offline)
@@ -111,9 +121,6 @@ fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
             StatusUi("Could not connect for the update", "Keep eGauge open near the gauge and retry the Wi-Fi connection.", StatusTone.Offline)
         "socket" in message || "connection reset" in message ->
             StatusUi("Update connection was interrupted", "Keep eGauge open, reconnect the gauge, then check the installed firmware before retrying.", StatusTone.Offline)
-        "signature" in message || "digest" in message || "sha-256" in message || "catalog" in message ->
-            StatusUi(if (update) "This update could not be verified" else "Your settings could not be verified",
-                if (update) "Choose a new signed update package." else "Check your gauge, then review your settings.", StatusTone.Error)
         "no gauge" in message || "no compatible" in message || "timed out" in message ->
             StatusUi("Your gauge did not respond", "Keep it powered and nearby, then reconnect.", StatusTone.Offline)
         else -> StatusUi(if (update) "The update could not finish" else "Your gauge could not finish this request",
