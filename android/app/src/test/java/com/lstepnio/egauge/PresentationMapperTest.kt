@@ -48,7 +48,7 @@ class PresentationMapperTest {
     }
 
     @Test fun unknownFaultsDoNotInventAnExplanation() {
-        assertTrue(faultDescription("P1999").contains("not available"))
-        assertTrue(faultDescription("P0301").contains("cylinder 1"))
+        assertTrue(faultDescription("P1999").contains("unavailable"))
+        assertTrue(faultDescription("P0301").lowercase().contains("cylinder 1"))
     }
 }

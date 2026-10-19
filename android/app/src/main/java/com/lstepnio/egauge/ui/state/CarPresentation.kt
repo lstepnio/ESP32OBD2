@@ -7,7 +7,9 @@ data class CarFaultUi(
     val code: String,
     val description: String,
     val source: String,
-    val categories: String
+    val categories: String,
+    val categoryNames: List<String> = emptyList(),
+    val current: Boolean = true
 )
 
 fun carFaults(state: CarUiState): List<CarFaultUi> {
@@ -24,7 +26,9 @@ fun carFaults(state: CarUiState): List<CarFaultUi> {
                 source.title,
                 faults.map {
                     it.category
-                }.filter { it.isNotBlank() }.distinct().joinToString(" · ")
+                }.filter { it.isNotBlank() }.distinct().joinToString(" · "),
+                source.categories.filter { category -> category.faults.any { it.code == code } }.map { it.name }.filter { it.isNotBlank() }.distinct(),
+                faults.all { it.current } && source.status.tone !in setOf(StatusTone.Stale, StatusTone.Offline, StatusTone.Disabled, StatusTone.Error)
             )
         }
     }
@@ -97,6 +101,8 @@ fun carHealthStatus(state: CarUiState): StatusUi {
             StatusTone.Disabled,
             StatusTone.Loading
         ) -> "Checks start automatically when this car is connected."
+
+        codes > 0 && status.tone in setOf(StatusTone.Warning, StatusTone.Critical) -> "Review the codes below. Checks update automatically."
 
         codes > 0 -> "Review the recorded codes. A warning light can be off while codes remain."
 

@@ -31,6 +31,11 @@ fun CarScreen(
     var adapterOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var actionsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var faultsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
+    var selectedFault by rememberSaveable(state.activeId) { mutableStateOf<String?>(null) }
+    val selectFault: (com.lstepnio.egauge.ui.state.CarFaultUi) -> Unit = { fault ->
+        selectedFault = "${fault.source}:${fault.code}"
+        faultsOpen = false
+    }
     var searched by remember(state.activeId, adapterOpen) { mutableStateOf(false) }
     LaunchedEffect(adapterOpen, state.adapterAvailable) {
         if (adapterOpen && state.adapterAvailable && !searched) {
@@ -39,6 +44,9 @@ fun CarScreen(
         }
     }
     val faults = com.lstepnio.egauge.ui.state.carFaults(state)
+    LaunchedEffect(faults, selectedFault) {
+        if (selectedFault != null && faults.none { "${it.source}:${it.code}" == selectedFault }) selectedFault = null
+    }
     ScreenContent(scrollKey = state.activeId) {
         ScreenTitle("Car")
         ResponsivePanels(first = {
@@ -90,10 +98,12 @@ fun CarScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (faults.isNotEmpty()) {
-                        SettingsRow("Fault codes", "${faults.size} recorded", onClick = {
-                            faultsOpen =
-                                true
-                        })
+                        HorizontalDivider()
+                        Text("Fault codes", style = MaterialTheme.typography.titleSmall)
+                        faults.take(3).forEach { fault -> FaultCodeRow(fault) { selectFault(fault) } }
+                        if (faults.size > 3) {
+                            TextButton({ faultsOpen = true }) { Text("View all ${faults.size} codes") }
+                        }
                     }
                 }
                 alerts()
@@ -128,7 +138,7 @@ fun CarScreen(
         })
     }
     if (faultsOpen) {
-        ModalBottomSheet(onDismissRequest = { faultsOpen = false }) {
+        ModalBottomSheet(onDismissRequest = { faultsOpen = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp)) {
                 DialogContent {
                     SectionTitle("Fault codes")
@@ -136,14 +146,18 @@ fun CarScreen(
                     if (faults.isEmpty()) Text("No recorded codes. Checks continue automatically.")
                     faults.forEach { fault ->
                         HorizontalDivider()
-                        Text(fault.code, style = MaterialTheme.typography.titleLarge)
-                        Text(fault.description, style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            "${fault.source} · ${fault.categories}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        FaultCodeRow(fault) { selectFault(fault) }
                     }
+                }
+            }
+        }
+    }
+    faults.firstOrNull { "${it.source}:${it.code}" == selectedFault }?.let { fault ->
+        ModalBottomSheet(onDismissRequest = { selectedFault = null }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp)) {
+                DialogContent {
+                    FaultCodeExplanation(fault)
+                    TextButton({ selectedFault = null }) { Text("Close") }
                 }
             }
         }

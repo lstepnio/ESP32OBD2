@@ -38,6 +38,16 @@ release or installation. Public repository: `lstepnio/ESP32OBD2`.
 | Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Setup review](evidence/second-adapter-setup.md); [dev.53 live reads/resume, independent loss/recovery and phone off/on](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification); owner confirmed live ECM/TCM display and independent expiry/return | Startup absence, loaded maintenance, rates and sustained soak remain open |
 | Health measurements | Fixed worker records, queue drops, explicit internal/DMA/PSRAM lifecycle logs, allocation failure hook and sampled stack minima | [Bench and upload evidence](evidence/esp32-memory-hardening.md): zero recorded allocation failures/queue drops; 30 dev.59 close samples stable within 144 bytes after warm-up; dev.60 receiver internal minimum 93,975 bytes, largest block 31,744 bytes and OTA stack margin 1,340 bytes | Longer controlled loaded soak, missed transient/vendor-private failures and complete stack/progress-path coverage |
 
+## Prepared Car fault experience
+
+The working branch prepares inline decoded code summaries under Car > Vehicle
+health, one whole-vehicle list and focused explanations. Saved alert context and
+notifications share a 55-code offline lookup with named manufacturer references; unknown/controller-specific codes
+remain explicit. Technical category coverage stays in Expert. No new firmware,
+protocol, device installation or physical acceptance is established by this UI
+work. Lookup extension rules and reference provenance are in the
+[shared alert contract](architecture/alerts-and-diagnostics.md#offline-code-explanations).
+
 ## Compatibility and public boundaries
 
 - Phone profiles: schema 13 reads schemas 1..13. Older Apps reject new saved state;

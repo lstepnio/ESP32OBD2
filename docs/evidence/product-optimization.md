@@ -351,3 +351,45 @@ preferences byte-for-byte unchanged. Normal eGauge was reopened, the read-only U
 logger was closed and the original phone wake settings were restored. Release and
 quality workflows both passed. These results do not qualify broader vehicle loads,
 all panel pixels/units/rotations, thermal behavior or interruption recovery.
+
+
+## 2026-10-19 Car fault and notification usability pass
+
+Owner identified buried fault codes, generic controller navigation and technical
+context. Source review confirmed a generic Fault codes entry and an inline decoder
+covering a small engine-only subset. The revised presentation surfaces three
+decoded rows immediately under Vehicle health, links to the whole-vehicle list when
+needed, and opens What it means / Next step without a controller landing screen.
+
+Engine/Transmission remains attribution beneath each code, not a separate vehicle
+or navigation prerequisite. Repeated category appearances merge per controller;
+independent controllers, stale checks, partial coverage and filters remain distinct.
+Category explanations replace raw Stored/Pending/Permanent lists in consumer sheets.
+The raw category report remains in Expert.
+
+The authored offline table initially covered 20 standardized codes plus two Chrysler/Jeep references, including the captured
+U0121/U0140 communication conditions. P1DCA/P1DF3 now have manufacturer-labelled reference definitions verified against
+FCA submissions, without inferring the cause in the swapped vehicle. The maintained lookup references
+and contribution rules belong in the shared alert contract, not this evidence.
+
+Recent/history/banner/system-notification titles share friendly system names.
+Notifications include an attributed unfiltered recorded code where available, or
+a warning explanation while code data is absent. Threshold text uses selected
+units. Notification taps retain the existing scoped saved episode. Recorded code
+context is decoded using the same catalog and explicitly separated from current
+status. No permissions, dependencies, firmware bytes or ECU actions were added.
+
+Verification and remaining physical acceptance are recorded in the implementation
+PR. Phone installation, real notification appearance and live adapter behavior are
+not established by source, JVM or emulator checks.
+
+
+### FCA eight-speed reference expansion
+
+Owner supplied P1DCA/P1DF3 lookup leads and requested a fuller ZF HP table. Primary
+FCA filings confirmed the park-circuit and initialization labels. The authored
+reference set now includes 35 manufacturer-scoped transmission codes, alongside
+20 common codes, without importing commercial manuals or repair recommendations.
+This is documented coverage of the listed source tables, not a complete database
+for every 8HP controller or proof that these conditions are expected after a swap.
+The maintained source inventory and extension rules are in the shared alert contract.

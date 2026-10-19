@@ -45,7 +45,9 @@ class AlertNotifications(private val context: Context) {
         gauge: String,
         live: Boolean,
         foreground: Boolean,
-        filtered: Boolean = false
+        filtered: Boolean = false,
+        system: MeasurementSystem = MeasurementSystem.Metric,
+        codes: List<com.lstepnio.egauge.ui.state.CarFaultUi> = emptyList()
     ) {
         val id = event.id(gauge).hashCode()
         if (filtered) {
@@ -97,8 +99,11 @@ class AlertNotifications(private val context: Context) {
                 "vehicle-warning"
             }
         )
-            .setSmallIcon(R.drawable.ic_alert_notification).setContentTitle(event.label)
-            .setContentText("${event.severity.name} · Tap for context")
+            .setSmallIcon(R.drawable.ic_alert_notification)
+            .setContentTitle(com.lstepnio.egauge.ui.state.alertTitle(event))
+            .setSubText(event.severity.name)
+            .setContentText(com.lstepnio.egauge.ui.state.alertNotificationText(event, system, codes))
+            .setStyle(Notification.BigTextStyle().bigText(com.lstepnio.egauge.ui.state.alertNotificationText(event, system, codes)))
             .setContentIntent(
                 pending
             ).setAutoCancel(true).setVisibility(Notification.VISIBILITY_PRIVATE)

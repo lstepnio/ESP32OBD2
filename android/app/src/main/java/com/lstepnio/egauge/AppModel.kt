@@ -580,7 +580,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             gauge,
                             live,
                             connectionForeground,
-                            filtered(it)
+                            filtered(it),
+                            displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem,
+                            history.firstOrNull { entry ->
+                                entry.id == it.id(gauge) && entry.vehicle == vehicle && entry.gauge == gauge &&
+                                    entry.context.optLong("configurationRevision", -1) == it.revision
+                            }?.let { entry ->
+                                com.lstepnio.egauge.ui.state.recordedFaultCodes(entry.context).filterNot { fault ->
+                                    filterRules.any { rule -> rule.controller == (if (fault.source == "Transmission") "TCM" else "ECM") && rule.code == fault.code }
+                                }
+                            }.orEmpty()
                         )
                     }
                 }

@@ -11,7 +11,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.*
 import com.lstepnio.egauge.core.designsystem.*
+import com.lstepnio.egauge.ui.car.SavedFaultCodes
 import com.lstepnio.egauge.ui.state.alertContextReading
+import com.lstepnio.egauge.ui.state.alertTitle
+import com.lstepnio.egauge.ui.state.recordedFaultCodes
 import java.util.Date
 
 /** Keep the main Car page concise; history and report actions share one focused sheet. */
@@ -40,7 +43,7 @@ fun AlertHistoryPanel(model: AppViewModel, onExport: () -> Unit) {
         }
         recent.forEach { entry ->
             SettingsRow(
-                entry.event.label,
+                alertTitle(entry.event),
                 alertEntryStatus(entry.event, model.isAlertCurrent(entry)),
                 onClick = { model.selectedAlertId = entry.id }
             )
@@ -109,7 +112,7 @@ private fun AlertHistoryContent(
                 model.selectedAlertId = entry.id
             }) {
                 Column(Modifier.fillMaxWidth()) {
-                    Text(e.label)
+                    Text(alertTitle(e))
                     Text(
                         alertEntryStatus(e, model.isAlertCurrent(entry)),
                         style = MaterialTheme.typography.bodySmall
@@ -179,155 +182,127 @@ fun AlertContextSheet(model: AppViewModel) {
             ?: model.presentationPreferences.measurementSystem
     ModalBottomSheet(onDismissRequest = {
         model.selectedAlertId = null
-    }, modifier = Modifier.testTag("alert-context")) {
-        DialogContent {
-            val e = entry.event
-            SectionTitle(e.label)
-            Text(e.severity.name)
-            Text("Recorded ${Date(entry.recordedAt)}", style = MaterialTheme.typography.bodySmall)
-            Text(
-                when {
-                    e.simulated -> "Simulated alert. This does not establish a vehicle fault."
-
-                    e.lifecycle == AlertLifecycle.Resolved -> "Resolved by a fresh observation"
-
-                    e.lifecycle == AlertLifecycle.Expired -> "Notice expired"
-
-                    !model.isAlertCurrent(
-                        entry
-                    ) -> "Last checked. Current status has not been established."
-
-                    e.unavailable -> "Data is unavailable. This alert has not been confirmed resolved."
-
-                    else -> "Active${if (e.acknowledged) " · acknowledged" else ""}"
-                }
-            )
-            val observation = entry.context.optJSONObject("entryEvent")?.let(::alertFromJson) ?: e
-            if (observation.key < 36 && observation.unit != "codes" &&
-                observation.value.isFinite()
-            ) {
+    }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), modifier = Modifier.testTag("alert-context")) {
+        Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp)) {
+            DialogContent {
+                val e = entry.event
+                SectionTitle(alertTitle(e))
+                Text(e.severity.name)
+                Text("Recorded ${Date(entry.recordedAt)}", style = MaterialTheme.typography.bodySmall)
                 Text(
-                    "At observation: ${alertContextReading(
-                        observation.value.toDouble(),
-                        observation.unit,
-                        system
-                    )}"
+                    when {
+                        e.simulated -> "Simulated alert. This does not establish a vehicle fault."
+
+                        e.lifecycle == AlertLifecycle.Resolved -> "Resolved by a fresh observation"
+
+                        e.lifecycle == AlertLifecycle.Expired -> "Notice expired"
+
+                        !model.isAlertCurrent(
+                            entry
+                        ) -> "Last checked. Current status has not been established."
+
+                        e.unavailable -> "Data is unavailable. This alert has not been confirmed resolved."
+
+                        else -> "Active${if (e.acknowledged) " · acknowledged" else ""}"
+                    }
                 )
-                if (observation.key < 32 &&
-                    observation.limit.isFinite()
+                val observation = entry.context.optJSONObject("entryEvent")?.let(::alertFromJson) ?: e
+                if (observation.key < 36 && observation.unit != "codes" &&
+                    observation.value.isFinite()
                 ) {
                     Text(
-                        "Alert limit: ${alertContextReading(
-                            observation.limit.toDouble(),
+                        "At observation: ${alertContextReading(
+                            observation.value.toDouble(),
                             observation.unit,
                             system
                         )}"
                     )
-                }
-            }
-            if (e.key >= 36 && e.unit.isNotBlank()) Text(e.unit)
-            if (entry.context.optBoolean(
-                    "coverageGap"
-                )
-            ) {
-                Text("Some events were unavailable during disconnection or restart.")
-            }
-            val diagnostics = entry.context.optJSONObject("diagnostics")
-            diagnostics?.keys()?.forEach { source ->
-                val data = diagnostics.getJSONObject(source)
-                Text(
-                    if (source ==
-                        "TCM"
+                    if (observation.key < 32 &&
+                        observation.limit.isFinite()
                     ) {
-                        "Transmission"
-                    } else {
-                        "Engine"
-                    },
-                    style = MaterialTheme.typography.titleSmall
-                )
-                val categories = data.optJSONArray("categories")
-                if (categories != null) {
-                    for (i in 0 until categories.length()) {
-                        val category = categories.getJSONObject(i)
                         Text(
-                            "${category.getString("name")}: ${category.getJSONArray("codes").let {
-                                if (it.length() == 0) {
-                                    when (category.getString("availability")) {
-                                        "NotChecked" -> "Not checked"
-                                        "Available" -> "Checked"
-                                        "Unsupported" -> "Not supported"
-                                        else -> "Unavailable"
-                                    }
-                                } else {
-                                    (0 until it.length()).joinToString(", ") { index ->
-                                        it.getString(index)
-                                    }
-                                }
-                            }}"
+                            "Alert limit: ${alertContextReading(
+                                observation.limit.toDouble(),
+                                observation.unit,
+                                system
+                            )}"
                         )
                     }
                 }
-            }
-            val capture = entry.context.optJSONObject("capture")
-            Text(
-                when {
-                    capture == null -> "Sensor window is pending or unavailable."
-
-                    !capture.optBoolean("available") -> "Sensor window unavailable on the gauge."
-
-                    !capture.optBoolean(
-                        "complete"
-                    ) || capture.optBoolean("partial") -> "Partial sensor window captured"
-
-                    else -> "Sensor window captured"
-                },
-                style = MaterialTheme.typography.bodySmall
-            )
-            capture?.optJSONArray("samples")?.let { samples ->
-                val groups = (0 until samples.length()).map {
-                    samples.getJSONObject(it)
-                }.filter { it.optBoolean("valid") }.groupBy { it.getInt("pidIndex") }
-                val definitions = entry.context.optJSONArray("definitions")
-                groups.forEach { (pid, values) ->
-                    val definition = definitions?.optJSONObject(pid)
+                if (e.key >= 36 && e.unit.isNotBlank()) Text(e.unit)
+                if (entry.context.optBoolean(
+                        "coverageGap"
+                    )
+                ) {
+                    Text("Some events were unavailable during disconnection or restart.")
+                }
+                val recordedCodes = recordedFaultCodes(entry.context)
+                if (e.key in 32..35 || recordedCodes.isNotEmpty()) {
+                    SavedFaultCodes(recordedCodes, entry.id)
+                }
+                val capture = entry.context.optJSONObject("capture")
+                if (capture?.optBoolean("available") == true) {
                     Text(
-                        "${definition?.optString(
-                            "name"
-                        ) ?: "Reading ${pid + 1}"}: ${alertContextReading(
-                            values.first().optDouble("value"),
-                            definition?.optString("unit").orEmpty(),
-                            system
-                        )} → ${alertContextReading(
-                            values.last().optDouble("value"),
-                            definition?.optString("unit").orEmpty(),
-                            system
-                        )}",
+                        when {
+                            capture == null -> "Sensor window is pending or unavailable."
+
+                            !capture.optBoolean("available") -> "Sensor window unavailable on the gauge."
+
+                            !capture.optBoolean(
+                                "complete"
+                            ) || capture.optBoolean("partial") -> "Partial sensor window captured"
+
+                            else -> "Sensor window captured"
+                        },
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-            }
-            if (model.isAlertCurrent(entry) && entry.vehicle == model.profileCollection.activeId &&
-                e.lifecycle == AlertLifecycle.Active
-            ) {
-                Row {
-                    TextButton({ model.acknowledgeAlert(entry) }) { Text("Acknowledge") }
-                    if (e.severity <
-                        AlertSeverity.Critical
-                    ) {
-                        TextButton({
-                            model.acknowledgeAlert(entry, true)
-                        }) { Text("Snooze 5 min") }
+                capture?.optJSONArray("samples")?.let { samples ->
+                    val groups = (0 until samples.length()).map {
+                        samples.getJSONObject(it)
+                    }.filter { it.optBoolean("valid") }.groupBy { it.getInt("pidIndex") }
+                    val definitions = entry.context.optJSONArray("definitions")
+                    groups.forEach { (pid, values) ->
+                        val definition = definitions?.optJSONObject(pid)
+                        Text(
+                            "${definition?.optString(
+                                "name"
+                            ) ?: "Reading ${pid + 1}"}: ${alertContextReading(
+                                values.first().optDouble("value"),
+                                definition?.optString("unit").orEmpty(),
+                                system
+                            )} → ${alertContextReading(
+                                values.last().optDouble("value"),
+                                definition?.optString("unit").orEmpty(),
+                                system
+                            )}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
-                Text(
-                    "Acknowledgment changes attention only. It does not clear fault codes.",
-                    style = MaterialTheme.typography.bodySmall
-                )
+                if (model.isAlertCurrent(entry) && entry.vehicle == model.profileCollection.activeId &&
+                    e.lifecycle == AlertLifecycle.Active
+                ) {
+                    Row {
+                        TextButton({ model.acknowledgeAlert(entry) }) { Text("Acknowledge") }
+                        if (e.severity <
+                            AlertSeverity.Critical
+                        ) {
+                            TextButton({
+                                model.acknowledgeAlert(entry, true)
+                            }) { Text("Snooze 5 min") }
+                        }
+                    }
+                    Text(
+                        "Acknowledgment changes attention only. It does not clear fault codes.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                TextButton({
+                    model.pinAlert(entry, !entry.pinned)
+                }) { Text(if (entry.pinned) "Unpin report" else "Keep report") }
+                Spacer(Modifier.height(24.dp))
             }
-            TextButton({
-                model.pinAlert(entry, !entry.pinned)
-            }) { Text(if (entry.pinned) "Unpin report" else "Keep report") }
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -356,7 +331,7 @@ fun GlobalAlertBanner(model: AppViewModel) {
             model.selectedAlertId = entry.id
         }) {
             Text(
-                "${entry.event.severity.name} · ${entry.event.label}${if (entry.event.unavailable) " · unavailable" else ""}"
+                "${entry.event.severity.name} · ${alertTitle(entry.event)}${if (entry.event.unavailable) " · unavailable" else ""}"
             )
         }
     }

@@ -72,8 +72,9 @@ class ConnectionStatusUiTest {
             compose.onAllNodesWithText(it).assertCountEquals(0)
         }
         capture("car")
-        compose.onNodeWithText("Fault codes").performClick()
-        compose.onNodeWithText("P0301").assertIsDisplayed()
+        compose.onNodeWithText("P0301 · Engine").assertIsDisplayed()
+        compose.onNodeWithText("P0301 · Engine").performClick()
+        compose.onNodeWithText("What it means").assertExists()
         compose.onAllNodesWithText("Check coverage").assertCountEquals(0)
     }
 

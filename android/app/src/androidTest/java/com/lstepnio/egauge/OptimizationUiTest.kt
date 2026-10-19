@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -15,6 +17,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.ConnectionStatusWidget
 import com.lstepnio.egauge.ui.car.CarScreen
+import com.lstepnio.egauge.ui.car.SavedFaultCodes
 import com.lstepnio.egauge.ui.home.HomeScreen
 import com.lstepnio.egauge.ui.settings.SettingsScreen
 import com.lstepnio.egauge.ui.setup.SetupScreen
@@ -28,6 +31,49 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class OptimizationUiTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test fun faultCodesAreVisibleBeforeOpeningAnExplanation() {
+        val codes = listOf("U0121", "U0140", "P1DCA", "P1DF3").map { FaultUi(it, "", "Stored") }
+        val source = FaultSourceUi("Transmission", StatusUi("Warning", tone = StatusTone.Warning), listOf(FaultCategoryUi("Stored", "", codes)))
+        val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", source.status, emptyList(), true, false, false, emptyList(), faultSources = listOf(source))
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f), LocalConnectionStatus provides { ConnectionPill("Gauge ready", true, onClick = {}) }) {
+                EGaugeTheme(dark = true) {
+                    Surface(Modifier.requiredSize(390.dp, 1000.dp).testTag("fault-frame")) { CarScreen(state, {}, {}, {}) }
+                }
+            }
+        }
+        compose.onNodeWithText("U0121 · Transmission").performScrollTo().assertIsDisplayed()
+        captureFaultScreen("car-faults")
+        compose.onNodeWithText("U0121 · Transmission").performClick()
+        compose.onNodeWithText("What it means").assertExists()
+        compose.onNodeWithText("Next step").performScrollTo().assertIsDisplayed()
+        captureFaultScreen("fault-explanation")
+        compose.onNodeWithText("Close").performScrollTo().performClick()
+        compose.onNodeWithText("View all 4 codes").performScrollTo().performClick()
+        compose.onNodeWithText("P1DF3 · Transmission · Chrysler/Jeep reference").performScrollTo().performClick()
+        compose.onNode(hasText("Controller not initialized") and hasAnyAncestor(hasTestTag("fault-explanation"))).assertExists()
+        compose.onNodeWithText("Next step").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun savedCodesUseTheSameLookupAndStayClearlyHistorical() {
+        val faults = listOf(CarFaultUi("U0140", "", "Transmission", "Stored", listOf("Stored"), false))
+        compose.setContent { EGaugeTheme { Column { SavedFaultCodes(faults, "episode") } } }
+        compose.onNodeWithText("U0140 · Transmission · Saved with alert").assertIsDisplayed()
+        compose.onNodeWithText("U0140 · Transmission · Saved with alert").performClick()
+        compose.onNodeWithText("What it means").assertExists()
+        compose.onNodeWithText("Saved with this alert. This is not a live fault check.").assertExists()
+        compose.onNodeWithText("Back to saved codes").performClick()
+        compose.onNodeWithText("U0140 · Transmission · Saved with alert").assertIsDisplayed()
+    }
+
+    private fun captureFaultScreen(name: String) {
+        val directory = androidx.test.platform.app.InstrumentationRegistry.getArguments().getString("additionalTestOutputDir") ?: return
+        val file = java.io.File(directory, "fault-experience/$name.png")
+        check(file.parentFile!!.mkdirs() || file.parentFile!!.isDirectory)
+        val bitmap = if (name == "fault-explanation") compose.onNodeWithTag("fault-explanation").captureToImage() else compose.onNodeWithTag("fault-frame").captureToImage()
+        file.outputStream().use { check(bitmap.asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)) }
+    }
 
     @Test fun compactHeaderKeepsItsTitleOnOneLineAndThePillReachable() {
         compose.setContent {
@@ -116,10 +162,11 @@ class OptimizationUiTest {
             substring = true
         ).assertExists()
         compose.onAllNodesWithText("Pending").assertCountEquals(0)
-        compose.onNodeWithText("Fault codes").performScrollTo().performClick()
-        compose.onNodeWithText("P0301").assertExists()
-        compose.onNodeWithText("P0700").assertExists()
-        compose.onNodeWithText("Transmission · Last checked · Pending").assertExists()
+        compose.onNodeWithText("P0301 · Engine").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("P0700 · Transmission · Last checked").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("P0700 · Transmission · Last checked").performClick()
+        compose.onNodeWithText("What it means").assertExists()
+        compose.onNodeWithText("Next step").performScrollTo().assertIsDisplayed()
         compose.onAllNodesWithText("Check coverage").assertCountEquals(0)
     }
 
@@ -143,13 +190,13 @@ class OptimizationUiTest {
                 }
             }
         }
-        compose.onNodeWithText("Fault codes").performScrollTo().performClick()
-        compose.onNodeWithText("P0301").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("P0301 · Vehicle").performScrollTo().performClick()
+        compose.onNode(hasText("P0301 · Vehicle") and hasAnyAncestor(hasTestTag("fault-explanation"))).assertIsDisplayed()
         compose.runOnIdle {
             state =
                 state.copy(activeId = "other", name = "Other car", faults = emptyList())
         }
-        compose.onAllNodesWithText("P0301").assertCountEquals(0)
+        compose.onAllNodesWithText("P0301 · Vehicle").assertCountEquals(0)
         compose.onNodeWithText("Adapter").performScrollTo().performClick()
         compose.onNodeWithText("Remove adapter").performScrollTo().assertIsDisplayed()
     }

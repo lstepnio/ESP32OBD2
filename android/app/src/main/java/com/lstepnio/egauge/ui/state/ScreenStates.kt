@@ -96,7 +96,7 @@ data class CustomizeUiState(
 data class VehicleUi(val id: String, val name: String)
 
 @Immutable
-data class FaultUi(val code: String, val description: String, val category: String)
+data class FaultUi(val code: String, val description: String, val category: String, val current: Boolean = true)
 
 @Immutable
 data class FaultCategoryUi(
