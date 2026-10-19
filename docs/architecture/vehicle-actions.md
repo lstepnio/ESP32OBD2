@@ -183,6 +183,11 @@ the first qualification target, not permission to execute the stock JK handler.
 Refresh identity from the selected primary connection before qualification; never
 choose an engine command from the chassis label, profile name or TCM identity.
 
+The owner has [confirmed successful raised idle in JScan on this Hemi swap](../vehicles/jeep/jk-handler-analysis.md#owner-reference-confirmation-2026-10-19).
+Treat this as the working reference. The next gate is matching the complete
+procedure to eGauge and the current PCM, not asking whether a stock-JK feature
+exists. This report does not supply the test's RPM, wire sequence or release timing.
+
 The [handler inventory](../vehicles/jeep/jk-handler-analysis.md) supplies only
 partial control-flow evidence. In particular `33 05` occurs before starting and
 inside the recurring work method. Do not label it a Stop packet or infer that
@@ -260,7 +265,7 @@ enablement; software cannot promise a Stop packet after power or transport loss.
 
 | Slice | Work | Exit evidence |
 | --- | --- | --- |
-| 1. Controller procedure | Resolve the existing petrol handler and actual PCM identity; record allowed RPMs, setup, replies, release, timing and ECU timeout. | Matching documented definition/reference trace; unresolved fields remain explicit and no vehicle control is enabled. A parked vehicle comparison is needed to close behavior claims. |
+| 1. Controller procedure | Reproduce the owner's working JScan operation, confirm current PCM identity and resolve the matching handler; record allowed RPMs, setup, replies, release, timing and ECU timeout. | Complete matching procedure/reference trace, not another generic JK compatibility check; unresolved fields remain explicit and no eGauge control is enabled. A parked comparison is needed to close behavior claims. |
 | 2. Offline vertical slice | Add the negotiated contract, bounded lifecycle/driver seam and preset/menu UI, initially using a fixture-only driver. | C/Kotlin contract parity; old-profile/old-firmware compatibility; two presets, one gesture and visible Stop; no fixture driver selectable by a real production profile. |
 | 3. Parked qualification | Introduce the matched driver, start with explicit Start/Stop, then bind the existing gesture/menu. | Owner confirms RPM and normal-control return; verify repeat Start, Stop, expiry, brake/gear/movement guard behavior, lost replies, adapter removal, gauge reset and independent TCM continuity. No moving or winch-load test is needed for the first idle-only check. |
 | 4. Enable the qualified pack | Enable only the evidenced controller scope through ordinary profile/configuration flow. | Loaded polling/refresh/Stop latency and internal heap/stack margins; App/gauge/radio loss, maintenance transitions, replay suppression and physical operation recorded separately from fixtures. |

@@ -43,3 +43,16 @@ first [qualification target](../../evidence/jeep-direct-exploration-results.md#p
 No new vehicle requests were made for this follow-up. The implementation and test
 sequence belongs in [ADR-013's temporary-idle proposal](../../architecture/vehicle-actions.md#first-vehicle-command-temporary-high-idle);
 do not duplicate a command procedure here or infer compatibility from the JK name.
+
+### Owner reference confirmation, 2026-10-19
+
+The owner confirmed that raised idle **works in JScan on the Hemi-swapped Jeep**.
+This establishes an owner-reported working reference on the target vehicle, rather
+than only a stock-JK feature claim. The JScan test date/version, selected RPM,
+controller identity during that test, command trace and release/timeout observations
+were not supplied. Do not infer those details or identify the static handler as the
+working path from this confirmation alone.
+
+The next comparison should reproduce the known-working JScan operation and obtain
+its complete procedure for the current PCM. eGauge high idle, Stop, expiry and
+loss-of-contact restoration remain unimplemented and unqualified.

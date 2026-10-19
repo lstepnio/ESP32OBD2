@@ -73,8 +73,9 @@ and timed page cycling remain independent implemented controls.
 
 FEATURE-04 now has a [temporary-idle delivery proposal](architecture/vehicle-actions.md#first-vehicle-command-temporary-high-idle)
 for Air up and Winch presets using the existing gesture/profile foundation.
-The captured engine identity is a research target; no command contract, controller
-driver or high-idle Start/Stop UI has been implemented or installed.
+The owner [reports successful high idle through JScan on this Hemi swap](vehicles/jeep/jk-handler-analysis.md#owner-reference-confirmation-2026-10-19).
+That is the reference for matching the current PCM procedure; no eGauge command
+contract, controller driver or high-idle Start/Stop UI has been implemented or installed.
 
 ## Known reliability limits
 
