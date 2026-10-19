@@ -1,0 +1,37 @@
+{
+  "board": "waveshare-esp32-s3-touch-lcd-1.28",
+  "chip": "ESP32-S3",
+  "flashSize": "16MB",
+  "version": "0.2.0-dev.60",
+  "sourceCommit": "860dc3f9f9ffa7e28a388a7100fb6e61ff616a39",
+  "sourceRelease": "https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.60",
+  "applicationProvenance": "Exact signed published application; catalog and application signatures verified",
+  "supportProvenance": "Bootloader and partition table rebuilt from release source with ESP-IDF v5.4.1; blank OTA selector selects slot zero",
+  "bundleSha256": "a23086270ad84194db2c7c145f008100d78202bfaa21bb72e4eb4efdd2b4590e",
+  "parts": [
+    {
+      "address": 0,
+      "url": "/downloads/dev60-9e973ad2c2da/bootloader.bin",
+      "sha256": "586e5edf5f2d5788ee22d4b6a3eae3a7fedcea555fea1c066bfd55ae2b6532ee",
+      "size": 21120
+    },
+    {
+      "address": 32768,
+      "url": "/downloads/dev60-9e973ad2c2da/partition-table.bin",
+      "sha256": "ee365b70963d7aa1f92d7d5d868314f956d88af5b336d8acc063c426aec9752e",
+      "size": 3072
+    },
+    {
+      "address": 65536,
+      "url": "/downloads/dev60-9e973ad2c2da/ota-selector.bin",
+      "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f",
+      "size": 8192
+    },
+    {
+      "address": 393216,
+      "url": "/downloads/dev60-9e973ad2c2da/application.bin",
+      "sha256": "bb8591ba9c24f8671b8e5e84a81fe22a67c88e175a57bb59ee6cf5e5e3c30c8d",
+      "size": 1615904
+    }
+  ]
+}

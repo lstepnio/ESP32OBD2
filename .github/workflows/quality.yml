@@ -25,6 +25,11 @@ jobs:
       - name: Formatting
         run: |
           python tools/dev.py format --check
+      - name: Verify browser recovery bundle
+        run: |
+          npm ci --prefix web-recovery --ignore-scripts
+          npm run build --prefix web-recovery
+          git diff --exit-code -- website/recovery/recovery.js website/recovery/recovery.js.LEGAL.txt
       - name: Shared host lint and tests
         run: |
           python tools/dev.py lint --target host

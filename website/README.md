@@ -11,11 +11,13 @@ Use the repository Python environment from the [root setup](../README.md#develop
 
 ```sh
 python tools/build_website.py --check
-python tools/build_website.py --output artifacts/website-preview
+python tools/build_website.py --downloads artifacts/website-downloads --output artifacts/website-preview
 python3 -m http.server 8771 --bind 127.0.0.1 --directory artifacts/website-preview
 ```
 
-Use an empty output directory for each build. Host lint runs the website validator
+Use an empty output directory for each build. Prepare verified downloads using the
+[USB recovery package procedure](../web-recovery/README.md#package-provenance-and-updates).
+The default offline check validates metadata; a deployable build requires every binary. Host lint runs the website validator
 and JavaScript syntax checks. The build checks local links, anchors, image alt text,
 and source-document paths. Open the preview on desktop and mobile, exercise all
 screen buttons, and check images and overflow. Never submit contact forms with test
@@ -42,7 +44,8 @@ An authorized static update needs no service restart or Docker access.
 3. Upload to a unique staging directory, verify every manifest hash, then copy the
    content-addressed `assets/` directory into the existing webroot. Keep old assets
    so clients with older HTML continue to work.
-4. Replace root metadata files and finally `index.html` using temporary files and
+4. Publish new `/downloads/` paths before HTML and retain earlier immutable downloads.
+   Replace root metadata, `/recovery/index.html`, and finally root `index.html` using temporary files and
    atomic file renames **inside the existing site directory**. Do not rename the
    directory itself: the container bind mount retains its inode.
 5. Verify public HTTPS HTML/assets against the build, desktop/mobile rendering,

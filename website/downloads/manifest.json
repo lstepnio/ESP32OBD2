@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "firmware": {
+    "version": "0.2.0-dev.60",
+    "release": "https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.60",
+    "url": "/downloads/dev60-9e973ad2c2da/recovery.json",
+    "sha256": "499326bf066771aaa1dc17e7965ae4a13b5a40e76f20908d93fde781cc4d1f92",
+    "size": 1447
+  },
+  "app": {
+    "version": "0.2.0-dev.51",
+    "sourceCommit": "414cedd46a2273dd13435ddce273236b70db7b74",
+    "variant": "debug",
+    "signingCertificateSha256": "be0fae89e04e5c71660273c4084ed0c98879f567fe13b6d15f5df9b243586f87",
+    "url": "/downloads/egauge-android-7ea52f9c0d98d6db.apk",
+    "sha256": "7ea52f9c0d98d6dbb6fa2793d7a0eadaa79b4e30230668f296c538077ea2210e",
+    "size": 45109037
+  },
+  "files": {
+    "dev60-9e973ad2c2da/bootloader.bin": {
+      "sha256": "586e5edf5f2d5788ee22d4b6a3eae3a7fedcea555fea1c066bfd55ae2b6532ee",
+      "size": 21120
+    },
+    "dev60-9e973ad2c2da/partition-table.bin": {
+      "sha256": "ee365b70963d7aa1f92d7d5d868314f956d88af5b336d8acc063c426aec9752e",
+      "size": 3072
+    },
+    "dev60-9e973ad2c2da/ota-selector.bin": {
+      "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f",
+      "size": 8192
+    },
+    "dev60-9e973ad2c2da/application.bin": {
+      "sha256": "bb8591ba9c24f8671b8e5e84a81fe22a67c88e175a57bb59ee6cf5e5e3c30c8d",
+      "size": 1615904
+    },
+    "dev60-9e973ad2c2da/recovery.json": {
+      "sha256": "499326bf066771aaa1dc17e7965ae4a13b5a40e76f20908d93fde781cc4d1f92",
+      "size": 1447
+    },
+    "egauge-android-7ea52f9c0d98d6db.apk": {
+      "sha256": "7ea52f9c0d98d6dbb6fa2793d7a0eadaa79b4e30230668f296c538077ea2210e",
+      "size": 45109037
+    }
+  }
+}

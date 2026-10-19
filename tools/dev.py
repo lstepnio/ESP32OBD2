@@ -158,6 +158,7 @@ def host(action):
         run(["git", "diff", "--check"])
         return
     if action == "test":
+        run(["npm", "test", "--prefix", "web-recovery"])
         # Whole discovery prevents a new suite disappearing behind filename-specific CI globs.
         run([sys.executable, "-m", "unittest", "discover", "-s", "tools/tests", "-p", "test_*.py"])
         run(

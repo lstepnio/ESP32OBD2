@@ -43,7 +43,7 @@ class SiteHTML(HTMLParser):
             self.images += 1
 
 
-def build(output: Path):
+def build(output: Path, downloads: Path | None = None, metadata_only=False):
     source = ROOT / "website"
     content = json.loads((source / "content.json").read_text())
     for document in content["sourceDocuments"]:
@@ -56,6 +56,31 @@ def build(output: Path):
         files[image.relative_to(ROOT / "docs/assets").as_posix()] = image.read_bytes()
     for image in sorted((source / "future").glob("*.png")):
         files["future/" + image.name] = image.read_bytes()
+    for asset in sorted((source / "recovery").iterdir()):
+        if asset.suffix != ".html" and asset.name != "package.json":
+            files["recovery/" + asset.name] = asset.read_bytes()
+    package = json.loads((source / "downloads/manifest.json").read_text())
+    virtual = set()
+    for name, record in package["files"].items():
+        if Path(name).is_absolute() or ".." in Path(name).parts:
+            raise ValueError("Invalid download path")
+        target = output / "downloads" / name
+        if name.endswith("/recovery.json"):
+            data = (source / "recovery/package.json").read_bytes()
+        elif downloads is not None:
+            data = (downloads / name).read_bytes()
+        elif metadata_only:
+            virtual.add("/downloads/" + name)
+            continue
+        else:
+            raise ValueError("Pass --downloads with verified package files for a deployable build")
+        if len(data) != record["size"] or hashlib.sha256(data).hexdigest() != record["sha256"]:
+            raise ValueError(f"Download verification failed: {name}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+    (output / "downloads/manifest.json").write_bytes(
+        (source / "downloads/manifest.json").read_bytes()
+    )
     digest = hashlib.sha256()
     for name, payload in sorted(files.items()):
         digest.update(name.encode() + b"\0" + payload + b"\0")
@@ -64,31 +89,49 @@ def build(output: Path):
         path = output / prefix.lstrip("/") / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(payload)
-    html = (source / "index.html").read_text()
     replacements = {
         "ASSET_PREFIX": prefix,
+        "RECOVERY_MANIFEST": package["firmware"]["url"],
+        "RECOVERY_MANIFEST_SHA256": package["firmware"]["sha256"],
+        "FIRMWARE_VERSION": package["firmware"]["version"],
+        "FIRMWARE_RELEASE": package["firmware"]["release"],
+        "APK_URL": package["app"]["url"],
+        "APP_VERSION": package["app"]["version"],
         "READING_COUNT": str(len(readings)),
         "UPDATED_DATE": reviewed.isoformat(),
         "UPDATED_LABEL": f"{reviewed.day} {reviewed.strftime('%B %Y')}",
     }
-    for key, value in replacements.items():
-        html = html.replace("{{" + key + "}}", value)
-    if re.search(r"{{[^}]+}}", html):
-        raise ValueError("Unresolved website placeholder")
-    (output / "index.html").write_text(html)
+    image_count = 0
+    for name in ("index.html", "recovery/index.html"):
+        html = (source / name).read_text()
+        for key, value in replacements.items():
+            html = html.replace("{{" + key + "}}", value)
+        if re.search(r"{{[^}]+}}", html):
+            raise ValueError("Unresolved website placeholder")
+        target = output / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(html)
     (output / "robots.txt").write_bytes((source / "robots.txt").read_bytes())
-    # Keep browser default /favicon.svg requests working too.
     (output / "favicon.svg").write_bytes(files["favicon.svg"])
-    document = SiteHTML()
-    document.feed(html)
-    for link in document.links:
-        url = urlsplit(link)
-        if url.scheme or url.netloc or url.path.startswith("/api/"):
-            continue
-        if url.path and not (output / unquote(url.path).lstrip("/")).is_file():
-            raise ValueError(f"Missing website asset: {link}")
-        if url.fragment and not url.path and url.fragment not in document.ids:
-            raise ValueError(f"Missing website anchor: {link}")
+    for name in ("index.html", "recovery/index.html"):
+        document = SiteHTML()
+        document.feed((output / name).read_text())
+        image_count += document.images
+        for link in document.links:
+            url = urlsplit(link)
+            if url.scheme or url.netloc or url.path.startswith("/api/"):
+                continue
+            path = unquote(url.path)
+            if path.startswith("/"):
+                asset = output / path.lstrip("/")
+            else:
+                asset = (output / name).parent / path
+            if asset.is_dir():
+                asset = asset / "index.html"
+            if path and not asset.is_file() and path not in virtual:
+                raise ValueError(f"Missing website asset: {link}")
+            if url.fragment and not path and url.fragment not in document.ids:
+                raise ValueError(f"Missing website anchor: {link}")
     source_commit = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
     ).strip()
@@ -105,7 +148,7 @@ def build(output: Path):
     }
     (output / "site-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(
-        f"PASS: website links, {document.images} image placements, {len(files)} assets; catalog {len(readings)}"
+        f"PASS: website links, {image_count} image placements, {len(files)} assets; catalog {len(readings)}"
     )
     return manifest
 
@@ -114,10 +157,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "artifacts/website-release")
     parser.add_argument("--check", action="store_true", help="Validate in a temporary directory")
+    parser.add_argument(
+        "--downloads", type=Path, help="Verified package output; required for deployment"
+    )
     args = parser.parse_args()
     if args.check:
         with tempfile.TemporaryDirectory(prefix="egauge-site-") as directory:
-            build(Path(directory))
+            build(Path(directory), args.downloads, metadata_only=args.downloads is None)
     else:
         output = args.output.resolve()
         # Never overwrite the source tree, repo root, or an arbitrary existing directory.
@@ -130,7 +176,7 @@ def main():
             raise SystemExit(
                 "Use an empty output directory so the manifest contains only this release"
             )
-        build(output)
+        build(output, args.downloads)
         print(f"Built {output}")
 
 

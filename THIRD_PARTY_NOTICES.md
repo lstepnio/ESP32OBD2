@@ -5,3 +5,11 @@
 Noto Sans font assets and generated glyph data retain their upstream license obligations; the [SIL OFL 1.1 notice](third_party/NotoSans-OFL.txt) was retrieved from the Google Fonts Noto Sans distribution.
 
 ESP-IDF, LVGL, and ESP registry dependencies retain their respective license files when downloaded. Release packaging must collect licenses and an SBOM for the exact resolved versions. Reference links in documentation do not imply code or data was copied from those projects. The [diagnostic research archive](data/vehicle-definitions/README.md) records imported definitions, provenance and the limits of independent license review; it is not enabled vehicle support.
+
+## Browser USB recovery
+
+The browser recovery core adapts the MIT-licensed Emviary recovery approach;
+[notice](web-recovery/EMVIARY-LICENSE.txt). Its bundled `esptool-js` 0.7.0 is Apache-2.0
+and `spark-md5` 3.0.2 is MIT. Their full licenses are retained in
+[website/recovery](website/recovery/); generated code retains esbuild legal notices.
+`esbuild` 0.25.12 is a build-only MIT dependency, pinned in the npm lockfile.
