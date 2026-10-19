@@ -56,3 +56,39 @@ working path from this confirmation alone.
 The next comparison should reproduce the known-working JScan operation and obtain
 its complete procedure for the current PCM. eGauge high idle, Stop, expiry and
 loss-of-contact restoration remain unimplemented and unqualified.
+
+## Detailed offline control-flow review, 2026-10-19
+
+Re-extracted the original local split package with the existing research tool.
+`obd4u.cleversoftware.net.Common.dll` matches manifest SHA-256
+`aa3b31566a772781149a0c4b65d12e3d5180da6ebba866829739237bc30289df`.
+The inspector's new optional `--instructions --include-base` output retains numeric
+constants, offsets and base methods for reproducible local review. Default inventory
+output is unchanged; extracted assemblies and instruction reports remain private.
+
+| Finding | Static evidence and limit |
+| --- | --- |
+| RPM encoding | Selected numeric RPM is divided by 256 and the remainder formed. The formatted start is `31 05 HH LL`; 1200 produces `31 05 04 B0`. This identifies encoding, not acceptance by our PCM. |
+| Setup order | The handler selects `7E0`/`7E8`, requests protocol service 9, then 4, then sends `33 05` before the RPM request. In `ProtocolKWPCANServices.GetKeyword`, 9 selects TesterPresentRequest and 4 selects EnterExtendedDiagnosticSessionRequest. The actual protocol selection must still match the vehicle. |
+| Adapter-facing keywords | The KWP/CAN mapping contains `3E 01 1` and `10 92 1`. These are strings passed to the transport; do not reinterpret their trailing tokens as ECU payload bytes without checking adapter framing. |
+| Refresh | The recurring method sends `33 05`, requests protocol service 9, then awaits a 2000 ms delay. That delay follows IO and is not a guaranteed two-second wire interval. Calls use a 1200 ms wait argument; that is not the ECU's idle-release timeout. |
+| Stop | The derived Stop calls a base Stop that immediately returns, then clears `_keepWorking`. It does not transmit a separate release packet in the reviewed path. An in-flight iteration may finish before the flag is checked. |
+| Result handling | The reviewed start/refresh callers discard returned values before showing Started. Do not copy that as evidence of positive ECU acknowledgment; eGauge must verify its own result and release behavior. |
+
+Reproduce the detailed report after extraction, using the already declared research
+Python dependencies:
+
+```sh
+python tools/research/inspect_action_handlers.py /path/to/obd4u.cleversoftware.net.Common.dll \
+  --type RpmPbKWPAdaptationViewModel --type ProtocolKWPCANServices \
+  --type VehicleCommunicationService --instructions --include-base \
+  --output artifacts/high-idle-handler-review.json
+```
+
+Remaining vehicle evidence: confirm the current controller/protocol and matching
+JScan path, record accepted replies, measure actual RPM change and normal Stop,
+and bound release after the last refresh. Start with the known-working JScan
+operation. A reference capture needs JScan logging or an authorized phone Bluetooth
+trace; a second BLE client cannot share the adapter as an independent recorder.
+Do not induce adapter/gauge loss before ordinary release behavior is established.
+No actual vehicle packets were sent for this analysis.

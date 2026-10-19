@@ -36,6 +36,8 @@ def token_name(pe, value: object) -> str:
     table = token >> 24
     index = (token & 0xFFFFFF) - 1
     try:
+        if table == 4:
+            return str(pe.net.mdtables.Field.rows[index].Name)
         if table == 10:
             return str(pe.net.mdtables.MemberRef.rows[index].Name)
         if table == 6:
@@ -47,7 +49,7 @@ def token_name(pe, value: object) -> str:
     return raw
 
 
-def method_report(pe, method) -> dict | None:
+def method_report(pe, method, instructions: bool = False) -> dict | None:
     if not method.row.Rva:
         return None
     body = read_method_body_from_bytes(pe.get_data(method.row.Rva, 65536))
@@ -61,15 +63,33 @@ def method_report(pe, method) -> dict | None:
             strings.append(str(pe.net.user_strings.get(token & 0xFFFFFF)))
         if opcode.startswith(("call", "newobj")):
             calls.append(token_name(pe, instruction.operand))
-    return {
+    report = {
         "name": str(method.row.Name),
         "instruction_count": len(body.instructions),
         "calls": list(dict.fromkeys(calls)),
         "string_literals": strings,
     }
+    if instructions:
+        report["instructions"] = [
+            {
+                "offset": instruction.offset,
+                "opcode": str(instruction.opcode),
+                "operand": (
+                    str(
+                        pe.net.user_strings.get(int(str(instruction.operand)[13:-1], 16) & 0xFFFFFF)
+                    )
+                    if str(instruction.opcode) == "ldstr"
+                    else token_name(pe, instruction.operand)
+                ),
+            }
+            for instruction in body.instructions
+        ]
+    return report
 
 
-def inspect(path: Path, selected_types: list[str]) -> dict:
+def inspect(
+    path: Path, selected_types: list[str], *, instructions: bool = False, include_base: bool = False
+) -> dict:
     pe = dnfile.dnPE(str(path))
     if not pe.net:
         raise ValueError("Input is not a managed assembly")
@@ -82,17 +102,29 @@ def inspect(path: Path, selected_types: list[str]) -> dict:
         "assembly_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         "types": [],
     }
+    selected_types = list(selected_types)
+    if include_base:
+        for name in selected_types:
+            if name not in outer:
+                raise ValueError(f"Type not found: {name}")
+            base = outer[name].Extends
+            if (
+                base
+                and hasattr(base.row, "MethodList")
+                and str(base.row.TypeName) not in selected_types
+            ):
+                selected_types.append(str(base.row.TypeName))
     for name in selected_types:
         if name not in outer:
             raise ValueError(f"Type not found: {name}")
         item = {"name": name, "methods": [], "nested_types": []}
         for method in outer[name].MethodList:
-            if found := method_report(pe, method):
+            if found := method_report(pe, method, instructions):
                 item["methods"].append(found)
         for subtype in nested.get(name, []):
             child = {"name": str(subtype.TypeName), "methods": []}
             for method in subtype.MethodList:
-                if found := method_report(pe, method):
+                if found := method_report(pe, method, instructions):
                     child["methods"].append(found)
             item["nested_types"].append(child)
         report["types"].append(item)
@@ -109,10 +141,23 @@ def main() -> None:
         help="Managed type to inspect; repeat for multiple types",
     )
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--instructions",
+        action="store_true",
+        help="Include IL offsets, constants and resolved operands for local control-flow review",
+    )
+    parser.add_argument(
+        "--include-base", action="store_true", help="Include available base class methods"
+    )
     args = parser.parse_args()
     if not args.assembly.is_file():
         parser.error(f"Assembly does not exist: {args.assembly}")
-    result = inspect(args.assembly, args.types or list(JK_ACTION_TYPES))
+    result = inspect(
+        args.assembly,
+        args.types or list(JK_ACTION_TYPES),
+        instructions=args.instructions,
+        include_base=args.include_base,
+    )
     rendered = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
