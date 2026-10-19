@@ -112,6 +112,14 @@ class AutomaticConnectionJourneyTest {
             compose.runOnUiThread { model.readHardwareCapacity() }
             compose.waitUntil(30_000) { model.operation.title == "Hardware checked" && model.operation.terminal }
             assertNotNull(model.hardwareSnapshot)
+            if (InstrumentationRegistry.getArguments().getString("expectMaintenanceStopped") == "true") {
+                // Hardware snapshot v1 uses 255 when esp_wifi_get_mode reports an
+                // uninitialized driver; zero means an initialized driver in NULL mode.
+                assertEquals("Abandoned maintenance must deinitialize the Wi-Fi driver", 255, model.hardwareSnapshot?.wifiMode)
+                assertEquals(0L, requireNotNull(model.hardwareSnapshot).initializedFeatures and 1L)
+                assertNull("Only authenticated reconciliation clears the interrupted-update journal",
+                    UpdateRecoveryJournal(instrumentation.targetContext).read())
+            }
             compose.runOnUiThread { model.readRunningFirmware() }
             compose.waitUntil(30_000) { model.operation.title == "Firmware checked" && model.operation.terminal }
             assertEquals(verifiedBoot, model.bootIdentity)
@@ -124,6 +132,7 @@ class AutomaticConnectionJourneyTest {
             "Bluetooth off/on recovery: $toggle; recovery duration: $bluetoothRecoveryElapsed ms\n" +
             "Add-gauge cancellation recovery: $picker\n" +
             "Hardware snapshot followed by a fresh protected firmware read: $hardwareChain\n" +
+            (if (hardwareChain) "Hardware Wi-Fi mode: ${model.hardwareSnapshot?.wifiMode}; internal free/largest: ${model.hardwareSnapshot?.internalFreeBytes}/${model.hardwareSnapshot?.internalLargestBlockBytes} bytes\n" else "") +
             "Gauge identity unchanged; saved and running revision ${original.revision} retained\n" +
             "Configuration digest unchanged: ${original.sha256}\n" +
             "Settings populated and refreshed automatically; brightness, rotation, units and cycle unchanged\n" +

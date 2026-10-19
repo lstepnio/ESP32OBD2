@@ -64,6 +64,41 @@ Only a debuggable build honors the intent extra, and values are capped at 60 sec
 
 Physical removal of USB power remains a separate final case because a serial reset does not remove rail power or reproduce brownout behavior.
 
+## Opt-in App-owned reset observer
+
+`WifiFirmwareInterruptionJourneyTest` runs the ordinary hosted signed download and
+App/Wi-Fi install owner. Select only that class with
+`allowWifiFirmwareInterruption=true`, exact `currentFirmwareVersion` /
+`currentFirmwareElf` and `candidateVersion` / `candidateElf` arguments, plus
+`interruptPercent=10`, `50`, `90` or `0`. Zero selects the verified/preactivation
+boundary using the existing 60-second debug pause, not zero-percent transfer.
+
+Keep the serial logger closed before this test, and reset through the existing
+esptool `run` sequence only after instrumentation emits `READY_FOR_OTA_RESET`.
+The accompanying `observedPercent` is acknowledged App progress; record host reset
+timing separately and do not claim an exact flash-instruction boundary. A new UPDATE
+operation ID must reach the selected checkpoint; a prior completed download is not
+an install outcome. If the attempt ends before the checkpoint, do not reset or
+count a passing interruption case. Authenticate actual running identity before retry.
+
+The fixture requires an explicit failed/unknown update outcome, automatic
+`PREVIOUS_FIRMWARE` reconciliation and fresh settings, then drains the App operation
+owner before independent full protected setup readback. Exact previous image/slot,
+health 2, revision/digest/settings/profiles and cleared journal must match. It never
+starts a retry. After all previous-image cases, run the separate full-install
+fixture to qualify the candidate's healthy activation. This observer does not cover
+trial-boot rollback, rail-power loss or interrupted configuration commits.
+
+For an authorized App-process-loss case, stop the target App at the same transfer
+checkpoint instead of resetting the gauge. Instrumentation termination is expected,
+not a passing recovery result. Preserve the pending journal, then independently run
+`AutomaticConnectionJourneyTest` with `allowGaugeRead=true`, exact previous-image
+arguments, `checkHardwareReadChain=true` and `expectMaintenanceStopped=true`.
+Require authenticated previous-image/setup recovery and journal clearing, with the
+Wi-Fi driver deinitialized (hardware-probe mode 255 and initialized Wi-Fi bit clear).
+See the existing [hardware snapshot contract](../protocol/hardware-probe.md); mode
+zero alone does not prove driver allocations were released.
+
 ## Qualification record
 
 Earlier serial-reset measurements are [historical evidence](../evidence/ota-recovery-history.md).
