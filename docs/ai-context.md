@@ -64,6 +64,10 @@ not a second copy here. Owner instructions take precedence over repository guida
 For an alert-related task, read [ADR-015's extension checklist](architecture/alerts-and-diagnostics.md#framework-extension-checklist)
 first. Reuse its producer/reducer/history/presentation owners and update the owning
 contracts with the change. External feeds also use the [provider guide](architecture/phone-alert-providers.md).
+For WzSabrePOC, navigation or media integration, read the
+[proposed companion-content architecture](architecture/phone-companion-content.md)
+and FEATURE-02/FEATURE-06 first. It preserves consumer Maps/Waze and read-only music
+scope; it does not establish live provider support or authorize implementation.
 For Auto screen rotation use the [orientation policy](architecture/hardware-and-transports.md#automatic-display-orientation):
 sensor presence, implemented support and advertised usable capability are separate.
 

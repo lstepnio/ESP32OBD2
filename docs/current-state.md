@@ -146,8 +146,11 @@ Dev.48 implements [ADR-015](architecture/alerts-and-diagnostics.md): threshold/M
 producers share severity/lifecycle, autonomous gauge attention and scoped acknowledgment,
 bounded transitions/context, transactional phone history/export and opt-in Android
 notifications through one connection owner. Threshold dwell/hysteresis remains unchanged.
-The [paired-phone provider guide](architecture/phone-alert-providers.md) documents a
-synthetic Expert test and future authorized crowd-alert integrations. No live feed is enabled.
+The [paired-phone provider guide](architecture/phone-alert-providers.md) documents the
+synthetic fixture/relay seam and future authorized crowd-alert integrations. The
+former synthetic Expert button was removed; no live feed is enabled. The
+[companion-content proposal](architecture/phone-companion-content.md) is planning
+only, with no navigation/media integration or new permissions implemented.
 
 Engine clearing code and readback exist behind a default-off firmware gate. TCM clearing,
 freeze-frame collection and hardware qualification remain open. The shared framework shipped

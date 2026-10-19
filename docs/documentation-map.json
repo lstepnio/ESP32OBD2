@@ -35,6 +35,7 @@
       "docs/architecture/interaction-recovery.md",
       "docs/architecture/multi-adapter.md",
       "docs/architecture/phone-alert-providers.md",
+      "docs/architecture/phone-companion-content.md",
       "docs/architecture/system.md",
       "docs/architecture/vehicle-actions.md",
       "docs/architecture/vehicle-connections.md"
