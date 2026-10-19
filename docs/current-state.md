@@ -9,11 +9,11 @@ This maintenance update contains no new physical observations or device installa
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
 | Pixel | App `0.2.0-dev.51`, UX cleanup and bounded protected-session recovery; local setup retained | [App review and rollout](evidence/product-optimization.md) |
-| Gauge | Signed `0.2.0-dev.60` from `860dc3f`, catalog generation 41, 240 MHz, configuration revision 51 | [Signed OTA reset/process-loss matrix and full upload](evidence/esp32-memory-hardening.md#2026-10-18-dev60-signed-ota-interruption-qualification); exact healthy alternate image, cleared journal, preserved setup |
+| Gauge | Signed `0.2.0-dev.60` from `860dc3f`, catalog generation 41, 240 MHz, configuration revision 52 | [Signed OTA reset/process-loss matrix and full upload](evidence/esp32-memory-hardening.md#2026-10-18-dev60-signed-ota-interruption-qualification); exact healthy alternate image, cleared journal, preserved setup |
 | Physical display/touch | No-footer showcase, hold exit, normal pages and swipes confirmed on dev.59 | [Owner confirmation](evidence/product-optimization.md#dev59-signed-wi-fi-rollout); no new dev.60 display/touch observation |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
-| Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Protected revision/digest/trial and saved phone-state preservation in the linked recovery records |
+| Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Four exact TCM CEL filters applied at revision 52; other running settings and phone profiles preserved. [Configuration check](evidence/shared-alerts-implementation.md#2026-10-19-tcm-cel-filter-configuration) |
 
 Recheck Git/CI and source version files before work. A branch push is not a merge,
 release or installation. Public repository: `lstepnio/ESP32OBD2`.
