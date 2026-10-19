@@ -329,3 +329,55 @@ text and working swipes. This confirmation does not cover the subsequent uncheck
 caption removal or expanded display envelope, which have not been installed. Loaded
 ECM/TCM/phone soak, unattended Bluetooth recovery and interrupted maintenance/OTA
 remain open; no OOM-immunity or production-capability claim is made.
+
+
+## 2026-10-18: dev.58 240 MHz bench trial
+
+Owner approved publishing/installing dev.58 through App/Wi-Fi. Quality CI and the
+signed development workflow passed for source `555971e52427473bc26ff0b50d1023d22d0be4c3`.
+The release tag is `dev-v0.2.0-dev.58`, catalog generation 39; downloaded catalog
+and bundle signatures, hashes, board/layout and app descriptor were independently
+verified against the pinned public key. Image size is 1,615,856 bytes; signed ELF
+is `bcb2db99ab7d61cf45e5fce42fc5a4d5bfa9ce5ecca380ee39d9eeeca19123a9`.
+
+CPU configuration changes from 160 to 240 MHz, with dynamic power management still
+disabled and flash/PSRAM/peripheral clocks unchanged. The candidate also includes
+the pending unchecked-caption removal and wider glyph/arc envelope. These changes
+make it a combined candidate, not a controlled CPU-only graphics benchmark.
+The ESP-IDF boot log directly reports 160,000,000 Hz on dev.57 and 240,000,000 Hz
+on dev.58. Local build/memory gate, six focused host tests and repository validation
+passed; linked internal static use was 163,898 bytes against the 196,608-byte gate.
+
+`WifiFirmwareJourneyTest` passed in **104.265 seconds**, with an installation
+journey of **72,905 ms** and no artificial activation pause. It observed the
+ordinary hosted signed App/Wi-Fi path, exact healthy alternate image (OTA state 2),
+cleared update journal and retained revision 51/digest/settings/phone profiles.
+The receiver during this transfer was still dev.57 at 160 MHz, so its timing is
+not evidence of improved upload throughput on the 240 MHz receiver.
+
+Same-session maintenance comparisons with the same Pixel/App:
+
+| Installed image | Two-cycle test duration | Protected AP opens | Result |
+| --- | --- | --- | --- |
+| dev.57, 160 MHz | 44.904 seconds | 1,837 / 1,936 ms | Both authenticated Wi-Fi status/close cycles passed |
+| dev.58, 240 MHz | 35.323 seconds | 1,607 / 1,634 ms | Both passed; unchanged boot nonce and saved state |
+
+Two samples per setting do not establish a reliable speedup. Radio/Android timing
+and connection preparation contribute to these end-to-end measurements. No reboot,
+recorded allocation failure or queue drop occurred in either maintenance test.
+During the exercised dev.58 paths, sampled internal heap minimum was 97,323 bytes
+and the smallest reported largest block was 31,744 bytes. Minimum sampled
+application-stack headroom across maintenance/showcase was 1,536 bytes. These are path-specific
+observations, not added RAM capacity or OOM immunity.
+
+The first all-frame showcase attempt stopped before completion. The owner confirmed
+touching the gauge, consistent with its intended local exit behavior; that attempt
+is not counted as a passing all-frame run. Owner separately reported clear screens,
+no bezel clipping/corruption, a normal page and working swipes. The untouched repeat
+passed in **176.307 seconds**, observing all 21 distinct frame indices 0..20.
+App-owned stop and actual protected readback confirmed revision 51/digest/settings
+and phone profiles preserved. This protocol observation is distinct from the owner
+visual/touch confirmation.
+
+Loaded ECM/TCM/phone soak, enclosure power/thermal measurements and a full upload
+received at 240 MHz remain unqualified. No public capability flag was enabled.

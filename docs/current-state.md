@@ -1,6 +1,6 @@
 # Current implementation and evidence
 
-Updated 2026-10-16. This is the current support and installed-device snapshot.
+Updated 2026-10-18. This is the current support and installed-device snapshot.
 [Backlog](backlog.md) owns unfinished work; [roadmap](roadmap.md) orders outcomes.
 Dated [evidence](evidence/README.md) preserves measurements without defining today's plan.
 
@@ -8,8 +8,8 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 
 | Concern | Current record | Evidence limit |
 | --- | --- | --- |
-| Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-session cleanup/owner-read recovery; firmware source `0.2.0-dev.58` (240 MHz trial), installed dev.57 | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
-| Installed Pixel and gauge | Pixel App dev.51 from `d393490` installed without data clearing and APK hash verified after an external restore; gauge signed dev.57 from `8af369b`, generation 38 | Full hosted App/Wi-Fi transfer used App `ad302d4`; exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; owner confirmed dev.57 normal page, clean text and working swipes |
+| Source/App/firmware version | App `0.2.0-dev.51` with bounded protected-session cleanup/owner-read recovery; firmware `0.2.0-dev.58` (240 MHz bench trial) | Verify `android/app/build.gradle.kts`, `firmware/gauge/version.txt` and Git at session start |
+| Installed Pixel and gauge | Pixel App dev.51 from `d393490` installed without data clearing and APK hash verified after an external restore; gauge signed dev.58 from `555971e`, generation 39 | Full hosted App/Wi-Fi transfer passed using App `d393490`; exact signed ELF/health 2, alternate slot and unchanged dashboard/settings/profiles verified; boot log confirms 240 MHz; owner reports clear screens/no bezel clipping and normal page/swipes |
 | Gauge dashboard | Revision 51; saved whole-vehicle dashboard retained | Exact revision/digest preservation passed; successful readback does not qualify every reading or alert on a vehicle |
 | Current setup | Gauge and phone have distinct ECM/TCM bindings with dual mode On in one whole dashboard | Exact revision/hash and cleared trial confirmed; primary and both dashboard drafts preserved; [recovery](evidence/gatt-long-read-recovery.md#authorized-appbluetooth-recovery-and-dual-send) passed indoors; dev.53 live both-source reads/resume and each adapter loss/recovery passed |
 | Devices | Waveshare ESP32-S3-Touch-LCD-1.28, GC9A01 240 × 240 LCD, CST816S; Pixel companion | 16 MB flash, 2 MB PSRAM; ESP-IDF 5.4.1 baseline |
@@ -17,6 +17,15 @@ Dated [evidence](evidence/README.md) preserves measurements without defining tod
 | Repository | Public `lstepnio/ESP32OBD2`; continuing review PR #51 | Recheck branch, worktree, PR and CI live; never infer main merge from a branch push |
 
 UI rollout: [Round 3 feedback and native rendering evidence](evidence/gauge-performance-review.md#2026-10-14-prepared-dev54-screen-compositor-and-showcase). Pixel dev.51 is installed with a bounded ATT resource-pressure read retry. Signed dev.55 from `9c6c85c`, generation 36, passed full App/Wi-Fi installation and post-boot preservation checks. The 21-frame showcase start/advance/stop/preservation journey passed and playback was restarted for owner review. Owner confirmed the demo looks good, cycles correctly, exits on hold and returns to normal pages with working swipes. Live vehicle CEL/alert qualification remains open.
+
+Latest indoor CPU/display trial: signed dev.58 is installed through App/Wi-Fi.
+Boot logging confirms 240 MHz versus the dev.57 160 MHz baseline. Two maintenance
+cycles passed at each setting; dev.58 protected AP opens measured 1,607/1,634 ms
+versus 1,837/1,936 ms, an insufficient sample for a reliable performance claim.
+The untouched 21-frame showcase/stop/readback passed; the owner reports no
+clipping/corruption and normal page/swipes. See the
+[dated trial](evidence/esp32-memory-hardening.md#2026-10-18-dev58-240-mhz-bench-trial).
+Loaded/thermal qualification and full-transfer reception at 240 MHz remain open.
 
 Latest vehicle qualification: [dev.53 fresh pairing recovery](evidence/gatt-long-read-recovery.md#dev53-authorized-pairing-recovery-outcome).
 During the subsequent Jeep session, the gauge booted with its owner key absent while
@@ -47,7 +56,7 @@ No live vehicle session or ECU clear was performed by the dev.48 rollout.
 | Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Setup review](evidence/second-adapter-setup.md); [dev.53 live reads/resume, independent loss/recovery and phone off/on](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification); owner confirmed live ECM/TCM display and independent expiry/return | Startup absence, loaded maintenance, rates and sustained soak remain open |
 | Health measurements | Fixed worker records, queue drops, explicit internal/DMA/PSRAM lifecycle logs, allocation failure hook and sampled stack minima | [Memory bench](evidence/esp32-memory-hardening.md): zero recorded allocation failures/queue drops; full-transfer receiver internal minimum 94,991 bytes; dev.57 application stack margin observed at 1,512 bytes | Longer controlled loaded soak, missed transient/vendor-private failures and complete stack-path coverage |
 
-Installed dev.57 [memory hardening](evidence/esp32-memory-hardening.md) retains dev.56's relocation of the
+Dev.57 [memory hardening](evidence/esp32-memory-hardening.md) retains dev.56's relocation of the
 fixed LVGL arena and SDK-supported BSS to PSRAM, reducing linked internal static
 use by 84,664 bytes. It adds build budgets, checked Wi-Fi service creation, stronger
 admission, immutable status snapshots and allocation/stack diagnostics. Local/CI,
