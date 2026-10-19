@@ -25,8 +25,9 @@ def sha256(path: Path) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--archive", type=Path, default=Path("data/vehicle-definitions"))
-    parser.add_argument("--output", type=Path,
-                        default=Path("references/vehicle-catalog/catalog.sqlite"))
+    parser.add_argument(
+        "--output", type=Path, default=Path("references/vehicle-catalog/catalog.sqlite")
+    )
     args = parser.parse_args()
     if args.output.exists():
         parser.error(f"Output already exists: {args.output}")
@@ -37,7 +38,11 @@ def main() -> None:
         parser.error("Unsupported archive format")
     for shard in manifest["shards"]:
         path = args.archive / shard["file"]
-        if not path.is_file() or path.stat().st_size != shard["bytes"] or sha256(path) != shard["sha256"]:
+        if (
+            not path.is_file()
+            or path.stat().st_size != shard["bytes"]
+            or sha256(path) != shard["sha256"]
+        ):
             parser.error(f"Missing or invalid shard: {path}")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -66,7 +71,9 @@ def main() -> None:
                 for line in process.stdout:
                     record = json.loads(line)
                     name = record["resource"]
-                    source_name = next((key for key in input_ids if name.startswith(key + ".")), None)
+                    source_name = next(
+                        (key for key in input_ids if name.startswith(key + ".")), None
+                    )
                     if source_name is None:
                         raise ValueError(f"Resource has no matching input: {name}")
                     payload = record["definitions"]
@@ -75,9 +82,15 @@ def main() -> None:
                         """INSERT INTO resources
                         (input_id, name, category, module, encoding, item_count, payload_json)
                         VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                        (input_ids[source_name], name, record["category"], record["module"],
-                         "archive-json", count,
-                         json.dumps(payload, ensure_ascii=False, separators=(",", ":"))),
+                        (
+                            input_ids[source_name],
+                            name,
+                            record["category"],
+                            record["module"],
+                            "archive-json",
+                            count,
+                            json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+                        ),
                     ).lastrowid
                     database.executemany(
                         """INSERT INTO entries

@@ -1,12 +1,14 @@
 """Pure capture policy and replay framing. No hardware imports or vehicle writes."""
+
 from __future__ import annotations
 
 import re
 
 SCHEMA = 1
 STANDARD_PIDS = (0x0C, 0x05, 0x0D, 0x04, 0x0F, 0x11, 0x42, 0x2F)
-ADAPTER_COMMANDS = frozenset(("ATI", "ATE0", "ATL0", "ATS0", "ATH0", "ATH1",
-                              "ATSP0", "ATDP", "ATDPN"))
+ADAPTER_COMMANDS = frozenset(
+    ("ATI", "ATE0", "ATL0", "ATS0", "ATH0", "ATH1", "ATSP0", "ATDP", "ATDPN")
+)
 
 
 def allowed_command(command: str) -> bool:
@@ -67,8 +69,13 @@ def validate_record(record: dict) -> None:
     for key in ("seq", "t_us", "source", "generation", "offset", "total", "status"):
         if type(record.get(key)) is not int:
             raise ValueError(f"Invalid capture field {key}")
-    if record["source"] not in (0, 1) or min(record["seq"], record["t_us"],
-                                            record["generation"], record["offset"], record["total"]) < 0:
+    if (
+        record["source"] not in (0, 1)
+        or min(
+            record["seq"], record["t_us"], record["generation"], record["offset"], record["total"]
+        )
+        < 0
+    ):
         raise ValueError("Invalid capture identity or length")
     if not re.fullmatch(r"[a-z_]{1,19}", record.get("event", "")):
         raise ValueError("Invalid capture event")
@@ -140,9 +147,13 @@ def transactions(records: list[dict]) -> list[dict]:
                     active.pop(old_key)
             if key in active:
                 raise ValueError("New request before previous prompt")
-            active[key] = {"source": source, "generation": generation,
-                           "command": block.decode("ascii", "replace").strip(),
-                           "t_us": record["t_us"], "raw": bytearray()}
+            active[key] = {
+                "source": source,
+                "generation": generation,
+                "command": block.decode("ascii", "replace").strip(),
+                "t_us": record["t_us"],
+                "raw": bytearray(),
+            }
         elif key in active:
             query = active[key]
             query["raw"].extend(block)

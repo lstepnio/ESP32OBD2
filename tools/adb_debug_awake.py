@@ -50,12 +50,18 @@ def main():
     state_file = state_dir / f"debug-awake-{key}.json"
 
     def read_settings():
-        return {f"{scope}.{name}": run("shell", "settings", "get", scope, name)
-                for scope, name, _ in SETTINGS}
+        return {
+            f"{scope}.{name}": run("shell", "settings", "get", scope, name)
+            for scope, name, _ in SETTINGS
+        }
 
     if args.action == "status":
-        print(json.dumps({"device": serial, "active": state_file.exists(),
-                          "settings": read_settings()}, indent=2))
+        print(
+            json.dumps(
+                {"device": serial, "active": state_file.exists(), "settings": read_settings()},
+                indent=2,
+            )
+        )
         return
 
     if args.action == "start":

@@ -19,9 +19,12 @@ def main() -> None:
     parser.add_argument("--version", required=True)
     parser.add_argument("--sequence", required=True, type=int)
     parser.add_argument("--tag", required=True)
-    parser.add_argument("--notes", default="Development firmware for authenticated integration testing.")
-    parser.add_argument("--key", type=Path,
-                        default=Path.home() / ".config/egauge/dev-update-key.pem")
+    parser.add_argument(
+        "--notes", default="Development firmware for authenticated integration testing."
+    )
+    parser.add_argument(
+        "--key", type=Path, default=Path.home() / ".config/egauge/dev-update-key.pem"
+    )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--signature", type=Path, required=True)
     args = parser.parse_args()
@@ -45,26 +48,43 @@ def main() -> None:
         "generation": args.sequence,
         "generatedAt": now.isoformat().replace("+00:00", "Z"),
         "expiresAt": (now + timedelta(days=180)).isoformat().replace("+00:00", "Z"),
-        "releases": [{
-            "version": args.version,
-            "releaseSequence": args.sequence,
-            "channel": "development",
-            "boardId": "waveshare-esp32-s3-touch-lcd-1.28",
-            "boardRevisions": ["all"],
-            "partitionLayout": "egauge-16m-ab-v1",
-            "transferProtocol": 0,
-            "bundleBytes": len(bundle),
-            "bundleSha256": hashlib.sha256(bundle).hexdigest(),
-            "bundleUrl": ("https://github.com/lstepnio/ESP32OBD2/releases/download/" +
-                          args.tag + "/" + args.bundle.name),
-            "releaseNotes": args.notes[:2000],
-            "sourceTag": args.tag,
-        }],
+        "releases": [
+            {
+                "version": args.version,
+                "releaseSequence": args.sequence,
+                "channel": "development",
+                "boardId": "waveshare-esp32-s3-touch-lcd-1.28",
+                "boardRevisions": ["all"],
+                "partitionLayout": "egauge-16m-ab-v1",
+                "transferProtocol": 0,
+                "bundleBytes": len(bundle),
+                "bundleSha256": hashlib.sha256(bundle).hexdigest(),
+                "bundleUrl": (
+                    "https://github.com/lstepnio/ESP32OBD2/releases/download/"
+                    + args.tag
+                    + "/"
+                    + args.bundle.name
+                ),
+                "releaseNotes": args.notes[:2000],
+                "sourceTag": args.tag,
+            }
+        ],
     }
     raw = (json.dumps(catalog, sort_keys=True, separators=(",", ":")) + "\n").encode()
     args.output.write_bytes(raw)
-    subprocess.run(["openssl", "dgst", "-sha256", "-sign", str(args.key),
-                    "-out", str(args.signature), str(args.output)], check=True)
+    subprocess.run(
+        [
+            "openssl",
+            "dgst",
+            "-sha256",
+            "-sign",
+            str(args.key),
+            "-out",
+            str(args.signature),
+            str(args.output),
+        ],
+        check=True,
+    )
     print(args.output)
     print(args.signature)
 

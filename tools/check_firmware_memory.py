@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Reject a linked gauge image that puts its fixed LVGL pool in internal RAM."""
+
 import argparse
 import json
 from pathlib import Path
@@ -8,10 +9,14 @@ MAX_INTERNAL_STATIC_BYTES = 192 * 1024
 
 
 def validate_internal_budget(sections):
-    used = sum(sections.get(name, 0) for name in (
-        ".dram0.data", ".dram0.bss", ".iram0.text", ".iram0.vectors"))
+    used = sum(
+        sections.get(name, 0)
+        for name in (".dram0.data", ".dram0.bss", ".iram0.text", ".iram0.vectors")
+    )
     if used > MAX_INTERNAL_STATIC_BYTES:
-        raise ValueError(f"Internal static RAM {used} exceeds reviewed {MAX_INTERNAL_STATIC_BYTES}-byte budget")
+        raise ValueError(
+            f"Internal static RAM {used} exceeds reviewed {MAX_INTERNAL_STATIC_BYTES}-byte budget"
+        )
     return used
 
 
@@ -29,6 +34,7 @@ def validate_arena(arenas):
 
 def inspect_image(path):
     from elftools.elf.elffile import ELFFile
+
     with path.open("rb") as source:
         elf = ELFFile(source)
         symbols = elf.get_section_by_name(".symtab")
@@ -37,17 +43,30 @@ def inspect_image(path):
         arenas = []
         for symbol in symbols.iter_symbols():
             if symbol.name.startswith("work_mem_int") and symbol["st_size"]:
-                arenas.append({"address": symbol["st_value"], "bytes": symbol["st_size"],
-                               "section": elf.get_section(symbol["st_shndx"]).name})
+                arenas.append(
+                    {
+                        "address": symbol["st_value"],
+                        "bytes": symbol["st_size"],
+                        "section": elf.get_section(symbol["st_shndx"]).name,
+                    }
+                )
         validate_arena(arenas)
-        sections = {s.name: s["sh_size"] for s in elf.iter_sections()
-                    if s.name in (".dram0.data", ".dram0.bss", ".iram0.text", ".iram0.vectors", ".ext_ram.bss")}
+        sections = {
+            s.name: s["sh_size"]
+            for s in elf.iter_sections()
+            if s.name
+            in (".dram0.data", ".dram0.bss", ".iram0.text", ".iram0.vectors", ".ext_ram.bss")
+        }
         used = validate_internal_budget(sections)
         hook = symbols.get_symbol_by_name("memory_health_allocation_failed")
         if not hook or elf.get_section(hook[0]["st_shndx"]).name != ".iram0.text":
             raise ValueError("Allocation failure hook must remain in IRAM")
-        return {"lvgl_arena": arenas[0], "section_bytes": sections,
-                "internal_static_bytes": used, "internal_static_limit": MAX_INTERNAL_STATIC_BYTES}
+        return {
+            "lvgl_arena": arenas[0],
+            "section_bytes": sections,
+            "internal_static_bytes": used,
+            "internal_static_limit": MAX_INTERNAL_STATIC_BYTES,
+        }
 
 
 def main():

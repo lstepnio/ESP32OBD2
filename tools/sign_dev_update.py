@@ -21,13 +21,17 @@ BOARD_TAG = 0x31534745
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("image", type=Path)
-    parser.add_argument("--key", type=Path,
-                        default=Path.home() / ".config/egauge/dev-update-key.pem")
+    parser.add_argument(
+        "--key", type=Path, default=Path.home() / ".config/egauge/dev-update-key.pem"
+    )
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--bundle", type=Path,
-                        help="also write a bounded .egauge-dev-update ZIP for Android import")
-    parser.add_argument("--expected-version",
-                        help="require the ESP app descriptor version to match the release version")
+    parser.add_argument(
+        "--bundle", type=Path, help="also write a bounded .egauge-dev-update ZIP for Android import"
+    )
+    parser.add_argument(
+        "--expected-version",
+        help="require the ESP app descriptor version to match the release version",
+    )
     args = parser.parse_args()
 
     image = args.image.read_bytes()
@@ -71,10 +75,18 @@ def main() -> None:
     os.chmod(output, 0o600)
     print(output)
     if args.bundle:
-        if args.bundle.resolve() == output.resolve() or args.bundle.resolve() == args.image.resolve():
+        if (
+            args.bundle.resolve() == output.resolve()
+            or args.bundle.resolve() == args.image.resolve()
+        ):
             parser.error("bundle path must differ from the image and metadata paths")
-        with zipfile.ZipFile(args.bundle, "w", compression=zipfile.ZIP_DEFLATED,
-                             compresslevel=6, strict_timestamps=True) as archive:
+        with zipfile.ZipFile(
+            args.bundle,
+            "w",
+            compression=zipfile.ZIP_DEFLATED,
+            compresslevel=6,
+            strict_timestamps=True,
+        ) as archive:
             archive.writestr("metadata.json", json.dumps(manifest, separators=(",", ":")) + "\n")
             archive.write(args.image, "firmware.bin")
         os.chmod(args.bundle, 0o600)

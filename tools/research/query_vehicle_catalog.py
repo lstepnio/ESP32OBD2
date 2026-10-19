@@ -34,8 +34,12 @@ def find_resource(database: sqlite3.Connection, suffix: str) -> dict:
 
 def vehicle_report(database: sqlite3.Connection, key: str) -> dict:
     vehicles = find_resource(database, "Vehicles.Vehicle.json")["payload"]
-    matches = [item for item in vehicles if item.get("ShortName", "").casefold() == key.casefold()
-               or item.get("Name", "").casefold() == key.casefold()]
+    matches = [
+        item
+        for item in vehicles
+        if item.get("ShortName", "").casefold() == key.casefold()
+        or item.get("Name", "").casefold() == key.casefold()
+    ]
     if len(matches) != 1:
         raise ValueError(f"Expected one vehicle matching {key!r}; found {len(matches)}")
     vehicle = matches[0]
@@ -104,7 +108,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--database", type=Path, default=DEFAULT_DATABASE)
     commands = parser.add_subparsers(dest="operation", required=True)
-    vehicle = commands.add_parser("vehicle", help="Show the candidate module and adaptation inventory")
+    vehicle = commands.add_parser(
+        "vehicle", help="Show the candidate module and adaptation inventory"
+    )
     vehicle.add_argument("key", help="Vehicle short name or full name")
     vehicle.add_argument("--output", type=Path, help="Write JSON report to a local file")
     find = commands.add_parser("search", help="Search indexed records, one JSON object per line")

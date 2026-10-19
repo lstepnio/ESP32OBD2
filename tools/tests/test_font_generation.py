@@ -1,4 +1,5 @@
 """Generator failures must not destroy the reviewed font set."""
+
 import csv
 import os
 from pathlib import Path
@@ -18,7 +19,11 @@ class FontGenerationTest(unittest.TestCase):
         rows = list(csv.reader((PROJECT / "assets/fonts/fonts.csv").read_text().splitlines()))
         expected = {f"{prefix}_{size}" for _, prefix, *sizes in rows for size in sizes}
         actual = {p.stem for p in (PROJECT / "main/fonts").glob("*.c")}
-        used = set(re.findall(r"extern\s+const\s+lv_font_t\s+(\w+)\s*;", (PROJECT / "main/src/ui.c").read_text()))
+        used = set(
+            re.findall(
+                r"extern\s+const\s+lv_font_t\s+(\w+)\s*;", (PROJECT / "main/src/ui.c").read_text()
+            )
+        )
         self.assertEqual(expected, actual)
         self.assertEqual(expected, used)
 
@@ -33,14 +38,17 @@ class FontGenerationTest(unittest.TestCase):
             original = project / "main/fonts/reviewed.c"
             original.write_text("keep the reviewed font")
             converter = project / "converter"
-            converter.write_text(f"#!{sys.executable}\n" + '''import os, pathlib, sys
+            converter.write_text(
+                f"#!{sys.executable}\n"
+                + """import os, pathlib, sys
 if '--version' in sys.argv:
     print('1.5.3'); sys.exit(0)
 output = pathlib.Path(sys.argv[sys.argv.index('-o') + 1])
 if os.environ.get('FAIL_FONT') in output.name:
     sys.exit(1)
 output.write_text('font ' + output.stem)
-''')
+"""
+            )
             converter.chmod(0o700)
             env = dict(os.environ, FONT_CONVERTER=str(converter), FAIL_FONT="semibold_40")
             command = ["bash", str(project / "scripts/mkfonts.sh")]
@@ -53,5 +61,7 @@ output.write_text('font ' + output.stem)
             subprocess.run([*command, "--check"], env=env, check=True, capture_output=True)
             generated = next((project / "main/fonts").glob("*.c"))
             generated.write_text("unexpected change")
-            self.assertNotEqual(0, subprocess.run([*command, "--check"], env=env, capture_output=True).returncode)
+            self.assertNotEqual(
+                0, subprocess.run([*command, "--check"], env=env, capture_output=True).returncode
+            )
             self.assertEqual("unexpected change", generated.read_text())
