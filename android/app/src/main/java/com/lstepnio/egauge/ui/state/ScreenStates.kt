@@ -138,6 +138,7 @@ data class CarUiState(
     val actions: List<com.lstepnio.egauge.PageAction> = emptyList(),
     val canEditActions: Boolean = false,
     val actionsSupported: Boolean = false,
+    val idlePresets: List<com.lstepnio.egauge.IdlePreset> = emptyList(),
     val canManageVehicles: Boolean = true,
     val gaugeKnown: Boolean = false
 )

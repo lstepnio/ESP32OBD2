@@ -17,6 +17,11 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "artifacts/checks"
 FIRMWARE = ROOT / "firmware/gauge"
 NATIVE_TESTS = {
+    "temporary_idle": [
+        "tests/temporary_idle_test.c",
+        "main/src/temporary_idle.c",
+        "main/src/page_action.c",
+    ],
     "obd_trace": ["tests/obd_trace_test.c", "main/src/obd_trace_format.c"],
     "page_action": [
         "tests/page_action_test.c",
@@ -258,6 +263,7 @@ def android_ui(action):
         raise SystemExit("android-ui supports test only; use android for build/lint.")
     classes = (
         "ConnectionStatusUiTest",
+        "IdleActionsUiTest",
         "AppCleanupUiTest",
         "ReadingAlertsUiTest",
         "OptimizationUiTest",

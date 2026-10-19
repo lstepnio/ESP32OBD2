@@ -1,7 +1,8 @@
 # ADR-013: Profile actions and gauge gesture triggers
 
-**Status:** Accepted for the local page-action foundation; vehicle controls proposed
+**Status:** Accepted for local page actions and the offline idle foundation; vehicle execution proposed
 **Date:** 2026-10-07
+**High-idle updated:** 2026-10-19; offline foundation implemented, vehicle execution disabled
 **Deciders:** Project owner for interaction choices; implementation and physical
 qualification determine which controller definitions become available.
 
@@ -96,9 +97,13 @@ LVGL, phone or BLE callbacks. Keep read polling and other sources responsive, us
 defined scheduling, time budgets and cancellation points. Firmware independently
 validates the action, parameters, owner/config context and required state.
 
-Each request has a unique ID and bounded duplicate suppression. The state model is:
+Each request has a unique ID and bounded duplicate suppression. The one-shot
+request state model is:
 
 `Ready -> Confirming -> Executing -> Verifying -> Confirmed | Rejected | Unknown`
+
+Temporary controls retain an active operation after Start is confirmed; a confirmed
+Start does not establish eventual release. Their ongoing state is specified below.
 
 Unavailable actions cannot enter the execution path. Adapter send success is not
 controller state confirmation. Readback or a definition-approved controller result
@@ -161,6 +166,141 @@ readback and Stop/Restore remain unimplemented. They require a versioned bounded
 request/result contract and a verified controller definition, rather than extending
 `jumpPage` to carry arbitrary commands. The existing static research inputs are
 insufficient to enable high idle or ABS on this Jeep.
+
+## First vehicle command: temporary high idle
+
+**Offline foundation implemented; vehicle execution proposed and disabled.** Reuse ADR-013 for configurable commands. The first
+scope is temporary engine idle for air-up and winching; ABS/ESC and persistent PCM
+adaptations remain outside this increment. The command does not operate the winch
+or compressor. Its remaining work is owned by FEATURE-04, not a separate backlog.
+
+### Compatibility and research gate
+
+The installed vehicle is a 2010 JK with a swapped 5.7 L Hemi, not the stock 2007
+vehicle used by the original research inventory. The [captured engine endpoint](../evidence/jeep-direct-exploration-results.md#placement-correction-and-identity)
+reported responder `7E8`, calibration `68059434AD` and CVN `CA36378C`. These identify
+the first qualification target, not permission to execute the stock JK handler.
+Refresh identity from the selected primary connection before qualification; never
+choose an engine command from the chassis label, profile name or TCM identity.
+
+The owner has [confirmed successful raised idle in JScan on this Hemi swap](../vehicles/jeep/jk-handler-analysis.md#owner-reference-confirmation-2026-10-19).
+Treat this as the working reference. The next gate is matching the complete
+procedure to eGauge and the current PCM, not asking whether a stock-JK feature
+exists. This report does not supply the test's RPM, wire sequence or release timing.
+
+The [detailed offline review](../vehicles/jeep/jk-handler-analysis.md#detailed-offline-control-flow-review-2026-10-19)
+now establishes two-byte RPM encoding, session/refresh call order and a Stop that
+ends the refresh loop. It does not establish accepted replies or the PCM's release
+timeout. `33 05` is not a discovered Stop packet, and `22 0122` is not the complete
+high-idle command. Match the current controller, verify results and measure release
+before admitting a real driver; do not copy the reference's discarded-result behavior.
+
+JScan's [FAQ](https://jscan.net/faq/) describes its raised-idle feature as temporary
+and returning to normal when its screen is left or the App disconnects. This is
+reference-product behavior, not a measured timeout for our PCM. Likewise the
+[Superchips TD3 guide, Crawl page](https://documents.holley.com/3df8c1fb78ec99ee1ad91f9a6d5cf5335f99e4d4.pdf#page=20)
+documents its own Park/Neutral idle control; its RPM range must not become a
+universal eGauge range. No cross-product claim establishes swapped-Hemi support.
+
+### Presets and everyday interaction
+
+- Implement one typed `temporaryIdle` operation with **Air up** and **Winch** named
+  presets. Each selects a controller-supported target RPM and a finite duration.
+  Proposed first-use duration is five minutes, explicitly a product choice; the
+  qualified definition caps duration and RPM. Do not preselect an unverified RPM.
+- Car > Actions owns preset configuration and Start/Stop. Expert owns controller
+  identity, qualification and support reasons. Only matching qualified commands
+  appear in ordinary controls; no raw packets, macros or scripting UI.
+- Keep the existing direct page-jump binding and its saved representation working.
+  Add an alternative upward binding that opens a compact Quick actions menu. Named
+  `Start Air up` / `Start Winch` choices show target RPM and duration; selecting one
+  is the explicit start confirmation. Cancel has no vehicle effect.
+- Do not assign three swipes to Air up and four to Winch: the first sequence is a
+  prefix of the second. Retain one upward binding and use the menu to select a
+  preset. Direct-start gestures can follow controller and interaction qualification.
+- While active, show the preset, target and remaining time using existing compositor
+  slots, with an accessible named Stop control on the gauge and in Car. Critical
+  alerts retain display priority; the command must remain stoppable. Menu interaction
+  consumes ordinary page clicks/holds and pauses cycling without changing pairing.
+- Configuration persists; active state and remaining time do not. Phone disconnect
+  alone does not stop a gauge-owned session. Gauge/adapter loss must release control
+  through the qualified ECU behavior, not depend on the phone being present.
+
+### Minimum implementation boundary
+
+| Boundary | Extend existing ownership | Required behavior |
+| --- | --- | --- |
+| Saved model | `ProfileActions.kt`, `GaugeModels.kt`, existing profile codec/store | Separate presets from the single gesture binding; retain old `jumpPage` data and fail closed on unknown definitions/parameters. No migration until the contract is agreed. |
+| Configuration and owner control | Existing schema-2 compile/apply path, protected BLE codecs | Negotiate a new command capability before sending new fields or Start/Stop/status. Bind requests to gauge, running revision, vehicle, definition, endpoint and link generation; allocate wire IDs only with C/Kotlin rejection vectors. |
+| Gesture/UI | `page_action.c`, `ui.c`, `PageActionsSheet.kt` | Reuse recognition, rotation mapping, click suppression and cooldown; dispatch a typed intent after recognition. Do not embed packets in `pageId` or add another gesture recognizer. Review pending PR #59's loaded-swipe fixes before deriving action UX from that branch. |
+| Execution | Existing primary `source_worker_t` / `obd_task` ownership in `main.c` | One bounded active control slot, a pure lifecycle policy and a curated controller driver. No new task, callback IO or unbounded command queue. Preserve ordinary polling and the child worker. |
+| Status and history | Existing UI state and shared alert/history framework | Distinguish Requested, Starting, Active, Stopping, Restored, Rejected and Unknown. Store scoped transitions, not heartbeat samples. Normal completion is quiet; actionable uncertainty uses shared attention rather than a second notification system. |
+
+Allow only a matching fresh engine identity and definition-required inputs at both
+admission and send. Minimum inputs must establish engine running and stationary
+Park/Neutral where required by the procedure. Unknown or stale is not zero/parked.
+The experimental TCM gear reading is not by itself qualified proof of Park/Neutral.
+A missing child adapter is relevant only when the chosen definition requires a
+validated input from it; high idle always routes to the primary engine endpoint.
+
+Use a unique operation ID and a monotonic deadline. Start is sent at most once
+until its outcome is reconciled. Recurring traffic is allowed only when explicitly
+defined as refresh/status for that active operation; it is not an automatic retry
+of an uncertain Start. Stop has scheduling priority. Budget adapter transaction
+latency against refresh, guard and release deadlines before admission; do not put a
+keepalive loop in front of normal polling. Refuse unsupported timing rather than
+starve readings, fault checks or Stop. Configuration/update transitions must stop
+and establish release first or remain unavailable, not silently pause control IO.
+
+Duration expiry, failed required guards and owner Stop enter the release procedure.
+Return control to the ECU's normal regulator; do not write the sampled pre-start RPM
+as a supposed restore value. Report Restored only after definition-approved release
+evidence. Link loss, reset, missing reply or expired session cannot manufacture this
+evidence: mark Unknown, cease stale-session traffic and reconcile without replaying
+Start. A controllable, bounded ECU timeout after lost refresh is required before
+enablement; software cannot promise a Stop packet after power or transport loss.
+
+### Small delivery slices and acceptance
+
+| Slice | Work | Exit evidence |
+| --- | --- | --- |
+| 1. Controller procedure | Reproduce the owner's working JScan operation, confirm current PCM identity and resolve the matching handler; record allowed RPMs, setup, replies, release, timing and ECU timeout. | Complete matching procedure/reference trace, not another generic JK compatibility check; unresolved fields remain explicit and no eGauge control is enabled. A parked comparison is needed to close behavior claims. |
+| 2. Offline vertical slice | Add the negotiated contract, bounded lifecycle/driver seam and preset/menu UI, initially using a fixture-only driver. | C/Kotlin contract parity; old-profile/old-firmware compatibility; two presets, one gesture and visible Stop; no fixture driver selectable by a real production profile. |
+| 3. Parked qualification | Introduce the matched driver, start with explicit Start/Stop, then bind the existing gesture/menu. | Owner confirms RPM and normal-control return; verify repeat Start, Stop, expiry, brake/gear/movement guard behavior, lost replies, adapter removal, gauge reset and independent TCM continuity. No moving or winch-load test is needed for the first idle-only check. |
+| 4. Enable the qualified pack | Enable only the evidenced controller scope through ordinary profile/configuration flow. | Loaded polling/refresh/Stop latency and internal heap/stack margins; App/gauge/radio loss, maintenance transitions, replay suppression and physical operation recorded separately from fixtures. |
+
+Offline fault tests include stale guard/identity, wrong controller, old config/link
+generation, duplicate Start, lost Start/Stop replies, timer wrap, timeout during a
+diagnostic request, cancellation, queue pressure, profile changes and reboot. A
+forced disconnect test may run on a real PCM only after its documented timeout and
+recovery procedure are established. These slices do not authorize release or flashing.
+
+### Implemented offline foundation
+
+- `temporary_idle.c` is a pure fixed-size policy with no IO, task or allocation.
+  It emits Start/Refresh/Release intents only for an independently qualified
+  definition and matching fresh context. Tests connect the existing page-action
+  recognizer to the policy without changing its production page-jump path.
+- Duplicate/old Starts, overlapping operations, retired completion tickets,
+  changed revision/link, missed deadlines, cancellation, expiry and timer wrap are
+  covered. Unknown never becomes success implicitly. Explicit release retry needs
+  definition-declared idempotence; independent release evidence permits reconciliation.
+- `IdlePreset`/schema 14 store two phone-only drafts with no inferred target RPM.
+  They use the coupled setup store, stay on the parent, survive gauge restoration,
+  and do not enter configuration bytes or alter exact gauge comparisons.
+- Car > Air up & winch configures RPM/duration and removal. The presenter has
+  countdown/Start/Stop states exercised only by fixture handlers; normal App state
+  remains Unavailable and has no transport callbacks. This is not live telemetry.
+- The [offline inner codec](../protocol/experimental-firmware-transfers.md#offline-temporary-idle-inner-codec)
+  shares a C/Kotlin vector. It is not registered with BLE, advertised as a capability
+  or connected to an adapter worker. No real or selectable fixture controller driver
+  is installed. The policy object is not instantiated in the firmware runtime.
+
+Remaining integration includes the qualified controller definition, protected
+Start/Stop/status dispatch, source-worker scheduling, shared operation history and
+physical gauge Quick actions menu. Those boundaries remain gated while the actual
+PCM replies and release behavior are unknown. This delivers the reusable offline
+parts without pretending the planned vehicle-control vertical slice is complete.
 
 ## Remaining qualification
 

@@ -4,7 +4,7 @@ This section collects vehicle-specific OBD-II and module-diagnostic research. It
 
 | Vehicle | Coverage | Status |
 | --- | --- | --- |
-| [Jeep Wrangler JK](jeep/wrangler-jk.md) | 2007-2018 family, with an initial focus on a 2007 vehicle | Research notes; no live Jeep response has been validated by eGauge |
+| [Jeep Wrangler JK](jeep/wrangler-jk.md) | Stock 2007-2018 family research; current test vehicle is a 2010 Hemi swap | [Reading/recovery evidence](../current-state.md) is separate from unverified high-idle/controller candidates |
 
 ## How to read these notes
 

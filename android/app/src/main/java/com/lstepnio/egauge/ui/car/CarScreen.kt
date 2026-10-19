@@ -25,11 +25,13 @@ fun CarScreen(
     onSendAdapter: () -> Unit = {},
     onSaveAction: (com.lstepnio.egauge.PageAction?) -> Unit = {},
     onDeleteProfile: (String) -> Unit = {},
-    alerts: @Composable () -> Unit = {}
+    alerts: @Composable () -> Unit = {},
+    onSaveIdlePresets: (List<com.lstepnio.egauge.IdlePreset>) -> Unit = {}
 ) {
     var profilesOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var adapterOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var actionsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
+    var idleOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var faultsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var selectedFault by rememberSaveable(state.activeId) { mutableStateOf<String?>(null) }
     val selectFault: (com.lstepnio.egauge.ui.state.CarFaultUi) -> Unit = { fault ->
@@ -128,6 +130,7 @@ fun CarScreen(
                     state.adapterAvailable,
                     { adapterOpen = true }
                 )
+                SettingsRow("Air up & winch", "Idle presets", state.canEditActions, { idleOpen = true })
                 SettingsRow(
                     "Gauge gestures",
                     if (state.actions.isEmpty()) "No gesture assigned" else "Jump to page",
@@ -137,6 +140,7 @@ fun CarScreen(
             }
         })
     }
+    if (idleOpen) IdleActionsSheet(state.activeId, state.idlePresets, state.canEditActions, onSaveIdlePresets, { idleOpen = false })
     if (faultsOpen) {
         ModalBottomSheet(onDismissRequest = { faultsOpen = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp)) {

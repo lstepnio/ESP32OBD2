@@ -1,6 +1,6 @@
 # Jeep Wrangler JK diagnostic knowledge
 
-Status: research as of 2026-09-28. The initial target is a 2007 Wrangler JK. The exact engine, transmission, ECU software, and installed modules for that vehicle still need to be captured. No eGauge live request, reading, or vehicle action has been verified on the Jeep.
+Status: stock-family research from 2026-09-28, scope clarified 2026-10-19. The original inventory targeted a 2007 Wrangler JK. The current test vehicle is a 2010 JK with a 5.7 L Hemi swap and separate JSS/PCS transmission setup; its [observed identities](../../evidence/jeep-direct-exploration-results.md#placement-correction-and-identity) and [qualified reading/recovery paths](../../current-state.md) are separate from this stock-family inventory. No high-idle or ABS/ESC control has been verified by eGauge on that vehicle.
 
 These notes cover diagnostic data and control behavior relevant to eGauge. They do not define a ready-to-install vehicle profile. The [vehicle knowledge index](../README.md) defines the evidence terms used below.
 
@@ -29,7 +29,7 @@ The stock 2007 3.8 L oil-pressure signal should not be advertised as a numeric O
 
 ## Fault codes and module diagnostics
 
-Standard emissions-related MIL and confirmed, pending, and permanent DTC paths are separate from enhanced ABS, transmission, airbag, and body-module diagnostics. Static analysis found approximately 4,332 DTC definition resources in the broader catalog. Code descriptions and decoding rules vary by module and version. An ABS fault from the ABS module must not be shown as a PCM emissions fault. eGauge's current headerless, single-responder diagnostic path does not establish JK module attribution.
+Standard emissions-related MIL and confirmed, pending, and permanent DTC paths are separate from enhanced ABS, transmission, airbag, and body-module diagnostics. Static analysis found approximately 4,332 DTC definition resources in the broader catalog. Code descriptions and decoding rules vary by module and version. An ABS fault from the ABS module must not be shown as a PCM emissions fault. Catalog membership does not establish a matching ECU or implemented enhanced module path; the [current state](../../current-state.md) owns implemented endpoint attribution.
 
 ## Vehicle actions and adaptations
 

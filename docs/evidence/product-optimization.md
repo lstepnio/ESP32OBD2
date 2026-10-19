@@ -393,3 +393,24 @@ reference set now includes 35 manufacturer-scoped transmission codes, alongside
 This is documented coverage of the listed source tables, not a complete database
 for every 8HP controller or proof that these conditions are expected after a swap.
 The maintained source inventory and extension rules are in the shared alert contract.
+
+### PR #63 Pixel rollout
+
+On 2026-10-19, all four required CI jobs passed and the owner authorized merging
+PR #63 and installing the App. The merged source is `b8205f5`; its debug APK retains
+the existing `0.2.0-dev.51` version label. The installed APK SHA-256 matched the
+merged-main build, and its signing certificate matched the previous installation.
+
+All eleven backed-up App files matched byte-for-byte immediately after installation.
+After launch, profile, gauge-association, appearance and alert-policy preferences
+still matched. On the physical Pixel, Car showed Gauge ready with unavailable
+vehicle checks; saved alert context decoded U0121, U0140, P1DCA and P1DF3. The
+P1DCA explanation retained Transmission attribution, Chrysler/Jeep reference scope
+and explicit historical status. No App fatal/ANR marker was observed in the process
+log during this focused check. No synthetic fault was injected or notification
+replayed on the owner phone.
+
+The phone returned to Car and its original wake settings were restored. Private
+backups/captures remain outside Git. The merged feature branch was removed locally
+and remotely. This rollout did not change firmware, send an ECU action, or qualify
+live filtering, fresh vehicle codes or Android background-notification behavior.

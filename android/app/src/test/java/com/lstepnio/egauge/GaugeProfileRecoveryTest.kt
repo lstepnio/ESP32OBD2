@@ -38,6 +38,12 @@ class GaugeProfileRecoveryTest {
         )
     }
 
+    @Test fun restoringGaugeSetupRetainsPhoneOnlyIdlePresets() {
+        val document = document()
+        val existing = VehicleProfile(document.vehicleProfileId, "Car", Draft(idlePresets = listOf(IdlePreset(IdlePresetId.AirUp, 1200))))
+        assertEquals(existing.draft.idlePresets, GaugeProfileRecovery.restore(existing, document).draft.idlePresets)
+    }
+
     @Test fun recoveryRetainsEngineAndRestoresSourcePagesBindingAndAction() {
         val saved = document()
         val result = GaugeProfileRecovery.recover(original, saved)
