@@ -192,8 +192,11 @@ The [detailed offline review](../vehicles/jeep/jk-handler-analysis.md#detailed-o
 now establishes two-byte RPM encoding, session/refresh call order and a Stop that
 ends the refresh loop. It does not establish accepted replies or the PCM's release
 timeout. `33 05` is not a discovered Stop packet, and `22 0122` is not the complete
-high-idle command. Match the current controller, verify results and measure release
-before admitting a real driver; do not copy the reference's discarded-result behavior.
+high-idle command. The owner's working reference is now identified as Trail View,
+a separate path with an explicit return-control definition. Its [parked record](../evidence/jeep-high-idle-reference.md)
+distinguishes observed start/ordinary Stop from the remaining trace and ECU-timeout
+gates. Match the actual path and replies before admitting a real driver; do not copy
+the adaptation screen's discarded-result or Stop behavior.
 
 JScan's [FAQ](https://jscan.net/faq/) describes its raised-idle feature as temporary
 and returning to normal when its screen is left or the App disconnects. This is
