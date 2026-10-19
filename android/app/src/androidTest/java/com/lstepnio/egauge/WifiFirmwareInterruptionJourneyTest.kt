@@ -48,18 +48,21 @@ class WifiFirmwareInterruptionJourneyTest {
         val bundle = model.updateBundle()
         assertEquals(args.getString("candidateElf"), bundle.elfSha256.joinToString("") { "%02x".format(it) })
         val started = SystemClock.elapsedRealtime()
+        val priorOperation = model.operation.id
         compose.runOnUiThread {
             model.setDebugOtaPauseBeforeActivationMs(if (target == 0) 60_000 else 0)
             model.installSelectedUpdate()
         }
         try {
-            fun atCheckpoint(): Boolean = if (target == 0)
+            fun atCheckpoint(): Boolean = model.operation.id > priorOperation &&
+                model.operation.kind == OperationKind.UPDATE && if (target == 0)
                 model.operation.stage == OperationStage.VERIFYING &&
                     model.operation.detail?.contains("Debug activation pause active") == true
             else model.operation.stage == OperationStage.SENDING &&
                 (model.operation.progressPercent ?: -1) >= target
-            compose.waitUntil(180_000) { atCheckpoint() || model.operation.terminal }
-            assertTrue("Update must reach the selected interruption boundary", atCheckpoint())
+            compose.waitUntil(180_000) { atCheckpoint() ||
+                (model.operation.id > priorOperation && model.operation.kind == OperationKind.UPDATE && model.operation.terminal) }
+            assertTrue("Update must reach the selected interruption boundary: ${model.operation}", atCheckpoint())
             val observed = model.operation.progressPercent
             if (target != 0) assertTrue("Do not reset after accidentally reaching complete transfer", requireNotNull(observed) < 100)
             instrumentation.sendStatus(2, Bundle().apply {

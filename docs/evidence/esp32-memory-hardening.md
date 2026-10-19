@@ -512,3 +512,119 @@ BSS, and the allocation hook remains in IRAM. The candidate is not signed, publi
 or installed by this preparation. QUAL-02 retains the separate release-approval
 gate and controlled OTA reset/identity-reconciliation matrix. Bench socket loss
 does not substitute for that work.
+
+## 2026-10-18 dev.60 signed OTA interruption qualification
+
+The owner separately approved merging PR #55 after CI, publishing dev.60 and
+performing controlled App/Wi-Fi interruption/recovery tests. All three quality
+jobs passed in [run 39199744683](https://github.com/lstepnio/ESP32OBD2/actions/runs/39199744683).
+PR #55 merged as `860dc3f`; the protected
+[release workflow](https://github.com/lstepnio/ESP32OBD2/actions/runs/39200239768)
+built that exact commit and published signed development dev.60, generation **41**.
+Both signatures, catalog expiry/board/layout/protocol, bundle size/hash and image
+descriptor/version were verified against the pinned development public key before
+any transfer. Image size is **1,615,904 bytes**, image SHA-256
+`bb8591ba9c24f8671b8e5e84a81fe22a67c88e175a57bb59ee6cf5e5e3c30c8d`,
+ELF SHA-256 `4da1e9bbf61af24e25fcb1c7e13db68c55bd64e72ff30575d5cc112606bbcef3`.
+Firmware runtime logic is unchanged from dev.59; the version identity alone differs.
+
+### Controlled transfer resets
+
+The opt-in `WifiFirmwareInterruptionJourneyTest` used the ordinary App signed
+GitHub download and Wi-Fi install owner. At acknowledged progress checkpoints,
+the host invoked the existing esptool serial-reset sequence without flash writes
+or erasure. Checkpoint percentages are App-observed acknowledged transfer progress,
+not measurements of the exact flash instruction at the reset edge.
+
+| Observed checkpoint | Whole instrumentation test | Automatic previous-image/settings refresh after failed outcome |
+| --- | --- | --- |
+| 10% | 66.045 s | 3,328 ms |
+| 50% | 78.925 s | 3,318 ms |
+| 90% | 96.824 s | 3,291 ms |
+| Signed image verified, before activation | 153.568 s | 3,255 ms |
+
+Each passing case reported a failed interruption rather than installation, then
+automatically reconciled the exact previous signed dev.59 ELF, partition
+**0x60000**, health **2**. Full protected dashboard/settings readback retained
+revision **51**, digest and display settings; phone profiles were unchanged.
+The durable journal cleared only after authenticated reconciliation. No candidate
+activation, automatic firmware retry, bond reset or ECU command occurred in those
+cases. The roughly 3.3-second refresh above starts after the operation's failure;
+host reset checkpoint to final test completion for the three progress cases was
+about **23 seconds**, including
+transport loss detection, bounded cleanup and preservation reads. Do not present
+the refresh-only value as total interruption latency.
+
+The verified/preactivation case used the existing **60-second debug activation
+pause**. Its checkpoint was reached at acknowledged 100% only after firmware
+SHA-256/signature verification succeeded. Host reset before activation retained
+the previous confirmed slot; the long test duration includes the intentional pause
+and is not a normal transfer/recovery performance measurement.
+
+An initial observer attempt incorrectly accepted the prior completed download
+operation as terminal. It triggered no host reset and is excluded. The guard now
+requires a new UPDATE operation ID. A separate preactivation attempt failed its
+protected owner preflight (`Gauge owner link did not become authenticated`) before
+the selected reset boundary; it is also excluded. Ordinary fresh protected reads
+regained access without bond erasure or re-pairing. Its root cause is not established.
+The hardware cleanup assertion was corrected against the existing hardware-probe
+contract: mode **255** with Wi-Fi initialized bit clear means the driver is released;
+mode **0** would mean an initialized driver in NULL mode. That assertion mismatch
+is not a product memory failure. Private failed-attempt logs were retained.
+
+### App process loss during transfer
+
+At an acknowledged **50%** checkpoint the host force-stopped only eGauge, without
+resetting the gauge. Instrumentation reported its expected process crash; that
+termination is not counted as a passing recovery test. A private journal read
+confirmed that the intended dev.60 ELF and `preparing` entry survived the stop.
+
+An independent `AutomaticConnectionJourneyTest` invocation then passed in
+**13.918 seconds**, with the exact previous dev.59 image/health and protected
+configuration/settings confirmed. Opening took **7,617 ms** and resume refreshed
+in **1,923 ms**. The journal was cleared after authenticated reconciliation.
+The hardware chain required Wi-Fi mode **255** and initialized Wi-Fi bit clear,
+confirming driver deinitialization after the abandoned OTA socket; sampled internal
+free/largest were **122,959 / 31,744 bytes**. No protected close/reset command or
+bond repair was used to make that assertion pass. Revision 51/digest/settings were
+retained and no automatic update retry occurred. This validates the actual
+process-stop and socket-abandonment path, not every OEM kill or expiry scenario.
+
+### Final complete installation and post-update maintenance
+
+`WifiFirmwareJourneyTest` passed in **157.689 seconds**, including hosted preparation
+and download. The ordinary installation journey took **126,782 ms**, including the
+intentional **60,000 ms** verification-to-activation pause for a minute health sample.
+Sending was observed at **14,206 ms**, verification at **53,191 ms**, and checking the
+running image at **114,207 ms**. The prior download's terminal `Update ready` sample
+at 3 ms is not an installation result; the fixture now filters observations by a
+new UPDATE operation ID, matching the interruption observer's generation guard.
+
+Exact signed dev.60 ELF/version, alternate slot **0x360000**, healthy OTA state **2**,
+cleared journal and unchanged revision 51/digest/settings/profiles passed. The
+receiver's complete memory samples recorded **93,975 bytes** internal low watermark,
+**31,744 bytes** smallest largest block and zero allocation failures/queue drops.
+Sampled minimum stack bytes were App **1,576**, UI **2,992**, primary/child workers
+**1,000 / 992**, config **4,256**, OTA **1,340**, Wi-Fi server **7,016** and Wi-Fi command
+**2,576**. These meet the runbook's captured memory/stack floors. Server progress
+age spans a live client session because its outer accept loop owns that health
+marker; successful authenticated frame completion is not a frame-level gap trace.
+Finer progress coverage remains under QUAL-08, not a deadlock-immunity claim.
+
+Two subsequent dev.60 maintenance cycles passed in **39.733 seconds**, with protected
+opens **1,813 / 1,626 ms**, authenticated Wi-Fi status, protected close and unchanged
+boot nonce/image/setup. A separate final automatic App read chain passed in
+**14.816 seconds**: opening **7,744 ms**, resume **2,795 ms**, exact dev.60/health 2,
+revision/digest/settings and deinitialized Wi-Fi driver. Its hardware sample showed
+internal free/largest **122,835 / 31,744 bytes**.
+
+Final profile, gauge-association and presentation preference comparisons against
+the original pre-session backup were byte-for-byte unchanged. Normal eGauge was
+reopened, the logger closed and original phone wake settings restored. There was
+no USB firmware flash, configuration resend, bond erasure or ECU operation.
+No new physical dev.60 pixel/touch confirmation was collected. Controlled serial
+resets do not qualify rail-power loss, trial-boot rollback, configuration-commit
+interruption, connected ECM/TCM load, rates, long retention or thermal behavior.
+One rejected owner preflight remains an unresolved observation despite successful
+fresh-read recovery; these results do not establish a fleet success rate or OOM
+immunity. No public capability or default-off clearing boundary was promoted.

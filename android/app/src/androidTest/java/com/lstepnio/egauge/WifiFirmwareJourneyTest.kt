@@ -45,6 +45,7 @@ class WifiFirmwareJourneyTest {
         val bundle = model.updateBundle()
         assertEquals(expectedElf, bundle.elfSha256.joinToString("") { "%02x".format(it) })
         val started = SystemClock.elapsedRealtime()
+        val priorOperation = model.operation.id
         val observations = mutableListOf<Pair<Long, OperationState>>()
         compose.runOnUiThread {
             model.setDebugOtaPauseBeforeActivationMs(activationPauseMs)
@@ -53,9 +54,10 @@ class WifiFirmwareJourneyTest {
         try {
             compose.waitUntil(1_200_000) {
                 val state = model.operation
-                if (observations.lastOrNull()?.second != state)
+                if (state.kind == OperationKind.UPDATE && state.id > priorOperation &&
+                    observations.lastOrNull()?.second != state)
                     observations += SystemClock.elapsedRealtime() - started to state
-                state.kind == OperationKind.UPDATE && state.terminal
+                state.kind == OperationKind.UPDATE && state.id > priorOperation && state.terminal
             }
         } finally {
             compose.runOnUiThread { model.setDebugOtaPauseBeforeActivationMs(0) }

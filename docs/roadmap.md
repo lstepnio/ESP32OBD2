@@ -8,8 +8,8 @@ Updated 2026-10-18. This document orders outcomes, not individual task status.
 
 | Stage | Outcome | Backlog scope | Exit evidence |
 | --- | --- | --- | --- |
-| Now: indoor reliability | Qualify recovery and memory stability on the installed baseline | QUAL-12, QUAL-02, QUAL-08, CODE-03 | Repeated authenticated Wi-Fi lifecycles, App/radio loss and return, retained pairing/setup, explicit uncertain outcomes and measured memory/task margins; interrupted signed updates remain a separate candidate-dependent gate |
-| Next parked vehicle session | Qualify the existing logical vehicle, diagnostics and shared alerts under real load | QUAL-03, QUAL-04, QUAL-05, FEATURE-05, FEATURE-09, QUAL-11, QUAL-07 | Simultaneous ECM/child-TCM plus phone, startup absence and independent recovery, sustained freshness/resource limits, real CEL/filter/threshold transitions and daylight/night readability |
+| Now: indoor reliability | Qualify recovery and memory stability on the installed baseline | QUAL-12, QUAL-02, QUAL-08 | Repeated authenticated Wi-Fi lifecycles, App/radio loss and return, retained pairing/setup, explicit uncertain outcomes and measured memory/task margins; interrupted signed updates remain a separate candidate-dependent gate |
+| Next parked vehicle session | Qualify the existing logical vehicle, diagnostics and shared alerts under real load | QUAL-03, QUAL-04, QUAL-08, QUAL-05, FEATURE-05, FEATURE-09, QUAL-11, QUAL-07 | Simultaneous ECM/child-TCM plus phone, startup absence and independent recovery, sustained freshness/resource limits, real CEL/filter/threshold transitions and daylight/night readability |
 | Next capability increment | Add usable Auto orientation and qualify remaining diagnostic semantics | FEATURE-07, FEATURE-03, QUAL-06, FEATURE-08 | Physically qualified sensor/touch mapping; authoritative JSS meanings; separately qualified explicit clearing; [shared alert implementation sequence](architecture/alerts-and-diagnostics.md) and custom-PID display rules |
 | Beta preparation | Broader phones/adapters, accessibility and reliable distribution | QUAL-09, QUAL-10, RELEASE-01 | [Quality gates](development/quality.md), compatibility evidence and explicit release review |
 | Future capability | Broader definitions, live phone telemetry, optional sensors and reviewed controls | FEATURE-01, FEATURE-02, FEATURE-04, FEATURE-06 | Bounded contracts, authoritative definitions and complete protected path before advertising support |
@@ -22,9 +22,11 @@ qualification task, not useful independent offline work.
 
 The Android UI cleanup, shared alerts/CEL filters, revised gauge compositor and
 optional child-adapter implementation are already delivered development features.
-Dev.59 is installed through App/Wi-Fi, and live simultaneous ECM/TCM reads with
-independent loss/return were observed on dev.53. These are foundations for the
-remaining qualification, not future implementation milestones. Exact installed
+Signed App/Wi-Fi installation, live simultaneous ECM/TCM reads with independent
+loss/return, and bounded indoor memory/lifecycle/interruption checks are observed
+foundations for the remaining qualification, not future implementation milestones.
+The internal-RAM hardening implementation/bench work is complete; its
+remaining loaded/thermal acceptance is consolidated under QUAL-08. Exact installed
 identities and evidence limits remain in [current state](current-state.md).
 
 Targeted typed-failure/coordinator cleanup (CODE-01, CODE-02) accompanies a concrete

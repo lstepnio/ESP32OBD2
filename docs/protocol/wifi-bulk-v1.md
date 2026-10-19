@@ -44,7 +44,7 @@ Kind 4 reduces network and AEAD round trips without creating another update stat
 
 The larger request and plaintext buffers are allocated once from PSRAM. The OTA queue remains bounded to one original command, so batching does not multiply worker memory or bypass the existing transfer gate. This preserves the SHA-256, signed image, per-chunk offset, one-writer, activation and rollback behavior.
 
-## Recovery ownership (source candidate dev.44)
+## Recovery ownership
 
 Wire bytes and advertised development version do not change. Wi-Fi OTA queue
 entries and active unactivated transfers carry an internal session generation.
@@ -62,14 +62,14 @@ is independent.
 Firmware socket IO checks session validity in bounded slices. A frame's fragments
 share a total deadline instead of renewing it per byte. Android cancellation closes
 its blocking socket and waits for worker exit before lease release. See the
-[recovery audit](../evidence/recovery-hardening.md) for budgets, offline evidence
-and remaining physical qualification. Installed dev.43 does not implement these
-new internal ownership rules.
+[recovery audit](../evidence/recovery-hardening.md) for budgets and offline evidence.
+Installed support and remaining physical qualification belong to
+[current state](../current-state.md) and the [backlog](../backlog.md).
 
 ## Operational boundaries
 
 - Wi-Fi is off by default and intended for maintenance only.
-- OTA transfer pauses ECM polling through the existing transfer gate.
+- Maintenance pauses configured vehicle-adapter links through the existing pause and transfer owners.
 - Android requests at most one local network and releases it when the operation closes.
 - Application-layer AEAD protects the local socket independently of WPA2.
 - BLE remains the ownership bootstrap, capability source and post-reboot health channel.
