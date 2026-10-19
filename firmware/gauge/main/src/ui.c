@@ -64,10 +64,19 @@ static const char *TAG = "UI";
 
 typedef struct {
     uint16_t pid;
-    bool present;
+    uint8_t source;
+    bool occupied;
+    uint32_t generation;
     double value;
     TickType_t received_at;
+    bool present;
 } ui_sample_t;
+
+/* Replaces the 32-entry sample FIFO, rather than adding another allocation.
+ * Latest values survive navigation; timestamps and source sessions do not. */
+#define UI_SAMPLE_CAPACITY 32
+_Static_assert(EGAUGE_RUNTIME_PIDS <= UI_SAMPLE_CAPACITY, "UI cache must cover the configured PID catalog");
+static portMUX_TYPE sample_mux = portMUX_INITIALIZER_UNLOCKED;
 
 typedef struct {
     uint8_t severity;
@@ -92,12 +101,6 @@ typedef struct {
     char first_code[6];
 } ui_diagnostics_t;
 
-typedef struct {
-    bool present;
-    double value;
-    TickType_t received_at;
-} ui_metric_sample_t;
-
 typedef struct { bool enabled, vehicle_ready, maintenance; uint8_t seconds; uint32_t sequence; } showcase_request_t;
 
 struct _ui_t
@@ -106,14 +109,15 @@ struct _ui_t
     bool                long_press_handled;
     bool                press_active;
     bool suppress_action_click;
+    bool touch_moved, motion_click_allowed;
+    int16_t touch_x, touch_y;
     page_action_t action;
     atomic_bool action_allowed, action_pending;
     atomic_uint action_context_epoch;
     unsigned action_seen_epoch;
     uint32_t action_feedback_ms;
-    bool action_feedback;
-    bool rendered_action_visible, rendered_action_feedback;
-    uint8_t rendered_action_progress;
+    bool action_feedback, action_feedback_cooldown;
+    bool rendered_action_visible;
     lv_obj_t *action_label;
     bool                pairing_visible;
     uint32_t            pairing_code;
@@ -150,7 +154,6 @@ struct _ui_t
 
     struct
     {
-        QueueHandle_t value_que;
         QueueHandle_t touch_ev_que;
         QueueHandle_t pairing_que;
         QueueHandle_t pairing_id_que;
@@ -184,7 +187,7 @@ struct _ui_t
     struct
     {
         ui_page_t page;
-        ui_metric_sample_t samples[2];
+        ui_sample_t samples[UI_SAMPLE_CAPACITY];
         double rendered_values[2];
         bool rendered_available[2];
         bool rendered_once;
@@ -325,10 +328,24 @@ static int32_t normalized_value(double value, const ui_metric_t *metric, int32_t
 
 static bool metric_value(ui_t *ui, unsigned index, double *value)
 {
-    if (index >= ui->display.page.metric_count || !ui->display.samples[index].present) return false;
-    TickType_t age = xTaskGetTickCount() - ui->display.samples[index].received_at;
-    if (age > pdMS_TO_TICKS(ui->display.page.metrics[index].stale_after_ms)) return false;
-    *value = ui->display.samples[index].value;
+    if (index >= ui->display.page.metric_count) return false;
+    const ui_metric_t *metric = &ui->display.page.metrics[index];
+    ui_sample_t sample = {0};
+    portENTER_CRITICAL(&sample_mux);
+    for (unsigned i = 0; i < UI_SAMPLE_CAPACITY; ++i) {
+        const ui_sample_t *entry = &ui->display.samples[i];
+        if (entry->occupied && entry->source == metric->source && entry->pid == metric->pid) {
+            sample = *entry;
+            break;
+        }
+    }
+    portEXIT_CRITICAL(&sample_mux);
+    /* Adapter status has its own lock. Never nest it inside the cache lock. */
+    if (!sample.present || !adapter_status_ready_for(metric->source) ||
+        sample.generation != adapter_status_generation(metric->source)) return false;
+    TickType_t age = xTaskGetTickCount() - sample.received_at;
+    if (age > pdMS_TO_TICKS(metric->stale_after_ms)) return false;
+    *value = sample.value;
     return true;
 }
 
@@ -542,8 +559,11 @@ static void dispatch_touch(ui_t *ui, lv_event_code_t code)
 static bool action_context(ui_t *ui)
 {
     unsigned epoch = atomic_load(&ui->action_context_epoch);
-    bool allowed = atomic_load(&ui->action_allowed) && !ui->pairing_visible && !ui->calibration_mode && !atomic_load(&ui->showcase_active);
-    if (!allowed || epoch != ui->action_seen_epoch) page_action_reset(&ui->action);
+    bool allowed = atomic_load(&ui->action_allowed) && !ui->pairing_visible && !ui->calibration_mode && !ui->rendered_alert.attention && !atomic_load(&ui->showcase_active);
+    if (!allowed || epoch != ui->action_seen_epoch) {
+        page_action_reset(&ui->action);
+        ui->action_feedback = false;
+    }
     ui->action_seen_epoch = epoch;
     return allowed;
 }
@@ -569,6 +589,10 @@ static void ui_touch_callback(lv_event_t *e)
     {
     case LV_EVENT_PRESSED:
         ui->suppress_action_click = false;
+        ui->touch_moved = false;
+        ui->motion_click_allowed = !ui->action.config.enabled;
+        ui->touch_x = point.x;
+        ui->touch_y = point.y;
         if (actions_allowed && input) page_action_press(&ui->action, point.x, point.y, now);
         ui->press_active = true;
         ui->long_press_handled = false;
@@ -576,16 +600,20 @@ static void ui_touch_callback(lv_event_t *e)
         dispatch_touch(ui, LV_EVENT_PRESSED);
         break;
     case LV_EVENT_PRESSING:
+        if (input && (abs((int)point.x - ui->touch_x) > 12 || abs((int)point.y - ui->touch_y) > 12))
+            ui->touch_moved = true;
         if (actions_allowed && input) page_action_move(&ui->action, point.x, point.y);
         break;
     case LV_EVENT_LONG_PRESSED:
-        if (actions_allowed && ui->action.pressed && !ui->action.cancelled && (int)ui->action.y - point.y >= 32) break;
+        /* Motion belongs to a stroke, even when it will fail recognition.
+         * A slow/diagonal stroke must never become a pairing hold. */
+        if (ui->touch_moved) break;
         page_action_reset(&ui->action);
         ui->long_press_handled = true;
         dispatch_touch(ui, code);
         break;
     case LV_EVENT_CLICKED:
-        if (!ui->long_press_handled && !ui->suppress_action_click)
+        if (!ui->long_press_handled && !ui->suppress_action_click && (!ui->touch_moved || ui->motion_click_allowed))
         {
             if (ui->pairing_code == UI_PAIRING_RESET_CONFIRM)
                 dispatch_touch(ui, LV_EVENT_VALUE_CHANGED);
@@ -593,23 +621,47 @@ static void ui_touch_callback(lv_event_t *e)
         }
         break;
     case LV_EVENT_RELEASED:
+        if (!ui->press_active) {
+            page_action_reset(&ui->action);
+            ui->suppress_action_click = true;
+            break;
+        }
+        if (input) {
+            int dx = abs((int)point.x - ui->touch_x), dy = abs((int)point.y - ui->touch_y);
+            /* Keep ordinary horizontal page browsing. A failed upward/diagonal
+             * shortcut must not become that page click. Without a binding,
+             * retain the existing swipe-to-browse behavior in all directions. */
+            if (dx >= 32 && dx >= 2 * dy) ui->motion_click_allowed = true;
+        }
         if (actions_allowed && input && !ui->long_press_handled) {
             bool fired = false;
             ui->suppress_action_click = page_action_release(&ui->action, point.x, point.y, now, &fired);
             if (fired) {
                 dispatch_touch(ui, UI_EVENT_PAGE_ACTION);
+            } else if (ui->suppress_action_click && ui->action.cooling) {
+                ui->action_feedback = true;
+                ui->action_feedback_cooldown = true;
+                ui->action_feedback_ms = now;
             }
         } else page_action_reset(&ui->action);
         /* A release without our matching press must never clear the owner. */
-        if (ui->press_active && xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
+        if (ui->press_active && !ui->touch_moved && xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000)) {
             dispatch_touch(ui, code);
         }
         ui->press_active = false;
         break;
+    case LV_EVENT_PRESS_LOST:
+        page_action_reset(&ui->action);
+        ui->press_active = false;
+        ui->touch_moved = true;
+        ui->motion_click_allowed = false;
+        ui->suppress_action_click = true;
+        break;
     default:
-        // ignore event
         break;
     }
+    /* Publish immediately so cycling cannot interrupt an in-flight stroke. */
+    atomic_store(&ui->action_pending, ui->action.progress != 0 || ui->action.pressed);
 }
 
 static void format_reading(char out[32],const ui_metric_t *metric,bool available,double value,bool imperial) {
@@ -835,7 +887,7 @@ static void render_status(ui_t *ui) {
     }
     bool demo=atomic_load(&ui->showcase_active)||ui->simulated||alert.simulated;
     show(ui->widgets.demo_lbl,demo&&!atomic_load(&ui->showcase_active));
-    bool position=!condition&&!demo&&!alert.attention;
+    bool position=!condition&&!demo&&!alert.attention&&!ui->rendered_action_visible;
     for(unsigned i=0;i<8;i++) {
         bool dot=position&&ui->page_count<=8&&ui->page_count>1&&i<ui->page_count;
         show(ui->widgets.page_dots[i],dot);
@@ -862,6 +914,20 @@ static void render_status(ui_t *ui) {
     }
     ui->status_dirty=false;
 }
+static void render_action_feedback(ui_t *ui)
+{
+    bool visible = action_context(ui) && !ui->simulated && (ui->action.progress || ui->action_feedback);
+    if (visible != ui->rendered_action_visible) ui->status_dirty = true;
+    if (visible) {
+        char feedback[16];
+        if (ui->action_feedback) snprintf(feedback, sizeof(feedback), "%s", ui->action_feedback_cooldown ? "Wait" : "Done");
+        else snprintf(feedback, sizeof(feedback), "%u/%u", ui->action.progress, ui->action.config.count);
+        small_label(ui->action_label, feedback, 120, 213, 80);
+    }
+    show(ui->action_label, visible);
+    ui->rendered_action_visible = visible;
+}
+
 static void acknowledge_alert(lv_event_t *event)
 {
     if(lv_event_get_code(event)!=LV_EVENT_CLICKED)return;
@@ -907,23 +973,8 @@ static void ui_task(lv_timer_t *timer)
     uint32_t action_now = (uint32_t)(esp_timer_get_time() / 1000);
     page_action_tick(&ui->action, action_now);
     atomic_store(&ui->action_pending, ui->action.progress != 0 || ui->action.pressed);
-    if (ui->action_feedback && action_now - ui->action_feedback_ms >= 2000) ui->action_feedback = false;
-    if (ui->action_label && !ui->calibration_mode) {
-        bool visible = !ui->pairing_visible && !ui->calibration_mode &&
-            !atomic_load(&ui->showcase_active) && !ui->rendered_alert.attention &&
-            !(ui->rendered_diagnostics.valid&&(ui->rendered_diagnostics.mil_on||ui->rendered_diagnostics.count)) && (ui->action.progress || ui->action_feedback);
-        if (visible && (!ui->rendered_action_visible || ui->rendered_action_feedback != ui->action_feedback ||
-                        ui->rendered_action_progress != ui->action.progress)) {
-            char feedback[32];
-            if(ui->action_feedback)snprintf(feedback,sizeof(feedback),"Page changed");
-            else snprintf(feedback,sizeof(feedback),"%u/%u",ui->action.progress,ui->action.config.count);
-            small_label(ui->action_label,feedback,120,54,122);
-            lv_obj_remove_flag(ui->action_label, LV_OBJ_FLAG_HIDDEN);
-        } else if (!visible && ui->rendered_action_visible) lv_obj_add_flag(ui->action_label, LV_OBJ_FLAG_HIDDEN);
-        ui->rendered_action_visible = visible;
-        ui->rendered_action_progress = ui->action.progress;
-        ui->rendered_action_feedback = ui->action_feedback;
-    }
+    if (ui->action_feedback && (action_now - ui->action_feedback_ms >= 2000 ||
+        (ui->action_feedback_cooldown && !ui->action.cooling))) ui->action_feedback = false;
     if (ui->calibration_mode) {
         lv_event_code_t event_code;
         if (xQueueReceive(ui->rtos.touch_ev_que, &event_code, 0) == pdTRUE && ui->touch_cb)
@@ -940,7 +991,8 @@ static void ui_task(lv_timer_t *timer)
 
     uint32_t pairing_code;
     if (xQueueReceive(ui->rtos.pairing_que, &pairing_code, 0) == pdTRUE) {
-        page_action_reset(&ui->action);
+        /* Repeated hidden status from phone reconnects is not a context change. */
+        if (pairing_code != ui->pairing_code) page_action_reset(&ui->action);
         show_pairing(ui, pairing_code);
     }
     if (ui->pairing_code == UI_PAIRING_RESET_CONFIRM &&
@@ -969,16 +1021,8 @@ static void ui_task(lv_timer_t *timer)
     }
     if(display_showcase_tick(&ui->showcase,now,ui->pairing_visible||ui->rendered_alert.attention||transfer_gate_current()!=0||adapter_status_ready_for(0)||adapter_status_ready_for(1)))showcase_frame(ui);
 
-    ui_sample_t sample;
-    while (xQueueReceive(ui->rtos.value_que, &sample, 0) == pdTRUE) {
-        for (unsigned i = 0; i < ui->display.page.metric_count; ++i) {
-            if (ui->display.page.metrics[i].pid != sample.pid) continue;
-            ui->display.samples[i].present = sample.present;
-            ui->display.samples[i].value = sample.value;
-            ui->display.samples[i].received_at = sample.received_at;
-        }
-    }
     render_page(ui);
+    render_action_feedback(ui);
     if(ui->status_dirty)render_status(ui);
 
 }
@@ -1099,7 +1143,6 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     memset(ui, 0, sizeof(ui_t));
     ESP_LOGI(TAG, "ui pointer2: %p (addr: %p)", ui, (void *)&ui);
 
-    ui->rtos.value_que    = xQueueCreate(32, sizeof(ui_sample_t));
     ui->rtos.touch_ev_que = xQueueCreate(4, sizeof(lv_event_code_t));
     ui->rtos.pairing_que = xQueueCreate(1, sizeof(uint32_t));
     ui->rtos.pairing_id_que = xQueueCreate(1, sizeof(ui->pairing_identifier));
@@ -1111,11 +1154,10 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     ui->pairing_visible = pairing_required;
     ui->imperial_units = imperial_units;
 
-    if (!ui->rtos.value_que || !ui->rtos.touch_ev_que || !ui->rtos.pairing_que ||
+    if (!ui->rtos.touch_ev_que || !ui->rtos.pairing_que ||
         !ui->rtos.pairing_id_que ||
         !ui->rtos.alert_que || !ui->rtos.diagnostics_que || !ui->rtos.showcase_que) {
         ESP_LOGE(TAG, "Failed to allocate UI mailboxes");
-        if (ui->rtos.value_que) vQueueDelete(ui->rtos.value_que);
         if (ui->rtos.touch_ev_que) vQueueDelete(ui->rtos.touch_ev_que);
         if (ui->rtos.pairing_que) vQueueDelete(ui->rtos.pairing_que);
         if (ui->rtos.pairing_id_que) vQueueDelete(ui->rtos.pairing_id_que);
@@ -1152,21 +1194,47 @@ ui_t *ui_init(ui_page_t const *page, uint32_t interval_ms, ui_touch_callback_t t
     return ui;
 }
 
-void ui_set_value(ui_t *ui, uint16_t pid, double const *value)
+void ui_set_value(ui_t *ui, unsigned source, uint32_t generation, uint16_t pid, double const *value)
 {
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
-
+    if (source >= 2) return;
     ui_sample_t sample = {
-        .pid = pid,
+        .pid = pid, .source = source, .occupied = true, .generation = generation,
         .present = value != NULL && isfinite(*value),
         .value = value != NULL && isfinite(*value) ? *value : 0,
         .received_at = xTaskGetTickCount(),
     };
-
-    if (xQueueSend(ui->rtos.value_que, &sample, 0) != pdTRUE)
-    {
-        ESP_LOGW(TAG, "Dropped UI sample for PID 0x%02X", pid);
+    bool stored = false;
+    portENTER_CRITICAL(&sample_mux);
+    ui_sample_t *slot = NULL;
+    for (unsigned i = 0; i < UI_SAMPLE_CAPACITY; ++i) {
+        ui_sample_t *entry = &ui->display.samples[i];
+        if (!entry->occupied && !slot) slot = entry;
+        if (entry->occupied && entry->source == source && entry->pid == pid) {
+            slot = entry;
+            break;
+        }
     }
+    if (slot) {
+        if (!slot->occupied || (int32_t)(generation - slot->generation) >= 0) *slot = sample;
+        stored = true;
+    }
+    portEXIT_CRITICAL(&sample_mux);
+    if (!stored) ESP_LOGW(TAG, "UI catalog full for source %u PID 0x%04X", source, pid);
+}
+
+void ui_invalidate_source(ui_t *ui, unsigned source, uint32_t generation)
+{
+    ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
+    portENTER_CRITICAL(&sample_mux);
+    for (unsigned i = 0; i < UI_SAMPLE_CAPACITY; ++i) {
+        ui_sample_t *entry = &ui->display.samples[i];
+        if (entry->occupied && entry->source == source && (int32_t)(generation - entry->generation) >= 0) {
+            entry->present = false;
+            entry->generation = generation;
+        }
+    }
+    portEXIT_CRITICAL(&sample_mux);
 }
 
 void ui_set_page(ui_t *ui, ui_page_t const *page)
@@ -1175,10 +1243,8 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     ESP_NULL_CHECK(page, TAG, "Page config is NULL");
 
     page_action_reset(&ui->action);
-    xQueueReset(ui->rtos.value_que);
     if(ui->showcase.active){ui->showcase.active=false;showcase_publish(ui);}
     ui->display.page = *page;
-    memset(ui->display.samples, 0, sizeof(ui->display.samples));
     ui->display.rendered_once = false;
     ui->display.trend_count = 0;
     for (unsigned i = 0; i < 60; ++i) ui->display.trend_points[i].y = 30;
@@ -1284,6 +1350,7 @@ bool ui_action_pending(ui_t *ui) { return atomic_load(&ui->action_pending)||atom
 void ui_action_applied(ui_t *ui)
 {
     ui->action_feedback = true;
+    ui->action_feedback_cooldown = false;
     ui->action_feedback_ms = (uint32_t)(esp_timer_get_time() / 1000);
 }
 

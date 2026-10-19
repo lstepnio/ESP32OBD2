@@ -1,6 +1,6 @@
 # Firmware runtime ownership and recovery
 
-Updated 2026-10-16. Implemented development architecture. Public capability flags remain gated by hardware evidence.
+Updated 2026-10-19. Implemented development architecture. Public capability flags remain gated by hardware evidence.
 
 ## Task and resource inventory
 
@@ -17,14 +17,14 @@ Updated 2026-10-16. Implemented development architecture. Public capability flag
 | `wifi_control` | 4 | 5,120 bytes | owner command queue: 2 | Owns AP lifecycle, checked initialization and driver/netif cleanup. |
 | `wifi_bulk` | 4 | 8,192 bytes | one client, two 8,448-byte PSRAM frame buffers | Owns bounded socket IO; invalidated generations cannot write to a later transfer. |
 | NimBLE host | 5 | 4,096 bytes | manager result queue: 1 per link | GAP/GATT callbacks validate, copy, enqueue, or copy a published snapshot. No JSON validation or flash operation runs in an application GATT callback. |
-| LVGL owner | component managed | component configured | value: 1, touch: 4, pairing/alert/diagnostics: 1 each | Owns widgets and touch detection. Touch produces an application command. Numeric updates include PID identity and late samples are rejected. |
+| LVGL owner | component managed | component configured | latest samples: 32, touch: 4, pairing/alert/diagnostics: 1 each | Owns widgets and touch detection. Samples retain source/session/PID and monotonic observation age across page changes. |
 
 FreeRTOS stack canaries are enabled. The application health log reports the `app_tick` stack watermark, minimum internal heap, minimum PSRAM heap, alert-queue space, and dropped alert events once per minute. These are diagnostics, not completed soak evidence.
 
 ## Ownership and lock rules
 
 1. The application owner is the only writer for selected page, rotation, and active runtime selection.
-2. The LVGL task owns LVGL objects. Other tasks publish bounded values through UI mailboxes.
+2. The LVGL task owns LVGL objects. Other tasks publish bounded values through the fixed latest-value cache or UI mailboxes.
 3. One adapter worker owns each adapter transaction stream. Only one ELM request is outstanding per adapter.
 4. Config and OTA workers share one transfer gate. A successful commit or activation retains the gate until restart.
 5. GATT status reads copy an immutable snapshot under a short critical section. They do not take a transfer mutex.
@@ -45,6 +45,30 @@ The firmware still contains `portMAX_DELAY` waits inside owning workers and
 initialization paths. Apply the [interaction policy](interaction-recovery.md) to
 new or modified paths; these remaining waits are not proof of exhaustive liveness
 qualification.
+## Live readings across page changes
+
+The UI retains one latest sample for each configured `(source, PID)` in a fixed
+32-entry cache, replacing the previous 32-entry value FIFO and two selected-page
+samples. Each entry keeps its source generation and original monotonic observation
+time. Tap, automatic cycle, phone selection and local shortcut all use `ui_set_page`
+and immediately render a fresh cached value, without clearing samples or waiting
+for a new poll. Hidden pages receive the same updates as visible pages.
+
+A cache read copies under a short critical section, releases it, then checks source
+readiness, generation and the metric's existing stale deadline. An invalid result
+clears that PID; source loss invalidates every cached reading from that source,
+including hidden pages, without clearing its sibling. Older-generation writes or
+invalidations cannot erase a newer entry. No cache lock nests with adapter status
+or LVGL/IO waits. Storage has no navigation-time allocation or sample FIFO overflow.
+
+The cache is presentation only. It does not retain old values as current, persist
+readings, alter alert sampling or change polling fairness. Before the first valid
+reply, after expiry, or while a source is absent, dashes remain correct. A large or
+slow PID set can still exceed its stale deadlines; consider polling changes only
+with measured intervals and preserved alert/diagnostic fairness. The
+[browsing review](../evidence/gauge-browsing-reliability.md) records the options and
+qualification boundary.
+
 
 ## Adapter lifecycle
 
