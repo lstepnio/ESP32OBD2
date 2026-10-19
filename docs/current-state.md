@@ -2,8 +2,8 @@
 
 Updated 2026-10-19. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-Latest update records the protected TCM filter configuration check below; no new
-firmware installation, physical display/touch or live-vehicle observation.
+Latest update records an owner-reported display freeze below. No new firmware
+installation or live-vehicle qualification was performed.
 
 ## Installed baseline
 
@@ -11,7 +11,7 @@ firmware installation, physical display/touch or live-vehicle observation.
 | --- | --- | --- |
 | Pixel | App `0.2.0-dev.51`, UX cleanup and bounded protected-session recovery; local setup retained | [App review and rollout](evidence/product-optimization.md) |
 | Gauge | Signed `0.2.0-dev.60` from `860dc3f`, catalog generation 41, 240 MHz, configuration revision 52 | [Signed OTA reset/process-loss matrix and full upload](evidence/esp32-memory-hardening.md#2026-10-18-dev60-signed-ota-interruption-qualification); exact healthy alternate image, cleared journal, preserved setup |
-| Physical display/touch | No-footer showcase, hold exit, normal pages and swipes confirmed on dev.59 | [Owner confirmation](evidence/product-optimization.md#dev59-signed-wi-fi-rollout); no new dev.60 display/touch observation |
+| Physical display/touch | Owner reported blank/unresponsive display with only “Demo”; manual reboot recovered operation on 2026-10-19 | [Unresolved freeze](evidence/esp32-memory-hardening.md#2026-10-19-owner-reported-display-freeze); running identity and failure mechanism not captured during incident. Earlier dev.59 showcase acceptance remains historical evidence |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
 | Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Four exact TCM CEL filters applied at revision 52; other running settings and phone profiles preserved. [Configuration check](evidence/shared-alerts-implementation.md#2026-10-19-tcm-cel-filter-configuration) |

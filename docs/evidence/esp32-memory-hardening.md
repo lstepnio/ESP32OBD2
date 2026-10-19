@@ -628,3 +628,32 @@ interruption, connected ECM/TCM load, rates, long retention or thermal behavior.
 One rejected owner preflight remains an unresolved observation despite successful
 fresh-read recovery; these results do not establish a fleet success rate or OOM
 immunity. No public capability or default-off clearing boundary was promoted.
+
+
+## 2026-10-19 owner-reported display freeze
+
+Owner reported a blank, nonresponsive gauge with only “Demo” visible; manual
+reboot recovered operation. No failure-time capture, running-image identity, uptime,
+source connection state or heap measurement accompanied the observation. The last
+recorded installed baseline is dev.60, not a freshly verified incident identity.
+
+Source inspection: the App-started showcase hides its footer in `render_status`.
+A distinct `demo_lbl` remains for simulated runtime/alert provenance. It is created
+visible before the first status pass, so the word alone neither proves showcase
+playback nor identifies the failure cause. UI progress is recorded at entry to the
+LVGL timer callback, not proof of a completed LCD flush. No evidence establishes
+OOM, a watchdog event, stalled flush, or a lock cycle as the cause.
+
+A 35-second USB serial read after the report retained a dev.60 power-on log,
+successful UI/display/touch initialization, a phone link connection and both
+adapter workers timing out and retrying. No panic or allocation-failure message
+was present in that capture. It does not contain the original failure and does
+not prove physical UI responsiveness or exclude an earlier memory failure.
+The private capture is retained under `artifacts/display-freeze/`.
+
+Next evidence: operating mode and uptime before failure, touch/hold response,
+phone connection response, serial UI/application progress and memory/stack margins,
+and display-flush completion. Capture before reboot when practical, without
+erasing bonds/setup or forcing an update. Compare normal absent-adapter, connected
+adapter and showcase paths only after reproducing or narrowing the incident.
+Removing the label would not resolve an unresponsive display.
