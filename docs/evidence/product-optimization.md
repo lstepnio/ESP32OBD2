@@ -367,9 +367,9 @@ independent controllers, stale checks, partial coverage and filters remain disti
 Category explanations replace raw Stored/Pending/Permanent lists in consumer sheets.
 The raw category report remains in Expert.
 
-The authored offline table covers 20 standardized codes, including the captured
-U0121/U0140 communication conditions. Manufacturer P1DCA/P1DF3 meanings are not
-guessed from an adapter role or profile name. The maintained lookup references
+The authored offline table initially covered 20 standardized codes plus two Chrysler/Jeep references, including the captured
+U0121/U0140 communication conditions. P1DCA/P1DF3 now have manufacturer-labelled reference definitions verified against
+FCA submissions, without inferring the cause in the swapped vehicle. The maintained lookup references
 and contribution rules belong in the shared alert contract, not this evidence.
 
 Recent/history/banner/system-notification titles share friendly system names.
@@ -382,3 +382,14 @@ status. No permissions, dependencies, firmware bytes or ECU actions were added.
 Verification and remaining physical acceptance are recorded in the implementation
 PR. Phone installation, real notification appearance and live adapter behavior are
 not established by source, JVM or emulator checks.
+
+
+### FCA eight-speed reference expansion
+
+Owner supplied P1DCA/P1DF3 lookup leads and requested a fuller ZF HP table. Primary
+FCA filings confirmed the park-circuit and initialization labels. The authored
+reference set now includes 35 manufacturer-scoped transmission codes, alongside
+20 common codes, without importing commercial manuals or repair recommendations.
+This is documented coverage of the listed source tables, not a complete database
+for every 8HP controller or proof that these conditions are expected after a swap.
+The maintained source inventory and extension rules are in the shared alert contract.

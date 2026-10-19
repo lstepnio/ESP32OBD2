@@ -15,11 +15,33 @@ class FaultCodeCatalogTest {
     }
 
     @Test fun manufacturerOrUnknownCodesAreNeverGuessed() {
-        for (code in listOf("P1DCA", "P1DF3", "P0999", "C1234")) {
+        for (code in listOf("P1999", "P0999", "C1234")) {
             assertNull(FaultCodeCatalog.lookup(code).reference)
             assertTrue(FaultCodeCatalog.lookup(code).explanation.contains("not included"))
         }
         assertEquals("Unrecognized fault code", faultDescription("P03001"))
+    }
+
+    @Test fun manufacturerReferencesAreNamedAndDoNotInventARepair() {
+        assertEquals("Chrysler/Jeep", FaultCodeCatalog.lookup("P1DCA").manufacturer)
+        assertEquals("Park sense circuit open", FaultCodeCatalog.lookup("P1DCA").title)
+        assertEquals("Controller not initialized", FaultCodeCatalog.lookup("P1DF3").title)
+        assertTrue(FaultCodeCatalog.lookup("P1DF3").nextStep.contains("does not identify"))
+    }
+
+    @Test fun transmissionReferenceSubsetHasValidUniqueCodeKeysAndSources() {
+        assertEquals(35, FcaTransmissionFaultCodes.entries.size)
+        FcaTransmissionFaultCodes.entries.forEach { (code, meaning) ->
+            assertTrue(Regex("[PCBU][0-3][0-9A-F]{3}").matches(code))
+            assertEquals("Chrysler/Jeep", meaning.manufacturer)
+            assertTrue(meaning.reference!!.startsWith("FCA") || meaning.reference.startsWith("Stellantis"))
+            assertTrue(meaning.explanation.isNotBlank())
+            assertEquals(meaning, FaultCodeCatalog.lookup(code.lowercase()))
+        }
+        assertEquals("Gear 1 ratio mismatch", FaultCodeCatalog.lookup("P0731").title)
+        assertEquals("Gear 3 ratio mismatch", FaultCodeCatalog.lookup("P0733").title)
+        assertEquals("Converter clutch response", FaultCodeCatalog.lookup("P1DB7").title)
+        assertNull(FaultCodeCatalog.lookup("420641").reference)
     }
 
     @Test fun recordedContextDeduplicatesCategoriesButNotControllers() {

@@ -107,27 +107,50 @@ remain explicit. ABS/SRS/body faults require separate documented module profiles
 
 ## Offline code explanations
 
-`FaultCodeCatalog.kt` owns the versioned, authored offline lookup. The initial table
-covers 20 common standardized codes, including U0121/U0140; it is a small curated
-subset, not a complete licensed DTC database. No runtime network or AI dependency,
-lookup telemetry, new permission, firmware/protocol change or catalog import is used.
+`FaultCodeCatalog.kt` owns the versioned, authored offline lookup. Its common
+subset is joined with `FcaTransmissionFaultCodes.kt`, a manufacturer-labelled
+reference set for FCA eight-speed applications. There is no runtime network or AI
+dependency, lookup telemetry, new permission, firmware/protocol change or catalog import.
 
-Meanings were checked on 2026-10-19 against primary reference material:
+### Reference inventory and coverage
 
-- P0300/P0301..P0310, P0171/P0172/P0174/P0175, P0420/P0430:
-  [Ford PCED diagnostic descriptions](https://www.fordservicecontent.dealerconnection.com/pubs/content/~WVX2/~MUS~LEN/14/VX24002.HTM).
-- P0128: [Ford 2018 gasoline OBD summary, thermostat monitor](https://www.fordservicecontent.com/Ford_Content/catalog/motorcraft/OBDSM1802-2018.pdf).
-- U0121/U0140: [Ford 2017 diesel OBD summary, communication monitor](https://www.fordservicecontent.com/ford_content/catalog/motorcraft/DOBDSM1701.pdf).
+Reviewed 2026-10-19: 20 common standardized definitions plus 35 FCA transmission
+reference definitions, 55 distinct five-character codes. The latter covers the
+complete TCU park-related index in the cited PE15-030 enclosure, the listed codes
+in TSB 21-009-20, and two additional 850RE conditions. It is **not** a complete
+8HP70 calibration list, universal ZF database, or validated JSS/PCS repair guide.
+BMW/Audi numeric or hexadecimal fault namespaces are not five-character OBD codes;
+never truncate, pad or reinterpret them through this lookup.
 
-These are original short explanations of standardized conditions, not imported
-repair tables or vehicle-specific test thresholds. Catalog entries carry a source
-label; this section owns reference URLs. Before expansion, verify exact meaning,
-code namespace, source version and redistribution rights; add lookup/fallback tests
-and update the catalog version. Do not classify a code as generic solely because
-its second character is zero. Reserved ranges vary by system and revision.
-Manufacturer-specific mappings require validated vehicle/controller scope; a free
-profile name or adapter role is insufficient. P1DCA/P1DF3 remain unknown pending
-such evidence. Keep the exact code visible and advise matching service information.
+| Source | Lookup boundary |
+| --- | --- |
+| [Ford PCED diagnostic descriptions](https://www.fordservicecontent.dealerconnection.com/pubs/content/~WVX2/~MUS~LEN/14/VX24002.HTM) | P0300/P0301..P0310, P0171/P0172/P0174/P0175, P0420/P0430 |
+| [Ford 2018 gasoline OBD summary](https://www.fordservicecontent.com/Ford_Content/catalog/motorcraft/OBDSM1802-2018.pdf) | P0128 thermostat condition |
+| [Ford 2017 diesel OBD summary](https://www.fordservicecontent.com/ford_content/catalog/motorcraft/DOBDSM1701.pdf) | U0121/U0140 communication conditions |
+| [FCA PE15-030, Enclosure 6](https://static.nhtsa.gov/odi/inv/2015/INRD-PE15030-64026.pdf) | 14 TCU park-related codes in the 8HP70/845RE index; ESM-only suffix-specific entries excluded |
+| [FCA TSB 21-009-20](https://static.nhtsa.gov/odi/tsbs/2020/MC-10173360-9999.pdf) | 19 listed 8HP75 conditions, including P1DF3; a definition reference, not an applicable repair instruction for the swap |
+| [Stellantis TSB 21-022-25](https://static.nhtsa.gov/odi/tsbs/2025/MC-11015662-0001.pdf) | 850RE P1DB7/P0701 reference meanings |
+
+Research also reviewed [ZF training coverage](https://aftermarket.zf.com/us/aftermarket-portal/our-portfolio/training/trainings-and-webinars/),
+[ZF technical information](https://aftermarket.zf.com/sg/aftermarket-portal/our-catalog/technical-information/)
+and [ATSG's official library](https://atsg.com/tech-library/). No freely redistributable,
+verified complete cross-manufacturer 8HP code table was established. Commercial
+manuals, mirrored ATSG books, crowd-maintained databases and their repair narratives
+were not imported. This catalog uses original short condition explanations with
+reference provenance, not copied repair procedures or a licensed commercial table.
+
+### Extension rules
+
+Verify exact meaning, code namespace, source version and redistribution rights;
+add lookup/fallback tests and update the catalog version before expansion. Do not
+classify a code as generic solely because its second character is zero; reserved
+ranges vary by system and revision. Manufacturer-specific entries must name their
+reference manufacturer in rows, explanations and notifications until validated
+vehicle/controller identity can select the namespace. A free profile name or adapter
+role must not silently select a universal meaning. P1DCA uses Park Sense Circuit Open,
+not a general TRS diagnosis; P1DF3 uses ECU Not Initialized. Definition does not
+establish the cause in a swap, urgency, required part or safe-to-drive status.
+Unknown codes remain explicit.
 
 `AlertCopy.kt` projects immutable recorded diagnostic context into the same code
 explanations. Deduplicate categories only within one controller, preserve source,

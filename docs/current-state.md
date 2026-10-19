@@ -42,7 +42,7 @@ release or installation. Public repository: `lstepnio/ESP32OBD2`.
 
 The working branch prepares inline decoded code summaries under Car > Vehicle
 health, one whole-vehicle list and focused explanations. Saved alert context and
-notifications share a 20-code offline lookup; unknown/controller-specific codes
+notifications share a 55-code offline lookup with named manufacturer references; unknown/controller-specific codes
 remain explicit. Technical category coverage stays in Expert. No new firmware,
 protocol, device installation or physical acceptance is established by this UI
 work. Lookup extension rules and reference provenance are in the

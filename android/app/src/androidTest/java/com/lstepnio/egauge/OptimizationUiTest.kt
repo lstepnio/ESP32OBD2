@@ -51,8 +51,8 @@ class OptimizationUiTest {
         captureFaultScreen("fault-explanation")
         compose.onNodeWithText("Close").performScrollTo().performClick()
         compose.onNodeWithText("View all 4 codes").performScrollTo().performClick()
-        compose.onNodeWithText("P1DF3 · Transmission").performScrollTo().performClick()
-        compose.onNode(hasText("Code explanation unavailable") and hasAnyAncestor(hasTestTag("fault-explanation"))).assertExists()
+        compose.onNodeWithText("P1DF3 · Transmission · Chrysler/Jeep reference").performScrollTo().performClick()
+        compose.onNode(hasText("Controller not initialized") and hasAnyAncestor(hasTestTag("fault-explanation"))).assertExists()
         compose.onNodeWithText("Next step").performScrollTo().assertIsDisplayed()
     }
 

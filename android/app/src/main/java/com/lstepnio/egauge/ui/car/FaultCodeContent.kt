@@ -13,15 +13,16 @@ import com.lstepnio.egauge.ui.state.CarFaultUi
 
 @Composable
 fun FaultCodeRow(fault: CarFaultUi, recorded: Boolean = false, onClick: () -> Unit) {
+    val meaning = FaultCodeCatalog.lookup(fault.code)
     SettingsRow(
-        FaultCodeCatalog.lookup(fault.code).title,
+        meaning.title,
         "${fault.code} · ${fault.source}${if (recorded) {
             " · Saved with alert"
         } else if (fault.current) {
             ""
         } else {
             " · Last checked"
-        }}",
+        }}${meaning.manufacturer?.let { " · $it reference" }.orEmpty()}",
         onClick = onClick
     )
 }
@@ -38,6 +39,7 @@ fun FaultCodeExplanation(fault: CarFaultUi, recorded: Boolean = false) {
         } else if (!fault.current) {
             Text("Last checked. This code has not been confirmed cleared.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        meaning.manufacturer?.let { Text("$it reference meaning. Confirm for the installed controller.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         Text("What it means", style = MaterialTheme.typography.titleSmall)
         Text(meaning.explanation)
         if (fault.categoryNames.isNotEmpty()) {

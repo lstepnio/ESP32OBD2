@@ -16,7 +16,7 @@ fun alertNotificationText(event: AlertEvent, system: MeasurementSystem, codes: L
     val source = if (event.key % 2 == 1) "Transmission" else "Engine"
     val faults = codes.filter { it.source == source }
     return when {
-        event.key in 32..35 && faults.isNotEmpty() -> "${faults.first().code} · ${FaultCodeCatalog.lookup(faults.first().code).title}${if (faults.size > 1) " · +${faults.size - 1} more" else ""}"
+        event.key in 32..35 && faults.isNotEmpty() -> "${faults.first().code} · ${FaultCodeCatalog.lookup(faults.first().code).let { it.title + it.manufacturer?.let { maker -> " ($maker reference)" }.orEmpty() }}${if (faults.size > 1) " · +${faults.size - 1} more" else ""}"
 
         event.key in 32..33 -> "The car reported a warning light. Open the saved alert to review available codes."
 

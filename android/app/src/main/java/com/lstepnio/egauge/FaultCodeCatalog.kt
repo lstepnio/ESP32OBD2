@@ -3,10 +3,10 @@ package com.lstepnio.egauge
 import java.util.Locale
 
 /** Authored explanations, not repair diagnoses. Source/review rules live in alerts-and-diagnostics.md. */
-data class FaultMeaning(val title: String, val explanation: String, val nextStep: String, val reference: String? = null)
+data class FaultMeaning(val title: String, val explanation: String, val nextStep: String, val reference: String? = null, val manufacturer: String? = null)
 
 object FaultCodeCatalog {
-    const val VERSION = "2026-10-19"
+    const val VERSION = "2026-10-19.2"
     private const val ENGINE = "Ford OBD-II PCED, diagnostic code descriptions"
     private const val NETWORK = "Ford 2017 diesel OBD summary, communication monitor"
     private const val REVIEW = "Have the related system checked using the vehicle's service information. A code alone does not identify a failed part."
@@ -24,6 +24,7 @@ object FaultCodeCatalog {
         put("P0128", meaning("Engine warming too slowly", "Coolant did not reach the expected temperature under the conditions checked by the car.", "Ford 2018 gasoline OBD summary, thermostat monitor"))
         put("U0121", meaning("ABS communication lost", "The reporting controller did not receive expected messages from the anti-lock brake controller.", NETWORK))
         put("U0140", meaning("Body communication lost", "The reporting controller did not receive expected messages from the body controller.", NETWORK))
+        putAll(FcaTransmissionFaultCodes.entries)
     }
     fun lookup(raw: String): FaultMeaning {
         val code = raw.trim().uppercase(Locale.ROOT)
