@@ -181,3 +181,12 @@ and [external RAM constraints](https://docs.espressif.com/projects/esp-idf/en/v5
 
 See [memory audit evidence](../evidence/esp32-memory-hardening.md) and the
 [repeatable qualification procedure](../development/memory-qualification.md).
+
+
+The trend renderer's optional 148 × 36 A8 mask is a one-time 5,328-byte PSRAM
+allocation. CPU interpolation retains fractional positions and touches no DMA
+transport setting. A failed allocation selects the existing bounded line fallback;
+no buffer is allocated per redraw. The sample array adds 240 bytes to the existing
+UI context. The [display rules](../design/round-display-ui-guidelines.md#trend-trace-rendering)
+own geometry and sampling limits. Software fallback checks are not a loaded-memory
+or physical-frame-time qualification.

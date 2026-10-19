@@ -199,6 +199,7 @@ def firmware(action):
         run(["cmake", "-S", FIRMWARE / "tests/ui_host", "-B", build])
         run(["cmake", "--build", build, "-j", "2"])
         run([build / "gauge_ui_render", OUTPUT / "ui-renders"])
+        run([build / "gauge_ui_render", OUTPUT / "ui-fallback-renders", "--no-psram"])
         json_dir = Path(idf) / "components/json/cJSON"
         # Apple's SDK deprecates sprintf used by the pinned third-party cJSON.
         # Compile that vendor object separately so project warnings stay errors.

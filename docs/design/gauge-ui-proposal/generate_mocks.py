@@ -20,6 +20,8 @@ rows = []
 ROUND = 4
 PREVIOUS_ROUND = 3
 CHANGES = {
+    "trend": "Smoothed the trace with bounded interpolation and rounded antialiased strokes.",
+    "trend-alert-mil": "Smoothed the trace without changing CEL, alert or reading geometry.",
     "threshold": "Raised the reading block by 12 px to balance the warning below when no CEL is shown.",
     "critical-acked": "Raised the reading block by 12 px; the retained critical condition stays below.",
     "last-seen": "Raised the live reading by 12 px; retained unavailable-source context stays below.",
@@ -56,6 +58,35 @@ class Gauge:
         self.d.line(
             [(round(x * S), round(y * S)) for x, y in points], fill=fill, width=round(width * S)
         )
+
+    def smooth_line(self, points, fill, width=3):
+        slopes = [(b[1] - a[1]) / (b[0] - a[0]) for a, b in zip(points, points[1:])]
+
+        def tangent(i):
+            if i == 0:
+                return slopes[0]
+            if i == len(points) - 1:
+                return slopes[-1]
+            before, after = slopes[i - 1], slopes[i]
+            return 0 if before * after <= 0 else 2 * before * after / (before + after)
+
+        curve = [points[0]]
+        for i, (a, b) in enumerate(zip(points, points[1:])):
+            dx = b[0] - a[0]
+            for step in range(1, int(dx * 4) + 1):
+                t = step / int(dx * 4)
+                t2, t3 = t * t, t * t * t
+                y = (
+                    (2 * t3 - 3 * t2 + 1) * a[1]
+                    + (t3 - 2 * t2 + t) * tangent(i) * dx
+                    + (-2 * t3 + 3 * t2) * b[1]
+                    + (t3 - t2) * tangent(i + 1) * dx
+                )
+                curve.append((a[0] + t * dx, min(max(y, min(a[1], b[1])), max(a[1], b[1]))))
+        self.line(curve, fill, width)
+        for x, y in (points[0], points[-1]):
+            r = width * S / 2
+            self.d.ellipse((x * S - r, y * S - r, x * S + r, y * S + r), fill=fill)
 
     def text(self, text, y, size=16, color=WHITE, x=120, bold=False, max_width=176, minimum=16):
         f = self.font(size, bold)
@@ -253,7 +284,7 @@ class Gauge:
             self.text("°C", 132, 16, MUTED)
             self.shape("trend chart", (48, 144, 192, 178))
             self.line([(48, 177), (192, 177)], TRACK)
-            self.line(
+            self.smooth_line(
                 [
                     (48, 173),
                     (65, 170),
