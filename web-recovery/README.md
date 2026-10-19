@@ -100,7 +100,9 @@ metadata/link validation; a deployable build always requires `--downloads`.
 
 Follow [static deployment and rollback](../website/README.md#deployment-and-rollback).
 Serve `/recovery/index.html` as `/recovery/`; existing Nginx redirects `/recovery`
-to that directory without a configuration change. Self-hosted scripts/downloads
+to that directory. The [Nginx site configuration](../website/deployment/nginx.conf)
+sets `absolute_redirect off` so directory redirects keep the public HTTPS origin,
+instead of exposing the internal HTTP port behind Caddy. Self-hosted scripts/downloads
 fit the existing same-origin CSP. Preserve existing contact APIs and no-index policy.
 
 ## Hardware acceptance still required

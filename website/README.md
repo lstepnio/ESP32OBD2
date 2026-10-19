@@ -52,7 +52,12 @@ An authorized static update needs no service restart or Docker access.
    screen buttons, console errors and unchanged security headers/API routes.
    Remove only the staging directory created for this publication.
 
-Preserve Nginx/Caddy configuration, Compose, contact service/data, consent wording,
+The [Nginx site configuration](deployment/nginx.conf) includes relative directory
+redirects for Caddy HTTPS proxying. Applying a configuration change requires
+`docker exec egauge nginx -t` then `docker exec egauge nginx -s reload` by an
+authorized Docker administrator; static publications need neither command.
+
+Preserve Caddy configuration, Compose, contact service/data, consent wording,
 no-index policy and unrelated files. Contact endpoints remain same-origin
 `/api/interest` and `/api/custom`. Never commit server backups or raw diagnostics.
 
