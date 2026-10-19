@@ -103,3 +103,26 @@ objects, duplicate alert fields or signature bytes. Fault-category evidence belo
 in Fault diagnostics; firmware rechecks belong in Updates. Support actions precede
 support facts so long readbacks never bury recovery controls. Routine successful
 read messages stay inside Device data, not on the Expert landing page.
+
+## App-wide task and recovery consistency
+
+- Gauge previews keep their example label. A single-page dashboard does not suggest
+  swiping between multiple pages.
+- Settings exposes display choices, alerts and appearance. Rename/add/select gauges
+  belong in Your gauges; manual bond/move-owner instructions belong in Pairing help.
+  Offline settings say Connect a gauge, not an indefinite active read. Previously
+  checked values stay labelled Last checked and cannot be edited until fresh.
+- Car has one adapter entry. Opening its chooser searches once when ready, with an
+  explicit retry retained for recovery. Recomposition never starts another scan.
+  Keep page gestures and independent source status; do not advertise future controls.
+- Updates has one primary action, visible installed/available versions and honest
+  recovery/hold state. The signed-file picker is a fallback when the online feed is
+  unavailable, not a second everyday installation route. Version/signature/recovery
+  guards and explicit installation remain unchanged.
+- Setup invalidates candidate selection when discovered identities change. A lone
+  candidate can be preselected; connecting and pairing still require explicit action.
+- Customization, deletion and alerts retain confirmation/save boundaries. An empty
+  reading catalog shows an actionable empty state rather than crashing. Preview
+  examples and captured alert values use the same unit policy, with named gear states.
+- Connections and activity sheets scroll at large text sizes. Genuine failures,
+  unknown outcomes and source-specific missing checks must never disappear as cleanup.

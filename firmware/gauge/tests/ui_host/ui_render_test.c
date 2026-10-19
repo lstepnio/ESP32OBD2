@@ -47,7 +47,9 @@ int main(int argc,char **argv) {
     ui_page_t saved={.name="RPM",.renderer=UI_RENDERER_NUMERIC,.metric_count=1,.metrics={{.pid=12,.name="Engine RPM",.unit="rpm",.maximum=8000,.stale_after_ms=2000}}};
     ui_t *ui=ui_init(&saved,50,touch,false,false);assert(ui);ui_set_page_position(ui,1,3);
     assert(ui_request_showcase(ui,true,8,7,false,false));tick(60);
+    assert(lv_obj_has_flag(ui->widgets.demo_lbl,LV_OBJ_FLAG_HIDDEN));
     for(unsigned i=0;i<display_showcase_count();i++) {
+        assert(lv_obj_has_flag(ui->widgets.demo_lbl,LV_OBJ_FLAG_HIDDEN));
         uint8_t status[20];assert(ui_showcase_status(ui,host_ms,status)==20);assert(status[1]==1&&status[3]==i);
         if(display_showcase_frame(i)->renderer==UI_RENDERER_TREND)for(unsigned j=0;j<20;j++)tick(100);
         char name[64];snprintf(name,sizeof(name),"demo-%02u",i+1);capture(argv[1],name);

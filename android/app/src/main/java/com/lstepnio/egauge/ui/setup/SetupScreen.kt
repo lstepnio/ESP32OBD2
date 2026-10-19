@@ -19,7 +19,10 @@ fun SetupScreen(state: SetupUiState, onFind: () -> Unit, onPair: () -> Unit,
     onChoose: (String) -> Unit, onCustomize: () -> Unit, onBack: () -> Unit,
     onCar: () -> Unit = onCustomize) {
     val step = when { state.owner == OwnerAccess.AUTHENTICATED -> 2; state.found -> 1; else -> 0 }
-    var candidate by rememberSaveable { mutableStateOf<String?>(null) }
+    var candidate by rememberSaveable(state.candidates.map { it.id }) { mutableStateOf<String?>(null) }
+    LaunchedEffect(state.candidates) {
+        if (candidate == null && state.candidates.size == 1) candidate = state.candidates.single().id
+    }
     ScreenContent(scrollKey = step) {
         ScreenTitle(when (step) { 0 -> "Set up gauge"; 1 -> "Pair your gauge"; else -> "Connect your car" }, onBack)
         Text("${step + 1} of 3", style = MaterialTheme.typography.labelMedium,
@@ -45,7 +48,7 @@ fun SetupScreen(state: SetupUiState, onFind: () -> Unit, onPair: () -> Unit,
                 TextButton(onCustomize, Modifier.fillMaxWidth()) { Text("Explore the preview") }
             }
             1 -> {
-                Text("Open pairing on your gauge", style = MaterialTheme.typography.headlineSmall)
+                Text(if (state.androidBonded) "Confirming your gauge" else "Open pairing on your gauge", style = MaterialTheme.typography.headlineSmall)
                 val pairingWindow = state.pairingWindow
                 val pairingInstructions = if (state.androidBonded)
                     "Android paired this phone. The app is checking that your gauge saved it as owner. Keep the gauge powered and nearby."

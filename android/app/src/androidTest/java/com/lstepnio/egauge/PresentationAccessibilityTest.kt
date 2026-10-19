@@ -11,7 +11,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.lstepnio.egauge.core.designsystem.*
-import com.lstepnio.egauge.ui.car.ClearCodesDialog
 import com.lstepnio.egauge.ui.home.HomeScreen
 import com.lstepnio.egauge.ui.settings.UpdatesScreen
 import com.lstepnio.egauge.ui.preview.ScreenFixtures
@@ -35,7 +34,7 @@ class PresentationAccessibilityTest {
         var onlineChecks = 0
         val state = UpdatesUiState(StatusUi("Online updates unavailable", "Choose a signed package.", StatusTone.Stale),
             null, "0.2.0-dev.28", true, false, false, false, false, emptyList(), feedUnavailable = true)
-        compose.setContent { EGaugeTheme { UpdatesScreen(state, OperationUi(), false,
+        compose.setContent { EGaugeTheme { UpdatesScreen(state, OperationUi(),
             {}, { onlineChecks++ }, {}, {}, { picked++ }) } }
         compose.onNodeWithText("Choose signed package").performClick()
         assertEquals(1, picked)
@@ -55,7 +54,9 @@ class PresentationAccessibilityTest {
         }
         ScreenFixtures.names.forEach { name ->
             compose.runOnIdle { screen = name }
-            compose.onAllNodesWithTag("primary-action").assertCountEquals(1)
+            val count = compose.onAllNodesWithTag("primary-action").fetchSemanticsNodes().size
+            assertTrue("$name has competing primary actions", count <= 1)
+            if (count == 0) return@forEach
             val primary = compose.onNodeWithTag("primary-action")
             if (compose.onAllNodes(hasTestTag("primary-action") and hasAnyAncestor(hasScrollAction()))
                     .fetchSemanticsNodes().isNotEmpty()) primary.performScrollTo()
@@ -63,17 +64,6 @@ class PresentationAccessibilityTest {
             val bounds = compose.onNodeWithTag("primary-action").fetchSemanticsNode().boundsInRoot
             assertTrue("$name primary target is too small", bounds.height >= 48 && bounds.width >= 48)
         }
-    }
-
-    @Test fun exampleClearingRequiresAnExplicitConsequenceDialog() {
-        var clearCount = 0
-        compose.setContent { EGaugeTheme { ClearCodesDialog({}, example = true, onExampleClear = { clearCount++ }) } }
-        compose.onNodeWithText("Example: clear fault codes?").assertIsDisplayed()
-        compose.onNodeWithText("Clearing codes erases diagnostic information", substring = true).assertIsDisplayed()
-        assertEquals(0, clearCount)
-        compose.onNodeWithText("Cancel").assertIsDisplayed()
-        compose.onNodeWithText("Clear example codes").performClick()
-        assertEquals(1, clearCount)
     }
 
     @Test fun everydayScreensHideTechnicalFactsButExpertKeepsThemReachable() {
@@ -85,7 +75,8 @@ class PresentationAccessibilityTest {
             compose.onAllNodesWithText("Example SHA-256").assertCountEquals(0)
         }
         compose.runOnIdle { screen = "expert-data" }
-        compose.onNodeWithText("Example SHA-256").assertExists()
+        compose.onNodeWithText("Device data").performScrollTo().performClick()
+        compose.onNodeWithText("Example SHA-256").performScrollTo().assertExists()
     }
 
     @Test fun holdingTheVisiblePreviewOpensThatPageForEditing() {

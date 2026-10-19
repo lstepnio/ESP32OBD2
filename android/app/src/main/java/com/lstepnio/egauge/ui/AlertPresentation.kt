@@ -9,6 +9,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.*
 import com.lstepnio.egauge.core.designsystem.*
+import com.lstepnio.egauge.ui.state.alertContextReading
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import java.util.Date
 
 /** Keep the main Car page concise; history and report actions share one focused sheet. */
@@ -88,11 +91,12 @@ private fun AlertHistoryContent(model: AppViewModel, onExport: () -> Unit, onSel
 @Composable
 fun AlertContextSheet(model: AppViewModel) {
     val entry=model.alertHistory.firstOrNull { it.id==model.selectedAlertId }?:model.notificationAlert?.takeIf { it.id==model.selectedAlertId }?:return
+    val system = model.displaySettings?.takeIf { it.version >= 2 }?.units ?: model.presentationPreferences.measurementSystem
     ModalBottomSheet(onDismissRequest={ model.selectedAlertId=null }, modifier = Modifier.testTag("alert-context")) {
         DialogContent {
             val e=entry.event
             SectionTitle(e.label)
-            Text("${e.severity.name} · ${e.producer}")
+            Text(e.severity.name)
             Text("Recorded ${Date(entry.recordedAt)}",style=MaterialTheme.typography.bodySmall)
             Text(when {
                 e.simulated -> "Simulated alert. This does not establish a vehicle fault."
@@ -104,8 +108,8 @@ fun AlertContextSheet(model: AppViewModel) {
             })
             val observation=entry.context.optJSONObject("entryEvent")?.let(::alertFromJson)?:e
             if(observation.key<36 && observation.unit!="codes" && observation.value.isFinite()) {
-                Text("At observation: ${MeasurementUnits.displayValue(observation.value.toString(),observation.unit,model.presentationPreferences.measurementSystem)} ${MeasurementUnits.label(observation.unit,model.presentationPreferences.measurementSystem)}")
-                if(observation.key<32 && observation.limit.isFinite())Text("Configured boundary: ${MeasurementUnits.displayValue(observation.limit.toString(),observation.unit,model.presentationPreferences.measurementSystem)} ${MeasurementUnits.label(observation.unit,model.presentationPreferences.measurementSystem)}")
+                Text("At observation: ${alertContextReading(observation.value.toDouble(), observation.unit, system)}")
+                if(observation.key<32 && observation.limit.isFinite())Text("Alert limit: ${alertContextReading(observation.limit.toDouble(), observation.unit, system)}")
             }
             if(e.key>=36 && e.unit.isNotBlank())Text(e.unit)
             if(entry.context.optBoolean("coverageGap"))Text("Some events were unavailable during disconnection or restart.")
@@ -116,7 +120,12 @@ fun AlertContextSheet(model: AppViewModel) {
                 val categories=data.optJSONArray("categories")
                 if(categories!=null)for(i in 0 until categories.length()) {
                     val category=categories.getJSONObject(i)
-                    Text("${category.getString("name")}: ${category.getJSONArray("codes").let { if(it.length()==0)category.getString("availability") else it.toString() }}")
+                    Text("${category.getString("name")}: ${category.getJSONArray("codes").let { if(it.length()==0)when(category.getString("availability")) {
+                        "NotChecked" -> "Not checked"
+                        "Available" -> "Checked"
+                        "Unsupported" -> "Not supported"
+                        else -> "Unavailable"
+                    } else (0 until it.length()).joinToString(", ") { index -> it.getString(index) } }}")
                 }
             }
             val capture=entry.context.optJSONObject("capture")
@@ -129,7 +138,7 @@ fun AlertContextSheet(model: AppViewModel) {
                 val definitions=entry.context.optJSONArray("definitions")
                 groups.forEach { (pid,values) ->
                     val definition=definitions?.optJSONObject(pid)
-                    Text("${definition?.optString("name")?:"Reading ${pid+1}"}: ${values.first().optDouble("value")} → ${values.last().optDouble("value")} ${definition?.optString("unit").orEmpty()}",style=MaterialTheme.typography.bodySmall)
+                    Text("${definition?.optString("name")?:"Reading ${pid+1}"}: ${alertContextReading(values.first().optDouble("value"), definition?.optString("unit").orEmpty(), system)} → ${alertContextReading(values.last().optDouble("value"), definition?.optString("unit").orEmpty(), system)}",style=MaterialTheme.typography.bodySmall)
                 }
             }
             if(model.isAlertCurrent(entry) && entry.vehicle==model.profileCollection.activeId && e.lifecycle==AlertLifecycle.Active) {
@@ -162,7 +171,11 @@ fun ClearCodeConfirmation(model: AppViewModel) {
     AlertDialog(onDismissRequest={ model.clearConfirmationOpen=false },title={ Text("Clear engine codes?") },text={
         DialogContent {
             Text("A diagnostic report is saved first. Clearing removes engine emissions codes and may erase freeze-frame data and reset readiness. It does not repair the cause. Permanent codes may remain.")
-            Row { Checkbox(parked,{ parked=it });Text("Parked, ignition on, engine off") }
+            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(parked, role = Role.Checkbox,
+                onValueChange = { parked = it }), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Checkbox(parked, null)
+                Text("Parked, ignition on, engine off")
+            }
         }
     },confirmButton={ TextButton(model::confirmCodeClear,enabled=parked) { Text("Clear engine codes") } },
         dismissButton={ TextButton({ model.clearConfirmationOpen=false }) { Text("Cancel") } })

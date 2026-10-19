@@ -253,3 +253,56 @@ and presentation preferences matched their private pre-install backups byte-for-
 Debug-awake settings were restored and no ECU operation or configuration write was
 used. Build/lint, all 199 JVM tests and nine isolated emulator UI cases passed.
 Physical vehicle-reading/ECU behavior is outside this UI-only verification.
+
+## 2026-10-18 App-wide UX and functionality cleanup
+
+This pass applies the Expert task-menu rules to the remaining Android destinations.
+It preserves the existing shared connection, operation, persistence and alert owners.
+
+| Area | Retained | Cleanup / correction |
+| --- | --- | --- |
+| Gauge | Labelled preview, editing, page navigation and universal connection status | Single-page views no longer suggest switching pages |
+| Car | One logical vehicle, source-specific health, faults, deletion and page gestures | One adapter entry; chooser automatically searches once per opening; removed duplicate instructions and future-control placeholder |
+| Settings | Display choices, regional units, page cycling, alerts and appearance | Rename inside Your gauges; bond/move-owner instructions behind Pairing help; honest offline/monitoring copy |
+| Setup | Explicit connect/pair and protected owner confirmation | Candidate-list changes invalidate stale selections; lone candidate preselected; bonded status says Confirming your gauge |
+| Customize | Every supported reading/alert, five layouts, page management and review/send | Empty-catalog fallback avoids a crash; dual preview uses selected units |
+| Updates | Hosted signed check, explicit install and recovery guards | Installed/available versions visible; no duplicate developer package action; signed picker retained for feed failure; no second install button during transfer; recovery/hold checks take priority over feed fallback |
+| Alert history/context | Scoped history, immutable observations, private export, acknowledgment/snooze and guarded clearing | Human code lists, selected units and named gears; full-row accessible parked confirmation; removed unused example-only clearing dialog |
+| Shared sheets | Independent connection and activity state | Scrollable at large text sizes |
+
+Removed obsolete development-mode update UI branches and the test-only code-clearing
+composable. Actual clearing remains behind its existing qualification gate; this pass
+does not enable an ECU command, change wire/storage schemas, replace shared owners or
+remove unknown/stale/error state. Shared alert presentation changes use ADR-015's
+existing context and history boundaries.
+
+Verification:
+
+- Debug App/test APK builds, Android lint and **201 JVM tests** passed.
+- **57** isolated emulator navigation/editor/connection/deletion/accessibility cases
+  passed. **17** focused follow-up cases passed after final changes, including the new
+  active-update check and real SQLite history/private-export fixtures. Together these
+  cover **63 distinct cases**. A final update-recovery/feed-failure guard adds one
+  case; all thirteen relevant UI/accessibility rechecks passed. Total: **64 distinct
+  cases**; overlapping rechecks are not additional coverage.
+- Refreshed twenty affected light/dark, compact/expanded native screenshot baselines
+  for Settings, Car, Updates and Expert. These are fixture/agent-reviewed renderings,
+  not owner acceptance or physical vehicle evidence.
+- Installed the final debug App on Pixel without data clearing. Protected status
+  reached Gauge ready. Settings, Pairing help and Updates were inspected; Updates
+  displayed installed dev.58 and one Check for updates action. Portrait/landscape
+  navigation was observed. No pairing reset, setup send or installation action was
+  triggered during the UI review.
+- Phone profiles, gauge associations and presentation preferences matched the private
+  pre-install backups byte-for-byte. Debug-awake settings were restored.
+
+Owner additionally requested removing Demo text specifically from the gauge display
+showcase. The footer is hidden during explicit showcase playback; generated-data copy
+stays in the App and other simulation markers remain. Production LVGL checks cover
+all twenty-one frames, footer absence and the existing stop/preemption/restoration
+journeys. Firmware build passed. This firmware change is **not installed**; the gauge
+still runs signed dev.58. A new separately authorized release is required to deploy it.
+
+Live ECU/pairing/OTA interruption, TalkBack/OEM/fold/RTL qualification and real vehicle
+alert observations remain under their existing backlog gates. No claim of complete
+physical or radio qualification follows from these UI checks.
