@@ -157,8 +157,11 @@ boot/positive sequence/remaining TTL (u32le) at 4/8/12; label[32] at 16;
 compact context[12] at 48; reserved zero u32 at 60. TTL is at most 600000 ms;
 zero withdraws a notice. Firmware rejects malformed UTF-8, controls, nonzero padding,
 retired boots, non-increasing per-slot sequence and Critical priority. Expiry is
-autonomous. The provider never chooses vehicle commands. The debug synthetic
-adapter uses slot zero and a 30-second Advisory, persisted sequence before send.
+autonomous. The provider never chooses vehicle commands. The original synthetic
+fixture is a 30-second Advisory. The experimental [session probe](../development/companion-session-experiment.md)
+uses slot zero, a simulated three-second Advisory, required sequence reservation
+and applied-state readback; scripted tests use in-memory reservations. No physical
+entry point or durable reservation store is added. The wire bytes are unchanged.
 See the provider guide for live slot allocation, review and authorization gates.
 
 ## Bounded sensor context

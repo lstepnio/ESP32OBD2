@@ -1,6 +1,6 @@
 # Prioritized backlog
 
-Updated 2026-10-18. This is the only current task/status list. Outcome order belongs
+Updated 2026-10-19. This is the only current task/status list. Outcome order belongs
 in [roadmap](roadmap.md); supported/installed behavior belongs in [current state](current-state.md).
 Evidence files retain historical pending notes and do not create additional tasks.
 
@@ -47,9 +47,9 @@ are in current state and evidence, with remaining qualification listed separatel
 | ID | Status | Scope | Entry gate |
 | --- | --- | --- | --- |
 | FEATURE-01 | Deferred | Broader manufacturer packs and compound/oxygen-sensor readings | Licensed provenance, exact decoder/status semantics, bounded source routing and vectors; [catalog rules](development/reading-catalog-alerts.md) |
-| FEATURE-02 | Deferred; content plan awaiting review | Live companion telemetry/content and optional physical sensors | [Proposed ADR-016](architecture/phone-companion-content.md) defines typed navigation/now-playing state, reusable owner sessions and bounded qualification. Owner chose consumer Maps/Waze and track information first; supported live maneuver acquisition remains unproven. No implementation authorized by the plan. Measured radio/resource budget, bounded freshness and protected protocol; sensors retain the separate [hardware strategy](architecture/hardware-and-transports.md) |
+| FEATURE-02 | Experimental foundation; broader scope deferred | Live companion telemetry/content and optional physical sensors | Owner approved ADR-016 and initial removable session/synthetic tests. [Bounded session extraction](development/companion-session-experiment.md) implemented; normal App remains one-shot. Remaining: background scheduling/preemption, typed navigation/media wire/state, screen review and physical/load qualification. Consumer Maps/Waze maneuver acquisition remains unproven; music information first. Sensors retain the separate [hardware strategy](architecture/hardware-and-transports.md) |
 | FEATURE-04 | Deferred | High idle, ABS/ESC and other controller actions | Matching controller procedures, bounded protected execution, outcome/restoration and interruption evidence; [action design](architecture/vehicle-actions.md); local page-jump foundation already implemented |
-| FEATURE-06 | Deferred; integration plan awaiting review | Authorized third-party alert providers | Synthetic provider/relay seam and [integration guide](architecture/phone-alert-providers.md) exist; former Expert test button was removed. [Proposed ADR-016](architecture/phone-companion-content.md) carries WzSabrePOC policies into the shared owner without importing the prototype App. Live feed still requires documented access, licensing/trust, TTL/attribution, labelled relevance and loaded qualification under [ADR-015](architecture/alerts-and-diagnostics.md#future-external-provider-seam) |
+| FEATURE-06 | Synthetic experiment implemented; live sources deferred | Authorized third-party alert providers | [Inactive scripted probe](development/companion-session-experiment.md) reuses authenticated sessions and simulated 3E/3C readback, with scope/sequence/occupied-slot failure tests; marked package may ship in debug/release, with no device entry point. Next: scoped v1 ingress, durable slot allocation, provider lifecycle/access/trust, TTL/attribution, labelled relevance and loaded qualification under [ADR-015](architecture/alerts-and-diagnostics.md#future-external-provider-seam). No live feed or copied prototype App |
 | PLATFORM-01 | Deferred | iOS | Explicit owner reprioritization; do not spend implementation time now |
 
 ## Updating a task

@@ -20,7 +20,7 @@ Read only the affected contract/runbook before source work; evidence is not requ
 - [Hardware strategy](architecture/hardware-and-transports.md), [local gestures and proposed controller actions](architecture/vehicle-actions.md)
 
 - [Shared alerts, notifications and CEL/MIL plan](architecture/alerts-and-diagnostics.md): proposed lifecycle, context/history, clearing and implementation/test sequence
-- [Proposed phone companion content](architecture/phone-companion-content.md): WzSabrePOC integration, directions/now-playing boundaries, source feasibility, bounded delivery and review gates
+- [Phone companion content](architecture/phone-companion-content.md): approved architecture, removable initial experiment, directions/now-playing boundaries, source feasibility and qualification gates
 
 ## Protocols
 
@@ -31,6 +31,7 @@ Read only the affected contract/runbook before source work; evidence is not requ
 
 ## Maintained procedures
 
+- [Removable companion-session experiment](development/companion-session-experiment.md): inactive synthetic harness, isolation, limits and removal
 - [Setup and exact checks](development/setup.md), [quality/evidence gates](development/quality.md)
 - [Signed development release](development/firmware-release-runbook.md), [OTA interruption matrix](development/ota-recovery-matrix.md)
 - [Dual-adapter recovery matrix](development/dual-adapter-recovery.md)

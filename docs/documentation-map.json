@@ -51,6 +51,7 @@
       "docs/protocol/wifi-bulk-v1.md"
     ],
     "maintained-runbooks": [
+      "docs/development/companion-session-experiment.md",
       "docs/development/display-showcase.md",
       "docs/development/dual-adapter-recovery.md",
       "docs/development/firmware-release-runbook.md",

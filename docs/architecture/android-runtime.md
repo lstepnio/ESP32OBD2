@@ -1,6 +1,6 @@
 # Android companion runtime
 
-Updated 2026-10-06. This describes current ownership; evidence limits are in [current state](../current-state.md).
+Updated 2026-10-19. This describes current ownership; evidence limits are in [current state](../current-state.md).
 
 ## Responsibilities and boundaries
 
@@ -24,6 +24,26 @@ stateDiagram-v2
 ```
 
 Discovery gathers all matching advertisers for a short bounded window. A single result is selected automatically. Multiple results require a user choice. Multiple identities and per-gauge desired vehicle/source assignments are remembered locally; the phone selects one connection at a time. Settings owns the saved-gauge picker. RSSI orders the list but never proves identity. Android owns the bond secret; the app stores no passkey or bond key.
+
+## Protected session lifetime
+
+`AndroidGaugeOwnerSessions` owns the existing GATT discovery, owner authentication,
+callback queue and bounded disconnect/close lifecycle. `GaugeOwnerSession` exposes
+serialized transaction-scoped IO after authentication. Several transactions may
+share that one connection within the factory's monotonic operation timeout; there
+is no process-wide connection cache or background streaming owner.
+
+The normal `GaugeConfigTransferClient.withGauge` adapter still opens one session
+per existing operation and runs its unchanged config/update command helpers inside
+one transaction. Existing discovery delay, authentication/reset policy, read-only
+resource-pressure retries, high-throughput OTA request and cleanup deadlines remain.
+The shared App operation lease is still required. Callers cannot retain IO handles
+after a transaction; failure/cancellation retires the session rather than allowing
+late replies into another operation. A write is never automatically replayed.
+
+This extraction is a reusable foundation, not qualification of a persistent phone
+stream or firmware content support. Source/API and loaded-radio gates remain in
+[ADR-016](phone-companion-content.md).
 
 ## Configuration transaction
 
