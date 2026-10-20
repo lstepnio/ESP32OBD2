@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..15) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..16) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -163,7 +163,7 @@ object ProfileDocumentCodec {
             alerts = alerts,
             actions = actions,
             diagnosticFilters = DiagnosticCodeFilters.fromDocument(saved),
-            idlePresets = if (schemaVersion >= 14) IdlePresets.decode(saved.getJSONArray("idlePresets")) else emptyList()
+            idlePresets = if (schemaVersion >= 14) IdlePresets.decode(saved.getJSONArray("idlePresets"), allowAirUp = schemaVersion >= 16) else emptyList()
         )
         require(draft.source == "ECM" || draft.source == "TCM") { "Profile source is invalid" }
         require(
@@ -191,7 +191,7 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 15).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 16).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
             IdlePresets.validate(profile.draft.idlePresets)
