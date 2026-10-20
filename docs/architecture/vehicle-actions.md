@@ -484,7 +484,11 @@ runtime contract. App/FW implementation does not qualify live controller executi
   browses; Down/top chevron cancels confirmation first, then returns to readings.
   Holds do not pair inside actions. Only a press and release in the same control,
   without a swipe or cancellation, can activate it. Consecutive Start taps cannot
-  submit while the UI awaits the command owner. Start revalidates at the worker.
+  submit while the UI awaits the command owner. Confirmation retains its displayed
+  duration; coolant recovery cannot enlarge the queued request. Changed control
+  state cancels confirmation. A known guard rejection allows a new named Start
+  attempt with fresh worker validation; an uncertain outcome never replays a write.
+  Start revalidates at the worker.
 - Readings remain selected behind the branch; remote selection and page cycling
   wait until it exits. Closing restarts the cycle quiet period and renders the
   cached samples through their existing freshness rules. Thirty idle seconds

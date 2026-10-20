@@ -135,12 +135,13 @@ struct _ui_t
     bool        command_suspended, command_press, command_moved, command_waiting, idle_protection;
     int16_t     command_x, command_y;
     lv_obj_t   *command_press_target;
-    uint32_t    command_activity, command_wait_at, command_presented_state;
+    uint32_t    command_activity, command_wait_at, command_presented_state, command_confirm_state;
     atomic_uint command_ui[2];
     atomic_bool command_menu_active;
     bool        command_menu_visible, command_layer_dirty;
     uint8_t     command_confirm, command_selected, command_done;
-    bool        command_request_stop;
+    bool        command_request_stop, command_admission_failed;
+    uint16_t    command_request_seconds, command_confirm_seconds;
 
     bool               pairing_visible;
     uint32_t           pairing_code;
@@ -2038,6 +2039,8 @@ static void refresh_vehicle_menu(ui_t *ui)
         close_vehicle_menu(ui);
         return;
     }
+    if (ui->command_admission_failed && now - ui->command_wait_at >= 2000)
+        ui->command_admission_failed = false;
     unsigned id = command_id(ui), kind = id == 3 ? 1 : 0;
     unsigned state = atomic_load(&ui->command_ui[kind]), phase = state & 255U;
     if (phase != VEHICLE_RESTORED)
@@ -2049,7 +2052,8 @@ static void refresh_vehicle_menu(ui_t *ui)
     const char *value = "Unavailable", *note = "", *button = "";
     char        duration[24];
     bool        enabled = false;
-    if (ui->command_confirm && phase != VEHICLE_READY && phase != VEHICLE_REJECTED)
+    if (ui->command_confirm && ((phase != VEHICLE_READY && phase != VEHICLE_REJECTED) ||
+                                (state & 0x0c00ffffU) != (ui->command_confirm_state & 0x0c00ffffU)))
         ui->command_confirm = 0;
     ui->command_presented_state = state;
     if (ui->command_waiting && (phase != ui->command_selected || now - ui->command_wait_at >= 2000))
@@ -2064,10 +2068,12 @@ static void refresh_vehicle_menu(ui_t *ui)
     }
     else if (ui->command_confirm)
     {
-        title   = id == 3 ? "Disable both?" : id == 2 ? "Start Winch?" : "Start Air up?";
-        value   = id == 3 ? "ABS + TCS" : "While parked";
+        title = id == 3 ? "Disable both?" : id == 2 ? "Start Winch?" : "Start Air up?";
+        snprintf(duration, sizeof(duration), "%u:%02u", ui->command_confirm_seconds / 60,
+                 ui->command_confirm_seconds % 60);
+        value   = id == 3 ? "ABS + TCS" : duration;
         button  = id == 3 ? "Disable" : "Start";
-        note    = id == 3 ? "Restart to restore" : "";
+        note    = id == 3 ? "Restart to restore" : (state & (16U << 8)) ? "Coolant unavailable" : "While parked";
         enabled = (state & 256U) != 0;
     }
     else if (!id || !(state & 256U))
@@ -2144,11 +2150,13 @@ static void refresh_vehicle_menu(ui_t *ui)
         enabled = true;
         if (phase == VEHICLE_REJECTED && reason == VEHICLE_GUARD)
         {
-            value   = "Waiting for car";
-            button  = "";
-            enabled = false;
+            value  = "Could not start";
+            note   = "Check conditions";
+            button = "Try again";
         }
     }
+    if (ui->command_admission_failed && enabled && !note[0] && !ui->rendered_alert.severity)
+        note = "Try again";
     command_text(ui, ui->command_title, title, 65, 184, font_subtitle);
     command_text(ui, ui->command_value, value, 116, 186, font_compact);
     command_text(ui, ui->command_note, note, 193, 160, font_subtitle);
@@ -2215,7 +2223,12 @@ static void command_activate(ui_t *ui, bool back)
     bool stop = id < 3 && (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE);
     if (!stop && !ui->command_confirm)
     {
-        ui->command_confirm = id;
+        ui->command_confirm       = id;
+        ui->command_confirm_state = state;
+        ui->command_confirm_seconds =
+            id < 3 ? (id == 2 ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds) : 0;
+        if (id < 3 && (state & (16U << 8)) && ui->command_confirm_seconds > 60)
+            ui->command_confirm_seconds = 60;
         return;
     }
     if (!(state & 256U) || (!stop && phase != VEHICLE_READY && phase != VEHICLE_REJECTED))
@@ -2223,12 +2236,15 @@ static void command_activate(ui_t *ui, bool back)
         ui->command_confirm = 0;
         return;
     }
-    ui->command_request_page = id;
-    ui->command_request_stop = stop;
-    ui->command_selected     = phase;
-    ui->command_confirm      = 0;
-    ui->command_waiting      = true;
-    ui->command_wait_at      = (uint32_t)(esp_timer_get_time() / 1000);
+    ui->command_request_page     = id;
+    ui->command_request_stop     = stop;
+    ui->command_admission_failed = false;
+    /* Freeze the confirmed duration. A later coolant recovery cannot lengthen it. */
+    ui->command_request_seconds = id < 3 && !stop ? ui->command_confirm_seconds : 0;
+    ui->command_selected        = phase;
+    ui->command_confirm         = 0;
+    ui->command_waiting         = true;
+    ui->command_wait_at         = (uint32_t)(esp_timer_get_time() / 1000);
     dispatch_touch(ui, UI_EVENT_VEHICLE_COMMAND);
 }
 static void command_pointer(ui_t *ui, lv_event_code_t code, lv_obj_t *target, int x, int y)
@@ -2384,16 +2400,15 @@ void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *pr
     *kind       = id == 3 ? 2 : 1;
     *stop       = ui->command_request_stop;
     *preset     = *kind == 1 && !*stop ? id : 0;
-    *seconds =
-        *kind == 1 && !*stop ? (id == 2 ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds) : 0;
-    if (*kind == 1 && (atomic_load(&ui->command_ui[0]) & (16U << 8)) && *seconds > 60)
-        *seconds = 60;
+    *seconds    = ui->command_request_seconds;
 }
 void ui_vehicle_command_queued(ui_t *ui, bool accepted)
 {
     if (!accepted)
     {
-        ui->command_waiting = false;
-        lv_label_set_text(ui->command_note, "Not available yet");
+        ui->command_waiting          = false;
+        ui->command_admission_failed = true;
+        ui->command_wait_at          = (uint32_t)(esp_timer_get_time() / 1000);
+        refresh_vehicle_menu(ui);
     }
 }

@@ -291,6 +291,9 @@ int main(int argc, char **argv)
     command_activate(ui, false);
     ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
     assert(!stop && seconds == 60);
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1, 0, 0, 0);
+    ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
+    assert(!stop && seconds == 60); /* New coolant evidence cannot enlarge the confirmed request. */
     ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1 | 4 | 8 | 16, 42, 9, 1);
     tick(60);
     capture(argv[1], "actions-coolant-timer");
