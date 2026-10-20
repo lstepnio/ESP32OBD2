@@ -27,6 +27,14 @@ There is no committed standard-gauge retail launch, preorder/deposit program or
 paid roadmap tier. A finished build or custom hardware can be discussed by request
 and scoped separately. Customer ideas can influence priorities without payment.
 
+The DIY offer is a hands-on development project using capable, low-cost hardware
+bought independently. Once configured for a working use case, core gauge readings,
+saved pages and local alerts operate directly with the vehicle adapters, without
+a connected phone, open App or internet service. Routine operation does not require
+firmware updates. Configuration changes, updates and phone-sourced features still
+need their respective tools or connections; do not imply every future integration
+is autonomous.
+
 The website presents this direction alongside evidenced product progress. Its
 [maintenance policy](../website/README.md#maintenance-cadence) owns the daily,
 resource-aware publication and screenshot process; it does not block product work.
