@@ -4,7 +4,9 @@ Updated 2026-10-20. This owns implemented/installed facts and their evidence lim
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
 Latest rollout merges approved action pages in PR #89 and installs the matching
 App plus signed dev.61 through App/Wi-Fi. [Indoor rollout evidence](evidence/action-pages-indoor.md)
-separates automated checks, owner display/touch confirmation and remaining Jeep gates.
+separates automated checks, owner display/touch confirmation and remaining Jeep gates. The
+[parked action runbook](development/jeep-action-qualification.md) now prepares a
+fixed read-only input capture; it does not enable vehicle controls.
 
 ## Installed baseline
 
@@ -12,7 +14,7 @@ separates automated checks, owner display/touch confirmation and remaining Jeep 
 | --- | --- | --- |
 | Pixel | App `0.2.0-dev.51` built from `a6dd029` (merged in PR #90), approved action-page management; existing setup migrated to profile schema 17 / associations 2 | [Dev.61 indoor rollout](evidence/action-pages-indoor.md) |
 | Gauge | Signed `0.2.0-dev.61` from `a6dd029`, catalog generation 42, 240 MHz, configuration revision 55 | [Dev.61 App/Wi-Fi rollout](evidence/action-pages-indoor.md); exact healthy alternate image, cleared journal, preserved setup |
-| Physical display/touch | Normal page, clean text and working swipes confirmed by owner on dev.61 | [Owner observation](evidence/action-pages-indoor.md#physical-observation-and-limits); action-branch gesture/edge matrix remains separate |
+| Physical display/touch | Normal page, clean text and working swipes confirmed by owner on dev.61 | [Owner observation](evidence/action-pages-indoor.md#physical-observation-and-limits); owner also confirmed action entry, horizontal browsing and downward return; extended edge/orientation/cycling checks remain |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
 | Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Four exact TCM CEL filters retained at revision 55; per-gauge action pages replace the prior jump gesture. Other running settings and phone profiles preserved. [Configuration check](evidence/shared-alerts-implementation.md#2026-10-19-tcm-cel-filter-configuration) |
@@ -103,7 +105,8 @@ through one typed protected command interface (`vc:1` in document mode), one pri
 worker controller, bounded controller drivers, uncertainty journal and event ring.
 Idle uses the captured fixed setting; numeric target drafts never become commands.
 ABS/TCS Return remains Restart required. Both qualification masks are zero: no
-current profile can execute controls, and none of this source is installed.
+current profile can execute controls. The shared path is installed in dev.61;
+the scoped identity/guard/restoration evidence adapter remains unimplemented.
 The [shared owner](architecture/vehicle-actions.md#shared-command-owner) records
 memory, cancellation, persistence, admission and remaining evidence requirements.
 The [offline foundation](architecture/vehicle-actions.md#implemented-offline-foundation)

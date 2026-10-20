@@ -515,6 +515,9 @@ still require the parked qualification below.
 
 ### Next parked Jeep increment
 
+Execution order, prepared capture commands and acceptance rows are maintained in
+the [parked qualification runbook](../development/jeep-action-qualification.md).
+
 The [parked follow-up](../evidence/jeep-actions-live-qualification.md) closes the
 fresh-identity gap and supplies a fixed-target reference plus one loss/recovery
 observation. The shared path is now wired and tested offline. Before enabling a

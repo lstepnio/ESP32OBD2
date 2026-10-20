@@ -13,6 +13,7 @@ from pathlib import Path
 
 from obd_capture import (
     AdapterSession,
+    BoundedSession,
     BLE_PROFILES,
     DEFAULT_OUTPUT,
     Recording,
@@ -24,6 +25,7 @@ from obd_temperature_candidate import COMMAND, decode_candidate
 import obd_tcm_temperature_candidate as tcm_temperature
 import obd_tcm_gear_candidate as tcm_gear
 import obd_tcm_values as tcm_values
+import jeep_action_capture as jeep_actions
 
 IDENTITY_COMMANDS = frozenset(("0900", "0904", "0906", "090A"))
 MONITOR_SETUP = frozenset(("ATTP0", "ATTP6", "ATTP7", "ATCSM1", "ATCAF0", "ATCAF1", "ATCRA"))
@@ -227,8 +229,12 @@ async def explore(args):
     device = await choose_adapter(args.adapter)
     recording = Recording(args.output, args.source, "mac_ble")
     values_mode = getattr(args, "tcm_values", False)
+    actions_mode = bool(getattr(args, "jeep_action_state", None))
+    bounded = values_mode or actions_mode
     policy = (
-        tcm_values_policy
+        jeep_actions.policy
+        if actions_mode
+        else tcm_values_policy
         if values_mode
         else tcm_gear_policy
         if args.tcm_gear_position
@@ -244,9 +250,7 @@ async def explore(args):
         if args.hemi_temperature
         else exploration_policy
     )
-    session = (tcm_values.BoundedSession if values_mode else AdapterSession)(
-        recording, policy=policy
-    )
+    session = (BoundedSession if bounded else AdapterSession)(recording, policy=policy)
     result = {
         "physical_port": args.source,
         "identity": {},
@@ -307,7 +311,7 @@ async def explore(args):
             recording.event("link_ready")
             print("Mac connected. Recording bounded controller reads.", flush=True)
             try:
-                if values_mode:
+                if bounded:
                     session.deadline = time.monotonic() + args.duration + 60
                 result["adapter_identity_hex"] = (await session.request("ATI")).hex()
                 await setup(session, ("ATE0", "ATL0", "ATS0", "ATH1", "ATCAF1", "ATSP0"))
@@ -339,12 +343,22 @@ async def explore(args):
                         result["identity"][command] = (
                             await session.request(command, timeout=8)
                         ).hex()
-                for _ in range(0 if values_mode else 3):
+                for _ in range(0 if bounded else 3):
                     for pid in STANDARD_PIDS:
                         if supports(maps, pid):
                             await session.request(f"01{pid:02X}", timeout=5)
                             await asyncio.sleep(0.15)
                 save_private(recording.directory / "diagnostic-discovery.json", result)
+                if actions_mode:
+                    jeep_actions.verify_route(result["protocol_number_hex"], maps)
+                    result["jeep_action_inputs"] = {
+                        "owner_reported_state": args.jeep_action_state,
+                        "verified_identity": jeep_actions.verify_identity(result["identity"]),
+                        "qualified": False,
+                        "samples": [],
+                    }
+                    await setup(session, jeep_actions.ROUTE)
+                    await jeep_actions.probe(session, result["jeep_action_inputs"])
                 if values_mode:
                     identity = tcm_values.verify_identity(result["identity"])
                     result["tcm_values"] = {
@@ -463,20 +477,26 @@ async def explore(args):
             finally:
                 monitoring = False
                 result["adapter_restored"] = False
-                if values_mode:
-                    session.deadline = None  # Three restoration requests, each still capped at 5s.
+                if bounded:
+                    session.deadline = (
+                        None  # Bounded restoration requests retain the per-request cap.
+                    )
                 if not session.waiting_prompt:
                     try:
                         restore = (
-                            ("ATSH7DF", "ATCAF1", "ATTP0")
-                            if values_mode
-                            or args.tcm_gear_position
-                            or args.hemi_temperature
-                            or args.tcm_faults
-                            or args.tcm_temperature
-                            or args.tcm_temperature_v2
-                            or args.tcm_temperature_v3
-                            else ("ATCAF1", "ATTP0")
+                            jeep_actions.RESTORE
+                            if actions_mode
+                            else (
+                                ("ATSH7DF", "ATCAF1", "ATTP0")
+                                if values_mode
+                                or args.tcm_gear_position
+                                or args.hemi_temperature
+                                or args.tcm_faults
+                                or args.tcm_temperature
+                                or args.tcm_temperature_v2
+                                or args.tcm_temperature_v3
+                                else ("ATCAF1", "ATTP0")
+                            )
                         )
                         await setup(session, restore)
                         result["adapter_restored"] = True
@@ -510,6 +530,11 @@ def main():
         "--adapter", required=True, help="Previously physically identified macOS BLE ID"
     )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--jeep-action-state",
+        choices=jeep_actions.STATES,
+        help="Fixed read-only primary ECM guard candidates, no vehicle commands",
+    )
     parser.add_argument(
         "--monitor", action="store_true", help="Add bounded silent 11/29-bit CAN captures"
     )
@@ -560,6 +585,27 @@ def main():
         help="Combined polling seconds, 3..120; discovery adds at most 60 seconds",
     )
     args = parser.parse_args()
+    if args.jeep_action_state:
+        if (
+            args.source != "engine"
+            or args.duration != 30
+            or args.tcm_state
+            or any(
+                (
+                    args.monitor,
+                    args.hemi_temperature,
+                    args.tcm_faults,
+                    args.tcm_temperature,
+                    args.tcm_temperature_v2,
+                    args.tcm_temperature_v3,
+                    args.tcm_gear_position,
+                    args.tcm_values,
+                )
+            )
+        ):
+            parser.error(
+                "--jeep-action-state requires engine, default duration and no other probes"
+            )
     if args.tcm_values:
         if (
             args.source != "transmission"

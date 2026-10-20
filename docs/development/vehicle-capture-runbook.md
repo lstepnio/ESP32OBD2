@@ -2,7 +2,8 @@
 
 Use the owner's 2010 Wrangler, 5.7 L Hemi/JSS ZFHP70 setup for scoped captures.
 Current identities, installed firmware and qualification are in [current state](../current-state.md).
-One Vgate is moved between separate ports. Capture placement and session identity
+This runbook describes separate single-adapter captures; it also applies when two
+adapters are installed by identifying and isolating the selected adapter. Capture placement and session identity
 explicitly; prior findings do not validate additional signal meanings.
 
 ## What to bring
@@ -81,3 +82,8 @@ Actual findings and limits: [direct exploration results](../evidence/jeep-direct
 The separate opt-in `--hemi-temperature` flag adds exactly three vendor-documented 229110 reads on the published 7E0 route. This is an unqualified test candidate, not a new supported vehicle reading. Use the engine connector and obtain a reference temperature before qualification. Routing, conversion, tests and the short validation session are documented in [Hemi transmission candidates](../evidence/hemi-transmission-candidates.md).
 
 For standard TCM faults, use `--source transmission --tcm-faults` with the gauge off and Vgate in the separate TCM connector. The explorer confirms 7E9 on 11-bit 500 kbit/s CAN before sending the three fixed fault reads on 7E1; it never clears codes. Standard fault lists do not guarantee complete OEM coverage. [Observed TCM faults and integration status](../evidence/tcm-integration-status.md).
+
+## Parked action inputs
+
+For the fixed primary-ECM guard candidates, use the [action qualification runbook](jeep-action-qualification.md).
+Its separate `--jeep-action-state` mode never sends vehicle controls or promotes candidate bits.

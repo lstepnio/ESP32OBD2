@@ -32,6 +32,7 @@ Read only the affected contract/runbook before source work; evidence is not requ
 
 - [Setup and exact checks](development/setup.md), [quality/evidence gates](development/quality.md)
 - [Signed development release](development/firmware-release-runbook.md), [OTA interruption matrix](development/ota-recovery-matrix.md)
+- [Parked Jeep action qualification](development/jeep-action-qualification.md)
 - [Dual-adapter recovery matrix](development/dual-adapter-recovery.md)
 - [Reading catalog and alert maintenance](development/reading-catalog-alerts.md)
 - [TCM session resume](development/tcm-session-resume.md), [bounded TCM research/test plan](development/tcm-values-research-plan.md), [vehicle capture](development/vehicle-capture-runbook.md)
