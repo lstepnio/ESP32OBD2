@@ -38,13 +38,16 @@ release or installation. Public repository: `lstepnio/ESP32OBD2`.
 | Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Setup review](evidence/second-adapter-setup.md); [dev.53 live reads/resume, independent loss/recovery and phone off/on](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification); owner confirmed live ECM/TCM display and independent expiry/return | Startup absence, loaded maintenance, rates and sustained soak remain open |
 | Health measurements | Fixed worker records, queue drops, explicit internal/DMA/PSRAM lifecycle logs, allocation failure hook and sampled stack minima | [Bench and upload evidence](evidence/esp32-memory-hardening.md): zero recorded allocation failures/queue drops; 30 dev.59 close samples stable within 144 bytes after warm-up; dev.60 receiver internal minimum 93,975 bytes, largest block 31,744 bytes and OTA stack margin 1,340 bytes | Longer controlled loaded soak, missed transient/vendor-private failures and complete stack/progress-path coverage |
 
-## Car fault summary refinement
+## App workflow refinement
 
-The Car card now names its scope **Fault codes**. Known warnings and code counts
-win over routine coverage progress; partial checks use neutral styling and exact
-category coverage stays in Expert. Saved codes retain Last checked and missing data
-cannot produce an all-clear. This is an App presentation change only; installed
-Pixel state above is unchanged. Tests and visual verification are recorded in the PR.
+Car uses **Fault codes** with neutral check progress, visible saved codes and known
+warnings first. Current alerts offer direct attention actions; saved history is one
+lazy list, and configured rules open directly from Car. Recorded sensor evidence
+expands inside the saved episode. Engine-code clearing stays with Fault codes.
+Rules retain the existing validated local editor and explicit Review and send path.
+The [design system](design/design-system.md#ux-completion-standard) owns task paths
+and UX acceptance. Local tests/rendered fixtures are recorded in the PR; installed
+Pixel state above is unchanged. No firmware, protocol, database or permission change.
 
 ## Installed Car fault experience
 

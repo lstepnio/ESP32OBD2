@@ -26,7 +26,9 @@ fun CarScreen(
     onSaveAction: (com.lstepnio.egauge.PageAction?) -> Unit = {},
     onDeleteProfile: (String) -> Unit = {},
     alerts: @Composable () -> Unit = {},
-    onSaveIdlePresets: (List<com.lstepnio.egauge.IdlePreset>) -> Unit = {}
+    onSaveIdlePresets: (List<com.lstepnio.egauge.IdlePreset>) -> Unit = {},
+    onClearCodes: (() -> Unit)? = null,
+    faultActionStatus: String? = null
 ) {
     var profilesOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var adapterOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
@@ -106,6 +108,8 @@ fun CarScreen(
                             TextButton({ faultsOpen = true }) { Text("View all ${faults.size} codes") }
                         }
                     }
+                    onClearCodes?.let { action -> TextButton(action) { Text("Clear engine codes") } }
+                    faultActionStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 }
                 alerts()
             }

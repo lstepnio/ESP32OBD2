@@ -210,13 +210,13 @@ acknowledgment returns to the dashboard with a persistent badge. OS dismissal do
 silently acknowledge a gauge episode. Phone acknowledgment is scoped to its episode
 and reconciled after disconnect; never apply it to a newly activated episode.
 
-Shared App `AlertCard`, `AlertSummary`, context sheet and timeline render all producers.
-Car shows one vehicle status and full categorized codes, including Not checked,
-Unsupported, Unavailable and Last checked states when lists are empty. Relevant origin
-labels are Engine/Transmission; addresses/raw requests remain Expert. The context sheet
-shows what happened, current/last checked status, trend/codes, captured context and next
-reviewed actions. Useful defaults: View context, View codes/trend, Save report,
-Acknowledge and Snooze. Clear codes is a separate explicit scoped operation.
+Shared App alert cards, context and history render all producers. Engine/Transmission
+origins and Last checked meaning survive every surface; exact category coverage and
+raw diagnostics live in Expert. The [design system's alert task ownership](../design/design-system.md#alert-task-ownership)
+is the single authority for layout, task paths and visible copy. Its **Mark seen**
+action uses the existing scoped acknowledgment protocol; it never resolves an episode
+or clears vehicle codes. Report sharing, local deletion and ECU clearing remain
+separate operations.
 
 ## Android notification delivery
 

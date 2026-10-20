@@ -93,7 +93,7 @@ class PhysicalConfigurationJourneyTest {
             }
             capture("customize-readings")
             compose.onNodeWithText(
-                "All alerts (${model.draft.alerts.size})"
+                "Alert rules (${model.draft.alerts.size})"
             ).performScrollTo().performClick()
             compose.onNodeWithText("Coolant temperature").performScrollTo().performClick()
             capture("customize-limits")

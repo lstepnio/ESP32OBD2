@@ -12,6 +12,15 @@ import org.junit.runner.RunWith
 class AlertJourneyTest {
     @get:Rule val compose = activityTestRule()
 
+    @Test fun carOpensAlertRulesDirectlyAndBackReturnsToCar() {
+        check(android.os.Build.HARDWARE in setOf("ranchu", "goldfish"))
+        compose.onNodeWithText("Car", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Alert rules").performScrollTo().performClick()
+        compose.onNodeWithText("Review and send").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Go back").performClick()
+        compose.onNodeWithText("Your car").assertIsDisplayed()
+    }
+
     @Test fun offlineHistoryContextAndPrivateExportUseSharedPresentation() {
         check(android.os.Build.HARDWARE in setOf("ranchu", "goldfish"))
         val model = (compose.activity.application as EGaugeApplication).model
@@ -53,10 +62,9 @@ class AlertJourneyTest {
             model.selectedAlertId = null
         }
         compose.onNodeWithText("Car", useUnmergedTree = true).performClick()
-        compose.onAllNodesWithText("Save report").assertCountEquals(0)
+        compose.onAllNodesWithText("Share report").assertCountEquals(0)
         compose.onAllNodesWithText("Delete history").assertCountEquals(0)
         compose.onNodeWithText("Alert history").performScrollTo().performClick()
-        compose.onNodeWithText("Save report").performScrollTo().assertIsDisplayed()
         compose.onNode(
             hasText("Coolant fixture") and hasAnyAncestor(hasTestTag("alert-history"))
         ).performScrollTo().performClick()
@@ -66,7 +74,11 @@ class AlertJourneyTest {
         compose.onNodeWithText(
             "Simulated alert. This does not establish a vehicle fault."
         ).assertIsDisplayed()
-        compose.onNodeWithText("Alert limit:", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Your limit:", substring = true).assertIsDisplayed()
+        compose.runOnIdle { model.selectedAlertId = null }
+        compose.onNodeWithText("Alert history").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("History options").performClick()
+        compose.onNodeWithText("Share report").assertIsDisplayed()
         val uri = exportAlertReport(compose.activity, repository.list(vehicle), repository, vehicle)
         val zip = java.util.zip.ZipInputStream(
             compose.activity.contentResolver.openInputStream(uri)!!

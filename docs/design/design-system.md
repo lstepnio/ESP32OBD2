@@ -61,8 +61,9 @@ Fault codes card and a compact Alerts card. Show up to three decoded fault summa
 code and Engine/Transmission attribution visible before any tap. View all codes opens
 one vehicle list; selecting a code opens What it means and Next step. Empty
 Stored/Pending/Permanent lists and exact coverage stay in Expert.
-Recent alerts prioritize current active events; Alert history contains export and
-history deletion. No disabled report-management controls occupy the main screen.
+Car shows current active alerts with their observed value or code summary and
+direct attention actions. Past episodes live in Alert history; its single scrollable
+list contains report sharing and confirmed local history deletion under Options. No disabled report-management controls occupy the main screen.
 Adapter and Gauge gestures use shared settings rows; routine connection retries
 remain in the universal pill. Sheets scroll at large text sizes and close when the
 active vehicle changes, preventing actions on the previously selected vehicle.
@@ -156,3 +157,41 @@ Phone notifications name the system and, when captured, the first unfiltered cod
 and its explanation. Threshold notifications use the selected units. Tapping opens
 the same saved episode, not a fresh scan or a code-clearing action. Preserve existing
 opt-in, severity channels, foreground suppression, quiet replay, privacy and filters.
+
+## UX completion standard
+
+Apply this before implementing or extending any user-facing workflow, not after
+feedback. Reuse SettingsRow, Panel, EditorScaffold, focused sheets, tokens and the
+universal connection pill. A new layout pattern needs a concrete unmet user task.
+The PR must identify the task, entry point, result and unnecessary steps removed.
+
+- Lead with the condition/value and a useful action. Hide diagnostic capture detail,
+  raw metadata and infrequent administration behind a named disclosure or Expert.
+- One owner for each task. Do not mix active alerts, saved history and configured
+  rules into the same list. Use **Alerts**, **Alert history**, **Alert rules** and
+  **Phone notifications** consistently.
+- Common actions are available on their owning surface. Do not require a generic
+  landing sheet before a useful action. Additional confirmation belongs to destructive
+  or consequential changes; fewer taps never justify an ambiguous mutation.
+- Check empty, loading, unavailable/stale, failure, success and critical states.
+  Missing data cannot imply a healthy vehicle, an empty live list or resolution.
+- Verify the primary task with interaction tests, compact/200% text and rendered
+  screenshots. Count taps from the owning page; justify any new step. A build or
+  a copy-only test does not establish workflow quality or physical usability.
+
+### Alert task ownership
+
+| Task | Default path | Guardrail |
+| --- | --- | --- |
+| Respond to a current alert | Car → Mark seen / Snooze | One action tap; current real episode only, snooze unavailable for critical alerts; attention changes only after gauge readback |
+| Understand an alert | Tap its condition → value/limit, saved codes and actions | Evidence is immutable; recorded readings expand separately; Last checked is never current |
+| Review an older episode | Car → Alert history → episode | Full lazy list, no Show all gate; timestamp and state visible before opening |
+| Edit a rule | Car → Alert rules → reading | Reuse the existing validated editor; only configured rules appear until Add alert |
+| Apply rule changes | Save alert → Review and send | Saving on the phone never claims the gauge changed; existing configuration review/verification stays intact |
+| Clear ECU codes | Car → Fault codes → Clear engine codes | Existing report and confirmation policy; never an alert-history or Mark seen action |
+
+Seen/snoozed episodes remain in the active Car list while their condition remains
+active. The global attention banner stops after confirmed acknowledgment/snooze;
+stale, historical, simulated and busy states never offer live attention commands.
+Notifications use the same condition title and unit-aware value/code summary as
+Car rows. Opening a notification still selects its saved episode, not a new scan.

@@ -269,6 +269,8 @@ def android_ui(action):
         "AppCleanupUiTest",
         "ReadingAlertsUiTest",
         "OptimizationUiTest",
+        "AlertWorkflowUiTest",
+        "AlertJourneyTest",
         "AlertNotificationTest",
         "RepositoryGalleryTest",
     )

@@ -1,6 +1,8 @@
 package com.lstepnio.egauge.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -8,69 +10,128 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.*
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.car.SavedFaultCodes
 import com.lstepnio.egauge.ui.state.alertContextReading
+import com.lstepnio.egauge.ui.state.alertNotificationText
 import com.lstepnio.egauge.ui.state.alertTitle
 import com.lstepnio.egauge.ui.state.recordedFaultCodes
+import java.text.DateFormat
 import java.util.Date
 
-/** Keep the main Car page concise; history and report actions share one focused sheet. */
+/** Model boundary: UI fixtures use the same cards without a Bluetooth or storage owner. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AlertHistoryPanel(model: AppViewModel, onExport: () -> Unit) {
+fun AlertHistoryPanel(model: AppViewModel, onExport: () -> Unit, onManage: () -> Unit = {}) {
     val vehicle = model.profileCollection.activeId
-    val entries = model.alertHistory.filter { it.vehicle == vehicle }
     var historyOpen by rememberSaveable(vehicle) { mutableStateOf(false) }
-    val active = entries.filter {
-        model.isAlertCurrent(it) &&
-            it.event.lifecycle == AlertLifecycle.Active &&
-            !model.isDiagnosticAlertFiltered(it.event)
+    val system = model.displaySettings?.takeIf { it.version >= 2 }?.units ?: model.presentationPreferences.measurementSystem
+    val entries = model.alertHistory.filter { it.vehicle == vehicle }
+    val items = entries.filterNot { model.isAlertCurrent(it) && model.isDiagnosticAlertFiltered(it.event) }
+        .map { AlertListItem(it, model.isAlertCurrent(it), system, model.operation.stage != OperationStage.IDLE && !model.operation.terminal) }
+    AlertsCard(
+        items,
+        model.alertFrameworkSupported != false,
+        model.alertHistoryError,
+        { model.selectedAlertId = it.id },
+        { model.acknowledgeAlert(it) },
+        { model.acknowledgeAlert(it, true) },
+        { historyOpen = true },
+        onManage
+    )
+    if (historyOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { historyOpen = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            modifier = Modifier.testTag("alert-history")
+        ) {
+            AlertHistoryContent(
+                items,
+                entries.any { !it.current && !it.pinned },
+                model.alertHistoryError,
+                {
+                    historyOpen = false
+                    model.selectedAlertId = it.id
+                },
+                onExport,
+                model::clearAlertHistory
+            )
+        }
     }
-    val recent = (active.sortedByDescending { it.event.severity } + entries).distinctBy { it.id }
-        .filterNot { model.isAlertCurrent(it) && model.isDiagnosticAlertFiltered(it.event) }.take(3)
+}
+
+internal data class AlertListItem(val entry: StoredAlert, val current: Boolean, val system: MeasurementSystem, val busy: Boolean = false) {
+    val active get() = current && entry.event.lifecycle == AlertLifecycle.Active
+    val needsAttention get() = active && !entry.event.acknowledged && !entry.event.snoozed
+    val offersMarkSeen get() = active && !entry.event.simulated && !entry.event.acknowledged && !entry.event.snoozed
+    val canMarkSeen get() = offersMarkSeen && !busy
+    val offersSnooze get() = active && !entry.event.simulated && !entry.event.snoozed && entry.event.severity < AlertSeverity.Critical
+    val canSnooze get() = offersSnooze && !busy
+}
+
+/** Active conditions stay on Car. Past episodes have one home in history. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun AlertsCard(
+    items: List<AlertListItem>,
+    supported: Boolean = true,
+    error: String? = null,
+    onOpen: (StoredAlert) -> Unit,
+    onSeen: (StoredAlert) -> Unit,
+    onSnooze: (StoredAlert) -> Unit,
+    onHistory: () -> Unit,
+    onManage: () -> Unit
+) {
+    val active = items.filter { it.active }.sortedWith(compareByDescending<AlertListItem> { it.entry.event.severity }.thenByDescending { it.entry.recordedAt })
     Panel {
         SectionTitle("Alerts")
-        if (model.alertFrameworkSupported == false) {
-            Text("Update the gauge to use alert history.")
-        } else if (recent.isEmpty()) {
+        if (!supported) {
+            Text("Update the gauge to use alerts.")
+        } else if (active.isEmpty()) {
             Text(
-                if (entries.isEmpty()) "No recorded alerts" else "No visible alerts",
+                if (items.any { it.entry.event.lifecycle == AlertLifecycle.Active }) {
+                    "Alerts will update when connected."
+                } else if (items.isEmpty()) {
+                    "No alerts recorded"
+                } else {
+                    "Past alerts are in history."
+                },
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        recent.forEach { entry ->
-            SettingsRow(
-                alertTitle(entry.event),
-                alertEntryStatus(entry.event, model.isAlertCurrent(entry)),
-                onClick = { model.selectedAlertId = entry.id }
-            )
+        active.take(3).forEach { item ->
+            AlertEventRow(item, onOpen)
+            AlertAttentionActions(item, onSeen, onSnooze)
         }
-        model.alertHistoryError?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-        SettingsRow(
-            "Alert history",
-            if (active.size >
-                3
-            ) {
-                "${active.size} active · ${entries.size} recorded"
-            } else if (entries.isEmpty()) {
-                "Reports and saved alerts"
-            } else {
-                "${entries.size} recorded"
-            },
-            onClick = { historyOpen = true }
-        )
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(onHistory) { Text(if (active.size > 3) "View all alerts (${active.size})" else "Alert history") }
+            TextButton(onManage) { Text("Alert rules") }
+        }
     }
-    if (historyOpen) {
-        ModalBottomSheet(onDismissRequest = {
-            historyOpen = false
-        }, modifier = Modifier.testTag("alert-history")) {
-            Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp)) {
-                DialogContent { AlertHistoryContent(model, onExport, { historyOpen = false }) }
-            }
-        }
+}
+
+@Composable
+private fun AlertEventRow(item: AlertListItem, onOpen: (StoredAlert) -> Unit, showTime: Boolean = false) {
+    val entry = item.entry
+    val description = alertNotificationText(entry.event, item.system, recordedFaultCodes(entry.context))
+    SettingsRow(
+        alertTitle(entry.event),
+        listOf(description, alertEntryStatus(entry.event, item.current), if (showTime) DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(entry.recordedAt)) else "").filter { it.isNotBlank() }.joinToString("\n"),
+        onClick = { onOpen(entry) }
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AlertAttentionActions(item: AlertListItem, onSeen: (StoredAlert) -> Unit, onSnooze: (StoredAlert) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (item.offersMarkSeen) TextButton({ onSeen(item.entry) }, Modifier.semantics { contentDescription = "Mark ${alertTitle(item.entry.event)} seen" }, enabled = item.canMarkSeen) { Text("Mark seen") }
+        if (item.offersSnooze) TextButton({ onSnooze(item.entry) }, Modifier.semantics { contentDescription = "Snooze ${alertTitle(item.entry.event)} for 5 minutes" }, enabled = item.canSnooze) { Text("Snooze 5 min") }
     }
 }
 
@@ -82,227 +143,157 @@ internal fun alertEntryStatus(event: AlertEvent, current: Boolean): String {
         !current -> "Last checked"
         event.unavailable -> "Data unavailable · not confirmed resolved"
         event.snoozed -> "Snoozed · active"
-        event.acknowledged -> "Acknowledged · active"
+        event.acknowledged -> "Seen · still active"
         else -> "Active"
     }
     return "${if (event.simulated) "Simulated · " else ""}${event.severity.name} · $state"
 }
 
 @Composable
-private fun AlertHistoryContent(
-    model: AppViewModel,
+internal fun AlertHistoryContent(
+    entries: List<AlertListItem>,
+    canDelete: Boolean,
+    error: String?,
+    onOpen: (StoredAlert) -> Unit,
     onExport: () -> Unit,
-    onSelect: () -> Unit = {}
+    onDelete: () -> Unit
 ) {
-    val entries = model.alertHistory.filter { it.vehicle == model.profileCollection.activeId }
-    var all by rememberSaveable(model.profileCollection.activeId) { mutableStateOf(false) }
-    var delete by rememberSaveable(model.profileCollection.activeId) { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionTitle("Alert history")
-        if (model.alertFrameworkSupported == false) {
-            Text("Update the gauge to use alert history.")
-        } else if (entries.isEmpty()) {
-            Text("No recorded alerts")
-        }
-        model.alertHistoryError?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-        entries.take(if (all) 500 else 6).forEach { entry ->
-            val e = entry.event
-            TextButton({
-                onSelect()
-                model.selectedAlertId = entry.id
-            }) {
-                Column(Modifier.fillMaxWidth()) {
-                    Text(alertTitle(e))
-                    Text(
-                        alertEntryStatus(e, model.isAlertCurrent(entry)),
-                        style = MaterialTheme.typography.bodySmall
-                    )
+    var delete by rememberSaveable { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).navigationBarsPadding().padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text("Alert history", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+            if (entries.isNotEmpty()) {
+                Box {
+                    TextButton({ menu = true }, Modifier.semantics { contentDescription = "History options" }) { Text("Options") }
+                    DropdownMenu(menu, { menu = false }) {
+                        DropdownMenuItem(text = { Text("Share report") }, onClick = {
+                            menu = false
+                            onExport()
+                        })
+                        DropdownMenuItem(text = { Text("Delete history") }, enabled = canDelete, onClick = {
+                            menu = false
+                            delete = true
+                        })
+                    }
                 }
             }
         }
-        if (entries.size >
-            6
-        ) {
-            TextButton({ all = !all }) { Text(if (all) "Show recent" else "Show all history") }
-        }
-        model.clearMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-        if (model.clearStatus?.supported ==
-            true
-        ) {
-            TextButton({
-                onSelect()
-                model.prepareCodeClear()
-            }) { Text("Clear engine codes") }
-        }
-        SettingsRow("Save report", onClick = onExport)
-        SettingsRow(
-            "Delete history",
-            enabled = entries.any {
-                !it.current && !it.pinned
-            },
-            onClick = {
-                delete =
-                    true
+        if (entries.isEmpty()) Text("No recorded alerts")
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        LazyColumn(Modifier.weight(1f).testTag("alert-history-list"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(entries.sortedByDescending { it.entry.recordedAt }, key = { it.entry.id }) { item ->
+                AlertEventRow(item, onOpen, showTime = true)
             }
-        )
+        }
     }
     if (delete) {
-        AlertDialog(onDismissRequest = {
-            delete = false
-        }, title = {
-            Text("Delete local history?")
-        }, text = {
-            Text(
-                "Unpinned inactive reports for this vehicle will be removed from this phone. Active alerts and vehicle fault codes are retained."
-            )
-        }, confirmButton = {
-            TextButton({
-                delete =
-                    false
-                model.clearAlertHistory()
-            }) { Text("Delete history") }
-        }, dismissButton = {
-            TextButton({
-                delete =
-                    false
-            }) { Text("Cancel") }
-        })
+        AlertDialog(
+            onDismissRequest = { delete = false },
+            title = { Text("Delete history from this phone?") },
+            text = { Text("Saved reports that are no longer active will be removed. Kept reports, active alerts and vehicle fault codes stay unchanged.") },
+            confirmButton = {
+                TextButton({
+                    delete = false
+                    onDelete()
+                }) { Text("Delete history") }
+            },
+            dismissButton = { TextButton({ delete = false }) { Text("Keep history") } }
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlertContextSheet(model: AppViewModel) {
-    val entry =
-        model.alertHistory.firstOrNull { it.id == model.selectedAlertId }
-            ?: model.notificationAlert?.takeIf { it.id == model.selectedAlertId }
-            ?: return
-    val system =
-        model.displaySettings?.takeIf { it.version >= 2 }?.units
-            ?: model.presentationPreferences.measurementSystem
-    ModalBottomSheet(onDismissRequest = {
-        model.selectedAlertId = null
-    }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), modifier = Modifier.testTag("alert-context")) {
+    val entry = model.alertHistory.firstOrNull { it.id == model.selectedAlertId }
+        ?: model.notificationAlert?.takeIf { it.id == model.selectedAlertId } ?: return
+    val system = model.displaySettings?.takeIf { it.version >= 2 }?.units ?: model.presentationPreferences.measurementSystem
+    ModalBottomSheet(
+        onDismissRequest = { model.selectedAlertId = null },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        modifier = Modifier.testTag("alert-context")
+    ) {
         Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp)) {
             DialogContent {
-                val e = entry.event
-                SectionTitle(alertTitle(e))
-                Text(e.severity.name)
-                Text("Recorded ${Date(entry.recordedAt)}", style = MaterialTheme.typography.bodySmall)
-                Text(
-                    when {
-                        e.simulated -> "Simulated alert. This does not establish a vehicle fault."
-
-                        e.lifecycle == AlertLifecycle.Resolved -> "Resolved by a fresh observation"
-
-                        e.lifecycle == AlertLifecycle.Expired -> "Notice expired"
-
-                        !model.isAlertCurrent(
-                            entry
-                        ) -> "Last checked. Current status has not been established."
-
-                        e.unavailable -> "Data is unavailable. This alert has not been confirmed resolved."
-
-                        else -> "Active${if (e.acknowledged) " · acknowledged" else ""}"
-                    }
+                AlertContextContent(
+                    AlertListItem(entry, model.isAlertCurrent(entry) && entry.vehicle == model.profileCollection.activeId, system, model.operation.stage != OperationStage.IDLE && !model.operation.terminal),
+                    { model.acknowledgeAlert(it) },
+                    { model.acknowledgeAlert(it, true) },
+                    { model.pinAlert(it, !it.pinned) }
                 )
-                val observation = entry.context.optJSONObject("entryEvent")?.let(::alertFromJson) ?: e
-                if (observation.key < 36 && observation.unit != "codes" &&
-                    observation.value.isFinite()
-                ) {
-                    Text(
-                        "At observation: ${alertContextReading(
-                            observation.value.toDouble(),
-                            observation.unit,
-                            system
-                        )}"
-                    )
-                    if (observation.key < 32 &&
-                        observation.limit.isFinite()
-                    ) {
-                        Text(
-                            "Alert limit: ${alertContextReading(
-                                observation.limit.toDouble(),
-                                observation.unit,
-                                system
-                            )}"
-                        )
-                    }
-                }
-                if (e.key >= 36 && e.unit.isNotBlank()) Text(e.unit)
-                if (entry.context.optBoolean(
-                        "coverageGap"
-                    )
-                ) {
-                    Text("Some events were unavailable during disconnection or restart.")
-                }
-                val recordedCodes = recordedFaultCodes(entry.context)
-                if (e.key in 32..35 || recordedCodes.isNotEmpty()) {
-                    SavedFaultCodes(recordedCodes, entry.id)
-                }
-                val capture = entry.context.optJSONObject("capture")
-                if (capture?.optBoolean("available") == true) {
-                    Text(
-                        when {
-                            capture == null -> "Sensor window is pending or unavailable."
-
-                            !capture.optBoolean("available") -> "Sensor window unavailable on the gauge."
-
-                            !capture.optBoolean(
-                                "complete"
-                            ) || capture.optBoolean("partial") -> "Partial sensor window captured"
-
-                            else -> "Sensor window captured"
-                        },
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                capture?.optJSONArray("samples")?.let { samples ->
-                    val groups = (0 until samples.length()).map {
-                        samples.getJSONObject(it)
-                    }.filter { it.optBoolean("valid") }.groupBy { it.getInt("pidIndex") }
-                    val definitions = entry.context.optJSONArray("definitions")
-                    groups.forEach { (pid, values) ->
-                        val definition = definitions?.optJSONObject(pid)
-                        Text(
-                            "${definition?.optString(
-                                "name"
-                            ) ?: "Reading ${pid + 1}"}: ${alertContextReading(
-                                values.first().optDouble("value"),
-                                definition?.optString("unit").orEmpty(),
-                                system
-                            )} → ${alertContextReading(
-                                values.last().optDouble("value"),
-                                definition?.optString("unit").orEmpty(),
-                                system
-                            )}",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-                if (model.isAlertCurrent(entry) && entry.vehicle == model.profileCollection.activeId &&
-                    e.lifecycle == AlertLifecycle.Active
-                ) {
-                    Row {
-                        TextButton({ model.acknowledgeAlert(entry) }) { Text("Acknowledge") }
-                        if (e.severity <
-                            AlertSeverity.Critical
-                        ) {
-                            TextButton({
-                                model.acknowledgeAlert(entry, true)
-                            }) { Text("Snooze 5 min") }
-                        }
-                    }
-                    Text(
-                        "Acknowledgment changes attention only. It does not clear fault codes.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                TextButton({
-                    model.pinAlert(entry, !entry.pinned)
-                }) { Text(if (entry.pinned) "Unpin report" else "Keep report") }
-                Spacer(Modifier.height(24.dp))
             }
+        }
+    }
+}
+
+@Composable
+internal fun AlertContextContent(
+    item: AlertListItem,
+    onSeen: (StoredAlert) -> Unit,
+    onSnooze: (StoredAlert) -> Unit,
+    onKeep: (StoredAlert) -> Unit
+) {
+    val entry = item.entry
+    val e = entry.event
+    val system = item.system
+    var readingsOpen by rememberSaveable(entry.id) { mutableStateOf(false) }
+    SectionTitle(alertTitle(e))
+    Text(alertEntryStatus(e, item.current), color = if (item.active && e.severity == AlertSeverity.Critical) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+    if (e.simulated) Text("Simulated alert. This does not establish a vehicle fault.")
+    if (!item.current && e.lifecycle == AlertLifecycle.Active) Text("Last checked. Current status has not been established.")
+    if (e.unavailable && e.lifecycle == AlertLifecycle.Active) Text("Data is unavailable. This alert has not been confirmed resolved.")
+    val observation = entry.context.optJSONObject("entryEvent")?.let(::alertFromJson) ?: e
+    if (observation.key < 32 && observation.unit != "codes" && observation.value.isFinite()) {
+        Text(alertContextReading(observation.value.toDouble(), observation.unit, system), style = MaterialTheme.typography.headlineLarge)
+        if (observation.limit.isFinite()) Text("Your limit: ${alertContextReading(observation.limit.toDouble(), observation.unit, system)}")
+    }
+    if (e.key >= 36 && e.unit.isNotBlank()) Text(e.unit)
+    AlertAttentionActions(item, onSeen, onSnooze)
+    if (item.canMarkSeen || item.canSnooze) Text("Silences attention; the alert stays active until the condition clears.", style = MaterialTheme.typography.bodySmall)
+    val recordedCodes = recordedFaultCodes(entry.context)
+    if (e.key in 32..35 || recordedCodes.isNotEmpty()) SavedFaultCodes(recordedCodes, entry.id)
+    Text(DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(entry.recordedAt)), style = MaterialTheme.typography.bodySmall)
+    if (entry.context.optBoolean("coverageGap")) Text("Some events were not recorded while disconnected.", style = MaterialTheme.typography.bodySmall)
+    if (entry.context.optJSONObject("capture") != null) {
+        TextButton({ readingsOpen = !readingsOpen }) { Text(if (readingsOpen) "Hide recorded readings" else "Recorded readings") }
+        if (readingsOpen) RecordedAlertReadings(entry, system)
+    }
+    TextButton({ onKeep(entry) }) { Text(if (entry.pinned) "Remove from kept reports" else "Keep report") }
+}
+
+@Composable
+private fun RecordedAlertReadings(entry: StoredAlert, system: MeasurementSystem) {
+    val capture = entry.context.optJSONObject("capture") ?: return
+    Text(
+        when {
+            !capture.optBoolean("available") -> "No readings were saved with this alert."
+            !capture.optBoolean("complete") || capture.optBoolean("partial") -> "Some readings are missing."
+            else -> "Readings recorded around this alert."
+        },
+        style = MaterialTheme.typography.bodySmall
+    )
+    capture.optJSONArray("samples")?.let { samples ->
+        val groups = (0 until samples.length()).map {
+            samples.getJSONObject(it)
+        }.filter { it.optBoolean("valid") }.groupBy { it.getInt("pidIndex") }
+        val definitions = entry.context.optJSONArray("definitions")
+        groups.forEach { (pid, values) ->
+            val definition = definitions?.optJSONObject(pid)
+            Text(
+                "${definition?.optString(
+                    "name"
+                ) ?: "Reading ${pid + 1}"}: ${alertContextReading(
+                    values.first().optDouble("value"),
+                    definition?.optString("unit").orEmpty(),
+                    system
+                )} → ${alertContextReading(
+                    values.last().optDouble("value"),
+                    definition?.optString("unit").orEmpty(),
+                    system
+                )}",
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
@@ -314,6 +305,7 @@ fun GlobalAlertBanner(model: AppViewModel) {
             it.vehicle == model.profileCollection.activeId &&
                 model.isAlertCurrent(it) &&
                 it.event.lifecycle == AlertLifecycle.Active &&
+                !it.event.acknowledged && !it.event.snoozed &&
                 !model.isDiagnosticAlertFiltered(it.event)
         }.maxByOrNull { it.event.severity }
             ?: return

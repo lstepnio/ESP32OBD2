@@ -46,7 +46,8 @@ fun DashboardEditorScreen(
     destination: Int,
     onDestination: (Int) -> Unit,
     onBack: () -> Unit,
-    actions: CustomizeActions
+    actions: CustomizeActions,
+    alertsOnly: Boolean = false
 ) {
     var picker by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -58,7 +59,9 @@ fun DashboardEditorScreen(
         alertReturn = destination
         onDestination(4)
     }
-    fun done() = onDestination(0)
+    fun done() {
+        if (alertsOnly) onBack() else onDestination(0)
+    }
     PredictiveBackHandler(enabled = destination == 4 && picker == null) { progress ->
         progress.collect { }
         onDestination(alertReturn)
@@ -76,7 +79,7 @@ fun DashboardEditorScreen(
 
         destination == 2 -> PageManager(state, ::done, { picker = "add" }, actions)
 
-        destination == 3 -> AlertManager(state, ::done, ::editAlert, actions)
+        destination == 3 -> AlertManager(state, ::done, ::editAlert, { onDestination(5) })
 
         destination == 4 -> {
             val reading =
@@ -196,7 +199,7 @@ fun DashboardEditorScreen(
                         }
                         TextButton({
                             onDestination(3)
-                        }, Modifier.fillMaxWidth()) { Text("All alerts (${state.alerts.size})") }
+                        }, Modifier.fillMaxWidth()) { Text("Alert rules (${state.alerts.size})") }
                     }
                     (state.editingIssue ?: state.blockers.firstOrNull())?.let {
                         StatusCard(StatusUi("Check your settings", it, StatusTone.Error))
