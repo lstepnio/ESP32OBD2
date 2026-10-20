@@ -1,8 +1,10 @@
 package com.lstepnio.egauge
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.PackageManager
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.ui.state.CarFaultUi
@@ -14,11 +16,20 @@ class AlertNotificationTest {
         check(android.os.Build.HARDWARE in setOf("ranchu", "goldfish"))
         val context = ApplicationProvider.getApplicationContext<Context>()
         if (android.os.Build.VERSION.SDK_INT >= 33) {
-            InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS").close()
+            // Posting is intentionally dropped while permission is absent, so a
+            // fire-and-forget shell grant can race and lose the fixture's event.
+            InstrumentationRegistry.getInstrumentation().uiAutomation.grantRuntimePermission(
+                context.packageName,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
+            assertEquals(
+                PackageManager.PERMISSION_GRANTED,
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+            )
         }
         val manager = context.getSystemService(NotificationManager::class.java)
         fun awaitCount(count: Int) {
-            val deadline = android.os.SystemClock.elapsedRealtime() + 2000
+            val deadline = android.os.SystemClock.elapsedRealtime() + 10_000
             while (manager.activeNotifications.size != count &&
                 android.os.SystemClock.elapsedRealtime() < deadline
             ) {
