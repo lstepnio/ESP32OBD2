@@ -68,6 +68,8 @@ controller-state readback was tested.
 The [JScan manual](https://jscan-docs.readthedocs.io/en/latest/general/user_manual.html#bottom-row-icons)
 describes the first button as combined ABS+TC Kill until the next ignition cycle.
 Do not present these reference bytes as separate ABS-only and traction-only APIs.
+The documented ignition-cycle behavior matches this session; persistent warning
+lights after the green Return button were not, by themselves, evidence of failure.
 
 ## Fourth button
 
@@ -94,6 +96,10 @@ between that attempt's ABS route setup and control request. The earlier positive
 sequence did enter session 1092; this is a candidate explanation for the negative
 reply, not proof that session entry is the only precondition. After another
 ignition cycle the owner confirmed both warning lights off.
+
+The owner later confirmed the dash behaved as expected with the buttons. The
+manual does not specify a separate ignition-cycle restoration rule for the fourth
+button, so do not extend the combined-shutdown rule to it without further evidence.
 
 The positive replies establish accepted reference requests, not measured hydraulic
 effects, independent traction retention or a qualified ABS-only API. No wheels
