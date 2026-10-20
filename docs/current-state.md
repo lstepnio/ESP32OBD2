@@ -1,7 +1,8 @@
 # Current implementation and evidence
 
-Updated 2026-10-19. This owns implemented/installed facts and their evidence limits.
+Updated 2026-10-20. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
+Latest source work adds shared native presentation profiles with unchanged reference output.
 Latest device update installs the merged Car fault experience on the Pixel; no new
 firmware installation, physical gauge display/touch or live-vehicle observation.
 

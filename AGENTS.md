@@ -32,7 +32,8 @@ contracts/status and dated evidence. `data/vehicle-definitions/` is research onl
 - Make the smallest cohesive change that preserves architecture/styling. Remove dead
   code or stale guidance only after verifying references and remaining acceptance.
 - Ask only for critical missing information/authorization; continue independent work.
-- Run checks for the changed boundary. Repeat broad tests only for a concrete risk.
+- Use the [check-selection guide](docs/development/quality.md#change-based-check-selection)
+  for the smallest complete gate. Run checks for the changed boundary. Repeat broad tests only for a concrete risk.
   A build, fixture or serial log is not physical qualification.
 - Follow [documentation ownership](docs/documentation.md). Keep one topic authority;
   update code/contracts together. Major choices belong in [ADRs](docs/decisions/README.md).
