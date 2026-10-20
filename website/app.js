@@ -33,7 +33,7 @@ interestForm?.addEventListener('submit', async event => {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Unable to save your email. Please try again.');
     interestForm.reset();
-    message.textContent = 'You are on the list. We will email you when preorder details are ready.';
+    message.textContent = 'You are on the list. We will email you about eGauge development and new vehicle profiles.';
   } catch (error) {
     message.classList.add('error');
     message.textContent = error.message || 'Unable to save your email. Please try again.';

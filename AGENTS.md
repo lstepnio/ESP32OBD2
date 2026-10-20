@@ -37,7 +37,7 @@ contracts/status and dated evidence. `data/vehicle-definitions/` is research onl
 - Follow [documentation ownership](docs/documentation.md). Keep one topic authority;
   update code/contracts together. Major choices belong in [ADRs](docs/decisions/README.md).
 - Feature completion includes a website-impact review. Follow [website maintenance](website/README.md#maintenance-cadence)
-  for daily publication, owner-led roadmap updates and current App/circular-gauge screens;
+  for resource-aware daily publication, owner-led roadmap updates and current App/circular-gauge screens;
   keep marketing capture/publication off the normal build path.
 - Do not use an em dash in user-facing responses.
 

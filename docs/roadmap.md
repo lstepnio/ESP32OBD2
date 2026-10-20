@@ -19,6 +19,18 @@ Dependencies and precise acceptance criteria belong to the backlog. There are no
 implied dates or automatic release authorizations. Unavailable hardware blocks its
 qualification task, not useful independent offline work.
 
+## Distribution and custom work
+
+The current direction is free development software on inexpensive, customer-sourced
+hardware, with custom software, interfaces and integrations as the primary service.
+There is no committed standard-gauge retail launch, preorder/deposit program or
+paid roadmap tier. A finished build or custom hardware can be discussed by request
+and scoped separately. Customer ideas can influence priorities without payment.
+
+The website presents this direction alongside evidenced product progress. Its
+[maintenance policy](../website/README.md#maintenance-cadence) owns the daily,
+resource-aware publication and screenshot process; it does not block product work.
+
 ## Vehicle profile expansion
 
 Finish the Hemi-swapped Jeep's current qualification work first. The owner reports

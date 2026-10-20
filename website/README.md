@@ -19,6 +19,10 @@ change, including accepted owner feedback, priority changes and usability improv
   before publishing; `content.json.reviewedOn` is a content-review date, not proof
   of publication time. If already published that day, hold further changes for the
   next eligible day. Rollback of a failed publication remains available.
+- The daily batch is best-effort while an agent is actively working, not a promise
+  of unattended publication. Proceed only with ample token/context and execution
+  headroom after essential product work. Otherwise leave a concise pending delta
+  in the PR/backlog and defer; never skip evidence or visual checks to force a date.
 - At the next eligible refresh, review accepted changes since the live manifest's
   source commit and reconcile `docs/current-state.md`, `docs/roadmap.md` and
   `docs/backlog.md`. Reflect the owner's direction and discovered improvements;
@@ -98,7 +102,7 @@ redirects for Caddy HTTPS proxying. Applying a configuration change requires
 `docker exec egauge nginx -t` then `docker exec egauge nginx -s reload` by an
 authorized Docker administrator; static publications need neither command.
 
-Preserve Caddy configuration, Compose, contact service/data, consent wording,
+Preserve Caddy configuration, Compose, contact service/data, consent boundaries for existing signup records,
 no-index policy and unrelated files. Contact endpoints remain same-origin
 `/api/interest` and `/api/custom`. Never commit server backups or raw diagnostics.
 
@@ -106,3 +110,12 @@ If verification fails, restore the backed-up root files atomically after checkin
 that nobody has published newer content. Old assets can remain. Record the deployed
 commit and private backup location in the task outcome; do not duplicate project
 status here.
+
+## Public offer
+
+The owner’s distribution direction is [free DIY software and custom projects](../docs/roadmap.md#distribution-and-custom-work).
+Use project-update signup language, not preorders, deposits, reservations or paid
+roadmap access. A finished unit can be discussed on request; do not imply a retail
+launch commitment. Consent text and success messages must match the visible form.
+New copy does not authorize repurposing existing signup records or changing their
+recorded preferences. Preserve the existing API and data during copy-only changes.
