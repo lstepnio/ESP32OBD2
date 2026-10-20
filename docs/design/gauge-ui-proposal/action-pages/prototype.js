@@ -10,10 +10,25 @@
     image.src = key + '.png';
     image.alt = window.gaugeMockScreens.find(s => s.id === key).title;
     status.textContent = branch ? `Actions · page ${index + 1} of 3 · ${image.alt}. Swipe down returns to readings.` : `Reading page · ${progress} of 3 upward swipes. ${operation ? 'Air up state retained: ' + operation + '.' : ''}`;
-    document.getElementById('proto-advance').disabled = !['starting', 'stopping', 'hot'].includes(operation);
+    const control = id => document.getElementById('proto-' + id);
+    control('up').textContent = `Swipe up (${progress}/3)`;
+    control('up').disabled = branch;
+    control('prev').disabled = control('next').disabled = !branch || confirming;
+    control('down').disabled = !branch && progress === 0;
+    control('open').disabled = branch;
+    control('tap').disabled = !branch || (!operation && index !== 0) || (index === 0 && ['stopping', 'hot', 'unknown'].includes(operation));
+    control('tap').textContent = !branch ? 'Start Air up' : operation && index !== 0 ? 'Return to Air up' : index !== 0 ? 'See examples below' : confirming ? 'Confirm Start' : ({starting:'Stop',active:'Stop',stopping:'Stopping…',hot:'Returning…',stopped:'Done',unknown:'Outcome unknown'}[operation] || 'Start Air up');
+    control('advance').disabled = !['starting', 'stopping', 'hot'].includes(operation);
+    control('advance').textContent = operation === 'starting' ? 'Show started response' : ['stopping', 'hot'].includes(operation) ? 'Show stopped response' : 'Show response';
+    control('heat').disabled = !['active', 'starting'].includes(operation);
+    control('loss').disabled = !['active', 'starting', 'stopping', 'hot'].includes(operation);
+    if (!branch) status.textContent += ' Use Open actions, or make three upward swipes within five seconds.';
+    else if (!operation && index !== 0) status.textContent += ' This action is illustrated in the gallery; the interactive walkthrough uses Air up.';
+    else if (operation === 'starting' || operation === 'stopping' || operation === 'hot') status.textContent += ' Use Show response to simulate the vehicle reply.';
   }
   function event(kind) {
-    if (kind === 'reset') {branch = false; index = 0; progress = 0; operation = null; confirming = false;}
+    if (kind === 'reset') {branch = false; index = 0; progress = 0; operation = null; confirming = false; lastUp = 0;}
+    else if (kind === 'open') {branch = true; index = 0; progress = 0; confirming = false;}
     else if (kind === 'up' && !branch) {if (performance.now() - lastUp > 5000) progress = 0; lastUp = performance.now(); if (++progress === 3) {branch = true; progress = 0;}}
     else if (kind === 'down') {if (confirming) confirming = false; else {branch = false; progress = 0;}}
     else if ((kind === 'next' || kind === 'prev') && branch && !confirming) index = (index + (kind === 'next' ? 1 : 2)) % 3;
@@ -34,10 +49,10 @@
     else if (kind === 'loss' && ['active', 'starting', 'stopping', 'hot'].includes(operation)) {operation = 'unknown'; confirming = false;}
     render();
   }
-  for (const [id, kind] of Object.entries({up:'up',prev:'prev',next:'next',down:'down',tap:'tap',advance:'advance',heat:'heat',loss:'loss',reset:'reset'})) document.getElementById('proto-' + id).onclick = () => event(kind);
+  for (const [id, kind] of Object.entries({open:'open',up:'up',prev:'prev',next:'next',down:'down',tap:'tap',advance:'advance',heat:'heat',loss:'loss',reset:'reset'})) document.getElementById('proto-' + id).onclick = () => event(kind);
   image.tabIndex = 0;
-  image.setAttribute('aria-label', 'Interactive gauge. Arrow up enters, left and right browse, down returns, Enter activates.');
-  image.onkeydown = e => {if (e.repeat) return; const k = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'next',ArrowRight:'prev',Enter:'tap',Escape:'down'}[e.key]; if (k) {e.preventDefault(); event(k);}};
+  image.setAttribute('aria-label', 'Interactive gauge. Three upward strokes enter actions. Left and right browse, down returns, Enter activates.');
+  image.onkeydown = e => {if (e.repeat) return; const k = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'prev',ArrowRight:'next',Enter:'tap',Escape:'down'}[e.key]; if (k) {e.preventDefault(); event(k);}};
   let start = null;
   image.style.touchAction = 'none';
   image.onpointerdown = e => {start = [e.clientX, e.clientY]; image.setPointerCapture(e.pointerId);};
