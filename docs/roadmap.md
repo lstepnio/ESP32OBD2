@@ -26,6 +26,9 @@ hardware, with custom software, interfaces and integrations as the primary servi
 There is no committed standard-gauge retail launch, preorder/deposit program or
 paid roadmap tier. A finished build or custom hardware can be discussed by request
 and scoped separately. Customer ideas can influence priorities without payment.
+Custom work can extend beyond vehicles to desktop software/displays, control panels
+and standalone connected devices. These are project possibilities, not claims of
+implemented eGauge support.
 
 The DIY offer is a hands-on development project using capable, low-cost hardware
 bought independently. Once configured for a working use case, core gauge readings,
