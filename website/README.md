@@ -25,6 +25,8 @@ change, including accepted owner feedback, priority changes and usability improv
   separate available, in-development and exploratory work. Do not invent delivery
   dates, compatibility or hardware qualification. Update the content review date
   only after this review.
+  Recheck vendor pricing/specifications when quoting them; identify board-only
+  prices and separate adapters, shipping and taxes from the advertised board cost.
 - Review App and gauge screenshots in that same batch. Refresh affected screens
   whenever visible UI changes make an image obsolete; include representative new
   features and retire superseded images. Reuse existing Compose/production LVGL
