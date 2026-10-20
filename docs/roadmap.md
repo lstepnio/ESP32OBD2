@@ -19,6 +19,21 @@ Dependencies and precise acceptance criteria belong to the backlog. There are no
 implied dates or automatic release authorizations. Unavailable hardware blocks its
 qualification task, not useful independent offline work.
 
+## Vehicle profile expansion
+
+Finish the Hemi-swapped Jeep's current qualification work first. The owner reports
+direct access to a Volvo C30, Lexus GX470, Toyota FJ Cruiser, newer Subaru Crosstrek
+and Porsche 718 S. These are likely subsequent profile candidates, not tested or
+supported vehicles; exact years, variants, controllers and adapters remain to be
+recorded before vehicle-specific work. Customer interest may change the order.
+
+QUAL-10 owns capture and compatibility acceptance. Unique customer setups can use
+agreed capture software and suitable hardware for guided remote data collection,
+with scope and equipment arranged per project. Use the existing capture/replay
+approach, but scope the procedure to the actual vehicle rather than assuming the
+Wrangler's diagnostic endpoints or meanings apply. Access to a vehicle or receipt
+of a capture is not profile qualification or remote-control support.
+
 ## Baseline carried into this sequence
 
 The Android UI cleanup, shared alerts/CEL filters, revised gauge compositor and
