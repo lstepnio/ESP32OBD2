@@ -6,6 +6,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 class TemporaryIdleTest {
     private val presets = listOf(IdlePreset(IdlePresetId.AirUp, 1200), IdlePreset(IdlePresetId.Winch, 1300, 60))
@@ -39,7 +40,9 @@ class TemporaryIdleTest {
         assertTrue(sameSettings(original, withPresets))
     }
 
-    @Test fun dualAdapterDashboardKeepsEnginePresetsOnTheParent() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun dualAdapterDashboardKeepsEnginePresetsOnTheParent() {
         val child = TransmissionConnection(AdapterBinding("tcm", "AA:BB:CC:DD:EE:02", "public"), TransmissionSetup.draft())
         val vehicle = VehicleProfile("jeep", "Jeep", Draft(), AdapterBinding("ecm", "AA:BB:CC:DD:EE:01", "public"), child)
         val updated = vehicle.withDashboard(vehicle.dashboardDraft().copy(idlePresets = presets))

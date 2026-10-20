@@ -1,6 +1,6 @@
 # Current implementation and evidence
 
-Updated 2026-10-19. This owns implemented/installed facts and their evidence limits.
+Updated 2026-10-20. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
 Latest device update installs the merged Car fault experience on the Pixel; no new
 firmware installation, physical gauge display/touch or live-vehicle observation.
@@ -123,3 +123,13 @@ frames; the linked static internal-memory count remained 163,898 bytes and the
 64 KiB LVGL arena remained in PSRAM. Host tests, formatting/lint and the reference
 firmware build passed. No additional board firmware, live virtual telemetry,
 release promotion or device installation is established by these checks.
+
+## Android variant quality gates
+
+CODE-04 is completed in prepared source: the shared Android test command runs debug
+and release JVM suites. Development-only positive configuration fixtures are explicitly
+categorized; variant-specific release tests assert that projection gates remain closed,
+standard engine configurations work and saved development data is retained. No runtime
+flags or production App source changed. Exact counts and baseline failures belong in
+[dated maintenance evidence](evidence/repository-maintenance.md#2026-10-20-android-variant-gates).
+This is offline test coverage, not a new installed APK or physical observation.

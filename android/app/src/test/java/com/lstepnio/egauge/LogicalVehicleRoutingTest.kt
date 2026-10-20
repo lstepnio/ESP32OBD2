@@ -4,6 +4,7 @@ import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 class LogicalVehicleRoutingTest {
     private val adapter = AdapterBinding("primary", "AA:BB:CC:DD:EE:01", "public")
@@ -23,7 +24,9 @@ class LogicalVehicleRoutingTest {
         }
     }
 
-    @Test fun ordinaryVehicleUsesOneTransportForAllConfiguredReadings() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun ordinaryVehicleUsesOneTransportForAllConfiguredReadings() {
         val vehicle = VehicleProfile("jeep", "Jeep", Draft(pages = listOf(mixed)), adapter)
         val (review, root) = wire(vehicle, false)
         assertEquals(1, root.getJSONArray("sources").length())
@@ -59,7 +62,9 @@ class LogicalVehicleRoutingTest {
         )
     }
 
-    @Test fun enablingAChildChangesRoutingWithoutChangingTheDashboard() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun enablingAChildChangesRoutingWithoutChangingTheDashboard() {
         val vehicle =
             VehicleProfile(
                 "jeep",
@@ -97,7 +102,9 @@ class LogicalVehicleRoutingTest {
         )
     }
 
-    @Test fun legacyTcmOnlyVehicleCanAddEngineReadingsWithoutAnExpertSwitch() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun legacyTcmOnlyVehicleCanAddEngineReadingsWithoutAnExpertSwitch() {
         val original = VehicleProfile("old.jeep", "Jeep", TransmissionSetup.draft(), adapter)
         assertEquals("ECM", original.dashboardDraft().source)
         val added = original.withDashboard(
@@ -124,7 +131,9 @@ class LogicalVehicleRoutingTest {
         )
     }
 
-    @Test fun aMovedOrUnselectedChildUsesThePrimaryTransportUnlessExplicitlyEnabled() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun aMovedOrUnselectedChildUsesThePrimaryTransportUnlessExplicitlyEnabled() {
         for (binding in listOf(adapter, null)) {
             val vehicle =
                 VehicleProfile("jeep", "Jeep", Draft(), adapter, TransmissionConnection(binding))
@@ -133,7 +142,9 @@ class LogicalVehicleRoutingTest {
         }
     }
 
-    @Test fun removingTheSecondTransportRetainsAllPagesAlertsAndGestures() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun removingTheSecondTransportRetainsAllPagesAlertsAndGestures() {
         val vehicle = VehicleProfile(
             "jeep",
             "Jeep",

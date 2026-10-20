@@ -59,3 +59,20 @@ Fourteen superseded PRs (#29..35, #37, #39, #40, #42, #44, #46, #47) were closed
 ancestry checks. Thirteen corresponding fully merged remote branches were removed.
 The merged `codex/egauge-customize-workspace` base was retained for unique PR #41.
 No shared history was rewritten and the unrelated dirty primary checkout was untouched.
+
+## 2026-10-20 Android variant gates
+
+CODE-04 follow-up, offline only. The untouched source baseline ran 214 release JVM
+cases with 31 failures, all arising from development-only configuration projection
+or catalog selection. The changes classify 29 positive development fixtures, exercise
+only selectable readings in shared catalog projection tests, and add explicit debug/
+release feature contracts. Release tests cover blocked TCM pages, alerts, mixed and
+child routes; ordinary ECM projection; and retained but non-executable saved TCM data.
+Runtime source and BuildConfig feature flags are unchanged. No phone was accessed.
+
+The shared `tools/dev.py test --target android` now runs both variants and compiles
+instrumentation in one Gradle invocation. The final local gate passed 215 debug and 191 release JVM tests, with no failures,
+errors or skipped tests, and compiled the debug instrumentation source. Kotlin/Python
+format checks and host lint/tests passed. The earlier 201-case/29-failure comparison
+remains historical. Required CI now runs both JVM variants and preserves failure-only
+XML/HTML diagnostics for seven days; no owner device or sensitive trace is involved.

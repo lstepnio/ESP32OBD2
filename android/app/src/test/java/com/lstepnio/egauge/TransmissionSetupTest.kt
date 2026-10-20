@@ -4,9 +4,12 @@ import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 class TransmissionSetupTest {
-    @Test fun combinedSetupUsesTwoReadingsAndExistingSavedConfiguration() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun combinedSetupUsesTwoReadingsAndExistingSavedConfiguration() {
         val draft = TransmissionSetup.draft()
         assertEquals(listOf("tcmgear", "tcmtemp"), draft.pages.single().pidIds)
         assertEquals(GaugeLayout.Dual, draft.layout)

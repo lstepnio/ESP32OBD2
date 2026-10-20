@@ -6,6 +6,7 @@ import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 class DualAdapterConfigurationTest {
     private val engine = AdapterBinding("ecm.radio", "AA:BB:CC:DD:EE:01", "public")
@@ -14,7 +15,9 @@ class DualAdapterConfigurationTest {
         VehicleProfile("jeep", "Jeep", Draft(), engine, TransmissionConnection(child))
     private fun template() = File("src/main/assets/numeric_config_template.json").readText()
 
-    @Test fun combinedPayloadPreservesBothBindingsPagesAndEngineAlerts() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun combinedPayloadPreservesBothBindingsPagesAndEngineAlerts() {
         val (review, bytes) = ConfigurationProjector.projectCombined(template(), vehicle, 29)
         val root = JSONObject(bytes.toString(Charsets.UTF_8))
         assertEquals(2, root.getInt("schemaVersion"))
@@ -45,7 +48,9 @@ class DualAdapterConfigurationTest {
         )
     }
 
-    @Test fun childEditsChangeCombinedBytesWithoutChangingPrimaryDraft() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun childEditsChangeCombinedBytesWithoutChangingPrimaryDraft() {
         val original = ConfigurationProjector.projectCombined(template(), vehicle, 29).second
         val revised = vehicle.withDraft(
             vehicle.transmission!!.draft.copy(
@@ -82,7 +87,9 @@ class DualAdapterConfigurationTest {
         }
     }
 
-    @Test fun mixedControllerPageIsAccepted() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun mixedControllerPageIsAccepted() {
         val draft = vehicle.combinedDraft().copy(
             pages = listOf(
                 GaugePageDraft("mixed", "MIXED", GaugeLayout.Dual, listOf("rpm", "tcmtemp"))
@@ -108,7 +115,9 @@ class DualAdapterConfigurationTest {
         assertTrue(saved.assign("g1", "jeep", "TCM").gauges[0].bothAdapters)
     }
 
-    @Test fun sourceIndicesComeFromConfirmedDocumentOrder() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun sourceIndicesComeFromConfirmedDocumentOrder() {
         val bytes = ConfigurationProjector.projectCombined(template(), vehicle, 29).second
         val document = GaugeConfigTransferClient.ActiveDocument(
             30,
