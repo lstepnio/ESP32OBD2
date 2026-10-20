@@ -2,20 +2,20 @@
 
 Updated 2026-10-20. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-Latest source work adds shared native presentation profiles with unchanged reference output.
-Latest device update installs the merged Car fault experience on the Pixel; no new
-firmware installation, physical gauge display/touch or live-vehicle observation.
+Latest rollout merges approved action pages in PR #89 and installs the matching
+App plus signed dev.61 through App/Wi-Fi. [Indoor rollout evidence](evidence/action-pages-indoor.md)
+separates automated checks, owner display/touch confirmation and remaining Jeep gates.
 
 ## Installed baseline
 
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
-| Pixel | App `0.2.0-dev.51` built from merged `b8205f5`, decoded fault UX and shared 55-code lookup; local setup retained | [PR #63 Pixel rollout](evidence/product-optimization.md#pr-63-pixel-rollout) |
-| Gauge | Signed `0.2.0-dev.60` from `860dc3f`, catalog generation 41, 240 MHz, configuration revision 52 | [Signed OTA reset/process-loss matrix and full upload](evidence/esp32-memory-hardening.md#2026-10-18-dev60-signed-ota-interruption-qualification); exact healthy alternate image, cleared journal, preserved setup |
-| Physical display/touch | No-footer showcase, hold exit, normal pages and swipes confirmed on dev.59 | [Owner confirmation](evidence/product-optimization.md#dev59-signed-wi-fi-rollout); no new dev.60 display/touch observation |
+| Pixel | App `0.2.0-dev.51` built from `a6dd029` (merged in PR #90), approved action-page management; existing setup migrated to profile schema 17 / associations 2 | [Dev.61 indoor rollout](evidence/action-pages-indoor.md) |
+| Gauge | Signed `0.2.0-dev.61` from `a6dd029`, catalog generation 42, 240 MHz, configuration revision 55 | [Dev.61 App/Wi-Fi rollout](evidence/action-pages-indoor.md); exact healthy alternate image, cleared journal, preserved setup |
+| Physical display/touch | Normal page, clean text and working swipes confirmed by owner on dev.61 | [Owner observation](evidence/action-pages-indoor.md#physical-observation-and-limits); action-branch gesture/edge matrix remains separate |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
-| Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Four exact TCM CEL filters applied at revision 52; other running settings and phone profiles preserved. [Configuration check](evidence/shared-alerts-implementation.md#2026-10-19-tcm-cel-filter-configuration) |
+| Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Four exact TCM CEL filters retained at revision 55; per-gauge action pages replace the prior jump gesture. Other running settings and phone profiles preserved. [Configuration check](evidence/shared-alerts-implementation.md#2026-10-19-tcm-cel-filter-configuration) |
 
 Recheck Git/CI and source version files before work. A branch push is not a merge,
 release or installation. Public repository: `lstepnio/ESP32OBD2`.
@@ -35,7 +35,7 @@ release or installation. Public repository: `lstepnio/ESP32OBD2`.
 | Pages/catalog/alerts | Five renderers; one catalog with 53 Mode 01 and two existing JSS readings; any selectable reading can alert, including named gear conditions | Software vectors, editor fixtures and preserved installed dashboard | New decimals/rendering, hidden-page alerts, dwell/stale behavior on real vehicle |
 | Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
 | Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Full signed dev.60 App/Wi-Fi upload at 240 MHz; exact healthy alternate image, cleared journal and setup preserved; 10/50/90% and verified/preactivation serial-reset recovery, App process-loss recovery and subsequent maintenance passed | One owner preflight failure recovered through fresh reads; original cause, trial-boot rollback, rail-power loss and loaded live-adapter qualification remain |
-| Phone persistence | Schema 13 coupled profiles/assignments; serialized IO; cancellation-safe writes and typed pairing failures | 156 JVM tests, 18 emulator fixtures; initial Pixel migration retained data | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
+| Phone persistence | Schema 17 profiles / schema 2 assignments; serialized IO; cancellation-safe writes and typed pairing failures | 156 JVM tests, 18 emulator fixtures; initial Pixel migration retained data | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
 | Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Setup review](evidence/second-adapter-setup.md); [dev.53 live reads/resume, independent loss/recovery and phone off/on](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification); owner confirmed live ECM/TCM display and independent expiry/return | Startup absence, loaded maintenance, rates and sustained soak remain open |
 | Health measurements | Fixed worker records, queue drops, explicit internal/DMA/PSRAM lifecycle logs, allocation failure hook and sampled stack minima | [Bench and upload evidence](evidence/esp32-memory-hardening.md): zero recorded allocation failures/queue drops; 30 dev.59 close samples stable within 144 bytes after warm-up; dev.60 receiver internal minimum 93,975 bytes, largest block 31,744 bytes and OTA stack margin 1,340 bytes | Longer controlled loaded soak, missed transient/vendor-private failures and complete stack/progress-path coverage |
 
@@ -60,8 +60,8 @@ expiry or 60 seconds after first loss. Recovery never extends it, and another
 fallback session requires a fresh physical-gauge Start. See the
 [authoritative coolant policy](architecture/vehicle-actions.md#coolant-protection-for-raised-idle).
 The App displays the timer and retains Stop. The 24-byte request and 32-byte status
-sizes are unchanged; status adds idle-only reason/flags. No device installation
-or parked fallback/thermal-stop qualification is established by these offline changes.
+sizes are unchanged; status adds idle-only reason/flags. The matching App and firmware are installed; parked fallback/thermal-stop
+qualification is still outstanding.
 Public vehicle-command qualification/capability stays disabled.
 
 ## Prepared four-tire Air up estimate
@@ -70,15 +70,15 @@ The App supports a per-vehicle pressure/time calibration, starting/target PSI an
 an optional duration override for all four tires together. The resolved timer uses
 existing command/configuration fields; there is no pressure telemetry or firmware
 buffer/poller. [The timer policy](architecture/vehicle-actions.md#four-tire-air-up-timer)
-owns the calculation and limits. Installed App/firmware remain unchanged; actual
-compressor/tire calibration and enabled eGauge control are not established.
+owns the calculation and limits. The matching App and firmware are installed; actual compressor/tire calibration
+and enabled eGauge control are not established.
 
 ## Compatibility and public boundaries
 
-- Phone profiles: prepared schema 16 reads schemas 1..16 (installed Pixel remains schema 13). Older Apps reject new saved state;
+- Phone profiles: schema 17 reads schemas 1..17; installed Pixel migrated from 13. Gauge associations use schema 2. Older Apps reject new saved state;
   downgrades require an explicit compatible migration. Legacy association files remain
   read-only migration inputs. See [Android storage](architecture/android-runtime.md#storage-and-recovery).
-- Gauge configuration remains schema 2. Prepared development `cfg:6`, `va:1`, `da:1`, `ad:1`
+- Gauge configuration remains schema 2. Installed development `cfg:7`, `va:1`, `da:1`, `ad:1`
   and display settings `ds:3` negotiate implemented slices. Wire layouts belong in
   [protocol documents](README.md#protocols), not this status snapshot.
 - Public `configWrite:false`, `ota:false` and qualified link capacity one remain.
@@ -163,13 +163,12 @@ flags or production App source changed. Exact counts and baseline failures belon
 [dated maintenance evidence](evidence/repository-maintenance.md#2026-10-20-android-variant-gates).
 This is offline test coverage, not a new installed APK or physical observation.
 
-## Prepared action-page branch
+## Approved action pages
 
-The approved review 2 action pages are implemented offline on
-`codex/action-pages-implementation`. Gauge-tab configuration stores per-gauge typed
+The approved review 2 action pages are merged through PR #89 and installed in dev.61. Gauge-tab configuration stores per-gauge typed
 page order and timers; firmware uses one reusable face with deliberate Start,
 direct Stop, attention return and bounded coolant fallback. Existing live command
-qualification masks remain zero. No new APK/firmware is installed by this work.
+qualification masks remain zero. The App/Wi-Fi installation preserved the dashboard; the owner then requested replacing the jump binding with ordered action pages at revision 55.
 
 Offline verification: 235 debug and 210 release JVM tests; 15 focused managed-emulator
 UI tests; Android lint/debug APK; 118 host Python and 11 review-server tests plus
@@ -180,8 +179,8 @@ rejection, confirmation drift, critical return, idle timeout, unresolved-operati
 retention, and a stable widget count across 30 entries. These are not physical
 memory/latency/gesture or vehicle qualification.
 
-Next: install a separately authorized signed candidate for indoor touch, edge,
-orientation and cycling checks; use the parked Jeep for the primary identity,
+Next: complete the action-branch physical touch, edge, orientation and cycling
+matrix; use the parked Jeep for the primary identity,
 Park/stationary/engine proofs, actual command/Stop/restoration, coolant/fallback
 latency and independent child continuity. Keep the masks disabled until those proofs
 are implemented and verified.
