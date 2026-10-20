@@ -2,7 +2,8 @@
 
 Read [current state](docs/current-state.md), then the affected row in the
 [source map](docs/ai-context.md) and [backlog](docs/backlog.md). Historical reports
-are evidence, not operating instructions. Android and firmware are active; iOS is deferred.
+are evidence, not operating instructions. Android and firmware are active; basic iOS and browser-USB configuration are planned
+in the roadmap, with implementation/qualification tracked in the backlog.
 
 ## Commands and layout
 

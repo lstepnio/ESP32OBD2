@@ -37,7 +37,15 @@ publication alone.
 
 ## Product boundaries
 
-Android and the autonomous gauge are active; iOS is deferred. Everyday vehicles use
+Android and the autonomous gauge are the implemented platform. A basic iOS
+companion and browser-over-USB core configuration are planned under PLATFORM-01
+and PLATFORM-02. iOS targets essential setup/use, not Android feature parity;
+some phone integrations will remain Android-only, and police/road-alert availability
+may differ by platform/provider. USB configuration targets a supported desktop
+browser so core gauge setup does not require a smartphone App. The existing
+browser recovery tool installs firmware; it does not yet configure running gauge
+settings. This scope update does not claim an iOS build, USB configuration path,
+release date or live alert provider. Everyday vehicles use
 one primary adapter for their available engine and transmission data. A swap's
 optional second adapter changes routing within the same vehicle, never its editor,
 page list or alert choices. Multiple vehicles and gauges retain independent context.
