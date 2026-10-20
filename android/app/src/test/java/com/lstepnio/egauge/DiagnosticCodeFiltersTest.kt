@@ -3,6 +3,7 @@ package com.lstepnio.egauge
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 class DiagnosticCodeFiltersTest {
     private val rule = DiagnosticCodeFilters.rule("ECM", "p0420")
@@ -154,7 +155,9 @@ class DiagnosticCodeFiltersTest {
         assertEquals(4, raw.reportedCount)
     }
 
-    @Test fun childPoliciesJoinOneVehicleAndCanBeRemovedWithoutChangingRouting() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun childPoliciesJoinOneVehicleAndCanBeRemovedWithoutChangingRouting() {
         val childRule = rule.copy(controller = "TCM")
         val parent =
             VehicleProfile(

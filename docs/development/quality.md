@@ -12,8 +12,14 @@ discover every `test_*.py` suite under tools and the review server, plus native 
 sanitizers. Firmware tests use production LVGL/fonts and config binding. Android
 checks include JVM tests, instrumentation compilation, lint and an isolated UI lane.
 Quality jobs have read-only repository access and bounded execution times.
-The shared JVM gate is `testDebugUnitTest`. Release-variant fixture isolation is
-tracked as CODE-04; release build/lint do not establish that separate test coverage.
+The shared JVM gate runs both `testDebugUnitTest` and `testReleaseUnitTest` in one
+Gradle invocation. Positive configuration fixtures that require development-only
+projection are tagged `DevelopmentConfiguration`; release excludes that category.
+Shared storage/parser/standard-reading tests still run in both variants. Variant
+contract tests live in `src/testDebug` and `src/testRelease`: release explicitly
+checks blocked TCM pages/alerts/routes, preserved saved data and working ECM projection.
+New development-only fixtures need a corresponding release gate assertion; never
+loosen a runtime flag or add blanket ignores to make the suite pass.
 
 Pinned formatters cover authored Python, C (including authored `.inc` vector paths) and Kotlin. Generated catalogs, tokens,
 fixtures and fonts are checked by their generators, not hand formatted. C include

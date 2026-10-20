@@ -4,12 +4,15 @@ import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 class AdapterIntegrationTest {
     private val adapter = AdapterBinding("adapter-aabbccddeeff", "AA:BB:CC:DD:EE:FF", "random")
     private fun template() = File("src/main/assets/numeric_config_template.json").readText()
 
-    @Test fun experimentalTcmProfileProjectsTheCapturedRouteAndKeepsEngineSetupSeparate() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun experimentalTcmProfileProjectsTheCapturedRouteAndKeepsEngineSetupSeparate() {
         val draft =
             Draft(
                 pidId = "tcmtemp",

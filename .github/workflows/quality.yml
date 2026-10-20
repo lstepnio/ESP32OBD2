@@ -75,6 +75,17 @@ jobs:
           python3 tools/dev.py test --target android
           python3 tools/dev.py lint --target android
 
+      - name: Preserve JVM failure diagnostics
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: android-jvm-results
+          path: |
+            android/app/build/test-results/test*UnitTest/
+            android/app/build/reports/tests/test*UnitTest/
+          retention-days: 7
+          if-no-files-found: ignore
+
   android-ui:
     runs-on: ubuntu-24.04
     timeout-minutes: 25

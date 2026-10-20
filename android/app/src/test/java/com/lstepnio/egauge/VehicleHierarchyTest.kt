@@ -4,6 +4,7 @@ import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 class VehicleHierarchyTest {
     private val ecm = AdapterBinding("engine.adapter", "AA:BB:CC:DD:EE:01", "public")
@@ -133,7 +134,9 @@ class VehicleHierarchyTest {
         }
     }
 
-    @Test fun singleSourceWireProjectionUsesChildBindingAndSameVehicleIdentity() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun singleSourceWireProjectionUsesChildBindingAndSameVehicleIdentity() {
         val template = File("src/main/assets/numeric_config_template.json").readText()
         val parent =
             JSONObject(

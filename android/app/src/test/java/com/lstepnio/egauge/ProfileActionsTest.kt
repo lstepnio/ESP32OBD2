@@ -7,6 +7,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 class ProfileActionsTest {
     private val initial = Draft()
@@ -85,7 +86,9 @@ class ProfileActionsTest {
         }
     }
 
-    @Test fun dualChildActionTargetsArePrefixedAndConflictingBindingsFail() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun dualChildActionTargetsArePrefixedAndConflictingBindingsFail() {
         val engine = AdapterBinding("ecm", "AA:BB:CC:DD:EE:01", "public")
         val child = AdapterBinding("tcm", "AA:BB:CC:DD:EE:02", "public")
         val tcm = TransmissionSetup.draft()

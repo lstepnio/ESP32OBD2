@@ -1,6 +1,6 @@
 # Prioritized backlog
 
-Updated 2026-10-19. This is the only current task/status list. Outcome order belongs
+Updated 2026-10-20. This is the only current task/status list. Outcome order belongs
 in [roadmap](roadmap.md); supported/installed behavior belongs in [current state](current-state.md).
 Evidence files retain historical pending notes and do not create additional tasks.
 
@@ -42,7 +42,6 @@ are in current state and evidence, with remaining qualification listed separatel
 | PLATFORM-03 | P1 | In progress | Shared hardware platform and private release candidates | [ADR-016](architecture/platforms-and-releases.md): distribution guard/private integration skeleton and reference board/surface interfaces implemented; reference render parity and sanitizer geometry/delegation checks passed. Shared native geometry/font provider prepared with reference frame parity; private native-size profiles are offline-only. Private dependency profiles/board bring-up, exact-target signed metadata, private RC delivery and virtual-display telemetry remain staged work. Original board remains public; no new hardware qualification or runtime behavior change. |
 | CODE-01 | P2 | Ready | Continue typed failure migration | Replace remaining control-flow message matching at specific transport boundaries; preserve cancellation, protocol copy compatibility and verified outcomes; no broad rewrite |
 | CODE-02 | P2 | Ready | Extract the next concrete coordinator owner | AppModel/transport extraction only with a feature or measured maintenance benefit; keep one lifecycle/operation lease, coupled saves and scoped state; independently test failure boundaries |
-| CODE-04 | P2 | Ready | Isolate debug-only JVM fixtures from release assertions | Existing shared fixtures assume development features; partition variant-specific expectations without changing feature gates. Keep the required debug suite; [baseline comparison](evidence/repository-maintenance.md) records unchanged release-variant failures |
 | QUAL-09 | P2 | Needs device | Accessibility and adaptive/OEM matrix | TalkBack, keyboard/switch, 200% text, RTL, fold/hinge and alternate Android generation; fixture success is not user/device qualification |
 | QUAL-10 | P2 | Needs device | Adapter/vehicle expansion | One alternate BLE/GATT profile and another vehicle with captured identity, header/parser vectors and field loss/recovery evidence. [Owner-accessible candidates and customer-led priorities](roadmap.md#vehicle-profile-expansion) follow Jeep qualification; scope guided remote captures per setup. [Capture runbook](development/vehicle-capture-runbook.md) |
 | RELEASE-01 | P2 | Ready | Production trust and Play readiness | Review signing/provisioning, release threat model and compatibility; follow [release runbook](development/firmware-release-runbook.md); owner handles consequential Play actions; no production claim from prereleases |

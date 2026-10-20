@@ -255,7 +255,11 @@ def firmware(action):
 def android(action):
     tasks = {
         "build": [":app:assembleDebug"],
-        "test": [":app:testDebugUnitTest", ":app:compileDebugAndroidTestKotlin"],
+        "test": [
+            ":app:testDebugUnitTest",
+            ":app:testReleaseUnitTest",
+            ":app:compileDebugAndroidTestKotlin",
+        ],
         "lint": [":app:lintDebug"],
     }
     run([ROOT / "android/gradlew", *tasks[action], "--no-daemon"], cwd=ROOT / "android")
