@@ -15,7 +15,7 @@ import com.lstepnio.egauge.ui.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun IdleActionsSheet(vehicleId: String, saved: List<IdlePreset>, editable: Boolean, onSave: (List<IdlePreset>) -> Unit, onDismiss: () -> Unit, control: IdleControlState = IdleControlState(), onStart: ((IdlePreset) -> Unit)? = null, onStop: (() -> Unit)? = null) {
+fun IdleActionsSheet(vehicleId: String, saved: List<IdlePreset>, editable: Boolean, onSave: (List<IdlePreset>) -> Unit, onDismiss: () -> Unit, control: IdleControlState = IdleControlState(), onStart: ((IdlePreset) -> Unit)? = null, onStop: (() -> Unit)? = null, coolantLimitC: Double? = null, system: MeasurementSystem = MeasurementSystem.Metric) {
     var selected by remember(vehicleId) { mutableStateOf(IdlePresetId.AirUp) }
     var values by remember(vehicleId, saved) { mutableStateOf(saved) }
     val value = values.firstOrNull { it.id == selected } ?: IdlePreset(selected)
@@ -30,6 +30,7 @@ fun IdleActionsSheet(vehicleId: String, saved: List<IdlePreset>, editable: Boole
             SectionTitle("Air up & winch")
             Text("Temporarily raise idle while using your equipment.")
             Text(control.message)
+            IdleCoolantNotice(coolantLimitC, system)
             if (control.canStop) PrimaryAction("Stop raised idle", { onStop?.invoke() }, enabled = onStop != null)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IdlePresetId.entries.forEach { id ->
@@ -49,7 +50,7 @@ fun IdleActionsSheet(vehicleId: String, saved: List<IdlePreset>, editable: Boole
                 onSave(next)
                 onDismiss()
             }, enabled = editable && valid && !control.configurationLocked)
-            PrimaryAction("Start ${selected.label}", { onStart?.invoke(value.copy(rpm = rpm)) }, enabled = onStart != null && control.canStart && valid && rpm != null && editable)
+            PrimaryAction("Start ${selected.label}", { onStart?.invoke(value.copy(rpm = rpm)) }, enabled = onStart != null && control.canStart && valid && rpm != null && editable && coolantLimitC != null)
             if (saved.any { it.id == selected }) {
                 TextButton({
                     onSave(saved.filterNot { it.id == selected })

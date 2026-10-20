@@ -260,6 +260,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val observedAt = vehicleCommandsObservedAt ?: error("Waiting for current command status")
         require(android.os.SystemClock.elapsedRealtime() - observedAt in 0..30_000 && connection.fresh(android.os.SystemClock.elapsedRealtime()))
         require(if (stop) previous.canStop else previous.canStart)
+        if (kind == VehicleCommandKind.Idle && !stop) {
+            require(GaugeDraftComparison.savedDraft(config, vehicle)?.let { idleCoolantLimitC(it.alerts) } != null) { "Send a high-temperature Coolant alert to the gauge before starting raised idle" }
+        }
         val client = GaugeConfigTransferClient(getApplication())
         vehicleCommands = vehicleCommands + (kind to previous.copy(phase = VehicleCommandPhase.Unknown))
         commandPoll.reset()

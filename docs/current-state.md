@@ -49,6 +49,16 @@ context were observed. Live vehicle filtering and real notification appearance
 remain unqualified. Lookup extension rules and reference provenance are in the
 [shared alert contract](architecture/alerts-and-diagnostics.md#offline-code-explanations).
 
+## Raised-idle coolant guard
+
+The shared command path now uses the running primary-ECM high Coolant alert as a
+stop limit. Missing protection blocks Start; reaching the limit or losing fresh
+coolant data latches Return control, without auto-restart. The App warns during
+shortcut/preset setup and distinguishes a local limit from one confirmed on the
+gauge. No new configuration or wire fields are introduced. Offline tests/builds
+are recorded in the PR; parked thermal-stop latency and loaded memory qualification
+remain required. Public vehicle-command qualification/capability stays disabled.
+
 ## Compatibility and public boundaries
 
 - Phone profiles: prepared schema 15 reads schemas 1..15 (installed Pixel remains schema 13). Older Apps reject new saved state;

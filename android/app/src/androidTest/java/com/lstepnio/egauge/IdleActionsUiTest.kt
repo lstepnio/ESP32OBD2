@@ -38,7 +38,7 @@ class IdleActionsUiTest {
 
     @Test fun verifiedFixtureStartsOnlyTheChosenPreset() {
         var selected: IdlePreset? = null
-        compose.setContent { EGaugeTheme { IdleActionsSheet("fixture", listOf(IdlePreset(IdlePresetId.AirUp, 1200)), true, {}, {}, IdleControlState(IdlePhase.Ready), { selected = it }) } }
+        compose.setContent { EGaugeTheme { IdleActionsSheet("fixture", listOf(IdlePreset(IdlePresetId.AirUp, 1200)), true, {}, {}, IdleControlState(IdlePhase.Ready), { selected = it }, coolantLimitC = 105.0) } }
         compose.onNodeWithText("Start Air up").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(IdlePreset(IdlePresetId.AirUp, 1200), selected) }
     }

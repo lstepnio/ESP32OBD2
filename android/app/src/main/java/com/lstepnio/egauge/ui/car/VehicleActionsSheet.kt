@@ -1,6 +1,8 @@
 package com.lstepnio.egauge.ui.car
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -24,10 +26,10 @@ fun VehicleActionsSheet(
     val idle = state.vehicleCommands[VehicleCommandKind.Idle] ?: VehicleCommandStatus(VehicleCommandKind.Idle)
     val abs = state.vehicleCommands[VehicleCommandKind.AbsTcs] ?: VehicleCommandStatus(VehicleCommandKind.AbsTcs)
     if (presetsOpen) {
-        IdleActionsSheet(state.activeId, state.idlePresets, state.canEditActions && !idle.busy, onSave, { presetsOpen = false })
+        IdleActionsSheet(state.activeId, state.idlePresets, state.canEditActions && !idle.busy, onSave, { presetsOpen = false }, coolantLimitC = state.idleCoolantLimitC, system = state.measurementSystem)
     } else {
         ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-            Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SectionTitle("Vehicle actions")
                 Text("Air up & winch", style = MaterialTheme.typography.titleMedium)
                 Text(idle.message)
@@ -37,9 +39,16 @@ fun VehicleActionsSheet(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         IdlePresetId.entries.forEach { id ->
                             val preset = state.idlePresets.firstOrNull { it.id == id } ?: IdlePreset(id)
-                            OutlinedButton({ confirm = VehicleCommandKind.Idle to preset }, enabled = state.commandsFresh && idle.canStart && preset.rpm == null) { Text(id.label) }
+                            OutlinedButton({ confirm = VehicleCommandKind.Idle to preset }, enabled = state.commandsFresh && idle.canStart && state.runningIdleCoolantLimitC != null && preset.rpm == null) { Text(id.label) }
                         }
                     }
+                }
+                if (state.runningIdleCoolantLimitC != null) {
+                    IdleCoolantNotice(state.runningIdleCoolantLimitC, state.measurementSystem)
+                } else if (state.idleCoolantLimitC != null) {
+                    Text("Send the coolant alert to the gauge before starting raised idle.")
+                } else {
+                    IdleCoolantNotice(null, state.measurementSystem)
                 }
                 TextButton({ presetsOpen = true }, enabled = state.canEditActions && !idle.busy) { Text("Edit idle presets") }
                 if (idle.qualified) Text("Uses this car's fixed raised-idle setting, approximately 1,700 RPM.", style = MaterialTheme.typography.bodySmall)
@@ -66,7 +75,7 @@ fun VehicleActionsSheet(
                 TextButton({
                     confirm = null
                     onCommand(kind, false, preset)
-                }, enabled = state.commandsFresh && (if (kind == VehicleCommandKind.Idle) idle.canStart else abs.canStart)) { Text("Confirm") }
+                }, enabled = state.commandsFresh && (if (kind == VehicleCommandKind.Idle) idle.canStart && state.runningIdleCoolantLimitC != null else abs.canStart)) { Text("Confirm") }
             },
             dismissButton = { TextButton({ confirm = null }) { Text("Cancel") } }
         )

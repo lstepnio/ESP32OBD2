@@ -512,6 +512,7 @@ private fun SendReview(state: CustomizeUiState, onBack: () -> Unit, actions: Cus
         !state.busy && (!state.found || state.needsCheck || state.canSend)
     ) {
         state.reviewNotice?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        if (state.idleCoolantWarning) com.lstepnio.egauge.ui.car.IdleCoolantNotice(null, state.measurementSystem)
         SectionTitle("${pages.size} pages")
         Panel {
             pages.forEachIndexed { index, page ->

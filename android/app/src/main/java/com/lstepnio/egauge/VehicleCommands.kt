@@ -5,6 +5,8 @@ import java.nio.ByteOrder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
+private const val VEHICLE_COMMAND_GUARD = 5
+
 enum class VehicleCommandKind(val wire: Int, val title: String) {
     Idle(1, "Raised idle"),
     AbsTcs(2, "ABS & traction control")
@@ -39,7 +41,13 @@ data class VehicleCommandStatus(
     val busy get() = phase in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Active, VehicleCommandPhase.Stopping, VehicleCommandPhase.Verifying, VehicleCommandPhase.Unknown, VehicleCommandPhase.RestartRequired)
     val canStart get() = qualified && phase in setOf(VehicleCommandPhase.Ready, VehicleCommandPhase.Restored, VehicleCommandPhase.Rejected)
     val canStop get() = qualified && phase in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Active)
-    val message get() = when (phase) {
+    val message get() = when {
+        kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_GUARD && phase == VehicleCommandPhase.Rejected -> "Idle cannot start. Check coolant and vehicle conditions."
+        kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_GUARD && phase == VehicleCommandPhase.Stopping -> "Stopping raised idle. Check coolant and vehicle conditions."
+        kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_GUARD && phase == VehicleCommandPhase.Verifying -> "Checking normal idle after a condition changed."
+        else -> phaseMessage
+    }
+    private val phaseMessage get() = when (phase) {
         VehicleCommandPhase.Unavailable -> "Not available for this car yet"
         VehicleCommandPhase.Ready -> "Ready"
         VehicleCommandPhase.Starting -> if (kind == VehicleCommandKind.Idle) "Raising idle" else "Switching ABS and traction control off"

@@ -95,6 +95,7 @@ fun PageActionsSheet(state: CarUiState, onDismiss: () -> Unit, onSave: (PageActi
                     }, enabled = state.canEditActions && seconds < 10) { Text("More time") }
                 }
             }
+            if (menu) IdleCoolantNotice(state.idleCoolantLimitC, state.measurementSystem)
             if (!state.actionsSupported || (menu && !state.commandsSupported)) {
                 Text(
                     "You can save this choice now. Update the gauge before sending it.",

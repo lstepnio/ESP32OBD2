@@ -434,6 +434,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             },
             editingIssue = pageEditError,
             reviewAlerts = transmittedDraft.alerts.map { alertUi(it, system) },
+            idleCoolantWarning = transmittedDraft.actions.any { it.type == PageActionType.VehicleActions } && idleCoolantLimitC(transmittedDraft.alerts) == null,
             reviewNotice = if (transmittedDraft.diagnosticFilters.isNotEmpty() ||
                 transmittedDraft.diagnosticFilters != effectiveDiagnosticFilters()
             ) {
@@ -624,6 +625,7 @@ private fun AppViewModel.carState(
     details: List<DetailUi>,
     showFiltered: Boolean = false
 ): CarUiState {
+    val system = displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem
     val data = diagnostics?.takeIf {
         it.source == draft.source &&
             (
@@ -754,6 +756,9 @@ private fun AppViewModel.carState(
                         capabilities?.vehicleDashboardVersion == 1
                     ),
         actionPages = editorDraft.pages, actions = editorDraft.actions, idlePresets = editorDraft.idlePresets,
+        idleCoolantLimitC = idleCoolantLimitC(editorDraft.alerts),
+        runningIdleCoolantLimitC = activeDocument?.takeIf { it.vehicleProfileId == profileCollection.activeId && isConfirmedSetup(it.revision, it.sha256, runtimeIdentity) }?.let { GaugeDraftComparison.savedDraft(it, profileCollection.activeId) }?.let { idleCoolantLimitC(it.alerts) },
+        measurementSystem = system,
         vehicleCommands = vehicleCommands, commandsSupported = capabilities?.vehicleCommandsVersion == 1,
         commandsFresh = !busy && connection.fresh(now) && vehicleCommandsObservedAt?.let { now - it in 0..30_000 } == true,
         canEditActions =

@@ -89,7 +89,8 @@ data class CustomizeUiState(
     val actionSummary: String? = null,
     val editingIssue: String? = null,
     val reviewAlerts: List<AlertUi>? = null,
-    val reviewNotice: String? = null
+    val reviewNotice: String? = null,
+    val idleCoolantWarning: Boolean = false
 )
 
 @Immutable
@@ -143,7 +144,10 @@ data class CarUiState(
     val commandsFresh: Boolean = false,
     val commandsSupported: Boolean = false,
     val canManageVehicles: Boolean = true,
-    val gaugeKnown: Boolean = false
+    val gaugeKnown: Boolean = false,
+    val idleCoolantLimitC: Double? = null,
+    val runningIdleCoolantLimitC: Double? = null,
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric
 )
 
 @Immutable
