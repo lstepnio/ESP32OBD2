@@ -81,3 +81,10 @@ and recovery checks. Sustained coexistence and loaded recovery remain qualificat
 see [current state](../current-state.md). Broader discovery, telemetry, sensors and production trust are tracked
 in the [backlog](../backlog.md). Proposed hardware choices live in
 [hardware strategy](hardware-and-transports.md), not the current ownership model.
+
+## Platform extensions
+
+The [platform and release contract](platforms-and-releases.md) defines shared feature
+ownership, board/surface seams, virtual-display boundaries and per-target RC
+promotion. Additional boards default to private; only the original reference board
+is eligible for public firmware. These seams do not yet constitute a second port.
