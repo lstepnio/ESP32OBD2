@@ -44,6 +44,8 @@ contracts/status and dated evidence. `data/vehicle-definitions/` is research onl
   Reuse the universal connection widget; technical data belongs in Expert.
   Apply the [design rules](docs/design/design-system.md) before new status copy/layout;
   routine check coverage is neutral, with known faults and useful actions taking priority.
+  For UI changes, meet the guide's UX completion standard: task/step review, all states,
+  interaction tests and compact/large-text screenshot review before declaring completion.
 - A normal vehicle has one primary adapter. An optional swap TCM is its child and changes
   transport routing only, never page/reading/alert availability. Preserve per-gauge
   assignments, legacy inputs and sibling operation during independent source loss.
