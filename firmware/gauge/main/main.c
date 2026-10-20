@@ -31,6 +31,7 @@
 #include "misc/lv_event.h"
 
 #include "gauge_board.h"
+#include "gauge_presentation.h"
 #include "esp_lvgl_port.h"
 
 #include "ble_obd.h"
@@ -938,9 +939,9 @@ void app_main(void)
                 i, g_runtime->sources[g_runtime->pids[g_runtime->alerts[i].pid_index].source_index].simulated);
 
     const gauge_board_t *board = gauge_board_description();
-    if (board == NULL || !gauge_surface_uses_reference_templates(board->surface))
+    if (board == NULL || !gauge_presentation_matches(board->surface))
     {
-        ESP_LOGE(TAG, "No qualified UI templates for this display surface");
+        ESP_LOGE(TAG, "No matching UI profile for this display surface");
         return;
     }
     gauge_board_initialize();

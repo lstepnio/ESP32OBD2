@@ -15,9 +15,31 @@ Quality jobs have read-only repository access and bounded execution times.
 The shared JVM gate is `testDebugUnitTest`. Release-variant fixture isolation is
 tracked as CODE-04; release build/lint do not establish that separate test coverage.
 
-Pinned formatters cover authored Python, C and Kotlin. Generated catalogs, tokens,
+Pinned formatters cover authored Python, C (including authored `.inc` vector paths) and Kotlin. Generated catalogs, tokens,
 fixtures and fonts are checked by their generators, not hand formatted. C include
 order is preserved because FreeRTOS and BSP header order has semantic dependencies.
+
+## Change-based check selection
+
+Choose the affected ownership boundary from [AI context](../ai-context.md). Run its
+complete check set once, then repeat only failures or checks affected by a later edit.
+Do not sweep devices, archived evidence or imported research to answer a source-only task.
+
+| Changed boundary | Local check selection |
+| --- | --- |
+| Maintained docs, status or evidence only | `lint --target host`; no device or runtime build |
+| Host tooling or contracts | Python format check, host lint/test; native fixtures are included |
+| Firmware UI, board seam or fonts | C format check, host lint/test, firmware build/test; compare reference frames before changing presentation |
+| Other firmware runtime | C format check, host lint/test, firmware build; firmware fixtures for the affected boundary |
+| Android source/UI | Kotlin format check, Android build/test/lint; `test --target android-ui` for changed interactions/layout |
+| Website/recovery source/assets | Host lint/test; rebuild recovery bundle for recovery-source changes; publication remains a separate gate |
+| Private display profiles/ports | Use the private repository's check entry point and pinned core; keep board resources/evidence private |
+
+The entries are arguments to `python tools/dev.py`; setup is owned by README. This
+selection does not replace required CI, broaden release authorization or establish
+physical qualification. CI runs all required lanes and cancels superseded PR runs
+without cancelling main-branch verification. Include exact commit, checks and
+remaining gates in the handoff; leave temporary failures out of current-state claims.
 
 ## Android UI and screen captures
 

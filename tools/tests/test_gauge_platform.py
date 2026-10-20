@@ -42,6 +42,17 @@ class GaugePlatformTest(unittest.TestCase):
             ["firmware/gauge/tests/board_stubs", "firmware/gauge/tests/display_stubs"],
         )
 
+    def test_presentation_profile(self):
+        self.build_and_run(
+            "presentation",
+            [
+                "tests/gauge_profile_test.c",
+                "main/src/gauge_presentation.c",
+                "main/src/gauge_surface.c",
+            ],
+            ["firmware/gauge/tests/board_stubs"],
+        )
+
     def test_reference_parity_and_other_surfaces(self):
         self.build_and_run("surface", ["tests/gauge_surface_test.c", "main/src/gauge_surface.c"])
 
