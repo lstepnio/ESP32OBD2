@@ -82,12 +82,15 @@ framing and uncertainty/reconciliation tests. It is compiled but not instantiate
 or connected to an adapter worker. No registered BLE execution or physical gauge
 command menu is implemented or installed.
 The [offline foundation](architecture/vehicle-actions.md#implemented-offline-foundation)
-records the exact boundary. The [parked JScan Trail View reference](evidence/jeep-high-idle-reference.md)
-observed two raised-idle/ordinary Stop cycles; the owner physically confirmed the
-first. The recovered trace confirms positive ECM Start/Report/Return replies;
-sanitized offline fixtures are saved and temporary phone settings restored.
-Current calibration, target range and loss-of-refresh release remain unqualified;
-this is JScan reference evidence, not enabled eGauge control.
+records the execution boundary. The [parked follow-up](evidence/jeep-actions-live-qualification.md)
+confirmed fresh ECM calibration/CVN, another physical JScan Start/Stop cycle,
+inactive status after reopening the diagnostic session, and owner-observed normal
+idle after one JScan process/Bluetooth-loss check. The fixed ~1,700 RPM reference
+has no qualified arbitrary-target mapping. Combined ABS/traction-control reference
+Off/Return replies were captured; dash warnings cleared only after the owner's
+ignition cycle. Owner fourth-button Start/Return replies were positive; a later
+attempt without fresh session entry failed. These are reference observations,
+not enabled eGauge controls or braking-performance qualification.
 
 ## Known reliability limits
 

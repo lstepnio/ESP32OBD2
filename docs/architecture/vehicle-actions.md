@@ -367,30 +367,31 @@ Run `python -m unittest tools.tests.test_jeep_idle_driver` or the normal host su
 
 Remaining integration includes the qualified controller definition, protected
 Start/Stop/status dispatch, source-worker scheduling, shared operation history and
-physical gauge Quick actions menu. Fresh calibration identity, target conversion,
-post-Return state and lost-refresh behavior still require Jeep qualification.
+physical gauge Quick actions menu. The [parked follow-up](../evidence/jeep-actions-live-qualification.md)
+confirms fresh identity, inactive status after session re-entry and one combined
+JScan process/Bluetooth-loss restoration. Target conversion, immediate same-session
+post-Return readback and broader interruption behavior still need qualification.
 This delivers the offline driver without claiming a complete vehicle-control path.
 
 ### Next parked Jeep increment
 
-The offline driver can proceed without phone or vehicle access. The next hardware
-increment must gather these missing inputs before live registration is considered:
+The [parked follow-up](../evidence/jeep-actions-live-qualification.md) closes the
+fresh-identity gap and supplies a fixed-target reference plus one loss/recovery
+observation. Next, integrate and test the driver offline before another parked run:
 
-1. Read current ECM calibration/CVN and check the existing engine target, keeping
-   the TCM child out of control routing. Establish the actual fresh Park/Neutral,
-   stationary and engine-running inputs required by the controller definition.
-2. Identify whether JScan exposes a documented target setting and capture that
-   setting's exact command/reply. Until target conversion/range is established,
-   the fixed Trail View word must not accept arbitrary App RPM preferences.
-3. Verify the report after ordinary Return and observe stable normal RPM. Compare
-   the candidate's synthetic post-Return requirement with the real controller.
-4. Establish a bounded controller release/recovery procedure before deliberately
-   removing communication. Only then schedule lost-refresh/link tests and the
-   later eGauge/dual-source recovery matrix. Ordinary Stop is not timeout evidence.
+1. Preserve the captured target as a distinct fixed operation. Do not convert
+   arbitrary saved RPMs without a qualified mapping and supported range.
+2. Bind protected dispatch and shared history to the primary-worker transaction
+   lease; validate actual gear, movement and running-state evidence at admission.
+3. On the next parked run, verify the immediate same-session report after Return,
+   settled RPM and cancellation. The delayed inactive read after session re-entry
+   does not qualify that sequence.
+4. Extend failure/recovery and independent TCM checks using explicit reconciliation.
+   One observed return after process/link loss does not define the ECU timeout.
 
-These are vehicle evidence gates, not authorization to publish, install or send
-new commands. The next session can start with identity/reference reads and the
-known-working JScan path; no moving or equipment-load test is needed for that work.
+No new release, installation or vehicle-control authorization follows from these
+notes. The combined ABS/TC and mixed-outcome fourth-button references stay
+separate from the idle driver and remain disabled pending their own qualification.
 
 ## Remaining qualification
 
