@@ -14,3 +14,7 @@ bool vehicle_idle_coolant_allows(bool     configured,
                                  double   limit_c,
                                  uint32_t observed_at,
                                  uint32_t now);
+
+/* Missing readings permit only a bounded, explicitly confirmed gauge session. */
+#define VEHICLE_IDLE_COOLANT_FALLBACK_MS 60000U
+bool vehicle_idle_coolant_fallback_safe(bool configured, bool valid, double value, double limit);

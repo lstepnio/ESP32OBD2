@@ -52,8 +52,8 @@ static void init(vehicle_commands_t *s)
 }
 static vehicle_command_request_t request(uint8_t kind, uint8_t verb, uint32_t operation)
 {
-    return (vehicle_command_request_t){kind, verb, kind == VEHICLE_IDLE && verb == VEHICLE_START ? 1 : 0, operation, 7,
-                                       9,    17,   kind == VEHICLE_IDLE && verb == VEHICLE_START ? 10 : 0};
+    return (vehicle_command_request_t){kind, verb, kind == VEHICLE_IDLE && verb == VEHICLE_START ? 1 : 0,  operation, 7,
+                                       9,    17,   kind == VEHICLE_IDLE && verb == VEHICLE_START ? 10 : 0, false};
 }
 static uint32_t exchange(vehicle_commands_t *s, const char *expected, const char *reply)
 {
@@ -197,6 +197,11 @@ static void wire_and_cancel(const uint8_t *fixture)
     assert(!memcmp(b, fixture, sizeof(b)));
     vehicle_command_request_t r;
     assert(vehicle_command_decode(b, sizeof(b), &r));
+    assert(!r.gauge_confirmed);
+    uint8_t forged[24];
+    memcpy(forged, b, sizeof(b));
+    forged[22] = 1;
+    assert(!vehicle_command_decode(forged, sizeof(forged), &r));
     assert(!vehicle_command_decode(b, sizeof(b) - 1, &r));
     vehicle_commands_t s;
     init(&s);
@@ -352,6 +357,13 @@ static void coolant_guard_refuses_start_and_latches_release(void)
             context.guard_at = now;
         }
         vehicle_commands_observe(&s, context, now);
+        if (scenario != 0)
+        {
+            assert(s.states[0].timed_fallback && !s.states[0].pending_stop);
+            now += 10000; /* The original ten-second session expires first. */
+            context.guard_at = now;
+            vehicle_commands_observe(&s, context, now);
+        }
         assert(s.states[0].pending_stop);
         /* Recovery of data/temperature cannot cancel a requested release. */
         context.coolant_c     = 90;
@@ -359,7 +371,8 @@ static void coolant_guard_refuses_start_and_latches_release(void)
         route_idle(&s);
         exchange(&s, "32 05 1", "7E8 02 72 05\r\r>");
         exchange(&s, "33 05 1", "7E8 03 73 05 01\r\r>");
-        assert(s.states[0].phase == VEHICLE_VERIFYING && s.states[0].reason == VEHICLE_GUARD && durable.mask == 1);
+        assert(s.states[0].phase == VEHICLE_VERIFYING &&
+               s.states[0].reason == (scenario == 0 ? VEHICLE_GUARD : VEHICLE_COOLANT_TIMER) && durable.mask == 1);
         assert(!vehicle_commands_next(&s, context, now).text); /* No automatic restart. */
     }
     init(&s);
@@ -387,6 +400,111 @@ static void coolant_guard_refuses_start_and_latches_release(void)
     assert(!vehicle_commands_next(&s, context, now).text);
     assert(s.states[0].phase == VEHICLE_RESTORED && !durable.mask);
 }
+static void coolant_timer_requires_local_start_and_never_extends(void)
+{
+    vehicle_commands_t        s;
+    vehicle_command_request_t r;
+    uint8_t                   status[32];
+    for (unsigned scenario = 0; scenario < 5; ++scenario)
+    {
+        init(&s);
+        r                     = request(VEHICLE_IDLE, VEHICLE_START, 1);
+        r.gauge_confirmed     = true;
+        r.seconds             = 600;
+        context.coolant_valid = false;
+        if (scenario == 1)
+            context.coolant_configured = false;
+        if (scenario == 2)
+        {
+            context.coolant_valid = true;
+            context.coolant_c     = 105;
+        }
+        if (scenario == 3)
+            context.guards_fresh_and_met = false;
+        if (scenario == 4)
+        {
+            context.coolant_valid = true;
+            context.coolant_c     = 106;
+            now += 2001;
+            context.guard_at = now;
+        }
+        bool admitted = vehicle_commands_submit(&s, r, context, now);
+        assert(admitted == (scenario == 0));
+        if (admitted)
+        {
+            assert(s.states[0].timed_fallback && s.states[0].request.seconds == 60);
+            vehicle_commands_status(&s, VEHICLE_IDLE, context, now, status);
+            assert((status[27] & 29) == 29 && status[3] == VEHICLE_COOLANT_TIMER);
+        }
+    }
+    init(&s);
+    r                     = request(VEHICLE_IDLE, VEHICLE_START, 1);
+    r.gauge_confirmed     = true;
+    r.seconds             = 600;
+    context.coolant_valid = false;
+    assert(vehicle_commands_submit(&s, r, context, now));
+    route_idle(&s);
+    exchange(&s, "10 92 1", "7E8 02 50 92\r\r>");
+    exchange(&s, "33 05 1", "7E8 03 73 05 01\r\r>");
+    exchange(&s, "31 05 06 80 1", "7E8 02 71 05\r\r>");
+    exchange(&s, "33 05 1", "7E8 03 73 05 02\r\r>");
+    assert(s.states[0].phase == VEHICLE_ACTIVE && s.states[0].timed_fallback);
+    vehicle_commands_status(&s, VEHICLE_IDLE, context, now, status);
+    assert(status[24] <= 60 && status[24] > 0);
+    for (unsigned wrap = 0; wrap < 2; ++wrap)
+    {
+        init(&s);
+        start_idle(&s, 1);
+        s.states[0].request.seconds = 600;
+        if (wrap)
+            now = UINT32_MAX - 30000;
+        s.states[0].active_at = now;
+        context.coolant_valid = false;
+        context.guard_at      = now;
+        vehicle_commands_observe(&s, context, now);
+        uint32_t fallback_at = now;
+        assert(s.states[0].timed_fallback && !s.states[0].pending_stop);
+        now += 30000;
+        context.guard_at = context.coolant_at = now;
+        context.coolant_valid                 = true;
+        vehicle_commands_observe(&s, context, now);
+        vehicle_commands_status(&s, VEHICLE_IDLE, context, now, status);
+        assert(status[24] == 30 && status[25] == 0 && (status[27] & 29) == 13);
+        context.coolant_valid = false;
+        vehicle_commands_observe(&s, context, now);
+        assert(s.states[0].fallback_at == fallback_at);
+        now += 30000;
+        context.guard_at = now;
+        vehicle_commands_observe(&s, context, now);
+        assert(s.states[0].pending_stop && s.states[0].reason == VEHICLE_COOLANT_TIMER);
+        route_idle(&s);
+        exchange(&s, "32 05 1", "7E8 02 72 05\r\r>");
+        exchange(&s, "33 05 1", "7E8 03 73 05 01\r\r>");
+        assert(s.states[0].phase == VEHICLE_VERIFYING && durable.mask == 1);
+        assert(!vehicle_commands_next(&s, context, now).text);
+        context.verified_operation[0] = 1;
+        context.normal_idle_verified  = true;
+        context.proof_at[0]           = now;
+        vehicle_commands_observe(&s, context, now);
+        assert(s.states[0].phase == VEHICLE_RESTORED && durable.mask == 0);
+        context.coolant_valid = true;
+        context.coolant_at = context.guard_at = now;
+        assert(!vehicle_commands_submit(&s, request(VEHICLE_IDLE, VEHICLE_START, 2), context, now));
+        r                 = request(VEHICLE_IDLE, VEHICLE_START, 3);
+        r.gauge_confirmed = true;
+        r.seconds         = 600;
+        assert(vehicle_commands_submit(&s, r, context, now));
+        assert(!s.states[0].timed_fallback && s.states[0].request.seconds == 600);
+    }
+    init(&s);
+    start_idle(&s, 1);
+    context.coolant_valid = false;
+    vehicle_commands_observe(&s, context, now);
+    context.coolant_valid = true;
+    context.coolant_c     = 105;
+    vehicle_commands_observe(&s, context, now);
+    assert(s.states[0].pending_stop && s.states[0].reason == VEHICLE_GUARD);
+}
 int main(int argc, char **argv)
 {
     assert(argc == 2);
@@ -400,6 +518,7 @@ int main(int argc, char **argv)
         fixture[i] = value;
     }
     fclose(file);
+    coolant_timer_requires_local_start_and_never_extends();
     coolant_limit_selection_and_freshness();
     coolant_guard_refuses_start_and_latches_release();
     two_actions_share_worker_and_restore_independently();

@@ -399,7 +399,7 @@ static void app_tick_task(void *arg)
         {
             uint8_t status[32];
             if (vehicle_commands_runtime_status(kind, status))
-                ui_set_vehicle_action_status(ui, kind, status[2], (status[27] & 1U) != 0);
+                ui_set_vehicle_action_status(ui, kind, status[2], status[27], status[24] | (uint16_t)status[25] << 8);
         }
         alert_sample_event_t event;
         for (unsigned drained = 0;

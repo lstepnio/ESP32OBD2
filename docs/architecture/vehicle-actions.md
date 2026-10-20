@@ -279,23 +279,34 @@ readings, simulated sources and child-TCM data do not qualify.
   local shortcut remains possible. The send review repeats the warning; it is not
   permission to start. Only the confirmed running gauge document enables App Start.
 - The shared firmware worker is authoritative for App and physical-menu commands.
-  Start and each subsequent driver step require valid coolant below the limit,
-  no older than 2,000 ms, scoped to the current primary link/configuration.
-- At or above the limit, invalid/missing data or stale coolant latches the existing
-  prioritized Return-control path. Do not wait for alert dwell/hysteresis or let
-  acknowledgment/snoozing bypass it. Later cooling/data recovery cannot cancel Stop
-  or automatically restart idle. Normal-restoration proof remains unchanged.
+  Fresh coolant means a valid sample no older than 2,000 ms, scoped to the current
+  primary link/configuration. At or above the limit, prioritize Return immediately,
+  without waiting for alert dwell/hysteresis. Failed reads retain the last valid
+  sample and its original age, so missing data cannot erase a known high reading.
+- Without fresh coolant, a confirmed physical-gauge Start may run for at most
+  **60 seconds**, or the configured duration if shorter. App Start is refused.
+  If an existing session loses fresh coolant, latch a deadline 60 seconds after
+  the first loss; the original session expiry can only shorten it. Recovery or
+  repeated loss never extends either deadline. All other vehicle guards still apply.
+- After a fallback session, another Start requires explicit physical-gauge input,
+  even if coolant recovered. Fresh local Start may use the normal configured timer;
+  unavailable coolant retains the one-minute cap. There is no automatic restart.
+  The gauge shows the shortened countdown; App Stop remains available. Local
+  confirmation is trusted queue metadata, not a caller-settable wire field.
+- Timer expiry and thermal Stop use the existing Return and independent normal-idle
+  verification path. Lost links and negative replies never become a false success.
 - A primary-worker-owned fixed snapshot uses bounded 300 ms header-attributed
   coolant reads, targeted every 500 ms **between complete control jobs** while idle
-  needs them. No normal-reading queue, callback IO, new task, heap growth or concurrent
-  ELM session is introduced. A queued Stop skips the guard read. Long jobs still
-  age the snapshot and enter cancellation/Return rather than accepting stale data.
+  needs them. No new task, heap buffer or concurrent ELM session is introduced.
+  A queued Stop skips the guard read. Long jobs age the snapshot into the same
+  latched timer; absence of any other required guard still cancels/Returns.
 - Loss of the adapter/link still means Unknown, not a fabricated successful Stop.
   The ECU's qualified lost-refresh behavior remains the fallback. Measure actual
   sampling/Return latency and loaded-worker stack margin before enabling controls.
 
 Offline acceptance includes equality/over-limit, missing rule, wrong source, stale/
 invalid/nonfinite samples, tick wrap, guard loss before control, latched release,
+one-minute fallback, non-extending deadlines, local-only restart,
 no auto-restart, independent ABS behavior, warning-before-save and unsent App limits.
 For parked qualification, use a temporary threshold within a normal warm-up range
 so a small ordinary temperature rise can demonstrate automatic Stop without an
@@ -480,3 +491,7 @@ restoration and interruption evidence are required before enabling an action.
 [Local fixture results](../evidence/profile-action-fixtures.md) and
 [physical gesture observations](../evidence/profile-actions-rollout.md) are historical
 records; [current state](../current-state.md) owns current qualification.
+
+Parked fallback qualification must also cover a controlled missing coolant feed,
+shortened countdown/Return, local restart, recovered-data deadline retention and
+thermal Stop during fallback. Offline vectors do not qualify ECU behavior.

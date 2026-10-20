@@ -141,6 +141,6 @@ void   ui_showcase_stop(ui_t *ui);
 /* LVGL-owned menu reuses the page gesture. Only the status mailbox is thread-safe. */
 bool ui_action_opens_vehicle_menu(ui_t *ui);
 void ui_show_vehicle_actions(ui_t *ui);
-void ui_set_vehicle_action_status(ui_t *ui, uint8_t kind, uint8_t phase, bool qualified);
+void ui_set_vehicle_action_status(ui_t *ui, uint8_t kind, uint8_t phase, uint8_t flags, uint16_t remaining);
 void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *preset, uint16_t *seconds);
 void ui_vehicle_command_queued(ui_t *ui, bool accepted);
