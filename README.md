@@ -35,6 +35,7 @@ BLE OBD-II adapter. We develop and test with the
 [Vgate iCar Pro Bluetooth 4.0 (BLE)](https://www.amazon.com/dp/B06XGB4873).
 This is not a production product or a blanket compatibility claim.
 Existing paired gauges normally update through App/Wi-Fi.
+For historical downloads, see [older-release instructions](https://egauge.majjix.com/recovery/#older-releases).
 
 Most vehicles use one adapter in their standard OBD-II port for available engine
 and transmission data. Some swaps, including our Hemi-swapped Jeep with separate
