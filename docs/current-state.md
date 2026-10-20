@@ -51,13 +51,17 @@ remain unqualified. Lookup extension rules and reference provenance are in the
 
 ## Raised-idle coolant guard
 
-The shared command path now uses the running primary-ECM high Coolant alert as a
-stop limit. Missing protection blocks Start; reaching the limit or losing fresh
-coolant data latches Return control, without auto-restart. The App warns during
-shortcut/preset setup and distinguishes a local limit from one confirmed on the
-gauge. No new configuration or wire fields are introduced. Offline tests/builds
-are recorded in the PR; parked thermal-stop latency and loaded memory qualification
-remain required. Public vehicle-command qualification/capability stays disabled.
+The shared command path uses the running primary-ECM high Coolant alert as its
+stop limit. Missing protection blocks Start; a known high temperature latches
+Return. Unavailable coolant now permits a locally confirmed, at-most-60-second
+session; data loss during idle shortens the session to the earlier of its original
+expiry or 60 seconds after first loss. Recovery never extends it, and another
+fallback session requires a fresh physical-gauge Start. See the
+[authoritative coolant policy](architecture/vehicle-actions.md#coolant-protection-for-raised-idle).
+The App displays the timer and retains Stop. The 24-byte request and 32-byte status
+sizes are unchanged; status adds idle-only reason/flags. No device installation
+or parked fallback/thermal-stop qualification is established by these offline changes.
+Public vehicle-command qualification/capability stays disabled.
 
 ## Compatibility and public boundaries
 

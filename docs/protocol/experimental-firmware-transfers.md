@@ -301,7 +301,7 @@ is checked by native and Kotlin tests.
 | 0 | 1 | Protected status tag 22 |
 | 1 | 1 | Kind 1 or 2 |
 | 2 | 1 | Unavailable 0, Ready 1, Starting 2, Active 3, Stopping 4, Verifying 5, Restored 6, Restart required 7, Rejected 8, Unknown 9 |
-| 3 | 1 | OK 0, Unqualified 1, Invalid 2, Busy 3, Context 4, Guard 5, Timeout 6, Response 7, Storage 8 |
+| 3 | 1 | OK 0, Unqualified 1, Invalid 2, Busy 3, Context 4, Guard 5, Timeout 6, Response 7, Storage 8, Coolant timer 9 (idle only) |
 | 4 | 4 | Operation, zero before any operation |
 | 8 | 4 | Current running revision |
 | 12 | 4 | Current primary link generation |
@@ -309,8 +309,14 @@ is checked by native and Kotlin tests.
 | 20 | 4 | Last event sequence for this kind |
 | 24 | 2 | Remaining idle seconds, otherwise zero |
 | 26 | 1 | Idle preset 1/2, otherwise zero |
-| 27 | 1 | Bit 0: qualified with usable journal; bit 1: ABS/TCS restart required; other bits zero |
+| 27 | 1 | Bit 0: qualified with usable journal; bit 1: ABS/TCS restart required; idle-only bit 2: latched timed fallback, bit 3: physical-gauge Start required, bit 4: coolant unavailable; bits 5..7 zero |
 | 28 | 4 | Global last admitted Start operation; no wrap |
+
+Idle fallback flags report the [coolant policy](../architecture/vehicle-actions.md#coolant-protection-for-raised-idle).
+Remaining seconds reflects the earlier deadline, rounded up. The physical-confirmation
+origin exists only inside the firmware queue; reserved request bytes remain zero
+and cannot authorize a missing-coolant Start. Older decoders refuse extended
+statuses rather than offering an unprotected Start. No public capability is promoted.
 
 An uncertain write is sent once and reconciled by bounded status reads. Status
 must match kind, boot, revision, link and operation. Foreground reads retry with

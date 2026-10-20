@@ -1,5 +1,6 @@
 #include "worker_health.h"
 #include "vehicle_commands.h"
+#include "vehicle_idle_coolant.h"
 // ---------------------------------------------------------------------------------------------------------------------
 // Includes
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1884,10 +1885,17 @@ static void refresh_vehicle_menu(ui_t *ui)
         if (row == 2)
             snprintf(label, sizeof(label), "%s", stop ? "End ABS/TCS" : "ABS/TCS off");
         else if (stop)
-            snprintf(label, sizeof(label), "%s", row ? "Idle running" : "Stop idle");
+        {
+            if (row || phase == VEHICLE_STARTING)
+                snprintf(label, sizeof(label), "%s", row ? "Idle running" : "Stop idle");
+            else
+                snprintf(label, sizeof(label), "Stop idle %u:%02u", (idle >> 16) / 60, (idle >> 16) % 60);
+        }
         else
         {
             unsigned seconds = row ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds;
+            if ((idle & (16U << 8)) && seconds > VEHICLE_IDLE_COOLANT_FALLBACK_MS / 1000)
+                seconds = VEHICLE_IDLE_COOLANT_FALLBACK_MS / 1000;
             snprintf(label, sizeof(label), "%s%s %u:%02u", ui->command_confirm == row + 1 ? "Confirm " : "",
                      row ? "Winch" : "Air up", seconds / 60, seconds % 60);
         }
@@ -1899,6 +1907,9 @@ static void refresh_vehicle_menu(ui_t *ui)
     const char *note = (abs & 255U) == VEHICLE_RESTART_REQUIRED || (abs & 255U) == VEHICLE_ACTIVE ? "Restart to restore"
                        : (idle & 255U) == VEHICLE_UNKNOWN || (abs & 255U) == VEHICLE_UNKNOWN      ? "Check vehicle"
                        : !(idle & 256U) && !(abs & 256U)                                          ? "Not available yet"
+                       : (idle & (16U << 8)) && (idle & 255U) == VEHICLE_ACTIVE ? "Coolant unavailable"
+                       : (idle & (8U << 8)) && (idle & 255U) != VEHICLE_ACTIVE
+                           ? (idle & (16U << 8)) ? "1 minute maximum" : "Choose a new session"
                        : ui->command_confirm ? "Tap again to confirm"
                                              : "";
     if (strcmp(lv_label_get_text(ui->command_note), note))
@@ -1987,10 +1998,10 @@ void ui_show_vehicle_actions(ui_t *ui)
     lv_obj_move_foreground(ui->command_menu);
     refresh_vehicle_menu(ui);
 }
-void ui_set_vehicle_action_status(ui_t *ui, uint8_t kind, uint8_t phase, bool qualified)
+void ui_set_vehicle_action_status(ui_t *ui, uint8_t kind, uint8_t phase, uint8_t flags, uint16_t remaining)
 {
     if (ui && kind >= 1 && kind <= 2)
-        atomic_store(&ui->command_ui[kind - 1], phase | (qualified ? 256U : 0U));
+        atomic_store(&ui->command_ui[kind - 1], phase | ((unsigned)flags << 8) | ((unsigned)remaining << 16));
 }
 void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *preset, uint16_t *seconds)
 {
@@ -2000,6 +2011,9 @@ void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *pr
     *stop          = phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE;
     *preset        = *kind == 1 && !*stop ? row + 1 : 0;
     *seconds = *kind == 1 && !*stop ? (row ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds) : 0;
+    if (*kind == 1 && (atomic_load(&ui->command_ui[0]) & (16U << 8)) &&
+        *seconds > VEHICLE_IDLE_COOLANT_FALLBACK_MS / 1000)
+        *seconds = VEHICLE_IDLE_COOLANT_FALLBACK_MS / 1000;
 }
 void ui_vehicle_command_queued(ui_t *ui, bool accepted)
 {

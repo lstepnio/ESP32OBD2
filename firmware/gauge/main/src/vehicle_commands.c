@@ -24,15 +24,46 @@ static bool qualified(vehicle_command_context_t c, uint8_t kind)
     unsigned mask = 1U << index_of(kind);
     return c.connected && c.revision && c.link && c.identity && (c.qualified_mask & mask) && (c.identity_mask & mask);
 }
-static bool guarded(vehicle_command_context_t c, uint8_t kind, uint32_t now)
+static bool coolant_fresh(vehicle_command_context_t c, uint32_t now)
 {
-    return c.guards_fresh_and_met && c.guard_at && now - c.guard_at <= 2000 &&
-           (kind != VEHICLE_IDLE || vehicle_idle_coolant_allows(c.coolant_configured, c.coolant_valid, c.coolant_c,
-                                                                c.coolant_limit_c, c.coolant_at, now));
+    return vehicle_idle_coolant_allows(c.coolant_configured, c.coolant_valid, c.coolant_c, c.coolant_limit_c,
+                                       c.coolant_at, now);
 }
-static idle_context_t driver_context(vehicle_command_context_t c, uint8_t kind, uint32_t now)
+static bool fallback_safe(vehicle_command_context_t c)
 {
-    return (idle_context_t){c.revision, c.link, c.connected, guarded(c, kind, now)};
+    return vehicle_idle_coolant_fallback_safe(c.coolant_configured, c.coolant_valid, c.coolant_c, c.coolant_limit_c);
+}
+static bool guarded(const vehicle_commands_t *s, vehicle_command_context_t c, uint8_t kind, uint32_t now)
+{
+    if (!c.guards_fresh_and_met || !c.guard_at || now - c.guard_at > 2000)
+        return false;
+    if (kind != VEHICLE_IDLE)
+        return true;
+    const vehicle_command_state_t *v = &s->states[0];
+    return fallback_safe(c) && (!v->timed_fallback || now - v->fallback_at < VEHICLE_IDLE_COOLANT_FALLBACK_MS) &&
+           (coolant_fresh(c, now) || v->timed_fallback);
+}
+static idle_context_t driver_context(const vehicle_commands_t *s,
+                                     vehicle_command_context_t c,
+                                     uint8_t                   kind,
+                                     uint32_t                  now)
+{
+    return (idle_context_t){c.revision, c.link, c.connected, guarded(s, c, kind, now)};
+}
+static uint32_t remaining_ms(const vehicle_command_state_t *v, uint32_t now)
+{
+    uint32_t total = (uint32_t)v->request.seconds * 1000, elapsed = now - v->active_at;
+    uint32_t remaining = elapsed < total ? total - elapsed : 0;
+    if (v->timed_fallback)
+    {
+        uint32_t fallback_elapsed   = now - v->fallback_at;
+        uint32_t fallback_remaining = fallback_elapsed < VEHICLE_IDLE_COOLANT_FALLBACK_MS
+                                          ? VEHICLE_IDLE_COOLANT_FALLBACK_MS - fallback_elapsed
+                                          : 0;
+        if (fallback_remaining < remaining)
+            remaining = fallback_remaining;
+    }
+    return remaining;
 }
 static void transition(vehicle_commands_t      *s,
                        uint8_t                  kind,
@@ -174,13 +205,19 @@ bool vehicle_commands_submit(vehicle_commands_t       *s,
         transition(s, r.kind, VEHICLE_REJECTED, s->journal_ready ? VEHICLE_UNQUALIFIED : VEHICLE_STORAGE, now);
         return false;
     }
-    if (!guarded(c, r.kind, now))
+    bool fresh = r.kind != VEHICLE_IDLE || coolant_fresh(c, now);
+    if (!c.guards_fresh_and_met || !c.guard_at || now - c.guard_at > 2000 ||
+        (r.kind == VEHICLE_IDLE && (!fallback_safe(c) || ((!fresh || v->timed_fallback) && !r.gauge_confirmed))))
     {
         transition(s, r.kind, VEHICLE_REJECTED, VEHICLE_GUARD, now);
         return false;
     }
+    v->timed_fallback = !fresh;
+    v->fallback_at    = now;
+    if (v->timed_fallback && v->request.seconds > VEHICLE_IDLE_COOLANT_FALLBACK_MS / 1000)
+        v->request.seconds = VEHICLE_IDLE_COOLANT_FALLBACK_MS / 1000;
     v->pending_start = true;
-    transition(s, r.kind, VEHICLE_STARTING, VEHICLE_OK, now);
+    transition(s, r.kind, VEHICLE_STARTING, v->timed_fallback ? VEHICLE_COOLANT_TIMER : VEHICLE_OK, now);
     return true;
 }
 static void finish(vehicle_commands_t *s, vehicle_command_context_t c, uint32_t now)
@@ -199,12 +236,14 @@ static void finish(vehicle_commands_t *s, vehicle_command_context_t c, uint32_t 
             if (d->result == JEEP_IDLE_START_CONFIRMED)
             {
                 v->active_at = v->last_report = now;
-                transition(s, kind, VEHICLE_ACTIVE, VEHICLE_OK, now);
+                transition(s, kind, VEHICLE_ACTIVE, v->timed_fallback ? VEHICLE_COOLANT_TIMER : VEHICLE_OK, now);
             }
             else if (d->result == JEEP_IDLE_ACTIVE_REPORT)
                 v->last_report = now;
             else if (d->result == JEEP_IDLE_RETURN_CONFIRMED || d->result == JEEP_IDLE_INACTIVE_REPORT)
-                transition(s, kind, VEHICLE_VERIFYING, v->reason == VEHICLE_GUARD ? VEHICLE_GUARD : VEHICLE_OK, now);
+                transition(s, kind, VEHICLE_VERIFYING,
+                           (v->reason == VEHICLE_GUARD || v->reason == VEHICLE_COOLANT_TIMER) ? v->reason : VEHICLE_OK,
+                           now);
             else
                 transition(s, kind, VEHICLE_UNKNOWN, VEHICLE_RESPONSE, now);
         }
@@ -259,10 +298,19 @@ void vehicle_commands_observe(vehicle_commands_t *s, vehicle_command_context_t c
             if (save_marker(s, m))
             {
                 v->restart_required = v->pending_start = v->pending_stop = false;
-                transition(s, kind, VEHICLE_RESTORED, v->reason == VEHICLE_GUARD ? VEHICLE_GUARD : VEHICLE_OK, now);
+                transition(s, kind, VEHICLE_RESTORED,
+                           (v->reason == VEHICLE_GUARD || v->reason == VEHICLE_COOLANT_TIMER) ? v->reason : VEHICLE_OK,
+                           now);
             }
             else
                 transition(s, kind, VEHICLE_UNKNOWN, VEHICLE_STORAGE, now);
+        }
+        if (kind == VEHICLE_IDLE && (v->phase == VEHICLE_STARTING || v->phase == VEHICLE_ACTIVE) &&
+            qualified(c, kind) && scoped(v, c) && !coolant_fresh(c, now) && fallback_safe(c) && !v->timed_fallback)
+        {
+            v->timed_fallback = true;
+            v->fallback_at    = now;
+            transition(s, kind, v->phase, VEHICLE_COOLANT_TIMER, now);
         }
         if (v->phase == VEHICLE_UNAVAILABLE && qualified(c, kind))
             transition(s, kind, VEHICLE_READY, VEHICLE_OK, now);
@@ -275,14 +323,18 @@ void vehicle_commands_observe(vehicle_commands_t *s, vehicle_command_context_t c
                 transition(s, kind, (s->marker.mask & (1U << i)) ? VEHICLE_UNKNOWN : VEHICLE_REJECTED, VEHICLE_CONTEXT,
                            now);
             }
-            else if (v->phase == VEHICLE_ACTIVE &&
-                     (!guarded(c, kind, now) || (i == 0 && now - v->active_at >= (uint32_t)v->request.seconds * 1000)))
+            else if (v->phase == VEHICLE_ACTIVE && (!guarded(s, c, kind, now) || (i == 0 && remaining_ms(v, now) == 0)))
             {
                 v->pending_stop = true;
-                if (!guarded(c, kind, now))
-                    transition(s, kind, VEHICLE_ACTIVE, VEHICLE_GUARD, now);
+                if (!guarded(s, c, kind, now))
+                    transition(s, kind, VEHICLE_ACTIVE,
+                               kind == VEHICLE_IDLE && v->timed_fallback && fallback_safe(c) &&
+                                       c.guards_fresh_and_met && c.guard_at && now - c.guard_at <= 2000
+                                   ? VEHICLE_COOLANT_TIMER
+                                   : VEHICLE_GUARD,
+                               now);
             }
-            else if (kind == VEHICLE_IDLE && v->phase == VEHICLE_STARTING && !guarded(c, kind, now))
+            else if (kind == VEHICLE_IDLE && v->phase == VEHICLE_STARTING && !guarded(s, c, kind, now))
             {
                 if (v->pending_start && s->worker_kind != kind)
                 {
@@ -314,7 +366,7 @@ static bool begin_job(vehicle_commands_t       *s,
                                  .revision  = v->request.revision,
                                  .link      = v->request.link,
                                  .source    = 0};
-        ok                    = jeep_idle_driver_begin(&s->driver.idle, r, driver_context(c, kind, now), now);
+        ok                    = jeep_idle_driver_begin(&s->driver.idle, r, driver_context(s, c, kind, now), now);
     }
     else
     {
@@ -323,7 +375,7 @@ static bool begin_job(vehicle_commands_t       *s,
                                 .revision  = v->request.revision,
                                 .link      = v->request.link,
                                 .source    = 0};
-        ok                   = jeep_abs_driver_begin(&s->driver.abs, r, driver_context(c, kind, now), now);
+        ok                   = jeep_abs_driver_begin(&s->driver.abs, r, driver_context(s, c, kind, now), now);
     }
     if (!ok)
     {
@@ -337,7 +389,8 @@ static bool begin_job(vehicle_commands_t       *s,
     s->worker_kind = kind;
     s->marked      = false;
     if (stop)
-        transition(s, kind, VEHICLE_STOPPING, v->reason == VEHICLE_GUARD ? VEHICLE_GUARD : VEHICLE_OK, now);
+        transition(s, kind, VEHICLE_STOPPING,
+                   (v->reason == VEHICLE_GUARD || v->reason == VEHICLE_COOLANT_TIMER) ? v->reason : VEHICLE_OK, now);
     return true;
 }
 jeep_idle_command_t vehicle_commands_next(vehicle_commands_t *s, vehicle_command_context_t c, uint32_t now)
@@ -383,8 +436,8 @@ jeep_idle_command_t vehicle_commands_next(vehicle_commands_t *s, vehicle_command
         return none;
     }
     jeep_idle_command_t command = kind == VEHICLE_IDLE
-                                      ? jeep_idle_driver_next(&s->driver.idle, driver_context(c, kind, now), now)
-                                      : jeep_abs_driver_next(&s->driver.abs, driver_context(c, kind, now), now);
+                                      ? jeep_idle_driver_next(&s->driver.idle, driver_context(s, c, kind, now), now)
+                                      : jeep_abs_driver_next(&s->driver.abs, driver_context(s, c, kind, now), now);
     /* The journal is committed before the caller can transmit a control. Reads
      * and adapter routing need no flash writes; Stop also keeps the marker. */
     if (command.text && !strncmp(command.text, "3", 1) && strncmp(command.text, "33", 2))
@@ -429,11 +482,13 @@ bool vehicle_commands_feed(vehicle_commands_t       *s,
         vehicle_commands_transport_failed(s, now);
         return false;
     }
+    vehicle_commands_observe(s, c, now);
     uint32_t driver_ticket = s->worker_kind == VEHICLE_IDLE ? s->driver.idle.ticket : s->driver.abs.ticket;
-    bool accepted = s->worker_kind == VEHICLE_IDLE ? jeep_idle_driver_feed(&s->driver.idle, driver_ticket, bytes, n,
-                                                                           driver_context(c, s->worker_kind, now), now)
-                                                   : jeep_abs_driver_feed(&s->driver.abs, driver_ticket, bytes, n,
-                                                                          driver_context(c, s->worker_kind, now), now);
+    bool     accepted      = s->worker_kind == VEHICLE_IDLE
+                                 ? jeep_idle_driver_feed(&s->driver.idle, driver_ticket, bytes, n,
+                                                         driver_context(s, c, s->worker_kind, now), now)
+                                 : jeep_abs_driver_feed(&s->driver.abs, driver_ticket, bytes, n,
+                                                        driver_context(s, c, s->worker_kind, now), now);
     finish(s, c, now);
     return accepted;
 }
@@ -466,13 +521,18 @@ size_t vehicle_commands_status(const vehicle_commands_t *s,
     put32(out + 12, c.link);
     put32(out + 16, s->boot);
     put32(out + 20, v->sequence);
-    uint32_t total = (uint32_t)v->request.seconds * 1000, elapsed = now - v->active_at;
-    uint16_t remaining =
-        kind == VEHICLE_IDLE && v->phase == VEHICLE_ACTIVE && elapsed < total ? (total - elapsed + 999) / 1000 : 0;
-    out[24] = remaining;
-    out[25] = remaining >> 8;
-    out[26] = v->request.preset;
-    out[27] = (qualified(c, kind) && s->journal_ready ? 1U : 0U) | (v->restart_required ? 2U : 0U);
+    uint16_t remaining = kind == VEHICLE_IDLE && v->phase == VEHICLE_ACTIVE ? (remaining_ms(v, now) + 999) / 1000 : 0;
+    out[24]            = remaining;
+    out[25]            = remaining >> 8;
+    out[26]            = v->request.preset;
+    out[27]            = (qualified(c, kind) && s->journal_ready ? 1U : 0U) | (v->restart_required ? 2U : 0U);
+    if (kind == VEHICLE_IDLE && qualified(c, kind) && s->journal_ready)
+    {
+        if (v->timed_fallback)
+            out[27] |= 4U | 8U;
+        if (!coolant_fresh(c, now) && fallback_safe(c))
+            out[27] |= 8U | 16U;
+    }
     put32(out + 28, s->last_operation);
     return 32;
 }
