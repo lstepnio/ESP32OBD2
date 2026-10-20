@@ -70,6 +70,7 @@
       "docs/vehicles/README.md",
       "docs/vehicles/catalog-research.md",
       "docs/vehicles/jeep/jk-handler-analysis.md",
+      "docs/vehicles/jeep/reading-coverage.md",
       "docs/vehicles/jeep/wrangler-jk.md"
     ],
     "design-rules": [

@@ -60,8 +60,14 @@ This establishes that many mappings can be decoded for research. It does not est
 
 ## eGauge implementation gap
 
-The [current firmware state](../../current-state.md) has a small built-in Mode 01 catalog and a restricted numeric configuration path. Live adapter requests, ECU attribution, header-bearing and multi-frame responses, Mode 22, and dual-adapter operation still need vehicle validation or implementation. The [PID definition model](../../protocol/pid-discovery.md) already provides a bounded place for curated read definitions, but it deliberately excludes arbitrary commands. Vehicle actions remain outside [v1 scope](../../requirements.md).
-
+The [current firmware state](../../current-state.md) implements the 55-reading
+catalog, bounded numeric configuration, source-attributed CAN reads and selected
+TCM Mode 22 definitions. It does not yet implement general Mode 21/module-state
+readings or a transfer-case display. The
+[current coverage audit](reading-coverage.md) separates captured standard support,
+missing compound/status decoders and enhanced module candidates. That audit and
+the [catalog contract](../../development/reading-catalog-alerts.md) supersede the
+original small-catalog implementation-gap description.
 Before promoting a JK reading or action:
 
 1. Record the vehicle year, market, engine, transmission, adapter model, ECU/module identity, software or part number, and diagnostic route.

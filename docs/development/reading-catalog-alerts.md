@@ -107,3 +107,13 @@ support. Dated build/editor/install results are in [catalog rollout evidence](..
    fixtures. A definition that the firmware compiler cannot execute must not appear
    as selectable. Add mappings for genuinely new units in both App and firmware.
 4. Record physical qualification separately; do not change public flags implicitly.
+
+## Per-vehicle coverage audit
+
+Do not infer complete vehicle coverage from the catalog count. Compare captured
+per-responder support maps with executable definitions using
+`tools/research/audit_vehicle_readings.py`, then separately inventory enhanced
+modules. The [Hemi-swapped JK audit](../vehicles/jeep/reading-coverage.md) records the
+current standard gaps, transfer-case variants, useful module groups and promotion
+checks. Imported definitions or a responding PID do not by themselves justify a
+selectable reading, state label, scale or source assignment.

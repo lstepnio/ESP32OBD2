@@ -1,0 +1,101 @@
+{
+  "status": "static read candidates only; not vehicle verified or selectable",
+  "provenance": "Existing diagnostic-resource archive; same package and rights scope as data/vehicle-definitions/manifest.json",
+  "route": {
+    "requestId": "620",
+    "responseId": "504",
+    "physicalPort": "engine",
+    "logicalSource": "primary vehicle"
+  },
+  "candidateRequest": "2111",
+  "important": "Same request/position has conflicting state maps. Do not select the first variant. Some maps include transition, faults and SNA. High range alone never establishes 2HI versus 4HI.",
+  "variants": [
+    {
+      "name": "T-Case Encoder Sensor",
+      "rawDefinition": {
+        "N": "TIPMCGW_V2_730854",
+        "G": "TIPMCGW_V2_729413",
+        "Mode": "21",
+        "Pid": "11",
+        "Pos": "24",
+        "Form": "F101",
+        "Faktor": "255=TIPMCGW_V2_728911:2=TIPMCGW_V2_730494:1=TIPMCGW_V2_730495:7=TIPMCGW_V2_728887:0=TIPMCGW_V2_730497:4=TIPMCGW_V2_729020:3=TIPMCGW_V2_730496:6=TIPMCGW_V2_730493:5=TIPMCGW_V2_730514",
+        "KalF": "8"
+      },
+      "states": {
+        "255": "SNA / Not Programmed",
+        "2": "4wd High Range",
+        "1": "4wd Low Range",
+        "7": "SNA",
+        "0": "Shift in Progress",
+        "4": "Neutral",
+        "3": "2wd",
+        "6": "Part Time 4wd",
+        "5": "Auto"
+      },
+      "resources": [
+        "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.TIPMCGW.TIPMCGW_05_GE_TD.json",
+        "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.TIPMCGW.TIPMCGW_08_176_TD.json",
+        "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.TIPMCGW.TIPMCGW_08_81_TD.json",
+        "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.TIPMCGW.TIPMCGW_08_82_TD.json",
+        "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.TIPMCGW.TIPMCGW_08_83_TD.json",
+        "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.TIPMCGW.TIPMCGW_08_84_TD.json",
+        "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.TIPMCGW.TIPMCGW_08_85_TD.json"
+      ]
+    },
+    {
+      "name": "T-Case Encoder Sensor",
+      "rawDefinition": {
+        "N": "TIPMCGW_V2_730854",
+        "G": "TIPMCGW_V2_729413",
+        "Mode": "21",
+        "Pid": "11",
+        "Pos": "24",
+        "Form": "F101",
+        "Faktor": "7=TIPMCGW_V2_728887:2=TIPMCGW_V2_729020:0=TIPMCGW_V2_730496:4=TIPMCGW_V2_731715:3=TIPMCGW_V2_731464:1=TIPMCGW_V2_731465:5=TIPMCGW_V2_731717",
+        "KalF": "8"
+      },
+      "states": {
+        "7": "SNA",
+        "2": "Neutral",
+        "0": "2wd",
+        "4": "Fault Lo",
+        "3": "4Lo",
+        "1": "4Hi",
+        "5": "Fault Hi"
+      },
+      "resources": [
+        "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.TIPMCGW.TIPMCGW_07_GE_TD.json"
+      ]
+    },
+    {
+      "name": "T-Case Encoder Sensor",
+      "rawDefinition": {
+        "N": "TIPMCGW_V2_730854",
+        "G": "TIPMCGW_V2_729413",
+        "Mode": "21",
+        "Pid": "11",
+        "Pos": "24",
+        "Form": "F101",
+        "Faktor": "255=TIPMCGW_V2_728911:7=TIPMCGW_V2_728887:2=TIPMCGW_V2_729020:0=TIPMCGW_V2_730496:4=TIPMCGW_V2_731715:3=TIPMCGW_V2_731464:1=TIPMCGW_V2_731465:5=TIPMCGW_V2_731717",
+        "KalF": "8"
+      },
+      "states": {
+        "255": "SNA / Not Programmed",
+        "7": "SNA",
+        "2": "Neutral",
+        "0": "2wd",
+        "4": "Fault Lo",
+        "3": "4Lo",
+        "1": "4Hi",
+        "5": "Fault Hi"
+      },
+      "resources": [
+        "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.TIPMCGW.TIPMCGW_08_05_TD.json",
+        "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.TIPMCGW.TIPMCGW_08_06_TD.json",
+        "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.TIPMCGW.TIPMCGW_08_07_TD.json",
+        "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.TIPMCGW.TIPMCGW_08_160_TD.json"
+      ]
+    }
+  ]
+}
