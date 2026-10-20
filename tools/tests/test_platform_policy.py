@@ -37,7 +37,10 @@ class PlatformPolicyTest(unittest.TestCase):
             ("rc", policy["publicRepository"]),
             ("development", "lstepnio/ESP32OBD2-platforms"),
         ):
-            with self.subTest(channel=channel, repository=repository), self.assertRaises(ValueError):
+            with (
+                self.subTest(channel=channel, repository=repository),
+                self.assertRaises(ValueError),
+            ):
                 require_public_firmware(policy, policy["referenceBoard"], channel, repository)
 
     def test_invalid_or_expanded_policy_is_rejected(self):
