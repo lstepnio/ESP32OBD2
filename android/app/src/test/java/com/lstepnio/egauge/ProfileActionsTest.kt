@@ -7,6 +7,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 class ProfileActionsTest {
     private val initial = Draft()
@@ -85,6 +86,7 @@ class ProfileActionsTest {
         }
     }
 
+    @Category(DevelopmentConfiguration::class)
     @Test fun vehicleMenuUsesTheParentAndPreservesDurationsAcrossSavedSetup() {
         val action = PageAction(type = PageActionType.VehicleActions, airUpSeconds = 60, winchSeconds = 600)
         val child = TransmissionConnection(AdapterBinding("tcm", "AA:BB:CC:DD:EE:02", "public"), TransmissionSetup.draft())
@@ -106,6 +108,7 @@ class ProfileActionsTest {
         assertEquals(600, sent.getInt("winchSeconds"))
     }
 
+    @Category(DevelopmentConfiguration::class)
     @Test fun dualChildActionTargetsArePrefixedAndConflictingBindingsFail() {
         val engine = AdapterBinding("ecm", "AA:BB:CC:DD:EE:01", "public")
         val child = AdapterBinding("tcm", "AA:BB:CC:DD:EE:02", "public")

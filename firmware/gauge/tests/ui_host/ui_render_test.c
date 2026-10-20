@@ -37,12 +37,13 @@ bool alert_runtime_command(const uint8_t *data, size_t length)
     acknowledgments++;
     return true;
 }
-static uint32_t pixels[240 * 240], draw_buffer[240 * 240];
-static void     flush(lv_display_t *display, const lv_area_t *area, uint8_t *data)
+static uint32_t *pixels, *draw_buffer;
+static unsigned  width, height;
+static void      flush(lv_display_t *display, const lv_area_t *area, uint8_t *data)
 {
-    unsigned width = area->x2 - area->x1 + 1;
+    unsigned stride = area->x2 - area->x1 + 1;
     for (int y = area->y1; y <= area->y2; y++)
-        memcpy(pixels + y * 240 + area->x1, data + (y - area->y1) * width * 4, width * 4);
+        memcpy(pixels + y * width + area->x1, data + (y - area->y1) * stride * 4, stride * 4);
     lv_display_flush_ready(display);
 }
 static void tick(unsigned ms)
@@ -61,11 +62,18 @@ static void check_labels(lv_obj_t *root)
         const char      *text = lv_label_get_text(root);
         const lv_font_t *font = lv_obj_get_style_text_font(root, 0);
         ink_t            b;
+        if (strchr(text, '\n'))
+        {
+            lv_area_t area;
+            lv_obj_get_coords(root, &area);
+            assert(gauge_presentation_fits(area.x1, area.y1, area.x2, area.y2));
+            return;
+        }
         assert(ink(text, font, &b));
         lv_area_t a;
         lv_obj_get_coords(root, &a);
         int x = a.x1 + lv_obj_get_style_pad_left(root, 0), y = a.y1 + lv_obj_get_style_pad_top(root, 0);
-        if (*text && !gauge_layout_fits(x + b.left, y + b.top, x + b.right, y + b.bottom))
+        if (*text && !gauge_presentation_fits(x + b.left, y + b.top, x + b.right, y + b.bottom))
         {
             fprintf(stderr, "Outside circle: %s (%d,%d,%d,%d)\n", text, x + b.left, y + b.top, x + b.right,
                     y + b.bottom);
@@ -83,7 +91,7 @@ static void capture(const char *directory, const char *name)
     snprintf(path, sizeof(path), "%s/%s.rgb", directory, name);
     FILE *out = fopen(path, "wb");
     assert(out);
-    for (unsigned i = 0; i < 240 * 240; i++)
+    for (unsigned i = 0; i < width * height; i++)
     {
         unsigned char rgb[] = {pixels[i] >> 16, pixels[i] >> 8, pixels[i]};
         assert(fwrite(rgb, 1, 3, out) == 3);
@@ -100,10 +108,26 @@ int main(int argc, char **argv)
     assert(argc == 2);
     mkdir(argv[1], 0700);
     lv_init();
-    lv_display_t *display = lv_display_create(240, 240);
+    const gauge_surface_t *surface = gauge_presentation()->surface;
+    assert(gauge_presentation_matches(surface));
+    assert(!gauge_presentation_matches(NULL));
+    gauge_surface_t wrong = *surface;
+    wrong.content_inset++;
+    assert(!gauge_presentation_matches(&wrong));
+    assert(gauge_presentation_px(0) == 0);
+    assert(gauge_presentation_px(-1) == -gauge_presentation_px(1));
+    assert(abs(2 * gauge_presentation_x(120) - surface->width) <= 1);
+    assert(abs(2 * gauge_presentation_y(120) - surface->height) <= 1);
+    width       = surface->width;
+    height      = surface->height;
+    pixels      = calloc(width * height, sizeof(*pixels));
+    draw_buffer = calloc(width * height, sizeof(*draw_buffer));
+    assert(pixels && draw_buffer);
+    lv_display_t *display = lv_display_create(width, height);
     lv_display_set_color_format(display, LV_COLOR_FORMAT_XRGB8888);
     lv_display_set_flush_cb(display, flush);
-    lv_display_set_buffers(display, draw_buffer, NULL, sizeof(draw_buffer), LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_buffers(display, draw_buffer, NULL, width * height * sizeof(*draw_buffer),
+                           LV_DISPLAY_RENDER_MODE_FULL);
     ui_page_t saved = {
         .name         = "RPM",
         .renderer     = UI_RENDERER_NUMERIC,
@@ -240,6 +264,15 @@ int main(int argc, char **argv)
     assert(kind == 1 && stop && !preset && !seconds);
     lv_obj_send_event(ui->command_rows[3], LV_EVENT_CLICKED, NULL);
     assert(!ui_action_pending(ui));
+    /* Calibration pages exercise geometry/fonts outside the instrument compositor. */
+    for (unsigned i = 0; i < CALIBRATION_PAGE_COUNT; i++)
+    {
+        ui->calibration_page = i;
+        render_calibration_page(ui);
+        char name[32];
+        snprintf(name, sizeof(name), "calibration-%u", i + 1);
+        capture(argv[1], name);
+    }
     puts("PASS: production LVGL showcase frames, circular glyphs, vehicle/maintenance/critical preemption and pairing "
          "restore");
 }

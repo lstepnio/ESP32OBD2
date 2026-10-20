@@ -37,7 +37,8 @@
       "docs/architecture/phone-alert-providers.md",
       "docs/architecture/system.md",
       "docs/architecture/vehicle-actions.md",
-      "docs/architecture/vehicle-connections.md"
+      "docs/architecture/vehicle-connections.md",
+      "docs/architecture/platforms-and-releases.md"
     ],
     "development-contracts-and-proposals": [
       "docs/protocol/adapter-bindings-v1.md",

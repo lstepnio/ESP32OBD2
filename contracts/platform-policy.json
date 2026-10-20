@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "referenceBoard": "waveshare-esp32-s3-touch-lcd-1.28",
+  "publicRepository": "lstepnio/ESP32OBD2",
+  "publicFirmwareBoards": ["waveshare-esp32-s3-touch-lcd-1.28"],
+  "publicFirmwareChannels": ["development"],
+  "otherFirmwareAudience": "private"
+}

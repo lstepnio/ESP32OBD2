@@ -5,6 +5,8 @@
     "docs/roadmap.md",
     "docs/backlog.md",
     "docs/development/reading-catalog-alerts.md",
-    "docs/architecture/alerts-and-diagnostics.md"
+    "docs/architecture/alerts-and-diagnostics.md",
+    "docs/architecture/vehicle-actions.md",
+    "docs/evidence/jeep-high-idle-reference.md"
   ]
 }

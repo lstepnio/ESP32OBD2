@@ -1,7 +1,8 @@
 # Current implementation and evidence
 
-Updated 2026-10-19. This owns implemented/installed facts and their evidence limits.
+Updated 2026-10-20. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
+Latest source work adds shared native presentation profiles with unchanged reference output.
 Latest device update installs the merged Car fault experience on the Pixel; no new
 firmware installation, physical gauge display/touch or live-vehicle observation.
 
@@ -123,4 +124,28 @@ not enabled eGauge controls or braking-performance qualification.
 
 Select a [backlog](backlog.md) gate. Use [TCM resume](development/tcm-session-resume.md)
 for parked vehicle work and App/Wi-Fi for field updates. Keep private captures and
-working setup. Android and firmware are active; iOS is deferred.
+working setup. Android and firmware are implemented; basic iOS and browser-USB
+configuration are [planned scope](roadmap.md#product-boundaries), not available
+runtime features.
+
+## Shared platform interface foundation
+
+The [reference board/display seam](architecture/platforms-and-releases.md#implemented-reference-interfaces)
+is implemented in source with unchanged reference templates and BSP behavior.
+Larger round/rectangular safe-area logic is tested offline; startup admits only an explicitly linked matching presentation profile.
+The reference provider remains the default. Native profile/font selection and design-grid
+conversion are prepared in source; additional-board providers remain private and unqualified. The extraction retained byte-identical output for all 25 captured production LVGL
+frames; the linked static internal-memory count remained 163,898 bytes and the
+64 KiB LVGL arena remained in PSRAM. Host tests, formatting/lint and the reference
+firmware build passed. No additional board firmware, live virtual telemetry,
+release promotion or device installation is established by these checks.
+
+## Android variant quality gates
+
+CODE-04 is completed in prepared source: the shared Android test command runs debug
+and release JVM suites. Development-only positive configuration fixtures are explicitly
+categorized; variant-specific release tests assert that projection gates remain closed,
+standard engine configurations work and saved development data is retained. No runtime
+flags or production App source changed. Exact counts and baseline failures belong in
+[dated maintenance evidence](evidence/repository-maintenance.md#2026-10-20-android-variant-gates).
+This is offline test coverage, not a new installed APK or physical observation.

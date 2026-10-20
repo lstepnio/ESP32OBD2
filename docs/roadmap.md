@@ -19,6 +19,52 @@ Dependencies and precise acceptance criteria belong to the backlog. There are no
 implied dates or automatic release authorizations. Unavailable hardware blocks its
 qualification task, not useful independent offline work.
 
+## Distribution and custom work
+
+The original 1.28-inch reference board retains free public development firmware.
+Additional hardware integrations and firmware default to private distribution, with
+custom software, interfaces and integrations as the primary service. The
+[platform/RC contract](architecture/platforms-and-releases.md) defines shared-core
+development, capability limits, square/virtual display extensions and target-specific
+release-candidate qualification before general availability.
+There is no committed standard-gauge retail launch, preorder/deposit program or
+paid roadmap tier. A finished build or custom hardware can be discussed by request
+and scoped separately. Customer ideas can influence priorities without payment.
+Custom work can extend beyond vehicles to desktop software/displays, control panels
+and standalone connected devices. These are project possibilities, not claims of
+implemented eGauge support. Direct CAN integration and guided remote protocol
+analysis can be scoped for higher-rate or otherwise unavailable signals. Follow
+[hardware boundaries](architecture/hardware-and-transports.md): the current board
+has no CAN transceiver, and signal availability/rates require validation. Remote
+capture is an investigation method, not a promise that every protocol is accessible.
+
+The DIY offer is a hands-on development project using capable, low-cost hardware
+bought independently. Once configured for a working use case, core gauge readings,
+saved pages and local alerts operate directly with the vehicle adapters, without
+a connected phone, open App or internet service. Routine operation does not require
+firmware updates. Configuration changes, updates and phone-sourced features still
+need their respective tools or connections; do not imply every future integration
+is autonomous.
+
+The website presents this direction alongside evidenced product progress. Its
+[maintenance policy](../website/README.md#maintenance-cadence) owns the daily,
+resource-aware publication and screenshot process; it does not block product work.
+
+## Vehicle profile expansion
+
+Finish the Hemi-swapped Jeep's current qualification work first. The owner reports
+direct access to a Volvo C30, Lexus GX470, Toyota FJ Cruiser, newer Subaru Crosstrek
+and Porsche 718 S. These are likely subsequent profile candidates, not tested or
+supported vehicles; exact years, variants, controllers and adapters remain to be
+recorded before vehicle-specific work. Customer interest may change the order.
+
+QUAL-10 owns capture and compatibility acceptance. Unique customer setups can use
+agreed capture software and suitable hardware for guided remote data collection,
+with scope and equipment arranged per project. Use the existing capture/replay
+approach, but scope the procedure to the actual vehicle rather than assuming the
+Wrangler's diagnostic endpoints or meanings apply. Access to a vehicle or receipt
+of a capture is not profile qualification or remote-control support.
+
 ## Baseline carried into this sequence
 
 The Android UI cleanup, shared alerts/CEL filters, revised gauge compositor and
@@ -37,7 +83,15 @@ publication alone.
 
 ## Product boundaries
 
-Android and the autonomous gauge are active; iOS is deferred. Everyday vehicles use
+Android and the autonomous gauge are the implemented platform. A basic iOS
+companion and browser-over-USB core configuration are planned under PLATFORM-01
+and PLATFORM-02. iOS targets essential setup/use, not Android feature parity;
+some phone integrations will remain Android-only, and police/road-alert availability
+may differ by platform/provider. USB configuration targets a supported desktop
+browser so core gauge setup does not require a smartphone App. The existing
+browser recovery tool installs firmware; it does not yet configure running gauge
+settings. This scope update does not claim an iOS build, USB configuration path,
+release date or live alert provider. Everyday vehicles use
 one primary adapter for their available engine and transmission data. A swap's
 optional second adapter changes routing within the same vehicle, never its editor,
 page list or alert choices. Multiple vehicles and gauges retain independent context.

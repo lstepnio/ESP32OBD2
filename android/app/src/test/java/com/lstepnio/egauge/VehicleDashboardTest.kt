@@ -4,6 +4,7 @@ import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 class VehicleDashboardTest {
     private val vehicle = VehicleProfile(
@@ -14,7 +15,9 @@ class VehicleDashboardTest {
         TransmissionConnection(AdapterBinding("tcm", "AA:BB:CC:DD:EE:02", "public"))
     )
 
-    @Test fun combinedReadingsAndPageOrderSurviveStorageAndProjection() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun combinedReadingsAndPageOrderSurviveStorageAndProjection() {
         assertTrue(
             ConfigurationProjector.pagePidIds(
                 "BOTH"
@@ -48,7 +51,9 @@ class VehicleDashboardTest {
         )
     }
 
-    @Test fun addingAndRemovingPagesKeepsSiblingBindingsAndRoutesTheGesture() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun addingAndRemovingPagesKeepsSiblingBindingsAndRoutesTheGesture() {
         val combined = vehicle.combinedDraft()
         val page =
             GaugePageDraft("page.custom.1", "TCM TEMP", GaugeLayout.Numeric, listOf("tcmtemp"))
@@ -73,7 +78,9 @@ class VehicleDashboardTest {
         assertEquals(combined.pages, removed.combinedDraft().pages)
     }
 
-    @Test fun mixedControllerDualWorksAndRemovingTheLastVehiclePageIsRejected() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun mixedControllerDualWorksAndRemovingTheLastVehiclePageIsRejected() {
         val combined = vehicle.combinedDraft()
         val bad = combined.pages.first().copy(
             layout = GaugeLayout.Dual,
@@ -94,7 +101,9 @@ class VehicleDashboardTest {
         assertEquals(combined, vehicle.combinedDraft())
     }
 
-    @Test fun movedSingleAdapterStillHasOneEditableVehicleDashboard() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun movedSingleAdapterStillHasOneEditableVehicleDashboard() {
         val shared = vehicle.copy(
             transmission = vehicle.transmission!!.copy(adapter = vehicle.primaryAdapter)
         )
@@ -121,7 +130,9 @@ class VehicleDashboardTest {
         assertTrue(shared.withCombinedPageAction(action).transmission!!.draft.actions.isEmpty())
     }
 
-    @Test fun unfinishedChildBindingDoesNotHideVehicleReadingsAndOrdinaryVehicleStaysSingle() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun unfinishedChildBindingDoesNotHideVehicleReadingsAndOrdinaryVehicleStaysSingle() {
         val unfinished = vehicle.copy(transmission = vehicle.transmission!!.copy(adapter = null))
         assertEquals(vehicle.combinedDraft().pages, unfinished.dashboardDraft().pages)
         assertThrows(IllegalArgumentException::class.java) { unfinished.combinedDraft() }
@@ -133,7 +144,9 @@ class VehicleDashboardTest {
         )
     }
 
-    @Test fun lastChildPageCanBeDeletedWithoutDeletingItsAdapterAndCanBeAddedAgain() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun lastChildPageCanBeDeletedWithoutDeletingItsAdapterAndCanBeAddedAgain() {
         val combined = vehicle.dashboardDraft()
         val edited = vehicle.withDashboard(
             combined.copy(pages = vehicle.draft.pages, actions = emptyList())
@@ -157,7 +170,9 @@ class VehicleDashboardTest {
         assertEquals(vehicle.transmission.adapter, resumed.transmission.adapter)
     }
 
-    @Test fun lastPrimaryPageCanBeDeletedWhileRetainingSiblingPagesAndAlerts() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun lastPrimaryPageCanBeDeletedWhileRetainingSiblingPagesAndAlerts() {
         val edited = vehicle.withDashboard(
             vehicle.dashboardDraft().let {
                 it.copy(pages = it.pages.filter { p -> p.id.startsWith("child.") })

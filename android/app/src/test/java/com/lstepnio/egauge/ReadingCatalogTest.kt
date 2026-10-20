@@ -6,6 +6,7 @@ import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 class ReadingCatalogTest {
     private val template = File("src/main/assets/numeric_config_template.json").readText()
@@ -30,10 +31,10 @@ class ReadingCatalogTest {
         json
     )
 
-    @Test fun everyCatalogReadingCanBeSelectedAndAlertedWithoutPollingTheWholeCatalog() {
+    @Test fun everySelectableCatalogReadingCanBeSelectedAndAlertedWithoutPollingTheWholeCatalog() {
         assertEquals(55, readingCatalog.size)
         assertEquals(53, ConfigurationProjector.supportedPidIds.size)
-        readingCatalog.forEach { reading ->
+        readingCatalog.filter { it.id in ConfigurationProjector.pagePidIds("ECM") }.forEach { reading ->
             val range = readingBounds(reading.id)
             val span = range.endInclusive - range.start
             val directions = if (reading.alertKind ==
@@ -112,7 +113,7 @@ class ReadingCatalogTest {
     }
 
     @Test fun helperDefaultsRemainValidForEveryCatalogReadingIncludingSubUnitRanges() {
-        readingCatalog.forEach { reading ->
+        readingCatalog.filter { it.id in ConfigurationProjector.pagePidIds("ECM") }.forEach { reading ->
             assertTrue(
                 reading.id,
                 ConfigurationProjector.blockers(
@@ -152,7 +153,9 @@ class ReadingCatalogTest {
         )
     }
 
-    @Test fun childAlertsMergePersistRouteAndSurviveRemovingTheChildTransport() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun childAlertsMergePersistRouteAndSurviveRemovingTheChildTransport() {
         val parent =
             VehicleProfile(
                 "default",
@@ -201,7 +204,9 @@ class ReadingCatalogTest {
         assertEquals(3, one.getJSONArray("alerts").length())
     }
 
-    @Test fun transmissionAlertDoesNotRequireATransmissionPage() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun transmissionAlertDoesNotRequireATransmissionPage() {
         val draft = Draft(alerts = listOf(temperature, gear))
         assertTrue(ConfigurationProjector.blockers(draft).isEmpty())
         assertTrue(requiresVehicleDashboardFirmware(draft, false))

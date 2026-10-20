@@ -4,6 +4,7 @@ import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 class GaugeProfileRecoveryTest {
     private val engine =
@@ -38,13 +39,17 @@ class GaugeProfileRecoveryTest {
         )
     }
 
-    @Test fun restoringGaugeSetupRetainsPhoneOnlyIdlePresets() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun restoringGaugeSetupRetainsPhoneOnlyIdlePresets() {
         val document = document()
         val existing = VehicleProfile(document.vehicleProfileId, "Car", Draft(idlePresets = listOf(IdlePreset(IdlePresetId.AirUp, 1200))))
         assertEquals(existing.draft.idlePresets, GaugeProfileRecovery.restore(existing, document).draft.idlePresets)
     }
 
-    @Test fun recoveryRetainsEngineAndRestoresSourcePagesBindingAndAction() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun recoveryRetainsEngineAndRestoresSourcePagesBindingAndAction() {
         val saved = document()
         val result = GaugeProfileRecovery.recover(original, saved)
         assertEquals(engine, result.profiles.first())
@@ -59,7 +64,9 @@ class GaugeProfileRecoveryTest {
         assertEquals(result, ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(result)))
     }
 
-    @Test fun combinedRecoveryRetainsOneVehicleWithItsChildAndFullDashboard() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun combinedRecoveryRetainsOneVehicleWithItsChildAndFullDashboard() {
         val vehicle = engine.copy(
             id = "missing.jeep",
             transmission = TransmissionConnection(
@@ -95,7 +102,9 @@ class GaugeProfileRecoveryTest {
         }
     }
 
-    @Test fun existingIdentityAndFullCollectionAreNeverOverwritten() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun existingIdentityAndFullCollectionAreNeverOverwritten() {
         val recovered = GaugeProfileRecovery.recover(original, document())
         assertThrows(IllegalArgumentException::class.java) {
             GaugeProfileRecovery.recover(recovered, document())
@@ -111,7 +120,9 @@ class GaugeProfileRecoveryTest {
         }
     }
 
-    @Test fun missingBindingUnknownReadingAndDualSourcesFailWithoutMutation() {
+    @Category(DevelopmentConfiguration::class)
+    @Test
+    fun missingBindingUnknownReadingAndDualSourcesFailWithoutMutation() {
         val saved = document()
         for (mutate in listOf<(JSONObject) -> Unit>(
             { it.getJSONArray("sources").getJSONObject(0).remove("adapter") },

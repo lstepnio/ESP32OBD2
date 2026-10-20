@@ -28,6 +28,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     testOptions {
+        unitTests.all { testTask ->
+            if (testTask.name == "testReleaseUnitTest") {
+                testTask.useJUnit {
+                    excludeCategories("com.lstepnio.egauge.DevelopmentConfiguration")
+                }
+            }
+        }
         managedDevices {
             localDevices {
                 create("ciPhone") {

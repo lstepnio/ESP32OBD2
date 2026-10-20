@@ -2,7 +2,8 @@
 
 Read [current state](docs/current-state.md), then the affected row in the
 [source map](docs/ai-context.md) and [backlog](docs/backlog.md). Historical reports
-are evidence, not operating instructions. Android and firmware are active; iOS is deferred.
+are evidence, not operating instructions. Android and firmware are active; basic iOS and browser-USB configuration are planned
+in the roadmap, with implementation/qualification tracked in the backlog.
 
 ## Commands and layout
 
@@ -31,10 +32,14 @@ contracts/status and dated evidence. `data/vehicle-definitions/` is research onl
 - Make the smallest cohesive change that preserves architecture/styling. Remove dead
   code or stale guidance only after verifying references and remaining acceptance.
 - Ask only for critical missing information/authorization; continue independent work.
-- Run checks for the changed boundary. Repeat broad tests only for a concrete risk.
+- Use the [check-selection guide](docs/development/quality.md#change-based-check-selection)
+  for the smallest complete gate. Run checks for the changed boundary. Repeat broad tests only for a concrete risk.
   A build, fixture or serial log is not physical qualification.
 - Follow [documentation ownership](docs/documentation.md). Keep one topic authority;
   update code/contracts together. Major choices belong in [ADRs](docs/decisions/README.md).
+- Feature completion includes a website-impact review. Follow [website maintenance](website/README.md#maintenance-cadence)
+  for resource-aware daily publication, owner-led roadmap updates and current App/circular-gauge screens;
+  keep marketing capture/publication off the normal build path.
 - Do not use an em dash in user-facing responses.
 
 ## Runtime boundaries
@@ -88,6 +93,9 @@ contracts/status and dated evidence. `data/vehicle-definitions/` is research onl
 - For authorized live Android debugging, run `python3 tools/adb_debug_awake.py start`
   before the session and `stop` afterward to restore timeout/wake settings. Manual
   locks still require the user to unlock. Record phone and gauge observations separately.
+- Follow [platform/RC boundaries](docs/architecture/platforms-and-releases.md): share feature
+  logic, isolate board/surface adapters, keep added-board firmware private, and qualify
+  each target before promotion. Only the reference board uses public release workflows.
 - Field firmware installation is App/Wi-Fi. USB recovery requires separate explicit
   authorization and the [release/recovery procedure](docs/development/firmware-release-runbook.md).
 - Follow [CONTRIBUTING](CONTRIBUTING.md): small tested commits, `codex/` branches,

@@ -25,13 +25,22 @@
       </ul>
     </section>
     <div class="recovery-grid">
-      <section class="recovery-card" aria-labelledby="install-title" data-recovery data-manifest="{{RECOVERY_MANIFEST}}" data-sha256="{{RECOVERY_MANIFEST_SHA256}}">
+      <section class="recovery-card" aria-labelledby="install-title" data-recovery data-manifest="{{RECOVERY_MANIFEST}}" data-sha256="{{RECOVERY_MANIFEST_SHA256}}" data-releases="/downloads/releases.json">
         <p class="eyebrow">01 / INSTALL FIRMWARE</p><h2 id="install-title">Connect. Install. Check.</h2>
         <p><strong>Waveshare ESP32-S3-Touch-LCD-1.28 only.</strong> 16 MB flash, 2 MB PSRAM, 240 × 240 touch display. The non-touch model and other ESP32 boards are not supported.</p>
-        <p>Firmware <strong>{{FIRMWARE_VERSION}}</strong> · <a href="{{FIRMWARE_RELEASE}}">Published development release ↗</a></p>
+        <label for="release-choice" class="release-label">Firmware release</label>
+        <select id="release-choice" aria-describedby="release-status" disabled><option value="bundled">Verified recovery · {{FIRMWARE_VERSION}}</option><option value="local">Open a downloaded package</option></select>
+        <p id="release-status" role="status">Loading published GitHub releases…</p>
+        <p><a id="release-notes" href="{{FIRMWARE_RELEASE}}">Release notes on GitHub ↗</a> · <a href="https://github.com/lstepnio/ESP32OBD2/releases">All releases ↗</a></p>
+        <div id="release-upload" hidden>
+          <ol class="recovery-steps"><li id="firmware-download-step"><a id="firmware-download" href="https://github.com/lstepnio/ESP32OBD2/releases">Download selected firmware</a> from GitHub. Keep the <code>.egauge-dev-update</code> file unopened.</li><li>Choose that file below. It stays on your computer; the page verifies its signature before enabling installation.</li></ol>
+          <label for="firmware-file" class="release-label">Open downloaded firmware package</label>
+          <input id="firmware-file" type="file" accept=".egauge-dev-update" aria-describedby="status">
+        </div>
+        <p class="quiet">The verified recovery build is ready to use. Other releases use download → choose file → install. Only compatible, signed eGauge packages are accepted.</p>
         <label class="board-confirm"><input type="checkbox" id="confirm-board"> <span>I have this exact board and want to replace its firmware. This is an unsupported development build.</span></label>
         <button class="button primary" id="install" type="button" disabled>Connect and install</button>
-        <noscript><p>Enable JavaScript to use browser recovery.</p></noscript>
+        <noscript><p>Enable JavaScript to select releases or use browser recovery. Downloads and instructions below still work.</p></noscript>
         <p id="status" role="status" aria-live="polite">Loading the recovery tool…</p>
         <label for="progress" class="quiet">Firmware write and verification</label><progress id="progress" value="0" max="100" hidden></progress>
         <p class="quiet">Recovery writes separate firmware regions and resets the OTA selector to the recovered image. It leaves eGauge NVS, pairing and configuration regions untouched. Other firmware layouts may store data differently: back up before replacing them. No erase-all option.</p>
@@ -50,7 +59,26 @@
         <details><summary>When should I use this?</summary><p>Use USB for initial setup or recovery when normal updates are unavailable. For an already paired, working gauge, use the Android App's signed Wi-Fi update flow.</p></details>
       </aside>
     </div>
-    <section class="recovery-card recovery-next" aria-labelledby="app-title"><p class="eyebrow">02 / SET UP AND VERIFY</p><h2 id="app-title">Bring your phone.</h2><p>After flashing, check that the display boots and swipes work. Install the Android development APK, open eGauge, and follow pairing to configure your pages and adapter. A working display does not establish vehicle or adapter compatibility.</p><p><a class="button primary" href="{{APK_URL}}" download>Download Android APK</a> <a href="/downloads/manifest.json">Versions, hashes and build provenance ↗</a></p><p><strong>How many adapters?</strong> Most vehicles use one adapter in their standard OBD-II port. Some swaps, including our Hemi-swapped Jeep with separate ECM and TCM diagnostic ports, need two adapters to read both at once, one per port. This is uncommon outside swapped vehicles.</p><p class="quiet">App {{APP_VERSION}}, Android 10 or newer. Sideloading requires allowing installs from your browser; turn that permission off afterward. This development APK uses a development signing identity. An installed build with another signing identity cannot be updated in place. Do not uninstall an existing App with saved setup just to bypass that mismatch.</p><p class="quiet">This is an unsupported DIY development option, with no guarantee of compatibility, reliability or upgrade continuity. No purchase is required from eGauge. <a href="/#availability">Talk to us about your setup</a>.</p></section>
+    <section id="android" class="recovery-card recovery-next" aria-labelledby="app-title">
+      <p class="eyebrow">02 / ANDROID APP</p><h2 id="app-title">Download. Install. Pair.</h2>
+      <p>Android 10 or newer. After firmware installation, check that the gauge boots and responds to swipes. Open eGauge on your phone and follow pairing to set up your pages and adapter.</p>
+      <label for="apk-choice" class="release-label">Android App release</label>
+      <select id="apk-choice" aria-describedby="apk-status" disabled><option value="bundled">Verified download · {{APP_VERSION}}</option></select>
+      <p id="apk-status" role="status">Verified App {{APP_VERSION}} is available below. GitHub releases are checked for additional APKs.</p>
+      <p><a id="apk-download" class="button primary" href="{{APK_URL}}" download>Download Android APK</a> <a id="apk-notes" href="https://github.com/lstepnio/ESP32OBD2/releases">GitHub releases ↗</a></p>
+      <details open><summary>Install on your Android phone</summary>
+        <ol class="recovery-steps">
+          <li>Open this page <strong>on your Android phone</strong> and tap <strong>Download Android APK</strong>. If you downloaded it on a computer, copy the APK to the phone's Downloads folder.</li>
+          <li>Open the completed download, or find it in <strong>Files → Downloads</strong>, and tap the <code>.apk</code> file.</li>
+          <li>If Android asks, open <strong>Settings → Allow from this source</strong> for the browser or Files app you used. Return to the installer and tap <strong>Install</strong>. Menu names vary by phone.</li>
+          <li>Open <strong>eGauge</strong>, allow its requested Bluetooth/Nearby devices permissions and follow the gauge pairing instructions.</li>
+          <li>Turn <strong>Allow from this source</strong> off again after installation. Keep Play Protect enabled.</li>
+        </ol>
+      </details>
+      <details><summary>Already have eGauge, or installation failed?</summary><p>Install over your existing App to retain saved setup. If Android reports an incompatible signature, or an older version will not install, <strong>do not uninstall to bypass it</strong>: your saved setup could be lost. Export a backup from eGauge first, and use an APK from the same signing identity. Development APKs are not guaranteed to update every earlier build.</p><p>Do not bypass a Play Protect block. Check that the download came from this page or the project's GitHub release, and contact the project if it is still blocked.</p></details>
+      <p><strong>How many adapters?</strong> Most vehicles use one adapter in their standard OBD-II port. Some swaps, including our Hemi-swapped Jeep with separate ECM and TCM diagnostic ports, need two adapters, one per port. This is uncommon outside swapped vehicles.</p>
+      <p class="quiet"><a href="/downloads/manifest.json">Verified download hashes and build provenance ↗</a> apply to the hosted fallback downloads. GitHub assets use their own release notes and asset metadata. This is an unsupported development option; a successful install does not establish vehicle compatibility. <a href="/#availability">Talk to us about your setup</a>.</p>
+    </section>
     <section id="older-releases" class="recovery-card recovery-next" aria-labelledby="older-title">
       <h2 id="older-title">Need an older release?</h2>
       <ol class="recovery-steps">
@@ -59,11 +87,11 @@
         <li>Expand <strong>Assets</strong> below the release notes, then select the file to download.</li>
       </ol>
       <p><strong>Android App:</strong> choose a <code>.apk</code> file, when one is provided. Historical releases may not include an APK.</p>
-      <p><strong>Firmware:</strong> a <code>.egauge-dev-update</code> file is a signed Android App update package. It is not a complete USB recovery image. This browser installer uses the version shown above; it does not load historical bundles.</p>
+      <p><strong>Firmware:</strong> choose a signed <code>.egauge-dev-update</code> package. Select its release above, download the package, then choose the file in the recovery tool. Do not unzip it. The tool verifies the firmware signature and compatible board, image format and toolchain before using the reviewed USB support regions. A release with a different layout or toolchain requires matching recovery support; do not flash an arbitrary <code>.bin</code> at guessed offsets.</p>
       <p class="quiet">GitHub's <strong>Source code (zip)</strong> and <strong>Source code (tar.gz)</strong> links contain developer source, not installable App or firmware packages. Check compatibility before installing an older build: it may not read settings saved by a newer version.</p>
       <a href="https://github.com/lstepnio/ESP32OBD2/releases" class="button primary">Browse older releases ↗</a>
     </section>
   </main>
-  <footer class="footer wrap"><a class="brand" href="/">eGauge<span class="brand-dot">.</span></a><p><a href="https://github.com/lstepnio/ESP32OBD2/tree/27f5dec85a8527c7ef6871ba5117908cd667a3af/web-recovery">Recovery source and maintenance ↗</a></p></footer>
+  <footer class="footer wrap"><a class="brand" href="/">eGauge<span class="brand-dot">.</span></a><p><a href="https://github.com/lstepnio/ESP32OBD2/tree/{{SOURCE_COMMIT}}/web-recovery">Recovery source and maintenance ↗</a></p></footer>
 </body>
 </html>

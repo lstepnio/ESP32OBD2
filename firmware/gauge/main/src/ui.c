@@ -48,6 +48,7 @@
 #include "ui.h"
 #include "alert_runtime.h"
 #include "gauge_layout.h"
+#include "gauge_presentation.h"
 #include "display_showcase.h"
 #include "adapter_status.h"
 #include "transfer_gate.h"
@@ -216,19 +217,15 @@ struct _ui_t
 // Fonts
 // ---------------------------------------------------------------------------------------------------------------------
 
-extern const lv_font_t notosans_semibold_64;
-extern const lv_font_t notosans_semibold_32;
-extern const lv_font_t notosans_semibold_48;
-extern const lv_font_t notosans_semibold_40;
-extern const lv_font_t notosans_medium_16;
-extern const lv_font_t notosans_medium_24;
-
-static const lv_font_t *const font_title    = &notosans_semibold_64;
-static const lv_font_t *const font_compact  = &notosans_semibold_32;
-static const lv_font_t *const font_large    = &notosans_semibold_48;
-static const lv_font_t *const font_dual     = &notosans_semibold_40;
-static const lv_font_t *const font_subtitle = &notosans_medium_16;
-static const lv_font_t *const font_unit     = &notosans_medium_24;
+#define font_title (gauge_presentation()->title)
+#define font_compact (gauge_presentation()->compact)
+#define font_large (gauge_presentation()->large)
+#define font_dual (gauge_presentation()->dual)
+#define font_subtitle (gauge_presentation()->subtitle)
+#define font_unit (gauge_presentation()->unit)
+#define px gauge_presentation_px
+#define gx gauge_presentation_x
+#define gy gauge_presentation_y
 
 static const uint32_t color_background     = 0x05080A;
 static const uint32_t color_text_primary   = 0xE4EAED;
@@ -238,10 +235,10 @@ static const uint32_t color_accent         = 0x00FF70;
 static const uint32_t color_warning        = 0xFF8A00;
 static const uint32_t color_critical       = 0xFF1744;
 
-// Keep essential glyphs 8 px from the circle; decoration retains a 4 px inset.
+// Profiles own native bezel/content insets; the shared composition owns placement.
 // Physical bezel clearance is qualified separately from native render bounds.
-#define GAUGE_ARC_DIAMETER (2 * GAUGE_DECORATION_RADIUS)
-#define GAUGE_ARC_WIDTH 11
+#define GAUGE_ARC_DIAMETER (px(240) - 2 * gauge_presentation()->surface->decoration_inset)
+#define GAUGE_ARC_WIDTH px(11)
 
 #define CALIBRATION_PAGE_COUNT 5
 #define PRIMARY_LABEL_WIDTH 160
@@ -330,7 +327,7 @@ static bool label_at(lv_obj_t *label, const char *text, const lv_font_t *font, i
     if (!ink(text, font, &b))
         return false;
     int w = b.right - b.left, h = b.bottom - b.top;
-    if (w > maximum || !gauge_layout_fits(cx - (w + 1) / 2, cy - (h + 1) / 2, cx + (w + 1) / 2, cy + (h + 1) / 2))
+    if (w > maximum || !gauge_presentation_fits(cx - (w + 1) / 2, cy - (h + 1) / 2, cx + (w + 1) / 2, cy + (h + 1) / 2))
         return false;
     lv_obj_set_style_text_font(label, font, 0);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_LEFT, 0);
@@ -376,7 +373,8 @@ static const lv_font_t *fit_value(const char *text, int cx, int cy, int maximum,
         if (!ink(text, fonts[i], &b))
             continue;
         int w = b.right - b.left, h = b.bottom - b.top;
-        if (w <= maximum && gauge_layout_fits(cx - (w + 1) / 2, cy - (h + 1) / 2, cx + (w + 1) / 2, cy + (h + 1) / 2))
+        if (w <= maximum &&
+            gauge_presentation_fits(cx - (w + 1) / 2, cy - (h + 1) / 2, cx + (w + 1) / 2, cy + (h + 1) / 2))
             return fonts[i];
     }
     return NULL;
@@ -461,17 +459,17 @@ static void show_pairing(ui_t *ui, uint32_t pairing_code)
             title = "Pairing code";
             code  = true;
         }
-        label_at(ui->widgets.pairing_title, title, font_unit, 120, 75, 174);
-        small_label(ui->widgets.pairing_body, body, 120, 111, 172);
+        label_at(ui->widgets.pairing_title, title, font_unit, gx(120), gy(75), px(174));
+        small_label(ui->widgets.pairing_body, body, gx(120), gy(111), px(172));
         char digits[16];
         snprintf(digits, sizeof(digits), "%03" PRIu32 " %03" PRIu32, pairing_code / 1000, pairing_code % 1000);
         if (code)
-            value_label(ui->widgets.pairing_code, digits, 120, 118, 176, font_large);
+            value_label(ui->widgets.pairing_code, digits, gx(120), gy(118), px(176), font_large);
         show(ui->widgets.pairing_body, !code);
         show(ui->widgets.pairing_code, code);
         char id[16];
         snprintf(id, sizeof(id), "ID %s", ui->pairing_identifier);
-        small_label(ui->widgets.pairing_id, id, 120, 186, 112);
+        small_label(ui->widgets.pairing_id, id, gx(120), gy(186), px(112));
         show(ui->widgets.pairing_id, identifier && ui->pairing_identifier[0]);
     }
     show(ui->widgets.gauge_content, !ui->pairing_visible);
@@ -482,8 +480,8 @@ static lv_obj_t *calibration_box(lv_obj_t *parent, int32_t x, int32_t y, int32_t
 {
     lv_obj_t *box = lv_obj_create(parent);
     lv_obj_remove_style_all(box);
-    lv_obj_set_pos(box, x, y);
-    lv_obj_set_size(box, width, height);
+    lv_obj_set_pos(box, gx(x), gy(y));
+    lv_obj_set_size(box, px(width), px(height));
     lv_obj_set_style_bg_color(box, lv_color_hex(color), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(box, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_clear_flag(box, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
@@ -500,8 +498,8 @@ static lv_obj_t *calibration_label(lv_obj_t        *parent,
 {
     lv_obj_t *label = lv_label_create(parent);
     lv_obj_remove_style_all(label);
-    lv_obj_set_width(label, width);
-    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, y);
+    lv_obj_set_width(label, px(width));
+    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, gy(y));
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_obj_set_style_text_font(label, font, LV_PART_MAIN);
     lv_obj_set_style_text_color(label, lv_color_hex(color), LV_PART_MAIN);
@@ -515,10 +513,10 @@ static void calibration_ring(lv_obj_t *parent, int32_t diameter, uint32_t color)
 {
     lv_obj_t *ring = lv_obj_create(parent);
     lv_obj_remove_style_all(ring);
-    lv_obj_set_size(ring, diameter, diameter);
+    lv_obj_set_size(ring, px(diameter), px(diameter));
     lv_obj_center(ring);
     lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-    lv_obj_set_style_border_width(ring, 1, LV_PART_MAIN);
+    lv_obj_set_style_border_width(ring, px(1), LV_PART_MAIN);
     lv_obj_set_style_border_color(ring, lv_color_hex(color), LV_PART_MAIN);
     lv_obj_set_style_border_opa(ring, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(ring, LV_OPA_TRANSP, LV_PART_MAIN);
@@ -573,9 +571,9 @@ static void render_calibration_page(ui_t *ui)
         calibration_ring(screen, 208, color_accent);
         lv_obj_t *safe = lv_obj_create(screen);
         lv_obj_remove_style_all(safe);
-        lv_obj_set_size(safe, 147, 147);
+        lv_obj_set_size(safe, px(147), px(147));
         lv_obj_center(safe);
-        lv_obj_set_style_border_width(safe, 1, LV_PART_MAIN);
+        lv_obj_set_style_border_width(safe, px(1), LV_PART_MAIN);
         lv_obj_set_style_border_color(safe, lv_color_hex(color_warning), LV_PART_MAIN);
         lv_obj_set_style_bg_opa(safe, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_clear_flag(safe, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
@@ -697,7 +695,11 @@ static void ui_touch_callback(lv_event_t *e)
     lv_point_t  point           = {0};
     lv_indev_t *input           = lv_indev_active();
     if (input)
+    {
         lv_indev_get_point(input, &point);
+        point.x = gauge_presentation_design_x(point.x);
+        point.y = gauge_presentation_design_y(point.y);
+    }
     uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
     switch (code)
     {
@@ -815,8 +817,8 @@ static void             render_page(ui_t *ui)
             format_reading(text, metric, available[i], values[i], ui->imperial_units);
             const char *label = gauge_layout_label(metric->name, metric->unit);
             const char *unit  = gauge_layout_unit(label, display_units_label(metric->unit, ui->imperial_units));
-            small_label(ui->widgets.dual_info[i], label, 120, i ? 135 : 72, 184);
-            int   cy = i ? 160 : 97;
+            small_label(ui->widgets.dual_info[i], label, gx(120), gy(i ? 135 : 72), px(184));
+            int   cy = gy(i ? 160 : 97);
             ink_t u;
             if (!ink(unit, font_subtitle, &u))
             {
@@ -832,21 +834,22 @@ static void             render_page(ui_t *ui)
                     preferred = previous;
             }
             const lv_font_t *font =
-                fit_value(text, 120 - (uw ? uw / 2 + 3 : 0), cy, 192 - (uw ? uw + 6 : 0), preferred);
+                fit_value(text, gx(120) - (uw ? uw / 2 + px(3) : 0), cy, px(192) - (uw ? uw + px(6) : 0), preferred);
             bool placed = false;
             if (font)
             {
                 ink_t v;
                 ink(text, font, &v);
                 int vw = v.right - v.left;
-                placed = label_at(ui->widgets.dual_value[i], text, font, 120 - (uw ? uw / 2 + 3 : 0), cy,
-                                  192 - (uw ? uw + 6 : 0));
+                placed = label_at(ui->widgets.dual_value[i], text, font, gx(120) - (uw ? uw / 2 + px(3) : 0), cy,
+                                  px(192) - (uw ? uw + px(6) : 0));
                 if (uw)
-                    placed =
-                        label_at(ui->widgets.dual_unit[i], unit, font_subtitle, 120 + vw / 2 + 3, cy + 7, 48) && placed;
+                    placed = label_at(ui->widgets.dual_unit[i], unit, font_subtitle, gx(120) + vw / 2 + px(3),
+                                      cy + px(7), px(48)) &&
+                             placed;
             }
             if (!placed)
-                small_label(ui->widgets.dual_value[i], "Value too wide", 120, cy, 166);
+                small_label(ui->widgets.dual_value[i], "Value too wide", gx(120), cy, px(166));
             show(ui->widgets.dual_unit[i], uw && placed);
             lv_obj_set_style_text_color(ui->widgets.dual_value[i],
                                         lv_color_hex(available[i] ? color_text_primary : color_text_secondary), 0);
@@ -866,7 +869,7 @@ static void             render_page(ui_t *ui)
         title_y += offset;
         value_y += offset;
         unit_y += offset;
-        small_label(ui->widgets.info_lbl, label, 120, title_y, 184);
+        small_label(ui->widgets.info_lbl, label, gx(120), gy(title_y), px(184));
         const lv_font_t *preferred = renderer == UI_RENDERER_TREND ? font_large : font_title;
         if (ui->display.rendered_once)
         {
@@ -874,11 +877,11 @@ static void             render_page(ui_t *ui)
             if (previous == font_title || previous == font_large || previous == font_dual || previous == font_compact)
                 preferred = previous;
         }
-        value_label(ui->widgets.value_lbl, text, 120, value_y, 192, preferred);
+        value_label(ui->widgets.value_lbl, text, gx(120), gy(value_y), px(192), preferred);
         if (renderer == UI_RENDERER_TREND)
-            small_label(ui->widgets.unit_lbl, unit, 120, unit_y, 156);
-        else if (!label_at(ui->widgets.unit_lbl, unit, font_unit, 120, unit_y, 156))
-            small_label(ui->widgets.unit_lbl, "Unit?", 120, unit_y, 140);
+            small_label(ui->widgets.unit_lbl, unit, gx(120), gy(unit_y), px(156));
+        else if (!label_at(ui->widgets.unit_lbl, unit, font_unit, gx(120), gy(unit_y), px(156)))
+            small_label(ui->widgets.unit_lbl, "Unit?", gx(120), gy(unit_y), px(140));
         lv_obj_set_style_text_color(ui->widgets.value_lbl,
                                     lv_color_hex(available[0] ? color_text_primary : color_text_secondary), 0);
         if (renderer == UI_RENDERER_ARC)
@@ -898,8 +901,8 @@ static void             render_page(ui_t *ui)
                 ui->display.trend_count++;
             memmove(ui->display.trend_points, ui->display.trend_points + 1, 59 * sizeof(ui->display.trend_points[0]));
             for (unsigned i = 0; i < 60; i++)
-                ui->display.trend_points[i].x = (int32_t)i * 144 / 59;
-            ui->display.trend_points[59].y = 30 - normalized_value(values[0], primary, 30);
+                ui->display.trend_points[i].x = (int32_t)i * px(144) / 59;
+            ui->display.trend_points[59].y = px(30) - normalized_value(values[0], primary, px(30));
             lv_line_set_points(ui->widgets.trend, ui->display.trend_points + 60 - ui->display.trend_count,
                                ui->display.trend_count);
         }
@@ -945,8 +948,8 @@ static void showcase_frame(ui_t *ui)
         {
             double sample = f->values[0] + 4 * sin(i * .24) + 2 * sin(i * .07);
             ui->display.trend_points[i] =
-                (lv_point_precise_t){.x = (int)i * 144 / 59,
-                                     .y = 30 - normalized_value(sample, &ui->showcase_page.metrics[0], 30)};
+                (lv_point_precise_t){.x = (int)i * px(144) / 59,
+                                     .y = px(30) - normalized_value(sample, &ui->showcase_page.metrics[0], px(30))};
         }
         ui->display.trend_count = 60;
         lv_line_set_points(ui->widgets.trend, ui->display.trend_points, 60);
@@ -970,23 +973,22 @@ static void render_finished(lv_event_t *event)
 }
 #endif
 
-static const lv_point_precise_t engine_outline[]   = {{5, 4},   {13, 4},  {13, 1},  {22, 1}, {22, 5}, {29, 5}, {29, 17},
-                                                      {22, 17}, {19, 20}, {11, 20}, {8, 16}, {5, 16}, {5, 4}};
-static const lv_point_precise_t engine_pipe[]      = {{1, 7}, {1, 15}};
-static const lv_point_precise_t engine_join[]      = {{1, 11}, {5, 11}};
-static const lv_point_precise_t wrench_handle[]    = {{7, 18}, {21, 4}};
-static const lv_point_precise_t wrench_head[]      = {{21, 4}, {25, 7}, {21, 12}, {17, 8}, {20, 3}};
-static const lv_point_precise_t warning_outline[]  = {{10, 1}, {19, 18}, {1, 18}, {10, 1}};
-static const lv_point_precise_t critical_outline[] = {{10, 1}, {19, 10}, {10, 19}, {1, 10}, {10, 1}};
-static const lv_point_precise_t warning_stem[]     = {{10, 6}, {10, 11}};
-static const lv_point_precise_t warning_dot[]      = {{10, 14}, {10, 16}};
-static const lv_point_precise_t arrow_up[]         = {{4, 14}, {4, 1}, {1, 5}, {4, 1}, {7, 5}};
-static const lv_point_precise_t arrow_down[]       = {{4, 1}, {4, 14}, {1, 10}, {4, 14}, {7, 10}};
-static lv_obj_t                *plain_view(lv_obj_t *parent, int width, int height)
+#define engine_outline (gauge_presentation()->symbols[GAUGE_SYMBOL_ENGINE_OUTLINE])
+#define engine_pipe (gauge_presentation()->symbols[GAUGE_SYMBOL_ENGINE_PIPE])
+#define engine_join (gauge_presentation()->symbols[GAUGE_SYMBOL_ENGINE_JOIN])
+#define wrench_handle (gauge_presentation()->symbols[GAUGE_SYMBOL_WRENCH_HANDLE])
+#define wrench_head (gauge_presentation()->symbols[GAUGE_SYMBOL_WRENCH_HEAD])
+#define warning_outline (gauge_presentation()->symbols[GAUGE_SYMBOL_WARNING_OUTLINE])
+#define critical_outline (gauge_presentation()->symbols[GAUGE_SYMBOL_CRITICAL_OUTLINE])
+#define warning_stem (gauge_presentation()->symbols[GAUGE_SYMBOL_WARNING_STEM])
+#define warning_dot (gauge_presentation()->symbols[GAUGE_SYMBOL_WARNING_DOT])
+#define arrow_up (gauge_presentation()->symbols[GAUGE_SYMBOL_ARROW_UP])
+#define arrow_down (gauge_presentation()->symbols[GAUGE_SYMBOL_ARROW_DOWN])
+static lv_obj_t *plain_view(lv_obj_t *parent, int width, int height)
 {
     lv_obj_t *view = lv_obj_create(parent);
     lv_obj_remove_style_all(view);
-    lv_obj_set_size(view, width, height);
+    lv_obj_set_size(view, px(width), px(height));
     lv_obj_clear_flag(view, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(view, LV_OBJ_FLAG_EVENT_BUBBLE);
     return view;
@@ -1007,7 +1009,7 @@ static lv_obj_t *icon_create(lv_obj_t *parent, bool diagnostic)
     {
         lv_obj_t *line = lv_line_create(icon);
         lv_obj_remove_style_all(line);
-        lv_obj_set_style_line_width(line, 2, 0);
+        lv_obj_set_style_line_width(line, px(2), 0);
         lv_obj_set_style_line_rounded(line, true, 0);
         lv_obj_clear_flag(line, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(line, LV_OBJ_FLAG_EVENT_BUBBLE);
@@ -1096,9 +1098,9 @@ static void render_status(ui_t *ui)
             snprintf(count, sizeof(count), "%u", d.count);
         uint32_t dc = d.mil_on ? color_warning : color_text_secondary;
         icon_style(ui->widgets.diagnostics_icon, d.mil_on ? 0 : 1, dc);
-        lv_obj_set_pos(ui->widgets.diagnostics_icon, count[0] ? 94 : 104, 31);
+        lv_obj_set_pos(ui->widgets.diagnostics_icon, gx(count[0] ? 94 : 104), gy(31));
         lv_obj_set_style_text_color(ui->widgets.diagnostics_lbl, lv_color_hex(dc), 0);
-        small_label(ui->widgets.diagnostics_lbl, count, 139, 42, 34);
+        small_label(ui->widgets.diagnostics_lbl, count, gx(139), gy(42), px(34));
     }
     bool condition = alert.severity != 0;
     show(ui->widgets.alert_lbl, condition);
@@ -1118,26 +1120,27 @@ static void render_status(ui_t *ui)
         ink_t bounds;
         bool  measured  = ink(text, font_subtitle, &bounds);
         bool  direction = !alert.unavailable && alert.key < 32 && alert.unit[0] && strcmp(alert.unit, "gear");
-        int   width = measured ? bounds.right - bounds.left : 10000, total = 22 + 5 + width + (direction ? 13 : 0);
-        if (total > 124)
+        int   width     = measured ? bounds.right - bounds.left : 10000,
+              total     = px(22) + px(5) + width + (direction ? px(13) : 0);
+        if (total > px(124))
         {
             snprintf(text, sizeof(text), "%s", alert.unavailable ? "Last seen" : "Alert");
             ink(text, font_subtitle, &bounds);
             width = bounds.right - bounds.left;
-            total = 27 + width + (direction ? 13 : 0);
+            total = px(27) + width + (direction ? px(13) : 0);
         }
-        int x = 120 - total / 2;
+        int x = gx(120) - total / 2;
         icon_style(ui->widgets.alert_icon, alert.severity == 2 ? 3 : 2, color);
-        lv_obj_set_pos(ui->widgets.alert_icon, x, 183);
-        x += 27;
+        lv_obj_set_pos(ui->widgets.alert_icon, x, gy(183));
+        x += px(27);
         lv_obj_set_style_text_color(ui->widgets.alert_lbl, lv_color_hex(color), 0);
-        small_label(ui->widgets.alert_lbl, text, x + width / 2, 194, width + 1);
+        small_label(ui->widgets.alert_lbl, text, x + width / 2, gy(194), width + 1);
         x += width;
         if (direction)
         {
             lv_line_set_points(ui->widgets.alert_arrow, alert.value < alert.limit ? arrow_down : arrow_up, 5);
             lv_obj_set_style_line_color(ui->widgets.alert_arrow, lv_color_hex(color), 0);
-            lv_obj_set_pos(ui->widgets.alert_arrow, x + 5, 187);
+            lv_obj_set_pos(ui->widgets.alert_arrow, x + px(5), gy(187));
             show(ui->widgets.alert_arrow, true);
         }
     }
@@ -1150,7 +1153,8 @@ static void render_status(ui_t *ui)
         show(ui->widgets.page_dots[i], dot);
         if (dot)
         {
-            lv_obj_set_pos(ui->widgets.page_dots[i], 120 - (int)ui->page_count * 4 + (int)i * 8 + 2, 210);
+            lv_obj_set_pos(ui->widgets.page_dots[i], gx(120) - (int)ui->page_count * px(4) + (int)i * px(8) + px(2),
+                           gy(210));
             lv_obj_set_style_bg_color(ui->widgets.page_dots[i],
                                       lv_color_hex(i == ui->page_index ? color_text_primary : color_track), 0);
         }
@@ -1160,7 +1164,7 @@ static void render_status(ui_t *ui)
     {
         char p[24];
         snprintf(p, sizeof(p), "%u/%u", ui->page_index + 1, ui->page_count);
-        small_label(ui->widgets.page_position, p, 120, 213, 48);
+        small_label(ui->widgets.page_position, p, gx(120), gy(213), px(48));
     }
     bool overlay = alert.attention && !ui->pairing_visible && !ui->calibration_mode;
     show(ui->widgets.alert_overlay, overlay);
@@ -1173,12 +1177,12 @@ static void render_status(ui_t *ui)
         snprintf(reading, sizeof(reading), "%s %s", alert.unavailable ? "--" : value, unit);
         snprintf(detail, sizeof(detail), "%s %s %s", alert.unavailable ? "Last seen" : "Limit",
                  alert.unavailable ? value : limit, unit);
-        small_label(ui->widgets.attention_title, "CRITICAL", 120, 48, 110);
+        small_label(ui->widgets.attention_title, "CRITICAL", gx(120), gy(48), px(110));
         char alias[32];
         gauge_layout_alert_alias(alias, sizeof(alias), alert.label);
-        small_label(ui->widgets.alert_overlay_label, alias, 120, 77, 166);
-        value_label(ui->widgets.attention_value, reading, 120, 118, 176, font_large);
-        small_label(ui->widgets.attention_detail, detail, 120, 151, 160);
+        small_label(ui->widgets.alert_overlay_label, alias, gx(120), gy(77), px(166));
+        value_label(ui->widgets.attention_value, reading, gx(120), gy(118), px(176), font_large);
+        small_label(ui->widgets.attention_detail, detail, gx(120), gy(151), px(160));
         lv_obj_move_foreground(ui->widgets.alert_overlay);
         if (demo)
             lv_obj_move_foreground(ui->widgets.demo_lbl);
@@ -1258,7 +1262,7 @@ static void ui_task(lv_timer_t *timer)
                 snprintf(feedback, sizeof(feedback), "Page changed");
             else
                 snprintf(feedback, sizeof(feedback), "%u/%u", ui->action.progress, ui->action.config.count);
-            small_label(ui->action_label, feedback, 120, 54, 122);
+            small_label(ui->action_label, feedback, gx(120), gy(54), px(122));
             lv_obj_remove_flag(ui->action_label, LV_OBJ_FLAG_HIDDEN);
         }
         else if (!visible && ui->rendered_action_visible)
@@ -1388,22 +1392,22 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     ui->widgets.arc = arc;
     lv_obj_t *bar   = lv_bar_create(gauge_content);
     lv_obj_remove_style_all(bar);
-    lv_obj_set_size(bar, 140, 6);
-    lv_obj_set_pos(bar, 50, 174);
+    lv_obj_set_size(bar, px(140), px(6));
+    lv_obj_set_pos(bar, gx(50), gy(174));
     lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_bg_color(bar, lv_color_hex(color_track), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(bar, lv_color_hex(color_accent), LV_PART_INDICATOR);
-    lv_obj_set_style_radius(bar, 3, LV_PART_MAIN);
-    lv_obj_set_style_radius(bar, 3, LV_PART_INDICATOR);
+    lv_obj_set_style_radius(bar, px(3), LV_PART_MAIN);
+    lv_obj_set_style_radius(bar, px(3), LV_PART_INDICATOR);
     lv_obj_clear_flag(bar, LV_OBJ_FLAG_CLICKABLE);
     ui->widgets.bar = bar;
     lv_obj_t *trend = lv_line_create(gauge_content);
     lv_obj_remove_style_all(trend);
-    lv_obj_set_pos(trend, 48, 146);
-    lv_obj_set_size(trend, 144, 32);
+    lv_obj_set_pos(trend, gx(48), gy(146));
+    lv_obj_set_size(trend, px(144), px(32));
     lv_obj_set_style_line_color(trend, lv_color_hex(color_accent), 0);
-    lv_obj_set_style_line_width(trend, 3, 0);
+    lv_obj_set_style_line_width(trend, px(3), 0);
     lv_obj_clear_flag(trend, LV_OBJ_FLAG_CLICKABLE);
     ui->widgets.trend = trend;
     for (unsigned i = 0; i < 2; i++)
@@ -1413,17 +1417,18 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
         ui->widgets.dual_unit[i]  = plain_label(gauge_content, color_text_secondary);
     }
     ui->widgets.dual_divider = plain_view(gauge_content, 140, 1);
-    lv_obj_set_pos(ui->widgets.dual_divider, 50, 120);
+    lv_obj_set_pos(ui->widgets.dual_divider, gx(50), gy(120));
     lv_obj_set_style_bg_color(ui->widgets.dual_divider, lv_color_hex(color_track), 0);
     lv_obj_set_style_bg_opa(ui->widgets.dual_divider, LV_OPA_COVER, 0);
     for (unsigned i = 0; i < 8; i++)
     {
         ui->widgets.page_dots[i] = plain_view(gauge_content, 4, 4);
-        lv_obj_set_style_radius(ui->widgets.page_dots[i], 2, 0);
+        lv_obj_set_style_radius(ui->widgets.page_dots[i], px(2), 0);
         lv_obj_set_style_bg_opa(ui->widgets.page_dots[i], LV_OPA_COVER, 0);
     }
     ui->widgets.page_position = plain_label(gauge_content, color_text_secondary);
     ui->widgets.pairing_lbl   = plain_view(scr, 240, 240);
+    lv_obj_set_size(ui->widgets.pairing_lbl, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(ui->widgets.pairing_lbl, lv_color_hex(color_background), 0);
     lv_obj_set_style_bg_opa(ui->widgets.pairing_lbl, LV_OPA_COVER, 0);
     ui->widgets.pairing_title = plain_label(ui->widgets.pairing_lbl, color_text_primary);
@@ -1434,13 +1439,14 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     ui->widgets.alert_icon    = icon_create(gauge_content, false);
     ui->widgets.alert_arrow   = lv_line_create(gauge_content);
     lv_obj_remove_style_all(ui->widgets.alert_arrow);
-    lv_obj_set_style_line_width(ui->widgets.alert_arrow, 2, 0);
+    lv_obj_set_style_line_width(ui->widgets.alert_arrow, px(2), 0);
     lv_obj_clear_flag(ui->widgets.alert_arrow, LV_OBJ_FLAG_CLICKABLE);
     ui->widgets.diagnostics_lbl  = plain_label(gauge_content, color_warning);
     ui->widgets.diagnostics_icon = icon_create(gauge_content, true);
     ui->widgets.demo_lbl         = plain_label(gauge_content, color_warning);
-    small_label(ui->widgets.demo_lbl, "Demo", 120, 213, 48);
+    small_label(ui->widgets.demo_lbl, "Demo", gx(120), gy(213), px(48));
     lv_obj_t *overlay = plain_view(gauge_content, 240, 240);
+    lv_obj_set_size(overlay, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(overlay, lv_color_hex(color_background), 0);
     lv_obj_set_style_bg_opa(overlay, LV_OPA_COVER, 0);
     lv_obj_clear_flag(overlay, LV_OBJ_FLAG_EVENT_BUBBLE | LV_OBJ_FLAG_GESTURE_BUBBLE);
@@ -1450,13 +1456,13 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     ui->widgets.attention_value     = plain_label(overlay, color_text_primary);
     ui->widgets.attention_detail    = plain_label(overlay, color_text_secondary);
     lv_obj_t *button                = plain_view(overlay, 128, 32);
-    lv_obj_set_pos(button, 56, 168);
+    lv_obj_set_pos(button, gx(56), gy(168));
     lv_obj_set_style_bg_color(button, lv_color_hex(color_track), 0);
     lv_obj_set_style_bg_opa(button, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(button, 16, 0);
+    lv_obj_set_style_radius(button, px(16), 0);
     lv_obj_clear_flag(button, LV_OBJ_FLAG_EVENT_BUBBLE | LV_OBJ_FLAG_GESTURE_BUBBLE);
     lv_obj_add_flag(button, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_ext_click_area(button, 8);
+    lv_obj_set_ext_click_area(button, px(8));
     lv_obj_add_event_cb(button, acknowledge_alert, LV_EVENT_CLICKED, ui);
     lv_obj_t *button_label = plain_label(button, color_text_primary);
     lv_label_set_text(button_label, "Acknowledge");
@@ -1496,6 +1502,15 @@ ui_t *ui_init(ui_page_t const    *page,
 {
     ESP_NULL_CHECK(page, TAG, "Page config is NULL");
     ESP_NULL_CHECK(touch_cb, TAG, "touch callback is NULL");
+
+    const gauge_presentation_t *profile = gauge_presentation();
+    if (!profile || !gauge_presentation_matches(profile->surface) || !lv_display_get_default() ||
+        lv_display_get_horizontal_resolution(NULL) != profile->surface->width ||
+        lv_display_get_vertical_resolution(NULL) != profile->surface->height)
+    {
+        ESP_LOGE(TAG, "UI profile does not match the active display");
+        return NULL;
+    }
 
     ESP_LOGI(TAG, "Initializing UI...");
 
@@ -1604,7 +1619,7 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
     for (unsigned i = 0; i < 60; ++i)
-        ui->display.trend_points[i].y = 30;
+        ui->display.trend_points[i].y = px(30);
     lv_arc_set_range(ui->widgets.arc, 0, 1000);
     lv_bar_set_range(ui->widgets.bar, 0, 1000);
     select_renderer_widgets(ui);

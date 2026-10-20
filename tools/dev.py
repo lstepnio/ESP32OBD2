@@ -114,7 +114,7 @@ def format_sources(check, language):
     excluded = ("firmware/gauge/main/fonts/",)
     generated = {
         p
-        for p in tracked_files((".kt", ".h", ".c"))
+        for p in tracked_files((".kt", ".h", ".c", ".inc"))
         if (ROOT / p).is_file()
         and any(
             marker in (ROOT / p).read_text()[:500]
@@ -123,7 +123,7 @@ def format_sources(check, language):
     }
     files = [
         p
-        for p in tracked_files((".py", ".kt", ".kts", ".c", ".h"))
+        for p in tracked_files((".py", ".kt", ".kts", ".c", ".h", ".inc"))
         if not p.startswith(excluded) and p not in generated and (ROOT / p).is_file()
     ]
     binaries = Path(sys.executable).parent
@@ -131,7 +131,7 @@ def format_sources(check, language):
         python = [p for p in files if p.endswith(".py")]
         run([binaries / "ruff", "format", *(["--check"] if check else []), *python])
     if language in ("all", "c"):
-        sources = [p for p in files if p.endswith((".c", ".h"))]
+        sources = [p for p in files if p.endswith((".c", ".h", ".inc"))]
         run(
             [binaries / "clang-format", *(["--dry-run", "--Werror"] if check else ["-i"]), *sources]
         )
@@ -152,6 +152,7 @@ def host(action):
     if action == "lint":
         run([Path(sys.executable).parent / "ruff", "check", *tracked_files((".py",))])
         run([sys.executable, "tools/validate.py"])
+        run([sys.executable, "tools/platform_policy.py", "--check"])
         run([sys.executable, "tools/build_website.py", "--check"])
         for source in tracked_files((".js",)):
             run(["node", "--check", source])
@@ -254,7 +255,11 @@ def firmware(action):
 def android(action):
     tasks = {
         "build": [":app:assembleDebug"],
-        "test": [":app:testDebugUnitTest", ":app:compileDebugAndroidTestKotlin"],
+        "test": [
+            ":app:testDebugUnitTest",
+            ":app:testReleaseUnitTest",
+            ":app:compileDebugAndroidTestKotlin",
+        ],
         "lint": [":app:lintDebug"],
     }
     run([ROOT / "android/gradlew", *tasks[action], "--no-daemon"], cwd=ROOT / "android")
