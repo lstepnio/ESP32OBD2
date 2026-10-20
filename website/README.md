@@ -52,7 +52,7 @@ An authorized static update needs no service restart or Docker access.
    screen buttons, console errors and unchanged security headers/API routes.
    Remove only the staging directory created for this publication.
 
-The [Nginx site configuration](deployment/nginx.conf) includes relative directory
+The [Nginx site configuration](deployment/nginx.conf) includes the fixed, cached public GitHub release endpoint described in [release selection](../web-recovery/README.md#release-selection-and-local-packages), and relative directory
 redirects for Caddy HTTPS proxying. Applying a configuration change requires
 `docker exec egauge nginx -t` then `docker exec egauge nginx -s reload` by an
 authorized Docker administrator; static publications need neither command.

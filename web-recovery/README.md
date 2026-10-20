@@ -13,7 +13,7 @@ ROM/stub transport and readback hashing; esbuild 0.25.12 produces a self-hosted 
 bundle. These pins, npm lock and committed notices avoid runtime CDN dependencies.
 No cloud account, UART application protocol or credential restoration is imported.
 
-- Download the pinned manifest and four separate, bounded SHA-256-checked regions
+- Download the reviewed fallback manifest and four separate, bounded SHA-256-checked regions
   before offering USB. HTTPS and the reviewed page/manifest are the trust boundary;
   browser SHA checks are integrity checks, not independent firmware signatures.
 - Require explicit exact-board confirmation and a browser port selection. Check S3,
@@ -40,7 +40,7 @@ npm run build --prefix web-recovery
 python tools/dev.py lint --target host
 ```
 
-`core.mjs` owns validated bytes, flash scope and timeout cleanup. `recovery.js` owns
+`core.mjs` owns flash scope and timeout cleanup; `releases.mjs` owns release metadata and signed local-package validation. `recovery.js` owns
 DOM/browser gesture and retry orchestration. `website/recovery/` contains HTML,
 generated bundle and notices. Host tests run the pure Node cases; CI also rebuilds
 and compares the committed bundle. Keep generated output and source in one commit.
@@ -113,3 +113,39 @@ unplug during app write and selector write followed by retry; unsupported chip/f
 BOOT/RESET on actual USB bridge; repeated retries and cleanup on desktop Chrome/Edge.
 Do not use the owner's configured gauge for destructive bootstrap qualification
 without explicit authorization. Automated mocks do not establish this matrix.
+
+## Release selection and local packages
+
+The recovery page reads public GitHub release metadata through the fixed same-origin
+`/downloads/releases.json` Nginx endpoint. It includes development prereleases,
+excludes drafts and accepts asset links only from this repository. Ten-minute
+upstream caching avoids spending the anonymous API allowance on every visit;
+stale successful metadata can survive an upstream outage. This is not an arbitrary
+URL proxy and uses no token. No background job or new service is required.
+
+The existing verified recovery remains a fallback. Other firmware releases use
+**select release → download `.egauge-dev-update` → choose file → install**. Local
+files stay in the browser. The strict two-entry ZIP reader bounds compressed and
+decoded data, verifies the existing P-256 development signature over board tag,
+image length and SHA-256, then checks the selected GitHub asset hash when provided.
+It accepts the current 0.2.0 development image format, ESP32-S3/DIO/16 MB and IDF
+5.4.1 with the reviewed support regions. Other toolchains/layouts need matching
+bootstrap support. A layout change must change the board/compatibility contract;
+do not reuse this board tag or silently relax the image checks. USB write regions,
+NVS preservation and post-write checks are unchanged. Raw BINs are not accepted.
+The PEM import comes from the firmware's public key, not a duplicated key copy.
+
+APK selection lists release assets only when a release contains exactly one APK.
+Until APKs are published, the existing verified hosted APK remains explicitly
+labelled by version. Publishing an APK with a future release makes it appear
+without a website change. Release authors must retain a consistent signing identity
+and include compatibility notes. This change does not publish an APK, rotate a
+signer or change the firmware release workflow. Android install/update and backup
+instructions live on the recovery page.
+
+Offline Node checks cover metadata/link validation, signed package acceptance,
+wrong hashes/signatures/versions, bounded archives, malformed entries and existing
+USB write/timeout behavior. Browser checks must also cover blocked metadata,
+selection/file-validation races, keyboard access and mobile overflow. No USB write
+is needed to check these flows. Server configuration changes require Nginx syntax
+validation and reload using the existing deployment procedure.
