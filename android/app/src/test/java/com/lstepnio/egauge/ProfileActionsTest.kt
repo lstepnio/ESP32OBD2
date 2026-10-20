@@ -87,7 +87,8 @@ class ProfileActionsTest {
     }
 
     @Category(DevelopmentConfiguration::class)
-    @Test fun vehicleMenuUsesTheParentAndPreservesDurationsAcrossSavedSetup() {
+    @Test
+    fun vehicleMenuUsesTheParentAndPreservesDurationsAcrossSavedSetup() {
         val action = PageAction(type = PageActionType.VehicleActions, airUpSeconds = 60, winchSeconds = 600)
         val child = TransmissionConnection(AdapterBinding("tcm", "AA:BB:CC:DD:EE:02", "public"), TransmissionSetup.draft())
         val vehicle = VehicleProfile("jeep", "Jeep", initial, AdapterBinding("ecm", "AA:BB:CC:DD:EE:01", "public"), child)
@@ -109,7 +110,8 @@ class ProfileActionsTest {
     }
 
     @Category(DevelopmentConfiguration::class)
-    @Test fun dualChildActionTargetsArePrefixedAndConflictingBindingsFail() {
+    @Test
+    fun dualChildActionTargetsArePrefixedAndConflictingBindingsFail() {
         val engine = AdapterBinding("ecm", "AA:BB:CC:DD:EE:01", "public")
         val child = AdapterBinding("tcm", "AA:BB:CC:DD:EE:02", "public")
         val tcm = TransmissionSetup.draft()

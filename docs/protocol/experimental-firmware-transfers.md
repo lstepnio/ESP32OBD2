@@ -3,9 +3,9 @@
 This is the implemented development protocol-0 path, not a general production
 configuration contract. Owner writes use characteristic `6f1a0002`; protected
 reads use `6f1a0003`. Android configuration/readback and signed App/Wi-Fi updates
-have recorded evidence. Public `configWrite` and `ota` stay false. Current prepared `cfg:6`
+have recorded evidence. Public `configWrite` and `ota` stay false. Current prepared `cfg:7`
 includes bindings (`cfg:3`), local page actions (`cfg:4`), expanded catalog decimals
-and TCM numeric/gear alerts, plus exact CEL presentation filters (`cfg:6`). `va:1` identifies per-definition ECU routing and `da:1`
+and TCM numeric/gear alerts, exact CEL presentation filters (`cfg:6`) and ordered action pages (`cfg:7`). `va:1` identifies per-definition ECU routing and `da:1`
 source-index reads. Older `cfg:2`/`experimentalNumericConfig:true` are legacy variants.
 Negotiate these markers before writes; the later extension sections below define
 current semantics without changing the existing command layouts.
@@ -328,6 +328,16 @@ independent same-vehicle reset/state evidence is verified.
 The schema-2 configuration action `vehicleActions` has `gesture:"up"`, `count`
 2..5, `windowMs` 2000..10000 in whole seconds, and `airUpSeconds` / `winchSeconds`
 10..600. It has no `pageId`. Existing `jumpPage` actions retain their shape.
-`vc:1` is required before sending the new action. A completed gesture opens the
-menu, never a control write. Selecting a Start requires a second confirmation;
-Stop is directly available. Normal page cycling pauses while the menu is open.
+`vc:1` identifies command admission. `cfg:7` additionally identifies ordered action
+pages, represented as an optional `pages` array of unique curated IDs `airUp`,
+`winch`, `absTcs` (0..3 entries). The App negotiates `cfg:7` before sending the
+collection. Omitted `pages` migrates the old menu to all three in that order;
+explicit `[]` means no configured action pages. `jumpPage` cannot contain `pages`.
+Unknown/duplicate IDs, extra keys and invalid timers fail before installation.
+
+A completed gesture opens the branch, never a control write. Selecting Start
+requires a named confirmation; Stop is direct. Navigation and button releases are
+mutually exclusive. Reading cycling pauses in the branch and resumes with a full
+interval after returning. Existing command bytes/status, qualification masks and
+public capability flags are unchanged. The UI receives one packed atomic snapshot
+per kind; no new transport or polling worker is added.

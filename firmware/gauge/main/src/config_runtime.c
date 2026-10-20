@@ -295,13 +295,21 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
             ++target;
         if (!menu && target == out->page_count)
             goto done;
-        out->page_action = (page_action_config_t){.enabled        = true,
-                                                  .target_page    = target,
-                                                  .count          = field(action, "count")->valueint,
-                                                  .window_ms      = field(action, "windowMs")->valueint,
-                                                  .vehicle_menu   = menu,
-                                                  .air_up_seconds = menu ? air->valueint : 300,
-                                                  .winch_seconds  = menu ? winch->valueint : 300};
+        out->page_action                = (page_action_config_t){.enabled        = true,
+                                                                 .target_page    = target,
+                                                                 .count          = field(action, "count")->valueint,
+                                                                 .window_ms      = field(action, "windowMs")->valueint,
+                                                                 .vehicle_menu   = menu,
+                                                                 .air_up_seconds = menu ? air->valueint : 300,
+                                                                 .winch_seconds  = menu ? winch->valueint : 300};
+        const cJSON *list               = field(action, "pages");
+        out->page_action.pages_explicit = menu;
+        out->page_action.page_count     = menu ? (list ? cJSON_GetArraySize(list) : 3) : 0;
+        for (unsigned i = 0; i < out->page_action.page_count; ++i)
+        {
+            const char *id            = list ? cJSON_GetArrayItem(list, i)->valuestring : NULL;
+            out->page_action.pages[i] = !list ? i + 1 : !strcmp(id, "airUp") ? 1 : !strcmp(id, "winch") ? 2 : 3;
+        }
     }
     err = ESP_OK;
 

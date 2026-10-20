@@ -485,13 +485,29 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
         if (cJSON_GetObjectItemCaseSensitive(root, "schemaVersion")->valueint != 2 || !array_size(actions, 0, 1))
             return false;
         static const char *const action_keys[] = {"type", "pageId", "gesture", "count", "windowMs"};
-        static const char *const menu_keys[] = {"type", "gesture", "count", "windowMs", "airUpSeconds", "winchSeconds"};
+        static const char *const menu_keys[]   = {"type",         "gesture",      "count", "windowMs",
+                                                  "airUpSeconds", "winchSeconds", "pages"};
         static const char *const types[] = {"jumpPage", "vehicleActions"}, *const gestures[] = {"up"};
         for (const cJSON *action = actions->child; action; action = action->next)
         {
-            const cJSON *page = cJSON_GetObjectItemCaseSensitive(action, "pageId");
-            const cJSON *kind = cJSON_GetObjectItemCaseSensitive(action, "type");
-            bool         menu = cJSON_IsString(kind) && !strcmp(kind->valuestring, "vehicleActions");
+            const cJSON *page         = cJSON_GetObjectItemCaseSensitive(action, "pageId");
+            const cJSON *kind         = cJSON_GetObjectItemCaseSensitive(action, "type");
+            const cJSON *action_pages = cJSON_GetObjectItemCaseSensitive(action, "pages");
+            if (action_pages)
+            {
+                static const char *const ids[] = {"airUp", "winch", "absTcs"};
+                if (!array_size(action_pages, 0, 3))
+                    return false;
+                for (const cJSON *id = action_pages->child; id; id = id->next)
+                {
+                    if (!one_of(id, ids, 3))
+                        return false;
+                    for (const cJSON *prior = action_pages->child; prior != id; prior = prior->next)
+                        if (!strcmp(prior->valuestring, id->valuestring))
+                            return false;
+                }
+            }
+            bool menu = cJSON_IsString(kind) && !strcmp(kind->valuestring, "vehicleActions");
             if (!(menu ? fields(action, menu_keys, ARRAY_COUNT(menu_keys)) && !page &&
                              integer(cJSON_GetObjectItemCaseSensitive(action, "airUpSeconds"), 10, 600) &&
                              integer(cJSON_GetObjectItemCaseSensitive(action, "winchSeconds"), 10, 600)

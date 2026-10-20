@@ -5,6 +5,12 @@ import org.json.JSONObject
 
 enum class PageActionType(val wire: String) { JumpPage("jumpPage"), VehicleActions("vehicleActions") }
 
+enum class ActionPageId(val wire: String, val label: String, val kind: VehicleCommandKind) {
+    AirUp("airUp", "Air up", VehicleCommandKind.Idle),
+    Winch("winch", "Winch", VehicleCommandKind.Idle),
+    AbsTcs("absTcs", "Disable ABS + TCS", VehicleCommandKind.AbsTcs)
+}
+
 /** One recognizer, with typed destinations. Gestures open a menu; they never toggle vehicle controls. */
 data class PageAction(
     val pageId: String? = null,
@@ -12,11 +18,14 @@ data class PageAction(
     val windowMs: Int = 5000,
     val type: PageActionType = PageActionType.JumpPage,
     val airUpSeconds: Int = 300,
-    val winchSeconds: Int = 300
+    val winchSeconds: Int = 300,
+    val pages: List<ActionPageId> = ActionPageId.entries.toList()
 ) {
     init {
         require(if (type == PageActionType.JumpPage) pageId?.matches(Regex("[a-z][a-z0-9._-]{0,63}")) == true else pageId == null)
         require(count in 2..5 && windowMs in 2000..10000 && windowMs % 1000 == 0)
+        require(pages.size <= 3 && pages.distinct().size == pages.size)
+        require(type == PageActionType.VehicleActions || pages == ActionPageId.entries.toList())
         require(airUpSeconds in 10..600 && winchSeconds in 10..600)
         require(type == PageActionType.VehicleActions || (airUpSeconds == 300 && winchSeconds == 300))
     }
@@ -25,6 +34,7 @@ data class PageAction(
             it.put("pageId", pageId)
         } else {
             it.put("airUpSeconds", airUpSeconds).put("winchSeconds", winchSeconds)
+                .put("pages", JSONArray(pages.map { page -> page.wire }))
         }
     }
 }
@@ -41,7 +51,12 @@ object ProfileActions {
             val value = array.getJSONObject(index)
             val type = PageActionType.entries.firstOrNull { it.wire == value.getString("type") } ?: throw IllegalArgumentException("Unknown gesture action")
             val keys = setOf("type", "gesture", "count", "windowMs") + if (type == PageActionType.JumpPage) setOf("pageId") else setOf("airUpSeconds", "winchSeconds")
-            require(value.keys().asSequence().toSet() == keys && value.getString("gesture") == "up")
+            require(
+                (
+                    value.keys().asSequence().toSet() == keys ||
+                        (type == PageActionType.VehicleActions && value.keys().asSequence().toSet() == keys + "pages")
+                    ) && value.getString("gesture") == "up"
+            )
             fun integer(key: String): Int {
                 val raw = value.get(key)
                 require(raw is Number && raw.toDouble() == raw.toInt().toDouble())
@@ -53,7 +68,15 @@ object ProfileActions {
                 integer("windowMs"),
                 type,
                 if (type == PageActionType.VehicleActions) integer("airUpSeconds") else 300,
-                if (type == PageActionType.VehicleActions) integer("winchSeconds") else 300
+                if (type == PageActionType.VehicleActions) integer("winchSeconds") else 300,
+                if (value.has("pages")) {
+                    value.getJSONArray("pages").let { pages ->
+                        require(pages.length() <= 3)
+                        (0 until pages.length()).map { index -> ActionPageId.entries.firstOrNull { it.wire == pages.getString(index) } ?: error("Unsupported action page") }
+                    }
+                } else {
+                    ActionPageId.entries.toList()
+                }
             )
         }
     }

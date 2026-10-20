@@ -182,13 +182,13 @@ static void owner_save_worker(void *arg)
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","                                                      \
     "\"maxAdapterLinks\":1,"                                                                                           \
     "\"savedStateRead\":true,\"displayRotationWrite\":true,"                                                           \
-    "\"configWrite\":false,\"cfg\":6,\"ad\":1,\"da\":1,\"va\":1,"                                                      \
+    "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"da\":1,\"va\":1,"                                                      \
     "\"qs\":true,\"ota\":false,\"hw\":1" DISPLAY_SETTINGS_CAPABILITY
 #define DOCUMENT_CAPABILITY_BASE                                                                                       \
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","                                                      \
     "\"maxAdapterLinks\":1,"                                                                                           \
     "\"savedStateRead\":false,\"displayRotationWrite\":false,"                                                         \
-    "\"configWrite\":false,\"cfg\":6,\"ad\":1,\"da\":1,\"va\":1,\"vc\":1,"                                             \
+    "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"da\":1,\"va\":1,\"vc\":1,"                                             \
     "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY
 static const char capabilities[]          = LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
 static const char document_capabilities[] = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";

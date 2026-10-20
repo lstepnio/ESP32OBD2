@@ -293,6 +293,18 @@
             "type": "integer",
             "minimum": 10,
             "maximum": 600
+          },
+          "pages": {
+            "type": "array",
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "airUp",
+                "winch",
+                "absTcs"
+              ]
+            }
           }
         },
         "required": [
@@ -317,7 +329,8 @@
               ],
               "properties": {
                 "airUpSeconds": false,
-                "winchSeconds": false
+                "winchSeconds": false,
+                "pages": false
               }
             },
             "else": {

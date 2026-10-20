@@ -10,9 +10,12 @@ data class KnownGauge(
     val name: String,
     val vehicleId: String? = null,
     val source: String? = null,
-    val bothAdapters: Boolean = false
+    val bothAdapters: Boolean = false,
+    val actionOverride: List<PageAction>? = null
 ) {
     init {
+        require(actionOverride == null || actionOverride.size <= 1)
+        require(actionOverride == null || vehicleId != null)
         require(id.isNotBlank() && name.trim().length in 1..32)
         require(
             (vehicleId == null && source == null) ||
@@ -45,6 +48,7 @@ data class GaugeAssociations(val selectedId: String?, val gauges: List<KnownGaug
                     it.copy(
                         vehicleId = vehicleId,
                         source = source,
+                        actionOverride = it.actionOverride.takeIf { _ -> it.vehicleId == vehicleId },
                         bothAdapters =
                             it.bothAdapters && it.vehicleId == vehicleId
                     )
@@ -62,12 +66,12 @@ data class GaugeAssociations(val selectedId: String?, val gauges: List<KnownGaug
         ) {
             return null
         }
-        return profile.draftFor(gauge.source ?: return null)?.let { profile.id to it }
+        return profile.draftFor(gauge.source ?: return null)?.let { profile.id to it.copy(actions = gauge.actionOverride ?: it.actions) }
     }
 }
 
 object GaugeAssociationDocumentCodec {
-    fun encode(value: GaugeAssociations): String = JSONObject().put("schemaVersion", 1)
+    fun encode(value: GaugeAssociations): String = JSONObject().put("schemaVersion", 2)
         .put("selectedId", value.selectedId).put(
             "gauges",
             JSONArray().also { items ->
@@ -77,27 +81,31 @@ object GaugeAssociationDocumentCodec {
                             .put(
                                 "vehicleId",
                                 gauge.vehicleId
-                            ).put("source", gauge.source).put("bothAdapters", gauge.bothAdapters)
+                            ).put("source", gauge.source).put("bothAdapters", gauge.bothAdapters).also { item ->
+                                gauge.actionOverride?.let { item.put("actionOverride", ProfileActions.json(it)) }
+                            }
                     )
                 }
             }
         ).toString()
     fun decode(raw: String): GaugeAssociations {
         val root = JSONObject(raw)
-        require(root.getInt("schemaVersion") == 1) { "Gauge format is newer than this app" }
+        require(root.getInt("schemaVersion") in 1..2) { "Gauge format is newer than this app" }
         val items = root.getJSONArray("gauges")
         require(items.length() <= 16)
         return GaugeAssociations(
             root.optString("selectedId").takeIf { it.isNotBlank() },
             (0 until items.length()).map { i ->
                 items.getJSONObject(i).let {
+                    require(root.getInt("schemaVersion") >= 2 || !it.has("actionOverride"))
                     require(!it.has("bothAdapters") || it.get("bothAdapters") is Boolean)
                     KnownGauge(
                         it.getString("id"),
                         it.getString("name"),
                         it.optString("vehicleId").takeIf(String::isNotBlank),
                         it.optString("source").takeIf(String::isNotBlank),
-                        it.optBoolean("bothAdapters", false)
+                        it.optBoolean("bothAdapters", false),
+                        if (root.getInt("schemaVersion") >= 2 && it.has("actionOverride")) ProfileActions.decode(it.getJSONArray("actionOverride")) else null
                     )
                 }
             }

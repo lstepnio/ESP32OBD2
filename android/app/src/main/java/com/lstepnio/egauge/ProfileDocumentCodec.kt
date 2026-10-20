@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..16) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..17) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -154,6 +154,10 @@ object ProfileDocumentCodec {
             emptyList()
         }
         require(schemaVersion >= 15 || actions.none { it.type == PageActionType.VehicleActions })
+        if (schemaVersion < 17 && saved.has("actions")) {
+            val legacyActions = saved.getJSONArray("actions")
+            require((0 until legacyActions.length()).none { legacyActions.getJSONObject(it).has("pages") }) { "Ordered action pages need profile schema 17" }
+        }
         ProfileActions.validate(actions, pages)
         val draft = Draft(
             pidId = pidId,
@@ -191,7 +195,7 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 16).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 17).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
             IdlePresets.validate(profile.draft.idlePresets)

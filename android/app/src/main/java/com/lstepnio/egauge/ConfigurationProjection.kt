@@ -307,9 +307,11 @@ object ConfigurationProjector {
         vehicle: VehicleProfile,
         baseRevision: Long,
         useChildAdapter: Boolean,
-        schemaVersion: Int = 2
+        schemaVersion: Int = 2,
+        actions: List<PageAction>? = null
     ): Pair<ConfigurationProjection, ByteArray> {
-        val draft = vehicle.dashboardDraft().copy(source = "ECM")
+        val original = vehicle.dashboardDraft()
+        val draft = original.copy(source = "ECM", actions = actions ?: original.actions)
         val result =
             project(
                 template,

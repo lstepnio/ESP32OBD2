@@ -134,6 +134,26 @@ int main(int argc, char **argv)
     assert(config_runtime_load(&runtime, &active, &previous) == ESP_OK);
     assert(runtime.page_action.enabled && runtime.page_action.vehicle_menu &&
            runtime.page_action.air_up_seconds == 60 && runtime.page_action.winch_seconds == 600);
+    assert(runtime.page_action.page_count == 3 && runtime.page_action.pages[0] == 1);
+    cJSON_AddItemToObject(action, "pages", cJSON_Parse("[\"absTcs\",\"airUp\"]"));
+    set(root);
+    assert(validate() == ESP_OK);
+    assert(config_runtime_load(&runtime, &active, &previous) == ESP_OK);
+    assert(runtime.page_action.pages_explicit && runtime.page_action.page_count == 2 &&
+           runtime.page_action.pages[0] == 3 && runtime.page_action.pages[1] == 1);
+    const char *bad_pages[] = {"[\"airUp\",\"airUp\"]", "[\"rawCommand\"]", "[1]",
+                               "[\"airUp\",\"winch\",\"absTcs\",\"airUp\"]"};
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        cJSON_ReplaceItemInObject(action, "pages", cJSON_Parse(bad_pages[i]));
+        set(root);
+        assert(validate() != ESP_OK);
+    }
+    cJSON_ReplaceItemInObject(action, "pages", cJSON_Parse("[]"));
+    set(root);
+    assert(validate() == ESP_OK && config_runtime_load(&runtime, &active, &previous) == ESP_OK &&
+           !runtime.page_action.page_count);
+    cJSON_DeleteItemFromObject(action, "pages");
     cJSON_SetNumberValue(cJSON_GetObjectItem(action, "airUpSeconds"), 601);
     set(root);
     assert(validate() != ESP_OK);
