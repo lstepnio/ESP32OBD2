@@ -19,3 +19,9 @@ uint8_t transfer_gate_current(void)
 {
     return atomic_load(&operation);
 }
+
+bool transfer_gate_vehicle_allowed(void)
+{
+    uint8_t owner = transfer_gate_current();
+    return owner == 0 || owner == TRANSFER_GATE_VEHICLE_COMMAND;
+}
