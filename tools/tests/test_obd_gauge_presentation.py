@@ -23,6 +23,7 @@ class GaugePresentationTest(unittest.TestCase):
                     "-Ifirmware/gauge/main/inc",
                     "firmware/gauge/tests/gauge_presentation_test.c",
                     "firmware/gauge/main/src/gauge_layout.c",
+                    "firmware/gauge/main/src/gauge_surface.c",
                     "firmware/gauge/main/src/display_showcase.c",
                     "-lm",
                     "-o",

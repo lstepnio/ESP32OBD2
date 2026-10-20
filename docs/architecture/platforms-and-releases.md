@@ -63,6 +63,32 @@ widget implementation or graphics stack onto ESP32 and Android. Reuse existing
 C/Kotlin logic; share native modules only when that removes measured duplication
 without introducing a second lifecycle/ownership model.
 
+## Implemented reference interfaces
+
+`gauge_board.h` is the ESP32/LVGL board boundary. The reference adapter delegates
+bootstrap, rotation, panel power and brightness to the unchanged BSP. The existing
+startup order, error policy, PWM settings, touch setup and LVGL ownership remain.
+`EGAUGE_BOARD_ADAPTER_SOURCE` selects one implementation at configure time; its
+default is the public reference adapter. Private builds can supply an absolute
+source path and their own reviewed dependencies without editing application logic.
+This hook does not provision board identity, authorize publication or qualify a port.
+Public CI/release builds use the clean reference configuration.
+
+`gauge_surface.h` supplies immutable shape/dimension/inset metrics and pure native
+safe-area checks. Round and rectangular geometry are sanitizer-tested, including
+odd dimensions and overflow boundaries. `gauge_layout_fits` retains the reference
+surface, so existing glyph placement and templates remain unchanged. Startup rejects
+a surface that does not match the current 240 x 240 round template metrics; native
+layout/font adaptation is still required before a private larger display can run
+this product UI. Do not bypass that admission check merely to light a new panel.
+Use a board bring-up harness until its templates exist.
+
+No new heap buffers, tasks, locks, protocol fields or advertised capabilities are
+introduced. Hardware probe/trust metadata and target-specific dependency profiles
+remain follow-up work. Alternate-surface geometry tests are not alternate-board
+firmware support. The production LVGL host frames are compared against the captured
+pre-extraction reference, separately from the full linked firmware/memory checks.
+
 ## Target descriptor and feature admission
 
 Separate three identities: runtime family, exact board/revision, and display surface.

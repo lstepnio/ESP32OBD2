@@ -1,3 +1,10 @@
+# Private integration builds may supply one adapter without forking the runtime.
+set(EGAUGE_BOARD_ADAPTER_SOURCE "${CMAKE_CURRENT_LIST_DIR}/src/gauge_board_reference.c"
+    CACHE FILEPATH "Board/display implementation for this firmware target")
+if(NOT IS_ABSOLUTE "${EGAUGE_BOARD_ADAPTER_SOURCE}" OR NOT EXISTS "${EGAUGE_BOARD_ADAPTER_SOURCE}")
+    message(FATAL_ERROR "EGAUGE_BOARD_ADAPTER_SOURCE must name an existing absolute source path")
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/../assets/fonts/sources.cmake")
 
 idf_component_register(
@@ -45,6 +52,8 @@ idf_component_register(
         "src/temporary_idle.c"
         "src/jeep_idle_driver.c"
         "src/gauge_layout.c"
+        "src/gauge_surface.c"
+        "${EGAUGE_BOARD_ADAPTER_SOURCE}"
         "src/diagnostic_filter.c"
         "src/display_showcase.c"
         "src/ui.c"

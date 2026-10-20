@@ -1,9 +1,10 @@
 #pragma once
 #include <stdbool.h>
 #include <stddef.h>
+#include "gauge_surface.h"
 
-#define GAUGE_CONTENT_RADIUS 112
-#define GAUGE_DECORATION_RADIUS 116
+#define GAUGE_CONTENT_RADIUS (GAUGE_REFERENCE_WIDTH / 2 - GAUGE_REFERENCE_CONTENT_INSET)
+#define GAUGE_DECORATION_RADIUS (GAUGE_REFERENCE_WIDTH / 2 - GAUGE_REFERENCE_DECORATION_INSET)
 
 /* Native 240 px coordinates. Bounds describe actual glyph ink, not label boxes. */
 bool        gauge_layout_fits(int left, int top, int right, int bottom);

@@ -112,3 +112,14 @@ for parked vehicle work and App/Wi-Fi for field updates. Keep private captures a
 working setup. Android and firmware are implemented; basic iOS and browser-USB
 configuration are [planned scope](roadmap.md#product-boundaries), not available
 runtime features.
+
+## Shared platform interface foundation
+
+The [reference board/display seam](architecture/platforms-and-releases.md#implemented-reference-interfaces)
+is implemented in source with unchanged reference templates and BSP behavior.
+Larger round/rectangular safe-area logic is tested offline; startup still admits only
+the current reference surface. The extraction retained byte-identical output for all 25 captured production LVGL
+frames; the linked static internal-memory count remained 163,898 bytes and the
+64 KiB LVGL arena remained in PSRAM. Host tests, formatting/lint and the reference
+firmware build passed. No additional board firmware, live virtual telemetry,
+release promotion or device installation is established by these checks.

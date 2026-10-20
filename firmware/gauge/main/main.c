@@ -30,9 +30,7 @@
 #include "display/lv_display.h"
 #include "misc/lv_event.h"
 
-#include "bsp_init.h"
-#include "bsp_lcd.h"
-#include "bsp_lvgl.h"
+#include "gauge_board.h"
 #include "esp_lvgl_port.h"
 
 #include "ble_obd.h"
@@ -939,13 +937,16 @@ void app_main(void)
             alert_runtime_simulated(
                 i, g_runtime->sources[g_runtime->pids[g_runtime->alerts[i].pid_index].source_index].simulated);
 
-    bsp_init();
-    bsp_display_start();
-    bsp_lvgl_init();
-    bsp_touch_init();
+    const gauge_board_t *board = gauge_board_description();
+    if (board == NULL || !gauge_surface_uses_reference_templates(board->surface))
+    {
+        ESP_LOGE(TAG, "No qualified UI templates for this display surface");
+        return;
+    }
+    gauge_board_initialize();
     hardware_probe_set_ready(HARDWARE_FEATURE_DISPLAY | HARDWARE_FEATURE_TOUCH | HARDWARE_FEATURE_BACKLIGHT, true);
 
-    bsp_lv_disp_set_rotation(g_config.disp_rot);
+    gauge_display_set_rotation(g_config.disp_rot);
 
     const uint32_t ui_interval_ms = 50;
     ui_page_t      initial_page;
@@ -960,8 +961,8 @@ void app_main(void)
             ui_configure_page_action(ui, g_runtime->page_action);
         lvgl_port_unlock();
     }
-    bsp_display_on_off(true);
-    ESP_ERROR_CHECK(bsp_display_backlight_set_percent(display_settings_snapshot().brightness));
+    gauge_display_set_power(true);
+    ESP_ERROR_CHECK(gauge_display_set_brightness(display_settings_snapshot().brightness));
 
 #if CONFIG_EGAUGE_DISPLAY_CALIBRATION
     ui_start_display_calibration(ui);
@@ -1071,7 +1072,7 @@ void app_main(void)
             if (lvgl_port_lock(portMAX_DELAY))
             {
                 ui_reset_action_sequence(ui);
-                bsp_lv_disp_set_rotation(saved.disp_rot);
+                gauge_display_set_rotation(saved.disp_rot);
                 lvgl_port_unlock();
             }
             ESP_LOGI(TAG, "Display rotation saved: %u", (unsigned)command.value * 90);
@@ -1087,10 +1088,10 @@ void app_main(void)
             if (lvgl_port_lock(portMAX_DELAY))
             {
                 ui_reset_action_sequence(ui);
-                bsp_lv_disp_set_rotation(g_config.disp_rot);
+                gauge_display_set_rotation(g_config.disp_rot);
                 lvgl_port_unlock();
             }
-            ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
+            ESP_ERROR_CHECK(gauge_display_set_brightness(saved.brightness));
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%%", (unsigned)saved.rotation * 90,
                      (unsigned)saved.brightness);
         }
@@ -1105,11 +1106,11 @@ void app_main(void)
             if (lvgl_port_lock(portMAX_DELAY))
             {
                 ui_reset_action_sequence(ui);
-                bsp_lv_disp_set_rotation(g_config.disp_rot);
+                gauge_display_set_rotation(g_config.disp_rot);
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
             }
-            ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
+            ESP_ERROR_CHECK(gauge_display_set_brightness(saved.brightness));
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u", (unsigned)saved.rotation * 90,
                      (unsigned)saved.brightness, (unsigned)saved.units);
         }
@@ -1123,11 +1124,11 @@ void app_main(void)
             if (lvgl_port_lock(portMAX_DELAY))
             {
                 ui_reset_action_sequence(ui);
-                bsp_lv_disp_set_rotation(g_config.disp_rot);
+                gauge_display_set_rotation(g_config.disp_rot);
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
             }
-            ESP_ERROR_CHECK(bsp_display_backlight_set_percent(saved.brightness));
+            ESP_ERROR_CHECK(gauge_display_set_brightness(saved.brightness));
             atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u cycle=%us",
                      (unsigned)saved.rotation * 90, (unsigned)saved.brightness, (unsigned)saved.units,
