@@ -485,12 +485,18 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
         if (cJSON_GetObjectItemCaseSensitive(root, "schemaVersion")->valueint != 2 || !array_size(actions, 0, 1))
             return false;
         static const char *const action_keys[] = {"type", "pageId", "gesture", "count", "windowMs"};
-        static const char *const types[] = {"jumpPage"}, *const gestures[] = {"up"};
+        static const char *const menu_keys[] = {"type", "gesture", "count", "windowMs", "airUpSeconds", "winchSeconds"};
+        static const char *const types[] = {"jumpPage", "vehicleActions"}, *const gestures[] = {"up"};
         for (const cJSON *action = actions->child; action; action = action->next)
         {
             const cJSON *page = cJSON_GetObjectItemCaseSensitive(action, "pageId");
-            if (!fields(action, action_keys, ARRAY_COUNT(action_keys)) || !identifier(page, 64) ||
-                !contains_id(pages, page->valuestring) ||
+            const cJSON *kind = cJSON_GetObjectItemCaseSensitive(action, "type");
+            bool         menu = cJSON_IsString(kind) && !strcmp(kind->valuestring, "vehicleActions");
+            if (!(menu ? fields(action, menu_keys, ARRAY_COUNT(menu_keys)) && !page &&
+                             integer(cJSON_GetObjectItemCaseSensitive(action, "airUpSeconds"), 10, 600) &&
+                             integer(cJSON_GetObjectItemCaseSensitive(action, "winchSeconds"), 10, 600)
+                       : fields(action, action_keys, ARRAY_COUNT(action_keys)) && identifier(page, 64) &&
+                             contains_id(pages, page->valuestring)) ||
                 !one_of(cJSON_GetObjectItemCaseSensitive(action, "type"), types, ARRAY_COUNT(types)) ||
                 !one_of(cJSON_GetObjectItemCaseSensitive(action, "gesture"), gestures, ARRAY_COUNT(gestures)) ||
                 !integer(cJSON_GetObjectItemCaseSensitive(action, "count"), 2, 5) ||

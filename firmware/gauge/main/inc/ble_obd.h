@@ -99,3 +99,13 @@ int ble_obd_read_pid(ble_obd_ctx_t *obd,
                      uint32_t       timeout_ms,
                      elm_result_t  *status,
                      elm_payload_t *out);
+
+/* Internal worker-only bridge for fixed driver literals. Caller owns the whole
+ * command job; no arbitrary App/config text is admitted. Every exchange retires
+ * routing caches, and uncertain RX disconnects before any later normal poll. */
+int ble_obd_control_exchange(ble_obd_ctx_t *obd,
+                             const char    *command,
+                             uint32_t       timeout_ms,
+                             uint8_t       *response,
+                             size_t        *length);
+int ble_obd_control_restore(ble_obd_ctx_t *obd, uint32_t timeout_ms, uint8_t *scratch, size_t capacity);

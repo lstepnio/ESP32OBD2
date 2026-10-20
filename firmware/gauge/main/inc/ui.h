@@ -16,6 +16,7 @@
 
 /* Internal callback event; no external vehicle control operation. */
 #define UI_EVENT_PAGE_ACTION LV_EVENT_REFRESH
+#define UI_EVENT_VEHICLE_COMMAND LV_EVENT_READY
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Definitions
@@ -136,3 +137,10 @@ size_t ui_showcase_status(ui_t *ui, uint32_t now, uint8_t out[20]);
 bool   ui_showcase_active(ui_t *ui);
 void   ui_showcase_next(ui_t *ui);
 void   ui_showcase_stop(ui_t *ui);
+
+/* LVGL-owned menu reuses the page gesture. Only the status mailbox is thread-safe. */
+bool ui_action_opens_vehicle_menu(ui_t *ui);
+void ui_show_vehicle_actions(ui_t *ui);
+void ui_set_vehicle_action_status(ui_t *ui, uint8_t kind, uint8_t phase, bool qualified);
+void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *preset, uint16_t *seconds);
+void ui_vehicle_command_queued(ui_t *ui, bool accepted);

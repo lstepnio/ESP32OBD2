@@ -1,3 +1,4 @@
+#include "vehicle_commands_runtime.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -187,7 +188,7 @@ static void owner_save_worker(void *arg)
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","                                                      \
     "\"maxAdapterLinks\":1,"                                                                                           \
     "\"savedStateRead\":false,\"displayRotationWrite\":false,"                                                         \
-    "\"configWrite\":false,\"cfg\":6,\"ad\":1,\"da\":1,\"va\":1,"                                                      \
+    "\"configWrite\":false,\"cfg\":6,\"ad\":1,\"da\":1,\"va\":1,\"vc\":1,"                                             \
     "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY
 static const char capabilities[]          = LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
 static const char document_capabilities[] = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
@@ -243,6 +244,24 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle, struct ble
             return BLE_ATT_ERR_UNLIKELY;
         extended_source        = request[5];
         extended_status_mode   = request[0] == 0x53 ? 11 : 12;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x66 || request[0] == 0x67)
+    {
+        if (request[0] == 0x66)
+        {
+            if (length != 25 || !vehicle_commands_runtime_submit(request + 1, length - 1))
+                return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+            extended_source = request[2];
+        }
+        else
+        {
+            if (length != 6 || request[5] < 1 || request[5] > 2)
+                return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+            extended_source = request[5];
+        }
+        extended_status_mode   = 19;
         status_snapshot_length = 0;
         return 0;
     }
@@ -676,6 +695,16 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_g
         if (ctxt->offset == 0 || status_snapshot_length == 0)
             status_snapshot_length = hardware_probe_status(status_snapshot);
         if (status_snapshot_length == 0)
+            return BLE_ATT_ERR_INSUFFICIENT_RES;
+        if (ctxt->offset > status_snapshot_length)
+            return BLE_ATT_ERR_INVALID_OFFSET;
+        return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
+    }
+    if (extended_status_mode == 19)
+    {
+        if (ctxt->offset == 0 || status_snapshot_length == 0)
+            status_snapshot_length = vehicle_commands_runtime_status(extended_source, status_snapshot);
+        if (!status_snapshot_length)
             return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length)
             return BLE_ATT_ERR_INVALID_OFFSET;

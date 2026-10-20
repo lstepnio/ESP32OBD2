@@ -1,3 +1,4 @@
+#include "vehicle_commands_runtime.h"
 #include "esp_timer.h"
 #include "worker_health.h"
 #include <stdbool.h>
@@ -133,6 +134,14 @@ static void process(const request_t *request)
     session.last_op       = op;
     session.result        = RESULT_BAD_REQUEST;
     session.last_activity = xTaskGetTickCount();
+    if ((op == OP_BEGIN || op == OP_COMMIT) && !vehicle_commands_runtime_maintenance_allowed(true))
+    {
+        session.result = RESULT_CONFLICT;
+        publish_status_locked();
+        xSemaphoreGive(lock);
+        return;
+    }
+
     if (op == OP_BEGIN && request->length == 17 && id != 0)
     {
         config_store_record_t active;
@@ -146,6 +155,11 @@ static void process(const request_t *request)
             session.result = RESULT_BAD_REQUEST;
         else if (!transfer_gate_claim(1))
             session.result = RESULT_CONFLICT;
+        else if (!vehicle_commands_runtime_maintenance_allowed(true))
+        {
+            transfer_gate_release(1);
+            session.result = RESULT_CONFLICT;
+        }
         else
         {
             memset(session.digest, 0, sizeof(session.digest));

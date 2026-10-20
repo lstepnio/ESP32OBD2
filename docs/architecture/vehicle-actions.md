@@ -1,8 +1,8 @@
 # ADR-013: Profile actions and gauge gesture triggers
 
-**Status:** Accepted for local page actions and the offline idle foundation; vehicle execution proposed
+**Status:** Shared command path implemented; vehicle execution gated pending parked qualification
 **Date:** 2026-10-07
-**High-idle updated:** 2026-10-19; offline foundation implemented, vehicle execution disabled
+**Updated:** 2026-10-19; idle and combined ABS/TCS share the command path, live qualification disabled
 **Deciders:** Project owner for interaction choices; implementation and physical
 qualification determine which controller definitions become available.
 
@@ -283,24 +283,11 @@ recovery procedure are established. These slices do not authorize release or fla
 
 ### Implemented offline foundation
 
-- `temporary_idle.c` is a pure fixed-size policy with no IO, task or allocation.
-  It emits Start/Refresh/Release intents only for an independently qualified
-  definition and matching fresh context. Tests connect the existing page-action
-  recognizer to the policy without changing its production page-jump path.
-- Duplicate/old Starts, overlapping operations, retired completion tickets,
-  changed revision/link, missed deadlines, cancellation, expiry and timer wrap are
-  covered. Unknown never becomes success implicitly. Explicit release retry needs
-  definition-declared idempotence; independent release evidence permits reconciliation.
-- `IdlePreset`/schema 14 store two phone-only drafts with no inferred target RPM.
-  They use the coupled setup store, stay on the parent, survive gauge restoration,
-  and do not enter configuration bytes or alter exact gauge comparisons.
-- Car > Air up & winch configures RPM/duration and removal. The presenter has
-  countdown/Start/Stop states exercised only by fixture handlers; normal App state
-  remains Unavailable and has no transport callbacks. This is not live telemetry.
-- The [offline inner codec](../protocol/experimental-firmware-transfers.md#offline-temporary-idle-inner-codec)
-  shares a C/Kotlin vector. It is not registered with BLE, advertised as a capability
-  or connected to an adapter worker. The policy and candidate driver objects are
-  not instantiated in the firmware runtime; no controller driver is selectable.
+The earlier `temporary_idle.c` numeric policy and its inner codec remain portable
+regression fixtures. Live intents now use the typed shared command path below;
+there is no implicit numeric-RPM conversion or second live command interface.
+`IdlePreset` stores the parent's Air up/Winch drafts. Numeric targets remain drafts;
+the captured idle command accepts only the fixed setting and a bounded duration.
 
 ### Captured Jeep driver candidate
 
@@ -308,8 +295,8 @@ recovery procedure are established. These slices do not authorize release or fla
 as a pure, fixed-size stepper. `START_CAPTURED` uses only the captured `06 80`
 word. There is no API for arbitrary bytes or a numeric RPM conversion. A caller
 cannot treat a saved target RPM as a qualified mapping to this operation. The
-candidate is built but never registered, selected or advertised; live commands
-remain unreachable through the App, gesture and firmware workers.
+candidate is selected internally by the shared command controller below. Its
+live qualification mask is still zero; no current vehicle profile can execute it.
 
 | Job | Required protocol evidence |
 | --- | --- |
@@ -367,24 +354,75 @@ post-Return reports, guard/cancel boundaries, duplicate/retired operations, scop
 links, lost replies, bounded waits, timer wrap, reconciliation and malformed inputs.
 Run `python -m unittest tools.tests.test_jeep_idle_driver` or the normal host suite.
 
-Remaining integration includes the qualified controller definition, protected
-Start/Stop/status dispatch, source-worker scheduling, shared operation history and
-physical gauge Quick actions menu. The [parked follow-up](../evidence/jeep-actions-live-qualification.md)
+The shared controller now supplies protected dispatch, primary-worker scheduling,
+bounded event history and the physical actions menu. The remaining integration is
+the independently qualified controller identity/guard/restoration evidence owner. The [parked follow-up](../evidence/jeep-actions-live-qualification.md)
 confirms fresh identity, inactive status after session re-entry and one combined
 JScan process/Bluetooth-loss restoration. Target conversion, immediate same-session
 post-Return readback and broader interruption behavior still need qualification.
 This delivers the offline driver without claiming a complete vehicle-control path.
 
+### Shared command owner
+
+`vehicle_commands.c` owns two independent action slots and one driver lease. Idle
+can remain active while ABS/TCS needs restart; neither operation can run concurrent
+adapter transactions. Start/Stop, countdown expiry, guard loss and cancellation use
+one typed admission/state path. `jeep_idle_driver.c` and `jeep_abs_tcs_driver.c`
+contain only their captured controller procedures. The latter addresses 620/504,
+enters the diagnostic session for each job, and never equates an acknowledgment
+with restored ABS/TCS. Fourth-button valve commands are not included.
+
+`vehicle_commands_runtime.c` runs on the existing primary adapter worker. Its
+fixed queue has four entries; callbacks only enqueue and snapshots use a short
+critical section. Driver buffers, IO scratch and the sixteen-record event ring
+are fixed external BSS in PSRAM. No task or control-time heap allocation is added.
+The child worker keeps its independent transport and scheduler.
+
+A versioned NVS uncertainty marker is committed before any control leaves the
+worker. Failed/malformed/newer journal reads refuse execution without overwriting
+the source. A restart exposes Unknown and never resumes control. A marker clears
+only after same-identity/revision/operation proof sampled after the current state
+transition and within two seconds. Guard evidence also expires after two seconds.
+Identity is a profile-owner proof, not a client-provided byte or an adapter name.
+No profile currently supplies these proofs: both live qualification masks stay zero.
+
+Every IO has a 1,200 ms budget including pre-IO journal time, and each driver job
+has a 9,000 ms budget. Fragmented data and pending responses do not extend them.
+After a job the worker restores filter/flow/header defaults under a separate
+1,200 ms cleanup budget before releasing normal polling. Failure disconnects and
+requires route cleanup during initialization. Neither cleanup nor reconnect
+replays a control. Real cadence, stack margin and guard freshness under these
+budgets still need parked measurement before qualification.
+
+The App uses its existing authenticated session and operation coordinator. Current
+status polls automatically, faster during active/uncertain work, with bounded
+backoff. Retired vehicle/gauge/revision results are discarded. Wire bytes and the
+schema-2 menu action are owned by the [command protocol](../protocol/experimental-firmware-transfers.md#shared-vehicle-commands-v1).
+The existing upward-swipe recognizer now targets either a page or the actions
+menu; it never toggles a controller directly. Menu confirmation, context loss and
+pairing/critical-alert preemption use the existing UI owner. Idle durations are
+stored in the menu configuration so App and gauge use the same chosen values.
+
+Maintenance uses the existing atomic transfer gate, held across active command jobs
+and gaps between them. Configuration and OTA cannot claim the adapter while a control
+is active. Wi-Fi startup briefly claims the same gate before pausing vehicle links.
+Configuration additionally waits for uncertainty or restart-required state to reconcile;
+firmware recovery remains available once no active control job remains. Cached UI
+status alone is not a mutual-exclusion primitive. The shortcut menu remains available
+for Stop while the command gate is held.
+
 ### Next parked Jeep increment
 
 The [parked follow-up](../evidence/jeep-actions-live-qualification.md) closes the
 fresh-identity gap and supplies a fixed-target reference plus one loss/recovery
-observation. Next, integrate and test the driver offline before another parked run:
+observation. The shared path is now wired and tested offline. Before enabling a
+profile, the next parked increment must close the remaining evidence inputs:
 
 1. Preserve the captured target as a distinct fixed operation. Do not convert
    arbitrary saved RPMs without a qualified mapping and supported range.
-2. Bind protected dispatch and shared history to the primary-worker transaction
-   lease; validate actual gear, movement and running-state evidence at admission.
+2. Identify fresh primary-vehicle Park/Neutral, movement, engine and controller
+   identity evidence, plus ABS/TCS reset/state proof. Bind that evidence owner to
+   the existing primary-worker controller; do not promote a mask from fixture results.
 3. On the next parked run, verify the immediate same-session report after Return,
    settled RPM and cancellation. The delayed inactive read after session re-entry
    does not qualify that sequence.

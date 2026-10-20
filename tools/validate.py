@@ -116,7 +116,8 @@ def config(doc):
         check(all(x in defs for x in page["pidIds"]), "Page references unknown PID")
     for action in doc.get("actions", []):
         check(
-            action["pageId"] in {page["id"] for page in doc["pages"]},
+            action["type"] == "vehicleActions"
+            or action["pageId"] in {page["id"] for page in doc["pages"]},
             "Action references unknown page",
         )
     for alert in doc["alerts"]:

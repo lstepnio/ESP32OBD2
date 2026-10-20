@@ -125,6 +125,22 @@ int main(int argc, char **argv)
     cJSON_ReplaceItemInObject(action, "pageId", cJSON_CreateString("missing"));
     set(root);
     assert(validate() != ESP_OK);
+    cJSON_ReplaceItemInObject(action, "type", cJSON_CreateString("vehicleActions"));
+    cJSON_DeleteItemFromObject(action, "pageId");
+    cJSON_AddNumberToObject(action, "airUpSeconds", 60);
+    cJSON_AddNumberToObject(action, "winchSeconds", 600);
+    set(root);
+    assert(validate() == ESP_OK);
+    assert(config_runtime_load(&runtime, &active, &previous) == ESP_OK);
+    assert(runtime.page_action.enabled && runtime.page_action.vehicle_menu &&
+           runtime.page_action.air_up_seconds == 60 && runtime.page_action.winch_seconds == 600);
+    cJSON_SetNumberValue(cJSON_GetObjectItem(action, "airUpSeconds"), 601);
+    set(root);
+    assert(validate() != ESP_OK);
+    cJSON_SetNumberValue(cJSON_GetObjectItem(action, "airUpSeconds"), 60);
+    cJSON_AddStringToObject(action, "pageId", first_page);
+    set(root);
+    assert(validate() != ESP_OK);
     cJSON_DeleteItemFromObject(root, "actions");
     set(root);
     assert(config_runtime_load(&runtime, &active, &previous) == ESP_OK && !runtime.page_action.enabled);

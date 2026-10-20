@@ -1,4 +1,5 @@
 #include "worker_health.h"
+#include "vehicle_commands.h"
 // ---------------------------------------------------------------------------------------------------------------------
 // Includes
 // ---------------------------------------------------------------------------------------------------------------------
@@ -124,25 +125,31 @@ struct _ui_t
     bool                rendered_action_visible, rendered_action_feedback;
     uint8_t             rendered_action_progress;
     lv_obj_t           *action_label;
-    bool                pairing_visible;
-    uint32_t            pairing_code;
-    TickType_t          reset_confirmation_at;
-    TickType_t          owner_saved_at;
-    char                pairing_identifier[7];
-    bool                calibration_mode;
-    bool                imperial_units;
-    uint8_t             calibration_page;
-    TickType_t          pressed_at;
-    ui_alert_t          rendered_alert;
-    ui_diagnostics_t    rendered_diagnostics;
-    bool                alert_rendered;
-    bool                diagnostics_rendered;
-    bool                status_dirty, simulated;
-    display_showcase_t  showcase;
-    atomic_bool         showcase_active;
-    atomic_uint         showcase_generation, showcase_sequence, showcase_packed, showcase_started;
-    ui_page_t           showcase_page;
-    unsigned            page_index, page_count;
+    lv_obj_t           *command_menu, *command_rows[4], *command_text[4], *command_note;
+    atomic_uint         command_ui[2];
+    atomic_bool         command_menu_active;
+    bool                command_menu_visible;
+    uint8_t             command_confirm, command_selected;
+
+    bool               pairing_visible;
+    uint32_t           pairing_code;
+    TickType_t         reset_confirmation_at;
+    TickType_t         owner_saved_at;
+    char               pairing_identifier[7];
+    bool               calibration_mode;
+    bool               imperial_units;
+    uint8_t            calibration_page;
+    TickType_t         pressed_at;
+    ui_alert_t         rendered_alert;
+    ui_diagnostics_t   rendered_diagnostics;
+    bool               alert_rendered;
+    bool               diagnostics_rendered;
+    bool               status_dirty, simulated;
+    display_showcase_t showcase;
+    atomic_bool        showcase_active;
+    atomic_uint        showcase_generation, showcase_sequence, showcase_packed, showcase_started;
+    ui_page_t          showcase_page;
+    unsigned           page_index, page_count;
 #if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
     struct
     {
@@ -630,6 +637,8 @@ static void select_renderer_widgets(ui_t *ui)
 // Private Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
+static void refresh_vehicle_menu(ui_t *ui);
+
 static void dispatch_touch(ui_t *ui, lv_event_code_t code)
 {
     /* Calibration replaces screen objects, so defer that callback until the
@@ -653,7 +662,13 @@ static bool action_context(ui_t *ui)
 {
     unsigned epoch   = atomic_load(&ui->action_context_epoch);
     bool     allowed = atomic_load(&ui->action_allowed) && !ui->pairing_visible && !ui->calibration_mode &&
-                       !atomic_load(&ui->showcase_active);
+                       !atomic_load(&ui->showcase_active) && !ui->rendered_alert.attention;
+    if ((!allowed || epoch != ui->action_seen_epoch) && ui->command_menu_visible)
+    {
+        ui->command_menu_visible = false;
+        atomic_store(&ui->command_menu_active, false);
+        lv_obj_add_flag(ui->command_menu, LV_OBJ_FLAG_HIDDEN);
+    }
     if (!allowed || epoch != ui->action_seen_epoch)
         page_action_reset(&ui->action);
     ui->action_seen_epoch = epoch;
@@ -666,6 +681,8 @@ static void ui_touch_callback(lv_event_t *e)
     ui_t *ui = (ui_t *)lv_event_get_user_data(e);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     lv_event_code_t code = lv_event_get_code(e);
+    if (ui->command_menu_visible)
+        return;
 #if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
     if (code == LV_EVENT_PRESSED)
         ui->timing.presses++;
@@ -1220,6 +1237,7 @@ static void ui_task(lv_timer_t *timer)
 #endif
 
     action_context(ui);
+    refresh_vehicle_menu(ui);
     uint32_t action_now = (uint32_t)(esp_timer_get_time() / 1000);
     page_action_tick(&ui->action, action_now);
     atomic_store(&ui->action_pending, ui->action.progress != 0 || ui->action.pressed);
@@ -1536,6 +1554,9 @@ ui_t *ui_init(ui_page_t const    *page,
     atomic_init(&ui->action_allowed, false);
     atomic_init(&ui->action_pending, false);
     atomic_init(&ui->action_context_epoch, 0);
+    atomic_init(&ui->command_menu_active, false);
+    atomic_init(&ui->command_ui[0], 0);
+    atomic_init(&ui->command_ui[1], 0);
     ui_init_screen(ui, page, interval_ms);
     ui->action_label = lv_label_create(ui->widgets.gauge_content);
     lv_obj_set_style_text_color(ui->action_label, lv_color_hex(color_accent), 0);
@@ -1741,7 +1762,8 @@ void ui_reset_action_sequence(ui_t *ui)
 }
 bool ui_action_pending(ui_t *ui)
 {
-    return atomic_load(&ui->action_pending) || atomic_load(&ui->showcase_active);
+    return atomic_load(&ui->action_pending) || atomic_load(&ui->showcase_active) ||
+           atomic_load(&ui->command_menu_active);
 }
 
 void ui_action_applied(ui_t *ui)
@@ -1838,4 +1860,149 @@ size_t ui_showcase_status(ui_t *ui, uint32_t now, uint8_t out[20])
         return 20;
     }
     return 0;
+}
+
+static void refresh_vehicle_menu(ui_t *ui)
+{
+    if (!ui->command_menu_visible)
+        return;
+    unsigned idle = atomic_load(&ui->command_ui[0]), abs = atomic_load(&ui->command_ui[1]);
+    for (unsigned row = 0; row < 3; ++row)
+    {
+        unsigned state   = row < 2 ? idle : abs;
+        unsigned phase   = state & 255U;
+        bool     start   = phase == VEHICLE_READY || phase == VEHICLE_RESTORED || phase == VEHICLE_REJECTED;
+        bool     stop    = phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE;
+        bool     enabled = (state & 256U) && (start || stop) && !(row == 1 && stop);
+        if (enabled)
+            lv_obj_remove_state(ui->command_rows[row], LV_STATE_DISABLED);
+        else
+            lv_obj_add_state(ui->command_rows[row], LV_STATE_DISABLED);
+        lv_obj_set_style_text_color(ui->command_text[row],
+                                    lv_color_hex(enabled ? color_background : color_text_secondary), 0);
+        char label[32];
+        if (row == 2)
+            snprintf(label, sizeof(label), "%s", stop ? "End ABS/TCS" : "ABS/TCS off");
+        else if (stop)
+            snprintf(label, sizeof(label), "%s", row ? "Idle running" : "Stop idle");
+        else
+        {
+            unsigned seconds = row ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds;
+            snprintf(label, sizeof(label), "%s%s %u:%02u", ui->command_confirm == row + 1 ? "Confirm " : "",
+                     row ? "Winch" : "Air up", seconds / 60, seconds % 60);
+        }
+        if (row == 2 && ui->command_confirm == 3)
+            snprintf(label, sizeof(label), "Confirm ABS/TCS");
+        if (strcmp(lv_label_get_text(ui->command_text[row]), label))
+            lv_label_set_text(ui->command_text[row], label);
+    }
+    const char *note = (abs & 255U) == VEHICLE_RESTART_REQUIRED || (abs & 255U) == VEHICLE_ACTIVE ? "Restart to restore"
+                       : (idle & 255U) == VEHICLE_UNKNOWN || (abs & 255U) == VEHICLE_UNKNOWN      ? "Check vehicle"
+                       : !(idle & 256U) && !(abs & 256U)                                          ? "Not available yet"
+                       : ui->command_confirm ? "Tap again to confirm"
+                                             : "";
+    if (strcmp(lv_label_get_text(ui->command_note), note))
+        lv_label_set_text(ui->command_note, note);
+}
+static void command_menu_click(lv_event_t *event)
+{
+    ui_t     *ui     = lv_event_get_user_data(event);
+    lv_obj_t *button = lv_event_get_target(event);
+    unsigned  row    = 0;
+    while (row < 4 && ui->command_rows[row] != button)
+        ++row;
+    if (row == 4 || !ui->command_menu_visible)
+        return;
+    if (row == 3)
+    {
+        ui->command_menu_visible = false;
+        atomic_store(&ui->command_menu_active, false);
+        lv_obj_add_flag(ui->command_menu, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+    unsigned state = atomic_load(&ui->command_ui[row < 2 ? 0 : 1]);
+    unsigned phase = state & 255U;
+    bool     stop  = phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE;
+    if (!(state & 256U) ||
+        (!stop && phase != VEHICLE_READY && phase != VEHICLE_RESTORED && phase != VEHICLE_REJECTED) ||
+        (row == 1 && stop))
+        return;
+    if (!stop && ui->command_confirm != row + 1)
+    {
+        ui->command_confirm = row + 1;
+        refresh_vehicle_menu(ui);
+        return;
+    }
+    ui->command_selected = row;
+    ui->command_confirm  = 0;
+    dispatch_touch(ui, UI_EVENT_VEHICLE_COMMAND);
+}
+bool ui_action_opens_vehicle_menu(ui_t *ui)
+{
+    return ui && ui->action.config.vehicle_menu;
+}
+void ui_show_vehicle_actions(ui_t *ui)
+{
+    if (!ui || !action_context(ui))
+        return;
+    if (!ui->command_menu)
+    {
+        ui->command_menu = lv_obj_create(ui->widgets.gauge_content);
+        lv_obj_remove_style_all(ui->command_menu);
+        lv_obj_set_size(ui->command_menu, 240, 240);
+        lv_obj_set_style_bg_color(ui->command_menu, lv_color_hex(color_background), 0);
+        lv_obj_set_style_bg_opa(ui->command_menu, LV_OPA_COVER, 0);
+        lv_obj_remove_flag(ui->command_menu, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_t *title = plain_label(ui->command_menu, color_text_primary);
+        lv_label_set_text(title, "Actions");
+        lv_obj_set_style_text_font(title, font_subtitle, 0);
+        lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 19);
+        for (unsigned row = 0; row < 4; ++row)
+        {
+            lv_obj_t *button = lv_button_create(ui->command_menu);
+            lv_obj_remove_style_all(button);
+            lv_obj_set_style_radius(button, 8, 0);
+            ui->command_rows[row] = button;
+            lv_obj_set_size(button, row == 3 ? 80 : 170, row == 3 ? 28 : 36);
+            lv_obj_align(button, LV_ALIGN_TOP_MID, 0, row == 3 ? 194 : 44 + (int)row * 40);
+            lv_obj_set_style_bg_color(button, lv_color_hex(color_accent), 0);
+            lv_obj_set_style_bg_opa(button, LV_OPA_COVER, 0);
+            lv_obj_set_style_bg_color(button, lv_color_hex(0x263238), LV_STATE_DISABLED);
+            lv_obj_add_event_cb(button, command_menu_click, LV_EVENT_CLICKED, ui);
+            ui->command_text[row] = lv_label_create(button);
+            lv_obj_set_style_text_font(ui->command_text[row], font_subtitle, 0);
+            lv_obj_set_style_text_color(ui->command_text[row], lv_color_hex(color_background), 0);
+            lv_label_set_text(ui->command_text[row], row == 3 ? "Back" : "");
+            lv_obj_center(ui->command_text[row]);
+        }
+        ui->command_note = plain_label(ui->command_menu, color_text_secondary);
+        lv_obj_set_style_text_font(ui->command_note, font_subtitle, 0);
+        lv_obj_align(ui->command_note, LV_ALIGN_TOP_MID, 0, 168);
+    }
+    ui->command_menu_visible = true;
+    ui->command_confirm      = 0;
+    atomic_store(&ui->command_menu_active, true);
+    page_action_reset(&ui->action);
+    lv_obj_remove_flag(ui->command_menu, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(ui->command_menu);
+    refresh_vehicle_menu(ui);
+}
+void ui_set_vehicle_action_status(ui_t *ui, uint8_t kind, uint8_t phase, bool qualified)
+{
+    if (ui && kind >= 1 && kind <= 2)
+        atomic_store(&ui->command_ui[kind - 1], phase | (qualified ? 256U : 0U));
+}
+void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *preset, uint16_t *seconds)
+{
+    unsigned row   = ui->command_selected;
+    *kind          = row < 2 ? 1 : 2;
+    unsigned phase = atomic_load(&ui->command_ui[*kind - 1]) & 255U;
+    *stop          = phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE;
+    *preset        = *kind == 1 && !*stop ? row + 1 : 0;
+    *seconds = *kind == 1 && !*stop ? (row ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds) : 0;
+}
+void ui_vehicle_command_queued(ui_t *ui, bool accepted)
+{
+    lv_label_set_text(ui->command_note, accepted ? "Checking..." : "Not available yet");
+    ui->command_confirm = 0;
 }

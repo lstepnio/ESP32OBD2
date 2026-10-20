@@ -279,21 +279,29 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         const cJSON *kind = field(action, "type"), *gesture = field(action, "gesture"),
                     *page_id = field(action, "pageId"), *count = field(action, "count"),
                     *window = field(action, "windowMs");
-        if (!cJSON_IsString(kind) || strcmp(kind->valuestring, "jumpPage") || !cJSON_IsString(gesture) ||
-            strcmp(gesture->valuestring, "up") || !cJSON_IsString(page_id) || !cJSON_IsNumber(count) ||
-            count->valuedouble != count->valueint || count->valueint < 2 || count->valueint > 5 ||
-            !cJSON_IsNumber(window) || window->valuedouble != window->valueint || window->valueint < 2000 ||
-            window->valueint > 10000 || window->valueint % 1000 != 0)
+        bool         menu   = cJSON_IsString(kind) && !strcmp(kind->valuestring, "vehicleActions");
+        const cJSON *air = field(action, "airUpSeconds"), *winch = field(action, "winchSeconds");
+        if (!cJSON_IsString(kind) || (!menu && strcmp(kind->valuestring, "jumpPage")) || !cJSON_IsString(gesture) ||
+            strcmp(gesture->valuestring, "up") || (!menu && !cJSON_IsString(page_id)) ||
+            (menu && (page_id || !cJSON_IsNumber(air) || air->valueint != air->valuedouble || air->valueint < 10 ||
+                      air->valueint > 600 || !cJSON_IsNumber(winch) || winch->valueint != winch->valuedouble ||
+                      winch->valueint < 10 || winch->valueint > 600)) ||
+            !cJSON_IsNumber(count) || count->valuedouble != count->valueint || count->valueint < 2 ||
+            count->valueint > 5 || !cJSON_IsNumber(window) || window->valuedouble != window->valueint ||
+            window->valueint < 2000 || window->valueint > 10000 || window->valueint % 1000 != 0)
             goto done;
         unsigned target = 0;
-        while (target < out->page_count && strcmp(out->pages[target].id, field(action, "pageId")->valuestring))
+        while (!menu && target < out->page_count && strcmp(out->pages[target].id, field(action, "pageId")->valuestring))
             ++target;
-        if (target == out->page_count)
+        if (!menu && target == out->page_count)
             goto done;
-        out->page_action = (page_action_config_t){.enabled     = true,
-                                                  .target_page = target,
-                                                  .count       = field(action, "count")->valueint,
-                                                  .window_ms   = field(action, "windowMs")->valueint};
+        out->page_action = (page_action_config_t){.enabled        = true,
+                                                  .target_page    = target,
+                                                  .count          = field(action, "count")->valueint,
+                                                  .window_ms      = field(action, "windowMs")->valueint,
+                                                  .vehicle_menu   = menu,
+                                                  .air_up_seconds = menu ? air->valueint : 300,
+                                                  .winch_seconds  = menu ? winch->valueint : 300};
     }
     err = ESP_OK;
 

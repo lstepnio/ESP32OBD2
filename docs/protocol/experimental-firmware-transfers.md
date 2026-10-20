@@ -261,3 +261,67 @@ The worker policy rejects duplicate/old Starts and overlapping operations, isola
 completion tickets, and marks lost/late/unverified results Unknown. A repeated explicit
 release from Unknown requires a definition-declared idempotent release; context loss
 prevents traffic. Verified reconciliation is required before another Start.
+
+## Shared vehicle commands v1
+
+**Implemented development interface; live controller qualification remains disabled.**
+Document-mode capability `vc:1` identifies the typed interface and actions-menu
+configuration extension. It does not establish a qualified car or enable vehicle
+writes. Legacy built-in mode does not advertise it. Public BLE capability flags
+remain unchanged. The older numeric temporary-idle inner codec above is an offline
+fixture contract, not an alternative live request path.
+
+Authenticated control `0x66` contains exactly one 24-byte inner request. `0x67` +
+nonzero read sequence u32 + kind u8 selects a 32-byte protected snapshot. The kind
+also selects the response after a command. There is no arbitrary diagnostic text,
+child-adapter selector, fourth-button control or numeric RPM field.
+
+| Inner offset | Size | Field |
+| --- | --- | --- |
+| 0 | 1 | Version 1 |
+| 1 | 1 | Kind: captured idle 1, combined ABS/TCS 2 |
+| 2 | 1 | Start 1 or Stop/Return 2 |
+| 3 | 1 | Idle Start preset: Air up 1 or Winch 2; otherwise zero |
+| 4 | 4 | Nonzero operation; Start exceeds the gauge's last admitted operation |
+| 8 | 4 | Nonzero running configuration revision |
+| 12 | 4 | Nonzero primary link generation |
+| 16 | 4 | Current nonzero gauge command boot nonce |
+| 20 | 2 | Idle Start duration seconds 10..600; otherwise zero |
+| 22 | 2 | Reserved, zero |
+
+All integers are little-endian. Stop addresses the existing operation. Requests
+with retired boot/revision/link, unsupported kind, invalid fields, unavailable
+qualification or a full bounded queue are refused. ATT success means queued, not
+vehicle success. Both App and physical menu use the same queue and worker owner.
+The [captured-idle request vector](../../contracts/examples/vehicle-command-idle-start.hex)
+is checked by native and Kotlin tests.
+
+| Status offset | Size | Field |
+| --- | --- | --- |
+| 0 | 1 | Protected status tag 22 |
+| 1 | 1 | Kind 1 or 2 |
+| 2 | 1 | Unavailable 0, Ready 1, Starting 2, Active 3, Stopping 4, Verifying 5, Restored 6, Restart required 7, Rejected 8, Unknown 9 |
+| 3 | 1 | OK 0, Unqualified 1, Invalid 2, Busy 3, Context 4, Guard 5, Timeout 6, Response 7, Storage 8 |
+| 4 | 4 | Operation, zero before any operation |
+| 8 | 4 | Current running revision |
+| 12 | 4 | Current primary link generation |
+| 16 | 4 | Current boot nonce |
+| 20 | 4 | Last event sequence for this kind |
+| 24 | 2 | Remaining idle seconds, otherwise zero |
+| 26 | 1 | Idle preset 1/2, otherwise zero |
+| 27 | 1 | Bit 0: qualified with usable journal; bit 1: ABS/TCS restart required; other bits zero |
+| 28 | 4 | Global last admitted Start operation; no wrap |
+
+An uncertain write is sent once and reconciled by bounded status reads. Status
+must match kind, boot, revision, link and operation. Foreground reads retry with
+bounded backoff; they never replay Start/Return. A lost or cancelled phone session
+does not stop autonomous gauge timing. Firmware restart preserves uncertainty and
+never resumes a Start. A positive ABS/TCS Return remains Restart required until
+independent same-vehicle reset/state evidence is verified.
+
+The schema-2 configuration action `vehicleActions` has `gesture:"up"`, `count`
+2..5, `windowMs` 2000..10000 in whole seconds, and `airUpSeconds` / `winchSeconds`
+10..600. It has no `pageId`. Existing `jumpPage` actions retain their shape.
+`vc:1` is required before sending the new action. A completed gesture opens the
+menu, never a control write. Selecting a Start requires a second confirmation;
+Stop is directly available. Normal page cycling pauses while the menu is open.

@@ -9,7 +9,14 @@
 uint32_t        host_ms;
 static bool     vehicle, maintenance;
 static unsigned acknowledgments;
-void            worker_health_progress(worker_id_t id, uint32_t now)
+static unsigned command_requests;
+static void     command_touch(ui_t *ui, lv_event_code_t event)
+{
+    if (event == UI_EVENT_VEHICLE_COMMAND)
+        ++command_requests;
+}
+
+void worker_health_progress(worker_id_t id, uint32_t now)
 {
     (void)id;
     (void)now;
@@ -191,6 +198,48 @@ int main(int argc, char **argv)
     tick(60);
     assert(lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
     assert(lv_obj_has_flag(ui->widgets.diagnostics_lbl, LV_OBJ_FLAG_HIDDEN));
+    ui->touch_cb = command_touch;
+    ui_configure_page_action(ui, (page_action_config_t){.enabled        = true,
+                                                        .count          = 3,
+                                                        .window_ms      = 5000,
+                                                        .vehicle_menu   = true,
+                                                        .air_up_seconds = 600,
+                                                        .winch_seconds  = 60});
+    ui_set_action_context(ui, true);
+    assert(ui_action_opens_vehicle_menu(ui));
+    ui_show_vehicle_actions(ui);
+    tick(60);
+    assert(ui_action_pending(ui));
+    capture(argv[1], "actions-unavailable");
+    lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
+    assert(command_requests == 0);
+    ui_set_vehicle_action_status(ui, 1, 1, true);
+    ui_set_vehicle_action_status(ui, 2, 1, true);
+    tick(60);
+    capture(argv[1], "actions-ready");
+    lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
+    tick(60);
+    assert(command_requests == 0);
+    capture(argv[1], "actions-confirm");
+    lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
+    assert(command_requests == 1);
+    uint8_t  kind, preset;
+    bool     stop;
+    uint16_t seconds;
+    ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
+    assert(kind == 1 && !stop && preset == 1 && seconds == 600);
+    ui_set_vehicle_action_status(ui, 1, 3, true);
+    ui_set_vehicle_action_status(ui, 2, 7, true);
+    tick(60);
+    capture(argv[1], "actions-restart-required");
+    lv_obj_send_event(ui->command_rows[2], LV_EVENT_CLICKED, NULL);
+    assert(command_requests == 1);
+    lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
+    assert(command_requests == 2);
+    ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
+    assert(kind == 1 && stop && !preset && !seconds);
+    lv_obj_send_event(ui->command_rows[3], LV_EVENT_CLICKED, NULL);
+    assert(!ui_action_pending(ui));
     puts("PASS: production LVGL showcase frames, circular glyphs, vehicle/maintenance/critical preemption and pairing "
          "restore");
 }
