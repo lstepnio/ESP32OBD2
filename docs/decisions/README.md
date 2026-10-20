@@ -21,6 +21,7 @@ below; [current state](../current-state.md) owns qualification, not this ledger.
 | ADR-014 | Coupled vehicle/gauge setup in one SharedPreferences commit | Existing bounded offline storage and backward reads; publish only acknowledged state via serialized off-main writes, not a second independently saved association document | Storage scale or a concrete transaction requirement warrants a migration |
 | ADR-015 | Shared alert lifecycle and history across threshold, MIL/fault and external producers; diagnostic endpoint independent of adapter | Autonomous gauge truth, consistent UX, bounded context and recoverable sync; event storage separate from setup; clearing remains explicit and qualified | Phased implementation, resource measurements and controller/Android qualification |
 
+| ADR-016 | Shared reference core with private hardware adapters, target descriptors and per-target RC promotion | Small ports, common behavior and controlled distribution; each hardware target still needs physical qualification | Second-board bring-up or virtual display demonstrates a missing seam |
 
 ## Implementation details
 
@@ -30,6 +31,7 @@ below; [current state](../current-state.md) owns qualification, not this ledger.
 - [Profile actions](../architecture/vehicle-actions.md): ADR-013.
 - [Phone storage](../architecture/android-runtime.md#storage-and-recovery): ADR-014.
 - [Shared alerts and diagnostics](../architecture/alerts-and-diagnostics.md): ADR-015.
+- [Platforms and release boundaries](../architecture/platforms-and-releases.md): ADR-016.
 
 Add a short numbered record here for a major choice, explaining the reason, tradeoff
 and revisit condition. Use a separate file only when the decision needs substantial

@@ -2,6 +2,15 @@
 
 Updated 2026-10-19. This runbook covers signed development prereleases hosted in GitHub Releases. It does not define production signing or stable-channel approval.
 
+## Distribution boundary
+
+Only the original reference board is eligible for public firmware. The public
+workflow checks [platform policy](../../contracts/platform-policy.json); other
+hardware uses the private integration/release path. Follow the
+[platform/RC contract](../architecture/platforms-and-releases.md) before adding a
+target or channel. This development runbook does not implement private RC/GA
+publication and does not promote any additional board.
+
 ## Supported board matrix
 
 | Board ID | Hardware revisions | SDK/toolchain | Partition layout | Transfer | Status |

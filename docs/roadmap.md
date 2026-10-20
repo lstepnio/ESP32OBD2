@@ -21,8 +21,12 @@ qualification task, not useful independent offline work.
 
 ## Distribution and custom work
 
-The current direction is free development software on inexpensive, customer-sourced
-hardware, with custom software, interfaces and integrations as the primary service.
+The original 1.28-inch reference board retains free public development firmware.
+Additional hardware integrations and firmware default to private distribution, with
+custom software, interfaces and integrations as the primary service. The
+[platform/RC contract](architecture/platforms-and-releases.md) defines shared-core
+development, capability limits, square/virtual display extensions and target-specific
+release-candidate qualification before general availability.
 There is no committed standard-gauge retail launch, preorder/deposit program or
 paid roadmap tier. A finished build or custom hardware can be discussed by request
 and scoped separately. Customer ideas can influence priorities without payment.

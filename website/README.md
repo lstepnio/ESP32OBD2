@@ -114,6 +114,8 @@ status here.
 ## Public offer
 
 The owner’s distribution direction is [free DIY software and custom projects](../docs/roadmap.md#distribution-and-custom-work).
+Free public firmware applies to the original reference board only. Additional
+hardware integrations/releases default to private under the [platform policy](../docs/architecture/platforms-and-releases.md). Do not imply free firmware for every future board.
 Use project-update signup language, not preorders, deposits, reservations or paid
 roadmap access. A finished unit can be discussed on request; do not imply a retail
 launch commitment. Consent text and success messages must match the visible form.

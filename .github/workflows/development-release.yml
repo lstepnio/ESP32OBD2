@@ -34,6 +34,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Enforce public firmware platform policy
+        run: >-
+          python3 tools/platform_policy.py
+          --board waveshare-esp32-s3-touch-lcd-1.28
+          --channel development --repository "$GITHUB_REPOSITORY"
       - name: Require successful quality checks for the exact source commit
         env:
           GH_TOKEN: ${{ github.token }}

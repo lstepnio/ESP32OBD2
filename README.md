@@ -43,6 +43,8 @@ ECM and TCM diagnostic ports, need two adapters to read both at once, one per po
 This is an uncommon swap-specific configuration, not a typical vehicle requirement.
 
 Additional boards, displays and form factors are planned as hardware is evaluated.
+Only the original board has free public firmware; additional hardware integrations
+and releases default to private. See [platform and release policy](docs/architecture/platforms-and-releases.md).
 [Contact us about custom needs](https://egauge.majjix.com/#custom-form).
 Phone-only virtual gauges and possible Android Auto solutions are being investigated;
 neither is available today. [Recovery maintenance and verification](web-recovery/README.md).

@@ -92,6 +92,9 @@ contracts/status and dated evidence. `data/vehicle-definitions/` is research onl
 - For authorized live Android debugging, run `python3 tools/adb_debug_awake.py start`
   before the session and `stop` afterward to restore timeout/wake settings. Manual
   locks still require the user to unlock. Record phone and gauge observations separately.
+- Follow [platform/RC boundaries](docs/architecture/platforms-and-releases.md): share feature
+  logic, isolate board/surface adapters, keep added-board firmware private, and qualify
+  each target before promotion. Only the reference board uses public release workflows.
 - Field firmware installation is App/Wi-Fi. USB recovery requires separate explicit
   authorization and the [release/recovery procedure](docs/development/firmware-release-runbook.md).
 - Follow [CONTRIBUTING](CONTRIBUTING.md): small tested commits, `codex/` branches,
