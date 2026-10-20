@@ -13,6 +13,8 @@ FONT = ROOT / "firmware/gauge/assets/fonts"
 S = 3
 C = TOKENS
 rows = []
+PREVIOUS = OUT / "v1"
+PRIOR = {s["id"]: s for s in json.loads((PREVIOUS / "mock-manifest.json").read_text())["screens"]}
 
 
 class Art:
@@ -69,9 +71,16 @@ class Art:
                 title=title,
                 category=category,
                 note=note,
-                isNew=True,
-                revised=True,
-                changeSummary="New proposal. Approval does not authorize implementation or vehicle commands.",
+                isNew=key not in PRIOR,
+                revised=(
+                    key not in PRIOR
+                    or not (PREVIOUS / (key + ".png")).exists()
+                    or (PREVIOUS / (key + ".png")).read_bytes()
+                    != (OUT / (key + ".png")).read_bytes()
+                    or PRIOR[key]["note"] != note
+                    or PRIOR[key]["title"] != title
+                ),
+                changeSummary="Updated for owner feedback, configurable timers and coolant fallback. New or revised examples need approval; no device commands are enabled.",
                 bounds=self.bounds,
                 logicalSize=list(self.size),
             )
@@ -127,23 +136,30 @@ def face(
     a.save(key, title, category, note)
 
 
-a = Art()
-a.text("RPM", 65, 16, "muted")
-a.text("675", 91, 60, bold=True)
-for arrow_x in (100, 120, 140):
-    a.d.line([(arrow_x * S, 188 * S), (arrow_x * S, 173 * S)], fill=C["accent"], width=2 * S)
-    a.d.line(
-        [((arrow_x - 5) * S, 178 * S), (arrow_x * S, 173 * S), ((arrow_x + 5) * S, 178 * S)],
-        fill=C["accent"],
-        width=2 * S,
+def entry(key, count, title):
+    a = Art()
+    a.text("RPM", 65, 16, "muted")
+    a.text("675", 91, 60, bold=True)
+    for i in range(count):
+        x = 120 + (i - (count - 1) / 2) * 20
+        a.d.line([(x * S, 188 * S), (x * S, 173 * S)], fill=C["accent"], width=2 * S)
+        a.d.line(
+            [((x - 5) * S, 178 * S), (x * S, 173 * S), ((x + 5) * S, 178 * S)],
+            fill=C["accent"],
+            width=2 * S,
+        )
+    a.save(
+        key,
+        title,
+        "Navigation",
+        "Arrow count alone shows progress: one, two, then three completed upward strokes within five seconds. No Actions text or numeric fraction. The third cue opens actions without executing a command.",
     )
-a.text("Actions  2 / 3", 197, 12, "muted")
-a.save(
-    "entry",
-    "Enter from any reading",
-    "Navigation",
-    "Keep the configured entry gesture: default three distinct upward swipes within five seconds. A small transient progress cue appears after the first swipe. A completed sequence opens actions, never starts one.",
-)
+
+
+entry("reading", 0, "Reading page before a gesture")
+entry("entry", 1, "First upward swipe")
+entry("entry-two", 2, "Second upward swipe")
+entry("entry-three", 3, "Third upward swipe")
 
 face(
     "air-ready",
@@ -164,21 +180,21 @@ face(
 )
 face(
     "abs-ready",
-    "ABS + traction: ready",
-    "ABS + traction",
-    [("On", 103, 28, "text")],
-    ("Turn off", 145, "warning"),
-    "Uses a deliberate desired state. Confirmation explains that an ignition cycle may be needed to restore. Line Lock is excluded.",
+    "Disable ABS + TCS",
+    "Disable ABS + TCS",
+    [("Enabled", 103, 28, "text")],
+    ("Disable", 145, "warning"),
+    "TCS means traction control, not the torque-converter clutch. Explicit Disable action for the qualified Jeep; a parked ignition cycle is the observed restoration path. Line Lock is excluded.",
     index=2,
 )
 face(
     "abs-confirm",
-    "Confirm ABS + traction off",
-    "Turn both off?",
-    [("ABS + traction", 105, 16, "muted")],
-    ("Turn off", 145, "warning"),
-    "Named confirmation before disabling either system. Restoration can require a parked ignition cycle; no separate Line Lock control.",
-    bottom="Restart may be needed",
+    "Confirm ABS + TCS off",
+    "Disable both?",
+    [("ABS + TCS", 105, 16, "muted")],
+    ("Disable", 145, "warning"),
+    "Named confirmation states the tested Jeep restoration requirement before execution. Other profiles must provide their own qualified restoration semantics; Line Lock stays excluded.",
+    bottom="Restart to restore",
     index=2,
     category="Execution",
 )
@@ -274,31 +290,46 @@ face(
     "Air up",
     [("Waiting for car", 106, 19, "muted")],
     None,
-    "Automatic bounded read recovery; no Refresh control. Missing, stale or wrong-vehicle inputs cannot enable Start.",
+    "Automatic bounded read recovery; no Refresh control. Missing non-coolant guards, wrong-vehicle inputs or a lost adapter cannot enable Start. Missing coolant alone uses the distinct bounded fallback design.",
     category="Protection & recovery",
 )
 face(
     "abs-off",
-    "ABS + traction remain off",
-    "ABS + traction",
-    [("Off", 101, 30, "warning")],
-    ("Restore", 145, "warning"),
-    "Restore is an explicit request, not proof of restored safety systems. Actual state must be independently checked. Ignition-cycle guidance is retained when needed.",
-    bottom="Restart may be needed",
-    index=2,
-    category="Protection & recovery",
-)
-face(
-    "abs-cycle",
-    "Restoration not yet confirmed",
-    "ABS + traction",
-    [("Check dash", 106, 24, "warning")],
+    "ABS + TCS disabled",
+    "ABS + TCS",
+    [
+        ("Disabled", 101, 28, "warning"),
+        ("Ignition cycle", 148, 16, "muted"),
+        ("to restore", 172, 16, "muted"),
+    ],
     None,
-    "A positive Return reply does not erase retained Off/Unknown state. Keep this instruction until independent restoration evidence is available.",
+    "No misleading Restore button. On the tested Jeep, restart when parked is the restoration path. Keep Disabled or Unknown until fresh controller evidence confirms the result. This single state replaces the redundant restoration screen.",
     bottom="Restart when parked",
     index=2,
     category="Protection & recovery",
 )
+
+face(
+    "coolant-unavailable",
+    "Start with a coolant fallback timer",
+    "Air up",
+    [("1:00 max", 101, 28, "text")],
+    ("Start",),
+    "Missing or stale coolant permits only a deliberate physical-gauge Start, capped at 60 seconds or the shorter configured timer. Other vehicle guards and the configured coolant limit still apply. App Start is unavailable; this is not an overheat override.",
+    bottom="Coolant unavailable",
+    category="Protection & recovery",
+)
+face(
+    "fallback",
+    "Coolant lost during Air up",
+    "Air up",
+    [("0:42", 98, 36, "warning")],
+    ("Stop", 145, "warning"),
+    "First coolant loss latches at most 60 seconds remaining, bounded by the original expiry. Recovery or repeated loss cannot extend the timer. Fresh high coolant still stops immediately. Another session requires a new physical-gauge Start, with no automatic restart.",
+    bottom="Coolant unavailable",
+    category="Protection & recovery",
+)
+
 face(
     "empty",
     "No configured action pages",
@@ -350,12 +381,12 @@ phone(
     "Action pages",
     "Jeep · Round gauge",
     [
-        (192, "1  Air up", "5 min · coolant stop 108 °C", "⋮"),
-        (276, "2  Winch", "1 min · coolant stop 108 °C", "⋮"),
-        (360, "3  ABS + traction", "Off / Restore", "⋮"),
+        (192, "1  Air up", "5 min · edit timer or PSI preset", "⋮"),
+        (276, "2  Winch", "1 min · edit duration", "⋮"),
+        (360, "3  ABS + TCS", "Disable · restart to restore", "⋮"),
     ],
     "Add action page",
-    "Gauge tab > current gauge > Action pages. One list per gauge assignment, backed by the selected vehicle. Row opens Edit; overflow offers Move up, Move down, Remove with Undo. Existing connection pill remains in the App header.",
+    "Gauge tab > current gauge > Action pages. Air up and Winch each expose an editable duration; Air up also supports the four-tire pressure-based estimate. One list per gauge assignment, backed by the selected vehicle. Row opens Edit; overflow offers Move up, Move down, Remove with Undo. Existing connection pill remains in the App header.",
 )
 phone(
     "app-add",
@@ -365,7 +396,7 @@ phone(
     [
         (192, "Air up", "Temporary raised idle", "+"),
         (276, "Winch", "Temporary raised idle", "+"),
-        (360, "ABS + traction", "Turn off / restore request", "+"),
+        (360, "ABS + TCS", "Disable · ignition cycle to restore", "+"),
     ],
     "Back",
     "Curated, compatible actions only. Already-added entries are disabled. No raw commands, unsupported ECU guesses, Line Lock or arbitrary scripts. If none qualify, show a brief empty state rather than misleading controls.",
@@ -376,12 +407,12 @@ phone(
     "Air up",
     "Action page settings",
     [
-        (192, "Duration", "1 min     [5 min]     10 min", ""),
+        (192, "Time estimate", "5 min · tap to change", "›"),
         (276, "Coolant stop", "108 °C · uses coolant alert", "›"),
-        (360, "Page label", "Air up", "›"),
+        (360, "Four-tire preset", "18 to 32 PSI · tap to edit", "›"),
     ],
     "Save to gauge",
-    "Save is acknowledged only after the running configuration matches. Coolant links to the existing alert editor instead of creating another threshold. No Start here in the configuration flow. Duration values must come from the qualified definition.",
+    "Air up permits a saved fixed duration or a calibrated four-tire PSI estimate, plus a one-session timer override. The estimate is not live pressure. Resolved duration stays within 10..600 seconds. Save is acknowledged only after the running configuration matches. Coolant links to the existing alert editor instead of creating another threshold. No Start here in the configuration flow. Duration values must come from the qualified definition.",
 )
 phone(
     "app-warning",
@@ -410,15 +441,50 @@ phone(
     "Use existing durable setup and connection recovery. Pending configuration is not presented as installed. Never synchronize or replay a vehicle Start intent.",
 )
 
+phone(
+    "app-winch-edit",
+    "App: configure Winch duration",
+    "Winch",
+    "Action page settings",
+    [
+        (192, "Duration", "1 min · tap to change", "›"),
+        (276, "Coolant stop", "108 °C · uses coolant alert", "›"),
+        (360, "No coolant reading", "Gauge Start capped at 1 min", ""),
+    ],
+    "Save to gauge",
+    "Winch has its own editable saved duration within the matched definition's bounds, independent of Air up. Missing coolant uses the same physical-only, non-extending one-minute fallback. No arbitrary RPM editor.",
+)
+phone(
+    "app-air-preset",
+    "App: four-tire Air up estimate",
+    "Air up preset",
+    "All four tires together",
+    [
+        (192, "Pressure range", "18 to 32 PSI · tap to edit", "›"),
+        (276, "Measured reference fill", "14 PSI in 5 min · tap to edit", "›"),
+        (360, "Estimated duration", "5 min · override for this session", "›"),
+    ],
+    "Save preset",
+    "Use starting/target PSI and a measured four-tire fill to estimate time. This is a calibrated timer, not live pressure or a target-reached promise. Require valid calibration and 10..600 seconds; ask for a valid override rather than silently clamping. Existing coolant/fallback protection may shorten the session.",
+)
+
 manifest = dict(
-    reviewId="gauge-action-pages-2026-10-19-r1",
-    reviewRound=1,
-    previousRound=0,
+    reviewId="gauge-action-pages-2026-10-20-r2",
+    reviewRound=2,
+    previousRound=1,
     status="proposed-not-implemented",
     logicalSize=[240, 240],
     essentialRadius=112,
     decorativeRadius=116,
-    reviewAssets=["index.html", "prototype.js", "proposal.html", "mock-data.js", "../gallery.js"],
+    reviewAssets=[
+        "index.html",
+        "prototype.js",
+        "proposal.html",
+        "mock-data.js",
+        "../gallery.js",
+        "v1/mock-manifest.json",
+    ]
+    + ["v1/" + row["id"] + ".png" for row in rows if row["revised"] and not row["isNew"]],
     screens=rows,
 )
 (OUT / "mock-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
