@@ -195,10 +195,6 @@ class ReviewHttpTest(unittest.TestCase):
         self.assertEqual(self.storage.read_bytes(), before)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class ActionReviewTest(unittest.TestCase):
     def test_independent_namespace_and_bound_interaction_assets(self):
         from review_server import ReviewStore, ReviewConflict
@@ -261,8 +257,9 @@ class ActionReviewTest(unittest.TestCase):
                     with urlopen(base + "/docs/design/gauge-ui-proposal/" + path) as response:
                         self.assertEqual(response.status, 200)
                 for path in ["index.html", "../AGENTS.md", "action-pages/generate.py"]:
-                    with self.assertRaises(HTTPError):
+                    with self.assertRaises(HTTPError) as error:
                         urlopen(base + "/docs/design/gauge-ui-proposal/" + path)
+                    error.exception.close()
                 store = server.store
                 data = store.save(
                     {
@@ -282,3 +279,91 @@ class ActionReviewTest(unittest.TestCase):
                 server.shutdown()
                 server.server_close()
                 worker.join()
+
+
+class ActionCarryTest(unittest.TestCase):
+    def test_bound_assets_removed_examples_and_revised_notes(self):
+        from review_server import ReviewStore, ReviewConflict
+        import shutil
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            old_assets, new_assets = root / "old", root / "new"
+            for folder in (old_assets, new_assets):
+                folder.mkdir()
+                (folder / "flow.js").write_text("// original interaction\n")
+                for key in ("air-ready", "abs-ready", "retired"):
+                    shutil.copyfile(UI_DIR / "action-pages/air-ready.png", folder / (key + ".png"))
+            common = {"reviewId": "test", "reviewAssets": ["flow.js"]}
+            (old_assets / "mock-manifest.json").write_text(
+                json.dumps(
+                    {
+                        **common,
+                        "screens": [{"id": x} for x in ("air-ready", "abs-ready", "retired")],
+                    }
+                )
+            )
+            (new_assets / "mock-manifest.json").write_text(
+                json.dumps(
+                    {
+                        **common,
+                        "screens": [
+                            {"id": "air-ready", "revised": False},
+                            {"id": "abs-ready", "revised": True},
+                        ],
+                    }
+                )
+            )
+            old = ReviewStore(root / "old.json", old_assets)
+            old.save(
+                {
+                    "reviewId": old.review_id,
+                    "manifestSha256": old.manifest_hash,
+                    "action": "submit",
+                    "screens": [
+                        {"id": key, "status": "approved", "feedback": "Preserve my words"}
+                        for key in old.ids
+                    ],
+                }
+            )
+            before = old.storage.read_bytes()
+            new = ReviewStore(root / "new.json", new_assets)
+            carried = new.seed_from(old.storage, old_assets)
+            self.assertEqual(carried["carriedApprovals"], ["air-ready"])
+            self.assertEqual(carried["screens"]["abs-ready"]["status"], "unreviewed")
+            self.assertEqual(carried["priorScreens"]["retired"]["feedback"], "Preserve my words")
+            self.assertEqual(old.storage.read_bytes(), before)
+            (old_assets / "flow.js").write_text("// changed after approval\n")
+            unseeded = ReviewStore(root / "unseeded.json", new_assets)
+            with self.assertRaises(ReviewConflict):
+                unseeded.seed_from(old.storage, old_assets)
+            self.assertFalse(unseeded.storage.exists())
+
+    def test_frozen_session_survives_source_edits(self):
+        import review_server
+        import shutil
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ui = root / "ui"
+            ui.mkdir()
+            shutil.copytree(UI_DIR / "action-pages", ui / "action-pages")
+            shutil.copyfile(UI_DIR / "gallery.js", ui / "gallery.js")
+            with (
+                patch.object(review_server, "ROOT", root),
+                patch.object(review_server, "UI_DIR", ui),
+            ):
+                frozen = review_server.freeze_action_review()
+                store = review_server.ReviewStore(root / "review.json", frozen)
+                original_hash = store.manifest_hash
+                source = ui / "action-pages/prototype.js"
+                source.write_text(source.read_text() + "\n// next design draft\n")
+                self.assertEqual(store.asset_digest(), original_hash)
+                next_snapshot = review_server.freeze_action_review()
+                self.assertNotEqual(frozen, next_snapshot)
+                self.assertEqual(store.asset_digest(), original_hash)
+
+
+if __name__ == "__main__":
+    unittest.main()
