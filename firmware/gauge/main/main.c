@@ -1,4 +1,5 @@
 #include "vehicle_commands_runtime.h"
+#include "vehicle_idle_coolant.h"
 #include "worker_health.h"
 #include "memory_health.h"
 // ---------------------------------------------------------------------------------------------------------------------
@@ -399,7 +400,8 @@ static void app_tick_task(void *arg)
         {
             uint8_t status[32];
             if (vehicle_commands_runtime_status(kind, status))
-                ui_set_vehicle_action_status(ui, kind, status[2], status[27], status[24] | (uint16_t)status[25] << 8);
+                ui_set_vehicle_action_status(ui, kind, status[2], status[27], status[24] | (uint16_t)status[25] << 8,
+                                             status[3], status[26]);
         }
         alert_sample_event_t event;
         for (unsigned drained = 0;
@@ -993,7 +995,11 @@ void app_main(void)
     {
         ui_set_page_position(ui, g_config.cfg_idx, page_count());
         if (g_runtime)
+        {
             ui_configure_page_action(ui, g_runtime->page_action);
+            double idle_limit;
+            ui_set_idle_protection(ui, vehicle_idle_coolant_limit(g_runtime, &idle_limit));
+        }
         lvgl_port_unlock();
     }
     gauge_display_set_power(true);
@@ -1069,7 +1075,7 @@ void app_main(void)
     {
         companion_command_t command;
         bool                has_command = xQueueReceive(g_phone_command_queue, &command, pdMS_TO_TICKS(20)) == pdTRUE;
-        if (has_command && command.opcode == 1 && command.value < page_count())
+        if (has_command && command.opcode == 1 && command.value < page_count() && !ui_action_pending(ui))
         {
             config_t updated = g_config;
             updated.cfg_idx  = command.value;

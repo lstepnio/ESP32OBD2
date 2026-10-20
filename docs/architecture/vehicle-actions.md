@@ -459,6 +459,56 @@ firmware recovery remains available once no active control job remains. Cached U
 status alone is not a mutual-exclusion primitive. The shortcut menu remains available
 for Stop while the command gate is held.
 
+### Ordered action pages
+
+The owner approved all 30 [review 2 designs](../design/gauge-ui-proposal/action-pages/index.html)
+on 2026-10-20. The frozen proposal remains review evidence; this section owns the
+runtime contract. App/FW implementation does not qualify live controller execution.
+
+- Gauge > Action pages owns configuration. Each remembered gauge has an optional
+  action override, including order and independent bounded Air up/Winch durations.
+  Null inherits the vehicle's legacy gesture; an empty override turns the gesture
+  off, while a vehicle-actions binding with zero pages opens the setup state.
+  Reassignment to another vehicle clears the override. Existing page-jump bindings
+  retain their meaning. Profiles use schema 17; gauge associations use schema 2.
+- The App saves overrides and vehicle pressure calibration together through
+  `LocalSetupTransactions`. It offers typed compatible actions, edit, reorder and
+  remove with Undo. Active/unresolved controls lock configuration. Save on phone
+  never claims installation; the existing review/send and exact running readback
+  are still required. No saved configuration contains a Start intent. One-session
+  time overrides remain in the existing command-confirmation flow.
+- The gauge reuses one LVGL action face and the existing recognizer. One, two and
+  three strokes show arrow geometry without growing the font set; the completed
+  cue lasts 350 ms before entry. Returning permits immediate re-entry to reach Stop;
+  the legacy page-jump cooldown is unchanged. Left/right
+  browses; Down/top chevron cancels confirmation first, then returns to readings.
+  Holds do not pair inside actions. Only a press and release in the same control,
+  without a swipe or cancellation, can activate it. Consecutive Start taps cannot
+  submit while the UI awaits the command owner. Start revalidates at the worker.
+- Readings remain selected behind the branch; remote selection and page cycling
+  wait until it exits. Closing restarts the cycle quiet period and renders the
+  cached samples through their existing freshness rules. Thirty idle seconds
+  returns to readings; active/uncertain/restart-required controls never time out.
+- Critical attention temporarily owns the display and cancels confirmation;
+  acknowledgement restores the action branch without resuming a command. Pairing,
+  maintenance, assignment/context loss cancel the branch. CEL remains in the upper
+  band; explanations stay below the primary control. The tested Jeep's ABS/TCS
+  Disabled state has ignition-cycle guidance and no misleading Restore control.
+- An unresolved operation is appended to the displayed branch if its configured
+  page is absent. This is an ephemeral recovery view, never a configuration write.
+  Navigation cannot conceal Stop merely because the phone started the operation.
+- One atomic word per kind carries phase, flags, remaining time, reason and preset.
+  One reusable widget tree serves all three definitions; no task, frame buffer,
+  font, per-page history or action-specific transport is introduced. Unchanged text
+  and layers are reused instead of reallocating/redrawing on each poll. Labels use
+  production font metrics and circular bounds; controls are at least 44 pixels.
+
+The [wire extension](../protocol/experimental-firmware-transfers.md#shared-vehicle-commands-v1)
+owns validation and compatibility. Offline fixtures cover typed migration,
+per-gauge projection, rejected definitions, navigation/cancellation and rendering.
+Physical edge/touch, cycle timing, connected source continuity and command outcomes
+still require the parked qualification below.
+
 ### Next parked Jeep increment
 
 The [parked follow-up](../evidence/jeep-actions-live-qualification.md) closes the

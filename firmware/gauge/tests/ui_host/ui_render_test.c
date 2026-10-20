@@ -14,6 +14,8 @@ static void     command_touch(ui_t *ui, lv_event_code_t event)
 {
     if (event == UI_EVENT_VEHICLE_COMMAND)
         ++command_requests;
+    else if (event == UI_EVENT_PAGE_ACTION)
+        ui_show_vehicle_actions(ui);
 }
 
 void worker_health_progress(worker_id_t id, uint32_t now)
@@ -230,40 +232,211 @@ int main(int argc, char **argv)
                                                         .air_up_seconds = 600,
                                                         .winch_seconds  = 60});
     ui_set_action_context(ui, true);
-    assert(ui_action_opens_vehicle_menu(ui));
+    ui_set_idle_protection(ui, true);
     ui_show_vehicle_actions(ui);
     tick(60);
-    assert(ui_action_pending(ui));
     capture(argv[1], "actions-unavailable");
-    lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
-    assert(command_requests == 0);
-    ui_set_vehicle_action_status(ui, 1, 1, 1, 0);
-    ui_set_vehicle_action_status(ui, 2, 1, 1, 0);
+    assert(!strcmp(lv_label_get_text(ui->command_value), "Unavailable"));
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1, 0, 0, 0);
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_READY, 1, 0, 0, 0);
     tick(60);
     capture(argv[1], "actions-ready");
-    lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
+    command_activate(ui, false);
+    refresh_vehicle_menu(ui);
     tick(60);
     assert(command_requests == 0);
     capture(argv[1], "actions-confirm");
-    lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
+    unsigned drift_before = command_requests;
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1, 45, 0, 1);
+    command_activate(ui, false);
+    assert(command_requests == drift_before && !ui->command_confirm);
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1, 0, 0, 0);
+    refresh_vehicle_menu(ui);
+    command_activate(ui, false);
+    command_activate(ui, true);
+    refresh_vehicle_menu(ui);
+    assert(!ui->command_confirm && ui->command_menu_visible);
+    command_activate(ui, false);
+    refresh_vehicle_menu(ui);
+    command_activate(ui, false);
+    assert(command_requests == 1);
+    command_activate(ui, false);
     assert(command_requests == 1);
     uint8_t  kind, preset;
     bool     stop;
     uint16_t seconds;
     ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
     assert(kind == 1 && !stop && preset == 1 && seconds == 600);
-    ui_set_vehicle_action_status(ui, 1, 3, 1, 0);
-    ui_set_vehicle_action_status(ui, 2, 7, 1, 0);
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1, 47, 0, 1);
     tick(60);
-    capture(argv[1], "actions-restart-required");
-    lv_obj_send_event(ui->command_rows[2], LV_EVENT_CLICKED, NULL);
-    assert(command_requests == 1);
-    lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
+    capture(argv[1], "actions-active");
+    command_activate(ui, false);
     assert(command_requests == 2);
     ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
     assert(kind == 1 && stop && !preset && !seconds);
-    lv_obj_send_event(ui->command_rows[3], LV_EVENT_CLICKED, NULL);
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_RESTORED, 1, 0, 0, 1);
+    tick(60);
+    capture(argv[1], "actions-stopped");
+    command_activate(ui, false);
+    refresh_vehicle_menu(ui);
+    assert(ui->command_menu_visible);
+    close_vehicle_menu(ui);
     assert(!ui_action_pending(ui));
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1 | 8 | 16, 0, 0, 0);
+    ui_show_vehicle_actions(ui);
+    tick(60);
+    capture(argv[1], "actions-coolant-missing");
+    command_activate(ui, false);
+    refresh_vehicle_menu(ui);
+    command_activate(ui, false);
+    ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
+    assert(!stop && seconds == 60);
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1 | 4 | 8 | 16, 42, 9, 1);
+    tick(60);
+    capture(argv[1], "actions-coolant-timer");
+    ui->command_page = 1;
+    refresh_vehicle_menu(ui);
+    tick(60);
+    capture(argv[1], "actions-active-other");
+    command_activate(ui, false);
+    assert(ui->command_page == 0);
+    ui->command_waiting = false;
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1, 0, 0, 0);
+    ui->command_page = 2;
+    refresh_vehicle_menu(ui);
+    tick(60);
+    capture(argv[1], "actions-abs-ready");
+    command_activate(ui, false);
+    refresh_vehicle_menu(ui);
+    tick(60);
+    capture(argv[1], "actions-abs-confirm");
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_RESTART_REQUIRED, 1, 0, 0, 0);
+    ui->command_confirm = 0;
+    tick(60);
+    capture(argv[1], "actions-restart-required");
+    assert(lv_obj_has_flag(ui->command_button, LV_OBJ_FLAG_HIDDEN));
+    unsigned before = command_requests;
+    command_activate(ui, false);
+    assert(command_requests == before);
+    close_vehicle_menu(ui);
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1, 0, 0, 0);
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_READY, 1, 0, 0, 0);
+    ui_show_vehicle_actions(ui);
+    tick(60);
+    before = command_requests;
+    command_pointer(ui, LV_EVENT_PRESSED, ui->command_menu, 120, 100);
+    command_pointer(ui, LV_EVENT_RELEASED, ui->command_menu, 120, 100);
+    assert(!ui->command_confirm && command_requests == before);
+    command_pointer(ui, LV_EVENT_PRESSED, ui->command_button, 120, 165);
+    command_pointer(ui, LV_EVENT_LONG_PRESSED, ui->command_button, 120, 165);
+    command_pointer(ui, LV_EVENT_RELEASED, ui->command_button, 120, 165);
+    assert(!ui->command_confirm && command_requests == before);
+    command_pointer(ui, LV_EVENT_PRESSED, ui->command_button, 120, 165);
+    command_pointer(ui, LV_EVENT_PRESSING, ui->command_button, 165, 165);
+    command_pointer(ui, LV_EVENT_RELEASED, ui->command_button, 165, 165);
+    assert(!ui->command_confirm && command_requests == before);
+    command_pointer(ui, LV_EVENT_PRESSED, ui->command_menu, 160, 110);
+    command_pointer(ui, LV_EVENT_RELEASED, ui->command_menu, 100, 110);
+    assert(ui->command_page == 1 && command_requests == before);
+    command_pointer(ui, LV_EVENT_PRESSED, ui->command_button, 120, 165);
+    command_pointer(ui, LV_EVENT_PRESS_LOST, ui->command_button, 120, 165);
+    command_pointer(ui, LV_EVENT_RELEASED, ui->command_button, 120, 165);
+    assert(!ui->command_confirm);
+    command_pointer(ui, LV_EVENT_PRESSED, ui->command_button, 120, 165);
+    command_pointer(ui, LV_EVENT_RELEASED, ui->command_button, 120, 165);
+    assert(ui->command_confirm == 2 && command_requests == before);
+    command_pointer(ui, LV_EVENT_PRESSED, ui->command_menu, 160, 110);
+    command_pointer(ui, LV_EVENT_RELEASED, ui->command_menu, 100, 110);
+    assert(ui->command_page == 1 && ui->command_confirm == 2);
+    command_pointer(ui, LV_EVENT_PRESSED, ui->command_menu, 120, 100);
+    command_pointer(ui, LV_EVENT_RELEASED, ui->command_menu, 120, 150);
+    assert(!ui->command_confirm && ui->command_menu_visible);
+    ui_set_alert_full(ui, 2, false, "Coolant", true);
+    tick(60);
+    tick(60);
+    assert(ui->command_menu_visible && ui->command_suspended);
+    ui_set_alert_full(ui, 0, false, "", false);
+    tick(60);
+    tick(60);
+    assert(ui->command_menu_visible && !ui->command_suspended && !ui->command_confirm);
+    tick(30100);
+    assert(!ui->command_menu_visible);
+    ui_show_vehicle_actions(ui);
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_UNKNOWN, 1, 0, 0, 1);
+    tick(30100);
+    assert(ui->command_menu_visible);
+    unsigned children = lv_obj_get_child_count(ui->command_menu);
+    for (unsigned n = 0; n < 30; ++n)
+    {
+        close_vehicle_menu(ui);
+        ui_show_vehicle_actions(ui);
+        tick(60);
+    }
+    assert(lv_obj_get_child_count(ui->command_menu) == children);
+    close_vehicle_menu(ui);
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1, 0, 0, 0);
+    ui_configure_page_action(ui, (page_action_config_t){.enabled        = true,
+                                                        .count          = 3,
+                                                        .window_ms      = 5000,
+                                                        .vehicle_menu   = true,
+                                                        .pages_explicit = true});
+    ui_show_vehicle_actions(ui);
+    tick(60);
+    capture(argv[1], "actions-empty");
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1, 32, 0, 2);
+    tick(60);
+    assert(command_id(ui) == 2 && !ui->action.config.page_count);
+    capture(argv[1], "actions-unconfigured-active");
+    close_vehicle_menu(ui);
+    ui_configure_page_action(ui, (page_action_config_t){.enabled        = true,
+                                                        .count          = 3,
+                                                        .window_ms      = 5000,
+                                                        .vehicle_menu   = true,
+                                                        .air_up_seconds = 300,
+                                                        .winch_seconds  = 60});
+    const uint8_t phases[] = {VEHICLE_STARTING, VEHICLE_STOPPING, VEHICLE_VERIFYING, VEHICLE_UNKNOWN, VEHICLE_REJECTED};
+    const char   *names[]  = {"actions-starting", "actions-thermal-stop", "actions-verifying", "actions-unknown",
+                              "actions-waiting"};
+    for (unsigned i = 0; i < 5; ++i)
+    {
+        ui_set_vehicle_action_status(ui, 1, phases[i], 1, 0, VEHICLE_GUARD, 1);
+        ui_show_vehicle_actions(ui);
+        tick(60);
+        capture(argv[1], names[i]);
+        close_vehicle_menu(ui);
+    }
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1, 0, 0, 0);
+    ui_set_idle_protection(ui, false);
+    ui_show_vehicle_actions(ui);
+    tick(60);
+    capture(argv[1], "actions-protection-setup");
+    ui_set_idle_protection(ui, true);
+    ui_set_diagnostics(ui, true, true, false, 4, "U0121");
+    ui_set_alert_full(ui, 1, false, "Coolant", false);
+    tick(60);
+    tick(60);
+    capture(argv[1], "actions-threshold-mil");
+    ui_set_diagnostics(ui, false, false, false, 0, "");
+    ui_set_alert_full(ui, 0, false, "", false);
+    close_vehicle_menu(ui);
+    tick(60);
+    ui->action.first_ms = host_ms;
+    ui->action.progress = 1;
+    tick(60);
+    assert(!lv_obj_has_flag(ui->action_arrows[0], LV_OBJ_FLAG_HIDDEN));
+    capture(argv[1], "actions-entry-one");
+    ui->action.progress = 2;
+    tick(60);
+    capture(argv[1], "actions-entry-two");
+    ui->action_enter_pending = true;
+    ui->action_enter_at      = host_ms;
+    tick(200);
+    assert(!ui->command_menu_visible);
+    capture(argv[1], "actions-entry-three");
+    before = command_requests;
+    tick(200);
+    assert(ui->command_menu_visible && command_requests == before);
+    close_vehicle_menu(ui);
     /* Calibration pages exercise geometry/fonts outside the instrument compositor. */
     for (unsigned i = 0; i < CALIBRATION_PAGE_COUNT; i++)
     {
@@ -273,20 +446,6 @@ int main(int argc, char **argv)
         snprintf(name, sizeof(name), "calibration-%u", i + 1);
         capture(argv[1], name);
     }
-    ui_show_vehicle_actions(ui);
-    ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1 | 8 | 16, 0);
-    ui_set_vehicle_action_status(ui, 2, VEHICLE_READY, 1, 0);
-    tick(60);
-    assert(strstr(lv_label_get_text(ui->command_text[0]), "1:00"));
-    lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
-    lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
-    ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
-    assert(!stop && seconds == 60);
-    ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1 | 4 | 8 | 16, 47);
-    tick(60);
-    assert(strstr(lv_label_get_text(ui->command_text[0]), "0:47"));
-    assert(!strcmp(lv_label_get_text(ui->command_note), "Coolant unavailable"));
-    capture(argv[1], "actions-coolant-timer");
     puts("PASS: production LVGL showcase frames, circular glyphs, vehicle/maintenance/critical preemption and pairing "
          "restore");
 }

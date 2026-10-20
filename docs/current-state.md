@@ -162,3 +162,28 @@ standard engine configurations work and saved development data is retained. No r
 flags or production App source changed. Exact counts and baseline failures belong in
 [dated maintenance evidence](evidence/repository-maintenance.md#2026-10-20-android-variant-gates).
 This is offline test coverage, not a new installed APK or physical observation.
+
+## Prepared action-page branch
+
+The approved review 2 action pages are implemented offline on
+`codex/action-pages-implementation`. Gauge-tab configuration stores per-gauge typed
+page order and timers; firmware uses one reusable face with deliberate Start,
+direct Stop, attention return and bounded coolant fallback. Existing live command
+qualification masks remain zero. No new APK/firmware is installed by this work.
+
+Offline verification: 235 debug and 210 release JVM tests; 15 focused managed-emulator
+UI tests; Android lint/debug APK; 118 host Python and 11 review-server tests plus
+native control/recovery fixtures; production configuration validation/runtime
+fixtures and 23 action-related LVGL frames with production fonts/circular glyph
+checks; ESP-IDF 5.4.1 firmware build. Touch fixtures include empty-space/hold/drag
+rejection, confirmation drift, critical return, idle timeout, unresolved-operation
+retention, and a stable widget count across 30 entries. These are not physical
+memory/latency/gesture or vehicle qualification.
+
+Next: install a separately authorized signed candidate for indoor touch, edge,
+orientation and cycling checks; use the parked Jeep for the primary identity,
+Park/stationary/engine proofs, actual command/Stop/restoration, coolant/fallback
+latency and independent child continuity. Keep the masks disabled until those proofs
+are implemented and verified.
+[Runtime contract](architecture/vehicle-actions.md#ordered-action-pages) and
+[backlog FEATURE-10](backlog.md) own behavior and remaining acceptance.
