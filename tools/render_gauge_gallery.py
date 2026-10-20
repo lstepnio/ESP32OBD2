@@ -7,7 +7,15 @@ import struct
 import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
-FRAMES = {"numeric": 1, "arc": 2, "bar": 3, "trend": 4, "dual": 5, "alerts": 16}
+FRAMES = {
+    "numeric": "demo-01",
+    "arc": "demo-02",
+    "bar": "demo-03",
+    "trend": "demo-04",
+    "dual": "demo-05",
+    "alerts": "demo-16",
+    "startup": "boot-logo",
+}
 
 
 def png(rgb):
@@ -36,7 +44,7 @@ def main():
     args = parser.parse_args()
     output = ROOT / "docs/assets/gauge"
     for name, frame in FRAMES.items():
-        rendered = png((args.frames / f"demo-{frame:02d}.rgb").read_bytes())
+        rendered = png((args.frames / f"{frame}.rgb").read_bytes())
         target = output / f"{name}.png"
         if args.check:
             if not target.exists() or target.read_bytes() != rendered:
