@@ -23,7 +23,6 @@ fun CarScreen(
     onFindAdapters: () -> Unit = {},
     onChooseAdapter: (com.lstepnio.egauge.AdapterBinding?) -> Unit = {},
     onSendAdapter: () -> Unit = {},
-    onSaveAction: (com.lstepnio.egauge.PageAction?) -> Unit = {},
     onDeleteProfile: (String) -> Unit = {},
     alerts: @Composable () -> Unit = {},
     onSaveIdlePresets: (List<com.lstepnio.egauge.IdlePreset>) -> Unit = {},
@@ -31,7 +30,6 @@ fun CarScreen(
 ) {
     var profilesOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var adapterOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
-    var actionsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var idleOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var faultsOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var selectedFault by rememberSaveable(state.activeId) { mutableStateOf<String?>(null) }
@@ -132,18 +130,6 @@ fun CarScreen(
                     { adapterOpen = true }
                 )
                 SettingsRow("Vehicle actions", "Air up, winch and ABS / traction control", state.canEditActions, { idleOpen = true })
-                SettingsRow(
-                    "Gauge gestures",
-                    if (state.actions.isEmpty()) {
-                        "No gesture assigned"
-                    } else if (state.actions.first().type == com.lstepnio.egauge.PageActionType.VehicleActions) {
-                        "Vehicle actions"
-                    } else {
-                        "Jump to page"
-                    },
-                    state.canEditActions,
-                    { actionsOpen = true }
-                )
             }
         })
     }
@@ -173,7 +159,6 @@ fun CarScreen(
             }
         }
     }
-    if (actionsOpen) PageActionsSheet(state, { actionsOpen = false }, onSaveAction)
     if (profilesOpen) {
         ProfileDialog(state, {
             profilesOpen = false

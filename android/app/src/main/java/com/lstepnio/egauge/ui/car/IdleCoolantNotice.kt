@@ -12,6 +12,6 @@ internal fun IdleCoolantNotice(limitC: Double?, system: MeasurementSystem = Meas
     if (limitC == null) {
         StatusCard(StatusUi("Set a coolant limit", "Add a high-temperature Coolant alert, then send your setup. Raised idle cannot start without it.", StatusTone.Warning))
     } else {
-        Text("Raised idle stops at ${alertContextReading(limitC, "°C", system)} or if coolant data is lost.", style = MaterialTheme.typography.bodySmall)
+        Text("Raised idle stops at ${alertContextReading(limitC, "°C", system)}; missing coolant limits the session to one minute, started on the gauge.", style = MaterialTheme.typography.bodySmall)
     }
 }

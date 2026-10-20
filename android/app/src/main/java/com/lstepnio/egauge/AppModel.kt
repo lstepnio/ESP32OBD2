@@ -1765,7 +1765,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var pageEditError by mutableStateOf<String?>(null)
         private set
     val editorDraft: Draft get() = profileCollection.active.dashboardDraft()
-    val transmittedDraft: Draft get() = editorDraft.copy(source = "ECM")
+    val transmittedDraft: Draft get() = editorDraft.copy(
+        source = "ECM",
+        actions = knownGauges.firstOrNull {
+            it.id == rememberedGaugeId && it.vehicleId == profileCollection.activeId
+        }?.actionOverride ?: editorDraft.actions
+    )
+    fun saveGaugeActionPages(action: PageAction?, presets: List<IdlePreset>) = launchLocalMutation {
+        if (modifyingSetupBlocked || profileError != null || gaugeAssociationError != null) return@launchLocalMutation
+        val id = rememberedGaugeId ?: return@launchLocalMutation
+        require(vehicleCommands.values.none { it.busy }) { "Finish the active action before changing its pages" }
+        ProfileActions.validate(listOfNotNull(action), editorDraft.pages)
+        IdlePresets.validate(presets)
+        val saved = setupTransactions.update { current ->
+            require(current.associations.gauges.any { it.id == id && it.vehicleId == current.profiles.activeId }) { "Assign this gauge to the car first" }
+            current.copy(
+                associations = current.associations.copy(gauges = current.associations.gauges.map { if (it.id == id) it.copy(actionOverride = listOfNotNull(action)) else it }),
+                profiles = current.profiles.copy(profiles = current.profiles.profiles.map { if (it.id == current.profiles.activeId) it.copy(draft = it.draft.copy(idlePresets = presets)) else it })
+            )
+        }
+        profileCollection = saved.profiles
+        draft = saved.profiles.active.draft
+        knownGauges = saved.associations.gauges
+    }
     fun setBothAdapters(enabled: Boolean) = launchLocalMutation {
         if (!BuildConfig.DEBUG || modifyingSetupBlocked ||
             gaugeAssociationError != null
@@ -1803,7 +1825,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         baseRevision: Long,
         schemaVersion: Int
     ): ByteArray {
-        require((transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) && (transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || capabilities?.vehicleCommandsVersion == 1)) {
+        require(transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || capabilities?.pageActionsVersion == 2) {
+            "Update the gauge before sending action pages"
+        }
+        require((transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion in 1..2) && (transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || capabilities?.vehicleCommandsVersion == 1)) {
             "Update the gauge before sending gesture actions"
         }
         require(
@@ -1829,7 +1854,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             profileCollection.active,
             baseRevision,
             bothAdapters,
-            schemaVersion
+            schemaVersion,
+            transmittedDraft.actions
         ).second
     }
 
@@ -3620,6 +3646,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             )
         )
     }
+
+    /** Legacy vehicle-draft mutation; per-gauge configuration uses saveGaugeActionPages. */
     fun savePageAction(value: PageAction?) = launchLocalMutation {
         if (modifyingSetupBlocked || profileError != null) return@launchLocalMutation
         if (profileCollection.active.transmission != null) {

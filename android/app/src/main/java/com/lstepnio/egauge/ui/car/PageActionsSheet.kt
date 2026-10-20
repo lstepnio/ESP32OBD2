@@ -112,7 +112,8 @@ fun PageActionsSheet(state: CarUiState, onDismiss: () -> Unit, onSave: (PageActi
                                 windowMs = seconds * 1000,
                                 type = PageActionType.VehicleActions,
                                 airUpSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.AirUp }?.seconds ?: 300,
-                                winchSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.Winch }?.seconds ?: 300
+                                winchSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.Winch }?.seconds ?: 300,
+                                pages = state.actions.firstOrNull { it.type == PageActionType.VehicleActions }?.pages ?: emptyList()
                             )
                         } else {
                             target?.let { PageAction(it, count, seconds * 1000) }

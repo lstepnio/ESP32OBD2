@@ -273,6 +273,7 @@ def android_ui(action):
         "IdleActionsUiTest",
         "VehicleCommandsUiTest",
         "ProfileActionsUiTest",
+        "ActionPagesUiTest",
         "AppCleanupUiTest",
         "ReadingAlertsUiTest",
         "OptimizationUiTest",

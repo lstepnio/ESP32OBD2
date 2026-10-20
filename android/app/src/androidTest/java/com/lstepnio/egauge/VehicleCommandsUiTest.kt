@@ -70,7 +70,7 @@ class VehicleCommandsUiTest {
         compose.setContent { EGaugeTheme { VehicleActionsSheet(state(runningLimit = null, configuredLimit = null), {}, { _, _, _ -> fail("No unguarded idle start") }, {}) } }
         compose.onNodeWithText("Set a coolant limit").assertIsDisplayed()
         compose.onNodeWithText("Air up").assertIsNotEnabled()
-        compose.onNodeWithText("Switch off ABS & traction control").assertIsEnabled()
+        compose.onNodeWithText("Disable ABS + TCS").assertIsEnabled()
     }
 
     @Test fun phoneOnlyLimitNeverClaimsGaugeProtection() {
@@ -90,7 +90,7 @@ class VehicleCommandsUiTest {
 
     @Test fun configuredStopLimitUsesTheSelectedUnits() {
         compose.setContent { EGaugeTheme { VehicleActionsSheet(state().copy(measurementSystem = MeasurementSystem.Imperial), {}, { _, _, _ -> }, {}) } }
-        compose.onNodeWithText("Raised idle stops at 221 °F or if coolant data is lost.").assertIsDisplayed()
+        compose.onNodeWithText("Raised idle stops at 221 °F; missing coolant limits the session to one minute, started on the gauge.").assertIsDisplayed()
     }
 
     @Test fun missingLimitWarningAndSaveRemainReachableAtLargeText() {
@@ -112,7 +112,7 @@ class VehicleCommandsUiTest {
     @Test fun unavailableActionsCannotStartAndRestartNeverClaimsRestoration() {
         compose.setContent { EGaugeTheme { VehicleActionsSheet(state(VehicleCommandPhase.RestartRequired, false), {}, { _, _, _ -> fail("Unavailable command sent") }, {}) } }
         compose.onNodeWithText("Air up").assertIsNotEnabled()
-        compose.onNodeWithText("Switch off ABS & traction control").assertIsNotEnabled()
+        compose.onNodeWithText("Disable ABS + TCS").assertDoesNotExist()
         compose.onNodeWithText("Restart the vehicle to restore ABS and traction control").assertIsDisplayed()
     }
 

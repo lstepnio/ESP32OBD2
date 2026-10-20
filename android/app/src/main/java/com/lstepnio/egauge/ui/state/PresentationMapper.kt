@@ -114,10 +114,11 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
             add("Update the gauge before sending the vehicle actions menu")
         }
         if (draft.actions.isNotEmpty() &&
-            it.pageActionsVersion != 1
+            it.pageActionsVersion !in 1..2
         ) {
             add("Update the gauge before sending gesture actions")
         }
+        if (draft.actions.any { action -> action.type == PageActionType.VehicleActions } && it.pageActionsVersion != 2) add("Update the gauge before sending action pages")
         if (requiresVehicleDashboardFirmware(draft, false) && it.vehicleDashboardVersion != 1) {
             add("Update the gauge before sending the complete vehicle dashboard")
         }
@@ -748,14 +749,14 @@ private fun AppViewModel.carState(
                 capabilities?.adapterRegistryVersion == 1 &&
                 activeConfigRevision != null && verifiedConfigHash != null &&
                 ConfigurationProjector.blockers(transmittedDraft).isEmpty() &&
-                (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) &&
-                (transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || capabilities?.vehicleCommandsVersion == 1) &&
+                (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion in 1..2) &&
+                (transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || (capabilities?.vehicleCommandsVersion == 1 && capabilities?.pageActionsVersion == 2)) &&
                 (!bothAdapters || capabilities?.dualAdapterVersion == 1) &&
                 (
                     !requiresVehicleDashboardFirmware(transmittedDraft, bothAdapters) ||
                         capabilities?.vehicleDashboardVersion == 1
                     ),
-        actionPages = editorDraft.pages, actions = editorDraft.actions, idlePresets = editorDraft.idlePresets,
+        actionPages = editorDraft.pages, actions = transmittedDraft.actions, idlePresets = editorDraft.idlePresets,
         idleCoolantLimitC = idleCoolantLimitC(editorDraft.alerts),
         runningIdleCoolantLimitC = activeDocument?.takeIf { it.vehicleProfileId == profileCollection.activeId && isConfirmedSetup(it.revision, it.sha256, runtimeIdentity) }?.let { GaugeDraftComparison.savedDraft(it, profileCollection.activeId) }?.let { idleCoolantLimitC(it.alerts) },
         measurementSystem = system,
@@ -763,7 +764,7 @@ private fun AppViewModel.carState(
         commandsFresh = !busy && connection.fresh(now) && vehicleCommandsObservedAt?.let { now - it in 0..30_000 } == true,
         canEditActions =
             !busy && profileError == null,
-        actionsSupported = capabilities?.pageActionsVersion == 1, canManageVehicles = canManageVehicles,
+        actionsSupported = capabilities?.pageActionsVersion in 1..2, canManageVehicles = canManageVehicles,
         gaugeKnown =
             rememberedGaugeId != null
     )

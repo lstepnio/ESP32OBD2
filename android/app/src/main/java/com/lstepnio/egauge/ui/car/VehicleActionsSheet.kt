@@ -63,10 +63,8 @@ fun VehicleActionsSheet(
                 HorizontalDivider()
                 Text("ABS & traction control", style = MaterialTheme.typography.titleMedium)
                 Text(abs.message)
-                if (abs.canStop) {
-                    PrimaryAction("End ABS / traction control command", { onCommand(VehicleCommandKind.AbsTcs, true, null) }, enabled = state.commandsFresh)
-                } else {
-                    OutlinedButton({ confirm = VehicleCommandKind.AbsTcs to null }, enabled = state.commandsFresh && abs.canStart) { Text("Switch off ABS & traction control") }
+                if (!abs.busy) {
+                    OutlinedButton({ confirm = VehicleCommandKind.AbsTcs to null }, enabled = state.commandsFresh && abs.canStart) { Text("Disable ABS + TCS") }
                 }
                 if (abs.qualified) Text("Remains off until the next ignition cycle. A green button does not confirm restoration.", style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(12.dp))
