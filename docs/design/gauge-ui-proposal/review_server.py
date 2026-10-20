@@ -23,8 +23,9 @@ class ReviewConflict(ValueError):
 
 
 class ReviewStore:
-    def __init__(self, storage=None):
-        manifest_bytes = (UI_DIR / "mock-manifest.json").read_bytes()
+    def __init__(self, storage=None, review_dir=None):
+        self.ui_dir = Path(review_dir).resolve() if review_dir else UI_DIR
+        manifest_bytes = (self.ui_dir / "mock-manifest.json").read_bytes()
         self.manifest = json.loads(manifest_bytes)
         self.review_id = self.manifest.get("reviewId", REVIEW_ID)
         round_number = self.manifest.get("reviewRound", 1)
@@ -32,17 +33,34 @@ class ReviewStore:
         self.storage = (
             Path(storage)
             if storage
-            else ROOT / f"artifacts/gauge-ui-review/2026-10-14-review{suffix}.json"
+            else ROOT
+            / "artifacts/gauge-ui-review"
+            / (
+                f"{self.ui_dir.name}-review-v{round_number}.json"
+                if review_dir
+                else f"2026-10-14-review{suffix}.json"
+            )
         )
-        image_hashes = b"".join(
-            sha256((UI_DIR / (s["id"] + ".png")).read_bytes()).digest()
-            for s in self.manifest["screens"]
-        )
-        self.manifest_hash = sha256(manifest_bytes + image_hashes).hexdigest()
+        self.manifest_hash = self.asset_digest()
         self.ids = {s["id"] for s in self.manifest["screens"]}
         self.lock = RLock()
 
+    def asset_digest(self, ui_dir=None):
+        ui_dir = Path(ui_dir) if ui_dir else self.ui_dir
+        manifest_bytes = (ui_dir / "mock-manifest.json").read_bytes()
+        manifest = json.loads(manifest_bytes)
+        image_hashes = b"".join(
+            sha256((ui_dir / (s["id"] + ".png")).read_bytes()).digest() for s in manifest["screens"]
+        )
+        extra_hashes = b"".join(
+            sha256((ui_dir / asset).read_bytes()).digest()
+            for asset in manifest.get("reviewAssets", [])
+        )
+        return sha256(manifest_bytes + image_hashes + extra_hashes).hexdigest()
+
     def load(self):
+        if self.asset_digest() != self.manifest_hash:
+            raise ReviewConflict("Review assets changed. Restart the service before reviewing.")
         if not self.storage.exists():
             return {
                 "reviewId": self.review_id,
@@ -58,14 +76,14 @@ class ReviewStore:
             )
         return data
 
-    def entry(self, raw):
+    def entry(self, raw, allowed_ids=None):
         if not isinstance(raw, dict):
             raise ValueError("Screen feedback must be an object.")
         key = raw.get("id")
         status = raw.get("status")
         note = raw.get("feedback", "")
         if (
-            key not in self.ids
+            key not in (self.ids if allowed_ids is None else allowed_ids)
             or status not in STATUSES
             or not isinstance(note, str)
             or len(note) > 4000
@@ -130,13 +148,7 @@ class ReviewStore:
             assets = Path(previous_assets)
             raw = (assets / "mock-manifest.json").read_bytes()
             old_manifest = json.loads(raw)
-            old_hash = sha256(
-                raw
-                + b"".join(
-                    sha256((assets / (s["id"] + ".png")).read_bytes()).digest()
-                    for s in old_manifest["screens"]
-                )
-            ).hexdigest()
+            old_hash = self.asset_digest(assets)
             if old_hash != old.get("manifestSha256"):
                 raise ReviewConflict("The prior review does not match its original images.")
             # A new round may start before Submit review. Saved per-screen decisions
@@ -145,7 +157,7 @@ class ReviewStore:
             if not isinstance(prior, dict):
                 raise ReviewConflict("The prior decisions are invalid.")
             for key, entry in prior.items():
-                self.entry({"id": key, **entry})
+                self.entry({"id": key, **entry}, {s["id"] for s in old_manifest["screens"]})
             current = self.load()
             current["priorReview"] = {
                 key: old[key]
@@ -166,8 +178,12 @@ class ReviewStore:
                 decision = current["priorScreens"].get(key, {})
                 identical = (assets / (key + ".png")).exists() and (
                     assets / (key + ".png")
-                ).read_bytes() == (UI_DIR / (key + ".png")).read_bytes()
-                carried = identical and decision.get("status") == "approved"
+                ).read_bytes() == (self.ui_dir / (key + ".png")).read_bytes()
+                carried = (
+                    identical
+                    and not screen.get("revised", False)
+                    and decision.get("status") == "approved"
+                )
                 current["screens"][key] = {
                     "status": "approved" if carried else "unreviewed",
                     "feedback": "",
@@ -224,11 +240,15 @@ class ReviewHandler(SimpleHTTPRequestHandler):
         if path == "/docs/design/gauge-ui-proposal.md":
             return str(UI_DIR.parent / "gauge-ui-proposal.md")
         prefix = "/docs/design/gauge-ui-proposal/"
+        if self.server.store.ui_dir != UI_DIR:
+            if path == prefix + "gallery.js":
+                return str(self.server.store.ui_dir.parent / "gallery.js")
+            prefix += self.server.store.ui_dir.name + "/"
         if not path.startswith(prefix):
             return None
         tail = path[len(prefix) :] or "index.html"
-        candidate = (UI_DIR / tail).resolve()
-        if not candidate.is_relative_to(UI_DIR) or candidate.suffix not in {
+        candidate = (self.server.store.ui_dir / tail).resolve()
+        if not candidate.is_relative_to(self.server.store.ui_dir) or candidate.suffix not in {
             ".html",
             ".png",
             ".json",
@@ -263,19 +283,39 @@ class ReviewHandler(SimpleHTTPRequestHandler):
             )
 
 
-def build_server(port=8769, storage=None):
+def build_server(port=8769, storage=None, review_dir=None):
     server = ThreadingHTTPServer(("127.0.0.1", port), ReviewHandler)
-    server.store = ReviewStore(storage)
+    server.store = ReviewStore(storage, review_dir)
     return server
+
+
+def freeze_action_review():
+    """Serve immutable assets so editing the next round cannot invalidate open tabs."""
+    import shutil
+
+    source = UI_DIR / "action-pages"
+    digest = ReviewStore(review_dir=source).manifest_hash
+    root = ROOT / "artifacts/gauge-ui-review/snapshots" / digest
+    target = root / "action-pages"
+    if not target.exists():
+        root.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(UI_DIR / "gallery.js", root / "gallery.js")
+        shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__"))
+    if ReviewStore(review_dir=target).manifest_hash != digest:
+        raise ReviewConflict("Frozen review assets changed; preserve the snapshot and investigate.")
+    return target
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8769)
+    parser.add_argument("--review", choices=["screens", "action-pages"], default="screens")
     args = parser.parse_args()
-    server = build_server(args.port)
+    review_dir = freeze_action_review() if args.review == "action-pages" else None
+    server = build_server(args.port, review_dir=review_dir)
+    subpath = args.review + "/" if review_dir else ""
     print(
-        f"Local gauge review: http://127.0.0.1:{args.port}/docs/design/gauge-ui-proposal/index.html",
+        f"Local gauge review: http://127.0.0.1:{args.port}/docs/design/gauge-ui-proposal/{subpath}index.html",
         flush=True,
     )
     try:

@@ -130,7 +130,7 @@ class VehicleHierarchyTest {
             KnownGauge("one", "One", jeep.id, "guess")
         }
         assertThrows(IllegalArgumentException::class.java) {
-            GaugeAssociationDocumentCodec.decode("""{"schemaVersion":2,"gauges":[]}""")
+            GaugeAssociationDocumentCodec.decode("""{"schemaVersion":3,"gauges":[]}""")
         }
     }
 

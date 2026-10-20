@@ -88,6 +88,29 @@ class ProfileActionsTest {
 
     @Category(DevelopmentConfiguration::class)
     @Test
+    fun vehicleMenuUsesTheParentAndPreservesDurationsAcrossSavedSetup() {
+        val action = PageAction(type = PageActionType.VehicleActions, airUpSeconds = 60, winchSeconds = 600)
+        val child = TransmissionConnection(AdapterBinding("tcm", "AA:BB:CC:DD:EE:02", "public"), TransmissionSetup.draft())
+        val vehicle = VehicleProfile("jeep", "Jeep", initial, AdapterBinding("ecm", "AA:BB:CC:DD:EE:01", "public"), child)
+        val updated = vehicle.withCombinedPageAction(action)
+        assertEquals(listOf(action), updated.draft.actions)
+        assertTrue(updated.transmission!!.draft.actions.isEmpty())
+        val combined = updated.dashboardDraft()
+        assertEquals(listOf(action), updated.withDashboard(combined).dashboardDraft().actions)
+        val encoded = ProfileDocumentCodec.encode(ProfileCollection("jeep", listOf(updated)))
+        assertEquals(updated, ProfileDocumentCodec.decode(encoded).active)
+        assertEquals(listOf(action), ProfileActions.decode(JSONArray().put(action.json())))
+        assertTrue(runCatching { ProfileActions.decode(JSONArray().put(action.json().put("rawCommand", "31A4"))) }.isFailure)
+        val (_, bytes) = ConfigurationProjector.project(template(), combined, "jeep", 7, schemaVersion = 2)
+        val sent = JSONObject(bytes.toString(Charsets.UTF_8)).getJSONArray("actions").getJSONObject(0)
+        assertEquals("vehicleActions", sent.getString("type"))
+        assertFalse(sent.has("pageId"))
+        assertEquals(60, sent.getInt("airUpSeconds"))
+        assertEquals(600, sent.getInt("winchSeconds"))
+    }
+
+    @Category(DevelopmentConfiguration::class)
+    @Test
     fun dualChildActionTargetsArePrefixedAndConflictingBindingsFail() {
         val engine = AdapterBinding("ecm", "AA:BB:CC:DD:EE:01", "public")
         val child = AdapterBinding("tcm", "AA:BB:CC:DD:EE:02", "public")
@@ -103,7 +126,7 @@ class ProfileActionsTest {
             )
         )
         val combined = vehicle.combinedDraft()
-        assertTrue(combined.actions.single().pageId.startsWith("child."))
+        assertTrue(requireNotNull(combined.actions.single().pageId).startsWith("child."))
         val root =
             JSONObject(
                 ConfigurationProjector.projectCombined(

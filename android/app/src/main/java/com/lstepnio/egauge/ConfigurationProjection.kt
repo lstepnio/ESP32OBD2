@@ -38,10 +38,9 @@ data class ConfigurationProjection(
         diagnosticFilters.map {
             "CEL filter: ${if (it.controller == "TCM") "Transmission" else "Engine"} ${it.code}"
         } +
-        actions.map {
-            "Jump to ${pages.firstOrNull { page ->
-                page.id == it.pageId
-            }?.label ?: "Unavailable page"}: ${it.count} swipes up in ${it.windowMs / 1000}s"
+        actions.map { action ->
+            val target = if (action.type == PageActionType.VehicleActions) "Open vehicle actions" else "Jump to ${pages.firstOrNull { it.id == action.pageId }?.label ?: "Unavailable page"}"
+            "$target: ${action.count} swipes up in ${action.windowMs / 1000}s"
         }
 }
 
@@ -308,9 +307,11 @@ object ConfigurationProjector {
         vehicle: VehicleProfile,
         baseRevision: Long,
         useChildAdapter: Boolean,
-        schemaVersion: Int = 2
+        schemaVersion: Int = 2,
+        actions: List<PageAction>? = null
     ): Pair<ConfigurationProjection, ByteArray> {
-        val draft = vehicle.dashboardDraft().copy(source = "ECM")
+        val original = vehicle.dashboardDraft()
+        val draft = original.copy(source = "ECM", actions = actions ?: original.actions)
         val result =
             project(
                 template,

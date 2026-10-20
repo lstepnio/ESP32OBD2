@@ -18,9 +18,10 @@ class VehiclePollSchedule(private val retryDelay: (Long) -> Long = { jitteredRet
         }
         return now >= nextAt
     }
-    fun completed(now: Long, healthy: Boolean) {
+    fun completed(now: Long, healthy: Boolean, healthyIntervalMs: Long = 20_000L) {
+        require(healthyIntervalMs in 1_000L..20_000L)
         failures = if (healthy) 0 else (failures + 1).coerceAtMost(5)
-        nextAt = now + if (healthy) 20_000L else retryDelay(reconnectDelayMs(failures))
+        nextAt = now + if (healthy) healthyIntervalMs else retryDelay(reconnectDelayMs(failures))
     }
     fun pause(now: Long): Long = (nextAt - now).coerceIn(1_000L, 20_000L)
 }

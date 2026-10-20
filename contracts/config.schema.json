@@ -261,7 +261,10 @@
         "type": "object",
         "properties": {
           "type": {
-            "const": "jumpPage"
+            "enum": [
+              "jumpPage",
+              "vehicleActions"
+            ]
           },
           "pageId": {
             "type": "string",
@@ -280,16 +283,67 @@
             "minimum": 2000,
             "maximum": 10000,
             "multipleOf": 1000
+          },
+          "airUpSeconds": {
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 600
+          },
+          "winchSeconds": {
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 600
+          },
+          "pages": {
+            "type": "array",
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "airUp",
+                "winch",
+                "absTcs"
+              ]
+            }
           }
         },
         "required": [
           "type",
-          "pageId",
           "gesture",
           "count",
           "windowMs"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "jumpPage"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "pageId"
+              ],
+              "properties": {
+                "airUpSeconds": false,
+                "winchSeconds": false,
+                "pages": false
+              }
+            },
+            "else": {
+              "required": [
+                "airUpSeconds",
+                "winchSeconds"
+              ],
+              "properties": {
+                "pageId": false
+              }
+            }
+          }
+        ]
       }
     },
     "diagnosticFilters": {

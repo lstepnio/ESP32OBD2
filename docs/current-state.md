@@ -50,9 +50,32 @@ context were observed. Live vehicle filtering and real notification appearance
 remain unqualified. Lookup extension rules and reference provenance are in the
 [shared alert contract](architecture/alerts-and-diagnostics.md#offline-code-explanations).
 
+## Raised-idle coolant guard
+
+The shared command path uses the running primary-ECM high Coolant alert as its
+stop limit. Missing protection blocks Start; a known high temperature latches
+Return. Unavailable coolant now permits a locally confirmed, at-most-60-second
+session; data loss during idle shortens the session to the earlier of its original
+expiry or 60 seconds after first loss. Recovery never extends it, and another
+fallback session requires a fresh physical-gauge Start. See the
+[authoritative coolant policy](architecture/vehicle-actions.md#coolant-protection-for-raised-idle).
+The App displays the timer and retains Stop. The 24-byte request and 32-byte status
+sizes are unchanged; status adds idle-only reason/flags. No device installation
+or parked fallback/thermal-stop qualification is established by these offline changes.
+Public vehicle-command qualification/capability stays disabled.
+
+## Prepared four-tire Air up estimate
+
+The App supports a per-vehicle pressure/time calibration, starting/target PSI and
+an optional duration override for all four tires together. The resolved timer uses
+existing command/configuration fields; there is no pressure telemetry or firmware
+buffer/poller. [The timer policy](architecture/vehicle-actions.md#four-tire-air-up-timer)
+owns the calculation and limits. Installed App/firmware remain unchanged; actual
+compressor/tire calibration and enabled eGauge control are not established.
+
 ## Compatibility and public boundaries
 
-- Phone profiles: prepared schema 14 reads schemas 1..14 (installed Pixel remains schema 13). Older Apps reject new saved state;
+- Phone profiles: prepared schema 16 reads schemas 1..16 (installed Pixel remains schema 13). Older Apps reject new saved state;
   downgrades require an explicit compatible migration. Legacy association files remain
   read-only migration inputs. See [Android storage](architecture/android-runtime.md#storage-and-recovery).
 - Gauge configuration remains schema 2. Prepared development `cfg:6`, `va:1`, `da:1`, `ad:1`
@@ -75,20 +98,24 @@ and timed page cycling remain independent implemented controls.
 FEATURE-04 now has a [temporary-idle delivery proposal](architecture/vehicle-actions.md#first-vehicle-command-temporary-high-idle)
 for Air up and Winch presets using the existing gesture/profile foundation.
 The owner [reports successful high idle through JScan on this Hemi swap](vehicles/jeep/jk-handler-analysis.md#owner-reference-confirmation-2026-10-19).
-Prepared source now implements phone-only Air up/Winch drafts and App controls,
-a fixed-size native lifecycle policy and shared offline inner-request vectors.
-Start/Stop/countdown are tested with fixtures only. The prepared Jeep driver candidate
-now replays captured Start/Report/Return replies with bounded cancellation, strict
-framing and uncertainty/reconciliation tests. It is compiled but not instantiated
-or connected to an adapter worker. No registered BLE execution or physical gauge
-command menu is implemented or installed.
+Prepared source now wires App controls and the gauge's confirmed actions menu
+through one typed protected command interface (`vc:1` in document mode), one primary
+worker controller, bounded controller drivers, uncertainty journal and event ring.
+Idle uses the captured fixed setting; numeric target drafts never become commands.
+ABS/TCS Return remains Restart required. Both qualification masks are zero: no
+current profile can execute controls, and none of this source is installed.
+The [shared owner](architecture/vehicle-actions.md#shared-command-owner) records
+memory, cancellation, persistence, admission and remaining evidence requirements.
 The [offline foundation](architecture/vehicle-actions.md#implemented-offline-foundation)
-records the exact boundary. The [parked JScan Trail View reference](evidence/jeep-high-idle-reference.md)
-observed two raised-idle/ordinary Stop cycles; the owner physically confirmed the
-first. The recovered trace confirms positive ECM Start/Report/Return replies;
-sanitized offline fixtures are saved and temporary phone settings restored.
-Current calibration, target range and loss-of-refresh release remain unqualified;
-this is JScan reference evidence, not enabled eGauge control.
+records the execution boundary. The [parked follow-up](evidence/jeep-actions-live-qualification.md)
+confirmed fresh ECM calibration/CVN, another physical JScan Start/Stop cycle,
+inactive status after reopening the diagnostic session, and owner-observed normal
+idle after one JScan process/Bluetooth-loss check. The fixed ~1,700 RPM reference
+has no qualified arbitrary-target mapping. Combined ABS/traction-control reference
+Off/Return replies were captured; dash warnings cleared only after the owner's
+ignition cycle. Owner fourth-button Start/Return replies were positive; a later
+attempt without fresh session entry failed. These are reference observations,
+not enabled eGauge controls or braking-performance qualification.
 
 ## Known reliability limits
 
@@ -135,3 +162,28 @@ standard engine configurations work and saved development data is retained. No r
 flags or production App source changed. Exact counts and baseline failures belong in
 [dated maintenance evidence](evidence/repository-maintenance.md#2026-10-20-android-variant-gates).
 This is offline test coverage, not a new installed APK or physical observation.
+
+## Prepared action-page branch
+
+The approved review 2 action pages are implemented offline on
+`codex/action-pages-implementation`. Gauge-tab configuration stores per-gauge typed
+page order and timers; firmware uses one reusable face with deliberate Start,
+direct Stop, attention return and bounded coolant fallback. Existing live command
+qualification masks remain zero. No new APK/firmware is installed by this work.
+
+Offline verification: 235 debug and 210 release JVM tests; 15 focused managed-emulator
+UI tests; Android lint/debug APK; 118 host Python and 11 review-server tests plus
+native control/recovery fixtures; production configuration validation/runtime
+fixtures and 23 action-related LVGL frames with production fonts/circular glyph
+checks; ESP-IDF 5.4.1 firmware build. Touch fixtures include empty-space/hold/drag
+rejection, confirmation drift, critical return, idle timeout, unresolved-operation
+retention, and a stable widget count across 30 entries. These are not physical
+memory/latency/gesture or vehicle qualification.
+
+Next: install a separately authorized signed candidate for indoor touch, edge,
+orientation and cycling checks; use the parked Jeep for the primary identity,
+Park/stationary/engine proofs, actual command/Stop/restoration, coolant/fallback
+latency and independent child continuity. Keep the masks disabled until those proofs
+are implemented and verified.
+[Runtime contract](architecture/vehicle-actions.md#ordered-action-pages) and
+[backlog FEATURE-10](backlog.md) own behavior and remaining acceptance.

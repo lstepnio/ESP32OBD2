@@ -1,8 +1,8 @@
 # ADR-013: Profile actions and gauge gesture triggers
 
-**Status:** Accepted for local page actions and the offline idle foundation; vehicle execution proposed
+**Status:** Shared command path implemented; vehicle execution gated pending parked qualification
 **Date:** 2026-10-07
-**High-idle updated:** 2026-10-19; offline foundation implemented, vehicle execution disabled
+**Updated:** 2026-10-19; idle and combined ABS/TCS share the command path, live qualification disabled
 **Deciders:** Project owner for interaction choices; implementation and physical
 qualification determine which controller definitions become available.
 
@@ -170,8 +170,10 @@ insufficient to enable high idle or ABS on this Jeep.
 ## First vehicle command: temporary high idle
 
 **Offline foundation implemented; vehicle execution proposed and disabled.** Reuse ADR-013 for configurable commands. The first
-scope is temporary engine idle for air-up and winching; ABS/ESC and persistent PCM
-adaptations remain outside this increment. The command does not operate the winch
+scope is temporary engine idle for air-up and winching. The owner-selected next
+command is combined ABS/TCS shutdown through the same framework, with its separate
+controller route and ignition-cycle restoration semantics. Fourth-button Line Lock
+work is deferred; persistent PCM adaptations remain outside this increment. The command does not operate the winch
 or compressor. Its remaining work is owned by FEATURE-04, not a separate backlog.
 
 ### Compatibility and research gate
@@ -264,6 +266,54 @@ evidence: mark Unknown, cease stale-session traffic and reconcile without replay
 Start. A controllable, bounded ECU timeout after lost refresh is required before
 enablement; software cannot promise a Stop packet after power or transport loss.
 
+### Coolant protection for raised idle
+
+Idle uses the existing vehicle **high-temperature Coolant alert** as its stop limit;
+there is no second preset temperature, protocol field or separate persistence path.
+The compiled primary ECM Mode 01 PID 05 / `7E8` definition and canonical Celsius
+thresholds are authoritative. Choose the lowest configured high limit (normally
+Warning; a critical-only document uses Critical). Low/equality rules, unrelated
+readings, simulated sources and child-TCM data do not qualify.
+
+- App shortcut setup and preset editing warn when that limit is absent. Saving the
+  local shortcut remains possible. The send review repeats the warning; it is not
+  permission to start. Only the confirmed running gauge document enables App Start.
+- The shared firmware worker is authoritative for App and physical-menu commands.
+  Fresh coolant means a valid sample no older than 2,000 ms, scoped to the current
+  primary link/configuration. At or above the limit, prioritize Return immediately,
+  without waiting for alert dwell/hysteresis. Failed reads retain the last valid
+  sample and its original age, so missing data cannot erase a known high reading.
+- Without fresh coolant, a confirmed physical-gauge Start may run for at most
+  **60 seconds**, or the configured duration if shorter. App Start is refused.
+  If an existing session loses fresh coolant, latch a deadline 60 seconds after
+  the first loss; the original session expiry can only shorten it. Recovery or
+  repeated loss never extends either deadline. All other vehicle guards still apply.
+- After a fallback session, another Start requires explicit physical-gauge input,
+  even if coolant recovered. Fresh local Start may use the normal configured timer;
+  unavailable coolant retains the one-minute cap. There is no automatic restart.
+  The gauge shows the shortened countdown; App Stop remains available. Local
+  confirmation is trusted queue metadata, not a caller-settable wire field.
+- Timer expiry and thermal Stop use the existing Return and independent normal-idle
+  verification path. Lost links and negative replies never become a false success.
+- A primary-worker-owned fixed snapshot uses bounded 300 ms header-attributed
+  coolant reads, targeted every 500 ms **between complete control jobs** while idle
+  needs them. No new task, heap buffer or concurrent ELM session is introduced.
+  A queued Stop skips the guard read. Long jobs age the snapshot into the same
+  latched timer; absence of any other required guard still cancels/Returns.
+- Loss of the adapter/link still means Unknown, not a fabricated successful Stop.
+  The ECU's qualified lost-refresh behavior remains the fallback. Measure actual
+  sampling/Return latency and loaded-worker stack margin before enabling controls.
+
+Offline acceptance includes equality/over-limit, missing rule, wrong source, stale/
+invalid/nonfinite samples, tick wrap, guard loss before control, latched release,
+one-minute fallback, non-extending deadlines, local-only restart,
+no auto-restart, independent ABS behavior, warning-before-save and unsent App limits.
+For parked qualification, use a temporary threshold within a normal warm-up range
+so a small ordinary temperature rise can demonstrate automatic Stop without an
+actual overheat. Verify Start refusal while already above the limit and independent
+normal-idle readback, then restore the owner's intended alert. Do not use a hot
+engine or coolant-data manipulation as a substitute for these controlled checks.
+
 ### Small delivery slices and acceptance
 
 | Slice | Work | Exit evidence |
@@ -281,24 +331,11 @@ recovery procedure are established. These slices do not authorize release or fla
 
 ### Implemented offline foundation
 
-- `temporary_idle.c` is a pure fixed-size policy with no IO, task or allocation.
-  It emits Start/Refresh/Release intents only for an independently qualified
-  definition and matching fresh context. Tests connect the existing page-action
-  recognizer to the policy without changing its production page-jump path.
-- Duplicate/old Starts, overlapping operations, retired completion tickets,
-  changed revision/link, missed deadlines, cancellation, expiry and timer wrap are
-  covered. Unknown never becomes success implicitly. Explicit release retry needs
-  definition-declared idempotence; independent release evidence permits reconciliation.
-- `IdlePreset`/schema 14 store two phone-only drafts with no inferred target RPM.
-  They use the coupled setup store, stay on the parent, survive gauge restoration,
-  and do not enter configuration bytes or alter exact gauge comparisons.
-- Car > Air up & winch configures RPM/duration and removal. The presenter has
-  countdown/Start/Stop states exercised only by fixture handlers; normal App state
-  remains Unavailable and has no transport callbacks. This is not live telemetry.
-- The [offline inner codec](../protocol/experimental-firmware-transfers.md#offline-temporary-idle-inner-codec)
-  shares a C/Kotlin vector. It is not registered with BLE, advertised as a capability
-  or connected to an adapter worker. The policy and candidate driver objects are
-  not instantiated in the firmware runtime; no controller driver is selectable.
+The earlier `temporary_idle.c` numeric policy and its inner codec remain portable
+regression fixtures. Live intents now use the typed shared command path below;
+there is no implicit numeric-RPM conversion or second live command interface.
+`IdlePreset` stores the parent's Air up/Winch drafts. Numeric targets remain drafts;
+the captured idle command accepts only the fixed setting and a bounded duration.
 
 ### Captured Jeep driver candidate
 
@@ -306,8 +343,8 @@ recovery procedure are established. These slices do not authorize release or fla
 as a pure, fixed-size stepper. `START_CAPTURED` uses only the captured `06 80`
 word. There is no API for arbitrary bytes or a numeric RPM conversion. A caller
 cannot treat a saved target RPM as a qualified mapping to this operation. The
-candidate is built but never registered, selected or advertised; live commands
-remain unreachable through the App, gesture and firmware workers.
+candidate is selected internally by the shared command controller below. Its
+live qualification mask is still zero; no current vehicle profile can execute it.
 
 | Job | Required protocol evidence |
 | --- | --- |
@@ -365,32 +402,140 @@ post-Return reports, guard/cancel boundaries, duplicate/retired operations, scop
 links, lost replies, bounded waits, timer wrap, reconciliation and malformed inputs.
 Run `python -m unittest tools.tests.test_jeep_idle_driver` or the normal host suite.
 
-Remaining integration includes the qualified controller definition, protected
-Start/Stop/status dispatch, source-worker scheduling, shared operation history and
-physical gauge Quick actions menu. Fresh calibration identity, target conversion,
-post-Return state and lost-refresh behavior still require Jeep qualification.
+The shared controller now supplies protected dispatch, primary-worker scheduling,
+bounded event history and the physical actions menu. The remaining integration is
+the independently qualified controller identity/guard/restoration evidence owner. The [parked follow-up](../evidence/jeep-actions-live-qualification.md)
+confirms fresh identity, inactive status after session re-entry and one combined
+JScan process/Bluetooth-loss restoration. Target conversion, immediate same-session
+post-Return readback and broader interruption behavior still need qualification.
 This delivers the offline driver without claiming a complete vehicle-control path.
+
+### Shared command owner
+
+`vehicle_commands.c` owns two independent action slots and one driver lease. Idle
+can remain active while ABS/TCS needs restart; neither operation can run concurrent
+adapter transactions. Start/Stop, countdown expiry, guard loss and cancellation use
+one typed admission/state path. `jeep_idle_driver.c` and `jeep_abs_tcs_driver.c`
+contain only their captured controller procedures. The latter addresses 620/504,
+enters the diagnostic session for each job, and never equates an acknowledgment
+with restored ABS/TCS. Fourth-button valve commands are not included.
+
+`vehicle_commands_runtime.c` runs on the existing primary adapter worker. Its
+fixed queue has four entries; callbacks only enqueue and snapshots use a short
+critical section. Driver buffers, IO scratch and the sixteen-record event ring
+are fixed external BSS in PSRAM. No task or control-time heap allocation is added.
+The child worker keeps its independent transport and scheduler.
+
+A versioned NVS uncertainty marker is committed before any control leaves the
+worker. Failed/malformed/newer journal reads refuse execution without overwriting
+the source. A restart exposes Unknown and never resumes control. A marker clears
+only after same-identity/revision/operation proof sampled after the current state
+transition and within two seconds. Guard evidence also expires after two seconds.
+Identity is a profile-owner proof, not a client-provided byte or an adapter name.
+No profile currently supplies these proofs: both live qualification masks stay zero.
+
+Every IO has a 1,200 ms budget including pre-IO journal time, and each driver job
+has a 9,000 ms budget. Fragmented data and pending responses do not extend them.
+After a job the worker restores filter/flow/header defaults under a separate
+1,200 ms cleanup budget before releasing normal polling. Failure disconnects and
+requires route cleanup during initialization. Neither cleanup nor reconnect
+replays a control. Real cadence, stack margin and guard freshness under these
+budgets still need parked measurement before qualification.
+
+The App uses its existing authenticated session and operation coordinator. Current
+status polls automatically, faster during active/uncertain work, with bounded
+backoff. Retired vehicle/gauge/revision results are discarded. Wire bytes and the
+schema-2 menu action are owned by the [command protocol](../protocol/experimental-firmware-transfers.md#shared-vehicle-commands-v1).
+The existing upward-swipe recognizer now targets either a page or the actions
+menu; it never toggles a controller directly. Menu confirmation, context loss and
+pairing/critical-alert preemption use the existing UI owner. Idle durations are
+stored in the menu configuration so App and gauge use the same chosen values.
+
+Maintenance uses the existing atomic transfer gate, held across active command jobs
+and gaps between them. Configuration and OTA cannot claim the adapter while a control
+is active. Wi-Fi startup briefly claims the same gate before pausing vehicle links.
+Configuration additionally waits for uncertainty or restart-required state to reconcile;
+firmware recovery remains available once no active control job remains. Cached UI
+status alone is not a mutual-exclusion primitive. The shortcut menu remains available
+for Stop while the command gate is held.
+
+### Ordered action pages
+
+The owner approved all 30 [review 2 designs](../design/gauge-ui-proposal/action-pages/index.html)
+on 2026-10-20. The frozen proposal remains review evidence; this section owns the
+runtime contract. App/FW implementation does not qualify live controller execution.
+
+- Gauge > Action pages owns configuration. Each remembered gauge has an optional
+  action override, including order and independent bounded Air up/Winch durations.
+  Null inherits the vehicle's legacy gesture; an empty override turns the gesture
+  off, while a vehicle-actions binding with zero pages opens the setup state.
+  Reassignment to another vehicle clears the override. Existing page-jump bindings
+  retain their meaning. Profiles use schema 17; gauge associations use schema 2.
+- The App saves overrides and vehicle pressure calibration together through
+  `LocalSetupTransactions`. It offers typed compatible actions, edit, reorder and
+  remove with Undo. Active/unresolved controls lock configuration. Save on phone
+  never claims installation; the existing review/send and exact running readback
+  are still required. No saved configuration contains a Start intent. One-session
+  time overrides remain in the existing command-confirmation flow.
+- The gauge reuses one LVGL action face and the existing recognizer. One, two and
+  three strokes show arrow geometry without growing the font set; the completed
+  cue lasts 350 ms before entry. Returning permits immediate re-entry to reach Stop;
+  the legacy page-jump cooldown is unchanged. Left/right
+  browses; Down/top chevron cancels confirmation first, then returns to readings.
+  Holds do not pair inside actions. Only a press and release in the same control,
+  without a swipe or cancellation, can activate it. Consecutive Start taps cannot
+  submit while the UI awaits the command owner. Confirmation retains its displayed
+  duration; coolant recovery cannot enlarge the queued request. Changed control
+  state cancels confirmation. A known guard rejection allows a new named Start
+  attempt with fresh worker validation; an uncertain outcome never replays a write.
+  Start revalidates at the worker.
+- Readings remain selected behind the branch; remote selection and page cycling
+  wait until it exits. Closing restarts the cycle quiet period and renders the
+  cached samples through their existing freshness rules. Thirty idle seconds
+  returns to readings; active/uncertain/restart-required controls never time out.
+- Critical attention temporarily owns the display and cancels confirmation;
+  acknowledgement restores the action branch without resuming a command. Pairing,
+  maintenance, assignment/context loss cancel the branch. CEL remains in the upper
+  band; explanations stay below the primary control. The tested Jeep's ABS/TCS
+  Disabled state has ignition-cycle guidance and no misleading Restore control.
+- An unresolved operation is appended to the displayed branch if its configured
+  page is absent. This is an ephemeral recovery view, never a configuration write.
+  Navigation cannot conceal Stop merely because the phone started the operation.
+- One atomic word per kind carries phase, flags, remaining time, reason and preset.
+  One reusable widget tree serves all three definitions; no task, frame buffer,
+  font, per-page history or action-specific transport is introduced. Unchanged text
+  and layers are reused instead of reallocating/redrawing on each poll. Labels use
+  production font metrics and circular bounds; controls are at least 44 pixels.
+
+The [wire extension](../protocol/experimental-firmware-transfers.md#shared-vehicle-commands-v1)
+owns validation and compatibility. Offline fixtures cover typed migration,
+per-gauge projection, rejected definitions, navigation/cancellation and rendering.
+Physical edge/touch, cycle timing, connected source continuity and command outcomes
+still require the parked qualification below.
 
 ### Next parked Jeep increment
 
-The offline driver can proceed without phone or vehicle access. The next hardware
-increment must gather these missing inputs before live registration is considered:
+The [parked follow-up](../evidence/jeep-actions-live-qualification.md) closes the
+fresh-identity gap and supplies a fixed-target reference plus one loss/recovery
+observation. The shared path is now wired and tested offline. Before enabling a
+profile, the next parked increment must close the remaining evidence inputs:
 
-1. Read current ECM calibration/CVN and check the existing engine target, keeping
-   the TCM child out of control routing. Establish the actual fresh Park/Neutral,
-   stationary and engine-running inputs required by the controller definition.
-2. Identify whether JScan exposes a documented target setting and capture that
-   setting's exact command/reply. Until target conversion/range is established,
-   the fixed Trail View word must not accept arbitrary App RPM preferences.
-3. Verify the report after ordinary Return and observe stable normal RPM. Compare
-   the candidate's synthetic post-Return requirement with the real controller.
-4. Establish a bounded controller release/recovery procedure before deliberately
-   removing communication. Only then schedule lost-refresh/link tests and the
-   later eGauge/dual-source recovery matrix. Ordinary Stop is not timeout evidence.
+1. Preserve the captured target as a distinct fixed operation. Do not convert
+   arbitrary saved RPMs without a qualified mapping and supported range.
+2. Identify fresh primary-vehicle Park/Neutral, movement, engine and controller
+   identity evidence, plus ABS/TCS reset/state proof. Bind that evidence owner to
+   the existing primary-worker controller; do not promote a mask from fixture results.
+3. On the next parked run, verify the immediate same-session report after Return,
+   settled RPM and cancellation. The delayed inactive read after session re-entry
+   does not qualify that sequence.
+4. Extend failure/recovery and independent TCM checks using explicit reconciliation.
+   One observed return after process/link loss does not define the ECU timeout.
 
-These are vehicle evidence gates, not authorization to publish, install or send
-new commands. The next session can start with identity/reference reads and the
-known-working JScan path; no moving or equipment-load test is needed for that work.
+No new release, installation or vehicle-control authorization follows from these
+notes. Combined ABS/TCS is the next active command after idle integration and
+needs its own controller qualification. Fourth-button Line Lock is explicitly
+deferred by owner; preserve the reference evidence without implementing or exposing
+it in the current command UI. Neither path shares the idle driver implicitly.
 
 ## Remaining qualification
 
@@ -400,3 +545,45 @@ restoration and interruption evidence are required before enabling an action.
 [Local fixture results](../evidence/profile-action-fixtures.md) and
 [physical gesture observations](../evidence/profile-actions-rollout.md) are historical
 records; [current state](../current-state.md) owns current qualification.
+
+Parked fallback qualification must also cover a controlled missing coolant feed,
+shortened countdown/Return, local restart, recovered-data deadline retention and
+thermal Stop during fallback. Offline vectors do not qualify ECU behavior.
+
+### Four-tire Air up timer
+
+Air up may store a pressure-based timer preset on the parent vehicle. It covers
+**all four tires connected together** with the owner's compressor and hose setup.
+No default tire pressure, compressor flow rate or presumed tire size is supplied.
+
+The App takes starting PSI, target PSI and one observed reference fill (starting
+PSI, ending PSI, elapsed time). It estimates seconds as
+`ceil((target - starting) * reference seconds / (reference end - reference start))`.
+This linear approximation is a convenience, not pressure telemetry: compressor
+flow, tire volume, temperature, leaks and pressure range can change the result.
+An estimate outside the measured range is identified in the editor. The same
+setup and independently checked tire pressures are required for useful calibration.
+
+- The estimate and optional explicit time override persist with the vehicle's Air
+  up preset. No values are read from the ECM, guessed from elapsed time or labelled
+  "target reached". Completion means only that the timer expired.
+- A manual override replaces the estimate for the saved session; clearing it restores
+  calculation. The Start confirmation also accepts a one-session override without
+  changing the saved preset, and cancelling sends nothing. Target must exceed starting pressure. Inputs use whole PSI, bounded
+  0..150; a reference fill must have a positive pressure increase and 1..7,200 seconds.
+  These are input bounds, not recommended tire pressures.
+- Effective session duration must remain 10..600 seconds. An out-of-range estimate
+  is never silently clamped or split into automatically restarting sessions; the
+  owner must enter a shorter override and independently check pressure afterward.
+- The ordinary fixed timer remains available. Saving a pressure preset resolves it
+  to `IdlePreset.seconds`; the existing App request and gauge action-menu duration
+  fields carry only that time. Saving marks an assigned menu unsent until normal
+  configuration publication. No firmware allocation, polling or wire change is needed.
+- Coolant protection, the one-minute missing-coolant fallback, explicit physical
+  restart, Stop, vehicle guards and controller qualification remain authoritative.
+  The estimate neither controls a compressor nor establishes measured pressure.
+
+Offline acceptance covers calculation/rounding, invalid inputs, over-limit estimates,
+explicit overrides, schema migration, parent-vehicle persistence, duration-only
+wire encoding and the editor flow. Parked command qualification and a measured
+four-tire calibration with the owner's actual equipment remain separate gates.

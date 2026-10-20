@@ -207,6 +207,80 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+    var vehicleCommands by mutableStateOf<Map<VehicleCommandKind, VehicleCommandStatus>>(emptyMap())
+        private set
+    var vehicleCommandsObservedAt by mutableStateOf<Long?>(null)
+        private set
+    private val commandPoll = VehiclePollSchedule()
+    private var commandScope = ""
+    private suspend fun pollVehicleCommands(client: GaugeConfigTransferClient, device: BluetoothDevice): Long {
+        if (capabilities?.vehicleCommandsVersion != 1) return 20_000L
+        val gauge = currentGaugeId ?: return 20_000L
+        val vehicle = profileCollection.activeId
+        val config = activeDocument?.takeIf { it.vehicleProfileId == vehicle } ?: return 20_000L
+        val scope = "$gauge:$vehicle:${config.revision}"
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (commandScope != scope) {
+            commandScope = scope
+            vehicleCommands = emptyMap()
+            vehicleCommandsObservedAt = null
+            commandPoll.reset()
+        }
+        if (!commandPoll.due(scope, now)) return commandPoll.pause(now)
+        var healthy = false
+        try {
+            val values = withTimeout(8_000) {
+                VehicleCommandKind.entries.associateWith { client.readVehicleCommand(device, it) }
+            }
+            if (currentGaugeId == gauge && profileCollection.activeId == vehicle && activeDocument?.revision == config.revision && values.values.all { it.revision == config.revision }) {
+                vehicleCommands = values
+                vehicleCommandsObservedAt = android.os.SystemClock.elapsedRealtime()
+                healthy = true
+            }
+        } catch (_: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Keep the last outcome visible; elapsed freshness disables new writes.
+        }
+        val finished = android.os.SystemClock.elapsedRealtime()
+        commandPoll.completed(finished, healthy, if (vehicleCommands.values.any { it.busy }) 1_000 else 20_000)
+        return commandPoll.pause(finished)
+    }
+    fun runVehicleCommand(kind: VehicleCommandKind, stop: Boolean, preset: IdlePreset? = null) = launchGaugeOperation(
+        OperationKind.VEHICLE_COMMAND,
+        if (stop) "Ending ${kind.title.lowercase()}" else "Starting ${kind.title.lowercase()}"
+    ) { id ->
+        val vehicle = profileCollection.activeId
+        val gauge = currentGaugeId ?: error("Connect your gauge first")
+        val config = activeDocument?.takeIf { it.vehicleProfileId == vehicle } ?: error("Confirm this car's setup first")
+        require(capabilities?.vehicleCommandsVersion == 1 && isConfirmedSetup(config.revision, config.sha256, runtimeIdentity))
+        val previous = vehicleCommands[kind] ?: error("Waiting for current command status")
+        val observedAt = vehicleCommandsObservedAt ?: error("Waiting for current command status")
+        require(android.os.SystemClock.elapsedRealtime() - observedAt in 0..30_000 && connection.fresh(android.os.SystemClock.elapsedRealtime()))
+        require(if (stop) previous.canStop else previous.canStart)
+        if (kind == VehicleCommandKind.Idle && !stop) {
+            require(GaugeDraftComparison.savedDraft(config, vehicle)?.let { idleCoolantLimitC(it.alerts) } != null) { "Send a high-temperature Coolant alert to the gauge before starting raised idle" }
+        }
+        val client = GaugeConfigTransferClient(getApplication())
+        vehicleCommands = vehicleCommands + (kind to previous.copy(phase = VehicleCommandPhase.Unknown))
+        commandPoll.reset()
+        val result = client.executeVehicleCommand(bleClient.selectedGauge(), kind, stop, preset, previous)
+        if (currentGaugeId == gauge && profileCollection.activeId == vehicle && activeDocument?.revision == config.revision) {
+            vehicleCommands = vehicleCommands + (kind to result)
+            vehicleCommandsObservedAt = android.os.SystemClock.elapsedRealtime()
+            operation = OperationState(
+                id,
+                OperationKind.VEHICLE_COMMAND,
+                if (result.phase == VehicleCommandPhase.Unknown) OperationStage.OUTCOME_UNKNOWN else OperationStage.ACTIVE,
+                kind.title,
+                result.message,
+                terminal = true
+            )
+        }
+        foregroundConnection.retrySoon()
+    }
     var clearStatus by mutableStateOf<GaugeConfigTransferClient.ClearStatus?>(null)
         private set
     var clearConfirmationOpen by mutableStateOf(false)
@@ -940,7 +1014,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     gaugePoll.pause(android.os.SystemClock.elapsedRealtime()),
                     settingsPause,
                     pollVehicle(client, device),
-                    pollAlerts(client, device)
+                    pollAlerts(client, device),
+                    pollVehicleCommands(client, device)
                 )
             } else {
                 gaugePause
@@ -1690,7 +1765,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var pageEditError by mutableStateOf<String?>(null)
         private set
     val editorDraft: Draft get() = profileCollection.active.dashboardDraft()
-    val transmittedDraft: Draft get() = editorDraft.copy(source = "ECM")
+    val transmittedDraft: Draft get() = editorDraft.copy(
+        source = "ECM",
+        actions = knownGauges.firstOrNull {
+            it.id == rememberedGaugeId && it.vehicleId == profileCollection.activeId
+        }?.actionOverride ?: editorDraft.actions
+    )
+    fun saveGaugeActionPages(action: PageAction?, presets: List<IdlePreset>) = launchLocalMutation {
+        if (modifyingSetupBlocked || profileError != null || gaugeAssociationError != null) return@launchLocalMutation
+        val id = rememberedGaugeId ?: return@launchLocalMutation
+        require(vehicleCommands.values.none { it.busy }) { "Finish the active action before changing its pages" }
+        ProfileActions.validate(listOfNotNull(action), editorDraft.pages)
+        IdlePresets.validate(presets)
+        val saved = setupTransactions.update { current ->
+            require(current.associations.gauges.any { it.id == id && it.vehicleId == current.profiles.activeId }) { "Assign this gauge to the car first" }
+            current.copy(
+                associations = current.associations.copy(gauges = current.associations.gauges.map { if (it.id == id) it.copy(actionOverride = listOfNotNull(action)) else it }),
+                profiles = current.profiles.copy(profiles = current.profiles.profiles.map { if (it.id == current.profiles.activeId) it.copy(draft = it.draft.copy(idlePresets = presets)) else it })
+            )
+        }
+        profileCollection = saved.profiles
+        draft = saved.profiles.active.draft
+        knownGauges = saved.associations.gauges
+    }
     fun setBothAdapters(enabled: Boolean) = launchLocalMutation {
         if (!BuildConfig.DEBUG || modifyingSetupBlocked ||
             gaugeAssociationError != null
@@ -1728,7 +1825,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         baseRevision: Long,
         schemaVersion: Int
     ): ByteArray {
-        require(transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) {
+        require(transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || capabilities?.pageActionsVersion == 2) {
+            "Update the gauge before sending action pages"
+        }
+        require((transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion in 1..2) && (transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || capabilities?.vehicleCommandsVersion == 1)) {
             "Update the gauge before sending gesture actions"
         }
         require(
@@ -1754,7 +1854,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             profileCollection.active,
             baseRevision,
             bothAdapters,
-            schemaVersion
+            schemaVersion,
+            transmittedDraft.actions
         ).second
     }
 
@@ -2347,6 +2448,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun invalidateAlertTransport() {
         // Unsupported is a property of one running image/session, not the saved vehicle.
+        vehicleCommands = emptyMap()
+        vehicleCommandsObservedAt = null
+        commandScope = ""
+        commandPoll.reset()
         alertScope = ""
         alertFrameworkSupported = null
         activeAlertCursor = null
@@ -3178,6 +3283,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         block: suspend (Long) -> Unit
     ) {
         if (localSaveBusy) return
+        if (kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
+            vehicleCommands.values.any { it.phase in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Active, VehicleCommandPhase.Stopping, VehicleCommandPhase.Verifying) }
+        ) {
+            deviceMessage = "End vehicle actions before changing gauge setup"
+            return
+        }
         viewModelScope.launch {
             try {
                 foregroundConnection.runUserOperation(kind) { id ->
@@ -3204,7 +3315,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 operationFailed(
                     message,
                     outcomeUnknown =
-                        kind in setOf(OperationKind.CONFIGURATION, OperationKind.DIAGNOSTIC_CLEAR)
+                        kind in setOf(OperationKind.CONFIGURATION, OperationKind.DIAGNOSTIC_CLEAR, OperationKind.VEHICLE_COMMAND)
                 )
             }
         }
@@ -3419,7 +3530,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 layout = selected.layout,
                 pages = pages,
                 actions = working.actions.filter { action ->
-                    pages.any { it.id == action.pageId }
+                    action.type == PageActionType.VehicleActions || pages.any { it.id == action.pageId }
                 }
             ),
             selectedIndex
@@ -3519,8 +3630,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun saveIdlePresets(values: List<IdlePreset>) = launchLocalMutation {
         if (modifyingSetupBlocked || profileError != null) return@launchLocalMutation
         IdlePresets.validate(values)
-        persistDraft(editorDraft.copy(idlePresets = values))
+        persistDraft(
+            editorDraft.copy(
+                idlePresets = values,
+                actions = editorDraft.actions.map { action ->
+                    if (action.type == PageActionType.VehicleActions) {
+                        action.copy(
+                            airUpSeconds = values.firstOrNull { it.id == IdlePresetId.AirUp }?.seconds ?: 300,
+                            winchSeconds = values.firstOrNull { it.id == IdlePresetId.Winch }?.seconds ?: 300
+                        )
+                    } else {
+                        action
+                    }
+                }
+            )
+        )
     }
+
+    /** Legacy vehicle-draft mutation; per-gauge configuration uses saveGaugeActionPages. */
     fun savePageAction(value: PageAction?) = launchLocalMutation {
         if (modifyingSetupBlocked || profileError != null) return@launchLocalMutation
         if (profileCollection.active.transmission != null) {

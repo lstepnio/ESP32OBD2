@@ -56,7 +56,7 @@ Device-specific caches are cleared when discovery fails or a different target is
 
 ## Storage and recovery
 
-Profile schema 14 retains schemas 1 through 13 and requires coupled vehicle and gauge
+Profile schema 16 retains schemas 1 through 15 and requires coupled vehicle and gauge
 assignment storage. `LocalSetupStore` saves both documents in one `profiles-v1`
 preference commit. The old association file is a read-only migration input. Older
 Apps reject newer profile schemas rather than loading stale assignments. Unknown schemas and
@@ -136,7 +136,17 @@ Older schemas load with no presets; unknown IDs, fractional numbers, duplicate I
 and out-of-envelope drafts reject the document rather than replacing it. Children
 cannot store their own idle presets. Existing coupled setup commits own persistence.
 Preset drafts survive dashboard splitting and explicit gauge-setup restoration.
-They are deliberately excluded from gauge configuration bytes and comparison until
-a qualified command path exists. Saving a local preset therefore cannot mark an
-otherwise identical gauge configuration out of sync or overwrite its running state.
-Older Apps reject schema 14; downgrade needs a compatible backup/migration.
+Numeric target drafts stay excluded from gauge bytes. Schema 15 adds the typed
+vehicle-actions gesture destination to parent profiles. When that menu is assigned,
+its two duration fields are part of the normal configuration and exact comparison;
+changing a duration therefore makes that menu configuration unsent until applied.
+Children cannot own the menu. Older Apps reject newer profile schemas; downgrade
+needs a compatible backup/migration. Command ownership and qualification are defined in
+[vehicle actions](vehicle-actions.md#shared-command-owner).
+
+Schema 16 adds optional `airUp` calibration and pressure inputs inside the parent's
+Air up preset. Existing fixed timers migrate without invented pressure values.
+Strict validation binds the stored effective seconds to the estimate or explicit
+override; children/Winch cannot own this record. Older Apps reject schema 16 rather
+than silently dropping calibration. [Four-tire timer policy](vehicle-actions.md#four-tire-air-up-timer)
+owns calculation, limits and evidence boundaries.

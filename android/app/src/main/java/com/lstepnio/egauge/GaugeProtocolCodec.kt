@@ -56,6 +56,8 @@ object GaugeProtocolCodec {
 
         21 -> runCatching { displayShowcase(bytes) }.isSuccess
 
+        22 -> runCatching { VehicleCommandProtocol.status(bytes) }.isSuccess
+
         else -> false
     }
 
@@ -72,7 +74,7 @@ object GaugeProtocolCodec {
             "cfg",
             if (json.optBoolean("experimentalNumericConfig", false)) 1 else 0
         )
-        require(configurationVersion in 0..6) { "Gauge returned an invalid configuration version" }
+        require(configurationVersion in 0..7) { "Gauge returned an invalid configuration version" }
         require(hardwareCapacity in 0..1) { "Gauge returned an invalid hardware-capacity version" }
         require(!configWrite && !ota) { "Unexpected experimental capability flags" }
         return CapabilitySnapshot(
@@ -96,7 +98,14 @@ object GaugeProtocolCodec {
             pidCatalogVersion = if (configurationVersion >= 5) 1 else 0,
             vehicleDashboardVersion = json.optInt("va", 0).also { require(it in 0..1) },
             dualAdapterVersion = json.optInt("da", 0).also { require(it in 0..1) },
-            pageActionsVersion = if (configurationVersion >= 4) 1 else 0,
+            pageActionsVersion = if (configurationVersion >= 7) {
+                2
+            } else if (configurationVersion >= 4) {
+                1
+            } else {
+                0
+            },
+            vehicleCommandsVersion = json.optInt("vc", 0).also { require(it in 0..1) },
             adapterRegistryVersion = json.optInt("ad", 0).also { require(it in 0..1) },
             maxPages = if (configurationVersion >=
                 2
@@ -108,7 +117,7 @@ object GaugeProtocolCodec {
                 0
             },
             supportedRenderers = when (configurationVersion) {
-                2, 3, 4, 5, 6 -> GaugeLayout.entries.toSet()
+                2, 3, 4, 5, 6, 7 -> GaugeLayout.entries.toSet()
                 1 -> setOf(GaugeLayout.Numeric)
                 else -> emptySet()
             }

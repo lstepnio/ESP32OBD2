@@ -1,3 +1,5 @@
+#include "vehicle_commands_runtime.h"
+#include "vehicle_idle_coolant.h"
 #include "worker_health.h"
 #include "memory_health.h"
 // ---------------------------------------------------------------------------------------------------------------------
@@ -394,6 +396,13 @@ static void app_tick_task(void *arg)
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(100));
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
         ble_companion_tick();
+        for (uint8_t kind = 1; kind <= 2; ++kind)
+        {
+            uint8_t status[32];
+            if (vehicle_commands_runtime_status(kind, status))
+                ui_set_vehicle_action_status(ui, kind, status[2], status[27], status[24] | (uint16_t)status[25] << 8,
+                                             status[3], status[26]);
+        }
         alert_sample_event_t event;
         for (unsigned drained = 0;
              drained < ALERT_SAMPLE_QUEUE_LENGTH && xQueueReceive(g_alert_sample_queue, &event, 0) == pdTRUE; ++drained)
@@ -567,6 +576,16 @@ static void obd_task(void *arg)
     {
         vTaskDelay(pdMS_TO_TICKS(period_ms));
         worker_health_progress(source == 0 ? WORKER_ECM : WORKER_TCM, (uint32_t)(esp_timer_get_time() / 1000));
+        /* No profile currently supplies qualified control/identity/gear proofs.
+         * Keep the shared worker bridge live for status/recovery, with both
+         * controller masks zero until the parked qualification is implemented. */
+        vehicle_command_context_t command_context = {
+            .revision  = g_runtime ? g_running_config_record.revision : 0,
+            .link      = adapter_status_generation(source),
+            .connected = obd && ble_obd_is_connected(obd) && transfer_gate_vehicle_allowed() && !ble_mgr_is_paused()};
+        if (vehicle_commands_runtime_worker(source, obd, command_context,
+                                            (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS)))
+            continue;
         if (transfer_gate_current() == 2 || ble_mgr_is_paused())
         {
             clear_source(ui, source);
@@ -788,9 +807,25 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
     case LV_EVENT_PRESSED:
         atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
         break;
-    case UI_EVENT_PAGE_ACTION:
-        if (transfer_gate_current() != 0 || !ble_companion_has_owner())
+    case UI_EVENT_VEHICLE_COMMAND:
+    {
+        if (!transfer_gate_vehicle_allowed() || !ble_companion_has_owner())
             break;
+        uint8_t  kind, preset;
+        bool     stop;
+        uint16_t seconds;
+        ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
+        ui_vehicle_command_queued(ui, vehicle_commands_runtime_intent(kind, stop, preset, seconds));
+        break;
+    }
+    case UI_EVENT_PAGE_ACTION:
+        if (!transfer_gate_vehicle_allowed() || !ble_companion_has_owner())
+            break;
+        if (ui_action_opens_vehicle_menu(ui))
+        {
+            ui_show_vehicle_actions(ui);
+            break;
+        }
         /* Fall through to the same local selection/persistence path. */
         __attribute__((fallthrough));
     case LV_EVENT_CLICKED:
@@ -925,6 +960,7 @@ void app_main(void)
     alert_engine_init(g_runtime);
     ESP_ERROR_CHECK(alert_runtime_init(g_runtime ? g_running_config_record.revision : 0));
     ESP_ERROR_CHECK(diagnostic_clear_init());
+    ESP_ERROR_CHECK(vehicle_commands_runtime_init(g_runtime));
     alert_engine_set_sink(alert_runtime_observe);
     if (g_runtime)
     {
@@ -959,7 +995,11 @@ void app_main(void)
     {
         ui_set_page_position(ui, g_config.cfg_idx, page_count());
         if (g_runtime)
+        {
             ui_configure_page_action(ui, g_runtime->page_action);
+            double idle_limit;
+            ui_set_idle_protection(ui, vehicle_idle_coolant_limit(g_runtime, &idle_limit));
+        }
         lvgl_port_unlock();
     }
     gauge_display_set_power(true);
@@ -1035,7 +1075,7 @@ void app_main(void)
     {
         companion_command_t command;
         bool                has_command = xQueueReceive(g_phone_command_queue, &command, pdMS_TO_TICKS(20)) == pdTRUE;
-        if (has_command && command.opcode == 1 && command.value < page_count())
+        if (has_command && command.opcode == 1 && command.value < page_count() && !ui_action_pending(ui))
         {
             config_t updated = g_config;
             updated.cfg_idx  = command.value;
@@ -1149,7 +1189,7 @@ void app_main(void)
         display_settings_t cycle         = display_settings_snapshot();
         bool               owner_ready   = ble_companion_has_owner();
         bool               transfer_idle = transfer_gate_current() == 0;
-        ui_set_action_context(ui, owner_ready && transfer_idle);
+        ui_set_action_context(ui, owner_ready && transfer_gate_vehicle_allowed());
         if (!owner_ready || !transfer_idle || ui_showcase_active(ui))
             atomic_store(&g_page_activity_ms, now_ms);
         if (page_cycle_due(cycle.cycle_seconds, page_count(), owner_ready, transfer_idle && !ui_action_pending(ui),

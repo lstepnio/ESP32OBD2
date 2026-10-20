@@ -75,6 +75,7 @@ struct ble_obd_ctx
     atomic_bool           ready;
     uint32_t              active_generation;
     bool                  awaiting_prompt;
+    bool                  control_dirty;
     unsigned              consecutive_timeouts;
     elm_response_t        response;
     void                 *usr_ctx;
@@ -225,6 +226,12 @@ static void transport_observe(const char *event, const void *data, size_t length
 static bool initialize_adapter(ble_obd_ctx_t *obd)
 {
     adapter_status_event(obd->source_id, atomic_load(&obd->generation), 3, 0);
+    if (obd->control_dirty)
+    {
+        if (!adapter_command(obd, "ATCRA\r", 1200) || !adapter_command(obd, "ATFCSM0\r", 1200))
+            return false;
+        obd->control_dirty = false;
+    }
     static const char *const commands[] = {"ATE0\r", "ATL0\r", "ATS0\r", "ATH1\r", "ATCAF1\r", "ATSH7DF\r", "ATSP0\r"};
     for (size_t i = 0; i < ARRAY_SIZE(commands); ++i)
     {
@@ -649,4 +656,81 @@ ble_obd_ctx_t *ble_obd_connect_bound(unsigned              source_id,
                                      void                 *usr_ctx)
 {
     return ble_obd_connect_profile(source_id, peer_mac, address_type, "elm-18f0-v1", response_cb, usr_ctx);
+}
+
+int ble_obd_control_exchange(ble_obd_ctx_t *obd,
+                             const char    *text,
+                             uint32_t       timeout_ms,
+                             uint8_t       *response,
+                             size_t        *length)
+{
+    if (!obd || obd->source_id != 0 || !text || !response || !length || *length < ELM_RESPONSE_CAPACITY + 1 ||
+        !timeout_ms || timeout_ms > 1200 || strlen(text) > 24 || strchr(text, '\r') || strchr(text, '\n'))
+        return -1;
+    TickType_t budget = pdMS_TO_TICKS(timeout_ms);
+    if (!budget)
+        budget = 1;
+    TickType_t start = xTaskGetTickCount();
+    if (xSemaphoreTake(obd->mutex, budget) != pdTRUE)
+        return -1;
+    int      result     = -1;
+    uint32_t generation = atomic_load(&obd->generation);
+    /* No stream-boundary recovery is allowed to become a write retry. */
+    if (generation != obd->active_generation || !ble_mgr_is_connected(obd->mgr_ctx) || obd->awaiting_prompt ||
+        atomic_load(&obd->rx_overflow) || !drain_rx(obd))
+        goto done;
+    obd->control_dirty = true;
+    elm_response_reset(&obd->response);
+    char command[26];
+    snprintf(command, sizeof(command), "%s\r", text);
+    obd->awaiting_prompt = true;
+    if (send_command_budget(obd, command, obd_wait_remaining(start, xTaskGetTickCount(), budget)) != BLE_MGR_E_OK ||
+        !wait_for_prompt(obd, obd_wait_remaining(start, xTaskGetTickCount(), budget)) ||
+        atomic_load(&obd->generation) != generation || atomic_load(&obd->rx_overflow))
+        goto done;
+    memcpy(response, obd->response.text, obd->response.length);
+    response[obd->response.length] = '>';
+    *length                        = obd->response.length + 1;
+    result                         = 0;
+done:
+    /* The worker restores filter/flow defaults after the whole job. A header
+     * cache reset alone cannot restore the normal polling route. */
+    obd->request_header = 0;
+    if (result != 0)
+        ble_mgr_disconnect(obd->mgr_ctx);
+    xSemaphoreGive(obd->mutex);
+    return result;
+}
+
+static bool control_adapter_ok(const uint8_t *bytes, size_t length)
+{
+    if (!length || bytes[length - 1] != '>')
+        return false;
+    size_t start = 0, end = length - 1;
+    while (start < end && (bytes[start] == ' ' || bytes[start] == '\r' || bytes[start] == '\n'))
+        ++start;
+    while (end > start && (bytes[end - 1] == ' ' || bytes[end - 1] == '\r' || bytes[end - 1] == '\n'))
+        --end;
+    return end - start == 2 && bytes[start] == 'O' && bytes[start + 1] == 'K';
+}
+
+int ble_obd_control_restore(ble_obd_ctx_t *obd, uint32_t timeout_ms, uint8_t *scratch, size_t capacity)
+{
+    if (!obd || !scratch || capacity < ELM_RESPONSE_CAPACITY + 1 || !timeout_ms || timeout_ms > 1200)
+        return -1;
+    TickType_t               start = xTaskGetTickCount(), budget = pdMS_TO_TICKS(timeout_ms);
+    static const char *const commands[] = {"AT CRA", "AT FC SM 0", "AT SH 7DF"};
+    for (unsigned i = 0; i < 3; ++i)
+    {
+        size_t     length    = capacity;
+        TickType_t remaining = obd_wait_remaining(start, xTaskGetTickCount(), budget);
+        if (!remaining || ble_obd_control_exchange(obd, commands[i], pdTICKS_TO_MS(remaining), scratch, &length) != 0 ||
+            !control_adapter_ok(scratch, length))
+        {
+            ble_mgr_disconnect(obd->mgr_ctx);
+            return -1;
+        }
+    }
+    obd->control_dirty = false;
+    return 0;
 }

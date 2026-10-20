@@ -1,3 +1,5 @@
+#include "vehicle_commands_runtime.h"
+#include "transfer_gate.h"
 #include "worker_health.h"
 #include "memory_health.h"
 #include <stdbool.h>
@@ -606,7 +608,19 @@ static void worker_task(void *arg)
             xSemaphoreGive(state_lock);
             if (command.op == OP_OPEN)
             {
+                bool startup_gate = transfer_gate_claim(TRANSFER_GATE_WIFI_STARTUP);
+                if (!startup_gate || !vehicle_commands_runtime_maintenance_allowed(false))
+                {
+                    xSemaphoreTake(state_lock, portMAX_DELAY);
+                    if (startup_gate)
+                        transfer_gate_release(TRANSFER_GATE_WIFI_STARTUP);
+                    clear_session_locked(PHASE_FAILED, RESULT_INVALID);
+                    publish_locked();
+                    xSemaphoreGive(state_lock);
+                    continue;
+                }
                 ble_mgr_set_paused(true);
+                transfer_gate_release(TRANSFER_GATE_WIFI_STARTUP);
                 if (!start_maintenance_network())
                 {
                     release_wifi_driver();

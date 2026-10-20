@@ -3,7 +3,7 @@ package com.lstepnio.egauge
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.sync.Mutex
 
-enum class OperationKind { DISCOVERY, READ, CONFIGURATION, UPDATE, DIAGNOSTIC_CLEAR }
+enum class OperationKind { DISCOVERY, READ, CONFIGURATION, UPDATE, DIAGNOSTIC_CLEAR, VEHICLE_COMMAND }
 
 enum class OperationStage {
     IDLE,

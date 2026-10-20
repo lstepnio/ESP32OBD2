@@ -7,7 +7,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.lstepnio.egauge.IdlePresetId
 import com.lstepnio.egauge.PageAction
+import com.lstepnio.egauge.PageActionType
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.*
 import com.lstepnio.egauge.ui.state.CarUiState
@@ -18,6 +20,7 @@ fun PageActionsSheet(state: CarUiState, onDismiss: () -> Unit, onSave: (PageActi
     var target by remember(state.activeId, state.actions) {
         mutableStateOf(state.actions.firstOrNull()?.pageId)
     }
+    var menu by remember(state.activeId, state.actions) { mutableStateOf(state.actions.firstOrNull()?.type == PageActionType.VehicleActions) }
     var count by remember(state.activeId, state.actions) {
         mutableIntStateOf(state.actions.firstOrNull()?.count ?: 3)
     }
@@ -35,18 +38,25 @@ fun PageActionsSheet(state: CarUiState, onDismiss: () -> Unit, onSave: (PageActi
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             SectionTitle("Gesture action")
-            Text("Jump to a page by swiping up on the gauge.")
+            Text("Swipe up to open vehicle actions or jump to a page. Vehicle commands need confirmation in the menu.")
+            SettingsRow("Vehicle actions", if (menu) "Selected" else "Open Air up, Winch and ABS / traction control", state.canEditActions, {
+                menu = true
+                target = null
+            })
             SettingsRow(
                 "Off",
                 if (target ==
-                    null
+                    null && !menu
                 ) {
                     "Selected"
                 } else {
                     "No gesture action"
                 },
                 state.canEditActions,
-                { target = null }
+                {
+                    target = null
+                    menu = false
+                }
             )
             state.actionPages.forEach { page ->
                 SettingsRow(
@@ -60,12 +70,13 @@ fun PageActionsSheet(state: CarUiState, onDismiss: () -> Unit, onSave: (PageActi
                     },
                     state.canEditActions,
                     {
+                        menu = false
                         target =
                             page.id
                     }
                 )
             }
-            if (target != null) {
+            if (target != null || menu) {
                 Text("$count swipes up within $seconds seconds")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton({
@@ -84,7 +95,8 @@ fun PageActionsSheet(state: CarUiState, onDismiss: () -> Unit, onSave: (PageActi
                     }, enabled = state.canEditActions && seconds < 10) { Text("More time") }
                 }
             }
-            if (!state.actionsSupported) {
+            if (menu) IdleCoolantNotice(state.idleCoolantLimitC, state.measurementSystem)
+            if (!state.actionsSupported || (menu && !state.commandsSupported)) {
                 Text(
                     "You can save this choice now. Update the gauge before sending it.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -93,7 +105,20 @@ fun PageActionsSheet(state: CarUiState, onDismiss: () -> Unit, onSave: (PageActi
             PrimaryAction(
                 "Save action",
                 {
-                    onSave(target?.let { PageAction(it, count, seconds * 1000) })
+                    onSave(
+                        if (menu) {
+                            PageAction(
+                                count = count,
+                                windowMs = seconds * 1000,
+                                type = PageActionType.VehicleActions,
+                                airUpSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.AirUp }?.seconds ?: 300,
+                                winchSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.Winch }?.seconds ?: 300,
+                                pages = state.actions.firstOrNull { it.type == PageActionType.VehicleActions }?.pages ?: emptyList()
+                            )
+                        } else {
+                            target?.let { PageAction(it, count, seconds * 1000) }
+                        }
+                    )
                     onDismiss()
                 },
                 enabled =

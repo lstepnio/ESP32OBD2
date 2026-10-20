@@ -7,8 +7,20 @@ void page_action_init(page_action_t *s, page_action_config_t config)
     memset(s, 0, sizeof(*s));
     s->config = config;
     if (config.count < 2 || config.count > 5 || config.window_ms < 2000 || config.window_ms > 10000 ||
-        config.window_ms % 1000 != 0)
+        config.window_ms % 1000 != 0 || config.page_count > 3)
         s->config.enabled = false;
+    if (config.vehicle_menu && config.page_count <= 3)
+    {
+        unsigned seen = 0;
+        for (unsigned i = 0; i < config.page_count; ++i)
+        {
+            uint8_t id = config.pages[i];
+            if (id < 1 || id > 3 || (seen & (1U << id)))
+                s->config.enabled = false;
+            else
+                seen |= 1U << id;
+        }
+    }
 }
 void page_action_reset(page_action_t *s)
 {

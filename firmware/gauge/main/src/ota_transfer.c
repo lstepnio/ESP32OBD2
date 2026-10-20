@@ -1,3 +1,4 @@
+#include "vehicle_commands_runtime.h"
 #include "worker_health.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -203,6 +204,14 @@ static void process(const request_t *request)
     state.sequence      = request_sequence;
     state.last_activity = xTaskGetTickCount();
     state.result        = 2;
+    if ((op == OP_BEGIN || op == OP_ACTIVATE) && !vehicle_commands_runtime_maintenance_allowed(false))
+    {
+        state.result = 3;
+        publish_status_locked();
+        xSemaphoreGive(lock);
+        return;
+    }
+
     if (op == OP_BEGIN && request->length == 17 && id != 0)
     {
         const esp_partition_t *next   = esp_ota_get_next_update_partition(NULL);

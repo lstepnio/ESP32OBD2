@@ -8,6 +8,10 @@ typedef struct
     bool     enabled;
     uint8_t  target_page, count;
     uint32_t window_ms;
+    bool     vehicle_menu;
+    uint16_t air_up_seconds, winch_seconds;
+    bool     pages_explicit;
+    uint8_t  page_count, pages[3]; /* 1 Air up, 2 Winch, 3 ABS/TCS; curated IDs only. */
 } page_action_config_t;
 typedef struct
 {

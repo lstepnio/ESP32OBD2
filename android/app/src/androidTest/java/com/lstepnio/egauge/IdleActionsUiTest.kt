@@ -38,9 +38,29 @@ class IdleActionsUiTest {
 
     @Test fun verifiedFixtureStartsOnlyTheChosenPreset() {
         var selected: IdlePreset? = null
-        compose.setContent { EGaugeTheme { IdleActionsSheet("fixture", listOf(IdlePreset(IdlePresetId.AirUp, 1200)), true, {}, {}, IdleControlState(IdlePhase.Ready), { selected = it }) } }
+        compose.setContent { EGaugeTheme { IdleActionsSheet("fixture", listOf(IdlePreset(IdlePresetId.AirUp, 1200)), true, {}, {}, IdleControlState(IdlePhase.Ready), { selected = it }, coolantLimitC = 105.0) } }
         compose.onNodeWithText("Start Air up").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(IdlePreset(IdlePresetId.AirUp, 1200), selected) }
+    }
+
+    @Test fun calibratedFourTirePresetShowsEstimateAndSavesOverride() {
+        var saved = emptyList<IdlePreset>()
+        compose.setContent { EGaugeTheme { IdleActionsSheet("jeep", emptyList(), true, { saved = it }, {}) } }
+        compose.onNodeWithText("Pressure estimate").performScrollTo().performClick()
+        compose.onNodeWithText("Save preset").performScrollTo().assertIsNotEnabled()
+        for ((label, input) in listOf("Starting PSI" to "15", "Target PSI" to "35", "Measured from PSI" to "15", "Measured to PSI" to "35", "Measured fill time" to "8:00")) {
+            compose.onNodeWithText(label).performScrollTo().performTextInput(input)
+        }
+        compose.onNodeWithText("Estimated time · 8:00").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Time override").performScrollTo().performTextInput("4:30")
+        compose.onNodeWithText("Hide calibration").performScrollTo().performClick()
+        compose.onNodeWithText("Estimated time · 8:00").performScrollTo()
+        capture("air-up-pressure-preset.png")
+        compose.onNodeWithText("Save preset").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(270, saved.single().seconds)
+            assertEquals(35, saved.single().airUp!!.targetPsi)
+        }
     }
 
     @Test fun activeFixtureShowsCountdownAndStopAndLocksPresetChanges() {

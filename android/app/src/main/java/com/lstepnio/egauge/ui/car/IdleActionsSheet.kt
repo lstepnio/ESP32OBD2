@@ -15,11 +15,14 @@ import com.lstepnio.egauge.ui.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun IdleActionsSheet(vehicleId: String, saved: List<IdlePreset>, editable: Boolean, onSave: (List<IdlePreset>) -> Unit, onDismiss: () -> Unit, control: IdleControlState = IdleControlState(), onStart: ((IdlePreset) -> Unit)? = null, onStop: (() -> Unit)? = null) {
+fun IdleActionsSheet(vehicleId: String, saved: List<IdlePreset>, editable: Boolean, onSave: (List<IdlePreset>) -> Unit, onDismiss: () -> Unit, control: IdleControlState = IdleControlState(), onStart: ((IdlePreset) -> Unit)? = null, onStop: (() -> Unit)? = null, coolantLimitC: Double? = null, system: MeasurementSystem = MeasurementSystem.Metric) {
     var selected by remember(vehicleId) { mutableStateOf(IdlePresetId.AirUp) }
     var values by remember(vehicleId, saved) { mutableStateOf(saved) }
     val value = values.firstOrNull { it.id == selected } ?: IdlePreset(selected)
     var rpmText by remember(vehicleId, selected, value.rpm) { mutableStateOf(value.rpm?.toString().orEmpty()) }
+    val airUpDraft = remember(vehicleId, selected) { AirUpTimerDraft(value.airUp) }
+    val pressureValid = selected != IdlePresetId.AirUp || airUpDraft.valid
+    fun editedPreset() = if (selected == IdlePresetId.AirUp) airUpDraft.applyTo(value) else value
     val rpm = rpmText.toIntOrNull()
     val valid = rpmText.isEmpty() || (rpm != null && rpm in 400..3000)
     fun saveValue(next: IdlePreset) {
@@ -30,26 +33,30 @@ fun IdleActionsSheet(vehicleId: String, saved: List<IdlePreset>, editable: Boole
             SectionTitle("Air up & winch")
             Text("Temporarily raise idle while using your equipment.")
             Text(control.message)
+            IdleCoolantNotice(coolantLimitC, system)
             if (control.canStop) PrimaryAction("Stop raised idle", { onStop?.invoke() }, enabled = onStop != null)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IdlePresetId.entries.forEach { id ->
                     FilterChip(selected == id, {
-                        if (valid) saveValue(value.copy(rpm = rpm))
+                        if (valid && pressureValid) saveValue(editedPreset().copy(rpm = rpm))
                         selected = id
-                    }, label = { Text(id.label) }, enabled = editable && !control.configurationLocked)
+                    }, label = { Text(id.label) }, enabled = editable && !control.configurationLocked && pressureValid)
                 }
             }
-            OutlinedTextField(rpmText, { rpmText = it }, label = { Text("Target RPM") }, supportingText = { Text("Leave blank until the target speed is verified for this car.") }, isError = !valid, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = editable && !control.configurationLocked, modifier = Modifier.fillMaxWidth())
-            Text("Duration")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(60, 300, 600).forEach { seconds -> FilterChip(value.seconds == seconds, { saveValue(value.copy(seconds = seconds)) }, label = { Text("${seconds / 60} min") }, enabled = editable && !control.configurationLocked) }
+            OutlinedTextField(rpmText, { rpmText = it }, label = { Text("Target RPM") }, supportingText = { Text("Leave blank to use the car's fixed raised-idle setting. Numeric targets stay as drafts.") }, isError = !valid, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = editable && !control.configurationLocked, modifier = Modifier.fillMaxWidth())
+            if (selected == IdlePresetId.AirUp) AirUpTimerEditor(airUpDraft, editable && !control.configurationLocked)
+            if (selected != IdlePresetId.AirUp || !airUpDraft.enabled) {
+                Text("Duration")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(60, 300, 600).forEach { seconds -> FilterChip(value.seconds == seconds, { saveValue(value.copy(seconds = seconds, airUp = null)) }, label = { Text("${seconds / 60} min") }, enabled = editable && !control.configurationLocked) }
+                }
             }
             PrimaryAction("Save preset", {
-                val next = values.filterNot { it.id == selected } + value.copy(rpm = rpm)
+                val next = values.filterNot { it.id == selected } + editedPreset().copy(rpm = rpm)
                 onSave(next)
                 onDismiss()
-            }, enabled = editable && valid && !control.configurationLocked)
-            PrimaryAction("Start ${selected.label}", { onStart?.invoke(value.copy(rpm = rpm)) }, enabled = onStart != null && control.canStart && valid && rpm != null && editable)
+            }, enabled = editable && valid && pressureValid && !control.configurationLocked)
+            PrimaryAction("Start ${selected.label}", { onStart?.invoke(editedPreset().copy(rpm = rpm)) }, enabled = onStart != null && control.canStart && valid && pressureValid && rpm != null && editable && coolantLimitC != null)
             if (saved.any { it.id == selected }) {
                 TextButton({
                     onSave(saved.filterNot { it.id == selected })

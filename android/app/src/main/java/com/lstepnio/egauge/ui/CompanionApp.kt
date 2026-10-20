@@ -19,7 +19,9 @@ import androidx.window.layout.FoldingFeature
 import com.lstepnio.egauge.*
 import com.lstepnio.egauge.connection.ConnectionPhase
 import com.lstepnio.egauge.core.designsystem.*
+import com.lstepnio.egauge.ui.car.ActionPagesSheet
 import com.lstepnio.egauge.ui.car.CarScreen
+import com.lstepnio.egauge.ui.car.PageActionsSheet
 import com.lstepnio.egauge.ui.customize.*
 import com.lstepnio.egauge.ui.expert.*
 import com.lstepnio.egauge.ui.home.HomeScreen
@@ -56,6 +58,8 @@ fun CompanionApp(
         var route by rememberSaveable { mutableStateOf(Route.Gauge) }
         var customizeStep by rememberSaveable { mutableIntStateOf(0) }
         var progressOpen by rememberSaveable { mutableStateOf(false) }
+        var gestureOpen by rememberSaveable { mutableStateOf(false) }
+        var actionPagesOpen by rememberSaveable { mutableStateOf(false) }
         var connectionsOpen by rememberSaveable { mutableStateOf(false) }
         var backProgress by remember { mutableFloatStateOf(0f) }
         fun back() {
@@ -97,6 +101,7 @@ fun CompanionApp(
             Route.Updates -> Route.Settings
             else -> route
         }
+        val actionAssignmentReady = model.knownGauges.any { it.id == model.rememberedGaugeId && it.vehicleId == state.car.activeId } && state.car.canEditActions
         val density = LocalDensity.current
         val vehicleLinks = state.car.connectionLinks.ifEmpty {
             listOf(
@@ -118,6 +123,24 @@ fun CompanionApp(
                 )
             }
         ) {
+            if (gestureOpen) PageActionsSheet(state.car, { gestureOpen = false }, { model.saveGaugeActionPages(it, state.car.idlePresets) })
+            if (actionPagesOpen) {
+                ActionPagesSheet(
+                    state.car.copy(actions = model.transmittedDraft.actions, actionsSupported = model.capabilities?.pageActionsVersion == 2, canEditActions = actionAssignmentReady),
+                    model::saveGaugeActionPages,
+                    { actionPagesOpen = false },
+                    {
+                        actionPagesOpen = false
+                        customizeStep = 3
+                        route = Route.Customize
+                    },
+                    onGesture = {
+                        actionPagesOpen = false
+                        gestureOpen = true
+                    },
+                    assignmentId = model.rememberedGaugeId.orEmpty()
+                )
+            }
             BoxWithConstraints(
                 Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             ) {
@@ -284,7 +307,7 @@ fun CompanionApp(
                                         model.selectPage(index)
                                         customizeStep = 0
                                         route = Route.Customize
-                                    }, onUpdates = { route = Route.Updates })
+                                    }, onUpdates = { route = Route.Updates }, onActionPages = { actionPagesOpen = true }, canEditActionPages = actionAssignmentReady)
 
                                     Route.Setup -> SetupScreen(
                                         state.setup, onFindGauge,
@@ -347,9 +370,9 @@ fun CompanionApp(
                                             model.editProfileName(name)
                                             model.createProfile()
                                         },
-                                        model::findVehicleAdapters, model::choosePrimaryAdapter, model::sendNumericConfiguration, model::savePageAction, model::deleteVehicle, alerts = {
+                                        model::findVehicleAdapters, model::choosePrimaryAdapter, model::sendNumericConfiguration, model::deleteVehicle, alerts = {
                                             AlertHistoryPanel(model, onExportAlerts)
-                                        }, onSaveIdlePresets = model::saveIdlePresets
+                                        }, onSaveIdlePresets = model::saveIdlePresets, onVehicleCommand = model::runVehicleCommand
                                     )
 
                                     Route.Settings -> SettingsScreen(
