@@ -31,8 +31,15 @@ similar non-touch boards are not interchangeable.
 An **unsupported experimental DIY option** is available: buy the board, bootstrap
 current development firmware using [browser USB recovery](https://egauge.majjix.com/recovery/),
 then sideload the Android APK linked there. Vehicle readings also require a compatible
-BLE OBD-II adapter. This is not a production product or a blanket compatibility claim.
+BLE OBD-II adapter. We develop and test with the
+[Vgate iCar Pro Bluetooth 4.0 (BLE)](https://www.amazon.com/dp/B06XGB4873).
+This is not a production product or a blanket compatibility claim.
 Existing paired gauges normally update through App/Wi-Fi.
+
+Most vehicles use one adapter in their standard OBD-II port for available engine
+and transmission data. Some swaps, including our Hemi-swapped Jeep with separate
+ECM and TCM diagnostic ports, need two adapters to read both at once, one per port.
+This is an uncommon swap-specific configuration, not a typical vehicle requirement.
 
 Additional boards, displays and form factors are planned as hardware is evaluated.
 [Contact us about custom needs](https://egauge.majjix.com/#custom-form).
