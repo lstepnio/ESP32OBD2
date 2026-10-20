@@ -58,3 +58,5 @@
 
 .footer .footer-credit{margin:0;line-height:1.8}.footer-profiles{display:flex;gap:16px;flex-wrap:wrap}.footer .footer-profiles a{margin:0}
 @media(max-width:760px){.footer .footer-credit{flex-basis:100%;margin:8px 0}}
+
+.board-link{text-decoration:underline;text-underline-offset:3px}
