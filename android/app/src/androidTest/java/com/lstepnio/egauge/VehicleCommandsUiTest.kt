@@ -47,6 +47,25 @@ class VehicleCommandsUiTest {
         compose.runOnIdle { assertEquals(1, starts) }
     }
 
+    @Test fun airUpTimeCanBeOverriddenForOneSessionWithoutSaving() {
+        var selected: IdlePreset? = null
+        val timer = AirUpTimer(15, 35, 15, 35, 480)
+        val preset = IdlePreset(IdlePresetId.AirUp, seconds = 480, airUp = timer)
+        compose.setContent { EGaugeTheme { VehicleActionsSheet(state().copy(idlePresets = listOf(preset)), { fail("Session override must not persist") }, { _, _, value -> selected = value }, {}) } }
+        compose.onNodeWithText("Air up").performClick()
+        compose.onNodeWithText("Time for this session").performTextReplacement("4:30")
+        compose.onNodeWithText("Confirm").performClick()
+        compose.runOnIdle {
+            assertEquals(270, selected!!.seconds)
+            assertEquals(480, preset.seconds)
+        }
+        compose.onNodeWithText("Air up").performClick()
+        compose.onNodeWithText("Time for this session").assertTextContains("8:00")
+        compose.onNodeWithText("Time for this session").performTextReplacement("11:00")
+        compose.onNodeWithText("Confirm").assertIsNotEnabled()
+        compose.onNodeWithText("Cancel").performClick()
+    }
+
     @Test fun missingCoolantLimitWarnsAndBlocksOnlyIdleStart() {
         compose.setContent { EGaugeTheme { VehicleActionsSheet(state(runningLimit = null, configuredLimit = null), {}, { _, _, _ -> fail("No unguarded idle start") }, {}) } }
         compose.onNodeWithText("Set a coolant limit").assertIsDisplayed()

@@ -8,10 +8,11 @@ import org.json.JSONObject
 enum class IdlePresetId(val wire: Int, val label: String) { AirUp(1, "Air up"), Winch(2, "Winch") }
 
 /** Local draft limits bound storage, not controller support. No unverified RPM default. */
-data class IdlePreset(val id: IdlePresetId, val rpm: Int? = null, val seconds: Int = 300) {
+data class IdlePreset(val id: IdlePresetId, val rpm: Int? = null, val seconds: Int = 300, val airUp: AirUpTimer? = null) {
     init {
         require(rpm == null || rpm in 400..3000)
         require(seconds in 10..600)
+        require(airUp == null || (id == IdlePresetId.AirUp && seconds == airUp.sessionSeconds))
     }
 }
 
@@ -23,11 +24,11 @@ object IdlePresets {
         validate(values)
         return JSONArray().also { array ->
             values.forEach { value ->
-                array.put(JSONObject().put("id", value.id.name).put("rpm", value.rpm ?: JSONObject.NULL).put("seconds", value.seconds))
+                array.put(JSONObject().put("id", value.id.name).put("rpm", value.rpm ?: JSONObject.NULL).put("seconds", value.seconds).also { item -> value.airUp?.let { item.put("airUp", it.json()) } })
             }
         }
     }
-    fun decode(values: JSONArray): List<IdlePreset> {
+    fun decode(values: JSONArray, allowAirUp: Boolean = true): List<IdlePreset> {
         require(values.length() <= 2)
         fun integer(item: JSONObject, key: String): Int {
             val n = item.get(key)
@@ -36,8 +37,9 @@ object IdlePresets {
         }
         return (0 until values.length()).map { i ->
             val item = values.getJSONObject(i)
-            require(item.keys().asSequence().toSet() == setOf("id", "rpm", "seconds"))
-            IdlePreset(IdlePresetId.valueOf(item.getString("id")), if (item.isNull("rpm")) null else integer(item, "rpm"), integer(item, "seconds"))
+            val keys = setOf("id", "rpm", "seconds")
+            require(item.keys().asSequence().toSet() == keys || (allowAirUp && item.keys().asSequence().toSet() == keys + "airUp"))
+            IdlePreset(IdlePresetId.valueOf(item.getString("id")), if (item.isNull("rpm")) null else integer(item, "rpm"), integer(item, "seconds"), if (item.has("airUp")) AirUpTimer.decode(item.getJSONObject("airUp")) else null)
         }.also(::validate)
     }
 }

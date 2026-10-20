@@ -50,6 +50,13 @@ fun VehicleActionsSheet(
                 } else {
                     IdleCoolantNotice(null, state.measurementSystem)
                 }
+                if (!idle.busy) {
+                    state.idlePresets.firstOrNull { it.id == IdlePresetId.AirUp }?.let { preset ->
+                        preset.airUp?.let { timer ->
+                            Text("Four tires · ${timer.currentPsi} to ${timer.targetPsi} PSI · ${airUpDuration(preset.seconds)} ${if (timer.overrideSeconds == null) "estimate" else "override"}", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
                 TextButton({ presetsOpen = true }, enabled = state.canEditActions && !idle.busy) { Text("Edit idle presets") }
                 if (idle.qualified) Text("Uses this car's fixed raised-idle setting, approximately 1,700 RPM.", style = MaterialTheme.typography.bodySmall)
                 if (state.idlePresets.any { it.rpm != null }) Text("Numeric targets remain saved drafts. Clear the target in a preset to use the verified fixed setting.", style = MaterialTheme.typography.bodySmall)
@@ -67,15 +74,34 @@ fun VehicleActionsSheet(
         }
     }
     confirm?.let { (kind, preset) ->
+        var sessionTime by remember(confirm) { mutableStateOf(preset?.seconds?.let(::airUpDuration).orEmpty()) }
+        val sessionPreset = if (preset?.airUp != null) {
+            runCatching {
+                val seconds = requireNotNull(airUpSeconds(sessionTime))
+                require(seconds in 10..600)
+                if (seconds == preset.seconds) preset else preset.copy(seconds = seconds, airUp = preset.airUp.copy(overrideSeconds = seconds))
+            }.getOrNull()
+        } else {
+            preset
+        }
         AlertDialog(
             onDismissRequest = { confirm = null },
             title = { Text(if (kind == VehicleCommandKind.Idle) "Start ${preset?.id?.label}?" else "Switch off ABS & traction control?") },
-            text = { Text(if (kind == VehicleCommandKind.Idle) "Use this car's fixed raised-idle setting for ${preset!!.seconds} seconds while parked." else "Use only while parked for off-road setup. Restart the vehicle to restore normal operation.") },
+            text = {
+                if (preset?.airUp != null) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("All four tires · ${preset.airUp.currentPsi} to ${preset.airUp.targetPsi} PSI. This is a time estimate; check tire pressure afterward.")
+                        OutlinedTextField(sessionTime, { sessionTime = it }, label = { Text("Time for this session") }, supportingText = { Text("Minutes:seconds, 0:10 to 10:00. Your saved preset stays unchanged.") }, isError = sessionPreset == null, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    }
+                } else {
+                    Text(if (kind == VehicleCommandKind.Idle) "Use this car's fixed raised-idle setting for ${preset!!.seconds} seconds while parked." else "Use only while parked for off-road setup. Restart the vehicle to restore normal operation.")
+                }
+            },
             confirmButton = {
                 TextButton({
                     confirm = null
-                    onCommand(kind, false, preset)
-                }, enabled = state.commandsFresh && (if (kind == VehicleCommandKind.Idle) idle.canStart && state.runningIdleCoolantLimitC != null else abs.canStart)) { Text("Confirm") }
+                    onCommand(kind, false, sessionPreset)
+                }, enabled = state.commandsFresh && (if (kind == VehicleCommandKind.Idle) idle.canStart && state.runningIdleCoolantLimitC != null && sessionPreset != null else abs.canStart)) { Text("Confirm") }
             },
             dismissButton = { TextButton({ confirm = null }) { Text("Cancel") } }
         )

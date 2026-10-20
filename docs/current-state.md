@@ -64,9 +64,18 @@ sizes are unchanged; status adds idle-only reason/flags. No device installation
 or parked fallback/thermal-stop qualification is established by these offline changes.
 Public vehicle-command qualification/capability stays disabled.
 
+## Prepared four-tire Air up estimate
+
+The App supports a per-vehicle pressure/time calibration, starting/target PSI and
+an optional duration override for all four tires together. The resolved timer uses
+existing command/configuration fields; there is no pressure telemetry or firmware
+buffer/poller. [The timer policy](architecture/vehicle-actions.md#four-tire-air-up-timer)
+owns the calculation and limits. Installed App/firmware remain unchanged; actual
+compressor/tire calibration and enabled eGauge control are not established.
+
 ## Compatibility and public boundaries
 
-- Phone profiles: prepared schema 15 reads schemas 1..15 (installed Pixel remains schema 13). Older Apps reject new saved state;
+- Phone profiles: prepared schema 16 reads schemas 1..16 (installed Pixel remains schema 13). Older Apps reject new saved state;
   downgrades require an explicit compatible migration. Legacy association files remain
   read-only migration inputs. See [Android storage](architecture/android-runtime.md#storage-and-recovery).
 - Gauge configuration remains schema 2. Prepared development `cfg:6`, `va:1`, `da:1`, `ad:1`

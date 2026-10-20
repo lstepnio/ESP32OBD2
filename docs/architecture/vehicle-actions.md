@@ -495,3 +495,41 @@ records; [current state](../current-state.md) owns current qualification.
 Parked fallback qualification must also cover a controlled missing coolant feed,
 shortened countdown/Return, local restart, recovered-data deadline retention and
 thermal Stop during fallback. Offline vectors do not qualify ECU behavior.
+
+### Four-tire Air up timer
+
+Air up may store a pressure-based timer preset on the parent vehicle. It covers
+**all four tires connected together** with the owner's compressor and hose setup.
+No default tire pressure, compressor flow rate or presumed tire size is supplied.
+
+The App takes starting PSI, target PSI and one observed reference fill (starting
+PSI, ending PSI, elapsed time). It estimates seconds as
+`ceil((target - starting) * reference seconds / (reference end - reference start))`.
+This linear approximation is a convenience, not pressure telemetry: compressor
+flow, tire volume, temperature, leaks and pressure range can change the result.
+An estimate outside the measured range is identified in the editor. The same
+setup and independently checked tire pressures are required for useful calibration.
+
+- The estimate and optional explicit time override persist with the vehicle's Air
+  up preset. No values are read from the ECM, guessed from elapsed time or labelled
+  "target reached". Completion means only that the timer expired.
+- A manual override replaces the estimate for the saved session; clearing it restores
+  calculation. The Start confirmation also accepts a one-session override without
+  changing the saved preset, and cancelling sends nothing. Target must exceed starting pressure. Inputs use whole PSI, bounded
+  0..150; a reference fill must have a positive pressure increase and 1..7,200 seconds.
+  These are input bounds, not recommended tire pressures.
+- Effective session duration must remain 10..600 seconds. An out-of-range estimate
+  is never silently clamped or split into automatically restarting sessions; the
+  owner must enter a shorter override and independently check pressure afterward.
+- The ordinary fixed timer remains available. Saving a pressure preset resolves it
+  to `IdlePreset.seconds`; the existing App request and gauge action-menu duration
+  fields carry only that time. Saving marks an assigned menu unsent until normal
+  configuration publication. No firmware allocation, polling or wire change is needed.
+- Coolant protection, the one-minute missing-coolant fallback, explicit physical
+  restart, Stop, vehicle guards and controller qualification remain authoritative.
+  The estimate neither controls a compressor nor establishes measured pressure.
+
+Offline acceptance covers calculation/rounding, invalid inputs, over-limit estimates,
+explicit overrides, schema migration, parent-vehicle persistence, duration-only
+wire encoding and the editor flow. Parked command qualification and a measured
+four-tire calibration with the owner's actual equipment remain separate gates.
