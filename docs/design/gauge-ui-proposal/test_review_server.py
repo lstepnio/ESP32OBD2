@@ -197,3 +197,88 @@ class ReviewHttpTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ActionReviewTest(unittest.TestCase):
+    def test_independent_namespace_and_bound_interaction_assets(self):
+        from review_server import ReviewStore, ReviewConflict
+        import shutil
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            assets = root / "action-pages"
+            shutil.copytree(UI_DIR / "action-pages", assets)
+            shutil.copyfile(UI_DIR / "gallery.js", root / "gallery.js")
+            old = ReviewStore(root / "old.json")
+            old.save(
+                {
+                    "reviewId": old.review_id,
+                    "manifestSha256": old.manifest_hash,
+                    "action": "save",
+                    "screen": {"id": "dual", "status": "approved"},
+                }
+            )
+            before = old.storage.read_bytes()
+            new = ReviewStore(root / "new.json", assets)
+            self.assertNotEqual(old.review_id, new.review_id)
+            payload = {
+                "reviewId": new.review_id,
+                "manifestSha256": new.manifest_hash,
+                "action": "save",
+                "screen": {
+                    "id": "air-ready",
+                    "status": "changes_requested",
+                    "feedback": "Make Stop easier to reach",
+                },
+            }
+            new.save(payload)
+            self.assertEqual(
+                new.load()["screens"]["air-ready"]["feedback"], "Make Stop easier to reach"
+            )
+            self.assertEqual(old.storage.read_bytes(), before)
+            (assets / "prototype.js").write_text("// revised flow\n")
+            with self.assertRaises(ReviewConflict):
+                new.save(payload)
+            revised = ReviewStore(root / "new.json", assets)
+            with self.assertRaises(ReviewConflict):
+                revised.save(payload)
+            with self.assertRaises(ValueError):
+                revised.load()
+
+    def test_selected_gallery_routes_and_submission(self):
+        with tempfile.TemporaryDirectory() as folder:
+            server = build_server(0, Path(folder) / "review.json", UI_DIR / "action-pages")
+            worker = Thread(target=server.serve_forever, daemon=True)
+            worker.start()
+            base = f"http://127.0.0.1:{server.server_address[1]}"
+            try:
+                for path in [
+                    "action-pages/index.html",
+                    "action-pages/active.png",
+                    "action-pages/proposal.html",
+                    "gallery.js",
+                ]:
+                    with urlopen(base + "/docs/design/gauge-ui-proposal/" + path) as response:
+                        self.assertEqual(response.status, 200)
+                for path in ["index.html", "../AGENTS.md", "action-pages/generate.py"]:
+                    with self.assertRaises(HTTPError):
+                        urlopen(base + "/docs/design/gauge-ui-proposal/" + path)
+                store = server.store
+                data = store.save(
+                    {
+                        "reviewId": store.review_id,
+                        "manifestSha256": store.manifest_hash,
+                        "action": "submit",
+                        "screens": [
+                            {"id": key, "status": "unreviewed", "feedback": ""} for key in store.ids
+                        ],
+                    }
+                )
+                self.assertEqual(len(data["submittedScreens"]), len(store.ids))
+                self.assertTrue(
+                    all(v["status"] == "unreviewed" for v in data["submittedScreens"].values())
+                )
+            finally:
+                server.shutdown()
+                server.server_close()
+                worker.join()

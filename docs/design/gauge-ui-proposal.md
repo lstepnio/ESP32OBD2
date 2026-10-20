@@ -344,3 +344,22 @@ keeping the warning at 194 and Demo at 213. The fifth comment confirms the exist
 CEL-above/warning-below split; that example remains byte-identical. All 36 unchanged
 approvals carry forward, with original feedback and images preserved. Unreviewed
 examples remain unreviewed. The prepared compositor includes this correction; signed installation and physical review are pending.
+
+## Action-page branch proposal
+
+The separate [action-page review](gauge-ui-proposal/action-pages/index.html)
+proposes a swipe-up branch with one configurable action per page and App
+management. [Interaction contract](gauge-ui-proposal/action-pages/proposal.html)
+owns its flow, edge cases and implementation boundaries. It is awaiting approval,
+not implemented gauge behavior. Existing screen approvals are unchanged.
+
+Reopen with `python3 docs/design/gauge-ui-proposal/review_server.py --review action-pages --port 8770`,
+then visit `http://127.0.0.1:8770/docs/design/gauge-ui-proposal/action-pages/index.html`.
+Private feedback is stored in ignored
+`artifacts/gauge-ui-review/action-pages-review-v1.json`. Every example supports
+Approve as-is, Request changes, notes and Save feedback; Submit review retains
+a snapshot including unreviewed screens. The manifest binds the images, gallery,
+prototype and interaction contract, so a changed flow cannot reuse an old approval.
+Generate art with `python3 docs/design/gauge-ui-proposal/action-pages/generate.py`
+using the existing Pillow dependency; run the review server tests with
+`python3 -m unittest discover -s docs/design/gauge-ui-proposal -p test_review_server.py`.
