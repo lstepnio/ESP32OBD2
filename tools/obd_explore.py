@@ -24,6 +24,7 @@ from obd_temperature_candidate import COMMAND, decode_candidate
 import obd_tcm_temperature_candidate as tcm_temperature
 import obd_tcm_gear_candidate as tcm_gear
 import obd_tcm_values as tcm_values
+import obd_jeep_transfer_case as transfer_case
 
 IDENTITY_COMMANDS = frozenset(("0900", "0904", "0906", "090A"))
 MONITOR_SETUP = frozenset(("ATTP0", "ATTP6", "ATTP7", "ATCSM1", "ATCAF0", "ATCAF1", "ATCRA"))
@@ -55,6 +56,13 @@ def tcm_temperature_v3_policy(command):
 
 def tcm_gear_policy(command):
     return exploration_policy(command) or command in (*tcm_gear.COMMANDS, "ATSH7E1", "ATSH7DF")
+
+
+def transfer_case_policy(command):
+    return exploration_policy(command) or command in (
+        transfer_case.COMMAND,
+        *transfer_case.ADAPTER_COMMANDS,
+    )
 
 
 def tcm_values_policy(command):
@@ -227,8 +235,11 @@ async def explore(args):
     device = await choose_adapter(args.adapter)
     recording = Recording(args.output, args.source, "mac_ble")
     values_mode = getattr(args, "tcm_values", False)
+    transfer_mode = getattr(args, "jeep_transfer_case", None)
     policy = (
-        tcm_values_policy
+        transfer_case_policy
+        if transfer_mode
+        else tcm_values_policy
         if values_mode
         else tcm_gear_policy
         if args.tcm_gear_position
@@ -339,7 +350,7 @@ async def explore(args):
                         result["identity"][command] = (
                             await session.request(command, timeout=8)
                         ).hex()
-                for _ in range(0 if values_mode else 3):
+                for _ in range(0 if values_mode or transfer_mode else 3):
                     for pid in STANDARD_PIDS:
                         if supports(maps, pid):
                             await session.request(f"01{pid:02X}", timeout=5)
@@ -363,6 +374,24 @@ async def explore(args):
                     # Scope advertised support to this responder, never another ECU.
                     tcm_maps = {base: {"7E9": replies["7E9"]} for base, replies in maps.items()}
                     await tcm_values.probe(session, result["tcm_values"], tcm_maps, args.duration)
+                if transfer_mode:
+                    selected = bytes.fromhex(result["protocol_number_hex"]).strip(b"\r\n >")
+                    if (
+                        selected not in (b"6", b"A6")
+                        or set(maps.get(0, {})) != {"7E8"}
+                        or any(set(replies) != {"7E8"} for replies in maps.values())
+                    ):
+                        raise ValueError(
+                            "TIPM capture requires the engine port, only 7E8 discovery and 11-bit 500 kbit/s CAN"
+                        )
+                    result["transfer_case_candidate"] = {
+                        "owner_reported_position": transfer_mode,
+                        "request_id": "620",
+                        "expected_response_id": "504",
+                        "qualified": False,
+                        "samples": [],
+                    }
+                    await transfer_case.probe(session, result["transfer_case_candidate"])
                 if args.tcm_gear_position:
                     selected = bytes.fromhex(result["protocol_number_hex"]).strip(b"\r\n >")
                     if selected not in (b"6", b"A6") or set(maps.get(0, {})) != {"7E9"}:
@@ -468,7 +497,9 @@ async def explore(args):
                 if not session.waiting_prompt:
                     try:
                         restore = (
-                            ("ATSH7DF", "ATCAF1", "ATTP0")
+                            ("ATCRA", "ATSH7DF", "ATCAF1", "ATTP0")
+                            if transfer_mode
+                            else ("ATSH7DF", "ATCAF1", "ATTP0")
                             if values_mode
                             or args.tcm_gear_position
                             or args.hemi_temperature
@@ -559,7 +590,30 @@ def main():
         default=30,
         help="Combined polling seconds, 3..120; discovery adds at most 60 seconds",
     )
+    parser.add_argument(
+        "--jeep-transfer-case",
+        choices=transfer_case.POSITIONS,
+        help="Three fixed read-only TIPM 2111 samples at one parked owner-labelled position",
+    )
     args = parser.parse_args()
+    if args.jeep_transfer_case and (
+        args.source != "engine"
+        or any(
+            (
+                args.monitor,
+                args.hemi_temperature,
+                args.tcm_faults,
+                args.tcm_temperature,
+                args.tcm_temperature_v2,
+                args.tcm_temperature_v3,
+                args.tcm_gear_position,
+                args.tcm_values,
+                args.tcm_state,
+                args.duration != 30,
+            )
+        )
+    ):
+        parser.error("--jeep-transfer-case requires the engine port and no other probes")
     if args.tcm_values:
         if (
             args.source != "transmission"

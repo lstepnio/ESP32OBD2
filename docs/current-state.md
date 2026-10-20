@@ -110,3 +110,13 @@ this is JScan reference evidence, not enabled eGauge control.
 Select a [backlog](backlog.md) gate. Use [TCM resume](development/tcm-session-resume.md)
 for parked vehicle work and App/Wi-Fi for field updates. Keep private captures and
 working setup. Android and firmware are active; iOS is deferred.
+
+## Jeep reading coverage preparation
+
+The [offline vehicle coverage audit](vehicles/jeep/reading-coverage.md) accounts for
+all 42 identifiers in the retained ECM support maps: 30 are selectable scalar
+readings; status, oxygen-component and diagnostic gaps are explicitly classified.
+Transfer-case position is absent from the executable catalog. A fixed read-only
+TIPM `2111` capture path is prepared, but conflicting static enums require matching
+module and physical range observations. No App/firmware catalog, running setup,
+installed image or vehicle support claim changed. **FEATURE-10** tracks delivery.

@@ -41,8 +41,10 @@ class BoundedSession(AdapterSession):
             raise ValueError(f"{command} exceeded the TCM request budget; stopped") from error
 
 
-def payload(raw, command):
-    """One bounded headered 7E9 ISO-TP message, including Mode 09 identity."""
+def payload(raw, command, responder="7E9"):
+    """One bounded headered ISO-TP message; TCM defaults remain 7E9."""
+    if not re.fullmatch(r"[0-7][0-9A-F]{2}", responder):
+        raise ValueError("An explicit 11-bit responder is required")
     if len(raw) > 4096 or not raw.endswith(b">") or raw.count(b">") != 1:
         raise ValueError("Incomplete or oversized TCM reply")
     lines = [
@@ -53,7 +55,7 @@ def payload(raw, command):
         return None
     frames = []
     for line in lines:
-        if not re.fullmatch(r"7E9(?:[0-9A-F]{2}){2,8}", line):
+        if not re.fullmatch(responder + r"(?:[0-9A-F]{2}){2,8}", line):
             raise ValueError("Wrong ECU or malformed TCM reply")
         frames.append(bytes.fromhex(line[3:]))
     if not frames:
