@@ -23,8 +23,9 @@ class ReviewConflict(ValueError):
 
 
 class ReviewStore:
-    def __init__(self, storage=None):
-        manifest_bytes = (UI_DIR / "mock-manifest.json").read_bytes()
+    def __init__(self, storage=None, review_dir=None):
+        self.ui_dir = Path(review_dir).resolve() if review_dir else UI_DIR
+        manifest_bytes = (self.ui_dir / "mock-manifest.json").read_bytes()
         self.manifest = json.loads(manifest_bytes)
         self.review_id = self.manifest.get("reviewId", REVIEW_ID)
         round_number = self.manifest.get("reviewRound", 1)
@@ -32,17 +33,34 @@ class ReviewStore:
         self.storage = (
             Path(storage)
             if storage
-            else ROOT / f"artifacts/gauge-ui-review/2026-10-14-review{suffix}.json"
+            else ROOT
+            / "artifacts/gauge-ui-review"
+            / (
+                f"{self.ui_dir.name}-review-v{round_number}.json"
+                if review_dir
+                else f"2026-10-14-review{suffix}.json"
+            )
         )
-        image_hashes = b"".join(
-            sha256((UI_DIR / (s["id"] + ".png")).read_bytes()).digest()
-            for s in self.manifest["screens"]
-        )
-        self.manifest_hash = sha256(manifest_bytes + image_hashes).hexdigest()
+        self.manifest_hash = self.asset_digest()
         self.ids = {s["id"] for s in self.manifest["screens"]}
         self.lock = RLock()
 
+    def asset_digest(self):
+        manifest_bytes = (self.ui_dir / "mock-manifest.json").read_bytes()
+        manifest = json.loads(manifest_bytes)
+        image_hashes = b"".join(
+            sha256((self.ui_dir / (s["id"] + ".png")).read_bytes()).digest()
+            for s in manifest["screens"]
+        )
+        extra_hashes = b"".join(
+            sha256((self.ui_dir / asset).read_bytes()).digest()
+            for asset in manifest.get("reviewAssets", [])
+        )
+        return sha256(manifest_bytes + image_hashes + extra_hashes).hexdigest()
+
     def load(self):
+        if self.asset_digest() != self.manifest_hash:
+            raise ReviewConflict("Review assets changed. Restart the service before reviewing.")
         if not self.storage.exists():
             return {
                 "reviewId": self.review_id,
@@ -224,11 +242,15 @@ class ReviewHandler(SimpleHTTPRequestHandler):
         if path == "/docs/design/gauge-ui-proposal.md":
             return str(UI_DIR.parent / "gauge-ui-proposal.md")
         prefix = "/docs/design/gauge-ui-proposal/"
+        if self.server.store.ui_dir != UI_DIR:
+            if path == prefix + "gallery.js":
+                return str(UI_DIR / "gallery.js")
+            prefix += self.server.store.ui_dir.name + "/"
         if not path.startswith(prefix):
             return None
         tail = path[len(prefix) :] or "index.html"
-        candidate = (UI_DIR / tail).resolve()
-        if not candidate.is_relative_to(UI_DIR) or candidate.suffix not in {
+        candidate = (self.server.store.ui_dir / tail).resolve()
+        if not candidate.is_relative_to(self.server.store.ui_dir) or candidate.suffix not in {
             ".html",
             ".png",
             ".json",
@@ -263,19 +285,22 @@ class ReviewHandler(SimpleHTTPRequestHandler):
             )
 
 
-def build_server(port=8769, storage=None):
+def build_server(port=8769, storage=None, review_dir=None):
     server = ThreadingHTTPServer(("127.0.0.1", port), ReviewHandler)
-    server.store = ReviewStore(storage)
+    server.store = ReviewStore(storage, review_dir)
     return server
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8769)
+    parser.add_argument("--review", choices=["screens", "action-pages"], default="screens")
     args = parser.parse_args()
-    server = build_server(args.port)
+    review_dir = UI_DIR / args.review if args.review != "screens" else None
+    server = build_server(args.port, review_dir=review_dir)
+    subpath = args.review + "/" if review_dir else ""
     print(
-        f"Local gauge review: http://127.0.0.1:{args.port}/docs/design/gauge-ui-proposal/index.html",
+        f"Local gauge review: http://127.0.0.1:{args.port}/docs/design/gauge-ui-proposal/{subpath}index.html",
         flush=True,
     )
     try:
