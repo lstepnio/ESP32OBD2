@@ -56,6 +56,24 @@ class OptimizationUiTest {
         compose.onNodeWithText("Next step").performScrollTo().assertIsDisplayed()
     }
 
+    @Test fun partialChecksUseNeutralCopyAndRemainReadableAtLargeText() {
+        val source = FaultSourceUi("Engine", StatusUi("fixture", tone = StatusTone.Success), emptyList())
+        val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", source.status, emptyList(), true, true, false, emptyList(), faultSources = listOf(source))
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 2f), LocalConnectionStatus provides { ConnectionPill("Gauge ready", true, onClick = {}) }) {
+                EGaugeTheme(dark = true) {
+                    Surface(Modifier.requiredSize(390.dp, 1000.dp).testTag("fault-frame")) { CarScreen(state, {}, {}, {}) }
+                }
+            }
+        }
+        compose.onNodeWithText("Fault codes").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Checking for codes").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Codes appear here as they are read.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Fault checks incomplete").assertDoesNotExist()
+        compose.onNodeWithText("No warning reported").assertDoesNotExist()
+        captureFaultScreen("partial-checks-large-text")
+    }
+
     @Test fun savedCodesUseTheSameLookupAndStayClearlyHistorical() {
         val faults = listOf(CarFaultUi("U0140", "", "Transmission", "Stored", listOf("Stored"), false))
         compose.setContent { EGaugeTheme { Column { SavedFaultCodes(faults, "episode") } } }
@@ -156,9 +174,10 @@ class OptimizationUiTest {
                 emptyList(), true, false, false, emptyList(), faultSources = listOf(engine, child)
             )
         compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}) } }
-        compose.onNodeWithText("Fault checks incomplete").assertExists()
+        compose.onNodeWithText("2 fault codes").assertExists()
+        compose.onNodeWithText("Fault checks incomplete").assertDoesNotExist()
         compose.onNodeWithText(
-            "Transmission checks are unavailable or out of date.",
+            "Transmission status is unavailable.",
             substring = true
         ).assertExists()
         compose.onAllNodesWithText("Pending").assertCountEquals(0)

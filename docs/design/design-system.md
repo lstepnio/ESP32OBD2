@@ -19,7 +19,7 @@ Compact windows use a bottom bar. From 600 dp the app uses a rail. From 840 dp i
 ## Trust and status
 
 - Foreground discovery and owner reconnection are automatic. **Gauge ready** requires a recent protected check; it does not claim a persistent connection or live readings. Searching, reconnecting, Bluetooth-off and permission states remain explicit. Only initial code association and ambiguous gauge selection require a choice.
-- The universal connection pill appears on every page. It opens independent phone/gauge/adapter status and links to Updates when appropriate. Routine reconnecting stays here; task failures, stale settings, partial fault checks and unknown mutations remain visible in their relevant surface.
+- The universal connection pill appears on every page. It opens independent phone/gauge/adapter status and links to Updates when appropriate. Routine reconnecting stays here; task failures, stale settings, unavailable fault results and unknown mutations remain visible in their relevant surface.
 - Example values and histories always say **Preview** or **Example** next to that content.
 - **Saved & running on gauge** requires the expected running revision and hash, trial cleared and no previous-generation recovery. A stored readback or 100% transfer cannot claim this.
 - Sending, restarting and checking remain distinct stages. Updates owns detailed update progress; other destinations retain the shared activity entry point. Only a gauge-confirmed success can be dismissed, manually or after six seconds; failures, rollbacks and unknown outcomes remain until the user checks them.
@@ -57,7 +57,7 @@ is not replaced with arbitrary app layout tokens. Home exposes edit, next and
 previous page accessibility actions alongside touch gestures.
 
 Car starts with the selected vehicle and any required setup action, followed by one
-Vehicle health card and a compact Alerts card. Show up to three decoded fault summaries directly inside Vehicle health, with the
+Fault codes card and a compact Alerts card. Show up to three decoded fault summaries directly inside Fault codes, with the
 code and Engine/Transmission attribution visible before any tap. View all codes opens
 one vehicle list; selecting a code opens What it means and Next step. Empty
 Stored/Pending/Permanent lists and exact coverage stay in Expert.
@@ -68,11 +68,18 @@ remain in the universal pill. Sheets scroll at large text sizes and close when t
 active vehicle changes, preventing actions on the previously selected vehicle.
 
 One logical vehicle may contain an optional second adapter. The summary preserves
-warnings, incomplete checks and the affected controller; a healthy engine never
+warnings, saved codes and the affected controller; a healthy engine never
 certifies transmission checks. Codes are deduplicated across categories per
 controller, retain last-checked/category meaning and never merge across controllers.
 No-warning status only means the warning lamp is off, not that the vehicle is fault-free.
 Exact category coverage and raw snapshots stay in Expert.
+Routine partial checks are neutral progress, never an amber fault or an engineering
+headline such as “Fault checks incomplete.” Prioritize a known warning, then the
+code count, then a concise waiting/checking state. Stale codes retain Last checked;
+missing data never produces an all-clear. Do not call a fault-code summary overall
+vehicle health. Reconnection remains automatic, without a refresh button or repeated
+instructions. New status copy must describe the user's outcome or a necessary action,
+not internal polling/category coverage.
 Disabled stale settings say Last checked. Global notices are reserved for actionable
 profile/association/preference failures, not each routine connection retry.
 
