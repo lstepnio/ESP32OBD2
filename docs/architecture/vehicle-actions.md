@@ -170,8 +170,10 @@ insufficient to enable high idle or ABS on this Jeep.
 ## First vehicle command: temporary high idle
 
 **Offline foundation implemented; vehicle execution proposed and disabled.** Reuse ADR-013 for configurable commands. The first
-scope is temporary engine idle for air-up and winching; ABS/ESC and persistent PCM
-adaptations remain outside this increment. The command does not operate the winch
+scope is temporary engine idle for air-up and winching. The owner-selected next
+command is combined ABS/TCS shutdown through the same framework, with its separate
+controller route and ignition-cycle restoration semantics. Fourth-button Line Lock
+work is deferred; persistent PCM adaptations remain outside this increment. The command does not operate the winch
 or compressor. Its remaining work is owned by FEATURE-04, not a separate backlog.
 
 ### Compatibility and research gate
@@ -390,8 +392,10 @@ observation. Next, integrate and test the driver offline before another parked r
    One observed return after process/link loss does not define the ECU timeout.
 
 No new release, installation or vehicle-control authorization follows from these
-notes. The combined ABS/TC and mixed-outcome fourth-button references stay
-separate from the idle driver and remain disabled pending their own qualification.
+notes. Combined ABS/TCS is the next active command after idle integration and
+needs its own controller qualification. Fourth-button Line Lock is explicitly
+deferred by owner; preserve the reference evidence without implementing or exposing
+it in the current command UI. Neither path shares the idle driver implicitly.
 
 ## Remaining qualification
 

@@ -131,5 +131,7 @@ Use the matched idle driver behind the existing primary-worker transaction owner
 protected command dispatch and shared operation history. Qualify immediate
 post-Return status, runtime stationary/gear guards, cancellation and independent
 TCM continuity before exposing a physical shortcut. Preserve the fixed captured
-setting separately from unqualified numeric targets. ABS/traction controls and the
-fourth-button candidate remain separate, disabled research paths.
+setting separately from unqualified numeric targets. The owner subsequently
+selected idle and combined ABS/TCS as the active delivery scope and deferred the
+fourth-button Line Lock function. Preserve that capture for later; no further
+fourth-button implementation or vehicle testing is in the current scope.
