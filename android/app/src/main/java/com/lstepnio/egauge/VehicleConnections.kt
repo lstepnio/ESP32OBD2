@@ -54,7 +54,7 @@ fun VehicleProfile.dashboardDraft(): Draft {
         alerts = draft.alerts + child.draft.alerts,
         actions =
             draft.actions + child.draft.actions.map {
-                it.copy(pageId = "child.${it.pageId}")
+                it.copy(pageId = "child.${requireNotNull(it.pageId)}")
             },
         pages = ordered
     )
@@ -80,7 +80,7 @@ fun VehicleProfile.withCombinedPageAction(action: PageAction?): VehicleProfile {
     ) {
         "Page identities must be unique across the vehicle"
     }
-    val childTarget = action != null && draft.pages.none { it.id == action.pageId }
+    val childTarget = action != null && action.type == PageActionType.JumpPage && draft.pages.none { it.id == action.pageId }
     val primary = draft.copy(
         actions = if (action != null &&
             !childTarget
@@ -92,7 +92,7 @@ fun VehicleProfile.withCombinedPageAction(action: PageAction?): VehicleProfile {
     )
     val secondary = child.draft.copy(
         actions = if (action != null && childTarget) {
-            listOf(action.copy(pageId = action.pageId.removePrefix("child.")))
+            listOf(action.copy(pageId = requireNotNull(action.pageId).removePrefix("child.")))
         } else {
             emptyList()
         }

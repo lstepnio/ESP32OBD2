@@ -39,7 +39,7 @@ fun IdleActionsSheet(vehicleId: String, saved: List<IdlePreset>, editable: Boole
                     }, label = { Text(id.label) }, enabled = editable && !control.configurationLocked)
                 }
             }
-            OutlinedTextField(rpmText, { rpmText = it }, label = { Text("Target RPM") }, supportingText = { Text("Leave blank until the target speed is verified for this car.") }, isError = !valid, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = editable && !control.configurationLocked, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(rpmText, { rpmText = it }, label = { Text("Target RPM") }, supportingText = { Text("Leave blank to use the car's fixed raised-idle setting. Numeric targets stay as drafts.") }, isError = !valid, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = editable && !control.configurationLocked, modifier = Modifier.fillMaxWidth())
             Text("Duration")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(60, 300, 600).forEach { seconds -> FilterChip(value.seconds == seconds, { saveValue(value.copy(seconds = seconds)) }, label = { Text("${seconds / 60} min") }, enabled = editable && !control.configurationLocked) }

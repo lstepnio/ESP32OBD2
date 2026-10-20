@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..14) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..15) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -31,7 +31,7 @@ object ProfileDocumentCodec {
                     item.optJSONObject("transmission")?.let { child ->
                         TransmissionConnection(
                             child.optJSONObject("adapter")?.let(AdapterBinding::decode),
-                            decodeDraft(child.getJSONObject("draft"), schemaVersion).also { require(it.idlePresets.isEmpty()) { "Idle presets belong to the parent vehicle" } }
+                            decodeDraft(child.getJSONObject("draft"), schemaVersion).also { require(it.idlePresets.isEmpty() && it.actions.none { action -> action.type == PageActionType.VehicleActions }) { "Vehicle controls belong to the parent vehicle" } }
                         )
                     }
                 } else {
@@ -153,6 +153,7 @@ object ProfileDocumentCodec {
         } else {
             emptyList()
         }
+        require(schemaVersion >= 15 || actions.none { it.type == PageActionType.VehicleActions })
         ProfileActions.validate(actions, pages)
         val draft = Draft(
             pidId = pidId,
@@ -190,11 +191,12 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 14).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 15).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
             IdlePresets.validate(profile.draft.idlePresets)
             require(profile.transmission?.draft?.idlePresets.isNullOrEmpty())
+            require(profile.transmission?.draft?.actions.orEmpty().none { it.type == PageActionType.VehicleActions })
             ProfileActions.validate(profile.draft.actions, profile.draft.pages)
             profile.transmission?.draft?.let { ProfileActions.validate(it.actions, it.pages) }
             items.put(

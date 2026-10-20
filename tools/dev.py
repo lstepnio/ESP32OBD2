@@ -266,6 +266,8 @@ def android_ui(action):
     classes = (
         "ConnectionStatusUiTest",
         "IdleActionsUiTest",
+        "VehicleCommandsUiTest",
+        "ProfileActionsUiTest",
         "AppCleanupUiTest",
         "ReadingAlertsUiTest",
         "OptimizationUiTest",

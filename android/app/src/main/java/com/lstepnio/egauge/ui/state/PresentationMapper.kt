@@ -110,6 +110,9 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
         if (requiresPidCatalogFirmware(draft) && it.pidCatalogVersion != 1) {
             add("Update the gauge before sending the expanded readings and alerts")
         }
+        if (draft.actions.any { action -> action.type == PageActionType.VehicleActions } && it.vehicleCommandsVersion != 1) {
+            add("Update the gauge before sending the vehicle actions menu")
+        }
         if (draft.actions.isNotEmpty() &&
             it.pageActionsVersion != 1
         ) {
@@ -421,8 +424,12 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 it.isNotEmpty()
             }?.joinToString("\n") { action ->
                 val name =
-                    transmittedDraft.pages.firstOrNull { it.id == action.pageId }?.name
-                        ?: "Unavailable page"
+                    if (action.type == PageActionType.VehicleActions) {
+                        "Vehicle actions"
+                    } else {
+                        transmittedDraft.pages.firstOrNull { it.id == action.pageId }?.name
+                            ?: "Unavailable page"
+                    }
                 "Jump to $name · ${action.count} swipes up within ${action.windowMs / 1000} seconds"
             },
             editingIssue = pageEditError,
@@ -740,12 +747,15 @@ private fun AppViewModel.carState(
                 activeConfigRevision != null && verifiedConfigHash != null &&
                 ConfigurationProjector.blockers(transmittedDraft).isEmpty() &&
                 (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion == 1) &&
+                (transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || capabilities?.vehicleCommandsVersion == 1) &&
                 (!bothAdapters || capabilities?.dualAdapterVersion == 1) &&
                 (
                     !requiresVehicleDashboardFirmware(transmittedDraft, bothAdapters) ||
                         capabilities?.vehicleDashboardVersion == 1
                     ),
         actionPages = editorDraft.pages, actions = editorDraft.actions, idlePresets = editorDraft.idlePresets,
+        vehicleCommands = vehicleCommands, commandsSupported = capabilities?.vehicleCommandsVersion == 1,
+        commandsFresh = !busy && connection.fresh(now) && vehicleCommandsObservedAt?.let { now - it in 0..30_000 } == true,
         canEditActions =
             !busy && profileError == null,
         actionsSupported = capabilities?.pageActionsVersion == 1, canManageVehicles = canManageVehicles,

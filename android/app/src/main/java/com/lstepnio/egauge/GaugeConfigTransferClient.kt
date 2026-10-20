@@ -699,6 +699,22 @@ class GaugeConfigTransferClient(private val context: Context) {
                 }
             )
     }
+    suspend fun readVehicleCommand(device: BluetoothDevice, kind: VehicleCommandKind): VehicleCommandStatus = withGauge(device) {
+        writeRaw(byteArrayOf(0x67) + le32(1) + byteArrayOf(kind.wire.toByte()))
+        VehicleCommandProtocol.status(readRaw()).also { require(it.kind == kind) }
+    }
+    suspend fun executeVehicleCommand(device: BluetoothDevice, kind: VehicleCommandKind, stop: Boolean, preset: IdlePreset? = null, expected: VehicleCommandStatus): VehicleCommandStatus = withGauge(device, operationTimeoutMs = 20_000) {
+        val ownerSession = this
+        VehicleCommandClient(object : VehicleCommandSession {
+            override suspend fun read(kind: VehicleCommandKind): VehicleCommandStatus {
+                ownerSession.writeRaw(byteArrayOf(0x67) + le32(1) + byteArrayOf(kind.wire.toByte()))
+                return VehicleCommandProtocol.status(ownerSession.readRaw()).also { require(it.kind == kind) }
+            }
+            override suspend fun writeOnce(request: ByteArray) {
+                ownerSession.writeRaw(byteArrayOf(0x66) + request)
+            }
+        }).execute(kind, stop, preset, expected)
+    }
     suspend fun readClearStatus(device: BluetoothDevice): ClearStatus = withGauge(device) {
         writeRaw(byteArrayOf(0x62) + le32(1))
         clearStatus(readRaw())

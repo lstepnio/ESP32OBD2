@@ -349,7 +349,7 @@ fun CompanionApp(
                                         },
                                         model::findVehicleAdapters, model::choosePrimaryAdapter, model::sendNumericConfiguration, model::savePageAction, model::deleteVehicle, alerts = {
                                             AlertHistoryPanel(model, onExportAlerts)
-                                        }, onSaveIdlePresets = model::saveIdlePresets
+                                        }, onSaveIdlePresets = model::saveIdlePresets, onVehicleCommand = model::runVehicleCommand
                                     )
 
                                     Route.Settings -> SettingsScreen(

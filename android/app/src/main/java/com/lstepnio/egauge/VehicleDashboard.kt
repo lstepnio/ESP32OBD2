@@ -31,7 +31,7 @@ fun VehicleProfile.withDashboard(value: Draft): VehicleProfile {
             it.pidId !in
                 ConfigurationProjector.transmissionPidIds
         },
-        actions = value.actions.filter { action -> primaryPages.any { it.id == action.pageId } }
+        actions = value.actions.filter { action -> action.type == PageActionType.VehicleActions || primaryPages.any { it.id == action.pageId } }
     )
     val secondary = child.draft.copy(
         idlePresets = emptyList(),
@@ -45,7 +45,7 @@ fun VehicleProfile.withDashboard(value: Draft): VehicleProfile {
         layout =
             childPages.firstOrNull()?.layout ?: child.draft.layout,
         actions = value.actions.filter { action -> childPages.any { it.id == action.pageId } }
-            .map { it.copy(pageId = mappedIds.getValue(it.pageId).removePrefix("child.")) }
+            .map { it.copy(pageId = mappedIds.getValue(requireNotNull(it.pageId)).removePrefix("child.")) }
     )
     val result = copy(
         draft = primary,

@@ -14,7 +14,7 @@ class TemporaryIdleTest {
         assertNull(IdlePreset(IdlePresetId.AirUp).rpm)
         val profile = VehicleProfile("jeep", "Jeep", Draft(idlePresets = presets))
         val document = ProfileDocumentCodec.encode(ProfileCollection("jeep", listOf(profile)))
-        assertEquals(14, JSONObject(document).getInt("schemaVersion"))
+        assertEquals(15, JSONObject(document).getInt("schemaVersion"))
         assertEquals(profile, ProfileDocumentCodec.decode(document).active)
         val old = JSONObject(document).put("schemaVersion", 13)
         old.getJSONArray("profiles").getJSONObject(0).getJSONObject("draft").remove("idlePresets")

@@ -26,7 +26,8 @@ fun CarScreen(
     onSaveAction: (com.lstepnio.egauge.PageAction?) -> Unit = {},
     onDeleteProfile: (String) -> Unit = {},
     alerts: @Composable () -> Unit = {},
-    onSaveIdlePresets: (List<com.lstepnio.egauge.IdlePreset>) -> Unit = {}
+    onSaveIdlePresets: (List<com.lstepnio.egauge.IdlePreset>) -> Unit = {},
+    onVehicleCommand: (com.lstepnio.egauge.VehicleCommandKind, Boolean, com.lstepnio.egauge.IdlePreset?) -> Unit = { _, _, _ -> }
 ) {
     var profilesOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var adapterOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
@@ -130,17 +131,23 @@ fun CarScreen(
                     state.adapterAvailable,
                     { adapterOpen = true }
                 )
-                SettingsRow("Air up & winch", "Idle presets", state.canEditActions, { idleOpen = true })
+                SettingsRow("Vehicle actions", "Air up, winch and ABS / traction control", state.canEditActions, { idleOpen = true })
                 SettingsRow(
                     "Gauge gestures",
-                    if (state.actions.isEmpty()) "No gesture assigned" else "Jump to page",
+                    if (state.actions.isEmpty()) {
+                        "No gesture assigned"
+                    } else if (state.actions.first().type == com.lstepnio.egauge.PageActionType.VehicleActions) {
+                        "Vehicle actions"
+                    } else {
+                        "Jump to page"
+                    },
                     state.canEditActions,
                     { actionsOpen = true }
                 )
             }
         })
     }
-    if (idleOpen) IdleActionsSheet(state.activeId, state.idlePresets, state.canEditActions, onSaveIdlePresets, { idleOpen = false })
+    if (idleOpen) VehicleActionsSheet(state, onSaveIdlePresets, onVehicleCommand, { idleOpen = false })
     if (faultsOpen) {
         ModalBottomSheet(onDismissRequest = { faultsOpen = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp)) {

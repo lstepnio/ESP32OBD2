@@ -56,6 +56,8 @@ object GaugeProtocolCodec {
 
         21 -> runCatching { displayShowcase(bytes) }.isSuccess
 
+        22 -> runCatching { VehicleCommandProtocol.status(bytes) }.isSuccess
+
         else -> false
     }
 
@@ -97,6 +99,7 @@ object GaugeProtocolCodec {
             vehicleDashboardVersion = json.optInt("va", 0).also { require(it in 0..1) },
             dualAdapterVersion = json.optInt("da", 0).also { require(it in 0..1) },
             pageActionsVersion = if (configurationVersion >= 4) 1 else 0,
+            vehicleCommandsVersion = json.optInt("vc", 0).also { require(it in 0..1) },
             adapterRegistryVersion = json.optInt("ad", 0).also { require(it in 0..1) },
             maxPages = if (configurationVersion >=
                 2
