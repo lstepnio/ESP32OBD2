@@ -1,0 +1,377 @@
+{
+  "schema": 1,
+  "responder": "7E8",
+  "scope": "Captured Mode 01 advertisement only; enhanced-module inventory is separate",
+  "maps": {
+    "00": "BFBEB997",
+    "20": "8007A019",
+    "40": "FED00000"
+  },
+  "counts": {
+    "component_gap": 4,
+    "diagnostic": 1,
+    "diagnostic_gap": 1,
+    "diagnostic_identity": 1,
+    "named_state_gap": 2,
+    "selectable": 30,
+    "sensor_inventory": 1,
+    "support_map": 2
+  },
+  "pendingSupportRanges": [],
+  "readings": [
+    {
+      "pid": "01",
+      "name": "MIL and monitor status",
+      "coverage": "diagnostic",
+      "readingIds": [],
+      "note": "Existing shared MIL/fault path; not a scalar gauge"
+    },
+    {
+      "pid": "03",
+      "name": "Fuel-system loop status",
+      "coverage": "named_state_gap",
+      "readingIds": [],
+      "note": "Separate status bytes need named states, not a whole-word number"
+    },
+    {
+      "pid": "04",
+      "name": "Calculated load",
+      "coverage": "selectable",
+      "readingIds": [
+        "load"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "05",
+      "name": "Coolant temperature",
+      "coverage": "selectable",
+      "readingIds": [
+        "coolant"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "06",
+      "name": "Short fuel trim bank 1",
+      "coverage": "selectable",
+      "readingIds": [
+        "stft1"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "07",
+      "name": "Long fuel trim bank 1",
+      "coverage": "selectable",
+      "readingIds": [
+        "ltft1"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "08",
+      "name": "Short fuel trim bank 2",
+      "coverage": "selectable",
+      "readingIds": [
+        "stft2"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "09",
+      "name": "Long fuel trim bank 2",
+      "coverage": "selectable",
+      "readingIds": [
+        "ltft2"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "0B",
+      "name": "Intake manifold pressure",
+      "coverage": "selectable",
+      "readingIds": [
+        "map"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "0C",
+      "name": "Engine RPM",
+      "coverage": "selectable",
+      "readingIds": [
+        "rpm"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "0D",
+      "name": "Vehicle speed",
+      "coverage": "selectable",
+      "readingIds": [
+        "speed"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "0E",
+      "name": "Ignition timing advance",
+      "coverage": "selectable",
+      "readingIds": [
+        "timing"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "0F",
+      "name": "Intake air temperature",
+      "coverage": "selectable",
+      "readingIds": [
+        "intake"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "11",
+      "name": "Throttle position",
+      "coverage": "selectable",
+      "readingIds": [
+        "throttle"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "13",
+      "name": "Oxygen sensor layout",
+      "coverage": "sensor_inventory",
+      "readingIds": [],
+      "note": "Discover fitted sensors before offering their measurements"
+    },
+    {
+      "pid": "14",
+      "name": "Narrowband oxygen sensor voltage / trim",
+      "coverage": "component_gap",
+      "readingIds": [],
+      "note": "One reply has two signals; component decoding and sensor-layout attribution are required"
+    },
+    {
+      "pid": "15",
+      "name": "Narrowband oxygen sensor voltage / trim",
+      "coverage": "component_gap",
+      "readingIds": [],
+      "note": "One reply has two signals; component decoding and sensor-layout attribution are required"
+    },
+    {
+      "pid": "18",
+      "name": "Narrowband oxygen sensor voltage / trim",
+      "coverage": "component_gap",
+      "readingIds": [],
+      "note": "One reply has two signals; component decoding and sensor-layout attribution are required"
+    },
+    {
+      "pid": "19",
+      "name": "Narrowband oxygen sensor voltage / trim",
+      "coverage": "component_gap",
+      "readingIds": [],
+      "note": "One reply has two signals; component decoding and sensor-layout attribution are required"
+    },
+    {
+      "pid": "1C",
+      "name": "OBD compliance standard",
+      "coverage": "diagnostic_identity",
+      "readingIds": [],
+      "note": "Useful diagnostic context, not a dashboard measurement"
+    },
+    {
+      "pid": "1E",
+      "name": "Power take-off status",
+      "coverage": "named_state_gap",
+      "readingIds": [],
+      "note": "Bit state; advertisement does not prove this swap has a PTO"
+    },
+    {
+      "pid": "1F",
+      "name": "Engine run time",
+      "coverage": "selectable",
+      "readingIds": [
+        "runtime"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "20",
+      "name": "PID range continuation",
+      "coverage": "support_map",
+      "readingIds": [],
+      "note": "Discovery metadata, not a reading"
+    },
+    {
+      "pid": "21",
+      "name": "Distance with warning light",
+      "coverage": "selectable",
+      "readingIds": [
+        "mildistance"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "2E",
+      "name": "Commanded evaporative purge",
+      "coverage": "selectable",
+      "readingIds": [
+        "evappurge"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "2F",
+      "name": "Fuel level",
+      "coverage": "selectable",
+      "readingIds": [
+        "fuel"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "30",
+      "name": "Warmups since codes cleared",
+      "coverage": "selectable",
+      "readingIds": [
+        "warmups"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "31",
+      "name": "Distance since codes cleared",
+      "coverage": "selectable",
+      "readingIds": [
+        "cleardistance"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "33",
+      "name": "Barometric pressure",
+      "coverage": "selectable",
+      "readingIds": [
+        "baro"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "3C",
+      "name": "Catalyst temperature bank 1 sensor 1",
+      "coverage": "selectable",
+      "readingIds": [
+        "catb1s1"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "3D",
+      "name": "Catalyst temperature bank 2 sensor 1",
+      "coverage": "selectable",
+      "readingIds": [
+        "catb2s1"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "40",
+      "name": "PID range continuation",
+      "coverage": "support_map",
+      "readingIds": [],
+      "note": "Discovery metadata, not a reading"
+    },
+    {
+      "pid": "41",
+      "name": "Monitor status this drive cycle",
+      "coverage": "diagnostic_gap",
+      "readingIds": [],
+      "note": "Requires monitor bit decoding and diagnostic context"
+    },
+    {
+      "pid": "42",
+      "name": "Control module voltage",
+      "coverage": "selectable",
+      "readingIds": [
+        "voltage"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "43",
+      "name": "Absolute engine load",
+      "coverage": "selectable",
+      "readingIds": [
+        "absoluteload"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "44",
+      "name": "Commanded equivalence ratio",
+      "coverage": "selectable",
+      "readingIds": [
+        "equivalence"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "45",
+      "name": "Relative throttle position",
+      "coverage": "selectable",
+      "readingIds": [
+        "relthrottle"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "46",
+      "name": "Ambient air temperature",
+      "coverage": "selectable",
+      "readingIds": [
+        "ambient"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "47",
+      "name": "Throttle position B",
+      "coverage": "selectable",
+      "readingIds": [
+        "throttleb"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "49",
+      "name": "Accelerator pedal D",
+      "coverage": "selectable",
+      "readingIds": [
+        "pedald"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "4A",
+      "name": "Accelerator pedal E",
+      "coverage": "selectable",
+      "readingIds": [
+        "pedale"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    },
+    {
+      "pid": "4C",
+      "name": "Commanded throttle actuator",
+      "coverage": "selectable",
+      "readingIds": [
+        "throttlecommand"
+      ],
+      "note": "Catalog definition exists; measurement validation is separate"
+    }
+  ]
+}
