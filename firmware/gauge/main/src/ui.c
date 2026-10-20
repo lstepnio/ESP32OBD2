@@ -31,6 +31,10 @@
 #include "core/lv_obj_style_gen.h"
 #include "core/lv_refr.h"
 #include "display/lv_display.h"
+#include "draw/lv_draw_arc.h"
+#include "draw/lv_draw_line.h"
+#include "draw/lv_draw_rect.h"
+#include "draw/lv_draw_label.h"
 #include "misc/lv_area.h"
 #include "misc/lv_color.h"
 #include "misc/lv_event.h"
@@ -124,6 +128,7 @@ struct _ui_t
     bool                rendered_action_visible, rendered_action_feedback;
     uint8_t             rendered_action_progress;
     lv_obj_t           *action_label;
+    bool                startup_pending, startup_visible;
     bool                pairing_visible;
     uint32_t            pairing_code;
     TickType_t          reset_confirmation_at;
@@ -416,6 +421,74 @@ static void show(lv_obj_t *object, bool visible)
         lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
 }
 
+/* The launcher mark is three draw primitives, not an image asset. Descriptors
+ * live on the LVGL task stack; strings/fonts stay in flash and drawing reuses
+ * the normal LVGL buffers. No logo object tree, image decoder or new timer. */
+static void startup_text(lv_layer_t *layer, const char *text, const lv_font_t *font, int cy, uint32_t color)
+{
+    lv_draw_label_dsc_t label;
+    lv_draw_label_dsc_init(&label);
+    label.text     = text;
+    label.font     = font;
+    label.color    = lv_color_hex(color);
+    label.align    = LV_TEXT_ALIGN_CENTER;
+    lv_area_t area = {.x1 = 30, .y1 = cy - font->line_height / 2, .x2 = 210, .y2 = cy + font->line_height / 2};
+    lv_draw_label(layer, &label, &area);
+}
+
+static void draw_startup(ui_t *ui, lv_layer_t *layer)
+{
+    if (!ui->startup_visible || ui->pairing_visible || ui->calibration_mode)
+        return;
+    /* Same precision-gauge silhouette as Android's ic_launcher_foreground.xml. */
+    lv_draw_arc_dsc_t arc;
+    lv_draw_arc_dsc_init(&arc);
+    arc.center      = (lv_point_t){120, 98};
+    arc.radius      = 48;
+    arc.width       = 11;
+    arc.start_angle = 135;
+    arc.end_angle   = 45;
+    arc.rounded     = true;
+    arc.color       = lv_color_hex(color_accent);
+    lv_draw_arc(layer, &arc);
+
+    lv_draw_line_dsc_t needle;
+    lv_draw_line_dsc_init(&needle);
+    needle.p1          = (lv_point_precise_t){120, 98};
+    needle.p2          = (lv_point_precise_t){148, 70};
+    needle.width       = 11;
+    needle.round_start = true;
+    needle.round_end   = true;
+    needle.color       = arc.color;
+    lv_draw_line(layer, &needle);
+    lv_draw_rect_dsc_t hub;
+    lv_draw_rect_dsc_init(&hub);
+    hub.bg_color             = arc.color;
+    hub.bg_opa               = LV_OPA_COVER;
+    hub.radius               = LV_RADIUS_CIRCLE;
+    const lv_area_t hub_area = {.x1 = 113, .y1 = 91, .x2 = 127, .y2 = 105};
+    lv_draw_rect(layer, &hub, &hub_area);
+    startup_text(layer, "eGauge", font_compact, 161, color_text_primary);
+    startup_text(layer, "Connecting to car", font_subtitle, 185, color_text_secondary);
+    startup_text(layer, "Tap for pages", font_subtitle, 207, color_text_secondary);
+}
+
+static void startup_update(ui_t *ui)
+{
+    if (adapter_status_ready_for(0) || adapter_status_ready_for(1) || ui->simulated || ui->rendered_alert.severity ||
+        (ui->rendered_diagnostics.valid && (ui->rendered_diagnostics.mil_on || ui->rendered_diagnostics.count)))
+        ui->startup_pending = false;
+    bool visible = ui->startup_pending && !ui->pairing_visible && !ui->calibration_mode &&
+                   !atomic_load(&ui->showcase_active) && transfer_gate_current() == 0;
+    if (visible != ui->startup_visible)
+    {
+        ui->startup_visible = visible;
+        show(ui->widgets.gauge_content, !visible && !ui->pairing_visible);
+        ui->status_dirty = true;
+        lv_obj_invalidate(lv_screen_active());
+    }
+}
+
 static void show_pairing(ui_t *ui, uint32_t pairing_code)
 {
     ui->pairing_code    = pairing_code;
@@ -467,7 +540,7 @@ static void show_pairing(ui_t *ui, uint32_t pairing_code)
         small_label(ui->widgets.pairing_id, id, 120, 186, 112);
         show(ui->widgets.pairing_id, identifier && ui->pairing_identifier[0]);
     }
-    show(ui->widgets.gauge_content, !ui->pairing_visible);
+    show(ui->widgets.gauge_content, !ui->pairing_visible && !ui->startup_visible);
     show(ui->widgets.pairing_lbl, ui->pairing_visible);
 }
 
@@ -666,6 +739,16 @@ static void ui_touch_callback(lv_event_t *e)
     ui_t *ui = (ui_t *)lv_event_get_user_data(e);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_DRAW_MAIN)
+    {
+        draw_startup(ui, lv_event_get_layer(e));
+        return;
+    }
+    if (code == LV_EVENT_PRESSED && ui->startup_pending)
+    {
+        ui->startup_pending = false;
+        startup_update(ui);
+    }
 #if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
     if (code == LV_EVENT_PRESSED)
         ui->timing.presses++;
@@ -1305,7 +1388,10 @@ static void ui_task(lv_timer_t *timer)
                                    request.vehicle_ready || adapter_status_ready_for(0) || adapter_status_ready_for(1),
                                    request.maintenance || transfer_gate_current() != 0,
                                    ui->rendered_alert.attention || ui->pairing_visible))
+        {
+            ui->startup_pending = false;
             showcase_frame(ui);
+        }
     }
     if (display_showcase_tick(&ui->showcase, now,
                               ui->pairing_visible || ui->rendered_alert.attention || transfer_gate_current() != 0 ||
@@ -1324,6 +1410,7 @@ static void ui_task(lv_timer_t *timer)
             ui->display.samples[i].received_at = sample.received_at;
         }
     }
+    startup_update(ui);
     render_page(ui);
     if (ui->status_dirty)
         render_status(ui);
@@ -1451,6 +1538,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_bar_set_range(bar, 0, 1000);
     select_renderer_widgets(ui);
     show_pairing(ui, ui->pairing_visible ? UI_PAIRING_WAITING : UI_PAIRING_HIDDEN);
+    startup_update(ui);
 
     /* Row positions use measured glyph ink in render_page. */
     // Let the LVGL task draw after ui_init releases the port lock. Rendering
@@ -1496,6 +1584,7 @@ ui_t *ui_init(ui_page_t const    *page,
     ui->touch_cb             = touch_cb;
     ui->display.page         = *page;
     ui->pairing_visible      = pairing_required;
+    ui->startup_pending      = true;
     ui->imperial_units       = imperial_units;
 
     if (!ui->rtos.value_que || !ui->rtos.touch_ev_que || !ui->rtos.pairing_que || !ui->rtos.pairing_id_que ||

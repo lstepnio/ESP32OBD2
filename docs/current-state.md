@@ -19,6 +19,19 @@ firmware installation, physical gauge display/touch or live-vehicle observation.
 Recheck Git/CI and source version files before work. A branch push is not a merge,
 release or installation. Public repository: `lstepnio/ESP32OBD2`.
 
+## Prepared startup logo
+
+The startup view in `ui.c` uses the launcher mark through direct LVGL drawing,
+with no bitmap, additional objects/buffer/task, or image cache. It yields to
+pairing/alerts/maintenance and exits on either ready vehicle source or user press;
+reconnection does not reintroduce it. See [startup policy](architecture/firmware-runtime.md#startup-presentation).
+ESP32 context size remains 1,176 bytes before/after (flags consume existing
+padding). The 64 KiB host LVGL pool retains 37,136 free bytes across 100 forced
+redraws, with unchanged object count and earlier gallery frames. The linked image
+passes the 163,898-byte internal-static/64-KiB-external-arena gate. These are
+compile/render measurements, separate from installed dev.60; physical startup,
+radio-load memory and touch qualification remain pending.
+
 ## Support and evidence
 
 | Area | Implemented | Observed qualification | Remaining work |

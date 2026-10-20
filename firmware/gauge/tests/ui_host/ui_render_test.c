@@ -7,7 +7,7 @@
 #include "../../main/src/ui.c"
 
 uint32_t        host_ms;
-static bool     vehicle, maintenance;
+static bool     vehicle, child_vehicle, maintenance;
 static unsigned acknowledgments;
 void            worker_health_progress(worker_id_t id, uint32_t now)
 {
@@ -16,8 +16,7 @@ void            worker_health_progress(worker_id_t id, uint32_t now)
 }
 bool adapter_status_ready_for(unsigned source)
 {
-    (void)source;
-    return vehicle;
+    return source == 0 ? vehicle : child_vehicle;
 }
 uint8_t transfer_gate_current(void)
 {
@@ -104,10 +103,12 @@ int main(int argc, char **argv)
         .metrics      = {{.pid = 12, .name = "Engine RPM", .unit = "rpm", .maximum = 8000, .stale_after_ms = 2000}}};
     ui_t *ui = ui_init(&saved, 50, touch, false, false);
     assert(ui);
+    assert(ui->startup_pending && ui->startup_visible);
     ui_set_page_position(ui, 1, 3);
     assert(ui_request_showcase(ui, true, 8, 7, false, false));
     tick(60);
     assert(lv_obj_has_flag(ui->widgets.demo_lbl, LV_OBJ_FLAG_HIDDEN));
+    assert(!ui->startup_pending && !ui->startup_visible);
     for (unsigned i = 0; i < display_showcase_count(); i++)
     {
         assert(lv_obj_has_flag(ui->widgets.demo_lbl, LV_OBJ_FLAG_HIDDEN));
@@ -191,6 +192,80 @@ int main(int argc, char **argv)
     tick(60);
     assert(lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
     assert(lv_obj_has_flag(ui->widgets.diagnostics_lbl, LV_OBJ_FLAG_HIDDEN));
+    ui->startup_pending = true; /* Isolated fresh-boot scenario after the existing gallery. */
+    startup_update(ui);
+    tick(60);
+    assert(ui->startup_visible && ui->startup_pending);
+    assert(lv_obj_has_flag(ui->widgets.gauge_content, LV_OBJ_FLAG_HIDDEN));
+    capture(argv[1], "boot-logo");
+    const char *startup_strings[] = {"eGauge", "Connecting to car", "Tap for pages"};
+    const int   startup_centers[] = {161, 185, 207};
+    for (unsigned i = 0; i < 3; i++)
+    {
+        const lv_font_t *font = i ? font_subtitle : font_compact;
+        ink_t            b;
+        assert(ink(startup_strings[i], font, &b));
+        int x = 30 + (181 - b.advance) / 2;
+        int y = startup_centers[i] - font->line_height / 2;
+        if (!gauge_layout_fits(x + b.left, y + b.top, x + b.right, y + b.bottom))
+            fprintf(stderr, "Startup bounds %s: %d,%d,%d,%d\n", startup_strings[i], x + b.left, y + b.top, x + b.right,
+                    y + b.bottom);
+        assert(gauge_layout_fits(x + b.left, y + b.top, x + b.right, y + b.bottom));
+    }
+    /* Direct draw uses no persistent logo objects and does not leak as it redraws. */
+    unsigned         children = lv_obj_get_child_count(lv_screen_active());
+    lv_mem_monitor_t before, after;
+    lv_mem_monitor(&before);
+    for (unsigned i = 0; i < 100; i++)
+    {
+        lv_obj_invalidate(lv_screen_active());
+        tick(50);
+    }
+    lv_mem_monitor(&after);
+    assert(LV_MEM_SIZE == 64U * 1024U);
+    assert(before.total_size > 0 && before.free_size > 0);
+    assert(before.total_size == after.total_size);
+    assert(before.free_size == after.free_size);
+    assert(children == lv_obj_get_child_count(lv_screen_active()));
+    printf("Startup UI context=%zu bytes; redraw free=%zu -> %zu; no logo objects\n", sizeof(*ui), before.free_size,
+           after.free_size);
+    /* No adapter is not a dead end: a normal press releases the view. */
+    lv_obj_send_event(lv_screen_active(), LV_EVENT_PRESSED, NULL);
+    tick(60);
+    assert(!ui->startup_visible && !ui->startup_pending);
+    assert(!lv_obj_has_flag(ui->widgets.gauge_content, LV_OBJ_FLAG_HIDDEN));
+    ui->startup_pending = true; /* New boot state, then a child-only connection. */
+    child_vehicle       = true;
+    tick(60);
+    assert(!ui->startup_pending && !ui->startup_visible);
+    child_vehicle = false;
+    tick(60);
+    assert(!ui->startup_visible); /* A later link loss never returns to a splash. */
+    ui->startup_pending = true;
+    vehicle             = true;
+    tick(60);
+    assert(!ui->startup_pending && !ui->startup_visible);
+    vehicle             = false;
+    ui->startup_pending = true;
+    ui_show_pairing_code(ui, UI_PAIRING_READY);
+    tick(60);
+    assert(!ui->startup_visible && ui->pairing_visible);
+    capture(argv[1], "boot-pairing");
+    ui_show_pairing_code(ui, UI_PAIRING_HIDDEN);
+    tick(60);
+    assert(ui->startup_visible);
+    maintenance = true;
+    tick(60);
+    assert(!ui->startup_visible);
+    maintenance = false;
+    tick(60);
+    assert(ui->startup_visible);
+    ui_set_alert_event(ui, 2, false, "Coolant", true, 1, 1, 1, 118, 110, "degC");
+    tick(60);
+    assert(!ui->startup_pending && !ui->startup_visible);
+    assert(!lv_obj_has_flag(ui->widgets.alert_overlay, LV_OBJ_FLAG_HIDDEN));
+    ui_set_alert(ui, 0, false, "");
+    tick(60);
     puts("PASS: production LVGL showcase frames, circular glyphs, vehicle/maintenance/critical preemption and pairing "
          "restore");
 }

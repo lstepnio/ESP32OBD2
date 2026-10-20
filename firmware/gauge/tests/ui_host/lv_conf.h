@@ -2,7 +2,9 @@
 #define LV_CONF_H
 #define LV_COLOR_DEPTH 32
 #define LV_USE_OS LV_OS_NONE
-#define LV_USE_STDLIB_MALLOC LV_STDLIB_CLIB
+/* Mirror the production pool size so render fixtures detect persistent growth. */
+#define LV_USE_STDLIB_MALLOC LV_STDLIB_BUILTIN
+#define LV_MEM_SIZE (64U * 1024U)
 #define LV_USE_STDLIB_STRING LV_STDLIB_CLIB
 #define LV_USE_STDLIB_SPRINTF LV_STDLIB_CLIB
 #define LV_USE_LOG 0

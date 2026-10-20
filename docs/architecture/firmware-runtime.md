@@ -141,6 +141,32 @@ sanitized host fixtures qualify arithmetic and bounds only; physical soak,
 interruption and memory/rate measurements remain pending. See
 [offline hardening](../evidence/offline-hardening.md).
 
+## Startup presentation
+
+![Startup display](../assets/gauge/startup.png)
+
+`ui.c` draws the existing launcher gauge mark, wordmark and connection text only
+while a paired gauge is starting and waiting for its first ready vehicle source.
+Either source is sufficient, including the optional child TCM alone. A press
+reveals normal pages without waiting for a car; existing click/swipe/hold behavior
+continues. The view never returns after source readiness or user dismissal during
+that boot. Later source loss uses the ordinary unavailable-reading presentation.
+Pairing, calibration, maintenance and showcase presentation take priority; meaningful
+alerts/faults permanently reveal the normal status/attention view for that boot.
+Starting a showcase also dismisses startup so stopping it returns to normal pages.
+No adapter is required for boot-health confirmation.
+
+The mark follows Android's `ic_launcher_foreground.xml` silhouette in the gauge's
+existing accent color. LVGL draws an arc, rounded needle and center dot directly
+from its existing root draw callback. Constant text and existing fonts remain in
+flash. Two flags in the existing UI context own the lifecycle. There is no bitmap,
+image decoder/cache, new LVGL object tree, framebuffer, timer or task. Draw
+commands still use the normal bounded LVGL pool transiently; this is not a claim
+of zero rendering RAM. The host render fixture uses a 64 KiB pool and checks that
+repeated startup redraws return to the same free capacity with no added objects.
+Physical timing, edge clarity, touch and concurrent-radio memory remain hardware
+qualification, separate from render/build results.
+
 ## Memory placement and admission budget
 
 The Waveshare ESP32-S3R2 has 512 KiB on-chip SRAM, 2 MiB QSPI PSRAM and 16 MiB

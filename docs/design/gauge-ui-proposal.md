@@ -126,7 +126,7 @@ These are source findings plus the owner's physical photo, not a new hardware te
   Numeric values, units, code strings and pairing codes are never silently clipped.
 - Retain the current strong green/amber/red palette and near-black background. Icons,
   wording and shape carry meaning in addition to color: triangle for warning, diamond
-  for critical, engine for MIL and wrench for recorded codes. No routine brand footer or splash.
+  for critical, engine for MIL and wrench for recorded codes. No routine brand footer or splash over reading pages.
 - Visible controls have expanded hit areas, targeting at least 48 logical pixels in the
   primary touch direction, clipped to the real circle. Review actual reach, bezel and
   touch response on the panel; monitor pixel size does not establish physical usability.
@@ -256,7 +256,10 @@ parameterized fixtures; individual screenshots are representative examples.
 Existing ordinary phone polls produce no gauge screen interruption. Maintenance/rollback
 views shown in the gallery are proposed additions tied to actual typed operation state.
 A brief pairing success message still auto-dismisses; any Done target is optional.
-No boot logo is reintroduced. Diagnostic inspection is bounded; whole lists/context remain
+This screen review did not reintroduce a boot logo. The later, separate
+[startup presentation](../architecture/firmware-runtime.md#startup-presentation)
+uses the launcher mark only while initially waiting for a vehicle; it never covers
+an established reading session. Diagnostic inspection is bounded; whole lists/context remain
 available through the established App framework.
 
 ## 5. Implementation sequence after approval
