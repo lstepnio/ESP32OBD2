@@ -4,6 +4,8 @@
 #include "nvs.h"
 #include "transfer_gate.h"
 #include "ble_mgr.h"
+#include "adapter_status.h"
+#include "vehicle_idle_coolant.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include <string.h>
@@ -16,7 +18,14 @@ static portMUX_TYPE                        cache_lock = portMUX_INITIALIZER_UNLO
 static StaticQueue_t                       queue_storage;
 static uint8_t                             queue_bytes[4 * sizeof(vehicle_command_request_t)];
 static QueueHandle_t                       requests;
-static uint32_t                            u32(const uint8_t *p)
+/* Primary-worker owned. No new task, callback work, sample history or heap. */
+static struct
+{
+    bool     configured, valid, attempted;
+    double   limit_c, value_c;
+    uint32_t observed_at, attempted_at, link, revision, identity;
+} coolant;
+static uint32_t u32(const uint8_t *p)
 {
     return p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
 }
@@ -53,8 +62,10 @@ static void publish(vehicle_command_context_t context, uint32_t now)
     memcpy(cached_status, snapshot, sizeof(snapshot));
     portEXIT_CRITICAL(&cache_lock);
 }
-esp_err_t vehicle_commands_runtime_init(void)
+esp_err_t vehicle_commands_runtime_init(const config_runtime_t *runtime)
 {
+    memset(&coolant, 0, sizeof(coolant));
+    coolant.configured              = vehicle_idle_coolant_limit(runtime, &coolant.limit_c);
     vehicle_command_marker_t marker = {0};
     bool                     ready  = true;
     nvs_handle_t             handle;
@@ -118,6 +129,16 @@ size_t vehicle_commands_runtime_status(uint8_t kind, uint8_t out[32])
     portEXIT_CRITICAL(&cache_lock);
     return 32;
 }
+static void coolant_context(vehicle_command_context_t *context)
+{
+    context->coolant_configured = coolant.configured;
+    context->coolant_valid = coolant.valid && coolant.link == context->link && coolant.revision == context->revision &&
+                             coolant.identity == context->identity;
+    context->coolant_c     = coolant.value_c;
+    context->coolant_limit_c = coolant.limit_c;
+    context->coolant_at      = coolant.observed_at;
+}
+
 bool vehicle_commands_runtime_worker(unsigned                  source,
                                      ble_obd_ctx_t            *adapter,
                                      vehicle_command_context_t context,
@@ -130,10 +151,52 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
      * through active control, including gaps between adapter jobs. */
     if (transfer_gate_current() != TRANSFER_GATE_VEHICLE_COMMAND && !transfer_gate_claim(TRANSFER_GATE_VEHICLE_COMMAND))
         return false;
-    vehicle_command_request_t request;
-    /* Bounded drain: Stop is resolved before any next control step. */
-    for (unsigned i = 0; i < 4 && xQueueReceive(requests, &request, 0) == pdTRUE; ++i)
-        vehicle_commands_submit(&commands, request, context, now);
+    vehicle_command_request_t queued[4];
+    unsigned                  queued_count = 0;
+    bool                      queued_stop = false, queued_idle_start = false;
+    while (queued_count < 4 && xQueueReceive(requests, &queued[queued_count], 0) == pdTRUE)
+    {
+        queued_stop |= queued[queued_count].verb == VEHICLE_STOP;
+        queued_idle_start |= queued[queued_count].kind == VEHICLE_IDLE && queued[queued_count].verb == VEHICLE_START;
+        ++queued_count;
+    }
+    if (coolant.link != context.link || coolant.revision != context.revision || coolant.identity != context.identity ||
+        !context.connected)
+    {
+        coolant.valid = coolant.attempted = false;
+    }
+    coolant_context(&context);
+    /* Once a running guard fails, latch Stop before a later cooler sample can
+     * erase it. Never delay a queued Stop behind another guard read. */
+    vehicle_commands_observe(&commands, context, now);
+    vehicle_command_state_t *idle = &commands.states[0];
+    if (!commands.worker_kind && !idle->pending_stop && !queued_stop && adapter && context.connected &&
+        (context.qualified_mask & context.identity_mask & 1U) && coolant.configured &&
+        (queued_idle_start || idle->phase == VEHICLE_ACTIVE) &&
+        (!coolant.attempted || now - coolant.attempted_at >= VEHICLE_IDLE_COOLANT_POLL_MS))
+    {
+        elm_result_t  result = ELM_ADAPTER_ERROR;
+        elm_payload_t sample = {0};
+        coolant.attempted    = true;
+        coolant.attempted_at = now;
+        uint32_t generation  = adapter_status_generation(0);
+        int      error       = ble_obd_read_pid(adapter, 1, 5, 0x7e8, 300, &result, &sample);
+        now                  = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+        coolant.link         = context.link;
+        coolant.revision     = context.revision;
+        coolant.identity     = context.identity;
+        coolant.valid        = !error && result == ELM_OK && sample.has_responder && sample.responder == 0x7e8 &&
+                               sample.length == 1 && generation == context.link &&
+                               generation == adapter_status_generation(0) && ble_obd_is_connected(adapter);
+        coolant.value_c      = coolant.valid ? (double)sample.bytes[0] - 40.0 : 0;
+        coolant.observed_at  = now;
+        if (generation != adapter_status_generation(0) || !ble_obd_is_connected(adapter))
+            context.connected = false;
+        coolant_context(&context);
+    }
+    /* Stop submissions do not depend on a passing coolant guard. */
+    for (unsigned i = 0; i < queued_count; ++i)
+        vehicle_commands_submit(&commands, queued[i], context, now);
     bool                had_lease = commands.worker_kind != 0;
     jeep_idle_command_t command   = vehicle_commands_next(&commands, context, now);
     if (command.text)

@@ -959,7 +959,7 @@ void app_main(void)
     alert_engine_init(g_runtime);
     ESP_ERROR_CHECK(alert_runtime_init(g_runtime ? g_running_config_record.revision : 0));
     ESP_ERROR_CHECK(diagnostic_clear_init());
-    ESP_ERROR_CHECK(vehicle_commands_runtime_init());
+    ESP_ERROR_CHECK(vehicle_commands_runtime_init(g_runtime));
     alert_engine_set_sink(alert_runtime_observe);
     if (g_runtime)
     {

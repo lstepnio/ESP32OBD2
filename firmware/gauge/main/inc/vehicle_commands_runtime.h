@@ -1,9 +1,10 @@
 #pragma once
 #include "vehicle_commands.h"
+#include "config_runtime.h"
 #include "ble_obd.h"
 #include "esp_err.h"
 
-esp_err_t vehicle_commands_runtime_init(void);
+esp_err_t vehicle_commands_runtime_init(const config_runtime_t *runtime);
 /* Authenticated App and physical shortcut/menu both enqueue typed intents here.
  * Queue admission never performs flash or adapter IO on the caller's thread. */
 bool   vehicle_commands_runtime_submit(const uint8_t *bytes, size_t length);

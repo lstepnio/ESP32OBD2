@@ -1,4 +1,5 @@
 #include "vehicle_commands.h"
+#include "vehicle_idle_coolant.h"
 #include <string.h>
 
 static uint32_t u32(const uint8_t *p)
@@ -23,13 +24,15 @@ static bool qualified(vehicle_command_context_t c, uint8_t kind)
     unsigned mask = 1U << index_of(kind);
     return c.connected && c.revision && c.link && c.identity && (c.qualified_mask & mask) && (c.identity_mask & mask);
 }
-static bool guarded(vehicle_command_context_t c, uint32_t now)
+static bool guarded(vehicle_command_context_t c, uint8_t kind, uint32_t now)
 {
-    return c.guards_fresh_and_met && c.guard_at && now - c.guard_at <= 2000;
+    return c.guards_fresh_and_met && c.guard_at && now - c.guard_at <= 2000 &&
+           (kind != VEHICLE_IDLE || vehicle_idle_coolant_allows(c.coolant_configured, c.coolant_valid, c.coolant_c,
+                                                                c.coolant_limit_c, c.coolant_at, now));
 }
-static idle_context_t driver_context(vehicle_command_context_t c, uint32_t now)
+static idle_context_t driver_context(vehicle_command_context_t c, uint8_t kind, uint32_t now)
 {
-    return (idle_context_t){c.revision, c.link, c.connected, guarded(c, now)};
+    return (idle_context_t){c.revision, c.link, c.connected, guarded(c, kind, now)};
 }
 static void transition(vehicle_commands_t      *s,
                        uint8_t                  kind,
@@ -171,7 +174,7 @@ bool vehicle_commands_submit(vehicle_commands_t       *s,
         transition(s, r.kind, VEHICLE_REJECTED, s->journal_ready ? VEHICLE_UNQUALIFIED : VEHICLE_STORAGE, now);
         return false;
     }
-    if (!guarded(c, now))
+    if (!guarded(c, r.kind, now))
     {
         transition(s, r.kind, VEHICLE_REJECTED, VEHICLE_GUARD, now);
         return false;
@@ -201,7 +204,7 @@ static void finish(vehicle_commands_t *s, vehicle_command_context_t c, uint32_t 
             else if (d->result == JEEP_IDLE_ACTIVE_REPORT)
                 v->last_report = now;
             else if (d->result == JEEP_IDLE_RETURN_CONFIRMED || d->result == JEEP_IDLE_INACTIVE_REPORT)
-                transition(s, kind, VEHICLE_VERIFYING, VEHICLE_OK, now);
+                transition(s, kind, VEHICLE_VERIFYING, v->reason == VEHICLE_GUARD ? VEHICLE_GUARD : VEHICLE_OK, now);
             else
                 transition(s, kind, VEHICLE_UNKNOWN, VEHICLE_RESPONSE, now);
         }
@@ -256,7 +259,7 @@ void vehicle_commands_observe(vehicle_commands_t *s, vehicle_command_context_t c
             if (save_marker(s, m))
             {
                 v->restart_required = v->pending_start = v->pending_stop = false;
-                transition(s, kind, VEHICLE_RESTORED, VEHICLE_OK, now);
+                transition(s, kind, VEHICLE_RESTORED, v->reason == VEHICLE_GUARD ? VEHICLE_GUARD : VEHICLE_OK, now);
             }
             else
                 transition(s, kind, VEHICLE_UNKNOWN, VEHICLE_STORAGE, now);
@@ -273,8 +276,22 @@ void vehicle_commands_observe(vehicle_commands_t *s, vehicle_command_context_t c
                            now);
             }
             else if (v->phase == VEHICLE_ACTIVE &&
-                     (!guarded(c, now) || (i == 0 && now - v->active_at >= (uint32_t)v->request.seconds * 1000)))
+                     (!guarded(c, kind, now) || (i == 0 && now - v->active_at >= (uint32_t)v->request.seconds * 1000)))
+            {
                 v->pending_stop = true;
+                if (!guarded(c, kind, now))
+                    transition(s, kind, VEHICLE_ACTIVE, VEHICLE_GUARD, now);
+            }
+            else if (kind == VEHICLE_IDLE && v->phase == VEHICLE_STARTING && !guarded(c, kind, now))
+            {
+                if (v->pending_start && s->worker_kind != kind)
+                {
+                    v->pending_start = false;
+                    transition(s, kind, VEHICLE_REJECTED, VEHICLE_GUARD, now);
+                }
+                else
+                    transition(s, kind, VEHICLE_STARTING, VEHICLE_GUARD, now);
+            }
         }
     }
 }
@@ -297,7 +314,7 @@ static bool begin_job(vehicle_commands_t       *s,
                                  .revision  = v->request.revision,
                                  .link      = v->request.link,
                                  .source    = 0};
-        ok                    = jeep_idle_driver_begin(&s->driver.idle, r, driver_context(c, now), now);
+        ok                    = jeep_idle_driver_begin(&s->driver.idle, r, driver_context(c, kind, now), now);
     }
     else
     {
@@ -306,7 +323,7 @@ static bool begin_job(vehicle_commands_t       *s,
                                 .revision  = v->request.revision,
                                 .link      = v->request.link,
                                 .source    = 0};
-        ok                   = jeep_abs_driver_begin(&s->driver.abs, r, driver_context(c, now), now);
+        ok                   = jeep_abs_driver_begin(&s->driver.abs, r, driver_context(c, kind, now), now);
     }
     if (!ok)
     {
@@ -320,7 +337,7 @@ static bool begin_job(vehicle_commands_t       *s,
     s->worker_kind = kind;
     s->marked      = false;
     if (stop)
-        transition(s, kind, VEHICLE_STOPPING, VEHICLE_OK, now);
+        transition(s, kind, VEHICLE_STOPPING, v->reason == VEHICLE_GUARD ? VEHICLE_GUARD : VEHICLE_OK, now);
     return true;
 }
 jeep_idle_command_t vehicle_commands_next(vehicle_commands_t *s, vehicle_command_context_t c, uint32_t now)
@@ -366,8 +383,8 @@ jeep_idle_command_t vehicle_commands_next(vehicle_commands_t *s, vehicle_command
         return none;
     }
     jeep_idle_command_t command = kind == VEHICLE_IDLE
-                                      ? jeep_idle_driver_next(&s->driver.idle, driver_context(c, now), now)
-                                      : jeep_abs_driver_next(&s->driver.abs, driver_context(c, now), now);
+                                      ? jeep_idle_driver_next(&s->driver.idle, driver_context(c, kind, now), now)
+                                      : jeep_abs_driver_next(&s->driver.abs, driver_context(c, kind, now), now);
     /* The journal is committed before the caller can transmit a control. Reads
      * and adapter routing need no flash writes; Stop also keeps the marker. */
     if (command.text && !strncmp(command.text, "3", 1) && strncmp(command.text, "33", 2))
@@ -413,9 +430,10 @@ bool vehicle_commands_feed(vehicle_commands_t       *s,
         return false;
     }
     uint32_t driver_ticket = s->worker_kind == VEHICLE_IDLE ? s->driver.idle.ticket : s->driver.abs.ticket;
-    bool accepted = s->worker_kind == VEHICLE_IDLE
-                        ? jeep_idle_driver_feed(&s->driver.idle, driver_ticket, bytes, n, driver_context(c, now), now)
-                        : jeep_abs_driver_feed(&s->driver.abs, driver_ticket, bytes, n, driver_context(c, now), now);
+    bool accepted = s->worker_kind == VEHICLE_IDLE ? jeep_idle_driver_feed(&s->driver.idle, driver_ticket, bytes, n,
+                                                                           driver_context(c, s->worker_kind, now), now)
+                                                   : jeep_abs_driver_feed(&s->driver.abs, driver_ticket, bytes, n,
+                                                                          driver_context(c, s->worker_kind, now), now);
     finish(s, c, now);
     return accepted;
 }

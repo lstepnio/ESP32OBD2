@@ -51,6 +51,9 @@ typedef struct
     uint32_t revision, link, identity, verified_operation[2], proof_at[2], guard_at;
     uint8_t  qualified_mask, identity_mask;
     bool     connected, guards_fresh_and_met, normal_idle_verified, abs_reset_verified;
+    bool     coolant_configured, coolant_valid;
+    double   coolant_c, coolant_limit_c;
+    uint32_t coolant_at;
 } vehicle_command_context_t;
 typedef struct
 {

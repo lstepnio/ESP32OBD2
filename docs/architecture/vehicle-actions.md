@@ -266,6 +266,43 @@ evidence: mark Unknown, cease stale-session traffic and reconcile without replay
 Start. A controllable, bounded ECU timeout after lost refresh is required before
 enablement; software cannot promise a Stop packet after power or transport loss.
 
+### Coolant protection for raised idle
+
+Idle uses the existing vehicle **high-temperature Coolant alert** as its stop limit;
+there is no second preset temperature, protocol field or separate persistence path.
+The compiled primary ECM Mode 01 PID 05 / `7E8` definition and canonical Celsius
+thresholds are authoritative. Choose the lowest configured high limit (normally
+Warning; a critical-only document uses Critical). Low/equality rules, unrelated
+readings, simulated sources and child-TCM data do not qualify.
+
+- App shortcut setup and preset editing warn when that limit is absent. Saving the
+  local shortcut remains possible. The send review repeats the warning; it is not
+  permission to start. Only the confirmed running gauge document enables App Start.
+- The shared firmware worker is authoritative for App and physical-menu commands.
+  Start and each subsequent driver step require valid coolant below the limit,
+  no older than 2,000 ms, scoped to the current primary link/configuration.
+- At or above the limit, invalid/missing data or stale coolant latches the existing
+  prioritized Return-control path. Do not wait for alert dwell/hysteresis or let
+  acknowledgment/snoozing bypass it. Later cooling/data recovery cannot cancel Stop
+  or automatically restart idle. Normal-restoration proof remains unchanged.
+- A primary-worker-owned fixed snapshot uses bounded 300 ms header-attributed
+  coolant reads, targeted every 500 ms **between complete control jobs** while idle
+  needs them. No normal-reading queue, callback IO, new task, heap growth or concurrent
+  ELM session is introduced. A queued Stop skips the guard read. Long jobs still
+  age the snapshot and enter cancellation/Return rather than accepting stale data.
+- Loss of the adapter/link still means Unknown, not a fabricated successful Stop.
+  The ECU's qualified lost-refresh behavior remains the fallback. Measure actual
+  sampling/Return latency and loaded-worker stack margin before enabling controls.
+
+Offline acceptance includes equality/over-limit, missing rule, wrong source, stale/
+invalid/nonfinite samples, tick wrap, guard loss before control, latched release,
+no auto-restart, independent ABS behavior, warning-before-save and unsent App limits.
+For parked qualification, use a temporary threshold within a normal warm-up range
+so a small ordinary temperature rise can demonstrate automatic Stop without an
+actual overheat. Verify Start refusal while already above the limit and independent
+normal-idle readback, then restore the owner's intended alert. Do not use a hot
+engine or coolant-data manipulation as a substitute for these controlled checks.
+
 ### Small delivery slices and acceptance
 
 | Slice | Work | Exit evidence |

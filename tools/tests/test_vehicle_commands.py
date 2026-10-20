@@ -11,6 +11,7 @@ class VehicleCommandsTests(unittest.TestCase):
             [
                 "tests/vehicle_commands_test.c",
                 "main/src/vehicle_commands.c",
+                "main/src/vehicle_idle_coolant.c",
                 "main/src/jeep_idle_driver.c",
                 "main/src/jeep_abs_tcs_driver.c",
                 "main/src/elm_response.c",
