@@ -2,7 +2,8 @@
 
 Read [current state](docs/current-state.md), then the affected row in the
 [source map](docs/ai-context.md) and [backlog](docs/backlog.md). Historical reports
-are evidence, not operating instructions. Android and firmware are active; iOS is deferred.
+are evidence, not operating instructions. Android and firmware are active; basic iOS and browser-USB configuration are planned
+in the roadmap, with implementation/qualification tracked in the backlog.
 
 ## Commands and layout
 
@@ -35,6 +36,9 @@ contracts/status and dated evidence. `data/vehicle-definitions/` is research onl
   A build, fixture or serial log is not physical qualification.
 - Follow [documentation ownership](docs/documentation.md). Keep one topic authority;
   update code/contracts together. Major choices belong in [ADRs](docs/decisions/README.md).
+- Feature completion includes a website-impact review. Follow [website maintenance](website/README.md#maintenance-cadence)
+  for resource-aware daily publication, owner-led roadmap updates and current App/circular-gauge screens;
+  keep marketing capture/publication off the normal build path.
 - Do not use an em dash in user-facing responses.
 
 ## Runtime boundaries

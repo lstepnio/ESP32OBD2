@@ -109,4 +109,6 @@ this is JScan reference evidence, not enabled eGauge control.
 
 Select a [backlog](backlog.md) gate. Use [TCM resume](development/tcm-session-resume.md)
 for parked vehicle work and App/Wi-Fi for field updates. Keep private captures and
-working setup. Android and firmware are active; iOS is deferred.
+working setup. Android and firmware are implemented; basic iOS and browser-USB
+configuration are [planned scope](roadmap.md#product-boundaries), not available
+runtime features.

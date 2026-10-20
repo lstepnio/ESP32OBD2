@@ -18,6 +18,7 @@ The [documentation map](documentation-map.json) is validated by `tools/validate.
 | Which bytes/schema are accepted? | `docs/protocol/`, `contracts/`, codecs | Wire or compatibility changes; explicitly separate proposed contracts |
 | What should the consumer UI do? | `docs/design/design-system.md`, tokens | Shared UI rules or components change |
 | How do I build, release or run a controlled session? | `docs/development/` | A maintained procedure changes |
+| How does the public website stay current? | `website/README.md`, `website/content.json` source authorities | Feature/UI changes, accepted owner priorities and the next eligible daily publication |
 | What was measured in a particular session? | `docs/evidence/` | New dated evidence, never guessed updates to old observations |
 | What did external research establish? | `docs/vehicles/`, sources, data scope | Provenance or candidate definition changes |
 
@@ -45,7 +46,8 @@ Architecture describes ownership; release/test numbers belong in evidence/status
 3. For implementation, record behavior, compatibility and focused verification.
 4. For physical work, record exact App/image/health identity and distinguish phone,
    gauge, serial and vehicle observations. Keep private identifiers/artifacts out of Git.
-5. Update backlog readiness/acceptance and current state if either changed.
+5. Update backlog readiness/acceptance and current state if either changed. Review
+   the public website impact under its [maintenance cadence](../website/README.md#maintenance-cadence).
 6. Preserve dated evidence and label old pending instructions historical. Retire a
    completed duplicate plan after moving its remaining acceptance requirements.
 7. Check local file/heading links, documentation-map coverage, source paths and stable

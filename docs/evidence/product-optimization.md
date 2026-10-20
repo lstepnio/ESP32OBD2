@@ -414,3 +414,20 @@ The phone returned to Car and its original wake settings were restored. Private
 backups/captures remain outside Git. The merged feature branch was removed locally
 and remotely. This rollout did not change firmware, send an ECU action, or qualify
 live filtering, fresh vehicle codes or Android background-notification behavior.
+
+## 2026-10-19 dynamic recovery releases
+
+Website source `87ff18a` was published at `/recovery/`, with the previous site and
+Nginx configuration backed up outside the webroot. Nginx syntax/reload and public
+HTML/build-manifest hash checks passed. The fixed cached metadata endpoint returned
+41 downloadable GitHub releases and no APK assets at verification time.
+
+All 28 recovery Node tests and host lint/site checks passed. The actual signed
+dev.60 package passed default decompression, signature and image validation.
+Browser preview rejected a dev.60 file selected against dev.59, accepted the signed
+local package and kept installation gated by board confirmation. The public page
+also accepted the actual downloaded dev.59 package and showed its checked version.
+APK fallback/version labels and the Android installation instructions were visible.
+No USB port was opened, firmware written, APK installed or release published.
+[Recovery maintenance](../../web-recovery/README.md#release-selection-and-local-packages)
+owns the interface and compatibility boundaries; main merge remains separate.

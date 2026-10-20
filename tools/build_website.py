@@ -89,7 +89,11 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
         path = output / prefix.lstrip("/") / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(payload)
+    source_commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+    ).strip()
     replacements = {
+        "SOURCE_COMMIT": source_commit,
         "ASSET_PREFIX": prefix,
         "RECOVERY_MANIFEST": package["firmware"]["url"],
         "RECOVERY_MANIFEST_SHA256": package["firmware"]["sha256"],
@@ -132,9 +136,6 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
                 raise ValueError(f"Missing website asset: {link}")
             if url.fragment and not path and url.fragment not in document.ids:
                 raise ValueError(f"Missing website anchor: {link}")
-    source_commit = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
-    ).strip()
     manifest = {
         "sourceCommit": source_commit,
         "reviewedOn": reviewed.isoformat(),
