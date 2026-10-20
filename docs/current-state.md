@@ -117,8 +117,9 @@ runtime features.
 
 The [reference board/display seam](architecture/platforms-and-releases.md#implemented-reference-interfaces)
 is implemented in source with unchanged reference templates and BSP behavior.
-Larger round/rectangular safe-area logic is tested offline; startup still admits only
-the current reference surface. The extraction retained byte-identical output for all 25 captured production LVGL
+Larger round/rectangular safe-area logic is tested offline; startup admits only an explicitly linked matching presentation profile.
+The reference provider remains the default. Native profile/font selection and design-grid
+conversion are prepared in source; additional-board providers remain private and unqualified. The extraction retained byte-identical output for all 25 captured production LVGL
 frames; the linked static internal-memory count remained 163,898 bytes and the
 64 KiB LVGL arena remained in PSRAM. Host tests, formatting/lint and the reference
 firmware build passed. No additional board firmware, live virtual telemetry,

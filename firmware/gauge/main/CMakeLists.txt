@@ -5,7 +5,7 @@ if(NOT IS_ABSOLUTE "${EGAUGE_BOARD_ADAPTER_SOURCE}" OR NOT EXISTS "${EGAUGE_BOAR
     message(FATAL_ERROR "EGAUGE_BOARD_ADAPTER_SOURCE must name an existing absolute source path")
 endif()
 
-include("${CMAKE_CURRENT_LIST_DIR}/../assets/fonts/sources.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/presentation.cmake")
 
 idf_component_register(
     SRCS
@@ -53,6 +53,8 @@ idf_component_register(
         "src/jeep_idle_driver.c"
         "src/gauge_layout.c"
         "src/gauge_surface.c"
+        "src/gauge_presentation.c"
+        "${EGAUGE_UI_PROFILE_SOURCE}"
         "${EGAUGE_BOARD_ADAPTER_SOURCE}"
         "src/diagnostic_filter.c"
         "src/display_showcase.c"

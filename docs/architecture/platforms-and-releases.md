@@ -76,18 +76,36 @@ Public CI/release builds use the clean reference configuration.
 
 `gauge_surface.h` supplies immutable shape/dimension/inset metrics and pure native
 safe-area checks. Round and rectangular geometry are sanitizer-tested, including
-odd dimensions and overflow boundaries. `gauge_layout_fits` retains the reference
-surface, so existing glyph placement and templates remain unchanged. Startup rejects
-a surface that does not match the current 240 x 240 round template metrics; native
-layout/font adaptation is still required before a private larger display can run
-this product UI. Do not bypass that admission check merely to light a new panel.
-Use a board bring-up harness until its templates exist.
+odd dimensions and overflow boundaries. `gauge_layout_fits` remains a reference-only
+compatibility helper; the compositor uses the selected presentation surface.
 
-No new heap buffers, tasks, locks, protocol fields or advertised capabilities are
-introduced. Hardware probe/trust metadata and target-specific dependency profiles
-remain follow-up work. Alternate-surface geometry tests are not alternate-board
-firmware support. The production LVGL host frames are compared against the captured
-pre-extraction reference, separately from the full linked firmware/memory checks.
+`gauge_presentation.h` links one immutable surface, six semantic font roles and native
+vector paths. `EGAUGE_UI_PROFILE_SOURCE` selects its provider; the default retains
+all original reference resources. `EGAUGE_UI_FONT_SOURCES` replaces the complete font
+set so private targets do not also link unused reference glyphs. Providers and fonts
+for additional boards stay in the private repository. Normal builds need no font converter.
+The existing pinned font procedure owns rasterization/license rules.
+
+The shared composition converts its design grid to native integer coordinates on a
+centered square canvas. Font ink is measured at its native raster size against the
+selected surface; bitmap transforms are never used. Strokes, charts, icons, hit areas
+and calibration geometry use the same conversion. Page-action input is converted
+back to the original design grid, preserving gesture distances and timing. Rectangular
+surfaces currently center this composition; tile reflow is future work, not automatic.
+
+Startup requires a complete profile matching the board's shape, dimensions and insets;
+UI creation also checks the active LVGL resolution. A board driver alone cannot select
+larger templates. Profile admission is a source/configuration check, not qualification
+or release authorization. Rotation/touch mapping, resource budgets, dependencies and
+board identity still need target-specific work. Use a bring-up harness until those
+paths exist.
+
+No new runtime heap buffers, tasks, locks, protocol fields or advertised capabilities
+are introduced by these seams. Production LVGL host frames are compared against the
+captured reference, separately from the linked firmware/memory checks. Alternate-size
+renders do not establish alternate-board firmware support. The host renderer can use
+an explicitly pinned LVGL source through `EGAUGE_LVGL_SOURCE_DIR`; this does not change
+firmware dependency resolution.
 
 ## Target descriptor and feature admission
 

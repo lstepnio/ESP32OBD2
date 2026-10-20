@@ -21,7 +21,8 @@ class FontGenerationTest(unittest.TestCase):
         actual = {p.stem for p in (PROJECT / "main/fonts").glob("*.c")}
         used = set(
             re.findall(
-                r"extern\s+const\s+lv_font_t\s+(\w+)\s*;", (PROJECT / "main/src/ui.c").read_text()
+                r"extern\s+const\s+lv_font_t\s+(\w+)\s*;",
+                (PROJECT / "main/src/gauge_presentation_reference.c").read_text(),
             )
         )
         self.assertEqual(expected, actual)
