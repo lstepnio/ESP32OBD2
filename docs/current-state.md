@@ -51,7 +51,7 @@ remain unqualified. Lookup extension rules and reference provenance are in the
 
 ## Compatibility and public boundaries
 
-- Phone profiles: prepared schema 14 reads schemas 1..14 (installed Pixel remains schema 13). Older Apps reject new saved state;
+- Phone profiles: prepared schema 15 reads schemas 1..15 (installed Pixel remains schema 13). Older Apps reject new saved state;
   downgrades require an explicit compatible migration. Legacy association files remain
   read-only migration inputs. See [Android storage](architecture/android-runtime.md#storage-and-recovery).
 - Gauge configuration remains schema 2. Prepared development `cfg:6`, `va:1`, `da:1`, `ad:1`
@@ -74,13 +74,14 @@ and timed page cycling remain independent implemented controls.
 FEATURE-04 now has a [temporary-idle delivery proposal](architecture/vehicle-actions.md#first-vehicle-command-temporary-high-idle)
 for Air up and Winch presets using the existing gesture/profile foundation.
 The owner [reports successful high idle through JScan on this Hemi swap](vehicles/jeep/jk-handler-analysis.md#owner-reference-confirmation-2026-10-19).
-Prepared source now implements phone-only Air up/Winch drafts and App controls,
-a fixed-size native lifecycle policy and shared offline inner-request vectors.
-Start/Stop/countdown are tested with fixtures only. The prepared Jeep driver candidate
-now replays captured Start/Report/Return replies with bounded cancellation, strict
-framing and uncertainty/reconciliation tests. It is compiled but not instantiated
-or connected to an adapter worker. No registered BLE execution or physical gauge
-command menu is implemented or installed.
+Prepared source now wires App controls and the gauge's confirmed actions menu
+through one typed protected command interface (`vc:1` in document mode), one primary
+worker controller, bounded controller drivers, uncertainty journal and event ring.
+Idle uses the captured fixed setting; numeric target drafts never become commands.
+ABS/TCS Return remains Restart required. Both qualification masks are zero: no
+current profile can execute controls, and none of this source is installed.
+The [shared owner](architecture/vehicle-actions.md#shared-command-owner) records
+memory, cancellation, persistence, admission and remaining evidence requirements.
 The [offline foundation](architecture/vehicle-actions.md#implemented-offline-foundation)
 records the execution boundary. The [parked follow-up](evidence/jeep-actions-live-qualification.md)
 confirmed fresh ECM calibration/CVN, another physical JScan Start/Stop cycle,
