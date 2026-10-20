@@ -110,7 +110,7 @@ fun AlertEditor(
             }
         }
         EditorScaffold(
-            "Edit alert",
+            if (original == null) "Add alert" else "Edit alert",
             onBack,
             "Save alert",
             {
@@ -123,7 +123,7 @@ fun AlertEditor(
         ) {
             Text(reading.name, style = MaterialTheme.typography.titleLarge)
             Text(
-                "Applies wherever this reading is used.",
+                "Works even when this reading is not on screen.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

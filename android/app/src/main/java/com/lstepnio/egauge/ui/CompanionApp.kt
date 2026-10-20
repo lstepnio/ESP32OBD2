@@ -32,6 +32,7 @@ import kotlinx.coroutines.delay
 private enum class Route(val title: String, val icon: GaugeIcon) {
     Gauge("Gauge", GaugeIcon.Gauge),
     Car("Car", GaugeIcon.Car),
+    AlertRules("Alert rules", GaugeIcon.Warning),
     Settings("Settings", GaugeIcon.Settings),
     Expert("Expert", GaugeIcon.Tools),
     Customize("Customize", GaugeIcon.Gauge),
@@ -60,6 +61,8 @@ fun CompanionApp(
         var backProgress by remember { mutableFloatStateOf(0f) }
         fun back() {
             when {
+                route == Route.AlertRules && customizeStep != 3 -> customizeStep = 3
+                route == Route.AlertRules -> route = Route.Car
                 route == Route.Customize && customizeStep > 0 -> customizeStep = 0
                 route == Route.Updates -> route = Route.Settings
                 else -> route = Route.Gauge
@@ -94,6 +97,7 @@ fun CompanionApp(
                 if (state.settings.advanced) listOf(Route.Expert) else emptyList()
         val selectedRoute = when (route) {
             Route.Setup, Route.Customize -> Route.Gauge
+            Route.AlertRules -> Route.Car
             Route.Updates -> Route.Settings
             else -> route
         }
@@ -304,7 +308,7 @@ fun CompanionApp(
                                         }
                                     )
 
-                                    Route.Customize -> key(state.car.activeId) {
+                                    Route.Customize, Route.AlertRules -> key(state.car.activeId) {
                                         DashboardEditorScreen(
                                             state.customize,
                                             customizeStep,
@@ -337,7 +341,8 @@ fun CompanionApp(
                                                     route =
                                                         Route.Gauge
                                                 }, { route = Route.Setup }
-                                            )
+                                            ),
+                                            alertsOnly = route == Route.AlertRules
                                         )
                                     }
 
@@ -348,8 +353,11 @@ fun CompanionApp(
                                             model.createProfile()
                                         },
                                         model::findVehicleAdapters, model::choosePrimaryAdapter, model::sendNumericConfiguration, model::savePageAction, model::deleteVehicle, alerts = {
-                                            AlertHistoryPanel(model, onExportAlerts)
-                                        }, onSaveIdlePresets = model::saveIdlePresets
+                                            AlertHistoryPanel(model, onExportAlerts) {
+                                                customizeStep = 3
+                                                route = Route.AlertRules
+                                            }
+                                        }, onSaveIdlePresets = model::saveIdlePresets, onClearCodes = if (model.clearStatus?.supported == true) model::prepareCodeClear else null, faultActionStatus = model.clearMessage
                                     )
 
                                     Route.Settings -> SettingsScreen(

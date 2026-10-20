@@ -84,10 +84,10 @@ class AppCleanupUiTest {
             SettingsUiState("eGauge", false, null, false, false, false, false, "Not checked", emptyList())
         frame { SettingsScreen(state, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, phoneAlerts = true) }
         compose.onNodeWithText(
-            "Phone alerts enabled · monitoring is not active yet"
+            "Notifications resume when the gauge is connected."
         ).performScrollTo().assertIsDisplayed()
         compose.onAllNodesWithText(
-            "Gauge alerts work independently. Phone monitoring is off."
+            "Gauge alerts still appear on the gauge."
         ).assertCountEquals(0)
     }
 
