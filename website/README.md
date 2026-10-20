@@ -5,6 +5,45 @@ visual style and contact forms. Product claims follow the authorities listed in
 [content.json](content.json); update its review date only after checking those sources.
 Catalog size is derived from the reading contract, not a vehicle compatibility claim.
 
+## Maintenance cadence
+
+The website is a visually appealing, benefit-led view of actual project progress,
+not a second engineering backlog. Maintain it as features, functionality and UI
+change, including accepted owner feedback, priority changes and usability improvements.
+
+- At feature completion, review website copy, roadmap and screen impact. Record any
+  pending website delta in the PR summary or the existing affected backlog task,
+  rather than creating another task list. Prepare changes alongside the feature.
+- Batch public website refreshes into **at most one publication per calendar day in
+  America/Denver**. Check the live root `index.html` modification time and manifest
+  before publishing; `content.json.reviewedOn` is a content-review date, not proof
+  of publication time. If already published that day, hold further changes for the
+  next eligible day. Rollback of a failed publication remains available.
+- At the next eligible refresh, review accepted changes since the live manifest's
+  source commit and reconcile `docs/current-state.md`, `docs/roadmap.md` and
+  `docs/backlog.md`. Reflect the owner's direction and discovered improvements;
+  separate available, in-development and exploratory work. Do not invent delivery
+  dates, compatibility or hardware qualification. Update the content review date
+  only after this review.
+- Review App and gauge screenshots in that same batch. Refresh affected screens
+  whenever visible UI changes make an image obsolete; include representative new
+  features and retire superseded images. Reuse existing Compose/production LVGL
+  captures from feature checks, generating only missing views. Unchanged screens
+  need no recapture. Follow [screen provenance](#screens-and-provenance).
+- Show round gauge displays as **circles**, using a circular device shell, clipping
+  or transparency. Never present a round display as a bare square screenshot,
+  stretch its aspect ratio, or crop away its intended content. Rectangular layout
+  cards and photographs are fine when the gauge itself remains visibly round.
+- Keep copy concise, layouts cohesive and screenshots legible on desktop/mobile.
+  Review the page visually, including the public roadmap, before publication.
+  Use screen names in captions; do not add “Demo” or “Simulated” badges. Retain
+  evidence/provenance separately and clearly identify unavailable future concepts.
+- Screenshot collection, marketing packaging and deployment are a separate daily
+  batch, never a prerequisite for normal App/firmware builds or every commit.
+  Keep the existing fast website validation; do not add full capture or publication
+  jobs to the default build/CI path. Record successful publication time, source
+  commit and private backup location in the deployment receipt/task outcome.
+
 ## Build and preview
 
 Use the repository Python environment from the [root setup](../README.md#development):
