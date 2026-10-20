@@ -106,7 +106,7 @@ esp_err_t vehicle_commands_runtime_init(const config_runtime_t *runtime)
     publish((vehicle_command_context_t){0}, 0);
     return requests ? ESP_OK : ESP_ERR_NO_MEM;
 }
-bool vehicle_commands_runtime_submit(const uint8_t *bytes, size_t length)
+static bool submit(const uint8_t *bytes, size_t length, bool gauge_confirmed)
 {
     vehicle_command_request_t request;
     if (!requests || !transfer_gate_vehicle_allowed() || ble_mgr_is_paused() ||
@@ -118,7 +118,12 @@ bool vehicle_commands_runtime_submit(const uint8_t *bytes, size_t length)
     vehicle_commands_runtime_status(request.kind, status);
     if (!(status[27] & 1U))
         return false;
+    request.gauge_confirmed = gauge_confirmed;
     return xQueueSend(requests, &request, 0) == pdTRUE;
+}
+bool vehicle_commands_runtime_submit(const uint8_t *bytes, size_t length)
+{
+    return submit(bytes, length, false);
 }
 size_t vehicle_commands_runtime_status(uint8_t kind, uint8_t out[32])
 {
@@ -185,11 +190,17 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
         coolant.link         = context.link;
         coolant.revision     = context.revision;
         coolant.identity     = context.identity;
-        coolant.valid        = !error && result == ELM_OK && sample.has_responder && sample.responder == 0x7e8 &&
-                               sample.length == 1 && generation == context.link &&
-                               generation == adapter_status_generation(0) && ble_obd_is_connected(adapter);
-        coolant.value_c      = coolant.valid ? (double)sample.bytes[0] - 40.0 : 0;
-        coolant.observed_at  = now;
+        bool valid = !error && result == ELM_OK && sample.has_responder && sample.responder == 0x7e8 &&
+                     sample.length == 1 && generation == context.link && generation == adapter_status_generation(0) &&
+                     ble_obd_is_connected(adapter);
+        /* Retain the last real sample and its original age. A failed read must
+         * neither refresh freshness nor erase a known high temperature. */
+        if (valid)
+        {
+            coolant.valid       = true;
+            coolant.value_c     = (double)sample.bytes[0] - 40.0;
+            coolant.observed_at = now;
+        }
         if (generation != adapter_status_generation(0) || !ble_obd_is_connected(adapter))
             context.connected = false;
         coolant_context(&context);
@@ -244,7 +255,7 @@ bool vehicle_commands_runtime_intent(uint8_t kind, bool stop, uint8_t preset, ui
     put32(bytes + 16, u32(status + 16));
     bytes[20] = seconds;
     bytes[21] = seconds >> 8;
-    return vehicle_commands_runtime_submit(bytes, sizeof(bytes));
+    return submit(bytes, sizeof(bytes), true);
 }
 
 bool vehicle_commands_runtime_maintenance_allowed(bool configuration)

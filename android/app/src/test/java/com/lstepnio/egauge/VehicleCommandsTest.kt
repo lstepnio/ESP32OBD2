@@ -60,6 +60,32 @@ class VehicleCommandsTest {
         }
     }
 
+    @Test fun coolantTimerRetainsStopAndRequiresGaugeRestart() {
+        val bytes = statusBytes().apply {
+            this[1] = 1
+            this[2] = 3
+            this[3] = 9
+            this[24] = 47
+            this[26] = 1
+            this[27] = 29
+        }
+        val timed = VehicleCommandProtocol.status(bytes)
+        assertTrue(timed.timedFallback && timed.gaugeStartRequired && timed.coolantUnavailable)
+        assertTrue(timed.canStop)
+        assertFalse(timed.canStart)
+        assertTrue(timed.message.contains("0:47"))
+        assertEquals(2, VehicleCommandProtocol.request(timed, true)[2].toInt())
+        val restored = timed.copy(phase = VehicleCommandPhase.Restored)
+        assertFalse(restored.canStart)
+        assertTrue(restored.message.contains("one minute"))
+        assertTrue(runCatching { VehicleCommandProtocol.request(restored, false, IdlePreset(IdlePresetId.AirUp)) }.isFailure)
+        assertEquals("Start again on the gauge.", restored.copy(coolantUnavailable = false).message)
+        assertFalse(timed.copy(coolantUnavailable = false).message.contains("unavailable"))
+        assertTrue(ready().canStart)
+        bytes[27] = 32
+        assertTrue(runCatching { VehicleCommandProtocol.status(bytes) }.isFailure)
+    }
+
     @Test fun uncertainWriteUsesReadbackWithoutResubmission() = runBlocking {
         var writes = 0
         var state = ready()

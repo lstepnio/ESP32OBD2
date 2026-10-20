@@ -33,3 +33,9 @@ bool vehicle_idle_coolant_allows(bool configured, bool valid, double value, doub
     return configured && valid && now - at <= VEHICLE_IDLE_COOLANT_MAX_AGE_MS && isfinite(value) && value >= -40 &&
            value <= 215 && isfinite(limit) && limit > -40 && limit <= 215 && value < limit;
 }
+
+bool vehicle_idle_coolant_fallback_safe(bool configured, bool valid, double value, double limit)
+{
+    return configured && isfinite(limit) && limit > -40 && limit <= 215 &&
+           !(valid && isfinite(value) && value >= limit);
+}

@@ -213,8 +213,8 @@ int main(int argc, char **argv)
     capture(argv[1], "actions-unavailable");
     lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
     assert(command_requests == 0);
-    ui_set_vehicle_action_status(ui, 1, 1, true);
-    ui_set_vehicle_action_status(ui, 2, 1, true);
+    ui_set_vehicle_action_status(ui, 1, 1, 1, 0);
+    ui_set_vehicle_action_status(ui, 2, 1, 1, 0);
     tick(60);
     capture(argv[1], "actions-ready");
     lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
@@ -228,8 +228,8 @@ int main(int argc, char **argv)
     uint16_t seconds;
     ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
     assert(kind == 1 && !stop && preset == 1 && seconds == 600);
-    ui_set_vehicle_action_status(ui, 1, 3, true);
-    ui_set_vehicle_action_status(ui, 2, 7, true);
+    ui_set_vehicle_action_status(ui, 1, 3, 1, 0);
+    ui_set_vehicle_action_status(ui, 2, 7, 1, 0);
     tick(60);
     capture(argv[1], "actions-restart-required");
     lv_obj_send_event(ui->command_rows[2], LV_EVENT_CLICKED, NULL);
@@ -240,6 +240,20 @@ int main(int argc, char **argv)
     assert(kind == 1 && stop && !preset && !seconds);
     lv_obj_send_event(ui->command_rows[3], LV_EVENT_CLICKED, NULL);
     assert(!ui_action_pending(ui));
+    ui_show_vehicle_actions(ui);
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1 | 8 | 16, 0);
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_READY, 1, 0);
+    tick(60);
+    assert(strstr(lv_label_get_text(ui->command_text[0]), "1:00"));
+    lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
+    lv_obj_send_event(ui->command_rows[0], LV_EVENT_CLICKED, NULL);
+    ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
+    assert(!stop && seconds == 60);
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1 | 4 | 8 | 16, 47);
+    tick(60);
+    assert(strstr(lv_label_get_text(ui->command_text[0]), "0:47"));
+    assert(!strcmp(lv_label_get_text(ui->command_note), "Coolant unavailable"));
+    capture(argv[1], "actions-coolant-timer");
     puts("PASS: production LVGL showcase frames, circular glyphs, vehicle/maintenance/critical preemption and pairing "
          "restore");
 }

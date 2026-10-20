@@ -6,6 +6,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 private const val VEHICLE_COMMAND_GUARD = 5
+private const val VEHICLE_COMMAND_COOLANT_TIMER = 9
 
 enum class VehicleCommandKind(val wire: Int, val title: String) {
     Idle(1, "Raised idle"),
@@ -36,12 +37,19 @@ data class VehicleCommandStatus(
     val preset: IdlePresetId? = null,
     val qualified: Boolean = false,
     val restartRequired: Boolean = false,
-    val lastOperation: Long = 0
+    val lastOperation: Long = 0,
+    val timedFallback: Boolean = false,
+    val gaugeStartRequired: Boolean = false,
+    val coolantUnavailable: Boolean = false
 ) {
     val busy get() = phase in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Active, VehicleCommandPhase.Stopping, VehicleCommandPhase.Verifying, VehicleCommandPhase.Unknown, VehicleCommandPhase.RestartRequired)
-    val canStart get() = qualified && phase in setOf(VehicleCommandPhase.Ready, VehicleCommandPhase.Restored, VehicleCommandPhase.Rejected)
+    val canStart get() = qualified && !gaugeStartRequired && phase in setOf(VehicleCommandPhase.Ready, VehicleCommandPhase.Restored, VehicleCommandPhase.Rejected)
     val canStop get() = qualified && phase in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Active)
     val message get() = when {
+        kind == VehicleCommandKind.Idle && phase in setOf(VehicleCommandPhase.Ready, VehicleCommandPhase.Restored, VehicleCommandPhase.Rejected) && gaugeStartRequired -> if (coolantUnavailable) "Start on the gauge. Without coolant readings, sessions are limited to one minute." else "Start again on the gauge."
+        kind == VehicleCommandKind.Idle && timedFallback && phase == VehicleCommandPhase.Active -> "${if (coolantUnavailable) "Coolant unavailable · " else ""}Timed idle · ${remainingSeconds / 60}:${(remainingSeconds % 60).toString().padStart(2, '0')} remaining"
+        kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_COOLANT_TIMER && phase == VehicleCommandPhase.Stopping -> "Timed session ended. Returning to normal idle."
+        kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_COOLANT_TIMER && phase == VehicleCommandPhase.Verifying -> "Checking normal idle after the timed session."
         kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_GUARD && phase == VehicleCommandPhase.Rejected -> "Idle cannot start. Check coolant and vehicle conditions."
         kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_GUARD && phase == VehicleCommandPhase.Stopping -> "Stopping raised idle. Check coolant and vehicle conditions."
         kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_GUARD && phase == VehicleCommandPhase.Verifying -> "Checking normal idle after a condition changed."
@@ -89,7 +97,7 @@ object VehicleCommandProtocol {
         fun u32(i: Int) = ByteBuffer.wrap(bytes, i, 4).order(ByteOrder.LITTLE_ENDIAN).int.toLong() and 0xffffffffL
         val kind = VehicleCommandKind.entries.single { it.wire == u8(1) }
         val phase = VehicleCommandPhase.entries.getOrNull(u8(2)) ?: error("Unknown command state")
-        require(u8(3) in 0..8 && u8(27) and 0xfc == 0)
+        require(u8(3) in 0..9 && u8(27) and 0xe0 == 0)
         val seconds = u8(24) or (u8(25) shl 8)
         val preset = IdlePresetId.entries.firstOrNull { it.wire == u8(26) }
         require(seconds <= 600 && u8(26) in 0..2 && u32(16) != 0L)
@@ -97,9 +105,11 @@ object VehicleCommandProtocol {
         require(phase != VehicleCommandPhase.Active || u32(4) != 0L)
         require(u8(27) and 1 == 0 || (u32(8) > 0 && u32(12) > 0))
         require(kind == VehicleCommandKind.AbsTcs || u8(27) and 2 == 0)
+        require(kind == VehicleCommandKind.Idle || (u8(27) and 0x1c == 0 && u8(3) != 9))
         return VehicleCommandStatus(
             kind, phase, u8(3), u32(4), u32(8), u32(12), u32(16), u32(20), seconds, preset,
-            u8(27) and 1 != 0, u8(27) and 2 != 0, u32(28)
+            u8(27) and 1 != 0, u8(27) and 2 != 0, u32(28),
+            u8(27) and 4 != 0, u8(27) and 8 != 0, u8(27) and 16 != 0
         )
     }
 }

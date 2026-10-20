@@ -38,13 +38,15 @@ typedef enum
     VEHICLE_GUARD,
     VEHICLE_TIMEOUT,
     VEHICLE_RESPONSE,
-    VEHICLE_STORAGE
+    VEHICLE_STORAGE,
+    VEHICLE_COOLANT_TIMER
 } vehicle_command_reason_t;
 typedef struct
 {
     uint8_t  kind, verb, preset;
     uint32_t operation, revision, link, boot;
     uint16_t seconds;
+    bool     gauge_confirmed; /* Local ingress only; never decoded from wire bytes. */
 } vehicle_command_request_t;
 typedef struct
 {
@@ -60,7 +62,8 @@ typedef struct
     vehicle_command_phase_t   phase;
     vehicle_command_reason_t  reason;
     vehicle_command_request_t request;
-    uint32_t                  active_at, last_report, sequence, identity, changed_at;
+    uint32_t                  active_at, last_report, sequence, identity, changed_at, fallback_at;
+    bool                      timed_fallback;
     bool                      pending_start, pending_stop, restart_required;
 } vehicle_command_state_t;
 typedef struct
