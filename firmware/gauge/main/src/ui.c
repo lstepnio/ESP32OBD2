@@ -422,20 +422,8 @@ static void show(lv_obj_t *object, bool visible)
 }
 
 /* The launcher mark is three draw primitives, not an image asset. Descriptors
- * live on the LVGL task stack; strings/fonts stay in flash and drawing reuses
+ * live on the LVGL task stack; drawing reuses
  * the normal LVGL buffers. No logo object tree, image decoder or new timer. */
-static void startup_text(lv_layer_t *layer, const char *text, const lv_font_t *font, int cy, uint32_t color)
-{
-    lv_draw_label_dsc_t label;
-    lv_draw_label_dsc_init(&label);
-    label.text     = text;
-    label.font     = font;
-    label.color    = lv_color_hex(color);
-    label.align    = LV_TEXT_ALIGN_CENTER;
-    lv_area_t area = {.x1 = 30, .y1 = cy - font->line_height / 2, .x2 = 210, .y2 = cy + font->line_height / 2};
-    lv_draw_label(layer, &label, &area);
-}
-
 static void draw_startup(ui_t *ui, lv_layer_t *layer)
 {
     if (!ui->startup_visible || ui->pairing_visible || ui->calibration_mode)
@@ -443,7 +431,7 @@ static void draw_startup(ui_t *ui, lv_layer_t *layer)
     /* Same precision-gauge silhouette as Android's ic_launcher_foreground.xml. */
     lv_draw_arc_dsc_t arc;
     lv_draw_arc_dsc_init(&arc);
-    arc.center      = (lv_point_t){120, 98};
+    arc.center      = (lv_point_t){120, 120};
     arc.radius      = 48;
     arc.width       = 11;
     arc.start_angle = 135;
@@ -454,8 +442,8 @@ static void draw_startup(ui_t *ui, lv_layer_t *layer)
 
     lv_draw_line_dsc_t needle;
     lv_draw_line_dsc_init(&needle);
-    needle.p1          = (lv_point_precise_t){120, 98};
-    needle.p2          = (lv_point_precise_t){148, 70};
+    needle.p1          = (lv_point_precise_t){120, 120};
+    needle.p2          = (lv_point_precise_t){148, 92};
     needle.width       = 11;
     needle.round_start = true;
     needle.round_end   = true;
@@ -466,11 +454,8 @@ static void draw_startup(ui_t *ui, lv_layer_t *layer)
     hub.bg_color             = arc.color;
     hub.bg_opa               = LV_OPA_COVER;
     hub.radius               = LV_RADIUS_CIRCLE;
-    const lv_area_t hub_area = {.x1 = 113, .y1 = 91, .x2 = 127, .y2 = 105};
+    const lv_area_t hub_area = {.x1 = 113, .y1 = 113, .x2 = 127, .y2 = 127};
     lv_draw_rect(layer, &hub, &hub_area);
-    startup_text(layer, "eGauge", font_compact, 161, color_text_primary);
-    startup_text(layer, "Connecting to car", font_subtitle, 185, color_text_secondary);
-    startup_text(layer, "Tap for pages", font_subtitle, 207, color_text_secondary);
 }
 
 static void startup_update(ui_t *ui)

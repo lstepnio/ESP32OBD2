@@ -198,20 +198,6 @@ int main(int argc, char **argv)
     assert(ui->startup_visible && ui->startup_pending);
     assert(lv_obj_has_flag(ui->widgets.gauge_content, LV_OBJ_FLAG_HIDDEN));
     capture(argv[1], "boot-logo");
-    const char *startup_strings[] = {"eGauge", "Connecting to car", "Tap for pages"};
-    const int   startup_centers[] = {161, 185, 207};
-    for (unsigned i = 0; i < 3; i++)
-    {
-        const lv_font_t *font = i ? font_subtitle : font_compact;
-        ink_t            b;
-        assert(ink(startup_strings[i], font, &b));
-        int x = 30 + (181 - b.advance) / 2;
-        int y = startup_centers[i] - font->line_height / 2;
-        if (!gauge_layout_fits(x + b.left, y + b.top, x + b.right, y + b.bottom))
-            fprintf(stderr, "Startup bounds %s: %d,%d,%d,%d\n", startup_strings[i], x + b.left, y + b.top, x + b.right,
-                    y + b.bottom);
-        assert(gauge_layout_fits(x + b.left, y + b.top, x + b.right, y + b.bottom));
-    }
     /* Direct draw uses no persistent logo objects and does not leak as it redraws. */
     unsigned         children = lv_obj_get_child_count(lv_screen_active());
     lv_mem_monitor_t before, after;

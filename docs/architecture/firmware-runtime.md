@@ -145,7 +145,7 @@ interruption and memory/rate measurements remain pending. See
 
 ![Startup display](../assets/gauge/startup.png)
 
-`ui.c` draws the existing launcher gauge mark, wordmark and connection text only
+`ui.c` draws the existing launcher gauge mark centered on black, with no text, only
 while a paired gauge is starting and waiting for its first ready vehicle source.
 Either source is sufficient, including the optional child TCM alone. A press
 reveals normal pages without waiting for a car; existing click/swipe/hold behavior
@@ -158,8 +158,8 @@ No adapter is required for boot-health confirmation.
 
 The mark follows Android's `ic_launcher_foreground.xml` silhouette in the gauge's
 existing accent color. LVGL draws an arc, rounded needle and center dot directly
-from its existing root draw callback. Constant text and existing fonts remain in
-flash. Two flags in the existing UI context own the lifecycle. There is no bitmap,
+from its existing root draw callback. Two flags in the existing UI context own
+the lifecycle. There is no bitmap,
 image decoder/cache, new LVGL object tree, framebuffer, timer or task. Draw
 commands still use the normal bounded LVGL pool transiently; this is not a claim
 of zero rendering RAM. The host render fixture uses a 64 KiB pool and checks that

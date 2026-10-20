@@ -21,8 +21,9 @@ release or installation. Public repository: `lstepnio/ESP32OBD2`.
 
 ## Prepared startup logo
 
-The startup view in `ui.c` uses the launcher mark through direct LVGL drawing,
-with no bitmap, additional objects/buffer/task, or image cache. It yields to
+The startup view in `ui.c` shows only the centered launcher mark, with no text.
+Direct LVGL drawing needs no bitmap, additional objects/buffer/task, or image
+cache. It yields to
 pairing/alerts/maintenance and exits on either ready vehicle source or user press;
 reconnection does not reintroduce it. See [startup policy](architecture/firmware-runtime.md#startup-presentation).
 ESP32 context size remains 1,176 bytes before/after (flags consume existing
