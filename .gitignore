@@ -7,7 +7,7 @@
 **/managed_components/
 **/sdkconfig.old
 /firmware/gauge/dependencies.lock
-.venv/
+.venv
 __pycache__/
 *.pyc
 .gradle/

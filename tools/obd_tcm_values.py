@@ -12,8 +12,9 @@ import re
 import subprocess
 import time
 
-from obd_capture import AdapterSession, parser_binary
-from obd_capture_core import supports
+from obd_capture import BoundedSession as BoundedSession
+from obd_capture import parser_binary
+from obd_capture_core import controller_payload, supports
 from obd_tcm_gear_candidate import decode_candidate as decode_gear
 from obd_tcm_temperature_candidate import decode_candidate as decode_temperature
 
@@ -23,63 +24,8 @@ FIXED = ("2204FE", "225503", "225504", "225034", "03", "07", "0A")
 BASELINE = {"calibration": "68274867AE", "cvn": "8240DAE8", "name": "TCM - TransmisCtrl"}
 
 
-class BoundedSession(AdapterSession):
-    """Bound discovery plus polling, leaving restoration to the caller's finally."""
-
-    deadline = None
-
-    async def request(self, command, timeout=5):
-        remaining = self.deadline - time.monotonic() if self.deadline else 5
-        if remaining <= 0:
-            raise ValueError("TCM capture time budget exhausted")
-        limit = min(timeout, 5, remaining)
-        try:
-            return await asyncio.wait_for(super().request(command, timeout=limit), limit)
-        except asyncio.TimeoutError as error:
-            if self.recording:
-                self.recording.event("timeout")
-            raise ValueError(f"{command} exceeded the TCM request budget; stopped") from error
-
-
 def payload(raw, command):
-    """One bounded headered 7E9 ISO-TP message, including Mode 09 identity."""
-    if len(raw) > 4096 or not raw.endswith(b">") or raw.count(b">") != 1:
-        raise ValueError("Incomplete or oversized TCM reply")
-    lines = [
-        re.sub(r"[ \t]", "", line).upper() for line in re.split(r"[\r\n>]", raw.decode("ascii"))
-    ]
-    lines = [line for line in lines if line and line not in (command, "SEARCHING...")]
-    if lines == ["NODATA"]:
-        return None
-    frames = []
-    for line in lines:
-        if not re.fullmatch(r"7E9(?:[0-9A-F]{2}){2,8}", line):
-            raise ValueError("Wrong ECU or malformed TCM reply")
-        frames.append(bytes.fromhex(line[3:]))
-    if not frames:
-        raise ValueError("Empty TCM reply")
-    first = frames[0]
-    if first[0] >> 4 == 0:
-        length = first[0]
-        if not 1 <= length <= 7 or len(first) < length + 1 or len(frames) != 1:
-            raise ValueError("Invalid or duplicate single frame")
-        return first[1 : length + 1]
-    if first[0] >> 4 != 1 or len(first) != 8:
-        raise ValueError("Invalid ISO-TP first frame")
-    length = ((first[0] & 15) << 8) | first[1]
-    if not 8 <= length <= 64:
-        raise ValueError("ISO-TP payload outside bounds")
-    data = bytearray(first[2:])
-    for index, frame in enumerate(frames[1:], 1):
-        if len(data) >= length or frame[0] != 0x20 | (index & 15):
-            raise ValueError("Duplicate or misordered continuation")
-        needed = min(7, length - len(data))
-        if len(frame) < needed + 1:
-            raise ValueError("Short ISO-TP continuation")
-        data.extend(frame[1 : needed + 1])
-    if len(data) != length:
-        raise ValueError("Incomplete ISO-TP message")
-    return bytes(data)
+    return controller_payload(raw, command, "7E9")
 
 
 def verify_identity(identity):

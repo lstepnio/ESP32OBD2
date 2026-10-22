@@ -1,0 +1,65 @@
+{
+  "status": "research candidates only; not vehicle guards or runtime catalog definitions",
+  "sourceManifest": "data/vehicle-definitions/manifest.json",
+  "sourceResource": "obd4u.cleversoftware.net.DataStorage.Assets.Modules.LiveData.PCM.PCM_08_117_TD.json",
+  "resourcePayloadSha256": "31ac28199d4da5c3c046df8d3e58b47ac2867b4b833a37cb893b705438a747ab",
+  "selection": "Owner-reported variant 08 / diagnostic version 75 may correspond to PCM_08_117 if 75 is hexadecimal. This is a hypothesis; record 1A87 and labelled state changes before interpreting bit positions. Other variant definitions use different positions.",
+  "route": {
+    "request": "7E0",
+    "response": "7E8"
+  },
+  "entries": [
+    {
+      "label": "Park/Neutral switch",
+      "definition": {
+        "N": "PCM_V2_461297",
+        "G": "PCM_V2_467111",
+        "Mode": "22",
+        "Pid": "10AC",
+        "Pos": "39",
+        "Form": "F100",
+        "Faktor": "0=PCM_V2_436744:1=PCM_V2_436727",
+        "KalF": "1"
+      }
+    },
+    {
+      "label": "Brake switch",
+      "definition": {
+        "N": "PCM_V2_462070",
+        "G": "PCM_V2_466636",
+        "Mode": "22",
+        "Pid": "10AE",
+        "Pos": "39",
+        "Form": "F100",
+        "Faktor": "0=PCM_V2_436744:1=PCM_V2_436727",
+        "KalF": "1"
+      }
+    },
+    {
+      "label": "Park/Neutral instantaneous",
+      "definition": {
+        "N": "PCM_V2_469752",
+        "G": "PCM_V2_467536",
+        "Mode": "22",
+        "Pid": "10B2",
+        "Pos": "39",
+        "Form": "F100",
+        "Faktor": "0=PCM_V2_436744:1=PCM_V2_436727",
+        "KalF": "1"
+      }
+    },
+    {
+      "label": "Brake instantaneous",
+      "definition": {
+        "N": "PCM_V2_471629",
+        "G": "PCM_V2_467512",
+        "Mode": "22",
+        "Pid": "10B4",
+        "Pos": "39",
+        "Form": "F100",
+        "Faktor": "0=PCM_V2_436744:1=PCM_V2_436727",
+        "KalF": "1"
+      }
+    }
+  ]
+}

@@ -343,6 +343,24 @@ class AdapterSession:
         raise ValueError(f"{command} timed out; capture saved. Reconnect before retrying.")
 
 
+class BoundedSession(AdapterSession):
+    """Bound discovery plus polling, leaving restoration to the caller's finally."""
+
+    deadline = None
+
+    async def request(self, command, timeout=5):
+        remaining = self.deadline - time.monotonic() if self.deadline else 5
+        if remaining <= 0:
+            raise ValueError("Capture time budget exhausted")
+        limit = min(timeout, 5, remaining)
+        try:
+            return await asyncio.wait_for(super().request(command, timeout=limit), limit)
+        except asyncio.TimeoutError as error:
+            if self.recording:
+                self.recording.event("timeout")
+            raise ValueError(f"{command} exceeded the capture request budget; stopped") from error
+
+
 async def capture_ble(args):
     from bleak import BleakClient
 

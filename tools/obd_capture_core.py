@@ -169,3 +169,46 @@ def transactions(records: list[dict]) -> list[dict]:
     if fragments:
         raise ValueError("Recording ended inside a trace fragment")
     return completed
+
+
+def controller_payload(raw, command, responder):
+    """One bounded, explicitly attributed 11-bit ISO-TP message."""
+    if not re.fullmatch(r"[0-7][0-9A-F]{2}", responder):
+        raise ValueError("Invalid controller responder")
+    if len(raw) > 4096 or not raw.endswith(b">") or raw.count(b">") != 1:
+        raise ValueError("Incomplete or oversized controller reply")
+    lines = [
+        re.sub(r"[ \t]", "", line).upper() for line in re.split(r"[\r\n>]", raw.decode("ascii"))
+    ]
+    lines = [line for line in lines if line and line not in (command, "SEARCHING...")]
+    if lines == ["NODATA"]:
+        return None
+    frames = []
+    for line in lines:
+        if not re.fullmatch(responder + r"(?:[0-9A-F]{2}){2,8}", line):
+            raise ValueError("Wrong ECU or malformed controller reply")
+        frames.append(bytes.fromhex(line[3:]))
+    if not frames:
+        raise ValueError("Empty controller reply")
+    first = frames[0]
+    if first[0] >> 4 == 0:
+        length = first[0]
+        if not 1 <= length <= 7 or len(first) < length + 1 or len(frames) != 1:
+            raise ValueError("Invalid or duplicate single frame")
+        return first[1 : length + 1]
+    if first[0] >> 4 != 1 or len(first) != 8:
+        raise ValueError("Invalid ISO-TP first frame")
+    length = ((first[0] & 15) << 8) | first[1]
+    if not 8 <= length <= 64:
+        raise ValueError("ISO-TP payload outside bounds")
+    data = bytearray(first[2:])
+    for index, frame in enumerate(frames[1:], 1):
+        if len(data) >= length or frame[0] != 0x20 | (index & 15):
+            raise ValueError("Duplicate or misordered continuation")
+        needed = min(7, length - len(data))
+        if len(frame) < needed + 1:
+            raise ValueError("Short ISO-TP continuation")
+        data.extend(frame[1 : needed + 1])
+    if len(data) != length:
+        raise ValueError("Incomplete ISO-TP message")
+    return bytes(data)
