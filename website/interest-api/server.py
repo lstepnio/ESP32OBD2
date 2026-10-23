@@ -116,7 +116,10 @@ def parse_fields(content_type, body):
             or part.defects
         ):
             raise ValueError("Invalid form field")
-        fields[name] = part.get_payload(decode=True).decode("utf-8")
+        payload = part.get_payload(decode=True)
+        if not isinstance(payload, bytes) or part.defects:
+            raise ValueError("Malformed field encoding")
+        fields[name] = payload.decode("utf-8")
     return fields
 
 

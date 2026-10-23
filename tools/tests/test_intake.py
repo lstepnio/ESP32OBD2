@@ -1,6 +1,7 @@
 """Synthetic-only intake failure/restore tests; never contact deployed services."""
 
 import contextlib
+import base64
 from datetime import datetime, timedelta, timezone
 import hashlib
 import http.client
@@ -177,6 +178,13 @@ class IntakeTests(unittest.TestCase):
         body = b'--x\r\nContent-Disposition: form-data; name="email"; filename="payload"\r\n\r\nfixture@example.invalid\r\n--x--\r\n'
         self.assertEqual(self.post(body, "multipart/form-data; boundary=x")[0], 400)
         self.assertEqual(self.post(body, "multipart/form-data")[0], 400)
+        encoded = (
+            b'--x\r\nContent-Disposition: form-data; name="email"\r\n'
+            b"Content-Transfer-Encoding: base64\r\n\r\n"
+            + base64.b64encode(b"encoded@example.invalid")
+            + b"!\r\n--x--\r\n"
+        )
+        self.assertEqual(self.post(encoded, "multipart/form-data; boundary=x")[0], 400)
 
     def test_write_lock_is_diagnosed_without_leaking_input(self):
         with contextlib.closing(sqlite3.connect(server.DB_PATH, timeout=1)) as blocker:
