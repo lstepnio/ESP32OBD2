@@ -1,7 +1,9 @@
 package com.lstepnio.egauge
 
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.lstepnio.egauge.core.designsystem.EGaugeTheme
 import com.lstepnio.egauge.core.designsystem.StatusUi
@@ -27,7 +29,14 @@ class ActionPagesUiTest {
         compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { action, _ -> saved = action }, {}) } }
         compose.onNodeWithText("Winch").performScrollTo().performClick()
         compose.onNodeWithText("Duration").performScrollTo().performTextReplacement("2:30")
-        compose.onNodeWithText("Done").performScrollTo().performClick()
+        // This fixture verifies configuration semantics. Retire the IME before
+        // leaving the editor; a moving keyboard can intercept coordinate clicks.
+        Espresso.closeSoftKeyboard()
+        compose.onNodeWithText("Done").performScrollTo().assertIsDisplayed().assertIsEnabled()
+            .performSemanticsAction(SemanticsActions.OnClick) { click -> assertTrue(click()) }
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Save on phone").fetchSemanticsNodes().size == 1
+        }
         compose.onNodeWithText("Save on phone").performScrollTo().performClick()
         compose.runOnIdle {
             assertEquals(150, saved!!.winchSeconds)

@@ -35,6 +35,11 @@ release JVM tests; debug APK, instrumentation compilation and lint; all 54 manag
 emulator UI tests, including five accessibility fixtures. Twelve intake tests also
 passed on Python 3.12, the service runtime family, with temporary synthetic databases.
 Exact-commit remote CI is a separate PR check, not inferred from these local results.
+Its first full run exposed a timer-editor fixture failure during keyboard movement,
+consistent with an intercepted coordinate click. The fixture now retires the keyboard, asserts the Done action is enabled
+and visible, invokes its semantic click and waits for the parent save action. It
+retains the exact 150-second saved-value assertion. Product touch qualification is
+unchanged; no runtime behavior was altered to make this fixture pass.
 
 The release collector was exercised with all eight resolved reference dependencies,
 24 retained payloads (including ELF/map/support binaries and license notices), and
