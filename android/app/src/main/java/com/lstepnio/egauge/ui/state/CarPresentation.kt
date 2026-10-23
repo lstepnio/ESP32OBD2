@@ -34,96 +34,66 @@ fun carFaults(state: CarUiState): List<CarFaultUi> {
     }
 }
 
-/** A compact summary must never turn missing or partial data into an all-clear. */
+/** Routine coverage is neutral; known warnings/codes and last-checked meaning stay visible. */
 fun carHealthStatus(state: CarUiState): StatusUi {
-    val status = if (state.faultSources.isEmpty()) {
-        state.status
-    } else {
-        vehicleFaultStatus(
-            state.faultSources
-        )
-    }
-    val partial =
-        state.incomplete ||
-            state.faultSources.any { source -> source.categories.any { it.incomplete } }
-    val codes = carFaults(state).size
+    val status = if (state.faultSources.isEmpty()) state.status else vehicleFaultStatus(state.faultSources)
+    val partial = state.incomplete || state.faultSources.any { source -> source.categories.any { it.incomplete } }
+    val faults = carFaults(state)
     val unavailable = state.faultSources.filter {
-        it.status.tone in
-            setOf(
-                StatusTone.Stale,
-                StatusTone.Offline,
-                StatusTone.Disabled,
-                StatusTone.Loading,
-                StatusTone.Error
-            )
+        it.status.tone in setOf(StatusTone.Stale, StatusTone.Offline, StatusTone.Disabled, StatusTone.Loading, StatusTone.Error)
     }.map { it.title }
-    val title = when {
-        status.tone in setOf(StatusTone.Warning, StatusTone.Critical) -> "Vehicle warning reported"
-
-        state.faultSources.all {
-            it.status.tone in setOf(StatusTone.Disabled, StatusTone.Loading)
-        } &&
-            status.tone in setOf(StatusTone.Disabled, StatusTone.Loading) -> "Waiting for car"
-
-        unavailable.isNotEmpty() ||
-            status.tone in setOf(
-                StatusTone.Stale,
-                StatusTone.Offline,
-                StatusTone.Error
-            ) -> "Fault checks incomplete"
-
-        status.tone in setOf(StatusTone.Disabled, StatusTone.Loading) -> "Waiting for car"
-
-        partial -> "Fault checks incomplete"
-
-        codes > 0 -> "Fault codes recorded"
-
-        status.tone == StatusTone.Success -> "No warning reported"
-
-        else -> "Waiting for fault checks"
+    val warning = (state.faultSources.map { it.status } + status)
+        .firstOrNull { it.tone == StatusTone.Critical }
+        ?: (state.faultSources.map { it.status } + status).firstOrNull { it.tone == StatusTone.Warning }
+    val unavailableDetail = if (unavailable.isNotEmpty()) {
+        "${unavailable.joinToString(" and ")} status is unavailable. Checks update automatically when connected."
+    } else {
+        "Checks update automatically when connected."
     }
-    val detail = when {
-        title == "Waiting for car" -> "Checks start automatically when this car is connected."
+    return when {
+        warning != null -> StatusUi(
+            "Warning light on",
+            if (unavailable.isNotEmpty()) {
+                unavailableDetail
+            } else if (faults.isNotEmpty()) {
+                "Review the codes below."
+            } else {
+                "Codes will appear here as they are read."
+            },
+            warning.tone
+        )
 
-        unavailable.isNotEmpty() -> "${unavailable.joinToString(
-            " and "
-        )} checks are unavailable or out of date. Saved codes are kept while checks retry."
+        faults.isNotEmpty() -> StatusUi(
+            if (faults.size == 1) "1 fault code" else "${faults.size} fault codes",
+            if (unavailable.isNotEmpty()) unavailableDetail else "A warning light can be off while codes remain.",
+            if (faults.any { !it.current }) StatusTone.Stale else StatusTone.Neutral
+        )
 
-        partial -> "Some checks are incomplete. More codes may be present."
+        status.tone in setOf(StatusTone.Disabled, StatusTone.Loading) &&
+            state.faultSources.all { it.status.tone in setOf(StatusTone.Disabled, StatusTone.Loading) } -> StatusUi(
+            "Waiting for car",
+            "Codes appear automatically when this car is connected.",
+            StatusTone.Neutral
+        )
 
-        status.tone in setOf(
-            StatusTone.Stale,
-            StatusTone.Offline,
-            StatusTone.Error
-        ) -> "Current fault status is unavailable. Saved codes are kept while checks retry."
+        partial -> StatusUi(
+            "Checking for codes",
+            "Codes appear here as they are read.",
+            StatusTone.Neutral
+        )
 
-        status.tone in setOf(
-            StatusTone.Disabled,
-            StatusTone.Loading
-        ) -> "Checks start automatically when this car is connected."
+        unavailable.isNotEmpty() || status.tone in setOf(StatusTone.Stale, StatusTone.Offline, StatusTone.Error) -> StatusUi(
+            "No recent check",
+            unavailableDetail,
+            StatusTone.Neutral
+        )
 
-        codes > 0 && status.tone in setOf(StatusTone.Warning, StatusTone.Critical) -> "Review the codes below. Checks update automatically."
+        status.tone == StatusTone.Success -> StatusUi(
+            "No warning reported",
+            "The car is not reporting a warning light.",
+            StatusTone.Success
+        )
 
-        codes > 0 -> "Review the recorded codes. A warning light can be off while codes remain."
-
-        status.tone in setOf(
-            StatusTone.Warning,
-            StatusTone.Critical
-        ) -> "The car reports a warning. Fault code checks continue automatically."
-
-        status.tone == StatusTone.Success -> "The car is not reporting a warning light. Checks continue automatically."
-
-        else -> "Checks continue automatically. Current fault status has not been established."
+        else -> StatusUi("Checking for codes", "Codes appear here as they are read.", StatusTone.Neutral)
     }
-    return StatusUi(
-        title,
-        detail,
-        if (title == "Fault checks incomplete" &&
-            status.tone !in setOf(StatusTone.Warning, StatusTone.Critical, StatusTone.Error)
-        ) {
-            StatusTone.Stale
-        } else {
-            status.tone
-        }
-    )
 }

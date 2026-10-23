@@ -27,7 +27,7 @@ class CarPresentationTest {
                 )
             )
         )
-        assertEquals("Fault checks incomplete", carHealthStatus(s).title)
+        assertEquals("1 fault code", carHealthStatus(s).title)
         assertTrue(carHealthStatus(s).detail.contains("Transmission"))
         assertEquals("Last checked · Stored", carFaults(s).single().categories)
     }
@@ -40,8 +40,8 @@ class CarPresentationTest {
 
     @Test fun partialHealthyResultIsStillIncomplete() {
         val s = state(source("Engine", StatusTone.Success), incomplete = true)
-        assertEquals("Fault checks incomplete", carHealthStatus(s).title)
-        assertEquals(StatusTone.Stale, carHealthStatus(s).tone)
+        assertEquals("Checking for codes", carHealthStatus(s).title)
+        assertEquals(StatusTone.Neutral, carHealthStatus(s).tone)
     }
 
     @Test fun categoryTruncationCannotBecomeAnAllClear() {
@@ -53,13 +53,13 @@ class CarPresentationTest {
                     FaultCategoryUi("Stored", "", emptyList(), true)
                 )
             )
-        assertEquals("Fault checks incomplete", carHealthStatus(s).title)
+        assertEquals("Checking for codes", carHealthStatus(s).title)
     }
 
     @Test fun warningWinsWhileMissingSiblingRemainsExplicit() {
         val s =
             state(source("Engine", StatusTone.Warning), source("Transmission", StatusTone.Stale))
-        assertEquals("Vehicle warning reported", carHealthStatus(s).title)
+        assertEquals("Warning light on", carHealthStatus(s).title)
         assertEquals(StatusTone.Warning, carHealthStatus(s).tone)
         assertTrue(carHealthStatus(s).detail.contains("Transmission"))
     }
@@ -69,7 +69,7 @@ class CarPresentationTest {
             state(
                 source("Engine", StatusTone.Success, FaultCategoryUi("Stored", "", listOf(fault)))
             )
-        assertEquals("Fault codes recorded", carHealthStatus(s).title)
+        assertEquals("1 fault code", carHealthStatus(s).title)
         assertTrue(carHealthStatus(s).detail.contains("warning light can be off"))
     }
 
@@ -82,6 +82,26 @@ class CarPresentationTest {
             "No warning reported",
             carHealthStatus(state(source("Engine", StatusTone.Neutral))).title
         )
+    }
+
+    @Test fun staleWithoutCodesStaysNeutralAndNeverClaimsAnAllClear() {
+        val result = carHealthStatus(state(source("Engine", StatusTone.Stale)))
+        assertEquals("No recent check", result.title)
+        assertEquals(StatusTone.Neutral, result.tone)
+        assertTrue(result.detail.contains("automatically"))
+    }
+
+    @Test fun unavailableSiblingCannotBuryKnownWarning() {
+        val result = carHealthStatus(state(source("Engine", StatusTone.Warning), source("Transmission", StatusTone.Error)))
+        assertEquals("Warning light on", result.title)
+        assertEquals(StatusTone.Warning, result.tone)
+        assertTrue(result.detail.contains("Transmission"))
+    }
+
+    @Test fun partialCoverageCannotBuryKnownCodes() {
+        val s = state(source("Engine", StatusTone.Neutral, FaultCategoryUi("Stored", "", listOf(fault))), incomplete = true)
+        assertEquals("1 fault code", carHealthStatus(s).title)
+        assertEquals(1, carFaults(s).size)
     }
 
     @Test fun duplicateCategoriesMergeButIndependentControllersRemainSeparate() {

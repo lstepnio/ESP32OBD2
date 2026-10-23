@@ -68,7 +68,7 @@ fun CarScreen(
                     )
                 }
                 Panel {
-                    SectionTitle("Vehicle health")
+                    SectionTitle("Fault codes")
                     val summary = com.lstepnio.egauge.ui.state.carHealthStatus(state)
                     Text(
                         summary.title,
@@ -100,7 +100,6 @@ fun CarScreen(
                     )
                     if (faults.isNotEmpty()) {
                         HorizontalDivider()
-                        Text("Fault codes", style = MaterialTheme.typography.titleSmall)
                         faults.take(3).forEach { fault -> FaultCodeRow(fault) { selectFault(fault) } }
                         if (faults.size > 3) {
                             TextButton({ faultsOpen = true }) { Text("View all ${faults.size} codes") }
