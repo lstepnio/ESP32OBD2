@@ -63,7 +63,7 @@ are scoped evidence, not general adapter compatibility.
 
 ## Polling, diagnostics, and alerts
 
-The pure scheduler supports 32 runtime PIDs and unsigned wrap-safe millisecond deadlines. Normal PIDs use round-robin selection among due definitions. One background job is allowed only after ten normal jobs. MIL is considered every 10 seconds; confirmed, pending, and permanent DTC categories are considered every 30 seconds. A completed job is accounted at the supplied current time, which avoids catch-up bursts.
+The pure scheduler supports 32 runtime PIDs and unsigned wrap-safe millisecond deadlines. Normal PIDs use round-robin selection among due definitions. Background jobs run after ten normal jobs, when no normal PID is due, or after ten seconds with normal progress; background dispatches are spaced by at least two seconds. MIL is considered every 15 seconds, confirmed/pending codes every 60 seconds and permanent codes every 120 seconds. Dispatch timestamps drive deadlines; repeated failures back off to at most 240 seconds. Production scheduler fixtures cover fairness, backoff and wrap.
 
 Alert evaluation uses the decoded `double` before display range conversion. Zero dwell applies on the first qualifying sample. Delayed trigger and clear use unsigned elapsed time, hysteresis, and per-rule priority. An active alert remains visible when its source becomes stale and is marked unavailable. The 100 ms application tick drives freshness even while an adapter request is waiting.
 
@@ -77,13 +77,13 @@ Alert evaluation uses the decoded `double` before display range conversion. Zero
 | verified | `COMMIT`, `ABORT`, `STATUS` | Commit validates the base revision again before selecting the inactive slot. |
 | applied | `STATUS` | Abort and new transfers are rejected. Restart uses a fixed deadline that status reads cannot postpone. |
 
-The store retains two committed generations. Commit journals the candidate revision before writing its durable marker. Boot selects the newest schema-valid generation, then the runtime compiler selects the newest executable generation. The first boot marks a new revision attempted. Five seconds of UI, BLE, and application progress confirms it. A reset before confirmation or a compile failure rejects it, selects the previous committed generation as the store/runtime base, and preserves that generation during the next transfer. Protected runtime identity reports the exact revision and hash in use, whether fallback occurred, and whether a trial is still unconfirmed.
+The store retains two committed generations. Commit journals the candidate revision before writing its durable marker. Boot selects the newest schema-valid generation, then the runtime compiler selects the newest executable generation. The first boot marks a new revision attempted. At least 50 application ticks, BLE readiness and advancing UI progress since trial monitoring began confirm it; the latest UI heartbeat must be no older than one second. This is software liveness, not proof of physical scanout. A reset before confirmation or a compile failure rejects it, selects the previous committed generation as the store/runtime base, and preserves that generation during the next transfer. Protected runtime identity reports the exact revision and hash in use, whether fallback occurred, and whether a trial is still unconfirmed.
 
 ## OTA states and trial health
 
 OTA uses the same retry and immutable-status rules. Metadata and signature fragments precede erase. Chunks are sequential and identical retries are idempotent. Verification reads the complete inactive image, checks SHA-256, the ESP image format, board tag, and the pinned development signature. Activation selects the boot partition and starts a fixed five-second restart deadline. Abort and a second maintenance operation are rejected after activation.
 
-A pending image is confirmed only after display, touch, BLE companion startup, and 50 successful 100 ms application ticks. No phone or vehicle adapter is required. Bootloader rollback remains the recovery path when that evidence is absent.
+A pending image is confirmed only after display/touch startup, BLE readiness, 50 successful 100 ms application ticks and at least two new UI heartbeats with the latest no older than one second. Frozen or absent UI progress leaves the trial unconfirmed and reaches the existing bounded rollback path. No phone or vehicle adapter is required. Bootloader rollback remains the recovery path when that evidence is absent.
 
 ## Fixed limits
 

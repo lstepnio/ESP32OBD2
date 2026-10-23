@@ -108,3 +108,47 @@ class RecoveryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ApkIdentityTests(unittest.TestCase):
+    def test_verifier_derives_identity_and_rejects_wrong_signer_package_or_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for tool in ("apksigner", "aapt2"):
+                (root / tool).touch()
+            signer = "a" * 64
+            signed = "Signer #1 certificate SHA-256 digest: " + signer
+            badging = "package: name='com.lstepnio.egauge' versionCode='51' versionName='0.2.0-dev.51'\napplication-debuggable"
+            with patch.object(package.subprocess, "check_output", side_effect=[signed, badging]):
+                result = package.verify_apk(root / "app.apk", signer, "0.2.0-dev.51", root)
+                self.assertEqual(result["versionCode"], 51)
+                self.assertEqual(result["variant"], "debug")
+            with patch.object(package.subprocess, "check_output", side_effect=[signed, badging]):
+                with self.assertRaises(ValueError):
+                    package.verify_apk(
+                        root / "app.apk", signer, "0.2.0-dev.51", root, expected_code=52
+                    )
+            for wrong, version, outputs in [
+                ("b" * 64, "0.2.0-dev.51", [signed]),
+                (signer, "different", [signed, badging]),
+                (
+                    signer,
+                    "0.2.0-dev.51",
+                    [signed, badging.replace("com.lstepnio.egauge", "other.package")],
+                ),
+            ]:
+                with patch.object(package.subprocess, "check_output", side_effect=outputs):
+                    with self.assertRaises(ValueError):
+                        package.verify_apk(root / "app.apk", wrong, version, root)
+            with patch.object(
+                package.subprocess,
+                "check_output",
+                side_effect=subprocess.CalledProcessError(1, "apksigner"),
+            ):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    package.verify_apk(root / "generic.zip", signer, "0.2.0-dev.51", root)
+
+    def test_absent_verification_tools_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "build-tools"):
+                package.verify_apk(Path(directory) / "app.apk", "a" * 64, "0.2.0-dev.51", directory)

@@ -59,10 +59,17 @@ jobs:
         run: |
           . /opt/esp/idf/export.sh
           python ../../tools/dev.py build --target firmware
+      - name: Retain exact build evidence and dependency licenses
+        shell: bash
+        run: |
+          . /opt/esp/idf/export.sh
+          python tools/release_evidence.py --output firmware/gauge/build/release-evidence.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: waveshare-esp32-s3-touch-lcd-1.28
-          path: firmware/gauge/build/esp32-idf-project.bin
+          path: |
+            firmware/gauge/build/esp32-idf-project.bin
+            firmware/gauge/build/release-evidence.zip
           if-no-files-found: error
 
   publish:
@@ -122,6 +129,9 @@ jobs:
             --sequence "$RELEASE_SEQUENCE" --tag "$TAG" --notes "$RELEASE_NOTES" \
             --key "$RUNNER_TEMP/dev-update-key.pem" --output egauge-release-catalog.json \
             --signature egauge-release-catalog.sig
+          cp release-input/release-evidence.zip "egauge-build-evidence-$RELEASE_VERSION.zip"
+          openssl dgst -sha256 -sign "$RUNNER_TEMP/dev-update-key.pem" \
+            -out "egauge-build-evidence-$RELEASE_VERSION.sig" "egauge-build-evidence-$RELEASE_VERSION.zip"
           printf '%s' "$TAG" > "$RUNNER_TEMP/release-tag"
       - name: Publish immutable development prerelease
         shell: bash
@@ -129,6 +139,7 @@ jobs:
           TAG="$(cat "$RUNNER_TEMP/release-tag")"
           BUNDLE="egauge-waveshare-esp32-s3-touch-lcd-1.28-$RELEASE_VERSION.egauge-dev-update"
           gh release create "$TAG" "$BUNDLE" egauge-release-catalog.json egauge-release-catalog.sig \
+            "egauge-build-evidence-$RELEASE_VERSION.zip" "egauge-build-evidence-$RELEASE_VERSION.sig" \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
             --title "eGauge development firmware $RELEASE_VERSION" --notes "$RELEASE_NOTES"
 

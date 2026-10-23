@@ -1,4 +1,5 @@
 #include "worker_health.h"
+#include "boot_health.h"
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
@@ -37,5 +38,20 @@ int main(void)
     assert(worker_health_snapshot(WORKER_ECM, 40).stack_observed);
     assert(worker_health_snapshot(WORKER_ECM, 40).minimum_stack_free == 0);
     worker_health_stack_margin(WORKER_COUNT, 1);
-    puts("worker health fixtures passed");
+    worker_health_t ui = {.observed = true, .progress_count = 12, .age_ms = 50};
+    assert(boot_health_ready(true, 100, 150, 10, ui));
+    assert(!boot_health_ready(false, 100, 150, 10, ui));
+    assert(!boot_health_ready(true, 100, 149, 10, ui));
+    ui.observed = false;
+    assert(!boot_health_ready(true, 100, 150, 10, ui));
+    ui.observed       = true;
+    ui.progress_count = 10;
+    assert(!boot_health_ready(true, 100, 150, 10, ui));
+    ui.progress_count = 12;
+    ui.age_ms         = 1001;
+    assert(!boot_health_ready(true, 100, 150, 10, ui));
+    ui.age_ms         = 50;
+    ui.progress_count = 1;
+    assert(boot_health_ready(true, UINT32_MAX - 25, 24, UINT32_MAX, ui));
+    puts("worker health and independent trial acceptance fixtures passed");
 }

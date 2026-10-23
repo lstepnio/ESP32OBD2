@@ -121,3 +121,49 @@ roadmap access. A finished unit can be discussed on request; do not imply a reta
 launch commitment. Consent text and success messages must match the visible form.
 New copy does not authorize repurposing existing signup records or changing their
 recorded preferences. Preserve the existing API and data during copy-only changes.
+
+## Intake source and operational checks
+
+`interest-api/server.py` and `interest-api/backup.py` own the maintained contact
+service and SQLite backup. Host regression tests use temporary synthetic data only.
+The static site publishes neither source nor database. Source preparation does not
+mean the host service has been deployed or restarted.
+
+The service uses `INTEREST_DB` (default `/data/interest.sqlite3`) and `SITE_ORIGIN`.
+Its `/health` and `/ready` check a write reservation and required tables without
+changing records. Initialization adds the append-only `consent_event` table; it
+retains original `interest.consent_text` values. New forms send `consent_version`
+`project-updates-v1`, whose server-owned text matches the form. Requests from cached
+old forms without a version retain `legacy-preorder-v1`; unsupported versions fail.
+Repeat signup appends an acceptance event rather than rewriting historical consent.
+Removal workflows must include both the original record and consent events.
+
+Configure `TRUSTED_PROXY_CIDRS` with the **exact** Nginx and Caddy proxy addresses
+or narrowly scoped networks verified on the deployment. The server walks forwarded
+addresses from its trusted socket peer inward; client-supplied left values cannot
+choose an identity. Empty configuration trusts no forwarding header and limits by
+socket peer, so a proxied deployment must configure its actual trusted hops before
+rollout to avoid sharing one throttle across visitors. Never trust all addresses.
+Validate the real proxy chain separately; a local fixture cannot establish edge behavior.
+
+Operational logs contain bounded outcome/category/duration fields, never submitted
+email, text, payloads or raw SQLite exception text. Expected malformed bodies return
+400; database errors return 503 and fail readiness. Restore and alerting ownership
+remain with the host administrator.
+
+The backup command accepts `INTEREST_DB` and `INTEREST_BACKUPS` environment paths;
+host defaults remain `/docker/appdata/egauge/private/interest.sqlite3` and
+`/docker/backups/egauge-interest`. It opens the existing source read-only, validates
+schema/integrity, creates a private temporary snapshot, verifies it, then publishes
+atomically. Thirty-day retention runs only after a verified snapshot. Missing or
+invalid source fails nonzero without publishing or pruning. Schedule failure alerts
+and rehearse restoration against an isolated database before relying on backups.
+
+For a scoped backend rollout: identify the running service/source hashes and exact
+proxy hops; take a verified database backup plus source/config backup; stage only
+these scripts outside the webroot; use an isolated restore to validate the additive
+migration; replace scripts atomically and restart only `egauge-interest`. Check its
+local readiness and sanitized logs, then exercise the proxy chain with authorized
+synthetic requests. Roll back scripts from backup if needed; the additive event table
+can remain without rewriting older consent. Do not run a whole-stack restart or put
+customer records into test logs. This is a procedure, not a record of live execution.
