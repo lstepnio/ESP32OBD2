@@ -52,6 +52,10 @@ remaining gates in the handoff; leave temporary failures out of current-state cl
 `python tools/dev.py test --target android-ui` runs only allowlisted fixture suites
 on a Gradle-managed API 35 Pixel 2. It has no adapter/gauge owner, saved-profile writes
 or physical-phone installation. CI publishes test reports and additional output.
+The allowlist includes `PresentationAccessibilityTest` for 200% text and primary-action
+reachability. Node fixtures execute browser recovery orchestration and form failure
+paths with deferred network/transport inputs; Python intake tests use temporary
+synthetic databases and restore checks.
 This lane checks interactions and accessibility-related semantics, not the old Pixel
 pixel baseline; API/font rasterizers differ.
 

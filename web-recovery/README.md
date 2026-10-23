@@ -76,6 +76,13 @@ python tools/package_web_recovery.py --input artifacts/recovery-input \
   --output artifacts/website-downloads
 ```
 
+APK packaging runs build-tools 36.0.0 `apksigner verify --print-certs` and
+`aapt2 dump badging`, requiring the reviewed signer, package name and source version.
+It derives the actual version/code/variant from the APK, rejects invalid signatures
+and missing verification tools, and labels the supplied source revision as operator
+attestation. Signature/package/version checks alone do not prove build-to-source linkage.
+Set `ANDROID_HOME` as for the Android build.
+
 The packager verifies catalog/application signatures with the existing public key,
 pinned published hashes, source board configuration, toolchain, image headers and
 partition descriptors. Record the actual APK source commit and signer; the debug
@@ -149,3 +156,9 @@ USB write/timeout behavior. Browser checks must also cover blocked metadata,
 selection/file-validation races, keyboard access and mobile overflow. No USB write
 is needed to check these flows. Server configuration changes require Nginx syntax
 validation and reload using the existing deployment procedure.
+
+During an installation, the verified bundle is captured once for all baud-rate
+retries. Delayed metadata can populate choices but cannot replace that bundle or
+reset board consent. Starting install or choosing a local file counts as explicit
+user intent. `orchestration.test.mjs` exercises deferred metadata during port/write
+and retry; these mocked checks do not establish physical USB recovery.

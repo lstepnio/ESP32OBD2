@@ -40,6 +40,23 @@ release uses this workflow; keep signing credentials in its protected environmen
 Device installation and validation start from GitHub Releases. Local bundles are
 limited to explicit recovery engineering and are not a release path.
 
+## Retained build evidence
+
+New workflow releases also retain and sign `egauge-build-evidence-VERSION.zip`.
+It contains exact ELF/map/application/bootstrap outputs, configuration/layout,
+resolved dependency versions/hashes, license notices and an SPDX dependency inventory.
+`provenance.json` records the full source SHA, qualified container and every payload
+hash. Dependency metadata omits machine-local paths; original ELF/map may retain build
+paths. Signing material is excluded. The separate DER
+signature uses the existing development key and can be checked with `openssl dgst
+-sha256 -verify PUBLIC_KEY -signature EVIDENCE.sig EVIDENCE.zip`.
+
+The strict two-entry OTA bundle is unchanged. Verify the evidence signature and
+inventory before using its support regions in a recovery package. Inventory license
+fields marked `NOASSERTION` are not a license review or a complete transitive source
+SBOM; retained notices support that review. Historical releases do not retroactively
+acquire original CI support artifacts. No new release is implied by source changes.
+
 ## Publish
 
 1. Merge or select the exact reviewed commit. Confirm quality CI is green.

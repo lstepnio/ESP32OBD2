@@ -150,11 +150,11 @@ object HostedFirmwareCatalogCodec {
         nowEpochSeconds: Long
     ): HostedFirmwareCatalog {
         require(bytes.size in 1..131_072) { "Firmware catalog is too large" }
-        require(signatureDer.size in 64..72) { "Firmware catalog signature is invalid" }
+        if (signatureDer.size !in 64..72) throw CatalogTrustFailure()
         val verifier = Signature.getInstance("SHA256withECDSA")
         verifier.initVerify(publicKey)
         verifier.update(bytes)
-        require(verifier.verify(signatureDer)) { "Firmware catalog signature is invalid" }
+        if (!verifier.verify(signatureDer)) throw CatalogTrustFailure()
         val root = JSONObject(bytes.toString(Charsets.UTF_8))
         require(
             root.keys().asSequence().toSet() == rootFields && root.getInt("schemaVersion") == 1 &&
@@ -162,10 +162,8 @@ object HostedFirmwareCatalogCodec {
         ) { "Unsupported firmware catalog" }
         val generated = Instant.parse(root.getString("generatedAt")).epochSecond
         val expires = Instant.parse(root.getString("expiresAt")).epochSecond
-        require(
-            generated <= nowEpochSeconds + 300 && expires > generated && expires >= nowEpochSeconds
-        ) {
-            "Firmware catalog is expired or dated in the future"
+        if (!(generated <= nowEpochSeconds + 300 && expires > generated && expires >= nowEpochSeconds)) {
+            throw CatalogDateFailure()
         }
         val array = root.getJSONArray("releases")
         require(array.length() in 1..100) { "Firmware catalog has an invalid release count" }
@@ -268,6 +266,35 @@ internal fun selectHighestHostedCatalog(
     return newest.maxBy { it.release.releaseSequence }
 }
 
+internal class CatalogTrustFailure : IllegalArgumentException("Firmware catalog signature is invalid")
+internal class CatalogDateFailure : IllegalArgumentException("Firmware catalog is expired or dated in the future")
+
+/** Bounded aggregate diagnostics. Never retain payloads, URLs or exception messages. */
+internal class CatalogSearchOutcomes {
+    private val counts = linkedMapOf<String, Int>()
+    fun reject(error: Exception) {
+        if (error is CancellationException) throw error
+        val reason = when (error) {
+            is CatalogDateFailure -> "date"
+            is CatalogTrustFailure, is java.security.GeneralSecurityException -> "trust"
+            is IOException -> "network"
+            else -> "format"
+        }
+        counts[reason] = (counts[reason] ?: 0) + 1
+    }
+    fun summary(): String = counts.entries.joinToString(" ") { "${it.key}=${it.value}" }
+    fun requireCandidates(available: Boolean) {
+        if (available || counts.isEmpty()) return
+        throw IOException(
+            when {
+                "trust" in counts || "format" in counts -> "Published firmware could not be verified. No unverified image was selected."
+                "network" in counts -> "Published firmware could not be downloaded. Check your connection and try again."
+                else -> "Published firmware catalogs are expired or dated in the future. Check the phone clock or try a newer release."
+            }
+        )
+    }
+}
+
 class GitHubFirmwareSource(private val context: Context) {
     private val releasesUrl = "https://api.github.com/repos/lstepnio/ESP32OBD2/releases?per_page=20"
 
@@ -290,6 +317,7 @@ class GitHubFirmwareSource(private val context: Context) {
         }
         val publicKey = HostedFirmwareCatalogCodec.publicKey(pem)
         val candidates = mutableListOf<HostedCatalogCandidate>()
+        val outcomes = CatalogSearchOutcomes()
         for (index in 0 until releases.length()) {
             currentCoroutineContext().ensureActive()
             val release = releases.getJSONObject(index)
@@ -310,7 +338,7 @@ class GitHubFirmwareSource(private val context: Context) {
                 }
             }
             if (catalog != null && signature != null) {
-                runCatching {
+                try {
                     require(
                         HostedFirmwareCatalogCodec.isTrustedAssetUrl(catalog.toString()) &&
                             HostedFirmwareCatalogCodec.isTrustedAssetUrl(signature.toString())
@@ -338,9 +366,14 @@ class GitHubFirmwareSource(private val context: Context) {
                             .joinToString("") { "%02x".format(it) }
                         candidates += HostedCatalogCandidate(parsed, digest, compatible)
                     }
-                }.onFailure { if (it is CancellationException) throw it }
+                } catch (error: Exception) {
+                    outcomes.reject(error)
+                }
             }
         }
+        val summary = outcomes.summary()
+        if (summary.isNotEmpty()) android.util.Log.w("HostedFirmware", "catalog_rejections $summary")
+        outcomes.requireCandidates(candidates.isNotEmpty())
         val selected = selectHighestHostedCatalog(candidates)
         val catalog = selected.catalog
         val catalogState = context.getSharedPreferences(

@@ -56,7 +56,7 @@ Device-specific caches are cleared when discovery fails or a different target is
 
 ## Storage and recovery
 
-Profile schema 16 retains schemas 1 through 15 and requires coupled vehicle and gauge
+Profile schema 17 retains schemas 1 through 16 and requires coupled vehicle and gauge
 assignment storage. `LocalSetupStore` saves both documents in one `profiles-v1`
 preference commit. The old association file is a read-only migration input. Older
 Apps reject newer profile schemas rather than loading stale assignments. Unknown schemas and
