@@ -1,5 +1,6 @@
 #include "worker_health.h"
 #include "vehicle_commands.h"
+#include "jeep_idle_parked_test.h"
 #include "vehicle_idle_coolant.h"
 // ---------------------------------------------------------------------------------------------------------------------
 // Includes
@@ -2028,6 +2029,17 @@ static void command_sync_pages(ui_t *ui)
         if (ui->command_pages[i] == selected)
             ui->command_page = i;
 }
+static unsigned command_duration(ui_t *ui, unsigned id, unsigned state)
+{
+    unsigned seconds = id == 2 ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds;
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+    if (seconds > JEEP_IDLE_PARKED_MAX_SECONDS)
+        seconds = JEEP_IDLE_PARKED_MAX_SECONDS;
+#endif
+    if ((state & (16U << 8)) && seconds > 60)
+        seconds = 60;
+    return seconds;
+}
 static void refresh_vehicle_menu(ui_t *ui)
 {
     if (!ui->command_menu_visible || ui->command_suspended)
@@ -2071,9 +2083,13 @@ static void refresh_vehicle_menu(ui_t *ui)
         title = id == 3 ? "Disable both?" : id == 2 ? "Start Winch?" : "Start Air up?";
         snprintf(duration, sizeof(duration), "%u:%02u", ui->command_confirm_seconds / 60,
                  ui->command_confirm_seconds % 60);
-        value   = id == 3 ? "ABS + TCS" : duration;
-        button  = id == 3 ? "Disable" : "Start";
-        note    = id == 3 ? "Restart to restore" : (state & (16U << 8)) ? "Coolant unavailable" : "While parked";
+        value  = id == 3 ? "ABS + TCS" : duration;
+        button = id == 3 ? "Disable" : "Start";
+        note   = id == 3 ? "Restart to restore" : (state & (16U << 8)) ? "Coolant unavailable" : "While parked";
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+        if (id < 3)
+            note = "Park, brake set";
+#endif
         enabled = (state & 256U) != 0;
     }
     else if (!id || !(state & 256U))
@@ -2135,7 +2151,7 @@ static void refresh_vehicle_menu(ui_t *ui)
     }
     else if (phase == VEHICLE_READY || phase == VEHICLE_REJECTED)
     {
-        unsigned seconds = id == 2 ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds;
+        unsigned seconds = command_duration(ui, id, state);
         if (id < 3 && (state & (16U << 8)))
         {
             if (seconds > 60)
@@ -2223,12 +2239,9 @@ static void command_activate(ui_t *ui, bool back)
     bool stop = id < 3 && (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE);
     if (!stop && !ui->command_confirm)
     {
-        ui->command_confirm       = id;
-        ui->command_confirm_state = state;
-        ui->command_confirm_seconds =
-            id < 3 ? (id == 2 ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds) : 0;
-        if (id < 3 && (state & (16U << 8)) && ui->command_confirm_seconds > 60)
-            ui->command_confirm_seconds = 60;
+        ui->command_confirm         = id;
+        ui->command_confirm_state   = state;
+        ui->command_confirm_seconds = id < 3 ? command_duration(ui, id, state) : 0;
         return;
     }
     if (!(state & 256U) || (!stop && phase != VEHICLE_READY && phase != VEHICLE_REJECTED))

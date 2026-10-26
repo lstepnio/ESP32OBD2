@@ -433,6 +433,8 @@ only after same-identity/revision/operation proof sampled after the current stat
 transition and within two seconds. Guard evidence also expires after two seconds.
 Identity is a profile-owner proof, not a client-provided byte or an adapter name.
 No profile currently supplies these proofs: both live qualification masks stay zero.
+The explicitly built [parked idle candidate](#owner-supervised-parked-idle-candidate)
+has a separate temporary admission policy; it does not promote either mask.
 
 Every IO has a 1,200 ms budget including pre-IO journal time, and each driver job
 has a 9,000 ms budget. Fragmented data and pending responses do not extend them.
@@ -458,6 +460,55 @@ Configuration additionally waits for uncertainty or restart-required state to re
 firmware recovery remains available once no active control job remains. Cached UI
 status alone is not a mutual-exclusion primitive. The shortcut menu remains available
 for Stop while the command gate is held.
+
+### Owner-supervised parked idle candidate
+
+Owner approved preparing this exception on 2026-10-26 to combine idle testing and
+input capture in one parked visit. It substitutes deliberate physical-gauge
+confirmation of Park and parking brake for the still-unmapped automatic Park/brake
+inputs. It is not a production vehicle definition or driving mode.
+
+- `CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST` defaults off. Build only an explicit signed
+  candidate using `python tools/dev.py build --target firmware --parked-idle-test`;
+  its separate build/config output cannot change the ordinary build. The release
+  workflow has an opt-in `parked_idle_test` input. CI compiles both variants.
+- Only a bound, real primary ECM is eligible. The primary worker checks exactly
+  one `7E8` Mode 09 calibration `68059434AD` and CVN `CA36378C` per link/revision,
+  refreshing while idle every 30 seconds. Wrong/missing/malformed identity disables
+  admission. Link/configuration changes discard identity, samples and baseline.
+- Fresh primary speed must be zero and RPM must show a running engine. Both expire
+  after two seconds. Admission requires ordinary idle (400..1,200 RPM); active tests
+  allow the captured raised setting up to a conservative 2,500 RPM ceiling. These
+  are test-policy limits, not a qualified Park/brake interpretation. Failed input
+  reads invalidate their sample; movement/guard loss latches Stop before later reads.
+- Each Start requires the named confirmation on the physical gauge, including
+  `Park, brake set`. The App can monitor and Stop but cannot Start, including by
+  sending raw authenticated command bytes. ABS/TCS remains unavailable.
+- Air up can run **five minutes** with fresh coolant; Winch keeps its saved one-minute
+  preset. Longer test drafts are capped at five minutes in both confirmation and
+  admission. Missing/stale coolant retains the existing at-most-one-minute fallback,
+  never extends on recovery, and still requires a configured high-coolant threshold.
+- The existing captured driver, queue, transfer gate and uncertainty journal are
+  reused. Fixed primary input reads retain `7E0` during jobs so a broadcast header
+  cannot redirect a later control step. Stop skips input reads on its next worker
+  turn. IO still has bounded deadlines; there is no extra task or control-time heap.
+- Restored requires an accepted Return/inactive report followed by three fresh RPM
+  observations spanning at least 500 ms, at/below 1,200 RPM and within 150 RPM above
+  that operation's pre-Start baseline. Samples must follow the Return transition.
+  Unknown/reboot/link loss never becomes Restored merely because RPM is low.
+
+The pure policy is `jeep_idle_parked_test.c`; its only runtime adapter is inside
+the build-switched blocks in `vehicle_commands_runtime.c`. Removal means disabling
+the build option, removing those blocks/policy and the small UI duration/note branch.
+There is no saved test-mode configuration, new wire opcode, public capability,
+qualification-mask promotion or special App migration. Existing status flag 8
+requires local gauge Start. The normal release path remains unchanged.
+
+Native tests exercise the actual primary worker with a fixed fake adapter, including
+five-minute expiry, thermal/fallback Stop, local-only admission, wrong identity,
+restoration and unresolved writes. They are offline evidence. A signed installation
+and the [parked checks](../development/jeep-action-qualification.md) remain necessary
+before calling eGauge vehicle control demonstrated.
 
 ### Ordered action pages
 

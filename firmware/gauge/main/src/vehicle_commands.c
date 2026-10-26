@@ -1,5 +1,6 @@
 #include "vehicle_commands.h"
 #include "vehicle_idle_coolant.h"
+#include "jeep_idle_parked_test.h"
 #include <string.h>
 
 static uint32_t u32(const uint8_t *p)
@@ -21,8 +22,9 @@ static bool valid_kind(uint8_t kind)
 }
 static bool qualified(vehicle_command_context_t c, uint8_t kind)
 {
-    unsigned mask = 1U << index_of(kind);
-    return c.connected && c.revision && c.link && c.identity && (c.qualified_mask & mask) && (c.identity_mask & mask);
+    unsigned mask    = 1U << index_of(kind);
+    bool     enabled = c.parked_idle_test ? kind == VEHICLE_IDLE : (c.qualified_mask & mask) != 0;
+    return c.connected && c.revision && c.link && c.identity && enabled && (c.identity_mask & mask);
 }
 static bool coolant_fresh(vehicle_command_context_t c, uint32_t now)
 {
@@ -205,6 +207,13 @@ bool vehicle_commands_submit(vehicle_commands_t       *s,
         transition(s, r.kind, VEHICLE_REJECTED, s->journal_ready ? VEHICLE_UNQUALIFIED : VEHICLE_STORAGE, now);
         return false;
     }
+    if (c.parked_idle_test && (!r.gauge_confirmed || r.kind != VEHICLE_IDLE))
+    {
+        transition(s, r.kind, VEHICLE_REJECTED, VEHICLE_GUARD, now);
+        return false;
+    }
+    if (c.parked_idle_test && v->request.seconds > JEEP_IDLE_PARKED_MAX_SECONDS)
+        v->request.seconds = JEEP_IDLE_PARKED_MAX_SECONDS;
     bool fresh = r.kind != VEHICLE_IDLE || coolant_fresh(c, now);
     if (!c.guards_fresh_and_met || !c.guard_at || now - c.guard_at > 2000 ||
         (r.kind == VEHICLE_IDLE && (!fallback_safe(c) || ((!fresh || v->timed_fallback) && !r.gauge_confirmed))))
@@ -528,6 +537,8 @@ size_t vehicle_commands_status(const vehicle_commands_t *s,
     out[27]            = (qualified(c, kind) && s->journal_ready ? 1U : 0U) | (v->restart_required ? 2U : 0U);
     if (kind == VEHICLE_IDLE && qualified(c, kind) && s->journal_ready)
     {
+        if (c.parked_idle_test)
+            out[27] |= 8U; /* Reuse gauge-Start-required; phone Stop stays available. */
         if (v->timed_fallback)
             out[27] |= 4U | 8U;
         if (!coolant_fresh(c, now) && fallback_safe(c))

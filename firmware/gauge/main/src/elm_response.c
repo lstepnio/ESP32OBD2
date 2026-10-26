@@ -375,15 +375,16 @@ elm_result_t elm_response_decode_identifier(const elm_response_t *response,
     return ELM_OK;
 }
 
-elm_result_t elm_response_decode_dtcs_for_ecu(const elm_response_t *response,
-                                              uint8_t               mode,
-                                              uint32_t              ecu,
-                                              elm_payload_t        *payload)
+static elm_result_t decode_message(const elm_response_t *response,
+                                   uint8_t               mode,
+                                   uint32_t              ecu,
+                                   bool                  strict_source,
+                                   elm_payload_t        *payload)
 {
     if (!payload)
         return ELM_MALFORMED;
     memset(payload, 0, sizeof(*payload));
-    if (!response || ecu > 0x1fffffffU || (mode != 3 && mode != 7 && mode != 10))
+    if (!response || response->length >= sizeof(response->text) || ecu > 0x1fffffffU)
         return ELM_MALFORMED;
     if (response->overflow)
         return ELM_OVERFLOW;
@@ -442,6 +443,8 @@ elm_result_t elm_response_decode_dtcs_for_ecu(const elm_response_t *response,
         }
         if (!width)
             width = (digits & 1U) ? 3 : 8;
+        if (strict_source && width != 3)
+            return ELM_MALFORMED;
         if (digits < width + 4 || ((digits - width) & 1U))
             return ELM_MALFORMED;
         uint32_t responder = 0;
@@ -456,7 +459,11 @@ elm_result_t elm_response_decode_dtcs_for_ecu(const elm_response_t *response,
         for (size_t i = 0; i < count; ++i)
             frame[i] = (uint8_t)((hex(compact[width + 2 * i]) << 4) | hex(compact[width + 2 * i + 1]));
         if (responder != ecu)
+        {
+            if (strict_source)
+                return ELM_MALFORMED;
             continue;
+        }
         if (complete)
             return ELM_AMBIGUOUS;
         unsigned type  = frame[0] >> 4;
@@ -503,11 +510,52 @@ elm_result_t elm_response_decode_dtcs_for_ecu(const elm_response_t *response,
     if (complete && expected == 3 && message[0] == 0x7f && message[1] == mode &&
         (message[2] == 0x11 || message[2] == 0x12 || message[2] == 0x31))
         return ELM_UNSUPPORTED;
-    if (!complete || expected < 2 || message[0] != (uint8_t)(mode + 0x40) || expected != 2U + 2U * message[1])
+    if (!complete || expected < 2 || message[0] != (uint8_t)(mode + 0x40))
         return ELM_MALFORMED;
-    payload->length = expected - 2;
-    memcpy(payload->bytes, message + 2, payload->length);
+    payload->length = expected;
+    memcpy(payload->bytes, message, expected);
     payload->has_responder = true;
     payload->responder     = ecu;
+    return ELM_OK;
+}
+
+elm_result_t elm_response_decode_dtcs_for_ecu(const elm_response_t *response,
+                                              uint8_t               mode,
+                                              uint32_t              ecu,
+                                              elm_payload_t        *payload)
+{
+    if (!payload)
+        return ELM_MALFORMED;
+    memset(payload, 0, sizeof(*payload));
+    if (mode != 3 && mode != 7 && mode != 10)
+        return ELM_MALFORMED;
+    elm_payload_t message;
+    elm_result_t  result = decode_message(response, mode, ecu, false, &message);
+    if (result != ELM_OK)
+        return result;
+    if (message.length != 2U + 2U * message.bytes[1])
+        return ELM_MALFORMED;
+    *payload = message;
+    payload->length -= 2;
+    memmove(payload->bytes, payload->bytes + 2, payload->length);
+    return ELM_OK;
+}
+
+elm_result_t elm_response_decode_identity(const elm_response_t *response, uint8_t pid, elm_payload_t *payload)
+{
+    if (!payload)
+        return ELM_MALFORMED;
+    memset(payload, 0, sizeof(*payload));
+    if (pid != 4 && pid != 6)
+        return ELM_MALFORMED;
+    elm_payload_t message;
+    elm_result_t  result = decode_message(response, 9, 0x7e8, true, &message);
+    if (result != ELM_OK)
+        return result;
+    if (message.length != (pid == 4 ? 19U : 7U) || message.bytes[1] != pid || message.bytes[2] != 1)
+        return ELM_MALFORMED;
+    *payload = message;
+    payload->length -= 3;
+    memmove(payload->bytes, payload->bytes + 3, payload->length);
     return ELM_OK;
 }

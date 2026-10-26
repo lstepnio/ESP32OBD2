@@ -4,6 +4,7 @@
 /firmware/hello_serial/
 .DS_Store
 **/build/
+/firmware/gauge/build-parked-idle/
 **/managed_components/
 **/sdkconfig.old
 /firmware/gauge/dependencies.lock

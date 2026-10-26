@@ -576,9 +576,8 @@ static void obd_task(void *arg)
     {
         vTaskDelay(pdMS_TO_TICKS(period_ms));
         worker_health_progress(source == 0 ? WORKER_ECM : WORKER_TCM, (uint32_t)(esp_timer_get_time() / 1000));
-        /* No profile currently supplies qualified control/identity/gear proofs.
-         * Keep the shared worker bridge live for status/recovery, with both
-         * controller masks zero until the parked qualification is implemented. */
+        /* Normal controller masks remain zero. An explicitly built parked-idle
+         * test adapter may supply scoped evidence inside this primary owner. */
         vehicle_command_context_t command_context = {
             .revision  = g_runtime ? g_running_config_record.revision : 0,
             .link      = adapter_status_generation(source),

@@ -70,3 +70,7 @@ elm_result_t elm_response_decode_identifier(const elm_response_t *response,
  * no echo, extra responder or informational lines. Caller validates service,
  * parameter, exact payload length and negative replies. Does not authorize IO. */
 elm_result_t elm_response_decode_control_frame(const elm_response_t *response, uint32_t ecu, elm_payload_t *payload);
+
+/* One 7E8 Mode 09 calibration/CVN record only. Strict source and ISO-TP framing;
+ * return the 16 calibration bytes or four CVN bytes, excluding record count. */
+elm_result_t elm_response_decode_identity(const elm_response_t *response, uint8_t pid, elm_payload_t *payload);

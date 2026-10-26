@@ -15,6 +15,10 @@ on:
         description: Short development release notes
         required: true
         type: string
+      parked_idle_test:
+        description: Owner-supervised Jeep idle candidate; local Start only, ABS/TCS disabled
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -56,13 +60,19 @@ jobs:
       - name: Build Waveshare ESP32-S3-Touch-LCD-1.28 firmware
         shell: bash
         working-directory: firmware/gauge
+        env:
+          PARKED_IDLE_TEST: ${{ inputs.parked_idle_test }}
         run: |
           . /opt/esp/idf/export.sh
-          python ../../tools/dev.py build --target firmware
+          if [[ "$PARKED_IDLE_TEST" == "true" ]]; then
+            python ../../tools/dev.py build --target firmware --parked-idle-test
+          else
+            python ../../tools/dev.py build --target firmware
+          fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: waveshare-esp32-s3-touch-lcd-1.28
-          path: firmware/gauge/build/esp32-idf-project.bin
+          path: ${{ inputs.parked_idle_test && 'firmware/gauge/build-parked-idle/esp32-idf-project.bin' || 'firmware/gauge/build/esp32-idf-project.bin' }}
           if-no-files-found: error
 
   publish:

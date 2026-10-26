@@ -13,13 +13,40 @@ swipes enter actions, horizontal swipes browse and a downward swipe returns.
 The signed update, five Wi-Fi maintenance cycles and Bluetooth recovery passed.
 Air up is configured for 5:00 and Winch for 1:00; their pressure calibration is
 not measured yet. Both use the captured **fixed** idle setting, not an arbitrary
-RPM request. Live command qualification remains disabled.
+RPM request. Live command qualification remains disabled. An owner-supervised
+idle-only candidate is now prepared in source; see the exception below.
 
-**Ready for the first parked input capture; not yet ready to execute controls from
-eGauge.** `main.c` supplies no qualified identity/guard/restoration proofs today.
+**Installed dev.61 is ready for the parked input capture, with vehicle execution
+still disabled.** `main.c` supplies no qualified identity/guard/restoration proofs today.
 The first capture closes that input-definition gap. A scoped runtime evidence
 adapter and signed candidate follow validated input mappings, before phase 2.
 No current firmware update or App reinstall is required for phase 1.
+
+### One-visit idle test candidate
+
+The owner approved a temporary local-confirmation policy on 2026-10-26 so the
+missing automatic Park/brake mapping need not force a second Jeep visit. The
+[candidate contract](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
+owns exact identity, speed/RPM, coolant, timer and restoration limits. This is a
+separate build, currently not published or installed. ABS/TCS stays disabled.
+
+Before leaving: complete CI, obtain release authorization, publish the candidate
+with `parked_idle_test=true`, and install by App/Wi-Fi. Verify exact healthy running
+image, saved dashboard/bindings/filters and local action navigation indoors; no
+adapter indoors means no Start. Keep Air up at **5:00** and Winch at **1:00**.
+Neither the App nor firmware update should overwrite those presets.
+
+At the Jeep, use one session for the fixed phase-1 capture and idle checks below.
+Keep the gauge off while the Mac owns the adapter, then release the Mac connection
+before powering the gauge. Start the eGauge test in Park with parking brake set
+and owner at the ignition. On the first Air up attempt use Stop within about five
+seconds of accepted raised idle, verify ordinary RPM, then repeat for Winch. Only
+after successful Stop/restoration check the five-minute Air up timer. If coolant
+is missing/stale, the displayed duration is limited to one minute; fresh coolant
+does not shorten Air up. Capture device logs, owner observations and the original
+read-only labels separately. Do not enable ABS/TCS or remove Unknown markers to
+get another attempt. If this candidate fails, preserve the trace and use the
+existing Stop/engine-off cleanup; no additional trip is required just to gather inputs.
 
 Bring the Mac, unlocked Pixel, gauge, both Vgates and USB data cables. Work parked
 outdoors with parking brake set. No compressor, winch load, driving, Line Lock,
@@ -82,6 +109,10 @@ promote a runtime guard. Read latency through the Mac is not ESP32 timing proof.
   Return or green JScan button never proves restored braking/stability functions.
 
 ## Phase 2: scoped gauge idle candidate
+
+The owner-supervised exception above permits only the idle tests in this phase
+before automatic Park/brake mapping. The following requirements apply to promoting
+the fully automatic vehicle definition; neither test mode nor its fixtures do that.
 
 Only after those input mappings and the runtime adapter are tested, build a signed
 candidate for the exact controller. Publication/installation follows the

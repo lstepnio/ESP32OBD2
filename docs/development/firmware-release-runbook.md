@@ -40,6 +40,13 @@ release uses this workflow; keep signing credentials in its protected environmen
 Device installation and validation start from GitHub Releases. Local bundles are
 limited to explicit recovery engineering and are not a release path.
 
+The optional `parked_idle_test` workflow input defaults to `false`. Use `true` only
+for an owner-authorized [parked idle candidate](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate),
+and identify that limitation in its release notes. It selects the separately built
+`build-parked-idle` image; ordinary releases keep the test switch off. CI compiles
+both images from the exact source before publication. Publication and installation
+still require owner authorization; this input does not qualify a vehicle profile.
+
 ## Publish
 
 1. Merge or select the exact reviewed commit. Confirm quality CI is green.
