@@ -193,10 +193,18 @@ def idf_command():
     return [python, script]
 
 
-def firmware(action):
+def firmware(action, *, parked_idle_test=False):
     idf = idf_command()
     if action == "build":
-        run([*idf, "-C", FIRMWARE, "build"])
+        options = []
+        if parked_idle_test:
+            OUTPUT.mkdir(parents=True, exist_ok=True)
+            config = OUTPUT / "parked-idle.sdkconfig"
+            lines = (FIRMWARE / "sdkconfig").read_text().splitlines()
+            lines = [line for line in lines if "CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST" not in line]
+            config.write_text("\n".join([*lines, "CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST=y", ""]))
+            options = ["-B", FIRMWARE / "build-parked-idle", "-D", "SDKCONFIG=" + str(config)]
+        run([*idf, "-C", FIRMWARE, *options, "build"])
     elif action == "test":
         idf = os.environ.get("IDF_PATH")
         if not idf:
@@ -308,7 +316,17 @@ def main():
         "--check", action="store_true", help="Check formatting without rewriting files"
     )
     parser.add_argument("--language", choices=("all", "python", "kotlin", "c"), default="all")
+    parser.add_argument(
+        "--parked-idle-test",
+        action="store_true",
+        help="Build the explicit owner-supervised Jeep idle candidate in a separate directory",
+    )
     args = parser.parse_args()
+    if args.parked_idle_test:
+        if args.action != "build" or args.target != "firmware":
+            parser.error("--parked-idle-test requires build --target firmware")
+        firmware("build", parked_idle_test=True)
+        return
     if args.action == "bootstrap":
         bootstrap()
         return

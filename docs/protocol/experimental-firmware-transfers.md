@@ -264,7 +264,9 @@ prevents traffic. Verified reconciliation is required before another Start.
 
 ## Shared vehicle commands v1
 
-**Implemented development interface; live controller qualification remains disabled.**
+**Implemented development interface; ordinary builds keep live controller qualification disabled.**
+The explicit [parked idle candidate](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
+uses the same wire with local-only Start and a separate temporary admission policy.
 Document-mode capability `vc:1` identifies the typed interface and actions-menu
 configuration extension. It does not establish a qualified car or enable vehicle
 writes. Legacy built-in mode does not advertise it. Public BLE capability flags
@@ -309,7 +311,7 @@ is checked by native and Kotlin tests.
 | 20 | 4 | Last event sequence for this kind |
 | 24 | 2 | Remaining idle seconds, otherwise zero |
 | 26 | 1 | Idle preset 1/2, otherwise zero |
-| 27 | 1 | Bit 0: qualified with usable journal; bit 1: ABS/TCS restart required; idle-only bit 2: latched timed fallback, bit 3: physical-gauge Start required, bit 4: coolant unavailable; bits 5..7 zero |
+| 27 | 1 | Bit 0: execution enabled with usable journal (qualification or the explicit parked idle candidate); bit 1: ABS/TCS restart required; idle-only bit 2: latched timed fallback, bit 3: physical-gauge Start required, bit 4: coolant unavailable; bits 5..7 zero |
 | 28 | 4 | Global last admitted Start operation; no wrap |
 
 Idle fallback flags report the [coolant policy](../architecture/vehicle-actions.md#coolant-protection-for-raised-idle).
@@ -317,6 +319,8 @@ Remaining seconds reflects the earlier deadline, rounded up. The physical-confir
 origin exists only inside the firmware queue; reserved request bytes remain zero
 and cannot authorize a missing-coolant Start. Older decoders refuse extended
 statuses rather than offering an unprotected Start. No public capability is promoted.
+The parked candidate always sets bit 3 for idle, even with fresh coolant; the App
+can retain monitoring/Stop without an APK update and cannot bypass local Start.
 
 An uncertain write is sent once and reconciled by bounded status reads. Status
 must match kind, boot, revision, link and operation. Foreground reads retry with

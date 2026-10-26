@@ -505,6 +505,32 @@ static void coolant_timer_requires_local_start_and_never_extends(void)
     vehicle_commands_observe(&s, context, now);
     assert(s.states[0].pending_stop && s.states[0].reason == VEHICLE_GUARD);
 }
+static void parked_test_is_local_idle_only_and_bounded(void)
+{
+    vehicle_commands_t s;
+    uint8_t            status[32];
+    for (unsigned scenario = 0; scenario < 4; ++scenario)
+    {
+        init(&s);
+        context.qualified_mask      = 0;
+        context.identity_mask       = 1;
+        context.parked_idle_test    = true;
+        vehicle_command_request_t r = request(scenario == 1 ? VEHICLE_ABS_TCS : VEHICLE_IDLE, VEHICLE_START, 1);
+        r.gauge_confirmed           = scenario != 0;
+        if (r.kind == VEHICLE_IDLE)
+            r.seconds = 600;
+        if (scenario == 3)
+            context.coolant_valid = false;
+        bool accepted = vehicle_commands_submit(&s, r, context, now);
+        assert(accepted == (scenario >= 2));
+        if (accepted)
+            assert(s.states[0].request.seconds == (scenario == 3 ? 60 : 300));
+        vehicle_commands_status(&s, VEHICLE_IDLE, context, now, status);
+        assert((status[27] & 9) == 9);
+        vehicle_commands_status(&s, VEHICLE_ABS_TCS, context, now, status);
+        assert(!(status[27] & 1));
+    }
+}
 int main(int argc, char **argv)
 {
     assert(argc == 2);
@@ -518,6 +544,7 @@ int main(int argc, char **argv)
         fixture[i] = value;
     }
     fclose(file);
+    parked_test_is_local_idle_only_and_bounded();
     coolant_timer_requires_local_start_and_never_extends();
     coolant_limit_selection_and_freshness();
     coolant_guard_refuses_start_and_latches_release();

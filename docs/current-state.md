@@ -1,12 +1,14 @@
 # Current implementation and evidence
 
-Updated 2026-10-20. This owns implemented/installed facts and their evidence limits.
+Updated 2026-10-26. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
 Latest rollout merges approved action pages in PR #89 and installs the matching
 App plus signed dev.61 through App/Wi-Fi. [Indoor rollout evidence](evidence/action-pages-indoor.md)
 separates automated checks, owner display/touch confirmation and remaining Jeep gates. The
 [parked action runbook](development/jeep-action-qualification.md) now prepares a
-fixed read-only input capture; it does not enable vehicle controls.
+fixed read-only input capture. An opt-in [parked idle candidate](architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
+is prepared as dev.62 source for one supervised Jeep session; it is not published or installed.
+Ordinary builds still disable vehicle controls and both qualification masks remain zero.
 
 ## Installed baseline
 
@@ -106,7 +108,8 @@ worker controller, bounded controller drivers, uncertainty journal and event rin
 Idle uses the captured fixed setting; numeric target drafts never become commands.
 ABS/TCS Return remains Restart required. Both qualification masks are zero: no
 current profile can execute controls. The shared path is installed in dev.61;
-the scoped identity/guard/restoration evidence adapter remains unimplemented.
+the fully automatic Park/brake evidence adapter remains unimplemented. Prepared
+dev.62 adds only the explicitly built, owner-supervised idle exception linked above.
 The [shared owner](architecture/vehicle-actions.md#shared-command-owner) records
 memory, cancellation, persistence, admission and remaining evidence requirements.
 The [offline foundation](architecture/vehicle-actions.md#implemented-offline-foundation)

@@ -1,5 +1,15 @@
 menu "eGauge configuration"
 
+config EGAUGE_JEEP_IDLE_PARKED_TEST
+    bool "Enable owner-supervised parked idle tests for the captured Jeep ECM"
+    default n
+    help
+        Temporary Air up/Winch qualification only. Requires exact primary ECM
+        calibration/CVN, fresh zero speed/running RPM, local gauge confirmation
+        of Park and parking brake, coolant protection and a five-minute ceiling.
+        Missing coolant retains the existing one-minute fallback. Phone Start,
+        ABS/TCS and public capabilities remain disabled. Never use for driving.
+
 config EGAUGE_OBD_TRACE
     bool "Record bounded OBD transport traces over USB serial"
     default n

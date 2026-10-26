@@ -6,8 +6,12 @@
 #include "ble_mgr.h"
 #include "adapter_status.h"
 #include "vehicle_idle_coolant.h"
+#include "jeep_idle_parked_test.h"
+#include "sdkconfig.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "freertos/task.h"
 #include <string.h>
 
 /* CPU-only driver buffers and history stay out of scarce internal Wi-Fi RAM. */
@@ -25,6 +29,90 @@ static struct
     double   limit_c, value_c;
     uint32_t observed_at, attempted_at, link, revision, identity;
 } coolant;
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+static jeep_idle_parked_test_t parked;
+static bool                    parked_enabled, identity_attempted, speed_attempted, rpm_attempted;
+static uint8_t                 identity_step;
+static uint32_t                identity_attempt_at, speed_attempt_at, rpm_attempt_at;
+
+static bool parked_read(ble_obd_ctx_t             *adapter,
+                        vehicle_command_context_t *context,
+                        jeep_test_input_t          input,
+                        uint32_t                  *now)
+{
+    static const uint8_t pids[]     = {4, 6, 12, 13};
+    elm_payload_t        sample     = {0};
+    elm_result_t         result     = ELM_ADAPTER_ERROR;
+    uint32_t             generation = adapter_status_generation(0);
+    int                  err        = ble_obd_read_primary_input(adapter, input < JEEP_TEST_RPM ? 9 : 1, pids[input],
+                                                                 input < JEEP_TEST_RPM ? 1200 : 300, &result, &sample);
+    *now                            = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+    if (generation != context->link || generation != adapter_status_generation(0) || !ble_obd_is_connected(adapter))
+    {
+        context->connected = false;
+        jeep_idle_parked_test_scope(&parked, *context);
+        return false;
+    }
+    return jeep_idle_parked_test_feed(&parked, input, !err && result == ELM_OK ? &sample : NULL, *now);
+}
+
+static void parked_context(vehicle_command_context_t *context, uint32_t now)
+{
+    if (!parked_enabled)
+        return;
+    if (!context->connected || context->revision != parked.revision || context->link != parked.link)
+    {
+        identity_attempted = speed_attempted = rpm_attempted = false;
+        identity_step                                        = 0;
+    }
+    jeep_idle_parked_test_scope(&parked, *context);
+    jeep_idle_parked_test_context(&parked, context, &commands.states[0], now);
+}
+
+static void parked_poll(ble_obd_ctx_t *adapter, vehicle_command_context_t *context, bool stop, uint32_t *now)
+{
+    if (!parked_enabled || !context->connected || !adapter || stop || commands.states[0].pending_stop ||
+        commands.states[0].phase == VEHICLE_STOPPING)
+        return;
+    vehicle_command_state_t *idle = &commands.states[0];
+    bool busy = commands.worker_kind || idle->phase == VEHICLE_ACTIVE || idle->phase == VEHICLE_VERIFYING ||
+                idle->phase == VEHICLE_UNKNOWN;
+    if (!busy && (identity_step || (!identity_attempted || *now - identity_attempt_at >= 30000)))
+    {
+        if (!identity_step)
+        {
+            identity_attempted  = true;
+            identity_attempt_at = *now;
+            identity_step       = parked_read(adapter, context, JEEP_TEST_CALIBRATION, now) ? 1 : 0;
+        }
+        else
+        {
+            bool matched  = parked_read(adapter, context, JEEP_TEST_CVN, now);
+            identity_step = 0;
+            ESP_LOGI("idle_test", "primary identity %s; parked test only", matched ? "matched" : "not matched");
+        }
+    }
+    if (!parked.calibration || !parked.cvn || !context->connected)
+        return;
+    if (!speed_attempted || *now - speed_attempt_at >= 500)
+    {
+        speed_attempted  = true;
+        speed_attempt_at = *now;
+        parked_read(adapter, context, JEEP_TEST_SPEED, now);
+        parked_context(context, *now);
+        vehicle_commands_observe(&commands, *context, *now);
+    }
+    if (!context->connected || idle->pending_stop)
+        return;
+    if (!rpm_attempted || *now - rpm_attempt_at >= 500)
+    {
+        rpm_attempted  = true;
+        rpm_attempt_at = *now;
+        parked_read(adapter, context, JEEP_TEST_RPM, now);
+    }
+    parked_context(context, *now);
+}
+#endif
 static uint32_t u32(const uint8_t *p)
 {
     return p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
@@ -58,12 +146,29 @@ static void publish(vehicle_command_context_t context, uint32_t now)
     uint8_t snapshot[2][32];
     for (unsigned i = 0; i < 2; ++i)
         vehicle_commands_status(&commands, i + 1, context, now, snapshot[i]);
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+    static uint32_t logged_sequence = UINT32_MAX;
+    if (parked_enabled && logged_sequence != commands.sequence)
+    {
+        logged_sequence = commands.sequence;
+        ESP_LOGI("idle_test", "phase=%u reason=%u operation=%lu at_ms=%lu guard_age_ms=%lu remaining_s=%u",
+                 snapshot[0][2], snapshot[0][3], (unsigned long)u32(snapshot[0] + 4), (unsigned long)now,
+                 (unsigned long)(now - context.guard_at), snapshot[0][24] | (unsigned)snapshot[0][25] << 8);
+    }
+#endif
     portENTER_CRITICAL(&cache_lock);
     memcpy(cached_status, snapshot, sizeof(snapshot));
     portEXIT_CRITICAL(&cache_lock);
 }
 esp_err_t vehicle_commands_runtime_init(const config_runtime_t *runtime)
 {
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+    memset(&parked, 0, sizeof(parked));
+    parked_enabled     = runtime && runtime->source_count && !runtime->sources[0].simulated &&
+                         !runtime->sources[0].transmission && runtime->sources[0].address[0];
+    identity_attempted = speed_attempted = rpm_attempted = false;
+    identity_step                                        = 0;
+#endif
     memset(&coolant, 0, sizeof(coolant));
     coolant.configured              = vehicle_idle_coolant_limit(runtime, &coolant.limit_c);
     vehicle_command_marker_t marker = {0};
@@ -118,6 +223,10 @@ static bool submit(const uint8_t *bytes, size_t length, bool gauge_confirmed)
     vehicle_commands_runtime_status(request.kind, status);
     if (!(status[27] & 1U))
         return false;
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+    if (parked_enabled && request.verb == VEHICLE_START && (!gauge_confirmed || request.kind != VEHICLE_IDLE))
+        return false;
+#endif
     request.gauge_confirmed = gauge_confirmed;
     return xQueueSend(requests, &request, 0) == pdTRUE;
 }
@@ -165,6 +274,9 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
         queued_idle_start |= queued[queued_count].kind == VEHICLE_IDLE && queued[queued_count].verb == VEHICLE_START;
         ++queued_count;
     }
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+    parked_context(&context, now);
+#endif
     if (coolant.link != context.link || coolant.revision != context.revision || coolant.identity != context.identity ||
         !context.connected)
     {
@@ -174,10 +286,16 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
     /* Once a running guard fails, latch Stop before a later cooler sample can
      * erase it. Never delay a queued Stop behind another guard read. */
     vehicle_commands_observe(&commands, context, now);
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+    parked_poll(adapter, &context, queued_stop, &now);
+    coolant_context(&context);
+    vehicle_commands_observe(&commands, context, now);
+#endif
     vehicle_command_state_t *idle = &commands.states[0];
-    if (!commands.worker_kind && !idle->pending_stop && !queued_stop && adapter && context.connected &&
-        (context.qualified_mask & context.identity_mask & 1U) && coolant.configured &&
-        (queued_idle_start || idle->phase == VEHICLE_ACTIVE) &&
+    if ((!commands.worker_kind || context.parked_idle_test) && !idle->pending_stop && !queued_stop && adapter &&
+        context.connected &&
+        ((context.qualified_mask | (context.parked_idle_test ? 1U : 0U)) & context.identity_mask & 1U) &&
+        coolant.configured && (queued_idle_start || idle->phase == VEHICLE_ACTIVE || context.parked_idle_test) &&
         (!coolant.attempted || now - coolant.attempted_at >= VEHICLE_IDLE_COOLANT_POLL_MS))
     {
         elm_result_t  result = ELM_ADAPTER_ERROR;
@@ -185,11 +303,12 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
         coolant.attempted    = true;
         coolant.attempted_at = now;
         uint32_t generation  = adapter_status_generation(0);
-        int      error       = ble_obd_read_pid(adapter, 1, 5, 0x7e8, 300, &result, &sample);
-        now                  = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
-        coolant.link         = context.link;
-        coolant.revision     = context.revision;
-        coolant.identity     = context.identity;
+        int      error   = context.parked_idle_test ? ble_obd_read_primary_input(adapter, 1, 5, 300, &result, &sample)
+                                                    : ble_obd_read_pid(adapter, 1, 5, 0x7e8, 300, &result, &sample);
+        now              = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+        coolant.link     = context.link;
+        coolant.revision = context.revision;
+        coolant.identity = context.identity;
         bool valid = !error && result == ELM_OK && sample.has_responder && sample.responder == 0x7e8 &&
                      sample.length == 1 && generation == context.link && generation == adapter_status_generation(0) &&
                      ble_obd_is_connected(adapter);
@@ -205,9 +324,20 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
             context.connected = false;
         coolant_context(&context);
     }
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+    parked_context(&context, now);
+#endif
     /* Stop submissions do not depend on a passing coolant guard. */
     for (unsigned i = 0; i < queued_count; ++i)
-        vehicle_commands_submit(&commands, queued[i], context, now);
+    {
+        bool accepted = vehicle_commands_submit(&commands, queued[i], context, now);
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+        if (accepted && context.parked_idle_test && queued[i].verb == VEHICLE_START)
+            jeep_idle_parked_test_started(&parked, idle);
+#else
+        (void)accepted;
+#endif
+    }
     bool                had_lease = commands.worker_kind != 0;
     jeep_idle_command_t command   = vehicle_commands_next(&commands, context, now);
     if (command.text)

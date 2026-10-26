@@ -54,6 +54,7 @@ idf_component_register(
         "src/jeep_abs_tcs_driver.c"
         "src/vehicle_commands.c"
         "src/vehicle_idle_coolant.c"
+        "src/jeep_idle_parked_test.c"
         "src/vehicle_commands_runtime.c"
         "src/gauge_layout.c"
         "src/gauge_surface.c"

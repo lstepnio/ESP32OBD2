@@ -109,3 +109,12 @@ int ble_obd_control_exchange(ble_obd_ctx_t *obd,
                              uint8_t       *response,
                              size_t        *length);
 int ble_obd_control_restore(ble_obd_ctx_t *obd, uint32_t timeout_ms, uint8_t *scratch, size_t capacity);
+
+/* Primary worker evidence only: fixed 7E0/7E8 calibration, CVN, RPM, speed or
+ * coolant reads. No callbacks, arbitrary identifiers or secondary transport. */
+int ble_obd_read_primary_input(ble_obd_ctx_t *obd,
+                               uint8_t        mode,
+                               uint8_t        pid,
+                               uint32_t       timeout_ms,
+                               elm_result_t  *status,
+                               elm_payload_t *out);
