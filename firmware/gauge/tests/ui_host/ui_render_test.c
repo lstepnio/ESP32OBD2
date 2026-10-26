@@ -246,6 +246,10 @@ int main(int argc, char **argv)
     tick(60);
     assert(command_requests == 0);
     capture(argv[1], "actions-confirm");
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+    assert(!strcmp(lv_label_get_text(ui->command_note), "Park, brake set"));
+    assert(ui->command_confirm_seconds == 300);
+#endif
     unsigned drift_before = command_requests;
     ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1, 45, 0, 1);
     command_activate(ui, false);
@@ -266,7 +270,7 @@ int main(int argc, char **argv)
     bool     stop;
     uint16_t seconds;
     ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
-    assert(kind == 1 && !stop && preset == 1 && seconds == 600);
+    assert(kind == 1 && !stop && preset == 1 && seconds == (CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST ? 300 : 600));
     ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1, 47, 0, 1);
     tick(60);
     capture(argv[1], "actions-active");

@@ -211,9 +211,23 @@ def firmware(action, *, parked_idle_test=False):
             raise SystemExit("Source ESP-IDF 5.4.1 export.sh before firmware checks.")
         require("cmake")
         build = OUTPUT / "ui-host"
-        run(["cmake", "-S", FIRMWARE / "tests/ui_host", "-B", build])
+        run(
+            [
+                "cmake",
+                "-S",
+                FIRMWARE / "tests/ui_host",
+                "-B",
+                build,
+                "-DEGAUGE_PARKED_IDLE_TEST=OFF",
+            ]
+        )
         run(["cmake", "--build", build, "-j", "2"])
         run([build / "gauge_ui_render", OUTPUT / "ui-renders"])
+        run(
+            ["cmake", "-S", FIRMWARE / "tests/ui_host", "-B", build, "-DEGAUGE_PARKED_IDLE_TEST=ON"]
+        )
+        run(["cmake", "--build", build, "-j", "2"])
+        run([build / "gauge_ui_render", OUTPUT / "ui-renders-parked"])
         json_dir = Path(idf) / "components/json/cJSON"
         # Apple's SDK deprecates sprintf used by the pinned third-party cJSON.
         # Compile that vendor object separately so project warnings stay errors.
