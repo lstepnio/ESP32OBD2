@@ -138,7 +138,8 @@ fun CompanionApp(
                         actionPagesOpen = false
                         gestureOpen = true
                     },
-                    assignmentId = model.rememberedGaugeId.orEmpty()
+                    assignmentId = model.rememberedGaugeId.orEmpty(),
+                    setupPending = state.home.pendingChanges
                 )
             }
             BoxWithConstraints(
