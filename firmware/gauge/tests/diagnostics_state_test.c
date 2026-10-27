@@ -2,12 +2,121 @@
 #include <stdio.h>
 #include <string.h>
 #include "diagnostics_state.h"
+#include "diagnostic_filter.h"
 int            test_lock_busy;
 int            test_critical_depth;
 static uint8_t packet[DIAGNOSTICS_FULL_SIZE];
 static void    read_at(uint32_t now)
 {
     assert(diagnostics_state_full_status(now, packet) == 248);
+}
+static void continuity_tests(void)
+{
+    const uint8_t             filtered[]  = {0x04, 0x20};
+    const uint8_t             new_fault[] = {0x04, 0x20, 0x01, 0x23};
+    const uint8_t             empty[]     = {0, 0};
+    const diagnostic_filter_t rules[]     = {{0x0420, 0}};
+    diagnostics_snapshot_t    snapshot;
+    diagnostics_endpoint_configure(0, 0, 40, false);
+    diagnostics_state_connected_for(2);
+    diagnostics_state_snapshot_for(2, 1000, &snapshot);
+    assert(!snapshot.valid && !snapshot.mil_known && !snapshot.count_known);
+    assert(diagnostics_endpoint_presentation_status(0, 1000, packet) == 248);
+    assert(!diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
+    diagnostics_state_mil_for(2, true, 1, 1000);
+    diagnostics_state_codes_for(2, 3, filtered, sizeof(filtered), 1000);
+    diagnostics_state_codes_for(2, 7, empty, sizeof(empty), 1000);
+    diagnostics_state_codes_for(2, 10, empty, sizeof(empty), 1000);
+    assert(diagnostics_endpoint_presentation_status(0, 1001, packet) == 248);
+    assert(diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
+    uint8_t original[248];
+    memcpy(original, packet, sizeof(original));
+    diagnostics_state_failed_for(2, 1, DIAGNOSTICS_UNAVAILABLE);
+    diagnostics_state_failed_for(2, 3, DIAGNOSTICS_UNAVAILABLE);
+    diagnostics_state_failed_for(2, 7, DIAGNOSTICS_UNAVAILABLE);
+    assert(diagnostics_endpoint_status(0, 1002, packet) == 248);
+    assert(packet[3] == DIAGNOSTICS_UNAVAILABLE && !(packet[2] & 1));
+    assert(packet[32] == DIAGNOSTICS_UNAVAILABLE && packet[33] == 1);
+    assert(packet[34] == original[34] && !memcmp(packet + 36, original + 36, 68));
+    assert(!diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
+    assert(diagnostics_endpoint_presentation_status(0, 1002, packet) == 248);
+    assert(diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
+    diagnostics_state_snapshot_for(2, 1002, &snapshot);
+    assert(snapshot.valid && snapshot.mil_on && snapshot.mil_known && snapshot.distinct_count == 1 &&
+           !snapshot.count_partial);
+    diagnostics_state_snapshot_for(2, 61000, &snapshot);
+    assert(snapshot.mil_known); /* Inclusive existing MIL lifetime. */
+    diagnostics_state_snapshot_for(2, 61001, &snapshot);
+    assert(!snapshot.mil_known && snapshot.count_known);
+    diagnostics_state_snapshot_for(2, 121000, &snapshot);
+    assert(snapshot.count_known); /* Inclusive existing category lifetime. */
+    diagnostics_state_snapshot_for(2, 121001, &snapshot);
+    assert(!snapshot.valid && !snapshot.count_known);
+    assert(diagnostics_endpoint_presentation_status(0, 121001, packet) == 248);
+    assert(!diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
+
+    /* Same-count MIL toggles invalidate proof, including the payload path. */
+    diagnostics_state_mil_for(2, false, 1, 2000);
+    diagnostics_state_mil_for(2, true, 1, 2001);
+    assert(diagnostics_endpoint_presentation_status(0, 2001, packet) == 248);
+    assert(!diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
+    assert(diagnostics_endpoint_status(0, 2001, packet) == 248);
+    assert(packet[34] == 1 && packet[40] == 0x04 && packet[41] == 0x20 && !(packet[33] & 2));
+    diagnostics_state_codes_for(2, 3, filtered, sizeof(filtered), 2002);
+    assert(diagnostics_endpoint_presentation_status(0, 2002, packet) == 248);
+    assert(!diagnostic_filter_project(packet, 0, rules, 1).suppress_mil); /* Other categories still incompatible. */
+    diagnostics_state_codes_for(2, 7, empty, sizeof(empty), 2002);
+    diagnostics_state_codes_for(2, 10, empty, sizeof(empty), 2002);
+    assert(diagnostics_endpoint_presentation_status(0, 2002, packet) == 248);
+    assert(diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
+    const uint8_t changed_mil[] = {0x82, 0, 0, 0};
+    diagnostics_state_mil_payload(2, changed_mil, 2003);
+    assert(diagnostics_endpoint_presentation_status(0, 2003, packet) == 248);
+    assert(!diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
+    diagnostics_state_codes_for(2, 3, new_fault, sizeof(new_fault), 2004);
+    diagnostics_state_codes_for(2, 7, empty, sizeof(empty), 2004);
+    diagnostics_state_codes_for(2, 10, empty, sizeof(empty), 2004);
+    assert(diagnostics_endpoint_presentation_status(0, 2004, packet) == 248);
+    diagnostic_filter_result_t projected = diagnostic_filter_project(packet, 0, rules, 1);
+    assert(projected.complete && projected.visible_count == 1 && projected.hidden_count == 1 &&
+           !projected.suppress_mil);
+    /* A rejected partial category never replaces its last successful list. */
+    diagnostics_state_codes_for(2, 3, filtered, 1, 2005);
+    diagnostics_state_failed_for(2, 3, DIAGNOSTICS_UNAVAILABLE);
+    assert(diagnostics_endpoint_status(0, 2005, packet) == 248);
+    assert(packet[34] == 2 && packet[42] == 0x01 && packet[43] == 0x23 && packet[36] == (2004 & 255));
+    assert(diagnostics_endpoint_presentation_status(0, 2005, packet) == 248);
+    assert(diagnostic_filter_project(packet, 0, rules, 1).visible_count == 1);
+    diagnostics_state_failed_for(2, 3, DIAGNOSTICS_UNSUPPORTED);
+    assert(diagnostics_endpoint_presentation_status(0, 2006, packet) == 248);
+    assert(!diagnostic_filter_project(packet, 0, rules, 1).complete);
+    assert(diagnostics_endpoint_status(0, 2006, packet) == 248);
+    assert(packet[32] == DIAGNOSTICS_UNSUPPORTED && packet[34] == 2);
+    diagnostics_state_disconnected_for(2);
+    diagnostics_state_snapshot_for(2, 2007, &snapshot);
+    assert(!snapshot.valid);
+    diagnostics_state_connected_for(2);
+    assert(diagnostics_endpoint_presentation_status(0, 2008, packet) == 248);
+    assert(packet[8] == 2 && packet[34] == 0 && !diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
+    /* Explicit unsupported categories without contrary evidence permit known coverage. */
+    diagnostics_state_mil_for(2, true, 1, 3000);
+    diagnostics_state_codes_for(2, 3, filtered, sizeof(filtered), 3000);
+    diagnostics_state_failed_for(2, 7, DIAGNOSTICS_UNSUPPORTED);
+    diagnostics_state_codes_for(2, 10, empty, sizeof(empty), 3000);
+    assert(diagnostics_endpoint_presentation_status(0, 3000, packet) == 248);
+    assert(diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
+    /* Unsupported cannot erase a previously observed unfiltered pending fault. */
+    diagnostics_state_codes_for(2, 7, new_fault, sizeof(new_fault), 3001);
+    diagnostics_state_failed_for(2, 7, DIAGNOSTICS_UNSUPPORTED);
+    assert(diagnostics_endpoint_presentation_status(0, 3002, packet) == 248);
+    projected = diagnostic_filter_project(packet, 0, rules, 1);
+    assert(!projected.suppress_mil && !projected.complete);
+    assert(diagnostics_endpoint_status(0, 3002, packet) == 248);
+    assert(packet[104] == DIAGNOSTICS_UNSUPPORTED && packet[106] == 2 && packet[114] == 0x01);
+    diagnostics_endpoint_configure(0, 1, 41, false);
+    assert(diagnostics_endpoint_presentation_status(0, 3001, packet) == 248);
+    assert(packet[4] == 41 && packet[8] == 0 && packet[34] == 0);
+    assert(!diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
 }
 int main(int argc, char **argv)
 {
@@ -129,5 +238,6 @@ int main(int argc, char **argv)
     diagnostics_state_disconnected_for(3);
     diagnostics_vehicle_snapshot(2002, &vehicle);
     assert(vehicle.distinct_count == 4 && vehicle.count_partial);
+    continuity_tests();
     puts("Diagnostics source, distinct count, coverage, full lists, expiry, reconnect and simulation passed");
 }

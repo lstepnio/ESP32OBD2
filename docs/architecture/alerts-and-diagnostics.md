@@ -93,6 +93,15 @@ if another required endpoint is unknown. Off requires fresh Off for every requir
 MIL-capable endpoint. Otherwise show Unknown or Last checked. Known unsupported
 queries are explicit coverage limitations, never fresh Off.
 
+The gauge retains the last successful same-session MIL/category presentation during
+a transient failed refresh, bounded by the original 60/120-second observation age.
+Raw phone/history packets still report the failed attempt. New MIL/count evidence
+invalidates incompatible category/filter proof, and reconnect clears it. Unsupported
+or partial coverage cannot erase previously known faults into all-filtered proof.
+The instrument face uses an icon without a number when count coverage is incomplete;
+it never shows `?` or draws a warning solely because diagnostics are loading.
+Confirmed warnings remain visible. Expert retains exact coverage and failure detail.
+
 Deduplicate by endpoint, category and code; retain overlapping categories and ECU
 origins. A code disappearing from a fresh complete category can resolve that occurrence;
 an unavailable/truncated list cannot prove it disappeared. MIL Off does not discard

@@ -52,7 +52,10 @@ void     diagnostics_endpoint_configure(unsigned endpoint, unsigned transport, u
 bool     diagnostics_endpoint_enabled(unsigned endpoint);
 unsigned diagnostics_endpoint_transport(unsigned endpoint);
 size_t   diagnostics_endpoint_status(unsigned endpoint, uint32_t now, uint8_t out[248]);
-void     diagnostics_vehicle_snapshot(uint32_t now, diagnostics_snapshot_t *out);
+/* Gauge-only retained presentation. Do not send as current attempt evidence to
+ * companion/history consumers; use diagnostics_endpoint_status for raw results. */
+size_t diagnostics_endpoint_presentation_status(unsigned endpoint, uint32_t now, uint8_t out[DIAGNOSTICS_FULL_SIZE]);
+void   diagnostics_vehicle_snapshot(uint32_t now, diagnostics_snapshot_t *out);
 
 void   diagnostics_state_mil_payload(unsigned source, const uint8_t payload[4], uint32_t now);
 size_t diagnostics_endpoint_readiness(unsigned endpoint, uint32_t now, uint8_t out[24]);

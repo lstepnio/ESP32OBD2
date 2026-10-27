@@ -16,7 +16,7 @@ static struct
     uint32_t             mil_at;
     struct
     {
-        bool                 known;
+        bool                 known, compatible;
         diagnostics_result_t result;
         uint8_t              count;
         uint16_t             codes[DIAGNOSTICS_MAX_CODES];
@@ -43,8 +43,33 @@ static bool mil_fresh(unsigned source, uint32_t now)
 static bool codes_fresh(unsigned source, unsigned i, uint32_t now)
 {
     return snapshots[source].connected && !snapshots[source].simulated && snapshots[source].categories[i].known &&
-           snapshots[source].categories[i].result == DIAGNOSTICS_OK &&
+           snapshots[source].categories[i].compatible && snapshots[source].categories[i].result == DIAGNOSTICS_OK &&
            now - snapshots[source].categories[i].at <= 120000;
+}
+/* Local presentation retains successful observations, never the failed attempt's
+ * result. Raw companion/history reads continue to use mil_fresh/codes_fresh. */
+static bool mil_present(unsigned source, uint32_t now)
+{
+    return snapshots[source].connected && !snapshots[source].simulated && snapshots[source].mil_known &&
+           snapshots[source].mil_result != DIAGNOSTICS_UNSUPPORTED && now - snapshots[source].mil_at <= 60000;
+}
+static bool codes_present(unsigned source, unsigned i, uint32_t now)
+{
+    return snapshots[source].connected && !snapshots[source].simulated && snapshots[source].categories[i].known &&
+           snapshots[source].categories[i].compatible &&
+           snapshots[source].categories[i].result != DIAGNOSTICS_UNSUPPORTED &&
+           now - snapshots[source].categories[i].at <= 120000;
+}
+static void update_mil(unsigned source, bool on, uint8_t count, uint32_t now)
+{
+    if (snapshots[source].mil_known && (snapshots[source].mil_on != on || snapshots[source].reported_count != count))
+        for (unsigned i = 0; i < 3; ++i)
+            snapshots[source].categories[i].compatible = false;
+    snapshots[source].mil_known      = true;
+    snapshots[source].mil_result     = DIAGNOSTICS_OK;
+    snapshots[source].mil_on         = on;
+    snapshots[source].reported_count = count;
+    snapshots[source].mil_at         = now;
 }
 static void format_code(uint16_t code, char out[6])
 {
@@ -100,11 +125,7 @@ void diagnostics_state_mil_for(unsigned source, bool on, uint8_t count, uint32_t
     if (source >= 4 || !lock)
         return;
     xSemaphoreTake(lock, portMAX_DELAY);
-    snapshots[source].mil_known      = true;
-    snapshots[source].mil_result     = DIAGNOSTICS_OK;
-    snapshots[source].mil_on         = on;
-    snapshots[source].reported_count = count;
-    snapshots[source].mil_at         = now;
+    update_mil(source, on, count, now);
     xSemaphoreGive(lock);
 }
 void diagnostics_state_codes_for(unsigned source, uint8_t mode, const uint8_t *bytes, size_t length, uint32_t now)
@@ -127,10 +148,11 @@ void diagnostics_state_codes_for(unsigned source, uint8_t mode, const uint8_t *b
             codes[count++] = code;
     }
     xSemaphoreTake(lock, portMAX_DELAY);
-    snapshots[source].categories[i].known  = true;
-    snapshots[source].categories[i].result = DIAGNOSTICS_OK;
-    snapshots[source].categories[i].count  = count;
-    snapshots[source].categories[i].at     = now;
+    snapshots[source].categories[i].compatible = true;
+    snapshots[source].categories[i].known      = true;
+    snapshots[source].categories[i].result     = DIAGNOSTICS_OK;
+    snapshots[source].categories[i].count      = count;
+    snapshots[source].categories[i].at         = now;
     memcpy(snapshots[source].categories[i].codes, codes, sizeof(codes));
     xSemaphoreGive(lock);
 }
@@ -170,14 +192,14 @@ void diagnostics_state_snapshot_for(unsigned source, uint32_t now, diagnostics_s
     if (xSemaphoreTake(lock, 0) != pdTRUE)
         return;
     out->transmission = snapshots[source].transmission;
-    if (mil_fresh(source, now))
+    if (mil_present(source, now))
     {
         out->mil_known      = true;
         out->mil_on         = snapshots[source].mil_on;
         out->reported_count = snapshots[source].reported_count;
         out->valid          = true;
     }
-    if (codes_fresh(source, 0, now))
+    if (codes_present(source, 0, now))
     {
         out->stored_count = snapshots[source].categories[0].count;
         /* Stored count is not the controller-reported MIL count. */
@@ -189,8 +211,10 @@ void diagnostics_state_snapshot_for(unsigned source, uint32_t now, diagnostics_s
     bool     complete = true;
     for (unsigned i = 0; i < 3; i++)
     {
-        bool fresh = codes_fresh(source, i, now);
-        if (!fresh && snapshots[source].categories[i].result != DIAGNOSTICS_UNSUPPORTED)
+        bool fresh = codes_present(source, i, now);
+        if (!fresh && (snapshots[source].categories[i].result != DIAGNOSTICS_UNSUPPORTED ||
+                       snapshots[source].categories[i].count ||
+                       (snapshots[source].categories[i].known && !snapshots[source].categories[i].compatible)))
             complete = false;
         if (!fresh)
             continue;
@@ -248,7 +272,7 @@ size_t diagnostics_state_status(uint8_t out[DIAGNOSTICS_STATUS_SIZE])
     xSemaphoreGive(lock);
     return DIAGNOSTICS_STATUS_SIZE;
 }
-size_t diagnostics_state_full_status_for(unsigned source, uint32_t now, uint8_t out[DIAGNOSTICS_FULL_SIZE])
+static size_t full_status(unsigned source, uint32_t now, uint8_t out[DIAGNOSTICS_FULL_SIZE], bool presentation)
 {
     memset(out, 0, DIAGNOSTICS_FULL_SIZE);
     out[0] = 15;
@@ -282,8 +306,30 @@ size_t diagnostics_state_full_status_for(unsigned source, uint32_t now, uint8_t 
             p[9 + 2 * j] = snapshots[source].categories[i].codes[j];
         }
     }
+    if (presentation)
+    {
+        bool present = mil_present(source, now);
+        out[2]       = (out[2] & ~1U) | (present ? 1U : 0U);
+        if (present)
+            out[3] = DIAGNOSTICS_OK;
+        for (unsigned i = 0; i < 3; ++i)
+        {
+            uint8_t *p      = out + 32 + 72 * i;
+            bool     usable = codes_present(source, i, now);
+            p[1]            = (p[1] & ~2U) | (usable ? 2U : 0U);
+            if (usable)
+                p[0] = DIAGNOSTICS_OK;
+            else if (snapshots[source].categories[i].known &&
+                     (!snapshots[source].categories[i].compatible || snapshots[source].categories[i].count))
+                p[0] = DIAGNOSTICS_UNAVAILABLE;
+        }
+    }
     xSemaphoreGive(lock);
     return DIAGNOSTICS_FULL_SIZE;
+}
+size_t diagnostics_state_full_status_for(unsigned source, uint32_t now, uint8_t out[DIAGNOSTICS_FULL_SIZE])
+{
+    return full_status(source, now, out, false);
 }
 
 void diagnostics_state_configure(bool t, uint32_t r, bool s)
@@ -341,6 +387,12 @@ size_t diagnostics_endpoint_status(unsigned endpoint, uint32_t now, uint8_t out[
         return 0;
     return diagnostics_state_full_status_for(2 + endpoint, now, out);
 }
+size_t diagnostics_endpoint_presentation_status(unsigned endpoint, uint32_t now, uint8_t out[DIAGNOSTICS_FULL_SIZE])
+{
+    if (!diagnostics_endpoint_enabled(endpoint))
+        return 0;
+    return full_status(2 + endpoint, now, out, true);
+}
 void diagnostics_vehicle_snapshot(uint32_t now, diagnostics_snapshot_t *out)
 {
     if (!out)
@@ -378,11 +430,7 @@ void diagnostics_state_mil_payload(unsigned source, const uint8_t payload[4], ui
     if (source >= 4 || !lock || !payload)
         return;
     xSemaphoreTake(lock, portMAX_DELAY);
-    snapshots[source].mil_known       = true;
-    snapshots[source].mil_result      = DIAGNOSTICS_OK;
-    snapshots[source].mil_on          = (payload[0] & 0x80) != 0;
-    snapshots[source].reported_count  = payload[0] & 0x7f;
-    snapshots[source].mil_at          = now;
+    update_mil(source, (payload[0] & 0x80) != 0, payload[0] & 0x7f, now);
     snapshots[source].readiness_known = true;
     memcpy(snapshots[source].readiness, payload, 4);
     xSemaphoreGive(lock);
