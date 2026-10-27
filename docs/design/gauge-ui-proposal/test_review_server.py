@@ -339,6 +339,23 @@ class ActionCarryTest(unittest.TestCase):
                 unseeded.seed_from(old.storage, old_assets)
             self.assertFalse(unseeded.storage.exists())
 
+    def test_action_archives_match_original_review_digests(self):
+        from review_server import ReviewStore
+
+        # Original submission digests bind every screen and flow dependency.
+        digests = {
+            "v2": "e089e26f495fcf9061efb6e2a12ceb85efe091d2e2240988090d1567a8656bec",
+            "v3": "87c2aa7467a072496d55af36917670d14e90e491ad045c1f0a2925d204417b3e",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            for version, expected in digests.items():
+                with self.subTest(version=version):
+                    store = ReviewStore(
+                        Path(directory) / (version + ".json"),
+                        UI_DIR / "action-pages" / version,
+                    )
+                    self.assertEqual(store.manifest_hash, expected)
+
     def test_frozen_session_survives_source_edits(self):
         import review_server
         import shutil

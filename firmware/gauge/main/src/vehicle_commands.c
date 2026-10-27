@@ -559,3 +559,15 @@ bool vehicle_commands_maintenance_allowed(const vehicle_command_state_t states[2
     }
     return true;
 }
+
+uint8_t vehicle_commands_ui_flags(uint8_t kind, vehicle_command_context_t c)
+{
+    if (!valid_kind(kind))
+        return 0;
+    bool    supported = c.parked_idle_test ? kind == VEHICLE_IDLE : (c.qualified_mask & (1U << index_of(kind))) != 0;
+    uint8_t flags     = supported && !qualified(c, kind) ? VEHICLE_UI_RECONNECTING : 0;
+    if (kind == VEHICLE_IDLE && c.coolant_configured && c.coolant_valid &&
+        !vehicle_idle_coolant_fallback_safe(true, true, c.coolant_c, c.coolant_limit_c))
+        flags |= VEHICLE_UI_COOLANT_HIGH;
+    return flags;
+}

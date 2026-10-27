@@ -1,12 +1,15 @@
 package com.lstepnio.egauge
 
+import android.graphics.Bitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.core.designsystem.EGaugeTheme
 import com.lstepnio.egauge.core.designsystem.StatusUi
 import com.lstepnio.egauge.ui.car.ActionPagesSheet
 import com.lstepnio.egauge.ui.state.CarUiState
+import java.io.File
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -16,6 +19,17 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ActionPagesUiTest {
     @get:Rule val compose = createComposeRule()
+    private fun capture(name: String) {
+        val output = InstrumentationRegistry.getArguments().getString("additionalTestOutputDir") ?: return
+        File(output).mkdirs()
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.waitForIdleSync()
+        val bitmap = instrumentation.uiAutomation.takeScreenshot()
+        File(output, name).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
     private fun state() = CarUiState(
         "Jeep", emptyList(), "jeep", StatusUi("Ready", ""), emptyList(), false, false, false, emptyList(),
         actions = listOf(PageAction(type = PageActionType.VehicleActions)), canEditActions = true, gaugeKnown = true, actionsSupported = true,
@@ -26,6 +40,7 @@ class ActionPagesUiTest {
         var saved: PageAction? = null
         compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { action, _ -> saved = action }, {}) } }
         compose.onNodeWithText("Winch").performScrollTo().performClick()
+        compose.onNodeWithText("Duration").performScrollTo().performClick()
         compose.onNodeWithText("Duration").performScrollTo().performTextReplacement("2:30")
         compose.onNodeWithText("Done").performScrollTo().performClick()
         compose.onNodeWithText("Save on phone").performScrollTo().performClick()
@@ -33,6 +48,98 @@ class ActionPagesUiTest {
             assertEquals(150, saved!!.winchSeconds)
             assertEquals(ActionPageId.entries.toList(), saved!!.pages)
         }
+    }
+
+    @Test fun compactEditorKeepsEstimateOptionalAndOneCoolantRow() {
+        compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { _, _ -> }, {}) } }
+        compose.onNodeWithText("Air up").assertIsDisplayed()
+        capture("action-pages-list.png")
+        compose.onNodeWithText("Air up").performScrollTo().performClick()
+        compose.onAllNodesWithText("Add a coolant limit").assertCountEquals(1)
+        compose.onNodeWithText("Idle cannot start until a high-temperature alert is set.").assertExists()
+        compose.onNodeWithText("Coolant limit").assertDoesNotExist()
+        compose.onNodeWithText("Set a coolant limit").assertDoesNotExist()
+        compose.onNodeWithText("Starting PSI").assertDoesNotExist()
+        capture("action-pages-editor-warning.png")
+        compose.onNodeWithText("Estimate from tire pressure").performScrollTo().performClick()
+        compose.onNodeWithText("Pressure estimate").performScrollTo().performClick()
+        compose.onNodeWithText("Starting PSI").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun openingDurationPreservesPressureEstimateUntilTimeChanges() {
+        val timer = AirUpTimer(20, 35, 20, 35, 300)
+        var savedPresets: List<IdlePreset>? = null
+        compose.setContent {
+            EGaugeTheme {
+                ActionPagesSheet(state().copy(idleCoolantLimitC = 105.0, idlePresets = listOf(IdlePreset(IdlePresetId.AirUp, seconds = 300, airUp = timer))), { _, presets -> savedPresets = presets }, {})
+            }
+        }
+        compose.onNodeWithText("Air up").performScrollTo().performClick()
+        compose.onNodeWithText("Coolant limit").assertIsDisplayed()
+        capture("action-pages-editor.png")
+        compose.onNodeWithText("Duration").performScrollTo().performClick()
+        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.onNodeWithText("Save on phone").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(timer, savedPresets!!.single().airUp) }
+        compose.onNodeWithText("Air up").performScrollTo().performClick()
+        compose.onNodeWithText("Duration").performScrollTo().performClick()
+        compose.onNodeWithText("Duration").performScrollTo().performTextReplacement("2:30")
+        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.onNodeWithText("Save on phone").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertNull(savedPresets!!.single().airUp)
+            assertEquals(150, savedPresets!!.single().seconds)
+        }
+    }
+
+    @Test fun expandedInvalidEstimateBlocksSavingPage() {
+        compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { _, _ -> fail("Invalid estimate cannot save") }, {}) } }
+        compose.onNodeWithText("Air up").performScrollTo().performClick()
+        compose.onNodeWithText("Estimate from tire pressure").performScrollTo().performClick()
+        compose.onNodeWithText("Pressure estimate").performScrollTo().performClick()
+        compose.onNodeWithText("Starting PSI").performScrollTo().performTextReplacement("20")
+        compose.onNodeWithText("Target PSI").performScrollTo().performTextReplacement("15")
+        compose.onNodeWithText("Target PSI must be above starting PSI.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Done").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test fun removeLivesInEditorAndCanBeUndone() {
+        var saved: PageAction? = null
+        compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { action, _ -> saved = action }, {}) } }
+        compose.onNodeWithText("Remove action").assertDoesNotExist()
+        compose.onNodeWithText("Winch").performScrollTo().performClick()
+        compose.onNodeWithText("Remove action").performScrollTo().performClick()
+        compose.onNodeWithText("Winch").assertDoesNotExist()
+        compose.onNodeWithText("Undo").performScrollTo().performClick()
+        compose.onNodeWithText("Save on phone").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(ActionPageId.entries.toList(), saved!!.pages) }
+    }
+
+    @Test fun namedOverflowReordersWithoutChangingTimers() {
+        var saved: PageAction? = null
+        compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { action, _ -> saved = action }, {}) } }
+        compose.onNodeWithText("Action page options").performScrollTo().performClick()
+        compose.onNodeWithText("Reorder actions").performClick()
+        compose.onNodeWithText("Move Winch up").performScrollTo().performClick()
+        compose.onNodeWithText("Done reordering").performScrollTo().performClick()
+        compose.onNodeWithText("Save on phone").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(listOf(ActionPageId.Winch, ActionPageId.AirUp, ActionPageId.AbsTcs), saved!!.pages)
+            assertEquals(state().actions.single().airUpSeconds, saved!!.airUpSeconds)
+            assertEquals(state().actions.single().winchSeconds, saved!!.winchSeconds)
+        }
+    }
+
+    @Test fun pendingSaveUsesOneHonestMessage() {
+        compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { _, _ -> }, {}, setupPending = true) } }
+        compose.onAllNodesWithText("Saved on phone").assertCountEquals(1)
+        compose.onNodeWithText("Saved to gauge").assertDoesNotExist()
+    }
+
+    @Test fun savedIdlePagesKeepTheirTimersBeforeQualification() {
+        compose.setContent { EGaugeTheme { ActionPagesSheet(state().copy(vehicleCommands = emptyMap()), { _, _ -> }, {}) } }
+        compose.onAllNodesWithText("5:00").assertCountEquals(2)
+        compose.onAllNodesWithText("Not supported yet").assertCountEquals(1)
     }
 
     @Test fun activeOperationLocksConfiguration() {

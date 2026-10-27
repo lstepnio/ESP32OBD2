@@ -18,6 +18,7 @@
 static EXT_RAM_BSS_ATTR vehicle_commands_t commands;
 static EXT_RAM_BSS_ATTR uint8_t            control_response[ELM_RESPONSE_CAPACITY + 1];
 static uint8_t                             cached_status[2][32];
+static uint8_t                             cached_ui_flags[2];
 static portMUX_TYPE                        cache_lock = portMUX_INITIALIZER_UNLOCKED;
 static StaticQueue_t                       queue_storage;
 static uint8_t                             queue_bytes[4 * sizeof(vehicle_command_request_t)];
@@ -144,8 +145,12 @@ static bool save(const vehicle_command_marker_t *marker, void *unused)
 static void publish(vehicle_command_context_t context, uint32_t now)
 {
     uint8_t snapshot[2][32];
+    uint8_t ui_flags[2];
     for (unsigned i = 0; i < 2; ++i)
+    {
         vehicle_commands_status(&commands, i + 1, context, now, snapshot[i]);
+        ui_flags[i] = vehicle_commands_ui_flags(i + 1, context);
+    }
 #if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
     static uint32_t logged_sequence = UINT32_MAX;
     if (parked_enabled && logged_sequence != commands.sequence)
@@ -158,6 +163,7 @@ static void publish(vehicle_command_context_t context, uint32_t now)
 #endif
     portENTER_CRITICAL(&cache_lock);
     memcpy(cached_status, snapshot, sizeof(snapshot));
+    memcpy(cached_ui_flags, ui_flags, sizeof(ui_flags));
     portEXIT_CRITICAL(&cache_lock);
 }
 esp_err_t vehicle_commands_runtime_init(const config_runtime_t *runtime)
@@ -398,4 +404,15 @@ bool vehicle_commands_runtime_maintenance_allowed(bool configuration)
         values[i].phase = cached_status[i][2];
     portEXIT_CRITICAL(&cache_lock);
     return vehicle_commands_maintenance_allowed(values, configuration);
+}
+
+size_t vehicle_commands_runtime_ui_status(uint8_t kind, uint8_t out[32])
+{
+    if (!out || kind < 1 || kind > 2)
+        return 0;
+    portENTER_CRITICAL(&cache_lock);
+    memcpy(out, cached_status[kind - 1], 32);
+    out[27] |= cached_ui_flags[kind - 1];
+    portEXIT_CRITICAL(&cache_lock);
+    return 32;
 }

@@ -42,7 +42,11 @@ class ActionPagesPhoneJourneyTest {
             .apply { mkdirs() }
         File(output, "verified-active.json").writeText(document.json)
         compose.onNodeWithText("Action pages").performScrollTo().performClick()
-        compose.onNodeWithText("Swipe up on your gauge to open these actions.").assertIsDisplayed()
+        compose.onNodeWithText("Action page options").assertIsDisplayed()
+        compose.onNodeWithText("Air up").performClick()
+        compose.onNodeWithText("Duration").assertIsDisplayed()
+        compose.onNodeWithText("Coolant limit").assertIsDisplayed()
+        compose.onNodeWithText("Back").performScrollTo().performClick()
         compose.onNodeWithText("Save on phone").performScrollTo().assertIsDisplayed()
         File(output, "setup.png").outputStream().use {
             instrumentation.uiAutomation.takeScreenshot().compress(Bitmap.CompressFormat.PNG, 100, it)

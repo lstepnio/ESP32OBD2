@@ -148,6 +148,7 @@ void ui_set_vehicle_action_status(ui_t    *ui,
                                   uint16_t remaining,
                                   uint8_t  reason,
                                   uint8_t  preset);
+void ui_set_vehicle_action_snapshot(ui_t *ui, const uint8_t status[32]);
 void ui_set_idle_protection(ui_t *ui, bool configured);
 void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *preset, uint16_t *seconds);
 void ui_vehicle_command_queued(ui_t *ui, bool accepted);

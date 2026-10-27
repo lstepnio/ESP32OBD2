@@ -512,9 +512,10 @@ before calling eGauge vehicle control demonstrated.
 
 ### Ordered action pages
 
-The owner approved all 30 [review 2 designs](../design/gauge-ui-proposal/action-pages/index.html)
-on 2026-10-20. The frozen proposal remains review evidence; this section owns the
-runtime contract. App/FW implementation does not qualify live controller execution.
+The owner approved the [review 4 simplification](../design/gauge-ui-proposal/action-pages/proposal.html)
+on 2026-10-27, replacing the earlier review 2 interaction. The frozen proposal remains
+design evidence; this section owns the runtime contract. App/FW implementation does
+not qualify live controller execution.
 
 - Gauge > Action pages owns configuration. Each remembered gauge has an optional
   action override, including order and independent bounded Air up/Winch durations.
@@ -524,7 +525,9 @@ runtime contract. App/FW implementation does not qualify live controller executi
   retain their meaning. Profiles use schema 17; gauge associations use schema 2.
 - The App saves overrides and vehicle pressure calibration together through
   `LocalSetupTransactions`. It offers typed compatible actions, edit, reorder and
-  remove with Undo. Active/unresolved controls lock configuration. Save on phone
+  remove with Undo. Compact rows open an editor with duration, the shared coolant
+  limit and optional pressure estimation. Missing protection has one actionable warning;
+  the estimate remains explicitly an estimate. Active/unresolved controls lock configuration. Save on phone
   never claims installation; the existing review/send and exact running readback
   are still required. No saved configuration contains a Start intent. One-session
   time overrides remain in the existing command-confirmation flow.
@@ -532,14 +535,26 @@ runtime contract. App/FW implementation does not qualify live controller executi
   three strokes show arrow geometry without growing the font set; the completed
   cue lasts 350 ms before entry. Returning permits immediate re-entry to reach Stop;
   the legacy page-jump cooldown is unchanged. Left/right
-  browses; Down/top chevron cancels confirmation first, then returns to readings.
-  Holds do not pair inside actions. Only a press and release in the same control,
-  without a swipe or cancellation, can activate it. Consecutive Start taps cannot
-  submit while the UI awaits the command owner. Confirmation retains its displayed
-  duration; coolant recovery cannot enlarge the queued request. Changed control
-  state cancels confirmation. A known guard rejection allows a new named Start
-  attempt with fresh worker validation; an uncertain outcome never replays a write.
-  Start revalidates at the worker.
+  browses; Down returns to readings and the top chevron cancels a confirmation first.
+  Holds do not pair inside actions. Ordinary idle Start requires a continuous 900 ms
+  hold on the ready control, replacing the repeated confirmation screen. Releasing
+  early, leaving its hit region, moving over 12 logical pixels, attention/context loss,
+  or a change in phase, flags, preset, reason or revision/link/boot cancels it. A changed
+  and restored status still cancels the hold. Completion consumes the entire touch,
+  so its release cannot Stop or issue a second Start. Removing Park/brake display copy
+  does not remove any command guard or qualify the owner-supervised parked candidate.
+- Missing coolant retains Continue followed by a fresh hold, with No coolant visible
+  at commitment and its frozen one-minute maximum. State/context drift cancels that
+  confirmation; recovery cannot enlarge a queued request. ABS/TCS retains its named
+  Disable confirmation and Restart to restore guidance. Stop is one tap, including
+  from the sibling idle page, and always targets the actual running operation.
+- Starting, Return/verification and reconnection use green, red and yellow rotating
+  edge arcs with distinct play/stop/link symbols. They indicate pending work, not
+  percentage complete. Reuse the existing UI timer and LVGL arc; no animation task,
+  framebuffer or extra font set. Render timing, cancel/retry policy and command jobs
+  remain independent. Unknown keeps Check idle / Status unknown until reconciliation.
+  Verified restoration returns directly to Ready with no Done/success screen; known
+  high coolant keeps Start blocked. Worker validation remains authoritative.
 - Readings remain selected behind the branch; remote selection and page cycling
   wait until it exits. Closing restarts the cycle quiet period and renders the
   cached samples through their existing freshness rules. Thirty idle seconds
@@ -547,12 +562,17 @@ runtime contract. App/FW implementation does not qualify live controller executi
 - Critical attention temporarily owns the display and cancels confirmation;
   acknowledgement restores the action branch without resuming a command. Pairing,
   maintenance, assignment/context loss cancel the branch. CEL remains in the upper
-  band; explanations stay below the primary control. The tested Jeep's ABS/TCS
+  band; one supporting line sits between the value and primary control. The shared
+  critical overlay preserves its measured condition and reuses the same red arc during
+  protective Return, then restores the action branch without restarting. The tested Jeep's ABS/TCS
   Disabled state has ignition-cycle guidance and no misleading Restore control.
 - An unresolved operation is appended to the displayed branch if its configured
   page is absent. This is an ephemeral recovery view, never a configuration write.
   Navigation cannot conceal Stop merely because the phone started the operation.
 - One atomic word per kind carries phase, flags, remaining time, reason and preset.
+  A local-only snapshot adds high-coolant/reconnection presentation bits and an epoch
+  invalidates an in-progress hold across context changes. The BLE status bytes and
+  public capability/qualification flags are unchanged.
   One reusable widget tree serves all three definitions; no task, frame buffer,
   font, per-page history or action-specific transport is introduced. Unchanged text
   and layers are reused instead of reallocating/redrawing on each poll. Labels use

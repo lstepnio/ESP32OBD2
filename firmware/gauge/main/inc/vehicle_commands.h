@@ -127,3 +127,11 @@ size_t vehicle_commands_status(const vehicle_commands_t *commands,
                                uint32_t                  now,
                                uint8_t                   out[VEHICLE_COMMAND_STATUS_SIZE]);
 bool   vehicle_commands_maintenance_allowed(const vehicle_command_state_t states[2], bool configuration);
+
+/* Local presentation metadata; never serialized in the BLE status flags. */
+enum
+{
+    VEHICLE_UI_COOLANT_HIGH = 32U,
+    VEHICLE_UI_RECONNECTING = 64U
+};
+uint8_t vehicle_commands_ui_flags(uint8_t kind, vehicle_command_context_t context);
