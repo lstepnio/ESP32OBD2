@@ -160,6 +160,9 @@ Production-renderer cases cover fresh coolant with local-only Start, missing
 coolant, and recovered coolant with a retained fallback deadline.
 
 This observation does not establish the run duration, coolant freshness, thermal
-Stop or complete restoration/recovery behavior. Confirm the countdown and normal
-coolant reading at the next opportunity. The display fix is not installed yet.
+Stop or complete restoration/recovery behavior. The owner confirmed no coolant page is configured. Coolant protection polls the
+primary ECM independently of display pages; a coolant page is not required. The
+runtime replay now explicitly uses an RPM-only page and still checks fresh coolant,
+five-minute admission, thermal Stop and missing-coolant fallback. Confirm the
+actual countdown at the next opportunity. The display fix is not installed yet.
 Website impact: no new public qualification claim or publication is warranted.
