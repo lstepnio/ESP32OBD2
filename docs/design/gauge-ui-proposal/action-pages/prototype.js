@@ -1,66 +1,107 @@
-/* Review-only navigation model. No transport, operation timers, persistence or command execution; only a brief entry-cue transition. */
+/* Review-only interaction. Never imports a transport or sends device commands. */
 (() => {
-  const actions = ['air-ready', 'winch-ready', 'abs-ready'];
-  let branch = false, index = 0, progress = 0, operation = null, confirming = false, lastUp = 0;
-  let enterTimer = null;
-  const image = document.getElementById('prototype-face');
-  const status = document.getElementById('prototype-status');
-  function render() {
-    let key = progress === 3 ? 'entry-three' : progress === 2 ? 'entry-two' : progress === 1 ? 'entry' : 'reading';
-    if (branch) key = confirming ? 'confirm' : operation && index === 0 ? operation : operation ? 'active-other' : actions[index];
-    image.src = key + '.png';
-    image.alt = window.gaugeMockScreens.find(s => s.id === key).title;
-    status.textContent = branch ? `Actions · page ${index + 1} of 3 · ${image.alt}. Swipe down returns to readings.` : `Reading page · ${progress} of 3 upward swipes. ${operation ? 'Air up state retained: ' + operation + '.' : ''}`;
-    const control = id => document.getElementById('proto-' + id);
-    control('up').textContent = `Swipe up (${progress}/3)`;
-    control('up').disabled = branch || enterTimer !== null;
-    control('prev').disabled = control('next').disabled = !branch || confirming;
-    control('down').disabled = !branch && progress === 0;
-    control('open').disabled = branch || enterTimer !== null;
-    control('tap').disabled = !branch || (!operation && index !== 0) || (index === 0 && ['stopping', 'hot', 'unknown'].includes(operation));
-    control('tap').textContent = !branch ? 'Start Air up' : operation && index !== 0 ? 'Return to Air up' : index !== 0 ? 'See examples below' : confirming ? 'Confirm Start' : ({starting:'Stop',active:'Stop',fallback:'Stop',stopping:'Stopping…',hot:'Returning…',stopped:'Done',unknown:'Outcome unknown'}[operation] || 'Start Air up');
-    control('advance').disabled = !['starting', 'stopping', 'hot'].includes(operation);
-    control('advance').textContent = operation === 'starting' ? 'Show started response' : ['stopping', 'hot'].includes(operation) ? 'Show stopped response' : 'Show response';
-    control('heat').disabled = !['active', 'starting', 'fallback'].includes(operation);
-    control('coolant').disabled = operation !== 'active';
-    control('loss').disabled = !['active', 'starting', 'fallback', 'stopping', 'hot'].includes(operation);
-    if (!branch) status.textContent += ' Use Open actions, or make three upward swipes within five seconds.';
-    else if (!operation && index !== 0) status.textContent += ' This action is illustrated in the gallery; the interactive walkthrough uses Air up.';
-    else if (operation === 'starting' || operation === 'stopping' || operation === 'hot') status.textContent += ' Use Show response to simulate the vehicle reply.';
+  const $ = id => document.getElementById(id);
+  const actions = ['Air up', 'Winch', 'ABS + TCS'];
+  const ready = ['air-ready', 'winch-ready', 'abs-ready'];
+  let page = 0, branch = true, entry = 0, firstSwipe = 0, idle = null;
+  let abs = 'ready', missing = false, fallbackConfirmed = false, cooldown = null;
+  let hold = null, press = null, doneTimer = null, swipe = null;
+  const image = $('prototype-face'), primary = $('proto-primary'), face = $('face-primary');
+  function cancelHold() {
+    clearTimeout(hold); hold = null; press = null;
+    primary.classList.remove('holding'); face.classList.remove('holding');
   }
-  function event(kind) {
-    if (['reset','open','down'].includes(kind)) {clearTimeout(enterTimer); enterTimer = null;}
-    if (kind === 'reset') {branch = false; index = 0; progress = 0; operation = null; confirming = false; lastUp = 0;}
-    else if (kind === 'open') {branch = true; index = 0; progress = 0; confirming = false;}
-    else if (kind === 'up' && !branch && enterTimer === null) {if (progress === 0 || performance.now() - lastUp > 5000) {progress = 0; lastUp = performance.now();} if (++progress === 3) enterTimer = setTimeout(() => {enterTimer = null; branch = true; progress = 0; render();}, 350);}
-    else if (kind === 'down') {if (confirming) confirming = false; else {branch = false; progress = 0;}}
-    else if ((kind === 'next' || kind === 'prev') && branch && !confirming) index = (index + (kind === 'next' ? 1 : 2)) % 3;
-    else if (kind === 'tap' && branch) {
-      if (operation && index !== 0) index = 0;
-      else if (operation === 'active' || operation === 'starting' || operation === 'fallback') operation = 'stopping';
-      else if (operation === 'stopped') operation = null;
-      else if (operation === 'unknown') {status.textContent = 'Reconcile vehicle state before retrying Stop; outcome remains unknown.'; return;}
-      else if (confirming) {confirming = false; operation = 'starting';}
-      else if (index === 0) confirming = true;
-      else {status.textContent = 'This interactive path focuses on Air up. Review the Winch and ABS + traction examples below.'; return;}
+  function state() {
+    if (!branch) return {key: entry ? ['reading', 'entry', 'entry-two', 'entry-three'][entry] : 'reading', label:'Open actions', disabled:true};
+    if (idle && page < 2) {
+      if (page !== idle.page && ['starting','active','fallback'].includes(idle.phase)) return {key:'active-other', label:'Stop '+actions[idle.page], action:'stop'};
+      const map = {starting:['starting','Stop','stop'], active:['active','Stop','stop'], fallback:['fallback','Stop','stop'], stopping:['stopping','Stopping'], hot:['hot','Stopping'], unknown:['unknown','Check idle'], stopped:['stopped','Normal idle']};
+      const [key,label,action] = map[idle.phase];
+      return {key,label,action,disabled:!action};
     }
-    else if (kind === 'advance') {
-      if (operation === 'starting') operation = 'active';
-      else if (operation === 'stopping' || operation === 'hot') operation = 'stopped';
+    if (page === 2) {
+      return abs === 'ready' ? {key:'abs-ready',label:'Disable',action:'confirmAbs'} : abs === 'confirm' ? {key:'abs-confirm',label:'Disable',action:'disableAbs'} : {key:'abs-off',label:'Restart to restore',disabled:true};
     }
-    else if (kind === 'coolant' && operation === 'active') {operation = 'fallback'; index = 0;}
-    else if (kind === 'heat' && ['active', 'starting', 'fallback'].includes(operation)) {operation = 'hot'; index = 0; confirming = false;}
-    else if (kind === 'loss' && ['active', 'starting', 'fallback', 'stopping', 'hot'].includes(operation)) {operation = 'unknown'; index = 0; confirming = false;}
+    if (cooldown === 'offline') return {key:'no-data',label:'Connecting',disabled:true};
+    if (missing && !fallbackConfirmed) return {key:'coolant-unavailable',label:'Continue',action:'fallback'};
+    return {key:missing?'fallback-confirm':ready[page],label:'Hold to start',action:'start',hold:true};
+  }
+  function render() {
+    const s = state(); let art=s.key;
+    if(page===1 && s.key!=='active-other' && !s.key.startsWith('abs-') && !['reading','entry','entry-two','entry-three','winch-ready'].includes(s.key))art='winch-'+s.key;
+    if(s.key==='active-other' && idle?.page===1)art='air-active-other';
+    image.src=art+'.png'; image.alt=actions[page]+': '+window.gaugeMockScreens.find(x=>x.id===s.key).title;
+    primary.textContent=s.label; primary.disabled=!!s.disabled; face.disabled=!!s.disabled;
+    face.hidden=!!s.disabled;face.setAttribute('aria-label',s.label+' '+actions[page]);
+    $('proto-open').disabled=branch; $('proto-up').disabled=branch;
+    $('proto-prev').disabled=$('proto-next').disabled=!branch || abs==='confirm';
+    $('proto-down').textContent=abs==='confirm'?'Cancel':'Back to readings';
+    $('proto-response').disabled=!(idle && ['starting','stopping','hot'].includes(idle.phase));
+    $('proto-response').textContent=idle?.phase==='starting'?'Show started response':'Show normal idle response';
+    $('proto-heat').disabled=!(idle && ['starting','active','fallback'].includes(idle.phase));
+    $('proto-coolant').disabled=page===2 || !!idle && !['starting','active'].includes(idle.phase);
+    $('proto-recover').disabled=!(cooldown || idle?.phase==='unknown' || missing);
+    $('prototype-status').textContent=!branch?`Reading page. ${entry ? entry+' upward swipe'+(entry===1?'':'s')+'. ' : ''}${idle?'Action state is retained.':''}`:
+      s.hold?'Hold confirms Park and parking brake set. Early release cancels.':
+      idle?.phase==='unknown'?'Outcome remains unknown until a real status check resolves it. Do not automatically retry Start.':
+      idle?.phase==='stopped'?'Verified normal idle. Returns to Ready automatically.':
+      page===2?'Design preview for qualified ABS/TCS. This function is disabled on the installed gauge.':
+      missing&&!idle?'Without coolant: one minute maximum. Continue to the local acknowledgment.':
+      idle?.phase==='starting'?'Waiting for a vehicle response. Stop is available now.':
+      idle?.phase==='active'||idle?.phase==='fallback'?'The countdown is the example remaining time. Tap Stop immediately when needed.':
+      idle?.phase==='stopping'||idle?.phase==='hot'?'Normal idle is not claimed until verified. Use Show normal idle response.':'Swipe left or right to browse. Swipe down to return.';
+  }
+  function activate() {
+    const s=state(); if(s.disabled)return;
+    if(s.action==='start'){idle={page,phase:missing?'starting':'starting'};fallbackConfirmed=false;}
+    else if(s.action==='stop'){page=idle.page;idle.phase='stopping';}
+    else if(s.action==='fallback')fallbackConfirmed=true;
+    else if(s.action==='confirmAbs')abs='confirm';
+    else if(s.action==='disableAbs')abs='off';
     render();
   }
-  for (const [id, kind] of Object.entries({open:'open',up:'up',prev:'prev',next:'next',down:'down',tap:'tap',advance:'advance',heat:'heat',loss:'loss',coolant:'coolant',reset:'reset'})) document.getElementById('proto-' + id).onclick = () => event(kind);
-  image.tabIndex = 0;
-  image.setAttribute('aria-label', 'Interactive gauge. Three upward strokes enter actions. Left and right browse, down returns, Enter activates.');
-  image.onkeydown = e => {if (e.repeat) return; const k = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'prev',ArrowRight:'next',Enter:'tap',Escape:'down'}[e.key]; if (k) {e.preventDefault(); event(k);}};
-  let start = null;
-  image.style.touchAction = 'none';
-  image.onpointerdown = e => {start = [e.clientX, e.clientY]; image.setPointerCapture(e.pointerId);};
-  image.onpointerup = e => {if (!start) return; const dx = e.clientX-start[0], dy = e.clientY-start[1]; start = null; if (Math.max(Math.abs(dx), Math.abs(dy)) < 30) event(e.offsetY < 50 ? 'down' : 'tap'); else event(Math.abs(dx) > Math.abs(dy) ? dx < 0 ? 'next' : 'prev' : dy < 0 ? 'up' : 'down');};
-  image.onpointercancel = () => {start = null;};
+  function begin(e) {
+    if(e.type==='keydown' && (![' ','Enter'].includes(e.key)||e.repeat))return;
+    e.preventDefault(); cancelHold(); const s=state();if(s.disabled)return;
+    press={action:s.action, hold:s.hold, committed:false, x:e.clientX, y:e.clientY};
+    if(!s.hold)return;
+    primary.classList.add('holding');face.classList.add('holding');
+    $('prototype-status').textContent='Keep holding to confirm Park and parking brake set…';
+    hold=setTimeout(()=>{hold=null;if(!press)return;press.committed=true;primary.classList.remove('holding');face.classList.remove('holding');activate();},900);
+  }
+  function end(e) {
+    if(e.type==='keyup'&&![' ','Enter'].includes(e.key))return;
+    e.preventDefault();const finished=press;cancelHold();
+    if(!finished)return;
+    if(finished.hold && !finished.committed){render();$('prototype-status').textContent='Cancelled. Release early never starts an action.';}
+    else if(!finished.hold && state().action===finished.action)activate();
+  }
+  for(const el of [primary,face]) {
+    el.addEventListener('pointerdown',e=>{if(e.button!==0)return;el.setPointerCapture(e.pointerId);begin(e);});
+    el.addEventListener('pointerup',end);
+    el.addEventListener('keydown',begin);el.addEventListener('keyup',end);
+    el.addEventListener('pointercancel',()=>{cancelHold();render();});
+    el.addEventListener('blur',()=>{cancelHold();render();});
+    el.addEventListener('click',e=>e.preventDefault());
+    el.addEventListener('pointermove',e=>{if(press && Math.hypot(e.clientX-press.x,e.clientY-press.y)>12){cancelHold();render();}});
+  }
+  function event(kind) {
+    cancelHold();
+    if(kind==='reset'){clearTimeout(doneTimer);page=0;branch=true;entry=0;idle=null;abs='ready';missing=false;fallbackConfirmed=false;cooldown=null;}
+    else if(kind==='open'){branch=true;entry=0;page=idle?idle.page:0;}
+    else if(kind==='up'&&!branch){if(!entry||performance.now()-firstSwipe>5000){firstSwipe=performance.now();entry=0;}entry++;if(entry===3){branch=true;entry=0;page=idle?idle.page:0;}}
+    else if(kind==='down'){if(abs==='confirm')abs='ready';else{branch=false;entry=0;}fallbackConfirmed=false;}
+    else if((kind==='prev'||kind==='next')&&branch){page=(page+(kind==='next'?1:2))%3;fallbackConfirmed=false;}
+    else if(kind==='response'&&idle){if(idle.phase==='starting')idle.phase=missing?'fallback':'active';else if(['stopping','hot'].includes(idle.phase)){idle.phase='stopped';doneTimer=setTimeout(()=>{idle=null;render();},2000);}}
+    else if(kind==='coolant'){missing=true;if(idle){idle.phase='fallback';page=idle.page;}}
+    else if(kind==='heat'&&idle){idle.phase='hot';page=idle.page;}
+    else if(kind==='loss'){if(idle){idle.phase='unknown';page=idle.page;}else cooldown='offline';}
+    else if(kind==='recover'){if(idle?.phase==='unknown'){$('prototype-status').textContent='Connection restored, but the outcome still needs verified reconciliation. Unknown remains visible.';return;}cooldown=null;missing=false;}
+    render();
+  }
+  for(const id of ['open','up','prev','next','down','response','coolant','heat','loss','recover','reset'])$('proto-'+id).onclick=()=>event(id);
+  $('prototype-device').addEventListener('pointerdown',e=>{swipe={x:e.clientX,y:e.clientY};});
+  $('prototype-device').addEventListener('pointerup',e=>{if(!swipe)return;const dx=e.clientX-swipe.x,dy=e.clientY-swipe.y;swipe=null;if(Math.max(Math.abs(dx),Math.abs(dy))<40)return;cancelHold();event(Math.abs(dx)>Math.abs(dy)?(dx<0?'next':'prev'):(dy<0?'up':'down'));});
+  document.addEventListener('visibilitychange',()=>{cancelHold();});
   render();
 })();
