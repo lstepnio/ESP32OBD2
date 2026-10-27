@@ -175,7 +175,14 @@ This is offline test coverage, not a new installed APK or physical observation.
 
 ## Approved action pages
 
-The approved review 2 action pages were introduced in dev.61 and remain installed in dev.62. Gauge-tab configuration stores per-gauge typed
+Owner approved the review 4 simplification on 2026-10-27. Prepared source now uses
+900 ms hold-to-start, one-tap Stop from either idle page, pending-state rings and
+verified direct return to Ready, with explicit high-coolant blocking. Android uses
+compact action rows and a focused editor. The [implementation evidence](evidence/action-pages-indoor.md#2026-10-27-approved-review-4-implementation)
+records offline checks; these changes are not installed. Installed dev.63 remains
+the physical baseline above. Wire formats, guards and qualification flags are unchanged.
+
+The approved review 2 action pages were introduced in dev.61 and remain the installed baseline through dev.63. Gauge-tab configuration stores per-gauge typed
 page order and timers; firmware uses one reusable face with deliberate Start,
 direct Stop, attention return and bounded coolant fallback. Existing live command
 qualification masks remain zero. The App/Wi-Fi installation preserved the dashboard; the owner then requested replacing the jump binding with ordered action pages at revision 55.

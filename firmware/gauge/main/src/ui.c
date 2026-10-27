@@ -130,7 +130,7 @@ struct _ui_t
     uint8_t             rendered_action_progress;
     lv_obj_t           *action_label, *action_arrows[5];
     lv_obj_t           *command_menu, *command_button, *command_back, *command_title, *command_value, *command_note,
-        *command_button_text;
+        *command_button_text, *command_ring, *command_symbol;
     lv_obj_t   *command_dots[3];
     uint8_t     command_page, command_request_page, command_page_count, command_pages[3];
     bool        command_suspended, command_press, command_moved, command_waiting, idle_protection;
@@ -140,7 +140,11 @@ struct _ui_t
     atomic_uint command_ui[2];
     atomic_bool command_menu_active;
     bool        command_menu_visible, command_layer_dirty;
-    uint8_t     command_confirm, command_selected, command_done;
+    uint8_t     command_confirm, command_selected;
+    bool        command_hold_armed, command_hold_commit;
+    uint32_t    command_press_at, command_press_epoch, command_confirm_epoch;
+    atomic_uint command_epoch;
+    uint32_t    command_scope[2][3]; /* App-task writer only; epoch is the LVGL fence. */
     bool        command_request_stop, command_admission_failed;
     uint16_t    command_request_seconds, command_confirm_seconds;
 
@@ -648,6 +652,8 @@ static void select_renderer_widgets(ui_t *ui)
 // ---------------------------------------------------------------------------------------------------------------------
 
 static void refresh_vehicle_menu(ui_t *ui);
+static void command_hold_tick(ui_t *ui);
+static void command_attention_ring(ui_t *ui);
 static void close_vehicle_menu(ui_t *ui);
 static bool command_busy(ui_t *ui);
 
@@ -1167,16 +1173,16 @@ static void render_status(ui_t *ui)
         }
         int x = gx(120) - total / 2;
         icon_style(ui->widgets.alert_icon, alert.severity == 2 ? 3 : 2, color);
-        lv_obj_set_pos(ui->widgets.alert_icon, x, gy(183));
+        lv_obj_set_pos(ui->widgets.alert_icon, x, gy(ui->command_menu_visible ? 125 : 183));
         x += px(27);
         lv_obj_set_style_text_color(ui->widgets.alert_lbl, lv_color_hex(color), 0);
-        small_label(ui->widgets.alert_lbl, text, x + width / 2, gy(194), width + 1);
+        small_label(ui->widgets.alert_lbl, text, x + width / 2, gy(ui->command_menu_visible ? 136 : 194), width + 1);
         x += width;
         if (direction)
         {
             lv_line_set_points(ui->widgets.alert_arrow, alert.value < alert.limit ? arrow_down : arrow_up, 5);
             lv_obj_set_style_line_color(ui->widgets.alert_arrow, lv_color_hex(color), 0);
-            lv_obj_set_pos(ui->widgets.alert_arrow, x + px(5), gy(187));
+            lv_obj_set_pos(ui->widgets.alert_arrow, x + px(5), gy(ui->command_menu_visible ? 129 : 187));
             show(ui->widgets.alert_arrow, true);
         }
     }
@@ -1284,6 +1290,8 @@ static void ui_task(lv_timer_t *timer)
 
     action_context(ui);
     refresh_vehicle_menu(ui);
+    command_hold_tick(ui);
+    command_attention_ring(ui);
     uint32_t action_now = (uint32_t)(esp_timer_get_time() / 1000);
     page_action_tick(&ui->action, action_now);
     if (ui->action_enter_pending && action_now - ui->action_enter_at >= 350)
@@ -1644,6 +1652,7 @@ ui_t *ui_init(ui_page_t const    *page,
     atomic_init(&ui->action_pending, false);
     atomic_init(&ui->action_context_epoch, 0);
     atomic_init(&ui->command_menu_active, false);
+    atomic_init(&ui->command_epoch, 0);
     atomic_init(&ui->command_ui[0], 0);
     atomic_init(&ui->command_ui[1], 0);
     ui_init_screen(ui, page, interval_ms);
@@ -1980,11 +1989,16 @@ static bool command_busy(ui_t *ui)
 }
 static void close_vehicle_menu(ui_t *ui)
 {
-    ui->command_menu_visible = ui->command_suspended = ui->command_press = false;
-    ui->command_confirm                                                  = 0;
+    ui->command_menu_visible = ui->command_suspended = ui->command_press = ui->command_hold_armed = false;
+    ui->command_confirm                                                                           = 0;
     atomic_store(&ui->command_menu_active, false);
     if (ui->command_menu)
+    {
+        if (lv_obj_get_parent(ui->command_ring) != ui->command_menu)
+            lv_obj_set_parent(ui->command_ring, ui->command_menu);
+        show(ui->command_ring, false);
         lv_obj_add_flag(ui->command_menu, LV_OBJ_FLAG_HIDDEN);
+    }
     /* Restart the page-cycle quiet period without changing the originating page. */
     dispatch_touch(ui, LV_EVENT_PRESSED);
     render_page(ui);
@@ -2044,6 +2058,11 @@ static void refresh_vehicle_menu(ui_t *ui)
 {
     if (!ui->command_menu_visible || ui->command_suspended)
         return;
+    if (lv_obj_get_parent(ui->command_ring) != ui->command_menu)
+    {
+        lv_obj_set_parent(ui->command_ring, ui->command_menu);
+        lv_obj_center(ui->command_ring);
+    }
     command_sync_pages(ui);
     uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
     if (now - ui->command_activity >= 30000 && !command_busy(ui) && !ui->command_waiting)
@@ -2055,9 +2074,7 @@ static void refresh_vehicle_menu(ui_t *ui)
         ui->command_admission_failed = false;
     unsigned id = command_id(ui), kind = id == 3 ? 1 : 0;
     unsigned state = atomic_load(&ui->command_ui[kind]), phase = state & 255U;
-    if (phase != VEHICLE_RESTORED)
-        ui->command_done &= ~(1U << kind);
-    else if (ui->command_done & (1U << kind))
+    if (phase == VEHICLE_RESTORED)
         phase = VEHICLE_READY;
     unsigned    reason = (state >> 28) & 15U;
     const char *title  = id == 1 ? "Air up" : id == 2 ? "Winch" : id == 3 ? "ABS + TCS" : "No actions";
@@ -2065,117 +2082,97 @@ static void refresh_vehicle_menu(ui_t *ui)
     char        duration[24];
     bool        enabled = false;
     if (ui->command_confirm && ((phase != VEHICLE_READY && phase != VEHICLE_REJECTED) ||
-                                (state & 0x0c00ffffU) != (ui->command_confirm_state & 0x0c00ffffU)))
+                                (state & 0xfc00ffffU) != (ui->command_confirm_state & 0xfc00ffffU) ||
+                                ui->command_confirm_epoch != atomic_load(&ui->command_epoch)))
         ui->command_confirm = 0;
     ui->command_presented_state = state;
     if (ui->command_waiting && (phase != ui->command_selected || now - ui->command_wait_at >= 2000))
         ui->command_waiting = false;
+    unsigned ring = 0;
     if (!id)
-    {
         value = "Add in App";
-    }
-    else if (ui->command_waiting)
-    {
-        value = "Checking...";
-    }
-    else if (ui->command_confirm)
-    {
-        title = id == 3 ? "Disable both?" : id == 2 ? "Start Winch?" : "Start Air up?";
-        snprintf(duration, sizeof(duration), "%u:%02u", ui->command_confirm_seconds / 60,
-                 ui->command_confirm_seconds % 60);
-        value  = id == 3 ? "ABS + TCS" : duration;
-        button = id == 3 ? "Disable" : "Start";
-        note   = id == 3 ? "Restart to restore" : (state & (16U << 8)) ? "Coolant unavailable" : "While parked";
-#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
-        if (id < 3)
-            note = "Park, brake set";
-#endif
-        enabled = (state & 256U) != 0;
-    }
-    else if (!id || !(state & 256U))
-    {
-        value = "Unavailable";
-        note  = "Not available yet";
-    }
     else if (phase == VEHICLE_UNKNOWN)
     {
-        value = "Unknown";
-        note  = id < 3 ? "Check idle" : "Check vehicle";
+        value = id < 3 ? "Check idle" : "Check vehicle";
+        note  = "Status unknown";
     }
     else if (id == 3 && (phase == VEHICLE_ACTIVE || phase == VEHICLE_RESTART_REQUIRED))
     {
-        value = "Disabled";
-        note  = "Cycle ignition";
-    }
-    else if (id < 3 && (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE) && id != active_idle_id(ui))
-    {
-        value   = "Idle is active";
-        button  = active_idle_id(ui) == 2 ? "View Winch" : "View Air up";
-        enabled = true;
-    }
-    else if (phase == VEHICLE_STARTING)
-    {
-        value   = "Starting...";
-        button  = "Stop";
-        enabled = true;
-    }
-    else if (phase == VEHICLE_ACTIVE)
-    {
-        unsigned seconds = (state >> 16) & 1023U;
-        snprintf(duration, sizeof(duration), "%u:%02u", seconds / 60, seconds % 60);
-        value   = duration;
-        button  = "Stop";
-        enabled = true;
-        if (state & (16U << 8))
-            note = "Coolant unavailable";
+        value = "Off";
+        note  = "Restart to restore";
     }
     else if (phase == VEHICLE_STOPPING || phase == VEHICLE_VERIFYING)
     {
-        value = phase == VEHICLE_STOPPING ? "Stopping..." : "Checking idle...";
-        note  = reason == VEHICLE_GUARD ? "Check coolant" : "";
+        value = "";
+        ring  = 2;
+        if (state & (VEHICLE_UI_COOLANT_HIGH << 8))
+            note = "Coolant high";
     }
-    else if (phase == VEHICLE_RESTORED)
+    else if (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE)
     {
-        value   = id == 3 ? "Enabled" : "Normal idle";
-        button  = "Done";
-        enabled = true;
+        unsigned seconds = (state >> 16) & 1023U;
+        snprintf(duration, sizeof(duration), "%u:%02u", seconds / 60, seconds % 60);
+        value   = phase == VEHICLE_STARTING ? "" : duration;
+        ring    = phase == VEHICLE_STARTING ? 1 : 0;
+        button  = id < 3 ? "Stop" : "";
+        enabled = id < 3;
+        if (id < 3 && id != active_idle_id(ui))
+            note = active_idle_id(ui) == 2 ? "Winch running" : "Air up running";
+        else if (state & (16U << 8))
+            note = "No coolant";
+    }
+    else if (ui->command_waiting)
+    {
+        value = "";
+        ring  = ui->command_request_stop ? 2 : 1;
+    }
+    else if (!(state & 256U))
+    {
+        value = (state & (VEHICLE_UI_RECONNECTING << 8)) ? "" : "Not supported";
+        ring  = (state & (VEHICLE_UI_RECONNECTING << 8)) ? 3 : 0;
     }
     else if (command_busy(ui))
-    {
         value = "Action in progress";
-    }
     else if (id < 3 && !ui->idle_protection)
     {
         value = "Set coolant limit";
         note  = "In the App";
     }
+    else if (id < 3 && (state & (VEHICLE_UI_COOLANT_HIGH << 8)))
+        value = "Coolant high";
     else if (phase == VEHICLE_READY || phase == VEHICLE_REJECTED)
     {
-        unsigned seconds = command_duration(ui, id, state);
+        unsigned seconds = ui->command_confirm ? ui->command_confirm_seconds : command_duration(ui, id, state);
+        snprintf(duration, sizeof(duration), "%u:%02u", seconds / 60, seconds % 60);
+        value   = id == 3 ? "On" : duration;
+        button  = id == 3 ? "Disable" : "Hold to start";
+        enabled = true;
         if (id < 3 && (state & (16U << 8)))
         {
-            if (seconds > 60)
-                seconds = 60;
-            note = "Coolant unavailable";
+            note = ui->command_confirm ? "No coolant" : "No coolant · 1 min max";
+            if (!ui->command_confirm)
+                button = "Continue";
         }
-        snprintf(duration, sizeof(duration), "%u:%02u%s", seconds / 60, seconds % 60,
-                 (state & (16U << 8)) ? " max" : "");
-        value   = id == 3 ? "Enabled" : duration;
-        title   = id == 3 ? "Disable ABS + TCS" : title;
-        button  = id == 3 ? "Disable" : "Start";
-        enabled = true;
-        if (phase == VEHICLE_REJECTED && reason == VEHICLE_GUARD)
+        if (id == 3 && ui->command_confirm)
         {
-            value  = "Could not start";
-            note   = "Check conditions";
-            button = "Try again";
+            title = "Disable both?";
+            value = "ABS + TCS";
+            note  = "Restart to restore";
         }
+        if (phase == VEHICLE_REJECTED && reason == VEHICLE_GUARD && !note[0])
+            note = "Check conditions";
     }
     if (ui->command_admission_failed && enabled && !note[0] && !ui->rendered_alert.severity)
         note = "Try again";
-    command_text(ui, ui->command_title, title, 65, 184, font_subtitle);
-    command_text(ui, ui->command_value, value, 116, 186, font_compact);
-    command_text(ui, ui->command_note, note, 193, 160, font_subtitle);
+    /* Existing fonts and one arc tree, no per-frame allocations or animation task. */
+    command_text(ui, ui->command_title, title, 59, 184, font_unit);
+    command_text(ui, ui->command_value, value, 104, 186, strchr(value, ':') && id < 3 ? font_large : font_compact);
+    command_text(ui, ui->command_note, note, 136, 200, font_subtitle);
+    bool coolant_warning = id < 3 && (state & ((16U | VEHICLE_UI_COOLANT_HIGH) << 8));
+    lv_obj_set_style_text_color(ui->command_value, lv_color_hex(coolant_warning ? color_warning : color_text_primary),
+                                0);
+    bool quiet_note = !strcmp(note, "In the App") || strstr(note, "running");
+    lv_obj_set_style_text_color(ui->command_note, lv_color_hex(quiet_note ? color_text_secondary : color_warning), 0);
     if (strcmp(lv_label_get_text(ui->command_button_text), button))
         lv_label_set_text(ui->command_button_text, button);
     lv_obj_set_style_text_font(ui->command_button_text, font_subtitle, 0);
@@ -2185,6 +2182,24 @@ static void refresh_vehicle_menu(ui_t *ui)
         lv_obj_remove_state(ui->command_button, LV_STATE_DISABLED);
     else
         lv_obj_add_state(ui->command_button, LV_STATE_DISABLED);
+    show(ui->command_ring, ring != 0);
+    show(ui->command_symbol, ring != 0);
+    if (ring)
+    {
+        uint32_t color = ring == 1 ? color_accent : ring == 2 ? color_critical : 0xFFD600;
+        lv_obj_set_style_arc_color(ui->command_ring, lv_color_hex(color), LV_PART_INDICATOR);
+        lv_arc_set_rotation(ui->command_ring, (now % 1400) * 360 / 1400);
+        static lv_point_precise_t symbols[8];
+        static const int16_t      points[3][9][2] = {
+            {{111, 91}, {132, 103}, {111, 115}, {111, 91}},
+            {{109, 92}, {131, 92}, {131, 114}, {109, 114}, {109, 92}},
+            {{120, 95}, {108, 95}, {108, 109}, {122, 109}, {122, 95}, {134, 95}, {134, 109}, {120, 109}}};
+        static const uint8_t counts[] = {4, 5, 8};
+        for (unsigned i = 0; i < counts[ring - 1]; i++)
+            symbols[i] = (lv_point_precise_t){px(points[ring - 1][i][0]), px(points[ring - 1][i][1])};
+        lv_line_set_points(ui->command_symbol, symbols, counts[ring - 1]);
+        lv_obj_set_style_line_color(ui->command_symbol, lv_color_hex(color), 0);
+    }
     for (unsigned i = 0; i < 3; ++i)
     {
         lv_obj_set_pos(ui->command_dots[i], gx(120 - (int)ui->command_page_count * 6 + (int)i * 12 + 4), gy(211));
@@ -2217,34 +2232,35 @@ static void command_activate(ui_t *ui, bool back)
         return;
     unsigned state = atomic_load(&ui->command_ui[id == 3 ? 1 : 0]), phase = state & 255U;
     /* A state change must never turn a displayed Start into an implicit Stop. */
-    if ((state & 0x0c00ffffU) != (ui->command_presented_state & 0x0c00ffffU))
+    if ((state & 0xfc00ffffU) != (ui->command_presented_state & 0xfc00ffffU))
     {
         ui->command_confirm = 0;
-        return;
-    }
-    if (id < 3 && (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE) && id != active_idle_id(ui))
-    {
-        for (unsigned i = 0; i < ui->command_page_count; ++i)
-            if (ui->command_pages[i] == active_idle_id(ui))
-                ui->command_page = i;
-        return;
-    }
-    if (phase == VEHICLE_RESTORED && !(ui->command_done & (1U << (id == 3 ? 1 : 0))))
-    {
-        ui->command_done |= 1U << (id == 3 ? 1 : 0);
         return;
     }
     if (phase == VEHICLE_RESTORED)
         phase = VEHICLE_READY;
     bool stop = id < 3 && (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE);
-    if (!stop && !ui->command_confirm)
+    if (!stop && id < 3 && (!ui->idle_protection || (state & (VEHICLE_UI_COOLANT_HIGH << 8))))
+        return;
+    if (!stop && !ui->command_confirm && (id == 3 || (state & (16U << 8))))
     {
         ui->command_confirm         = id;
         ui->command_confirm_state   = state;
+        ui->command_confirm_epoch   = atomic_load(&ui->command_epoch);
         ui->command_confirm_seconds = id < 3 ? command_duration(ui, id, state) : 0;
         return;
     }
-    if (!(state & 256U) || (!stop && phase != VEHICLE_READY && phase != VEHICLE_REJECTED))
+    if (!stop && id < 3 && !ui->command_hold_commit)
+        return;
+    unsigned seconds = ui->command_confirm ? ui->command_confirm_seconds : command_duration(ui, id, state);
+    if (stop)
+    {
+        id = active_idle_id(ui);
+        for (unsigned i = 0; i < ui->command_page_count; i++)
+            if (ui->command_pages[i] == id)
+                ui->command_page = i;
+    }
+    if ((!stop && !(state & 256U)) || (!stop && phase != VEHICLE_READY && phase != VEHICLE_REJECTED))
     {
         ui->command_confirm = 0;
         return;
@@ -2253,7 +2269,7 @@ static void command_activate(ui_t *ui, bool back)
     ui->command_request_stop     = stop;
     ui->command_admission_failed = false;
     /* Freeze the confirmed duration. A later coolant recovery cannot lengthen it. */
-    ui->command_request_seconds = id < 3 && !stop ? ui->command_confirm_seconds : 0;
+    ui->command_request_seconds = id < 3 && !stop ? seconds : 0;
     ui->command_selected        = phase;
     ui->command_confirm         = 0;
     ui->command_waiting         = true;
@@ -2272,19 +2288,36 @@ static void command_pointer(ui_t *ui, lv_event_code_t code, lv_obj_t *target, in
         ui->command_x            = x;
         ui->command_y            = y;
         ui->command_press_target = target;
+        ui->command_press_at     = (uint32_t)(esp_timer_get_time() / 1000);
+        ui->command_press_epoch  = atomic_load(&ui->command_epoch);
+        ui->command_hold_armed =
+            target == ui->command_button && !strcmp(lv_label_get_text(ui->command_button_text), "Hold to start");
     }
-    else if (code == LV_EVENT_PRESSING && ui->command_press &&
-             (abs(x - ui->command_x) > 12 || abs(y - ui->command_y) > 12))
-        ui->command_moved = true;
-    else if (code == LV_EVENT_PRESS_LOST || code == LV_EVENT_LONG_PRESSED || code == LV_EVENT_LONG_PRESSED_REPEAT)
-        ui->command_press = false;
+    else if (code == LV_EVENT_PRESSING && ui->command_press)
+    {
+        if (abs(x - ui->command_x) > px(12) || abs(y - ui->command_y) > px(12))
+            ui->command_moved = true;
+        if (ui->command_hold_armed)
+        {
+            lv_area_t area;
+            lv_obj_get_coords(ui->command_button, &area);
+            if (x < area.x1 || x > area.x2 || y < area.y1 || y > area.y2)
+                ui->command_moved = true;
+        }
+    }
+    else if (code == LV_EVENT_PRESS_LOST)
+        ui->command_press = ui->command_hold_armed = false;
     else if (code == LV_EVENT_RELEASED && ui->command_press)
     {
-        ui->command_press = false;
+        bool held         = ui->command_hold_armed;
+        ui->command_press = ui->command_hold_armed = false;
         int dx = x - ui->command_x, dy = y - ui->command_y;
-        if (dy >= 32 && abs(dy) >= 2 * abs(dx))
-            command_activate(ui, true);
-        else if (abs(dx) >= 32 && abs(dx) >= 2 * abs(dy))
+        if (dy >= px(32) && abs(dy) >= 2 * abs(dx))
+        {
+            ui->command_confirm = 0;
+            close_vehicle_menu(ui);
+        }
+        else if (abs(dx) >= px(32) && abs(dx) >= 2 * abs(dy))
         {
             if (!ui->command_confirm && ui->command_page_count)
             {
@@ -2293,8 +2326,8 @@ static void command_pointer(ui_t *ui, lv_event_code_t code, lv_obj_t *target, in
                     ui->command_page = next;
             }
         }
-        else if (!ui->command_moved && abs(dx) <= 12 && abs(dy) <= 12 && target == ui->command_press_target &&
-                 (target == ui->command_button || target == ui->command_back))
+        else if (!held && !ui->command_moved && abs(dx) <= px(12) && abs(dy) <= px(12) &&
+                 target == ui->command_press_target && (target == ui->command_button || target == ui->command_back))
         {
             lv_area_t area;
             lv_obj_get_coords(target, &area);
@@ -2331,6 +2364,19 @@ void ui_show_vehicle_actions(ui_t *ui)
                            LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_EVENT_BUBBLE | LV_OBJ_FLAG_GESTURE_BUBBLE);
         lv_obj_add_flag(ui->command_menu, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(ui->command_menu, command_menu_event, LV_EVENT_ALL, ui);
+        ui->command_ring = lv_arc_create(ui->command_menu);
+        lv_obj_set_size(ui->command_ring, px(232), px(232));
+        lv_obj_center(ui->command_ring);
+        lv_arc_set_bg_angles(ui->command_ring, 0, 360);
+        lv_arc_set_angles(ui->command_ring, 0, 80);
+        lv_obj_remove_style(ui->command_ring, NULL, LV_PART_KNOB);
+        lv_obj_remove_flag(ui->command_ring, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_style_arc_width(ui->command_ring, px(6), LV_PART_MAIN);
+        lv_obj_set_style_arc_width(ui->command_ring, px(6), LV_PART_INDICATOR);
+        lv_obj_set_style_arc_color(ui->command_ring, lv_color_hex(color_track), LV_PART_MAIN);
+        ui->command_symbol = lv_line_create(ui->command_menu);
+        lv_obj_set_style_line_width(ui->command_symbol, px(3), 0);
+        lv_obj_remove_flag(ui->command_symbol, LV_OBJ_FLAG_CLICKABLE);
         ui->command_title = plain_label(ui->command_menu, color_text_primary);
         ui->command_value = plain_label(ui->command_menu, color_text_primary);
         ui->command_note  = plain_label(ui->command_menu, color_warning);
@@ -2353,10 +2399,12 @@ void ui_show_vehicle_actions(ui_t *ui)
             lv_obj_set_style_bg_opa(ui->command_dots[i], LV_OPA_COVER, 0);
             lv_obj_set_pos(ui->command_dots[i], px(106 + i * 12), px(211));
         }
-        ui->command_button = plain_view(ui->command_menu, 148, 44);
-        lv_obj_align(ui->command_button, LV_ALIGN_TOP_MID, 0, px(136));
+        ui->command_button = plain_view(ui->command_menu, 152, 48);
+        lv_obj_align(ui->command_button, LV_ALIGN_TOP_MID, 0, px(150));
         lv_obj_set_style_radius(ui->command_button, px(12), 0);
         lv_obj_set_style_bg_color(ui->command_button, lv_color_hex(color_accent), 0);
+        lv_obj_set_style_bg_color(ui->command_button, lv_color_mix(lv_color_hex(color_accent), lv_color_black(), 190),
+                                  LV_STATE_PRESSED);
         lv_obj_set_style_bg_opa(ui->command_button, LV_OPA_COVER, 0);
         ui->command_button_text = plain_label(ui->command_button, color_background);
         lv_obj_t *targets[]     = {ui->command_back, ui->command_button};
@@ -2398,14 +2446,21 @@ void ui_set_vehicle_action_status(ui_t    *ui,
 {
     if (ui && kind >= 1 && kind <= 2)
     {
-        atomic_store(&ui->command_ui[kind - 1], phase | ((unsigned)flags << 8) | (((unsigned)remaining & 1023U) << 16) |
-                                                    (((unsigned)preset & 3U) << 26) | (((unsigned)reason & 15U) << 28));
+        unsigned packed = phase | ((unsigned)flags << 8) | (((unsigned)remaining & 1023U) << 16) |
+                          (((unsigned)preset & 3U) << 26) | (((unsigned)reason & 15U) << 28);
+        unsigned old    = atomic_exchange(&ui->command_ui[kind - 1], packed);
+        if ((old & 0xfc00ffffU) != (packed & 0xfc00ffffU))
+            atomic_fetch_add(&ui->command_epoch, 1);
     }
 }
 void ui_set_idle_protection(ui_t *ui, bool configured)
 {
     if (ui)
+    {
+        if (ui->idle_protection != configured)
+            ui->command_press = ui->command_hold_armed = false;
         ui->idle_protection = configured;
+    }
 }
 void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *preset, uint16_t *seconds)
 {
@@ -2423,5 +2478,61 @@ void ui_vehicle_command_queued(ui_t *ui, bool accepted)
         ui->command_admission_failed = true;
         ui->command_wait_at          = (uint32_t)(esp_timer_get_time() / 1000);
         refresh_vehicle_menu(ui);
+    }
+}
+
+void ui_set_vehicle_action_snapshot(ui_t *ui, const uint8_t status[32])
+{
+    if (!ui || !status || status[1] < 1 || status[1] > 2)
+        return;
+    uint32_t scope[3];
+    memcpy(scope, status + 8, sizeof(scope));
+    unsigned kind = status[1];
+    if (memcmp(ui->command_scope[kind - 1], scope, sizeof(scope)))
+    {
+        memcpy(ui->command_scope[kind - 1], scope, sizeof(scope));
+        atomic_fetch_add(&ui->command_epoch, 1);
+    }
+    ui_set_vehicle_action_status(ui, kind, status[2], status[27], status[24] | (uint16_t)status[25] << 8, status[3],
+                                 status[26]);
+}
+static void command_hold_tick(ui_t *ui)
+{
+    if (!ui->command_press || !ui->command_hold_armed)
+        return;
+    if (!ui->command_menu_visible || ui->command_suspended || !action_context(ui) || ui->command_moved ||
+        ui->command_press_epoch != atomic_load(&ui->command_epoch) ||
+        lv_obj_has_state(ui->command_button, LV_STATE_DISABLED) ||
+        strcmp(lv_label_get_text(ui->command_button_text), "Hold to start"))
+    {
+        ui->command_press = ui->command_hold_armed = false;
+        return;
+    }
+    if ((uint32_t)(esp_timer_get_time() / 1000) - ui->command_press_at < 900)
+        return;
+    /* Consume the entire touch before dispatch: its release cannot also Stop. */
+    ui->command_press = ui->command_hold_armed = false;
+    ui->command_hold_commit                    = true;
+    command_activate(ui, false);
+    ui->command_hold_commit = false;
+    refresh_vehicle_menu(ui);
+}
+
+static void command_attention_ring(ui_t *ui)
+{
+    if (!ui->command_menu_visible || !ui->command_suspended || !ui->command_ring)
+        return;
+    unsigned phase    = atomic_load(&ui->command_ui[0]) & 255U;
+    bool     stopping = phase == VEHICLE_STOPPING || phase == VEHICLE_VERIFYING;
+    if (lv_obj_get_parent(ui->command_ring) != ui->widgets.alert_overlay)
+    {
+        lv_obj_set_parent(ui->command_ring, ui->widgets.alert_overlay);
+        lv_obj_center(ui->command_ring);
+    }
+    show(ui->command_ring, stopping);
+    if (stopping)
+    {
+        lv_obj_set_style_arc_color(ui->command_ring, lv_color_hex(color_critical), LV_PART_INDICATOR);
+        lv_arc_set_rotation(ui->command_ring, ((uint32_t)(esp_timer_get_time() / 1000) % 1400) * 360 / 1400);
     }
 }

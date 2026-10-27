@@ -19,3 +19,6 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
 /* Physical menu shares the same boot/revision/link-fenced queue and operation counter. */
 bool vehicle_commands_runtime_intent(uint8_t kind, bool stop, uint8_t preset, uint16_t seconds);
 bool vehicle_commands_runtime_maintenance_allowed(bool configuration);
+
+/* Coherent local UI snapshot adds presentation bits, leaving the wire unchanged. */
+size_t vehicle_commands_runtime_ui_status(uint8_t kind, uint8_t out[32]);

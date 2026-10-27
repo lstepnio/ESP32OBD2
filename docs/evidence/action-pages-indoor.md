@@ -193,3 +193,43 @@ upward swipes opening the action pages on physical dev.63. ABS/TCS remains disab
 Private evidence is retained in ignored `artifacts/device-rollout-dev63/` and
 `artifacts/dev63-published/`. Website impact reviewed: no new public feature claim
 or publication is warranted for this status correction.
+
+## 2026-10-27 approved review 4 implementation
+
+The owner approved review 4 in chat and requested implementation. Its immutable
+review assets retain the preceding per-screen feedback; this approval does not
+claim a release, installation or vehicle qualification. Installed dev.63 remains
+unchanged. The [runtime contract](../architecture/vehicle-actions.md#ordered-action-pages)
+owns the behavior, rather than duplicating it in the gallery.
+
+Prepared source replaces the repeated idle confirmation with a 900 ms local hold,
+uses one-tap Stop from either idle page, removes the extra success screen, and
+renders green/red/yellow pending-state arcs. High coolant blocks Ready/Start after
+verified restoration. Missing coolant retains an explicit Continue then hold and
+its existing one-minute cap. App configuration uses compact rows, one editor and
+one actionable missing-limit warning; pressure estimates and pending setup retain
+their existing owners. No command bytes, qualification flags or saved schemas change.
+
+The production LVGL tests exercise early release, long-press versus hold duration,
+movement and hit-region exit, repeated touch, status changed-and-restored, scope
+changes, critical attention, missing coolant, direct Stop targeting, thermal
+recovery, connection loss, unknown retention, empty/removed pages and 30 repeated
+entries without widget growth. Native frames check circular glyph bounds, shared
+alert/CEL placement and both ordinary and parked-candidate builds. The arc reuses
+the existing UI tick and one widget tree, with no new task, framebuffer or fonts.
+
+Local evidence is under `artifacts/checks/ui-renders*`; test and build logs are
+local artifacts. Host checks passed 129 Python tests, 11 review-store tests and native sanitizer
+fixtures. Firmware checks include production renderer/config binding and ESP-IDF
+5.4.1 ordinary/parked builds; linked-memory checks verify the existing 64 KiB
+LVGL pool remains in PSRAM and internal static memory remains within budget.
+Android evidence includes 235 debug and 210 release JVM tests, lint, APK/test
+compilation and ten focused managed-emulator action-page tests. Internal static
+memory is 164,346 bytes for the ordinary image and 164,434 for the parked candidate,
+within the 196,608-byte budget; the linked LVGL arena remains 65,536 external bytes.
+
+Remaining: signed release and App/Wi-Fi installation after explicit approval,
+physical hold/glove/edge usability and animation/heap observations, then the existing
+parked coolant/Stop/recovery checks. Website impact was reviewed; publish current
+production visuals with a qualified rollout, without marketing the proposal as an
+installed feature or coupling website publication to the build.
