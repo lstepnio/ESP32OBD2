@@ -96,3 +96,64 @@ Raw preference/configuration backups, screenshots, addresses and serial logs rem
 under ignored `artifacts/device-rollout-dev61/`. Website impact: existing command
 marketing does not gain a new live-control claim; no extra website publication is
 needed for this indoor qualification record.
+
+
+## 2026-10-27 signed dev.62 parked-idle candidate
+
+The owner authorized installation through App/Wi-Fi and indoor readiness checks.
+PR #94 merged as `6509e81`; its source `49fc6a22ee597372eeaee69be90ac1d89094ba0c`
+passed all four [quality gates](https://github.com/lstepnio/ESP32OBD2/actions/runs/40365131210).
+The protected [publication](https://github.com/lstepnio/ESP32OBD2/actions/runs/40367425400)
+built with `parked_idle_test=true`. The [scoped test policy](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
+uses physical Park/brake confirmation; it does not qualify automatic Park/brake inputs.
+
+### Installed identity
+
+- Existing Pixel App `0.2.0-dev.51` retained; only the explicit instrumentation package
+  was replaced. No App data, pairing, profile, binding or gauge configuration reset.
+- Signed [dev.62](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.62),
+  catalog generation 43, image 1,646,144 bytes.
+- ELF SHA-256: `2b4713a4ce6032c7a2504f54e28bca8b7bab9d3fa9d6647c481aefb1d8c72292`.
+- Bundle SHA-256: `6786fa4543274c2d2192853930d5420380be8c57482deee00d00701f935be47d`.
+- Downloaded catalog/application signatures, target/layout, bundle/image hashes,
+  descriptor and parked confirmation verified before the ordinary hosted App update.
+
+### Automated device observations
+
+| Check | Observation |
+| --- | --- |
+| Signed App/Wi-Fi installation | Passed; total fixture 118.604 seconds, update journey 75.071 seconds. Sending began at 19.219 seconds, verification at 59.353 seconds and exact healthy running confirmation at 75.070 seconds. These are stage observations, not wire throughput. |
+| OTA acceptance | Expected version/ELF, healthy state 2, alternate slot and cleared update journal confirmed. |
+| Automatic opening/resume | Fresh protected opening in 7,970 ms; foreground resume refreshed settings without a tap in 2,861 ms. Bluetooth off/on was not repeated. |
+| Maintenance teardown | Hardware snapshot reported Wi-Fi mode 255 (deinitialized), then a fresh protected exact firmware read passed. Internal free/largest were 131,575 / 34,816 bytes in that snapshot. No serial heap minimum or loaded soak was measured. |
+| Saved running setup | Revision 55 and digest `af613f471a6f25fe74b1eb412fa12dd83ee997dbc974fc89f4e505ba35686188` unchanged; three pages and both source bindings retained. |
+| Action/coolant setup | Ordered Air up, Winch, ABS/TCS pages; three upward swipes within five seconds. Air up 300 seconds, Winch 60 seconds; primary coolant warning 105 °C / critical 115 °C retained. |
+| CEL filters | All four exact TCM filters retained: U0140, U0121, P1DCA, P1DF3. |
+| App action setup | Open/dismiss passed without saving. Direct protected reads confirmed Idle and ABS/TCS Unavailable, unqualified and not busy indoors; no unresolved command journal. No vehicle command invoked. |
+| Phone preservation/cleanup | Final semantic comparison retained profiles, assignments, presentation and the complete alert policy. Original phone-alert monitoring was restored; update journal empty. Debug wake helper restored the original screen/charging settings. |
+
+The initial USB connection was not visible to macOS/ADB; it later enumerated as
+the authorized Pixel and the update proceeded. A private before/final preference
+backup was kept. Phone alert monitoring was temporarily paused to avoid competing
+Bluetooth reads, then restored. No Bluetooth or USB firmware recovery was used.
+
+### Owner observation and field boundary
+
+The owner confirmed normal pages, clean text, working swipes, three-up action entry,
+horizontal action browsing and downward return on dev.62. This is separate from the
+protected image/configuration readbacks and offline renderer tests.
+
+Ready for the supervised parked **Air up/Winch** checks in the
+[one-visit runbook](../development/jeep-action-qualification.md#one-visit-idle-test-candidate).
+Start with a brief Start/Stop and verified normal idle before the full five-minute
+Air up timer. Missing/stale coolant retains the at-most-one-minute fallback and a
+new physical Start requirement; a known high value still stops control. The temperature stop limit remains configured.
+Actual ECM identity acceptance, raised idle, immediate Return, thermal/fallback
+behavior, adapter loss and independent child continuity on this image remain
+vehicle observations to collect. ABS/TCS execution stays disabled. No claim of
+loaded operation, automatic Park/brake verification or OOM immunity follows from
+this indoor session.
+
+Private backups, raw running configuration, screenshots and logs are under ignored
+`artifacts/device-rollout-dev62/`. Website impact reviewed: no new public live-control
+claim or website publication before the parked vehicle checks.
