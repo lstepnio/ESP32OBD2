@@ -157,3 +157,39 @@ this indoor session.
 Private backups, raw running configuration, screenshots and logs are under ignored
 `artifacts/device-rollout-dev62/`. Website impact reviewed: no new public live-control
 claim or website publication before the parked vehicle checks.
+
+## 2026-10-27 dev.63 coolant status correction
+
+PR #96 merged after all four Foundation checks passed (`40539808884`). Version-only
+PR #97 also passed all four checks (`40542827440`) and merged as `361f6b8`.
+The owner authorized merge, publication and App/Wi-Fi installation in this session.
+Signed development release `dev-v0.2.0-dev.63` was built from exact checked source
+`9a39b46dd6ff6efa8e679c0c06ab4136dc01d360` by release run `40544509171`, retaining
+`parked_idle_test=true`. Catalog generation 44, catalog/application signatures,
+board/layout/protocol and application descriptor were independently verified.
+
+- Published image: 1,646,144 bytes; ELF SHA-256
+  `fabcf978b786a587252459b250de83dfd74fe97388cf239f3e93e8f583c793db`.
+- Before installation, the paired Pixel completed the scoped read-only automatic
+  connection/read-chain test on dev.62 in 25.554 seconds.
+- The existing App's hosted signed Wi-Fi journey passed in 110.626 seconds; update
+  stages covered 73.603 seconds. Sending began at 15.477 seconds, verification at
+  57.540 seconds and authenticated healthy confirmation at 73.588 seconds.
+- Exact dev.63 ELF/version, alternate OTA slot, healthy state 2 and cleared update
+  journal were confirmed. Configuration revision 55, digest, display settings and
+  profiles remained unchanged.
+- Final private preference comparison matched profiles, gauge association,
+  presentation and the full restored alert policy. Temporary phone monitoring and
+  debug wake settings were restored. A phone call was foreground after completion;
+  no subsequent App UI navigation was performed.
+
+The active action page now uses coolant-unavailable status bit 4, independently
+of local-gauge Start bit 3. Runtime tests cover an RPM-only dashboard without a
+coolant page. This changes no control admission, cutoff or fallback timer policy.
+Owner-reported Air up success occurred on dev.62; its actual countdown/coolant
+availability and thermal/recovery behavior remain unconfirmed. The owner subsequently confirmed clean normal pages, working swipes and three
+upward swipes opening the action pages on physical dev.63. ABS/TCS remains disabled.
+
+Private evidence is retained in ignored `artifacts/device-rollout-dev63/` and
+`artifacts/dev63-published/`. Website impact reviewed: no new public feature claim
+or publication is warranted for this status correction.
