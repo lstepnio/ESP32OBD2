@@ -164,5 +164,7 @@ Stop or complete restoration/recovery behavior. The owner confirmed no coolant p
 primary ECM independently of display pages; a coolant page is not required. The
 runtime replay now explicitly uses an RPM-only page and still checks fresh coolant,
 five-minute admission, thermal Stop and missing-coolant fallback. Confirm the
-actual countdown at the next opportunity. The display fix is not installed yet.
+actual countdown at the next opportunity. The display fix is installed in signed dev.63 through App/Wi-Fi; see the
+[rollout evidence](../evidence/action-pages-indoor.md#2026-10-27-dev63-coolant-status-correction).
+Physical dev.63 display/touch confirmation and vehicle coolant/countdown checks remain.
 Website impact: no new public qualification claim or publication is warranted.
