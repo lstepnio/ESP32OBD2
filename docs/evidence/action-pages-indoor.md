@@ -187,8 +187,8 @@ The active action page now uses coolant-unavailable status bit 4, independently
 of local-gauge Start bit 3. Runtime tests cover an RPM-only dashboard without a
 coolant page. This changes no control admission, cutoff or fallback timer policy.
 Owner-reported Air up success occurred on dev.62; its actual countdown/coolant
-availability and thermal/recovery behavior remain unconfirmed. Physical dev.63
-screen/swipe/action-navigation confirmation is pending. ABS/TCS remains disabled.
+availability and thermal/recovery behavior remain unconfirmed. The owner subsequently confirmed clean normal pages, working swipes and three
+upward swipes opening the action pages on physical dev.63. ABS/TCS remains disabled.
 
 Private evidence is retained in ignored `artifacts/device-rollout-dev63/` and
 `artifacts/dev63-published/`. Website impact reviewed: no new public feature claim
