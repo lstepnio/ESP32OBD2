@@ -2,8 +2,10 @@
 
 Updated 2026-10-27. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-Latest rollout installs signed dev.63 through App/Wi-Fi, retaining the existing
-App and saved setup. [Dated indoor evidence](evidence/action-pages-indoor.md#2026-10-27-dev63-coolant-status-correction)
+PR #99 is merged and App dev.52 is installed on the Pixel. Signed dev.64 is published;
+its App/Wi-Fi installation is pending Pixel reconnection. The gauge remains on dev.63.
+[Current rollout evidence](evidence/action-pages-indoor.md#2026-10-27-dev64-action-ui-rollout)
+separates completed App checks from the pending firmware/device gates. [Dated indoor evidence](evidence/action-pages-indoor.md#2026-10-27-dev63-coolant-status-correction)
 separates automated readbacks, owner display/touch confirmation and remaining Jeep gates.
 The opt-in [parked idle candidate](architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
 is installed and ready for supervised Air up/Winch checks using the
@@ -18,7 +20,7 @@ and ABS/TCS execution remains disabled.
 
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
-| Pixel | App `0.2.0-dev.51` built from `a6dd029` (merged in PR #90), approved action-page management; existing setup migrated to profile schema 17 / associations 2 | [Dev.61 indoor rollout](evidence/action-pages-indoor.md) |
+| Pixel | App `0.2.0-dev.52` from `a33cda4`, included in merged PR #99; compact action list/editor, profile schema 17 / associations 2 preserved | [Dev.64 rollout](evidence/action-pages-indoor.md#2026-10-27-dev64-action-ui-rollout); focused action UI and automatic/Bluetooth recovery passed against dev.63 |
 | Gauge | Signed parked-idle `0.2.0-dev.63` from `9a39b46`, catalog generation 44, 240 MHz, configuration revision 55 | [Dev.63 App/Wi-Fi rollout](evidence/action-pages-indoor.md#2026-10-27-dev63-coolant-status-correction); exact healthy alternate image, cleared journal, preserved setup |
 | Physical display/touch | Clean normal pages, swipes and three-upward-swipe action entry confirmed by owner on dev.63; action browse/downward return previously confirmed on dev.62 | [Dev.63 owner observation](evidence/action-pages-indoor.md#2026-10-27-dev63-coolant-status-correction); extended edge/orientation/cycling checks remain |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
@@ -175,12 +177,13 @@ This is offline test coverage, not a new installed APK or physical observation.
 
 ## Approved action pages
 
-Owner approved the review 4 simplification on 2026-10-27. Prepared source now uses
+Owner approved the review 4 simplification on 2026-10-27. Merged source now uses
 900 ms hold-to-start, one-tap Stop from either idle page, pending-state rings and
 verified direct return to Ready, with explicit high-coolant blocking. Android uses
 compact action rows and a focused editor. The [implementation evidence](evidence/action-pages-indoor.md#2026-10-27-approved-review-4-implementation)
-records offline checks; these changes are not installed. Installed dev.63 remains
-the physical baseline above. Wire formats, guards and qualification flags are unchanged.
+records offline checks. App dev.52 is installed and checked; signed firmware dev.64
+is published but awaiting Pixel reconnection for Wi-Fi installation. Installed dev.63
+remains the gauge baseline above. Wire formats, guards and qualification flags are unchanged.
 
 The approved review 2 action pages were introduced in dev.61 and remain the installed baseline through dev.63. Gauge-tab configuration stores per-gauge typed
 page order and timers; firmware uses one reusable face with deliberate Start,

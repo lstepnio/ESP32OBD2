@@ -233,3 +233,48 @@ physical hold/glove/edge usability and animation/heap observations, then the exi
 parked coolant/Stop/recovery checks. Website impact was reviewed; publish current
 production visuals with a qualified rollout, without marketing the proposal as an
 installed feature or coupling website publication to the build.
+
+
+## 2026-10-27 dev64 action UI rollout
+
+PR #99 merged as `ba9548b` after all four Foundation quality gates passed for
+`2b0ecf9`. The archive repair restores review 2 and review 3 assets to their original
+submission digests; twelve review-store tests pass. The first emulator attempt on
+that final source failed while downloading an invalid Android system-image ZIP,
+before running tests. The isolated retry passed.
+
+App `0.2.0-dev.52` was installed on the Pixel with an in-place APK update. Its
+runtime source is `a33cda4`; the remaining merged changes only restore archived
+review assets and their regression test. The paired-phone action-page journey
+passed in 13.029 seconds: compact rows, the Air up editor and configured coolant
+limit appeared; closing the editor retained profiles, per-gauge assignments,
+running revision/digest and display settings. Direct protected command reads
+reported unavailable indoors, with no unresolved command journal.
+
+The updated App's automatic connection/recovery journey passed in 68.023 seconds
+against installed dev.63. Initial protected confirmation took 10.174 seconds,
+resume 2.851 seconds and Bluetooth off/on recovery 12.377 seconds. Cancelled gauge
+selection and the hardware/firmware protected read chain also passed. Revision 55
+and its digest were unchanged. Phone profile, association and presentation files
+matched the private backup byte-for-byte after the App upgrade. These are App
+checks against dev.63, not dev.64 firmware qualification.
+
+Signed development release `dev-v0.2.0-dev.64`, catalog generation 45, was published
+from `2b0ecf9` with the scoped parked-idle option enabled. Its tree matches merged
+main. The catalog and application signatures, bundle/image sizes and hashes,
+board/layout/protocol and application descriptor were independently verified.
+The image is 1,648,400 bytes, with ELF SHA-256
+`83f4b71bee5c2ee71c100dd65774a8d7613d9667402f8cac3941c638c395ca4d`.
+
+The Pixel disconnected from USB before the firmware installation started. No
+image was sent; the gauge remains on dev.63. App/Wi-Fi installation, post-update
+maintenance cycles and physical display/touch confirmation remain pending. The
+phone's alert monitoring was paused for the session; its original policy and wake
+settings are retained privately and must be restored when the Pixel reconnects.
+Saved setup and before-install protected configuration are backed up.
+
+The merged PR branch was removed locally and remotely. Private captures and
+backups remain under ignored `artifacts/device-rollout-dev64/`. No USB/Bluetooth
+firmware fallback, configuration send or vehicle command was performed. Remaining
+Jeep qualification still covers deliberate Start/Stop, coolant cutoff/fallback,
+recovery and loaded source continuity. ABS/TCS execution remains disabled.
