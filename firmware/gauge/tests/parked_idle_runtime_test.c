@@ -240,8 +240,8 @@ static void setup(bool wrong)
     r.pids[0] = (runtime_pid_t){.service = 1, .responder = 0x7e8, .obd.pid = 5};
     strcpy(r.pids[0].unit, "°C");
     /* Only RPM is displayed; coolant protection must poll independently. */
-    r.pids[1]  = (runtime_pid_t){.service = 1, .responder = 0x7e8, .obd.pid = 12};
-    r.pages[0] = (runtime_page_t){.pid_count = 1, .pid_indices = {1}};
+    r.pids[1]   = (runtime_pid_t){.service = 1, .responder = 0x7e8, .obd.pid = 12};
+    r.pages[0]  = (runtime_page_t){.pid_count = 1, .pid_indices = {1}};
     r.alerts[0] = (runtime_alert_t){.above = true, .has_warning = true, .warning = 105};
     assert(vehicle_commands_runtime_init(&r) == ESP_OK);
     run(20);
