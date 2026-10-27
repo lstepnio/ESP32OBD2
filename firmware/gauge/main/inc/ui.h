@@ -12,6 +12,7 @@
 
 #include "obd.h"
 #include "page_action.h"
+#include "page_save_policy.h"
 #include "diagnostics_state.h"
 
 /* Internal callback event; no external vehicle control operation. */
@@ -163,3 +164,5 @@ void ui_set_vehicle_action_snapshot(ui_t *ui, const uint8_t status[32]);
 void ui_set_idle_protection(ui_t *ui, bool configured);
 void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *preset, uint16_t *seconds);
 void ui_vehicle_command_queued(ui_t *ui, bool accepted);
+
+page_cycle_reason_t ui_cycle_pause(ui_t *ui);

@@ -251,12 +251,14 @@ static void start(void)
     phase(VEHICLE_READY);
     assert((status[27] & 25) == 9); /* Available, local Start, fresh coolant. */
     assert(vehicle_commands_runtime_intent(VEHICLE_IDLE, false, 1, 300));
+    assert(vehicle_commands_runtime_pending());
     run(20);
     phase(VEHICLE_ACTIVE);
     assert(starts == 1 && status[24] + 256U * status[25] > 290 && journal[1] == 1);
 }
 int main(void)
 {
+    assert(vehicle_commands_runtime_poll_reserve(1, 1500, 0) == 0);
     setup(true);
     phase(VEHICLE_UNAVAILABLE);
     assert(!vehicle_commands_runtime_intent(VEHICLE_IDLE, false, 1, 300) && !starts);
@@ -312,6 +314,7 @@ int main(void)
     setup(false);
     lose_start_reply = true;
     assert(vehicle_commands_runtime_intent(VEHICLE_IDLE, false, 1, 300));
+    assert(vehicle_commands_runtime_pending());
     run(20);
     phase(VEHICLE_UNKNOWN);
     assert(journal[1] == 1 && starts == 1);

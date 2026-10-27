@@ -64,6 +64,8 @@
 #include "obd.h"
 #include "transmission_gear.h"
 #include "poll_scheduler.h"
+#include "reading_policy.h"
+#include "esp_attr.h"
 #include "page_save_policy.h"
 #include "ui.h"
 #include "util.h"
@@ -152,7 +154,7 @@ static void page_ui(unsigned index, ui_page_t *out)
             .unit           = pid->unit,
             .minimum        = pid->decoder.minimum,
             .maximum        = pid->decoder.maximum,
-            .stale_after_ms = 1500,
+            .stale_after_ms = 3000,
         };
         return;
     }
@@ -164,26 +166,33 @@ static void page_ui(unsigned index, ui_page_t *out)
     {
         const runtime_pid_t *pid = &g_runtime->pids[page->pid_indices[i]];
         out->metrics[i]          = (ui_metric_t){
-            .pid            = pid->obd.pid,
-            .scoped         = true,
-            .source_index   = pid->source_index,
-            .revision       = g_running_config_record.revision,
-            .name           = pid->name,
-            .unit           = pid->unit,
-            .minimum        = pid->obd.decoder.minimum,
-            .maximum        = pid->obd.decoder.maximum,
-            .stale_after_ms = pid->stale_ms,
+            .pid          = pid->obd.pid,
+            .scoped       = true,
+            .source_index = pid->source_index,
+            .revision     = g_running_config_record.revision,
+            .name         = pid->name,
+            .unit         = pid->unit,
+            .minimum      = pid->obd.decoder.minimum,
+            .maximum      = pid->obd.decoder.maximum,
+            .stale_after_ms =
+                reading_policy(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms, false, false, false)
+                    .display_age_ms,
         };
     }
 }
 
 typedef struct
 {
-    ui_t    *ui;
-    unsigned source;
+    ui_t             *ui;
+    unsigned          source;
+    poll_scheduler_t *scheduler; /* Called only on this serial transport owner. */
+    uint8_t           indices[POLL_SCHEDULER_MAX_PIDS], count;
+    bool              decoded_sample, command_poll;
+    uint32_t          reused_samples;
 } source_worker_t;
-static source_worker_t source_workers[2];
-static unsigned        runtime_source_count(void)
+static source_worker_t                   source_workers[2];
+static EXT_RAM_BSS_ATTR poll_scheduler_t source_schedulers[2];
+static unsigned                          runtime_source_count(void)
 {
     return g_runtime ? g_runtime->source_count : 1;
 }
@@ -319,7 +328,14 @@ static void boot_health_task(void *arg)
 // Private Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
-static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t generation, void *usr_ctx)
+static void obd_response_cb(uint8_t        service,
+                            uint16_t       pid,
+                            uint32_t       responder,
+                            uint8_t const *data,
+                            size_t         len,
+                            uint32_t       generation,
+                            uint32_t       observed_at_ms,
+                            void          *usr_ctx)
 {
     ESP_NULL_CHECK(usr_ctx, TAG, "User context is NULL");
     source_worker_t *worker = usr_ctx;
@@ -328,12 +344,22 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     if (!adapter_status_ready_for(source) || generation != adapter_status_generation(source))
         return;
 
-    if (pid < 0)
-    {
-        ESP_LOGW(TAG, "Error in RX/TX response callback: %d", pid);
+    /* Diagnostic PID replies are consumed synchronously with endpoint identity. */
+    if (pid == 0x01)
         return;
-    }
 
+    const obd_pid_cfg_t *definition = NULL;
+    for (unsigned i = 0; i < poll_count(); ++i)
+        if (poll_cfg(i)->pid == pid &&
+            (g_runtime ? g_runtime->pids[i].source_index == source && g_runtime->pids[i].service == service &&
+                             g_runtime->pids[i].responder == responder
+                       : source == 0 && service == 1 && (responder == 0x7e8 || responder == ELM_ECU_ANY)))
+        {
+            definition = poll_cfg(i);
+            break;
+        }
+    if (!definition)
+        return;
     if (data == NULL || len == 0)
     {
         ESP_LOGE(TAG, "Received empty data for PID 0x%02X", pid);
@@ -342,19 +368,6 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
         return;
     }
 
-    /* Diagnostic PID replies are consumed synchronously with endpoint identity. */
-    if (pid == 0x01)
-        return;
-
-    const obd_pid_cfg_t *definition = NULL;
-    for (unsigned i = 0; i < poll_count(); ++i)
-        if (poll_cfg(i)->pid == pid && (!g_runtime || g_runtime->pids[i].source_index == source))
-        {
-            definition = poll_cfg(i);
-            break;
-        }
-    if (!definition)
-        return;
     if (len != definition->len)
     {
         ESP_LOGW(TAG, "Invalid length for PID 0x%02X: expected %zu, got %zu", pid, definition->len, len);
@@ -381,7 +394,14 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     queue_alert_sample(source, pid, generation, decoded);
 
     ESP_LOGD(TAG, "Received PID 0x%02X (%s): %.3f", pid, definition->name, decoded);
-    publish_ui_sample(ui, source, generation, pid, &decoded);
+    ui_set_source_value(ui, source, g_runtime ? g_running_config_record.revision : 0, generation, pid, &decoded,
+                        observed_at_ms);
+    worker->decoded_sample = true;
+    if (worker->command_poll && worker->reused_samples != UINT32_MAX)
+        ++worker->reused_samples;
+    for (unsigned i = 0; worker->scheduler && i < worker->count; ++i)
+        if (poll_cfg(worker->indices[i]) == definition)
+            poll_scheduler_sample(worker->scheduler, i, observed_at_ms);
 }
 
 static void app_tick_task(void *arg)
@@ -461,7 +481,6 @@ static void app_tick_task(void *arg)
             }
             const char *name  = endpoint ? "Transmission warning" : "Check engine";
             bool        fresh = (packet[2] & 1) != 0;
-            presentation.mil_known &= fresh;
             alert_runtime_observe(32 + endpoint, fresh && (packet[2] & 2) ? 3 : 0, !fresh, name, "codes", packet[22], 0,
                                   now_ms, now_ms);
             unsigned count    = 0;
@@ -484,6 +503,13 @@ static void app_tick_task(void *arg)
             alert_runtime_observe(34 + endpoint, severity, !complete && !severity,
                                   endpoint ? "Transmission faults" : "Engine faults", "codes", count, 0, now_ms,
                                   now_ms);
+            if (!diagnostics_endpoint_presentation_status(endpoint, now_ms, packet))
+            {
+                presentation_complete = presentation.mil_known = false;
+                continue;
+            }
+            fresh = (packet[2] & 1) != 0;
+            presentation.mil_known &= fresh;
             diagnostic_filter_result_t visible =
                 diagnostic_filter_project(packet, endpoint, g_runtime ? g_runtime->diagnostic_filters : NULL,
                                           g_runtime ? g_runtime->diagnostic_filter_count : 0);
@@ -551,30 +577,42 @@ static void obd_task(void *arg)
     bool                    transmission = configured && configured->transmission;
     bool                    simulated    = configured && configured->simulated;
     uint32_t                responder    = transmission ? 0x7e9 : 0x7e8;
-    uint8_t                 pid_indices[POLL_SCHEDULER_MAX_PIDS];
-    uint8_t                 count = 0;
+    uint8_t                *pid_indices  = worker->indices;
+    uint8_t                 count        = 0;
     for (unsigned i = 0; i < poll_count(); ++i)
         if (!g_runtime || g_runtime->pids[i].source_index == source)
             pid_indices[count++] = i;
+    worker->count = count;
     ESP_LOGI(TAG, "RX/TX source %u task started", source);
 
     ble_obd_ctx_t *obd                = NULL;
     uint32_t       reconnect_delay_ms = 500;
 
-    const uint32_t   period_ms    = 100;
-    const uint32_t   timeout_ms   = 300;
-    const uint8_t    dtc_modes[3] = {3, 7, 10};
-    poll_scheduler_t scheduler;
-    uint8_t          endpoints[2], endpoint_count = 0;
+    const uint32_t    period_ms    = 20;
+    const uint32_t    timeout_ms   = 300;
+    const uint8_t     dtc_modes[3] = {3, 7, 10};
+    poll_scheduler_t *scheduler = worker->scheduler = &source_schedulers[source];
+    uint8_t           endpoints[2], endpoint_count = 0;
     for (unsigned e = 0; e < 2; ++e)
         if (diagnostics_endpoint_enabled(e) && diagnostics_endpoint_transport(e) == source)
             endpoints[endpoint_count++] = e;
-    poll_scheduler_init(&scheduler);
-    poll_scheduler_endpoints(&scheduler, endpoint_count);
+    poll_scheduler_init(scheduler);
+    poll_scheduler_endpoints(scheduler, simulated ? 0 : endpoint_count);
 
+    uint32_t logged_at = 0, transactions = 0, maximum_request_ms = 0;
     while (true)
     {
         vTaskDelay(pdMS_TO_TICKS(period_ms));
+        uint32_t health_now = (uint32_t)(esp_timer_get_time() / 1000);
+        if (health_now - logged_at >= 60000)
+        {
+            logged_at = health_now;
+            ESP_LOGI(TAG,
+                     "poll source=%u requests=%" PRIu32 " reused=%" PRIu32 " max_ms=%" PRIu32 " deferred=%" PRIu32
+                     " forced=%" PRIu32 " gaps=%" PRIu32,
+                     source, transactions, worker->reused_samples, maximum_request_ms, scheduler->deferred_diagnostics,
+                     scheduler->forced_diagnostics, scheduler->deadline_misses);
+        }
         worker_health_progress(source == 0 ? WORKER_ECM : WORKER_TCM, (uint32_t)(esp_timer_get_time() / 1000));
         /* Normal controller masks remain zero. An explicitly built parked-idle
          * test adapter may supply scoped evidence inside this primary owner. */
@@ -582,8 +620,13 @@ static void obd_task(void *arg)
             .revision  = g_runtime ? g_running_config_record.revision : 0,
             .link      = adapter_status_generation(source),
             .connected = obd && ble_obd_is_connected(obd) && transfer_gate_vehicle_allowed() && !ble_mgr_is_paused()};
-        if (vehicle_commands_runtime_worker(source, obd, command_context,
-                                            (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS)))
+        if (command_context.connected && transfer_gate_current() != 2)
+            ui_set_source_state(ui, source, true, command_context.revision, command_context.link);
+        worker->command_poll  = true;
+        bool command_reserved = vehicle_commands_runtime_worker(source, obd, command_context,
+                                                                (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS));
+        worker->command_poll  = false;
+        if (command_reserved)
             continue;
         if (transfer_gate_current() == 2 || ble_mgr_is_paused())
         {
@@ -620,16 +663,16 @@ static void obd_task(void *arg)
             for (unsigned e = 0; e < endpoint_count; ++e)
                 diagnostics_state_connected_for(2 + endpoints[e]);
             reconnect_delay_ms = 500;
-            poll_scheduler_init(&scheduler);
-            poll_scheduler_endpoints(&scheduler, endpoint_count);
+            poll_scheduler_init(scheduler);
+            poll_scheduler_endpoints(scheduler, simulated ? 0 : endpoint_count);
             continue;
         }
 
         ui_set_source_state(ui, source, true, g_runtime ? g_running_config_record.revision : 0,
                             adapter_status_generation(source));
-        uint32_t      now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        uint32_t      now_ms = (uint32_t)(esp_timer_get_time() / 1000);
         clear_state_t clear;
-        if (diagnostic_clear_take(source, now_ms, &clear))
+        if (diagnostic_clear_take(source, pdTICKS_TO_MS(xTaskGetTickCount()), &clear))
         {
             uint8_t       bytes[64];
             size_t        length = sizeof(bytes);
@@ -685,14 +728,45 @@ static void obd_task(void *arg)
                                                  : CLEAR_VERIFIED;
             }
             diagnostic_clear_finish(clear.operation, phase);
-            poll_scheduler_init(&scheduler);
-            poll_scheduler_endpoints(&scheduler, endpoint_count);
+            poll_scheduler_init(scheduler);
+            poll_scheduler_endpoints(scheduler, simulated ? 0 : endpoint_count);
             continue;
         }
-        uint32_t intervals[POLL_SCHEDULER_MAX_PIDS];
+        /* A Stop may have arrived during the preceding guard reads. */
+        if (source == 0 && vehicle_commands_runtime_pending())
+            continue;
+        poll_pid_policy_t policies[POLL_SCHEDULER_MAX_PIDS];
+        unsigned          selected = atomic_load(&g_selected_page);
+        unsigned          next     = (selected + 1) % page_count();
+        bool              cycling  = display_settings_snapshot().cycle_seconds != 0;
         for (uint8_t i = 0; i < count; ++i)
-            intervals[i] = g_runtime ? g_runtime->pids[pid_indices[i]].poll_ms : 500;
-        poll_job_t job = poll_scheduler_next(&scheduler, now_ms, intervals, count);
+        {
+            unsigned index   = pid_indices[i];
+            bool     visible = false, upcoming = false, alert = false;
+            if (g_runtime)
+            {
+                const runtime_page_t *page      = &g_runtime->pages[selected % page_count()];
+                const runtime_page_t *following = &g_runtime->pages[next];
+                for (unsigned m = 0; m < page->pid_count; ++m)
+                    visible |= page->pid_indices[m] == index;
+                for (unsigned m = 0; cycling && m < following->pid_count; ++m)
+                    upcoming |= following->pid_indices[m] == index;
+                for (unsigned a = 0; a < g_runtime->alert_count; ++a)
+                    alert |= g_runtime->alerts[a].pid_index == index;
+                const runtime_pid_t *pid = &g_runtime->pids[index];
+                policies[i] = reading_policy(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms, visible,
+                                             upcoming, alert);
+            }
+            else
+                policies[i] = (poll_pid_policy_t){500, 3000, selected == index ? 2 : 0};
+        }
+        const poll_scheduler_budget_t budget = {.pid_timeout_ms = timeout_ms,
+                                                .mil_timeout_ms = 700,
+                                                .dtc_timeout_ms = 1500,
+                                                .recovery_ms    = period_ms + 50,
+                                                .foreground_ms  = vehicle_commands_runtime_poll_reserve(
+                                                    source, 1500 + period_ms, pdTICKS_TO_MS(xTaskGetTickCount()))};
+        poll_job_t                    job = poll_scheduler_next_budgeted(scheduler, now_ms, policies, count, &budget);
         if (job.kind == POLL_JOB_NONE)
             continue;
         if (simulated && (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC))
@@ -707,20 +781,30 @@ static void obd_task(void *arg)
             unsigned     slot_count = (transmission == (endpoint == 1)) ? 2 : 1;
             elm_result_t response   = ELM_ADAPTER_ERROR;
             uint8_t      previous[248];
-            bool     had_previous = diagnostics_endpoint_status(endpoint, now_ms, previous) != 0 && (previous[2] & 1);
-            uint32_t generation   = adapter_status_generation(source);
-            uint8_t  mode         = job.kind == POLL_JOB_MIL ? 1 : dtc_modes[job.index];
-            elm_payload_t payload = {0};
+            bool         had_previous =
+                diagnostics_endpoint_status(endpoint, pdTICKS_TO_MS(xTaskGetTickCount()), previous) != 0 &&
+                (previous[2] & 1);
+            uint32_t      generation = adapter_status_generation(source);
+            uint8_t       mode       = job.kind == POLL_JOB_MIL ? 1 : dtc_modes[job.index];
+            elm_payload_t payload    = {0};
             uint8_t       codes[64];
-            size_t        length = sizeof(codes);
+            size_t        length     = sizeof(codes);
+            uint32_t      started_at = (uint32_t)(esp_timer_get_time() / 1000);
             int result = mode == 1 ? ble_obd_read_pid(obd, 1, 1, ecu, 700, &response, &payload)
                                    : ble_obd_read_service_status_ecu(obd, mode, ecu, 1500, codes, &length, &response);
+            uint32_t duration = (uint32_t)(esp_timer_get_time() / 1000) - started_at;
+            if (duration > maximum_request_ms)
+                maximum_request_ms = duration;
+            if (transactions != UINT32_MAX)
+                ++transactions;
             if (generation != adapter_status_generation(source) || !adapter_status_ready_for(source))
                 continue;
-            poll_scheduler_background_result(&scheduler, job, result == 0 && (mode != 1 || payload.length >= 4));
+            poll_scheduler_complete(scheduler, job, (uint32_t)(esp_timer_get_time() / 1000),
+                                    result == 0 && (mode != 1 || payload.length >= 4));
             if (mode == 1 && result == 0 && payload.length >= 4 && had_previous &&
-                ((previous[2] & 2) != 0) != ((payload.bytes[0] & 0x80) != 0))
-                poll_scheduler_mil_changed(&scheduler, job.endpoint);
+                ((((previous[2] & 2) != 0) != ((payload.bytes[0] & 0x80) != 0)) ||
+                 previous[22] != (payload.bytes[0] & 0x7f)))
+                poll_scheduler_mil_changed(scheduler, job.endpoint);
             for (unsigned slot = 0; slot < slot_count; ++slot)
             {
                 if (result == 0 && mode == 1 && payload.length >= 4)
@@ -738,17 +822,28 @@ static void obd_task(void *arg)
         const obd_pid_cfg_t *requested = poll_cfg(pid_indices[job.index]);
         const uint8_t        obd_mode  = g_runtime ? g_runtime->pids[pid_indices[job.index]].service : 0x01;
 
-        uint32_t poll_generation = adapter_status_generation(source);
-        int      status =
-            ble_obd_rxtx_ecu(obd, obd_mode, requested->pid,
-                             g_runtime ? g_runtime->pids[pid_indices[job.index]].responder : ELM_ECU_ANY, timeout_ms);
-
-        poll_scheduler_result(&scheduler, job.index, status == 0);
+        uint32_t     poll_generation = adapter_status_generation(source);
+        elm_result_t response        = ELM_PENDING;
+        worker->decoded_sample       = false;
+        uint32_t started_at          = (uint32_t)(esp_timer_get_time() / 1000);
+        int      status              = ble_obd_rxtx_status_ecu(
+            obd, obd_mode, requested->pid, g_runtime ? g_runtime->pids[pid_indices[job.index]].responder : ELM_ECU_ANY,
+            timeout_ms, &response);
+        uint32_t duration = (uint32_t)(esp_timer_get_time() / 1000) - started_at;
+        if (duration > maximum_request_ms)
+            maximum_request_ms = duration;
+        if (transactions != UINT32_MAX)
+            ++transactions;
+        poll_scheduler_complete(scheduler, job, (uint32_t)(esp_timer_get_time() / 1000),
+                                status == 0 && worker->decoded_sample);
         if (status != 0)
         {
             queue_alert_sample(source, requested->pid, poll_generation, NAN);
-            publish_ui_sample(ui, source, poll_generation, requested->pid, NULL);
-            ESP_LOGW(TAG, "Failed to send request: %d", status);
+            /* No completed reply is a transient gap, not a new observation.
+             * Strict alert/guard consumers still fail; display expires naturally. */
+            if (response != ELM_PENDING)
+                publish_ui_sample(ui, source, poll_generation, requested->pid, NULL);
+            ESP_LOGW(TAG, "Reading request incomplete: result=%d response=%u", status, response);
         }
     }
 }
@@ -1070,7 +1165,8 @@ void app_main(void)
         ESP_CHECK(started == pdPASS, TAG, "Boot health task creation failed");
     }
 
-    page_save_policy_t page_save = {0};
+    page_save_policy_t  page_save = {0};
+    page_cycle_policy_t cycling   = {0};
     atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
     while (true)
     {
@@ -1186,16 +1282,17 @@ void app_main(void)
         else if (has_command && command.opcode == 3)
             ble_companion_forget_owner();
 
-        uint32_t           now_ms        = pdTICKS_TO_MS(xTaskGetTickCount());
-        display_settings_t cycle         = display_settings_snapshot();
-        bool               owner_ready   = ble_companion_has_owner();
-        bool               transfer_idle = transfer_gate_current() == 0;
-        ui_set_action_context(ui, owner_ready && transfer_gate_vehicle_allowed());
-        if (!owner_ready || !transfer_idle || ui_showcase_active(ui))
-            atomic_store(&g_page_activity_ms, now_ms);
-        if (page_cycle_due(cycle.cycle_seconds, page_count(), owner_ready, transfer_idle && !ui_action_pending(ui),
-                           atomic_load(&g_page_activity_ms), now_ms) &&
-            lvgl_port_lock(0))
+        uint32_t           now_ms      = pdTICKS_TO_MS(xTaskGetTickCount());
+        display_settings_t cycle       = display_settings_snapshot();
+        bool               owner_ready = ble_companion_has_owner();
+        bool               maintenance = !transfer_gate_vehicle_allowed();
+        ui_set_action_context(ui, owner_ready && !maintenance);
+        page_cycle_reason_t before_reason = cycling.reason;
+        bool cycle_due = page_cycle_step(&cycling, cycle.cycle_seconds, page_count(), owner_ready, maintenance,
+                                         ui_cycle_pause(ui), atomic_load(&g_page_activity_ms), now_ms);
+        if (before_reason != cycling.reason)
+            ESP_LOGI(TAG, "page cycle reason=%u interval_s=%u", cycling.reason, cycle.cycle_seconds);
+        if (cycle_due && lvgl_port_lock(0))
         {
             uint8_t   selected = (atomic_load(&g_selected_page) + 1) % page_count();
             ui_page_t page;

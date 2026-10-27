@@ -337,6 +337,35 @@ int main(int argc, char **argv)
     tick(60);
     assert(lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
     assert(lv_obj_has_flag(ui->widgets.diagnostics_lbl, LV_OBJ_FLAG_HIDDEN));
+    filtered.valid = filtered.mil_known = filtered.mil_on = true;
+    filtered.count_known                                  = false;
+    ui_set_vehicle_diagnostics(ui, &filtered);
+    tick(60);
+    assert(!lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
+    assert(!strcmp(lv_label_get_text(ui->widgets.diagnostics_lbl), ""));
+    filtered.count_known = filtered.count_partial = true;
+    filtered.distinct_count                       = 3;
+    ui_set_vehicle_diagnostics(ui, &filtered);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->widgets.diagnostics_lbl), ""));
+    filtered.count_partial = false;
+    ui_set_vehicle_diagnostics(ui, &filtered);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->widgets.diagnostics_lbl), "3"));
+    filtered = (diagnostics_snapshot_t){0};
+    ui_set_vehicle_diagnostics(ui, &filtered);
+    tick(60);
+    ui->press_active = true;
+    ui->pressed_at   = xTaskGetTickCount();
+    tick(60);
+    assert(ui_cycle_pause(ui) == PAGE_CYCLE_TOUCH);
+    lv_obj_send_event(lv_screen_active(), LV_EVENT_PRESS_LOST, NULL);
+    tick(60);
+    assert(!ui->press_active && ui_cycle_pause(ui) == PAGE_CYCLE_RUNNING);
+    ui->press_active = true;
+    ui->pressed_at   = xTaskGetTickCount();
+    tick(15001);
+    assert(!ui->press_active && ui_cycle_pause(ui) == PAGE_CYCLE_RUNNING);
     ui->touch_cb = command_touch;
     ui_configure_page_action(ui, (page_action_config_t){.enabled        = true,
                                                         .count          = 3,

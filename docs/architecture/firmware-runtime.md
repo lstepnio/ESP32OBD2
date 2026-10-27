@@ -72,7 +72,42 @@ visible page. Live transport checks also reject a retired source before its work
 observes the disconnect. Alert/control freshness remains independent. Initial
 warning widgets stay hidden until the first truthful status render.
 
-The pure scheduler supports 32 runtime PIDs and unsigned wrap-safe millisecond deadlines. Normal PIDs use round-robin selection among due definitions. Background work has a two-second spacing floor and is eligible when no reading is due, after ten normal jobs, or after ten seconds with normal progress. MIL uses a 15-second interval; confirmed/pending codes use 60 seconds and permanent codes 120 seconds, with failure backoff. Current accounting is at selection time, and background admission does not reserve reading freshness headroom. The proposed [continuity and scheduling plan](../development/gauge-continuity-plan.md) addresses these measured source-level limitations; its new policies are not yet implemented.
+The pure scheduler supports 32 runtime PIDs with wrap-safe monotonic milliseconds.
+Selection uses freshness urgency, then priority and deadline, with an independent
+round-robin slot every ninth ordinary request. Completion accounts actual elapsed
+time. Successful scoped command-monitoring samples also satisfy ordinary polling
+cadence, so display/alerts can reuse them without another adapter request. The
+control owner retains its independent strict guard reads and original deadlines.
+
+Before MIL/code work, reserve the full request timeout, prompt margin and upcoming
+command guard/identity work; refresh each at-risk eligible reading once. If the
+window remains impossible, admit bounded diagnostic progress and count the
+freshness overrun instead of starving faults indefinitely. Background work retains
+a two-second spacing floor, 15-second MIL, 60-second stored/pending and 120-second
+permanent cadence, with per-reading/category failure backoff. A changed MIL or
+reported count accelerates category refresh. The worker yields 20 ms between
+transactions; every read still waits for a verified prompt or bounded recovery.
+
+Two fixed scheduler records live in PSRAM, owned by their respective workers.
+Minute logs record requests, reused guard samples, maximum ordinary/diagnostic
+request duration, preflight deferrals, forced admissions and missed display budgets.
+These are bounded counters, not another sample history. Rate classes and display
+retention belong to the [catalog contract](../development/reading-catalog-alerts.md#display-and-polling-classes).
+A timeout without a completed reply lets a last-good displayed value age normally;
+explicit NO DATA, unsupported/malformed replies and source loss invalidate it.
+Alert/control failure handling is unchanged. The [qualification plan](../development/gauge-continuity-plan.md)
+separates offline evidence from remaining physical tests.
+
+### Page cycling
+
+`page_cycle_step` owns the interval and pause reason independently of polling.
+Off, a single page, missing owner, maintenance, touch/gesture, action page, critical
+attention and showcase are explicit states. Routine command-worker ownership and
+phone reads do not reset the timer. Resume, manual navigation and interval changes
+start a full interval, with no catch-up burst. A lost touch event cancels gesture
+recognition without dispatching a command; impossible held states have a bounded
+recovery. Reasons are logged only when changed and stay out of the normal UI.
+
 
 Alert evaluation uses the decoded `double` before display range conversion. Zero dwell applies on the first qualifying sample. Delayed trigger and clear use unsigned elapsed time, hysteresis, and per-rule priority. An active alert remains visible when its source becomes stale and is marked unavailable. The 100 ms application tick drives freshness even while an adapter request is waiting.
 

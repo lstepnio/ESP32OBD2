@@ -29,7 +29,14 @@ typedef struct
     size_t  data_len;
 } obd_response_t;
 
-typedef void (*ble_obd_response_cb_t)(int pid, uint8_t const *data, size_t len, uint32_t generation, void *usr_ctx);
+typedef void (*ble_obd_response_cb_t)(uint8_t        service,
+                                      uint16_t       pid,
+                                      uint32_t       responder,
+                                      uint8_t const *data,
+                                      size_t         len,
+                                      uint32_t       generation,
+                                      uint32_t       observed_at_ms,
+                                      void          *usr_ctx);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Public Function Declarations
@@ -111,7 +118,8 @@ int ble_obd_control_exchange(ble_obd_ctx_t *obd,
 int ble_obd_control_restore(ble_obd_ctx_t *obd, uint32_t timeout_ms, uint8_t *scratch, size_t capacity);
 
 /* Primary worker evidence only: fixed 7E0/7E8 calibration, CVN, RPM, speed or
- * coolant reads. No callbacks, arbitrary identifiers or secondary transport. */
+ * coolant reads. Numeric successes also publish to the scoped reading observer;
+ * identity replies never do. No arbitrary identifiers or secondary transport. */
 int ble_obd_read_primary_input(ble_obd_ctx_t *obd,
                                uint8_t        mode,
                                uint8_t        pid,
