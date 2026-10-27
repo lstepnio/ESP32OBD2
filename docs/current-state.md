@@ -1,22 +1,23 @@
 # Current implementation and evidence
 
-Updated 2026-10-26. This owns implemented/installed facts and their evidence limits.
+Updated 2026-10-27. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-Latest rollout merges approved action pages in PR #89 and installs the matching
-App plus signed dev.61 through App/Wi-Fi. [Indoor rollout evidence](evidence/action-pages-indoor.md)
-separates automated checks, owner display/touch confirmation and remaining Jeep gates. The
-[parked action runbook](development/jeep-action-qualification.md) now prepares a
-fixed read-only input capture. An opt-in [parked idle candidate](architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
-is prepared as dev.62 source for one supervised Jeep session; it is not published or installed.
-Ordinary builds still disable vehicle controls and both qualification masks remain zero.
+Latest rollout installs signed dev.62 through App/Wi-Fi, retaining the existing
+App and saved setup. [Dated indoor evidence](evidence/action-pages-indoor.md#2026-10-27-signed-dev62-parked-idle-candidate)
+separates automated readbacks, owner display/touch confirmation and remaining Jeep gates.
+The opt-in [parked idle candidate](architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
+is installed and ready for supervised Air up/Winch checks using the
+[one-visit runbook](development/jeep-action-qualification.md#one-visit-idle-test-candidate).
+Ordinary builds still disable vehicle controls; both qualification masks remain zero
+and ABS/TCS execution remains disabled.
 
 ## Installed baseline
 
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
 | Pixel | App `0.2.0-dev.51` built from `a6dd029` (merged in PR #90), approved action-page management; existing setup migrated to profile schema 17 / associations 2 | [Dev.61 indoor rollout](evidence/action-pages-indoor.md) |
-| Gauge | Signed `0.2.0-dev.61` from `a6dd029`, catalog generation 42, 240 MHz, configuration revision 55 | [Dev.61 App/Wi-Fi rollout](evidence/action-pages-indoor.md); exact healthy alternate image, cleared journal, preserved setup |
-| Physical display/touch | Normal page, clean text and working swipes confirmed by owner on dev.61 | [Owner observation](evidence/action-pages-indoor.md#physical-observation-and-limits); owner also confirmed action entry, horizontal browsing and downward return; extended edge/orientation/cycling checks remain |
+| Gauge | Signed parked-idle `0.2.0-dev.62` from `49fc6a2`, catalog generation 43, 240 MHz, configuration revision 55 | [Dev.62 App/Wi-Fi rollout](evidence/action-pages-indoor.md#2026-10-27-signed-dev62-parked-idle-candidate); exact healthy alternate image, cleared journal, preserved setup |
+| Physical display/touch | Normal pages, clean text, swipes, action entry/browse and downward return confirmed by owner on dev.62 | [Owner observation](evidence/action-pages-indoor.md#owner-observation-and-field-boundary); extended edge/orientation/cycling checks remain |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
 | Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Four exact TCM CEL filters retained at revision 55; per-gauge action pages replace the prior jump gesture. Other running settings and phone profiles preserved. [Configuration check](evidence/shared-alerts-implementation.md#2026-10-19-tcm-cel-filter-configuration) |
@@ -87,8 +88,8 @@ and enabled eGauge control are not established.
   [protocol documents](README.md#protocols), not this status snapshot.
 - Public `configWrite:false`, `ota:false` and qualified link capacity one remain.
   Three NimBLE slots and independent workers do not establish physical coexistence.
-- Phone gauge values remain labelled previews; live companion telemetry, code clearing,
-  high idle and ABS/ESC control are not enabled. Local page-jump gestures are implemented.
+- Phone gauge values remain labelled previews; live companion telemetry, code clearing
+  and ABS/ESC control are not enabled. High idle is limited to the installed owner-supervised parked candidate. Local page-jump gestures are implemented.
 - TCM temperature interprets only the first byte as A−40 °C. Current/target candidates
   compare P=0D, R=0B, N=00 and stationary Drive=01. Pressure `225034` remains raw only.
   Drive is not a distinct selector value. The diagnostic endpoint/PCS bridge topology
@@ -107,8 +108,8 @@ through one typed protected command interface (`vc:1` in document mode), one pri
 worker controller, bounded controller drivers, uncertainty journal and event ring.
 Idle uses the captured fixed setting; numeric target drafts never become commands.
 ABS/TCS Return remains Restart required. Both qualification masks are zero: no
-current profile can execute controls. The shared path is installed in dev.61;
-the fully automatic Park/brake evidence adapter remains unimplemented. Prepared
+generally qualified profile can execute controls. The shared path is installed in dev.62;
+the fully automatic Park/brake evidence adapter remains unimplemented. Installed
 dev.62 adds only the explicitly built, owner-supervised idle exception linked above.
 The [shared owner](architecture/vehicle-actions.md#shared-command-owner) records
 memory, cancellation, persistence, admission and remaining evidence requirements.
@@ -121,7 +122,7 @@ has no qualified arbitrary-target mapping. Combined ABS/traction-control referen
 Off/Return replies were captured; dash warnings cleared only after the owner's
 ignition cycle. Owner fourth-button Start/Return replies were positive; a later
 attempt without fresh session entry failed. These are reference observations,
-not enabled eGauge controls or braking-performance qualification.
+not eGauge execution or braking-performance qualification.
 
 ## Known reliability limits
 
@@ -171,7 +172,7 @@ This is offline test coverage, not a new installed APK or physical observation.
 
 ## Approved action pages
 
-The approved review 2 action pages are merged through PR #89 and installed in dev.61. Gauge-tab configuration stores per-gauge typed
+The approved review 2 action pages were introduced in dev.61 and remain installed in dev.62. Gauge-tab configuration stores per-gauge typed
 page order and timers; firmware uses one reusable face with deliberate Start,
 direct Stop, attention return and bounded coolant fallback. Existing live command
 qualification masks remain zero. The App/Wi-Fi installation preserved the dashboard; the owner then requested replacing the jump binding with ordered action pages at revision 55.

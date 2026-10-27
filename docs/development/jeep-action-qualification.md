@@ -8,19 +8,11 @@ Do not add a second command transport or enable a mask from a reference capture.
 
 ## Readiness and the first trip
 
-The App/action pages and dev.61 are installed. The owner confirmed three upward
-swipes enter actions, horizontal swipes browse and a downward swipe returns.
-The signed update, five Wi-Fi maintenance cycles and Bluetooth recovery passed.
-Air up is configured for 5:00 and Winch for 1:00; their pressure calibration is
-not measured yet. Both use the captured **fixed** idle setting, not an arbitrary
-RPM request. Live command qualification remains disabled. An owner-supervised
-idle-only candidate is now prepared in source; see the exception below.
-
-**Installed dev.61 is ready for the parked input capture, with vehicle execution
-still disabled.** `main.c` supplies no qualified identity/guard/restoration proofs today.
-The first capture closes that input-definition gap. A scoped runtime evidence
-adapter and signed candidate follow validated input mappings, before phase 2.
-No current firmware update or App reinstall is required for phase 1.
+Use the installed baseline in [current state](../current-state.md) and its linked
+indoor evidence. The signed App/Wi-Fi installation, protected readbacks, saved setup
+and physical action navigation are checked. No unresolved command journal was found.
+The next session can combine fixed read-only input capture with supervised idle
+Start/Stop; automatic Park/brake qualification and ABS/TCS remain separate.
 
 ### One-visit idle test candidate
 
@@ -28,13 +20,12 @@ The owner approved a temporary local-confirmation policy on 2026-10-26 so the
 missing automatic Park/brake mapping need not force a second Jeep visit. The
 [candidate contract](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
 owns exact identity, speed/RPM, coolant, timer and restoration limits. This is a
-separate build, currently not published or installed. ABS/TCS stays disabled.
+separate build, now installed with indoor readiness checks passed. ABS/TCS stays disabled.
 
-Before leaving: complete CI, obtain release authorization, publish the candidate
-with `parked_idle_test=true`, and install by App/Wi-Fi. Verify exact healthy running
-image, saved dashboard/bindings/filters and local action navigation indoors; no
-adapter indoors means no Start. Keep Air up at **5:00** and Winch at **1:00**.
-Neither the App nor firmware update should overwrite those presets.
+Before leaving, check the installed identity and indoor acceptance in current state.
+Future candidate replacements follow the [release procedure](firmware-release-runbook.md)
+and require their own authorization. No adapter indoors means no Start. Keep Air up
+at **5:00** and Winch at **1:00**. Preserve the dashboard, bindings and four CEL filters.
 
 At the Jeep, use one session for the fixed phase-1 capture and idle checks below.
 Keep the gauge off while the Mac owns the adapter, then release the Mac connection
