@@ -14,7 +14,7 @@ FONT = ROOT / "firmware/gauge/assets/fonts"
 S = 3
 C = TOKENS
 rows = []
-PREVIOUS = OUT / "v2"
+PREVIOUS = OUT / "v3"
 PRIOR = {s["id"]: s for s in json.loads((PREVIOUS / "mock-manifest.json").read_text())["screens"]}
 
 
@@ -88,6 +88,31 @@ class Art:
         )
 
 
+RINGS = {
+    "starting": ("accent", "start"),
+    "stopping": ("critical", "stop"),
+    "hot": ("critical", "stop"),
+    "critical": ("critical", "stop"),
+    "no-data": ("#FFD600", "connect"),
+}
+
+
+def phase_ring(a, color, glyph):
+    box = (4 * S, 4 * S, 236 * S, 236 * S)
+    a.d.ellipse(box, outline=C["surfaceRaised"], width=6 * S)
+    a.d.arc(box, -90, -10, fill=C.get(color, color), width=6 * S)
+    ink = C.get(color, color)
+    if glyph == "start":
+        a.d.polygon([(111 * S, 91 * S), (111 * S, 115 * S), (132 * S, 103 * S)], fill=ink)
+    elif glyph == "stop":
+        a.d.rounded_rectangle((109 * S, 92 * S, 131 * S, 114 * S), radius=3 * S, fill=ink)
+    else:
+        for x in [108, 120]:
+            a.d.rounded_rectangle(
+                (x * S, 95 * S, (x + 14) * S, 109 * S), radius=5 * S, outline=ink, width=2 * S
+            )
+
+
 def face(
     key,
     title,
@@ -108,13 +133,19 @@ def face(
         [(112 * S, 25 * S), (120 * S, 31 * S), (128 * S, 25 * S)], fill=C["muted"], width=2 * S
     )
     a.text(heading, 49, 20, bold=True)
-    a.text(value, 83 if value_size >= 36 else 91, value_size, color, bold=True)
+    ring = RINGS.get(key.removeprefix("winch-"))
+    if ring:
+        phase_ring(a, *ring)
+    else:
+        a.text(value, 83 if value_size >= 36 else 91, value_size, color, bold=True)
     if note:
         a.text(note, 127, 14, "warning" if color == "warning" else "muted")
     if button:
         a.button(button, color=button_color)
     a.dots(index)
     a.save(key, title, category, explanation)
+    if ring:
+        rows[-1]["ring"] = {"color": C.get(ring[0], ring[0]), "glyph": ring[1]}
 
 
 # Retain exact prior artwork and approvals only for unchanged navigation.
@@ -130,8 +161,8 @@ face(
     "Air up",
     "5:00",
     button="Hold to start",
-    note="Park + brake set",
-    explanation="Replace Start then Confirm with one deliberate 0.9-second hold. The line above the control is the local Park/brake acknowledgment. Releasing early or moving cancels. Recheck conditions when the hold completes.",
+    note="",
+    explanation="One deliberate 0.9-second hold starts the selected action. Remove the Park/brake line. Releasing early or moving cancels. Hold expresses intent, not verified vehicle conditions; command guards remain separate.",
 )
 face(
     "winch-ready",
@@ -139,9 +170,9 @@ face(
     "Winch",
     "1:00",
     button="Hold to start",
-    note="Park + brake set",
+    note="",
     index=1,
-    explanation="Same layout and deliberate hold as Air up. The App supplies the saved duration. One control per screen; no repeated confirmation page.",
+    explanation="Same clear timer and hold control as Air up, without the Park/brake line. The App supplies the saved duration; no repeated confirmation page.",
 )
 face(
     "starting",
@@ -150,7 +181,7 @@ face(
     "Starting",
     button="Stop",
     value_size=26,
-    explanation="Show Starting until a real response arrives. Stop is immediately available. No optimistic countdown or extra confirmation.",
+    explanation="A green spinning edge ring replaces Starting. A play symbol differentiates the pending phase without relying on color alone. Stop remains available; show the countdown only after the vehicle response.",
 )
 face(
     "active",
@@ -166,17 +197,10 @@ face(
     "Air up",
     "Stopping",
     value_size=26,
-    explanation="Stopping covers Return and its verification on the display. Internal states stay distinct. Do not show success before normal idle is verified.",
+    explanation="A red spinning edge ring and stop symbol replace Stopping through Return and verification. Once normal idle is verified, return directly to Ready. No extra success screen or Done step.",
     category="Protection and recovery",
 )
-face(
-    "stopped",
-    "Verified normal idle",
-    "Air up",
-    "Normal idle",
-    value_size=25,
-    explanation="After verified restoration, show this feedback for two seconds then return to the ready action page. Remove the compulsory Done tap. Never automatically start again.",
-)
+
 face(
     "coolant-unavailable",
     "No coolant before Start",
@@ -185,7 +209,7 @@ face(
     button="Continue",
     note="No coolant · 1 min max",
     color="warning",
-    explanation="The shorter duration and reason are visible before commitment. In this exceptional case retain a compact Park/brake confirmation before the hold, so the local acknowledgment is not hidden. A missing display page does not cause this state.",
+    explanation="The shorter duration and reason remain visible before commitment. Continue opens the local hold without Park/brake text. The entry artwork is unchanged, but its following step has changed and needs review. A missing display page does not cause this state.",
     category="Protection and recovery",
 )
 face(
@@ -194,7 +218,7 @@ face(
     "Air up",
     "1:00",
     button="Hold to start",
-    note="Park + brake set",
+    note="",
     color="warning",
     explanation="Only the missing-coolant exception needs this additional step: the preceding screen explained the one-minute cap. Tap Continue there, then hold here. Revising a timer or recovering coolant never silently extends the committed duration.",
     category="Protection and recovery",
@@ -218,7 +242,7 @@ face(
     value_size=26,
     note="Coolant high",
     color="warning",
-    explanation="Make both action and cause explicit. Protective Return happens automatically. Remain on Stopping until verified; high coolant cannot be bypassed.",
+    explanation="Use the red spinning edge ring and stop symbol, keeping Coolant high as the cause. Protective Return continues through verification; high coolant cannot be bypassed.",
     category="Protection and recovery",
 )
 face(
@@ -238,7 +262,7 @@ face(
     "Air up",
     "Connecting",
     value_size=25,
-    explanation="One clear reason replaces Unavailable plus Not available yet. Automatic retries continue. This state applies only when there is no unresolved operation.",
+    explanation="A yellow spinning edge ring replaces Connecting. A connection symbol differentiates reconnecting from command progress. Automatic retries continue; uncertain command outcomes retain the separate persistent Unknown screen.",
     category="Protection and recovery",
 )
 face(
@@ -256,10 +280,10 @@ face(
     "Stop without an extra detour",
     "Winch",
     "4:32",
-    button="Stop Air up",
+    button="Stop",
     note="Air up running",
     index=1,
-    explanation="Browsing to Winch during Air up keeps a direct, explicitly named Stop. Never start a second idle action. Removes the View Air up then Stop detour.",
+    explanation="Shorten the button to Stop. Air up running remains visible above it, identifying the operation affected. Stop acts on that operation, never the browsed Winch preset.",
 )
 face(
     "abs-ready",
@@ -332,7 +356,7 @@ face(
     value_size=28,
     note="Check engine",
     color="critical",
-    explanation="Critical attention takes priority. Preserve the protective command owner underneath, and never imply normal idle before verification. Full alert context remains in the App.",
+    explanation="Keep the named critical condition and Check engine. A red spinning edge ring and stop symbol replace Stopping while protective Return is verified. Never imply normal idle early.",
     category="Protection and recovery",
 )
 
@@ -423,10 +447,9 @@ for base, value, button, note, size, color in [
     ("stopping", "Stopping", None, "", 26, "text"),
     ("hot", "Stopping", None, "Coolant high", 26, "warning"),
     ("unknown", "Check idle", None, "Status unknown", 27, "warning"),
-    ("stopped", "Normal idle", None, "", 25, "text"),
     ("no-data", "Connecting", None, "", 25, "text"),
     ("coolant-unavailable", "1:00", "Continue", "No coolant · 1 min max", 44, "warning"),
-    ("fallback-confirm", "1:00", "Hold to start", "Park + brake set", 44, "warning"),
+    ("fallback-confirm", "1:00", "Hold to start", "", 44, "warning"),
 ]:
     key = "winch-" + base
     face(
@@ -447,14 +470,14 @@ face(
     "Air up while Winch runs",
     "Air up",
     "0:47",
-    button="Stop Winch",
+    button="Stop",
     note="Winch running",
 )
 rows.pop()
 variant_assets.append("air-active-other.png")
 
-# The exception keeps both the reduced-protection reason and local acknowledgment
-# visible at commitment. It is the only idle screen with two support lines.
+
+# Keep the warning at the hold, without the removed Park/brake line.
 for key, heading, index in [
     ("fallback-confirm", "Air up", 0),
     ("winch-fallback-confirm", "Winch", 1),
@@ -463,10 +486,9 @@ for key, heading, index in [
     a.d.line(
         [(112 * S, 25 * S), (120 * S, 31 * S), (128 * S, 25 * S)], fill=C["muted"], width=2 * S
     )
-    a.text(heading, 42, 20, bold=True)
-    a.text("No coolant", 69, 14, "warning")
-    a.text("1:00", 88, 36, "warning", bold=True)
-    a.text("Park + brake set", 130, 14, "muted")
+    a.text(heading, 49, 20, bold=True)
+    a.text("1:00", 83, 44, "warning", bold=True)
+    a.text("No coolant", 127, 14, "warning")
     a.button("Hold to start")
     a.dots(index)
     a.im.resize(a.size, Image.Resampling.LANCZOS).save(OUT / (key + ".png"))
@@ -474,13 +496,47 @@ for key, heading, index in [
         if row["id"] == key:
             row["bounds"] = a.bounds
             row["note"] = (
-                "Keep No coolant visible at the actual hold, alongside the local Park/brake acknowledgment and one-minute timer. This exceptional screen uses two short support lines. Recovery never extends the confirmed timer."
+                "Keep the one-minute timer and No coolant visible at the actual hold. Remove Park/brake text. Recovery never extends the confirmed timer."
             )
+            row["revised"] = True
+
+face(
+    "hot-blocked",
+    "After a thermal stop",
+    "Air up",
+    "Coolant high",
+    value_size=24,
+    color="warning",
+    category="Protection and recovery",
+    explanation="After verified restoration, remove the spinning ring but keep Start unavailable while coolant remains high. Fresh acceptable coolant returns to Ready; it never starts automatically.",
+)
+face(
+    "winch-hot-blocked",
+    "Winch thermal guard",
+    "Winch",
+    "Coolant high",
+    value_size=24,
+    color="warning",
+    index=1,
+)
+rows.pop()
+variant_assets.append("winch-hot-blocked.png")
+
+# Compare final artwork after any specialized rendering overrides.
+for row in rows:
+    key = row["id"]
+    row["revised"] = (
+        key not in PRIOR
+        or not (PREVIOUS / (key + ".png")).exists()
+        or (PREVIOUS / (key + ".png")).read_bytes() != (OUT / (key + ".png")).read_bytes()
+        or PRIOR[key]["note"] != row["note"]
+        or PRIOR[key]["title"] != row["title"]
+    )
 
 manifest = dict(
     reviewId="gauge-action-pages-2026-10-27",
-    reviewRound=3,
-    previousRound=2,
+    reviewRound=4,
+    previousRound=3,
     logicalSize=[240, 240],
     essentialRadius=112,
     decorativeRadius=116,
@@ -488,12 +544,13 @@ manifest = dict(
     + [
         "index.html",
         "prototype.js",
+        "rings.js",
         "proposal.html",
         "mock-data.js",
         "../gallery.js",
-        "v2/mock-manifest.json",
+        "v3/mock-manifest.json",
     ]
-    + ["v2/" + r["id"] + ".png" for r in rows if r["revised"] and not r["isNew"]],
+    + ["v3/" + r["id"] + ".png" for r in rows if r["revised"] and not r["isNew"]],
     screens=rows,
 )
 (OUT / "mock-data.js").write_text(

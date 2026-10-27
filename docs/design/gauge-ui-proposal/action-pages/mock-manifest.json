@@ -1,7 +1,7 @@
 {
   "reviewId": "gauge-action-pages-2026-10-27",
-  "reviewRound": 3,
-  "previousRound": 2,
+  "reviewRound": 4,
+  "previousRound": 3,
   "logicalSize": [
     240,
     240
@@ -15,39 +15,28 @@
     "winch-stopping.png",
     "winch-hot.png",
     "winch-unknown.png",
-    "winch-stopped.png",
     "winch-no-data.png",
     "winch-coolant-unavailable.png",
     "winch-fallback-confirm.png",
     "air-active-other.png",
+    "winch-hot-blocked.png",
     "index.html",
     "prototype.js",
+    "rings.js",
     "proposal.html",
     "mock-data.js",
     "../gallery.js",
-    "v2/mock-manifest.json",
-    "v2/air-ready.png",
-    "v2/winch-ready.png",
-    "v2/starting.png",
-    "v2/active.png",
-    "v2/stopping.png",
-    "v2/stopped.png",
-    "v2/coolant-unavailable.png",
-    "v2/fallback.png",
-    "v2/hot.png",
-    "v2/unknown.png",
-    "v2/no-data.png",
-    "v2/no-coolant.png",
-    "v2/active-other.png",
-    "v2/abs-ready.png",
-    "v2/abs-confirm.png",
-    "v2/abs-off.png",
-    "v2/empty.png",
-    "v2/critical.png",
-    "v2/app-list.png",
-    "v2/app-edit.png",
-    "v2/app-warning.png",
-    "v2/app-pending.png"
+    "v3/mock-manifest.json",
+    "v3/air-ready.png",
+    "v3/winch-ready.png",
+    "v3/starting.png",
+    "v3/stopping.png",
+    "v3/coolant-unavailable.png",
+    "v3/fallback-confirm.png",
+    "v3/hot.png",
+    "v3/no-data.png",
+    "v3/active-other.png",
+    "v3/critical.png"
   ],
   "screens": [
     {
@@ -194,7 +183,7 @@
       "id": "air-ready",
       "title": "Air up: hold once to start",
       "category": "Everyday actions",
-      "note": "Replace Start then Confirm with one deliberate 0.9-second hold. The line above the control is the local Park/brake acknowledgment. Releasing early or moving cancels. Recheck conditions when the hold completes.",
+      "note": "One deliberate 0.9-second hold starts the selected action. Remove the Park/brake line. Releasing early or moving cancels. Hold expresses intent, not verified vehicle conditions; command guards remain separate.",
       "isNew": false,
       "revised": true,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
@@ -220,16 +209,6 @@
           "fontPx": 44
         },
         {
-          "text": "Park + brake set",
-          "bounds": [
-            66.33,
-            127.0,
-            174.0,
-            137.67
-          ],
-          "fontPx": 14
-        },
-        {
           "text": "Hold to start",
           "bounds": [
             70.67,
@@ -249,7 +228,7 @@
       "id": "winch-ready",
       "title": "Winch: the same control",
       "category": "Everyday actions",
-      "note": "Same layout and deliberate hold as Air up. The App supplies the saved duration. One control per screen; no repeated confirmation page.",
+      "note": "Same clear timer and hold control as Air up, without the Park/brake line. The App supplies the saved duration; no repeated confirmation page.",
       "isNew": false,
       "revised": true,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
@@ -275,16 +254,6 @@
           "fontPx": 44
         },
         {
-          "text": "Park + brake set",
-          "bounds": [
-            66.33,
-            127.0,
-            174.0,
-            137.67
-          ],
-          "fontPx": 14
-        },
-        {
           "text": "Hold to start",
           "bounds": [
             70.67,
@@ -304,7 +273,7 @@
       "id": "starting",
       "title": "Waiting for the Start response",
       "category": "Everyday actions",
-      "note": "Show Starting until a real response arrives. Stop is immediately available. No optimistic countdown or extra confirmation.",
+      "note": "A green spinning edge ring replaces Starting. A play symbol differentiates the pending phase without relying on color alone. Stop remains available; show the countdown only after the vehicle response.",
       "isNew": false,
       "revised": true,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
@@ -320,16 +289,6 @@
           "fontPx": 20
         },
         {
-          "text": "Starting",
-          "bounds": [
-            69.0,
-            91.0,
-            171.0,
-            117.0
-          ],
-          "fontPx": 26
-        },
-        {
           "text": "Stop",
           "bounds": [
             102.33,
@@ -343,7 +302,11 @@
       "logicalSize": [
         240,
         240
-      ]
+      ],
+      "ring": {
+        "color": "#00FF70",
+        "glyph": "start"
+      }
     },
     {
       "id": "active",
@@ -351,7 +314,7 @@
       "category": "Everyday actions",
       "note": "One large countdown and one Stop control. Remove routine status prose and the extra Active label. Stop is a single tap, always in the same location.",
       "isNew": false,
-      "revised": true,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -394,7 +357,7 @@
       "id": "stopping",
       "title": "Returning to normal idle",
       "category": "Protection and recovery",
-      "note": "Stopping covers Return and its verification on the display. Internal states stay distinct. Do not show success before normal idle is verified.",
+      "note": "A red spinning edge ring and stop symbol replace Stopping through Return and verification. Once normal idle is verified, return directly to Ready. No extra success screen or Done step.",
       "isNew": false,
       "revised": true,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
@@ -408,63 +371,22 @@
             68.67
           ],
           "fontPx": 20
-        },
-        {
-          "text": "Stopping",
-          "bounds": [
-            63.0,
-            91.0,
-            176.67,
-            117.0
-          ],
-          "fontPx": 26
         }
       ],
       "logicalSize": [
         240,
         240
-      ]
-    },
-    {
-      "id": "stopped",
-      "title": "Verified normal idle",
-      "category": "Everyday actions",
-      "note": "After verified restoration, show this feedback for two seconds then return to the ready action page. Remove the compulsory Done tap. Never automatically start again.",
-      "isNew": false,
-      "revised": true,
-      "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
-      "bounds": [
-        {
-          "text": "Air up",
-          "bounds": [
-            91.0,
-            49.0,
-            149.33,
-            68.67
-          ],
-          "fontPx": 20
-        },
-        {
-          "text": "Normal idle",
-          "bounds": [
-            48.67,
-            91.0,
-            191.33,
-            110.67
-          ],
-          "fontPx": 25
-        }
       ],
-      "logicalSize": [
-        240,
-        240
-      ]
+      "ring": {
+        "color": "#FF1744",
+        "glyph": "stop"
+      }
     },
     {
       "id": "coolant-unavailable",
       "title": "No coolant before Start",
       "category": "Protection and recovery",
-      "note": "The shorter duration and reason are visible before commitment. In this exceptional case retain a compact Park/brake confirmation before the hold, so the local acknowledgment is not hidden. A missing display page does not cause this state.",
+      "note": "The shorter duration and reason remain visible before commitment. Continue opens the local hold without Park/brake text. The entry artwork is unchanged, but its following step has changed and needs review. A missing display page does not cause this state.",
       "isNew": false,
       "revised": true,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
@@ -519,8 +441,8 @@
       "id": "fallback-confirm",
       "title": "Fallback: local acknowledgment",
       "category": "Protection and recovery",
-      "note": "Keep No coolant visible at the actual hold, alongside the local Park/brake acknowledgment and one-minute timer. This exceptional screen uses two short support lines. Recovery never extends the confirmed timer.",
-      "isNew": true,
+      "note": "Keep the one-minute timer and No coolant visible at the actual hold. Remove Park/brake text. Recovery never extends the confirmed timer.",
+      "isNew": false,
       "revised": true,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
@@ -528,39 +450,29 @@
           "text": "Air up",
           "bounds": [
             91.0,
-            42.0,
+            49.0,
             149.33,
-            61.67
+            68.67
           ],
           "fontPx": 20
+        },
+        {
+          "text": "1:00",
+          "bounds": [
+            76.33,
+            83.0,
+            164.0,
+            115.67
+          ],
+          "fontPx": 44
         },
         {
           "text": "No coolant",
           "bounds": [
             83.67,
-            69.0,
+            127.0,
             156.67,
-            79.67
-          ],
-          "fontPx": 14
-        },
-        {
-          "text": "1:00",
-          "bounds": [
-            84.0,
-            88.0,
-            155.67,
-            114.67
-          ],
-          "fontPx": 36
-        },
-        {
-          "text": "Park + brake set",
-          "bounds": [
-            66.33,
-            130.0,
-            174.0,
-            140.67
+            137.67
           ],
           "fontPx": 14
         },
@@ -586,7 +498,7 @@
       "category": "Protection and recovery",
       "note": "Keep the same timer and Stop positions. Show only the actionable exception. The fallback deadline never extends when coolant returns.",
       "isNew": false,
-      "revised": true,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -639,7 +551,7 @@
       "id": "hot",
       "title": "Temperature protection is stopping",
       "category": "Protection and recovery",
-      "note": "Make both action and cause explicit. Protective Return happens automatically. Remain on Stopping until verified; high coolant cannot be bypassed.",
+      "note": "Use the red spinning edge ring and stop symbol, keeping Coolant high as the cause. Protective Return continues through verification; high coolant cannot be bypassed.",
       "isNew": false,
       "revised": true,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
@@ -655,16 +567,6 @@
           "fontPx": 20
         },
         {
-          "text": "Stopping",
-          "bounds": [
-            63.0,
-            91.0,
-            176.67,
-            117.0
-          ],
-          "fontPx": 26
-        },
-        {
           "text": "Coolant high",
           "bounds": [
             77.33,
@@ -678,7 +580,11 @@
       "logicalSize": [
         240,
         240
-      ]
+      ],
+      "ring": {
+        "color": "#FF1744",
+        "glyph": "stop"
+      }
     },
     {
       "id": "unknown",
@@ -686,7 +592,7 @@
       "category": "Protection and recovery",
       "note": "Keep this persistent when an operation outcome is unknown. Do not claim Stopped, restart, or add a blind retry. Normal reconciliation may resolve it. No automatic exit.",
       "isNew": false,
-      "revised": true,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -729,7 +635,7 @@
       "id": "no-data",
       "title": "Quiet connection recovery",
       "category": "Protection and recovery",
-      "note": "One clear reason replaces Unavailable plus Not available yet. Automatic retries continue. This state applies only when there is no unresolved operation.",
+      "note": "A yellow spinning edge ring replaces Connecting. A connection symbol differentiates reconnecting from command progress. Automatic retries continue; uncertain command outcomes retain the separate persistent Unknown screen.",
       "isNew": false,
       "revised": true,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
@@ -743,22 +649,16 @@
             68.67
           ],
           "fontPx": 20
-        },
-        {
-          "text": "Connecting",
-          "bounds": [
-            50.33,
-            91.0,
-            189.67,
-            116.33
-          ],
-          "fontPx": 25
         }
       ],
       "logicalSize": [
         240,
         240
-      ]
+      ],
+      "ring": {
+        "color": "#FFD600",
+        "glyph": "connect"
+      }
     },
     {
       "id": "no-coolant",
@@ -766,7 +666,7 @@
       "category": "Protection and recovery",
       "note": "Keep the one required next step. No disabled Start button or duplicated warning. The setting belongs in the App, not on this small display.",
       "isNew": false,
-      "revised": true,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -809,7 +709,7 @@
       "id": "active-other",
       "title": "Stop without an extra detour",
       "category": "Everyday actions",
-      "note": "Browsing to Winch during Air up keeps a direct, explicitly named Stop. Never start a second idle action. Removes the View Air up then Stop detour.",
+      "note": "Shorten the button to Stop. Air up running remains visible above it, identifying the operation affected. Stop acts on that operation, never the browsed Winch preset.",
       "isNew": false,
       "revised": true,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
@@ -845,12 +745,12 @@
           "fontPx": 14
         },
         {
-          "text": "Stop Air up",
+          "text": "Stop",
           "bounds": [
-            77.0,
+            102.33,
             162.0,
-            163.0,
-            178.33
+            137.67,
+            178.0
           ],
           "fontPx": 16
         }
@@ -866,7 +766,7 @@
       "category": "ABS and traction",
       "note": "Short stable action name; Enabled is shown only from confirmed state. This is a future qualified flow. ABS/TCS execution remains disabled on the installed firmware.",
       "isNew": false,
-      "revised": true,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -911,7 +811,7 @@
       "category": "ABS and traction",
       "note": "Retain this explicit confirmation because restoration requires an ignition cycle for the captured Jeep behavior. The timer-style idle shortcut does not apply to ABS/TCS.",
       "isNew": false,
-      "revised": true,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -966,7 +866,7 @@
       "category": "ABS and traction",
       "note": "No misleading Enable button. Show Disabled only after confirmation; the guidance remains visible. A restart alone does not prove restoration until checked.",
       "isNew": false,
-      "revised": true,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -1010,8 +910,8 @@
       "title": "Unqualified action",
       "category": "ABS and traction",
       "note": "A saved action can remain in the user-selected order, with one honest state and no control. Capability qualification remains unchanged.",
-      "isNew": true,
-      "revised": true,
+      "isNew": false,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -1046,7 +946,7 @@
       "category": "Protection and recovery",
       "note": "One short instruction. Swipe down returns to readings. Do not add an empty pager or a Start control.",
       "isNew": false,
-      "revised": true,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -1079,7 +979,7 @@
       "id": "critical",
       "title": "Critical alert preempts the action",
       "category": "Protection and recovery",
-      "note": "Critical attention takes priority. Preserve the protective command owner underneath, and never imply normal idle before verification. Full alert context remains in the App.",
+      "note": "Keep the named critical condition and Check engine. A red spinning edge ring and stop symbol replace Stopping while protective Return is verified. Never imply normal idle early.",
       "isNew": false,
       "revised": true,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
@@ -1095,16 +995,6 @@
           "fontPx": 20
         },
         {
-          "text": "Stopping",
-          "bounds": [
-            58.67,
-            91.0,
-            181.0,
-            119.0
-          ],
-          "fontPx": 28
-        },
-        {
           "text": "Check engine",
           "bounds": [
             75.0,
@@ -1118,7 +1008,11 @@
       "logicalSize": [
         240,
         240
-      ]
+      ],
+      "ring": {
+        "color": "#FF1744",
+        "glyph": "stop"
+      }
     },
     {
       "id": "app-list",
@@ -1126,7 +1020,7 @@
       "category": "App configuration",
       "note": "Tap a compact row to edit; the editor contains Remove. Add opens the supported-action picker. Reorder stays in a named overflow action. Existing entry gesture settings stay under one optional row; no repeated instructions.",
       "isNew": false,
-      "revised": true,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -1291,7 +1185,7 @@
       "category": "App configuration",
       "note": "Duration and the existing shared coolant limit are the primary settings. Optional pressure-based estimation stays collapsed. Save retains the existing reviewed configuration transaction; no automatic vehicle Start.",
       "isNew": false,
-      "revised": true,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -1456,7 +1350,7 @@
       "category": "App configuration",
       "note": "One inline missing-limit row replaces repeated Start unavailable warnings. Saving a page does not make it executable until protection is configured.",
       "isNew": false,
-      "revised": true,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -1621,7 +1515,7 @@
       "category": "App configuration",
       "note": "Use the existing connection and pending-save state once. Do not repeat Waiting, Not applied and Gauge unchanged in separate cards. Never replay a Start after reconnection.",
       "isNew": false,
-      "revised": true,
+      "revised": false,
       "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
       "bounds": [
         {
@@ -1768,6 +1662,41 @@
       "logicalSize": [
         360,
         640
+      ]
+    },
+    {
+      "id": "hot-blocked",
+      "title": "After a thermal stop",
+      "category": "Protection and recovery",
+      "note": "After verified restoration, remove the spinning ring but keep Start unavailable while coolant remains high. Fresh acceptable coolant returns to Ready; it never starts automatically.",
+      "isNew": true,
+      "revised": true,
+      "changeSummary": "Simpler hierarchy and fewer steps. Review this changed design before implementation.",
+      "bounds": [
+        {
+          "text": "Air up",
+          "bounds": [
+            91.0,
+            49.0,
+            149.33,
+            68.67
+          ],
+          "fontPx": 20
+        },
+        {
+          "text": "Coolant high",
+          "bounds": [
+            45.33,
+            91.0,
+            195.0,
+            115.0
+          ],
+          "fontPx": 24
+        }
+      ],
+      "logicalSize": [
+        240,
+        240
       ]
     }
   ]
