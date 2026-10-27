@@ -53,6 +53,7 @@
 #include "gauge_presentation.h"
 #include "display_showcase.h"
 #include "adapter_status.h"
+#include "ble_mgr.h"
 #include "transfer_gate.h"
 #include "util.h"
 
@@ -68,10 +69,11 @@ static const char *TAG = "UI";
 
 typedef struct
 {
-    uint16_t   pid;
-    bool       present;
-    double     value;
-    TickType_t received_at;
+    uint16_t pid;
+    uint8_t  source;
+    bool     used, present;
+    double   value;
+    uint32_t observed_at_ms, revision, generation;
 } ui_sample_t;
 
 typedef struct
@@ -98,13 +100,6 @@ typedef struct
     bool    count_known, count_partial;
     char    first_code[6];
 } ui_diagnostics_t;
-
-typedef struct
-{
-    bool       present;
-    double     value;
-    TickType_t received_at;
-} ui_metric_sample_t;
 
 typedef struct
 {
@@ -184,7 +179,6 @@ struct _ui_t
 
     struct
     {
-        QueueHandle_t value_que;
         QueueHandle_t touch_ev_que;
         QueueHandle_t pairing_que;
         QueueHandle_t pairing_id_que;
@@ -215,10 +209,17 @@ struct _ui_t
         lv_obj_t *dual_info[2];
     } widgets;
 
+    portMUX_TYPE sample_lock;
+    ui_sample_t  samples[EGAUGE_RUNTIME_PIDS];
+    struct
+    {
+        bool     ready;
+        uint32_t revision, generation;
+    } sample_sources[2];
+
     struct
     {
         ui_page_t          page;
-        ui_metric_sample_t samples[2];
         double             rendered_values[2];
         bool               rendered_available[2];
         bool               rendered_once;
@@ -418,13 +419,34 @@ static int32_t normalized_value(double value, const ui_metric_t *metric, int32_t
 
 static bool metric_value(ui_t *ui, unsigned index, double *value)
 {
-    if (index >= ui->display.page.metric_count || !ui->display.samples[index].present)
+    if (index >= ui->display.page.metric_count)
         return false;
-    TickType_t age = xTaskGetTickCount() - ui->display.samples[index].received_at;
-    if (age > pdMS_TO_TICKS(ui->display.page.metrics[index].stale_after_ms))
+    const ui_metric_t *metric = &ui->display.page.metrics[index];
+    unsigned           source = metric->scoped ? metric->source_index : UINT8_MAX;
+    /* Check live transport truth as well as the worker fence. A disconnected
+     * sample cannot reappear during the interval before the worker clears it. */
+    if (metric->scoped &&
+        (source >= 2 || !adapter_status_ready_for(source) || ble_mgr_is_paused() || transfer_gate_current() == 2))
         return false;
-    *value = ui->display.samples[index].value;
-    return true;
+    uint32_t generation = metric->scoped ? adapter_status_generation(source) : 0;
+    uint32_t now        = (uint32_t)(esp_timer_get_time() / 1000);
+    bool     available  = false;
+    portENTER_CRITICAL(&ui->sample_lock);
+    for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+    {
+        const ui_sample_t *sample = &ui->samples[i];
+        if (!sample->used || sample->pid != metric->pid || sample->source != source)
+            continue;
+        available = sample->present && now - sample->observed_at_ms <= metric->stale_after_ms;
+        if (metric->scoped)
+            available = available && ui->sample_sources[source].ready && sample->revision == metric->revision &&
+                        sample->generation == generation;
+        if (available)
+            *value = sample->value;
+        break;
+    }
+    portEXIT_CRITICAL(&ui->sample_lock);
+    return available;
 }
 
 static void show(lv_obj_t *object, bool visible)
@@ -1416,18 +1438,6 @@ static void ui_task(lv_timer_t *timer)
                                   adapter_status_ready_for(0) || adapter_status_ready_for(1)))
         showcase_frame(ui);
 
-    ui_sample_t sample;
-    while (xQueueReceive(ui->rtos.value_que, &sample, 0) == pdTRUE)
-    {
-        for (unsigned i = 0; i < ui->display.page.metric_count; ++i)
-        {
-            if (ui->display.page.metrics[i].pid != sample.pid)
-                continue;
-            ui->display.samples[i].present     = sample.present;
-            ui->display.samples[i].value       = sample.value;
-            ui->display.samples[i].received_at = sample.received_at;
-        }
-    }
     render_page(ui);
     if (ui->status_dirty)
         render_status(ui);
@@ -1552,6 +1562,14 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_center(button_label);
     ui->widgets.attention_button = button;
     show(overlay, false);
+    /* New LVGL objects start visible. Keep status chrome hidden until its first
+     * truthful status render, including the boot interval before the UI timer. */
+    show(ui->widgets.alert_lbl, false);
+    show(ui->widgets.alert_icon, false);
+    show(ui->widgets.alert_arrow, false);
+    show(ui->widgets.diagnostics_lbl, false);
+    show(ui->widgets.diagnostics_icon, false);
+    show(ui->widgets.demo_lbl, false);
     ui->status_dirty = true;
     lv_arc_set_range(arc, 0, 1000);
     lv_bar_set_range(bar, 0, 1000);
@@ -1601,7 +1619,7 @@ ui_t *ui_init(ui_page_t const    *page,
     memset(ui, 0, sizeof(ui_t));
     ESP_LOGI(TAG, "ui pointer2: %p (addr: %p)", ui, (void *)&ui);
 
-    ui->rtos.value_que       = xQueueCreate(32, sizeof(ui_sample_t));
+    ui->sample_lock          = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
     ui->rtos.touch_ev_que    = xQueueCreate(4, sizeof(lv_event_code_t));
     ui->rtos.pairing_que     = xQueueCreate(1, sizeof(uint32_t));
     ui->rtos.pairing_id_que  = xQueueCreate(1, sizeof(ui->pairing_identifier));
@@ -1613,12 +1631,10 @@ ui_t *ui_init(ui_page_t const    *page,
     ui->pairing_visible      = pairing_required;
     ui->imperial_units       = imperial_units;
 
-    if (!ui->rtos.value_que || !ui->rtos.touch_ev_que || !ui->rtos.pairing_que || !ui->rtos.pairing_id_que ||
-        !ui->rtos.alert_que || !ui->rtos.diagnostics_que || !ui->rtos.showcase_que)
+    if (!ui->rtos.touch_ev_que || !ui->rtos.pairing_que || !ui->rtos.pairing_id_que || !ui->rtos.alert_que ||
+        !ui->rtos.diagnostics_que || !ui->rtos.showcase_que)
     {
         ESP_LOGE(TAG, "Failed to allocate UI mailboxes");
-        if (ui->rtos.value_que)
-            vQueueDelete(ui->rtos.value_que);
         if (ui->rtos.touch_ev_que)
             vQueueDelete(ui->rtos.touch_ev_que);
         if (ui->rtos.pairing_que)
@@ -1668,21 +1684,80 @@ ui_t *ui_init(ui_page_t const    *page,
     return ui;
 }
 
+void ui_set_source_state(ui_t *ui, unsigned source, bool ready, uint32_t revision, uint32_t generation)
+{
+    if (!ui || source >= 2)
+        return;
+    portENTER_CRITICAL(&ui->sample_lock);
+    if (!ready || ui->sample_sources[source].revision != revision ||
+        ui->sample_sources[source].generation != generation)
+        for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+            if (ui->samples[i].used && ui->samples[i].source == source)
+                ui->samples[i].used = ui->samples[i].present = false;
+    ui->sample_sources[source].ready      = ready;
+    ui->sample_sources[source].revision   = revision;
+    ui->sample_sources[source].generation = generation;
+    portEXIT_CRITICAL(&ui->sample_lock);
+}
+
+static void set_sample(ui_t         *ui,
+                       unsigned      source,
+                       uint32_t      revision,
+                       uint32_t      generation,
+                       uint16_t      pid,
+                       double const *value,
+                       uint32_t      observed_at_ms)
+{
+    if (!ui || (source != UINT8_MAX && source >= 2))
+        return;
+    portENTER_CRITICAL(&ui->sample_lock);
+    if (source != UINT8_MAX && (!ui->sample_sources[source].ready || ui->sample_sources[source].revision != revision ||
+                                ui->sample_sources[source].generation != generation))
+    {
+        portEXIT_CRITICAL(&ui->sample_lock);
+        return;
+    }
+    ui_sample_t *slot = NULL;
+    for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+    {
+        if (ui->samples[i].used && ui->samples[i].source == source && ui->samples[i].pid == pid)
+        {
+            slot = &ui->samples[i];
+            break;
+        }
+        if (!ui->samples[i].used && !slot)
+            slot = &ui->samples[i];
+    }
+    if (slot)
+        *slot = (ui_sample_t){.used           = true,
+                              .source         = source,
+                              .pid            = pid,
+                              .present        = value && isfinite(*value),
+                              .value          = value && isfinite(*value) ? *value : 0,
+                              .revision       = revision,
+                              .generation     = generation,
+                              .observed_at_ms = observed_at_ms};
+    portEXIT_CRITICAL(&ui->sample_lock);
+}
+
+void ui_set_source_value(ui_t         *ui,
+                         unsigned      source,
+                         uint32_t      revision,
+                         uint32_t      generation,
+                         uint16_t      pid,
+                         double const *value,
+                         uint32_t      observed_at_ms)
+{
+    /* Reject retired callbacks even before the source worker observes loss. */
+    if (source >= 2 || !adapter_status_ready_for(source) || ble_mgr_is_paused() ||
+        adapter_status_generation(source) != generation || transfer_gate_current() == 2)
+        return;
+    set_sample(ui, source, revision, generation, pid, value, observed_at_ms);
+}
+
 void ui_set_value(ui_t *ui, uint16_t pid, double const *value)
 {
-    ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
-
-    ui_sample_t sample = {
-        .pid         = pid,
-        .present     = value != NULL && isfinite(*value),
-        .value       = value != NULL && isfinite(*value) ? *value : 0,
-        .received_at = xTaskGetTickCount(),
-    };
-
-    if (xQueueSend(ui->rtos.value_que, &sample, 0) != pdTRUE)
-    {
-        ESP_LOGW(TAG, "Dropped UI sample for PID 0x%02X", pid);
-    }
+    set_sample(ui, UINT8_MAX, 0, 0, pid, value, (uint32_t)(esp_timer_get_time() / 1000));
 }
 
 void ui_set_page(ui_t *ui, ui_page_t const *page)
@@ -1691,14 +1766,12 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     ESP_NULL_CHECK(page, TAG, "Page config is NULL");
 
     page_action_reset(&ui->action);
-    xQueueReset(ui->rtos.value_que);
     if (ui->showcase.active)
     {
         ui->showcase.active = false;
         showcase_publish(ui);
     }
-    ui->display.page = *page;
-    memset(ui->display.samples, 0, sizeof(ui->display.samples));
+    ui->display.page          = *page;
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
     for (unsigned i = 0; i < 60; ++i)

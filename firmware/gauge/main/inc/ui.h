@@ -46,6 +46,9 @@ typedef enum
 typedef struct
 {
     uint16_t    pid;
+    uint8_t     source_index;
+    bool        scoped;
+    uint32_t    revision;
     const char *name;
     const char *unit;
     double      minimum;
@@ -72,10 +75,18 @@ ui_t *ui_init(ui_page_t const    *page,
               ui_touch_callback_t touch_cb,
               bool                pairing_required,
               bool                imperial_units);
-/* Thread-safe presentation mailbox. Samples are accepted only when their PID
- * still matches the selected page, preventing late replies from crossing a
- * page change. Passing NULL publishes an unavailable sample for that PID. */
+/* Bounded latest-value mailbox. Legacy/test values are unscoped. Production
+ * values require the exact source scope armed by its worker. Observations use
+ * monotonic milliseconds and retain their original age across page changes. */
 void ui_set_value(ui_t *ui, uint16_t pid, double const *value);
+void ui_set_source_state(ui_t *ui, unsigned source, bool ready, uint32_t revision, uint32_t generation);
+void ui_set_source_value(ui_t         *ui,
+                         unsigned      source,
+                         uint32_t      revision,
+                         uint32_t      generation,
+                         uint16_t      pid,
+                         double const *value,
+                         uint32_t      observed_at_ms);
 void ui_set_page(ui_t *ui, ui_page_t const *page);
 void ui_set_page_position(ui_t *ui, unsigned index, unsigned count);
 /* LVGL owner only for configuration and target access. Context mailbox is thread-safe. */

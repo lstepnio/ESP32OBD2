@@ -146,6 +146,8 @@ static void page_ui(unsigned index, ui_page_t *out)
         out->metric_count        = 1;
         out->metrics[0]          = (ui_metric_t){
             .pid            = pid->pid,
+            .scoped         = true,
+            .source_index   = 0,
             .name           = pid->name,
             .unit           = pid->unit,
             .minimum        = pid->decoder.minimum,
@@ -163,6 +165,9 @@ static void page_ui(unsigned index, ui_page_t *out)
         const runtime_pid_t *pid = &g_runtime->pids[page->pid_indices[i]];
         out->metrics[i]          = (ui_metric_t){
             .pid            = pid->obd.pid,
+            .scoped         = true,
+            .source_index   = pid->source_index,
+            .revision       = g_running_config_record.revision,
             .name           = pid->name,
             .unit           = pid->unit,
             .minimum        = pid->obd.decoder.minimum,
@@ -193,24 +198,16 @@ static bool runtime_simulated(void)
 }
 static void clear_source(ui_t *ui, unsigned source)
 {
-    /* Only visible metrics need queue entries; page switches reset hidden samples.
-     * Bound invalidation to two entries even when an absent source owns 32 PIDs. */
-    ui_page_t page;
-    page_ui(atomic_load(&g_selected_page), &page);
-    for (unsigned metric = 0; metric < page.metric_count; ++metric)
-    {
-        if (!g_runtime)
-        {
-            ui_set_value(ui, page.metrics[metric].pid, NULL);
-            continue;
-        }
-        for (unsigned i = 0; i < g_runtime->pid_count; ++i)
-            if (g_runtime->pids[i].source_index == source && g_runtime->pids[i].obd.pid == page.metrics[metric].pid)
-            {
-                ui_set_value(ui, page.metrics[metric].pid, NULL);
-                break;
-            }
-    }
+    ui_set_source_state(ui, source, false, g_runtime ? g_running_config_record.revision : 0,
+                        adapter_status_generation(source));
+}
+
+static void publish_ui_sample(ui_t *ui, unsigned source, uint32_t generation, uint16_t pid, const double *value)
+{
+    if (ble_mgr_is_paused())
+        return;
+    ui_set_source_value(ui, source, g_runtime ? g_running_config_record.revision : 0, generation, pid, value,
+                        (uint32_t)(esp_timer_get_time() / 1000));
 }
 
 static const obd_pid_cfg_t *poll_cfg(unsigned index)
@@ -341,7 +338,7 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     {
         ESP_LOGE(TAG, "Received empty data for PID 0x%02X", pid);
         queue_alert_sample(source, pid, generation, NAN);
-        ui_set_value(ui, pid, NULL);
+        publish_ui_sample(ui, source, generation, pid, NULL);
         return;
     }
 
@@ -362,7 +359,7 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     {
         ESP_LOGW(TAG, "Invalid length for PID 0x%02X: expected %zu, got %zu", pid, definition->len, len);
         queue_alert_sample(source, pid, generation, NAN);
-        ui_set_value(ui, pid, NULL);
+        publish_ui_sample(ui, source, generation, pid, NULL);
         return;
     }
 
@@ -370,21 +367,21 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     if (g_runtime && pid == 0x5503 && !transmission_gear_label(data[0]))
     {
         queue_alert_sample(source, pid, generation, NAN);
-        ui_set_value(ui, pid, NULL);
+        publish_ui_sample(ui, source, generation, pid, NULL);
         return;
     }
     if (!pid_decoder_eval(&definition->decoder, data, len, &decoded))
     {
         ESP_LOGW(TAG, "Rejected invalid value for PID 0x%02X", pid);
         queue_alert_sample(source, pid, generation, NAN);
-        ui_set_value(ui, pid, NULL);
+        publish_ui_sample(ui, source, generation, pid, NULL);
         return;
     }
 
     queue_alert_sample(source, pid, generation, decoded);
 
     ESP_LOGD(TAG, "Received PID 0x%02X (%s): %.3f", pid, definition->name, decoded);
-    ui_set_value(ui, pid, &decoded);
+    publish_ui_sample(ui, source, generation, pid, &decoded);
 }
 
 static void app_tick_task(void *arg)
@@ -435,6 +432,9 @@ static void app_tick_task(void *arg)
                 alert_runtime_sample(i, NAN, now_ms);
             }
         for (unsigned source = 0; source < runtime_source_count(); ++source)
+        {
+            if (!adapter_status_ready_for(source) || ble_mgr_is_paused() || transfer_gate_current() == 2)
+                clear_source(ui, source);
             if (!adapter_status_ready_for(source))
             {
                 alert_engine_invalidate_source(source);
@@ -443,6 +443,7 @@ static void app_tick_task(void *arg)
                         if (g_runtime->pids[i].source_index == source)
                             alert_runtime_sample(i, NAN, now_ms);
             }
+        }
         alert_summary_t alert = alert_engine_tick(now_ms);
         (void)alert;
         diagnostics_snapshot_t presentation          = {.mil_known = true};
@@ -624,6 +625,8 @@ static void obd_task(void *arg)
             continue;
         }
 
+        ui_set_source_state(ui, source, true, g_runtime ? g_running_config_record.revision : 0,
+                            adapter_status_generation(source));
         uint32_t      now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
         clear_state_t clear;
         if (diagnostic_clear_take(source, now_ms, &clear))
@@ -744,7 +747,7 @@ static void obd_task(void *arg)
         if (status != 0)
         {
             queue_alert_sample(source, requested->pid, poll_generation, NAN);
-            ui_set_value(ui, requested->pid, NULL);
+            publish_ui_sample(ui, source, poll_generation, requested->pid, NULL);
             ESP_LOGW(TAG, "Failed to send request: %d", status);
         }
     }

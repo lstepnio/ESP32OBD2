@@ -481,8 +481,10 @@ inputs. It is not a production vehicle definition or driving mode.
   allow the captured raised setting up to a conservative 2,500 RPM ceiling. These
   are test-policy limits, not a qualified Park/brake interpretation. Failed input
   reads invalidate their sample; movement/guard loss latches Stop before later reads.
-- Each Start requires the named confirmation on the physical gauge, including
-  `Park, brake set`. The App can monitor and Stop but cannot Start, including by
+- Each Start requires a deliberate physical-gauge gesture under the
+  [ordered action-page contract](#ordered-action-pages). Review 4 replaces the ordinary
+  repeated Park/brake confirmation screen with hold-to-start. The App can monitor
+  and Stop but cannot Start, including by
   sending raw authenticated command bytes. ABS/TCS remains unavailable.
 - Air up can run **five minutes** with fresh coolant; Winch keeps its saved one-minute
   preset. Longer test drafts are capped at five minutes in both confirmation and
