@@ -148,3 +148,21 @@ Finish in Park at ordinary idle or engine off, with ABS/TCS restored and both
 warning lights cleared. Restore original coolant thresholds, phone monitoring and
 wake settings; retain the three action pages, dashboard, bindings and four CEL
 filters. Raw recordings stay under ignored `artifacts/vehicle-captures/`.
+
+## 2026-10-27 Air up owner observation
+
+The owner reported Air up worked well on the installed candidate, but the active
+page displayed “Coolant unavailable.” Source inspection found that the active
+page tested the local-gauge Start requirement (status flag bit 3), which the
+parked candidate always sets, instead of coolant unavailable (bit 4). The UI fix
+uses bit 4; it changes no command admission, temperature protection or timer.
+Production-renderer cases cover fresh coolant with local-only Start, missing
+coolant, and recovered coolant with a retained fallback deadline.
+
+This observation does not establish the run duration, coolant freshness, thermal
+Stop or complete restoration/recovery behavior. The owner confirmed no coolant page is configured. Coolant protection polls the
+primary ECM independently of display pages; a coolant page is not required. The
+runtime replay now explicitly uses an RPM-only page and still checks fresh coolant,
+five-minute admission, thermal Stop and missing-coolant fallback. Confirm the
+actual countdown at the next opportunity. The display fix is not installed yet.
+Website impact: no new public qualification claim or publication is warranted.

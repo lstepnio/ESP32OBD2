@@ -8,6 +8,9 @@ separates automated readbacks, owner display/touch confirmation and remaining Je
 The opt-in [parked idle candidate](architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
 is installed and ready for supervised Air up/Winch checks using the
 [one-visit runbook](development/jeep-action-qualification.md#one-visit-idle-test-candidate).
+The owner subsequently reported successful Air up operation, with an unexpected
+“Coolant unavailable” note. A UI flag mismatch was identified; countdown duration
+and actual coolant availability during that run are not yet confirmed.
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
 

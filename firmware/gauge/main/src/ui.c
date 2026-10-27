@@ -2126,7 +2126,7 @@ static void refresh_vehicle_menu(ui_t *ui)
         value   = duration;
         button  = "Stop";
         enabled = true;
-        if (state & (8U << 8))
+        if (state & (16U << 8))
             note = "Coolant unavailable";
     }
     else if (phase == VEHICLE_STOPPING || phase == VEHICLE_VERIFYING)

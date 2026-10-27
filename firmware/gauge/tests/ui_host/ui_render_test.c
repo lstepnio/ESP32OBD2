@@ -274,6 +274,10 @@ int main(int argc, char **argv)
     ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1, 47, 0, 1);
     tick(60);
     capture(argv[1], "actions-active");
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1 | 8, 287, 0, 1);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_note), ""));
+    capture(argv[1], "actions-active-local-start");
     command_activate(ui, false);
     assert(command_requests == 2);
     ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
@@ -300,7 +304,12 @@ int main(int argc, char **argv)
     assert(!stop && seconds == 60); /* New coolant evidence cannot enlarge the confirmed request. */
     ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1 | 4 | 8 | 16, 42, 9, 1);
     tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_note), "Coolant unavailable"));
     capture(argv[1], "actions-coolant-timer");
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_ACTIVE, 1 | 4 | 8, 41, 9, 1);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_note), ""));
+    capture(argv[1], "actions-coolant-recovered");
     ui->command_page = 1;
     refresh_vehicle_menu(ui);
     tick(60);

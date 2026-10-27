@@ -235,10 +235,13 @@ static void setup(bool wrong)
     bad_identity             = wrong;
     missing_coolant = lose_start_reply = control_active = stored = false;
     memset(journal, 0, sizeof(journal));
-    config_runtime_t r = {.source_count = 1, .pid_count = 1, .alert_count = 1};
+    config_runtime_t r = {.source_count = 1, .pid_count = 2, .page_count = 1, .alert_count = 1};
     strcpy(r.sources[0].address, "00:00:00:00:00:01");
     r.pids[0] = (runtime_pid_t){.service = 1, .responder = 0x7e8, .obd.pid = 5};
     strcpy(r.pids[0].unit, "°C");
+    /* Only RPM is displayed; coolant protection must poll independently. */
+    r.pids[1]   = (runtime_pid_t){.service = 1, .responder = 0x7e8, .obd.pid = 12};
+    r.pages[0]  = (runtime_page_t){.pid_count = 1, .pid_indices = {1}};
     r.alerts[0] = (runtime_alert_t){.above = true, .has_warning = true, .warning = 105};
     assert(vehicle_commands_runtime_init(&r) == ESP_OK);
     run(20);
