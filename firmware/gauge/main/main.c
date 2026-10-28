@@ -1,6 +1,7 @@
 #include "vehicle_commands_runtime.h"
 #include "vehicle_idle_coolant.h"
 #include "worker_health.h"
+#include "boot_health.h"
 #include "memory_health.h"
 // ---------------------------------------------------------------------------------------------------------------------
 // Includes
@@ -410,9 +411,12 @@ static void boot_health_task(void *arg)
 {
     (void)arg;
     uint32_t initial_ticks = atomic_load(&g_app_tick_count);
+    uint32_t initial_ui    = worker_health_snapshot(WORKER_UI, 0).progress_count;
     for (unsigned i = 0; i < 60; ++i)
     {
-        if (ble_companion_ready() && atomic_load(&g_app_tick_count) - initial_ticks >= 50)
+        worker_health_t ui_health = worker_health_snapshot(WORKER_UI, (uint32_t)(esp_timer_get_time() / 1000));
+        if (boot_health_ready(ble_companion_ready(), initial_ticks, atomic_load(&g_app_tick_count), initial_ui,
+                              ui_health))
         {
             if (g_runtime && config_trial_needs_confirmation(g_running_config_record.revision))
             {

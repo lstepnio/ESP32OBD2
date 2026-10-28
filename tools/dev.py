@@ -322,6 +322,7 @@ def android_ui(action):
         raise SystemExit("android-ui supports test only; use android for build/lint.")
     classes = (
         "ConnectionStatusUiTest",
+        "PresentationAccessibilityTest",
         "IdleActionsUiTest",
         "VehicleCommandsUiTest",
         "ProfileActionsUiTest",
