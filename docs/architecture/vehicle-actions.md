@@ -499,6 +499,31 @@ inputs. It is not a production vehicle definition or driving mode.
   that operation's pre-Start baseline. Samples must follow the Return transition.
   Unknown/reboot/link loss never becomes Restored merely because RPM is low.
 
+#### Read-only recovery of an uncertain idle operation
+
+A durable idle marker can survive restarting both gauge and vehicle. Normal RPM
+alone never clears it, but Unknown must not block the identity reads needed to
+recover. The parked candidate reacquires its exact ECM calibration/CVN and current
+link, then rate-limits recovery attempts to five seconds. Admission requires the
+saved operation/revision/identity, fresh zero speed and ordinary-idle RPM. Coolant
+and a new Start's duration eligibility do not gate this read-only check.
+
+Recovery uses a distinct driver job: addressed adapter routing and `33 05` status
+only. It never sends Start, Return or diagnostic-session entry, even on cancellation,
+movement, timeout or an active response. It rebinds only the in-memory link; the
+original durable marker remains unchanged. A positive inactive response begins
+verification: one fresh normal-idle sample establishes a recovery baseline, then
+three distinct later samples must span at least 500 ms, within 150 RPM above that
+baseline and at/below 1,200 RPM. The whole proof must finish within five seconds
+of the inactive response; otherwise retry read-only. Recovery identity stays age-bounded. Failed, malformed, active,
+wrong-scope or stale evidence cannot clear the marker; persistence failure also
+keeps Unknown. No automatic control or blanket journal reset is introduced.
+
+This source path needs parked verification on the captured ECM after installation.
+It does not establish that the reported vehicle incident had a particular timeout,
+and does not promote the ordinary controller qualification mask. Normal Stop still
+uses its original pre-Start baseline and prioritized Return path.
+
 The pure policy is `jeep_idle_parked_test.c`; its only runtime adapter is inside
 the build-switched blocks in `vehicle_commands_runtime.c`. Removal means disabling
 the build option, removing those blocks/policy and the small UI duration/note branch.

@@ -15,6 +15,14 @@ is installed and ready for supervised Air up/Winch checks using the
 The owner subsequently reported successful Air up operation, with an unexpected
 “Coolant unavailable” note. The UI flag mismatch is corrected in installed dev.63; countdown duration
 and actual coolant availability during that run are not yet confirmed.
+On 2026-10-28 the owner reported Air up remaining at “Check idle / Status unknown”
+after restarting the vehicle and gauge, with normal physical idle and live RPM.
+The source retains a durable uncertainty marker; its parked adapter previously
+blocked identity acquisition in Unknown and had no reboot recovery verifier.
+The read-only [idle recovery source](architecture/vehicle-actions.md#read-only-recovery-of-an-uncertain-idle-operation)
+now prepares exact-ECM routine-status plus settled-RPM reconciliation, without
+replaying controls or erasing evidence. It is not yet installed/physically qualified.
+Website impact: corrective recovery behavior needs no new marketing claim or image.
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
 

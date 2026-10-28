@@ -531,8 +531,72 @@ static void parked_test_is_local_idle_only_and_bounded(void)
         assert(!(status[27] & 1));
     }
 }
+static void recovery_scope_and_retry_fences(void)
+{
+    vehicle_commands_t s;
+    init(&s);
+    durable = (vehicle_command_marker_t){.mask = 1, .operation = {42}, .revision = {7}, .identity = {11}};
+    vehicle_commands_init(&s, 18, save, NULL, &durable, true);
+    assert(s.last_operation == 42 && !s.states[0].request.link);
+    context.parked_idle_test   = true;
+    context.coolant_configured = context.coolant_valid = false;
+    context.revision++;
+    assert(!vehicle_commands_next(&s, context, now).text);
+    context.revision--;
+    context.identity++;
+    assert(!vehicle_commands_next(&s, context, now).text);
+    context.identity--;
+    context.link = 12;
+    route_idle(&s);
+    assert(s.states[0].request.link == 12 && durable.mask == 1 && durable.operation[0] == 42);
+    exchange(&s, "33 05 1", "7E8 03 73 05 02\r\r>");
+    assert(s.states[0].phase == VEHICLE_UNKNOWN);
+    assert(!vehicle_commands_next(&s, context, now).text);
+    now              = s.states[0].recovery_at + 4999;
+    context.guard_at = now;
+    assert(!vehicle_commands_next(&s, context, now).text);
+    ++now;
+    context.guard_at            = now;
+    jeep_idle_command_t command = vehicle_commands_next(&s, context, now);
+    assert(command.text && !strcmp(command.text, "AT SH 7E0"));
+    context.link++;
+    assert(!vehicle_commands_feed(&s, command.ticket, (const uint8_t *)"OK\r>", 4, context, ++now));
+    assert(s.states[0].phase == VEHICLE_UNKNOWN && durable.mask == 1);
+    /* Late normal-idle proof cannot reuse an old inactive report. */
+    s.worker_kind                  = 0;
+    s.states[0].phase              = VEHICLE_VERIFYING;
+    s.states[0].recovery_verifying = true;
+    s.states[0].changed_at         = now;
+    ++now;
+    context.guard_at = context.proof_at[0] = now;
+    context.normal_idle_verified           = true;
+    context.verified_operation[0]          = 42;
+    vehicle_commands_observe(&s, context, now);
+    assert(s.states[0].phase == VEHICLE_UNKNOWN && durable.mask == 1); /* Retired link proof. */
+    s.states[0].phase        = VEHICLE_VERIFYING;
+    s.states[0].changed_at   = now;
+    s.states[0].request.link = context.link;
+    now += 5000;
+    context.guard_at = context.proof_at[0] = now;
+    context.normal_idle_verified           = true;
+    context.verified_operation[0]          = 42;
+    vehicle_commands_observe(&s, context, now);
+    assert(s.states[0].phase == VEHICLE_UNKNOWN && durable.mask == 1);
+    context.normal_idle_verified = false;
+    /* Retry scheduling also survives the millisecond counter wrapping. */
+    s.states[0].recovery_at = UINT32_MAX - 1000;
+    now                     = 3998;
+    context.guard_at        = now;
+    assert(!vehicle_commands_next(&s, context, now).text);
+    ++now;
+    context.guard_at = now;
+    command          = vehicle_commands_next(&s, context, now);
+    assert(command.text && !strcmp(command.text, "AT SH 7E0"));
+    assert(durable.mask == 1 && durable.operation[0] == 42);
+}
 int main(int argc, char **argv)
 {
+    recovery_scope_and_retry_fences();
     assert(argc == 2);
     FILE *file = fopen(argv[1], "r");
     assert(file);

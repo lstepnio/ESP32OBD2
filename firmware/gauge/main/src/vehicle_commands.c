@@ -35,9 +35,13 @@ static bool fallback_safe(vehicle_command_context_t c)
 {
     return vehicle_idle_coolant_fallback_safe(c.coolant_configured, c.coolant_valid, c.coolant_c, c.coolant_limit_c);
 }
+static bool inputs_fresh(vehicle_command_context_t c, uint32_t now)
+{
+    return c.guards_fresh_and_met && c.guard_at && now - c.guard_at <= 2000;
+}
 static bool guarded(const vehicle_commands_t *s, vehicle_command_context_t c, uint8_t kind, uint32_t now)
 {
-    if (!c.guards_fresh_and_met || !c.guard_at || now - c.guard_at > 2000)
+    if (!inputs_fresh(c, now))
         return false;
     if (kind != VEHICLE_IDLE)
         return true;
@@ -50,7 +54,9 @@ static idle_context_t driver_context(const vehicle_commands_t *s,
                                      uint8_t                   kind,
                                      uint32_t                  now)
 {
-    return (idle_context_t){c.revision, c.link, c.connected, guarded(s, c, kind, now)};
+    bool recovery = kind == VEHICLE_IDLE && s->driver.idle.request.kind == JEEP_IDLE_RECOVERY_REPORT;
+    return (idle_context_t){c.revision, c.link, c.connected,
+                            recovery ? inputs_fresh(c, now) : guarded(s, c, kind, now)};
 }
 static uint32_t remaining_ms(const vehicle_command_state_t *v, uint32_t now)
 {
@@ -131,6 +137,8 @@ void vehicle_commands_init(vehicle_commands_t             *s,
             v->request.revision  = s->marker.revision[i];
             v->identity          = s->marker.identity[i];
             v->restart_required  = i == 1;
+            if (v->request.operation > s->last_operation)
+                s->last_operation = v->request.operation;
         }
     }
 }
@@ -199,9 +207,10 @@ bool vehicle_commands_submit(vehicle_commands_t       *s,
         v->phase == VEHICLE_ACTIVE || v->phase == VEHICLE_STOPPING || v->phase == VEHICLE_VERIFYING ||
         v->phase == VEHICLE_RESTART_REQUIRED || v->phase == VEHICLE_UNKNOWN || s->sequence == UINT32_MAX)
         return false;
-    s->last_operation = r.operation;
-    v->request        = r;
-    v->identity       = c.identity;
+    s->last_operation     = r.operation;
+    v->recovery_verifying = false;
+    v->request            = r;
+    v->identity           = c.identity;
     if (!qualified(c, r.kind) || !s->journal_ready)
     {
         transition(s, r.kind, VEHICLE_REJECTED, s->journal_ready ? VEHICLE_UNQUALIFIED : VEHICLE_STORAGE, now);
@@ -240,6 +249,8 @@ static void finish(vehicle_commands_t *s, vehicle_command_context_t c, uint32_t 
         jeep_idle_driver_t *d = &s->driver.idle;
         if (d->phase == JEEP_IDLE_WORKING)
             return;
+        if (d->request.kind == JEEP_IDLE_RECOVERY_REPORT)
+            v->recovery_at = now; /* Retry from completion, never catch up after slow IO. */
         if (d->phase == JEEP_IDLE_CONFIRMED)
         {
             if (d->result == JEEP_IDLE_START_CONFIRMED)
@@ -250,9 +261,12 @@ static void finish(vehicle_commands_t *s, vehicle_command_context_t c, uint32_t 
             else if (d->result == JEEP_IDLE_ACTIVE_REPORT)
                 v->last_report = now;
             else if (d->result == JEEP_IDLE_RETURN_CONFIRMED || d->result == JEEP_IDLE_INACTIVE_REPORT)
+            {
+                v->recovery_verifying = d->request.kind == JEEP_IDLE_RECOVERY_REPORT;
                 transition(s, kind, VEHICLE_VERIFYING,
                            (v->reason == VEHICLE_GUARD || v->reason == VEHICLE_COOLANT_TIMER) ? v->reason : VEHICLE_OK,
                            now);
+            }
             else
                 transition(s, kind, VEHICLE_UNKNOWN, VEHICLE_RESPONSE, now);
         }
@@ -289,7 +303,17 @@ void vehicle_commands_observe(vehicle_commands_t *s, vehicle_command_context_t c
     {
         uint8_t                  kind = i + 1;
         vehicle_command_state_t *v    = &s->states[i];
-        bool evidence = qualified(c, kind) && c.verified_operation[i] == v->request.operation && c.proof_at[i] &&
+        /* An inactive recovery report is a short proof window, not a lease
+         * that can be combined with unrelated normal RPM much later. */
+        if (kind == VEHICLE_IDLE && v->phase == VEHICLE_VERIFYING && v->recovery_verifying &&
+            now - v->changed_at >= 5000)
+        {
+            v->recovery_verifying = false;
+            transition(s, kind, VEHICLE_UNKNOWN, VEHICLE_TIMEOUT, now);
+            continue;
+        }
+        bool evidence = qualified(c, kind) && (!v->recovery_verifying || scoped(v, c)) &&
+                        c.verified_operation[i] == v->request.operation && c.proof_at[i] &&
                         now - c.proof_at[i] <= 2000 && (uint32_t)(c.proof_at[i] - v->changed_at) > 0 &&
                         (uint32_t)(c.proof_at[i] - v->changed_at) < 0x80000000U &&
                         (i == 0 ? c.normal_idle_verified : c.abs_reset_verified);
@@ -363,19 +387,23 @@ static bool begin_job(vehicle_commands_t       *s,
                       vehicle_command_context_t c,
                       uint32_t                  now)
 {
-    vehicle_command_state_t *v = &s->states[index_of(kind)];
+    vehicle_command_state_t *v        = &s->states[index_of(kind)];
+    bool                     recovery = kind == VEHICLE_IDLE && report && v->phase == VEHICLE_UNKNOWN;
     memset(&s->driver, 0, sizeof(s->driver));
     bool ok;
     if (kind == VEHICLE_IDLE)
     {
-        jeep_idle_request_t r = {.kind      = stop     ? JEEP_IDLE_RETURN
-                                              : report ? JEEP_IDLE_REPORT
-                                                       : JEEP_IDLE_START_CAPTURED,
-                                 .operation = v->request.operation,
-                                 .revision  = v->request.revision,
-                                 .link      = v->request.link,
-                                 .source    = 0};
-        ok                    = jeep_idle_driver_begin(&s->driver.idle, r, driver_context(s, c, kind, now), now);
+        jeep_idle_request_t r  = {.kind      = stop     ? JEEP_IDLE_RETURN
+                                               : report ? (recovery ? JEEP_IDLE_RECOVERY_REPORT : JEEP_IDLE_REPORT)
+                                                        : JEEP_IDLE_START_CAPTURED,
+                                  .operation = v->request.operation,
+                                  .revision  = v->request.revision,
+                                  .link      = v->request.link,
+                                  .source    = 0};
+        idle_context_t      dc = driver_context(s, c, kind, now);
+        if (recovery)
+            dc.guards_fresh_and_met = inputs_fresh(c, now);
+        ok = jeep_idle_driver_begin(&s->driver.idle, r, dc, now);
     }
     else
     {
@@ -391,7 +419,7 @@ static bool begin_job(vehicle_commands_t       *s,
         transition(s, kind, VEHICLE_UNKNOWN, VEHICLE_CONTEXT, now);
         return false;
     }
-    if (kind == VEHICLE_IDLE && (stop || report))
+    if (kind == VEHICLE_IDLE && (stop || (report && !recovery)))
         s->driver.idle.control_possible = true;
     if (kind == VEHICLE_ABS_TCS && stop)
         s->driver.abs.control_possible = true;
@@ -432,6 +460,16 @@ jeep_idle_command_t vehicle_commands_next(vehicle_commands_t *s, vehicle_command
             }
         }
         vehicle_command_state_t *idle = &s->states[0];
+        if (!s->worker_kind && idle->phase == VEHICLE_UNKNOWN && s->journal_ready && (s->marker.mask & 1) &&
+            c.parked_idle_test && qualified(c, VEHICLE_IDLE) && inputs_fresh(c, now) && s->marker.operation[0] &&
+            c.revision == s->marker.revision[0] && c.identity == s->marker.identity[0] &&
+            (!idle->recovery_attempted || now - idle->recovery_at >= 5000))
+        {
+            idle->recovery_attempted = true;
+            idle->recovery_at        = now;
+            idle->request.link       = c.link; /* RAM scope only; retain the durable original operation. */
+            begin_job(s, VEHICLE_IDLE, false, true, c, now);
+        }
         if (!s->worker_kind && idle->phase == VEHICLE_ACTIVE && now - idle->last_report >= 1000)
             begin_job(s, VEHICLE_IDLE, false, true, c, now);
     }
@@ -506,6 +544,8 @@ void vehicle_commands_transport_failed(vehicle_commands_t *s, uint32_t now)
     if (!s->worker_kind)
         return;
     uint8_t kind = s->worker_kind;
+    if (kind == VEHICLE_IDLE && s->driver.idle.request.kind == JEEP_IDLE_RECOVERY_REPORT)
+        s->states[0].recovery_at = now;
     transition(s, kind, (s->marker.mask & (1U << index_of(kind))) ? VEHICLE_UNKNOWN : VEHICLE_REJECTED, VEHICLE_CONTEXT,
                now);
     s->states[index_of(kind)].pending_start = s->states[index_of(kind)].pending_stop = false;

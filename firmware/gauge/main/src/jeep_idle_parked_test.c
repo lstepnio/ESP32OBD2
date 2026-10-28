@@ -60,7 +60,9 @@ void jeep_idle_parked_test_context(jeep_idle_parked_test_t       *t,
     uint32_t rpm_age = now - t->rpm_at, speed_age = now - t->speed_at;
     bool active = idle->phase == VEHICLE_STARTING || idle->phase == VEHICLE_ACTIVE || idle->phase == VEHICLE_STOPPING ||
                   idle->phase == VEHICLE_VERIFYING;
-    c->identity = t->calibration && t->cvn && (active || now - t->identity_at <= 30000) ? 0xca36378cU : 0;
+    c->identity = t->calibration && t->cvn && ((active && !idle->recovery_verifying) || now - t->identity_at <= 30000)
+                      ? 0xca36378cU
+                      : 0;
     c->identity_mask        = c->identity ? 1 : 0;
     c->guards_fresh_and_met = c->connected && c->identity && t->rpm_valid && t->speed_valid && t->rpm_at &&
                               t->speed_at && rpm_age <= JEEP_IDLE_PARKED_INPUT_AGE_MS &&
@@ -72,14 +74,29 @@ void jeep_idle_parked_test_context(jeep_idle_parked_test_t       *t,
     if (idle->phase != VEHICLE_VERIFYING || t->proof_operation != idle->request.operation ||
         t->proof_transition != idle->changed_at)
     {
-        t->proof_count = 0;
+        t->recovery_baseline = false;
+        t->proof_count       = 0;
         t->proof_first = t->proof_last = 0;
         t->proof_operation             = idle->request.operation;
         t->proof_transition            = idle->changed_at;
     }
+    /* Reboot recovery has no pre-Start baseline. Establish one only from a
+     * fresh ordinary-idle sample after the independent inactive report. Later
+     * distinct samples must still establish settled restoration. */
+    if (idle->phase == VEHICLE_VERIFYING && idle->recovery_verifying && !t->recovery_baseline &&
+        c->guards_fresh_and_met && t->rpm <= 1200 && t->rpm_at != idle->changed_at &&
+        (uint32_t)(t->rpm_at - idle->changed_at) < 0x80000000U)
+    {
+        t->baseline_operation = idle->request.operation;
+        t->baseline_rpm       = t->rpm;
+        t->baseline_valid = t->recovery_baseline = true;
+        t->proof_last                            = t->rpm_at;
+        return;
+    }
     /* Only a positive Return/inactive driver result enters Verifying. Ordinary
      * RPM after an uncertain write/reboot must not clear the durable marker. */
-    if (idle->phase != VEHICLE_VERIFYING || !c->guards_fresh_and_met || !t->baseline_valid ||
+    if (idle->phase != VEHICLE_VERIFYING || !c->guards_fresh_and_met ||
+        (idle->recovery_verifying && !t->recovery_baseline) || !t->baseline_valid ||
         t->baseline_operation != idle->request.operation || t->rpm > 1200 || t->rpm > t->baseline_rpm + 150 ||
         !t->rpm_at || (uint32_t)(t->rpm_at - idle->changed_at) >= 0x80000000U || t->rpm_at == idle->changed_at)
     {
