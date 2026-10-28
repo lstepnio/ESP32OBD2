@@ -23,7 +23,8 @@
       "docs/roadmap.md",
       "docs/backlog.md",
       "docs/documentation.md",
-      "docs/requirements.md"
+      "docs/requirements.md",
+      "docs/features.md"
     ],
     "architecture": [
       "docs/architecture/alerts-and-diagnostics.md",

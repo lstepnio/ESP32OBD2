@@ -39,6 +39,37 @@ No separate changelog, TODO list or ranked plan should compete with the backlog.
 README indexes the product and navigation; it does not repeat release counters.
 Architecture describes ownership; release/test numbers belong in evidence/status.
 
+## Feature completion rule
+
+Documentation is part of every feature, including experiments, refinements and
+removals. Humans and AI must be able to understand it from the repository without
+chat history. Update the canonical contract in the same PR as the implementation;
+do not defer it to release day or leave the details only in a PR/conversation.
+
+For the affected feature, cover the meaningful details:
+
+- Purpose, user-visible behavior, defaults and how to configure/use it.
+- Owning modules and the App/firmware/transport/control path where relevant.
+- Persistence, validation, capability negotiation and migration/compatibility.
+- Loading, missing/stale data, failure, cancellation and recovery behavior.
+- Resource/timing limits, design tradeoffs and the reason for non-obvious rules.
+- Relevant tests/check commands, evidence and remaining physical qualification.
+- Experimental boundaries, enable/remove path and known limitations, when applicable.
+
+Extend an existing topic owner when possible. Give substantial new features one
+focused contract and link it from the [feature index](features.md) and [source map](ai-context.md).
+Classify new documents in the documentation map. Update status/backlog/roadmap only
+for changed facts, and retire duplicate plans after moving enduring rules and open
+acceptance. Removal includes cleaning incoming references and recording any migration
+or compatibility consequence. A minor change can be documented with a short update;
+this is not a requirement for a new document per commit.
+
+PRs identify the documentation updated, or explain why a change has no feature or
+contract impact. Existing CI validates document inventory, links and source paths;
+review checks semantic completeness. A green link check alone cannot establish that
+the prose matches behavior. Public website review follows its existing daily policy
+and is separate from technical feature documentation.
+
 ## Change checklist
 
 1. Verify current Git/worktree and the affected source/contract.

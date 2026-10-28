@@ -27,6 +27,9 @@ Wire/storage changes need compatibility notes, examples and focused rejection/mi
 vectors. PID definitions need provenance, licensing, exact vehicle/ECU scope, units,
 decoder and sample evidence. Catalog membership never proves vehicle compatibility.
 
+Features are complete only with the [feature documentation rule](docs/documentation.md#feature-completion-rule)
+satisfied in the same PR, including refinements, experiments and removals. Use the
+[feature index](docs/features.md) and [source map](docs/ai-context.md) to find the owner.
 Follow [documentation ownership](docs/documentation.md). Link to topic owners instead
 of duplicating them, classify maintained documents in the map, and retain historical
 measurements. Third-party notices remain intact; a project-wide license is still an
