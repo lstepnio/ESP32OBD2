@@ -302,3 +302,33 @@ On, timeout 60000 ms and charging wake value 15; the temporary session still has
 monitoring Off and the debug awake helper active. Restore them on reconnection,
 using the fresh private phone backup rather than overwriting later owner changes.
 Website impact: no Auto support or new physical capability claim is promoted.
+
+
+## Dev.69 return checks
+
+On the Pixel's return, protected exact dev.69/ELF and healthy state 2 readback passed
+in 16.482 seconds. Original configuration revision 63/digest, profiles, assignments,
+display settings and unavailable/no-unresolved vehicle-command state were retained.
+The production App reconciled its older interrupted-update record from authenticated
+running identity; no phone journal was edited manually.
+
+`WifiMaintenanceJourneyTest` passed in 42.109 seconds: protected opens took 1601
+and 1946 ms, both authenticated Wi-Fi status/close paths passed, and the boot nonce,
+exact image, revision/digest and settings remained unchanged. Serial observations
+show sensor health becoming stale during maintenance and fresh afterward, holding
+manual angle 270 degrees. This qualifies enabled-worker/manual Wi-Fi suspension and
+recovery, not Auto pose changes or loaded dual-adapter coexistence.
+
+The owner labelled vertical USB-down, vertical USB-up and flat screen-up poses.
+X stayed near +1999 mg across them; flat Z was approximately -974 mg with Y near
+zero. This narrows the fault to X-channel/sensor-state/data-path behavior rather
+than an across-all-axes scale assumption. It does not prove defective hardware.
+A requested ten-second complete power removal is still awaiting owner confirmation;
+register readback or a documented known-state initialization may be needed afterward.
+No calibration was invented and the gravity guard was not relaxed. Populated arc,
+Auto orientation and physical touch alignment remain pending.
+
+Before pausing for that physical step, phone alerts were restored On through Settings,
+advanced-tool preference was retained, and the debug awake helper reported inactive
+with the original 60000 ms timeout and charging value 15. Private return backups and
+serial evidence were retained; the passive serial reader was stopped.

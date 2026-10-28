@@ -81,7 +81,8 @@ Dev.68 is also withdrawn. Installed dev.69 uses a guarded 4 KiB internal sensor
 stack. Boot and the initial I2C NACK/recovery path remain stable, with 1632 bytes
 of sensor-worker and 1112 bytes of main headroom. The live X axis is near its
 2 g limit at rest, so the plausibility policy correctly refuses automatic changes;
-pose/configuration diagnosis remains pending. Normal qualification and public flags
+labelled USB-down, USB-up and flat poses retained the pinned X reading, while
+flat Z was approximately -0.97 g. Full-power-cycle/configuration diagnosis remains pending. Normal qualification and public flags
 remain off under the [indoor procedure](development/display-indoor-qualification.md).
 
 ## Installed baseline
@@ -89,7 +90,7 @@ remain off under the [indoor procedure](development/display-indoor-qualification
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
 | Pixel | App `0.2.0-dev.53` / versionCode 53, reviewed source `fd8fae6`, merged PR #105; profile schema 18 / associations 2 | [Combined rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); profile migration retained all values; final alert policy restored, assignments and presentation byte-identical |
-| Gauge | Signed parked-idle/orientation candidate `0.2.0-dev.69` from `7b88d62`, generation 50, 240 MHz; original configuration revision 63 | [Authorized USB installation](evidence/display-evolution.md#dev69-authorized-usb-installation): signed image and flashed digest verified, 303104 persistent bytes unchanged, owner loaded and normal workers progressing; protected App readback waits for the Pixel |
+| Gauge | Signed parked-idle/orientation candidate `0.2.0-dev.69` from `7b88d62`, generation 50, 240 MHz; original configuration revision 63 | [Authorized USB installation](evidence/display-evolution.md#dev69-authorized-usb-installation): signed image and flashed digest verified, 303104 persistent bytes unchanged, owner loaded and normal workers progressing; protected exact-image/setup readback and two Wi-Fi reopen cycles passed on return |
 | Physical display/touch | Owner confirmed dev.66 text-free logo, touch wake and normal reading/action navigation: “Logo and all navigation work.” | [Display rollout](evidence/display-evolution.md); all ten pages subsequently owner-confirmed; new-arc visuals, dev.69 physical checks, loaded legibility and Auto sensor/touch alignment remain separate gates |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
