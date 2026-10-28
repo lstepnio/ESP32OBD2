@@ -115,7 +115,7 @@ the prior phone/gauge filter divergence must not recur.
 | --- | --- | --- |
 | Baseline | Fresh identity, guards, coolant limit, ordinary RPM; no control active | Exact expected controller, coherent revision/link, valid guard age |
 | Air up | Local named confirmation; brief Start then immediate Stop | Accepted report plus physical raised idle; immediate same-session Return report and settled ordinary RPM |
-| Uncertain reboot recovery | Preserve a controlled unresolved marker; restart gauge/vehicle, retain normal idle and live primary RPM | Exact identity, read-only inactive report, three later settled samples, durable marker cleared; capture outgoing trace proving no Start/Return/session entry. Active/negative/missing report must remain Unknown without a control replay. |
+| Uncertain reboot recovery | Preserve a controlled unresolved marker; restart gauge/vehicle, retain normal idle and live primary RPM | Exact identity, read-only inactive report, three later settled samples, durable marker cleared; capture outgoing trace proving captured session entry/acknowledgement precedes status and no Start/Return is sent. Active/negative/missing report must remain Unknown without a control replay. |
 | Winch | Repeat Start/Stop using the same fixed-idle driver | Independent preset/countdown; no duplicate Start or arbitrary RPM claim |
 | Timer | Short bounded duration | One automatic Return, settled RPM, no restart without new confirmation |
 | Coolant | Temporary threshold crossed during ordinary warm-up, with owner present | Return latency recorded without deliberately overheating; original alert restored |

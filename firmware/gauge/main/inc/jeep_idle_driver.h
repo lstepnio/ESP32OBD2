@@ -7,7 +7,7 @@ typedef enum
     JEEP_IDLE_START_CAPTURED,
     JEEP_IDLE_REPORT,
     JEEP_IDLE_RETURN,
-    JEEP_IDLE_RECOVERY_REPORT /* Read-only, including cancellation and guard failure. */
+    JEEP_IDLE_RECOVERY_REPORT /* Captured session + status; never Start/Return, including cancellation. */
 } jeep_idle_kind_t;
 typedef enum
 {
