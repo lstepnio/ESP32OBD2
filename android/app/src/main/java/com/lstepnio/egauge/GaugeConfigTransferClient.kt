@@ -149,10 +149,10 @@ class GaugeConfigTransferClient(private val context: Context) {
         owner.transaction { Session(this).action() }
     }
 
-    private inner class Session(private val owner: GaugeOwnerTransaction) {
-        val mtu: Int get() = owner.mtu
-        suspend fun readRaw(): ByteArray = owner.readRaw()
-        suspend fun writeRaw(bytes: ByteArray) = owner.writeRaw(bytes)
+    private inner class Session(private val owner: GaugeOwnerTransaction) : GaugeOwnerTransaction {
+        override val mtu: Int get() = owner.mtu
+        override suspend fun readRaw(): ByteArray = owner.readRaw()
+        override suspend fun writeRaw(bytes: ByteArray) = owner.writeRaw(bytes)
         suspend fun read(): Status {
             val bytes = readRaw()
             require(bytes.size == 64 && bytes[0].toInt() == 3) {
@@ -378,26 +378,8 @@ class GaugeConfigTransferClient(private val context: Context) {
         require(device.bondState == BluetoothDevice.BOND_BONDED) {
             "Pair this phone as gauge owner first"
         }
-        val bytes = withGauge(device) {
-            try {
-                require(sourceIndex == null || sourceIndex in 0..1)
-                writeRaw(
-                    if (sourceIndex ==
-                        null
-                    ) {
-                        byteArrayOf(0x39) + le32(1)
-                    } else {
-                        byteArrayOf(0x3a) + le32(1) +
-                            byteArrayOf(sourceIndex.toByte())
-                    }
-                )
-            } catch (error: GaugeCommandRejectedException) {
-                // Only explicit unsupported opcode/length permits legacy fallback.
-                // Link loss, auth failure and malformed snapshots are never downgraded.
-                if (sourceIndex != null || error.status !in setOf(6, 13)) throw error
-                writeRaw(byteArrayOf(0x30) + le32(1))
-            }
-            readRaw()
+        val bytes = readDiagnosticsSnapshot(sourceIndex) { action ->
+            withGauge(device) { action(this) }
         }
         return GaugeProtocolCodec.diagnostics(bytes)
     }

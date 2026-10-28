@@ -174,3 +174,10 @@ live provider. [ADR-018](phone-companion-content.md) keeps proposed typed conten
 and source feasibility separate from implemented infrastructure. Shared owner/probe
 regressions exercise serialization, callback-handle retirement, scope/slot/sequence,
 no replay and expiry. They do not qualify actual phone/gauge streaming or provider use.
+
+Legacy diagnostic snapshot fallback (`39` to `30`) opens a fresh protected session
+only after a confirmed unsupported-command/length rejection (GATT 6/13) from the
+snapshot write itself. It never writes through retired IO, downgrades scoped `3A`,
+or mistakes authentication, malformed snapshots, cancellation or link loss for a
+protocol fallback. `DiagnosticsReadTest` uses the real owner retirement policy to
+verify both sessions and cleanup order, plus these rejection boundaries.

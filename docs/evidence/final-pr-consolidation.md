@@ -55,3 +55,13 @@ and real dirty-source/non-persistent-trust regression are also retained. No glob
 Git trust setting is changed. The final consolidation includes original #116/#118
 heads, so one protected, up-to-date integration can preserve their work without
 forcing an outdated merge or dropping concurrent fixes.
+
+## Legacy diagnostics compatibility review
+
+Required automated review identified that the old same-transaction unsupported
+snapshot fallback conflicts with the new fail-closed IO retirement. The fallback
+now opens a fresh authenticated transaction after cleanup, only for explicit GATT
+6/13 rejection of unscoped `39`. Six production-orchestration regressions use the
+actual owner-session policy: supported read, both legacy statuses/cleanup order,
+scoped/other failures, authentication rejection, malformed/read failure, cancellation
+and invalid source. Retirement/no uncertain-write replay remains unchanged.
