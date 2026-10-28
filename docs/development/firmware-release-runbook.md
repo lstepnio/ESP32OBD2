@@ -40,6 +40,26 @@ release uses this workflow; keep signing credentials in its protected environmen
 Device installation and validation start from GitHub Releases. Local bundles are
 limited to explicit recovery engineering and are not a release path.
 
+## Retained build evidence
+
+New workflow releases also retain and sign `egauge-build-evidence-VERSION.zip`.
+It contains exact ELF/map/application/bootstrap outputs, configuration/layout,
+resolved dependency versions/hashes, license notices and an SPDX dependency inventory.
+`provenance.json` records the full source SHA, qualified container and every payload
+hash. Evidence uses the selected normal, parked-idle or orientation-candidate build
+and the sdkconfig recorded by that build. Dependency metadata omits machine-local
+paths; original ELF/map may retain build paths. Signing material is excluded. The separate DER
+signature uses the existing development key and can be checked with `openssl dgst
+-sha256 -verify PUBLIC_KEY -signature EVIDENCE.sig EVIDENCE.zip`.
+
+The strict two-entry OTA bundle is unchanged. Verify the evidence signature and
+inventory before using its support regions in a recovery package. Inventory license
+fields marked `NOASSERTION` are not a license review or a complete transitive source
+SBOM; retained notices support that review. Historical releases do not retroactively
+acquire original CI support artifacts. No new release is implied by source changes.
+
+## Parked idle qualification candidate
+
 The optional `parked_idle_test` workflow input defaults to `false`. Use `true` only
 for an owner-authorized [parked idle candidate](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate),
 and identify that limitation in its release notes. It selects the separately built
@@ -53,7 +73,7 @@ still require owner authorization; this input does not qualify a vehicle profile
 2. Choose a new semantic development version and a monotonically increasing release sequence. Never reuse a published tag, version, sequence, or asset name.
 3. Run the **Publish development firmware** workflow with version, sequence, and concise notes.
 4. Confirm the workflow built from the intended commit and the release is marked prerelease.
-5. Download all three assets and verify catalog signature, bundle size/hash, bundle signature, board ID, layout, and ESP app descriptor.
+5. Download all five assets and verify catalog signature, bundle size/hash, bundle signature, board ID, layout, ESP app descriptor, and build evidence signature/inventory. Confirm the evidence application hash matches the application in the signed bundle.
 6. From a fresh companion install, check GitHub, download, verify, upload to a powered gauge, and read running firmware after reboot. Record the app commit, release tag, phone, gauge, partition, and ELF hash.
 
 The catalog expires after 180 days. A newer release publishes a new catalog containing the supported set. Published versions are not edited in place.

@@ -9,6 +9,8 @@ GitHub release artifacts. Output stays outside Git; its public manifest is revie
 import argparse
 import hashlib
 import json
+import os
+import re
 from pathlib import Path
 import struct
 import subprocess
@@ -93,6 +95,46 @@ def image_header(data):
         raise ValueError("Expected ESP32-S3 / DIO / 80 MHz / 16 MB image")
 
 
+def verify_apk(apk, certificate, expected_version, tools=None, expected_code=None):
+    """Derive artifact identity from Android's verifiers, never a ZIP filename."""
+    tools = (
+        Path(tools) if tools else Path(os.environ.get("ANDROID_HOME", "")) / "build-tools/36.0.0"
+    )
+    signer, inspector = tools / "apksigner", tools / "aapt2"
+    if not signer.is_file() or not inspector.is_file():
+        raise ValueError("APK verification requires Android build-tools 36.0.0; set ANDROID_HOME")
+    verified = subprocess.check_output(
+        [str(signer), "verify", "--print-certs", str(apk)], text=True, timeout=60
+    )
+    signers = re.findall(
+        r"^Signer #\d+ certificate SHA-256 digest: ([0-9a-fA-F]{64})$", verified, re.MULTILINE
+    )
+    if len(signers) != 1 or signers[0].lower() != certificate:
+        raise ValueError("APK signer does not match the reviewed fingerprint")
+    badging = subprocess.check_output(
+        [str(inspector), "dump", "badging", str(apk)], text=True, timeout=60
+    )
+    identity = re.search(
+        r"^package: name='([^']+)' versionCode='([0-9]+)' versionName='([^']+)'",
+        badging,
+        re.MULTILINE,
+    )
+    if (
+        not identity
+        or identity[1] != "com.lstepnio.egauge"
+        or identity[3] != expected_version
+        or (expected_code is not None and int(identity[2]) != expected_code)
+    ):
+        raise ValueError("APK package/version does not match the reviewed source")
+    return {
+        "version": identity[3],
+        "versionCode": int(identity[2]),
+        "packageName": identity[1],
+        "variant": "debug" if "application-debuggable" in badging else "release",
+        "signingCertificateSha256": signers[0].lower(),
+    }
+
+
 def package(inputs, source, apk, app_commit, certificate, output):
     # The export must contain the release's exact board configuration and layout.
     for name in [
@@ -140,6 +182,16 @@ def package(inputs, source, apk, app_commit, certificate, output):
     if len(certificate) != 64 or any(c not in "0123456789abcdef" for c in certificate):
         raise ValueError("APK signing-certificate SHA-256 required")
     subprocess.run(["git", "cat-file", "-e", app_commit + "^{commit}"], cwd=ROOT, check=True)
+    app_source = subprocess.check_output(
+        ["git", "show", app_commit + ":android/app/build.gradle.kts"], cwd=ROOT, text=True
+    )
+    expected = re.search(r'versionName = "([^"]+)"', app_source)
+    if expected is None:
+        raise ValueError("Reviewed App source has no explicit version")
+    expected_code = re.search(r"versionCode = ([0-9]+)", app_source)
+    if expected_code is None:
+        raise ValueError("Reviewed App source has no explicit version code")
+    app_identity = verify_apk(apk, certificate, expected[1], expected_code=int(expected_code[1]))
     files = [
         ("bootloader.bin", 0, boot),
         ("partition-table.bin", 0x8000, table),
@@ -182,10 +234,9 @@ def package(inputs, source, apk, app_commit, certificate, output):
         "schema": 1,
         "firmware": {"version": VERSION, "release": recovery["sourceRelease"], **recovery_record},
         "app": {
-            "version": "0.2.0-dev.51",
+            **app_identity,
             "sourceCommit": app_commit,
-            "variant": "debug",
-            "signingCertificateSha256": certificate,
+            "sourceProvenance": "Operator-supplied build revision; APK signature, package and version independently verified",
             **app_record,
         },
         "files": records,

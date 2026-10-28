@@ -155,7 +155,7 @@ static bool ble_obd_dev_filter_cb(ble_mgr_ctx_t *mgr_ctx, const ble_addr_t *addr
 
     char addr_str[BLE_ADDR_STR_LEN];
     ble_addr_to_str(addr, addr_str);
-    ESP_LOGI(TAG, "Found device: %s", addr_str);
+    ESP_LOGD(TAG, "Found device: %s", addr_str);
     obd_trace_emit(obd->source_id, atomic_load(&obd->generation), "adapter_seen", addr_str, strlen(addr_str), 0);
 
     if (obd->peer_mac[0])
