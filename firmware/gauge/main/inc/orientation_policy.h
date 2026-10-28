@@ -2,9 +2,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Mapping v1 is a candidate reference-board mapping. Qualification is a separate
- * board gate; changing axes requires a new mapping version and physical checks. */
-#define ORIENTATION_MAPPING_VERSION 1
+/* Mapping v2 includes the reference board's sensor/LCD quarter-turn offset,
+ * measured at USB-down and USB-left poses. Qualification remains a separate gate. */
+#define ORIENTATION_MAPPING_VERSION 2
 #define ORIENTATION_STALE_MS 1000U
 #define ORIENTATION_DWELL_MS 800U
 

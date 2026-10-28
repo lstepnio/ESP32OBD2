@@ -1,8 +1,8 @@
 # Display evolution offline checks, 2026-10-27
 
 > Historical evidence. Use [current state](../current-state.md) for installed facts
-> and [backlog](../backlog.md) for remaining work. This records source checks, not a
-> release, installation or physical qualification.
+> and [backlog](../backlog.md) for remaining work. The opening checkpoint records source checks only; later rollout sections
+> separately record release, installation and physical observations.
 
 ## Scope and results
 
@@ -369,3 +369,62 @@ Owner visual/hold-exit confirmation remains separate from protocol observation.
 The owner subsequently confirmed the populated Gear/RPM and Coolant/Gear arc
 previews: “Clear, no overlap or clipping.” This is the physical visual observation;
 the owner then confirmed hold-exit returned to normal pages with working navigation.
+
+## Dev.70 installation and mapping observations
+
+All four source checks passed at `234180320fe781f6eb2f763c09689aa3ca9feae9`
+(run `40721135716`). PR #110 merged as `536617f`, tree-identical to that source.
+Signed release run `40723037075` published dev.70 generation 51. Independent catalog
+and image signature/hash/board/layout/descriptor checks passed: 1,678,784 image bytes,
+ELF `46f21cabfe4e7db55fd9d4078f6bc3e9c8200ace4af267223e3b1489817e26bd`.
+
+The full ordinary hosted App/Wi-Fi installation fixture passed in 109.390 seconds,
+with 75,917 ms in the sampled install journey. Alternate slot, exact protected healthy
+image and cleared update journal were verified. Its fresh pre-install revision was
+64, not the older 63 baseline, and OTA retained 64. No old backup was restored over
+that fresh state. All display preferences and profiles were preserved.
+
+Live dev.70 readback verified CTRL1/CTRL2/CTRL7 `60/08/01`, revision `7c`, and an
+independent raw X value 2625. Flat burst readings became approximately
+`78,50,-978` mg, compared with dev.69's saturated X. The mode/verified initialization
+change resolved the symptom; this does not isolate the exact low-power-mode cause
+or establish a permanently failed sensor. The actual worker/main stack margins
+were 1680/1080 bytes, and a later maximum observed worker tick reached 98,540 us:
+the SDK's nominal transaction timeout is not an end-to-end real-time guarantee.
+
+The scoped Auto journey passed in 283.051 seconds. It verified unrelated cycling
+writes preserve Auto, two authenticated Wi-Fi suspension/fresh-recovery cycles and
+all four protected applied angles. Minimum observed internal free memory was 90,391
+bytes, with 31,744-byte largest block during maintenance; normal qualification/public
+flags remained off. A same-functional-setup restart advanced configuration 64 to 65,
+preserved saved Auto/revision and recovered live sensor health. Cleanup restored the
+captured manual 270-degree angle, ten-second cycling and original Smart On preference
+at display revision 44. The user's current Smart On value must not be replaced by
+an earlier session's Off snapshot.
+
+The owner reported incorrect text orientation, so protocol success was not counted
+as physical Auto qualification. A temporary ordinary App Auto selection then enabled
+two labelled poses: USB down had gravity near `-978,-120,0` mg, applied angle 270,
+and text top pointing right; one clockwise quarter-turn to USB left had gravity near
+`30,974,-120` mg, applied angle 0 and text top still pointing right. The tracking
+direction was consistent but its LCD reference had a fixed quarter-turn offset.
+Source dev.71 maps the measured -X/+Y references to LCD angles 0/90 and the opposing
+axes to 180/270, versioned as mapping 2. No gravity, dwell or freshness guard changes.
+The App was returned to manual 270 degrees after the labelled poses.
+
+A subsequent protected current-setup readback passed in 17.289 seconds. Configuration
+65 digest `5fe79e9b78e95211fc12d7459140b3a63ecd4426573ed3a967c59b35e8fdcec8`
+matched the original functional JSON exactly after excluding only `baseRevision`.
+Pages, bindings, filters, alerts and actions were retained.
+
+The owner reported hold-exit/normal navigation after the preview, but subsequent
+App/serial state still showed it active. Explicit App Stop released isolation and
+sensor observations resumed. An automatic keep-running restart may overlap a physical
+exit; the prior owner report alone is not definitive stopped-state proof. The fixture
+now has a separately opted-in physical-hold checkpoint, observes inactive state before
+App Stop and rejects combination with automatic restart. Actual physical wire proof
+remains pending. This is test coordination work, not a claimed runtime hold failure.
+
+Dev.71 publication/install and corrected text/touch acceptance remain separate from
+this source preparation. The completed USB exception is not reused; further field
+installation uses App/Wi-Fi. No public capability or marketing claim is promoted.

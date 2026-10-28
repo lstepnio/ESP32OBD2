@@ -1,6 +1,7 @@
 package com.lstepnio.egauge
 
 import android.bluetooth.BluetoothManager
+import android.os.Bundle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.connection.ConnectionPhase
@@ -25,7 +26,10 @@ class DisplayShowcaseJourneyTest {
     @Test fun temporaryPlaybackPreservesDashboardAndSettings() {
         assumeTrue("Requires owner opt-in for generated gauge screen playback", allowed)
         val minimumFrames = args.getString("showcaseFrames")?.toInt() ?: 2
+        val physicalExit = args.getString("verifyPhysicalHoldExit") == "true"
+        val keepRunning = args.getString("keepShowcaseRunning") == "true"
         require(minimumFrames in 2..64) { "Showcase frames must be between 2 and 64" }
+        require(!physicalExit || !keepRunning) { "Physical exit proof cannot restart the preview" }
         val model = (compose.activity.application as EGaugeApplication).model
         compose.waitUntil(90_000) {
             model.connection.phase == ConnectionPhase.Ready &&
@@ -64,6 +68,26 @@ class DisplayShowcaseJourneyTest {
                         }
                     }
                 }
+                if (physicalExit) {
+                    InstrumentationRegistry.getInstrumentation().sendStatus(
+                        0,
+                        Bundle().apply {
+                            putString("checkpoint", "SHOWCASE_HOLD_EXIT_READY")
+                            putString("stream", "SHOWCASE_HOLD_EXIT_READY\n")
+                        }
+                    )
+                    runBlocking {
+                        withTimeout(60_000) {
+                            while (true) {
+                                val state = client.readDisplayShowcase(device)
+                                assertEquals(first.sequence, state.sequence)
+                                assertEquals(0, state.result)
+                                if (!state.active) break
+                                delay(500)
+                            }
+                        }
+                    }
+                }
             } finally {
                 compose.runOnUiThread { model.setDisplayShowcase(false) }
                 compose.waitUntil(30_000) {
@@ -84,9 +108,10 @@ class DisplayShowcaseJourneyTest {
             File(context.getExternalFilesDir(null), "display-showcase-result.txt").writeText(
                 "Physical gauge protocol observed ${seenFrames.size} distinct showcase frames: ${seenFrames.sorted()}\n" +
                     "Playback stopped; dashboard revision ${document.revision}, digest, settings and profiles preserved\n" +
+                    "Physical hold exit observed before App Stop: $physicalExit\n" +
                     "Protocol observations do not replace owner visual/touch confirmation\n"
             )
-            if (args.getString("keepShowcaseRunning") == "true") {
+            if (keepRunning) {
                 compose.runOnUiThread { model.setDisplayShowcase(true) }
                 compose.waitUntil(30_000) {
                     model.displayShowcase?.active == true &&
