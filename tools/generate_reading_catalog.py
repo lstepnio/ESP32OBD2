@@ -84,8 +84,15 @@ def generated():
         d = row["definition"]
         kind = row.get("samplingClass", "custom")
         assert kind in {"fast", "thermal", "slow", "custom"}
+        stability = row.get("samplingStability")
+        if stability is not None:
+            assert kind in {"thermal", "slow"}
+            assert set(stability) == {"epsilon", "windowMs"}
+            assert type(stability["epsilon"]) in (int, float)
+            assert math.isfinite(stability["epsilon"]) and 0 < stability["epsilon"] <= 1
+            assert stability["windowMs"] == 30000
         policy.append(
-            "{%s, 0x%s, 0x%s, %u, %u, READING_%s},"
+            "{%s, 0x%s, 0x%s, %u, %u, READING_%s, %.9ff, %u},"
             % (
                 q(d["id"]),
                 d["request"]["service"],
@@ -93,6 +100,8 @@ def generated():
                 d["pollIntervalMs"],
                 d["staleAfterMs"],
                 kind.upper(),
+                stability["epsilon"] if stability else 0.0,
+                stability["windowMs"] if stability else 0,
             )
         )
     interest = [

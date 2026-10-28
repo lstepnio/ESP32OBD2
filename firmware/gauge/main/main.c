@@ -293,9 +293,10 @@ typedef struct
     bool              decoded_sample, command_poll;
     uint32_t          reused_samples;
 } source_worker_t;
-static source_worker_t                   source_workers[2];
-static EXT_RAM_BSS_ATTR poll_scheduler_t source_schedulers[2];
-static unsigned                          runtime_source_count(void)
+static source_worker_t                      source_workers[2];
+static EXT_RAM_BSS_ATTR poll_scheduler_t    source_schedulers[2];
+static EXT_RAM_BSS_ATTR reading_stability_t reading_stability[EGAUGE_RUNTIME_PIDS];
+static unsigned                             runtime_source_count(void)
 {
     return g_runtime ? g_runtime->source_count : 1;
 }
@@ -500,6 +501,17 @@ static void obd_response_cb(uint8_t        service,
     ui_set_source_value(ui, source, g_runtime ? g_running_config_record.revision : 0, generation, pid, &decoded,
                         observed_at_ms);
     worker->decoded_sample = true;
+    if (g_runtime)
+    {
+        for (unsigned index = 0; index < g_runtime->pid_count; ++index)
+        {
+            const runtime_pid_t *configured = &g_runtime->pids[index];
+            if (configured->source_index == source && &configured->obd == definition)
+                reading_stability_observe(&reading_stability[index], configured->id, configured->service,
+                                          configured->obd.pid, configured->poll_ms, configured->stale_ms,
+                                          (float)decoded, observed_at_ms, generation);
+        }
+    }
     if (worker->command_poll && worker->reused_samples != UINT32_MAX)
         ++worker->reused_samples;
     for (unsigned i = 0; worker->scheduler && i < worker->count; ++i)
@@ -859,8 +871,9 @@ static void obd_task(void *arg)
                 for (unsigned a = 0; a < g_runtime->alert_count; ++a)
                     alert |= g_runtime->alerts[a].pid_index == index;
                 const runtime_pid_t *pid = &g_runtime->pids[index];
-                policies[i] = reading_policy(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms, visible,
-                                             upcoming, alert);
+                policies[i] = reading_policy_adaptive(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms,
+                                                      visible, upcoming, alert, &reading_stability[index], now_ms,
+                                                      adapter_status_generation(source));
             }
             else
                 policies[i] = (poll_pid_policy_t){500, 3000, selected == index ? 2 : 0};
@@ -941,6 +954,8 @@ static void obd_task(void *arg)
             ++transactions;
         poll_scheduler_complete(scheduler, job, (uint32_t)(esp_timer_get_time() / 1000),
                                 status == 0 && worker->decoded_sample);
+        if (status != 0 || !worker->decoded_sample)
+            reading_stability_reset(&reading_stability[pid_indices[job.index]]);
         if (status != 0)
         {
             queue_alert_sample(source, requested->pid, poll_generation, NAN);

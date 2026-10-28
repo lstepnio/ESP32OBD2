@@ -77,7 +77,18 @@ policy. Adding a class requires rate/age and native-policy tests.
 | --- | --- | --- |
 | Fast | Visible 250 ms; upcoming cycling page 500 ms; hidden 1,000 ms | 3 seconds |
 | Thermal | 1,500 ms | 8 seconds |
-| Slow | 5,000 ms | 20 seconds |
+| Slow | Visible 2,000 ms; upcoming 2,500 ms; hidden 5,000 ms | 20 seconds |
+
+Only reviewed catalog rows have `samplingStability` metadata. Coolant, controller,
+intake, ambient and oil temperature allow 0.5 °C variation; fuel level and ethanol
+allow 0.5 percentage points. After thirty seconds within that distance of a fixed
+anchor, a hidden thermal reading can back off to 3,000 ms and a hidden slow reading
+to 10,000 ms. Visible/upcoming readings immediately regain their normal class
+interval. RPM, gear and other fast signals never slow down just because they are
+steady. Gradual cumulative drift resets the window, as do failed/nonfinite reads,
+a stale gap or a source generation change. Stability state is bounded per reading
+in PSRAM and introduces no additional queries. Custom/overridden definitions retain
+explicit timing; new adaptive rows need semantic review and native tests.
 
 Configured alerts cap the interval at their original polling requirement. Their
 `staleAfterMs`, dwell and control freshness are not increased. A display age limit
