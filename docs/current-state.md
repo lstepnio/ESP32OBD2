@@ -2,10 +2,12 @@
 
 Updated 2026-10-28. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-PRs #113 and #114 are merged. App dev.53 remains installed on the Pixel;
-signed dev.72 is installed through App/Wi-Fi. The [combined indoor rollout](evidence/dev72-indoor-rollout.md)
-records exact healthy-image/setup readbacks, five maintenance lifecycles,
-automatic/radio recovery, resource observations and owner display/navigation confirmation.
+PR #117 is merged. The PR #115 App dev.53 remains installed on the Pixel;
+signed dev.73 was installed through an explicit USB application-only exception
+while the owner took the phone away. [Current delivery evidence](evidence/dev73-indoor-rollout.md)
+records signed provenance, flash preservation, boot observations and deferred
+post-installation phone/Jeep checks. [Previous dev.72 indoor evidence](evidence/dev72-indoor-rollout.md)
+retains the measured App/Wi-Fi and radio recovery results; they do not qualify dev.73.
 [Earlier display evidence](evidence/display-evolution.md) retains the stack/sensor
 repairs and separate orientation qualification limits.
 The opt-in [parked idle candidate](architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
@@ -25,7 +27,8 @@ normal physical idle and live RPM. Offline replay now reproduces a missing
 diagnostic-session prerequisite already recorded in the parked reference. The
 follow-up source opens that captured session before recovery status, requires its
 positive acknowledgement and retains all inactive/settled-RPM evidence gates.
-This correction is not yet installed or Jeep-qualified.
+This correction is installed in signed dev.73 through the authorized USB exception;
+actual ECM recovery remains parked qualification.
 Website impact: corrective recovery behavior needs no new marketing claim or image.
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
@@ -115,7 +118,7 @@ flags stay off under the [indoor procedure](development/display-indoor-qualifica
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
 | Pixel | App `0.2.0-dev.53` / versionCode 53, reviewed source `fd8fae6`, merged PR #105; profile schema 18 / associations 2 | [Combined rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); profile migration retained all values; final alert policy restored, assignments and presentation byte-identical |
-| Gauge | Signed parked-idle/orientation candidate `0.2.0-dev.70` from `2341803`, generation 51, 240 MHz; configuration revision 65 after a verified same-functional-setup restart | [Dev.70 results](evidence/display-evolution.md#dev70-installation-and-mapping-observations): exact healthy image, cleared update/configuration trials, original functional dashboard retained; observed Smart On preference preserved. Mapping correction remains pending |
+| Gauge | Signed parked-idle/orientation candidate `0.2.0-dev.73`, generation 54; configuration revision 65 and saved flash regions retained | [Current USB delivery](evidence/dev73-indoor-rollout.md): signed image, application-slot hash verification and matching boot identity; post-installation protected phone readback and physical/Jeep checks deferred |
 | Physical display/touch | Owner confirmed dev.66 text-free logo, touch wake and normal reading/action navigation: “Logo and all navigation work.” | [Display rollout](evidence/display-evolution.md); all ten pages subsequently owner-confirmed; new-arc fit owner-confirmed; hold-exit was reported but later active state requires explicit stopped-state proof; loaded legibility and Auto sensor/touch alignment remain separate gates |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
@@ -155,7 +158,7 @@ Debug/release JVM checks, build/lint and 73 managed-emulator checks passed;
 [verification evidence](evidence/car-ux-review.md#2026-10-28-approved-car-and-hidden-code-implementation)
 records scope and the refreshed production Car capture. PR #115 was merged and its
 App installed on the Pixel; [indoor checks](evidence/car-ux-review.md#2026-10-28-pixel-installation-and-indoor-checks)
-passed with saved setup/history retained. Firmware remains dev.72 and wire schema 2.
+passed with saved setup/history retained. The Car update kept firmware/wire unchanged; the subsequent firmware delivery is recorded above.
 The [shared contract](architecture/alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters)
 and [design rules](design/design-system.md#current-component-and-messaging-rules) own behavior.
 
