@@ -71,8 +71,8 @@ profile fields. Gauge associations remain schema 2.
 
 The extended ten-page indoor round trip subsequently passed with exact restoration
 of the original five-page setup at revision 63. The owner confirmed all ten pages,
-10/10, wrap and clean labels without freezing. Populated Dual + arc and Auto remain
-separate physical checks. The owner-supervised dev.67 orientation candidate was
+10/10, wrap and clean labels without freezing. Populated Dual + arc and hold-exit/normal navigation subsequently passed owner
+review. Auto remains a separate physical/sensor check. The owner-supervised dev.67 orientation candidate was
 published, but its first trial boot overflowed the main task stack and automatically
 rolled back to healthy dev.66. It is marked withdrawn. The replacement dev.68 is
 published and tested: its main startup passed with 1104 bytes of stack headroom,
@@ -82,7 +82,9 @@ stack. Boot and the initial I2C NACK/recovery path remain stable, with 1632 byte
 of sensor-worker and 1112 bytes of main headroom. The live X axis is near its
 2 g limit at rest, so the plausibility policy correctly refuses automatic changes;
 labelled USB-down, USB-up and flat poses retained the pinned X reading, while
-flat Z was approximately -0.97 g. Full-power-cycle/configuration diagnosis remains pending. Normal qualification and public flags
+flat Z was approximately -0.97 g. The owner-confirmed ten-second full power removal also retained X near +1999 mg
+while flat Z stayed near -0.97 g. Source dev.70 prepares strict register readback,
+direct X evidence and documented normal-mode sampling; it is not published/installed. Normal qualification and public flags
 remain off under the [indoor procedure](development/display-indoor-qualification.md).
 
 ## Installed baseline
@@ -91,7 +93,7 @@ remain off under the [indoor procedure](development/display-indoor-qualification
 | --- | --- | --- |
 | Pixel | App `0.2.0-dev.53` / versionCode 53, reviewed source `fd8fae6`, merged PR #105; profile schema 18 / associations 2 | [Combined rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); profile migration retained all values; final alert policy restored, assignments and presentation byte-identical |
 | Gauge | Signed parked-idle/orientation candidate `0.2.0-dev.69` from `7b88d62`, generation 50, 240 MHz; original configuration revision 63 | [Authorized USB installation](evidence/display-evolution.md#dev69-authorized-usb-installation): signed image and flashed digest verified, 303104 persistent bytes unchanged, owner loaded and normal workers progressing; protected exact-image/setup readback and two Wi-Fi reopen cycles passed on return |
-| Physical display/touch | Owner confirmed dev.66 text-free logo, touch wake and normal reading/action navigation: “Logo and all navigation work.” | [Display rollout](evidence/display-evolution.md); all ten pages subsequently owner-confirmed; new-arc visuals, dev.69 physical checks, loaded legibility and Auto sensor/touch alignment remain separate gates |
+| Physical display/touch | Owner confirmed dev.66 text-free logo, touch wake and normal reading/action navigation: “Logo and all navigation work.” | [Display rollout](evidence/display-evolution.md); all ten pages subsequently owner-confirmed; new-arc visual fit and hold-exit/navigation subsequently owner-confirmed; loaded legibility and Auto sensor/touch alignment remain separate gates |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
 | Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Five pages, four TCM CEL filters, thresholds and action settings retained; OTA preserved revision 60 and exact document bytes; the targeted same-setup test then advanced to 61 with only baseRevision changing. [Current preservation check](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout) |
@@ -171,8 +173,9 @@ and enabled eGauge control are not established.
   is not vehicle support.
 
 Auto orientation is specified in the [hardware policy](architecture/hardware-and-transports.md#automatic-display-orientation)
-and tracked as FEATURE-07. The current IMU path is unimplemented; manual rotation
-and timed page cycling remain independent implemented controls.
+and tracked as FEATURE-07. The installed candidate has a live, bounded IMU path but remains unqualified
+because of the pinned X reading documented above. Manual rotation and timed page
+cycling remain independent implemented controls.
 
 FEATURE-04 now has a [temporary-idle delivery proposal](architecture/vehicle-actions.md#first-vehicle-command-temporary-high-idle)
 for Air up and Winch presets using the existing gesture/profile foundation.

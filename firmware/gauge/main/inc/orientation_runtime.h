@@ -47,5 +47,9 @@ typedef struct
     uint32_t observed_at_ms, failures, maximum_tick_us;
     uint8_t  phase, proposed_angle;
     bool     have_observation, healthy;
+    int16_t  direct_x; /* Raw signed AX from the independent 0x35 read. */
+    uint8_t  ctrl[3], revision;
+    uint8_t  control_verified; /* Bits 0..2: exact CTRL1/CTRL2/CTRL7 readbacks. */
+    bool     have_revision, have_direct_x;
 } orientation_diagnostics_t;
 orientation_diagnostics_t orientation_runtime_diagnostics(void);

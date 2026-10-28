@@ -68,14 +68,24 @@ not a qualification claim; all ordinary defaults/public flags stay off. The
 owns build isolation, restoration and the observed acceptance matrix.
 
 The optional low-priority worker borrows the existing board I2C bus, probes identity,
-configures accelerometer-only sampling and detects frozen timestamps. It performs
+verifies configuration readback, configures accelerometer-only sampling and detects
+frozen timestamps. Source uses the documented +/-2 g normal-power 31.25 Hz mode;
+installed dev.69 still uses the earlier low-power 11 Hz candidate. It performs
 one bus transaction per iteration, normally 10 Hz in Auto and 2 Hz once healthy in
-manual mode, with five-second retry after failure. Its static 2 KiB stack remains
+manual mode, with five-second retry after failure. Its guarded static 4 KiB stack remains
 internal for flash-safe execution. On the reference 100 Hz IDF tick, driver waits
 have 10 ms granularity and internal sub-waits can exceed one requested timeout;
 this is not a hard five-millisecond wall-clock claim. No I2C operation runs on the
 application, BLE callback or rendering owner. Transfers and queued/in-flight vehicle
 commands suspend observations/rotation; stale sensor state holds the last angle.
+
+Initialization performs a single-byte identity probe before assuming auto-increment,
+then verifies CTRL1, reads identity/revision and verifies CTRL2/CTRL7. A separate
+two-byte X read precedes burst sampling to distinguish channel saturation from a
+burst-offset issue. Mismatched readback clears diagnostic validity and follows the
+same bounded retry; successful writes alone do not admit healthy samples. The
+passive diagnostic snapshot stays within 40 bytes and never enters vehicle history.
+Normal-mode testing does not establish sensor calibration or relax gravity guards.
 
 The pure policy requires plausible gravity (0.85..1.15 g), at least 650 mg in-plane,
 a 1.5:1 cardinal margin and 800 ms stable dwell. Flat poses, motion, jitter and

@@ -1476,11 +1476,25 @@ void app_main(void)
         }
 #if CONFIG_EGAUGE_AUTO_ORIENTATION_CANDIDATE
         static uint32_t orientation_logged_at;
+        static uint64_t orientation_config_logged = UINT64_MAX;
         if ((uint32_t)(now_ms - orientation_logged_at) >= 2000)
         {
             orientation_logged_at                 = now_ms;
             orientation_diagnostics_t sensor      = orientation_runtime_diagnostics();
             orientation_status_t      orientation = orientation_runtime_snapshot();
+            uint64_t config_key = sensor.control_verified | (sensor.have_revision ? 8 : 0) |
+                                  (sensor.have_direct_x ? 16 : 0) | ((uint64_t)sensor.ctrl[0] << 8) |
+                                  ((uint64_t)sensor.ctrl[1] << 16) | ((uint64_t)sensor.ctrl[2] << 24) |
+                                  ((uint64_t)sensor.revision << 32) | ((uint64_t)(uint16_t)sensor.direct_x << 40);
+            if (config_key != orientation_config_logged)
+            {
+                orientation_config_logged = config_key;
+                ESP_LOGI(TAG,
+                         "orientation config ctrl=%02x/%02x/%02x verified=%u revision=%02x revision_valid=%u "
+                         "direct_x=%d direct_valid=%u",
+                         sensor.ctrl[0], sensor.ctrl[1], sensor.ctrl[2], sensor.control_verified, sensor.revision,
+                         sensor.have_revision, sensor.direct_x, sensor.have_direct_x);
+            }
             ESP_LOGI(TAG,
                      "orientation sample=%u xyz_mg=%ld,%ld,%ld proposed=%u applied=%u health=%u phase=%u failures=%lu "
                      "stack=%u main_stack=%u age_ms=%lu max_tick_us=%lu",

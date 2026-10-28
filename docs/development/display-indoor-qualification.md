@@ -74,7 +74,8 @@ its live stream is healthy; that bit does not mean board orientation is qualifie
 
 ## Guided physical matrix
 
-1. Verify WHO identity, changing sensor timestamps and plausible approximately 1 g
+1. Verify WHO/revision, exact CTRL1/CTRL2/CTRL7 readbacks, direct-X/burst agreement,
+   changing sensor timestamps and plausible approximately 1 g
    at rest, plus adequate worker stack margin and no allocation/bus errors.
 2. Hold the face vertically at each of four cardinal poses for at least two seconds.
    Correlate raw axes, proposed/applied angles, upright text and actual touch hit

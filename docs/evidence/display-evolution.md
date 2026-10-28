@@ -332,3 +332,40 @@ Before pausing for that physical step, phone alerts were restored On through Set
 advanced-tool preference was retained, and the debug awake helper reported inactive
 with the original 60000 ms timeout and charging value 15. Private return backups and
 serial evidence were retained; the passive serial reader was stopped.
+
+## Dev.70 sensor-state diagnostic preparation
+
+The owner confirmed removing all gauge power for ten seconds and reconnecting flat,
+screen up. On dev.69, X remained near +1999 mg while Y was near zero and Z around
+-971 mg. This rules out the attempted power-cycle reset as a remedy; it does not
+prove hardware failure. Review against QMI8658C sections 5.4/5.7 found the existing
+burst offsets and signed little-endian conversion consistent with the datasheet.
+No calibration offset or relaxed gravity admission is justified.
+
+Source dev.70 verifies every CTRL1/CTRL2/CTRL7 write by a separate exact readback,
+reads revision only after auto-increment is verified, and records an independent
+signed two-byte X read before burst sampling. It uses documented +/-2 g normal-power
+31.25 Hz (`CTRL2=0x08`) rather than the earlier 11 Hz low-power mode. Every tick still
+performs at most one bus operation; mismatch/error uses the existing five-second
+retry and stale-angle hold. The raw evidence snapshot is bounded to 40 bytes; the
+4 KiB internal stack and ELF memory admission remain enforced. Sensor sample phase
+is now 9; old phase-4 logs remain historical dev.69 evidence.
+
+This tests a mode/init interaction without pretending that normal mode fixes the
+observed X channel. Exact verified configuration plus matching direct/burst saturation
+would strengthen hardware/channel fault evidence. Publication/install and actual
+results remain distinct; ordinary qualification/public gates stay off.
+
+The first dev.69 showcase run observed the requested 25 frames, then failed its final
+comparison because the test's direct settings read omitted negotiated Smart metadata
+(`smartPolicyVersion` 0 versus 1). The revision and all saved settings matched. The
+fixture now supplies the negotiated Smart capability, preserving the full equality
+assertion; this is not a runtime preference change or an ignored assertion. The old
+21-frame/revision-57 result file was recognized as stale and not counted as current.
+The corrected nine-frame round trip passed in 83.651 seconds, including the four
+new Dual + arc frames, with original configuration/settings/profiles retained.
+Owner visual/hold-exit confirmation remains separate from protocol observation.
+
+The owner subsequently confirmed the populated Gear/RPM and Coolant/Gear arc
+previews: “Clear, no overlap or clipping.” This is the physical visual observation;
+the owner then confirmed hold-exit returned to normal pages with working navigation.
