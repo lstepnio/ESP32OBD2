@@ -44,6 +44,7 @@ idf_component_register(
         "src/wifi_bulk_io.c"
         "src/transfer_gate.c"
         "src/diagnostics_state.c"
+        "src/diagnostic_alerts.c"
         "src/hardware_probe.c"
         "src/worker_health.c"
         "src/memory_health.c"

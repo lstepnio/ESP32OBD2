@@ -3,10 +3,10 @@
 Approved 2026-10-27. [Backlog PERF-01](../backlog.md) owns delivery status.
 The owner reported blank readings after page taps, intermittent gaps, five/ten-second
 cycling that stopped, and a startup CEL or intermittent question mark. Source
-changes are prepared for dev.65; the last verified physical image remains dev.63.
-Published dev.64's simpler action flow is included in this source, but its prior
-installation was interrupted before transmission. No new installation occurred
-while implementing this work.
+implementation is described below. Installed identities and current qualification
+belong in [current state](../current-state.md). The later startup CEL investigation
+retains warning/filter proof rules while accelerating unanswered initial scans;
+source changes are not evidence of a new physical installation.
 
 ## Decisions and implemented boundaries
 
@@ -31,7 +31,8 @@ while implementing this work.
   replies and source loss still clear it. No wire schema, App migration or saved
   configuration rewrite is required.
 - The gauge retains compatible last-successful diagnostic presentation only within
-  existing age limits. Raw failed-attempt evidence remains available. Changed MIL
+  the gauge-only [diagnostic presentation limits](../architecture/alerts-and-diagnostics.md#mil-code-and-coverage-semantics).
+  Raw failed-attempt evidence remains available. Changed MIL
   state/count invalidates filter proof, reconnect clears it, and partial/unsupported
   coverage cannot prove faults disappeared. The face omits unknown/partial counts;
   a confirmed warning still shows its icon. New status widgets begin hidden.

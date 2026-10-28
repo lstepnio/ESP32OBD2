@@ -27,6 +27,19 @@ The owner confirmed clean pages, action navigation, no CEL question mark and
 ten-second cycling/resume after touch. Loaded ECM/TCM reading continuity and
 control/thermal timing still require the Jeep.
 
+Prepared dev.66 addresses a concrete startup retry delay: an unanswered first
+code-list scan now retries from two seconds with bounded exponential backoff,
+instead of immediately waiting its steady 60/120-second interval. It also logs
+changes in MIL/filter presentation for attribution. Warning and filter validation
+remain strict. Automatic MIL status checks now have a 60-second floor; gauge-only
+last-successful presentation bridges refresh/backoff gaps within the
+[diagnostic retention limits](architecture/alerts-and-diagnostics.md#mil-code-and-coverage-semantics).
+Raw phone/history freshness remains unchanged. The owner's later in-vehicle startup CEL
+observation is not yet attributed by a raw capture; [investigation evidence](evidence/action-pages-indoor.md#2026-10-27-startup-cel-investigation)
+separates that report from the source fix. Dev.65 remains installed.
+The same candidate removes decorative play/stop glyphs from shared action progress
+states at the owner's request; colored progress rings and action controls remain.
+
 ## Smart page cycling source milestone
 
 FEATURE-11 is implemented offline with the approved defaults: one opt-in Settings

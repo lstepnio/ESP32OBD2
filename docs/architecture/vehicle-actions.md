@@ -551,7 +551,8 @@ not qualify live controller execution.
   Disable confirmation and Restart to restore guidance. Stop is one tap, including
   from the sibling idle page, and always targets the actual running operation.
 - Starting, Return/verification and reconnection use green, red and yellow rotating
-  edge arcs with distinct play/stop/link symbols. They indicate pending work, not
+  edge arcs. Starting and Return have no decorative play triangle or stop square;
+  reconnection retains its link symbol. They indicate pending work, not
   percentage complete. Reuse the existing UI timer and LVGL arc; no animation task,
   framebuffer or extra font set. Render timing, cancel/retry policy and command jobs
   remain independent. Unknown keeps Check idle / Status unknown until reconciliation.

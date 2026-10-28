@@ -60,6 +60,7 @@
 #include "elm_response.h"
 #include "diagnostics_state.h"
 #include "diagnostic_filter.h"
+#include "diagnostic_alerts.h"
 #include "hardware_probe.h"
 #include "esp_heap_caps.h"
 #include "config_document.h"
@@ -537,8 +538,9 @@ static void obd_response_cb(uint8_t        service,
 
 static void app_tick_task(void *arg)
 {
-    ui_t      *ui        = arg;
-    TickType_t last_wake = xTaskGetTickCount();
+    ui_t      *ui                 = arg;
+    TickType_t last_wake          = xTaskGetTickCount();
+    uint32_t   diagnostic_view[2] = {UINT32_MAX, UINT32_MAX};
     for (;;)
     {
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(100));
@@ -604,46 +606,30 @@ static void app_tick_task(void *arg)
             if (!diagnostics_endpoint_enabled(endpoint))
                 continue;
             uint8_t packet[248];
-            if (!diagnostics_endpoint_status(endpoint, now_ms, packet))
+            if (!diagnostic_alerts_observe(endpoint, now_ms, packet, alert_runtime_observe))
             {
                 presentation_complete  = false;
                 presentation.mil_known = false;
                 continue;
             }
-            const char *name  = endpoint ? "Transmission warning" : "Check engine";
-            bool        fresh = (packet[2] & 1) != 0;
-            alert_runtime_observe(32 + endpoint, fresh && (packet[2] & 2) ? 3 : 0, !fresh, name, "codes", packet[22], 0,
-                                  now_ms, now_ms);
-            unsigned count    = 0;
-            bool     complete = true;
-            uint8_t  severity = 0;
-            for (unsigned i = 0; i < 3; i++)
-            {
-                const uint8_t *category = packet + 32 + i * 72;
-                if (category[0] == 3)
-                    continue;
-                if (!(category[1] & 2))
-                {
-                    complete = false;
-                    continue;
-                }
-                count += category[2];
-                if (category[2])
-                    severity = i == 2 ? (severity ? severity : 1) : 2;
-            }
-            alert_runtime_observe(34 + endpoint, severity, !complete && !severity,
-                                  endpoint ? "Transmission faults" : "Engine faults", "codes", count, 0, now_ms,
-                                  now_ms);
-            if (!diagnostics_endpoint_presentation_status(endpoint, now_ms, packet))
-            {
-                presentation_complete = presentation.mil_known = false;
-                continue;
-            }
-            fresh = (packet[2] & 1) != 0;
+            bool fresh = (packet[2] & 1) != 0;
             presentation.mil_known &= fresh;
             diagnostic_filter_result_t visible =
                 diagnostic_filter_project(packet, endpoint, g_runtime ? g_runtime->diagnostic_filters : NULL,
                                           g_runtime ? g_runtime->diagnostic_filter_count : 0);
+            uint32_t view = (fresh ? 1U : 0U) | (packet[2] & 2U) | (visible.complete ? 4U : 0U) |
+                            (visible.count_known ? 8U : 0U) | (visible.suppress_mil ? 16U : 0U) |
+                            ((uint32_t)visible.visible_count << 8) | ((uint32_t)visible.hidden_count << 16) |
+                            ((uint32_t)packet[22] << 24);
+            if (view != diagnostic_view[endpoint])
+            {
+                diagnostic_view[endpoint] = view;
+                ESP_LOGI(TAG,
+                         "diag_view endpoint=%u usable_mil=%u mil_bit=%u reported=%u visible=%u hidden=%u complete=%u "
+                         "suppressed=%u",
+                         endpoint, fresh, (packet[2] & 2) != 0, packet[22], visible.visible_count, visible.hidden_count,
+                         visible.complete, visible.suppress_mil);
+            }
             presentation.valid |= fresh || visible.count_known;
             presentation.mil_on |= fresh && (packet[2] & 2) && !visible.suppress_mil;
             presentation.count_known |= visible.count_known;
@@ -917,7 +903,7 @@ static void obd_task(void *arg)
             uint8_t      previous[248];
             bool         had_previous =
                 diagnostics_endpoint_status(endpoint, pdTICKS_TO_MS(xTaskGetTickCount()), previous) != 0 &&
-                (previous[2] & 1);
+                (previous[2] & 12) == 4 && previous[23];
             uint32_t      generation = adapter_status_generation(source);
             uint8_t       mode       = job.kind == POLL_JOB_MIL ? 1 : dtc_modes[job.index];
             elm_payload_t payload    = {0};
@@ -933,8 +919,10 @@ static void obd_task(void *arg)
                 ++transactions;
             if (generation != adapter_status_generation(source) || !adapter_status_ready_for(source))
                 continue;
-            poll_scheduler_complete(scheduler, job, (uint32_t)(esp_timer_get_time() / 1000),
-                                    result == 0 && (mode != 1 || payload.length >= 4));
+            poll_scheduler_diagnostic_complete(scheduler, job, (uint32_t)(esp_timer_get_time() / 1000),
+                                               result == 0 && (mode != 1 || payload.length >= 4) ? POLL_DIAGNOSTIC_OK
+                                               : response == ELM_UNSUPPORTED ? POLL_DIAGNOSTIC_UNSUPPORTED
+                                                                             : POLL_DIAGNOSTIC_RETRY);
             if (mode == 1 && result == 0 && payload.length >= 4 && had_previous &&
                 ((((previous[2] & 2) != 0) != ((payload.bytes[0] & 0x80) != 0)) ||
                  previous[22] != (payload.bytes[0] & 0x7f)))

@@ -367,3 +367,122 @@ timing. Indoor absence/retry and screen fixtures do not qualify vehicle telemetr
 all gears, thermal behavior, glove/edge usability or OOM immunity. Website impact
 was reviewed; vehicle-performance claims and refreshed marketing captures remain
 subject to loaded qualification and the existing daily publication cadence.
+
+## 2026-10-27 startup CEL investigation
+
+After the dev.65 rollout, the owner reported a CEL icon without a question mark
+for several minutes while starting both the gauge and Jeep. This is an in-vehicle
+observation, not an indoor regression. The owner confirmed the dash CEL stayed off
+and the gauge icon cleared without code clearing. No raw startup trace has yet
+attributed that occurrence to a particular ECU.
+
+Source inspection confirms unknown initialization alone does not draw the icon.
+A usable MIL-On response does, and the four scoped TCM filters cannot suppress it
+until the existing complete/reconciled-code proof is available. A first failed
+stored/pending request previously waited at least 60 seconds; permanent waited at
+least 120 seconds. This is a reproducible slow-acquisition path consistent with
+filter warm-up, not proof of the owner's actual startup cause. Genuine MIL-On or
+unfiltered fault evidence is another explanation and must remain visible.
+
+The initial dev.66 commit (`447b622`) distinguishes uninitialized/transient diagnostic jobs from valid
+or definitively unsupported answers. Cold retries start at two seconds and back
+off exponentially to the existing 240-second cap, retaining normal-reading
+reservation, global background spacing and control priority. Known/unsupported
+jobs keep established backoff; new MIL/count evidence resets category acquisition.
+There is no blanket startup warning blackout, new suppression policy or wire change.
+Presentation-change logs record endpoint, usable MIL/bit, reported/visible/filtered
+counts, completeness and suppression for the next real capture.
+
+Native sanitizer fixtures cover both scheduler endpoints, all four job kinds,
+eight retry levels/cap, unsupported answers, settled failures, sibling cadence,
+changed-MIL invalidation and clock wrap. A production scheduler/state/filter fixture
+also covers the four actual scoped TCM rules: initial unavailable confirmed list,
+two-second retry eligibility, complete filtered proof, then an added unfiltered
+fault that remains visible. Restoring the old retry policy makes the
+new timing assertion fail; the final implementation passes. Host checks passed
+130 tooling tests, 12 review-store tests and native fixtures, including unchanged
+diagnostic/filter proof rules. Normal and parked ESP-IDF builds and memory gates
+passed. Scheduler records remain 376 bytes each; static internal memory remains
+164,434 / 164,522 bytes and the 64 KiB LVGL pool remains in PSRAM. The new view log
+retains two 32-bit words on the existing App tick stack and emits on changes. Loaded stack margins,
+radio timing and physical startup behavior remain unmeasured for this candidate.
+
+Next qualification: record `diag_view` transitions while starting the gauge and
+Jeep, compare the physical dash lamp, verify fresh TCM lists match the four filters,
+and measure time to suppression alongside normal readings. Include a genuine
+unfiltered warning case. Publication/installation are not claimed; dev.65 remains
+the installed image. Website impact was reviewed; appearance and product claims
+remain unchanged pending actual qualification.
+
+## 2026-10-27 action progress cleanup
+
+The owner requested removal of the green play triangle and red stop square from
+Air up. Prepared dev.66 removes both decorative glyphs from the shared action
+renderer; colored progress arcs, Start/Stop controls, hold handling and the yellow
+reconnection link remain. No command, timer, protocol or allocation is added.
+
+Normal and parked production LVGL fixtures passed. Comparing all 61 frames in each
+variant changed only Starting, Stopping, Verifying and thermal-stop frames; all
+other frames remained byte-identical. Visual inspection confirmed the two glyphs
+are absent while arcs and controls remain. Host checks and both firmware builds
+passed. These are source/render checks, not observations on the physical gauge.
+Dev.65 remains installed. Website impact was reviewed; no publication or historical
+review-asset rewrite is included in this small UI change.
+
+## 2026-10-27 intermittent CEL and minute polling
+
+The owner subsequently reported intermittent CEL appearance and requested less
+frequent checks. Inspection found that permanent-code presentation expired after
+120 seconds, exactly its nominal refresh interval. A delayed/failed refresh can
+therefore remove all-filtered proof while an unchanged MIL-On remains usable.
+This reproduces a presentation path; attribution of the owner's actual occurrence
+still requires a raw loaded trace.
+
+Prepared dev.66 now limits automatic MIL checks to once per 60 seconds per endpoint,
+including cold failures. Stored/pending steady cadence remains 60 seconds and
+permanent 120 seconds. Incomplete initial code lists retain their bounded faster
+retry path so filter classification does not wait a minute after one lost response.
+Explicit ECU-clear verification is independent. Changed MIL/count comparison uses
+known same-session evidence even after raw freshness expires, so the slower cadence
+does not prevent acceleration of the required category refresh.
+
+Gauge-only last-successful MIL presentation lasts at most three minutes; compatible
+code-list presentation lasts at most ten minutes, spanning normal refresh and a
+four-minute capped retry. Original observation timestamps remain unchanged. Raw
+phone/history freshness remains 60/120 seconds; no stale observation is relabelled
+as a new raw result. New unfiltered code data, changed MIL/count, incompatible or
+unsupported evidence, disconnect and scope reset retain their invalidation rules.
+The tradeoff is up to a minute plus transport admission to detect a new MIL, and
+bounded last-known gauge presentation during absent replies; this does not disable
+actual diagnostic warnings or turn unknown coverage into verified Off.
+
+Native regressions cover healthy/cold-failed MIL rate limits for both endpoints,
+loaded fairness from eligibility rather than from a not-yet-due diagnostic, filtered
+proof across repeated minute refreshes and a failed permanent request, original
+clock expiry, wrap, filter removal, changed count, same-count unfiltered replacement
+and disconnect. Raw packet fixtures remain unchanged. Host tests, C format/host
+lint and normal/parked firmware builds passed. No new task, heap buffer, protocol
+or saved-configuration migration is introduced. Dev.65 remains installed; no new
+physical-device or loaded-startup qualification is claimed. Website impact was
+reviewed; publication/capture awaits the existing delivery cadence and qualification.
+
+
+### Shared availability review correction
+
+The merge review identified an additional raw/retained boundary: the shared
+MIL/fault producer still used strict raw freshness. With 60-second scheduling and
+a successful 500 ms reply, this could create unavailable/recovered journal events
+on every otherwise healthy refresh. Merge was held for this finding.
+
+The existing producer is now isolated in `diagnostic_alerts.c` and consumes the
+same single retained snapshot as the gauge face. Shared event value timestamps
+come from the original observations, while event-transition time remains current.
+Raw diagnostic packets keep their strict freshness and failed-attempt evidence.
+A native production-helper/state/event replay covers five minutes of successful
+60-second-plus-500-ms replies for both endpoints: exactly the initial MIL/fault
+entries occur, with no availability chatter or re-dated values. Snapshot contention
+emits no false transition. Prolonged expiry emits one unavailable event, repeated
+ticks do not repeat it, and real Off/On/disconnect still resolve/raise/invalidate.
+The shared Android raw fixture remains unchanged. This corrects alert availability,
+not the raw ECU record or vehicle-control guards; CI must pass the corrected head
+before merging or publication.
