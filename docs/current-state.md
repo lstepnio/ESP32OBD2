@@ -186,6 +186,13 @@ flags or production App source changed. Exact counts and baseline failures belon
 [dated maintenance evidence](evidence/repository-maintenance.md#2026-10-20-android-variant-gates).
 This is offline test coverage, not a new installed APK or physical observation.
 
+QUALITY-01 adds native-keyboard/layout synchronization to the two affected modal
+editor fixture classes, with bounded editor-transition observation and unchanged
+touch/value/disabled-control coverage. The [quality procedure](development/quality.md#android-ui-and-screen-captures)
+owns the pattern; [maintenance evidence](evidence/repository-maintenance.md#2026-10-27-modal-editor-test-synchronization)
+records baseline limitations and repeated isolated verification. Production App and
+firmware source, dependencies and installed artifacts are unchanged by this work.
+
 ## Approved action pages
 
 Owner approved the review 4 simplification on 2026-10-27. Merged source now uses

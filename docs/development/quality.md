@@ -55,6 +55,19 @@ or physical-phone installation. CI publishes test reports and additional output.
 This lane checks interactions and accessibility-related semantics, not the old Pixel
 pixel baseline; API/font rasterizers differ.
 
+Text entry can open the native IME and resize a modal sheet outside Compose's
+virtual clock. In sheet fixtures, call the test-only `closeKeyboardAndWaitForIdle`
+before scrolling to and touching the next non-text control. It uses Espresso's
+keyboard-close acknowledgement followed by Compose layout synchronization.
+Observe the expected destination with a bounded condition when changing editor
+stages; keep real taps and exact saved-value/disabled-control assertions. Do not
+retry a tap or whole test until it passes, substitute a semantics click for missing
+touch coverage, or add fixed sleeps. [Compose synchronization](https://developer.android.com/develop/ui/compose/testing/synchronization)
+explains which work its virtual clock controls. A passing repetition sample is
+evidence of observed stability, not proof that every emulator/device race is gone.
+Tests specifically covering keyboard-visible layout must keep exercising that
+state rather than hide it with this helper.
+
 `RepositoryGalleryTest` captures current production Gauge/Car/Settings composables
 with fixed fixture state and the compact navigation shell. Copy its three PNGs from
 `android/app/build/outputs/managed_device_android_test_additional_output/` into

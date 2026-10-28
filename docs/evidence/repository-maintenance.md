@@ -76,3 +76,47 @@ errors or skipped tests, and compiled the debug instrumentation source. Kotlin/P
 format checks and host lint/tests passed. The earlier 201-case/29-failure comparison
 remains historical. Required CI now runs both JVM variants and preserves failure-only
 XML/HTML diagnostics for seven days; no owner device or sensitive trace is involved.
+
+## 2026-10-27 modal editor test synchronization
+
+QUALITY-01 is offline instrumentation work based on merged `8666c35`. The two
+failures in [main quality run 40606792036](https://github.com/lstepnio/ESP32OBD2/actions/runs/40606792036)
+were different: attempt 1 observed no Winch preset after Save; attempt 2 could not
+find Save on phone after Done in the edited-duration flow. The correct per-attempt
+artifacts were inspected separately. Both traces show native IME activity after
+text entry and before the failing touch/navigation result. The untouched local
+14-test baseline passed, so local deterministic reproduction is not claimed.
+
+The locked Compose UI test version is 1.11.1; its Android `performClick` injects a
+touch, while text actions focus the field and may open the native IME. Sheet resize
+and IME processing therefore offer a credible race outside the Compose clock.
+The test-only keyboard helper waits for Espresso's close acknowledgement, then
+Compose layout idleness before locating the next touch target. It is applied to
+text-editing paths in the two affected fixture classes. Editor Done transitions
+also wait at most five seconds for the main action list before continuing. The
+Winch save assertion now distinguishes an absent callback from an incorrect preset.
+All exact timer/calibration/disabled-control assertions and actual taps remain.
+No sleep, repeated tap, automatic test retry, dependency or runtime change is added.
+
+Five consecutive final-source managed-emulator runs passed both affected classes:
+14 tests each, 70 total, zero failures/errors/skips. Every report includes both
+formerly failing methods; post-change traces show keyboard-hidden acknowledgement
+before completion of those flows. The repetition loop stopped on any failure and
+used the managed test task's `--rerun` option, so Gradle cache hits were not counted
+as executions. The earlier untouched and keyboard-only 14-test runs are separate
+baseline/intermediate observations, excluded from this 70-case total.
+
+The complete allowlisted managed UI lane then passed all 56 tests with zero
+failures/errors/skips, bringing final-source local UI coverage to 126 executions.
+Android lint, Kotlin formatting and host documentation/schema/link checks passed;
+both debug App/test APKs were assembled by the managed lane. Final required Linux
+CI results belong to the PR. Logs, per-run XML and IME traces are retained under
+ignored `artifacts/ui-stability/`. Repetition samples narrow the observed failure
+mode; they do not prove that every keyboard-visible layout or device timing is
+covered. Tests deliberately targeting an open keyboard must still retain it.
+
+The [quality procedure](../development/quality.md#android-ui-and-screen-captures)
+owns the reusable pattern. Remaining physical/device qualification and installed
+App/firmware identities are unaffected by this fixture work. Website impact was
+reviewed: no product appearance/functionality changed, so no new marketing capture
+or website publication is needed.
