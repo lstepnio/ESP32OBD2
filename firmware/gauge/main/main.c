@@ -29,6 +29,11 @@
 #include "freertos/task.h"
 #include "portmacro.h"
 
+/* The main task boots BSP/LVGL before app_tick exists. Candidate dev.67 exhausted
+ * its separate startup stack with a 3584-byte configured budget. IDF adds its own
+ * logging allowance; app_tick's independent 4096-byte budget cannot cover boot. */
+_Static_assert(CONFIG_ESP_MAIN_TASK_STACK_SIZE >= 4608, "Review the measured main-task startup stack budget");
+
 #include "display/lv_display.h"
 #include "misc/lv_event.h"
 
@@ -1194,6 +1199,7 @@ void app_main(void)
 
     config_document_init();
     init_config();
+    ESP_LOGI(TAG, "Main startup stack_free=%u", (unsigned)uxTaskGetStackHighWaterMark(NULL));
     for (unsigned source = 0; source < runtime_source_count(); ++source)
         diagnostics_state_configure_for(source, g_runtime && g_runtime->sources[source].transmission,
                                         g_runtime ? g_running_config_record.revision : 0,
@@ -1477,10 +1483,11 @@ void app_main(void)
             orientation_status_t      orientation = orientation_runtime_snapshot();
             ESP_LOGI(TAG,
                      "orientation sample=%u xyz_mg=%ld,%ld,%ld proposed=%u applied=%u health=%u phase=%u failures=%lu "
-                     "stack=%u age_ms=%lu max_tick_us=%lu",
+                     "stack=%u main_stack=%u age_ms=%lu max_tick_us=%lu",
                      sensor.have_observation, (long)sensor.x_mg, (long)sensor.y_mg, (long)sensor.z_mg,
                      sensor.proposed_angle, orientation.applied_angle, sensor.healthy, sensor.phase,
                      (unsigned long)sensor.failures, orientation_runtime_stack_margin(),
+                     (unsigned)uxTaskGetStackHighWaterMark(NULL),
                      (unsigned long)(pdTICKS_TO_MS(xTaskGetTickCount()) - sensor.observed_at_ms),
                      (unsigned long)sensor.maximum_tick_us);
         }

@@ -69,9 +69,12 @@ profile fields. Gauge associations remain schema 2.
 The extended ten-page indoor round trip subsequently passed with exact restoration
 of the original five-page setup at revision 63. The owner confirmed all ten pages,
 10/10, wrap and clean labels without freezing. Populated Dual + arc and Auto remain
-separate physical checks. Source prepares an explicitly owner-supervised dev.67
-orientation candidate; it has not been published or installed. Normal qualification
-and public flags remain off under the [indoor procedure](development/display-indoor-qualification.md).
+separate physical checks. The owner-supervised dev.67 orientation candidate was
+published, but its first trial boot overflowed the main task stack and automatically
+rolled back to healthy dev.66. It is marked withdrawn. The replacement dev.68 is
+prepared offline with a larger, compile-time-guarded startup stack and main watermark
+logs; it is not published or installed. Normal qualification and public flags remain
+off under the [indoor procedure](development/display-indoor-qualification.md).
 
 ## Installed baseline
 

@@ -183,3 +183,38 @@ signed publication, physical sensor behavior and enabled-worker coexistence rema
 pending the [indoor procedure](../development/display-indoor-qualification.md).
 Website impact: this is a supervised qualification milestone, not default Auto
 support. Preserve public capability claims until the corresponding evidence exists.
+
+## Dev.67 candidate trial and automatic rollback
+
+PR #107 merged as `4604057`, tree-identical to reviewed source `6b115ec`, after all
+four quality jobs passed. With explicit owner approval, release run `40643721581`
+published signed dev.67, generation 48, with parked-idle and orientation-candidate
+options enabled and ordinary board qualification/public flags off. Downloaded
+catalog/image signatures, bundle bounds/hash, board/layout and descriptor were
+verified. Candidate ELF was
+`d51e7d282feadaf4634696b45737b1b356c7531bd5dc926b2506a339b839b1c7`.
+
+The first Wi-Fi upload was interrupted by a power-on reset; the owner confirmed
+power was interrupted. A fresh protected dev.66/action/setup check passed in
+13.637 seconds. This is not evidence of heap exhaustion or a firmware panic.
+
+One controlled retry sent the image and booted dev.67. Immediately after BSP touch
+initialization, the main task overflowed its stack, before orientation-worker
+startup. The corrupted backtrace contains the stack-overflow hook, not a reliable
+application callee. The bootloader automatically rolled back to dev.66. The App
+correctly reported that the sent image was not confirmed as running. Dev.67 release
+notes are marked withdrawn; immutable assets and consumed generation 48 remain.
+Post-rollback protected readback passed in 19.462 seconds: healthy exact dev.66,
+original configuration revision 63/digest, settings, profiles and assignments
+unchanged; no unresolved vehicle command. No Auto or populated-arc physical check
+passed on dev.67.
+
+The replacement dev.68 raises the separate ESP-IDF main configured stack from
+3584 to 4608 bytes. IDF's additional 512-byte logging allowance makes actual task
+allocations 4096 and 5120 bytes respectively. This costs 1 KiB of internal heap;
+`app_tick` remains 4096 bytes. The synchronous early-logo refresh is a deep startup
+path; the exact overflowing callee remains unproven. The resolved configuration
+has a compile-time lower bound, plus boot/main and sensor watermark diagnostics.
+Offline builds do not prove the replacement boots or qualifies Auto. A new signed
+release and installation require owner approval; the current healthy image remains
+dev.66. Populated Dual + arc and Auto physical/recovery checks remain pending.
