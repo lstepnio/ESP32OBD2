@@ -49,6 +49,8 @@ idf_component_register(
         "src/poll_scheduler.c"
         "src/reading_policy.c"
         "src/page_save_policy.c"
+        "src/smart_page_policy.c"
+        "src/smart_metric_catalog.c"
         "src/page_action.c"
         "src/temporary_idle.c"
         "src/jeep_idle_driver.c"

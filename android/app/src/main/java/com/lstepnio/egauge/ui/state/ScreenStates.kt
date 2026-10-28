@@ -167,7 +167,9 @@ data class SettingsUiState(
     val cycleSeconds: Int? = null,
     val settingsCurrent: Boolean = true,
     val gauges: List<GaugeUi> = emptyList(),
-    val selectedGaugeId: String? = null
+    val selectedGaugeId: String? = null,
+    val smartCycleSupported: Boolean = false,
+    val smartCycle: Boolean = false
 )
 
 @Immutable

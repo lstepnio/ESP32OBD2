@@ -174,8 +174,10 @@ static void owner_save_worker(void *arg)
 
 #if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED
 #define DISPLAY_SETTINGS_CAPABILITY ",\"ds\":3"
+#define SMART_PAGE_CAPABILITY ",\"sp\":1"
 #else
 #define DISPLAY_SETTINGS_CAPABILITY ""
+#define SMART_PAGE_CAPABILITY ""
 #endif
 
 #define LEGACY_CAPABILITY_BASE                                                                                         \
@@ -187,9 +189,8 @@ static void owner_save_worker(void *arg)
 #define DOCUMENT_CAPABILITY_BASE                                                                                       \
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","                                                      \
     "\"maxAdapterLinks\":1,"                                                                                           \
-    "\"savedStateRead\":false,\"displayRotationWrite\":false,"                                                         \
     "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"da\":1,\"va\":1,\"vc\":1,"                                             \
-    "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY
+    "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY SMART_PAGE_CAPABILITY
 static const char capabilities[]          = LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
 static const char document_capabilities[] = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
 #if CONFIG_EGAUGE_WIFI_BULK_ENABLED
@@ -377,6 +378,41 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle, struct ble
     if (request[0] == 0x34 && length == 5)
     {
         extended_status_mode   = 8;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x68)
+    {
+        if (length != 5)
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        if (read_u32(request + 1) != 1)
+            return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        extended_status_mode   = 20;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x69)
+    {
+        if (length != 11)
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        companion_command_t command = {
+            .opcode        = 0x69,
+            .value         = request[1],
+            .brightness    = request[2],
+            .units         = request[3],
+            .cycle_seconds = request[4] | ((uint16_t)request[5] << 8),
+            .smart_cycle   = request[6] == 1,
+            .base_revision = read_u32(request + 7),
+        };
+        uint16_t           interval = command.cycle_seconds;
+        display_settings_t settings = display_settings_snapshot();
+        if (command.value > 3 || command.brightness < 5 || command.brightness > 100 || command.units > 1 ||
+            request[6] > 1 || settings.revision == UINT32_MAX || command.base_revision != settings.revision ||
+            (interval != 0 && interval != 5 && interval != 10 && interval != 15 && interval != 30 && interval != 60))
+            return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+            return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode   = 20;
         status_snapshot_length = 0;
         return 0;
     }
@@ -719,6 +755,25 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_g
         if (ctxt->offset > length)
             return BLE_ATT_ERR_INVALID_OFFSET;
         return companion_gatt_read_value(ctxt->om, state, length, ctxt->offset);
+    }
+    if (extended_status_mode == 20)
+    {
+        display_settings_t settings = display_settings_snapshot();
+        uint8_t            state[]  = {23,
+                                       settings.rotation,
+                                       settings.brightness,
+                                       settings.units,
+                                       (uint8_t)settings.revision,
+                                       (uint8_t)(settings.revision >> 8),
+                                       (uint8_t)(settings.revision >> 16),
+                                       (uint8_t)(settings.revision >> 24),
+                                       (uint8_t)settings.cycle_seconds,
+                                       (uint8_t)(settings.cycle_seconds >> 8),
+                                       settings.smart_cycle ? 1 : 0,
+                                       1};
+        if (ctxt->offset > sizeof(state))
+            return BLE_ATT_ERR_INVALID_OFFSET;
+        return companion_gatt_read_value(ctxt->om, state, sizeof(state), ctxt->offset);
     }
     if (extended_status_mode == 9)
     {

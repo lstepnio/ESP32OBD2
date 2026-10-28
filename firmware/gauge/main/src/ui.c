@@ -450,6 +450,41 @@ static bool metric_value(ui_t *ui, unsigned index, double *value)
     return available;
 }
 
+bool ui_source_sample(ui_t     *ui,
+                      unsigned  source,
+                      uint32_t  revision,
+                      uint16_t  pid,
+                      uint32_t  age_ms,
+                      uint32_t  now,
+                      double   *value,
+                      uint32_t *at,
+                      uint32_t *generation)
+{
+    if (!ui || source >= 2 || !value || !at || !generation || !adapter_status_ready_for(source) ||
+        ble_mgr_is_paused() || transfer_gate_current() == 2)
+        return false;
+    uint32_t live_generation = adapter_status_generation(source);
+    bool     found           = false;
+    portENTER_CRITICAL(&ui->sample_lock);
+    for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+    {
+        const ui_sample_t *sample = &ui->samples[i];
+        if (!sample->used || sample->source != source || sample->pid != pid)
+            continue;
+        found = sample->present && now - sample->observed_at_ms <= age_ms && ui->sample_sources[source].ready &&
+                sample->revision == revision && sample->generation == live_generation;
+        if (found)
+        {
+            *value      = sample->value;
+            *at         = sample->observed_at_ms;
+            *generation = live_generation;
+        }
+        break;
+    }
+    portEXIT_CRITICAL(&ui->sample_lock);
+    return found;
+}
+
 static void show(lv_obj_t *object, bool visible)
 {
     if (!object)

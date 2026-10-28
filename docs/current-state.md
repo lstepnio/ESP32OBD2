@@ -40,6 +40,19 @@ separates that report from the source fix. Dev.65 remains installed.
 The same candidate removes decorative play/stop glyphs from shared action progress
 states at the owner's request; colored progress rings and action controls remain.
 
+## Smart page cycling source milestone
+
+FEATURE-11 is implemented offline with the approved defaults: one opt-in Settings
+switch, existing interval selection, alert-driven/thermal/context priorities,
+minimum viewing/manual protection, bounded priority insertions and saved-page
+fairness. The [runtime contract](architecture/smart-page-cycling.md) owns behavior
+and tuning, and [offline evidence](evidence/smart-page-cycling.md) records executed
+checks. The additive `sp:1` protected settings path and revision-matched sidecars
+preserve legacy display compatibility. Existing public capability flags remain off.
+This source milestone is not installed on the Pixel/gauge; the baseline below
+remains authoritative. Matched loaded timing, comfort and resource qualification
+remain in the [milestone procedure](development/smart-page-cycling-plan.md).
+
 ## Installed baseline
 
 | Item | Last recorded state | Evidence |

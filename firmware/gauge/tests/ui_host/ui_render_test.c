@@ -182,6 +182,14 @@ int main(int argc, char **argv)
     uint32_t observed = host_ms;
     ui_set_source_value(ui, 0, 7, 1, 12, &primary, observed);
     ui_set_source_value(ui, 1, 7, 1, 12, &child, observed);
+    double   policy_value;
+    uint32_t policy_at, policy_generation;
+    assert(ui_source_sample(ui, 0, 7, 12, 2000, host_ms, &policy_value, &policy_at, &policy_generation));
+    assert(policy_value == primary && policy_at == observed && policy_generation == 1);
+    assert(ui_source_sample(ui, 1, 7, 12, 2000, host_ms, &policy_value, &policy_at, &policy_generation));
+    assert(policy_value == child && policy_at == observed);
+    assert(!ui_source_sample(ui, 1, 8, 12, 2000, host_ms, &policy_value, &policy_at, &policy_generation));
+    assert(!ui_source_sample(ui, 1, 7, 12, 1, host_ms + 2000, &policy_value, &policy_at, &policy_generation));
     ui_set_page(ui, &scoped);
     assert(metric_value(ui, 0, &actual) && actual == primary);
     scoped.metrics[0].source_index = 1;
@@ -211,6 +219,7 @@ int main(int argc, char **argv)
     assert(!metric_value(ui, 0, &actual));
     ui_set_source_value(ui, 1, 7, 2, 12, &child, host_ms);
     vehicle = false;
+    assert(!ui_source_sample(ui, 1, 7, 12, 2000, host_ms, &policy_value, &policy_at, &policy_generation));
     assert(!metric_value(ui, 0, &actual));
     vehicle     = true;
     maintenance = true;

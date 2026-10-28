@@ -24,3 +24,7 @@ void   alert_runtime_simulated(unsigned key, bool value);
 
 void alert_runtime_priority(unsigned key, uint8_t priority);
 void alert_runtime_stale(unsigned pid, uint32_t milliseconds);
+
+/* One nonblocking, consistent projection of threshold episodes. A suppressed
+ * episode cannot regain attention through a lower Smart heuristic. */
+bool alert_runtime_page_interest(uint32_t now, alert_page_interest_t out[32]);

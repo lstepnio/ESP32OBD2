@@ -58,6 +58,8 @@ object GaugeProtocolCodec {
 
         22 -> runCatching { VehicleCommandProtocol.status(bytes) }.isSuccess
 
+        23 -> runCatching { displaySettings(bytes) }.isSuccess
+
         else -> false
     }
 
@@ -89,6 +91,11 @@ object GaugeProtocolCodec {
             displayRotationWrite = json.optBoolean("displayRotationWrite", false),
             displaySettingsVersion = json.optInt("ds", 0).also {
                 require(it in 0..3) { "Unsupported display settings version" }
+            },
+            smartPageCyclingVersion = json.optInt("sp", 0).also {
+                require(!json.has("sp") || json.get("sp") is Int) { "Invalid Smart page cycling capability" }
+                require(it in 0..1) { "Unsupported Smart page cycling version" }
+                require(it == 0 || json.optInt("ds", 0) == 3) { "Smart page cycling requires display settings" }
             },
             ota = ota,
             wifiBulk = json.optString("wifiBulk").takeIf { it.isNotBlank() },
@@ -158,7 +165,10 @@ object GaugeProtocolCodec {
     fun displaySettings(bytes: ByteArray): GaugeConfigTransferClient.DisplaySettings {
         val version = if (bytes.isNotEmpty()) bytes[0].toInt() and 255 else -1
         require(
-            ((bytes.size == 8 && version in 10..11) || (bytes.size == 10 && version == 12)) &&
+            (
+                (bytes.size == 8 && version in 10..11) || (bytes.size == 10 && version == 12) ||
+                    (bytes.size == 12 && version == 23)
+                ) &&
                 (version >= 11 || bytes[3].toInt() == 0)
         ) {
             "Gauge returned unsupported display settings"
@@ -170,7 +180,7 @@ object GaugeProtocolCodec {
             "Gauge returned invalid display settings"
         }
         val cycleSeconds = if (version ==
-            12
+            12 || version == 23
         ) {
             (bytes[8].toInt() and 255) or ((bytes[9].toInt() and 255) shl 8)
         } else {
@@ -179,19 +189,45 @@ object GaugeProtocolCodec {
         require(cycleSeconds in setOf(0, 5, 10, 15, 30, 60)) {
             "Gauge returned invalid page cycle interval"
         }
+        require(version != 23 || ((bytes[10].toInt() and 255) in 0..1 && bytes[11].toInt() == 1)) {
+            "Gauge returned invalid Smart page cycling settings"
+        }
         return GaugeConfigTransferClient.DisplaySettings(
             rotation,
             brightness,
             u32(bytes, 4),
             MeasurementSystem.entries[units],
             when (version) {
-                12 -> 3
+                23, 12 -> 3
                 11 -> 2
                 else -> 1
             },
-            cycleSeconds
+            cycleSeconds,
+            smartCycle = version == 23 && bytes[10].toInt() == 1,
+            smartPolicyVersion = if (version == 23) bytes[11].toInt() else 0
         )
     }
+
+    fun smartDisplaySettingsWrite(settings: GaugeConfigTransferClient.DisplaySettings): ByteArray {
+        require(settings.supportsSmartCycle && settings.version == 3 && settings.revision in 0..0xffffffffL)
+        require(settings.rotation in 0..3 && settings.brightness in 5..100)
+        require(settings.cycleSeconds in setOf(0, 5, 10, 15, 30, 60))
+        return byteArrayOf(
+            0x69,
+            settings.rotation.toByte(),
+            settings.brightness.toByte(),
+            settings.units.ordinal.toByte(),
+            settings.cycleSeconds.toByte(),
+            (settings.cycleSeconds shr 8).toByte(),
+            if (settings.smartCycle) 1 else 0
+        ) + ByteArray(4) { (settings.revision shr (it * 8)).toByte() }
+    }
+
+    fun displaySettingsSaveConfirmed(
+        before: GaugeConfigTransferClient.DisplaySettings,
+        requested: GaugeConfigTransferClient.DisplaySettings,
+        after: GaugeConfigTransferClient.DisplaySettings
+    ): Boolean = after.revision == before.revision + 1 && after == requested.copy(revision = after.revision)
 
     fun diagnostics(bytes: ByteArray): GaugeConfigTransferClient.Diagnostics {
         if (bytes.size == 248 && bytes[0].toInt() == 15) return fullDiagnostics(bytes)

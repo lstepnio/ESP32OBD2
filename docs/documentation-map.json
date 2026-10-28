@@ -38,7 +38,8 @@
       "docs/architecture/system.md",
       "docs/architecture/vehicle-actions.md",
       "docs/architecture/vehicle-connections.md",
-      "docs/architecture/platforms-and-releases.md"
+      "docs/architecture/platforms-and-releases.md",
+      "docs/architecture/smart-page-cycling.md"
     ],
     "development-contracts-and-proposals": [
       "docs/protocol/adapter-bindings-v1.md",
@@ -49,7 +50,8 @@
       "docs/protocol/hardware-probe.md",
       "docs/protocol/pid-discovery.md",
       "docs/protocol/wifi-bulk-v1.md",
-      "docs/development/gauge-continuity-plan.md"
+      "docs/development/gauge-continuity-plan.md",
+      "docs/development/smart-page-cycling-plan.md"
     ],
     "maintained-runbooks": [
       "docs/development/display-showcase.md",

@@ -58,7 +58,10 @@
         "sourceId": "ecm"
       },
       "configurationVersion": 1,
-      "samplingClass": "fast"
+      "samplingClass": "fast",
+      "smartInterest": {
+        "kind": "rpm"
+      }
     },
     {
       "id": "coolant",
@@ -113,7 +116,13 @@
         "sourceId": "ecm"
       },
       "configurationVersion": 1,
-      "samplingClass": "thermal"
+      "samplingClass": "thermal",
+      "smartInterest": {
+        "kind": "coolant",
+        "approach": 5,
+        "riseRate": 0.2,
+        "riseDelta": 3
+      }
     },
     {
       "id": "speed",
@@ -334,7 +343,13 @@
         "sourceId": "tcm"
       },
       "configurationVersion": 4,
-      "samplingClass": "thermal"
+      "samplingClass": "thermal",
+      "smartInterest": {
+        "kind": "thermal",
+        "approach": 5,
+        "riseRate": 0.2,
+        "riseDelta": 3
+      }
     },
     {
       "id": "tcmgear",
@@ -1095,7 +1110,10 @@
         "sourceId": "ecm"
       },
       "configurationVersion": 5,
-      "samplingClass": "slow"
+      "samplingClass": "slow",
+      "smartInterest": {
+        "kind": "runtime"
+      }
     },
     {
       "id": "mildistance",

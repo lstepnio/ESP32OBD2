@@ -80,6 +80,16 @@ ui_t *ui_init(ui_page_t const    *page,
  * values require the exact source scope armed by its worker. Observations use
  * monotonic milliseconds and retain their original age across page changes. */
 void ui_set_value(ui_t *ui, uint16_t pid, double const *value);
+/* Read-only latest sample for presentation policy. No LVGL lock or timestamp renewal. */
+bool ui_source_sample(ui_t     *ui,
+                      unsigned  source,
+                      uint32_t  revision,
+                      uint16_t  pid,
+                      uint32_t  age_ms,
+                      uint32_t  now,
+                      double   *value,
+                      uint32_t *observed_at,
+                      uint32_t *generation);
 void ui_set_source_state(ui_t *ui, unsigned source, bool ready, uint32_t revision, uint32_t generation);
 void ui_set_source_value(ui_t         *ui,
                          unsigned      source,
