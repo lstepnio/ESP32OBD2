@@ -680,6 +680,11 @@ static void app_tick_task(void *arg)
                              health.queue_drops, health.stack_observed ? 1U : 0U, health.minimum_stack_free);
             }
             memory_health_log("periodic");
+#if CONFIG_EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED
+            orientation_diagnostics_t orientation = orientation_runtime_diagnostics();
+            ESP_LOGI(TAG, "orientation health=%u phase=%u failures=%lu stack_free=%u", orientation.healthy,
+                     orientation.phase, (unsigned long)orientation.failures, orientation_runtime_stack_margin());
+#endif
         }
     }
 }
@@ -1450,7 +1455,8 @@ void app_main(void)
         bool               maintenance = !transfer_gate_vehicle_allowed();
         uint8_t            auto_angle;
         if (orientation_runtime_poll(cycle.auto_orientation, cycle.rotation,
-                                     maintenance || transfer_gate_current() == TRANSFER_GATE_VEHICLE_COMMAND ||
+                                     maintenance || ble_mgr_is_paused() ||
+                                         transfer_gate_current() == TRANSFER_GATE_VEHICLE_COMMAND ||
                                          vehicle_commands_runtime_pending() || ui_action_pending(ui),
                                      &auto_angle) &&
             orientation_runtime_retry_ready(now_ms) && lvgl_port_lock(0))
@@ -1462,6 +1468,23 @@ void app_main(void)
             }
             lvgl_port_unlock();
         }
+#if CONFIG_EGAUGE_AUTO_ORIENTATION_CANDIDATE
+        static uint32_t orientation_logged_at;
+        if ((uint32_t)(now_ms - orientation_logged_at) >= 2000)
+        {
+            orientation_logged_at                 = now_ms;
+            orientation_diagnostics_t sensor      = orientation_runtime_diagnostics();
+            orientation_status_t      orientation = orientation_runtime_snapshot();
+            ESP_LOGI(TAG,
+                     "orientation sample=%u xyz_mg=%ld,%ld,%ld proposed=%u applied=%u health=%u phase=%u failures=%lu "
+                     "stack=%u age_ms=%lu max_tick_us=%lu",
+                     sensor.have_observation, (long)sensor.x_mg, (long)sensor.y_mg, (long)sensor.z_mg,
+                     sensor.proposed_angle, orientation.applied_angle, sensor.healthy, sensor.phase,
+                     (unsigned long)sensor.failures, orientation_runtime_stack_margin(),
+                     (unsigned long)(pdTICKS_TO_MS(xTaskGetTickCount()) - sensor.observed_at_ms),
+                     (unsigned long)sensor.maximum_tick_us);
+        }
+#endif
         ui_set_action_context(ui, owner_ready && !maintenance);
         uint8_t             selected_before = atomic_load(&g_selected_page);
         uint32_t            activity_before = atomic_load(&g_page_activity_ms);

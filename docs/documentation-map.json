@@ -71,7 +71,8 @@
       "firmware/gauge/assets/fonts/README.md",
       "mechanical/jk-dash-pod/README.md",
       "data/vehicle-definitions/README.md",
-      "website/README.md"
+      "website/README.md",
+      "docs/development/display-indoor-qualification.md"
     ],
     "vehicle-research": [
       "docs/vehicles/README.md",

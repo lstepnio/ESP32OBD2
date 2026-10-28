@@ -42,7 +42,8 @@ metric/imperial cases, generated acknowledgment isolation, preemption and pairin
 restore. Its captures are software renders, not physical display observations.
 `DisplayShowcaseJourneyTest` is opt-in with `allowDisplayShowcase=true`; it verifies
 playback advancement, stop and unchanged saved dashboard/settings/profiles. Optional
-`showcaseFrames=21` observes all twenty-one distinct frame indices with a bounded
+`showcaseFrames=25` observes all source frames (dev.66 has 21; the reader accepts
+2..64 up to the device-advertised count) with a bounded
 wait; the default is two. The fixture pauses ordinary foreground polling and
 observes protected showcase state directly, because the normal Settings interval
 is longer than a frame. Start/stop still use the App operation owner. It reads the

@@ -48,7 +48,16 @@ int main(void)
     for (unsigned i = 0; i < display_showcase_count(); i++)
     {
         const display_showcase_frame_t *f = display_showcase_frame(i);
-        assert(f && f->renderer <= 4 && f->metrics >= 1 && f->metrics <= 2);
+        assert(f && f->renderer <= 5 && f->metrics >= 1 && f->metrics <= 2);
+        if (f->renderer == 5)
+        {
+            assert(f->metrics == 2 && f->arc_metric_index < 2);
+            assert(strcmp(f->units[f->arc_metric_index], "gear"));
+        }
+        else
+        {
+            assert(f->arc_metric_index == 0);
+        }
         for (unsigned j = 0; j < f->metrics; j++)
             assert(f->labels[j] && f->units[j] && isfinite(f->values[j]));
     }

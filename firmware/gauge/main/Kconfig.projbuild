@@ -83,3 +83,13 @@ config EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED
         queue. Reads the existing shared touch I2C bus at 10Hz. Driver waits are
         isolated from the rendering/control owner. Does not qualify Auto or
         enable its capability by itself. Keep disabled in normal release images.
+
+config EGAUGE_AUTO_ORIENTATION_CANDIDATE
+    bool "Owner-supervised Auto orientation qualification candidate"
+    depends on EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED && !EGAUGE_AUTO_ORIENTATION_QUALIFIED
+    default n
+    help
+        Explicit development-only build for physical orientation qualification.
+        Allows the protected Auto choice only after live IMU health is established.
+        Does not mark the board physically qualified or enable public capabilities.
+        Keep disabled in ordinary images; use the signed candidate release path.

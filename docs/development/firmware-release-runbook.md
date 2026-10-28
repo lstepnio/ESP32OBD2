@@ -158,3 +158,14 @@ App/BLE and App/Wi-Fi installation cannot repair that image. Any USB recovery ne
 separate explicit authorization, a verified signed image, private flash backup,
 application-only partition targeting and preservation checks. Do not erase NVS,
 configuration slots or the partition table, or bypass authentication to make OTA work.
+
+## Owner-supervised orientation qualification candidate
+
+The optional `orientation_candidate` workflow input defaults false. After explicit
+owner authorization it selects `build-orientation-candidate`, can retain the existing
+parked-idle option, and forces the board-qualified orientation flag off. The test-only
+permission offers protected Auto after live sensor health without promoting public
+capabilities or default board support. Record its limitation in release notes; do
+not publish it as a qualified normal image. Use the [indoor procedure](display-indoor-qualification.md)
+and restore user settings after testing. A candidate build is compiled in quality
+CI before publication, including the optional sensor worker's real IDF branch.

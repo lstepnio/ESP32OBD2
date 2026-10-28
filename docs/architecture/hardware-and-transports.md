@@ -60,6 +60,13 @@ lists the IMU on the shared touch I2C bus. Presence alone does not enable Auto.
 `CONFIG_EGAUGE_AUTO_ORIENTATION_QUALIFIED` both default off. Default images start no
 sensor worker and expose no usable Auto choice.
 
+An explicit owner-supervised development candidate may instead opt in through
+`CONFIG_EGAUGE_AUTO_ORIENTATION_CANDIDATE`, still requiring the probe and live
+health while keeping the board-qualified flag off. It permits physical testing,
+not a qualification claim; all ordinary defaults/public flags stay off. The
+[indoor qualification procedure](../development/display-indoor-qualification.md)
+owns build isolation, restoration and the observed acceptance matrix.
+
 The optional low-priority worker borrows the existing board I2C bus, probes identity,
 configures accelerometer-only sampling and detects frozen timestamps. It performs
 one bus transaction per iteration, normally 10 Hz in Auto and 2 Hz once healthy in
