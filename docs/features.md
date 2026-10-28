@@ -33,3 +33,5 @@ locates modules/tests. This index deliberately does not duplicate those status l
 Every feature change follows the [completion rule](documentation.md#feature-completion-rule):
 update its topic owner with behavior/defaults, UX, ownership, compatibility, limits,
 tests and qualification. Preserve one source of truth and link to it.
+
+Design under review: [Car experience and complete hidden-code presentation](design/car-ui-proposal.md). This proposal is not implemented and does not supersede installed behavior until approval.
