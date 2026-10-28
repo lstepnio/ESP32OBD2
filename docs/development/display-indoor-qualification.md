@@ -79,7 +79,9 @@ its live stream is healthy; that bit does not mean board orientation is qualifie
    at rest, plus adequate worker stack margin and no allocation/bus errors.
 2. Hold the face vertically at each of four cardinal poses for at least two seconds.
    Correlate raw axes, proposed/applied angles, upright text and actual touch hit
-   regions. If mapping is wrong, correct/version it from evidence before acceptance.
+   regions. If mapping is wrong, correct/version it from evidence before acceptance. Label
+   at least two adjacent physical poses and correlate raw gravity, applied angle and
+   observed text-up direction; never guess an offset from one arbitrary orientation.
 3. Exercise diagonal boundaries, brief tilt/vibration and face-up/down poses. No
    flapping; ambiguous gravity holds the last angle. Manual selection exits Auto.
 4. Save unrelated brightness/units/cycling, then restart: Auto/manual fallback remain

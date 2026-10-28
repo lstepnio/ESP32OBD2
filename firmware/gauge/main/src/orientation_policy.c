@@ -34,7 +34,9 @@ bool orientation_policy_observe(orientation_policy_t *p, uint32_t now, int32_t x
         p->pending = false;
         return false;
     }
-    uint8_t candidate = ay >= ax ? (y >= 0 ? 0 : 2) : (x >= 0 ? 1 : 3);
+    /* On this board, USB down is -X and needs the native LCD angle; USB left
+     * is +Y and needs 90 degrees. Keep manual angles independent of this map. */
+    uint8_t candidate = ay >= ax ? (y >= 0 ? 1 : 3) : (x >= 0 ? 2 : 0);
     if (candidate == p->applied)
     {
         p->pending = false;

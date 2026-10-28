@@ -93,13 +93,13 @@ int main(void)
     assert(orientation_runtime_snapshot().sensor_status == 0);
     for (uint32_t now = 0; now < 2000; now += 100)
         tick(now, true, false);
-    assert(orientation_runtime_snapshot().usable && orientation_runtime_snapshot().applied_angle == 1);
+    assert(orientation_runtime_snapshot().usable && orientation_runtime_snapshot().applied_angle == 2);
     unsigned before = calls;
     tick(2000, true, true);
     assert(calls == before);
     tick(3100, true, true);
     assert(orientation_runtime_snapshot().usable && orientation_runtime_snapshot().sensor_status == 2);
-    assert(orientation_runtime_snapshot().applied_angle == 1);
+    assert(orientation_runtime_snapshot().applied_angle == 2);
     fail = true;
     tick(3200, true, false);
     assert(!orientation_runtime_diagnostics().healthy);
@@ -113,12 +113,12 @@ int main(void)
     fail = false;
     for (uint32_t now = 8200; now < 10200; now += 100)
         tick(now, true, false);
-    assert(orientation_runtime_snapshot().usable && orientation_runtime_snapshot().applied_angle == 1);
+    assert(orientation_runtime_snapshot().usable && orientation_runtime_snapshot().applied_angle == 2);
     frozen = true;
     for (uint32_t now = 10200; now < 11600; now += 100)
         tick(now, true, false);
     assert(orientation_runtime_snapshot().usable && orientation_runtime_snapshot().sensor_status == 2 &&
-           orientation_runtime_snapshot().applied_angle == 1);
+           orientation_runtime_snapshot().applied_angle == 2);
     tick(11600, false, true);
     assert(orientation_runtime_snapshot().applied_angle == 0);
     wrong_identity = true;

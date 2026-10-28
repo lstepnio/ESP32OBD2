@@ -70,7 +70,8 @@ owns build isolation, restoration and the observed acceptance matrix.
 The optional low-priority worker borrows the existing board I2C bus, probes identity,
 verifies configuration readback, configures accelerometer-only sampling and detects
 frozen timestamps. Source uses the documented +/-2 g normal-power 31.25 Hz mode;
-installed dev.69 still uses the earlier low-power 11 Hz candidate. It performs
+installed dev.70 uses this verified normal-power mode after dev.69
+showed a pinned X reading in the earlier low-power 11 Hz candidate. It performs
 one bus transaction per iteration, normally 10 Hz in Auto and 2 Hz once healthy in
 manual mode, with five-second retry after failure. Its guarded static 4 KiB stack remains
 internal for flash-safe execution. On the reference 100 Hz IDF tick, driver waits
@@ -89,8 +90,9 @@ Normal-mode testing does not establish sensor calibration or relax gravity guard
 
 The pure policy requires plausible gravity (0.85..1.15 g), at least 650 mg in-plane,
 a 1.5:1 cardinal margin and 800 ms stable dwell. Flat poses, motion, jitter and
-one-second stale observations hold the last angle. Axis mapping version 1 is a
-candidate until enclosure/touch calibration is physically verified. Rotation is
+one-second stale observations hold the last angle. Axis mapping version 2 compensates the reference board sensor/LCD quarter-turn
+offset measured at labelled USB-down and USB-left poses. It remains a candidate
+until all four text/touch orientations are physically verified on the new image. Rotation is
 applied through the existing board display/touch transform; applied state changes
 only after successful application. Sensor motion never writes flash.
 
