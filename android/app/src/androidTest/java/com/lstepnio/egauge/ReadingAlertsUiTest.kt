@@ -65,7 +65,7 @@ class ReadingAlertsUiTest {
         compose.onNodeWithText("Warning").performTextInput("12.2")
         compose.onNodeWithText("Critical").performTextInput("11.7")
         compose.closeKeyboardAndWaitForIdle()
-        compose.onNodeWithText("Save alert").performScrollTo().assertIsEnabled().performClick()
+        compose.onNodeWithText("Save alert").assertIsDisplayed().assertIsEnabled().performClick()
         compose.runOnIdle {
             assertEquals(12.2, saved!!.warning, 1e-9)
             assertEquals(11.7, saved!!.critical, 1e-9)
@@ -96,7 +96,7 @@ class ReadingAlertsUiTest {
         compose.onAllNodesWithText("R")[0].performScrollTo().performClick()
         compose.onAllNodesWithText("P")[1].performScrollTo().performClick()
         compose.closeKeyboardAndWaitForIdle()
-        compose.onNodeWithText("Save alert").performScrollTo().assertIsEnabled().performClick()
+        compose.onNodeWithText("Save alert").assertIsDisplayed().assertIsEnabled().performClick()
         compose.runOnIdle {
             assertEquals(AlertDirection.Equals, saved!!.direction)
             assertEquals(11.0, saved!!.warning, 0.0)
