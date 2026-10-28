@@ -197,21 +197,18 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                             )
                         }.getOrNull()
                     ),
-                    field(
-                        "CEL code filters",
-                        DiagnosticCodeFilters.json(draft.diagnosticFilters).toString(),
-                        runCatching {
-                            DiagnosticCodeFilters.json(
-                                DiagnosticCodeFilters.fromDocument(saved)
-                            ).toString()
-                        }.getOrNull()
+                    GaugeDraftField(
+                        "Fault visibility",
+                        "Saved on phone",
+                        "Last confirmed on gauge",
+                        runCatching { draft.diagnosticFilters == DiagnosticCodeFilters.fromDocument(saved) }.getOrNull()
                     ),
                     field(
                         "Alert count",
-                        draft.alerts.size.toString(),
+                        draft.alerts.count { it.enabled }.toString(),
                         saved.optJSONArray("alerts")?.length()?.toString()
                     ),
-                    field("All alert settings", alertSettings(draft.alerts), savedAlertSettings())
+                    field("All alert settings", alertSettings(draft.alerts.filter { it.enabled }), savedAlertSettings())
                 )
             )
         }
