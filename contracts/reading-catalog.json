@@ -122,6 +122,10 @@
         "approach": 5,
         "riseRate": 0.2,
         "riseDelta": 3
+      },
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
       }
     },
     {
@@ -287,7 +291,11 @@
         "sourceId": "ecm"
       },
       "configurationVersion": 1,
-      "samplingClass": "slow"
+      "samplingClass": "slow",
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
+      }
     },
     {
       "id": "tcmtemp",
@@ -349,6 +357,10 @@
         "approach": 5,
         "riseRate": 0.2,
         "riseDelta": 3
+      },
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
       }
     },
     {
@@ -921,7 +933,11 @@
         "sourceId": "ecm"
       },
       "configurationVersion": 5,
-      "samplingClass": "thermal"
+      "samplingClass": "thermal",
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
+      }
     },
     {
       "id": "maf",
@@ -2310,7 +2326,11 @@
         "sourceId": "ecm"
       },
       "configurationVersion": 5,
-      "samplingClass": "thermal"
+      "samplingClass": "thermal",
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
+      }
     },
     {
       "id": "throttleb",
@@ -2877,7 +2897,11 @@
         "sourceId": "ecm"
       },
       "configurationVersion": 5,
-      "samplingClass": "slow"
+      "samplingClass": "slow",
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
+      }
     },
     {
       "id": "evapabsolute",
@@ -3192,7 +3216,11 @@
         "sourceId": "ecm"
       },
       "configurationVersion": 5,
-      "samplingClass": "thermal"
+      "samplingClass": "thermal",
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
+      }
     },
     {
       "id": "fuelrate",

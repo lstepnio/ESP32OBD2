@@ -37,7 +37,8 @@ data class CustomizeActions(
     val removeAlert: (String) -> Unit,
     val check: () -> Unit,
     val send: () -> Unit,
-    val setup: () -> Unit
+    val setup: () -> Unit,
+    val selectArc: (Int) -> Unit = {}
 )
 
 @Composable
@@ -147,6 +148,22 @@ fun DashboardEditorScreen(
                             EditorRow("Layout", current.layout.label, state.editingEnabled) {
                                 picker =
                                     "layout"
+                            }
+                            if (current.layout == GaugeLayout.DualArc) {
+                                HorizontalDivider(Modifier.padding(horizontal = 18.dp))
+                                Column(Modifier.padding(18.dp)) {
+                                    Text("Arc reading", style = MaterialTheme.typography.labelLarge)
+                                    listOfNotNull(current.readingId, current.secondaryId).forEachIndexed { index, id ->
+                                        if (com.lstepnio.egauge.demoCatalog.firstOrNull { it.id == id }?.alertKind == "numeric") {
+                                            FilterChip(
+                                                selected = current.arcMetricIndex == index,
+                                                onClick = { actions.selectArc(index) },
+                                                enabled = state.editingEnabled,
+                                                label = { Text(readingName(id)) }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                             current.secondaryId?.let { id ->
                                 HorizontalDivider(Modifier.padding(horizontal = 18.dp))
@@ -429,7 +446,7 @@ private fun PageToolbar(state: CustomizeUiState, onAdd: () -> Unit, onManage: ()
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        TextButton(onAdd, enabled = state.editingEnabled && state.pages.size < 8) {
+        TextButton(onAdd, enabled = state.editingEnabled && state.pages.size < 10) {
             EGaugeIcon(GaugeIcon.Add, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
             Text("Add page")
@@ -437,10 +454,10 @@ private fun PageToolbar(state: CustomizeUiState, onAdd: () -> Unit, onManage: ()
         TextButton(onManage) { Text("Manage pages") }
     }
     if (state.pages.size >=
-        8
+        10
     ) {
         Text(
-            "All 8 pages are in use. Remove one to add another.",
+            "All 10 pages are in use. Remove one to add another.",
             style = MaterialTheme.typography.bodySmall
         )
     }

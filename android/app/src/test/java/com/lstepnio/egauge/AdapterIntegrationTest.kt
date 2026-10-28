@@ -216,7 +216,7 @@ class AdapterIntegrationTest {
             """{"protocolMajor":0,"board":"ESP32-S3-Touch-LCD-1.28","maxAdapterLinks":2,"configWrite":false,"ota":false,"cfg":3,"ad":1}""".toByteArray()
         )
         assertEquals(1, caps.adapterRegistryVersion)
-        assertEquals(GaugeLayout.entries.toSet(), caps.supportedRenderers)
+        assertEquals(GaugeLayout.entries.filter { it != GaugeLayout.DualArc }.toSet(), caps.supportedRenderers)
         assertFalse(caps.configWrite)
         assertFalse(caps.simultaneousVerified)
         assertFalse(caps.ota)

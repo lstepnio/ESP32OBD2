@@ -983,6 +983,37 @@ class GaugeConfigTransferClient(private val context: Context) {
         }
     }
 
+    suspend fun readOrientationSettings(device: BluetoothDevice): GaugeOrientationSettings {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x6a) + le32(1))
+            GaugeProtocolCodec.orientationSettings(readRaw())
+        }
+    }
+
+    suspend fun saveOrientationSettings(device: BluetoothDevice, automatic: Boolean, manualAngle: Int): GaugeOrientationSettings {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(manualAngle in 0..3)
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x6a) + le32(1))
+            val before = GaugeProtocolCodec.orientationSettings(readRaw())
+            require(!automatic || before.sensorStatus != 0) { "Automatic orientation is unavailable on this gauge" }
+            if (before.automatic == automatic && before.manualAngle == manualAngle) return@withGauge before
+            writeRaw(GaugeProtocolCodec.orientationSettingsWrite(automatic, manualAngle, before.revision))
+            repeat(20) {
+                val after = GaugeProtocolCodec.orientationSettings(readRaw())
+                if (after.revision > before.revision) {
+                    check(after.revision == before.revision + 1 && after.automatic == automatic && after.manualAngle == manualAngle) {
+                        "Gauge orientation changed during save; refresh and retry"
+                    }
+                    return@withGauge after
+                }
+                delay(100)
+            }
+            error("Gauge did not confirm saved orientation")
+        }
+    }
+
     suspend fun readDisplaySettings(device: BluetoothDevice, smartPageCyclingVersion: Int = 0): DisplaySettings {
         require(device.bondState == BluetoothDevice.BOND_BONDED) {
             "Pair this phone as gauge owner first"

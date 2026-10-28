@@ -126,6 +126,13 @@ static void bsp_touch_configure_input(esp_lcd_panel_io_handle_t io)
     }
 }
 
+static i2c_master_bus_handle_t shared_touch_bus;
+
+void *bsp_touch_shared_i2c_bus(void)
+{
+    return shared_touch_bus;
+}
+
 esp_err_t bsp_touch_init(void)
 {
     ESP_LOGI(TAG, "Initializing touch panel ...");
@@ -144,6 +151,7 @@ esp_err_t bsp_touch_init(void)
     ESP_LOGI(TAG, "Creating I2C bus: SCL=GPIO_%d, SDA=GPIO_%d", BSP_TOUCH_I2C_SCL, BSP_TOUCH_I2C_SDA);
     ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_cfg, &i2c_bus_handle));
     BSP_NULL_CHECK(i2c_bus_handle, ESP_ERR_NO_MEM);
+    shared_touch_bus = i2c_bus_handle;
 
     /* Initialize Touch HW */
 

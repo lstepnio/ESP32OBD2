@@ -44,6 +44,12 @@ esp_err_t bsp_lv_disp_set_rotation(lv_display_rotation_t rotation)
     return backend_result;
 }
 
+bool orientation_qmi8658_bus(orientation_bus_t *bus)
+{
+    (void)bus;
+    return false;
+}
+
 int main(void)
 {
     const gauge_board_t *board = gauge_board_description();

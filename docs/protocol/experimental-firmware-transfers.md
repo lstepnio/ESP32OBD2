@@ -374,3 +374,42 @@ mutually exclusive. Reading cycling pauses in the branch and resumes with a full
 interval after returning. Existing command bytes/status, qualification masks and
 public capability flags are unchanged. The UI receives one packed atomic snapshot
 per kind; no new transport or polling worker is added.
+
+## Display capacity and Dual + arc extensions
+
+Document-mode capability `mp:10` advertises the ten-page bound and `dx:1` advertises
+Dual + arc. `cfg:7` and schema version 2 are unchanged. Absence retains legacy page
+limits and blocks the new renderer before transfer. `dualArc` requires two distinct
+PID references and integer `arcMetricIndex` 0 or 1 selecting a numeric, non-gear
+reading. Other renderers reject that field. The 32-reading/32-alert/64 KiB limits
+remain. Public configuration/OTA flags remain false. See the
+[display contract](../architecture/display-experience.md) for UX/resource semantics.
+
+## Sensor orientation extension
+
+Document-mode `ao:1` signals stable protocol support on an initialized, qualified
+board transport, independent of current sensor health. No GATT database change.
+Authenticated read `6a` plus LE32 selector 1 is five bytes. Write `6b` is seven
+bytes: opcode, mode (0 manual, 1 Auto), manual angle (0..3), then LE32 expected
+global display revision. Bounds, support and revision are validated before queuing.
+Auto requires previously established qualified sensor availability; unsupported
+writes are rejected. Every write requires matching protected readback, with no
+blind replay after an uncertain outcome.
+
+State tag 24 (`18` hex) has twelve bytes: tag, policy version 1, mode, saved manual
+angle, applied angle, sensor status, two reserved zero bytes, LE32 revision.
+Sensor status is 0 unavailable/unqualified/not yet healthy, 1 healthy, 2 stale after
+confirmed health. The App gates the Auto choice from this state, not cached
+capability JSON alone. Auto holds its angle during stale observations and resumes
+quietly after recovery. Read replies report only successfully applied transforms.
+
+`ds:3` and `sp:1` continue to report saved manual angle, never transient sensor
+angles. Smart write `69` preserves Auto when its manual angle is unchanged; a changed
+manual angle exits Auto. Legacy writes `36`, `37`, `38` always select manual mode.
+Use `6b` for an explicit same-angle manual choice. All share one display revision.
+Revision-matched NVS sidecars store Smart bit 0 and Auto bit 1; the unchanged legacy
+v3 record activates the revision last. Sensor angle changes never rewrite NVS or
+advance revision. Older firmware rejects unknown sidecar flags and safely loses
+optional modes rather than applying a mismatched record. Default images keep both
+orientation probe/qualification gates off. Physical acceptance is required before
+advertising usable Auto; see [hardware policy](../architecture/hardware-and-transports.md#automatic-display-orientation).

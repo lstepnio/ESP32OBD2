@@ -14,7 +14,7 @@ data class StatusUi(
 
 @Immutable
 data class DetailUi(val label: String, val value: String)
-enum class PreviewLayout { Numeric, Arc, Bar, Trend, Dual }
+enum class PreviewLayout { Numeric, Arc, Bar, Trend, Dual, DualArc }
 enum class PreviewCondition { Normal, Warning, Critical, Stale, Offline }
 
 @Immutable
@@ -26,7 +26,11 @@ data class ReadingPreviewUi(
     val condition: PreviewCondition = PreviewCondition.Normal,
     val secondaryName: String? = null,
     val secondaryValue: String? = null,
-    val secondaryUnit: String? = null
+    val secondaryUnit: String? = null,
+    val arcMetricIndex: Int = 0,
+    val arcFraction: Float = 0.56f,
+    val primaryGear: Boolean = false,
+    val secondaryGear: Boolean = false
 ) {
     val shownValue: String get() = if (condition in
         setOf(PreviewCondition.Stale, PreviewCondition.Offline)
@@ -43,9 +47,7 @@ data class ReadingPreviewUi(
         PreviewCondition.Offline -> "Adapter offline"
     }
     val description: String get() = "Preview. $name, $shownValue $unit. $stateLabel." +
-        if (layout ==
-            PreviewLayout.Dual
-        ) {
+        if (layout == PreviewLayout.Dual || layout == PreviewLayout.DualArc) {
             " ${secondaryName.orEmpty()}, ${if (shownValue == "--") "--" else secondaryValue.orEmpty()} ${secondaryUnit.orEmpty()}."
         } else {
             ""

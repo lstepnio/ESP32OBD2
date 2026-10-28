@@ -115,7 +115,7 @@ source fairness, control deadlines, diagnostics reservation and backoff remain t
 budget authority. The hint adds neither PIDs nor direct reads. Navigation uses the
 latest valid cache immediately and never waits for a prefetch response.
 
-State is fixed for at most 32 readings/eight pages, placed in PSRAM, with a compile-time
+State is fixed for at most 32 readings/ten pages, placed in PSRAM, with a compile-time
 4 KiB combined selector/projection gate. No new task, task stack, framebuffer,
 per-observation allocation or network dependency is introduced. Selection logs record
 page/reason/PID/early/cursor and measured maximum policy time; physical CPU/stack and

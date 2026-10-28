@@ -49,14 +49,19 @@ enum class GaugeLayout(val label: String) {
     Arc("Arc"),
     Bar("Bar"),
     Trend("Trend"),
-    Dual("Dual")
+    Dual("Dual"),
+    DualArc("Dual + arc");
+
+    val isDual: Boolean get() = this == Dual || this == DualArc
+    val renderer: String get() = if (this == DualArc) "dualArc" else name.lowercase(java.util.Locale.ROOT)
 }
 
 data class GaugePageDraft(
     val id: String,
     val name: String,
     val layout: GaugeLayout,
-    val pidIds: List<String>
+    val pidIds: List<String>,
+    val arcMetricIndex: Int = 0
 )
 
 enum class AlertDirection { Above, Below, Equals }
@@ -198,7 +203,19 @@ data class CapabilitySnapshot(
     val supportedRenderers: Set<GaugeLayout> = emptySet(),
     val displayShowcaseVersion: Int = 0,
     val vehicleCommandsVersion: Int = 0,
-    val smartPageCyclingVersion: Int = 0
+    val smartPageCyclingVersion: Int = 0,
+    val automaticOrientationVersion: Int = 0
 )
 
 data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revision: Long)
+
+/** Protected orientation policy. Sensor loss holds the last applied angle. */
+data class GaugeOrientationSettings(
+    val automatic: Boolean,
+    val manualAngle: Int,
+    val appliedAngle: Int,
+    val sensorStatus: Int,
+    val revision: Long
+) {
+    val automaticAvailable: Boolean get() = sensorStatus in 1..2
+}

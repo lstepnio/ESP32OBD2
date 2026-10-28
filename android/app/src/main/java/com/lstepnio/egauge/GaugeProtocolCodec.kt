@@ -58,6 +58,8 @@ object GaugeProtocolCodec {
 
         22 -> runCatching { VehicleCommandProtocol.status(bytes) }.isSuccess
 
+        24 -> runCatching { orientationSettings(bytes) }.isSuccess
+
         23 -> runCatching { displaySettings(bytes) }.isSuccess
 
         else -> false
@@ -77,6 +79,10 @@ object GaugeProtocolCodec {
             if (json.optBoolean("experimentalNumericConfig", false)) 1 else 0
         )
         require(configurationVersion in 0..7) { "Gauge returned an invalid configuration version" }
+        val dualArc = json.optInt("dx", 0).also {
+            require(!json.has("dx") || json.get("dx") is Int) { "Invalid dual arc capability" }
+            require(it in 0..1 && (it == 0 || configurationVersion >= 2)) { "Unsupported dual arc capability" }
+        }
         require(hardwareCapacity in 0..1) { "Gauge returned an invalid hardware-capacity version" }
         require(!configWrite && !ota) { "Unexpected experimental capability flags" }
         return CapabilitySnapshot(
@@ -97,6 +103,10 @@ object GaugeProtocolCodec {
                 require(it in 0..1) { "Unsupported Smart page cycling version" }
                 require(it == 0 || json.optInt("ds", 0) == 3) { "Smart page cycling requires display settings" }
             },
+            automaticOrientationVersion = json.optInt("ao", 0).also {
+                require(!json.has("ao") || json.get("ao") is Int) { "Invalid automatic orientation capability" }
+                require(it in 0..1) { "Unsupported automatic orientation version" }
+            },
             ota = ota,
             wifiBulk = json.optString("wifiBulk").takeIf { it.isNotBlank() },
             hardwareCapacityVersion = hardwareCapacity.takeIf { it > 0 },
@@ -114,7 +124,10 @@ object GaugeProtocolCodec {
             },
             vehicleCommandsVersion = json.optInt("vc", 0).also { require(it in 0..1) },
             adapterRegistryVersion = json.optInt("ad", 0).also { require(it in 0..1) },
-            maxPages = if (configurationVersion >=
+            maxPages = if (json.has("mp")) {
+                require(configurationVersion >= 2 && json.get("mp") is Int && json.getInt("mp") in 1..10) { "Invalid page limit" }
+                json.getInt("mp")
+            } else if (configurationVersion >=
                 2
             ) {
                 8
@@ -124,8 +137,11 @@ object GaugeProtocolCodec {
                 0
             },
             supportedRenderers = when (configurationVersion) {
-                2, 3, 4, 5, 6, 7 -> GaugeLayout.entries.toSet()
+                2, 3, 4, 5, 6, 7 -> GaugeLayout.entries.filter { it != GaugeLayout.DualArc }.toSet() +
+                    if (dualArc == 1) setOf(GaugeLayout.DualArc) else emptySet()
+
                 1 -> setOf(GaugeLayout.Numeric)
+
                 else -> emptySet()
             }
         )
@@ -160,6 +176,23 @@ object GaugeProtocolCodec {
             seconds,
             remaining
         )
+    }
+
+    fun orientationSettings(bytes: ByteArray): GaugeOrientationSettings {
+        require(
+            bytes.size == 12 && bytes[0].toInt() == 24 && bytes[1].toInt() == 1 &&
+                bytes[2].toInt() in 0..1 && bytes[3].toInt() in 0..3 && bytes[4].toInt() in 0..3 &&
+                bytes[5].toInt() in 0..2 && bytes[6].toInt() == 0 && bytes[7].toInt() == 0
+        ) {
+            "Gauge returned invalid orientation settings"
+        }
+        return GaugeOrientationSettings(bytes[2].toInt() == 1, bytes[3].toInt(), bytes[4].toInt(), bytes[5].toInt(), u32(bytes, 8))
+    }
+
+    fun orientationSettingsWrite(automatic: Boolean, manualAngle: Int, revision: Long): ByteArray {
+        require(manualAngle in 0..3 && revision in 0..0xffffffffL)
+        return byteArrayOf(0x6b, if (automatic) 1 else 0, manualAngle.toByte()) +
+            ByteArray(4) { (revision shr (it * 8)).toByte() }
     }
 
     fun displaySettings(bytes: ByteArray): GaugeConfigTransferClient.DisplaySettings {

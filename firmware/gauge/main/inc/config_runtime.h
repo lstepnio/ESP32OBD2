@@ -11,7 +11,7 @@
 #include "diagnostic_filter.h"
 
 #define EGAUGE_RUNTIME_PIDS 32
-#define EGAUGE_RUNTIME_PAGES 8
+#define EGAUGE_RUNTIME_PAGES 10
 #define EGAUGE_RUNTIME_ALERTS 32
 #define CONFIG_RUNTIME_STATUS_SIZE 44
 
@@ -22,6 +22,7 @@ typedef enum
     RUNTIME_RENDERER_BAR,
     RUNTIME_RENDERER_TREND,
     RUNTIME_RENDERER_DUAL,
+    RUNTIME_RENDERER_DUAL_ARC,
 } runtime_renderer_t;
 
 typedef struct
@@ -31,6 +32,7 @@ typedef struct
     runtime_renderer_t renderer;
     uint8_t            pid_count;
     uint8_t            pid_indices[2];
+    uint8_t            arc_metric_index;
 } runtime_page_t;
 
 typedef struct

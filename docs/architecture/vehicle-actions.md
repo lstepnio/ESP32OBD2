@@ -524,7 +524,7 @@ not qualify live controller execution.
   Null inherits the vehicle's legacy gesture; an empty override turns the gesture
   off, while a vehicle-actions binding with zero pages opens the setup state.
   Reassignment to another vehicle clears the override. Existing page-jump bindings
-  retain their meaning. Profiles use schema 17; gauge associations use schema 2.
+  retain their meaning. Profiles use schema 18 (schema 17 migrates with unchanged action semantics); gauge associations use schema 2.
 - The App saves overrides and vehicle pressure calibration together through
   `LocalSetupTransactions`. It offers typed compatible actions, edit, reorder and
   remove with Undo. Compact rows open an editor with duration, the shared coolant

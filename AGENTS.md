@@ -35,8 +35,11 @@ contracts/status and dated evidence. `data/vehicle-definitions/` is research onl
 - Use the [check-selection guide](docs/development/quality.md#change-based-check-selection)
   for the smallest complete gate. Run checks for the changed boundary. Repeat broad tests only for a concrete risk.
   A build, fixture or serial log is not physical qualification.
-- Follow [documentation ownership](docs/documentation.md). Keep one topic authority;
-  update code/contracts together. Major choices belong in [ADRs](docs/decisions/README.md).
+- Every feature addition, change, experiment or removal must update its canonical
+  documentation in the same PR. Follow the [feature completion rule](docs/documentation.md#feature-completion-rule)
+  and [feature index](docs/features.md); include behavior/defaults, UX, ownership,
+  compatibility, tests and remaining limits. Do not call undocumented work complete.
+  Keep one topic authority; major choices belong in [ADRs](docs/decisions/README.md).
 - Feature completion includes a website-impact review. Follow [website maintenance](website/README.md#maintenance-cadence)
   for resource-aware daily publication, owner-led roadmap updates and current App/circular-gauge screens;
   keep marketing capture/publication off the normal build path.

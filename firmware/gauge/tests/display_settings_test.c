@@ -200,7 +200,7 @@ int main(void)
         /* Old firmware writes only its unchanged legacy record. */
         flash[0].bytes[4] = 11;
         reboot();
-        assert(!before.smart_cycle && before.revision == 11);
+        assert(!before.smart_cycle && !before.auto_orientation && before.revision == 11);
     }
     /* Every malformed sidecar field and missing/oversize blob fails closed. */
     for (int field = 0; field < 7; ++field)
@@ -212,7 +212,7 @@ int main(void)
         if (field == 0)
             flash[1].bytes[0] = 2;
         if (field == 1)
-            flash[1].bytes[1] = 2;
+            flash[1].bytes[1] = 4;
         if (field == 2)
             flash[1].bytes[2] = 1;
         if (field == 3)
@@ -225,6 +225,58 @@ int main(void)
             flash[1].length = 0;
         reboot();
         assert(!before.smart_cycle && before.revision == 1);
+    }
+    for (int old_auto = 0; old_auto <= 1; ++old_auto)
+        for (int point = 1; point <= 2; ++point)
+            for (int after = 0; after <= 1; ++after)
+            {
+                memset(flash, 0, sizeof(flash));
+                reboot();
+                save(true);
+                reboot();
+                assert(display_settings_save_orientation(old_auto != 0, 1, before.revision, NULL) == ESP_OK);
+                reboot();
+                cut_commit = point;
+                cut_after  = after != 0;
+                if (setjmp(power_loss) == 0)
+                {
+                    (void)display_settings_save_orientation(!old_auto, 1, before.revision, NULL);
+                    assert(false);
+                }
+                reboot();
+                bool activated = point == 2 && after;
+                assert(before.auto_orientation == (activated ? !old_auto : old_auto));
+                assert(before.revision == (activated ? 3U : 2U));
+                assert(before.smart_cycle && before.rotation == 1);
+                assert(display_settings_save_orientation(!old_auto, 1, before.revision, NULL) == ESP_OK);
+                reboot();
+                assert(before.auto_orientation == !old_auto && before.smart_cycle);
+            }
+    memset(flash, 0, sizeof(flash));
+    reboot();
+    assert(!before.auto_orientation);
+    assert(display_settings_save_orientation(true, 2, 0, NULL) == ESP_OK);
+    reboot();
+    assert(before.auto_orientation && before.rotation == 2);
+    assert(display_settings_save_smart(2, 50, 0, 30, true, 1, NULL) == ESP_OK);
+    reboot();
+    assert(before.auto_orientation && before.smart_cycle && before.rotation == 2);
+    assert(display_settings_save_orientation(false, 2, 2, NULL) == ESP_OK);
+    reboot();
+    assert(!before.auto_orientation && before.smart_cycle);
+    assert(display_settings_save_orientation(true, 2, 3, NULL) == ESP_OK);
+    reboot();
+    assert(display_settings_save(2, 50, 0, 30, 4, NULL) == ESP_OK);
+    reboot();
+    assert(!before.auto_orientation && before.smart_cycle);
+    /* Auto shares the same revision activation and preserves old state on failure. */
+    for (int fail = 1; fail <= 2; ++fail)
+    {
+        fail_commit  = fail;
+        commit_count = 0;
+        assert(display_settings_save_orientation(true, 2, before.revision, NULL) == ESP_FAIL);
+        reboot();
+        assert(!before.auto_orientation && before.rotation == 2);
     }
     seed_legacy(3, 1);
     memset(flash[0].bytes + 4, 255, 4);

@@ -65,3 +65,21 @@ config EGAUGE_DTC_CLEAR_ENABLED
     help
         Development qualification switch. Never enable for an unqualified vehicle
         or JSS transmission controller. Reading faults does not qualify clearing.
+
+config EGAUGE_AUTO_ORIENTATION_QUALIFIED
+    bool "Advertise physically qualified reference-board Auto orientation"
+    depends on EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED
+    default n
+    help
+        Keep disabled until mapping v1, display/touch alignment, motion stability,
+        shared-I2C contention, pairing, alerts, updates and cycling are physically
+        qualified. Identity/probe success and offline tests do not qualify hardware.
+
+config EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED
+    bool "Run offline-qualified candidate orientation sensor worker"
+    default n
+    help
+        Starts one low-priority worker with a 2048-byte internal stack and no
+        queue. Reads the existing shared touch I2C bus at 10Hz. Driver waits are
+        isolated from the rendering/control owner. Does not qualify Auto or
+        enable its capability by itself. Keep disabled in normal release images.

@@ -11,9 +11,12 @@
 [Documentation map](documentation-map.json) provides the validated machine-readable inventory.
 Read only the affected contract/runbook before source work; evidence is not required onboarding.
 
+[Feature context index](features.md) links product features to their maintained contracts.
+
 ## Architecture
 
 - [System overview](architecture/system.md), [Android ownership](architecture/android-runtime.md), [firmware ownership](architecture/firmware-runtime.md)
+- [Display experience](architecture/display-experience.md): ten pages, Dual + arc, gear colors and icon-only waiting
 - [Interaction/recovery rules](architecture/interaction-recovery.md), [Smart page cycling](architecture/smart-page-cycling.md)
 - [Vehicle connections and dashboard](architecture/vehicle-connections.md), [multi-adapter qualification](architecture/multi-adapter.md)
 - [Configuration storage](architecture/config-storage.md), [architecture decisions](decisions/README.md)

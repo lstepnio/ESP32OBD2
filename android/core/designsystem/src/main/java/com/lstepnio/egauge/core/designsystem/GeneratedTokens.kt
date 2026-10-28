@@ -75,4 +75,11 @@ object EGaugeTokens {
         const val paneBreakpoint = 840
         const val contentMax = 1200
     }
+    object Gauge {
+        val gearPark = Color(0xFFF5F7F7)
+        val gearNeutral = Color(0xFF00FF70)
+        val gearDrive = Color(0xFF00D8FF)
+        val gearReverse = Color(0xFFFF8A00)
+        val gearUnknown = Color(0xFF9CAAB2)
+    }
 }

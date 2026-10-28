@@ -178,7 +178,7 @@ class ProfileActionsTest {
         )
         val current = GaugeProtocolCodec.capabilities(base.put("cfg", 4).toString().toByteArray())
         assertEquals(1, current.pageActionsVersion)
-        assertEquals(GaugeLayout.entries.toSet(), current.supportedRenderers)
+        assertEquals(GaugeLayout.entries.filter { it != GaugeLayout.DualArc }.toSet(), current.supportedRenderers)
         assertFalse(
             presentationBlockers(initial.copy(actions = listOf(action)), current).any {
                 "gesture" in

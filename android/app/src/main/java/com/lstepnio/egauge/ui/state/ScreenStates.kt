@@ -18,7 +18,8 @@ data class PageUi(
     val unit: String,
     val layout: GaugeLayout,
     val preview: ReadingPreviewUi,
-    val secondaryId: String? = null
+    val secondaryId: String? = null,
+    val arcMetricIndex: Int = 0
 )
 
 @Immutable
@@ -169,7 +170,11 @@ data class SettingsUiState(
     val gauges: List<GaugeUi> = emptyList(),
     val selectedGaugeId: String? = null,
     val smartCycleSupported: Boolean = false,
-    val smartCycle: Boolean = false
+    val smartCycle: Boolean = false,
+    val autoOrientationSupported: Boolean = false,
+    val automaticOrientation: Boolean = false,
+    val orientationSensorStale: Boolean = false,
+    val orientationProtocolSupported: Boolean = false
 )
 
 @Immutable

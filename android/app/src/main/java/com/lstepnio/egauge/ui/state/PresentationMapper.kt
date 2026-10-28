@@ -37,11 +37,20 @@ fun pageUi(page: GaugePageDraft, system: MeasurementSystem = MeasurementSystem.M
             secondaryValue = secondary?.let {
                 MeasurementUnits.displayValue(it.demoValue, it.unit, system)
             },
+            arcMetricIndex = page.arcMetricIndex,
+            primaryGear = reading.alertKind == "gear",
+            secondaryGear = secondary?.alertKind == "gear",
+            arcFraction = page.pidIds.getOrNull(page.arcMetricIndex)?.let { id ->
+                demoCatalog.first { it.id == id }.let { metric ->
+                    metric.demoValue.replace(",", "").toDoubleOrNull()?.let { ((it - metric.minimum) / (metric.maximum - metric.minimum)).toFloat().coerceIn(0f, 1f) }
+                }
+            } ?: 0f,
             secondaryUnit = secondary?.let {
                 MeasurementUnits.label(it.unit, system)
             }
         ),
-        secondary?.id
+        secondary?.id,
+        page.arcMetricIndex
     )
 }
 
@@ -476,7 +485,11 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             },
             rememberedGaugeId,
             smartCycleSupported = capabilities?.smartPageCyclingVersion == 1 && displaySettings?.supportsSmartCycle == true,
-            smartCycle = displaySettings?.smartCycle == true
+            smartCycle = displaySettings?.smartCycle == true,
+            autoOrientationSupported = capabilities?.automaticOrientationVersion == 1 && orientationSettings?.automaticAvailable == true,
+            automaticOrientation = orientationSettings?.automatic == true,
+            orientationSensorStale = orientationSettings?.sensorStatus == 2,
+            orientationProtocolSupported = capabilities?.automaticOrientationVersion == 1
         ),
         ExpertUiState(
             found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,

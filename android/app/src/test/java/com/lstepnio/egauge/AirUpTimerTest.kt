@@ -43,7 +43,7 @@ class AirUpTimerTest {
         val preset = IdlePreset(IdlePresetId.AirUp, seconds = 480, airUp = reference)
         val collection = ProfileCollection("jeep", listOf(VehicleProfile("jeep", "Jeep", Draft(idlePresets = listOf(preset)))))
         val raw = ProfileDocumentCodec.encode(collection)
-        assertEquals(17, JSONObject(raw).getInt("schemaVersion"))
+        assertEquals(18, JSONObject(raw).getInt("schemaVersion"))
         assertEquals(collection, ProfileDocumentCodec.decode(raw))
         assertTrue(runCatching { ProfileDocumentCodec.decode(JSONObject(raw).put("schemaVersion", 15).toString()) }.isFailure)
         val legacy = ProfileCollection("jeep", listOf(VehicleProfile("jeep", "Jeep", Draft(idlePresets = listOf(IdlePreset(IdlePresetId.AirUp))))))

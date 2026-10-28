@@ -13,6 +13,7 @@ typedef struct
     uint16_t cycle_seconds;
     uint32_t base_revision;
     bool     smart_cycle;
+    bool     auto_orientation;
 } companion_command_t;
 
 typedef struct _ui_t ui_t;

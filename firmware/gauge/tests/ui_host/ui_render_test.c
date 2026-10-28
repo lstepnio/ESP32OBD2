@@ -647,6 +647,58 @@ int main(int argc, char **argv)
     tick(200);
     assert(ui->command_menu_visible && command_requests == before);
     close_vehicle_menu(ui);
+    /* A dual arc reuses the original arc object, selects either numeric slot,
+     * and retains the two reading identities/colors and tenth-page position. */
+    ui->simulated = false;
+    page_action_reset(&ui->action);
+    ui_set_alert_full(ui, 0, false, "", false);
+    ui_set_diagnostics(ui, false, false, false, 0, "");
+    ui_page_t dual_arc = {
+        .name             = "Gear and RPM",
+        .renderer         = UI_RENDERER_DUAL_ARC,
+        .metric_count     = 2,
+        .arc_metric_index = 1,
+        .metrics          = {
+            {.pid = 0x5503, .name = "Gear", .unit = "gear", .minimum = 0, .maximum = 13, .stale_after_ms = 2000},
+            {.pid = 0x0c, .name = "Engine RPM", .unit = "rpm", .minimum = 0, .maximum = 8000, .stale_after_ms = 2000}}};
+    double park = 13, idle_rpm = 675;
+    ui_set_value(ui, 0x5503, &park);
+    ui_set_value(ui, 0x0c, &idle_rpm);
+    ui_set_page(ui, &dual_arc);
+    ui_set_page_position(ui, 9, 10);
+    tick(60);
+    assert(!lv_obj_has_flag(ui->widgets.arc, LV_OBJ_FLAG_HIDDEN));
+    assert(lv_arc_get_value(ui->widgets.arc) == 84);
+    assert(!strcmp(lv_label_get_text(ui->widgets.dual_value[0]), "P"));
+    assert(!strcmp(lv_label_get_text(ui->widgets.page_position), "10/10"));
+    assert(lv_color_to_u32(lv_obj_get_style_text_color(ui->widgets.dual_value[0], 0)) ==
+           lv_color_to_u32(lv_color_hex(GAUGE_GEAR_PARK)));
+    capture(argv[1], "dual-arc-gear-rpm");
+    double reverse = 11;
+    ui_set_value(ui, 0x5503, &reverse);
+    tick(60);
+    assert(lv_color_to_u32(lv_obj_get_style_text_color(ui->widgets.dual_value[0], 0)) ==
+           lv_color_to_u32(lv_color_hex(GAUGE_GEAR_REVERSE)));
+    capture(argv[1], "dual-arc-reverse");
+    ui_set_source_state(ui, 0, false, 7, 1);
+    ui_set_source_state(ui, 1, false, 7, 1);
+    vehicle = false;
+    ui_waiting_logo_enable(ui, true);
+    tick(60);
+    assert(ui->waiting_visible && ui_cycle_pause(ui) == PAGE_CYCLE_WAITING);
+    capture(argv[1], "waiting-logo");
+    before = command_requests;
+    boot_logo_touch(NULL);
+    tick(60);
+    assert(!ui->waiting_visible && command_requests == before);
+    tick(DISPLAY_IDLE_TOUCH_MS + 1);
+    assert(ui->waiting_visible);
+    vehicle = true;
+    ui_set_source_state(ui, 0, true, 7, source_generations[0]);
+    ui_set_source_value(ui, 0, 7, source_generations[0], 0x0c, &idle_rpm, host_ms);
+    tick(60);
+    assert(!ui->waiting_visible);
+    ui_waiting_logo_enable(ui, false);
     /* Calibration pages exercise geometry/fonts outside the instrument compositor. */
     for (unsigned i = 0; i < CALIBRATION_PAGE_COUNT; i++)
     {
@@ -656,6 +708,11 @@ int main(int argc, char **argv)
         snprintf(name, sizeof(name), "calibration-%u", i + 1);
         capture(argv[1], name);
     }
+    lv_mem_monitor_t memory;
+    lv_mem_monitor(&memory);
+    assert(memory.total_size <= 64U * 1024U && memory.free_size > 4096U);
+    printf("LVGL fixed arena: total=%zu free=%zu biggest=%zu used_pct=%u\n", memory.total_size, memory.free_size,
+           memory.free_biggest_size, memory.used_pct);
     puts("PASS: production LVGL showcase frames, circular glyphs, vehicle/maintenance/critical preemption and pairing "
          "restore");
 }

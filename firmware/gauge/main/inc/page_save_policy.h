@@ -35,7 +35,8 @@ typedef enum
     PAGE_CYCLE_TOUCH,
     PAGE_CYCLE_ACTIONS,
     PAGE_CYCLE_ATTENTION,
-    PAGE_CYCLE_SHOWCASE
+    PAGE_CYCLE_SHOWCASE,
+    PAGE_CYCLE_WAITING
 } page_cycle_reason_t;
 typedef struct
 {

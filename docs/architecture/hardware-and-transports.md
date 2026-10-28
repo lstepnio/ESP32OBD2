@@ -53,36 +53,44 @@ Owner direction: Settings rotation should offer **Auto** when the gauge can repo
 actual orientation and adjust its own screen. Auto orientation is independent of
 **Auto-cycle pages**, which changes saved pages at an interval.
 
-Current firmware implements manual 0°, 90°, 180° and 270° only. The board inventory
-lists a QMI8658, but its driver, identity/health probe and enclosure axis calibration
-are not implemented. Board model or sensor presence alone cannot enable Auto.
+Source implements manual angles plus a qualification-gated QMI8658 candidate.
+The [Waveshare board documentation](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.28)
+lists the IMU on the shared touch I2C bus. Presence alone does not enable Auto.
+`CONFIG_EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED` and
+`CONFIG_EGAUGE_AUTO_ORIENTATION_QUALIFIED` both default off. Default images start no
+sensor worker and expose no usable Auto choice.
 
-Implementation policy:
+The optional low-priority worker borrows the existing board I2C bus, probes identity,
+configures accelerometer-only sampling and detects frozen timestamps. It performs
+one bus transaction per iteration, normally 10 Hz in Auto and 2 Hz once healthy in
+manual mode, with five-second retry after failure. Its static 2 KiB stack remains
+internal for flash-safe execution. On the reference 100 Hz IDF tick, driver waits
+have 10 ms granularity and internal sub-waits can exceed one requested timeout;
+this is not a hard five-millisecond wall-clock claim. No I2C operation runs on the
+application, BLE callback or rendering owner. Transfers and queued/in-flight vehicle
+commands suspend observations/rotation; stale sensor state holds the last angle.
 
-- Advertise an explicit usable Auto-orientation capability after initialization and
-  health checks. Show Auto alongside the four manual angles only for supported gauges;
-  legacy gauges retain their current choices and wire semantics.
-- Persist the selected mode separately from the last applied manual/automatic angle.
-  Keep the current manual default on migration. In Auto, changing the applied angle
-  must not rewrite flash on every sensor observation or change page/vehicle settings.
-- Sample orientation through bounded shared-I2C ownership, independent of BLE/UI
-  callbacks. Map board axes through a versioned mounting calibration. Use gravity
-  confidence, angular hysteresis and a stable dwell before changing among four angles;
-  do not rotate from every noisy sample, acceleration spike or nearly horizontal pose.
-- Apply display and touch transforms together through the existing rendering owner.
-  Hold the last stable angle when orientation is ambiguous or the sensor becomes
-  unavailable. Recover automatically when reliable observations return; do not
-  repeatedly prompt the user. Manual selection exits Auto immediately.
-- Negotiate a versioned display-settings extension carrying mode, applied angle and
-  sensor availability. Do not reinterpret legacy rotation bytes or allocate opcodes
-  in this design document. Unsupported writes are rejected, not silently converted.
-- Test axis mapping, all angles, boundary jitter, motion/flat poses, stale sensor,
-  shared-bus contention, restart/persistence and legacy compatibility. Physically
-  qualify display/touch alignment, vehicle-motion stability and continued pairing,
-  alerts, updates and page cycling before advertising Auto on this board.
+The pure policy requires plausible gravity (0.85..1.15 g), at least 650 mg in-plane,
+a 1.5:1 cardinal margin and 800 ms stable dwell. Flat poses, motion, jitter and
+one-second stale observations hold the last angle. Axis mapping version 1 is a
+candidate until enclosure/touch calibration is physically verified. Rotation is
+applied through the existing board display/touch transform; applied state changes
+only after successful application. Sensor motion never writes flash.
 
-The [backlog](../backlog.md) owns implementation status; this policy does not claim
-that Auto works in the current development image.
+The [protected orientation extension](../protocol/experimental-firmware-transfers.md#sensor-orientation-extension)
+separates stable protocol support (`ao:1`) from sensor state. The App automatically
+reads state and offers Auto only after a qualified sensor has been healthy.
+Temporary staleness then retains Auto and the last applied angle; unavailable
+initial hardware does not offer it. Saved mode and manual fallback are distinct
+from the current applied angle. An explicit manual choice exits Auto, including
+choosing the same angle. Unrelated brightness/units/cycling saves preserve Auto.
+Legacy gauges retain manual controls and their existing byte formats.
+
+Offline tests cover gravity/axis candidates, dwell/jitter, stale/frozen data, bus
+failure/retry, storage faults and legacy compatibility. Before changing either
+default gate, qualify every angle and touch alignment, repeated missing/shared-bus
+failure, vehicle vibration/acceleration, stack margin, flash/update coexistence,
+pairing/alerts and restart. The [backlog](../backlog.md) owns the remaining gate.
 
 ## Product opportunity review
 

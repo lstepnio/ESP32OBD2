@@ -284,6 +284,71 @@ class OptimizationUiTest {
         compose.onAllNodesWithText("Check gauge access").assertCountEquals(0)
     }
 
+    @Test fun orientationProtocolKeepsManualWritesAvailableWhileSensorBecomesReady() {
+        var state by mutableStateOf(
+            SettingsUiState(
+                "eGauge", true, 2, true, false, false, false, "test", emptyList(),
+                displaySettingsVersion = 3, brightness = 80, selectedGaugeId = "starting-sensor",
+                orientationProtocolSupported = true
+            )
+        )
+        val saves = mutableListOf<Pair<Boolean, Int>>()
+        var legacySaves = 0
+        compose.setContent {
+            EGaugeTheme {
+                SettingsScreen(
+                    state, {}, {}, {}, { legacySaves++ }, { _, _ -> legacySaves++ }, {}, {}, {},
+                    onSaveOrientation = { automatic, angle -> saves += automatic to angle }
+                )
+            }
+        }
+        compose.onNodeWithText("Rotation").performScrollTo().performClick()
+        compose.onAllNodesWithText("Auto").assertCountEquals(0)
+        compose.onNode(hasText("180°") and isSelected()).assertIsDisplayed()
+        compose.onNodeWithText("Rotate gauge").performClick()
+        compose.runOnIdle {
+            assertEquals(listOf(false to 2), saves)
+            assertEquals(0, legacySaves)
+        }
+        compose.runOnIdle { state = state.copy(automaticOrientation = false, autoOrientationSupported = true) }
+        compose.onNodeWithText("Rotation").performScrollTo().performClick()
+        compose.onNodeWithText("Auto").performClick()
+        compose.onNodeWithText("Rotate gauge").performClick()
+        compose.runOnIdle {
+            assertEquals(listOf(false to 2, true to 2), saves)
+            assertEquals(0, legacySaves)
+        }
+    }
+
+    @Test fun autoOrientationIsOfferedOnlyBySupportedHardwareAndManualSelectionExitsAuto() {
+        var state by mutableStateOf(
+            SettingsUiState(
+                "eGauge", true, 2, true, false, false, false, "test", emptyList(),
+                displaySettingsVersion = 3, brightness = 80, selectedGaugeId = "orientation-gauge"
+            )
+        )
+        val saves = mutableListOf<Pair<Boolean, Int>>()
+        compose.setContent {
+            EGaugeTheme {
+                SettingsScreen(
+                    state, {}, {}, {}, {}, { _, _ -> }, {}, {}, {},
+                    onSaveOrientation = { automatic, angle -> saves += automatic to angle }
+                )
+            }
+        }
+        compose.onNodeWithText("Rotation").performScrollTo().performClick()
+        compose.onAllNodesWithText("Auto").assertCountEquals(0)
+        compose.onNodeWithText("Cancel").performClick()
+        compose.runOnIdle { state = state.copy(orientationProtocolSupported = true, autoOrientationSupported = true, automaticOrientation = true, orientationSensorStale = true) }
+        compose.onNodeWithText("Auto · holding orientation").assertExists()
+        compose.onNodeWithText("Rotation").performScrollTo().performClick()
+        compose.onNodeWithText("Auto").assertExists()
+        compose.onNodeWithText("Holding the last orientation until the sensor recovers.").assertExists()
+        compose.onNodeWithText("180°").performClick()
+        compose.onNodeWithText("Rotate gauge").performClick()
+        compose.runOnIdle { assertEquals(listOf(false to 2), saves) }
+    }
+
     @Test fun smartCyclingRetainsDisabledPreferenceAndSavesBothFieldsTogether() {
         var state by mutableStateOf(
             SettingsUiState(
