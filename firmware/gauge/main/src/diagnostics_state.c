@@ -46,21 +46,21 @@ static bool codes_fresh(unsigned source, unsigned i, uint32_t now)
            snapshots[source].categories[i].compatible && snapshots[source].categories[i].result == DIAGNOSTICS_OK &&
            now - snapshots[source].categories[i].at <= 120000;
 }
-/* Local presentation bridges minute polling and bounded diagnostic retries.
- * Code evidence outlives a 120-second refresh plus a 240-second retry budget.
+/* Local presentation bridges five-minute polling and bounded diagnostic retries.
+ * Code evidence outlives a ten-minute refresh plus a four-minute retry budget.
  * Original observation clocks and compatibility still apply; raw companion/history
  * results retain their strict mil_fresh/codes_fresh limits. */
 static bool mil_present(unsigned source, uint32_t now)
 {
     return snapshots[source].connected && !snapshots[source].simulated && snapshots[source].mil_known &&
-           snapshots[source].mil_result != DIAGNOSTICS_UNSUPPORTED && now - snapshots[source].mil_at <= 180000;
+           snapshots[source].mil_result != DIAGNOSTICS_UNSUPPORTED && now - snapshots[source].mil_at <= 600000;
 }
 static bool codes_present(unsigned source, unsigned i, uint32_t now)
 {
     return snapshots[source].connected && !snapshots[source].simulated && snapshots[source].categories[i].known &&
            snapshots[source].categories[i].compatible &&
            snapshots[source].categories[i].result != DIAGNOSTICS_UNSUPPORTED &&
-           now - snapshots[source].categories[i].at <= 600000;
+           now - snapshots[source].categories[i].at <= 900000;
 }
 static void update_mil(unsigned source, bool on, uint8_t count, uint32_t now)
 {

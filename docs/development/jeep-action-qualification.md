@@ -170,3 +170,15 @@ actual countdown at the next opportunity. The display fix is installed in signed
 The owner confirmed physical dev.63 normal pages, swipes and action-page entry.
 Vehicle coolant/countdown and remaining protection/recovery checks remain.
 Website impact: no new public qualification claim or publication is warranted.
+
+## Read-only gauge diagnostic snapshot
+
+`DiagnosticReadbackJourneyTest` requires explicit `allowDiagnosticReadback=true`
+and may pin `expectedFirmwareVersion` / `expectedFirmwareElf`. Stop phone alert
+monitoring first, then run only this class on the authorized paired phone. It saves
+exact running setup and protected ECM/TCM diagnostic, adapter and command state in
+the App's private external `diagnostic-readback/` output. Unknown and stale fields
+are retained, not asserted fresh. These are gauge-cache reads, not forced ECU
+acquisition; retain original ages, session and revision when attributing an icon.
+No clearing, control, filter edit or configuration write is performed. Treat the
+output as private vehicle evidence and restore monitoring/wake preferences afterward.
