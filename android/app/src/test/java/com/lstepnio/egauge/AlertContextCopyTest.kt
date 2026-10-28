@@ -8,6 +8,8 @@ class AlertContextCopyTest {
     @Test fun contextUsesTheSelectedUnitSystem() {
         assertEquals("212 °F", alertContextReading(100.0, "°C", MeasurementSystem.Imperial))
         assertEquals("100 °C", alertContextReading(100.0, "°C", MeasurementSystem.Metric))
+        assertEquals("100 °C", alertContextReading(100.0, "degC", MeasurementSystem.Metric))
+        assertEquals("212 °F", alertContextReading(100.0, "degC", MeasurementSystem.Imperial))
     }
 
     @Test fun gearIsANameAndMissingValuesStayUnavailable() {

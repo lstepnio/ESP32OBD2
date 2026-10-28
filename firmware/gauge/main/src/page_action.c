@@ -58,7 +58,7 @@ bool page_action_release(page_action_t *s, int16_t x, int16_t y, uint32_t now, b
 {
     *fired = false;
     page_action_tick(s, now);
-    bool valid = s->pressed && !s->cancelled && s->config.enabled && now - s->press_ms >= 80 &&
+    bool valid = s->pressed && !s->cancelled && s->config.enabled && now - s->press_ms >= 40 &&
                  now - s->press_ms <= 800 && (int)s->y - y >= 32 && abs((int)x - s->x) <= 24 &&
                  (int)s->y - y >= 2 * abs((int)x - s->x);
     s->pressed = false;

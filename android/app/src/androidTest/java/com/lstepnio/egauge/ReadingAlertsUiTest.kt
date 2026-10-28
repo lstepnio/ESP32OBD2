@@ -30,7 +30,7 @@ class ReadingAlertsUiTest {
         var selected: String? = null
         compose.setContent {
             EGaugeTheme {
-                AlertManager(state, {}, { selected = it }, ScreenFixtures.customizeActions)
+                AlertManager(state, {}, { selected = it })
             }
         }
         compose.onNodeWithText("Search readings").performTextInput("transmission")

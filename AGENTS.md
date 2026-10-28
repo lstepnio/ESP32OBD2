@@ -50,6 +50,8 @@ contracts/status and dated evidence. `data/vehicle-definitions/` is research onl
 - Follow [interaction/recovery](docs/architecture/interaction-recovery.md) for automatic
   settings/connection reads, cancellable polling, bounded backoff and quiet recovery.
   Reuse the universal connection widget; technical data belongs in Expert.
+  For UI changes, meet the [UX completion standard](docs/design/design-system.md#ux-completion-standard):
+  review task paths/states, interaction tests and compact/200% text captures before completion.
 - A normal vehicle has one primary adapter. An optional swap TCM is its child and changes
   transport routing only, never page/reading/alert availability. Preserve per-gauge
   assignments, legacy inputs and sibling operation during independent source loss.

@@ -72,6 +72,13 @@ static void action_release(ui_t *ui)
 {
     command_pointer(ui, LV_EVENT_RELEASED, ui->command_button, gx(120), gy(174));
 }
+static unsigned object_count(lv_obj_t *root)
+{
+    unsigned count = 1;
+    for (unsigned i = 0; i < lv_obj_get_child_count(root); ++i)
+        count += object_count(lv_obj_get_child(root, i));
+    return count;
+}
 static void check_labels(lv_obj_t *root)
 {
     if (lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN))
@@ -122,6 +129,8 @@ static void touch(ui_t *ui, lv_event_code_t event)
     (void)ui;
     (void)event;
 }
+#include "gesture_regression.inc"
+
 int main(int argc, char **argv)
 {
     assert(argc == 2);
@@ -251,6 +260,21 @@ int main(int argc, char **argv)
     scoped.metrics[0].revision = 9;
     ui_set_page(ui, &scoped);
     assert(metric_value(ui, 0, &actual));
+    /* Full cache rejects overflow without evicting or corrupting existing data. */
+    ui_set_source_value(ui, 1, 9, 2, 0x7777, &child, host_ms);
+    assert(metric_value(ui, 0, &actual) && actual == primary);
+    scoped.metrics[0].pid = 0x7777;
+    ui_set_page(ui, &scoped);
+    assert(!metric_value(ui, 0, &actual));
+    scoped.metrics[0].pid = 131;
+    ui_set_page(ui, &scoped);
+    double nonfinite = NAN;
+    ui_set_source_value(ui, 1, 9, 2, 131, &nonfinite, host_ms);
+    assert(!metric_value(ui, 0, &actual));
+    nonfinite = INFINITY;
+    ui_set_source_value(ui, 1, 9, 2, 131, &nonfinite, host_ms);
+    assert(!metric_value(ui, 0, &actual));
+    ui_set_source_value(ui, 1, 9, 2, 131, &primary, host_ms);
     ui_set_source_state(ui, 0, false, 9, 1);
     assert(metric_value(ui, 0, &actual)); /* Healthy sibling retained. */
     ui_set_source_state(ui, 1, false, 9, 2);
@@ -375,6 +399,7 @@ int main(int argc, char **argv)
     ui->pressed_at   = xTaskGetTickCount();
     tick(15001);
     assert(!ui->press_active && ui_cycle_pause(ui) == PAGE_CYCLE_RUNNING);
+    test_gestures(ui, display);
     ui->touch_cb = command_touch;
     ui_configure_page_action(ui, (page_action_config_t){.enabled        = true,
                                                         .count          = 3,
@@ -687,6 +712,32 @@ int main(int argc, char **argv)
     tick(60);
     assert(ui->waiting_visible && ui_cycle_pause(ui) == PAGE_CYCLE_WAITING);
     capture(argv[1], "waiting-logo");
+    /* Current waiting mark has exactly four retained objects. Warm rendering
+     * before measuring LVGL arena stability, then redraw without allocating. */
+    assert(lv_obj_get_child_count(boot_logo) == 3);
+    assert(lv_obj_check_type(lv_obj_get_child(boot_logo, 0), &lv_arc_class));
+    assert(lv_obj_check_type(lv_obj_get_child(boot_logo, 1), &lv_line_class));
+    assert(object_count(boot_logo) == 4);
+    assert(lv_color_to_u32(lv_obj_get_style_arc_color(lv_obj_get_child(boot_logo, 0), LV_PART_MAIN)) ==
+           lv_color_to_u32(lv_color_hex(0x555555)));
+    assert(lv_color_to_u32(lv_obj_get_style_line_color(lv_obj_get_child(boot_logo, 1), 0)) ==
+           lv_color_to_u32(lv_color_hex(0x555555)));
+    assert(lv_color_to_u32(lv_obj_get_style_bg_color(lv_obj_get_child(boot_logo, 2), 0)) ==
+           lv_color_to_u32(lv_color_hex(0x555555)));
+    unsigned         objects = object_count(lv_screen_active());
+    lv_mem_monitor_t logo_before, logo_after;
+    lv_mem_monitor(&logo_before);
+    for (unsigned redraw = 0; redraw < 100; ++redraw)
+    {
+        ui_boot_logo_early();
+        lv_obj_invalidate(boot_logo);
+        tick(60);
+        assert(ui->waiting_visible && lv_obj_get_child_count(boot_logo) == 3);
+        assert(object_count(lv_screen_active()) == objects);
+    }
+    lv_mem_monitor(&logo_after);
+    assert(logo_after.free_size == logo_before.free_size);
+    assert(logo_after.free_biggest_size == logo_before.free_biggest_size);
     before = command_requests;
     boot_logo_touch(NULL);
     tick(60);

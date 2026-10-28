@@ -71,16 +71,22 @@ fun CarAlertSettingsScreen(
         }
     }
     if (choosing) {
-        ReadingPicker(
-            state.readings,
-            "Choose a reading",
-            null,
-            state.editingEnabled,
-            { choosing = false },
-            {
-                readingId = it
-                choosing = false
-            }
-        )
+        AddAlertReadingPicker(state, { choosing = false }) {
+            readingId = it
+            choosing = false
+        }
     }
+}
+
+/** Shared production picker boundary keeps configured disabled rules out of Add alert too. */
+@Composable
+internal fun AddAlertReadingPicker(state: CustomizeUiState, onDismiss: () -> Unit, onSelect: (String) -> Unit) {
+    ReadingPicker(
+        state.readings.filter { reading -> state.alerts.none { it.readingId == reading.id } },
+        "Choose a reading",
+        null,
+        state.editingEnabled,
+        onDismiss,
+        onSelect
+    )
 }

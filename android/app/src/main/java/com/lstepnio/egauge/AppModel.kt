@@ -91,10 +91,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         foregroundConnection.setForeground(connectionForeground || value)
     }
     fun acknowledgeAlert(entry: StoredAlert, snooze: Boolean = false) = launchGaugeOperation(OperationKind.READ, "Updating alert attention") { id ->
-        require(isAlertCurrent(entry))
+        val current = alertHistory.firstOrNull { it.id == entry.id }?.let(::visibleAlertEntry)
+        require(
+            current != null && canChangeAlertAttention(
+                current,
+                isAlertCurrent(current),
+                current.vehicle == profileCollection.activeId && current.gauge == currentGaugeId,
+                snooze
+            )
+        ) { "This alert is no longer eligible for attention changes" }
         GaugeConfigTransferClient(
             getApplication()
-        ).acknowledgeAlert(bleClient.selectedGauge(), entry.event, if (snooze) 300000 else 0)
+        ).acknowledgeAlert(bleClient.selectedGauge(), current.event, if (snooze) 300000 else 0)
         nextAlertPoll = 0
         foregroundConnection.retrySoon()
         operation =

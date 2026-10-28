@@ -597,3 +597,15 @@ reconciliation, silent unhide, startup/partial states, direct details and large 
 Emulator proofs do not qualify live adapters, physical gauge behavior or Android OEM
 notification handling. Parked filtered/unfiltered/partial-source checks remain a
 separate vehicle gate.
+
+
+### Alert task review
+
+The [UX completion standard](../design/design-system.md#ux-completion-standard)
+owns task paths and rendered review. Current and History keep the newer full-screen
+workspace and shared hidden-code projection. Direct Current attention controls use
+the same eligibility policy as command admission; Got it uses scoped acknowledgment,
+never resolution or code clearing. Rules list configured entries first, including
+retained disabled rules. Add alert selects an unconfigured reading before the validated
+editor. Customize retains separate Review and send; Car retains guarded Save to gauge
+or explicit Save on phone and review when necessary. Both preserve admission and readback.

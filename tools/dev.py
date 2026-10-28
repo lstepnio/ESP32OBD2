@@ -334,6 +334,7 @@ def android_ui(action):
         "AlertVisibilityReportTest",
         "AlertDetailUiTest",
         "AlertJourneyTest",
+        "AlertWorkflowUiTest",
         "CarSettingsJourneyTest",
         "HiddenFaultCodesUiTest",
         "RepositoryGalleryTest",

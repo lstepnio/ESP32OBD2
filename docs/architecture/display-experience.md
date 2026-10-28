@@ -73,6 +73,29 @@ complete viewing interval. Waiting never creates a false reading or changes aler
 control or source-loss freshness. Dashes still represent unavailable values after
 wake. Quiet recovery continues behind the logo.
 
+## Touch motion and shortcut arbitration
+
+A configured upward shortcut accepts 40 through 800 ms strokes with at least
+32 design pixels upward travel, at most 24 horizontal pixels and upward travel
+at least twice horizontal travel. The path still rejects excessive sideways or
+reverse motion. This includes deliberate 60 ms flicks while rejecting short
+noise. Motion over 12 design pixels is a stroke and cannot become a pairing hold
+or owner-reset release. A failed bound upward/diagonal stroke cannot become a page
+tap. Horizontal browsing, stationary holds and unconfigured swipe browsing retain
+their existing purpose. Lost input cancels progress and consumes the trailing click. Pairing/reset
+confirmation consumes all moved strokes, including horizontal browsing motion and
+inputs with no configured shortcut; only a stationary deliberate tap confirms.
+
+Repeated pairing HIDDEN status while already hidden preserves partial progress;
+actual pairing/context changes cancel it. Pending recognition is published from
+the input callback so cycling observes it immediately. Completed actions retain
+the five-second cooldown across context resets; another recognized stroke displays
+Wait without executing again. Existing action-entry arrows and critical-attention
+cancellation retain priority. The production LVGL pointer regression covers these
+paths; hardware timing, vibration and loaded transport remain separate qualification.
+[Historical browsing review](../evidence/gauge-browsing-reliability.md) retains
+original evidence and physical acceptance inputs.
+
 ## Resource and qualification gates
 
 Fixed bulk sampling/Smart state stays in PSRAM. Ten pages add two bounded page
@@ -82,6 +105,8 @@ reading, at most 640 bytes. The optional orientation worker has a separately gat
 
 Tests exercise real production LVGL with the same fixed 64 KiB arena size, native
 configuration compilation/rejection, cache/wake timing and ten-page fairness.
+A 100-redraw waiting-logo fixture checks its four-object tree and unchanged LVGL
+free memory after warm-up.
 They do not prove radio coexistence or physical comfort. Before rollout, verify
 saved-page migration/readback, cold boot and brightness, first-touch consumption,
 source loss/recovery, all ten pages, mixed gear/arc layouts, and Wi-Fi/BLE memory
