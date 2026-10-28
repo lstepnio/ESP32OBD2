@@ -11,7 +11,8 @@ static uint32_t             clock_ms, generation;
 static unsigned             engine_rpm, speed_kph, coolant_c, starts, returns, reads;
 static bool                 connected, bad_identity, missing_coolant, lose_start_reply, control_active, stored;
 static uint8_t              journal[28];
-static unsigned             header;
+static unsigned             header, reports;
+static bool                 recovery_only, fail_save, fail_report, negative_report;
 static ble_obd_ctx_t *const adapter = (ble_obd_ctx_t *)1;
 
 uint32_t xTaskGetTickCount(void)
@@ -78,6 +79,8 @@ esp_err_t nvs_get_blob(nvs_handle_t h, const char *key, void *out, size_t *lengt
 esp_err_t nvs_set_blob(nvs_handle_t h, const char *key, const void *in, size_t length)
 {
     assert(h && !strcmp(key, "intent_v1") && length == sizeof(journal));
+    if (fail_save)
+        return -1;
     memcpy(journal, in, length);
     stored = true;
     return ESP_OK;
@@ -160,6 +163,8 @@ int ble_obd_read_pid(ble_obd_ctx_t *a,
 int ble_obd_control_exchange(ble_obd_ctx_t *a, const char *text, uint32_t timeout, uint8_t *out, size_t *length)
 {
     assert(a == adapter && timeout && timeout <= 1200);
+    if (recovery_only)
+        assert(!strncmp(text, "AT ", 3) || !strcmp(text, "33 05 1"));
     const char *reply = "OK\r>";
     clock_ms += 40;
     if (!strcmp(text, "AT SH 7E0"))
@@ -173,7 +178,14 @@ int ble_obd_control_exchange(ble_obd_ctx_t *a, const char *text, uint32_t timeou
         if (!strcmp(text, "10 92 1"))
             reply = "7E8 02 50 92\r>";
         else if (!strcmp(text, "33 05 1"))
-            reply = control_active ? "7E8 03 73 05 02\r>" : "7E8 03 73 05 01\r>";
+        {
+            ++reports;
+            if (fail_report)
+                return -1;
+            reply = negative_report  ? "7E8 03 7F 33 22\r>"
+                    : control_active ? "7E8 03 73 05 02\r>"
+                                     : "7E8 03 73 05 01\r>";
+        }
         else if (!strcmp(text, "31 05 06 80 1"))
         {
             ++starts;
@@ -222,19 +234,8 @@ static void run(unsigned count)
     for (unsigned i = 0; i < count; ++i)
         tick();
 }
-static void setup(bool wrong)
+static void initialize(void)
 {
-    transfer_gate_release(TRANSFER_GATE_VEHICLE_COMMAND);
-    clock_ms   = 100;
-    generation = 9;
-    engine_rpm = 700;
-    speed_kph  = 0;
-    coolant_c  = 90;
-    starts = returns = reads = 0;
-    connected                = true;
-    bad_identity             = wrong;
-    missing_coolant = lose_start_reply = control_active = stored = false;
-    memset(journal, 0, sizeof(journal));
     config_runtime_t r = {.source_count = 1, .pid_count = 2, .page_count = 1, .alert_count = 1};
     strcpy(r.sources[0].address, "00:00:00:00:00:01");
     r.pids[0] = (runtime_pid_t){.service = 1, .responder = 0x7e8, .obd.pid = 5};
@@ -244,6 +245,22 @@ static void setup(bool wrong)
     r.pages[0]  = (runtime_page_t){.pid_count = 1, .pid_indices = {1}};
     r.alerts[0] = (runtime_alert_t){.above = true, .has_warning = true, .warning = 105};
     assert(vehicle_commands_runtime_init(&r) == ESP_OK);
+}
+static void setup(bool wrong)
+{
+    transfer_gate_release(TRANSFER_GATE_VEHICLE_COMMAND);
+    clock_ms   = 100;
+    generation = 9;
+    engine_rpm = 700;
+    speed_kph  = 0;
+    coolant_c  = 90;
+    starts = returns = reads = reports = 0;
+    recovery_only = fail_save = fail_report = negative_report = false;
+    connected                                                 = true;
+    bad_identity                                              = wrong;
+    missing_coolant = lose_start_reply = control_active = stored = false;
+    memset(journal, 0, sizeof(journal));
+    initialize();
     run(20);
 }
 static void start(void)
@@ -322,6 +339,63 @@ int main(void)
     run(50);
     phase(VEHICLE_UNKNOWN);
     assert(!vehicle_commands_runtime_intent(VEHICLE_IDLE, false, 1, 300) && starts == 1);
+    /* Reboot preserves the unresolved journal, with a fresh link and no RAM baseline. */
+    for (unsigned failure = 0; failure < 6; ++failure)
+    {
+        setup(false);
+        lose_start_reply = true;
+        assert(vehicle_commands_runtime_intent(VEHICLE_IDLE, false, 1, 300));
+        run(20);
+        phase(VEHICLE_UNKNOWN);
+        assert(journal[1] == 1);
+        recovery_only   = true;
+        control_active  = failure == 0;
+        bad_identity    = failure == 1;
+        negative_report = failure == 2;
+        fail_report     = failure == 3;
+        fail_save       = failure == 4;
+        speed_kph       = failure == 5 ? 1 : 0;
+        engine_rpm      = 700;
+        missing_coolant = true; /* Read-only reconciliation does not need coolant admission. */
+        generation++;
+        initialize();
+        unsigned before_reports = reports;
+        run(25);
+        phase(VEHICLE_UNKNOWN);
+        assert(journal[1] == 1 && !returns && starts == 1);
+        if (failure == 1 || failure == 5)
+            assert(reports == before_reports);
+        /* Retry is bounded, even for active/NRC/transport/storage failures. */
+        assert(reports - before_reports <= 1);
+        control_active = bad_identity = negative_report = fail_report = fail_save = false;
+        speed_kph                                                                 = 0;
+        run(300); /* Identity retry may wait 30 seconds. */
+        phase(VEHICLE_RESTORED);
+        assert(!journal[1] && !returns && starts == 1);
+    }
+    setup(false);
+    lose_start_reply = true;
+    assert(vehicle_commands_runtime_intent(VEHICLE_IDLE, false, 1, 300));
+    run(20);
+    phase(VEHICLE_UNKNOWN);
+    recovery_only  = true;
+    control_active = false;
+    engine_rpm     = 700;
+    generation++;
+    initialize();
+    before = reports;
+    for (unsigned i = 0; i < 20 && reports == before; ++i)
+        tick();
+    phase(VEHICLE_VERIFYING);
+    assert(journal[1] == 1); /* Inactive confirmation alone never clears intent. */
+    engine_rpm = 1700;       /* Prevent settled proof, allowing identity age to expire. */
+    run(250);
+    phase(VEHICLE_UNKNOWN);
+    assert(journal[1] == 1 && !returns && starts == 1);
+    engine_rpm = 700;
+    run(100);
+    phase(VEHICLE_RESTORED);
+    assert(!journal[1] && !returns && starts == 1);
     puts("primary worker parked idle replay passed; local Start, five-minute expiry, coolant, Stop, restoration, "
          "uncertainty and child isolation");
 }

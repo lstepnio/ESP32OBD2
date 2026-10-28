@@ -76,8 +76,7 @@ static void parked_poll(ble_obd_ctx_t *adapter, vehicle_command_context_t *conte
         commands.states[0].phase == VEHICLE_STOPPING)
         return;
     vehicle_command_state_t *idle = &commands.states[0];
-    bool busy = commands.worker_kind || idle->phase == VEHICLE_ACTIVE || idle->phase == VEHICLE_VERIFYING ||
-                idle->phase == VEHICLE_UNKNOWN;
+    bool busy = commands.worker_kind || idle->phase == VEHICLE_ACTIVE || idle->phase == VEHICLE_VERIFYING;
     if (!busy && (identity_step || (!identity_attempted || *now - identity_attempt_at >= 30000)))
     {
         if (!identity_step)
@@ -354,7 +353,7 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
         uint32_t spent     = before_io - now;
         if (!adapter || spent >= JEEP_IDLE_IO_TIMEOUT_MS ||
             ble_obd_control_exchange(adapter, command.text, JEEP_IDLE_IO_TIMEOUT_MS - spent, response, &length) != 0)
-            vehicle_commands_transport_failed(&commands, now);
+            vehicle_commands_transport_failed(&commands, (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS));
         else
         {
             /* Use elapsed worker time, never the pre-IO timestamp. */
@@ -424,7 +423,7 @@ uint32_t vehicle_commands_runtime_poll_reserve(unsigned source, uint32_t horizon
         return 0;
     uint32_t reserve = 0;
     bool     busy    = commands.worker_kind || commands.states[0].phase == VEHICLE_ACTIVE ||
-                       commands.states[0].phase == VEHICLE_VERIFYING || commands.states[0].phase == VEHICLE_UNKNOWN;
+                       commands.states[0].phase == VEHICLE_VERIFYING;
     if (!busy && (identity_step || !identity_attempted || now - identity_attempt_at + horizon >= 30000))
         reserve += 1200;
     if (!speed_attempted || now - speed_attempt_at + horizon >= 500)
