@@ -486,3 +486,91 @@ ticks do not repeat it, and real Off/On/disconnect still resolve/raise/invalidat
 The shared Android raw fixture remains unchanged. This corrects alert availability,
 not the raw ECU record or vehicle-control guards; CI must pass the corrected head
 before merging or publication.
+
+
+## 2026-10-27 combined dev66 rollout
+
+The owner authorized PR #103 merge, signed publication, App/Wi-Fi installation,
+indoor checks and branch cleanup, then explicitly authorized coordination with
+“eGauge Development (SmartPage)” for one combined release. PR #103 merged as
+`1d3510f`; PRs #104/#105 contribute the approved Smart/display work. Combined reviewed
+source `fd8fae652ada9176d223f16b97158858bcd2f031` passed all four checks in
+[quality run 40635471472](https://github.com/lstepnio/ESP32OBD2/actions/runs/40635471472).
+Its tree equals merged main `639511bd8a22312a5514f3c39e30d4f09b55f017`.
+The valid shared-alert availability review finding was corrected before merge;
+no branch rule was bypassed. App dev.53 / versionCode 53 and matching scoped test
+APK were installed first. Its schema-17 to schema-18 migration changed only the
+schema version, preserving every other profile field, assignments and presentation.
+
+[Signed dev.66](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.66)
+was published through [run 40636609288](https://github.com/lstepnio/ESP32OBD2/actions/runs/40636609288)
+from that exact source. All 46 prior catalogs were checked before selecting generation
+47. Catalog/image signatures, expiration, board/layout, descriptor version and source
+tag were verified before transfer. The release retains the owner-supervised parked-idle
+option; ordinary control masks, ABS/TCS execution, Auto probe/qualification and public
+capability flags remain off.
+
+- Image: 1,670,464 bytes; SHA-256 `3868517bc74d20c3335f976bef942ca7293d398a8d5c905656040779bfbd386a`.
+- Running ELF: `6bde80eca04199bb2ed401ded08b23e53df9ea4d1b7923628deefb5117f7ac97`.
+- Full hosted App/Wi-Fi fixture: one test passed in 107.613 seconds; installation
+  journey 73.432 seconds. Selected stages were Sending at 16.799 seconds,
+  Verifying at 57.636, Restarting at 58.785 and healthy exact identity at 73.423.
+  These are sampled stage observations, not wire-throughput measurements.
+- Alternate OTA slot, health 2 and an empty recovery journal were confirmed.
+  The actual initial running revision was already 60; OTA preserved it and the
+  exact document bytes/digest `cb7e48d2a66ec17ff300e5adaabc56ffd929e13b7d9106cb0e0d8390328b0045`.
+  No older documented revision was restored. Five pages, two transport sources,
+  four TCM filters, thresholds, action settings and display preferences remained.
+- Five authenticated Wi-Fi open/status/close cycles passed in 61.524 seconds,
+  retaining boot nonce, signed image, revision 60, digest and settings. Protected
+  opens took 1.613 to 1.812 seconds. No reboot was observed during those cycles.
+- Automatic open/resume, Bluetooth off/on, add-gauge cancellation and hardware-to-
+  firmware read chaining passed in 74.193 seconds. Confirmation took 14.058 seconds
+  on open, 3.419 on resume and 12.958 after Bluetooth returned. Wi-Fi mode 255 and
+  cleared initialized-feature bit confirmed driver teardown. Owner identity,
+  exact healthy image, settings, configuration and profiles remained unchanged.
+- Phone profile, association, presentation, connection-permission, alert-policy,
+  update-hold and recovery preference files were byte-identical across the standard
+  installation/checks. Expected changes were the generation-47 catalog cache and
+  Android's compilation-profile marker. Raw backups remain private.
+
+Across the verified dev.66 window, passive serial capture recorded 31 lifecycle
+memory snapshots and ten periodic health samples. Minimum sampled internal free
+was 97,515 bytes, minimum-ever 96,119, smallest sampled largest block 31,744 and
+minimum sampled PSRAM free 1,934,984. Allocation-failure counters stayed zero;
+no queue drop, heap corruption, stack-canary panic or watchdog marker was observed.
+Minimum observed stack margins were App 1,444, UI 2,996, primary adapter 752,
+child adapter 760, configuration 4,256, OTA 3,024, Wi-Fi server 6,040 and Wi-Fi
+command 2,576 bytes. Adapter/control deep-stack paths still require loaded
+measurement; these are bounded indoor observations, not production/OOM guarantees.
+
+Targeted Smart persistence then passed, intentionally advancing configuration
+60 to 61; only baseRevision changed in the functional JSON. Original ten-second
+cycling and Smart Off were restored, along with rotation 3, brightness 100 and
+Imperial units. The final protected read confirmed the same healthy dev.66 ELF,
+revision 61 / digest `787bc86f36ab902f059738a9c157c29a27316dac8076d3c1620b176ee4f1ecb0`
+and no unresolved command state. Original phone monitoring was restored; the full
+alert policy is semantically equal to its pre-session backup, and assignment,
+presentation and connection preferences remain byte-identical. The wake helper
+is inactive with original 60,000 ms timeout and charging flags 15 restored. Serial
+capture was stopped. This session did not erase bonds or user data.
+
+Smart/display capability, same-setup restart/persistence, interval/Smart restoration
+and the single owner physical observation are owned by the
+[display rollout evidence](display-evolution.md). They follow the standard checks
+above; their intentional setup revision increment must not be attributed to OTA.
+The expected indoor no-data screen is an icon-only logo; one tap wakes readings
+and consumes that gesture before ordinary swipes/actions. The owner answered the
+single physical check with “Logo and all navigation work.” Basic logo/wake/reading
+swipes and action entry/browse/return are confirmed; this does not qualify every
+new layout or loaded vehicle behavior.
+
+Remaining Jeep qualification includes actual startup MIL/filter attribution,
+unfiltered and partial-coverage warnings, loaded primary/child freshness and radio
+coexistence, adaptive/Smart timing and parked command/coolant/Stop stack margins.
+Indoor absence and source/native fixtures do not prove those paths or OOM immunity.
+No bonds or setup were erased, no ECU command was executed, and no USB/Bluetooth
+firmware fallback was used. The #103 feature branch and temporary release ref were
+removed; source remains pinned by the immutable release tag. Website impact was
+reviewed: downloads follow the published release, while marketing capture/publication
+remains under the separate daily cadence after physical qualification.
