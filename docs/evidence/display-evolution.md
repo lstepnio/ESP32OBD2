@@ -71,3 +71,10 @@ retains the existing owner-supervised parked-idle release option. Auto orientati
 probe/qualification, ABS/TCS execution and public capability flags remain off.
 This paragraph records authorization/preparation only; installed outcomes require
 exact signed post-boot and setup-preservation evidence below.
+
+The explicit `verifyDisplayEvolution=true` variant of the existing physical display
+persistence fixture checks `mp:10`, Dual + arc, Smart support and absent unqualified
+Auto. It enables Smart at five seconds, verifies preservation across a same-setup
+restart, and restores both the original interval and Smart preference in cleanup.
+It retains the exact functional dashboard; expected configuration revision advances
+by one. This is a test procedure until its device outcome is recorded.
