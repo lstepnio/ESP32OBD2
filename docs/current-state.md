@@ -3,7 +3,7 @@
 Updated 2026-10-28. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
 PRs #103, #104 and #105 are merged. App dev.53 is installed on the Pixel, and
-signed dev.70 is installed through App/Wi-Fi after the earlier explicitly
+signed dev.71 is installed through App/Wi-Fi after the earlier explicitly
 authorized application-only USB dev.69 repair. [Current display evidence](evidence/display-evolution.md#dev69-authorized-usb-installation)
 records preservation, stable boot and the remaining sensor/physical gates. The
 [previous full App/Wi-Fi rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout)
@@ -74,7 +74,7 @@ at revision 63. The owner confirmed 10/10, wrap and clean labels without freezin
 Populated Dual + arc also passed visual review. Hold-exit/navigation was reported,
 but a later active preview state makes explicit physical stopped-state proof pending.
 
-Installed dev.70 verifies sensor control-register readback and uses normal-power
+Dev.70 introduced verified sensor control-register readback and normal-power
 31.25 Hz sampling, resolving dev.69's pinned X symptom without calibration offsets
 or relaxed gravity guards. The guarded 4 KiB internal sensor stack survived the
 initial NACK/retry path; dev.70 observed worker/main margins of 1680/1080 bytes.
@@ -84,7 +84,8 @@ in [dated evidence](evidence/display-evolution.md).
 Protected four-angle reads, Auto/Wi-Fi suspension/recovery and same-setup restart
 persistence passed on dev.70, retaining the current Smart On preference. The owner
 reported incorrect text orientation. Two labelled poses establish a fixed LCD
-quarter-turn offset; source dev.71 adds mapping version 2. Corrected all-angle/touch
+quarter-turn offset; installed dev.71 includes mapping version 2 and the larger muted-grey logo. The owner
+confirmed the grey icon and tap-to-wake. Corrected all-angle/touch
 and explicit hold-exit qualification remain pending. Normal qualification and public
 flags stay off under the [indoor procedure](development/display-indoor-qualification.md).
 
@@ -93,7 +94,7 @@ flags stay off under the [indoor procedure](development/display-indoor-qualifica
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
 | Pixel | App `0.2.0-dev.53` / versionCode 53, reviewed source `fd8fae6`, merged PR #105; profile schema 18 / associations 2 | [Combined rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); profile migration retained all values; final alert policy restored, assignments and presentation byte-identical |
-| Gauge | Signed parked-idle/orientation candidate `0.2.0-dev.70` from `2341803`, generation 51, 240 MHz; configuration revision 65 after a verified same-functional-setup restart | [Dev.70 results](evidence/display-evolution.md#dev70-installation-and-mapping-observations): exact healthy image, cleared update/configuration trials, original functional dashboard retained; observed Smart On preference preserved. Mapping correction remains pending |
+| Gauge | Signed parked-idle/orientation candidate `0.2.0-dev.71` from `e80864d`, generation 52, 240 MHz; configuration revision 65 after a verified same-functional-setup restart | [Dev.71 installation](evidence/display-evolution.md#dev71-installation-and-indoor-checks): exact healthy image and cleared journal, original functional dashboard/preferences retained; owner confirmed larger grey logo/wake. Corrected physical mapping qualification remains pending |
 | Physical display/touch | Owner confirmed dev.66 text-free logo, touch wake and normal reading/action navigation: “Logo and all navigation work.” | [Display rollout](evidence/display-evolution.md); all ten pages subsequently owner-confirmed; new-arc fit owner-confirmed; hold-exit was reported but later active state requires explicit stopped-state proof; loaded legibility and Auto sensor/touch alignment remain separate gates |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |

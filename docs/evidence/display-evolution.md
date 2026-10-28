@@ -434,3 +434,33 @@ reference icon from 112 to 168 pixels in diameter and makes all its strokes/pivo
 neutral grey `#555555`. The same four retained vector objects and two-point buffer
 are reused, with no new bitmap, framebuffer or task. Boot/no-data wake semantics
 remain unchanged. Native bounded-memory rendering and physical fit remain distinct.
+
+## Dev.71 installation and indoor checks
+
+Final source `e80864d25bec690dff3973ebc2cf5100310f632f` combined mapping v2 and
+the owner's larger grey splash request. All four quality jobs passed in run
+`40728668318`; PR #111 merged as `bc1ad43`, tree-identical to that reviewed source.
+The superseded `c32424d` run was cancelled before any publication. Signed release
+run `40730681202` published dev.71 generation 52. Independent catalog/image
+signatures, hash, descriptor, board/layout and bounds passed: 1,678,800 image bytes,
+ELF `9f2466c417264ce773bc01e7014b3eb09aeaefef0a38529b56293e36ab7c3c0a`.
+
+The ordinary full hosted App/Wi-Fi fixture passed in 109.375 seconds, with 76,269 ms
+in the sampled install journey. Alternate slot, exact protected healthy image,
+cleared journal and unchanged revision 65/digest/settings/profiles were confirmed.
+The new larger-vector-logo boot recorded 1080 bytes of main-stack headroom; the
+4096-byte sensor worker retained 1680 bytes through initial NACK/recovery. Verified
+CTRL1/CTRL2/CTRL7 `60/08/01`, revision `7c` and plausible changing samples persisted.
+No additional bitmap, framebuffer, worker or retained UI object was introduced.
+
+The owner confirmed “Larger grey logo; tap wakes pages.” This is the physical
+appearance/wake observation, separate from fixed-arena native render checks. The
+corrected all-angle/touch Auto and explicit no-restart physical hold-exit checks
+are still pending at this checkpoint. Board qualification/public flags remain off.
+Website impact: grey waiting visuals can be included in the next normal capture
+refresh; no Auto qualification/marketing claim is promoted from installation alone.
+
+While awaiting the second readiness answer for corrected Auto, no timed physical
+journey was started. Manual 270 degrees and current cycling/Smart preferences
+remain in place. Phone alerts were restored On and the debug awake helper restored
+60000 ms/charging value 15 before pausing; the passive serial reader was stopped.
