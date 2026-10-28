@@ -44,3 +44,14 @@ customer-data access or vehicle operation occurred. Normal capability/qualificat
 masks remain unchanged. Provider approval, phone/radio/loaded-render timing, actual
 TIPM reachability/variant mapping and physical display/gesture/orientation qualification
 remain explicit gates. Software preservation is not qualification of future features.
+
+## Concurrent changes retained
+
+Main advanced with #117's diagnostic-session prerequisite while this cleanup was
+running. Its code, negative/cancellation replays, dev.73 source version and dated
+owner dev.72 report are retained. The historical dev.71 snapshot does not replace
+that newer installed-version report. PR #118's scoped container Git ownership fix
+and real dirty-source/non-persistent-trust regression are also retained. No global
+Git trust setting is changed. The final consolidation includes original #116/#118
+heads, so one protected, up-to-date integration can preserve their work without
+forcing an outdated merge or dropping concurrent fixes.
