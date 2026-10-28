@@ -129,18 +129,26 @@ def collect(root, build, source_sha):
     return payload
 
 
+def checked_source(root):
+    # IDF containers can run as a different UID from checkout. Trust only this
+    # explicit checkout for these commands; never weaken global Git ownership.
+    git = ["git", "-c", f"safe.directory={root}"]
+    sha = subprocess.check_output([*git, "rev-parse", "HEAD"], cwd=root, text=True).strip()
+    subprocess.run(
+        [*git, "diff", "--exit-code", "HEAD", "--"],
+        cwd=root,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    return sha
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", type=Path, default=ROOT / "firmware/gauge/build")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    subprocess.run(
-        ["git", "diff", "--exit-code", "HEAD", "--"],
-        cwd=ROOT,
-        check=True,
-        stdout=subprocess.DEVNULL,
-    )
+    sha = checked_source(ROOT)
     payload = collect(ROOT, args.build_dir, sha)
     with zipfile.ZipFile(args.output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, data in sorted(payload.items()):
