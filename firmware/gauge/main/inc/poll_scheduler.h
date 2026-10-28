@@ -23,6 +23,13 @@ typedef struct
     uint8_t         endpoint;
 } poll_job_t;
 
+typedef enum
+{
+    POLL_DIAGNOSTIC_RETRY,
+    POLL_DIAGNOSTIC_OK,
+    POLL_DIAGNOSTIC_UNSUPPORTED,
+} poll_diagnostic_result_t;
+
 typedef struct
 {
     uint32_t interval_ms;
@@ -50,6 +57,7 @@ typedef struct
     uint8_t  endpoint_count;
     uint32_t seen_pids;
     uint8_t  seen_background;
+    uint8_t  settled_background; /* Valid or definitively unsupported in this scope. */
     uint8_t  cursor;
     uint8_t  normal_since_background;
     uint32_t last_success[POLL_SCHEDULER_MAX_PIDS];
@@ -76,6 +84,11 @@ poll_job_t poll_scheduler_next_budgeted(poll_scheduler_t              *scheduler
                                         uint8_t                        pid_count,
                                         const poll_scheduler_budget_t *budget);
 void       poll_scheduler_complete(poll_scheduler_t *scheduler, poll_job_t job, uint32_t completed_ms, bool success);
+/* Unsupported settles coverage; a transient unanswered request does not. */
+void poll_scheduler_diagnostic_complete(poll_scheduler_t        *scheduler,
+                                        poll_job_t               job,
+                                        uint32_t                 completed_ms,
+                                        poll_diagnostic_result_t result);
 /* A correctly attributed sample reused from another transport consumer counts
  * toward cadence/freshness too. Pass its original timestamp, never arrival time.
  * Retired sessions must be rejected by the caller; reset scheduler on new scope. */

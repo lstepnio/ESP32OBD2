@@ -69,8 +69,11 @@ The worker associates the decoded reply with its endpoint/request, instead of as
 Mode 01 PID 01 from an untagged callback to whichever adapter is currently active.
 
 Replace background admission based on ten normal PID reads with monotonic deadlines
-and fair endpoint/category selection. Starting tuning targets: MIL every 15 seconds,
-stored/pending every 60 seconds, permanent every 120 seconds. These are targets, not
+and fair endpoint/category selection. Automatic MIL status checks have a 60-second
+minimum interval per endpoint, including cold failures; stored/pending target 60
+seconds and permanent targets 120 seconds. Initial/incomplete code lists may retry
+sooner to classify configured filters, independently of the MIL check limit. Explicit
+ECU-clear verification remains immediate. These are targets, not
 promised vehicle latency. Give changed MIL one coalesced fault-refresh request; do not
 restart a scan for each poll. Keep foreground readings first, admit one due diagnostic
 job at a time, cap each request and back off failures per endpoint/category with jitter.
@@ -93,14 +96,24 @@ if another required endpoint is unknown. Off requires fresh Off for every requir
 MIL-capable endpoint. Otherwise show Unknown or Last checked. Known unsupported
 queries are explicit coverage limitations, never fresh Off.
 
-The gauge retains the last successful same-session MIL/category presentation during
-a transient failed refresh, bounded by the original 60/120-second observation age.
-Raw phone/history packets still report the failed attempt. New MIL/count evidence
-invalidates incompatible category/filter proof, and reconnect clears it. Unsupported
+The gauge and shared diagnostic-episode availability retain the last successful
+same-session MIL/category presentation during
+a transient failed refresh: MIL for up to three minutes and compatible code lists
+for up to ten minutes from their original successful observations. This gauge-only
+retention bridges minute polling and the bounded four-minute retry cap, so expiring
+filter evidence cannot make a known filtered CEL blink during ordinary refresh.
+Raw phone/history packets retain their strict 60/120-second freshness and report
+failed attempts; retained presentation is never exported as a new observation.
+New MIL/count evidence invalidates incompatible category/filter proof, and reconnect clears it. Unsupported
 or partial coverage cannot erase previously known faults into all-filtered proof.
 The instrument face uses an icon without a number when count coverage is incomplete;
 it never shows `?` or draws a warning solely because diagnostics are loading.
 Confirmed warnings remain visible. Expert retains exact coverage and failure detail.
+`diagnostic_alerts.c` reads one retained snapshot for both alert producers and the
+face; a healthy minute refresh must not append unavailable/recovered events while
+its reply is in flight. Shared events keep the original MIL timestamp and the oldest
+contributing category timestamp, not the App tick time. Expired evidence and source
+loss still transition availability; raw diagnostic reads remain strict.
 
 Deduplicate by endpoint, category and code; retain overlapping categories and ECU
 origins. A code disappearing from a fresh complete category can resolve that occurrence;
@@ -505,15 +518,17 @@ Filters join the normal serialized vehicle configuration and review/send path.
 Only the confirmed running document governs phone display and notification policy;
 a saved phone draft does not silently change the running gauge behavior.
 
-A controller's CEL may be suppressed only when its real MIL is fresh/known, all
-supported categories have complete fresh results, all distinct returned codes are
+A controller's CEL may be suppressed only when its real MIL is known/usable, all
+supported categories have complete usable results, all distinct returned codes are
 filtered, at least one code is present, and confirmed count equals its positive
 MIL-reported count. Unsupported categories do not invent codes; an unsupported or
 unavailable confirmed category cannot explain an active MIL. Staleness, truncation,
-failed reads, unknown MIL or count disagreement cannot suppress it. Independent
-controllers are evaluated separately; a healthy or filtered parent never masks a
+failed raw reads, unknown MIL or count disagreement cannot establish new suppression
+proof. The gauge may retain already successful, compatible evidence within the
+[presentation limits](#mil-code-and-coverage-semantics); a changed MIL/count or new
+unfiltered code takes effect immediately. Independent controllers are evaluated separately; a healthy or filtered parent never masks a
 child's unfiltered warning or unknown coverage. These are decisions from the latest
-fresh polling observations, not a guarantee that an ECU cannot change between polls.
+successful polling observations, not a guarantee that an ECU cannot change between polls.
 
 The gauge top CEL/count and ordinary App lists/recent banners use this projection.
 Threshold, provider and critical attention remain independent. Filtered diagnostic

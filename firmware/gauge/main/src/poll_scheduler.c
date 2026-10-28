@@ -66,8 +66,14 @@ static int background_due(const poll_scheduler_t *s, uint32_t now)
     for (unsigned step = 0; step < jobs; ++step)
     {
         unsigned i        = (s->background_cursor + step) % jobs;
-        uint32_t interval = i % 4 == 0 ? 15000U : i % 4 == 3 ? 120000U : 60000U;
-        if (s->background_failures[i])
+        uint32_t interval = i % 4 == 3 ? 120000U : 60000U;
+        if (!(s->settled_background & (1U << i)) && s->background_failures[i] > 0)
+        {
+            interval = 1000U << s->background_failures[i];
+            if (interval > 240000U)
+                interval = 240000U;
+        }
+        else if (s->background_failures[i])
         {
             uint32_t retry = (15000U << s->background_failures[i]) + ((i * 997U) % 1000U);
             if (retry > 240000U)
@@ -75,6 +81,10 @@ static int background_due(const poll_scheduler_t *s, uint32_t now)
             if (retry > interval)
                 interval = retry;
         }
+        /* Lamp checks are at most once a minute, including cold failures.
+         * Incomplete code lists may retry sooner to classify configured filters. */
+        if (i % 4 == 0 && interval < 60000U)
+            interval = 60000U;
         if (due((s->seen_background & (1U << i)) != 0, now, s->last_background[i], interval))
             return (int)i;
     }
@@ -239,6 +249,19 @@ void poll_scheduler_complete(poll_scheduler_t *s, poll_job_t job, uint32_t compl
     }
 }
 
+void poll_scheduler_diagnostic_complete(poll_scheduler_t        *s,
+                                        poll_job_t               job,
+                                        uint32_t                 completed,
+                                        poll_diagnostic_result_t result)
+{
+    if (!s || job.endpoint >= s->endpoint_count || (unsigned)result > POLL_DIAGNOSTIC_UNSUPPORTED ||
+        (job.kind != POLL_JOB_MIL && (job.kind != POLL_JOB_DTC || job.index >= 3)))
+        return;
+    poll_scheduler_complete(s, job, completed, result == POLL_DIAGNOSTIC_OK);
+    if (result == POLL_DIAGNOSTIC_UNSUPPORTED)
+        s->settled_background |= (uint8_t)(1U << (job.endpoint * 4 + (job.kind == POLL_JOB_MIL ? 0 : job.index + 1)));
+}
+
 poll_job_t poll_scheduler_next(poll_scheduler_t *s, uint32_t now, const uint32_t *intervals, uint8_t count)
 {
     poll_job_t none = {0};
@@ -280,8 +303,11 @@ void poll_scheduler_background_result(poll_scheduler_t *s, poll_job_t job, bool 
         return;
     unsigned i = job.endpoint * 4 + (job.kind == POLL_JOB_MIL ? 0 : job.index + 1);
     if (success)
+    {
         s->background_failures[i] = 0;
-    else if (s->background_failures[i] < 4)
+        s->settled_background |= (uint8_t)(1U << i);
+    }
+    else if (s->background_failures[i] < ((s->settled_background & (1U << i)) ? 4 : 8))
         ++s->background_failures[i];
 }
 
@@ -290,4 +316,7 @@ void poll_scheduler_mil_changed(poll_scheduler_t *s, unsigned endpoint)
     if (!s || endpoint >= s->endpoint_count)
         return;
     s->seen_background &= ~(uint8_t)(0xeU << (endpoint * 4));
+    s->settled_background &= ~(uint8_t)(0xeU << (endpoint * 4));
+    for (unsigned i = 1; i < 4; ++i)
+        s->background_failures[endpoint * 4 + i] = 0;
 }

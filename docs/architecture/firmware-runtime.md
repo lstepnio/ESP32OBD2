@@ -83,16 +83,31 @@ Before MIL/code work, reserve the full request timeout, prompt margin and upcomi
 command guard/identity work; refresh each at-risk eligible reading once. If the
 window remains impossible, admit bounded diagnostic progress and count the
 freshness overrun instead of starving faults indefinitely. Background work retains
-a two-second spacing floor, 15-second MIL, 60-second stored/pending and 120-second
+a two-second spacing floor, 60-second MIL, 60-second stored/pending and 120-second
 permanent cadence, with per-reading/category failure backoff. A changed MIL or
-reported count accelerates category refresh. The worker yields 20 ms between
-transactions; every read still waits for a verified prompt or bounded recovery.
+reported count accelerates category refresh, including when the prior same-session
+MIL has aged beyond raw freshness. Before a code-list job has its first valid or
+definitively unsupported answer, transient failures become eligible again
+after 2, 4, 8, 16, 32, 64 and 128 seconds, then cap at 240 seconds. These are retry
+eligibility intervals, still subject to normal-reading reservation and background
+spacing. They avoid applying a 60/120-second steady cadence to an initializing ECU.
+MIL checks retain their 60-second minimum even after an unanswered first attempt.
+An explicit unsupported reply exits the code-list startup path, as does a successful reply;
+later failures keep the existing steady-state backoff. Changed MIL/count evidence
+restarts category acquisition without inheriting an old failure penalty.
+The worker yields 20 ms between transactions; every read still waits for a verified
+prompt or bounded recovery.
 
 Two fixed scheduler records live in PSRAM, owned by their respective workers.
 Minute logs record requests, reused guard samples, maximum ordinary/diagnostic
 request duration, preflight deferrals, forced admissions and missed display budgets.
-These are bounded counters, not another sample history. Rate classes and display
-retention belong to the [catalog contract](../development/reading-catalog-alerts.md#display-and-polling-classes).
+These are bounded counters, not another sample history.
+The App tick also logs diagnostic presentation only when its endpoint state changes:
+usable MIL, reported/visible/filtered counts, scan completeness and suppression.
+This separates a real reported warning from pending filter classification without
+adding an on-screen loading warning or an unbounded history.
+Rate classes and display retention belong to the
+[catalog contract](../development/reading-catalog-alerts.md#display-and-polling-classes).
 A timeout without a completed reply lets a last-good displayed value age normally;
 explicit NO DATA, unsupported/malformed replies and source loss invalidate it.
 Alert/control failure handling is unchanged. The [qualification plan](../development/gauge-continuity-plan.md)

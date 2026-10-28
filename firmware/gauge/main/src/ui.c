@@ -125,7 +125,7 @@ struct _ui_t
     uint8_t             rendered_action_progress;
     lv_obj_t           *action_label, *action_arrows[5];
     lv_obj_t           *command_menu, *command_button, *command_back, *command_title, *command_value, *command_note,
-        *command_button_text, *command_ring, *command_symbol;
+        *command_button_text, *command_ring, *command_link_symbol;
     lv_obj_t   *command_dots[3];
     uint8_t     command_page, command_request_page, command_page_count, command_pages[3];
     bool        command_suspended, command_press, command_moved, command_waiting, idle_protection;
@@ -2309,22 +2309,22 @@ static void refresh_vehicle_menu(ui_t *ui)
     else
         lv_obj_add_state(ui->command_button, LV_STATE_DISABLED);
     show(ui->command_ring, ring != 0);
-    show(ui->command_symbol, ring != 0);
+    show(ui->command_link_symbol, ring == 3);
     if (ring)
     {
         uint32_t color = ring == 1 ? color_accent : ring == 2 ? color_critical : 0xFFD600;
         lv_obj_set_style_arc_color(ui->command_ring, lv_color_hex(color), LV_PART_INDICATOR);
         lv_arc_set_rotation(ui->command_ring, (now % 1400) * 360 / 1400);
-        static lv_point_precise_t symbols[8];
-        static const int16_t      points[3][9][2] = {
-            {{111, 91}, {132, 103}, {111, 115}, {111, 91}},
-            {{109, 92}, {131, 92}, {131, 114}, {109, 114}, {109, 92}},
-            {{120, 95}, {108, 95}, {108, 109}, {122, 109}, {122, 95}, {134, 95}, {134, 109}, {120, 109}}};
-        static const uint8_t counts[] = {4, 5, 8};
-        for (unsigned i = 0; i < counts[ring - 1]; i++)
-            symbols[i] = (lv_point_precise_t){px(points[ring - 1][i][0]), px(points[ring - 1][i][1])};
-        lv_line_set_points(ui->command_symbol, symbols, counts[ring - 1]);
-        lv_obj_set_style_line_color(ui->command_symbol, lv_color_hex(color), 0);
+        if (ring == 3)
+        {
+            static lv_point_precise_t symbols[8];
+            static const int16_t      points[8][2] = {{120, 95}, {108, 95}, {108, 109}, {122, 109},
+                                                      {122, 95}, {134, 95}, {134, 109}, {120, 109}};
+            for (unsigned i = 0; i < 8; i++)
+                symbols[i] = (lv_point_precise_t){px(points[i][0]), px(points[i][1])};
+            lv_line_set_points(ui->command_link_symbol, symbols, 8);
+            lv_obj_set_style_line_color(ui->command_link_symbol, lv_color_hex(color), 0);
+        }
     }
     for (unsigned i = 0; i < 3; ++i)
     {
@@ -2500,9 +2500,9 @@ void ui_show_vehicle_actions(ui_t *ui)
         lv_obj_set_style_arc_width(ui->command_ring, px(6), LV_PART_MAIN);
         lv_obj_set_style_arc_width(ui->command_ring, px(6), LV_PART_INDICATOR);
         lv_obj_set_style_arc_color(ui->command_ring, lv_color_hex(color_track), LV_PART_MAIN);
-        ui->command_symbol = lv_line_create(ui->command_menu);
-        lv_obj_set_style_line_width(ui->command_symbol, px(3), 0);
-        lv_obj_remove_flag(ui->command_symbol, LV_OBJ_FLAG_CLICKABLE);
+        ui->command_link_symbol = lv_line_create(ui->command_menu);
+        lv_obj_set_style_line_width(ui->command_link_symbol, px(3), 0);
+        lv_obj_remove_flag(ui->command_link_symbol, LV_OBJ_FLAG_CLICKABLE);
         ui->command_title = plain_label(ui->command_menu, color_text_primary);
         ui->command_value = plain_label(ui->command_menu, color_text_primary);
         ui->command_note  = plain_label(ui->command_menu, color_warning);
