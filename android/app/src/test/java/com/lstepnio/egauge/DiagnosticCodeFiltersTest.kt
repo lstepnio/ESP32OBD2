@@ -211,7 +211,7 @@ class DiagnosticCodeFiltersTest {
         val capabilities = GaugeProtocolCodec.capabilities(
             "{\"protocolMajor\":0,\"board\":\"test\",\"maxAdapterLinks\":1,\"configWrite\":false,\"ota\":false,\"cfg\":6}".toByteArray()
         )
-        assertEquals(GaugeLayout.entries.toSet(), capabilities.supportedRenderers)
+        assertEquals(GaugeLayout.entries.filter { it != GaugeLayout.DualArc }.toSet(), capabilities.supportedRenderers)
         assertTrue(
             com.lstepnio.egauge.ui.state.presentationBlockers(
                 draft,

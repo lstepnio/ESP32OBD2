@@ -360,7 +360,7 @@ fun CompanionApp(
                                                     model.sendNumericConfiguration()
                                                     route =
                                                         Route.Gauge
-                                                }, { route = Route.Setup }
+                                                }, { route = Route.Setup }, model::selectArcMetric
                                             )
                                         )
                                     }
@@ -391,7 +391,8 @@ fun CompanionApp(
                                             route = Route.Setup
                                         },
                                         model.phoneAlertsEnabled, model.alertMonitoring, onPhoneAlerts,
-                                        onSaveSmartCycle = model::savePageCycling
+                                        onSaveSmartCycle = model::savePageCycling,
+                                        onSaveOrientation = model::saveOrientation
                                     )
 
                                     Route.Updates -> UpdatesScreen(

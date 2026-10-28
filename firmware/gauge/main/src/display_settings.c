@@ -33,7 +33,7 @@ _Static_assert(sizeof(display_record_t) == 12, "Legacy display record layout cha
 _Static_assert(sizeof(smart_record_t) == 8, "Smart sidecar layout changed");
 static const char *const smart_keys[] = {"smart0", "smart1"};
 
-static bool load_smart(nvs_handle_t nvs, uint32_t revision)
+static uint8_t load_smart(nvs_handle_t nvs, uint32_t revision)
 {
     active_smart_slot = -1;
     for (int slot = 0; slot < 2; ++slot)
@@ -41,10 +41,10 @@ static bool load_smart(nvs_handle_t nvs, uint32_t revision)
         smart_record_t record = {0};
         size_t         length = sizeof(record);
         if (nvs_get_blob(nvs, smart_keys[slot], &record, &length) == ESP_OK && length == sizeof(record) &&
-            record.version == 1 && record.flags <= 1 && record.reserved == 0 && record.revision == revision)
+            record.version == 1 && record.flags <= 3 && record.reserved == 0 && record.revision == revision)
         {
             active_smart_slot = slot;
-            return record.flags == 1;
+            return record.flags;
         }
     }
     return false;
@@ -65,7 +65,7 @@ esp_err_t display_settings_init(uint8_t default_rotation, uint8_t default_bright
         settings_lock = xSemaphoreCreateMutex();
     if (!settings_lock)
         return ESP_ERR_NO_MEM;
-    current           = (display_settings_t){default_rotation, default_brightness, default_units, 0, 0, false};
+    current           = (display_settings_t){default_rotation, default_brightness, default_units, 0, 0, false, false};
     active_smart_slot = -1;
     nvs_handle_t nvs;
     esp_err_t    err = nvs_open("display", NVS_READONLY, &nvs);
@@ -76,7 +76,7 @@ esp_err_t display_settings_init(uint8_t default_rotation, uint8_t default_bright
     display_record_t stored = {0};
     size_t           length = sizeof(stored);
     err                     = nvs_get_blob(nvs, "settings", &stored, &length);
-    bool smart_cycle        = err == ESP_OK && stored.revision != 0 && load_smart(nvs, stored.revision);
+    uint8_t flags           = err == ESP_OK && stored.revision != 0 ? load_smart(nvs, stored.revision) : 0;
     nvs_close(nvs);
     if (err == ESP_ERR_NVS_NOT_FOUND || err == ESP_ERR_NVS_INVALID_LENGTH)
         return ESP_OK;
@@ -97,7 +97,8 @@ esp_err_t display_settings_init(uint8_t default_rotation, uint8_t default_bright
                                    stored.version == 1 ? default_units : stored.units,
                                    stored.revision,
                                    stored.version == 3 ? stored.cycle_seconds : 0,
-                                   smart_cycle};
+                                   (flags & 1) != 0,
+                                   (flags & 2) != 0};
     return ESP_OK;
 }
 
@@ -116,6 +117,7 @@ static esp_err_t save_settings(uint8_t             rotation,
                                uint16_t            cycle_seconds,
                                bool                smart_cycle,
                                bool                preserve_smart,
+                               int                 orientation_mode,
                                uint32_t            expected_revision,
                                display_settings_t *saved)
 {
@@ -131,11 +133,16 @@ static esp_err_t save_settings(uint8_t             rotation,
         xSemaphoreGive(settings_lock);
         return ESP_ERR_INVALID_STATE;
     }
-    display_settings_t next      = {rotation,      brightness,
-                                    units,         previous.revision + 1,
-                                    cycle_seconds, preserve_smart ? previous.smart_cycle : smart_cycle};
+    display_settings_t next      = {rotation,
+                                    brightness,
+                                    units,
+                                    previous.revision + 1,
+                                    cycle_seconds,
+                                    preserve_smart ? previous.smart_cycle : smart_cycle,
+                                    orientation_mode < 0 ? previous.auto_orientation && rotation == previous.rotation
+                                                         : orientation_mode != 0};
     int                next_slot = active_smart_slot == 0 ? 1 : 0;
-    smart_record_t     smart     = {1, next.smart_cycle ? 1 : 0, 0, next.revision};
+    smart_record_t     smart     = {1, (next.smart_cycle ? 1 : 0) | (next.auto_orientation ? 2 : 0), 0, next.revision};
     display_record_t   record    = {3, rotation, brightness, units, next.revision, cycle_seconds, 0};
     nvs_handle_t       nvs;
     esp_err_t          err = nvs_open("display", NVS_READWRITE, &nvs);
@@ -170,7 +177,7 @@ esp_err_t display_settings_save(uint8_t             rotation,
                                 uint32_t            expected_revision,
                                 display_settings_t *saved)
 {
-    return save_settings(rotation, brightness, units, cycle_seconds, false, true, expected_revision, saved);
+    return save_settings(rotation, brightness, units, cycle_seconds, false, true, 0, expected_revision, saved);
 }
 
 esp_err_t display_settings_save_smart(uint8_t             rotation,
@@ -181,5 +188,15 @@ esp_err_t display_settings_save_smart(uint8_t             rotation,
                                       uint32_t            expected_revision,
                                       display_settings_t *saved)
 {
-    return save_settings(rotation, brightness, units, cycle_seconds, smart_cycle, false, expected_revision, saved);
+    return save_settings(rotation, brightness, units, cycle_seconds, smart_cycle, false, -1, expected_revision, saved);
+}
+
+esp_err_t display_settings_save_orientation(bool                automatic,
+                                            uint8_t             manual_rotation,
+                                            uint32_t            expected_revision,
+                                            display_settings_t *saved)
+{
+    display_settings_t previous = display_settings_snapshot();
+    return save_settings(manual_rotation, previous.brightness, previous.units, previous.cycle_seconds, false, true,
+                         automatic ? 1 : 0, expected_revision, saved);
 }

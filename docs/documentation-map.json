@@ -40,7 +40,8 @@
       "docs/architecture/vehicle-actions.md",
       "docs/architecture/vehicle-connections.md",
       "docs/architecture/platforms-and-releases.md",
-      "docs/architecture/smart-page-cycling.md"
+      "docs/architecture/smart-page-cycling.md",
+      "docs/architecture/display-experience.md"
     ],
     "development-contracts-and-proposals": [
       "docs/protocol/adapter-bindings-v1.md",

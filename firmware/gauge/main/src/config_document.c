@@ -344,15 +344,35 @@ static bool definition_valid(const cJSON *item, const cJSON *sources)
 
 static bool page_valid(const cJSON *item, const cJSON *definitions)
 {
-    static const char *const keys[]      = {"id", "name", "renderer", "pidIds"};
-    static const char *const renderers[] = {"numeric", "arc", "bar", "trend", "dual"};
+    static const char *const keys[]      = {"id", "name", "renderer", "pidIds", "arcMetricIndex"};
+    static const char *const renderers[] = {"numeric", "arc", "bar", "trend", "dual", "dualArc"};
     const cJSON             *renderer    = cJSON_GetObjectItemCaseSensitive(item, "renderer");
     const cJSON             *ids         = cJSON_GetObjectItemCaseSensitive(item, "pidIds");
     if (!fields(item, keys, ARRAY_COUNT(keys)) || !identifier(cJSON_GetObjectItemCaseSensitive(item, "id"), 64) ||
         !string(cJSON_GetObjectItemCaseSensitive(item, "name"), 1, 32) ||
         !one_of(renderer, renderers, ARRAY_COUNT(renderers)) || !array_size(ids, 1, 2) ||
-        (strcmp(renderer->valuestring, "dual") == 0) != (cJSON_GetArraySize(ids) == 2))
+        (!strcmp(renderer->valuestring, "dual") || !strcmp(renderer->valuestring, "dualArc")) !=
+            (cJSON_GetArraySize(ids) == 2))
         return false;
+    const cJSON *arc      = cJSON_GetObjectItemCaseSensitive(item, "arcMetricIndex");
+    bool         dual_arc = !strcmp(renderer->valuestring, "dualArc");
+    if ((dual_arc && !integer(arc, 0, 1)) || (!dual_arc && arc))
+        return false;
+    if (dual_arc)
+    {
+        const cJSON *selected_id = cJSON_GetArrayItem(ids, arc->valueint);
+        if (!cJSON_IsString(selected_id))
+            return false;
+        const char *selected = selected_id->valuestring;
+        for (const cJSON *definition = definitions->child; definition; definition = definition->next)
+        {
+            const cJSON *definition_id = cJSON_GetObjectItemCaseSensitive(definition, "id");
+            const cJSON *unit          = cJSON_GetObjectItemCaseSensitive(definition, "unit");
+            if (cJSON_IsString(definition_id) && cJSON_IsString(unit) &&
+                !strcmp(definition_id->valuestring, selected) && !strcmp(unit->valuestring, "gear"))
+                return false;
+        }
+    }
     for (const cJSON *id = ids->child; id != NULL; id = id->next)
     {
         if (!identifier(id, 64) || !contains_id(definitions, id->valuestring))
@@ -453,7 +473,7 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
         !integer(cJSON_GetObjectItemCaseSensitive(root, "brightness"), 5, 100) ||
         !cJSON_IsBool(cJSON_GetObjectItemCaseSensitive(root, "reducedMotion")) ||
         !array_size(sources, 1, context->max_adapter_links) || !array_size(definitions, 1, 32) ||
-        !array_size(pages, 1, 8) || !array_size(alerts, 0, 32) || !unique_ids(sources) || !unique_ids(definitions) ||
+        !array_size(pages, 1, 10) || !array_size(alerts, 0, 32) || !unique_ids(sources) || !unique_ids(definitions) ||
         !unique_ids(pages) || !unique_ids(alerts))
         return false;
     const cJSON *filters = cJSON_GetObjectItemCaseSensitive(root, "diagnosticFilters");

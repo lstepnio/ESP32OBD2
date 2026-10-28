@@ -225,3 +225,21 @@ and [external RAM constraints](https://docs.espressif.com/projects/esp-idf/en/v5
 
 See [memory audit evidence](../evidence/esp32-memory-hardening.md) and the
 [repeatable qualification procedure](../development/memory-qualification.md).
+
+## Display evolution ownership
+
+[Display experience](display-experience.md) owns the ten-page/layout/waiting rules.
+The application initializes the board/logo after NVS preferences and before heavy
+runtime/radio setup. The existing UI owner maintains one retained logo tree, reads
+scoped observations and consumes its waking touch. No additional render task or
+bitmap/framebuffer is allocated. Sampling stability is a fixed 640-byte maximum
+PSRAM array in the existing adapter workers. [Sampling metadata and limits](../development/reading-catalog-alerts.md#display-and-polling-classes)
+never relax control/alert freshness. Smart's ten-page state is 3,448 bytes plus a
+256-byte alert projection, guarded by the existing 4 KiB bound.
+
+The [orientation candidate](hardware-and-transports.md#automatic-display-orientation)
+uses an optional low-priority worker with a 2 KiB internal stack, snapshot ownership
+and existing board I2C, disabled in ordinary images. Rendering applies display/touch
+transforms and acknowledges only success; no sensor I/O belongs in callbacks.
+Static linked placement and bounded native LVGL checks are necessary but do not
+replace loaded Wi-Fi/BLE/dual-source stack, fragmentation and failure qualification.

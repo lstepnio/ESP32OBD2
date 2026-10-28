@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdatomic.h>
 #include "transmission_gear.h"
+#include "display_idle_policy.h"
 #include "sdkconfig.h"
 #include "esp_timer.h"
 
@@ -209,9 +210,11 @@ struct _ui_t
         lv_obj_t *dual_info[2];
     } widgets;
 
-    atomic_uint  cycle_pause;
-    portMUX_TYPE sample_lock;
-    ui_sample_t  samples[EGAUGE_RUNTIME_PIDS];
+    display_idle_policy_t idle;
+    bool                  waiting_enabled, waiting_visible, wake_sequence;
+    atomic_uint           cycle_pause;
+    portMUX_TYPE          sample_lock;
+    ui_sample_t           samples[EGAUGE_RUNTIME_PIDS];
     struct
     {
         bool     ready;
@@ -416,6 +419,92 @@ static int32_t normalized_value(double value, const ui_metric_t *metric, int32_t
 {
     double normalized = (value - metric->minimum) / bounded_range(metric->minimum, metric->maximum);
     return (int32_t)lround(fmin(1, fmax(0, normalized)) * extent);
+}
+
+static lv_obj_t          *boot_logo;
+static ui_t              *boot_logo_ui;
+static bool               early_logo_touched;
+static lv_point_precise_t boot_needle[2];
+static void               boot_logo_touch(lv_event_t *event)
+{
+    (void)event;
+    early_logo_touched = true;
+    if (boot_logo_ui)
+    {
+        display_idle_touch(&boot_logo_ui->idle, (uint32_t)(esp_timer_get_time() / 1000));
+        boot_logo_ui->waiting_visible = false;
+        boot_logo_ui->wake_sequence   = true;
+        boot_logo_ui->status_dirty    = true;
+        if (boot_logo_ui->touch_cb)
+            boot_logo_ui->touch_cb(boot_logo_ui, LV_EVENT_PRESSED);
+    }
+    lv_obj_add_flag(boot_logo, LV_OBJ_FLAG_HIDDEN);
+}
+void ui_boot_logo_early(void)
+{
+    if (boot_logo)
+        return;
+    lv_obj_t *screen = lv_screen_active();
+    lv_obj_set_style_bg_color(screen, lv_color_hex(color_background), 0);
+    boot_logo = lv_obj_create(screen);
+    lv_obj_remove_style_all(boot_logo);
+    lv_obj_set_size(boot_logo, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(boot_logo, lv_color_hex(color_background), 0);
+    lv_obj_set_style_bg_opa(boot_logo, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(boot_logo, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_add_event_cb(boot_logo, boot_logo_touch, LV_EVENT_PRESSED, NULL);
+    lv_obj_t *arc = lv_arc_create(boot_logo);
+    lv_obj_set_size(arc, px(112), px(112));
+    lv_obj_set_pos(arc, gx(64), gy(64));
+    lv_arc_set_bg_angles(arc, 135, 405);
+    lv_arc_set_range(arc, 0, 100);
+    lv_arc_set_value(arc, 100);
+    lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
+    lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_arc_width(arc, px(8), LV_PART_MAIN);
+    lv_obj_set_style_arc_width(arc, px(8), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(arc, lv_color_hex(color_accent), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(arc, lv_color_hex(color_accent), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
+    boot_needle[0]   = (lv_point_precise_t){gx(120), gy(120)};
+    boot_needle[1]   = (lv_point_precise_t){gx(151), gy(89)};
+    lv_obj_t *needle = lv_line_create(boot_logo);
+    lv_line_set_points(needle, boot_needle, 2);
+    lv_obj_set_style_line_width(needle, px(8), 0);
+    lv_obj_set_style_line_rounded(needle, true, 0);
+    lv_obj_set_style_line_color(needle, lv_color_hex(color_accent), 0);
+    lv_obj_clear_flag(needle, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_t *dot = lv_obj_create(boot_logo);
+    lv_obj_remove_style_all(dot);
+    lv_obj_set_size(dot, px(14), px(14));
+    lv_obj_set_pos(dot, gx(113), gy(113));
+    lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(dot, lv_color_hex(color_accent), 0);
+    lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(dot, LV_OBJ_FLAG_CLICKABLE);
+    lv_refr_now(NULL);
+}
+void ui_waiting_logo_enable(ui_t *ui, bool enabled)
+{
+    if (!ui)
+        return;
+    if (enabled)
+        ui_boot_logo_early();
+    ui->waiting_enabled = enabled;
+    boot_logo_ui        = enabled ? ui : NULL;
+    if (enabled && early_logo_touched)
+        display_idle_touch(&ui->idle, (uint32_t)(esp_timer_get_time() / 1000));
+    ui->waiting_visible = enabled && !ui->pairing_visible && !ui->idle.touched;
+    if (boot_logo)
+    {
+        if (ui->waiting_visible)
+        {
+            lv_obj_remove_flag(boot_logo, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(boot_logo);
+        }
+        else
+            lv_obj_add_flag(boot_logo, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 static bool metric_value(ui_t *ui, unsigned index, double *value)
@@ -689,11 +778,11 @@ static void render_calibration_page(ui_t *ui)
 static void select_renderer_widgets(ui_t *ui)
 {
     ui_renderer_t renderer = presented_page(ui)->renderer;
-    bool          dual     = renderer == UI_RENDERER_DUAL;
+    bool          dual     = renderer == UI_RENDERER_DUAL || renderer == UI_RENDERER_DUAL_ARC;
     show(ui->widgets.value_lbl, !dual);
     show(ui->widgets.info_lbl, !dual);
     show(ui->widgets.unit_lbl, !dual);
-    show(ui->widgets.arc, renderer == UI_RENDERER_ARC);
+    show(ui->widgets.arc, renderer == UI_RENDERER_ARC || renderer == UI_RENDERER_DUAL_ARC);
     show(ui->widgets.bar, renderer == UI_RENDERER_BAR);
     show(ui->widgets.trend, renderer == UI_RENDERER_TREND);
     for (unsigned i = 0; i < 2; ++i)
@@ -771,6 +860,19 @@ static void ui_touch_callback(lv_event_t *e)
     ui_t *ui = (ui_t *)lv_event_get_user_data(e);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     lv_event_code_t code = lv_event_get_code(e);
+    if (ui->wake_sequence)
+    {
+        if (code == LV_EVENT_PRESSED)
+            ui->wake_sequence = false;
+        else
+        {
+            if (code == LV_EVENT_CLICKED || code == LV_EVENT_PRESS_LOST)
+                ui->wake_sequence = false;
+            return;
+        }
+    }
+    if (code == LV_EVENT_PRESSED)
+        display_idle_touch(&ui->idle, (uint32_t)(esp_timer_get_time() / 1000));
     if (ui->command_menu_visible)
         return;
 #if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
@@ -910,7 +1012,7 @@ static void             render_page(ui_t *ui)
                      : 0;
     if (!ui->display.rendered_once)
         select_renderer_widgets(ui);
-    if (renderer == UI_RENDERER_DUAL)
+    if (renderer == UI_RENDERER_DUAL || renderer == UI_RENDERER_DUAL_ARC)
     {
         for (unsigned i = 0; i < 2; i++)
         {
@@ -920,9 +1022,10 @@ static void             render_page(ui_t *ui)
             const ui_metric_t *metric = &page->metrics[i];
             char               text[32];
             format_reading(text, metric, available[i], values[i], ui->imperial_units);
-            const char *label = gauge_layout_label(metric->name, metric->unit);
-            const char *unit  = gauge_layout_unit(label, display_units_label(metric->unit, ui->imperial_units));
-            small_label(ui->widgets.dual_info[i], label, gx(120), gy(i ? 135 : 72), px(184));
+            const char *label         = gauge_layout_label(metric->name, metric->unit);
+            const char *unit          = gauge_layout_unit(label, display_units_label(metric->unit, ui->imperial_units));
+            int         content_width = renderer == UI_RENDERER_DUAL_ARC ? 164 : 192;
+            small_label(ui->widgets.dual_info[i], label, gx(120), gy(i ? 135 : 72), px(content_width - 8));
             int   cy = gy(i ? 160 : 97);
             ink_t u;
             if (!ink(unit, font_subtitle, &u))
@@ -938,16 +1041,16 @@ static void             render_page(ui_t *ui)
                 if (previous == font_dual || previous == font_compact)
                     preferred = previous;
             }
-            const lv_font_t *font =
-                fit_value(text, gx(120) - (uw ? uw / 2 + px(3) : 0), cy, px(192) - (uw ? uw + px(6) : 0), preferred);
-            bool placed = false;
+            const lv_font_t *font   = fit_value(text, gx(120) - (uw ? uw / 2 + px(3) : 0), cy,
+                                                px(content_width) - (uw ? uw + px(6) : 0), preferred);
+            bool             placed = false;
             if (font)
             {
                 ink_t v;
                 ink(text, font, &v);
                 int vw = v.right - v.left;
                 placed = label_at(ui->widgets.dual_value[i], text, font, gx(120) - (uw ? uw / 2 + px(3) : 0), cy,
-                                  px(192) - (uw ? uw + px(6) : 0));
+                                  px(content_width) - (uw ? uw + px(6) : 0));
                 if (uw)
                     placed = label_at(ui->widgets.dual_unit[i], unit, font_subtitle, gx(120) + vw / 2 + px(3),
                                       cy + px(7), px(48)) &&
@@ -957,7 +1060,10 @@ static void             render_page(ui_t *ui)
                 small_label(ui->widgets.dual_value[i], "Value too wide", gx(120), cy, px(166));
             show(ui->widgets.dual_unit[i], uw && placed);
             lv_obj_set_style_text_color(ui->widgets.dual_value[i],
-                                        lv_color_hex(available[i] ? color_text_primary : color_text_secondary), 0);
+                                        lv_color_hex(!available[i]                   ? color_text_secondary
+                                                     : !strcmp(metric->unit, "gear") ? transmission_gear_color(text)
+                                                                                     : color_text_primary),
+                                        0);
         }
     }
     else if (!ui->display.rendered_once || offset != ui->display.rendered_offset ||
@@ -988,12 +1094,21 @@ static void             render_page(ui_t *ui)
         else if (!label_at(ui->widgets.unit_lbl, unit, font_unit, gx(120), gy(unit_y), px(156)))
             small_label(ui->widgets.unit_lbl, "Unit?", gx(120), gy(unit_y), px(140));
         lv_obj_set_style_text_color(ui->widgets.value_lbl,
-                                    lv_color_hex(available[0] ? color_text_primary : color_text_secondary), 0);
+                                    lv_color_hex(!available[0]                    ? color_text_secondary
+                                                 : !strcmp(primary->unit, "gear") ? transmission_gear_color(text)
+                                                                                  : color_text_primary),
+                                    0);
         if (renderer == UI_RENDERER_ARC)
             lv_arc_set_value(ui->widgets.arc, available[0] ? normalized_value(values[0], primary, 1000) : 0);
         if (renderer == UI_RENDERER_BAR)
             lv_bar_set_value(ui->widgets.bar, available[0] ? normalized_value(values[0], primary, 1000) : 0,
                              LV_ANIM_OFF);
+    }
+    if (renderer == UI_RENDERER_DUAL_ARC)
+    {
+        unsigned arc = page->arc_metric_index < 2 ? page->arc_metric_index : 0;
+        lv_arc_set_value(ui->widgets.arc,
+                         available[arc] ? normalized_value(values[arc], &page->metrics[arc], 1000) : 0);
     }
     if (renderer == UI_RENDERER_TREND)
     {
@@ -1183,7 +1298,10 @@ static void render_status(ui_t *ui)
     ui_alert_t       alert = visible_alert(ui);
     ui_diagnostics_t d     = visible_diagnostics(ui);
     uint32_t         color = alert.severity == 2 ? color_critical : alert.severity == 1 ? color_warning : color_accent;
-    uint32_t         chart_color = ui->display.rendered_available[0] ? color : color_track;
+    const ui_page_t *page  = presented_page(ui);
+    unsigned         chart_index =
+        page->renderer == UI_RENDERER_DUAL_ARC && page->arc_metric_index < 2 ? page->arc_metric_index : 0;
+    uint32_t chart_color = ui->display.rendered_available[chart_index] ? color : color_track;
     lv_obj_set_style_arc_color(ui->widgets.arc, lv_color_hex(chart_color), LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(ui->widgets.bar, lv_color_hex(chart_color), LV_PART_INDICATOR);
     lv_obj_set_style_line_color(ui->widgets.trend, lv_color_hex(color), LV_PART_MAIN);
@@ -1489,9 +1607,56 @@ static void ui_task(lv_timer_t *timer)
     render_page(ui);
     if (ui->status_dirty)
         render_status(ui);
+    if (ui->waiting_enabled)
+    {
+        uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000), newest = 0, minimum_age = UINT32_MAX;
+        bool     available = false;
+        bool     source_ready[2];
+        uint32_t generations[2];
+        for (unsigned source = 0; source < 2; ++source)
+        {
+            source_ready[source] =
+                adapter_status_ready_for(source) && !ble_mgr_is_paused() && transfer_gate_current() != 2;
+            generations[source] = adapter_status_generation(source);
+        }
+        portENTER_CRITICAL(&ui->sample_lock);
+        for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+        {
+            const ui_sample_t *sample = &ui->samples[i];
+            if (!sample->used || !sample->present || sample->source >= 2 || !source_ready[sample->source] ||
+                !ui->sample_sources[sample->source].ready || sample->generation != generations[sample->source] ||
+                sample->revision != ui->sample_sources[sample->source].revision)
+                continue;
+            uint32_t age = now_ms - sample->observed_at_ms;
+            if (age < DISPLAY_IDLE_DATA_MS && age < minimum_age)
+            {
+                available   = true;
+                newest      = sample->observed_at_ms;
+                minimum_age = age;
+            }
+        }
+        portEXIT_CRITICAL(&ui->sample_lock);
+        ui_diagnostics_t d        = visible_diagnostics(ui);
+        bool             priority = ui->pairing_visible || ui->calibration_mode || ui->command_menu_visible ||
+                                    atomic_load(&ui->showcase_active) || ui->rendered_alert.severity ||
+                                    (d.valid && (d.mil_on || d.count));
+        bool             waiting  = display_idle_waiting(&ui->idle, available, newest, priority, now_ms);
+        if (waiting != ui->waiting_visible)
+        {
+            ui->waiting_visible = waiting;
+            if (waiting)
+            {
+                lv_obj_remove_flag(boot_logo, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_move_foreground(boot_logo);
+            }
+            else
+                lv_obj_add_flag(boot_logo, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
     atomic_store(&ui->cycle_pause, ui->pairing_visible || ui->rendered_alert.attention    ? PAGE_CYCLE_ATTENTION
                                    : ui->command_menu_visible                             ? PAGE_CYCLE_ACTIONS
                                    : atomic_load(&ui->showcase_active)                    ? PAGE_CYCLE_SHOWCASE
+                                   : ui->waiting_visible                                  ? PAGE_CYCLE_WAITING
                                    : ui->press_active || atomic_load(&ui->action_pending) ? PAGE_CYCLE_TOUCH
                                                                                           : PAGE_CYCLE_RUNNING);
 }
@@ -1725,6 +1890,8 @@ ui_t *ui_init(ui_page_t const    *page,
     atomic_init(&ui->command_ui[0], 0);
     atomic_init(&ui->command_ui[1], 0);
     ui_init_screen(ui, page, interval_ms);
+    if (boot_logo)
+        ui_waiting_logo_enable(ui, true);
     ui->action_label = lv_label_create(ui->widgets.gauge_content);
     lv_obj_set_style_text_color(ui->action_label, lv_color_hex(color_accent), 0);
     lv_obj_set_style_text_font(ui->action_label, font_subtitle, 0);

@@ -9,7 +9,8 @@ data class ProjectedPage(
     val label: String,
     val pidId: String,
     val renderer: String,
-    val secondaryPidId: String? = null
+    val secondaryPidId: String? = null,
+    val arcMetricIndex: Int = 0
 )
 
 data class ProjectedAlert(
@@ -72,7 +73,7 @@ object ConfigurationProjector {
                 add("Vehicle source is invalid")
             }
             if (draft.pages.size !in
-                (if (allowEmptyPages) 0..8 else 1..8)
+                (if (allowEmptyPages) 0..10 else 1..10)
             ) {
                 add("Add a page for the selected adapter before sending")
             }
@@ -80,7 +81,7 @@ object ConfigurationProjector {
                 add("Every page needs a unique identity")
             }
             draft.pages.forEachIndexed { index, page ->
-                val expected = if (page.layout == GaugeLayout.Dual) 2 else 1
+                val expected = if (page.layout.isDual) 2 else 1
                 if (page.pidIds.size != expected ||
                     page.pidIds.distinct().size != page.pidIds.size
                 ) {
@@ -92,9 +93,19 @@ object ConfigurationProjector {
                     add("Page ${index + 1} contains a reading this firmware cannot execute")
                 }
                 if ("tcmgear" in page.pidIds &&
-                    page.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual)
+                    page.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual, GaugeLayout.DualArc)
                 ) {
-                    add("Gear uses Numeric or Dual layout")
+                    add("Gear uses Numeric, Dual or Dual + arc layout")
+                }
+                if (page.arcMetricIndex !in 0..1 ||
+                    (page.layout != GaugeLayout.DualArc && page.arcMetricIndex != 0) ||
+                    (
+                        page.layout == GaugeLayout.DualArc && page.pidIds.getOrNull(page.arcMetricIndex)?.let { id ->
+                            readingCatalog.firstOrNull { it.id == id }?.alertKind != "numeric"
+                        } != false
+                        )
+                ) {
+                    add("Page ${index + 1} needs a numeric arc reading")
                 }
                 if (page.name.isBlank() || page.name.length > 32) {
                     add("Page ${index + 1} needs a name of at most 32 characters")
@@ -200,6 +211,7 @@ object ConfigurationProjector {
         require(draft.actions.isEmpty() || schemaVersion == 2) {
             "Gesture actions require updated gauge configuration"
         }
+        require(schemaVersion == 2 || draft.pages.none { it.layout == GaugeLayout.DualArc }) { "Dual + arc requires updated gauge configuration" }
         json.remove("diagnosticFilters")
         require(draft.diagnosticFilters.isEmpty() || schemaVersion == 2) {
             "Code filters require updated gauge configuration"
@@ -248,8 +260,9 @@ object ConfigurationProjector {
                 JSONObject()
                     .put("id", page.id)
                     .put("name", page.name)
-                    .put("renderer", page.layout.name.lowercase(Locale.ROOT))
+                    .put("renderer", page.layout.renderer)
                     .put("pidIds", JSONArray(page.pidIds.map { definitionIds.getValue(it) }))
+                    .also { if (page.layout == GaugeLayout.DualArc) it.put("arcMetricIndex", page.arcMetricIndex) }
             )
         }
         json.put("pages", pages)
@@ -280,8 +293,9 @@ object ConfigurationProjector {
                     page.id,
                     page.name,
                     definitionIds.getValue(page.pidIds[0]),
-                    page.layout.name.lowercase(Locale.ROOT),
-                    page.pidIds.getOrNull(1)?.let { definitionIds.getValue(it) }
+                    page.layout.renderer,
+                    page.pidIds.getOrNull(1)?.let { definitionIds.getValue(it) },
+                    page.arcMetricIndex
                 )
             },
             diagnosticFilters = draft.diagnosticFilters,

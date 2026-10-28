@@ -225,26 +225,26 @@ static void fairness_and_wrap(void)
     for (unsigned k = 0; k < sizeof(intervals) / sizeof(*intervals); ++k)
     {
         uint32_t start = UINT32_MAX - 12000;
-        init(8, intervals[k], start);
-        uint32_t last[8]  = {0};
-        uint32_t duration = 5U * 2 * 8 * intervals[k] * 1000;
-        uint32_t prior    = start;
+        init(SMART_PAGE_PAGES, intervals[k], start);
+        uint32_t last[SMART_PAGE_PAGES] = {0};
+        uint32_t duration               = 5U * 2 * SMART_PAGE_PAGES * intervals[k] * 1000;
+        uint32_t prior                  = start;
         for (uint32_t elapsed = 0; elapsed <= duration; elapsed += 200)
         {
-            for (unsigned i = 0; i < 8; ++i)
+            for (unsigned i = 0; i < SMART_PAGE_PAGES; ++i)
             {
-                severities[i] = i == (elapsed / 3000) % 8 ? 3 : 0;
+                severities[i] = i == (elapsed / 3000) % SMART_PAGE_PAGES ? 3 : 0;
                 episodes[i]   = elapsed / 3000 + 1;
             }
             if (tick(start + elapsed, &d, true))
             {
                 assert(start + elapsed - prior >= SMART_PAGE_MIN_VIEW_MS);
                 prior = start + elapsed;
-                assert(d.page < 8);
+                assert(d.page < SMART_PAGE_PAGES);
                 last[d.page] = elapsed;
             }
-            for (unsigned i = 0; i < 8; ++i)
-                assert(elapsed - last[i] <= 2U * 8 * intervals[k] * 1000);
+            for (unsigned i = 0; i < SMART_PAGE_PAGES; ++i)
+                assert(elapsed - last[i] <= 2U * SMART_PAGE_PAGES * intervals[k] * 1000);
         }
     }
     init(1, 10, 0);

@@ -44,6 +44,7 @@
 #include "display_settings.h"
 #include "smart_page_policy.h"
 #include "smart_metric_catalog.h"
+#include "orientation_runtime.h"
 #include "config_store.h"
 #include "config_transfer.h"
 #include "config_runtime.h"
@@ -235,7 +236,8 @@ static ui_renderer_t ui_renderer(runtime_renderer_t renderer)
                        (int)RUNTIME_RENDERER_ARC == (int)UI_RENDERER_ARC &&
                        (int)RUNTIME_RENDERER_BAR == (int)UI_RENDERER_BAR &&
                        (int)RUNTIME_RENDERER_TREND == (int)UI_RENDERER_TREND &&
-                       (int)RUNTIME_RENDERER_DUAL == (int)UI_RENDERER_DUAL,
+                       (int)RUNTIME_RENDERER_DUAL == (int)UI_RENDERER_DUAL &&
+                       (int)RUNTIME_RENDERER_DUAL_ARC == (int)UI_RENDERER_DUAL_ARC,
                    "Runtime and UI renderer values must remain aligned");
     return (ui_renderer_t)renderer;
 }
@@ -265,6 +267,7 @@ static void page_ui(unsigned index, ui_page_t *out)
     out->name                  = page->name;
     out->renderer              = ui_renderer(page->renderer);
     out->metric_count          = page->pid_count;
+    out->arc_metric_index      = page->arc_metric_index;
     for (unsigned i = 0; i < page->pid_count; ++i)
     {
         const runtime_pid_t *pid = &g_runtime->pids[page->pid_indices[i]];
@@ -337,6 +340,19 @@ static config_t g_config = {
     .cfg_idx  = 0,
     .disp_rot = LV_DISPLAY_ROTATION_0,
 };
+/* Called under the rendering owner's existing LVGL lease. Keep wire applied
+ * truth unchanged on a private board failure and retry through the main loop. */
+static bool apply_display_rotation(lv_display_rotation_t rotation)
+{
+    if (gauge_display_set_rotation(rotation) == ESP_OK)
+    {
+        orientation_runtime_applied((uint8_t)rotation);
+        return true;
+    }
+    orientation_runtime_apply_failed((uint32_t)(esp_timer_get_time() / 1000));
+    return false;
+}
+
 static QueueHandle_t g_phone_command_queue;
 typedef struct
 {
@@ -1091,6 +1107,16 @@ static void init_config(void)
     ESP_LOGI(TAG, "Initializing configuration...");
 
     ESP_ERROR_CHECK(config_init());
+    ESP_ERROR_CHECK(display_settings_init(0, 80, 0));
+    gauge_board_initialize();
+    gauge_display_set_rotation((lv_display_rotation_t)display_settings_snapshot().rotation);
+    if (lvgl_port_lock(portMAX_DELAY))
+    {
+        ui_boot_logo_early();
+        lvgl_port_unlock();
+    }
+    gauge_display_set_power(true);
+    ESP_ERROR_CHECK(gauge_display_set_brightness(display_settings_snapshot().brightness));
     ESP_ERROR_CHECK(config_store_init());
     ESP_ERROR_CHECK(config_trial_init());
     ESP_ERROR_CHECK(ota_transfer_init());
@@ -1166,6 +1192,13 @@ void app_main(void)
 
     memory_health_init();
 
+    const gauge_board_t *board = gauge_board_description();
+    if (board == NULL || !gauge_presentation_matches(board->surface))
+    {
+        ESP_LOGE(TAG, "No matching UI profile for this display surface");
+        return;
+    }
+
     config_document_init();
     init_config();
     for (unsigned source = 0; source < runtime_source_count(); ++source)
@@ -1190,16 +1223,9 @@ void app_main(void)
             alert_runtime_simulated(
                 i, g_runtime->sources[g_runtime->pids[g_runtime->alerts[i].pid_index].source_index].simulated);
 
-    const gauge_board_t *board = gauge_board_description();
-    if (board == NULL || !gauge_presentation_matches(board->surface))
-    {
-        ESP_LOGE(TAG, "No matching UI profile for this display surface");
-        return;
-    }
-    gauge_board_initialize();
     hardware_probe_set_ready(HARDWARE_FEATURE_DISPLAY | HARDWARE_FEATURE_TOUCH | HARDWARE_FEATURE_BACKLIGHT, true);
 
-    gauge_display_set_rotation(g_config.disp_rot);
+    apply_display_rotation(g_config.disp_rot);
 
     const uint32_t ui_interval_ms = 50;
     ui_page_t      initial_page;
@@ -1218,8 +1244,8 @@ void app_main(void)
         }
         lvgl_port_unlock();
     }
-    gauge_display_set_power(true);
     ESP_ERROR_CHECK(gauge_display_set_brightness(display_settings_snapshot().brightness));
+    orientation_runtime_init(display_settings_snapshot().rotation);
 
 #if CONFIG_EGAUGE_DISPLAY_CALIBRATION
     ui_start_display_calibration(ui);
@@ -1332,7 +1358,7 @@ void app_main(void)
             if (lvgl_port_lock(portMAX_DELAY))
             {
                 ui_reset_action_sequence(ui);
-                gauge_display_set_rotation(saved.disp_rot);
+                apply_display_rotation(saved.disp_rot);
                 lvgl_port_unlock();
             }
             ESP_LOGI(TAG, "Display rotation saved: %u", (unsigned)command.value * 90);
@@ -1348,7 +1374,7 @@ void app_main(void)
             if (lvgl_port_lock(portMAX_DELAY))
             {
                 ui_reset_action_sequence(ui);
-                gauge_display_set_rotation(g_config.disp_rot);
+                apply_display_rotation(g_config.disp_rot);
                 lvgl_port_unlock();
             }
             ESP_ERROR_CHECK(gauge_display_set_brightness(saved.brightness));
@@ -1366,7 +1392,7 @@ void app_main(void)
             if (lvgl_port_lock(portMAX_DELAY))
             {
                 ui_reset_action_sequence(ui);
-                gauge_display_set_rotation(g_config.disp_rot);
+                apply_display_rotation(g_config.disp_rot);
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
             }
@@ -1385,11 +1411,15 @@ void app_main(void)
                                                            command.cycle_seconds, command.base_revision, &saved);
             if (result != ESP_OK)
                 continue;
-            g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
+            if (!saved.auto_orientation)
+                g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
             if (lvgl_port_lock(portMAX_DELAY))
             {
                 ui_reset_action_sequence(ui);
-                gauge_display_set_rotation(g_config.disp_rot);
+                if (!saved.auto_orientation)
+                {
+                    apply_display_rotation(g_config.disp_rot);
+                }
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
             }
@@ -1398,6 +1428,23 @@ void app_main(void)
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u cycle=%us",
                      (unsigned)saved.rotation * 90, (unsigned)saved.brightness, (unsigned)saved.units,
                      (unsigned)saved.cycle_seconds);
+        }
+        else if (has_command && command.opcode == 0x6b)
+        {
+            display_settings_t saved;
+            if (command.auto_orientation && !orientation_runtime_snapshot().usable)
+                continue;
+            if (display_settings_save_orientation(command.auto_orientation, command.value, command.base_revision,
+                                                  &saved) != ESP_OK)
+                continue;
+            if (!saved.auto_orientation && lvgl_port_lock(portMAX_DELAY))
+            {
+                ui_reset_action_sequence(ui);
+                apply_display_rotation((lv_display_rotation_t)saved.rotation);
+                g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
+                lvgl_port_unlock();
+            }
+            atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
         }
         else if (has_command && command.opcode == 0x64)
         {
@@ -1413,6 +1460,20 @@ void app_main(void)
         display_settings_t cycle       = display_settings_snapshot();
         bool               owner_ready = ble_companion_has_owner();
         bool               maintenance = !transfer_gate_vehicle_allowed();
+        uint8_t            auto_angle;
+        if (orientation_runtime_poll(cycle.auto_orientation, cycle.rotation,
+                                     maintenance || transfer_gate_current() == TRANSFER_GATE_VEHICLE_COMMAND ||
+                                         vehicle_commands_runtime_pending() || ui_action_pending(ui),
+                                     &auto_angle) &&
+            orientation_runtime_retry_ready(now_ms) && lvgl_port_lock(0))
+        {
+            ui_reset_action_sequence(ui);
+            if (apply_display_rotation((lv_display_rotation_t)auto_angle))
+            {
+                g_config.disp_rot = (lv_display_rotation_t)auto_angle;
+            }
+            lvgl_port_unlock();
+        }
         ui_set_action_context(ui, owner_ready && !maintenance);
         uint8_t             selected_before = atomic_load(&g_selected_page);
         uint32_t            activity_before = atomic_load(&g_page_activity_ms);

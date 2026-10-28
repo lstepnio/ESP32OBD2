@@ -1036,7 +1036,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     ): Long {
         val caps = capabilities ?: return 20_000L
         if (caps.displaySettingsVersion < 1 && !caps.savedStateRead) return 20_000L
-        val key = "$currentGaugeId:${caps.displaySettingsVersion}:${caps.smartPageCyclingVersion}"
+        val key = "$currentGaugeId:${caps.displaySettingsVersion}:${caps.smartPageCyclingVersion}:${caps.automaticOrientationVersion}"
         val now = android.os.SystemClock.elapsedRealtime()
         if (!settingsPoll.due(key, now)) return settingsPoll.pause(now)
         var healthy = false
@@ -1046,6 +1046,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     1
                 ) {
                     displaySettingsRead(client.readDisplaySettings(device, caps.smartPageCyclingVersion))
+                    if (caps.automaticOrientationVersion == 1) {
+                        orientationSettings = client.readOrientationSettings(device)
+                        check(orientationSettings?.revision == displaySettings?.revision) { "Gauge settings changed during refresh" }
+                    } else {
+                        orientationSettings = null
+                    }
                 } else {
                     snapshotRead(bleClient.readSavedSnapshot())
                 }
@@ -1522,6 +1528,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     private var pairingWindowReadAtElapsedMs = 0L
     var savedGauge by mutableStateOf<GaugeSavedSnapshot?>(null)
+    var orientationSettings by mutableStateOf<GaugeOrientationSettings?>(null)
+        private set
     var displaySettings by mutableStateOf<GaugeConfigTransferClient.DisplaySettings?>(null)
         private set
     var diagnostics by mutableStateOf<GaugeConfigTransferClient.Diagnostics?>(null)
@@ -2127,6 +2135,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ownerAccess = OwnerAccess.UNKNOWN
         savedGauge = null
         displaySettings = null
+        orientationSettings = null
         displayShowcase = null
         settingsObservedAtElapsedMs = null
         settingsCheckFailed = false
@@ -2155,6 +2164,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (!preserveSent) {
             savedGauge = null
             displaySettings = null
+            orientationSettings = null
             displayShowcase = null
             settingsObservedAtElapsedMs = null
             settingsCheckFailed = false
@@ -2611,6 +2621,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         // after the update lease closes instead of keeping the previous image's snapshot.
         capabilities = null
         displaySettings = null
+        orientationSettings = null
         displayShowcase = null
         settingsObservedAtElapsedMs = null
         settingsCheckFailed = false
@@ -2857,6 +2868,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             OperationStage.ACTIVE,
             "Display rotation saved",
             "The gauge confirmed ${rotation * 90}°",
+            terminal = true
+        )
+    }
+
+    fun saveOrientation(automatic: Boolean, manualAngle: Int) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving display orientation") { id ->
+        require(capabilities?.automaticOrientationVersion == 1) { "Gauge does not offer automatic orientation" }
+        val client = GaugeConfigTransferClient(getApplication())
+        orientationSettings = client.saveOrientationSettings(bleClient.selectedGauge(), automatic, manualAngle)
+        displaySettingsRead(client.readDisplaySettings(bleClient.selectedGauge(), capabilities?.smartPageCyclingVersion ?: 0))
+        check(orientationSettings?.revision == displaySettings?.revision) { "Gauge settings changed during save; refresh and retry" }
+        ownerAccess = OwnerAccess.AUTHENTICATED
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.ACTIVE,
+            "Display orientation saved",
+            if (automatic) "Automatic orientation is on" else "The gauge confirmed ${manualAngle * 90}°",
             terminal = true
         )
     }
@@ -3121,6 +3149,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         val profileId = profileCollection.activeId
         val capturedDraft = transmittedDraft
+        val currentCapabilities = requireNotNull(capabilities)
+        require(capturedDraft.pages.size <= currentCapabilities.maxPages) {
+            "Your gauge supports ${currentCapabilities.maxPages} pages"
+        }
+        require(capturedDraft.pages.all { it.layout in currentCapabilities.supportedRenderers }) {
+            "Update gauge firmware before sending this layout"
+        }
         require(
             capturedDraft.diagnosticFilters.isEmpty() ||
                 (capabilities?.configurationVersion ?: 0) >= 6
@@ -3498,7 +3533,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addPage(pidId: String = "rpm") {
         val working = editorDraft
-        if (working.pages.size >= 8 ||
+        if (working.pages.size >= 10 ||
             pidId !in ConfigurationProjector.pagePidIds(working.source)
         ) {
             return
@@ -3562,7 +3597,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (editingPageIndex !in working.pages.indices) return
         val pages = working.pages.toMutableList()
         val current = pages[editingPageIndex]
-        val ids = if (current.layout == GaugeLayout.Dual) {
+        val ids = if (current.layout.isDual) {
             val second =
                 current.pidIds.getOrNull(1)?.takeIf {
                     it != pid.id &&
@@ -3574,13 +3609,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             listOf(pid.id)
         }
         val layout = if (pid.id == "tcmgear" &&
-            current.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual)
+            current.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual, GaugeLayout.DualArc)
         ) {
             GaugeLayout.Numeric
         } else {
             current.layout
         }
-        pages[editingPageIndex] = current.copy(name = pid.gaugeLabel, pidIds = ids, layout = layout)
+        pages[editingPageIndex] = current.copy(name = pid.gaugeLabel, pidIds = ids, layout = layout, arcMetricIndex = numericArcIndex(layout, ids, current.arcMetricIndex))
         save(working.copy(pidId = pid.id, layout = layout, source = working.source, pages = pages))
     }
 
@@ -3593,8 +3628,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         val pages = working.pages.toMutableList()
         val current = pages[editingPageIndex]
-        if (current.layout != GaugeLayout.Dual || current.pidIds.first() == pid.id) return
-        pages[editingPageIndex] = current.copy(pidIds = listOf(current.pidIds.first(), pid.id))
+        if (!current.layout.isDual || current.pidIds.first() == pid.id) return
+        pages[editingPageIndex] = current.copy(pidIds = listOf(current.pidIds.first(), pid.id), arcMetricIndex = numericArcIndex(current.layout, listOf(current.pidIds.first(), pid.id), current.arcMetricIndex))
         save(working.copy(pages = pages))
     }
 
@@ -3603,7 +3638,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (editingPageIndex !in working.pages.indices) return
         val pages = working.pages.toMutableList()
         val current = pages[editingPageIndex]
-        val ids = if (layout == GaugeLayout.Dual) {
+        val ids = if (layout.isDual) {
             val secondary = current.pidIds.getOrNull(1)
                 ?: ConfigurationProjector.pagePidIds(working.source).first {
                     it !=
@@ -3613,8 +3648,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             listOf(current.pidIds.first())
         }
-        pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids)
+        pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids, arcMetricIndex = numericArcIndex(layout, ids, current.arcMetricIndex))
         save(working.copy(layout = layout, pages = pages))
+    }
+
+    private fun numericArcIndex(layout: GaugeLayout, ids: List<String>, preferred: Int): Int = if (layout != GaugeLayout.DualArc) {
+        0
+    } else {
+        preferred.takeIf {
+            ids.getOrNull(it)?.let { id -> demoCatalog.firstOrNull { it.id == id }?.alertKind == "numeric" } == true
+        } ?: ids.indexOfFirst { id -> demoCatalog.firstOrNull { it.id == id }?.alertKind == "numeric" }.coerceAtLeast(0)
+    }
+
+    fun selectArcMetric(index: Int) {
+        val working = editorDraft
+        val current = working.pages.getOrNull(editingPageIndex) ?: return
+        if (current.layout != GaugeLayout.DualArc || index !in 0..1 || numericArcIndex(current.layout, current.pidIds, index) != index) return
+        save(working.copy(pages = working.pages.mapIndexed { i, page -> if (i == editingPageIndex) page.copy(arcMetricIndex = index) else page }))
     }
 
     /** Commit a completed form once. Opening or cancelling the editor never creates an alert. */

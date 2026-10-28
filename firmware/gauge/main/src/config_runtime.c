@@ -56,7 +56,7 @@ static bool renderer_value(const char *name, runtime_renderer_t *out)
         runtime_renderer_t value;
     } values[] = {
         {"numeric", RUNTIME_RENDERER_NUMERIC}, {"arc", RUNTIME_RENDERER_ARC},   {"bar", RUNTIME_RENDERER_BAR},
-        {"trend", RUNTIME_RENDERER_TREND},     {"dual", RUNTIME_RENDERER_DUAL},
+        {"trend", RUNTIME_RENDERER_TREND},     {"dual", RUNTIME_RENDERER_DUAL}, {"dualArc", RUNTIME_RENDERER_DUAL_ARC},
     };
     for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); ++i)
     {
@@ -227,16 +227,23 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         if (!copy_text(page->id, sizeof(page->id), field(item, "id")) ||
             !copy_text(page->name, sizeof(page->name), field(item, "name")) ||
             !renderer_value(renderer, &page->renderer) || count < 1 || count > 2 ||
-            (page->renderer == RUNTIME_RENDERER_DUAL) != (count == 2))
+            (page->renderer == RUNTIME_RENDERER_DUAL || page->renderer == RUNTIME_RENDERER_DUAL_ARC) != (count == 2))
             goto done;
-        page->pid_count = count;
+        page->pid_count        = count;
+        const cJSON *arc       = field(item, "arcMetricIndex");
+        page->arc_metric_index = arc ? arc->valueint : 0;
+        if ((page->renderer == RUNTIME_RENDERER_DUAL_ARC &&
+             (!cJSON_IsNumber(arc) || arc->valueint < 0 || arc->valueint > 1 || arc->valuedouble != arc->valueint)) ||
+            (page->renderer != RUNTIME_RENDERER_DUAL_ARC && arc))
+            goto done;
         for (int i = 0; i < count; ++i)
         {
             int index = pid_index(out, cJSON_GetArrayItem(ids, i)->valuestring);
             if (index < 0)
                 goto done;
-            if (out->pids[index].obd.pid == 0x5503 && page->renderer != RUNTIME_RENDERER_NUMERIC &&
-                page->renderer != RUNTIME_RENDERER_DUAL)
+            if (!strcmp(out->pids[index].unit, "gear") && page->renderer != RUNTIME_RENDERER_NUMERIC &&
+                page->renderer != RUNTIME_RENDERER_DUAL &&
+                !(page->renderer == RUNTIME_RENDERER_DUAL_ARC && i != page->arc_metric_index))
                 goto done;
             page->pid_indices[i] = index;
         }

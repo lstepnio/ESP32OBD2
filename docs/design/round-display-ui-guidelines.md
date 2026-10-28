@@ -49,25 +49,15 @@ Use short gauge labels such as `ENGINE RPM`, `COOLANT` and `INPUT SPEED`. Preser
 
 The physically verified baseline arc was 198 px in diameter with a 7 px stroke. Firmware `0.2.0-dev.29` uses a 218 px diameter and 11 px stroke. Its outer radius is 109 px, within the previously observed decorative band, while the essential reading and alert text remain inside radius 104. Keep rounded ends and avoid using the arc color as the only alert signal. The enlarged arc still needs physical review at normal viewing angles.
 
-## Physically verified baseline palette
+## Current palette and historical calibration
 
-| Role | Hex | Notes |
-| --- | --- | --- |
-| Background | `#05080A` | Near-black to reduce backlight haze |
-| Primary text | `#E4EAED` | Near-white to reduce bloom |
-| Secondary text | `#9CAAB2` | Labels and units |
-| Track | `#202A30` | Inactive arc and bar |
-| Accent | `#26B895` | Normal active data |
-| Warning | `#E0A63A` | Attention state |
-| Critical | `#E75A5A` | Critical alert state |
-
-Color must reinforce text or shape. Warning and critical states require a readable label because color perception and sunlight conditions vary.
-
-Firmware `0.2.0-dev.29` uses a stronger palette for the track and active data: track `#29343A`, normal `#00D6A0`, warning `#FFB000`, and critical `#FF4D5A`. These are source-level choices pending physical display review. The background and text colors remain as physically verified above.
-
-The next firmware palette increases saturation after the dev.30 gauge appeared washed out in physical review: track `#1B2A30`, normal `#00FF70`, warning `#FF8A00`, and critical `#FF1744`. Android previews and semantic colors use matching shared tokens. Physical review of the new image is still required.
-
-The build, signed release, and Pixel update evidence for this change are recorded in [Arc visual refresh validation](../evidence/arc-visual-refresh-validation.md).
+`design/tokens.json` owns current shared semantic colors. Background is `#05080A`,
+primary text `#E4EAED`, secondary text `#9CAAB2`, track `#1B2A30`, active `#00FF70`,
+warning `#FF8A00` and critical `#FF1744`. These replace the muted dev.29/30-era
+palette. [Arc visual evidence](../evidence/arc-visual-refresh-validation.md) records
+the historical physical transport check; it does not qualify every later layout.
+Color reinforces explicit text or shape. For the new gear palette and optional
+Dual + arc geometry, follow [display experience](../architecture/display-experience.md).
 
 ## Physical review checklist
 
@@ -83,13 +73,14 @@ For a new renderer or a layout change:
 
 The optional calibration build provides color, neutral, ring, typography and production-reference pages. Enable `CONFIG_EGAUGE_DISPLAY_CALIBRATION` only for a USB bench build. It disables the BLE and OBD runtime by design and must be off in distributed images.
 
-## Prepared dev.54 compositor and Round 3 feedback
+## Compositor and Round 3 geometry
 
-This implementation is prepared for device review; the earlier physical calibration
-remains the color/geometry baseline, not proof of the new screens.
+The dev.54-era geometry below is the compositor baseline. Later implementation and
+physical gates are recorded in [current state](../current-state.md); the original
+calibration alone does not qualify later screens.
 
 One compositor places unboxed CEL/count at y42, reading content in the middle,
-condition/direction at y194 and Demo or page position at y213. Single numeric
+condition/direction at y194 and page position at y213. Single numeric
 centers are 87/126/169. The owner's Round 3 correction uses 75/114/157 for Numeric
 conditions without CEL, raising the reading block by twelve pixels. CEL combinations
 retain their approved geometry. Bar uses 70/108/147 with a six-pixel scale at174;
@@ -104,8 +95,8 @@ input/output shaft roles remain distinct. Units follow the owner's saved setting
 Do not rename an unqualified controller temperature to ATF.
 
 Top fault counts represent retrieved distinct codes across fresh categories per
-controller. The same code on different controllers counts separately. Unknown counts
-use a question mark; partial coverage uses a plus. MIL-reported count is a separate
+controller. The same code on different controllers counts separately. Unknown or partial counts are omitted; startup uncertainty does not introduce a
+question-mark indicator. MIL-reported count is a separate
 quantity. Diagnostic and lower-condition projections reuse the shared event owner;
 noncritical MIL does not obscure a simultaneous threshold warning. Critical diagnostic
 attention can still take over. Missing readings are dashes and trend gaps stay gaps.

@@ -572,6 +572,7 @@ CONFIG_EGAUGE_ECM_ADAPTER_MAC=""
 # end of eGauge configuration
 
 # CONFIG_EGAUGE_DTC_CLEAR_ENABLED is not set
+# CONFIG_EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED is not set
 
 #
 # Compiler options

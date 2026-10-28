@@ -40,6 +40,19 @@ This source milestone is not installed on the Pixel/gauge; the baseline below
 remains authoritative. Matched loaded timing, comfort and resource qualification
 remain in the [milestone procedure](development/smart-page-cycling-plan.md).
 
+## Display and adaptive sampling source milestone
+
+The uninstalled display-evolution source adds ten saved pages, numeric Dual + arc,
+shared explicit gear colors, an icon-only boot/no-data surface and reviewed
+PID-specific stability backoff. [Display contract](architecture/display-experience.md)
+and [sampling contract](development/reading-catalog-alerts.md#display-and-polling-classes)
+own defaults and boundaries. The Auto orientation candidate is implemented behind
+default-off probe/physical-qualification gates; the normal image does not offer it.
+The [offline evidence](evidence/display-evolution.md) records build, bounded LVGL,
+Android and protocol tests separately from pending physical/resource checks.
+App local profile schema is 18 in source, with schema-17 migration. No release,
+installation or change to the installed baseline is implied.
+
 ## Installed baseline
 
 | Item | Last recorded state | Evidence |

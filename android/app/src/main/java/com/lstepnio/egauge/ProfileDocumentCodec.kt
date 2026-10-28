@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..17) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..18) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -40,7 +40,7 @@ object ProfileDocumentCodec {
                 item.optJSONArray("pageOrder")?.let { order ->
                     (0 until order.length()).map { order.getString(it) }.also { ids ->
                         require(
-                            ids.size <= 8 && ids.distinct().size == ids.size &&
+                            ids.size <= 10 && ids.distinct().size == ids.size &&
                                 ids.all {
                                     it.matches(Regex("[a-z][a-z0-9._-]{0,63}"))
                                 }
@@ -71,9 +71,9 @@ object ProfileDocumentCodec {
                     if (schemaVersion >=
                         9
                     ) {
-                        0..8
+                        0..10
                     } else {
-                        1..8
+                        1..10
                     }
                     )
             ) { "Profile page count is invalid" }
@@ -83,7 +83,7 @@ object ProfileDocumentCodec {
                     GaugeLayout.entries.firstOrNull { it.name == page.getString("layout") }
                         ?: error("Profile page layout is not supported")
                 val ids = page.getJSONArray("pidIds")
-                require(ids.length() == if (pageLayout == GaugeLayout.Dual) 2 else 1)
+                require(ids.length() == if (pageLayout.isDual) 2 else 1)
                 val pagePids = (0 until ids.length()).map { ids.getString(it) }
                 require(
                     pagePids.distinct().size == pagePids.size &&
@@ -95,7 +95,11 @@ object ProfileDocumentCodec {
                     pageId.matches(Regex("[a-z][a-z0-9._-]{0,63}")) &&
                         pageName.length in 1..32
                 ) { "Profile page identity is invalid" }
-                GaugePageDraft(pageId, pageName, pageLayout, pagePids)
+                require(!page.has("arcMetricIndex") || page.get("arcMetricIndex") is Int)
+                val arcIndex = if (schemaVersion >= 18) page.optInt("arcMetricIndex", 0) else 0
+                require(arcIndex in 0..1 && (pageLayout == GaugeLayout.DualArc || arcIndex == 0))
+                require(pageLayout != GaugeLayout.DualArc || demoCatalog.first { it.id == pagePids[arcIndex] }.alertKind == "numeric")
+                GaugePageDraft(pageId, pageName, pageLayout, pagePids, arcIndex)
             }
         } else {
             defaultGaugePages(pidId, layout)
@@ -195,7 +199,7 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 17).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 18).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
             IdlePresets.validate(profile.draft.idlePresets)
@@ -222,7 +226,18 @@ object ProfileDocumentCodec {
         return root.put("profiles", items).toString()
     }
 
-    private fun draftJson(draft: Draft): JSONObject = JSONObject()
+    private fun draftJson(draft: Draft): JSONObject = JSONObject().also {
+        require(draft.pages.size <= 10)
+        draft.pages.forEach { page ->
+            require(page.arcMetricIndex in 0..1 && (page.layout == GaugeLayout.DualArc || page.arcMetricIndex == 0))
+            require(
+                page.layout != GaugeLayout.DualArc || (
+                    page.pidIds.size == 2 &&
+                        demoCatalog.firstOrNull { it.id == page.pidIds[page.arcMetricIndex] }?.alertKind == "numeric"
+                    )
+            )
+        }
+    }
         .put("actions", ProfileActions.json(draft.actions))
         .put("idlePresets", IdlePresets.json(draft.idlePresets))
         .put("diagnosticFilters", DiagnosticCodeFilters.json(draft.diagnosticFilters))
@@ -237,6 +252,7 @@ object ProfileDocumentCodec {
                         JSONObject().put("id", page.id).put("name", page.name)
                             .put("layout", page.layout.name)
                             .put("pidIds", JSONArray(page.pidIds))
+                            .also { if (page.layout == GaugeLayout.DualArc) it.put("arcMetricIndex", page.arcMetricIndex) }
                     )
                 }
             }

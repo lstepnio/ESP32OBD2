@@ -5,6 +5,7 @@
 #include "esp_err.h"
 #include "display/lv_display.h"
 #include "gauge_surface.h"
+#include "orientation_runtime.h"
 
 typedef enum
 {
@@ -32,3 +33,7 @@ void                 gauge_board_initialize(void);
 esp_err_t            gauge_display_set_power(bool on);
 esp_err_t            gauge_display_set_brightness(uint8_t percent);
 esp_err_t            gauge_display_set_rotation(lv_display_rotation_t rotation);
+
+/* Optional board seam. Reuse the touch-owned I2C bus; never create a second bus. */
+bool gauge_board_orientation_bus(orientation_bus_t *bus);
+bool gauge_board_orientation_qualified(void);

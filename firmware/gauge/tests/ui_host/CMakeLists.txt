@@ -12,7 +12,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/presentation.cmake")
 add_executable(gauge_ui_render ui_render_test.c
     ../../main/src/gauge_presentation.c ${EGAUGE_UI_PROFILE_SOURCE}
     ../../main/src/gauge_layout.c ../../main/src/gauge_surface.c ../../main/src/display_showcase.c
-    ../../main/src/display_units.c ../../main/src/page_action.c ${FONT_SOURCES})
+    ../../main/src/display_idle_policy.c ../../main/src/display_units.c ../../main/src/page_action.c ${FONT_SOURCES})
 target_include_directories(gauge_ui_render BEFORE PRIVATE stubs ../../main/inc "${EGAUGE_LVGL_SOURCE_DIR}/src")
 target_link_libraries(gauge_ui_render PRIVATE lvgl m)
 target_compile_options(gauge_ui_render PRIVATE -Wall -Wextra -Werror -Wno-unused-parameter)

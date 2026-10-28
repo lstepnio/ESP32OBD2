@@ -42,6 +42,7 @@ typedef enum
     UI_RENDERER_BAR,
     UI_RENDERER_TREND,
     UI_RENDERER_DUAL,
+    UI_RENDERER_DUAL_ARC,
 } ui_renderer_t;
 
 typedef struct
@@ -63,6 +64,7 @@ typedef struct
     ui_renderer_t renderer;
     uint8_t       metric_count;
     ui_metric_t   metrics[2];
+    uint8_t       arc_metric_index;
 } ui_page_t;
 
 typedef void (*ui_touch_callback_t)(ui_t *ui, lv_event_code_t event_code);
@@ -71,6 +73,9 @@ typedef void (*ui_touch_callback_t)(ui_t *ui, lv_event_code_t event_code);
 // Public Function Declarations
 // ---------------------------------------------------------------------------------------------------------------------
 
+/* Reused vector mark drawn as soon as the display is ready; no bitmap/framebuffer. */
+void  ui_boot_logo_early(void);
+void  ui_waiting_logo_enable(ui_t *ui, bool enabled);
 ui_t *ui_init(ui_page_t const    *page,
               uint32_t            interval_ms,
               ui_touch_callback_t touch_cb,

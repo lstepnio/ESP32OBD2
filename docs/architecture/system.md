@@ -69,7 +69,8 @@ capability flags and qualified link count remain gated by observed evidence.
 
 ## Bounds and remaining work
 
-Configuration permits eight pages, two channels per Dual page, 32 active definitions,
+Configuration permits ten pages (negotiated per gauge), two channels per Dual or
+Dual + arc page, 32 active definitions,
 32 alerts and 64 KiB. Runtime response buffers and worker deadlines are documented
 beside their owners in [firmware runtime](firmware-runtime.md), not inferred from
 larger research/discovery proposals. Curated definitions have bounded decoders;
