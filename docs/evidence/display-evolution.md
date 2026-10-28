@@ -249,3 +249,56 @@ gate. This adds 2 KiB of static internal storage; main/app worker budgets remain
 unchanged. Its acceptance still requires real boot, sensor health/error-path margins,
 Wi-Fi maintenance recovery, touch and physical orientation checks. Default/public
 qualification remains off. This is a qualification repair, not a website claim.
+
+## Dev.69 authorized USB installation
+
+All four quality checks passed at `7b88d6259a78e28c23a5ebca55959fa6e3b2779b`
+in run `40697770543`. PR #109 merged as `fb9825b`, tree-identical to that source.
+Release run `40699800004` published signed dev.69 generation 50. Catalog and image
+signatures, descriptor, board/layout and bounds/hash verified independently:
+1,678,144 image bytes, SHA-256
+`9b520a9512f87cba455ccf5cd485f8987c30e622b4fe431974ca720ba69c5561`, ELF
+`1681a3fcf6032f8d91d95e969f737904e91c7781148891dd4273f5a7abb7506e`.
+Normal qualification/public flags remain off; this is an orientation candidate.
+
+The owner took the Pixel and explicitly authorized USB for this installation only.
+The complete 303,104-byte region `0x8000..0x51fff` was backed up privately, including
+actual partition table, NVS, PHY, OTA metadata and both configuration partitions.
+The actual table matched the reviewed layout. A newly downloaded, signature-verified
+dev.66 rollback image matched the active slot's flash digest. Read-only S3/security
+checks passed; no eFuse or security setting changed.
+
+Only application slot `0x60000` was written from the signed release. The write took
+93.3 seconds at 115200 baud and verified its hash. A separate full-region digest
+verification passed. Before reset, every backed-up persistent byte was identical;
+no bootloader, table, NVS, PHY, OTA metadata or configuration write occurred. The
+private before/after region SHA-256 was
+`9e8f8bf4033f910f6b845e980086952f2692f29f6697026b3a40ceab486727e6`.
+This direct application repair retains the previous healthy slot metadata; it is
+not a new OTA trial-confirmation or App/Wi-Fi installation result.
+
+Boot selected the expected slot and logged dev.69, the matching descriptor hash
+prefix, configuration revision 63 with five pages, rotation 270 degrees, brightness
+100%, and owner association present. The main startup watermark was 1112 bytes.
+The 4096-byte sensor worker encountered an initial I2C NACK, retried, and recovered
+to changing timestamps/samples with 1632 bytes of remaining stack. This directly
+exercised the vendor error/logging path that exceeded the old budget. Observed
+maximum sensor tick duration was 24,304 microseconds, showing why a nominal 10 ms
+I2C timeout is not a proven whole-call bound. App/UI and other workers progressed;
+three-minute internal free memory was 125,491 bytes, largest block 31,744 bytes,
+with zero allocation failures. No overflow, reboot or stalled UI worker was observed.
+This short bench observation is not a soak or OOM-immunity claim.
+
+A separate sensor issue remains: at rest, X stays near 1999 mg while Y/Z vary around
+140/-160 mg. Sensor transport health is not pose plausibility. The unchanged
+0.85..1.15 g orientation policy rejects this vector and holds the saved angle.
+Do not invent a calibration or relax gravity guardrails to make Auto appear to work.
+Readback/configuration and labelled physical poses are the next diagnostic evidence.
+Populated Dual + arc, touch/rotation alignment, Wi-Fi maintenance coexistence and
+protected exact App readback remain pending the Pixel/owner's return.
+
+The phone disconnected before monitoring/wake restoration. Original monitoring was
+On, timeout 60000 ms and charging wake value 15; the temporary session still has
+monitoring Off and the debug awake helper active. Restore them on reconnection,
+using the fresh private phone backup rather than overwriting later owner changes.
+Website impact: no Auto support or new physical capability claim is promoted.
