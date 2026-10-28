@@ -71,3 +71,11 @@ bool alert_events_condition_summary(const alert_events_t *events,
                                     alert_event_t        *out,
                                     bool                 *attention,
                                     uint8_t              *additional);
+
+typedef struct
+{
+    uint32_t episode;
+    uint8_t  severity;
+    bool     suppressed;
+} alert_page_interest_t;
+void alert_events_page_interest(const alert_events_t *events, uint32_t now, alert_page_interest_t out[32]);
