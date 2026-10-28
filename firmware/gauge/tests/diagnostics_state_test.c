@@ -46,14 +46,24 @@ static void continuity_tests(void)
     assert(snapshot.valid && snapshot.mil_on && snapshot.mil_known && snapshot.distinct_count == 1 &&
            !snapshot.count_partial);
     diagnostics_state_snapshot_for(2, 61000, &snapshot);
-    assert(snapshot.mil_known); /* Inclusive existing MIL lifetime. */
+    assert(snapshot.mil_known);
     diagnostics_state_snapshot_for(2, 61001, &snapshot);
+    assert(snapshot.mil_known && snapshot.count_known);
+    assert(diagnostics_endpoint_status(0, 61001, packet) == 248 && !(packet[2] & 1));
+    diagnostics_state_snapshot_for(2, 181000, &snapshot);
+    assert(snapshot.mil_known); /* Local MIL bridges a minute refresh/retry. */
+    diagnostics_state_snapshot_for(2, 181001, &snapshot);
     assert(!snapshot.mil_known && snapshot.count_known);
     diagnostics_state_snapshot_for(2, 121000, &snapshot);
-    assert(snapshot.count_known); /* Inclusive existing category lifetime. */
+    assert(snapshot.count_known);
     diagnostics_state_snapshot_for(2, 121001, &snapshot);
+    assert(snapshot.count_known);
+    assert(diagnostics_endpoint_status(0, 121001, packet) == 248 && !(packet[33] & 2));
+    diagnostics_state_snapshot_for(2, 601000, &snapshot);
+    assert(snapshot.count_known); /* Original successful sample, never attempt time. */
+    diagnostics_state_snapshot_for(2, 601001, &snapshot);
     assert(!snapshot.valid && !snapshot.count_known);
-    assert(diagnostics_endpoint_presentation_status(0, 121001, packet) == 248);
+    assert(diagnostics_endpoint_presentation_status(0, 601001, packet) == 248);
     assert(!diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
 
     /* Same-count MIL toggles invalidate proof, including the payload path. */
@@ -159,6 +169,71 @@ static void filtered_startup_retry_test(void)
     assert(diagnostics_endpoint_presentation_status(1, 3100, packet) == 248);
     projected = diagnostic_filter_project(packet, 1, rules, 4);
     assert(!projected.suppress_mil && projected.visible_count == 1);
+}
+
+static void filtered_refresh_gap_tests(void)
+{
+    const uint8_t filtered[] = {0xc1, 0x21, 0xc1, 0x40, 0x1d, 0xca, 0x1d, 0xf3};
+    const uint8_t changed[]  = {0xc1, 0x21, 0xc1, 0x40, 0x1d, 0xca, 0x01, 0x23};
+    const uint8_t empty[]    = {0, 0};
+    for (unsigned endpoint = 0; endpoint < 2; ++endpoint)
+    {
+        unsigned                  source  = endpoint + 2;
+        const diagnostic_filter_t rules[] = {{0xc121, endpoint},
+                                             {0xc140, endpoint},
+                                             {0x1dca, endpoint},
+                                             {0x1df3, endpoint}};
+        diagnostics_endpoint_configure(endpoint, endpoint, 61, false);
+        diagnostics_state_connected_for(source);
+        diagnostics_state_mil_for(source, true, 4, 1000);
+        diagnostics_state_codes_for(source, 3, filtered, sizeof(filtered), 1000);
+        diagnostics_state_codes_for(source, 7, empty, sizeof(empty), 1000);
+        diagnostics_state_codes_for(source, 10, empty, sizeof(empty), 1000);
+        /* A permanent refresh due at 120 seconds can fail and back off. A fresh
+         * identical MIL must not turn the four filtered faults into a new CEL. */
+        diagnostics_state_failed_for(source, 10, DIAGNOSTICS_UNAVAILABLE);
+        for (uint32_t now = 61000; now <= 601000; now += 60000)
+        {
+            diagnostics_state_mil_for(source, true, 4, now);
+            assert(diagnostics_endpoint_status(endpoint, now + 1, packet) == 248);
+            assert(!diagnostic_filter_project(packet, endpoint, rules, 4).suppress_mil);
+            assert(diagnostics_endpoint_presentation_status(endpoint, now, packet) == 248);
+            diagnostic_filter_result_t view = diagnostic_filter_project(packet, endpoint, rules, 4);
+            assert(view.suppress_mil && view.hidden_count == 4 && !view.visible_count);
+            assert(packet[36] == (1000 & 255)); /* Failure/refresh never re-dates lists. */
+        }
+        assert(diagnostics_endpoint_presentation_status(endpoint, 601001, packet) == 248);
+        assert(!diagnostic_filter_project(packet, endpoint, rules, 4).suppress_mil);
+        /* A same-count replacement by an unfiltered fault is visible immediately. */
+        diagnostics_state_codes_for(source, 3, changed, sizeof(changed), 602000);
+        assert(diagnostics_endpoint_presentation_status(endpoint, 602000, packet) == 248);
+        diagnostic_filter_result_t view = diagnostic_filter_project(packet, endpoint, rules, 4);
+        assert(!view.suppress_mil && view.visible_count == 1);
+        diagnostics_state_codes_for(source, 3, filtered, sizeof(filtered), 603000);
+        diagnostics_state_codes_for(source, 7, empty, sizeof(empty), 603000);
+        diagnostics_state_codes_for(source, 10, empty, sizeof(empty), 603000);
+        assert(diagnostics_endpoint_presentation_status(endpoint, 603000, packet) == 248);
+        assert(diagnostic_filter_project(packet, endpoint, rules, 4).suppress_mil);
+        diagnostics_state_mil_for(source, true, 5, 603001);
+        assert(diagnostics_endpoint_presentation_status(endpoint, 603001, packet) == 248);
+        assert(!diagnostic_filter_project(packet, endpoint, rules, 4).suppress_mil);
+        diagnostics_state_disconnected_for(source);
+        assert(diagnostics_endpoint_presentation_status(endpoint, 603002, packet) == 248);
+        assert(!diagnostic_filter_project(packet, endpoint, rules, 4).suppress_mil);
+        diagnostics_state_connected_for(source);
+        uint32_t sample = UINT32_MAX - 1000;
+        diagnostics_state_mil_for(source, true, 4, sample);
+        diagnostics_state_codes_for(source, 3, filtered, sizeof(filtered), sample);
+        diagnostics_state_codes_for(source, 7, empty, sizeof(empty), sample);
+        diagnostics_state_codes_for(source, 10, empty, sizeof(empty), sample);
+        uint32_t boundary = sample + 600000U;
+        diagnostics_state_mil_for(source, true, 4, boundary);
+        assert(diagnostics_endpoint_presentation_status(endpoint, boundary, packet) == 248);
+        assert(diagnostic_filter_project(packet, endpoint, rules, 4).suppress_mil);
+        assert(!diagnostic_filter_project(packet, endpoint, NULL, 0).suppress_mil);
+        assert(diagnostics_endpoint_presentation_status(endpoint, boundary + 1, packet) == 248);
+        assert(!diagnostic_filter_project(packet, endpoint, rules, 4).suppress_mil);
+    }
 }
 
 int main(int argc, char **argv)
@@ -283,5 +358,6 @@ int main(int argc, char **argv)
     assert(vehicle.distinct_count == 4 && vehicle.count_partial);
     continuity_tests();
     filtered_startup_retry_test();
+    filtered_refresh_gap_tests();
     puts("Diagnostics source, distinct count, coverage, full lists, expiry, reconnect and simulation passed");
 }

@@ -797,7 +797,7 @@ static void obd_task(void *arg)
             uint8_t      previous[248];
             bool         had_previous =
                 diagnostics_endpoint_status(endpoint, pdTICKS_TO_MS(xTaskGetTickCount()), previous) != 0 &&
-                (previous[2] & 1);
+                (previous[2] & 12) == 4 && previous[23];
             uint32_t      generation = adapter_status_generation(source);
             uint8_t       mode       = job.kind == POLL_JOB_MIL ? 1 : dtc_modes[job.index];
             elm_payload_t payload    = {0};

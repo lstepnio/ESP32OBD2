@@ -278,6 +278,7 @@ static void test_scheduler(void)
     }
     for (unsigned i = 0; i < 4; ++i)
         assert(counts[i] >= 4);
+    assert(counts[0] <= 10); /* Initial check, then at most once a minute. */
     /* Even a 30-second request cadence must not starve either readings or faults. */
     poll_scheduler_init(&scheduler);
     unsigned normal = 0;
@@ -416,19 +417,19 @@ static void test_scheduler_budgeted(void)
     s.seen_background    = 255;
     s.settled_background = 255;
     for (unsigned i = 0; i < 8; ++i)
-        s.last_background[i] = 1000;
+        s.last_background[i] = i % 4 ? 60000 : 1000;
     poll_scheduler_complete(&s, (poll_job_t){.kind = POLL_JOB_MIL, .endpoint = 0}, 2000, false);
-    job = poll_scheduler_next_budgeted(&s, 17000, NULL, 0, &budget);
+    job = poll_scheduler_next_budgeted(&s, 61000, NULL, 0, &budget);
     assert(job.kind == POLL_JOB_MIL && job.endpoint == 1);
-    poll_scheduler_complete(&s, job, 17700, true);
-    assert(poll_scheduler_next_budgeted(&s, 31999, NULL, 0, &budget).kind == POLL_JOB_NONE);
-    job = poll_scheduler_next_budgeted(&s, 32000, NULL, 0, &budget);
+    poll_scheduler_complete(&s, job, 61700, true);
+    assert(poll_scheduler_next_budgeted(&s, 61999, NULL, 0, &budget).kind == POLL_JOB_NONE);
+    job = poll_scheduler_next_budgeted(&s, 63700, NULL, 0, &budget);
     assert(job.kind == POLL_JOB_MIL && job.endpoint == 0);
-    poll_scheduler_complete(&s, job, 32700, true);
+    poll_scheduler_complete(&s, job, 64400, true);
     assert(s.background_failures[0] == 0);
 
-    /* An unanswered startup query backs off from 2 seconds to the existing cap.
-     * A real answer (including unsupported) leaves the cold-start path. */
+    /* Code-list acquisition starts at two seconds; MIL has a minute floor even
+     * on cold failures. A real answer (including unsupported) settles the job. */
     for (unsigned endpoint = 0; endpoint < 2; ++endpoint)
         for (unsigned kind = 0; kind < 4; ++kind)
         {
@@ -445,10 +446,12 @@ static void test_scheduler_budgeted(void)
                 s.background_failures[endpoint * 4 + kind] = attempt - 1;
                 s.background_cursor                        = endpoint * 4 + kind;
                 poll_scheduler_diagnostic_complete(&s, cold, 1000, POLL_DIAGNOSTIC_RETRY);
-                uint32_t         interval = 1000U << attempt;
-                uint32_t         retry    = 1000 + (interval > 240000 ? 240000 : interval);
-                poll_scheduler_t early    = s;
-                job                       = poll_scheduler_next_budgeted(&early, retry - 1, NULL, 0, &budget);
+                uint32_t interval = 1000U << attempt;
+                if (!kind && interval < 60000)
+                    interval = 60000;
+                uint32_t         retry = 1000 + (interval > 240000 ? 240000 : interval);
+                poll_scheduler_t early = s;
+                job                    = poll_scheduler_next_budgeted(&early, retry - 1, NULL, 0, &budget);
                 assert(job.kind != cold.kind || job.endpoint != cold.endpoint || job.index != cold.index);
                 job = poll_scheduler_next_budgeted(&s, retry, NULL, 0, &budget);
                 assert(job.kind == cold.kind && job.endpoint == endpoint && job.index == cold.index);
@@ -527,9 +530,11 @@ static void test_scheduler_budgeted(void)
     now                     = UINT32_MAX - 1000;
     for (unsigned i = 0; i < 32; ++i)
         p[i] = (poll_pid_policy_t){.interval_ms = 1, .display_age_ms = 200, .priority = i < 2 ? 2 : 0};
-    unsigned since_diagnostic = 0, max_since_diagnostic = 0;
-    uint32_t failed_at     = 0;
-    unsigned failure_count = 0;
+    unsigned since_due = 0, max_since_due = 0;
+    uint32_t mil_completed[2] = {0};
+    bool     mil_seen[2]      = {false};
+    uint32_t failed_at        = 0;
+    unsigned failure_count    = 0;
     for (unsigned step = 0; step < 1800; ++step)
     {
         job = poll_scheduler_next_budgeted(&s, now, p, 32, &budget);
@@ -537,7 +542,11 @@ static void test_scheduler_budgeted(void)
         if (job.kind == POLL_JOB_PID)
         {
             ++counts[job.index];
-            ++since_diagnostic;
+            bool diagnostic_due = false;
+            for (unsigned i = 0; i < 8; ++i)
+                diagnostic_due |=
+                    !(s.seen_background & (1U << i)) || now - s.last_background[i] >= (i % 4 == 3 ? 120000U : 60000U);
+            since_due = diagnostic_due ? since_due + 1 : 0;
             if (job.index == 3 && failure_count)
             {
                 uint32_t retry = failure_count == 1   ? 1000
@@ -558,16 +567,23 @@ static void test_scheduler_budgeted(void)
         {
             unsigned i = job.endpoint * 4 + (job.kind == POLL_JOB_MIL ? 0 : job.index + 1);
             ++diagnostics[i];
-            if (since_diagnostic > max_since_diagnostic)
-                max_since_diagnostic = since_diagnostic;
-            since_diagnostic = 0;
+            if (since_due > max_since_due)
+                max_since_due = since_due;
+            since_due = 0;
+            if (job.kind == POLL_JOB_MIL && mil_seen[job.endpoint])
+                assert(now - mil_completed[job.endpoint] >= 60000);
             now += job.kind == POLL_JOB_MIL ? 700 : 1500;
             poll_scheduler_complete(&s, job, now, true);
+            if (job.kind == POLL_JOB_MIL)
+            {
+                mil_seen[job.endpoint]      = true;
+                mil_completed[job.endpoint] = now;
+            }
         }
         now += 100;
     }
     assert(s.forced_diagnostics > 0 && s.deadline_misses > 0 && failure_count > 1);
-    assert(max_since_diagnostic <= 42); /* Ten ordinary + at most 32 preflight reads. */
+    assert(max_since_due <= 42); /* Once due: ten ordinary + at most 32 preflight reads. */
     for (unsigned i = 0; i < 32; ++i)
         assert(counts[i] > 1);
     for (unsigned i = 0; i < 8; ++i)

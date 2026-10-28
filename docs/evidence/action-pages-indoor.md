@@ -384,7 +384,7 @@ least 120 seconds. This is a reproducible slow-acquisition path consistent with
 filter warm-up, not proof of the owner's actual startup cause. Genuine MIL-On or
 unfiltered fault evidence is another explanation and must remain visible.
 
-Prepared dev.66 distinguishes uninitialized/transient diagnostic jobs from valid
+The initial dev.66 commit (`447b622`) distinguishes uninitialized/transient diagnostic jobs from valid
 or definitively unsupported answers. Cold retries start at two seconds and back
 off exponentially to the existing 240-second cap, retaining normal-reading
 reservation, global background spacing and control priority. Known/unsupported
@@ -428,3 +428,40 @@ are absent while arcs and controls remain. Host checks and both firmware builds
 passed. These are source/render checks, not observations on the physical gauge.
 Dev.65 remains installed. Website impact was reviewed; no publication or historical
 review-asset rewrite is included in this small UI change.
+
+## 2026-10-27 intermittent CEL and minute polling
+
+The owner subsequently reported intermittent CEL appearance and requested less
+frequent checks. Inspection found that permanent-code presentation expired after
+120 seconds, exactly its nominal refresh interval. A delayed/failed refresh can
+therefore remove all-filtered proof while an unchanged MIL-On remains usable.
+This reproduces a presentation path; attribution of the owner's actual occurrence
+still requires a raw loaded trace.
+
+Prepared dev.66 now limits automatic MIL checks to once per 60 seconds per endpoint,
+including cold failures. Stored/pending steady cadence remains 60 seconds and
+permanent 120 seconds. Incomplete initial code lists retain their bounded faster
+retry path so filter classification does not wait a minute after one lost response.
+Explicit ECU-clear verification is independent. Changed MIL/count comparison uses
+known same-session evidence even after raw freshness expires, so the slower cadence
+does not prevent acceleration of the required category refresh.
+
+Gauge-only last-successful MIL presentation lasts at most three minutes; compatible
+code-list presentation lasts at most ten minutes, spanning normal refresh and a
+four-minute capped retry. Original observation timestamps remain unchanged. Raw
+phone/history freshness remains 60/120 seconds; no stale observation is relabelled
+as a new raw result. New unfiltered code data, changed MIL/count, incompatible or
+unsupported evidence, disconnect and scope reset retain their invalidation rules.
+The tradeoff is up to a minute plus transport admission to detect a new MIL, and
+bounded last-known gauge presentation during absent replies; this does not disable
+actual diagnostic warnings or turn unknown coverage into verified Off.
+
+Native regressions cover healthy/cold-failed MIL rate limits for both endpoints,
+loaded fairness from eligibility rather than from a not-yet-due diagnostic, filtered
+proof across repeated minute refreshes and a failed permanent request, original
+clock expiry, wrap, filter removal, changed count, same-count unfiltered replacement
+and disconnect. Raw packet fixtures remain unchanged. Host tests, C format/host
+lint and normal/parked firmware builds passed. No new task, heap buffer, protocol
+or saved-configuration migration is introduced. Dev.65 remains installed; no new
+physical-device or loaded-startup qualification is claimed. Website impact was
+reviewed; publication/capture awaits the existing delivery cadence and qualification.

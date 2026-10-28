@@ -31,7 +31,8 @@ source changes are not evidence of a new physical installation.
   replies and source loss still clear it. No wire schema, App migration or saved
   configuration rewrite is required.
 - The gauge retains compatible last-successful diagnostic presentation only within
-  existing age limits. Raw failed-attempt evidence remains available. Changed MIL
+  the gauge-only [diagnostic presentation limits](../architecture/alerts-and-diagnostics.md#mil-code-and-coverage-semantics).
+  Raw failed-attempt evidence remains available. Changed MIL
   state/count invalidates filter proof, reconnect clears it, and partial/unsupported
   coverage cannot prove faults disappeared. The face omits unknown/partial counts;
   a confirmed warning still shows its icon. New status widgets begin hidden.
