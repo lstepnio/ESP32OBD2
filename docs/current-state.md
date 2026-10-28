@@ -23,8 +23,8 @@ stable CEL presentation. It includes the approved action UI from published dev.6
 [Implementation and qualification](development/gauge-continuity-plan.md) records
 scope, offline checks and the at-home/parked sequence. Signed installation, five
 Wi-Fi lifecycles, automatic/Bluetooth recovery and settings persistence passed.
-The owner confirmed clean pages, action navigation, no CEL question mark and
-ten-second cycling/resume after touch. Loaded ECM/TCM reading continuity and
+On dev.65, the owner confirmed clean pages, action navigation, no CEL question mark
+and ten-second cycling/resume after touch. Loaded ECM/TCM reading continuity and
 control/thermal timing still require the Jeep.
 
 Installed dev.66 addresses a concrete startup retry delay: an unanswered first
@@ -70,7 +70,7 @@ profile fields. Gauge associations remain schema 2.
 
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
-| Pixel | App `0.2.0-dev.53` / versionCode 53, reviewed source `fd8fae6`, merged PR #105; profile schema 18 / associations 2 | [Combined rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); migration retained all profile values; post-install core preferences byte-identical |
+| Pixel | App `0.2.0-dev.53` / versionCode 53, reviewed source `fd8fae6`, merged PR #105; profile schema 18 / associations 2 | [Combined rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); profile migration retained all values; final alert policy restored, assignments and presentation byte-identical |
 | Gauge | Signed parked-idle `0.2.0-dev.66` from `fd8fae6`, catalog generation 47, 240 MHz; configuration revision 61 after the intentional same-setup restart | [Combined App/Wi-Fi rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); exact healthy alternate image, cleared journal and retained setup; OTA preserved revision 60 before the persistence test |
 | Physical display/touch | Dev.66 owner confirmation pending; indoors the expected no-data surface is the text-free logo, with one waking tap consumed before normal gestures | [Display rollout](evidence/display-evolution.md); previous dev.65 owner-confirmed swipes/cycling remain historical evidence, not dev.66 qualification |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
