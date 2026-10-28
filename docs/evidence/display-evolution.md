@@ -51,14 +51,16 @@ Both final linked gates passed; static placement alone cannot establish fragment
 
 ## Remaining acceptance
 
-No phone or gauge was accessed and installed dev.65/App dev.52 were not changed.
+At the offline checkpoint, no phone or gauge had been accessed and installed
+dev.65/App dev.52 were unchanged. The later rollout below is a separate observation.
 Authorized rollout must verify startup brightness/rotation, icon wake consumption,
 all ten pages and mixed Dual + arc layouts, source loss/recovery, loaded sampling,
 Smart comfort and Wi-Fi/BLE memory. Auto orientation additionally needs every
 axis/touch transform, mounting/motion, bus failure and worker-stack check before its
 qualification gates can be enabled. No public capability flags were promoted.
 
-Website impact reviewed: these are uninstalled source changes. Preserve current
+At the offline milestone, website impact was reviewed while these were uninstalled
+source changes. Preserve current
 published capability claims; refresh circular production visuals and roadmap when
 qualified under the existing publication cadence, outside the build path.
 
@@ -83,3 +85,73 @@ The full Wi-Fi installation fixture compares saved display values separately fro
 additive negotiated Smart-policy support. A newly supported policy version is not
 a preference change; support cannot regress, and every saved field/revision still
 must match exactly. This avoids treating legacy-to-Smart discovery as data loss.
+
+## 2026-10-27 combined rollout: merges and App readiness
+
+The owner authorized PR #104 then #105 merge, App installation, signed App/Wi-Fi
+firmware rollout, indoor checks and branch cleanup. Separate owner authorization
+in the mainline task consolidated #103 into the same release. #104 merged as
+`1111038`; corrected #103 merged as `1d3510f`; #105 integrated both and merged as
+`639511b`. Exact reviewed source `fd8fae6` passed all four Foundation lanes in
+[run 40635471472](https://github.com/lstepnio/ESP32OBD2/actions/runs/40635471472).
+Source and merge have identical tree `4ac779949748bc2b68de225898f4a55478c1165e`.
+Only PERF-01 backlog prose required manual merge resolution; both notes survived.
+
+App `0.2.0-dev.53` (versionCode 53) and its matching test APK installed on the Pixel.
+The scoped read-only action/configuration/boot readiness journey passed one test in
+13.693 seconds against the still-running exact dev.65 image. It read confirmed
+configuration and command availability, opened/dismissed action setup and retained
+profiles, assignments and running setup. No vehicle action, ECU clear or firmware
+write occurred in this check.
+
+The private before/after App backup comparison found only `schemaVersion:17 -> 18`
+in profiles; every other profile field was exactly equal. Gauge-assignment and
+appearance preference files were byte-identical. Original Phone alerts=true was
+temporarily switched off through Settings for the isolated journeys; debug awake
+settings retain the original timeout/charging values for final restoration.
+
+The mainline task owns the single signed dev.66 publication and App/Wi-Fi install,
+plus standard update/recovery/memory checks. The display task owns the subsequent
+Smart/display persistence fixture, one owner physical check and final preference
+restoration. Private captures/backups are retained outside Git under ignored
+`artifacts/device-rollout-dev66/`. This split establishes one device owner at a time.
+
+## Targeted Smart/display persistence and final restoration
+
+The mainline task verified the signed dev.66 App/Wi-Fi installation and standard
+recovery checks separately in [rollout evidence](action-pages-indoor.md). Its fresh
+pre-update configuration was revision 60, not the older documented 57; OTA retained
+60. No older status document was used as a live revision expectation.
+
+The explicit `verifyDisplayEvolution=true` persistence journey passed one test in
+69.212 seconds. It confirmed ten-page, Dual + arc and Smart capabilities, with
+unqualified Auto still absent. Original settings were rotation 270°, brightness
+100%, Imperial units, ten-second cycling, Smart Off and display revision 37.
+Saving five-second Smart On advanced display revision to 38. The exact same
+functional dashboard was sent, and Smart remained On after the configuration
+restart. Running revision 61 and digest
+`787bc86f36ab902f059738a9c157c29a27316dac8076d3c1620b176ee4f1ecb0` were confirmed.
+The restart confirmation took 30.184 seconds. Cleanup restored ten seconds and
+Smart Off through the normal revision-verified write.
+
+Final protected firmware/action/setup readback passed one scoped test in 13.588
+seconds against signed dev.66 ELF
+`6bde80eca04199bb2ed401ded08b23e53df9ea4d1b7923628deefb5117f7ac97`.
+Both vehicle commands remain unavailable without vehicle inputs; no unresolved
+command journal was found and no vehicle operation or fault clear was invoked.
+The final document differs from the original only by its expected `baseRevision`
+59 -> 60. All five pages, both source bindings, four filters and actions are exact.
+
+Phone alerts were restored On through Settings. Every original alert-policy value
+matched after restoration (XML serialization order changed). Assignment, appearance
+and connection-permission preference files were byte-identical; profile content
+still differed only by schema 17 -> 18. The debug awake helper reported inactive
+with original 60,000 ms timeout and charging value 15 restored. The source/release
+branches for #104/#105 were removed after verifying the signed tag retains the
+reviewed source; unrelated worktrees and private evidence were preserved.
+
+One owner physical observation of the text-free logo, touch wake and page/action
+navigation was requested and is pending. Do not equate protocol/render fixtures
+with that observation. Loaded ECU cadence, Smart priorities/comfort, alert/control
+freshness, dual-source loss/return and memory coexistence remain Jeep gates.
+Auto orientation keeps its separate physical sensor/touch qualification gate.
