@@ -1,9 +1,12 @@
 # Current implementation and evidence
 
-Updated 2026-10-27. This owns implemented/installed facts and their evidence limits.
+Updated 2026-10-28. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
 PRs #103, #104 and #105 are merged. App dev.53 is installed on the Pixel, and
-signed dev.66 is installed through App/Wi-Fi. [Current rollout evidence](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout)
+signed dev.69 is installed through an explicitly authorized application-only USB
+exception. [Current display evidence](evidence/display-evolution.md#dev69-authorized-usb-installation)
+records preservation, stable boot and the remaining sensor/physical gates. The
+[previous full App/Wi-Fi rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout)
 separates exact healthy-image/setup readbacks and indoor checks from physical
 display/touch and remaining loaded Jeep qualification.
 The opt-in [parked idle candidate](architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
@@ -27,7 +30,7 @@ On dev.65, the owner confirmed clean pages, action navigation, no CEL question m
 and ten-second cycling/resume after touch. Loaded ECM/TCM reading continuity and
 control/thermal timing still require the Jeep.
 
-Installed dev.66 addresses a concrete startup retry delay: an unanswered first
+Dev.66 introduced a fix for a concrete startup retry delay: an unanswered first
 code-list scan now retries from two seconds with bounded exponential backoff,
 instead of immediately waiting its steady 60/120-second interval. It also logs
 changes in MIL/filter presentation for attribution. Warning and filter validation
@@ -55,7 +58,7 @@ remain in the [milestone procedure](development/smart-page-cycling-plan.md).
 
 ## Display and adaptive sampling
 
-Installed dev.66 / App dev.53 add ten saved pages, numeric Dual + arc,
+Dev.66 / App dev.53 introduced ten saved pages, numeric Dual + arc,
 shared explicit gear colors, an icon-only boot/no-data surface and reviewed
 PID-specific stability backoff. [Display contract](architecture/display-experience.md)
 and [sampling contract](development/reading-catalog-alerts.md#display-and-polling-classes)
@@ -68,23 +71,29 @@ profile fields. Gauge associations remain schema 2.
 
 The extended ten-page indoor round trip subsequently passed with exact restoration
 of the original five-page setup at revision 63. The owner confirmed all ten pages,
-10/10, wrap and clean labels without freezing. Populated Dual + arc and Auto remain
-separate physical checks. The owner-supervised dev.67 orientation candidate was
+10/10, wrap and clean labels without freezing. Populated Dual + arc and hold-exit/normal navigation subsequently passed owner
+review. Auto remains a separate physical/sensor check. The owner-supervised dev.67 orientation candidate was
 published, but its first trial boot overflowed the main task stack and automatically
 rolled back to healthy dev.66. It is marked withdrawn. The replacement dev.68 is
 published and tested: its main startup passed with 1104 bytes of stack headroom,
 but the 2 KiB orientation worker overflowed and automatically rolled back to dev.66.
-Dev.68 is also withdrawn. Dev.69 prepares a guarded 4 KiB internal sensor stack
-and remains uninstalled. Normal qualification and public flags remain
-off under the [indoor procedure](development/display-indoor-qualification.md).
+Dev.68 is also withdrawn. Installed dev.69 uses a guarded 4 KiB internal sensor
+stack. Boot and the initial I2C NACK/recovery path remain stable, with 1632 bytes
+of sensor-worker and 1112 bytes of main headroom. The live X axis is near its
+2 g limit at rest, so the plausibility policy correctly refuses automatic changes;
+labelled USB-down, USB-up and flat poses retained the pinned X reading, while
+flat Z was approximately -0.97 g. The owner-confirmed ten-second full power removal also retained X near +1999 mg
+while flat Z stayed near -0.97 g. Source dev.70 prepares strict register readback,
+direct X evidence and documented normal-mode sampling; it is not published/installed. Normal qualification and public flags
+remain off under the [indoor procedure](development/display-indoor-qualification.md).
 
 ## Installed baseline
 
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
 | Pixel | App `0.2.0-dev.53` / versionCode 53, reviewed source `fd8fae6`, merged PR #105; profile schema 18 / associations 2 | [Combined rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); profile migration retained all values; final alert policy restored, assignments and presentation byte-identical |
-| Gauge | Signed parked-idle `0.2.0-dev.66` from `fd8fae6`, catalog generation 47, 240 MHz; configuration revision 63 after the reversible ten-page round trip | [Combined App/Wi-Fi rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); exact healthy alternate image, cleared journal and retained setup; OTA preserved revision 60 before the persistence test |
-| Physical display/touch | Owner confirmed dev.66 text-free logo, touch wake and normal reading/action navigation: “Logo and all navigation work.” | [Display rollout](evidence/display-evolution.md); extended ten-page/new-arc visuals, loaded legibility and Auto sensor/touch alignment remain separate gates |
+| Gauge | Signed parked-idle/orientation candidate `0.2.0-dev.69` from `7b88d62`, generation 50, 240 MHz; original configuration revision 63 | [Authorized USB installation](evidence/display-evolution.md#dev69-authorized-usb-installation): signed image and flashed digest verified, 303104 persistent bytes unchanged, owner loaded and normal workers progressing; protected exact-image/setup readback and two Wi-Fi reopen cycles passed on return |
+| Physical display/touch | Owner confirmed dev.66 text-free logo, touch wake and normal reading/action navigation: “Logo and all navigation work.” | [Display rollout](evidence/display-evolution.md); all ten pages subsequently owner-confirmed; new-arc visual fit and hold-exit/navigation subsequently owner-confirmed; loaded legibility and Auto sensor/touch alignment remain separate gates |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
 | Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Five pages, four TCM CEL filters, thresholds and action settings retained; OTA preserved revision 60 and exact document bytes; the targeted same-setup test then advanced to 61 with only baseRevision changing. [Current preservation check](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout) |
@@ -164,8 +173,9 @@ and enabled eGauge control are not established.
   is not vehicle support.
 
 Auto orientation is specified in the [hardware policy](architecture/hardware-and-transports.md#automatic-display-orientation)
-and tracked as FEATURE-07. The current IMU path is unimplemented; manual rotation
-and timed page cycling remain independent implemented controls.
+and tracked as FEATURE-07. The installed candidate has a live, bounded IMU path but remains unqualified
+because of the pinned X reading documented above. Manual rotation and timed page
+cycling remain independent implemented controls.
 
 FEATURE-04 now has a [temporary-idle delivery proposal](architecture/vehicle-actions.md#first-vehicle-command-temporary-high-idle)
 for Air up and Winch presets using the existing gesture/profile foundation.

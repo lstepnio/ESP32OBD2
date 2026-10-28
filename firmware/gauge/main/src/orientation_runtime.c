@@ -33,12 +33,16 @@ static uint32_t                  apply_failed_at;
 static void                      start_worker(void);
 static bool                      permitted, have_timestamp;
 static orientation_diagnostics_t diagnostics;
-_Static_assert(sizeof(orientation_diagnostics_t) <= 32, "Review orientation diagnostics memory budget");
+_Static_assert(sizeof(orientation_diagnostics_t) <= 40, "Review orientation diagnostics memory budget");
 static uint32_t next_io, last_timestamp, timestamp_since;
+enum
+{
+    PHASE_SAMPLE = 9
+};
 
 static void publish(uint32_t now)
 {
-    bool healthy = phase == 4 && orientation_policy_healthy(&policy, now);
+    bool healthy = phase == PHASE_SAMPLE && orientation_policy_healthy(&policy, now);
     portENTER_CRITICAL(&mux);
     status.usable              = permitted && (status.usable || healthy);
     status.sensor_status       = !permitted || !bus.read || !status.usable ? 0 : healthy ? 1 : 2;
@@ -129,6 +133,8 @@ static void failed(uint32_t now)
     portENTER_CRITICAL(&mux);
     if (diagnostics.failures != UINT32_MAX)
         ++diagnostics.failures;
+    diagnostics.control_verified = 0;
+    diagnostics.have_revision = diagnostics.have_direct_x = diagnostics.have_observation = diagnostics.healthy = false;
     portEXIT_CRITICAL(&mux);
     phase              = 0;
     have_timestamp     = false;
@@ -147,7 +153,7 @@ bool orientation_runtime_tick(uint32_t now, bool automatic, uint8_t manual, bool
         orientation_policy_hold(&policy);
     if (!suspended && bus.read && bus.write && (int32_t)(now - next_io) >= 0)
     {
-        next_io = now + (phase == 4 && !automatic ? 500 : 100);
+        next_io = now + (phase == PHASE_SAMPLE && !automatic ? 500 : 100);
         esp_err_t err;
         if (phase == 0)
         {
@@ -158,15 +164,59 @@ bool orientation_runtime_tick(uint32_t now, bool automatic, uint8_t manual, bool
             else
                 failed(now);
         }
-        else if (phase < 4)
+        else if (phase == 3)
         {
-            /* Waveshare reference QMI8658 example: CTRL1 auto-increment 0x60,
-             * CTRL2 +/-2g low-power 11Hz 0x0e, CTRL7 accel only 0x01. */
-            static const uint8_t regs[]   = {0, 2, 3, 8};
-            static const uint8_t values[] = {0, 0x60, 0x0e, 0x01};
-            err                           = bus.write(bus.context, regs[phase], values[phase]);
-            if (err == ESP_OK)
+            /* Auto-increment is now verified; the power-on identity probe
+             * cannot assume it when reading the adjacent revision register. */
+            uint8_t identity[2];
+            err = bus.read(bus.context, 0x00, identity, sizeof(identity));
+            if (err == ESP_OK && identity[0] == 0x05)
+            {
+                portENTER_CRITICAL(&mux);
+                diagnostics.revision      = identity[1];
+                diagnostics.have_revision = true;
+                portEXIT_CRITICAL(&mux);
                 ++phase;
+            }
+            else
+                failed(now);
+        }
+        else if (phase < 8)
+        {
+            /* QMI8658C Table 24: auto-increment, +/-2g normal 31.25Hz,
+             * accelerometer only. Every write needs its own exact readback. */
+            static const uint8_t regs[]   = {2, 3, 8};
+            static const uint8_t values[] = {0x60, 0x08, 0x01};
+            unsigned             index    = phase < 3 ? 0 : phase < 6 ? 1 : 2;
+            bool                 writing  = phase == 1 || phase == 4 || phase == 6;
+            uint8_t              value    = 0;
+            err                           = writing ? bus.write(bus.context, regs[index], values[index])
+                                                    : bus.read(bus.context, regs[index], &value, 1);
+            if (!writing && err == ESP_OK)
+            {
+                portENTER_CRITICAL(&mux);
+                diagnostics.ctrl[index] = value;
+                if (value == values[index])
+                    diagnostics.control_verified |= 1U << index;
+                portEXIT_CRITICAL(&mux);
+            }
+            if (err == ESP_OK && (writing || value == values[index]))
+                ++phase;
+            else
+                failed(now);
+        }
+        else if (phase == 8)
+        {
+            uint8_t data[2];
+            err = bus.read(bus.context, 0x35, data, sizeof(data));
+            if (err == ESP_OK)
+            {
+                portENTER_CRITICAL(&mux);
+                diagnostics.direct_x      = (int16_t)(data[0] | ((uint16_t)data[1] << 8));
+                diagnostics.have_direct_x = true;
+                portEXIT_CRITICAL(&mux);
+                ++phase;
+            }
             else
                 failed(now);
         }

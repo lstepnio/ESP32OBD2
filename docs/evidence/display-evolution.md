@@ -249,3 +249,123 @@ gate. This adds 2 KiB of static internal storage; main/app worker budgets remain
 unchanged. Its acceptance still requires real boot, sensor health/error-path margins,
 Wi-Fi maintenance recovery, touch and physical orientation checks. Default/public
 qualification remains off. This is a qualification repair, not a website claim.
+
+## Dev.69 authorized USB installation
+
+All four quality checks passed at `7b88d6259a78e28c23a5ebca55959fa6e3b2779b`
+in run `40697770543`. PR #109 merged as `fb9825b`, tree-identical to that source.
+Release run `40699800004` published signed dev.69 generation 50. Catalog and image
+signatures, descriptor, board/layout and bounds/hash verified independently:
+1,678,144 image bytes, SHA-256
+`9b520a9512f87cba455ccf5cd485f8987c30e622b4fe431974ca720ba69c5561`, ELF
+`1681a3fcf6032f8d91d95e969f737904e91c7781148891dd4273f5a7abb7506e`.
+Normal qualification/public flags remain off; this is an orientation candidate.
+
+The owner took the Pixel and explicitly authorized USB for this installation only.
+The complete 303,104-byte region `0x8000..0x51fff` was backed up privately, including
+actual partition table, NVS, PHY, OTA metadata and both configuration partitions.
+The actual table matched the reviewed layout. A newly downloaded, signature-verified
+dev.66 rollback image matched the active slot's flash digest. Read-only S3/security
+checks passed; no eFuse or security setting changed.
+
+Only application slot `0x60000` was written from the signed release. The write took
+93.3 seconds at 115200 baud and verified its hash. A separate full-region digest
+verification passed. Before reset, every backed-up persistent byte was identical;
+no bootloader, table, NVS, PHY, OTA metadata or configuration write occurred. The
+private before/after region SHA-256 was
+`9e8f8bf4033f910f6b845e980086952f2692f29f6697026b3a40ceab486727e6`.
+This direct application repair retains the previous healthy slot metadata; it is
+not a new OTA trial-confirmation or App/Wi-Fi installation result.
+
+Boot selected the expected slot and logged dev.69, the matching descriptor hash
+prefix, configuration revision 63 with five pages, rotation 270 degrees, brightness
+100%, and owner association present. The main startup watermark was 1112 bytes.
+The 4096-byte sensor worker encountered an initial I2C NACK, retried, and recovered
+to changing timestamps/samples with 1632 bytes of remaining stack. This directly
+exercised the vendor error/logging path that exceeded the old budget. Observed
+maximum sensor tick duration was 24,304 microseconds, showing why a nominal 10 ms
+I2C timeout is not a proven whole-call bound. App/UI and other workers progressed;
+three-minute internal free memory was 125,491 bytes, largest block 31,744 bytes,
+with zero allocation failures. No overflow, reboot or stalled UI worker was observed.
+This short bench observation is not a soak or OOM-immunity claim.
+
+A separate sensor issue remains: at rest, X stays near 1999 mg while Y/Z vary around
+140/-160 mg. Sensor transport health is not pose plausibility. The unchanged
+0.85..1.15 g orientation policy rejects this vector and holds the saved angle.
+Do not invent a calibration or relax gravity guardrails to make Auto appear to work.
+Readback/configuration and labelled physical poses are the next diagnostic evidence.
+Populated Dual + arc, touch/rotation alignment, Wi-Fi maintenance coexistence and
+protected exact App readback remain pending the Pixel/owner's return.
+
+The phone disconnected before monitoring/wake restoration. Original monitoring was
+On, timeout 60000 ms and charging wake value 15; the temporary session still has
+monitoring Off and the debug awake helper active. Restore them on reconnection,
+using the fresh private phone backup rather than overwriting later owner changes.
+Website impact: no Auto support or new physical capability claim is promoted.
+
+
+## Dev.69 return checks
+
+On the Pixel's return, protected exact dev.69/ELF and healthy state 2 readback passed
+in 16.482 seconds. Original configuration revision 63/digest, profiles, assignments,
+display settings and unavailable/no-unresolved vehicle-command state were retained.
+The production App reconciled its older interrupted-update record from authenticated
+running identity; no phone journal was edited manually.
+
+`WifiMaintenanceJourneyTest` passed in 42.109 seconds: protected opens took 1601
+and 1946 ms, both authenticated Wi-Fi status/close paths passed, and the boot nonce,
+exact image, revision/digest and settings remained unchanged. Serial observations
+show sensor health becoming stale during maintenance and fresh afterward, holding
+manual angle 270 degrees. This qualifies enabled-worker/manual Wi-Fi suspension and
+recovery, not Auto pose changes or loaded dual-adapter coexistence.
+
+The owner labelled vertical USB-down, vertical USB-up and flat screen-up poses.
+X stayed near +1999 mg across them; flat Z was approximately -974 mg with Y near
+zero. This narrows the fault to X-channel/sensor-state/data-path behavior rather
+than an across-all-axes scale assumption. It does not prove defective hardware.
+A requested ten-second complete power removal is still awaiting owner confirmation;
+register readback or a documented known-state initialization may be needed afterward.
+No calibration was invented and the gravity guard was not relaxed. Populated arc,
+Auto orientation and physical touch alignment remain pending.
+
+Before pausing for that physical step, phone alerts were restored On through Settings,
+advanced-tool preference was retained, and the debug awake helper reported inactive
+with the original 60000 ms timeout and charging value 15. Private return backups and
+serial evidence were retained; the passive serial reader was stopped.
+
+## Dev.70 sensor-state diagnostic preparation
+
+The owner confirmed removing all gauge power for ten seconds and reconnecting flat,
+screen up. On dev.69, X remained near +1999 mg while Y was near zero and Z around
+-971 mg. This rules out the attempted power-cycle reset as a remedy; it does not
+prove hardware failure. Review against QMI8658C sections 5.4/5.7 found the existing
+burst offsets and signed little-endian conversion consistent with the datasheet.
+No calibration offset or relaxed gravity admission is justified.
+
+Source dev.70 verifies every CTRL1/CTRL2/CTRL7 write by a separate exact readback,
+reads revision only after auto-increment is verified, and records an independent
+signed two-byte X read before burst sampling. It uses documented +/-2 g normal-power
+31.25 Hz (`CTRL2=0x08`) rather than the earlier 11 Hz low-power mode. Every tick still
+performs at most one bus operation; mismatch/error uses the existing five-second
+retry and stale-angle hold. The raw evidence snapshot is bounded to 40 bytes; the
+4 KiB internal stack and ELF memory admission remain enforced. Sensor sample phase
+is now 9; old phase-4 logs remain historical dev.69 evidence.
+
+This tests a mode/init interaction without pretending that normal mode fixes the
+observed X channel. Exact verified configuration plus matching direct/burst saturation
+would strengthen hardware/channel fault evidence. Publication/install and actual
+results remain distinct; ordinary qualification/public gates stay off.
+
+The first dev.69 showcase run observed the requested 25 frames, then failed its final
+comparison because the test's direct settings read omitted negotiated Smart metadata
+(`smartPolicyVersion` 0 versus 1). The revision and all saved settings matched. The
+fixture now supplies the negotiated Smart capability, preserving the full equality
+assertion; this is not a runtime preference change or an ignored assertion. The old
+21-frame/revision-57 result file was recognized as stale and not counted as current.
+The corrected nine-frame round trip passed in 83.651 seconds, including the four
+new Dual + arc frames, with original configuration/settings/profiles retained.
+Owner visual/hold-exit confirmation remains separate from protocol observation.
+
+The owner subsequently confirmed the populated Gear/RPM and Coolant/Gear arc
+previews: “Clear, no overlap or clipping.” This is the physical visual observation;
+the owner then confirmed hold-exit returned to normal pages with working navigation.

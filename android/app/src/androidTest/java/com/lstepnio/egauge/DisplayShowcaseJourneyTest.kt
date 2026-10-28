@@ -34,6 +34,7 @@ class DisplayShowcaseJourneyTest {
         assertEquals(1, model.capabilities?.displayShowcaseVersion)
         val document = requireNotNull(model.activeDocument)
         val settings = requireNotNull(model.displaySettings)
+        val smartVersion = requireNotNull(model.capabilities).smartPageCyclingVersion
         val profiles = model.profileCollection.profiles
         val seenFrames = mutableSetOf<Int>()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -73,7 +74,7 @@ class DisplayShowcaseJourneyTest {
             val confirmed = runBlocking {
                 withTimeout(90_000) {
                     requireNotNull(client.readActiveDocument(device)) to
-                        client.readDisplaySettings(device)
+                        client.readDisplaySettings(device, smartVersion)
                 }
             }
             assertEquals(document.revision, confirmed.first.revision)
