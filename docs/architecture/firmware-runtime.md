@@ -183,6 +183,18 @@ The prepared dev.57 increases the application task from 3,072 to 4,096 bytes
 after dev.56 bench telemetry measured only 552 bytes of remaining stack. This
 uses 1 KiB of the recovered internal headroom; other task stacks are unchanged.
 
+The ESP-IDF `main` task is separate from that application worker. Dev.67's opt-in
+orientation candidate overflowed it during early startup, after touch initialization
+and before sensor-worker startup. The synchronous early-logo LVGL refresh is on this
+boot path; the corrupted backtrace does not prove the exact overflowing callee.
+The replacement configures `CONFIG_ESP_MAIN_TASK_STACK_SIZE=4608`, up from 3584.
+IDF 5.4.1 adds 512 bytes for non-nano libc logging, so the actual allocation changes
+from 4096 to 5120 bytes, costing 1 KiB of internal heap. A compile-time lower bound
+checks the resolved SDK configuration for every image. Boot and candidate periodic
+logs measure the main watermark separately from `app_tick` and the sensor worker.
+Passing compilation or the static ELF budget cannot qualify these dynamic stacks;
+record real boot/maintenance margins before accepting the replacement.
+
 Each worker additionally samples its own stack watermark once per 64 progress
 reports, starting with its first report. The log distinguishes an unobserved margin
 from a real zero margin. `memory_health.c` logs internal **8-bit** free/largest/minimum,
