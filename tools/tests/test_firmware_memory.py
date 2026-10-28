@@ -15,6 +15,33 @@ spec.loader.exec_module(memory)
 
 
 class FirmwareMemoryTests(unittest.TestCase):
+    def test_orientation_stack_and_task_record_are_internal_and_bounded(self):
+        stack = {
+            "name": "sensor_stack",
+            "address": 0x3FCA5000,
+            "bytes": 4096,
+            "section": ".dram0.data",
+        }
+        task = {
+            "name": "sensor_task",
+            "address": 0x3FCA4800,
+            "bytes": 340,
+            "section": ".dram0.data",
+        }
+        memory.validate_orientation_storage([])  # Ordinary builds omit the sensor worker.
+        memory.validate_orientation_storage([stack, task])
+        for records in (
+            [stack],
+            [task],
+            [stack, task, task],
+            [dict(stack, bytes=2048), task],
+            [dict(stack, address=0x3FCA5004), task],
+            [dict(stack, section=".ext_ram.bss", address=0x3C030000), task],
+            [stack, dict(task, section=".ext_ram.bss", address=0x3C031000)],
+        ):
+            with self.subTest(records=records), self.assertRaises(ValueError):
+                memory.validate_orientation_storage(records)
+
     def test_static_budget_counts_iram_and_dram_but_not_external_arena(self):
         sections = {
             ".dram0.data": 20000,

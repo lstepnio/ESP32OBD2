@@ -6,6 +6,25 @@ import json
 from pathlib import Path
 
 MAX_INTERNAL_STATIC_BYTES = 192 * 1024
+ORIENTATION_STACK_BYTES = 4096
+
+
+def validate_orientation_storage(records):
+    if not records:
+        return
+    for name in ("sensor_stack", "sensor_task"):
+        matches = [record for record in records if record["name"] == name]
+        if len(matches) != 1:
+            raise ValueError("Expected exactly one internal orientation " + name)
+        record = matches[0]
+        if not record["section"].startswith((".dram0.data", ".dram0.bss")) or not (
+            0x3FC80000 <= record["address"] < record["address"] + record["bytes"] <= 0x3FD00000
+        ):
+            raise ValueError("Orientation worker stack and task record must remain internal")
+        if name == "sensor_stack" and (
+            record["bytes"] != ORIENTATION_STACK_BYTES or record["address"] % 16
+        ):
+            raise ValueError("Review the aligned 4096-byte orientation worker stack budget")
 
 
 def validate_internal_budget(sections):
@@ -41,7 +60,17 @@ def inspect_image(path):
         if symbols is None:
             raise ValueError("Unstripped firmware ELF is required")
         arenas = []
+        orientation = []
         for symbol in symbols.iter_symbols():
+            if symbol.name in ("sensor_stack", "sensor_task") and symbol["st_size"]:
+                orientation.append(
+                    {
+                        "name": symbol.name,
+                        "address": symbol["st_value"],
+                        "bytes": symbol["st_size"],
+                        "section": elf.get_section(symbol["st_shndx"]).name,
+                    }
+                )
             if symbol.name.startswith("work_mem_int") and symbol["st_size"]:
                 arenas.append(
                     {
@@ -51,6 +80,7 @@ def inspect_image(path):
                     }
                 )
         validate_arena(arenas)
+        validate_orientation_storage(orientation)
         sections = {
             s.name: s["sh_size"]
             for s in elf.iter_sections()
@@ -66,6 +96,7 @@ def inspect_image(path):
             "section_bytes": sections,
             "internal_static_bytes": used,
             "internal_static_limit": MAX_INTERNAL_STATIC_BYTES,
+            "orientation_worker": orientation,
         }
 
 

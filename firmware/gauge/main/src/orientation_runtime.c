@@ -239,10 +239,16 @@ uint16_t orientation_runtime_stack_margin(void)
     return result;
 }
 #if defined(ESP_PLATFORM) && CONFIG_EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED
-/* Fixed internal RAM, no queue or per-observation allocation. IDF stack depths
- * and watermarks are bytes. One priority-1 worker isolates touch/control owners
- * from the shared-bus driver's tick-granularity and repeated internal waits. */
-static DRAM_ATTR StackType_t  sensor_stack[2048 / sizeof(StackType_t)];
+/* IDF's I2C error paths invoke newlib formatting even though this worker does
+ * not log. Dev.68's worker exhausted 2 KiB and corrupted the adjacent task record.
+ * Keep the reviewed 4 KiB budget internal and shared by storage/task creation. */
+enum
+{
+    SENSOR_WORKER_STACK_BYTES = 4096
+};
+static DRAM_ATTR StackType_t sensor_stack[SENSOR_WORKER_STACK_BYTES / sizeof(StackType_t)]
+    __attribute__((aligned(portBYTE_ALIGNMENT)));
+_Static_assert(sizeof(sensor_stack) == SENSOR_WORKER_STACK_BYTES, "Orientation worker stack budget mismatch");
 static DRAM_ATTR StaticTask_t sensor_task;
 static void                   sensor_worker(void *unused)
 {
@@ -271,16 +277,15 @@ static void start_worker(void)
 {
     if (bus.read && bus.write)
     {
-        TaskHandle_t task      = xTaskCreateStatic(sensor_worker, "orientation", 2048, NULL, tskIDLE_PRIORITY + 1,
-                                                   sensor_stack, &sensor_task);
+        TaskHandle_t task      = xTaskCreateStatic(sensor_worker, "orientation", sizeof(sensor_stack), NULL,
+                                                   tskIDLE_PRIORITY + 1, sensor_stack, &sensor_task);
         bool         candidate = false;
 #if CONFIG_EGAUGE_AUTO_ORIENTATION_CANDIDATE
         candidate = true;
 #endif
-        ESP_LOGI("orientation",
-                 "Sensor worker %s; internal stack=2048 mapping=%u permitted=%u qualified=%u candidate=%u",
-                 task ? "started" : "unavailable", ORIENTATION_MAPPING_VERSION, permitted,
-                 gauge_board_orientation_qualified(), candidate);
+        ESP_LOGI("orientation", "Sensor worker %s; internal stack=%u mapping=%u permitted=%u qualified=%u candidate=%u",
+                 task ? "started" : "unavailable", (unsigned)sizeof(sensor_stack), ORIENTATION_MAPPING_VERSION,
+                 permitted, gauge_board_orientation_qualified(), candidate);
     }
 }
 #else
