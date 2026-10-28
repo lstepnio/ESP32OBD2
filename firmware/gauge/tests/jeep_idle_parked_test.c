@@ -106,6 +106,48 @@ static void restoration_needs_post_return_samples(void)
     jeep_idle_parked_test_scope(&t, c);
     assert(!t.baseline_valid && !t.cvn);
 }
+static void reboot_recovery_requires_inactive_and_later_samples(void)
+{
+    for (unsigned wrap = 0; wrap < 2; ++wrap)
+    {
+        uint32_t                  base = wrap ? UINT32_MAX - 600U : 1000;
+        jeep_idle_parked_test_t   t    = {0};
+        vehicle_command_context_t c    = {.revision = 7, .link = 9, .connected = true};
+        vehicle_command_state_t   idle = {.phase = VEHICLE_UNKNOWN, .request = {.operation = 5}};
+        jeep_idle_parked_test_scope(&t, c);
+        identity(&t);
+        t.identity_at = base;
+        rpm(&t, 700, base);
+        speed(&t, 0, base);
+        jeep_idle_parked_test_context(&t, &c, &idle, base);
+        assert(!c.normal_idle_verified && !t.baseline_valid);
+        idle.phase              = VEHICLE_VERIFYING;
+        idle.changed_at         = base;
+        idle.recovery_verifying = true;
+        jeep_idle_parked_test_context(&t, &c, &idle, base);
+        assert(!t.recovery_baseline && !c.normal_idle_verified);
+        rpm(&t, 700, base + 100);
+        speed(&t, 0, base + 100);
+        jeep_idle_parked_test_context(&t, &c, &idle, base + 100);
+        assert(t.recovery_baseline && !c.normal_idle_verified);
+        /* Repeated context calls cannot turn one observation into proof. */
+        for (unsigned i = 0; i < 4; ++i)
+            jeep_idle_parked_test_context(&t, &c, &idle, base + 100);
+        assert(!t.proof_count);
+        for (unsigned i = 0; i < 3; ++i)
+        {
+            uint32_t at = base + 200 + i * 300;
+            rpm(&t, 720, at);
+            speed(&t, 0, at);
+            jeep_idle_parked_test_context(&t, &c, &idle, at);
+            assert(c.normal_idle_verified == (i == 2));
+        }
+        c.link++;
+        jeep_idle_parked_test_scope(&t, c);
+        jeep_idle_parked_test_context(&t, &c, &idle, base + 900);
+        assert(!c.normal_idle_verified && !t.recovery_baseline && !t.baseline_valid);
+    }
+}
 static elm_result_t decode(const char *text, uint8_t pid, elm_payload_t *p)
 {
     elm_response_t response = {0};
@@ -129,6 +171,7 @@ static void attributed_multiframe_identity(void)
 }
 int main(void)
 {
+    reboot_recovery_requires_inactive_and_later_samples();
     identity_and_guards();
     restoration_needs_post_return_samples();
     attributed_multiframe_identity();

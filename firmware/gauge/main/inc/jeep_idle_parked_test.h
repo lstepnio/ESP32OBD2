@@ -22,6 +22,7 @@ typedef struct
     double   rpm, baseline_rpm;
     uint8_t  speed;
     bool     calibration, cvn, rpm_valid, speed_valid, baseline_valid;
+    bool     recovery_baseline;
 } jeep_idle_parked_test_t;
 
 void jeep_idle_parked_test_scope(jeep_idle_parked_test_t *test, vehicle_command_context_t context);

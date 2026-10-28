@@ -55,7 +55,7 @@ static bool current(jeep_idle_driver_t *d, idle_context_t c, uint32_t now)
 
 bool jeep_idle_driver_begin(jeep_idle_driver_t *d, jeep_idle_request_t r, idle_context_t c, uint32_t now)
 {
-    if (d->phase == JEEP_IDLE_WORKING || (unsigned)r.kind > JEEP_IDLE_RETURN || !r.operation || !r.revision ||
+    if (d->phase == JEEP_IDLE_WORKING || (unsigned)r.kind > JEEP_IDLE_RECOVERY_REPORT || !r.operation || !r.revision ||
         !r.link || r.source != 0 || !c.connected || c.revision != r.revision || c.link != r.link ||
         r.operation < d->last_operation || d->ticket > UINT32_MAX - 16U)
         return false;
@@ -93,7 +93,7 @@ static void cancellation(jeep_idle_driver_t *d)
 {
     if (!d->cancel_requested || d->request.kind == JEEP_IDLE_RETURN)
         return;
-    if (!d->control_possible)
+    if (d->request.kind == JEEP_IDLE_RECOVERY_REPORT || !d->control_possible)
     {
         d->phase = JEEP_IDLE_CANCELLED;
         return;
@@ -259,7 +259,7 @@ bool jeep_idle_driver_feed(jeep_idle_driver_t *d,
     if (prompt)
     {
         complete(d);
-        if (d->cancel_requested && d->phase == JEEP_IDLE_CONFIRMED &&
+        if (d->request.kind != JEEP_IDLE_RECOVERY_REPORT && d->cancel_requested && d->phase == JEEP_IDLE_CONFIRMED &&
             (d->result == JEEP_IDLE_START_CONFIRMED || d->result == JEEP_IDLE_ACTIVE_REPORT))
         {
             d->phase  = JEEP_IDLE_WORKING;

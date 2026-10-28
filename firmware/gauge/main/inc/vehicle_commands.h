@@ -64,7 +64,8 @@ typedef struct
     vehicle_command_reason_t  reason;
     vehicle_command_request_t request;
     uint32_t                  active_at, last_report, sequence, identity, changed_at, fallback_at;
-    bool                      timed_fallback;
+    bool                      timed_fallback, recovery_verifying, recovery_attempted;
+    uint32_t                  recovery_at;
     bool                      pending_start, pending_stop, restart_required;
 } vehicle_command_state_t;
 typedef struct
