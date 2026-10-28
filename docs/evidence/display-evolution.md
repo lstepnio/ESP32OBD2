@@ -150,8 +150,10 @@ with original 60,000 ms timeout and charging value 15 restored. The source/relea
 branches for #104/#105 were removed after verifying the signed tag retains the
 reviewed source; unrelated worktrees and private evidence were preserved.
 
-One owner physical observation of the text-free logo, touch wake and page/action
-navigation was requested and is pending. Do not equate protocol/render fixtures
-with that observation. Loaded ECU cadence, Smart priorities/comfort, alert/control
-freshness, dual-source loss/return and memory coexistence remain Jeep gates.
-Auto orientation keeps its separate physical sensor/touch qualification gate.
+The owner confirmed on 2026-10-27: “Logo and all navigation work.” This covers the
+clean text-free logo, first-tap wake, reading-page swipes, three-upward-swipe action
+entry, left/right action browsing and downward return. This physical observation
+is separate from the automated protocol/render results above. Loaded ECU cadence,
+Smart priorities/comfort, alert/control freshness, dual-source loss/return and
+memory coexistence remain Jeep gates. All ten pages and the new arc layout still
+need physical review; Auto orientation retains its separate sensor/touch gate.
