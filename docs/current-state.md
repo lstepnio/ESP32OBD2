@@ -34,6 +34,8 @@ changes in MIL/filter presentation for attribution. Existing warning/filter proo
 and UI visibility rules are unchanged. The owner's later in-vehicle startup CEL
 observation is not yet attributed by a raw capture; [investigation evidence](evidence/action-pages-indoor.md#2026-10-27-startup-cel-investigation)
 separates that report from the source fix. Dev.65 remains installed.
+The same candidate removes decorative play/stop glyphs from shared action progress
+states at the owner's request; colored progress rings and action controls remain.
 
 ## Installed baseline
 

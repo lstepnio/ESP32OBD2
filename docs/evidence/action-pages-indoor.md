@@ -413,3 +413,18 @@ and measure time to suppression alongside normal readings. Include a genuine
 unfiltered warning case. Publication/installation are not claimed; dev.65 remains
 the installed image. Website impact was reviewed; appearance and product claims
 remain unchanged pending actual qualification.
+
+## 2026-10-27 action progress cleanup
+
+The owner requested removal of the green play triangle and red stop square from
+Air up. Prepared dev.66 removes both decorative glyphs from the shared action
+renderer; colored progress arcs, Start/Stop controls, hold handling and the yellow
+reconnection link remain. No command, timer, protocol or allocation is added.
+
+Normal and parked production LVGL fixtures passed. Comparing all 61 frames in each
+variant changed only Starting, Stopping, Verifying and thermal-stop frames; all
+other frames remained byte-identical. Visual inspection confirmed the two glyphs
+are absent while arcs and controls remain. Host checks and both firmware builds
+passed. These are source/render checks, not observations on the physical gauge.
+Dev.65 remains installed. Website impact was reviewed; no publication or historical
+review-asset rewrite is included in this small UI change.
