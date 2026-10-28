@@ -428,3 +428,9 @@ remains pending. This is test coordination work, not a claimed runtime hold fail
 Dev.71 publication/install and corrected text/touch acceptance remain separate from
 this source preparation. The completed USB exception is not reused; further field
 installation uses App/Wi-Fi. No public capability or marketing claim is promoted.
+
+The owner also requested a larger, quieter splash. Source dev.71 increases the
+reference icon from 112 to 168 pixels in diameter and makes all its strokes/pivot
+neutral grey `#555555`. The same four retained vector objects and two-point buffer
+are reused, with no new bitmap, framebuffer or task. Boot/no-data wake semantics
+remain unchanged. Native bounded-memory rendering and physical fit remain distinct.

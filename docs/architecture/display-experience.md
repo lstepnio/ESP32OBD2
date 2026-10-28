@@ -53,6 +53,10 @@ After NVS display preferences load, the board initializes and presents the logo
 before heavier configuration/radio setup. It uses four retained LVGL objects
 (container, arc, line and dot), with no bitmap, additional framebuffer or animation
 task. Saved brightness and manual angle apply at startup. The logo has no text.
+Its icon occupies a centered 168-pixel diameter on the 240-pixel reference display,
+using a muted neutral grey (`#555555`) for the arc, needle and pivot. Dimensions
+scale through the existing presentation profile. It reuses the same objects and
+point buffer; the larger mark adds no bitmap, framebuffer or animation allocation.
 
 With no valid vehicle observation, it stays until touch or data. After observations
 have arrived, sixty seconds without a valid scoped vehicle observation returns to
@@ -74,7 +78,7 @@ wake. Quiet recovery continues behind the logo.
 Fixed bulk sampling/Smart state stays in PSRAM. Ten pages add two bounded page
 records, not tasks or per-page UI trees. Stability tracking is 20 bytes per active
 reading, at most 640 bytes. The optional orientation worker has a separately gated
-2 KiB internal static stack and is disabled in default images.
+4 KiB internal static stack and is disabled in default images.
 
 Tests exercise real production LVGL with the same fixed 64 KiB arena size, native
 configuration compilation/rejection, cache/wake timing and ten-page fairness.
