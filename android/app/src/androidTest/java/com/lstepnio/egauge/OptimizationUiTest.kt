@@ -284,6 +284,72 @@ class OptimizationUiTest {
         compose.onAllNodesWithText("Check gauge access").assertCountEquals(0)
     }
 
+    @Test fun smartCyclingRetainsDisabledPreferenceAndSavesBothFieldsTogether() {
+        var state by mutableStateOf(
+            SettingsUiState(
+                "eGauge", true, 0, true, false, false, false, "test", emptyList(),
+                displaySettingsVersion = 3, brightness = 80, cycleSeconds = 10,
+                selectedGaugeId = "smart-gauge", smartCycleSupported = true, smartCycle = true
+            )
+        )
+        val saves = mutableListOf<Pair<Int, Boolean>>()
+        compose.setContent {
+            EGaugeTheme {
+                SettingsScreen(
+                    state, {}, {}, {}, {}, { _, _ -> }, {}, {}, {},
+                    onSaveSmartCycle = { seconds, smart ->
+                        saves += seconds to smart
+                        state = state.copy(cycleSeconds = seconds, smartCycle = smart)
+                    }
+                )
+            }
+        }
+        compose.onNodeWithText("Every 10 seconds · Smart").assertExists()
+        compose.onNodeWithText("Auto-cycle pages").performScrollTo().performClick()
+        compose.onNodeWithText("Smart").performScrollTo().assertIsOn().performClick().assertIsOff()
+        compose.onNodeWithText("Cancel").performClick()
+        compose.runOnIdle { assertTrue(saves.isEmpty()) }
+        compose.onNodeWithText("Every 10 seconds · Smart").assertExists()
+        compose.onNodeWithText("Auto-cycle pages").performScrollTo().performClick()
+        compose.onNodeWithText("Smart").performScrollTo().assertIsOn()
+        compose.onNodeWithText("Off", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithText("Smart").performScrollTo().assertIsNotEnabled().assertIsOn()
+        compose.onNodeWithText("Choose an interval to use Smart.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Save to gauge").performClick()
+        compose.runOnIdle { assertEquals(listOf(0 to true), saves) }
+        compose.onNodeWithText("Auto-cycle pages").performScrollTo().performClick()
+        compose.onNodeWithText("Smart").performScrollTo().assertIsOn().assertIsNotEnabled()
+        compose.onNodeWithText("Every 10 seconds").performScrollTo().performClick()
+        compose.onNodeWithText("Smart").performScrollTo().assertIsEnabled().assertIsOn()
+        compose.onNodeWithText("Save to gauge").performClick()
+        compose.runOnIdle { assertEquals(listOf(0 to true, 10 to true), saves) }
+        compose.onNodeWithText("Every 10 seconds · Smart").assertExists()
+        compose.onNodeWithText("Auto-cycle pages").performScrollTo().performClick()
+        compose.onNodeWithText("Smart").performScrollTo().performClick().assertIsOff()
+        compose.onNodeWithText("Save to gauge").performClick()
+        compose.runOnIdle { assertEquals(listOf(0 to true, 10 to true, 10 to false), saves) }
+        compose.onNodeWithText("Every 10 seconds · Smart").assertDoesNotExist()
+        compose.onNodeWithText("Every 10 seconds").assertExists()
+    }
+
+    @Test fun legacyCyclingEditorKeepsItsExistingSaveCallbackWithoutSmart() {
+        var saved: Int? = null
+        val state = SettingsUiState(
+            "eGauge", true, 0, true, false, false, false, "test", emptyList(),
+            displaySettingsVersion = 3, brightness = 80, cycleSeconds = 10
+        )
+        compose.setContent {
+            EGaugeTheme {
+                SettingsScreen(state, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, onSaveCycle = { saved = it })
+            }
+        }
+        compose.onNodeWithText("Auto-cycle pages").performScrollTo().performClick()
+        compose.onNodeWithText("Smart").assertDoesNotExist()
+        compose.onNodeWithText("Every 15 seconds").performScrollTo().performClick()
+        compose.onNodeWithText("Save to gauge").performClick()
+        compose.runOnIdle { assertEquals(15, saved) }
+    }
+
     @Test fun largeTextDialogKeepsTheLastCycleChoiceAndSaveReachable() {
         val state =
             SettingsUiState(

@@ -131,3 +131,11 @@ support. Dated build/editor/install results are in [catalog rollout evidence](..
    fixtures. A definition that the firmware compiler cannot execute must not appear
    as selectable. Add mappings for genuinely new units in both App and firmware.
 4. Record physical qualification separately; do not change public flags implicitly.
+
+## Smart presentation metadata
+
+Optional `smartInterest` metadata and its generated flash table provide semantic
+context/thermal hints. The [Smart cycling contract](../architecture/smart-page-cycling.md)
+owns defaults, exact-definition matching, tuning validation, limits and qualification.
+This is independent of `samplingClass`: it never creates queries, widens freshness
+or changes actual alert thresholds. Unknown/custom readings keep active-alert priority.

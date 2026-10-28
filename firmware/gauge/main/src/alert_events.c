@@ -388,3 +388,19 @@ bool alert_events_condition_summary(const alert_events_t *events,
 {
     return summary(events, priorities, now, out, attention, true, additional);
 }
+
+void alert_events_page_interest(const alert_events_t *events, uint32_t now, alert_page_interest_t out[32])
+{
+    memset(out, 0, sizeof(*out) * 32);
+    for (unsigned i = 0; i < 32; ++i)
+    {
+        const alert_episode_t *episode = &events->episodes[i];
+        const alert_event_t   *event   = &episode->current;
+        if (event->lifecycle != 1)
+            continue;
+        out[i].episode    = event->episode;
+        out[i].suppressed = !event->unavailable && !alert_events_attention(episode, now);
+        if (!event->unavailable && !out[i].suppressed)
+            out[i].severity = event->severity;
+    }
+}

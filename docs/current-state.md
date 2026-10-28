@@ -27,6 +27,19 @@ The owner confirmed clean pages, action navigation, no CEL question mark and
 ten-second cycling/resume after touch. Loaded ECM/TCM reading continuity and
 control/thermal timing still require the Jeep.
 
+## Smart page cycling source milestone
+
+FEATURE-11 is implemented offline with the approved defaults: one opt-in Settings
+switch, existing interval selection, alert-driven/thermal/context priorities,
+minimum viewing/manual protection, bounded priority insertions and saved-page
+fairness. The [runtime contract](architecture/smart-page-cycling.md) owns behavior
+and tuning, and [offline evidence](evidence/smart-page-cycling.md) records executed
+checks. The additive `sp:1` protected settings path and revision-matched sidecars
+preserve legacy display compatibility. Existing public capability flags remain off.
+This source milestone is not installed on the Pixel/gauge; the baseline below
+remains authoritative. Matched loaded timing, comfort and resource qualification
+remain in the [milestone procedure](development/smart-page-cycling-plan.md).
+
 ## Installed baseline
 
 | Item | Last recorded state | Evidence |

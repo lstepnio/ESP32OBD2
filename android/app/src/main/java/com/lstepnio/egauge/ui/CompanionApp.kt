@@ -390,7 +390,8 @@ fun CompanionApp(
                                             model.discoverAdditionalGauge()
                                             route = Route.Setup
                                         },
-                                        model.phoneAlertsEnabled, model.alertMonitoring, onPhoneAlerts
+                                        model.phoneAlertsEnabled, model.alertMonitoring, onPhoneAlerts,
+                                        onSaveSmartCycle = model::savePageCycling
                                     )
 
                                     Route.Updates -> UpdatesScreen(

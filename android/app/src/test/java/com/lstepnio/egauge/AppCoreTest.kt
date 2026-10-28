@@ -8,6 +8,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -351,6 +352,65 @@ class AppCoreTest {
             GaugeProtocolCodec.displaySettings(cycling)
         )
         assertThrows { GaugeProtocolCodec.displaySettings(cycling.copyOf().apply { this[8] = 4 }) }
+    }
+
+    @Test fun smartPageCyclingNegotiatesSeparatelyAndRejectsMalformedState() {
+        val legacy = """{"board":"board","protocolMajor":0,"maxAdapterLinks":1,
+            "configWrite":false,"ota":false,"ds":3}
+        """.trimIndent()
+        assertEquals(0, GaugeProtocolCodec.capabilities(legacy.toByteArray()).smartPageCyclingVersion)
+        fun caps(value: Int, display: Int = 3) = legacy.replace("\"ds\":3", "\"ds\":$display,\"sp\":$value").toByteArray()
+        assertEquals(1, GaugeProtocolCodec.capabilities(caps(1)).smartPageCyclingVersion)
+        assertEquals(3, GaugeProtocolCodec.capabilities(caps(1)).displaySettingsVersion)
+        assertThrows { GaugeProtocolCodec.capabilities(caps(2)) }
+        assertThrows { GaugeProtocolCodec.capabilities(caps(-1)) }
+        assertThrows { GaugeProtocolCodec.capabilities(caps(1, 2)) }
+        listOf("true", "\"1\"", "1.5", "null").forEach { malformed ->
+            assertThrows { GaugeProtocolCodec.capabilities(legacy.replace("\"ds\":3", "\"ds\":3,\"sp\":$malformed").toByteArray()) }
+        }
+        val state = byteArrayOf(23, 2, 80, 1, 0x78, 0x56, 0x34, 0x12, 10, 0, 1, 1)
+        val parsed = GaugeProtocolCodec.displaySettings(state)
+        assertTrue(GaugeProtocolCodec.isProtectedStatusFrame(state))
+        assertFalse(GaugeProtocolCodec.isProtectedStatusFrame(state.copyOf(11)))
+        assertFalse(GaugeProtocolCodec.isProtectedStatusFrame(state.copyOf().apply { this[10] = 2 }))
+        assertFalse(GaugeProtocolCodec.isProtectedStatusFrame(state.copyOf().apply { this[11] = 2 }))
+        assertEquals(0x12345678L, parsed.revision)
+        assertEquals(10, parsed.cycleSeconds)
+        assertTrue(parsed.smartCycle)
+        assertTrue(parsed.supportsSmartCycle)
+        assertEquals(1, parsed.smartPolicyVersion)
+        assertFalse(GaugeProtocolCodec.displaySettings(byteArrayOf(12, 2, 80, 1, 1, 0, 0, 0, 10, 0)).supportsSmartCycle)
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf(11)) }
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf(13)) }
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[10] = 2 }) }
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[10] = -1 }) }
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[11] = 0 }) }
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[11] = 2 }) }
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[8] = 4 }) }
+        assertThrows { GaugeProtocolCodec.displaySettings(state.copyOf().apply { this[9] = 1 }) }
+    }
+
+    @Test fun smartPageCyclingWritesAndConfirmsOneWholeSettingsRevision() {
+        val before = GaugeConfigTransferClient.DisplaySettings(2, 80, 0x12345678, MeasurementSystem.Imperial, 3, 10, true, 1)
+        val requested = before.copy(cycleSeconds = 0)
+        assertArrayEquals(
+            byteArrayOf(0x69, 2, 80, 1, 0, 0, 1, 0x78, 0x56, 0x34, 0x12),
+            GaugeProtocolCodec.smartDisplaySettingsWrite(requested)
+        )
+        val confirmed = requested.copy(revision = before.revision + 1)
+        assertTrue(GaugeProtocolCodec.displaySettingsSaveConfirmed(before, requested, confirmed))
+        assertFalse(GaugeProtocolCodec.displaySettingsSaveConfirmed(before, requested, requested))
+        assertFalse(GaugeProtocolCodec.displaySettingsSaveConfirmed(before, requested, confirmed.copy(revision = before.revision + 2)))
+        assertFalse(GaugeProtocolCodec.displaySettingsSaveConfirmed(before, requested, confirmed.copy(smartCycle = false)))
+        assertFalse(GaugeProtocolCodec.displaySettingsSaveConfirmed(before, requested, confirmed.copy(cycleSeconds = 10)))
+        assertFalse(GaugeProtocolCodec.displaySettingsSaveConfirmed(before, requested, confirmed.copy(brightness = 50)))
+        assertFalse(GaugeProtocolCodec.displaySettingsSaveConfirmed(before, requested, confirmed.copy(smartPolicyVersion = 0)))
+        assertArrayEquals(
+            byteArrayOf(0x69, 2, 80, 1, 10, 0, 0, 0x78, 0x56, 0x34, 0x12),
+            GaugeProtocolCodec.smartDisplaySettingsWrite(before.copy(smartCycle = false))
+        )
+        assertThrows { GaugeProtocolCodec.smartDisplaySettingsWrite(before.copy(smartPolicyVersion = 0)) }
+        assertThrows { GaugeProtocolCodec.smartDisplaySettingsWrite(before.copy(cycleSeconds = 4)) }
     }
 
     @Test fun imperialDisplayConvertsOnlyKnownUnitsAndRoundTripsAlertValues() {

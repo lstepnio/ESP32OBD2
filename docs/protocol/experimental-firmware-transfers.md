@@ -197,6 +197,35 @@ Display settings version `ds: 2` extends the same eight-byte state to version `0
 
 Display settings version `ds: 3` adds saved-page cycling. State version `0C` is ten bytes: version, rotation, brightness, units, little-endian `u32` revision, then little-endian `u16` cycle interval in seconds. The interval accepts `0` (Off) or `5`, `10`, `15`, `30`, and `60`. Opcode `38` writes rotation, brightness, units, little-endian `u16` interval, then little-endian `u32` expected revision, for ten bytes total. Older opcodes `36` and `37` preserve the cycle interval. Existing NVS records migrate to a disabled interval without changing their display values or revision. The gauge advances only when more than one saved page exists, resets the interval after a manual page change or owner selection, and pauses during a transfer. Automatic page changes are runtime only; they do not repeatedly write flash. The app verifies the saved interval by reading the next revision. This extension uses the existing protected characteristics and requires no GATT database or configuration document change.
 
+### Smart page cycling settings
+
+Configured dashboards add optional capability `sp:1`; `ds:3`, legacy capability
+flags and legacy state/opcodes retain their meanings. The document JSON omits
+`savedStateRead:false` and `displayRotationWrite:false`, whose supported decoders
+already default to false, to stay below the qualified 255-byte read boundary.
+The legacy built-in-page path does not advertise Smart.
+
+An authenticated owner writes `68 01 00 00 00` to request Smart display settings.
+The protected state is 12 bytes: `17` (decimal23), rotation, brightness, units,
+little-endian u32 settings revision, little-endian u16 cycle interval, Smart Boolean
+`0`/`1`, and policy version `1`. Reject other lengths, flags, policy versions or
+existing display field bounds. `0` interval makes Smart inactive without discarding
+its saved preference. This is distinct from Auto physical display orientation.
+
+Opcode `69` writes eleven bytes: opcode, rotation, brightness, units, LE16 interval,
+Smart Boolean, LE32 expected revision. Admission validates bounds/revision and queues
+without blocking. The application owner uses the existing display writer; confirmed
+success requires an exact next revision and all requested fields in extended readback.
+A lost acknowledgement is an uncertain outcome until fresh readback, never permission
+to replay. The new read/write leaves state in this extended mode for polling.
+
+Older write opcodes preserve the Smart preference on new firmware and leave their
+readback format unchanged. Capability absence means the new App retains ordinary
+cycling controls. NVS version/revision sidecars, interruption and downgrade semantics
+are owned by the [Smart cycling contract](../architecture/smart-page-cycling.md#settings-and-compatibility).
+No GATT database, saved configuration document or public capability-flag change is
+required. Existing owner authentication and operation serialization apply.
+
 The device uses LE Secure Connections, authenticated passkey entry, encryption and bonding. An unowned gauge starts on an exclusive pairing screen and automatically opens a 120-second association window. When the window expires, the screen shows **HOLD TO OPEN PAIRING** and a gauge long press opens another window. While the window is open, the screen says **OPEN APP TO PAIR GAUGE**. Readings, renderer graphics, alerts, and diagnostics stay hidden throughout pairing. The six-digit passkey appears on its LCD and Android shows the system pairing prompt. The first authenticated bonded phone identity is stored in NVS as owner, which closes pairing and restores the selected gauge page. Subsequent boots with a saved owner start on that page even when the phone is disconnected. Protected GATT access also checks the owner identity. A 12-second physical hold now opens a 30-second confirmation screen; a tap confirms erasing the owner association and bond, then restarts the gauge. This reset is intentionally local.
 
 Owner adoption requires a passkey event on the same connection within the active association window. A previously bonded phone that reconnects after owner reset cannot silently reclaim ownership during the next window. If bond deletion fails, the owner association is still cleared and old encrypted links remain unauthorized; the user may need to forget stale bonds on the phone before a fresh pairing.
