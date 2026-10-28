@@ -574,3 +574,42 @@ firmware fallback was used. The #103 feature branch and temporary release ref we
 removed; source remains pinned by the immutable release tag. Website impact was
 reviewed: downloads follow the published release, while marketing capture/publication
 remains under the separate daily cadence after physical qualification.
+
+
+## 2026-10-28 uncertain idle recovery session prerequisite
+
+The owner reported that installed dev.72 still showed Check idle / Status unknown
+on the Jeep despite normal physical idle and updating engine RPM. The later
+clarification was that the Jeep was no longer connected during this investigation;
+no live ECU trace was collected and no controls were sent.
+
+The [earlier parked capture](jeep-actions-live-qualification.md#raised-idle) already
+records `33 05` returning `7F 33 80` outside the captured diagnostic session, then
+inactive `73 05 01` after `10 92` / `50 92`. Dev.72's recovery driver went directly
+from addressed routing to status and explicitly omitted session entry. The runtime
+fake accepted status without tracking this prerequisite, so its reboot recovery
+fixture could pass while the captured PCM would reject the same sequence.
+
+The runtime replay was changed to model session loss on reboot and return that
+recorded rejection before acknowledgement. It failed against the old driver.
+The correction now opens the captured diagnostic session before status and waits
+for its exact positive response. The adjusted replay passes with inactive status
+and later settled RPM, retaining the durable operation/replay fences. Negative,
+missing, malformed and wrong-controller session replies do not establish success.
+Cancellation at each routing/session/status boundary never emits Start or Return;
+active/negative/missing status, wrong identity, movement and storage failure retain
+Unknown. Recovery completion logs include result/error/NRC for the next capture.
+
+This is a reproduced source defect consistent with the report, not a live attribution
+of this specific incident. No App, protocol, saved schema, public capability or
+controller qualification mask changes are included. Website impact: no new public
+feature or visual claim. Installation and parked confirmation of automatic recovery
+remain outstanding; the next trace must establish session acknowledgement, inactive
+status, later settled samples and preserved independent TCM operation.
+
+Validation: four focused sanitized native driver/parked/runtime/lifecycle checks
+passed, followed by the full host gate (138 tooling tests, 14 review-server tests
+and standalone native fixtures), host lint/documentation validation and the explicit
+parked-idle ESP-IDF build. The build's static-memory admission check passed at
+164,666 internal bytes against the 196,608-byte limit; driver fixture size remains
+592 bytes. These are offline/build results, not physical recovery qualification.

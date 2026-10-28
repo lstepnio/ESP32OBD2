@@ -508,8 +508,15 @@ link, then rate-limits recovery attempts to five seconds. Admission requires the
 saved operation/revision/identity, fresh zero speed and ordinary-idle RPM. Coolant
 and a new Start's duration eligibility do not gate this read-only check.
 
-Recovery uses a distinct driver job: addressed adapter routing and `33 05` status
-only. It never sends Start, Return or diagnostic-session entry, even on cancellation,
+Recovery uses a distinct driver job: addressed adapter routing, the captured
+`10 92` diagnostic-session entry with an exact positive reply, then `33 05` status.
+The [parked reference](../evidence/jeep-actions-live-qualification.md#raised-idle)
+recorded NRC 80 before session entry and inactive status after entry. Dev.72 omitted
+this prerequisite, so session expiry/restart could leave recovery permanently Unknown.
+The correction requires session setup on every recovery attempt; negative, wrong-ECU,
+malformed or missing session replies cannot advance to status or verification.
+Session setup is diagnostic state, not an actuator command. Recovery never sends
+Start or Return, even on cancellation,
 movement, timeout or an active response. It rebinds only the in-memory link; the
 original durable marker remains unchanged. A positive inactive response begins
 verification: one fresh normal-idle sample establishes a recovery baseline, then
@@ -517,7 +524,8 @@ three distinct later samples must span at least 500 ms, within 150 RPM above tha
 baseline and at/below 1,200 RPM. The whole proof must finish within five seconds
 of the inactive response; otherwise retry read-only. Recovery identity stays age-bounded. Failed, malformed, active,
 wrong-scope or stale evidence cannot clear the marker; persistence failure also
-keeps Unknown. No automatic control or blanket journal reset is introduced.
+keeps Unknown. Completion logs retain the recovery result, error and NRC for the
+next capture. No automatic actuator control or blanket journal reset is introduced.
 
 This source path needs parked verification on the captured ECM after installation.
 It does not establish that the reported vehicle incident had a particular timeout,

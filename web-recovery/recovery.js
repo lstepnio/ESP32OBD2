@@ -28,6 +28,7 @@ const baseline = loadBundle(fetch, crypto.subtle.digest.bind(crypto.subtle), pan
 baseline.catch(() => {});
 const noSerial = 'Downloads work here. To install firmware, open this page in desktop Chrome or Edge with a USB data cable.';
 async function selectFirmware() {
+  if (busy) return;
   const token = ++selection;
   bundle = undefined; selectedRelease = releases.find(r => r.tag === releaseSelect.value);
   fileInput.value = ''; consent.checked = false; progress.hidden = true; progress.value = 0;
@@ -54,6 +55,8 @@ async function selectFirmware() {
 }
 releaseSelect.addEventListener('change', () => {touched = true; selectFirmware();});
 fileInput.addEventListener('change', async () => {
+  if (busy) return;
+  touched = true;
   const token = ++selection, file = fileInput.files[0], expected = selectedRelease;
   bundle = undefined; consent.checked = false; update();
   if (!file) return;
@@ -87,7 +90,7 @@ async function loadReleases() {
     }
     releaseStatus.textContent = 'Published releases from GitHub. The list refreshes automatically, including development releases.';
     const latestFirmware = releases.find(r => r.firmware), latestApk = releases.find(r => r.apk);
-    if (!touched && latestFirmware) {releaseSelect.value = latestFirmware.tag; selectFirmware();}
+    if (!busy && !touched && latestFirmware) {releaseSelect.value = latestFirmware.tag; selectFirmware();}
     if (latestApk) {apkSelect.value = latestApk.tag; apkSelect.dispatchEvent(new Event('change'));}
     else apkStatus.textContent = 'No APKs are published on GitHub yet. The verified hosted App is available below; new release APKs will appear automatically.';
   } catch (_) {
@@ -100,6 +103,8 @@ window.addEventListener('beforeunload', event => {if (busy) {event.preventDefaul
 selectFirmware(); loadReleases();
 start.addEventListener('click', async () => {
   if (start.disabled) return;
+  const installBundle = bundle;
+  touched = true;
   busy = true; panel.setAttribute('aria-busy', 'true'); update();
   try {
     // Keep requestPort in the click gesture. No automatic port selection or scan.
@@ -114,7 +119,7 @@ start.addEventListener('click', async () => {
           const loader = new ESPLoader({transport, baudrate: rate, debugLogging: false,
             terminal: {clean() {}, write() {}, writeLine() {}}});
           return {loader, transport};
-        }, bundle.files, md5, (file, written, total) => {
+        }, installBundle.files, md5, (file, written, total) => {
           completed.set(file, Math.min(1, written / total));
           progress.hidden = false;
           progress.value = [...completed.values()].reduce((sum, value) => sum + value, 0) * 25;

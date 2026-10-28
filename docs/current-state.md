@@ -20,7 +20,12 @@ The source retains a durable uncertainty marker; its parked adapter previously
 blocked identity acquisition in Unknown and had no reboot recovery verifier.
 The read-only [idle recovery source](architecture/vehicle-actions.md#read-only-recovery-of-an-uncertain-idle-operation)
 now prepares exact-ECM routine-status plus settled-RPM reconciliation, without
-replaying controls or erasing evidence. It is installed in dev.72; actual ECM recovery remains parked qualification.
+replaying controls or erasing evidence. Dev.72 installed this path, but the owner reports it still remained Unknown with
+normal physical idle and live RPM. Offline replay now reproduces a missing
+diagnostic-session prerequisite already recorded in the parked reference. The
+follow-up source opens that captured session before recovery status, requires its
+positive acknowledgement and retains all inactive/settled-RPM evidence gates.
+This correction is not yet installed or Jeep-qualified.
 Website impact: corrective recovery behavior needs no new marketing claim or image.
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
@@ -318,3 +323,11 @@ callback missing, then duration-editor scroll target absent). The test-only keyb
 and destination synchronization from the pending UI-stability work is included,
 with the same boundary applied before Alert save. Real taps and exact value/disabled
 control assertions remain; no production App behavior or dependency changes.
+
+## Assessment remediation prepared in source
+
+CODE-03 source fixes strengthen trial UI liveness, browser retry selection, intake
+backup/readiness/parsing/proxy trust/consent, release evidence and APK identity checks,
+catalog diagnostics and continuous accessibility coverage. The [maintenance record](evidence/assessment-remediation.md)
+owns software verification and remaining deployment/physical limits. Installed App,
+gauge and host services are unchanged by this work; existing QUAL gates remain open.

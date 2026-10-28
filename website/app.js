@@ -20,42 +20,34 @@ document.querySelectorAll('[data-screen]').forEach(button => {
 });
 document.querySelector('#year').textContent = new Date().getFullYear();
 
-const interestForm = document.querySelector('#interest-form');
-interestForm?.addEventListener('submit', async event => {
-  event.preventDefault();
-  const button = interestForm.querySelector('button[type="submit"]');
-  const message = document.querySelector('#form-message');
-  button.disabled = true;
-  message.classList.remove('error');
-  message.textContent = 'Submitting…';
-  try {
-    const response = await fetch(interestForm.action, { method: 'POST', body: new URLSearchParams(new FormData(interestForm)), credentials: 'same-origin' });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Unable to save your email. Please try again.');
-    interestForm.reset();
-    message.textContent = 'You are on the list. We will email you about eGauge development and new vehicle profiles.';
-  } catch (error) {
-    message.classList.add('error');
-    message.textContent = error.message || 'Unable to save your email. Please try again.';
-  } finally { button.disabled = false; }
-});
-
-const customForm = document.querySelector('#custom-form');
-customForm?.addEventListener('submit', async event => {
-  event.preventDefault();
-  const button = customForm.querySelector('button[type="submit"]');
-  const message = document.querySelector('#custom-message');
-  button.disabled = true;
-  message.classList.remove('error');
-  message.textContent = 'Sending…';
-  try {
-    const response = await fetch(customForm.action, { method: 'POST', body: new URLSearchParams(new FormData(customForm)), credentials: 'same-origin' });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Unable to send your request. Please try again.');
-    customForm.reset();
-    message.textContent = 'Request received. We will review it and follow up by email.';
-  } catch (error) {
-    message.classList.add('error');
-    message.textContent = error.message || 'Unable to send your request. Please try again.';
-  } finally { button.disabled = false; }
-});
+function registerForm(selector, messageSelector, pending, success) {
+  const form = document.querySelector(selector);
+  form?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    const message = document.querySelector(messageSelector);
+    if (button.disabled) return;
+    button.disabled = true;
+    message.classList.remove('error');
+    message.textContent = pending;
+    const unavailable = 'We could not confirm your submission. Your details are still here. Please try again later.';
+    try {
+      const response = await fetch(form.action, {method:'POST', body:new URLSearchParams(new FormData(form)), credentials:'same-origin', signal:AbortSignal.timeout(15000)});
+      if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Unexpected response');
+      const result = await response.json();
+      if (!response.ok) {
+        message.classList.add('error');
+        message.textContent = response.status >= 400 && response.status < 500 && typeof result.error === 'string' && result.error.length <= 200 ? result.error : unavailable;
+        return;
+      }
+      if (result.ok !== true) throw new Error('Unconfirmed response');
+      form.reset();
+      message.textContent = success;
+    } catch (_) {
+      message.classList.add('error');
+      message.textContent = unavailable;
+    } finally {button.disabled = false;}
+  });
+}
+registerForm('#interest-form', '#form-message', 'Submitting…', 'You are on the list. We will email you about eGauge development and new vehicle profiles.');
+registerForm('#custom-form', '#custom-message', 'Sending…', 'Request received. We will review it and follow up by email.');

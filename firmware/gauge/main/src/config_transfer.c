@@ -241,8 +241,14 @@ static void process(const request_t *request)
     }
     else if (op == OP_COMMIT)
         session.result = RESULT_UNAVAILABLE;
-    ESP_LOGI(TAG, "op=%u seq=%lu result=%u offset=%lu", op, (unsigned long)seq, session.result,
-             (unsigned long)session.accepted);
+    if (session.result != RESULT_OK)
+        ESP_LOGW(TAG, "op=%u seq=%lu result=%u offset=%lu", op, (unsigned long)seq, session.result,
+                 (unsigned long)session.accepted);
+    else if (op == OP_CHUNK)
+        ESP_LOGD(TAG, "chunk seq=%lu offset=%lu", (unsigned long)seq, (unsigned long)session.accepted);
+    else
+        ESP_LOGI(TAG, "op=%u seq=%lu result=%u offset=%lu", op, (unsigned long)seq, session.result,
+                 (unsigned long)session.accepted);
     publish_status_locked();
     xSemaphoreGive(lock);
 }
