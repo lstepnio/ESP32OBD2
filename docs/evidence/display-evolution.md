@@ -78,3 +78,8 @@ Auto. It enables Smart at five seconds, verifies preservation across a same-setu
 restart, and restores both the original interval and Smart preference in cleanup.
 It retains the exact functional dashboard; expected configuration revision advances
 by one. This is a test procedure until its device outcome is recorded.
+
+The full Wi-Fi installation fixture compares saved display values separately from
+additive negotiated Smart-policy support. A newly supported policy version is not
+a preference change; support cannot regress, and every saved field/revision still
+must match exactly. This avoids treating legacy-to-Smart discovery as data loss.

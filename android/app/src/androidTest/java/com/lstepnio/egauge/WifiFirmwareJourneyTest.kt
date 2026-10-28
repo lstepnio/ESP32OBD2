@@ -102,7 +102,10 @@ class WifiFirmwareJourneyTest {
         }
         assertEquals(before.revision, model.activeDocument?.revision)
         assertEquals(before.sha256, model.activeDocument?.sha256)
-        assertEquals(settings, model.displaySettings)
+        val afterSettings = requireNotNull(model.displaySettings)
+        assertTrue("Settings support must not regress", afterSettings.smartPolicyVersion >= settings.smartPolicyVersion)
+        // An upgrade may add negotiated policy metadata without changing saved preferences.
+        assertEquals(settings, afterSettings.copy(smartPolicyVersion = settings.smartPolicyVersion))
         assertEquals(profiles, model.profileCollection.profiles)
         assertNull(UpdateRecoveryJournal(context).read())
         val stages = observations.distinctBy { it.second.stage }.joinToString("\n") { (ms, state) ->
