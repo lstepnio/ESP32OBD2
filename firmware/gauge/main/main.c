@@ -42,6 +42,8 @@
 #include "ble_mgr.h"
 #include "config.h"
 #include "display_settings.h"
+#include "smart_page_policy.h"
+#include "smart_metric_catalog.h"
 #include "config_store.h"
 #include "config_transfer.h"
 #include "config_runtime.h"
@@ -121,9 +123,110 @@ static config_runtime_t     *g_runtime;
 static config_store_record_t g_running_config_record;
 static bool                  g_running_previous_config;
 
+static EXT_RAM_BSS_ATTR smart_page_policy_t   smart_pages;
+static EXT_RAM_BSS_ATTR alert_page_interest_t smart_alerts[EGAUGE_RUNTIME_ALERTS];
+static atomic_uchar                           g_upcoming_page;
+static uint32_t                               smart_maximum_us;
+_Static_assert(sizeof(smart_pages) + sizeof(smart_alerts) <= 4096, "Smart PSRAM budget exceeded");
+
 static unsigned page_count(void)
 {
     return g_runtime ? g_runtime->page_count : ARRAY_SIZE(g_obd_pids);
+}
+
+static void smart_configure(void)
+{
+    if (!g_runtime)
+        return;
+    smart_pages.pid_count  = g_runtime->pid_count;
+    smart_pages.page_count = g_runtime->page_count;
+    for (unsigned i = 0; i < g_runtime->page_count; ++i)
+    {
+        smart_pages.pages[i].count = g_runtime->pages[i].pid_count;
+        memcpy(smart_pages.pages[i].pids, g_runtime->pages[i].pid_indices, sizeof(smart_pages.pages[i].pids));
+    }
+    for (unsigned i = 0; i < g_runtime->pid_count; ++i)
+    {
+        const runtime_pid_t *pid = &g_runtime->pids[i];
+        smart_pages.config[i].rule =
+            smart_metric_rule(pid->id, pid->service, pid->obd.pid, pid->responder, pid->unit, &pid->obd.decoder);
+        smart_pages.config[i].stale_ms = pid->stale_ms;
+    }
+}
+static bool smart_sample(ui_t *ui, unsigned i, uint32_t now, double *value, uint32_t *at, uint32_t *generation)
+{
+    const runtime_pid_t *pid = &g_runtime->pids[i];
+    return ui_source_sample(ui, pid->source_index, g_running_config_record.revision, pid->obd.pid, pid->stale_ms, now,
+                            value, at, generation);
+}
+static bool smart_select(ui_t                  *ui,
+                         display_settings_t     settings,
+                         uint8_t                selected,
+                         uint32_t               activity,
+                         page_cycle_reason_t    pause,
+                         uint32_t               now,
+                         smart_page_decision_t *choice)
+{
+    if (!smart_page_prepare(&smart_pages, settings.cycle_seconds, selected, activity, pause != PAGE_CYCLE_RUNNING, now))
+    {
+        atomic_store(&g_upcoming_page, (selected + 1U) % page_count());
+        return false;
+    }
+    int64_t started = esp_timer_get_time();
+    if (!smart_pages.evaluated || now - smart_pages.evaluated_at >= SMART_PAGE_EVALUATE_MS)
+    {
+        if (!alert_runtime_page_interest(now, smart_alerts))
+        {
+            atomic_store(&g_upcoming_page,
+                         smart_pages.cursor == selected ? (selected + 1U) % page_count() : smart_pages.cursor);
+            return smart_page_fallback(&smart_pages, now, choice);
+        }
+        for (unsigned i = 0; i < g_runtime->pid_count; ++i)
+        {
+            double              value = 0;
+            uint32_t            at = 0, generation = 0, episode = 0;
+            uint8_t             severity   = 0;
+            bool                suppressed = false;
+            smart_pid_config_t *policy     = &smart_pages.config[i];
+            policy->has_low = policy->has_high = false;
+            for (unsigned a = 0; a < g_runtime->alert_count; ++a)
+            {
+                if (g_runtime->alerts[a].pid_index != i)
+                    continue;
+                const runtime_alert_t *rule = &g_runtime->alerts[a];
+                suppressed |= smart_alerts[a].suppressed;
+                if (!smart_alerts[a].suppressed && !rule->equals)
+                {
+                    float limit = (float)(rule->has_warning ? rule->warning : rule->critical);
+                    if (rule->above)
+                    {
+                        if (!policy->has_high || limit < policy->high)
+                            policy->high = limit;
+                        policy->has_high = true;
+                    }
+                    else
+                    {
+                        if (!policy->has_low || limit > policy->low)
+                            policy->low = limit;
+                        policy->has_low = true;
+                    }
+                }
+                if (smart_alerts[a].severity > severity)
+                {
+                    severity = smart_alerts[a].severity;
+                    episode  = smart_alerts[a].episode;
+                }
+            }
+            bool valid = smart_sample(ui, i, now, &value, &at, &generation);
+            smart_page_observe(&smart_pages, i, valid, value, at, generation, severity, suppressed, episode);
+        }
+    }
+    bool due = smart_page_choose(&smart_pages, now, choice);
+    atomic_store(&g_upcoming_page, smart_page_upcoming(&smart_pages, now));
+    uint32_t duration = (uint32_t)(esp_timer_get_time() - started);
+    if (duration > smart_maximum_us)
+        smart_maximum_us = duration;
+    return due;
 }
 
 static ui_renderer_t ui_renderer(runtime_renderer_t renderer)
@@ -737,7 +840,9 @@ static void obd_task(void *arg)
             continue;
         poll_pid_policy_t policies[POLL_SCHEDULER_MAX_PIDS];
         unsigned          selected = atomic_load(&g_selected_page);
-        unsigned          next     = (selected + 1) % page_count();
+        unsigned          next     = display_settings_snapshot().smart_cycle && g_runtime
+                                         ? atomic_load(&g_upcoming_page) % page_count()
+                                         : (selected + 1) % page_count();
         bool              cycling  = display_settings_snapshot().cycle_seconds != 0;
         for (uint8_t i = 0; i < count; ++i)
         {
@@ -1155,6 +1260,8 @@ void app_main(void)
             diagnostics_endpoint_configure(e, transport, g_running_config_record.revision,
                                            g_runtime && g_runtime->sources[transport].simulated);
     }
+    smart_configure();
+    atomic_store(&g_upcoming_page, (atomic_load(&g_selected_page) + 1U) % page_count());
     init_obd_task(ui);
     BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 4096, ui, 5, NULL);
     ESP_CHECK(tick_started == pdPASS, TAG, "Application tick task creation failed");
@@ -1252,11 +1359,16 @@ void app_main(void)
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u", (unsigned)saved.rotation * 90,
                      (unsigned)saved.brightness, (unsigned)saved.units);
         }
-        else if (has_command && command.opcode == 0x38)
+        else if (has_command && (command.opcode == 0x38 || command.opcode == 0x69))
         {
             display_settings_t saved;
-            if (display_settings_save(command.value, command.brightness, command.units, command.cycle_seconds,
-                                      command.base_revision, &saved) != ESP_OK)
+            esp_err_t result = command.opcode == 0x69
+                                   ? display_settings_save_smart(command.value, command.brightness, command.units,
+                                                                 command.cycle_seconds, command.smart_cycle,
+                                                                 command.base_revision, &saved)
+                                   : display_settings_save(command.value, command.brightness, command.units,
+                                                           command.cycle_seconds, command.base_revision, &saved);
+            if (result != ESP_OK)
                 continue;
             g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
             if (lvgl_port_lock(portMAX_DELAY))
@@ -1282,26 +1394,57 @@ void app_main(void)
         else if (has_command && command.opcode == 3)
             ble_companion_forget_owner();
 
-        uint32_t           now_ms      = pdTICKS_TO_MS(xTaskGetTickCount());
+        uint32_t           now_ms      = (uint32_t)(esp_timer_get_time() / 1000);
         display_settings_t cycle       = display_settings_snapshot();
         bool               owner_ready = ble_companion_has_owner();
         bool               maintenance = !transfer_gate_vehicle_allowed();
         ui_set_action_context(ui, owner_ready && !maintenance);
-        page_cycle_reason_t before_reason = cycling.reason;
+        uint8_t             selected_before = atomic_load(&g_selected_page);
+        uint32_t            activity_before = atomic_load(&g_page_activity_ms);
+        page_cycle_reason_t before_reason   = cycling.reason;
         bool cycle_due = page_cycle_step(&cycling, cycle.cycle_seconds, page_count(), owner_ready, maintenance,
-                                         ui_cycle_pause(ui), atomic_load(&g_page_activity_ms), now_ms);
+                                         ui_cycle_pause(ui), activity_before, now_ms);
         if (before_reason != cycling.reason)
             ESP_LOGI(TAG, "page cycle reason=%u interval_s=%u", cycling.reason, cycle.cycle_seconds);
+        smart_page_decision_t choice = {0};
+        bool                  smart  = cycle.smart_cycle && g_runtime;
+        if (smart)
+            cycle_due = smart_select(ui, cycle, selected_before, activity_before, cycling.reason, now_ms, &choice);
+        else
+        {
+            smart_page_suspend(&smart_pages);
+            atomic_store(&g_upcoming_page, (atomic_load(&g_selected_page) + 1U) % page_count());
+        }
         if (cycle_due && lvgl_port_lock(0))
         {
-            uint8_t   selected = (atomic_load(&g_selected_page) + 1) % page_count();
-            ui_page_t page;
-            page_ui(selected, &page);
-            ui_set_page(ui, &page);
-            ui_set_page_position(ui, selected, page_count());
-            atomic_store(&g_selected_page, selected);
-            ble_companion_selection_applied(selected);
-            atomic_store(&g_page_activity_ms, now_ms);
+            bool eligible = atomic_load(&g_selected_page) == selected_before &&
+                            atomic_load(&g_page_activity_ms) == activity_before &&
+                            ui_cycle_pause(ui) == PAGE_CYCLE_RUNNING && transfer_gate_vehicle_allowed() &&
+                            ble_companion_has_owner();
+            if (smart && choice.priority)
+            {
+                double   value;
+                uint32_t at, generation;
+                eligible = eligible && smart_sample(ui, choice.pid, now_ms, &value, &at, &generation) &&
+                           generation == smart_pages.pids[choice.pid].generation;
+            }
+            if (eligible)
+            {
+                uint8_t   selected = smart ? choice.page : (atomic_load(&g_selected_page) + 1) % page_count();
+                ui_page_t page;
+                page_ui(selected, &page);
+                ui_set_page(ui, &page);
+                ui_set_page_position(ui, selected, page_count());
+                atomic_store(&g_selected_page, selected);
+                ble_companion_selection_applied(selected);
+                atomic_store(&g_page_activity_ms, now_ms);
+                if (smart)
+                {
+                    smart_page_commit(&smart_pages, &choice, now_ms);
+                    ESP_LOGI(TAG, "smart_page page=%u reason=%u pid=%u early=%u cursor=%u max_us=%" PRIu32, selected,
+                             choice.reason, choice.pid, choice.early, smart_pages.cursor, smart_maximum_us);
+                }
+            }
             lvgl_port_unlock();
         }
         page_save_observe(&page_save, atomic_load(&g_local_page_generation), now_ms);

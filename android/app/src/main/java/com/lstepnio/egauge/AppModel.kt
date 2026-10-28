@@ -1036,7 +1036,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     ): Long {
         val caps = capabilities ?: return 20_000L
         if (caps.displaySettingsVersion < 1 && !caps.savedStateRead) return 20_000L
-        val key = "$currentGaugeId:${caps.displaySettingsVersion}"
+        val key = "$currentGaugeId:${caps.displaySettingsVersion}:${caps.smartPageCyclingVersion}"
         val now = android.os.SystemClock.elapsedRealtime()
         if (!settingsPoll.due(key, now)) return settingsPoll.pause(now)
         var healthy = false
@@ -1045,7 +1045,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 if (caps.displaySettingsVersion >=
                     1
                 ) {
-                    displaySettingsRead(client.readDisplaySettings(device))
+                    displaySettingsRead(client.readDisplaySettings(device, caps.smartPageCyclingVersion))
                 } else {
                     snapshotRead(bleClient.readSavedSnapshot())
                 }
@@ -2875,7 +2875,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         displaySettingsRead(
             GaugeConfigTransferClient(
                 getApplication()
-            ).saveDisplaySettings(bleClient.selectedGauge(), rotation, brightness)
+            ).saveDisplaySettings(
+                bleClient.selectedGauge(),
+                rotation,
+                brightness,
+                smartPageCyclingVersion = capabilities?.smartPageCyclingVersion ?: 0
+            )
         )
         ownerAccess = OwnerAccess.AUTHENTICATED
         operation = OperationState(
@@ -2900,13 +2905,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Waiting for gauge confirmation"
         )
         val client = GaugeConfigTransferClient(getApplication())
-        val current = client.readDisplaySettings(bleClient.selectedGauge())
+        val current = client.readDisplaySettings(bleClient.selectedGauge(), capabilities?.smartPageCyclingVersion ?: 0)
         displaySettingsRead(
             client.saveDisplaySettings(
                 bleClient.selectedGauge(),
                 current.rotation,
                 current.brightness,
-                system
+                system,
+                smartPageCyclingVersion = capabilities?.smartPageCyclingVersion ?: 0
             )
         )
         ownerAccess = OwnerAccess.AUTHENTICATED
@@ -2920,7 +2926,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun savePageCycleSeconds(seconds: Int) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving page cycle interval") { id ->
+    fun savePageCycleSeconds(seconds: Int) = savePageCycling(seconds, null)
+
+    fun savePageCycling(seconds: Int, smart: Boolean?) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving page cycle interval") { id ->
         require((capabilities?.displaySettingsVersion ?: 0) >= 3) {
             "Gauge does not offer page cycling"
         }
@@ -2933,14 +2941,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Waiting for gauge confirmation"
         )
         val client = GaugeConfigTransferClient(getApplication())
-        val current = client.readDisplaySettings(bleClient.selectedGauge())
+        val current = client.readDisplaySettings(bleClient.selectedGauge(), capabilities?.smartPageCyclingVersion ?: 0)
         displaySettingsRead(
             client.saveDisplaySettings(
                 bleClient.selectedGauge(),
                 current.rotation,
                 current.brightness,
                 current.units,
-                seconds
+                seconds,
+                smartCycle = smart,
+                smartPageCyclingVersion = capabilities?.smartPageCyclingVersion ?: 0
             )
         )
         ownerAccess = OwnerAccess.AUTHENTICATED

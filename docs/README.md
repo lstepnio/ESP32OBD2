@@ -14,7 +14,7 @@ Read only the affected contract/runbook before source work; evidence is not requ
 ## Architecture
 
 - [System overview](architecture/system.md), [Android ownership](architecture/android-runtime.md), [firmware ownership](architecture/firmware-runtime.md)
-- [Interaction/recovery rules](architecture/interaction-recovery.md)
+- [Interaction/recovery rules](architecture/interaction-recovery.md), [Smart page cycling](architecture/smart-page-cycling.md)
 - [Vehicle connections and dashboard](architecture/vehicle-connections.md), [multi-adapter qualification](architecture/multi-adapter.md)
 - [Configuration storage](architecture/config-storage.md), [architecture decisions](decisions/README.md)
 - [Hardware strategy](architecture/hardware-and-transports.md), [local gestures and proposed controller actions](architecture/vehicle-actions.md)

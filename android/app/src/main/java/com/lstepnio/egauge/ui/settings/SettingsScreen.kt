@@ -35,7 +35,8 @@ fun SettingsScreen(
     onAddGauge: () -> Unit = {},
     phoneAlerts: Boolean = false,
     monitoring: Boolean = false,
-    onPhoneAlerts: (Boolean) -> Unit = {}
+    onPhoneAlerts: (Boolean) -> Unit = {},
+    onSaveSmartCycle: (Int, Boolean) -> Unit = { seconds, _ -> onSaveCycle(seconds) }
 ) {
     var gaugesOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var nameOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
@@ -122,7 +123,7 @@ fun SettingsScreen(
                         when (state.cycleSeconds) {
                             null -> "Reading settings…"
                             0 -> "Off"
-                            else -> "Every ${state.cycleSeconds} seconds"
+                            else -> "Every ${state.cycleSeconds} seconds" + if (state.smartCycleSupported && state.smartCycle) " · Smart" else ""
                         }
                     },
                     state.displaySettingsVersion >= 3 && state.found && !state.busy &&
@@ -345,6 +346,7 @@ fun SettingsScreen(
         var choice by rememberSaveable(state.selectedGaugeId) {
             mutableIntStateOf(state.cycleSeconds ?: 0)
         }
+        var smart by rememberSaveable(state.selectedGaugeId) { mutableStateOf(state.smartCycle) }
         AlertDialog(onDismissRequest = {
             cycleOpen = false
         }, title = { Text("Auto-cycle saved pages") }, text = {
@@ -364,6 +366,24 @@ fun SettingsScreen(
                         Text(if (seconds == 0) "Off" else "Every $seconds seconds")
                     }
                 }
+                if (state.smartCycleSupported) {
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(
+                            value = smart,
+                            enabled = choice != 0,
+                            role = Role.Switch,
+                            onValueChange = { smart = it }
+                        ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Smart", Modifier.weight(1f))
+                        Switch(checked = smart, onCheckedChange = null, enabled = choice != 0)
+                    }
+                    Text(
+                        if (choice == 0) "Choose an interval to use Smart." else "Prioritize alerts and changing readings.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
                 Text(
                     "A tap changes the page and restarts the timer.",
                     style = MaterialTheme.typography.bodyMedium
@@ -372,7 +392,7 @@ fun SettingsScreen(
         }, confirmButton = {
             Button(
                 {
-                    onSaveCycle(choice)
+                    if (state.smartCycleSupported) onSaveSmartCycle(choice, smart) else onSaveCycle(choice)
                     cycleOpen = false
                 },
                 enabled =

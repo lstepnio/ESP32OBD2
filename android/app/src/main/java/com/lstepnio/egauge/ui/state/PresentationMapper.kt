@@ -474,7 +474,9 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                     it.bothAdapters
                 )
             },
-            rememberedGaugeId
+            rememberedGaugeId,
+            smartCycleSupported = capabilities?.smartPageCyclingVersion == 1 && displaySettings?.supportsSmartCycle == true,
+            smartCycle = displaySettings?.smartCycle == true
         ),
         ExpertUiState(
             found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
