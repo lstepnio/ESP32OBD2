@@ -43,6 +43,16 @@ separates that report from the installed source fix.
 The same image removes decorative play/stop glyphs from shared action progress
 states at the owner's request; colored progress rings and action controls remain.
 
+The subsequent owner report on Jeep connection still described a startup CEL.
+The follow-up source change defers the face's MIL icon until code identity is usable
+or coverage reconciled, keeping unresolved filter acquisition quiet without claiming
+ECU Off. Routine MIL/stored/pending checks target five minutes, permanent checks ten;
+initial category retry and explicit-clear verification remain responsive. Raw
+freshness/packets are unchanged. This change is not yet installed or Jeep-qualified;
+[diagnostic semantics](architecture/alerts-and-diagnostics.md#mil-code-and-coverage-semantics)
+own the evidence and latency tradeoff. Website review: no new marketing claim or
+visual asset is needed for this corrective behavior.
+
 ## Smart page cycling
 
 FEATURE-11 is installed with the approved defaults: one opt-in Settings

@@ -624,19 +624,19 @@ static void app_tick_task(void *arg)
                                           g_runtime ? g_runtime->diagnostic_filter_count : 0);
             uint32_t view = (fresh ? 1U : 0U) | (packet[2] & 2U) | (visible.complete ? 4U : 0U) |
                             (visible.count_known ? 8U : 0U) | (visible.suppress_mil ? 16U : 0U) |
-                            ((uint32_t)visible.visible_count << 8) | ((uint32_t)visible.hidden_count << 16) |
-                            ((uint32_t)packet[22] << 24);
+                            (visible.show_mil ? 32U : 0U) | ((uint32_t)visible.visible_count << 8) |
+                            ((uint32_t)visible.hidden_count << 16) | ((uint32_t)packet[22] << 24);
             if (view != diagnostic_view[endpoint])
             {
                 diagnostic_view[endpoint] = view;
                 ESP_LOGI(TAG,
                          "diag_view endpoint=%u usable_mil=%u mil_bit=%u reported=%u visible=%u hidden=%u complete=%u "
-                         "suppressed=%u",
+                         "suppressed=%u shown=%u",
                          endpoint, fresh, (packet[2] & 2) != 0, packet[22], visible.visible_count, visible.hidden_count,
-                         visible.complete, visible.suppress_mil);
+                         visible.complete, visible.suppress_mil, visible.show_mil);
             }
             presentation.valid |= fresh || visible.count_known;
-            presentation.mil_on |= fresh && (packet[2] & 2) && !visible.suppress_mil;
+            presentation.mil_on |= visible.show_mil;
             presentation.count_known |= visible.count_known;
             presentation.distinct_count += visible.visible_count;
             if (!visible.complete || !visible.count_known)

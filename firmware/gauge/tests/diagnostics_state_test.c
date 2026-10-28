@@ -65,20 +65,20 @@ static void continuity_tests(void)
     diagnostics_state_snapshot_for(2, 61001, &snapshot);
     assert(snapshot.mil_known && snapshot.count_known);
     assert(diagnostics_endpoint_status(0, 61001, packet) == 248 && !(packet[2] & 1));
-    diagnostics_state_snapshot_for(2, 181000, &snapshot);
-    assert(snapshot.mil_known); /* Local MIL bridges a minute refresh/retry. */
-    diagnostics_state_snapshot_for(2, 181001, &snapshot);
+    diagnostics_state_snapshot_for(2, 601000, &snapshot);
+    assert(snapshot.mil_known); /* Local MIL bridges a five-minute refresh/retry. */
+    diagnostics_state_snapshot_for(2, 601001, &snapshot);
     assert(!snapshot.mil_known && snapshot.count_known);
     diagnostics_state_snapshot_for(2, 121000, &snapshot);
     assert(snapshot.count_known);
     diagnostics_state_snapshot_for(2, 121001, &snapshot);
     assert(snapshot.count_known);
     assert(diagnostics_endpoint_status(0, 121001, packet) == 248 && !(packet[33] & 2));
-    diagnostics_state_snapshot_for(2, 601000, &snapshot);
+    diagnostics_state_snapshot_for(2, 901000, &snapshot);
     assert(snapshot.count_known); /* Original successful sample, never attempt time. */
-    diagnostics_state_snapshot_for(2, 601001, &snapshot);
+    diagnostics_state_snapshot_for(2, 901001, &snapshot);
     assert(!snapshot.valid && !snapshot.count_known);
-    assert(diagnostics_endpoint_presentation_status(0, 601001, packet) == 248);
+    assert(diagnostics_endpoint_presentation_status(0, 901001, packet) == 248);
     assert(!diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
 
     /* Same-count MIL toggles invalidate proof, including the payload path. */
@@ -160,7 +160,11 @@ static void filtered_startup_retry_test(void)
     diagnostics_state_codes_for(3, 7, empty, sizeof(empty), 1000);
     diagnostics_state_failed_for(3, 10, DIAGNOSTICS_UNSUPPORTED);
     assert(diagnostics_endpoint_presentation_status(1, 1000, packet) == 248);
-    assert(!diagnostic_filter_project(packet, 1, rules, 4).suppress_mil);
+    diagnostic_filter_result_t loading = diagnostic_filter_project(packet, 1, rules, 4);
+    assert(!loading.suppress_mil && !loading.show_mil && !loading.visible_count);
+    assert(!diagnostic_filter_project(packet, 1, NULL, 0).show_mil);
+    /* Raw ECU On remains intact while the gauge silently acquires code identity. */
+    assert(diagnostics_endpoint_status(1, 1000, packet) == 248 && (packet[2] & 3) == 3);
 
     poll_scheduler_t scheduler;
     poll_scheduler_init(&scheduler);
@@ -177,13 +181,14 @@ static void filtered_startup_retry_test(void)
     poll_scheduler_diagnostic_complete(&scheduler, job, 3000, POLL_DIAGNOSTIC_OK);
     assert(diagnostics_endpoint_presentation_status(1, 3000, packet) == 248);
     diagnostic_filter_result_t projected = diagnostic_filter_project(packet, 1, rules, 4);
-    assert(projected.suppress_mil && projected.hidden_count == 4 && projected.visible_count == 0);
+    assert(projected.suppress_mil && !projected.show_mil && projected.hidden_count == 4 &&
+           projected.visible_count == 0);
 
     diagnostics_state_mil_for(3, true, 5, 3100);
     diagnostics_state_codes_for(3, 3, added, sizeof(added), 3100);
     assert(diagnostics_endpoint_presentation_status(1, 3100, packet) == 248);
     projected = diagnostic_filter_project(packet, 1, rules, 4);
-    assert(!projected.suppress_mil && projected.visible_count == 1);
+    assert(!projected.suppress_mil && projected.show_mil && projected.visible_count == 1);
 }
 
 static void filtered_refresh_gap_tests(void)
@@ -204,10 +209,10 @@ static void filtered_refresh_gap_tests(void)
         diagnostics_state_codes_for(source, 3, filtered, sizeof(filtered), 1000);
         diagnostics_state_codes_for(source, 7, empty, sizeof(empty), 1000);
         diagnostics_state_codes_for(source, 10, empty, sizeof(empty), 1000);
-        /* A permanent refresh due at 120 seconds can fail and back off. A fresh
+        /* A permanent refresh due at ten minutes can fail and back off. A fresh
          * identical MIL must not turn the four filtered faults into a new CEL. */
         diagnostics_state_failed_for(source, 10, DIAGNOSTICS_UNAVAILABLE);
-        for (uint32_t now = 61000; now <= 601000; now += 60000)
+        for (uint32_t now = 61000; now <= 901000; now += 60000)
         {
             diagnostics_state_mil_for(source, true, 4, now);
             assert(diagnostics_endpoint_status(endpoint, now + 1, packet) == 248);
@@ -217,23 +222,23 @@ static void filtered_refresh_gap_tests(void)
             assert(view.suppress_mil && view.hidden_count == 4 && !view.visible_count);
             assert(packet[36] == (1000 & 255)); /* Failure/refresh never re-dates lists. */
         }
-        assert(diagnostics_endpoint_presentation_status(endpoint, 601001, packet) == 248);
+        assert(diagnostics_endpoint_presentation_status(endpoint, 901001, packet) == 248);
         assert(!diagnostic_filter_project(packet, endpoint, rules, 4).suppress_mil);
         /* A same-count replacement by an unfiltered fault is visible immediately. */
-        diagnostics_state_codes_for(source, 3, changed, sizeof(changed), 602000);
-        assert(diagnostics_endpoint_presentation_status(endpoint, 602000, packet) == 248);
+        diagnostics_state_codes_for(source, 3, changed, sizeof(changed), 902000);
+        assert(diagnostics_endpoint_presentation_status(endpoint, 902000, packet) == 248);
         diagnostic_filter_result_t view = diagnostic_filter_project(packet, endpoint, rules, 4);
         assert(!view.suppress_mil && view.visible_count == 1);
-        diagnostics_state_codes_for(source, 3, filtered, sizeof(filtered), 603000);
-        diagnostics_state_codes_for(source, 7, empty, sizeof(empty), 603000);
-        diagnostics_state_codes_for(source, 10, empty, sizeof(empty), 603000);
-        assert(diagnostics_endpoint_presentation_status(endpoint, 603000, packet) == 248);
+        diagnostics_state_codes_for(source, 3, filtered, sizeof(filtered), 903000);
+        diagnostics_state_codes_for(source, 7, empty, sizeof(empty), 903000);
+        diagnostics_state_codes_for(source, 10, empty, sizeof(empty), 903000);
+        assert(diagnostics_endpoint_presentation_status(endpoint, 903000, packet) == 248);
         assert(diagnostic_filter_project(packet, endpoint, rules, 4).suppress_mil);
-        diagnostics_state_mil_for(source, true, 5, 603001);
-        assert(diagnostics_endpoint_presentation_status(endpoint, 603001, packet) == 248);
+        diagnostics_state_mil_for(source, true, 5, 903001);
+        assert(diagnostics_endpoint_presentation_status(endpoint, 903001, packet) == 248);
         assert(!diagnostic_filter_project(packet, endpoint, rules, 4).suppress_mil);
         diagnostics_state_disconnected_for(source);
-        assert(diagnostics_endpoint_presentation_status(endpoint, 603002, packet) == 248);
+        assert(diagnostics_endpoint_presentation_status(endpoint, 903002, packet) == 248);
         assert(!diagnostic_filter_project(packet, endpoint, rules, 4).suppress_mil);
         diagnostics_state_connected_for(source);
         uint32_t sample = UINT32_MAX - 1000;
@@ -241,7 +246,7 @@ static void filtered_refresh_gap_tests(void)
         diagnostics_state_codes_for(source, 3, filtered, sizeof(filtered), sample);
         diagnostics_state_codes_for(source, 7, empty, sizeof(empty), sample);
         diagnostics_state_codes_for(source, 10, empty, sizeof(empty), sample);
-        uint32_t boundary = sample + 600000U;
+        uint32_t boundary = sample + 900000U;
         diagnostics_state_mil_for(source, true, 4, boundary);
         assert(diagnostics_endpoint_presentation_status(endpoint, boundary, packet) == 248);
         assert(diagnostic_filter_project(packet, endpoint, rules, 4).suppress_mil);
@@ -265,14 +270,14 @@ static void shared_alert_availability_tests(void)
         diagnostics_state_codes_for(source, 3, codes, sizeof(codes), 1000);
         diagnostics_state_codes_for(source, 7, empty, sizeof(empty), 1000);
         diagnostics_state_codes_for(source, 10, empty, sizeof(empty), 1000);
-        uint32_t next_reply = 61500, last_reply = 1000;
-        for (uint32_t now = 1000; now <= 305000; now += 100)
+        uint32_t next_reply = 301500, last_reply = 1000;
+        for (uint32_t now = 1000; now <= 605000; now += 100)
         {
             if (now == next_reply)
             {
                 last_reply = now;
                 diagnostics_state_mil_for(source, true, 1, now);
-                next_reply += 60500;
+                next_reply += 300500;
             }
             assert(diagnostic_alerts_observe(endpoint, now, packet, alert_sink) == 248);
             assert(continuity_events.sequence == 2); /* No availability/recovery chatter. */
@@ -289,23 +294,26 @@ static void shared_alert_availability_tests(void)
         assert(diagnostic_alerts_observe(endpoint, last_reply + 60002, packet, alert_sink) == 0);
         assert(continuity_events.sequence == 2);
         test_lock_busy = 0;
+        diagnostics_state_codes_for(source, 3, codes, sizeof(codes), last_reply + 600000);
+        diagnostics_state_codes_for(source, 7, empty, sizeof(empty), last_reply + 600000);
+        diagnostics_state_codes_for(source, 10, empty, sizeof(empty), last_reply + 600000);
         /* Real prolonged absence produces one unavailable event, keeping the
          * original observation time; further ticks do not fill the journal. */
-        assert(diagnostic_alerts_observe(endpoint, last_reply + 180001, packet, alert_sink) == 248);
+        assert(diagnostic_alerts_observe(endpoint, last_reply + 600001, packet, alert_sink) == 248);
         assert(continuity_events.sequence == 3);
         assert(continuity_events.episodes[32 + endpoint].current.unavailable);
         assert(continuity_events.episodes[32 + endpoint].current.observed_at == last_reply);
-        assert(diagnostic_alerts_observe(endpoint, last_reply + 180002, packet, alert_sink) == 248);
+        assert(diagnostic_alerts_observe(endpoint, last_reply + 600002, packet, alert_sink) == 248);
         assert(continuity_events.sequence == 3);
-        diagnostics_state_mil_for(source, false, 0, last_reply + 180003);
-        assert(diagnostic_alerts_observe(endpoint, last_reply + 180003, packet, alert_sink) == 248);
+        diagnostics_state_mil_for(source, false, 0, last_reply + 600003);
+        assert(diagnostic_alerts_observe(endpoint, last_reply + 600003, packet, alert_sink) == 248);
         assert(continuity_events.episodes[32 + endpoint].current.lifecycle == 0);
-        diagnostics_state_mil_for(source, true, 1, last_reply + 180004);
-        assert(diagnostic_alerts_observe(endpoint, last_reply + 180004, packet, alert_sink) == 248);
+        diagnostics_state_mil_for(source, true, 1, last_reply + 600004);
+        assert(diagnostic_alerts_observe(endpoint, last_reply + 600004, packet, alert_sink) == 248);
         assert(continuity_events.episodes[32 + endpoint].current.lifecycle == 1);
         assert(!continuity_events.episodes[32 + endpoint].current.unavailable);
         diagnostics_state_disconnected_for(source);
-        assert(diagnostic_alerts_observe(endpoint, last_reply + 180005, packet, alert_sink) == 248);
+        assert(diagnostic_alerts_observe(endpoint, last_reply + 600005, packet, alert_sink) == 248);
         assert(continuity_events.episodes[32 + endpoint].current.unavailable);
     }
 }
