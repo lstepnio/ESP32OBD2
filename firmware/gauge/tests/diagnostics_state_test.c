@@ -4,10 +4,25 @@
 #include "diagnostics_state.h"
 #include "diagnostic_filter.h"
 #include "poll_scheduler.h"
-int            test_lock_busy;
-int            test_critical_depth;
-static uint8_t packet[DIAGNOSTICS_FULL_SIZE];
-static void    read_at(uint32_t now)
+#include "diagnostic_alerts.h"
+#include "alert_events.h"
+int                   test_lock_busy;
+int                   test_critical_depth;
+static uint8_t        packet[DIAGNOSTICS_FULL_SIZE];
+static alert_events_t continuity_events;
+static void           alert_sink(unsigned    key,
+                                 uint8_t     severity,
+                                 bool        unavailable,
+                                 const char *label,
+                                 const char *unit,
+                                 float       value,
+                                 float       limit,
+                                 uint32_t    observed,
+                                 uint32_t    now)
+{
+    alert_events_observe(&continuity_events, key, severity, unavailable, label, unit, value, limit, observed, now);
+}
+static void read_at(uint32_t now)
 {
     assert(diagnostics_state_full_status(now, packet) == 248);
 }
@@ -236,6 +251,65 @@ static void filtered_refresh_gap_tests(void)
     }
 }
 
+static void shared_alert_availability_tests(void)
+{
+    const uint8_t codes[] = {0x01, 0x23};
+    const uint8_t empty[] = {0, 0};
+    for (unsigned endpoint = 0; endpoint < 2; ++endpoint)
+    {
+        unsigned source = endpoint + 2;
+        diagnostics_endpoint_configure(endpoint, endpoint, 62, false);
+        diagnostics_state_connected_for(source);
+        alert_events_init(&continuity_events, 80);
+        diagnostics_state_mil_for(source, true, 1, 1000);
+        diagnostics_state_codes_for(source, 3, codes, sizeof(codes), 1000);
+        diagnostics_state_codes_for(source, 7, empty, sizeof(empty), 1000);
+        diagnostics_state_codes_for(source, 10, empty, sizeof(empty), 1000);
+        uint32_t next_reply = 61500, last_reply = 1000;
+        for (uint32_t now = 1000; now <= 305000; now += 100)
+        {
+            if (now == next_reply)
+            {
+                last_reply = now;
+                diagnostics_state_mil_for(source, true, 1, now);
+                next_reply += 60500;
+            }
+            assert(diagnostic_alerts_observe(endpoint, now, packet, alert_sink) == 248);
+            assert(continuity_events.sequence == 2); /* No availability/recovery chatter. */
+            assert(!continuity_events.episodes[32 + endpoint].current.unavailable);
+            assert(continuity_events.episodes[32 + endpoint].current.observed_at == last_reply);
+            assert(continuity_events.episodes[34 + endpoint].current.observed_at == 1000);
+        }
+        /* Raw result freshness still expires while a healthy reply is in flight. */
+        assert(diagnostics_endpoint_status(endpoint, last_reply + 60001, packet) == 248);
+        assert(!(packet[2] & 1));
+        assert(diagnostic_alerts_observe(endpoint, last_reply + 60001, packet, alert_sink) == 248);
+        assert(continuity_events.sequence == 2);
+        test_lock_busy = 1;
+        assert(diagnostic_alerts_observe(endpoint, last_reply + 60002, packet, alert_sink) == 0);
+        assert(continuity_events.sequence == 2);
+        test_lock_busy = 0;
+        /* Real prolonged absence produces one unavailable event, keeping the
+         * original observation time; further ticks do not fill the journal. */
+        assert(diagnostic_alerts_observe(endpoint, last_reply + 180001, packet, alert_sink) == 248);
+        assert(continuity_events.sequence == 3);
+        assert(continuity_events.episodes[32 + endpoint].current.unavailable);
+        assert(continuity_events.episodes[32 + endpoint].current.observed_at == last_reply);
+        assert(diagnostic_alerts_observe(endpoint, last_reply + 180002, packet, alert_sink) == 248);
+        assert(continuity_events.sequence == 3);
+        diagnostics_state_mil_for(source, false, 0, last_reply + 180003);
+        assert(diagnostic_alerts_observe(endpoint, last_reply + 180003, packet, alert_sink) == 248);
+        assert(continuity_events.episodes[32 + endpoint].current.lifecycle == 0);
+        diagnostics_state_mil_for(source, true, 1, last_reply + 180004);
+        assert(diagnostic_alerts_observe(endpoint, last_reply + 180004, packet, alert_sink) == 248);
+        assert(continuity_events.episodes[32 + endpoint].current.lifecycle == 1);
+        assert(!continuity_events.episodes[32 + endpoint].current.unavailable);
+        diagnostics_state_disconnected_for(source);
+        assert(diagnostic_alerts_observe(endpoint, last_reply + 180005, packet, alert_sink) == 248);
+        assert(continuity_events.episodes[32 + endpoint].current.unavailable);
+    }
+}
+
 int main(int argc, char **argv)
 {
     assert(diagnostics_state_init() == ESP_OK);
@@ -359,5 +433,6 @@ int main(int argc, char **argv)
     continuity_tests();
     filtered_startup_retry_test();
     filtered_refresh_gap_tests();
+    shared_alert_availability_tests();
     puts("Diagnostics source, distinct count, coverage, full lists, expiry, reconnect and simulation passed");
 }

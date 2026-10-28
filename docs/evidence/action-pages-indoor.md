@@ -465,3 +465,24 @@ lint and normal/parked firmware builds passed. No new task, heap buffer, protoco
 or saved-configuration migration is introduced. Dev.65 remains installed; no new
 physical-device or loaded-startup qualification is claimed. Website impact was
 reviewed; publication/capture awaits the existing delivery cadence and qualification.
+
+
+### Shared availability review correction
+
+The merge review identified an additional raw/retained boundary: the shared
+MIL/fault producer still used strict raw freshness. With 60-second scheduling and
+a successful 500 ms reply, this could create unavailable/recovered journal events
+on every otherwise healthy refresh. Merge was held for this finding.
+
+The existing producer is now isolated in `diagnostic_alerts.c` and consumes the
+same single retained snapshot as the gauge face. Shared event value timestamps
+come from the original observations, while event-transition time remains current.
+Raw diagnostic packets keep their strict freshness and failed-attempt evidence.
+A native production-helper/state/event replay covers five minutes of successful
+60-second-plus-500-ms replies for both endpoints: exactly the initial MIL/fault
+entries occur, with no availability chatter or re-dated values. Snapshot contention
+emits no false transition. Prolonged expiry emits one unavailable event, repeated
+ticks do not repeat it, and real Off/On/disconnect still resolve/raise/invalidate.
+The shared Android raw fixture remains unchanged. This corrects alert availability,
+not the raw ECU record or vehicle-control guards; CI must pass the corrected head
+before merging or publication.

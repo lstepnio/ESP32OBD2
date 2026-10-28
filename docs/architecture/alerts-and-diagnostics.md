@@ -96,7 +96,8 @@ if another required endpoint is unknown. Off requires fresh Off for every requir
 MIL-capable endpoint. Otherwise show Unknown or Last checked. Known unsupported
 queries are explicit coverage limitations, never fresh Off.
 
-The gauge retains the last successful same-session MIL/category presentation during
+The gauge and shared diagnostic-episode availability retain the last successful
+same-session MIL/category presentation during
 a transient failed refresh: MIL for up to three minutes and compatible code lists
 for up to ten minutes from their original successful observations. This gauge-only
 retention bridges minute polling and the bounded four-minute retry cap, so expiring
@@ -108,6 +109,11 @@ or partial coverage cannot erase previously known faults into all-filtered proof
 The instrument face uses an icon without a number when count coverage is incomplete;
 it never shows `?` or draws a warning solely because diagnostics are loading.
 Confirmed warnings remain visible. Expert retains exact coverage and failure detail.
+`diagnostic_alerts.c` reads one retained snapshot for both alert producers and the
+face; a healthy minute refresh must not append unavailable/recovered events while
+its reply is in flight. Shared events keep the original MIL timestamp and the oldest
+contributing category timestamp, not the App tick time. Expired evidence and source
+loss still transition availability; raw diagnostic reads remain strict.
 
 Deduplicate by endpoint, category and code; retain overlapping categories and ECU
 origins. A code disappearing from a fresh complete category can resolve that occurrence;

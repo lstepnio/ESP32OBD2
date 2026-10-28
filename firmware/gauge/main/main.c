@@ -59,6 +59,7 @@
 #include "elm_response.h"
 #include "diagnostics_state.h"
 #include "diagnostic_filter.h"
+#include "diagnostic_alerts.h"
 #include "hardware_probe.h"
 #include "esp_heap_caps.h"
 #include "config_document.h"
@@ -577,42 +578,13 @@ static void app_tick_task(void *arg)
             if (!diagnostics_endpoint_enabled(endpoint))
                 continue;
             uint8_t packet[248];
-            if (!diagnostics_endpoint_status(endpoint, now_ms, packet))
+            if (!diagnostic_alerts_observe(endpoint, now_ms, packet, alert_runtime_observe))
             {
                 presentation_complete  = false;
                 presentation.mil_known = false;
                 continue;
             }
-            const char *name  = endpoint ? "Transmission warning" : "Check engine";
-            bool        fresh = (packet[2] & 1) != 0;
-            alert_runtime_observe(32 + endpoint, fresh && (packet[2] & 2) ? 3 : 0, !fresh, name, "codes", packet[22], 0,
-                                  now_ms, now_ms);
-            unsigned count    = 0;
-            bool     complete = true;
-            uint8_t  severity = 0;
-            for (unsigned i = 0; i < 3; i++)
-            {
-                const uint8_t *category = packet + 32 + i * 72;
-                if (category[0] == 3)
-                    continue;
-                if (!(category[1] & 2))
-                {
-                    complete = false;
-                    continue;
-                }
-                count += category[2];
-                if (category[2])
-                    severity = i == 2 ? (severity ? severity : 1) : 2;
-            }
-            alert_runtime_observe(34 + endpoint, severity, !complete && !severity,
-                                  endpoint ? "Transmission faults" : "Engine faults", "codes", count, 0, now_ms,
-                                  now_ms);
-            if (!diagnostics_endpoint_presentation_status(endpoint, now_ms, packet))
-            {
-                presentation_complete = presentation.mil_known = false;
-                continue;
-            }
-            fresh = (packet[2] & 1) != 0;
+            bool fresh = (packet[2] & 1) != 0;
             presentation.mil_known &= fresh;
             diagnostic_filter_result_t visible =
                 diagnostic_filter_project(packet, endpoint, g_runtime ? g_runtime->diagnostic_filters : NULL,
