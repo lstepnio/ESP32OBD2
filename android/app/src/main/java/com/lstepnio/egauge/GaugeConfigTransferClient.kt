@@ -453,18 +453,25 @@ class GaugeConfigTransferClient(private val context: Context) {
         writeRaw(byteArrayOf(0x67) + le32(1) + byteArrayOf(kind.wire.toByte()))
         VehicleCommandProtocol.status(readRaw()).also { require(it.kind == kind) }
     }
-    suspend fun executeVehicleCommand(device: BluetoothDevice, kind: VehicleCommandKind, stop: Boolean, preset: IdlePreset? = null, expected: VehicleCommandStatus): VehicleCommandStatus = withGauge(device, operationTimeoutMs = 20_000) {
-        val ownerSession = this
-        VehicleCommandClient(object : VehicleCommandSession {
-            override suspend fun read(kind: VehicleCommandKind): VehicleCommandStatus {
-                ownerSession.writeRaw(byteArrayOf(0x67) + le32(1) + byteArrayOf(kind.wire.toByte()))
-                return VehicleCommandProtocol.status(ownerSession.readRaw()).also { require(it.kind == kind) }
-            }
-            override suspend fun writeOnce(request: ByteArray) {
-                ownerSession.writeRaw(byteArrayOf(0x66) + request)
+    suspend fun executeVehicleCommand(device: BluetoothDevice, kind: VehicleCommandKind, stop: Boolean, preset: IdlePreset? = null, expected: VehicleCommandStatus): VehicleCommandStatus = withTimeout(40_000) {
+        // Preserve the original total bound: up to 20 s to connect plus 20 s for the operation.
+        // The same App lease covers an optional read-only reconnect after an uncertain write.
+        VehicleCommandClient(object : VehicleCommandSessions {
+            override suspend fun <T> use(action: suspend VehicleCommandSession.() -> T): T = withGauge(device, operationTimeoutMs = 20_000) {
+                val ownerSession = this
+                action(object : VehicleCommandSession {
+                    override suspend fun read(kind: VehicleCommandKind): VehicleCommandStatus {
+                        ownerSession.writeRaw(byteArrayOf(0x67) + le32(1) + byteArrayOf(kind.wire.toByte()))
+                        return VehicleCommandProtocol.status(ownerSession.readRaw()).also { require(it.kind == kind) }
+                    }
+                    override suspend fun writeOnce(request: ByteArray) {
+                        ownerSession.writeRaw(byteArrayOf(0x66) + request)
+                    }
+                })
             }
         }).execute(kind, stop, preset, expected)
     }
+
     suspend fun readClearStatus(device: BluetoothDevice): ClearStatus = withGauge(device) {
         writeRaw(byteArrayOf(0x62) + le32(1))
         clearStatus(readRaw())

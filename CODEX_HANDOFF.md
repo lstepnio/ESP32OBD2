@@ -16,6 +16,8 @@ fixes legacy diagnostics fallback on retired IO; six regressions require a fresh
 owner session only after confirmed unscoped unsupported-command rejection. Staging
 abort cleanup also uses a fresh owner, verifies transfer ID/phase and retains
 commit/activation uncertainty; six regressions cover the cleanup/lease boundary.
+Vehicle command uncertain-write readback likewise uses a fresh read-only owner
+without resubmitting Start/Stop; five real owner-channel cases cover that boundary.
 
 ## Preservation records
 
@@ -32,7 +34,7 @@ commit/activation uncertainty; six regressions cover the cleanup/lease boundary.
 ## Verification and boundaries
 
 Local full affected checks passed: 172 host tests, 14 review-server tests, 42 Node
-fixtures and native sanitizers; 317 debug and 291 release Android JVM tests,
+fixtures and native sanitizers; 322 debug and 296 release Android JVM tests,
 instrumentation compilation, APK build and lint; ESP-IDF 5.4.1 image build and
 normal/parked production LVGL/configuration fixtures with deterministic PSRAM-mask
 failure. Formatting, host lint and contract/document links passed. Remote CI must

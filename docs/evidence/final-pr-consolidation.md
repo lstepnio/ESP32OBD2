@@ -77,3 +77,13 @@ pressure for config/OTA, ownership/phase exclusion, preflight/commit boundaries,
 cleanup timeout/error preservation, cancellation retaining the operation lease and
 successful operations without abort. These are fake transport/production policy
 checks, not physical transfer interruption or rollback qualification.
+
+## Vehicle-command readback compatibility
+
+Independent review found the analogous uncertain-write/readback assumption in the
+vehicle command client. Its session factory now keeps normal success in one owner,
+but leaves a failed owner before one fresh read-only reconciliation. Five real
+owner-channel regressions cover Start/Stop with a lost acknowledgement, close-before-
+reopen ordering, one mutation only, scope/operation mismatch, unavailable replies,
+cancellation and the normal single-owner path. Existing command policy cases remain.
+No vehicle operation was performed and no control/qualification masks changed.

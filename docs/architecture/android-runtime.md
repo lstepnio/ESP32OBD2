@@ -189,3 +189,11 @@ failure, another transfer and applied/activating state are never aborted. The ca
 marks commit/activation before sending, retaining ambiguous durable outcomes for
 readback instead of aborting them. Cleanup failure preserves the primary error or
 cancellation and keeps the App operation lease until cleanup finishes.
+
+Vehicle command admission/write/readback normally retains one owner session. An
+uncertain write exits that session before opening one fresh authenticated read-only
+reconciliation session. Start/Stop is never resubmitted. Kind, boot, revision, ECU
+link and operation must still match; missing/mismatched status remains Unknown and
+cancellation propagates. One outer 40-second bound covers the original maximum
+20-second connection plus 20-second operation budget, including an optional readback
+reconnect. The App operation lease remains held through connection cleanup.

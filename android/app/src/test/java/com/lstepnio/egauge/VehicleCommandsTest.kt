@@ -9,6 +9,10 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class VehicleCommandsTest {
+    private fun sessions(session: VehicleCommandSession) = object : VehicleCommandSessions {
+        override suspend fun <T> use(action: suspend VehicleCommandSession.() -> T): T = session.action()
+    }
+
     private fun ready(kind: VehicleCommandKind = VehicleCommandKind.Idle) = VehicleCommandStatus(
         kind,
         VehicleCommandPhase.Ready,
@@ -97,7 +101,7 @@ class VehicleCommandsTest {
                 error("Lost write acknowledgement")
             }
         }
-        val result = VehicleCommandClient(session) {}.execute(VehicleCommandKind.Idle, false, IdlePreset(IdlePresetId.AirUp, seconds = 10))
+        val result = VehicleCommandClient(sessions(session)) {}.execute(VehicleCommandKind.Idle, false, IdlePreset(IdlePresetId.AirUp, seconds = 10))
         assertEquals(VehicleCommandPhase.Active, result.phase)
         assertEquals(1, writes)
     }
@@ -123,7 +127,7 @@ class VehicleCommandsTest {
                     writes++
                 }
             }
-            val result = runCatching { VehicleCommandClient(session) {}.execute(VehicleCommandKind.Idle, false, IdlePreset(IdlePresetId.Winch)) }
+            val result = runCatching { VehicleCommandClient(sessions(session)) {}.execute(VehicleCommandKind.Idle, false, IdlePreset(IdlePresetId.Winch)) }
             if (mode == 2) {
                 assertTrue(result.exceptionOrNull() is CancellationException)
             } else {
@@ -143,7 +147,7 @@ class VehicleCommandsTest {
                     writes++
                 }
             }
-            assertTrue(runCatching { VehicleCommandClient(session) {}.execute(VehicleCommandKind.Idle, false, IdlePreset(IdlePresetId.AirUp), ready()) }.isFailure)
+            assertTrue(runCatching { VehicleCommandClient(sessions(session)) {}.execute(VehicleCommandKind.Idle, false, IdlePreset(IdlePresetId.AirUp), ready()) }.isFailure)
             assertEquals(0, writes)
         }
         var writes = 0
@@ -154,7 +158,7 @@ class VehicleCommandsTest {
                 writes++
             }
         }
-        assertTrue(runCatching { VehicleCommandClient(session) {}.execute(VehicleCommandKind.Idle, true, expected = active.copy(operation = 1)) }.isFailure)
+        assertTrue(runCatching { VehicleCommandClient(sessions(session)) {}.execute(VehicleCommandKind.Idle, true, expected = active.copy(operation = 1)) }.isFailure)
         assertEquals(0, writes)
     }
 }
