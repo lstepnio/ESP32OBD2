@@ -62,6 +62,13 @@ to the PR; these results are not physical timing or OOM qualification.
 
 ## At home: installation and indoor checks
 
+Dev.65 installation, five Wi-Fi lifecycles, automatic/Bluetooth recovery and
+same-setup restart passed on 2026-10-27. The owner confirmed clean startup/action
+navigation and ten-second cycling/resume. Exact identities and evidence limits
+are in the [rollout record](../evidence/action-pages-indoor.md#2026-10-27-dev65-continuity-and-action-ui-rollout).
+The matrix below remains the reusable broader acceptance procedure; partial
+indoor coverage does not establish loaded-adapter behavior or all pause reasons.
+
 After CI, authorized merge/publication and App/Wi-Fi installation:
 
 1. Verify the exact signed image and healthy boot, saved setup, bindings, filters,

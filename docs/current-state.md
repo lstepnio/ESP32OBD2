@@ -2,9 +2,10 @@
 
 Updated 2026-10-27. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-Latest rollout installs signed dev.63 through App/Wi-Fi, retaining the existing
-App and saved setup. [Dated indoor evidence](evidence/action-pages-indoor.md#2026-10-27-dev63-coolant-status-correction)
-separates automated readbacks, owner display/touch confirmation and remaining Jeep gates.
+PR #101 is merged, App dev.52 remains installed on the Pixel, and signed dev.65
+is installed through App/Wi-Fi. [Current rollout evidence](evidence/action-pages-indoor.md#2026-10-27-dev65-continuity-and-action-ui-rollout)
+separates exact healthy-image/setup readbacks, indoor tests and owner display/touch
+confirmation from the remaining loaded Jeep checks.
 The opt-in [parked idle candidate](architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
 is installed and ready for supervised Air up/Winch checks using the
 [one-visit runbook](development/jeep-action-qualification.md#one-visit-idle-test-candidate).
@@ -14,25 +15,28 @@ and actual coolant availability during that run are not yet confirmed.
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
 
-## Prepared continuity update
+## Continuity update
 
 The owner approved PERF-01 on 2026-10-27. Dev.65 source adds page-cache continuity,
 cycle-pause recovery, prioritized/shared polling, display-only rate classes and
 stable CEL presentation. It includes the approved action UI from published dev.64.
 [Implementation and qualification](development/gauge-continuity-plan.md) records
-scope, offline checks and the at-home/parked sequence. No dev.65 release or physical
-installation is claimed; the installed baseline below remains separately qualified.
+scope, offline checks and the at-home/parked sequence. Signed installation, five
+Wi-Fi lifecycles, automatic/Bluetooth recovery and settings persistence passed.
+The owner confirmed clean pages, action navigation, no CEL question mark and
+ten-second cycling/resume after touch. Loaded ECM/TCM reading continuity and
+control/thermal timing still require the Jeep.
 
 ## Installed baseline
 
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
-| Pixel | App `0.2.0-dev.51` built from `a6dd029` (merged in PR #90), approved action-page management; existing setup migrated to profile schema 17 / associations 2 | [Dev.61 indoor rollout](evidence/action-pages-indoor.md) |
-| Gauge | Signed parked-idle `0.2.0-dev.63` from `9a39b46`, catalog generation 44, 240 MHz, configuration revision 55 | [Dev.63 App/Wi-Fi rollout](evidence/action-pages-indoor.md#2026-10-27-dev63-coolant-status-correction); exact healthy alternate image, cleared journal, preserved setup |
-| Physical display/touch | Clean normal pages, swipes and three-upward-swipe action entry confirmed by owner on dev.63; action browse/downward return previously confirmed on dev.62 | [Dev.63 owner observation](evidence/action-pages-indoor.md#2026-10-27-dev63-coolant-status-correction); extended edge/orientation/cycling checks remain |
+| Pixel | App `0.2.0-dev.52` from `a33cda4`, included in merged PR #99; compact action list/editor, profile schema 17 / associations 2 preserved | [Dev.64 rollout](evidence/action-pages-indoor.md#2026-10-27-dev64-action-ui-rollout); focused action UI and automatic/Bluetooth recovery passed against dev.63 |
+| Gauge | Signed parked-idle `0.2.0-dev.65` from `71400f8`, catalog generation 46, 240 MHz, configuration revision 57 | [Dev.65 App/Wi-Fi rollout](evidence/action-pages-indoor.md#2026-10-27-dev65-continuity-and-action-ui-rollout); exact healthy alternate image, cleared journal, preserved setup; same-setup restart intentionally advanced revision 56 to 57 |
+| Physical display/touch | Owner confirmed clean normal pages, swipes, three-upward-swipe action entry, action browse/downward return, no CEL question mark and ten-second cycling/resume after touch on dev.65 | [Dev.65 owner observations](evidence/action-pages-indoor.md#2026-10-27-dev65-continuity-and-action-ui-rollout); loaded readings, glove/edge and sustained touch qualification remain |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
-| Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Four exact TCM CEL filters retained at revision 55; per-gauge action pages replace the prior jump gesture. Other running settings and phone profiles preserved. [Configuration check](evidence/shared-alerts-implementation.md#2026-10-19-tcm-cel-filter-configuration) |
+| Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Five pages, four exact TCM CEL filters and action settings retained at revision 57. Other running settings and phone profiles preserved. [Current preservation check](evidence/action-pages-indoor.md#2026-10-27-dev65-continuity-and-action-ui-rollout) |
 
 Recheck Git/CI and source version files before work. A branch push is not a merge,
 release or installation. Public repository: `lstepnio/ESP32OBD2`.
@@ -184,14 +188,15 @@ This is offline test coverage, not a new installed APK or physical observation.
 
 ## Approved action pages
 
-Owner approved the review 4 simplification on 2026-10-27. Prepared source now uses
+Owner approved the review 4 simplification on 2026-10-27. Merged source now uses
 900 ms hold-to-start, one-tap Stop from either idle page, pending-state rings and
 verified direct return to Ready, with explicit high-coolant blocking. Android uses
 compact action rows and a focused editor. The [implementation evidence](evidence/action-pages-indoor.md#2026-10-27-approved-review-4-implementation)
-records offline checks; these changes are not installed. Installed dev.63 remains
-the physical baseline above. Wire formats, guards and qualification flags are unchanged.
+records offline checks. App dev.52 is installed and checked; signed firmware dev.65
+includes the simplified UI and is installed through App/Wi-Fi. Owner action navigation
+and the indoor protocol/preservation checks passed. Wire formats, guards and qualification flags are unchanged.
 
-The approved review 2 action pages were introduced in dev.61 and remain the installed baseline through dev.63. Gauge-tab configuration stores per-gauge typed
+The approved review 2 action pages were introduced in dev.61 and are refined by the installed review 4 UI. Gauge-tab configuration stores per-gauge typed
 page order and timers; firmware uses one reusable face with deliberate Start,
 direct Stop, attention return and bounded coolant fallback. Existing live command
 qualification masks remain zero. The App/Wi-Fi installation preserved the dashboard; the owner then requested replacing the jump binding with ordered action pages at revision 55.

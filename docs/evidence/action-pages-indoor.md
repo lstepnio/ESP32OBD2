@@ -233,3 +233,137 @@ physical hold/glove/edge usability and animation/heap observations, then the exi
 parked coolant/Stop/recovery checks. Website impact was reviewed; publish current
 production visuals with a qualified rollout, without marketing the proposal as an
 installed feature or coupling website publication to the build.
+
+
+## 2026-10-27 dev64 action UI rollout
+
+PR #99 merged as `ba9548b` after all four Foundation quality gates passed for
+`2b0ecf9`. The archive repair restores review 2 and review 3 assets to their original
+submission digests; twelve review-store tests pass. The first emulator attempt on
+that final source failed while downloading an invalid Android system-image ZIP,
+before running tests. The isolated retry passed.
+
+App `0.2.0-dev.52` was installed on the Pixel with an in-place APK update. Its
+runtime source is `a33cda4`; the remaining merged changes only restore archived
+review assets and their regression test. The paired-phone action-page journey
+passed in 13.029 seconds: compact rows, the Air up editor and configured coolant
+limit appeared; closing the editor retained profiles, per-gauge assignments,
+running revision/digest and display settings. Direct protected command reads
+reported unavailable indoors, with no unresolved command journal.
+
+The updated App's automatic connection/recovery journey passed in 68.023 seconds
+against installed dev.63. Initial protected confirmation took 10.174 seconds,
+resume 2.851 seconds and Bluetooth off/on recovery 12.377 seconds. Cancelled gauge
+selection and the hardware/firmware protected read chain also passed. Revision 55
+and its digest were unchanged. Phone profile, association and presentation files
+matched the private backup byte-for-byte after the App upgrade. These are App
+checks against dev.63, not dev.64 firmware qualification.
+
+Signed development release `dev-v0.2.0-dev.64`, catalog generation 45, was published
+from `2b0ecf9` with the scoped parked-idle option enabled. Its tree matches merged
+main. The catalog and application signatures, bundle/image sizes and hashes,
+board/layout/protocol and application descriptor were independently verified.
+The image is 1,648,400 bytes, with ELF SHA-256
+`83f4b71bee5c2ee71c100dd65774a8d7613d9667402f8cac3941c638c395ca4d`.
+
+The Pixel disconnected from USB before the firmware installation started. No
+image was sent; the gauge remains on dev.63. App/Wi-Fi installation, post-update
+maintenance cycles and physical display/touch confirmation remain pending. The
+phone's alert monitoring was paused for the session; its original policy and wake
+settings are retained privately and must be restored when the Pixel reconnects.
+Saved setup and before-install protected configuration are backed up.
+
+The merged PR branch was removed locally and remotely. Private captures and
+backups remain under ignored `artifacts/device-rollout-dev64/`. No USB/Bluetooth
+firmware fallback, configuration send or vehicle command was performed. Remaining
+Jeep qualification still covers deliberate Start/Stop, coolant cutoff/fallback,
+recovery and loaded source continuity. ABS/TCS execution remains disabled.
+
+## 2026-10-27 dev65 continuity and action UI rollout
+
+The owner authorized PR #101 merge, dev.65 publication, App/Wi-Fi installation and
+indoor checks. PR #101 merged as `3a09c9f`. Its reviewed source `71400f8` passed all
+four Foundation quality jobs in [run 40602150266](https://github.com/lstepnio/ESP32OBD2/actions/runs/40602150266).
+Both commits have tree `c1e6290eddd524ab6ba8899728e4b0b3ecdc4be9`.
+The merged-commit quality run failed first in
+`IdleActionsUiTest.unqualifiedCarCanSaveAWinchDraftButCannotStart` with an empty
+saved-preset observation. One failed-job retry passed that test but failed
+`ActionPagesUiTest.openingDurationPreservesPressureEstimateUntilTimeChanges`
+while scrolling. These remain unresolved intermittent UI-fixture failures under
+QUALITY-01, not a green merged-commit run. Publication selected the already-green,
+reviewed source under the release runbook's exact-source prerequisite; no quality
+check, environment protection or assertion was disabled.
+
+[Release run 40608948806](https://github.com/lstepnio/ESP32OBD2/actions/runs/40608948806)
+published signed `dev-v0.2.0-dev.65`, generation 46, from `71400f8` with the existing
+owner-supervised parked-idle option enabled. Catalog/image signatures, bundle
+hash/length, board, partition layout, protocol and app descriptor were independently
+verified. The application is 1,655,456 bytes, image SHA-256
+`4d7232c6f4844cdedcdafbb62db67187151d5543e1ce4172c397d5339df0b8bd`,
+ELF SHA-256 `6e3b8145260040f6bb768f53b365f4e60f458150a355a8404ac375856d5ca6de`.
+Public capability flags and qualification masks remain disabled; ABS/TCS execution
+is disabled. No APK runtime change was needed; Pixel App dev.52 remained installed.
+
+The hosted signed App/Wi-Fi journey passed in 107.020 seconds overall; its measured
+installation portion was 74.509 seconds. Authenticated preflight took 1.160 seconds,
+gauge Wi-Fi startup 2.706 seconds total, Android network availability 9.985 seconds
+and flash preparation 2.652 seconds. Sending began at 18.161 seconds, verification
+at 58.106 seconds and healthy running confirmation at 74.494 seconds. The alternate
+OTA slot, exact version/ELF, OTA health 2 and cleared recovery journal were checked.
+Running revision 56, digest, display settings and profiles were unchanged by OTA.
+Before installation, one action-page protected firmware read failed; its bounded
+repeat passed against dev.63. Post-update action-page checks passed in 14.093 seconds.
+
+Five authenticated Wi-Fi open/status/close cycles passed in 68.569 seconds without
+reboot, firmware change or configuration change. Opens took 1.596, 1.995, 1.892,
+1.991 and 1.957 seconds; fresh session IDs and the unchanged boot nonce were checked.
+Automatic connection/recovery passed in 71.613 seconds: initial protected confirmation
+14.704 seconds, foreground resume 3.270 seconds and Bluetooth off/on recovery
+13.424 seconds. Gauge-picker cancellation and the hardware/firmware protected-read
+chain passed. The final hardware snapshot reported Wi-Fi deinitialized and
+121,687 internal free bytes with a 31,744-byte largest block.
+
+Display persistence passed in 70.569 seconds. It saved five-second cycling, resent
+the same functional setup and confirmed it after restart in 30.852 seconds. That
+intentional same-setup write advanced configuration revision 56 to 57. Exact JSON
+comparison excluding `baseRevision` retained the five pages, source bindings,
+four CEL filters and actions. Rotation 270 degrees, brightness 100%, Imperial units
+and the original ten-second interval were restored; profile/assignment state was
+retained. The newer revision/digest is the expected storage result, not a changed
+dashboard. No vehicle command or code clear was invoked.
+
+The owner separately confirmed clean normal pages, working swipes, three-upward-swipe
+action entry, Air up/Winch/ABS-TCS navigation, downward return and no startup CEL
+question mark. After the interval was restored, the owner confirmed ten-second page
+cycling and resumption after a tap/swipe. Serial pause-reason changes also observed
+maintenance, touch, actions and return to running; those logs do not prove every
+physical gesture or paused-state combination.
+
+The temporary showcase protocol journey passed in 178.011 seconds, observed all
+21 distinct frames, then stopped playback and checked unchanged revision 57,
+digest, settings and profiles. This establishes protocol/render lifecycle coverage,
+not owner visual approval of every fixture. Across 31 post-dev.65 memory snapshots,
+minimum sampled internal free memory was 97,443 bytes, minimum-ever internal free
+96,059 bytes and the smallest observed largest block 31,744 bytes. No allocation
+failure or worker queue drop was observed. Minimum sampled stack margins were:
+app 1,568, UI 2,532, primary adapter 792, child adapter 784, configuration 4,264,
+OTA 3,032, Wi-Fi server 6,036 and Wi-Fi command 2,588 bytes. Adapter margins still
+need loaded command/diagnostic measurement; these are bounded indoor observations.
+
+Phone profile and presentation files matched the initial backup byte-for-byte.
+The original notification-monitoring preference from the interrupted dev.64 session
+was restored without replacing other current policy entries. The wake helper
+restored its saved timeout/charging settings and reported inactive. The App was
+reopened normally; serial and update-log captures were stopped. PR #101's branch
+was removed locally/remotely, and the temporary signed-release branch was removed
+after publication. Private backups, logs and verification results remain under
+ignored `artifacts/device-rollout-dev65/`; no bonds or setup were erased and no USB
+or Bluetooth firmware fallback was used. This evidence is consolidated into the
+existing rollout documentation PR rather than creating another status document.
+
+Remaining Jeep gates are loaded ECM/child-TCM page-cache continuity, real response
+cadence/fairness, independent loss/return and parked idle Stop/coolant/fallback
+timing. Indoor absence/retry and screen fixtures do not qualify vehicle telemetry,
+all gears, thermal behavior, glove/edge usability or OOM immunity. Website impact
+was reviewed; vehicle-performance claims and refreshed marketing captures remain
+subject to loaded qualification and the existing daily publication cadence.
