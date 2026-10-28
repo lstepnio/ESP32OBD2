@@ -69,9 +69,9 @@ The worker associates the decoded reply with its endpoint/request, instead of as
 Mode 01 PID 01 from an untagged callback to whichever adapter is currently active.
 
 Replace background admission based on ten normal PID reads with monotonic deadlines
-and fair endpoint/category selection. Automatic MIL status checks have a 60-second
-minimum interval per endpoint, including cold failures; stored/pending target 60
-seconds and permanent targets 120 seconds. Initial/incomplete code lists may retry
+and fair endpoint/category selection. Automatic MIL status checks have a five-minute
+minimum interval per endpoint, including cold failures; stored/pending target five
+minutes and permanent targets ten minutes. Initial/incomplete code lists may retry
 sooner to classify configured filters, independently of the MIL check limit. Explicit
 ECU-clear verification remains immediate. These are targets, not
 promised vehicle latency. Give changed MIL one coalesced fault-refresh request; do not
@@ -98,9 +98,9 @@ queries are explicit coverage limitations, never fresh Off.
 
 The gauge and shared diagnostic-episode availability retain the last successful
 same-session MIL/category presentation during
-a transient failed refresh: MIL for up to three minutes and compatible code lists
-for up to ten minutes from their original successful observations. This gauge-only
-retention bridges minute polling and the bounded four-minute retry cap, so expiring
+a transient failed refresh: MIL for up to ten minutes and compatible code lists
+for up to fifteen minutes from their original successful observations. This gauge-only
+retention bridges five/ten-minute polling and the bounded four-minute retry cap, so expiring
 filter evidence cannot make a known filtered CEL blink during ordinary refresh.
 Raw phone/history packets retain their strict 60/120-second freshness and report
 failed attempts; retained presentation is never exported as a new observation.
@@ -108,9 +108,24 @@ New MIL/count evidence invalidates incompatible category/filter proof, and recon
 or partial coverage cannot erase previously known faults into all-filtered proof.
 The instrument face uses an icon without a number when count coverage is incomplete;
 it never shows `?` or draws a warning solely because diagnostics are loading.
-Confirmed warnings remain visible. Expert retains exact coverage and failure detail.
+An initial MIL bit alone does not light the gauge icon while code identity is
+unresolved. The face requires usable MIL On plus a decoded unfiltered code or
+complete reconciled coverage, and applies the existing exact filters. This also
+keeps an incomplete all-filtered startup quiet. A decoded unfiltered fault surfaces
+immediately, even if another category is still loading; it is not held behind a
+startup timer. Pending presentation is not ECU Off and never grants all-filtered
+proof. Raw ECU state, fault history and App coverage remain unchanged. If the ECU
+never supplies usable code identity/reconciled coverage, its raw lamp evidence
+remains available in the App rather than becoming a speculative gauge icon.
+Expert retains exact coverage and failure detail.
+
+These are deliberately low-priority diagnostics: a newly changed lamp may take up
+to the next five-minute check plus transport delays to appear. Explicit clear
+verification is still immediate; live readings, threshold alerts and command
+protection keep their existing priorities and freshness. No protocol/schema change
+or configuration migration is required.
 `diagnostic_alerts.c` reads one retained snapshot for both alert producers and the
-face; a healthy minute refresh must not append unavailable/recovered events while
+face; a healthy five-minute refresh must not append unavailable/recovered events while
 its reply is in flight. Shared events keep the original MIL timestamp and the oldest
 contributing category timestamp, not the App tick time. Expired evidence and source
 loss still transition availability; raw diagnostic reads remain strict.

@@ -66,7 +66,7 @@ static int background_due(const poll_scheduler_t *s, uint32_t now)
     for (unsigned step = 0; step < jobs; ++step)
     {
         unsigned i        = (s->background_cursor + step) % jobs;
-        uint32_t interval = i % 4 == 3 ? 120000U : 60000U;
+        uint32_t interval = i % 4 == 3 ? 600000U : 300000U;
         if (!(s->settled_background & (1U << i)) && s->background_failures[i] > 0)
         {
             interval = 1000U << s->background_failures[i];
@@ -81,10 +81,10 @@ static int background_due(const poll_scheduler_t *s, uint32_t now)
             if (retry > interval)
                 interval = retry;
         }
-        /* Lamp checks are at most once a minute, including cold failures.
+        /* Lamp checks are at most once every five minutes, including cold failures.
          * Incomplete code lists may retry sooner to classify configured filters. */
-        if (i % 4 == 0 && interval < 60000U)
-            interval = 60000U;
+        if (i % 4 == 0 && interval < 300000U)
+            interval = 300000U;
         if (due((s->seen_background & (1U << i)) != 0, now, s->last_background[i], interval))
             return (int)i;
     }

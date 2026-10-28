@@ -36,13 +36,21 @@ class ActionPagesUiTest {
         vehicleCommands = VehicleCommandKind.entries.associateWith { VehicleCommandStatus(it, VehicleCommandPhase.Ready, qualified = true) }
     )
 
+    private fun finishEditor() {
+        compose.onNodeWithText("Done").performScrollTo().assertIsEnabled().performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Save on phone").fetchSemanticsNodes().size == 1
+        }
+    }
+
     @Test fun editTimerAndSaveOnlyConfiguration() {
         var saved: PageAction? = null
         compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { action, _ -> saved = action }, {}) } }
         compose.onNodeWithText("Winch").performScrollTo().performClick()
         compose.onNodeWithText("Duration").performScrollTo().performClick()
         compose.onNodeWithText("Duration").performScrollTo().performTextReplacement("2:30")
-        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.closeKeyboardAndWaitForIdle()
+        finishEditor()
         compose.onNodeWithText("Save on phone").performScrollTo().performClick()
         compose.runOnIdle {
             assertEquals(150, saved!!.winchSeconds)
@@ -78,13 +86,14 @@ class ActionPagesUiTest {
         compose.onNodeWithText("Coolant limit").assertIsDisplayed()
         capture("action-pages-editor.png")
         compose.onNodeWithText("Duration").performScrollTo().performClick()
-        compose.onNodeWithText("Done").performScrollTo().performClick()
+        finishEditor()
         compose.onNodeWithText("Save on phone").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(timer, savedPresets!!.single().airUp) }
         compose.onNodeWithText("Air up").performScrollTo().performClick()
         compose.onNodeWithText("Duration").performScrollTo().performClick()
         compose.onNodeWithText("Duration").performScrollTo().performTextReplacement("2:30")
-        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.closeKeyboardAndWaitForIdle()
+        finishEditor()
         compose.onNodeWithText("Save on phone").performScrollTo().performClick()
         compose.runOnIdle {
             assertNull(savedPresets!!.single().airUp)
@@ -99,6 +108,7 @@ class ActionPagesUiTest {
         compose.onNodeWithText("Pressure estimate").performScrollTo().performClick()
         compose.onNodeWithText("Starting PSI").performScrollTo().performTextReplacement("20")
         compose.onNodeWithText("Target PSI").performScrollTo().performTextReplacement("15")
+        compose.closeKeyboardAndWaitForIdle()
         compose.onNodeWithText("Target PSI must be above starting PSI.").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Done").performScrollTo().assertIsNotEnabled()
     }

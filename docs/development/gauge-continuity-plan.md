@@ -35,7 +35,8 @@ source changes are not evidence of a new physical installation.
   Raw failed-attempt evidence remains available. Changed MIL
   state/count invalidates filter proof, reconnect clears it, and partial/unsupported
   coverage cannot prove faults disappeared. The face omits unknown/partial counts;
-  a confirmed warning still shows its icon. New status widgets begin hidden.
+  a decoded unfiltered warning still shows its icon. Initial MIL alone waits for
+  code identity/reconciled coverage; pending is not Off. New status widgets begin hidden.
 
 The authoritative runtime behavior is in [firmware ownership](../architecture/firmware-runtime.md#polling-diagnostics-and-alerts),
 [reading classes](reading-catalog-alerts.md#display-and-polling-classes) and
