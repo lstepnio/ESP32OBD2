@@ -154,9 +154,12 @@ static void complete(jeep_idle_driver_t *d)
         if (d->step < FILTER)
             ++d->step;
         else
-            d->step = d->request.kind == JEEP_IDLE_START_CAPTURED ? SESSION
-                      : d->request.kind == JEEP_IDLE_RETURN       ? RETURN
-                                                                  : REPORT;
+            /* The captured PCM rejects recovery status outside this session.
+             * Session setup grants no permission to replay Start or Return. */
+            d->step = (d->request.kind == JEEP_IDLE_START_CAPTURED || d->request.kind == JEEP_IDLE_RECOVERY_REPORT)
+                          ? SESSION
+                      : d->request.kind == JEEP_IDLE_RETURN ? RETURN
+                                                            : REPORT;
         return;
     }
     elm_payload_t p;
@@ -187,7 +190,7 @@ static void complete(jeep_idle_driver_t *d)
     switch (d->step)
     {
     case SESSION:
-        d->step = BEFORE_START;
+        d->step = d->request.kind == JEEP_IDLE_RECOVERY_REPORT ? REPORT : BEFORE_START;
         break;
     case BEFORE_START:
         if (p.bytes[2] != 1)

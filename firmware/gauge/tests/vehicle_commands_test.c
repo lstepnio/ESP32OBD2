@@ -548,6 +548,7 @@ static void recovery_scope_and_retry_fences(void)
     context.identity--;
     context.link = 12;
     route_idle(&s);
+    exchange(&s, "10 92 1", "7E8 02 50 92\r\r>");
     assert(s.states[0].request.link == 12 && durable.mask == 1 && durable.operation[0] == 42);
     exchange(&s, "33 05 1", "7E8 03 73 05 02\r\r>");
     assert(s.states[0].phase == VEHICLE_UNKNOWN);

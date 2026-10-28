@@ -361,6 +361,12 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
             vehicle_commands_feed(&commands, command.ticket, response, length, context, completed);
         }
     }
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+    if ((command.text || had_lease) && !commands.worker_kind &&
+        commands.driver.idle.request.kind == JEEP_IDLE_RECOVERY_REPORT)
+        ESP_LOGI("idle_test", "recovery phase=%u result=%u error=%u nrc=%02x", commands.driver.idle.phase,
+                 commands.driver.idle.result, commands.driver.idle.error, commands.driver.idle.negative_code);
+#endif
     if ((command.text || had_lease) && !commands.worker_kind && adapter &&
         ble_obd_control_restore(adapter, JEEP_IDLE_IO_TIMEOUT_MS, control_response, sizeof(control_response)) != 0)
     {

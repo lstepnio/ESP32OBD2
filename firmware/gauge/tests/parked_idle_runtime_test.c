@@ -7,12 +7,12 @@
 #include <string.h>
 #include <stdio.h>
 
-static uint32_t             clock_ms, generation;
-static unsigned             engine_rpm, speed_kph, coolant_c, starts, returns, reads;
-static bool                 connected, bad_identity, missing_coolant, lose_start_reply, control_active, stored;
-static uint8_t              journal[28];
-static unsigned             header, reports;
-static bool                 recovery_only, fail_save, fail_report, negative_report;
+static uint32_t clock_ms, generation;
+static unsigned engine_rpm, speed_kph, coolant_c, starts, returns, reads;
+static bool     connected, bad_identity, missing_coolant, lose_start_reply, control_active, stored;
+static uint8_t  journal[28];
+static unsigned header, reports;
+static bool recovery_only, fail_save, fail_report, negative_report, diagnostic_session, fail_session, negative_session;
 static ble_obd_ctx_t *const adapter = (ble_obd_ctx_t *)1;
 
 uint32_t xTaskGetTickCount(void)
@@ -164,7 +164,7 @@ int ble_obd_control_exchange(ble_obd_ctx_t *a, const char *text, uint32_t timeou
 {
     assert(a == adapter && timeout && timeout <= 1200);
     if (recovery_only)
-        assert(!strncmp(text, "AT ", 3) || !strcmp(text, "33 05 1"));
+        assert(!strncmp(text, "AT ", 3) || !strcmp(text, "10 92 1") || !strcmp(text, "33 05 1"));
     const char *reply = "OK\r>";
     clock_ms += 40;
     if (!strcmp(text, "AT SH 7E0"))
@@ -176,15 +176,21 @@ int ble_obd_control_exchange(ble_obd_ctx_t *a, const char *text, uint32_t timeou
     {
         assert(header == 0x7e0);
         if (!strcmp(text, "10 92 1"))
-            reply = "7E8 02 50 92\r>";
+        {
+            if (fail_session)
+                return -1;
+            diagnostic_session = !negative_session;
+            reply              = negative_session ? "7E8 03 7F 10 22\r>" : "7E8 02 50 92\r>";
+        }
         else if (!strcmp(text, "33 05 1"))
         {
             ++reports;
             if (fail_report)
                 return -1;
-            reply = negative_report  ? "7E8 03 7F 33 22\r>"
-                    : control_active ? "7E8 03 73 05 02\r>"
-                                     : "7E8 03 73 05 01\r>";
+            reply = !diagnostic_session ? "7E8 03 7F 33 80\r>"
+                    : negative_report   ? "7E8 03 7F 33 22\r>"
+                    : control_active    ? "7E8 03 73 05 02\r>"
+                                        : "7E8 03 73 05 01\r>";
         }
         else if (!strcmp(text, "31 05 06 80 1"))
         {
@@ -236,6 +242,9 @@ static void run(unsigned count)
 }
 static void initialize(void)
 {
+    /* Model the recorded PCM restart/session expiry: status is rejected until
+     * the captured diagnostic-session entry has been acknowledged. */
+    diagnostic_session = false;
     config_runtime_t r = {.source_count = 1, .pid_count = 2, .page_count = 1, .alert_count = 1};
     strcpy(r.sources[0].address, "00:00:00:00:00:01");
     r.pids[0] = (runtime_pid_t){.service = 1, .responder = 0x7e8, .obd.pid = 5};
@@ -255,9 +264,9 @@ static void setup(bool wrong)
     speed_kph  = 0;
     coolant_c  = 90;
     starts = returns = reads = reports = 0;
-    recovery_only = fail_save = fail_report = negative_report = false;
-    connected                                                 = true;
-    bad_identity                                              = wrong;
+    recovery_only = fail_save = fail_report = negative_report = fail_session = negative_session = false;
+    connected                                                                                   = true;
+    bad_identity                                                                                = wrong;
     missing_coolant = lose_start_reply = control_active = stored = false;
     memset(journal, 0, sizeof(journal));
     initialize();
@@ -340,7 +349,7 @@ int main(void)
     phase(VEHICLE_UNKNOWN);
     assert(!vehicle_commands_runtime_intent(VEHICLE_IDLE, false, 1, 300) && starts == 1);
     /* Reboot preserves the unresolved journal, with a fresh link and no RAM baseline. */
-    for (unsigned failure = 0; failure < 6; ++failure)
+    for (unsigned failure = 0; failure < 8; ++failure)
     {
         setup(false);
         lose_start_reply = true;
@@ -348,15 +357,17 @@ int main(void)
         run(20);
         phase(VEHICLE_UNKNOWN);
         assert(journal[1] == 1);
-        recovery_only   = true;
-        control_active  = failure == 0;
-        bad_identity    = failure == 1;
-        negative_report = failure == 2;
-        fail_report     = failure == 3;
-        fail_save       = failure == 4;
-        speed_kph       = failure == 5 ? 1 : 0;
-        engine_rpm      = 700;
-        missing_coolant = true; /* Read-only reconciliation does not need coolant admission. */
+        recovery_only    = true;
+        control_active   = failure == 0;
+        bad_identity     = failure == 1;
+        negative_report  = failure == 2;
+        fail_report      = failure == 3;
+        fail_save        = failure == 4;
+        fail_session     = failure == 6;
+        negative_session = failure == 7;
+        speed_kph        = failure == 5 ? 1 : 0;
+        engine_rpm       = 700;
+        missing_coolant  = true; /* Read-only reconciliation does not need coolant admission. */
         generation++;
         initialize();
         unsigned before_reports = reports;
@@ -367,8 +378,9 @@ int main(void)
             assert(reports == before_reports);
         /* Retry is bounded, even for active/NRC/transport/storage failures. */
         assert(reports - before_reports <= 1);
-        control_active = bad_identity = negative_report = fail_report = fail_save = false;
-        speed_kph                                                                 = 0;
+        control_active = bad_identity = negative_report = fail_report = fail_save = fail_session = negative_session =
+            false;
+        speed_kph = 0;
         run(300); /* Identity retry may wait 30 seconds. */
         phase(VEHICLE_RESTORED);
         assert(!journal[1] && !returns && starts == 1);

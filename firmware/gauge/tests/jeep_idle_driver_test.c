@@ -102,7 +102,7 @@ static void happy_path_and_scope(void)
 }
 static void recovery_reports_never_write(void)
 {
-    for (unsigned step = 0; step < 4; ++step)
+    for (unsigned step = 0; step < 5; ++step)
     {
         jeep_idle_driver_t d;
         begin(&d, JEEP_IDLE_RECOVERY_REPORT);
@@ -117,6 +117,7 @@ static void recovery_reports_never_write(void)
         jeep_idle_driver_t d;
         begin(&d, JEEP_IDLE_RECOVERY_REPORT);
         route(&d);
+        exchange(&d, 3); /* Require the captured session before status. */
         jeep_idle_command_t c             = issue(&d, "33 05 1");
         idle_context_t      failed_guard  = owner;
         failed_guard.guards_fresh_and_met = false;
@@ -126,6 +127,27 @@ static void recovery_reports_never_write(void)
         assert(d.request.kind == JEEP_IDLE_RECOVERY_REPORT);
     }
 }
+static void recovery_session_failures(void)
+{
+    const char *replies[] = {"7E8 03 7F 10 22\r>", "7E8 02 50 93\r>", "7E9 02 50 92\r>"};
+    for (unsigned i = 0; i < sizeof(replies) / sizeof(replies[0]); ++i)
+    {
+        jeep_idle_driver_t d;
+        begin(&d, JEEP_IDLE_RECOVERY_REPORT);
+        route(&d);
+        reply(&d, issue(&d, "10 92 1"), replies[i], owner);
+        assert(d.phase != JEEP_IDLE_CONFIRMED && !d.control_possible);
+        assert(!jeep_idle_driver_next(&d, owner, now).text);
+    }
+    jeep_idle_driver_t d;
+    begin(&d, JEEP_IDLE_RECOVERY_REPORT);
+    route(&d);
+    issue(&d, "10 92 1");
+    now += JEEP_IDLE_IO_TIMEOUT_MS;
+    assert(!jeep_idle_driver_next(&d, owner, now).text);
+    assert(d.error == JEEP_IDLE_ERROR_TIMEOUT && !d.control_possible);
+}
+
 static void admission_and_cancellation(void)
 {
     jeep_idle_driver_t d;
@@ -378,6 +400,7 @@ static void lifecycle_fixture(void)
 int main(void)
 {
     recovery_reports_never_write();
+    recovery_session_failures();
     assert(!strcmp(capture[3].command, "10 92 1"));
     assert(!strcmp(capture[5].command, "31 05 06 80 1"));
     assert(!strcmp(capture[7].command, "32 05 1"));
