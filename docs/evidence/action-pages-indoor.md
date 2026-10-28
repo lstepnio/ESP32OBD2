@@ -560,7 +560,10 @@ and the single owner physical observation are owned by the
 [display rollout evidence](display-evolution.md). They follow the standard checks
 above; their intentional setup revision increment must not be attributed to OTA.
 The expected indoor no-data screen is an icon-only logo; one tap wakes readings
-and consumes that gesture before ordinary swipes/actions.
+and consumes that gesture before ordinary swipes/actions. The owner answered the
+single physical check with “Logo and all navigation work.” Basic logo/wake/reading
+swipes and action entry/browse/return are confirmed; this does not qualify every
+new layout or loaded vehicle behavior.
 
 Remaining Jeep qualification includes actual startup MIL/filter attribution,
 unfiltered and partial-coverage warnings, loaded primary/child freshness and radio
