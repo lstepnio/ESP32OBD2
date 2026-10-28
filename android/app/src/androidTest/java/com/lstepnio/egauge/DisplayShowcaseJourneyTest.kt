@@ -25,7 +25,7 @@ class DisplayShowcaseJourneyTest {
     @Test fun temporaryPlaybackPreservesDashboardAndSettings() {
         assumeTrue("Requires owner opt-in for generated gauge screen playback", allowed)
         val minimumFrames = args.getString("showcaseFrames")?.toInt() ?: 2
-        require(minimumFrames in 2..21) { "Showcase frames must be between 2 and 21" }
+        require(minimumFrames in 2..64) { "Showcase frames must be between 2 and 64" }
         val model = (compose.activity.application as EGaugeApplication).model
         compose.waitUntil(90_000) {
             model.connection.phase == ConnectionPhase.Ready &&
@@ -51,7 +51,7 @@ class DisplayShowcaseJourneyTest {
                         model.operation.terminal
                 }
                 val first = requireNotNull(model.displayShowcase)
-                assertEquals(21, first.count)
+                assertTrue("Gauge must offer the requested frame count", first.count in minimumFrames..64)
                 seenFrames += first.frame
                 runBlocking {
                     withTimeout(30_000L + (minimumFrames - 2) * 10_000L) {

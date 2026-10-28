@@ -56,6 +56,12 @@ int main(void)
         tick(now, true, false);
     assert(!orientation_runtime_snapshot().usable);
     assert(orientation_runtime_snapshot().applied_angle == 0);
+    orientation_diagnostics_t observed = orientation_runtime_diagnostics();
+    assert(observed.have_observation && observed.healthy && observed.phase == 4);
+    assert(observed.x_mg == 1000 && observed.y_mg == 0 && observed.z_mg == 0);
+    assert(observed.observed_at_ms > 0 && observed.failures == 0);
+    /* Raw health never grants Auto permission to an ordinary unqualified build. */
+    assert(!orientation_runtime_supported());
     orientation_runtime_init_bus(0, bus, true);
     assert(orientation_runtime_supported() && !orientation_runtime_snapshot().usable);
     assert(orientation_runtime_snapshot().sensor_status == 0);
@@ -70,6 +76,8 @@ int main(void)
     assert(orientation_runtime_snapshot().applied_angle == 1);
     fail = true;
     tick(3200, true, false);
+    assert(!orientation_runtime_diagnostics().healthy);
+    assert(orientation_runtime_diagnostics().failures == 1);
     before = calls;
     tick(4000, true, false);
     assert(calls == before);

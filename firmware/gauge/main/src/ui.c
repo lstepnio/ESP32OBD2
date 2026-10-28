@@ -1151,7 +1151,10 @@ static void showcase_publish(ui_t *ui)
 static void showcase_frame(ui_t *ui)
 {
     const display_showcase_frame_t *f = display_showcase_frame(ui->showcase.index);
-    ui->showcase_page = (ui_page_t){.name = f->name, .renderer = f->renderer, .metric_count = f->metrics};
+    ui->showcase_page                 = (ui_page_t){.name             = f->name,
+                                                    .renderer         = f->renderer,
+                                                    .metric_count     = f->metrics,
+                                                    .arc_metric_index = f->arc_metric_index};
     for (unsigned i = 0; i < f->metrics; i++)
         ui->showcase_page.metrics[i] = (ui_metric_t){.pid            = 0xd000 + i,
                                                      .name           = f->labels[i],

@@ -158,7 +158,7 @@ selects the protected twenty-byte version `15` (decimal 21) status response:
 | 2 | Result: 0 applied, 1 refused |
 | 3 | Zero-based frame index |
 | 4..7 | Acknowledged request sequence, little endian |
-| 8 | Frame count (currently 21; reader bounds 1..64) |
+| 8 | Frame count (source 25; dev.66 has 21; reader bounds 1..64) |
 | 9 | Interval seconds |
 | 10 | Schema 1 |
 | 11 | Reserved zero |

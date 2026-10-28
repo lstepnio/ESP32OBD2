@@ -20,7 +20,7 @@ typedef struct
 /* Main runtime owner only. Initialization does not perform sensor transactions. */
 void orientation_runtime_init(uint8_t manual_angle);
 /* Fake bus seam exercises the exact same bounded state machine offline. */
-void orientation_runtime_init_bus(uint8_t manual_angle, orientation_bus_t bus, bool qualified);
+void orientation_runtime_init_bus(uint8_t manual_angle, orientation_bus_t bus, bool permitted);
 /* One short shared-bus transaction per call, 100ms sample cadence. The owner
  * skips I/O during maintenance/control work. Returns a desired new angle only. */
 bool orientation_runtime_tick(uint32_t now_ms, bool automatic, uint8_t manual_angle, bool suspended, uint8_t *angle);
@@ -29,7 +29,7 @@ void orientation_runtime_applied(uint8_t angle);
 /* Failed board application keeps applied truth and limits owner retries to 1Hz. */
 void orientation_runtime_apply_failed(uint32_t now_ms);
 bool orientation_runtime_retry_ready(uint32_t now_ms);
-/* Stable protocol support after qualified board transport initialization; sensor
+/* Stable protocol support after qualified or explicit candidate transport initialization; sensor
  * availability remains a separate snapshot field and can recover without rediscovery. */
 bool orientation_runtime_supported(void);
 /* Lock-free in the calling sense: short snapshot critical section, no bus/NVS. */
@@ -39,3 +39,13 @@ orientation_status_t orientation_runtime_snapshot(void);
 bool orientation_runtime_poll(bool automatic, uint8_t manual_angle, bool suspended, uint8_t *angle);
 /* Bytes of minimum observed worker stack remaining, zero when no worker. */
 uint16_t orientation_runtime_stack_margin(void);
+
+/* Passive qualification evidence. Raw sensor observations never become vehicle readings. */
+typedef struct
+{
+    int32_t  x_mg, y_mg, z_mg;
+    uint32_t observed_at_ms, failures, maximum_tick_us;
+    uint8_t  phase, proposed_angle;
+    bool     have_observation, healthy;
+} orientation_diagnostics_t;
+orientation_diagnostics_t orientation_runtime_diagnostics(void);

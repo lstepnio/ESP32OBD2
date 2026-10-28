@@ -3,7 +3,9 @@
 #include "driver/i2c_master.h"
 
 /* Register meanings and addresses 0x6a/0x6b follow Waveshare's QMI8658 example in
- * ESP32-S3-Touch-LCD-1.28-Demo.zip. No reset, gyro, FIFO or interrupt ownership.
+ * ESP32-S3-Touch-LCD-1.28-Demo.zip and QMI8658C datasheet sections 5.4/5.7:
+ * https://files.waveshare.com/wiki/ESP32-S3-Touch-LCD-1.28/QMI8658C.pdf
+ * No reset, gyro, FIFO or interrupt ownership.
  * Each synchronous transaction has a 10ms IDF timeout. IDF reuses that timeout internally, so this is
  * not a proven wall-clock bound; keep the physical qualification gate off. */
 typedef struct

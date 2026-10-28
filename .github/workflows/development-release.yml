@@ -20,6 +20,11 @@ on:
         type: boolean
         default: false
 
+      orientation_candidate:
+        description: Owner-supervised Auto orientation qualification only; not public board qualification
+        type: boolean
+        default: false
+
 permissions:
   contents: read
 
@@ -62,17 +67,17 @@ jobs:
         working-directory: firmware/gauge
         env:
           PARKED_IDLE_TEST: ${{ inputs.parked_idle_test }}
+          ORIENTATION_CANDIDATE: ${{ inputs.orientation_candidate }}
         run: |
           . /opt/esp/idf/export.sh
-          if [[ "$PARKED_IDLE_TEST" == "true" ]]; then
-            python ../../tools/dev.py build --target firmware --parked-idle-test
-          else
-            python ../../tools/dev.py build --target firmware
-          fi
+          build_options=()
+          if [[ "$PARKED_IDLE_TEST" == "true" ]]; then build_options+=(--parked-idle-test); fi
+          if [[ "$ORIENTATION_CANDIDATE" == "true" ]]; then build_options+=(--orientation-candidate); fi
+          python ../../tools/dev.py build --target firmware "${build_options[@]}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: waveshare-esp32-s3-touch-lcd-1.28
-          path: ${{ inputs.parked_idle_test && 'firmware/gauge/build-parked-idle/esp32-idf-project.bin' || 'firmware/gauge/build/esp32-idf-project.bin' }}
+          path: ${{ inputs.orientation_candidate && 'firmware/gauge/build-orientation-candidate/esp32-idf-project.bin' || inputs.parked_idle_test && 'firmware/gauge/build-parked-idle/esp32-idf-project.bin' || 'firmware/gauge/build/esp32-idf-project.bin' }}
           if-no-files-found: error
 
   publish:
