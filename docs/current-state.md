@@ -27,6 +27,14 @@ The owner confirmed clean pages, action navigation, no CEL question mark and
 ten-second cycling/resume after touch. Loaded ECM/TCM reading continuity and
 control/thermal timing still require the Jeep.
 
+Prepared dev.66 addresses a concrete startup retry delay: an unanswered first
+diagnostic scan now retries from two seconds with bounded exponential backoff,
+instead of immediately waiting its steady 60/120-second interval. It also logs
+changes in MIL/filter presentation for attribution. Existing warning/filter proof
+and UI visibility rules are unchanged. The owner's later in-vehicle startup CEL
+observation is not yet attributed by a raw capture; [investigation evidence](evidence/action-pages-indoor.md#2026-10-27-startup-cel-investigation)
+separates that report from the source fix. Dev.65 remains installed.
+
 ## Installed baseline
 
 | Item | Last recorded state | Evidence |

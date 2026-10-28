@@ -367,3 +367,49 @@ timing. Indoor absence/retry and screen fixtures do not qualify vehicle telemetr
 all gears, thermal behavior, glove/edge usability or OOM immunity. Website impact
 was reviewed; vehicle-performance claims and refreshed marketing captures remain
 subject to loaded qualification and the existing daily publication cadence.
+
+## 2026-10-27 startup CEL investigation
+
+After the dev.65 rollout, the owner reported a CEL icon without a question mark
+for several minutes while starting both the gauge and Jeep. This is an in-vehicle
+observation, not an indoor regression. The owner confirmed the dash CEL stayed off
+and the gauge icon cleared without code clearing. No raw startup trace has yet
+attributed that occurrence to a particular ECU.
+
+Source inspection confirms unknown initialization alone does not draw the icon.
+A usable MIL-On response does, and the four scoped TCM filters cannot suppress it
+until the existing complete/reconciled-code proof is available. A first failed
+stored/pending request previously waited at least 60 seconds; permanent waited at
+least 120 seconds. This is a reproducible slow-acquisition path consistent with
+filter warm-up, not proof of the owner's actual startup cause. Genuine MIL-On or
+unfiltered fault evidence is another explanation and must remain visible.
+
+Prepared dev.66 distinguishes uninitialized/transient diagnostic jobs from valid
+or definitively unsupported answers. Cold retries start at two seconds and back
+off exponentially to the existing 240-second cap, retaining normal-reading
+reservation, global background spacing and control priority. Known/unsupported
+jobs keep established backoff; new MIL/count evidence resets category acquisition.
+There is no blanket startup warning blackout, new suppression policy or wire change.
+Presentation-change logs record endpoint, usable MIL/bit, reported/visible/filtered
+counts, completeness and suppression for the next real capture.
+
+Native sanitizer fixtures cover both scheduler endpoints, all four job kinds,
+eight retry levels/cap, unsupported answers, settled failures, sibling cadence,
+changed-MIL invalidation and clock wrap. A production scheduler/state/filter fixture
+also covers the four actual scoped TCM rules: initial unavailable confirmed list,
+two-second retry eligibility, complete filtered proof, then an added unfiltered
+fault that remains visible. Restoring the old retry policy makes the
+new timing assertion fail; the final implementation passes. Host checks passed
+130 tooling tests, 12 review-store tests and native fixtures, including unchanged
+diagnostic/filter proof rules. Normal and parked ESP-IDF builds and memory gates
+passed. Scheduler records remain 376 bytes each; static internal memory remains
+164,434 / 164,522 bytes and the 64 KiB LVGL pool remains in PSRAM. The new view log
+retains two 32-bit words on the existing App tick stack and emits on changes. Loaded stack margins,
+radio timing and physical startup behavior remain unmeasured for this candidate.
+
+Next qualification: record `diag_view` transitions while starting the gauge and
+Jeep, compare the physical dash lamp, verify fresh TCM lists match the four filters,
+and measure time to suppression alongside normal readings. Include a genuine
+unfiltered warning case. Publication/installation are not claimed; dev.65 remains
+the installed image. Website impact was reviewed; appearance and product claims
+remain unchanged pending actual qualification.

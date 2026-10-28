@@ -406,8 +406,9 @@ static void obd_response_cb(uint8_t        service,
 
 static void app_tick_task(void *arg)
 {
-    ui_t      *ui        = arg;
-    TickType_t last_wake = xTaskGetTickCount();
+    ui_t      *ui                 = arg;
+    TickType_t last_wake          = xTaskGetTickCount();
+    uint32_t   diagnostic_view[2] = {UINT32_MAX, UINT32_MAX};
     for (;;)
     {
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(100));
@@ -513,6 +514,19 @@ static void app_tick_task(void *arg)
             diagnostic_filter_result_t visible =
                 diagnostic_filter_project(packet, endpoint, g_runtime ? g_runtime->diagnostic_filters : NULL,
                                           g_runtime ? g_runtime->diagnostic_filter_count : 0);
+            uint32_t view = (fresh ? 1U : 0U) | (packet[2] & 2U) | (visible.complete ? 4U : 0U) |
+                            (visible.count_known ? 8U : 0U) | (visible.suppress_mil ? 16U : 0U) |
+                            ((uint32_t)visible.visible_count << 8) | ((uint32_t)visible.hidden_count << 16) |
+                            ((uint32_t)packet[22] << 24);
+            if (view != diagnostic_view[endpoint])
+            {
+                diagnostic_view[endpoint] = view;
+                ESP_LOGI(TAG,
+                         "diag_view endpoint=%u usable_mil=%u mil_bit=%u reported=%u visible=%u hidden=%u complete=%u "
+                         "suppressed=%u",
+                         endpoint, fresh, (packet[2] & 2) != 0, packet[22], visible.visible_count, visible.hidden_count,
+                         visible.complete, visible.suppress_mil);
+            }
             presentation.valid |= fresh || visible.count_known;
             presentation.mil_on |= fresh && (packet[2] & 2) && !visible.suppress_mil;
             presentation.count_known |= visible.count_known;
@@ -799,8 +813,10 @@ static void obd_task(void *arg)
                 ++transactions;
             if (generation != adapter_status_generation(source) || !adapter_status_ready_for(source))
                 continue;
-            poll_scheduler_complete(scheduler, job, (uint32_t)(esp_timer_get_time() / 1000),
-                                    result == 0 && (mode != 1 || payload.length >= 4));
+            poll_scheduler_diagnostic_complete(scheduler, job, (uint32_t)(esp_timer_get_time() / 1000),
+                                               result == 0 && (mode != 1 || payload.length >= 4) ? POLL_DIAGNOSTIC_OK
+                                               : response == ELM_UNSUPPORTED ? POLL_DIAGNOSTIC_UNSUPPORTED
+                                                                             : POLL_DIAGNOSTIC_RETRY);
             if (mode == 1 && result == 0 && payload.length >= 4 && had_previous &&
                 ((((previous[2] & 2) != 0) != ((payload.bytes[0] & 0x80) != 0)) ||
                  previous[22] != (payload.bytes[0] & 0x7f)))

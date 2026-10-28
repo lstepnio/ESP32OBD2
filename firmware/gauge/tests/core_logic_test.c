@@ -413,7 +413,8 @@ static void test_scheduler_budgeted(void)
      * healthy MIL cadence continues independently. */
     poll_scheduler_init(&s);
     poll_scheduler_endpoints(&s, 2);
-    s.seen_background = 255;
+    s.seen_background    = 255;
+    s.settled_background = 255;
     for (unsigned i = 0; i < 8; ++i)
         s.last_background[i] = 1000;
     poll_scheduler_complete(&s, (poll_job_t){.kind = POLL_JOB_MIL, .endpoint = 0}, 2000, false);
@@ -425,6 +426,72 @@ static void test_scheduler_budgeted(void)
     assert(job.kind == POLL_JOB_MIL && job.endpoint == 0);
     poll_scheduler_complete(&s, job, 32700, true);
     assert(s.background_failures[0] == 0);
+
+    /* An unanswered startup query backs off from 2 seconds to the existing cap.
+     * A real answer (including unsupported) leaves the cold-start path. */
+    for (unsigned endpoint = 0; endpoint < 2; ++endpoint)
+        for (unsigned kind = 0; kind < 4; ++kind)
+        {
+            unsigned   bit  = 1U << (endpoint * 4 + kind);
+            poll_job_t cold = {.kind     = kind ? POLL_JOB_DTC : POLL_JOB_MIL,
+                               .endpoint = endpoint,
+                               .index    = kind ? kind - 1 : 0};
+            for (unsigned attempt = 1; attempt <= 8; ++attempt)
+            {
+                poll_scheduler_init(&s);
+                poll_scheduler_endpoints(&s, 2);
+                s.seen_background                          = 255;
+                s.settled_background                       = (uint8_t)(255 & ~bit);
+                s.background_failures[endpoint * 4 + kind] = attempt - 1;
+                s.background_cursor                        = endpoint * 4 + kind;
+                poll_scheduler_diagnostic_complete(&s, cold, 1000, POLL_DIAGNOSTIC_RETRY);
+                uint32_t         interval = 1000U << attempt;
+                uint32_t         retry    = 1000 + (interval > 240000 ? 240000 : interval);
+                poll_scheduler_t early    = s;
+                job                       = poll_scheduler_next_budgeted(&early, retry - 1, NULL, 0, &budget);
+                assert(job.kind != cold.kind || job.endpoint != cold.endpoint || job.index != cold.index);
+                job = poll_scheduler_next_budgeted(&s, retry, NULL, 0, &budget);
+                assert(job.kind == cold.kind && job.endpoint == endpoint && job.index == cold.index);
+                poll_scheduler_diagnostic_complete(&s, job, retry, POLL_DIAGNOSTIC_OK);
+                assert((s.settled_background & bit) && s.background_failures[endpoint * 4 + kind] == 0);
+                poll_scheduler_diagnostic_complete(&s, cold, retry + 1000, POLL_DIAGNOSTIC_RETRY);
+                s.background_cursor = endpoint * 4 + kind;
+                job                 = poll_scheduler_next_budgeted(&s, retry + 3000, NULL, 0, &budget);
+                assert(job.kind != cold.kind || job.endpoint != cold.endpoint || job.index != cold.index);
+            }
+            poll_scheduler_init(&s);
+            poll_scheduler_endpoints(&s, 2);
+            s.seen_background    = 255;
+            s.settled_background = (uint8_t)(255 & ~bit);
+            poll_scheduler_diagnostic_complete(&s, cold, 1000, POLL_DIAGNOSTIC_UNSUPPORTED);
+            assert(s.settled_background & bit);
+            assert(poll_scheduler_next_budgeted(&s, 9000, NULL, 0, &budget).kind == POLL_JOB_NONE);
+            s.settled_background &= (uint8_t)~bit;
+            s.background_failures[endpoint * 4 + kind] = 3;
+            poll_scheduler_diagnostic_complete(&s, cold, 1000, POLL_DIAGNOSTIC_RETRY);
+            assert(poll_scheduler_next_budgeted(&s, 10000, NULL, 0, &budget).kind == POLL_JOB_NONE);
+        }
+
+    poll_scheduler_init(&s);
+    poll_scheduler_endpoints(&s, 2);
+    s.seen_background = s.settled_background = 255;
+    memset(s.background_failures, 4, sizeof(s.background_failures));
+    poll_scheduler_mil_changed(&s, 0);
+    assert(s.seen_background == 0xf1 && s.settled_background == 0xf1);
+    assert(s.background_failures[0] == 4 && s.background_failures[4] == 4);
+    for (unsigned i = 1; i < 4; ++i)
+        assert(s.background_failures[i] == 0);
+
+    poll_scheduler_init(&s);
+    s.seen_background    = 15;
+    s.settled_background = 13;
+    for (unsigned i = 0; i < 4; ++i)
+        s.last_background[i] = UINT32_MAX - 1000;
+    poll_scheduler_diagnostic_complete(&s, (poll_job_t){.kind = POLL_JOB_DTC}, UINT32_MAX - 1000,
+                                       POLL_DIAGNOSTIC_RETRY);
+    assert(poll_scheduler_next_budgeted(&s, 998, NULL, 0, &budget).kind == POLL_JOB_NONE);
+    job = poll_scheduler_next_budgeted(&s, 999, NULL, 0, &budget);
+    assert(job.kind == POLL_JOB_DTC && job.index == 0);
 
     /* Priorities get useful preference, but the independent fairness cursor
      * eventually reaches all hidden PIDs even with a permanently due visible PID. */

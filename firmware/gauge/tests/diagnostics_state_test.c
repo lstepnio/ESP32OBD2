@@ -3,6 +3,7 @@
 #include <string.h>
 #include "diagnostics_state.h"
 #include "diagnostic_filter.h"
+#include "poll_scheduler.h"
 int            test_lock_busy;
 int            test_critical_depth;
 static uint8_t packet[DIAGNOSTICS_FULL_SIZE];
@@ -118,6 +119,48 @@ static void continuity_tests(void)
     assert(packet[4] == 41 && packet[8] == 0 && packet[34] == 0);
     assert(!diagnostic_filter_project(packet, 0, rules, 1).suppress_mil);
 }
+static void filtered_startup_retry_test(void)
+{
+    const uint8_t             filtered[] = {0xc1, 0x21, 0xc1, 0x40, 0x1d, 0xca, 0x1d, 0xf3};
+    const uint8_t             empty[]    = {0, 0};
+    const uint8_t             added[]    = {0xc1, 0x21, 0xc1, 0x40, 0x1d, 0xca, 0x1d, 0xf3, 0x01, 0x23};
+    const diagnostic_filter_t rules[]    = {{0xc121, 1}, {0xc140, 1}, {0x1dca, 1}, {0x1df3, 1}};
+    diagnostics_snapshot_t    snapshot;
+    diagnostics_endpoint_configure(1, 1, 60, false);
+    diagnostics_state_connected_for(3);
+    diagnostics_state_snapshot_for(3, 1000, &snapshot);
+    assert(!snapshot.valid && !snapshot.mil_known);
+    diagnostics_state_mil_for(3, true, 4, 1000);
+    diagnostics_state_failed_for(3, 3, DIAGNOSTICS_UNAVAILABLE);
+    diagnostics_state_codes_for(3, 7, empty, sizeof(empty), 1000);
+    diagnostics_state_failed_for(3, 10, DIAGNOSTICS_UNSUPPORTED);
+    assert(diagnostics_endpoint_presentation_status(1, 1000, packet) == 248);
+    assert(!diagnostic_filter_project(packet, 1, rules, 4).suppress_mil);
+
+    poll_scheduler_t scheduler;
+    poll_scheduler_init(&scheduler);
+    scheduler.seen_background    = 15;
+    scheduler.settled_background = 13;
+    for (unsigned i = 0; i < 4; ++i)
+        scheduler.last_background[i] = 1000;
+    poll_scheduler_diagnostic_complete(&scheduler, (poll_job_t){.kind = POLL_JOB_DTC}, 1000, POLL_DIAGNOSTIC_RETRY);
+    const poll_scheduler_budget_t budget = {0};
+    assert(poll_scheduler_next_budgeted(&scheduler, 2999, NULL, 0, &budget).kind == POLL_JOB_NONE);
+    poll_job_t job = poll_scheduler_next_budgeted(&scheduler, 3000, NULL, 0, &budget);
+    assert(job.kind == POLL_JOB_DTC && job.index == 0);
+    diagnostics_state_codes_for(3, 3, filtered, sizeof(filtered), 3000);
+    poll_scheduler_diagnostic_complete(&scheduler, job, 3000, POLL_DIAGNOSTIC_OK);
+    assert(diagnostics_endpoint_presentation_status(1, 3000, packet) == 248);
+    diagnostic_filter_result_t projected = diagnostic_filter_project(packet, 1, rules, 4);
+    assert(projected.suppress_mil && projected.hidden_count == 4 && projected.visible_count == 0);
+
+    diagnostics_state_mil_for(3, true, 5, 3100);
+    diagnostics_state_codes_for(3, 3, added, sizeof(added), 3100);
+    assert(diagnostics_endpoint_presentation_status(1, 3100, packet) == 248);
+    projected = diagnostic_filter_project(packet, 1, rules, 4);
+    assert(!projected.suppress_mil && projected.visible_count == 1);
+}
+
 int main(int argc, char **argv)
 {
     assert(diagnostics_state_init() == ESP_OK);
@@ -239,5 +282,6 @@ int main(int argc, char **argv)
     diagnostics_vehicle_snapshot(2002, &vehicle);
     assert(vehicle.distinct_count == 4 && vehicle.count_partial);
     continuity_tests();
+    filtered_startup_retry_test();
     puts("Diagnostics source, distinct count, coverage, full lists, expiry, reconnect and simulation passed");
 }
