@@ -87,3 +87,48 @@ codes, issue vehicle commands or touch the Pixel/gauge. CI remains a separate PR
 gate. Physical Pixel usability, applied/pending state on actual assigned gauges and
 parked filtered/unfiltered/partial ECM/TCM behavior remain open. Dev.72's inherited
 count-zero MIL policy remains under its separate labelled-capture boundary.
+
+
+## 2026-10-28 Pixel installation and indoor checks
+
+PR #115 source `37029a33050bec2acfbfae3c36f20f9ad5809e2c` passed all four CI
+checks in run `40757136601` and merged as `f2dbf7596dbbb378eec9485c0f097ed79159ef10`.
+The merge tree matches the checked source. Debug App and instrumentation packages
+were rebuilt from that tree and installed with data-preserving replacement.
+The installed base APK matches the local build SHA-256
+`1059966e1f082f467fc1073e2fc4b49b82441ff7b96473f6e6e35b5eb1e70cda`.
+The App version label remains `0.2.0-dev.53`; source identity distinguishes this update.
+No firmware was installed during this task.
+
+Private before/after backups verified the schema 18 to 19 migration added only one
+existing alert's `enabled: true` default. All other profile fields, array order,
+gauge associations and saved settings remained equal. SQLite integrity passed and
+ordered logical rows remained equal after the complete UI/recovery session:
+65 events, 51 episodes, 17 configurations, one cursor and zero reports.
+Raw history was retained while ordinary views used the shared filtering projection.
+
+Actual Pixel checks covered the simplified Car overview, Current/History navigation,
+direct historical fault detail, truthful unavailable historical context, the saved
+coolant alert editor with cancellation, and Advanced hidden-code rules. All four
+Transmission-scoped rules remained present: U0121, P1DCA, P1DF3 and U0140.
+The Add alert picker included Transmission temperature and Gear; it was closed
+without saving. Visual inspection found no clipping or navigation blockers in the
+captured Car and hidden-code screens. No fixture data was loaded onto the owner phone.
+
+The read-only diagnostic journey passed in 18.73 seconds. The automatic connection
+journey passed in 75.268 seconds, including resume, Bluetooth off/on recovery,
+picker cancellation and protected hardware/firmware readback. Both confirmed healthy
+running dev.72, saved configuration revision 65 and digest
+`5fe79e9b78e95211fc12d7459140b3a63ecd4426573ed3a967c59b35e8fdcec8`.
+The five pages, actions, alerts and filters were preserved. No vehicle commands,
+ECU clearing, configuration writes or firmware transfers were issued.
+
+Original phone alert preferences and timeout/charging-wake settings were restored
+and verified. The App was left open on Car. The merged feature branch was removed
+locally and remotely; private captures/backups remain ignored under
+`artifacts/car-app-pr115/`. Website visuals remain queued for the normal daily batch.
+
+Both vehicle adapters were absent indoors. Live filtered/unfiltered/partial ECM/TCM
+behavior, notification delivery under real vehicle conditions and per-gauge
+acknowledgement remain separate qualification gates. The expected retained idle
+Unknown state was not cleared or treated as a new vehicle observation.

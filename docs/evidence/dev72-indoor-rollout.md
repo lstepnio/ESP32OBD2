@@ -1,5 +1,7 @@
 # Dev.72 combined indoor rollout
 
+> Historical evidence. This dated rollout records its own scope; [current state](../current-state.md) and [backlog](../backlog.md) own current support and remaining work.
+
 Recorded 2026-10-28. This is device evidence, not loaded Jeep qualification.
 
 ## Source and signed release
