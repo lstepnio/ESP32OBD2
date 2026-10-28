@@ -77,6 +77,7 @@ class DeletionUiTest {
                 })
             }
         }
+        compose.onNodeWithContentDescription("Car settings").performClick()
         compose.onNodeWithText("Your car").performScrollTo().performClick()
         compose.onAllNodesWithText("Delete").onFirst().performClick()
         compose.onNodeWithText("Keep car").performClick()

@@ -35,7 +35,7 @@ class DisplayEvolutionTest {
         val profile = VehicleProfile("vehicle", "Vehicle", draft, pageOrder = pages.map { it.id }.reversed())
         val profiles = ProfileCollection("vehicle", listOf(profile))
         val raw = ProfileDocumentCodec.encode(profiles)
-        assertEquals(18, JSONObject(raw).getInt("schemaVersion"))
+        assertEquals(19, JSONObject(raw).getInt("schemaVersion"))
         assertEquals(profiles, ProfileDocumentCodec.decode(raw))
         assertTrue(ConfigurationProjector.blockers(draft).isEmpty())
         assertTrue(presentationBlockers(draft, caps()).any { "8 pages" in it })
@@ -44,7 +44,7 @@ class DisplayEvolutionTest {
         assertTrue(ConfigurationProjector.blockers(draft.copy(pages = pages + arc.copy(id = "page.11"))).isNotEmpty())
         val legacy = JSONObject(ProfileDocumentCodec.encode(ProfileCollection("v", listOf(VehicleProfile("v", "Vehicle", Draft()))))).put("schemaVersion", 17).toString()
         assertTrue(ProfileDocumentCodec.decode(legacy).active.draft.pages.all { it.arcMetricIndex == 0 })
-        assertTrue(runCatching { ProfileDocumentCodec.decode(JSONObject(raw).put("schemaVersion", 19).toString()) }.isFailure)
+        assertTrue(runCatching { ProfileDocumentCodec.decode(JSONObject(raw).put("schemaVersion", 20).toString()) }.isFailure)
     }
 
     @Test fun arcProjectsItsSelectedNumericMetricAndOrdinaryLayoutsOmitTheExtension() {

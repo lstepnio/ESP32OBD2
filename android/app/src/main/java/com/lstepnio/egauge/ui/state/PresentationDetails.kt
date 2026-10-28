@@ -74,7 +74,7 @@ fun AppViewModel.presentationDetails(): List<DetailUi> = buildList {
         val reading = demoCatalog.firstOrNull { it.id == alert.pidId }
         fact(
             "${reading?.let { readingName(it.id) } ?: alert.pidId} alert",
-            "Warn ${alert.direction.name.lowercase()} ${alert.warning} ${reading?.unit.orEmpty()}; critical ${alert.direction.name.lowercase()} ${alert.critical} ${reading?.unit.orEmpty()}. Reset margin ${alert.hysteresis}. Trigger after ${alert.triggerDwellMs} ms; clear after ${alert.clearDwellMs} ms."
+            "${if (!alert.enabled) "Off · " else ""}Warn ${alert.direction.name.lowercase()} ${alert.warning} ${reading?.unit.orEmpty()}; critical ${alert.direction.name.lowercase()} ${alert.critical} ${reading?.unit.orEmpty()}. Reset margin ${alert.hysteresis}. Trigger after ${alert.triggerDwellMs} ms; clear after ${alert.clearDwellMs} ms."
         )
     }
     fact(

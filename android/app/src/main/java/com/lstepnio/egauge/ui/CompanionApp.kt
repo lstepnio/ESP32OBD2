@@ -8,6 +8,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -20,6 +21,7 @@ import com.lstepnio.egauge.*
 import com.lstepnio.egauge.connection.ConnectionPhase
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.car.ActionPagesSheet
+import com.lstepnio.egauge.ui.car.CarAlertSettingsScreen
 import com.lstepnio.egauge.ui.car.CarScreen
 import com.lstepnio.egauge.ui.car.PageActionsSheet
 import com.lstepnio.egauge.ui.customize.*
@@ -34,6 +36,9 @@ import kotlinx.coroutines.delay
 private enum class Route(val title: String, val icon: GaugeIcon) {
     Gauge("Gauge", GaugeIcon.Gauge),
     Car("Car", GaugeIcon.Car),
+    CarAlerts("Alerts", GaugeIcon.Car),
+    CarAlertSettings("Alert settings", GaugeIcon.Car),
+    CarAdvanced("Advanced", GaugeIcon.Car),
     Settings("Settings", GaugeIcon.Settings),
     Expert("Expert", GaugeIcon.Tools),
     Customize("Customize", GaugeIcon.Gauge),
@@ -55,7 +60,17 @@ fun CompanionApp(
 ) {
     val state by model.uiState.collectAsStateWithLifecycle()
     EGaugeTheme(dynamicColor = state.settings.dynamicColor) {
+        val carSavedState = rememberSaveableStateHolder()
         var route by rememberSaveable { mutableStateOf(Route.Gauge) }
+        var lastViewedCar by remember { mutableStateOf(state.car.activeId) }
+        LaunchedEffect(state.car.activeId) {
+            if (lastViewedCar != state.car.activeId) {
+                carSavedState.removeState(lastViewedCar)
+                lastViewedCar = state.car.activeId
+            }
+        }
+        var carHistory by rememberSaveable { mutableStateOf(false) }
+        var carAlertId by rememberSaveable { mutableStateOf<String?>(null) }
         var customizeStep by rememberSaveable { mutableIntStateOf(0) }
         var progressOpen by rememberSaveable { mutableStateOf(false) }
         var gestureOpen by rememberSaveable { mutableStateOf(false) }
@@ -65,6 +80,7 @@ fun CompanionApp(
         fun back() {
             when {
                 route == Route.Customize && customizeStep > 0 -> customizeStep = 0
+                route in setOf(Route.CarAlerts, Route.CarAlertSettings, Route.CarAdvanced) -> route = Route.Car
                 route == Route.Updates -> route = Route.Settings
                 else -> route = Route.Gauge
             }
@@ -93,11 +109,20 @@ fun CompanionApp(
                 backProgress = 0f
             }
         }
+        LaunchedEffect(model.alertListRequest, state.car.activeId) {
+            if (model.alertListRequest == state.car.activeId) {
+                route = Route.CarAlerts
+                carAlertId = null
+                carHistory = false
+                model.alertListRequest = null
+            }
+        }
         val destinations =
             listOf(Route.Gauge, Route.Car, Route.Settings) +
                 if (state.settings.advanced) listOf(Route.Expert) else emptyList()
         val selectedRoute = when (route) {
             Route.Setup, Route.Customize -> Route.Gauge
+            Route.CarAlerts, Route.CarAlertSettings, Route.CarAdvanced -> Route.Car
             Route.Updates -> Route.Settings
             else -> route
         }
@@ -234,7 +259,7 @@ fun CompanionApp(
                                     StatusCard(notice)
                                 }
                             }
-                            GlobalAlertBanner(model)
+                            GlobalAlertBanner(model, criticalOnly = route in setOf(Route.Car, Route.CarAlerts))
                             val op = state.operation
                             // Discovery and reconnecting are routine background work. The compact gauge pill
                             // reports them without interrupting the current screen. Transfers remain visible
@@ -365,15 +390,84 @@ fun CompanionApp(
                                         )
                                     }
 
-                                    Route.Car -> CarScreen(
-                                        state.car, { route = Route.Setup },
-                                        model::selectProfile, { name ->
-                                            model.editProfileName(name)
-                                            model.createProfile()
-                                        },
-                                        model::findVehicleAdapters, model::choosePrimaryAdapter, model::sendNumericConfiguration, model::deleteVehicle, alerts = {
-                                            AlertHistoryPanel(model, onExportAlerts)
-                                        }, onSaveIdlePresets = model::saveIdlePresets, onVehicleCommand = model::runVehicleCommand
+                                    Route.Car -> carSavedState.SaveableStateProvider(state.car.activeId) {
+                                        val history = model.visibleAlertHistory()
+                                        val current = history.filter { model.isAlertCurrent(it) && it.event.lifecycle == AlertLifecycle.Active }
+                                        CarScreen(
+                                            state.car, { route = Route.Setup }, model::selectProfile,
+                                            { name ->
+                                                model.editProfileName(name)
+                                                model.createProfile()
+                                            },
+                                            model::findVehicleAdapters, model::choosePrimaryAdapter,
+                                            {
+                                                customizeStep = 5
+                                                route = Route.Customize
+                                            }, model::deleteVehicle,
+                                            onSaveIdlePresets = model::saveIdlePresets, onVehicleCommand = model::runVehicleCommand,
+                                            currentAlerts = current.map { entry ->
+                                                CarAttentionAlert(
+                                                    entry.id,
+                                                    alertTitle(entry.event),
+                                                    carAlertSummary(entry.event, state.customize.measurementSystem),
+                                                    entry.event.severity.ordinal,
+                                                    if (entry.event.key in 32..35) {
+                                                        if (entry.event.key % 2 == 1) "Transmission" else "Engine"
+                                                    } else {
+                                                        null
+                                                    }
+                                                )
+                                            },
+                                            historyCount = history.size, lastRecordedAt = history.maxOfOrNull { it.recordedAt },
+                                            onOpenAlert = {
+                                                carAlertId = it
+                                                carHistory = false
+                                                route = Route.CarAlerts
+                                            },
+                                            onHistory = {
+                                                carAlertId = null
+                                                carHistory = true
+                                                route = Route.CarAlerts
+                                            },
+                                            onAlertSettings = { route = Route.CarAlertSettings },
+                                            onAdvanced = { route = Route.CarAdvanced },
+                                            onGaugeAssignment = { route = Route.Settings }
+                                        )
+                                    }
+
+                                    Route.CarAlerts -> key(state.car.activeId) {
+                                        CarAlertWorkspace(model, onExportAlerts, { route = Route.Car }, carHistory, carAlertId)
+                                    }
+
+                                    Route.CarAlertSettings -> key(state.car.activeId) {
+                                        CarAlertSettingsScreen(
+                                            model,
+                                            state.customize,
+                                            { route = Route.Car },
+                                            onPhoneAlerts,
+                                            {
+                                                customizeStep = 5
+                                                route = Route.Customize
+                                            }
+                                        )
+                                    }
+
+                                    Route.CarAdvanced -> ExpertScreen(
+                                        state.expert,
+                                        ExpertActions(
+                                            model::checkGaugeForReview, model::readGaugeDiagnostics,
+                                            model::readHardwareCapacity, model::adoptGaugeDraft, model::addTransmissionChild,
+                                            model::removeTransmissionChild, model::findTransmissionAdapters, model::chooseTransmissionAdapter,
+                                            model::attachLegacyTransmission, model::setBothAdapters,
+                                            displayShowcase = model::setDisplayShowcase, addCodeFilter = model::addDiagnosticFilter,
+                                            removeCodeFilter = model::removeDiagnosticFilter
+                                        ),
+                                        carAdvanced = true,
+                                        onBack = { route = Route.Car },
+                                        onReview = {
+                                            customizeStep = 5
+                                            route = Route.Customize
+                                        }
                                     )
 
                                     Route.Settings -> SettingsScreen(
@@ -416,7 +510,7 @@ fun CompanionApp(
                                         faultCoverage = {
                                             com.lstepnio.egauge.ui.car.VehicleFaultCoverage(
                                                 state.car.copy(
-                                                    faultSources = state.expert.rawFaultSources
+                                                    faultSources = state.expert.visibleFaultSources
                                                 )
                                             )
                                         }
@@ -428,7 +522,7 @@ fun CompanionApp(
                 }
             }
         }
-        AlertContextSheet(model)
+        AlertContextSheet(model, onExportAlerts)
         ClearCodeConfirmation(model)
         if (connectionsOpen) {
             ModalBottomSheet(onDismissRequest = { connectionsOpen = false }) {

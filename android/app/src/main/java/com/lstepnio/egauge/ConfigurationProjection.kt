@@ -114,7 +114,7 @@ object ConfigurationProjector {
             if ((
                     draft.pages.flatMap {
                         it.pidIds
-                    } + draft.alerts.map { it.pidId }
+                    } + draft.alerts.filter { it.enabled }.map { it.pidId }
                     ).distinct().size >
                 32
             ) {
@@ -137,8 +137,8 @@ object ConfigurationProjector {
                         it.id == alert.pidId
                     }?.let { it.minimum..it.maximum }
                         ?: 0.0..100.0
-                if (alert.pidId !in
-                    pagePidIds(draft.source)
+                if (readingCatalog.none { it.id == alert.pidId } ||
+                    (alert.enabled && alert.pidId !in pagePidIds(draft.source))
                 ) {
                     add("An alert uses a reading this firmware cannot execute")
                 }
@@ -239,7 +239,7 @@ object ConfigurationProjector {
         val requiredDefinitions = (
             draft.pages.flatMap {
                 it.pidIds
-            } + draft.alerts.map { it.pidId }
+            } + draft.alerts.filter { it.enabled }.map { it.pidId }
             )
             .map { definitionIds.getValue(it) }.toMutableSet()
         val availableDefinitions = json.getJSONArray("definitions")
@@ -269,7 +269,7 @@ object ConfigurationProjector {
         json.put(
             "alerts",
             JSONArray().also { alerts ->
-                draft.alerts.forEach { alert ->
+                draft.alerts.filter { it.enabled }.forEach { alert ->
                     alerts.put(
                         JSONObject()
                             .put("id", alert.id)
@@ -299,7 +299,7 @@ object ConfigurationProjector {
                 )
             },
             diagnosticFilters = draft.diagnosticFilters,
-            alerts = draft.alerts.map { alert ->
+            alerts = draft.alerts.filter { it.enabled }.map { alert ->
                 ProjectedAlert(
                     alert.id,
                     definitionIds.getValue(alert.pidId),

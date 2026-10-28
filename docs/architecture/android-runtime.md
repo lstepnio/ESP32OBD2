@@ -56,8 +56,12 @@ Device-specific caches are cleared when discovery fails or a different target is
 
 ## Storage and recovery
 
-Profile schema 16 retains schemas 1 through 15 and requires coupled vehicle and gauge
-assignment storage. `LocalSetupStore` saves both documents in one `profiles-v1`
+Profile schema 19 reads schemas 1 through 19 and requires coupled vehicle and gauge
+assignment storage. Schema 19 adds phone-only alert enablement; older profiles default
+all rules enabled. Disabled drafts retain limits/timing but are excluded from wire
+definitions, capability gates and setup comparisons. A gauge restore retains compatible
+disabled phone drafts. Older Apps reject schema 19 rather than re-enabling them.
+`LocalSetupStore` saves both documents in one `profiles-v1`
 preference commit. The old association file is a read-only migration input. Older
 Apps reject newer profile schemas rather than loading stale assignments. Unknown schemas and
 invalid documents fail closed without replacing the source. Standalone TCM profiles

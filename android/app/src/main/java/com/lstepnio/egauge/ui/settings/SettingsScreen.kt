@@ -482,21 +482,3 @@ fun SettingsScreen(
         )
     }
 }
-
-@Composable
-private fun PreferenceToggle(label: String, checked: Boolean, onChecked: (Boolean) -> Unit) {
-    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
-        Row(
-            Modifier.fillMaxWidth().toggleable(
-                checked,
-                role = Role.Switch,
-                onValueChange = onChecked
-            ).padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            Switch(checked, null)
-        }
-    }
-}

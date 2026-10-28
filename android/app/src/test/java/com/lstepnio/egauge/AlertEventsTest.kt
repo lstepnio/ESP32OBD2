@@ -75,6 +75,15 @@ class AlertEventsTest {
         )
     }
 
+    @Test fun storageFallbackRetainsSameVehicleSiblingGaugeEvidence() {
+        val batch = AlertCodec.decode(bytes())
+        val first = volatileAlertHistory(emptyList(), "car", "primary", batch, 1000).single()
+        val sibling = first.copy(id = "sibling", gauge = "second")
+        val later = volatileAlertHistory(listOf(first, sibling), "car", "primary", batch.copy(events = emptyList(), gap = true), 2000)
+        assertFalse(later.first { it.gauge == "primary" }.current)
+        assertTrue(later.first { it.gauge == "second" }.current)
+    }
+
     @Test fun crowdProviderScopeExpiryAndSeverityCaps() {
         val alert =
             PhoneAlert("synthetic", "id", "car", "Road hazard", "Ahead", AlertSeverity.Warning, 30000, 1000, true)

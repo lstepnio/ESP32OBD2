@@ -330,6 +330,11 @@ def android_ui(action):
         "ReadingAlertsUiTest",
         "OptimizationUiTest",
         "AlertNotificationTest",
+        "AlertVisibilityReportTest",
+        "AlertDetailUiTest",
+        "AlertJourneyTest",
+        "CarSettingsJourneyTest",
+        "HiddenFaultCodesUiTest",
         "RepositoryGalleryTest",
     )
     run(

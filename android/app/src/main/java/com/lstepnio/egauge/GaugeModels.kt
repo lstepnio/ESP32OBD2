@@ -75,7 +75,8 @@ data class GaugeAlertDraft(
     val hysteresis: Double = 3.0,
     val triggerDwellMs: Int = 1000,
     val clearDwellMs: Int = 2000,
-    val priority: Int = 8
+    val priority: Int = 8,
+    val enabled: Boolean = true
 ) {
     constructor(
         id: String,
@@ -86,10 +87,11 @@ data class GaugeAlertDraft(
         hysteresis: Int = 3,
         triggerDwellMs: Int = 1000,
         clearDwellMs: Int = 2000,
-        priority: Int = 8
+        priority: Int = 8,
+        enabled: Boolean = true
     ) : this(
         id, pidId, direction,
-        warning.toDouble(), critical.toDouble(), hysteresis.toDouble(), triggerDwellMs, clearDwellMs, priority
+        warning.toDouble(), critical.toDouble(), hysteresis.toDouble(), triggerDwellMs, clearDwellMs, priority, enabled
     )
 }
 

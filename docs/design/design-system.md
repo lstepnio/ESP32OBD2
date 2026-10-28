@@ -56,23 +56,38 @@ Shared controls use the existing radius/spacing tokens; explicit renderer geomet
 is not replaced with arbitrary app layout tokens. Home exposes edit, next and
 previous page accessibility actions alongside touch gestures.
 
-Car starts with the selected vehicle and any required setup action, followed by one
-Vehicle health card and a compact Alerts card. Show up to three decoded fault summaries directly inside Vehicle health, with the
-code and Engine/Transmission attribution visible before any tap. View all codes opens
-one vehicle list; selecting a code opens What it means and Next step. Empty
-Stored/Pending/Permanent lists and exact coverage stay in Expert.
-Recent alerts prioritize current active events; Alert history contains export and
-history deletion. No disabled report-management controls occupy the main screen.
-Adapter and Gauge gestures use shared settings rows; routine connection retries
-remain in the universal pill. Sheets scroll at large text sizes and close when the
-active vehicle changes, preventing actions on the previously selected vehicle.
+Car starts with the selected vehicle, Car settings and any required setup action.
+One **Needs attention** list combines current threshold/provider episodes and decoded
+fault codes, with three rows and View all when needed. Routine global banners do
+not duplicate the Car/Alerts list; critical attention remains globally available. Known diagnostic episodes do
+not duplicate their code rows. A row opens its explanation directly. Fresh code
+categories remain useful even if another category or the warning lamp is unavailable.
 
-One logical vehicle may contain an optional second adapter. The summary preserves
-warnings, incomplete checks and the affected controller; a healthy engine never
-certifies transmission checks. Codes are deduplicated across categories per
-controller, retain last-checked/category meaning and never merge across controllers.
-No-warning status only means the warning lamp is off, not that the vehicle is fault-free.
-Exact category coverage and raw snapshots stay in Expert.
+With complete usable checks and no visible issues, show **No active alerts** and its
+check age. Hidden-only complete checks look the same. Startup has no health placeholder,
+incomplete-check task, unknown CEL or hidden-count footer. With no current evidence,
+previous activity is explicitly Last drive. The universal pill owns connection/retry
+status, including a missing optional child; no extra engineering-status panel is added.
+
+**Vehicle actions**, **Alert settings** and **History** are direct utilities. Car settings
+owns vehicle selection, adapter and gauge entry points; hidden-code and child-adapter
+management stay in Advanced. Current and History use a full-screen workspace with
+retained tab/scroll; details return to their origin. Changing cars dismisses stale
+selection/edit state. Reports, retention/deletion and guarded ECU clearing stay in
+contextual Options. There is no generic Details step or nested sheet chain.
+
+Threshold detail uses the recorded **At alert** value, limit and time. Got it changes
+attention only; eligible noncritical alerts offer Snooze 5 min. Missing data cannot
+read as resolution. Fault meaning is lookup-first, scoped and conservative. Technical
+capture windows and coverage remain out of routine detail. History/export/notifications
+share the [hidden-code policy](../architecture/alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters).
+
+Car and Gauge customization reuse one catalog and unit-aware alert editor. Enablement
+retains the complete phone draft; disabled rules are Off and absent from the wire.
+The richer warning/critical model stays explicit rather than being flattened into an
+invented single limit. Reset and timing are disclosed under Alert behavior. New rules
+are created only by Save. An isolated connected save uses the existing transaction;
+unrelated pending setup requires review, and local success never means gauge success.
 Disabled stale settings say Last checked. Global notices are reserved for actionable
 profile/association/preference failures, not each routine connection retry.
 
@@ -142,7 +157,7 @@ owns lookup provenance and extension rules.
 
 Keep Last checked on retained stale codes. Historical alert codes say Saved with
 alert and never become current through reconnection or vehicle switching. Selecting
-another vehicle dismisses live fault sheets. Explain category meaning in ordinary
+another vehicle dismisses live fault details. Explain category meaning in ordinary
 language inside a code explanation; keep raw category/coverage reports in Expert.
 
 Phone notifications name the system and, when captured, the first unfiltered code

@@ -179,9 +179,11 @@ class AppCleanupUiTest {
             )
         )
         frame { CarScreen(state, {}, {}, {}, onFindAdapters = { searches++ }) }
-        compose.onAllNodesWithText("Choose adapter").assertCountEquals(1)
+        compose.onAllNodesWithText("Adapter").assertCountEquals(0)
         capture("car")
-        compose.onNodeWithText("Choose adapter").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Car settings").performClick()
+        compose.onAllNodesWithText("Adapter").assertCountEquals(1)
+        compose.onNodeWithText("Adapter").performScrollTo().performClick()
         compose.waitForIdle()
         assertEquals(1, searches)
         compose.runOnIdle { state = state.copy(adapterMessage = "Looking for adapters") }
