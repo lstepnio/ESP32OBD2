@@ -113,6 +113,10 @@ class ReviewStore:
             raise ValueError("Duplicate screen decision.")
         with self.lock:
             current = self.load()
+            if "baseRevision" in payload and payload["baseRevision"] != current["revision"]:
+                raise ReviewConflict(
+                    "Feedback changed in another window. Your draft is retained; try saving again."
+                )
             current["screens"].update(validated)
             now = datetime.now(timezone.utc).isoformat()
             current["updatedAt"] = now
@@ -289,14 +293,14 @@ def build_server(port=8769, storage=None, review_dir=None):
     return server
 
 
-def freeze_action_review():
+def freeze_review(name):
     """Serve immutable assets so editing the next round cannot invalidate open tabs."""
     import shutil
 
-    source = UI_DIR / "action-pages"
+    source = UI_DIR / name
     digest = ReviewStore(review_dir=source).manifest_hash
     root = ROOT / "artifacts/gauge-ui-review/snapshots" / digest
-    target = root / "action-pages"
+    target = root / name
     if not target.exists():
         root.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(UI_DIR / "gallery.js", root / "gallery.js")
@@ -306,12 +310,18 @@ def freeze_action_review():
     return target
 
 
+def freeze_action_review():
+    return freeze_review("action-pages")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8769)
-    parser.add_argument("--review", choices=["screens", "action-pages"], default="screens")
+    parser.add_argument(
+        "--review", choices=["screens", "action-pages", "car-pages"], default="screens"
+    )
     args = parser.parse_args()
-    review_dir = freeze_action_review() if args.review == "action-pages" else None
+    review_dir = freeze_review(args.review) if args.review != "screens" else None
     server = build_server(args.port, review_dir=review_dir)
     subpath = args.review + "/" if review_dir else ""
     print(

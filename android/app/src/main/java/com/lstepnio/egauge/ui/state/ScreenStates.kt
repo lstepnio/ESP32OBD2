@@ -47,7 +47,8 @@ data class AlertUi(
     val priority: Int = 8,
     val canonicalWarning: Double = warning,
     val canonicalCritical: Double = critical,
-    val canonicalResetMargin: Double = resetMargin
+    val canonicalResetMargin: Double = resetMargin,
+    val enabled: Boolean = true
 )
 
 @Immutable
@@ -232,7 +233,8 @@ data class ExpertUiState(
     val canShowcase: Boolean = false,
     val showcaseActive: Boolean = false,
     val diagnosticFilters: List<com.lstepnio.egauge.DiagnosticCodeFilter> = emptyList(),
-    val rawFaultSources: List<FaultSourceUi> = emptyList()
+    val visibleFaultSources: List<FaultSourceUi> = emptyList(),
+    val filterTargets: List<DetailUi> = emptyList()
 )
 
 @Immutable

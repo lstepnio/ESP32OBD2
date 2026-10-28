@@ -213,7 +213,8 @@ class VehicleHierarchyUiTest {
                 {}
             )
         }
-        compose.onNodeWithText("Choose adapter").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Car settings").performClick()
+        compose.onNodeWithText("Adapter").performScrollTo().performClick()
         compose.onNodeWithText("Vehicle adapter").assertIsDisplayed()
         compose.onAllNodesWithText("Transmission child").assertCountEquals(0)
     }

@@ -1,5 +1,6 @@
 package com.lstepnio.egauge.ui
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -12,10 +13,10 @@ import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.core.designsystem.EGaugeTokens
 
 @Composable
-fun ScreenContent(scrollKey: Any? = null, content: @Composable ColumnScope.() -> Unit) {
+fun ScreenContent(scrollKey: Any? = null, scrollState: ScrollState? = null, content: @Composable ColumnScope.() -> Unit) {
     key(scrollKey) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding()
+            Modifier.fillMaxSize().verticalScroll(scrollState ?: rememberScrollState()).imePadding()
                 .padding(horizontal = 24.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
             content = content

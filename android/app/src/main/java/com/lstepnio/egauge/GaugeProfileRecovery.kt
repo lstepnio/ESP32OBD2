@@ -32,7 +32,19 @@ object GaugeProfileRecovery {
             "Saved setup belongs to another vehicle"
         }
         val restored = restoredProfile(document)
-        return restored.copy(name = existing.name, draft = restored.draft.copy(idlePresets = existing.draft.idlePresets))
+        val gaugeAlerts = restored.dashboardDraft().alerts
+        val phoneOnlyAlerts = existing.dashboardDraft().alerts.filter { local ->
+            !local.enabled && gaugeAlerts.none { it.id == local.id || it.pidId == local.pidId }
+        }
+        val retained = restored.copy(name = existing.name, draft = restored.draft.copy(idlePresets = existing.draft.idlePresets))
+        if (phoneOnlyAlerts.isEmpty()) return retained
+        val merged = retained.dashboardDraft().let { it.copy(alerts = it.alerts + phoneOnlyAlerts) }
+        require(merged.alerts.size <= 32) { "The gauge setup and retained disabled alerts exceed the phone alert limit" }
+        return if (retained.transmission == null) {
+            retained.copy(draft = retained.draft.copy(alerts = merged.alerts))
+        } else {
+            retained.withDashboard(merged)
+        }
     }
 
     private fun restoredProfile(

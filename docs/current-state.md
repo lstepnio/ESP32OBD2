@@ -129,14 +129,29 @@ release or installation. Public repository: `lstepnio/ESP32OBD2`.
 | Faults | Independent controller endpoints across a primary/child transport, full categories, fair polling and global presentation | Mac captured stored/pending/permanent TCM lists; software fixtures | Live full App/gauge path; TCM faults through one shared primary transport |
 | Display settings | Persisted brightness, orientation, Metric/Imperial and page interval; regional first-use units | Protected post-restart reads, owner five-second cycling/cooldown; App Metric save and Imperial restoration | Physical unit rendering, cycling/gesture interaction and daylight readability |
 | Expert workspace | Compact task menu; useful support facts and recovery actions; optional adapter and code-filter sheets; obsolete/raw/duplicate data and synthetic notice UI removed | Updated debug App installed on Pixel; protected Gauge ready, focused menu/sheet checks and unchanged profile/association/preferences backups; 199 JVM and nine emulator UI tests passed | Broader accessibility and live-vehicle fault workflows remain separate |
-| Car workspace | Selected car, compact health/recent alerts, focused code/history sheets; exact coverage in Expert | [Pixel visual review and fifteen focused emulator fixtures](evidence/car-ux-review.md); existing phone setup preserved | Live vehicle alert/fault UX qualification |
+| Car workspace | Approved source: one attention list, direct fault/alert detail, Current/History, focused settings and shared hidden-code projection. Installed App retains the earlier compact health/recent-alert UI | [Pixel visual review and fifteen focused emulator fixtures](evidence/car-ux-review.md); existing phone setup preserved | Live vehicle alert/fault UX qualification |
 | Shared alert/history framework | Threshold/MIL/synthetic producers share lifecycle, attention, bounded gauge context/journal, phone history/export and opt-in monitoring | Dev.48 Pixel/gauge synthetic Entry/Expired import and shared context/banner; 162 JVM tests, eight earlier emulator fixtures | Real vehicle alerts/context, physical attention, background/OEM and storage/power-loss matrix |
 | Pages/catalog/alerts | Six renderers including numeric Dual + arc; negotiated ten-page support; one catalog with 53 Mode 01 and two existing JSS readings; every selectable reading can alert | Production fixtures and [combined rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout) retain the owner's five-page dashboard | Loaded layout/alert timing, units, dwell/stale behavior and legibility remain separate |
 | Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
 | Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | [Dev.66 full upload and five maintenance cycles](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); exact healthy alternate image, empty journal, retained setup and automatic/Bluetooth recovery. Dev.60 interruption checkpoints remain separate evidence | Trial-boot rollback, rail-power loss and loaded live-adapter qualification remain |
-| Phone persistence | Schema 18 profiles / schema 2 assignments; serialized IO; cancellation-safe writes and typed pairing failures | App dev.53 migration changed only schemaVersion 17 to 18; profile values, assignments and presentation preserved. OTA core preferences remained byte-identical | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
+| Phone persistence | Source schema 19 retains disabled alert drafts; installed schema 18 / schema 2 assignments; serialized IO, cancellation-safe writes and typed pairing failures | App dev.53 migration changed only schemaVersion 17 to 18; profile values, assignments and presentation preserved. OTA core preferences remained byte-identical | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
 | Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Setup review](evidence/second-adapter-setup.md); [dev.53 live reads/resume, independent loss/recovery and phone off/on](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification); owner confirmed live ECM/TCM display and independent expiry/return | Startup absence, loaded maintenance, rates and sustained soak remain open |
 | Health measurements | Fixed worker records, queue drops, internal/DMA/PSRAM lifecycle logs, allocation failure hook and sampled stack minima | [Dev.66 indoor measurements](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); zero observed allocation failures/queue drops across upload and maintenance checks | Longer loaded soak, radio coexistence, complete stack/progress coverage and unobserved vendor-private/transient failures |
+
+## Approved Car implementation, not yet installed
+
+The approved Car source replaces overlapping Vehicle health/recent Alerts cards with
+one attention list, direct issue detail, Current/History and focused Alert settings.
+Saved hidden-code intent projects current/history/context/Expert/notifications and
+ordinary reports through one owner; immutable raw evidence remains internal. Isolated
+connected edits reuse the existing transaction; unrelated pending setup keeps review.
+Phone schema 19 retains disabled alert drafts while excluding them from gauge payloads.
+Debug/release JVM checks, build/lint and 73 managed-emulator checks passed;
+[verification evidence](evidence/car-ux-review.md#2026-10-28-approved-car-and-hidden-code-implementation)
+records scope and the refreshed production Car capture. This implementation does
+not change the firmware wire schema or publish/install an APK.
+The [shared contract](architecture/alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters)
+and [design rules](design/design-system.md#current-component-and-messaging-rules) own behavior.
 
 ## Installed Car fault experience
 
@@ -174,7 +189,7 @@ and enabled eGauge control are not established.
 
 ## Compatibility and public boundaries
 
-- Phone profiles: schema 17 reads schemas 1..17; installed Pixel migrated from 13. Gauge associations use schema 2. Older Apps reject new saved state;
+- Source phone profiles: schema 19 reads schemas 1..19; the last recorded installed App uses schema 18. Gauge associations use schema 2. Older Apps reject new saved state;
   downgrades require an explicit compatible migration. Legacy association files remain
   read-only migration inputs. See [Android storage](architecture/android-runtime.md#storage-and-recovery).
 - Gauge configuration remains schema 2. Installed development `cfg:7`, `va:1`, `da:1`, `ad:1`

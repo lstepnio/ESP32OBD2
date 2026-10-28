@@ -33,13 +33,16 @@ fun AlertEditor(
     reading: ReadingUi,
     original: AlertUi?,
     onBack: () -> Unit,
-    actions: CustomizeActions
+    actions: CustomizeActions,
+    saveLabel: String = "Save alert",
+    closeOnSave: Boolean = true
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 600.dp && LocalDensity.current.fontScale <= 1.3f
         var form by rememberSaveable(reading.id, stateSaver = formSaver) {
             mutableStateOf(AlertForm.from(original))
         }
+        var enabled by rememberSaveable(reading.id) { mutableStateOf(original?.enabled ?: true) }
         var behavior by rememberSaveable { mutableStateOf(false) }
         var showPreview by rememberSaveable { mutableStateOf(false) }
         var preview by rememberSaveable { mutableStateOf(PreviewCondition.Normal) }
@@ -66,6 +69,7 @@ fun AlertEditor(
         val displayedResult = form.saved(reading.id, range, original, maxReset)
         val result = displayedResult?.let { draft ->
             draft.copy(
+                enabled = enabled,
                 warning = if (original != null &&
                     draft.warning == original.warning
                 ) {
@@ -112,21 +116,17 @@ fun AlertEditor(
         EditorScaffold(
             "Edit alert",
             onBack,
-            "Save alert",
+            saveLabel,
             {
                 result?.let {
                     actions.saveAlert(it)
-                    onBack()
+                    if (closeOnSave) onBack()
                 }
             },
             state.editingEnabled && result != null
         ) {
             Text(reading.name, style = MaterialTheme.typography.titleLarge)
-            Text(
-                "Applies wherever this reading is used.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            PreferenceToggle("Alert enabled", enabled, { enabled = it }, enabled = state.editingEnabled)
             ResponsivePanels(first = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SectionTitle("Alert when the reading")

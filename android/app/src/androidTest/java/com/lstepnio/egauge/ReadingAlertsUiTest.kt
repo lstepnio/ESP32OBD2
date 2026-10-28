@@ -42,6 +42,29 @@ class ReadingAlertsUiTest {
         assertEquals("voltage", selected)
     }
 
+    @Test fun disablingAnAlertRetainsItsLimitsAndTiming() {
+        val original = defaultAlert("coolant").copy(triggerDwellMs = 3000, clearDwellMs = 5000)
+        var saved: GaugeAlertDraft? = null
+        compose.setContent {
+            EGaugeTheme {
+                AlertEditor(
+                    state,
+                    readingUi(readingCatalog.first { it.id == "coolant" }),
+                    alertUi(original),
+                    {},
+                    ScreenFixtures.customizeActions.copy(saveAlert = { saved = it })
+                )
+            }
+        }
+        compose.onNodeWithText("Alert enabled").performScrollTo().performClick()
+        compose.closeKeyboardAndWaitForIdle()
+        compose.onNodeWithText("Save alert").assertIsEnabled().performClick()
+        compose.runOnIdle {
+            assertEquals(original.copy(enabled = false), saved)
+            assertNull(idleCoolantLimitC(listOf(saved!!)))
+        }
+    }
+
     @Test fun fractionalVoltageLimitsCanBeSavedWithoutInventingAnAlertOnOpen() {
         var saved: GaugeAlertDraft? = null
         compose.setContent {

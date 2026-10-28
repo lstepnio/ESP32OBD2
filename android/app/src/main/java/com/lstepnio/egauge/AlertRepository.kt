@@ -42,7 +42,8 @@ class AlertRepository(context: Context) : SQLiteOpenHelper(context, "alert-histo
         batch: AlertBatch,
         configuration: String?,
         diagnostics: String?,
-        now: Long
+        now: Long,
+        allVehicleGauges: Boolean = false
     ): List<StoredAlert> {
         val db = writableDatabase
         db.beginTransaction()
@@ -173,7 +174,7 @@ class AlertRepository(context: Context) : SQLiteOpenHelper(context, "alert-histo
         } finally {
             db.endTransaction()
         }
-        return list(vehicle, gauge)
+        return list(vehicle, if (allVehicleGauges) null else gauge)
     }
     fun saveCapture(id: String, capture: JSONObject) {
         require(capture.toString().toByteArray().size <= 65536)
@@ -418,5 +419,5 @@ fun volatileAlertHistory(
                 old?.pinned ?: false
             )
     }
-    return records.values.sortedByDescending { it.recordedAt }.take(64)
+    return (records.values + previous.filter { it.vehicle == vehicle && it.gauge != gauge }).sortedByDescending { it.recordedAt }.take(64)
 }

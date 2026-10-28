@@ -1,0 +1,246 @@
+window.gaugeMockReview={"reviewId": "egauge-car-ux-2026-10-28", "reviewRound": 1, "previousRound": 0};
+window.gaugeMockScreens=[
+  {
+    "id": "app-attention",
+    "title": "Car: the useful overview",
+    "category": "Everyday",
+    "note": "One list combines active reading alerts and visible fault codes. Tap an issue once to understand it. Utility rows stay quiet and predictable.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-quiet",
+    "title": "Car: nothing needs attention",
+    "category": "Everyday",
+    "note": "A compact No active alerts message appears only after usable checks. No repeated health score, reassuring diagnosis or technical status.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-startup",
+    "title": "Car: connecting",
+    "category": "Connection states",
+    "note": "The universal connection pill owns routine startup. No CEL, fault count, incomplete-check panel or false all-clear appears without evidence.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-partial",
+    "title": "Car: one adapter missing",
+    "category": "Connection states",
+    "note": "Engine findings remain useful while the transmission adapter reconnects. One logical car, one connection pill; no second dashboard or repeated warnings.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-offline",
+    "title": "Car: offline with previous activity",
+    "category": "Connection states",
+    "note": "Previous alerts are explicitly from the last drive, not current vehicle truth. History and settings remain accessible.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-filtered",
+    "title": "Car: all reported codes hidden",
+    "category": "Filtering",
+    "note": "Identical to the quiet screen when checks are complete. No hidden count, warning icon, ghost alert row or invitation to inspect filtered codes.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-mixed-hidden",
+    "title": "Car: only the remaining issue",
+    "category": "Filtering",
+    "note": "Hiding a fault removes that row and its counts. A separate coolant threshold alert remains. Filtering is not a controller-wide mute.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-alerts",
+    "title": "Alerts: the full current list",
+    "category": "Alerts and history",
+    "note": "Direct issue rows, ordered by attention priority. Current and History are separate tabs. No rules, exports or diagnostic tools mixed into the list.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-fault",
+    "title": "Fault: meaning before machinery",
+    "category": "Alerts and history",
+    "note": "One tap from Car. Plain-language lookup, exact code and controller, brief guidance and useful time context. No protocol fields or generic Details link.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-unknown",
+    "title": "Fault: no trustworthy description",
+    "category": "Alerts and history",
+    "note": "A vehicle-specific code without a verified description is labelled honestly. No invented AI diagnosis or incorrect model lookup.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-threshold",
+    "title": "Alert: useful context and actions",
+    "category": "Alerts and history",
+    "note": "Show the value recorded at the alert and its configured limit. Got it marks it seen; Snooze is only available for eligible noncritical alerts. No fake live phone reading.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-stale",
+    "title": "Alert: current reading unavailable",
+    "category": "Alerts and history",
+    "note": "Keep the recorded observation explicitly historical. Do not say the alert cleared or show obsolete active-only controls when the source is unavailable.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-history",
+    "title": "History: just the timeline",
+    "category": "Alerts and history",
+    "note": "Human-readable events and time, without raw lifecycle names, severity labels, session IDs or repeated controller categories. Hidden content is projected out here too.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-history-empty",
+    "title": "History: empty after filtering",
+    "category": "Filtering",
+    "note": "No recorded alerts, with no hidden count or empty fault cards. Raw internal evidence is retained without surfacing in normal UI.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-settings",
+    "title": "Alert settings: rules in one place",
+    "category": "Alert setup",
+    "note": "Useful reading names and limit summaries. The same existing alert owner serves Car and Gauge customization; notification permission remains a separate phone control.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-rule",
+    "title": "Edit a reading alert",
+    "category": "Alert setup",
+    "note": "One focused editor with a useful limit first. Timing and reset stay behind Alert behavior. Save is one user action; only acknowledged gauge state shows saved.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-reading-picker",
+    "title": "Add alert: any supported reading",
+    "category": "Alert setup",
+    "note": "Search across the unified catalog, including transmission readings and future custom readings. Adapter topology never limits what can be selected.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-hidden",
+    "title": "Advanced: manage hidden codes",
+    "category": "Filtering",
+    "note": "The only normal product surface that lists hidden codes. Exact vehicle and Engine/Transmission scope, reversible rules, and a precise applied state.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-hide-form",
+    "title": "Advanced: hide a code",
+    "category": "Filtering",
+    "note": "One exact code and controller. Hides code content throughout eGauge, including historical presentation and ordinary reports. Does not clear ECU codes.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-hidden-pending",
+    "title": "Advanced: an offline gauge",
+    "category": "Filtering",
+    "note": "Show acknowledgement per assigned gauge. A saved phone change cannot silently claim that an offline physical gauge has applied it. Routine screens never display the hidden codes.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-vehicles",
+    "title": "Car selection",
+    "category": "Car management",
+    "note": "Browsing a different car does not silently reassign the connected gauge. Gauge associations remain explicit and per vehicle.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-car-setup",
+    "title": "Car settings",
+    "category": "Car management",
+    "note": "Name, gauge and adapter management leave the everyday overview. Optional child adapter and hidden-code management remain under Advanced.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-notification",
+    "title": "Phone notification: one relevant event",
+    "category": "Cross-surface",
+    "note": "Specific title and meaningful context. Tap goes straight to the alert. Matching hidden-code notifications are cancelled or replaced, with no empty notification shell.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-gauge-filtering",
+    "title": "Gauge: hidden-only versus visible fault",
+    "category": "Cross-surface",
+    "note": "Circular gauge preserves the current design. Complete hidden-only evidence produces no icon or count. A separate visible fault still produces the appropriate indication.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-light",
+    "title": "Light theme",
+    "category": "Accessibility",
+    "note": "Same hierarchy and fixed semantic meanings using existing eGauge light tokens. No new visual language or color-only states.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-large-text",
+    "title": "Alert detail: 200% text",
+    "category": "Accessibility",
+    "note": "Actual doubled text sizes in a dense detail view. Content scrolls while named actions remain accessible. Captured values stay immutable; Android TalkBack and font-scale qualification follow implementation.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Approve this screen or leave feedback; runtime implementation waits for the design decision."
+  },
+  {
+    "id": "app-large-editor",
+    "title": "Alert editor: 200% text",
+    "category": "Accessibility",
+    "note": "The editor grows and scrolls with larger text. Save stays reachable; input, timing and reset remain in one logical editor.",
+    "revised": true,
+    "isNew": true,
+    "changeSummary": "First proposal. Review layout and accessible scrolling."
+  }
+];

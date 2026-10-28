@@ -7,7 +7,7 @@ object ProfileDocumentCodec {
     fun decode(raw: String): ProfileCollection {
         val root = JSONObject(raw)
         val schemaVersion = root.getInt("schemaVersion")
-        require(schemaVersion in 1..18) { "Profile format is newer than this app" }
+        require(schemaVersion in 1..19) { "Profile format is newer than this app" }
         val items = root.getJSONArray("profiles")
         require(items.length() in 1..8) { "Profile count is invalid" }
         val profiles = (0 until items.length()).map { index ->
@@ -116,6 +116,9 @@ object ProfileDocumentCodec {
                 val alert = values.getJSONObject(alertIndex)
                 val alertId = alert.getString("id")
                 val alertPid = alert.getString("pidId")
+                require(!alert.has("enabled") || alert.get("enabled") is Boolean) { "Profile alert enablement is invalid" }
+                require(schemaVersion >= 19 || alert.optBoolean("enabled", true)) { "Disabled alerts need profile schema 19" }
+                val enabled = if (schemaVersion >= 19) alert.getBoolean("enabled") else true
                 require(
                     alertId.matches(Regex("[a-z][a-z0-9._-]{0,63}")) &&
                         demoCatalog.any { it.id == alertPid }
@@ -133,7 +136,7 @@ object ProfileDocumentCodec {
                         "triggerDwellMs",
                         1000
                     ),
-                    alert.optInt("clearDwellMs", 2000), alert.optInt("priority", 8)
+                    alert.optInt("clearDwellMs", 2000), alert.optInt("priority", 8), enabled
                 )
             }
         } else {
@@ -199,7 +202,7 @@ object ProfileDocumentCodec {
 
     fun encode(value: ProfileCollection): String {
         require(value.profiles.size in 1..8 && value.profiles.any { it.id == value.activeId })
-        val root = JSONObject().put("schemaVersion", 18).put("activeId", value.activeId)
+        val root = JSONObject().put("schemaVersion", 19).put("activeId", value.activeId)
         val items = JSONArray()
         value.profiles.forEach { profile ->
             IdlePresets.validate(profile.draft.idlePresets)
@@ -272,7 +275,7 @@ object ProfileDocumentCodec {
                             .put(
                                 "clearDwellMs",
                                 alert.clearDwellMs
-                            ).put("priority", alert.priority)
+                            ).put("priority", alert.priority).put("enabled", alert.enabled)
                     )
                 }
             }

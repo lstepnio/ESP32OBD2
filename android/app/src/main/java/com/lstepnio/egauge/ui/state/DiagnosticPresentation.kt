@@ -7,8 +7,7 @@ fun diagnosticSources(
     data: GaugeConfigTransferClient.Diagnostics?,
     elapsedSinceRead: Long,
     expectedSource: String,
-    filters: List<DiagnosticCodeFilter> = emptyList(),
-    showFiltered: Boolean = false
+    filters: List<DiagnosticCodeFilter> = emptyList()
 ): List<FaultSourceUi> = listOf("ECM", "TCM").map { source ->
     val title = if (source == "TCM") "Transmission" else "Engine"
     if (data == null || data.source != source || data.source != expectedSource || data.simulated) {
@@ -29,7 +28,7 @@ fun diagnosticSources(
         )
     } else {
         val receiptCurrent = elapsedSinceRead in 0..30_000
-        val milCurrent = receiptCurrent && data.milFresh && (
+        val milCurrent = receiptCurrent && data.milKnown && data.milAvailability == DiagnosticAvailability.Available && data.milFresh && (
             data.milAgeMs == null ||
                 data.milAgeMs + elapsedSinceRead <= 60_000
             )
@@ -76,14 +75,12 @@ fun diagnosticSources(
                 category.name,
                 status,
                 category.codes.filter {
-                    showFiltered ||
-                        !filtered(it)
+                    !filtered(it)
                 }.map {
                     FaultUi(
                         it,
                         faultDescription(it),
-                        (if (filtered(it)) "Filtered · " else "") +
-                            if (current) category.name else "Last checked · ${category.name}",
+                        if (current) category.name else "Last checked · ${category.name}",
                         current = current
                     )
                 },
@@ -110,22 +107,28 @@ fun diagnosticSources(
                 StatusTone.Stale
             )
 
-            milCurrent && data.milOn && (showFiltered || !projection.suppressMil) -> StatusUi(
+            milCurrent && data.milOn && !projection.suppressMil && (projection.visible.isNotEmpty() || projection.complete) -> StatusUi(
                 "$title reports a warning",
-                if (!showFiltered &&
+                if (
                     filters.any { it.controller == source }
                 ) {
-                    "The controller still reports a warning. Full diagnostics are in Advanced."
+                    "The controller reports a warning. Checks continue automatically."
                 } else {
                     "${data.reportedCount} codes reported by this controller. Review the lists below."
                 },
                 StatusTone.Warning
             )
 
-            !showFiltered && projection.suppressMil -> StatusUi(
-                "Only filtered codes",
-                "The ECU warning remains recorded in Advanced.",
-                StatusTone.Neutral
+            projection.suppressMil -> StatusUi(
+                "No active alerts",
+                "Checked recently",
+                StatusTone.Success
+            )
+
+            milCurrent && data.milOn -> StatusUi(
+                "Warning check pending",
+                "Waiting for usable code evidence.",
+                StatusTone.Loading
             )
 
             milCurrent && partial -> StatusUi(
@@ -136,7 +139,7 @@ fun diagnosticSources(
 
             milCurrent &&
                 categories.any { category ->
-                    category.codes.any { showFiltered || !filtered(it) }
+                    category.codes.any { !filtered(it) }
                 } -> StatusUi(
                 "$title has fault codes",
                 "Warning lamp is off. Review stored, pending and permanent codes below.",

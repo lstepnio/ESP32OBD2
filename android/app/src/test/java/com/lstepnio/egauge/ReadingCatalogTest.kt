@@ -129,7 +129,7 @@ class ReadingCatalogTest {
         val draft = Draft(alerts = listOf(alert))
         val profiles =
             ProfileCollection("default", listOf(VehicleProfile("default", "Vehicle", draft)))
-        assertEquals(18, JSONObject(ProfileDocumentCodec.encode(profiles)).getInt("schemaVersion"))
+        assertEquals(19, JSONObject(ProfileDocumentCodec.encode(profiles)).getInt("schemaVersion"))
         assertEquals(profiles, ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(profiles)))
         val bytes = ConfigurationProjector.project(
             template,

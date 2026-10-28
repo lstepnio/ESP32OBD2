@@ -108,7 +108,7 @@ data class AlertForm(
             requireNotNull(
                 secondsToMillis(trigger)
             ),
-            requireNotNull(secondsToMillis(clear)), original?.priority ?: 8
+            requireNotNull(secondsToMillis(clear)), original?.priority ?: 8, enabled = original?.enabled ?: true
         )
     }
 
