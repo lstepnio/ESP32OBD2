@@ -289,3 +289,9 @@ latency and independent child continuity. Keep the masks disabled until those pr
 are implemented and verified.
 [Runtime contract](architecture/vehicle-actions.md#ordered-action-pages) and
 [backlog FEATURE-10](backlog.md) own behavior and remaining acceptance.
+
+The release gate exposed modal-editor fixture races in two CI attempts (saved-alert
+callback missing, then duration-editor scroll target absent). The test-only keyboard
+and destination synchronization from the pending UI-stability work is included,
+with the same boundary applied before Alert save. Real taps and exact value/disabled
+control assertions remain; no production App behavior or dependency changes.

@@ -26,14 +26,18 @@ class IdleActionsUiTest {
     }
 
     @Test fun unqualifiedCarCanSaveAWinchDraftButCannotStart() {
-        var saved = emptyList<IdlePreset>()
+        var saved: List<IdlePreset>? = null
         compose.setContent { EGaugeTheme { IdleActionsSheet("jeep", emptyList(), true, { saved = it }, {}) } }
         compose.onNodeWithText("Winch").performClick()
         compose.onNodeWithText("Target RPM").performTextInput("1200")
+        compose.closeKeyboardAndWaitForIdle()
         compose.onNodeWithText("Start Winch").performScrollTo().assertIsNotEnabled()
         capture("idle-setup.png")
         compose.onNodeWithText("Save preset").performScrollTo().performClick()
-        compose.runOnIdle { assertEquals(IdlePreset(IdlePresetId.Winch, 1200), saved.first { it.id == IdlePresetId.Winch }) }
+        compose.runOnIdle {
+            assertNotNull("Save preset must invoke its callback", saved)
+            assertEquals(IdlePreset(IdlePresetId.Winch, 1200), saved!!.single { it.id == IdlePresetId.Winch })
+        }
     }
 
     @Test fun verifiedFixtureStartsOnlyTheChosenPreset() {
@@ -51,8 +55,10 @@ class IdleActionsUiTest {
         for ((label, input) in listOf("Starting PSI" to "15", "Target PSI" to "35", "Measured from PSI" to "15", "Measured to PSI" to "35", "Measured fill time" to "8:00")) {
             compose.onNodeWithText(label).performScrollTo().performTextInput(input)
         }
+        compose.closeKeyboardAndWaitForIdle()
         compose.onNodeWithText("Estimated time · 8:00").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Time override").performScrollTo().performTextInput("4:30")
+        compose.closeKeyboardAndWaitForIdle()
         compose.onNodeWithText("Hide calibration").performScrollTo().performClick()
         compose.onNodeWithText("Estimated time · 8:00").performScrollTo()
         capture("air-up-pressure-preset.png")
