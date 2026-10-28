@@ -49,7 +49,8 @@
       "docs/protocol/hardware-probe.md",
       "docs/protocol/pid-discovery.md",
       "docs/protocol/wifi-bulk-v1.md",
-      "docs/development/gauge-continuity-plan.md"
+      "docs/development/gauge-continuity-plan.md",
+      "docs/development/smart-page-cycling-plan.md"
     ],
     "maintained-runbooks": [
       "docs/development/display-showcase.md",
