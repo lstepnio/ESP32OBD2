@@ -61,3 +61,13 @@ qualification gates can be enabled. No public capability flags were promoted.
 Website impact reviewed: these are uninstalled source changes. Preserve current
 published capability claims; refresh circular production visuals and roadmap when
 qualified under the existing publication cadence, outside the build path.
+
+## Authorized rollout preparation
+
+The owner authorized merging PR #104 followed by #105 after CI, installing the App,
+publishing/installing through App/Wi-Fi and indoor checks. PR #104 merged as
+`1111038`. Source preparation uses firmware `0.2.0-dev.66`, App `0.2.0-dev.53` and
+retains the existing owner-supervised parked-idle release option. Auto orientation
+probe/qualification, ABS/TCS execution and public capability flags remain off.
+This paragraph records authorization/preparation only; installed outcomes require
+exact signed post-boot and setup-preservation evidence below.
