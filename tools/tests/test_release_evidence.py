@@ -3,6 +3,8 @@
 import hashlib
 import importlib.util
 import json
+import os
+import subprocess
 from pathlib import Path
 import tempfile
 import unittest
@@ -110,6 +112,49 @@ class EvidenceTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "source SHA"):
                     evidence.collect(root, build, "short")
 
+    def test_exact_checkout_trust_handles_container_owner_without_accepting_dirty_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            (root / "source.txt").write_text("committed")
+            subprocess.run(["git", "add", "source.txt"], cwd=root, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=Fixture",
+                    "-c",
+                    "user.email=fixture@example.invalid",
+                    "commit",
+                    "-qm",
+                    "fixture",
+                ],
+                cwd=root,
+                check=True,
+            )
+            env = {
+                "GIT_TEST_ASSUME_DIFFERENT_OWNER": "1",
+                "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_CONFIG_GLOBAL": os.devnull,
+            }
+            with mock.patch.dict(os.environ, env):
+                denied = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True)
+                self.assertNotEqual(denied.returncode, 0)
+                self.assertIn(b"dubious ownership", denied.stderr)
+                self.assertRegex(evidence.checked_source(root), r"^[0-9a-f]{40}$")
+                # Command-scoped trust must not persist to a later untrusted call.
+                self.assertNotEqual(
+                    subprocess.run(
+                        ["git", "rev-parse", "HEAD"],
+                        cwd=root,
+                        capture_output=True,
+                    ).returncode,
+                    0,
+                )
+                (root / "source.txt").write_text("changed")
+                with self.assertRaises(subprocess.CalledProcessError):
+                    evidence.checked_source(root)
+
     def test_cli_selects_build_and_rejects_dirty_sources_before_archiving(self):
         for variant in (None, "build-parked-idle", "build-orientation-candidate"):
             with self.subTest(variant=variant), tempfile.TemporaryDirectory() as directory:
@@ -127,7 +172,16 @@ class EvidenceTests(unittest.TestCase):
                     evidence.main()
                     collect.assert_called_once_with(ROOT, build, "a" * 40)
                     self.assertEqual(
-                        clean_check.call_args.args[0], ["git", "diff", "--exit-code", "HEAD", "--"]
+                        clean_check.call_args.args[0],
+                        [
+                            "git",
+                            "-c",
+                            f"safe.directory={ROOT}",
+                            "diff",
+                            "--exit-code",
+                            "HEAD",
+                            "--",
+                        ],
                     )
                     self.assertTrue(clean_check.call_args.kwargs["check"])
                     output.unlink()

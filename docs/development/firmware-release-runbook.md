@@ -53,8 +53,11 @@ signature uses the existing development key and can be checked with `openssl dgs
 -sha256 -verify PUBLIC_KEY -signature EVIDENCE.sig EVIDENCE.zip`.
 
 The strict two-entry OTA bundle is unchanged. Verify the evidence signature and
-inventory before using its support regions in a recovery package. Inventory license
-fields marked `NOASSERTION` are not a license review or a complete transitive source
+inventory before using its support regions in a recovery package.
+The evidence collector scopes Git ownership trust to the explicit checkout for
+its source-SHA and clean-tree checks, since the IDF container UID can differ from
+the checkout owner. It does not write global trust or accept dirty tracked sources.
+Inventory license fields marked `NOASSERTION` are not a license review or a complete transitive source
 SBOM; retained notices support that review. Historical releases do not retroactively
 acquire original CI support artifacts. No new release is implied by source changes.
 
