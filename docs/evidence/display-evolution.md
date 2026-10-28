@@ -157,3 +157,29 @@ is separate from the automated protocol/render results above. Loaded ECU cadence
 Smart priorities/comfort, alert/control freshness, dual-source loss/return and
 memory coexistence remain Jeep gates. All ten pages and the new arc layout still
 need physical review; Auto orientation retains its separate sensor/touch gate.
+
+## Extended indoor qualification: ten actual pages
+
+The owner requested the remaining indoor checks. On installed dev.66/App dev.53,
+`TenPageDisplayJourneyTest` passed one scoped test in 192.721 seconds including a
+90-second physical observation window. It first proved exact local append/remove
+reversibility, then appended pages without changing originals. Running ten-page
+revision 62/digest `fcdf698c93417a711e0cd1415b03cab1a863b223fd800edbc951bd7146964b00`
+and cleared trial were verified; both arc slots and gear in the non-arc slot read
+back. Existing source bindings, alerts, filters and actions remained exact.
+
+The owner confirmed “All ten pages work” for tap-through, 10/10, wrap, clean labels
+and no freezes. Values were unavailable indoors; this does not qualify populated
+arc geometry. The complete original five-page document and original App profiles,
+assignments and settings were restored with protected running proof at revision 63,
+digest `92dc3ddc1cfbd98f3c50e989725880bf1a575324e8af08998bd83ce79a235d0b`.
+No firmware/vehicle command or code clear occurred during this round trip.
+
+The next source candidate adds four production Dual + arc preview frames and a
+separate opt-in sensor qualification build. Five focused native/overlay tests and
+bounded production LVGL normal/parked fixtures passed. Both normal and candidate
+IDF builds passed locally. These are preparation facts, not installed Auto evidence;
+signed publication, physical sensor behavior and enabled-worker coexistence remain
+pending the [indoor procedure](../development/display-indoor-qualification.md).
+Website impact: this is a supervised qualification milestone, not default Auto
+support. Preserve public capability claims until the corresponding evidence exists.
