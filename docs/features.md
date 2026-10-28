@@ -17,7 +17,7 @@ locates modules/tests. This index deliberately does not duplicate those status l
 | Sampling/cache continuity and scheduling | [Firmware runtime](architecture/firmware-runtime.md#polling-diagnostics-and-alerts), [continuity qualification](development/gauge-continuity-plan.md) |
 | Threshold alerts, notifications, context and history | [Shared alerts/diagnostics](architecture/alerts-and-diagnostics.md) |
 | CEL/MIL, code lookup/filtering and explicit clearing | [Diagnostics contract](protocol/diagnostics-and-alerts.md), [shared semantics](architecture/alerts-and-diagnostics.md) |
-| Third-party alerts and phone-content experiments | [Provider integration](architecture/phone-alert-providers.md), [roadmap boundaries](roadmap.md#product-boundaries) |
+| Third-party alerts and phone-content experiments | [Provider integration](architecture/phone-alert-providers.md), [typed companion proposal](architecture/phone-companion-content.md), [roadmap boundaries](roadmap.md#product-boundaries) |
 | Shortcuts, action pages, Air up/Winch and ABS/TCS | [Vehicle actions](architecture/vehicle-actions.md), [parked qualification](development/jeep-action-qualification.md) |
 | Air-up duration estimates and coolant/fallback protection | [Vehicle actions](architecture/vehicle-actions.md), [current protection state](current-state.md#raised-idle-coolant-guard) |
 | Configuration transactions, validation, trial and rollback | [Configuration storage](architecture/config-storage.md) |

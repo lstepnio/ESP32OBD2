@@ -1,0 +1,16 @@
+{
+  "origin": "vehicle_observed",
+  "recordedOn": "2026-10-06",
+  "scope": "2010 Hemi-swapped JK ECM calibration 68059434AD; advertisement, not validated measurement",
+  "standard_support": {
+    "0": {
+      "7E8": 3216947607
+    },
+    "32": {
+      "7E8": 2147983385
+    },
+    "64": {
+      "7E8": 4275044352
+    }
+  }
+}

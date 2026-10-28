@@ -51,6 +51,9 @@
 #include "ui.h"
 #include "alert_runtime.h"
 #include "gauge_layout.h"
+#include "trend_curve.h"
+#include "esp_heap_caps.h"
+#include "widgets/canvas/lv_canvas.h"
 #include "gauge_presentation.h"
 #include "display_showcase.h"
 #include "adapter_status.h"
@@ -230,7 +233,9 @@ struct _ui_t
         bool               rendered_available[2];
         bool               rendered_once;
         int                rendered_offset;
-        lv_point_precise_t trend_points[60];
+        lv_point_precise_t trend_points[TREND_CAPACITY];
+        float              trend_samples[TREND_CAPACITY];
+        uint8_t           *trend_mask;
         uint8_t            trend_count;
         TickType_t         trend_recorded_at;
     } display;
@@ -1018,7 +1023,26 @@ static void format_reading(char out[32], const ui_metric_t *metric, bool availab
 }
 static ui_alert_t       visible_alert(ui_t *ui);
 static ui_diagnostics_t visible_diagnostics(ui_t *ui);
-static void             render_page(ui_t *ui)
+/* Geometry remains in the design grid until the final surface transform. */
+static void update_trend(ui_t *ui)
+{
+    unsigned     count   = ui->display.trend_count;
+    const float *samples = ui->display.trend_samples + TREND_CAPACITY - count;
+    if (ui->display.trend_mask)
+    {
+        trend_curve_mask(ui->display.trend_mask, samples, count);
+        lv_obj_invalidate(ui->widgets.trend);
+    }
+    else
+    {
+        for (unsigned i = 0; i < count; i++)
+            ui->display.trend_points[i] =
+                (lv_point_precise_t){.x = (int32_t)(TREND_CAPACITY - count + i) * px(144) / (TREND_CAPACITY - 1),
+                                     .y = (int32_t)lroundf(samples[i] * px(30) / 30.f)};
+        lv_line_set_points(ui->widgets.trend, ui->display.trend_points, count);
+    }
+}
+static void render_page(ui_t *ui)
 {
     const ui_page_t                *page         = presented_page(ui);
     double                          values[2]    = {0};
@@ -1156,12 +1180,11 @@ static void             render_page(ui_t *ui)
             ui->display.trend_recorded_at = xTaskGetTickCount();
             if (ui->display.trend_count < 60)
                 ui->display.trend_count++;
-            memmove(ui->display.trend_points, ui->display.trend_points + 1, 59 * sizeof(ui->display.trend_points[0]));
-            for (unsigned i = 0; i < 60; i++)
-                ui->display.trend_points[i].x = (int32_t)i * px(144) / 59;
-            ui->display.trend_points[59].y = px(30) - normalized_value(values[0], primary, px(30));
-            lv_line_set_points(ui->widgets.trend, ui->display.trend_points + 60 - ui->display.trend_count,
-                               ui->display.trend_count);
+            memmove(ui->display.trend_samples, ui->display.trend_samples + 1,
+                    (TREND_CAPACITY - 1) * sizeof(ui->display.trend_samples[0]));
+            double normalized = (values[0] - primary->minimum) / bounded_range(primary->minimum, primary->maximum);
+            ui->display.trend_samples[TREND_CAPACITY - 1] = 30 - 30 * fmin(1, fmax(0, normalized));
+            update_trend(ui);
         }
         show(ui->widgets.trend, available[0] && ui->display.trend_count >= 2);
     }
@@ -1206,13 +1229,13 @@ static void showcase_frame(ui_t *ui)
     {
         for (unsigned i = 0; i < 60; i++)
         {
-            double sample = f->values[0] + 4 * sin(i * .24) + 2 * sin(i * .07);
-            ui->display.trend_points[i] =
-                (lv_point_precise_t){.x = (int)i * px(144) / 59,
-                                     .y = px(30) - normalized_value(sample, &ui->showcase_page.metrics[0], px(30))};
+            double             sample    = f->values[0] + 4 * sin(i * .24) + 2 * sin(i * .07);
+            const ui_metric_t *metric    = &ui->showcase_page.metrics[0];
+            double normalized            = (sample - metric->minimum) / bounded_range(metric->minimum, metric->maximum);
+            ui->display.trend_samples[i] = 30 - 30 * fmin(1, fmax(0, normalized));
         }
-        ui->display.trend_count = 60;
-        lv_line_set_points(ui->widgets.trend, ui->display.trend_points, 60);
+        ui->display.trend_count = TREND_CAPACITY;
+        update_trend(ui);
         ui->display.trend_recorded_at = xTaskGetTickCount();
     }
     showcase_publish(ui);
@@ -1344,7 +1367,10 @@ static void render_status(ui_t *ui)
     uint32_t chart_color = ui->display.rendered_available[chart_index] ? color : color_track;
     lv_obj_set_style_arc_color(ui->widgets.arc, lv_color_hex(chart_color), LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(ui->widgets.bar, lv_color_hex(chart_color), LV_PART_INDICATOR);
-    lv_obj_set_style_line_color(ui->widgets.trend, lv_color_hex(color), LV_PART_MAIN);
+    if (ui->display.trend_mask)
+        lv_obj_set_style_image_recolor(ui->widgets.trend, lv_color_hex(color), 0);
+    else
+        lv_obj_set_style_line_color(ui->widgets.trend, lv_color_hex(color), 0);
     bool diagnostic = d.valid && (d.mil_on || d.count);
     show(ui->widgets.diagnostics_icon, diagnostic);
     show(ui->widgets.diagnostics_lbl, diagnostic);
@@ -1760,12 +1786,29 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_set_style_radius(bar, px(3), LV_PART_INDICATOR);
     lv_obj_clear_flag(bar, LV_OBJ_FLAG_CLICKABLE);
     ui->widgets.bar = bar;
-    lv_obj_t *trend = lv_line_create(gauge_content);
-    lv_obj_remove_style_all(trend);
-    lv_obj_set_pos(trend, gx(48), gy(146));
-    lv_obj_set_size(trend, px(144), px(32));
-    lv_obj_set_style_line_color(trend, lv_color_hex(color_accent), 0);
-    lv_obj_set_style_line_width(trend, px(3), 0);
+    /* Cosmetic storage must not consume the internal radio/DMA heap. */
+    ui->display.trend_mask = heap_caps_calloc(1, TREND_MASK_BYTES, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    lv_obj_t *trend;
+    if (ui->display.trend_mask)
+    {
+        trend = lv_canvas_create(gauge_content);
+        lv_canvas_set_buffer(trend, ui->display.trend_mask, TREND_WIDTH, TREND_HEIGHT, LV_COLOR_FORMAT_A8);
+        lv_obj_set_pos(trend, gx(46), gy(144));
+        lv_image_set_pivot(trend, 0, 0);
+        lv_image_set_scale(trend, px(256));
+        lv_obj_set_style_image_recolor(trend, lv_color_hex(color_accent), 0);
+        lv_obj_set_style_image_recolor_opa(trend, LV_OPA_COVER, 0);
+    }
+    else
+    {
+        trend = lv_line_create(gauge_content);
+        lv_obj_remove_style_all(trend);
+        lv_obj_set_pos(trend, gx(48), gy(146));
+        lv_obj_set_size(trend, px(144), px(32));
+        lv_obj_set_style_line_color(trend, lv_color_hex(color_accent), 0);
+        lv_obj_set_style_line_width(trend, px(3), 0);
+        lv_obj_set_style_line_rounded(trend, true, 0);
+    }
     lv_obj_clear_flag(trend, LV_OBJ_FLAG_CLICKABLE);
     ui->widgets.trend = trend;
     for (unsigned i = 0; i < 2; i++)
@@ -2043,7 +2086,7 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
     for (unsigned i = 0; i < 60; ++i)
-        ui->display.trend_points[i].y = px(30);
+        ui->display.trend_samples[i] = 30;
     lv_arc_set_range(ui->widgets.arc, 0, 1000);
     lv_bar_set_range(ui->widgets.bar, 0, 1000);
     select_renderer_widgets(ui);

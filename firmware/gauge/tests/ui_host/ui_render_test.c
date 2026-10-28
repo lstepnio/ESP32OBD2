@@ -6,6 +6,7 @@
 #include "lvgl.h"
 #include "../../main/src/ui.c"
 
+bool            host_psram_failure;
 uint32_t        host_ms;
 static bool     vehicle, maintenance, paused;
 static uint32_t source_generations[2] = {1, 1};
@@ -133,7 +134,8 @@ static void touch(ui_t *ui, lv_event_code_t event)
 
 int main(int argc, char **argv)
 {
-    assert(argc == 2);
+    assert(argc == 2 || (argc == 3 && !strcmp(argv[2], "--no-psram")));
+    host_psram_failure = argc == 3;
     mkdir(argv[1], 0700);
     lv_init();
     const gauge_surface_t *surface = gauge_presentation()->surface;
@@ -163,6 +165,7 @@ int main(int argc, char **argv)
         .metrics      = {{.pid = 12, .name = "Engine RPM", .unit = "rpm", .maximum = 8000, .stale_after_ms = 2000}}};
     ui_t *ui = ui_init(&saved, 50, touch, false, false);
     assert(ui);
+    assert((ui->display.trend_mask == NULL) == host_psram_failure);
     /* Objects must be hidden before even the first UI timer callback. */
     assert(lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
     assert(lv_obj_has_flag(ui->widgets.alert_icon, LV_OBJ_FLAG_HIDDEN));
@@ -750,6 +753,38 @@ int main(int argc, char **argv)
     tick(60);
     assert(!ui->waiting_visible);
     ui_waiting_logo_enable(ui, false);
+    /* Live recording must preserve fractional data and reset unavailable runs. */
+    ui_page_t trend_page          = saved;
+    trend_page.renderer           = UI_RENDERER_TREND;
+    trend_page.metrics[0].minimum = 0;
+    trend_page.metrics[0].maximum = 100;
+    ui_set_page(ui, &trend_page);
+    double trend_value = 50.25;
+    for (unsigned i = 0; i < 3; i++)
+    {
+        ui_set_value(ui, 12, &trend_value);
+        tick(501);
+    }
+    assert(ui->display.trend_count == 3);
+    assert(fabsf(ui->display.trend_samples[TREND_CAPACITY - 1] - 14.925f) < .001f);
+    assert(!lv_obj_has_flag(ui->widgets.trend, LV_OBJ_FLAG_HIDDEN));
+    if (!ui->display.trend_mask)
+    {
+        assert(ui->display.trend_points[0].x == 57 * px(144) / 59);
+        assert(ui->display.trend_points[2].x == px(144));
+    }
+    ui_set_value(ui, 12, NULL);
+    tick(60);
+    assert(ui->display.trend_count == 0);
+    assert(lv_obj_has_flag(ui->widgets.trend, LV_OBJ_FLAG_HIDDEN));
+    ui_set_value(ui, 12, &trend_value);
+    tick(501);
+    assert(ui->display.trend_count == 1);
+    assert(lv_obj_has_flag(ui->widgets.trend, LV_OBJ_FLAG_HIDDEN));
+    tick(2001);
+    assert(ui->display.trend_count == 0);
+    ui_set_page(ui, &saved);
+    assert(ui->display.trend_count == 0);
     /* Calibration pages exercise geometry/fonts outside the instrument compositor. */
     for (unsigned i = 0; i < CALIBRATION_PAGE_COUNT; i++)
     {

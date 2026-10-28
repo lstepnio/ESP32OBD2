@@ -106,3 +106,27 @@ is temporary presentation state, described in the [development guide](../develop
 Production software captures and regression checks use `firmware/gauge/tests/ui_host`.
 Future fault inspection, provider focus, new maintenance screens and custom enum
 metadata remain design work; not all review mocks are implemented in dev.54.
+
+
+## Trend trace rendering
+
+Trend smoothing is visual interpolation, not a sensor filter or an alert input.
+Retain the original sample anchors and range. Use monotone cubic Hermite segments
+with harmonic-mean tangents, zero slope at a local extremum, and no overshoot outside
+each adjacent sample pair. Missing, stale or invalid data must break the trace;
+never smooth across a gap or substitute zero. Sampling remains 500 ms with at most
+60 positions on the fixed approximately 30-second window. New short histories stay
+right-aligned rather than stretched across that window.
+
+The embedded renderer keeps fractional vertical positions until rasterization. A
+3 px rounded stroke uses local antialiased alpha coverage instead of early integer
+rounding. One 148 × 36 A8 mask uses 5,328 bytes of PSRAM, allocated once at UI creation.
+There is no full-screen buffer, per-frame allocation or global LVGL float-mode
+change. Allocation failure retains the bounded rounded-line fallback. Production
+geometry is in `trend_curve.c`; the App preview uses `TrendCurve.kt` with the same
+endpoint/no-overshoot rule. Its example trace remains explicitly a preview.
+
+Regenerate canonical gauge images from the production LVGL fixture and current
+review artwork from its generator. Historical review revisions remain historical.
+A host render and interpolation tests do not qualify loaded ESP32 frame time,
+physical display appearance or memory recovery.

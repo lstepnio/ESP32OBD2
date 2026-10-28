@@ -154,3 +154,23 @@ Strict validation binds the stored effective seconds to the estimate or explicit
 override; children/Winch cannot own this record. Older Apps reject schema 16 rather
 than silently dropping calibration. [Four-tire timer policy](vehicle-actions.md#four-tire-air-up-timer)
 owns calculation, limits and evidence boundaries.
+
+## Lexical protected owner sessions
+
+`AndroidGaugeOwnerSessions` owns the existing bounded GATT connection/discovery,
+callback-generation/overflow guards, owner establishment and cleanup. The normal
+`GaugeConfigTransferClient` wraps each existing operation in one lexical transaction.
+`GaugeOwnerSession` serializes ATT and transaction work, copies mutable buffers and
+retires a session/escaped transaction handle after failure, cancellation or factory
+exit. Only transient ATT read resource pressure is retried; uncertain writes are
+never replayed. Nested transactions fail instead of waiting on their own mutex.
+The application operation lease remains required; this is not a persistent connection
+cache or a new background owner. Existing semantic status errors/boot confirmation,
+new Wi-Fi one-session bootstrap and capability restrictions remain authoritative.
+
+The [isolated synthetic experiment](../development/companion-session-experiment.md)
+has only fake-transport tests and no App entry point, permission/service wiring or
+live provider. [ADR-018](phone-companion-content.md) keeps proposed typed content
+and source feasibility separate from implemented infrastructure. Shared owner/probe
+regressions exercise serialization, callback-handle retirement, scope/slot/sequence,
+no replay and expiry. They do not qualify actual phone/gauge streaming or provider use.

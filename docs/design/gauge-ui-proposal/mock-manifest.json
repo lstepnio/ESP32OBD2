@@ -137,9 +137,9 @@
       ]
     },
     {
-      "revised": false,
+      "revised": true,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 3.",
+      "changeSummary": "Smoothed the trace with bounded interpolation and rounded antialiased strokes.",
       "id": "trend",
       "title": "Trend",
       "category": "Reading layouts",
@@ -2243,9 +2243,9 @@
       ]
     },
     {
-      "revised": false,
+      "revised": true,
       "isNew": false,
-      "changeSummary": "Unchanged from revision 3.",
+      "changeSummary": "Smoothed the trace without changing CEL, alert or reading geometry.",
       "id": "trend-alert-mil",
       "title": "Trend + CEL + alert",
       "category": "Lower alert row",

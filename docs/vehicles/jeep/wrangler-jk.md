@@ -76,3 +76,10 @@ Before promoting a JK reading or action:
 - Does the PCM answer the proposed transmission-temperature request, and which of the known decoder variants fits its actual response?
 - Which enhanced modules can the adapter address reliably, including ABS and the cluster?
 - How do the owner's high-idle and ABS/traction-control functions behave on this exact vehicle, including automatic restoration?
+
+## Captured reading coverage
+
+The [coverage audit](reading-coverage.md) separates captured primary-ECM standard
+support from missing component/status decoders and variant-specific transfer-case
+research. The optional manual TIPM capture does not enable a runtime reading or
+qualify any state mapping.

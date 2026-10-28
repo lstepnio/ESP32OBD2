@@ -48,3 +48,13 @@ is selectively reconciled; no old Car/card, cache or waiting design is reinstate
 Complete affected local checks and exact-head remote CI precede closure of originals.
 Replacement PR #116 and its final verification comment own the final head/results.
 No deployment/release/installation/physical qualification is part of this work.
+
+## Full-backlog preservation follow-up
+
+Current branch `codex/remaining-pr-reconciliation` incorporates the #116 source
+and selectively reconciles #57/#58/#64/#72/#112. The per-PR retained/superseded
+record is `docs/evidence/final-pr-consolidation.md`; normal GATT policies and #116
+bootstrap/gesture/alert fixes remain intact. Experiment activation, live providers,
+Jeep captures, deployment and physical qualification remain separate. Exact final
+revision/CI and closure/merge outcomes belong to the replacement PR completion
+comments. The original research checkout remains untouched.
