@@ -21,7 +21,12 @@ The source retains a durable uncertainty marker; its parked adapter previously
 blocked identity acquisition in Unknown and had no reboot recovery verifier.
 The read-only [idle recovery source](architecture/vehicle-actions.md#read-only-recovery-of-an-uncertain-idle-operation)
 now prepares exact-ECM routine-status plus settled-RPM reconciliation, without
-replaying controls or erasing evidence. It is not yet installed/physically qualified.
+replaying controls or erasing evidence. Dev.72 installed this path, but the owner reports it still remained Unknown with
+normal physical idle and live RPM. Offline replay now reproduces a missing
+diagnostic-session prerequisite already recorded in the parked reference. The
+follow-up source opens that captured session before recovery status, requires its
+positive acknowledgement and retains all inactive/settled-RPM evidence gates.
+This correction is not yet installed or Jeep-qualified.
 Website impact: corrective recovery behavior needs no new marketing claim or image.
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
