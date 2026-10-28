@@ -22,7 +22,7 @@ fun FaultCodeRow(fault: CarFaultUi, recorded: Boolean = false, onClick: () -> Un
             ""
         } else {
             " · Last checked"
-        }}${meaning.manufacturer?.let { " · $it reference" }.orEmpty()}",
+        }}",
         onClick = onClick
     )
 }
@@ -57,22 +57,5 @@ fun FaultCodeExplanation(fault: CarFaultUi, recorded: Boolean = false) {
         }
         Text("Next step", style = MaterialTheme.typography.titleSmall)
         Text(meaning.nextStep)
-    }
-}
-
-@Composable
-fun SavedFaultCodes(faults: List<CarFaultUi>, resetKey: String) {
-    var selectedCode by rememberSaveable(resetKey) { mutableStateOf<String?>(null) }
-    Text("Codes saved with this alert", style = MaterialTheme.typography.titleSmall)
-    Text("This is the recorded check, not the car's current status.", style = MaterialTheme.typography.bodySmall)
-    if (faults.isEmpty()) Text("Code information was not available when this alert was saved.")
-    val selected = faults.firstOrNull { "${it.source}:${it.code}" == selectedCode }
-    if (selected != null) {
-        TextButton({ selectedCode = null }) { Text("Back to saved codes") }
-        FaultCodeExplanation(selected, recorded = true)
-    } else {
-        faults.forEach { fault ->
-            FaultCodeRow(fault, recorded = true) { selectedCode = "${fault.source}:${fault.code}" }
-        }
     }
 }

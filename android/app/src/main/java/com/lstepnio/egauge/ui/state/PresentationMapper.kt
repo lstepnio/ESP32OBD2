@@ -12,7 +12,7 @@ fun readingName(id: String): String = when (id) {
 
 /** Editor cursor and phone-only idle drafts are not part of the transmitted payload. */
 fun sameSettings(first: Draft?, second: Draft): Boolean = first != null && first.pages == second.pages &&
-    first.source == second.source && first.alerts == second.alerts &&
+    first.source == second.source && first.alerts.filter { it.enabled } == second.alerts.filter { it.enabled } &&
     first.actions == second.actions &&
     first.diagnosticFilters == second.diagnosticFilters
 
@@ -91,7 +91,7 @@ fun alertUi(alert: GaugeAlertDraft, system: MeasurementSystem = MeasurementSyste
             reading.unit,
             system
         ),
-        alert.priority, alert.warning, alert.critical, alert.hysteresis
+        alert.priority, alert.warning, alert.critical, alert.hysteresis, alert.enabled
     )
 }
 
@@ -303,7 +303,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
 
         else -> StatusUi(
             "Changes ready to send",
-            "${transmittedDraft.pages.size} pages · ${transmittedDraft.alerts.size} alerts"
+            "${transmittedDraft.pages.size} pages · ${transmittedDraft.alerts.count { it.enabled }} alerts"
         )
     }
     val homeAction = when {
@@ -443,15 +443,10 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 "Jump to $name · ${action.count} swipes up within ${action.windowMs / 1000} seconds"
             },
             editingIssue = pageEditError,
-            reviewAlerts = transmittedDraft.alerts.map { alertUi(it, system) },
+            reviewAlerts = transmittedDraft.alerts.filter { it.enabled }.map { alertUi(it, system) },
             idleCoolantWarning = transmittedDraft.actions.any { it.type == PageActionType.VehicleActions } && idleCoolantLimitC(transmittedDraft.alerts) == null,
-            reviewNotice = if (transmittedDraft.diagnosticFilters.isNotEmpty() ||
-                transmittedDraft.diagnosticFilters != effectiveDiagnosticFilters()
-            ) {
-                "CEL code filters: " +
-                    transmittedDraft.diagnosticFilters.joinToString {
-                        "${if (it.controller == "TCM") "Transmission" else "Engine"} ${it.code}"
-                    }.ifEmpty { "None" }
+            reviewNotice = if (transmittedDraft.diagnosticFilters != sentDraft?.diagnosticFilters.orEmpty()) {
+                "Fault visibility settings have changed."
             } else {
                 null
             }
@@ -530,7 +525,24 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             canShowcase = found && !busy && capabilities?.displayShowcaseVersion == 1,
             showcaseActive = displayShowcase?.active == true,
             diagnosticFilters = editorDraft.diagnosticFilters,
-            rawFaultSources = carState(nowElapsedMs, busy, details, true).faultSources,
+            visibleFaultSources = carState(nowElapsedMs, busy, details).faultSources,
+            filterTargets = knownGauges.filter { it.vehicleId == profileCollection.activeId }.map { gauge ->
+                val applied = gauge.id == rememberedGaugeId && activeDocument?.vehicleProfileId == profileCollection.activeId &&
+                    activeDocument?.let {
+                        isConfirmedSetup(it.revision, it.sha256, runtimeIdentity) &&
+                            runCatching { DiagnosticCodeFilters.fromDocument(org.json.JSONObject(it.json)) == editorDraft.diagnosticFilters }.getOrDefault(false)
+                    } == true
+                DetailUi(
+                    gauge.name,
+                    if (applied) {
+                        "Applied"
+                    } else if (gauge.id == rememberedGaugeId && freshConnection) {
+                        "Change waiting"
+                    } else {
+                        "Offline · Change waiting"
+                    }
+                )
+            },
             adapterDiscoveryBlocker = when {
                 !freshConnection -> "Discovery starts automatically when the gauge reconnects."
                 capabilities?.adapterRegistryVersion != 1 -> "Update the gauge to discover adapters."
@@ -638,8 +650,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
 private fun AppViewModel.carState(
     now: Long,
     busy: Boolean,
-    details: List<DetailUi>,
-    showFiltered: Boolean = false
+    details: List<DetailUi>
 ): CarUiState {
     val system = displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem
     val data = diagnostics?.takeIf {
@@ -662,8 +673,7 @@ private fun AppViewModel.carState(
             },
             age,
             source,
-            effectiveDiagnosticFilters(),
-            showFiltered
+            effectiveDiagnosticFilters()
         )
             .filter { it.title == if (source == "TCM") "Transmission" else "Engine" }
     }

@@ -55,3 +55,35 @@ Waiting uses neutral text, not a successful-state color.
 Live warning/fault interaction with a vehicle and simultaneous adapter qualification
 remain under the existing backlog gates. This UI pass does not qualify those paths
 or change firmware public capability flags.
+
+## 2026-10-28 approved Car and hidden-code implementation
+
+The owner approved [Car review 1](../design/car-ui-proposal.md) and requested
+implementation. The source replaces overlapping panels with one attention list,
+direct decoded fault detail, full-screen Current/History and focused alert settings.
+Raw history/context remains immutable; saved vehicle intent projects all ordinary
+and Expert surfaces, notifications and normal reports. Only Advanced rule management
+names hidden codes. Firmware source and wire schema are unchanged; phone schema 19
+retains disabled rules without transmitting them.
+
+Local checks: debug/release JVM suites, debug App/test APK compilation, debug APK
+assembly, Android lint, Kotlin formatting, host lint and documentation/tooling tests.
+A full 73-test managed API 35 run passed, plus a focused 29-test run around the
+save refinements. Fixtures cover current/history scoping, duplicate category/MIL
+rows, controller/gauge isolation, known/unknown explanations, large text, offline
+real-model saves, TCM alert save completion, notification cancellation/silent unhide,
+real SQLite/ZIP redaction and unchanged raw evidence. Quick-save tests prove that
+staged primary/child bindings, routing and other settings require full review.
+Startup MIL/count-zero and unavailable summaries have explicit negative cases.
+
+`docs/assets/app/car.png` is refreshed from RepositoryGalleryTest using production
+composables and the actual background/navigation colors. The image shows fixed
+fixture data, not a new physical or vehicle observation. Existing round-gauge art
+is unchanged. The website's next normal daily batch can pick up this shared asset;
+no website publication was performed here.
+
+This work did not install an APK, change saved owner setup, publish firmware, clear
+codes, issue vehicle commands or touch the Pixel/gauge. CI remains a separate PR
+gate. Physical Pixel usability, applied/pending state on actual assigned gauges and
+parked filtered/unfiltered/partial ECM/TCM behavior remain open. Dev.72's inherited
+count-zero MIL policy remains under its separate labelled-capture boundary.

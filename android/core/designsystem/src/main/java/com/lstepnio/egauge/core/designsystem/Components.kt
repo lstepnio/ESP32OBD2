@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -377,6 +378,25 @@ fun DetailContent(details: List<DetailUi>) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun PreferenceToggle(label: String, checked: Boolean, onChecked: (Boolean) -> Unit, enabled: Boolean = true) {
+    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
+        Row(
+            Modifier.fillMaxWidth().toggleable(
+                checked,
+                enabled = enabled,
+                role = Role.Switch,
+                onValueChange = onChecked
+            ).padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Switch(checked, null, enabled = enabled)
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.lstepnio.egauge.ui.state
 
+import com.lstepnio.egauge.MeasurementSystem
 import com.lstepnio.egauge.core.designsystem.*
 
 /** One vehicle list, retaining endpoint and last-checked meaning for each code. */
@@ -28,102 +29,45 @@ fun carFaults(state: CarUiState): List<CarFaultUi> {
                     it.category
                 }.filter { it.isNotBlank() }.distinct().joinToString(" · "),
                 source.categories.filter { category -> category.faults.any { it.code == code } }.map { it.name }.filter { it.isNotBlank() }.distinct(),
-                faults.all { it.current } && source.status.tone !in setOf(StatusTone.Stale, StatusTone.Offline, StatusTone.Disabled, StatusTone.Error)
+                faults.any { it.current }
             )
         }
     }
 }
 
-/** A compact summary must never turn missing or partial data into an all-clear. */
-fun carHealthStatus(state: CarUiState): StatusUi {
-    val status = if (state.faultSources.isEmpty()) {
-        state.status
-    } else {
-        vehicleFaultStatus(
-            state.faultSources
+/** Visible attention rows are stable across polls; recorded history is a separate destination. */
+data class CarAttentionAlert(val id: String, val title: String, val detail: String, val severity: Int, val diagnosticSource: String? = null)
+data class CarAttentionIssue(val title: String, val detail: String, val severity: Int, val fault: CarFaultUi? = null, val alertId: String? = null, val warningSource: String? = null)
+fun carAttention(state: CarUiState, alerts: List<CarAttentionAlert>): List<CarAttentionIssue> {
+    val faults = carFaults(state).filter { it.current }
+    val codes = faults.map {
+        CarAttentionIssue(
+            com.lstepnio.egauge.FaultCodeCatalog.lookup(it.code).title,
+            "${it.code} · ${it.source}",
+            1,
+            fault = it
         )
     }
-    val partial =
-        state.incomplete ||
-            state.faultSources.any { source -> source.categories.any { it.incomplete } }
-    val codes = carFaults(state).size
-    val unavailable = state.faultSources.filter {
-        it.status.tone in
-            setOf(
-                StatusTone.Stale,
-                StatusTone.Offline,
-                StatusTone.Disabled,
-                StatusTone.Loading,
-                StatusTone.Error
-            )
-    }.map { it.title }
-    val title = when {
-        status.tone in setOf(StatusTone.Warning, StatusTone.Critical) -> "Vehicle warning reported"
-
-        state.faultSources.all {
-            it.status.tone in setOf(StatusTone.Disabled, StatusTone.Loading)
-        } &&
-            status.tone in setOf(StatusTone.Disabled, StatusTone.Loading) -> "Waiting for car"
-
-        unavailable.isNotEmpty() ||
-            status.tone in setOf(
-                StatusTone.Stale,
-                StatusTone.Offline,
-                StatusTone.Error
-            ) -> "Fault checks incomplete"
-
-        status.tone in setOf(StatusTone.Disabled, StatusTone.Loading) -> "Waiting for car"
-
-        partial -> "Fault checks incomplete"
-
-        codes > 0 -> "Fault codes recorded"
-
-        status.tone == StatusTone.Success -> "No warning reported"
-
-        else -> "Waiting for fault checks"
+    val episodes = alerts.filterNot { alert ->
+        alert.diagnosticSource != null && faults.any { it.source == alert.diagnosticSource }
+    }.map { CarAttentionIssue(it.title, it.detail, it.severity, alertId = it.id) }
+    val unknownWarnings = state.faultSources.filter { source ->
+        source.status.tone == StatusTone.Warning && faults.none { it.source == source.title } &&
+            alerts.none { it.diagnosticSource == source.title }
+    }.map { CarAttentionIssue("${it.title} warning", "Code information is not available", 3, warningSource = it.title) }
+    return (episodes + unknownWarnings + codes).sortedByDescending { it.severity }
+}
+fun carChecksComplete(state: CarUiState): Boolean = !state.incomplete &&
+    state.faultSources.isNotEmpty() && state.faultSources.all { source ->
+        source.status.tone == StatusTone.Success && source.categories.isNotEmpty() &&
+            source.categories.none { it.incomplete } && source.categories.all { it.faults.isEmpty() }
     }
-    val detail = when {
-        title == "Waiting for car" -> "Checks start automatically when this car is connected."
 
-        unavailable.isNotEmpty() -> "${unavailable.joinToString(
-            " and "
-        )} checks are unavailable or out of date. Saved codes are kept while checks retry."
+fun carAlertSummary(event: com.lstepnio.egauge.AlertEvent, system: MeasurementSystem): String = when {
+    event.unavailable -> "Current reading unavailable"
 
-        partial -> "Some checks are incomplete. More codes may be present."
+    event.key < 32 && event.value.isFinite() && event.limit.isFinite() ->
+        "${alertContextReading(event.value.toDouble(), event.unit, system)} · Limit ${alertContextReading(event.limit.toDouble(), event.unit, system)}"
 
-        status.tone in setOf(
-            StatusTone.Stale,
-            StatusTone.Offline,
-            StatusTone.Error
-        ) -> "Current fault status is unavailable. Saved codes are kept while checks retry."
-
-        status.tone in setOf(
-            StatusTone.Disabled,
-            StatusTone.Loading
-        ) -> "Checks start automatically when this car is connected."
-
-        codes > 0 && status.tone in setOf(StatusTone.Warning, StatusTone.Critical) -> "Review the codes below. Checks update automatically."
-
-        codes > 0 -> "Review the recorded codes. A warning light can be off while codes remain."
-
-        status.tone in setOf(
-            StatusTone.Warning,
-            StatusTone.Critical
-        ) -> "The car reports a warning. Fault code checks continue automatically."
-
-        status.tone == StatusTone.Success -> "The car is not reporting a warning light. Checks continue automatically."
-
-        else -> "Checks continue automatically. Current fault status has not been established."
-    }
-    return StatusUi(
-        title,
-        detail,
-        if (title == "Fault checks incomplete" &&
-            status.tone !in setOf(StatusTone.Warning, StatusTone.Critical, StatusTone.Error)
-        ) {
-            StatusTone.Stale
-        } else {
-            status.tone
-        }
-    )
+    else -> "Reported by your car"
 }

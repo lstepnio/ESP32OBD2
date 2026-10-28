@@ -34,4 +34,4 @@ Every feature change follows the [completion rule](documentation.md#feature-comp
 update its topic owner with behavior/defaults, UX, ownership, compatibility, limits,
 tests and qualification. Preserve one source of truth and link to it.
 
-Design under review: [Car experience and complete hidden-code presentation](design/car-ui-proposal.md). This proposal is not implemented and does not supersede installed behavior until approval.
+Approved Car implementation: [screen rules](design/design-system.md#current-component-and-messaging-rules), [shared fault visibility](architecture/alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters) and [design review record](design/car-ui-proposal.md). Source verification and installed/physical status remain separate.

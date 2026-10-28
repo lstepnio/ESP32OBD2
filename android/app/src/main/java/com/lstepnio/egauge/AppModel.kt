@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -50,6 +51,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var selectedAlertId by mutableStateOf<String?>(null)
     var notificationAlert by mutableStateOf<StoredAlert?>(null)
         private set
+    var alertListRequest by mutableStateOf<String?>(null)
+    fun diagnosticFiltersForVehicle(vehicle: String): List<DiagnosticCodeFilter> = profileCollection.profiles.firstOrNull { it.id == vehicle }?.dashboardDraft()?.diagnosticFilters.orEmpty()
+    fun visibleAlertEntry(entry: StoredAlert): StoredAlert? = AlertVisibility.project(entry, diagnosticFiltersForVehicle(entry.vehicle))
+    private val visibleHistory by derivedStateOf {
+        val vehicle = profileCollection.activeId
+        val rules = diagnosticFiltersForVehicle(vehicle)
+        alertHistory.filter { it.vehicle == vehicle }.mapNotNull { AlertVisibility.project(it, rules) }
+    }
+    fun visibleAlertHistory(): List<StoredAlert> = visibleHistory
     private var alertScope = ""
     private var nextAlertPoll = 0L
     private var alertFailures = 0
@@ -125,7 +135,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 alertHistory =
                     withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        alertRepository.list(profileCollection.activeId, currentGaugeId)
+                        alertRepository.list(profileCollection.activeId)
                     }
             } catch (
                 cancelled: CancellationException
@@ -163,9 +173,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     it.vehicle ==
                         vehicle
                 }
+                val policies = profileCollection.profiles.associate { it.id to it.dashboardDraft().diagnosticFilters }
                 val uri =
                     withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        exportAlertReport(getApplication(), history, alertRepository, vehicle)
+                        exportAlertReport(getApplication(), history, alertRepository, vehicle) { policies[it].orEmpty() }
                     }
                 onReady(uri)
             } catch (
@@ -202,8 +213,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             records.firstOrNull { it.id == id }?.let {
-                notificationAlert = it
-                selectedAlertId = id
+                if (visibleAlertEntry(it) == null) {
+                    notificationAlert = null
+                    selectedAlertId = null
+                    if (profileCollection.profiles.any { profile -> profile.id == vehicle }) {
+                        if (vehicle != profileCollection.activeId) selectProfile(vehicle)
+                        alertListRequest = vehicle
+                    }
+                } else {
+                    notificationAlert = it
+                    selectedAlertId = id
+                }
             }
         }
     }
@@ -487,6 +507,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         "milFresh",
                         data.milFresh
                     ).put("connected", data.connected).put("responder", data.responder)
+                    .put("reportedCount", data.reportedCount).put("milKnown", data.milKnown)
+                    .put("milAvailability", data.milAvailability.name)
                     .put(
                         "categories",
                         org.json.JSONArray().apply {
@@ -500,6 +522,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                                             "fresh",
                                             category.fresh
                                         ).put("codes", org.json.JSONArray(category.codes))
+                                        .put("known", category.known).put("truncated", category.truncated)
+                                        .put("ageMs", category.ageMs)
                                 )
                             }
                         }
@@ -524,7 +548,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             captureChecked.clear()
             alertHistory =
                 withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    alertRepository.list(vehicle, gauge)
+                    alertRepository.list(vehicle)
                 }
         }
         if (alertFrameworkSupported == false) return 20000
@@ -592,7 +616,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             page,
                             config.json,
                             diagnostics,
-                            System.currentTimeMillis()
+                            System.currentTimeMillis(),
+                            allVehicleGauges = true
                         )
                     }
                 } catch (failure: android.database.sqlite.SQLiteException) {
@@ -624,46 +649,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             it.revision == config.revision
                     }?.let { selectedAlertId = it.id(gauge) }
                 }
-                val filterRules = if (phoneAlertsEnabled) {
-                    DiagnosticCodeFilters.fromDocument(
-                        org.json.JSONObject(config.json)
-                    )
-                } else {
-                    emptyList()
-                }
-                fun filtered(event: AlertEvent): Boolean {
-                    val source = if (event.key % 2 == 1) "TCM" else "ECM"
-                    val age =
-                        diagnosticsCheckedAt[source]?.let {
-                            android.os.SystemClock.elapsedRealtime() -
-                                it
-                        }
-                            ?: Long.MAX_VALUE
-                    return DiagnosticCodeFilters.filtersAlert(
-                        event,
-                        diagnosticsBySource[source],
-                        age,
-                        filterRules
-                    )
-                }
+                val filterRules = diagnosticFiltersForVehicle(vehicle)
                 if (phoneAlertsEnabled) {
-                    batch.events.filter { it.revision == config.revision }.forEach {
+                    batch.events.filter { it.revision == config.revision }.forEach { event ->
+                        val raw = history.firstOrNull { it.id == event.id(gauge) && it.vehicle == vehicle && it.gauge == gauge }
+                        val visible = raw?.let(::visibleAlertEntry)
                         alertNotifications.show(
-                            it,
+                            visible?.event ?: event,
                             vehicle,
                             gauge,
                             live,
                             connectionForeground,
-                            filtered(it),
+                            raw != null && visible == null,
                             displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem,
-                            history.firstOrNull { entry ->
-                                entry.id == it.id(gauge) && entry.vehicle == vehicle && entry.gauge == gauge &&
-                                    entry.context.optLong("configurationRevision", -1) == it.revision
-                            }?.let { entry ->
-                                com.lstepnio.egauge.ui.state.recordedFaultCodes(entry.context).filterNot { fault ->
-                                    filterRules.any { rule -> rule.controller == (if (fault.source == "Transmission") "TCM" else "ECM") && rule.code == fault.code }
-                                }
-                            }.orEmpty()
+                            visible?.let { recordedFaultCodes(it.context) }.orEmpty()
                         )
                     }
                 }
@@ -673,39 +672,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         activeAlertCursor = if (active.complete) null else active.next
                     }
                 }
-                // Details can arrive without another MIL transition. Reconcile the
-                // latest diagnostic episode per key, without replaying old alerts.
-                if (phoneAlertsEnabled && filterRules.isNotEmpty() && currentGaugeId == gauge &&
-                    profileCollection.activeId == vehicle &&
-                    activeDocument?.revision == config.revision
-                ) {
-                    alertHistory.asSequence().filter {
-                        it.vehicle == vehicle && it.gauge == gauge && it.event.boot == batch.boot &&
-                            it.event.revision == config.revision &&
-                            it.event.lifecycle == AlertLifecycle.Active &&
-                            it.event.key in 32..35
-                    }.groupBy { it.event.key }.values.forEach { entries ->
-                        val event = entries.maxBy { it.event.sequence }.event
-                        if (filtered(
-                                event
-                            )
-                        ) {
-                            alertNotifications.show(
-                                event,
-                                vehicle,
-                                gauge,
-                                false,
-                                connectionForeground,
-                                true
-                            )
-                        }
-                    }
+                if (phoneAlertsEnabled && !storageFailed) {
+                    alertNotifications.reconcile(
+                        vehicle,
+                        alertHistory.filter { it.vehicle == vehicle },
+                        filterRules,
+                        displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem
+                    )
                 }
                 val capture = if (storageFailed) {
                     null
                 } else {
                     alertHistory.firstOrNull {
-                        it.event.key < 36 &&
+                        it.vehicle == vehicle && it.gauge == gauge && it.event.key < 36 &&
                             it.event.boot == batch.boot &&
                             it.id !in captureChecked &&
                             it.context.optJSONObject("capture")?.optBoolean("complete") != true &&
@@ -784,12 +763,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     /** Freeze mutation admission while the off-main commit finishes. Read-only polling yields. */
-    private fun launchLocalMutation(block: suspend () -> Unit) {
+    private fun launchLocalMutation(completed: () -> Unit = {}, block: suspend () -> Unit) {
         if (localSaveBusy) return
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             localSaveBusy = true
+            var success = false
             try {
                 foregroundConnection.runUserOperation(OperationKind.READ) { block() }
+                success = true
             } catch (
                 cancelled: CancellationException
             ) {
@@ -803,6 +784,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             } finally {
                 localSaveBusy = false
             }
+            if (success) completed()
         }
     }
     private suspend fun persistProfiles(
@@ -3667,25 +3649,48 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         save(working.copy(pages = working.pages.mapIndexed { i, page -> if (i == editingPageIndex) page.copy(arcMetricIndex = index) else page }))
     }
 
-    /** Commit a completed form once. Opening or cancelling the editor never creates an alert. */
-    fun saveAlert(alert: GaugeAlertDraft) {
+    /** Commit a completed form once. Opening or cancelling never creates an alert. */
+    private fun draftWithAlert(alert: GaugeAlertDraft): Draft? {
         val working = editorDraft
-        if (alert.pidId !in ConfigurationProjector.pagePidIds(working.source)) return
+        if (alert.pidId !in ConfigurationProjector.pagePidIds(working.source)) return null
         val previous = working.alerts.firstOrNull { it.pidId == alert.pidId }
-        if (previous != null && previous.id != alert.id) return
-        val alerts = if (previous == null) {
-            working.alerts + alert
-        } else {
-            working.alerts.map {
-                if (it.id == previous.id) alert else it
-            }
-        }
+        if (previous != null && previous.id != alert.id) return null
+        val alerts = if (previous == null) working.alerts + alert else working.alerts.map { if (it.id == previous.id) alert else it }
         if (alerts.size > 32 || alerts.map { it.id }.distinct().size != alerts.size ||
             ConfigurationProjector.blockers(working.copy(alerts = alerts)).isNotEmpty()
         ) {
-            return
+            return null
         }
-        save(working.copy(alerts = alerts))
+        return working.copy(alerts = alerts)
+    }
+    fun saveAlert(alert: GaugeAlertDraft) {
+        draftWithAlert(alert)?.let { save(it) }
+    }
+
+    private val runningSetupMatches by derivedStateOf {
+        activeDocument?.let { ConfigurationEditPolicy.matchesRunning(it, profileCollection.active, bothAdapters, transmittedDraft.actions) } == true
+    }
+    val canApplyCarEdit: Boolean get() = canApplyIsolatedEdit()
+    private fun canApplyIsolatedEdit(): Boolean = connection.phase == ConnectionPhase.Ready &&
+        ownerAccess == OwnerAccess.AUTHENTICATED && capabilities?.experimentalNumericConfig == true &&
+        activeDocument?.vehicleProfileId == profileCollection.activeId &&
+        activeDocument?.let { isConfirmedSetup(it.revision, it.sha256, runtimeIdentity) } == true &&
+        sameSettings(sentDraft, transmittedDraft) && runningSetupMatches && !modifyingSetupBlocked
+
+    /** Apply only an isolated edit; unrelated staged setup always keeps its explicit review. */
+    fun saveCarAlert(alert: GaugeAlertDraft, onSaved: () -> Unit = {}) {
+        val changed = draftWithAlert(alert) ?: return
+        val apply = canApplyIsolatedEdit()
+        val vehicle = profileCollection.activeId
+        val gauge = currentGaugeId
+        val revision = activeDocument?.revision
+        launchLocalMutation(completed = {
+            val committed = editorDraft.alerts.firstOrNull { it.pidId == alert.pidId }
+            if (profileCollection.activeId == vehicle && committed?.copy(id = alert.id) == alert && profileError == null) {
+                onSaved()
+                if (apply && !sameSettings(sentDraft, transmittedDraft) && currentGaugeId == gauge && activeDocument?.revision == revision) sendNumericConfiguration()
+            }
+        }) { persistDraft(changed) }
     }
     fun saveIdlePresets(values: List<IdlePreset>) = launchLocalMutation {
         if (modifyingSetupBlocked || profileError != null) return@launchLocalMutation
@@ -3762,63 +3767,50 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (vehicleId != profileCollection.activeId || modifyingSetupBlocked) return
         saveDiagnosticFilters(vehicleId, editorDraft.diagnosticFilters.filterNot { it == rule })
     }
-    private fun saveDiagnosticFilters(vehicleId: String, rules: List<DiagnosticCodeFilter>) = launchLocalMutation {
-        if (vehicleId != profileCollection.activeId || modifyingSetupBlocked ||
-            profileError != null
-        ) {
-            return@launchLocalMutation
-        }
-        DiagnosticCodeFilters.validate(rules)
-        val updated = profileCollection.copy(
-            profiles = profileCollection.profiles.map { profile ->
-                if (profile.id == vehicleId) {
-                    profile.copy(
-                        draft = profile.draft.copy(diagnosticFilters = rules),
-                        transmission = profile.transmission?.let {
-                            it.copy(draft = it.draft.copy(diagnosticFilters = emptyList()))
-                        }
-                    )
-                } else {
-                    profile
-                }
+    private fun saveDiagnosticFilters(vehicleId: String, rules: List<DiagnosticCodeFilter>) {
+        val apply = canApplyIsolatedEdit()
+        val gauge = currentGaugeId
+        val revision = activeDocument?.revision
+        launchLocalMutation(completed = {
+            if (profileCollection.activeId == vehicleId && editorDraft.diagnosticFilters == rules && profileError == null &&
+                apply && currentGaugeId == gauge && activeDocument?.revision == revision
+            ) {
+                sendNumericConfiguration()
             }
-        )
-        if (!persistProfiles(updated)) {
-            profileError = "Could not save CEL code filters"
-            return@launchLocalMutation
-        }
-        profileCollection = updated
-        draft = updated.active.draft
-        deviceMessage =
-            "Code filters saved on phone. Review and send to apply them on the gauge."
-    }
-    fun isDiagnosticAlertFiltered(event: AlertEvent): Boolean {
-        val source = if (event.key % 2 == 1) "TCM" else "ECM"
-        val elapsed =
-            diagnosticsCheckedAt[source]?.let { android.os.SystemClock.elapsedRealtime() - it }
-                ?: Long.MAX_VALUE
-        return DiagnosticCodeFilters.filtersAlert(
-            event,
-            diagnosticsBySource[source],
-            elapsed,
-            effectiveDiagnosticFilters()
-        )
-    }
-    fun effectiveDiagnosticFilters(): List<DiagnosticCodeFilter> {
-        val document = activeDocument ?: return emptyList()
-        if (document.vehicleProfileId != profileCollection.activeId ||
-            !com.lstepnio.egauge.ui.state.isConfirmedSetup(
-                document.revision,
-                document.sha256,
-                runtimeIdentity
+        }) {
+            if (vehicleId != profileCollection.activeId || modifyingSetupBlocked ||
+                profileError != null
+            ) {
+                return@launchLocalMutation
+            }
+            DiagnosticCodeFilters.validate(rules)
+            val updated = profileCollection.copy(
+                profiles = profileCollection.profiles.map { profile ->
+                    if (profile.id == vehicleId) {
+                        profile.copy(
+                            draft = profile.draft.copy(diagnosticFilters = rules),
+                            transmission = profile.transmission?.let {
+                                it.copy(draft = it.draft.copy(diagnosticFilters = emptyList()))
+                            }
+                        )
+                    } else {
+                        profile
+                    }
+                }
             )
-        ) {
-            return emptyList()
+            if (!persistProfiles(updated)) {
+                profileError = "Could not save CEL code filters"
+                return@launchLocalMutation
+            }
+            profileCollection = updated
+            draft = updated.active.draft
+            deviceMessage =
+                "Hidden codes saved on phone."
         }
-        return runCatching {
-            DiagnosticCodeFilters.fromDocument(org.json.JSONObject(document.json))
-        }.getOrDefault(emptyList())
     }
+
+    /** App visibility is saved vehicle intent; gauge truth remains revision/hash acknowledged. */
+    fun effectiveDiagnosticFilters(): List<DiagnosticCodeFilter> = diagnosticFiltersForVehicle(profileCollection.activeId)
     fun removeAlert(id: String) = save(
         editorDraft.copy(
             alerts = editorDraft.alerts.filterNot {
@@ -3908,6 +3900,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         )
 
     init {
+        viewModelScope.launch {
+            snapshotFlow { profileCollection.profiles.map { it.id to it.dashboardDraft().diagnosticFilters } }
+                .collectLatest { policies ->
+                    policies.forEach { (vehicle, rules) ->
+                        try {
+                            val raw = withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(vehicle) }
+                            alertNotifications.reconcile(vehicle, raw, rules, presentationPreferences.measurementSystem)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            alertHistoryError = "Could not update saved phone notifications"
+                        }
+                    }
+                }
+        }
         viewModelScope.launch {
             snapshotFlow { profileCollection.activeId }.collectLatest {
                 lastAlertChecked = 0

@@ -16,6 +16,7 @@ data class DiagnosticCodeFilter(val controller: String, val code: String) {
 /** Vehicle/controller scoped presentation policy. Raw ECU evidence is never rewritten. */
 object DiagnosticCodeFilters {
     const val LIMIT = 16
+    fun hides(controller: String, code: String, rules: List<DiagnosticCodeFilter>): Boolean = rules.any { it.controller == controller && it.code.equals(code, ignoreCase = true) }
     fun rule(controller: String, code: String) = DiagnosticCodeFilter(controller.uppercase(Locale.ROOT), code.trim().uppercase(Locale.ROOT))
     fun validate(rules: List<DiagnosticCodeFilter>) {
         require(rules.size <= LIMIT && rules.distinct().size == rules.size) {
@@ -54,29 +55,6 @@ object DiagnosticCodeFilters {
                 item.getString("code")
             )
         }.also(::validate)
-    }
-    fun filtersAlert(
-        event: AlertEvent,
-        raw: GaugeConfigTransferClient.Diagnostics?,
-        elapsed: Long,
-        rules: List<DiagnosticCodeFilter>
-    ): Boolean {
-        if (event.key !in 32..35 || event.severity == AlertSeverity.Critical || raw == null ||
-            raw.revision != event.revision
-        ) {
-            return false
-        }
-        val source = if (event.key % 2 == 1) "TCM" else "ECM"
-        if (raw.source != source) return false
-        val projection = project(raw, elapsed, rules)
-        return if (event.key <
-            34
-        ) {
-            projection.suppressMil
-        } else {
-            projection.complete && projection.hidden.isNotEmpty() &&
-                projection.visible.isEmpty()
-        }
     }
     data class Projection(
         val visible: List<String>,
