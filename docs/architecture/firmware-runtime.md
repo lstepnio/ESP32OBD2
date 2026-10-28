@@ -195,6 +195,15 @@ logs measure the main watermark separately from `app_tick` and the sensor worker
 Passing compilation or the static ELF budget cannot qualify these dynamic stacks;
 record real boot/maintenance margins before accepting the replacement.
 
+Dev.68 confirmed 1104 bytes of main startup headroom, then exhausted the independent
+2 KiB orientation-worker stack. Its stack pointer crossed the static stack boundary
+into the adjacent task record. The exact call is unproven; IDF I2C NACK/timeout paths
+can invoke nested newlib formatting even without logging in the worker itself. The
+replacement uses one 4096-byte constant for static storage and task creation, keeps
+it aligned/internal, and adds 2 KiB to the existing static memory admission budget.
+The ELF gate checks the stack and task record placement and rejects undersized or
+misaligned storage. Healthy sampling alone does not qualify bus-error stack margins.
+
 Each worker additionally samples its own stack watermark once per 64 progress
 reports, starting with its first report. The log distinguishes an unobserved margin
 from a real zero margin. `memory_health.c` logs internal **8-bit** free/largest/minimum,

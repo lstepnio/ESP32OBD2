@@ -218,3 +218,34 @@ has a compile-time lower bound, plus boot/main and sensor watermark diagnostics.
 Offline builds do not prove the replacement boots or qualifies Auto. A new signed
 release and installation require owner approval; the current healthy image remains
 dev.66. Populated Dual + arc and Auto physical/recovery checks remain pending.
+
+## Dev.68 startup repair and sensor-worker rollback
+
+The owner approved PR #108 and the replacement through Mainline. All four checks
+passed at `4ca3cef`; PR #108 merged as `a6f91ca`, tree-identical to that source.
+Release run `40695736352` published signed dev.68 generation 49. Catalog and image
+signatures, board/layout, descriptor and bounds/hash passed. ELF was
+`a2c81a53c792c1225aaa7813c0b404f854e9a5237ca311a0683ebb9eca0573cd`.
+Fresh pre-install readback passed in 16.384 seconds with original configuration
+63/digest unchanged.
+
+The App/Wi-Fi upload booted dev.68. Main startup completed with 1104 bytes of stack
+headroom; the UI initialized and the 2048-byte orientation worker started. The next
+failure was a stack overflow with a corrupted task name. The observed SP below the
+static sensor-stack boundary and inside/below its adjacent task record strongly
+identifies the sensor worker. Exact application call attribution is unavailable.
+The first sensor identity-read path can reach I2C NACK/timeout error logging and
+nested newlib formatters; a quiet wrapper does not bound vendor-driver stack use.
+
+The trial automatically rolled back to dev.66. Protected post-rollback readback
+passed in 14.106 seconds, retaining the original setup/settings and unavailable
+vehicle-command state. Dev.68 is marked withdrawn; its assets/generation remain
+immutable. Neither Auto nor populated arc physical qualification passed.
+
+The owner then authorized debugging, correction and firmware publication/installation
+as needed for this issue. Dev.69 prepares one aligned 4096-byte internal static
+sensor-stack budget shared with task creation and enforced in the linked ELF memory
+gate. This adds 2 KiB of static internal storage; main/app worker budgets remain
+unchanged. Its acceptance still requires real boot, sensor health/error-path margins,
+Wi-Fi maintenance recovery, touch and physical orientation checks. Default/public
+qualification remains off. This is a qualification repair, not a website claim.

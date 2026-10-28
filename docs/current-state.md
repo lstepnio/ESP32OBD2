@@ -72,8 +72,10 @@ of the original five-page setup at revision 63. The owner confirmed all ten page
 separate physical checks. The owner-supervised dev.67 orientation candidate was
 published, but its first trial boot overflowed the main task stack and automatically
 rolled back to healthy dev.66. It is marked withdrawn. The replacement dev.68 is
-prepared offline with a larger, compile-time-guarded startup stack and main watermark
-logs; it is not published or installed. Normal qualification and public flags remain
+published and tested: its main startup passed with 1104 bytes of stack headroom,
+but the 2 KiB orientation worker overflowed and automatically rolled back to dev.66.
+Dev.68 is also withdrawn. Dev.69 prepares a guarded 4 KiB internal sensor stack
+and remains uninstalled. Normal qualification and public flags remain
 off under the [indoor procedure](development/display-indoor-qualification.md).
 
 ## Installed baseline
