@@ -1128,75 +1128,88 @@ class GaugeConfigTransferClient(private val context: Context) {
             "This signed firmware image is already running on the gauge"
         }
         progress(0)
-        withGauge(device, 1_200_000, highThroughput = true) {
-            val current = otaCommand(0x27, sequence++)
-            if (current.phase in 1..3 && current.transferId != 0L) {
-                otaCommand(0x26, sequence++, le32(current.transferId))
-            } else {
-                check(current.phase == 0) { "Gauge is already activating an update" }
-            }
-            otaCommand(0x20, sequence++, id + le32(bundle.image.size.toLong()) + le32(0x31534745))
-            stage(FirmwareUpdateStage.TRANSFERRING)
-            try {
-                for (part in 0..3) {
-                    otaCommand(
-                        0x21,
-                        sequence++,
-                        id + byteArrayOf(part.toByte()) +
-                            bundle.sha256.copyOfRange(part * 8, part * 8 + 8)
-                    )
-                }
-                for (part in 0 until (bundle.signatureDer.size + 7) / 8) {
-                    val start = part * 8
-                    otaCommand(
-                        0x28,
-                        sequence++,
-                        id + byteArrayOf(part.toByte(), bundle.signatureDer.size.toByte()) +
-                            bundle.signatureDer.copyOfRange(
-                                start,
-                                minOf(start + 8, bundle.signatureDer.size)
-                            )
-                    )
-                }
-                otaCommand(0x22, sequence++, id)
-                val chunkSize = minOf(160, mtu - 16)
-                check(chunkSize > 0) { "Gauge MTU is too small for firmware chunks" }
-                var offset = 0
-                var lastProgress = 0
-                while (offset < bundle.image.size) {
-                    val chunk = bundle.image.copyOfRange(
-                        offset,
-                        minOf(offset + chunkSize, bundle.image.size)
-                    )
-                    val status = otaCommand(0x23, sequence++, id + le32(offset.toLong()) + chunk)
-                    check(status.accepted == offset.toLong() + chunk.size) {
-                        "Gauge accepted an unexpected update offset"
+        withStagedTransferCleanup(
+            operation = { cleanupState ->
+                withGauge(device, 1_200_000, highThroughput = true) {
+                    val current = otaCommand(0x27, sequence++)
+                    if (current.phase in 1..3 && current.transferId != 0L) {
+                        otaCommand(0x26, sequence++, le32(current.transferId))
+                    } else {
+                        check(current.phase == 0) { "Gauge is already activating an update" }
                     }
-                    offset += chunk.size
-                    val percent = offset * 100 / bundle.image.size
-                    if (percent > lastProgress) {
-                        lastProgress = percent
-                        progress(percent)
+                    cleanupState.preparing()
+                    otaCommand(0x20, sequence++, id + le32(bundle.image.size.toLong()) + le32(0x31534745))
+                    stage(FirmwareUpdateStage.TRANSFERRING)
+                    for (part in 0..3) {
+                        otaCommand(
+                            0x21,
+                            sequence++,
+                            id + byteArrayOf(part.toByte()) +
+                                bundle.sha256.copyOfRange(part * 8, part * 8 + 8)
+                        )
                     }
+                    for (part in 0 until (bundle.signatureDer.size + 7) / 8) {
+                        val start = part * 8
+                        otaCommand(
+                            0x28,
+                            sequence++,
+                            id + byteArrayOf(part.toByte(), bundle.signatureDer.size.toByte()) +
+                                bundle.signatureDer.copyOfRange(
+                                    start,
+                                    minOf(start + 8, bundle.signatureDer.size)
+                                )
+                        )
+                    }
+                    otaCommand(0x22, sequence++, id)
+                    val chunkSize = minOf(160, mtu - 16)
+                    check(chunkSize > 0) { "Gauge MTU is too small for firmware chunks" }
+                    var offset = 0
+                    var lastProgress = 0
+                    while (offset < bundle.image.size) {
+                        val chunk = bundle.image.copyOfRange(
+                            offset,
+                            minOf(offset + chunkSize, bundle.image.size)
+                        )
+                        val status = otaCommand(0x23, sequence++, id + le32(offset.toLong()) + chunk)
+                        check(status.accepted == offset.toLong() + chunk.size) {
+                            "Gauge accepted an unexpected update offset"
+                        }
+                        offset += chunk.size
+                        val percent = offset * 100 / bundle.image.size
+                        if (percent > lastProgress) {
+                            lastProgress = percent
+                            progress(percent)
+                        }
+                    }
+                    stage(FirmwareUpdateStage.VERIFYING)
+                    val verified = otaCommand(0x24, sequence++, id, attempts = 600)
+                    check(
+                        verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
+                            verified.digest.contentEquals(bundle.sha256)
+                    ) {
+                        "Gauge did not verify the signed image"
+                    }
+                    stage(FirmwareUpdateStage.READY_TO_ACTIVATE)
+                    if (pauseBeforeActivationMs > 0) delay(pauseBeforeActivationMs)
+                    cleanupState.committing()
+                    val activated = otaCommand(0x25, sequence++, id)
+                    check(activated.phase == 4) { "Gauge did not select the update for boot" }
+                    stage(FirmwareUpdateStage.RESTARTING)
                 }
-                stage(FirmwareUpdateStage.VERIFYING)
-                val verified = otaCommand(0x24, sequence++, id, attempts = 600)
-                check(
-                    verified.phase == 3 && verified.total == bundle.image.size.toLong() &&
-                        verified.digest.contentEquals(bundle.sha256)
-                ) {
-                    "Gauge did not verify the signed image"
+            },
+            cleanup = {
+                withGauge(device) {
+                    abortStagedTransfer(
+                        transferId,
+                        read = {
+                            val current = otaCommand(0x27, sequence++)
+                            TransferAbortState(current.phase, current.transferId)
+                        },
+                        abort = { otaCommand(0x26, sequence++, le32(transferId)) }
+                    )
                 }
-            } catch (error: Exception) {
-                boundedCleanup(3_000) { otaCommand(0x26, sequence++, id) }
-                throw error
             }
-            stage(FirmwareUpdateStage.READY_TO_ACTIVATE)
-            if (pauseBeforeActivationMs > 0) delay(pauseBeforeActivationMs)
-            val activated = otaCommand(0x25, sequence++, id)
-            check(activated.phase == 4) { "Gauge did not select the update for boot" }
-            stage(FirmwareUpdateStage.RESTARTING)
-        }
+        )
         // Firmware schedules the restart five seconds after activation. Allow its boot and
         // health confirmation to finish before treating the prior slot as a rollback.
         stage(FirmwareUpdateStage.CONFIRMING)
@@ -1266,66 +1279,79 @@ class GaugeConfigTransferClient(private val context: Context) {
         lateinit var digest: ByteArray
         var expectedRevision = 0L
         stage(OperationStage.PREPARING)
-        withGauge(device) {
-            val current = command(0x17, sequence++)
-            check(current.phase == 0) { "A gauge configuration transfer is already in progress" }
-            val currentHash = current.hash.joinToString("") { "%02x".format(it) }
-            check(current.revision == expectedBaseRevision && currentHash == expectedBaseSha256) {
-                "Gauge configuration changed from verified revision $expectedBaseRevision to ${current.revision}. " +
-                    "Refresh and review the differences before sending."
-            }
-            val bytes =
-                preparedDocument?.copyOf()
-                    ?: document(draft, profileId, current.revision, adapter, schemaVersion)
-            val projected = JSONObject(bytes.toString(Charsets.UTF_8))
-            require(
-                projected.getLong("baseRevision") == current.revision &&
-                    projected.getString("vehicleProfileId") == profileId
-            ) {
-                "Prepared setup no longer matches the checked vehicle/revision"
-            }
-            expectedRevision = current.revision + 1
-            digest = MessageDigest.getInstance("SHA-256").digest(bytes)
-            val id = le32(transferId)
-            command(0x10, sequence++, id + le32(current.revision) + le32(bytes.size.toLong()))
-            stage(OperationStage.SENDING)
-            try {
-                for (part in 0..3) {
-                    command(
-                        0x11,
-                        sequence++,
-                        id + byteArrayOf(part.toByte()) + digest.copyOfRange(part * 8, part * 8 + 8)
+        withStagedTransferCleanup(
+            operation = { cleanupState ->
+                withGauge(device) {
+                    val current = command(0x17, sequence++)
+                    check(current.phase == 0) { "A gauge configuration transfer is already in progress" }
+                    val currentHash = current.hash.joinToString("") { "%02x".format(it) }
+                    check(current.revision == expectedBaseRevision && currentHash == expectedBaseSha256) {
+                        "Gauge configuration changed from verified revision $expectedBaseRevision to ${current.revision}. " +
+                            "Refresh and review the differences before sending."
+                    }
+                    val bytes =
+                        preparedDocument?.copyOf()
+                            ?: document(draft, profileId, current.revision, adapter, schemaVersion)
+                    val projected = JSONObject(bytes.toString(Charsets.UTF_8))
+                    require(
+                        projected.getLong("baseRevision") == current.revision &&
+                            projected.getString("vehicleProfileId") == profileId
+                    ) {
+                        "Prepared setup no longer matches the checked vehicle/revision"
+                    }
+                    expectedRevision = current.revision + 1
+                    digest = MessageDigest.getInstance("SHA-256").digest(bytes)
+                    val id = le32(transferId)
+                    cleanupState.preparing()
+                    command(0x10, sequence++, id + le32(current.revision) + le32(bytes.size.toLong()))
+                    stage(OperationStage.SENDING)
+                    for (part in 0..3) {
+                        command(
+                            0x11,
+                            sequence++,
+                            id + byteArrayOf(part.toByte()) + digest.copyOfRange(part * 8, part * 8 + 8)
+                        )
+                    }
+                    command(0x12, sequence++, id)
+                    val chunkSize = minOf(160, mtu - 16)
+                    check(chunkSize > 0) { "Gauge MTU is too small for configuration chunks" }
+                    var offset = 0
+                    while (offset < bytes.size) {
+                        val chunk = bytes.copyOfRange(offset, minOf(bytes.size, offset + chunkSize))
+                        val status = command(0x13, sequence++, id + le32(offset.toLong()) + chunk)
+                        check(status.accepted == offset.toLong() + chunk.size) {
+                            "Gauge accepted an unexpected offset"
+                        }
+                        offset += chunk.size
+                    }
+                    stage(OperationStage.VERIFYING)
+                    command(0x14, sequence++, id)
+                    // A disconnect during COMMIT is ambiguous. Reconnect and inspect the durable slot.
+                    cleanupState.committing()
+                    val commit = suspendResult { command(0x15, sequence++, id) }.getOrNull()
+                    if (commit != null) {
+                        check(
+                            commit.phase == 4 && commit.revision == expectedRevision &&
+                                commit.hash.contentEquals(digest)
+                        ) {
+                            "Gauge commit readback did not match the document"
+                        }
+                    }
+                }
+            },
+            cleanup = {
+                withGauge(device) {
+                    abortStagedTransfer(
+                        transferId,
+                        read = {
+                            val current = command(0x17, sequence++)
+                            TransferAbortState(current.phase, current.transferId)
+                        },
+                        abort = { command(0x16, sequence++, le32(transferId)) }
                     )
                 }
-                command(0x12, sequence++, id)
-                val chunkSize = minOf(160, mtu - 16)
-                check(chunkSize > 0) { "Gauge MTU is too small for configuration chunks" }
-                var offset = 0
-                while (offset < bytes.size) {
-                    val chunk = bytes.copyOfRange(offset, minOf(bytes.size, offset + chunkSize))
-                    val status = command(0x13, sequence++, id + le32(offset.toLong()) + chunk)
-                    check(status.accepted == offset.toLong() + chunk.size) {
-                        "Gauge accepted an unexpected offset"
-                    }
-                    offset += chunk.size
-                }
-                stage(OperationStage.VERIFYING)
-                command(0x14, sequence++, id)
-            } catch (error: Exception) {
-                boundedCleanup(3_000) { command(0x16, sequence++, id) }
-                throw error
             }
-            // A disconnect during COMMIT is ambiguous. Reconnect and inspect the durable slot.
-            val commit = suspendResult { command(0x15, sequence++, id) }.getOrNull()
-            if (commit != null) {
-                check(
-                    commit.phase == 4 && commit.revision == expectedRevision &&
-                        commit.hash.contentEquals(digest)
-                ) {
-                    "Gauge commit readback did not match the document"
-                }
-            }
-        }
+        )
         stage(OperationStage.SAVED)
         stage(OperationStage.RESTARTING)
         delay(6500)

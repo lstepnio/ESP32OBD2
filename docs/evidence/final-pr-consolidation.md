@@ -65,3 +65,15 @@ now opens a fresh authenticated transaction after cleanup, only for explicit GAT
 actual owner-session policy: supported read, both legacy statuses/cleanup order,
 scoped/other failures, authentication rejection, malformed/read failure, cancellation
 and invalid source. Retirement/no uncertain-write replay remains unchanged.
+
+## Transfer staging cleanup review
+
+A second required review found the same retirement boundary in configuration abort.
+The audit also covered Bluetooth OTA's analogous abort. Both now close the failed
+operation before a bounded fresh-owner status/abort attempt. Status must prove the
+same transfer in a pre-commit phase. Commit/activation uncertainty is never replayed
+or cleared. Six regressions cover actual owner retirement after exhausted ATT read
+pressure for config/OTA, ownership/phase exclusion, preflight/commit boundaries,
+cleanup timeout/error preservation, cancellation retaining the operation lease and
+successful operations without abort. These are fake transport/production policy
+checks, not physical transfer interruption or rollback qualification.

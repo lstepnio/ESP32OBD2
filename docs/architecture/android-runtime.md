@@ -181,3 +181,11 @@ snapshot write itself. It never writes through retired IO, downgrades scoped `3A
 or mistakes authentication, malformed snapshots, cancellation or link loss for a
 protocol fallback. `DiagnosticsReadTest` uses the real owner retirement policy to
 verify both sessions and cleanup order, plus these rejection boundaries.
+
+Configuration and Bluetooth OTA staging cleanup also opens a fresh owner after the
+retired operation closes. A bounded three-second cleanup queries status and aborts
+only the same nonzero transfer ID in metadata/receiving/verified phases. Preflight
+failure, another transfer and applied/activating state are never aborted. The caller
+marks commit/activation before sending, retaining ambiguous durable outcomes for
+readback instead of aborting them. Cleanup failure preserves the primary error or
+cancellation and keeps the App operation lease until cleanup finishes.

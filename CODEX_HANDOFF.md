@@ -13,7 +13,9 @@ retains #116 head `7b766c7`, main #117 `ce8c381` and #118 head `6d04d43` as
 ancestors. It preserves concurrent idle-recovery and scoped container-trust fixes,
 rather than forcing an outdated protected merge. Implementation `968bb07` also
 fixes legacy diagnostics fallback on retired IO; six regressions require a fresh
-owner session only after confirmed unscoped unsupported-command rejection.
+owner session only after confirmed unscoped unsupported-command rejection. Staging
+abort cleanup also uses a fresh owner, verifies transfer ID/phase and retains
+commit/activation uncertainty; six regressions cover the cleanup/lease boundary.
 
 ## Preservation records
 
@@ -30,7 +32,7 @@ owner session only after confirmed unscoped unsupported-command rejection.
 ## Verification and boundaries
 
 Local full affected checks passed: 172 host tests, 14 review-server tests, 42 Node
-fixtures and native sanitizers; 311 debug and 285 release Android JVM tests,
+fixtures and native sanitizers; 317 debug and 291 release Android JVM tests,
 instrumentation compilation, APK build and lint; ESP-IDF 5.4.1 image build and
 normal/parked production LVGL/configuration fixtures with deterministic PSRAM-mask
 failure. Formatting, host lint and contract/document links passed. Remote CI must
