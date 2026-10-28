@@ -62,5 +62,34 @@ int main(void)
         !page_cycle_due(5, 3, true, s.progress == 0, 1000, 7000));  // short cycle cannot interrupt long gesture window
     page_action_tick(&s, 11001);
     assert(page_cycle_due(5, 3, true, s.progress == 0, 1000, 11001));  // expiry resumes cycling
-    puts("PASS: page actions timing, noise, context reset, cooldown and wrap");
+    page_action_press(&s, 120, 160, UINT32_MAX - 400);
+    page_action_tick(&s, 401);
+    assert(!s.pressed && !s.progress); /* Lost release, including wrap, never fires. */
+    assert(!page_action_release(&s, 120, 100, 500, &fired) && !fired);
+    page_cycle_policy_t cycle = {0};
+    assert(!page_cycle_step(&cycle, 5, 3, true, false, PAGE_CYCLE_RUNNING, 0, 1000));
+    assert(!page_cycle_step(&cycle, 5, 3, true, false, PAGE_CYCLE_RUNNING, 0, 5999));
+    assert(page_cycle_step(&cycle, 5, 3, true, false, PAGE_CYCLE_RUNNING, 0, 6000));
+    for (page_cycle_reason_t reason = PAGE_CYCLE_TOUCH; reason <= PAGE_CYCLE_SHOWCASE; ++reason)
+    {
+        assert(!page_cycle_step(&cycle, 5, 3, true, false, reason, 0, 7000));
+        assert(!page_cycle_step(&cycle, 5, 3, true, false, PAGE_CYCLE_RUNNING, 0, 8000));
+        assert(!page_cycle_step(&cycle, 5, 3, true, false, PAGE_CYCLE_RUNNING, 0, 12999));
+        assert(page_cycle_step(&cycle, 5, 3, true, false, PAGE_CYCLE_RUNNING, 0, 13000));
+    }
+    assert(!page_cycle_step(&cycle, 10, 3, true, false, PAGE_CYCLE_RUNNING, 0, 14000));
+    assert(page_cycle_step(&cycle, 10, 3, true, false, PAGE_CYCLE_RUNNING, 0, 24000));
+    assert(!page_cycle_step(&cycle, 10, 3, true, false, PAGE_CYCLE_RUNNING, 24001, 24001));
+    assert(!page_cycle_step(&cycle, 10, 3, true, true, PAGE_CYCLE_RUNNING, 24001, 35000));
+    assert(cycle.reason == PAGE_CYCLE_MAINTENANCE);
+    assert(!page_cycle_step(&cycle, 10, 3, false, false, PAGE_CYCLE_RUNNING, 24001, 36000));
+    assert(cycle.reason == PAGE_CYCLE_OWNER);
+    assert(!page_cycle_step(&cycle, 0, 3, true, false, PAGE_CYCLE_RUNNING, 24001, 37000));
+    assert(cycle.reason == PAGE_CYCLE_OFF);
+    assert(!page_cycle_step(&cycle, 5, 1, true, false, PAGE_CYCLE_RUNNING, 24001, 38000));
+    assert(cycle.reason == PAGE_CYCLE_SINGLE);
+    cycle = (page_cycle_policy_t){0};
+    assert(!page_cycle_step(&cycle, 5, 3, true, false, PAGE_CYCLE_RUNNING, 0, UINT32_MAX - 1000));
+    assert(page_cycle_step(&cycle, 5, 3, true, false, PAGE_CYCLE_RUNNING, 0, 3999));
+    puts("PASS: page actions, lost release, cycle pause/resume, interaction and wrap");
 }

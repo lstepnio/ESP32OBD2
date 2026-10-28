@@ -12,7 +12,7 @@ distance/time since diagnostic events, ethanol, fuel rate and torque.
 identity, source/category, gauge label, example, minimum configuration capability
 and the complete wire definition, provenance and synthetic decode vectors.
 `tools/generate_reading_catalog.py` generates Android `ReadingCatalog.kt` and the
-wire template. `tools/validate.py` rejects drift and validates every definition
+wire template plus firmware `reading_policy_catalog.inc`. `tools/validate.py` rejects drift and validates every definition
 and a selected one-reading configuration. The template is a definition library;
 it is not itself an executable 55-reading configuration.
 
@@ -64,6 +64,30 @@ local profiles but cannot be selected for execution or alerts.
   Arc/Bar/Trend normalize using the full canonical range, including negative values
   and sub-unit ranges.
 
+## Display and polling classes
+
+Each catalog row has explicit `samplingClass` metadata, separate from the wire
+PID definition. The generator emits a flash-resident firmware table keyed by
+reading ID, service and PID, with the original polling/stale defaults. Class
+policies apply only to unchanged catalog timings. Unknown/custom definitions or
+explicit timing overrides keep their configured values; labels/units never infer
+policy. Adding a class requires rate/age and native-policy tests.
+
+| Class | Polling target | Display age limit |
+| --- | --- | --- |
+| Fast | Visible 250 ms; upcoming cycling page 500 ms; hidden 1,000 ms | 3 seconds |
+| Thermal | 1,500 ms | 8 seconds |
+| Slow | 5,000 ms | 20 seconds |
+
+Configured alerts cap the interval at their original polling requirement. Their
+`staleAfterMs`, dwell and control freshness are not increased. A display age limit
+never changes with visibility and page navigation never renews the timestamp.
+The table schedules only configured page/alert readings; it does not start querying
+all 55 catalog entries. Rates remain subject to measured adapter capacity.
+Metadata does not add wire fields, change saved configuration digests or require an
+App migration. Existing installed definitions acquire the firmware presentation
+policy when their identities and timings match the catalog.
+
 ## Compatibility
 
 Development capability `cfg:5` includes `cfg:4` and signals expanded decimal
@@ -99,7 +123,7 @@ support. Dated build/editor/install results are in [catalog rollout evidence](..
 ## Extending the catalog
 
 1. Add a project-authored definition to the catalog with authoritative formula,
-   responder, minimum payload, range, units, reasonable poll/stale intervals and
+   responder, minimum payload, range, units, an explicit sampling class, reasonable poll/stale intervals and
    min/mid/max vectors. Keep query identities unique.
 2. Choose numeric or named-state alert semantics, include provenance and license,
    and avoid claiming compatibility from an example.

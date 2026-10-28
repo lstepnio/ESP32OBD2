@@ -396,7 +396,7 @@ bool vehicle_commands_runtime_intent(uint8_t kind, bool stop, uint8_t preset, ui
 
 bool vehicle_commands_runtime_maintenance_allowed(bool configuration)
 {
-    if (requests && uxQueueMessagesWaiting(requests))
+    if (vehicle_commands_runtime_pending())
         return false;
     vehicle_command_state_t values[2] = {0};
     portENTER_CRITICAL(&cache_lock);
@@ -415,4 +415,35 @@ size_t vehicle_commands_runtime_ui_status(uint8_t kind, uint8_t out[32])
     out[27] |= cached_ui_flags[kind - 1];
     portEXIT_CRITICAL(&cache_lock);
     return 32;
+}
+
+uint32_t vehicle_commands_runtime_poll_reserve(unsigned source, uint32_t horizon, uint32_t now)
+{
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+    if (source != 0 || !parked_enabled)
+        return 0;
+    uint32_t reserve = 0;
+    bool     busy    = commands.worker_kind || commands.states[0].phase == VEHICLE_ACTIVE ||
+                       commands.states[0].phase == VEHICLE_VERIFYING || commands.states[0].phase == VEHICLE_UNKNOWN;
+    if (!busy && (identity_step || !identity_attempted || now - identity_attempt_at + horizon >= 30000))
+        reserve += 1200;
+    if (!speed_attempted || now - speed_attempt_at + horizon >= 500)
+        reserve += 300;
+    if (!rpm_attempted || now - rpm_attempt_at + horizon >= 500)
+        reserve += 300;
+    if (coolant.configured &&
+        (!coolant.attempted || now - coolant.attempted_at + horizon >= VEHICLE_IDLE_COOLANT_POLL_MS))
+        reserve += 300;
+    return reserve;
+#else
+    (void)source;
+    (void)horizon;
+    (void)now;
+    return 0; /* Ordinary builds have no qualified control profiles. */
+#endif
+}
+
+bool vehicle_commands_runtime_pending(void)
+{
+    return requests && uxQueueMessagesWaiting(requests) != 0;
 }

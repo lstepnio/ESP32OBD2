@@ -1,6 +1,6 @@
 # Product roadmap
 
-Updated 2026-10-19. This document orders outcomes, not individual task status.
+Updated 2026-10-27. This document orders outcomes, not individual task status.
 [Current state](current-state.md) records support and devices. The
 [backlog](backlog.md) is the sole prioritized task/status list.
 
@@ -8,8 +8,8 @@ Updated 2026-10-19. This document orders outcomes, not individual task status.
 
 | Stage | Outcome | Backlog scope | Exit evidence |
 | --- | --- | --- | --- |
-| Now: indoor reliability | Qualify recovery and memory stability on the installed baseline | QUAL-12, QUAL-02, QUAL-08 | Repeated authenticated Wi-Fi lifecycles, App/radio loss and return, retained pairing/setup, explicit uncertain outcomes and measured memory/task margins; interrupted signed updates remain a separate candidate-dependent gate |
-| Next parked vehicle session | Qualify the existing logical vehicle, diagnostics and shared alerts under real load | QUAL-03, QUAL-04, QUAL-08, QUAL-05, FEATURE-05, FEATURE-09, QUAL-11, QUAL-07 | Simultaneous ECM/child-TCM plus phone, startup absence and independent recovery, sustained freshness/resource limits, real CEL/filter/threshold transitions and daylight/night readability |
+| Now: indoor reliability | Qualify recovery and memory stability on the installed baseline | PERF-01, QUAL-12, QUAL-02, QUAL-08 | Repeated authenticated Wi-Fi lifecycles, App/radio loss and return, retained pairing/setup, explicit uncertain outcomes and measured memory/task margins; interrupted signed updates remain a separate candidate-dependent gate |
+| Next parked vehicle session | Qualify the existing logical vehicle, diagnostics and shared alerts under real load | PERF-01, QUAL-03, QUAL-04, QUAL-08, QUAL-05, FEATURE-05, FEATURE-09, QUAL-11, QUAL-07 | Simultaneous ECM/child-TCM plus phone, startup absence and independent recovery, sustained freshness/resource limits, real CEL/filter/threshold transitions and daylight/night readability |
 | Next capability increment | Add usable Auto orientation and qualify remaining diagnostic semantics | FEATURE-07, FEATURE-03, QUAL-06, FEATURE-08 | Physically qualified sensor/touch mapping; authoritative JSS meanings; separately qualified explicit clearing; [shared alert implementation sequence](architecture/alerts-and-diagnostics.md) and custom-PID display rules |
 | Parallel command preparation | Reuse profile shortcuts for idle first, then combined ABS/TCS | FEATURE-04, FEATURE-10 | [Shared command path](architecture/vehicle-actions.md#shared-command-owner), then matched identity/guard/restoration proofs and parked release/expiry qualification before enabling vehicle writes; existing reliability gates continue |
 | Beta preparation | Broader phones/adapters, accessibility and reliable distribution | QUAL-09, QUAL-10, RELEASE-01 | [Quality gates](development/quality.md), compatibility evidence and explicit release review |

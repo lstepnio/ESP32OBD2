@@ -327,6 +327,209 @@ static void test_scheduler(void)
     assert(scheduler.failures[0] == 1);
 }
 
+static void test_scheduler_budgeted(void)
+{
+    const poll_scheduler_budget_t budget = {.pid_timeout_ms = 300,
+                                            .mil_timeout_ms = 700,
+                                            .dtc_timeout_ms = 1500,
+                                            .recovery_ms    = 100};
+    poll_scheduler_t              s;
+    poll_pid_policy_t             p[32] = {{.interval_ms = 500, .display_age_ms = 1000}};
+    poll_scheduler_init(&s);
+    poll_scheduler_endpoints(&s, 0);
+    poll_job_t job = poll_scheduler_next_budgeted(&s, 100, p, 1, &budget);
+    assert(job.kind == POLL_JOB_PID);
+    assert(!s.seen_pids); /* Dispatch is not a completed sample. */
+    poll_scheduler_complete(&s, job, 800, true);
+    assert(s.last_pid[0] == 800 && s.last_success[0] == 800);
+    assert(poll_scheduler_next_budgeted(&s, 900, p, 1, &budget).kind == POLL_JOB_NONE);
+    poll_scheduler_sample(&s, 0, 950); /* A reused guard read avoids a duplicate. */
+    poll_scheduler_sample(&s, 0, 850); /* Out-of-order notification cannot age it backward. */
+    assert(s.last_pid[0] == 950 && s.last_success[0] == 950);
+    assert(poll_scheduler_next_budgeted(&s, 1400, p, 1, &budget).kind == POLL_JOB_NONE);
+    job = poll_scheduler_next_budgeted(&s, 1450, p, 1, &budget);
+    assert(job.kind == POLL_JOB_PID);
+    poll_scheduler_sample(&s, 0, 1800); /* Callback then completion is idempotent. */
+    poll_scheduler_complete(&s, job, 1800, true);
+    assert(s.deadline_misses == 0 && s.last_success[0] == 1800);
+    job = poll_scheduler_next_budgeted(&s, 2300, p, 1, &budget);
+    poll_scheduler_complete(&s, job, 3400, false);
+    assert(s.deadline_misses == 1 && s.last_success[0] == 1800 && s.last_pid[0] == 3400);
+    poll_scheduler_sample(&s, 0, 1800); /* Duplicate old success cannot erase a later failure. */
+    assert(s.failures[0] == 1);
+    assert(poll_scheduler_next_budgeted(&s, 4399, p, 1, &budget).kind == POLL_JOB_NONE);
+    job = poll_scheduler_next_budgeted(&s, 4400, p, 1, &budget);
+    assert(job.kind == POLL_JOB_PID);
+    poll_scheduler_complete(&s, job, 4700, false);
+    assert(poll_scheduler_next_budgeted(&s, 6699, p, 1, &budget).kind == POLL_JOB_NONE);
+    poll_scheduler_sample(&s, 0, 6600);
+    assert(s.failures[0] == 0 && s.last_pid[0] == 6600);
+
+    /* A next-pass command guard/identity budget is reserved once as foreground
+     * work, even when the adapter transaction itself would otherwise fit. */
+    poll_scheduler_init(&s);
+    p[0] = (poll_pid_policy_t){.interval_ms = 5000, .display_age_ms = 3000};
+    poll_scheduler_sample(&s, 0, 0);
+    poll_scheduler_budget_t guarded = budget;
+    guarded.foreground_ms           = 2100;
+    job                             = poll_scheduler_next_budgeted(&s, 100, p, 1, &guarded);
+    assert(job.kind == POLL_JOB_PID && s.deferred_diagnostics == 1);
+    poll_scheduler_complete(&s, job, 200, true);
+    job = poll_scheduler_next_budgeted(&s, 200, p, 1, &guarded);
+    assert(job.kind == POLL_JOB_MIL && s.forced_diagnostics == 1); /* Impossible window is explicit. */
+
+    /* Full diagnostic timeout reservations refresh at-risk values before a
+     * diagnostic begins, even though the nominal request is not due yet. */
+    poll_scheduler_init(&s);
+    for (unsigned i = 0; i < 3; ++i)
+    {
+        p[i] = (poll_pid_policy_t){.interval_ms = 5000, .display_age_ms = 3000};
+        poll_scheduler_sample(&s, i, 0);
+    }
+    s.background_cursor = 1; /* Stored-code request: 1500 ms timeout. */
+    uint32_t now        = 1500;
+    unsigned refreshed  = 0;
+    for (unsigned i = 0; i < 3; ++i)
+    {
+        job = poll_scheduler_next_budgeted(&s, now, p, 3, &budget);
+        assert(job.kind == POLL_JOB_PID);
+        assert(!(refreshed & (1U << job.index)));
+        refreshed |= 1U << job.index;
+        now += 100; /* Charge real simulated successful transaction duration. */
+        poll_scheduler_complete(&s, job, now, true);
+        now += 100; /* Charge worker/recovery gap as well. */
+    }
+    assert(refreshed == 7);
+    job = poll_scheduler_next_budgeted(&s, now, p, 3, &budget);
+    assert(job.kind == POLL_JOB_DTC && job.index == 0);
+    assert(s.deferred_diagnostics == 3 && s.forced_diagnostics == 0);
+    now += 1500;
+    poll_scheduler_complete(&s, job, now, true);
+    for (unsigned i = 0; i < 3; ++i)
+        assert(now - s.last_success[i] < p[i].display_age_ms);
+    assert(s.background_at == now); /* Spacing starts at completion. */
+
+    /* A failed diagnostic backs off from completion while the sibling ECU's
+     * healthy MIL cadence continues independently. */
+    poll_scheduler_init(&s);
+    poll_scheduler_endpoints(&s, 2);
+    s.seen_background = 255;
+    for (unsigned i = 0; i < 8; ++i)
+        s.last_background[i] = 1000;
+    poll_scheduler_complete(&s, (poll_job_t){.kind = POLL_JOB_MIL, .endpoint = 0}, 2000, false);
+    job = poll_scheduler_next_budgeted(&s, 17000, NULL, 0, &budget);
+    assert(job.kind == POLL_JOB_MIL && job.endpoint == 1);
+    poll_scheduler_complete(&s, job, 17700, true);
+    assert(poll_scheduler_next_budgeted(&s, 31999, NULL, 0, &budget).kind == POLL_JOB_NONE);
+    job = poll_scheduler_next_budgeted(&s, 32000, NULL, 0, &budget);
+    assert(job.kind == POLL_JOB_MIL && job.endpoint == 0);
+    poll_scheduler_complete(&s, job, 32700, true);
+    assert(s.background_failures[0] == 0);
+
+    /* Priorities get useful preference, but the independent fairness cursor
+     * eventually reaches all hidden PIDs even with a permanently due visible PID. */
+    poll_scheduler_init(&s);
+    poll_scheduler_endpoints(&s, 0);
+    for (unsigned i = 0; i < 32; ++i)
+    {
+        p[i] = (poll_pid_policy_t){.interval_ms = 0, .priority = i == 0 ? 2 : 0};
+        poll_scheduler_sample(&s, i, 0);
+    }
+    unsigned counts[32] = {0};
+    now                 = 1;
+    for (unsigned i = 0; i < 9 * 32; ++i)
+    {
+        job = poll_scheduler_next_budgeted(&s, now, p, 32, &budget);
+        assert(job.kind == POLL_JOB_PID);
+        ++counts[job.index];
+        now += 100;
+        poll_scheduler_complete(&s, job, now, true);
+        now += 100;
+    }
+    assert(counts[0] > 200);
+    for (unsigned i = 0; i < 32; ++i)
+        assert(counts[i] > 0);
+
+    /* Saturated serial transport: impossible 200 ms retention, mixed timeouts,
+     * per-PID failures, two ECU endpoints, and monotonic-counter wrap. Diagnostics
+     * still progress through every endpoint/category with finite preflight. */
+    poll_scheduler_init(&s);
+    poll_scheduler_endpoints(&s, 2);
+    memset(counts, 0, sizeof(counts));
+    unsigned diagnostics[8] = {0};
+    now                     = UINT32_MAX - 1000;
+    for (unsigned i = 0; i < 32; ++i)
+        p[i] = (poll_pid_policy_t){.interval_ms = 1, .display_age_ms = 200, .priority = i < 2 ? 2 : 0};
+    unsigned since_diagnostic = 0, max_since_diagnostic = 0;
+    uint32_t failed_at     = 0;
+    unsigned failure_count = 0;
+    for (unsigned step = 0; step < 1800; ++step)
+    {
+        job = poll_scheduler_next_budgeted(&s, now, p, 32, &budget);
+        assert(job.kind != POLL_JOB_NONE);
+        if (job.kind == POLL_JOB_PID)
+        {
+            ++counts[job.index];
+            ++since_diagnostic;
+            if (job.index == 3 && failure_count)
+            {
+                uint32_t retry = failure_count == 1   ? 1000
+                                 : failure_count == 2 ? 2000
+                                 : failure_count == 3 ? 4000
+                                                      : 5000;
+                assert(now - failed_at >= retry);
+            }
+            now += job.index == 3 ? 300 : 100;
+            poll_scheduler_complete(&s, job, now, job.index != 3);
+            if (job.index == 3)
+            {
+                failed_at = now;
+                ++failure_count;
+            }
+        }
+        else
+        {
+            unsigned i = job.endpoint * 4 + (job.kind == POLL_JOB_MIL ? 0 : job.index + 1);
+            ++diagnostics[i];
+            if (since_diagnostic > max_since_diagnostic)
+                max_since_diagnostic = since_diagnostic;
+            since_diagnostic = 0;
+            now += job.kind == POLL_JOB_MIL ? 700 : 1500;
+            poll_scheduler_complete(&s, job, now, true);
+        }
+        now += 100;
+    }
+    assert(s.forced_diagnostics > 0 && s.deadline_misses > 0 && failure_count > 1);
+    assert(max_since_diagnostic <= 42); /* Ten ordinary + at most 32 preflight reads. */
+    for (unsigned i = 0; i < 32; ++i)
+        assert(counts[i] > 1);
+    for (unsigned i = 0; i < 8; ++i)
+        assert(diagnostics[i] > 0);
+    s.forced_diagnostics   = UINT32_MAX;
+    s.deferred_diagnostics = UINT32_MAX;
+    s.deadline_misses      = UINT32_MAX;
+    for (unsigned step = 0; step < 80; ++step)
+    {
+        job = poll_scheduler_next_budgeted(&s, now, p, 32, &budget);
+        now += 300;
+        poll_scheduler_complete(&s, job, now, true);
+    }
+    assert(s.forced_diagnostics == UINT32_MAX && s.deferred_diagnostics == UINT32_MAX &&
+           s.deadline_misses == UINT32_MAX);
+
+    poll_scheduler_init(&s);
+    poll_scheduler_endpoints(&s, 0);
+    p[0] = (poll_pid_policy_t){.interval_ms = 10, .display_age_ms = 100};
+    poll_scheduler_sample(&s, 0, UINT32_MAX - 5);
+    assert(poll_scheduler_next_budgeted(&s, 3, p, 1, &budget).kind == POLL_JOB_NONE);
+    job = poll_scheduler_next_budgeted(&s, 4, p, 1, &budget);
+    assert(job.kind == POLL_JOB_PID);
+    poll_scheduler_complete(&s, job, 20, true);
+    assert(s.last_success[0] == 20 && s.deadline_misses == 0);
+    assert(poll_scheduler_next_budgeted(&s, 21, p, 33, &budget).kind == POLL_JOB_NONE);
+    assert(poll_scheduler_next_budgeted(&s, 21, NULL, 1, &budget).kind == POLL_JOB_NONE);
+}
+
 static void test_wifi_bulk_policy(void)
 {
     // Plenty of total RAM must not hide fragmentation or internal exhaustion.
@@ -435,6 +638,7 @@ int main(void)
     test_gear_and_fractional_alerts();
     test_alert_edges();
     test_scheduler();
+    test_scheduler_budgeted();
     test_wifi_bulk_policy();
     test_config_trial_policy();
     test_page_save_policy();

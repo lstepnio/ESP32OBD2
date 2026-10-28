@@ -30,6 +30,7 @@ class FirmwareDiagnosticsTests(unittest.TestCase):
                     str(ROOT / "firmware/gauge/main/inc"),
                     str(ROOT / "firmware/gauge/tests/diagnostics_state_test.c"),
                     str(ROOT / "firmware/gauge/main/src/diagnostics_state.c"),
+                    str(ROOT / "firmware/gauge/main/src/diagnostic_filter.c"),
                     "-o",
                     str(binary),
                 ],

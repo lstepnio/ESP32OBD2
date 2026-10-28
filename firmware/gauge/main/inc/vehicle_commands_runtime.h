@@ -22,3 +22,10 @@ bool vehicle_commands_runtime_maintenance_allowed(bool configuration);
 
 /* Coherent local UI snapshot adds presentation bits, leaving the wire unchanged. */
 size_t vehicle_commands_runtime_ui_status(uint8_t kind, uint8_t out[32]);
+
+/* Worker-owned conservative cost for guard/identity work after a diagnostic.
+ * No IO and no changes to control timing or availability. */
+uint32_t vehicle_commands_runtime_poll_reserve(unsigned source, uint32_t horizon_ms, uint32_t now_ms);
+
+/* Recheck at an ordinary-work boundary so newly queued Stop is serviced first. */
+bool vehicle_commands_runtime_pending(void);
