@@ -48,7 +48,8 @@
       "docs/protocol/firmware-update.md",
       "docs/protocol/hardware-probe.md",
       "docs/protocol/pid-discovery.md",
-      "docs/protocol/wifi-bulk-v1.md"
+      "docs/protocol/wifi-bulk-v1.md",
+      "docs/development/gauge-continuity-plan.md"
     ],
     "maintained-runbooks": [
       "docs/development/display-showcase.md",

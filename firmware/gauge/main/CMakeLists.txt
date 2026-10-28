@@ -47,6 +47,7 @@ idf_component_register(
         "src/json_guard.c"
         "src/pid_decoder.c"
         "src/poll_scheduler.c"
+        "src/reading_policy.c"
         "src/page_save_policy.c"
         "src/page_action.c"
         "src/temporary_idle.c"

@@ -1,3 +1,4 @@
+#include "esp_timer.h"
 // ---------------------------------------------------------------------------------------------------------------------
 // Includes
 // ---------------------------------------------------------------------------------------------------------------------
@@ -453,6 +454,8 @@ static int read_pid(ble_obd_ctx_t *obd,
     if (!obd || !timeout_ms || (mode != 1 && mode != 9 && mode != 0x22) || (mode == 1 && pid > 255) ||
         (mode == 9 && (pid != 4 && pid != 6)) || (mode == 0x22 && ecu != 0x7e9))
         return -1;
+    if (status)
+        *status = ELM_PENDING; /* No completed reply yet; last-good display may age naturally. */
     TickType_t budget = pdMS_TO_TICKS(timeout_ms);
     if (!budget)
         budget = 1;
@@ -515,8 +518,10 @@ static int read_pid(ble_obd_ctx_t *obd,
     {
         if (out)
             *out = payload;
-        if (!out && obd->response_cb && (mode == 0x22 || pid % 32 != 0))
-            obd->response_cb(pid, payload.bytes, payload.length, obd->active_generation, obd->usr_ctx);
+        if (obd->response_cb && (mode == 0x22 || (mode == 1 && pid % 32 != 0)))
+            obd->response_cb(mode, pid, payload.has_responder ? payload.responder : ELM_ECU_ANY, payload.bytes,
+                             payload.length, obd->active_generation, (uint32_t)(esp_timer_get_time() / 1000),
+                             obd->usr_ctx);
         result = 0;
     }
     else

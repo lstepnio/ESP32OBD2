@@ -14,6 +14,15 @@ and actual coolant availability during that run are not yet confirmed.
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
 
+## Prepared continuity update
+
+The owner approved PERF-01 on 2026-10-27. Dev.65 source adds page-cache continuity,
+cycle-pause recovery, prioritized/shared polling, display-only rate classes and
+stable CEL presentation. It includes the approved action UI from published dev.64.
+[Implementation and qualification](development/gauge-continuity-plan.md) records
+scope, offline checks and the at-home/parked sequence. No dev.65 release or physical
+installation is claimed; the installed baseline below remains separately qualified.
+
 ## Installed baseline
 
 | Item | Last recorded state | Evidence |

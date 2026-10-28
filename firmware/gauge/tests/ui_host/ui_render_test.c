@@ -7,7 +7,8 @@
 #include "../../main/src/ui.c"
 
 uint32_t        host_ms;
-static bool     vehicle, maintenance;
+static bool     vehicle, maintenance, paused;
+static uint32_t source_generations[2] = {1, 1};
 static unsigned acknowledgments;
 static unsigned command_requests;
 static void     command_touch(ui_t *ui, lv_event_code_t event)
@@ -27,6 +28,14 @@ bool adapter_status_ready_for(unsigned source)
 {
     (void)source;
     return vehicle;
+}
+bool ble_mgr_is_paused(void)
+{
+    return paused;
+}
+uint32_t adapter_status_generation(unsigned source)
+{
+    return source_generations[source];
 }
 uint8_t transfer_gate_current(void)
 {
@@ -145,6 +154,102 @@ int main(int argc, char **argv)
         .metrics      = {{.pid = 12, .name = "Engine RPM", .unit = "rpm", .maximum = 8000, .stale_after_ms = 2000}}};
     ui_t *ui = ui_init(&saved, 50, touch, false, false);
     assert(ui);
+    /* Objects must be hidden before even the first UI timer callback. */
+    assert(lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
+    assert(lv_obj_has_flag(ui->widgets.alert_icon, LV_OBJ_FLAG_HIDDEN));
+    assert(lv_obj_has_flag(ui->widgets.alert_arrow, LV_OBJ_FLAG_HIDDEN));
+    assert(lv_obj_has_flag(ui->widgets.demo_lbl, LV_OBJ_FLAG_HIDDEN));
+    ui_set_diagnostics(ui, true, true, false, 1, "P0123");
+    assert(lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
+    tick(60);
+    assert(!lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
+    ui_set_page(ui, &saved);
+    assert(!lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
+    ui_set_diagnostics(ui, true, false, false, 0, "");
+    tick(60);
+    assert(lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
+
+    /* A hidden reading is available immediately on page entry, without a timer
+     * drain. Sources with the same PID remain independent. */
+    vehicle                        = true;
+    ui_page_t scoped               = saved;
+    scoped.metrics[0].scoped       = true;
+    scoped.metrics[0].source_index = 0;
+    scoped.metrics[0].revision     = 7;
+    ui_set_source_state(ui, 0, true, 7, 1);
+    ui_set_source_state(ui, 1, true, 7, 1);
+    double   primary = 1234, child = 2345, actual = 0;
+    uint32_t observed = host_ms;
+    ui_set_source_value(ui, 0, 7, 1, 12, &primary, observed);
+    ui_set_source_value(ui, 1, 7, 1, 12, &child, observed);
+    ui_set_page(ui, &scoped);
+    assert(metric_value(ui, 0, &actual) && actual == primary);
+    scoped.metrics[0].source_index = 1;
+    ui_set_page(ui, &scoped);
+    assert(metric_value(ui, 0, &actual) && actual == child);
+    ui_set_page(ui, &saved);
+    host_ms += 2001;
+    ui_set_page(ui, &scoped);
+    assert(!metric_value(ui, 0, &actual)); /* Original age, no rejuvenation. */
+    ui_set_source_value(ui, 1, 7, 1, 12, &child, host_ms);
+    assert(metric_value(ui, 0, &actual));
+    ui_set_source_value(ui, 1, 7, 1, 12, NULL, host_ms);
+    assert(!metric_value(ui, 0, &actual));
+    ui_set_source_value(ui, 1, 7, 1, 12, &child, host_ms);
+    ui_set_source_state(ui, 1, false, 7, 1);
+    ui_set_source_value(ui, 1, 7, 1, 12, &child, host_ms); /* Retired writer. */
+    ui_set_source_state(ui, 1, true, 7, 1);
+    assert(!metric_value(ui, 0, &actual));
+    source_generations[1] = 2;
+    ui_set_source_state(ui, 1, true, 7, 2);
+    ui_set_source_value(ui, 1, 7, 1, 12, &child, host_ms);
+    assert(!metric_value(ui, 0, &actual));
+    /* Latest-value mailbox has no FIFO backlog to drop/resurrect invalidation. */
+    for (unsigned i = 0; i < 100; ++i)
+        ui_set_source_value(ui, 1, 7, 2, 12, &child, host_ms);
+    ui_set_source_value(ui, 1, 7, 2, 12, NULL, host_ms);
+    assert(!metric_value(ui, 0, &actual));
+    ui_set_source_value(ui, 1, 7, 2, 12, &child, host_ms);
+    vehicle = false;
+    assert(!metric_value(ui, 0, &actual));
+    vehicle     = true;
+    maintenance = true;
+    assert(!metric_value(ui, 0, &actual));
+    maintenance = false;
+    paused      = true;
+    assert(!metric_value(ui, 0, &actual));
+    ui_set_source_state(ui, 1, false, 7, 2);
+    ui_set_source_value(ui, 1, 7, 2, 12, &child, host_ms);
+    paused = false;
+    ui_set_source_state(ui, 1, true, 8, 2);
+    ui_set_source_value(ui, 1, 7, 2, 12, &child, host_ms);
+    assert(!metric_value(ui, 0, &actual));
+    ui_set_source_value(ui, 1, 8, 2, 12, &child, host_ms);
+    assert(!metric_value(ui, 0, &actual)); /* Old page revision. */
+    scoped.metrics[0].revision = 8;
+    ui_set_page(ui, &scoped);
+    assert(metric_value(ui, 0, &actual));
+    ui_set_page(ui, &saved);
+    /* Capacity follows the runtime PID ceiling, and source clear frees every
+     * slot, including hidden entries. Both independent sources still fit. */
+    ui_set_source_state(ui, 0, false, 7, 1);
+    ui_set_source_state(ui, 1, false, 8, 2);
+    ui_set_source_state(ui, 0, true, 9, 1);
+    ui_set_source_state(ui, 1, true, 9, 2);
+    for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+        ui_set_source_value(ui, i % 2, 9, source_generations[i % 2], 100 + i, &primary, host_ms);
+    scoped.metrics[0].pid      = 131;
+    scoped.metrics[0].revision = 9;
+    ui_set_page(ui, &scoped);
+    assert(metric_value(ui, 0, &actual));
+    ui_set_source_state(ui, 0, false, 9, 1);
+    assert(metric_value(ui, 0, &actual)); /* Healthy sibling retained. */
+    ui_set_source_state(ui, 1, false, 9, 2);
+    assert(!metric_value(ui, 0, &actual));
+    ui_set_page(ui, &saved);
+    ui_set_source_state(ui, 0, false, 7, 1);
+    ui_set_source_state(ui, 1, false, 8, 2);
+    vehicle = false;
     ui_set_page_position(ui, 1, 3);
     assert(ui_request_showcase(ui, true, 8, 7, false, false));
     tick(60);
@@ -232,6 +337,35 @@ int main(int argc, char **argv)
     tick(60);
     assert(lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
     assert(lv_obj_has_flag(ui->widgets.diagnostics_lbl, LV_OBJ_FLAG_HIDDEN));
+    filtered.valid = filtered.mil_known = filtered.mil_on = true;
+    filtered.count_known                                  = false;
+    ui_set_vehicle_diagnostics(ui, &filtered);
+    tick(60);
+    assert(!lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
+    assert(!strcmp(lv_label_get_text(ui->widgets.diagnostics_lbl), ""));
+    filtered.count_known = filtered.count_partial = true;
+    filtered.distinct_count                       = 3;
+    ui_set_vehicle_diagnostics(ui, &filtered);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->widgets.diagnostics_lbl), ""));
+    filtered.count_partial = false;
+    ui_set_vehicle_diagnostics(ui, &filtered);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->widgets.diagnostics_lbl), "3"));
+    filtered = (diagnostics_snapshot_t){0};
+    ui_set_vehicle_diagnostics(ui, &filtered);
+    tick(60);
+    ui->press_active = true;
+    ui->pressed_at   = xTaskGetTickCount();
+    tick(60);
+    assert(ui_cycle_pause(ui) == PAGE_CYCLE_TOUCH);
+    lv_obj_send_event(lv_screen_active(), LV_EVENT_PRESS_LOST, NULL);
+    tick(60);
+    assert(!ui->press_active && ui_cycle_pause(ui) == PAGE_CYCLE_RUNNING);
+    ui->press_active = true;
+    ui->pressed_at   = xTaskGetTickCount();
+    tick(15001);
+    assert(!ui->press_active && ui_cycle_pause(ui) == PAGE_CYCLE_RUNNING);
     ui->touch_cb = command_touch;
     ui_configure_page_action(ui, (page_action_config_t){.enabled        = true,
                                                         .count          = 3,

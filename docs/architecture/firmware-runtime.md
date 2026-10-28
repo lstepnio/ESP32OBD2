@@ -1,6 +1,6 @@
 # Firmware runtime ownership and recovery
 
-Updated 2026-10-16. Implemented development architecture. Public capability flags remain gated by hardware evidence.
+Updated 2026-10-27. Implemented development architecture. Public capability flags remain gated by hardware evidence.
 
 ## Task and resource inventory
 
@@ -17,7 +17,7 @@ Updated 2026-10-16. Implemented development architecture. Public capability flag
 | `wifi_control` | 4 | 5,120 bytes | owner command queue: 2 | Owns AP lifecycle, checked initialization and driver/netif cleanup. |
 | `wifi_bulk` | 4 | 8,192 bytes | one client, two 8,448-byte PSRAM frame buffers | Owns bounded socket IO; invalidated generations cannot write to a later transfer. |
 | NimBLE host | 5 | 4,096 bytes | manager result queue: 1 per link | GAP/GATT callbacks validate, copy, enqueue, or copy a published snapshot. No JSON validation or flash operation runs in an application GATT callback. |
-| LVGL owner | component managed | component configured | value: 1, touch: 4, pairing/alert/diagnostics: 1 each | Owns widgets and touch detection. Touch produces an application command. Numeric updates include PID identity and late samples are rejected. |
+| LVGL owner | component managed | component configured | latest readings: 32, touch: 4, pairing/alert/diagnostics: 1 each | Owns widgets and touch detection. Touch produces an application command. Numeric updates retain source, PID, revision, session and original age. |
 
 FreeRTOS stack canaries are enabled. The application health log reports the `app_tick` stack watermark, minimum internal heap, minimum PSRAM heap, alert-queue space, and dropped alert events once per minute. These are diagnostics, not completed soak evidence.
 
@@ -63,7 +63,51 @@ are scoped evidence, not general adapter compatibility.
 
 ## Polling, diagnostics, and alerts
 
-The pure scheduler supports 32 runtime PIDs and unsigned wrap-safe millisecond deadlines. Normal PIDs use round-robin selection among due definitions. One background job is allowed only after ten normal jobs. MIL is considered every 10 seconds; confirmed, pending, and permanent DTC categories are considered every 30 seconds. A completed job is accounted at the supplied current time, which avoids catch-up bursts.
+The UI retains one fixed-capacity latest-value mailbox for all configured readings.
+Page selection immediately renders matching fresh entries without flushing them or
+renewing their original monotonic timestamps. Short critical sections only scan or
+copy the 32 slots; they never call LVGL or wait for transport. Source loss, pause,
+maintenance and revision/session changes invalidate hidden entries as well as the
+visible page. Live transport checks also reject a retired source before its worker
+observes the disconnect. Alert/control freshness remains independent. Initial
+warning widgets stay hidden until the first truthful status render.
+
+The pure scheduler supports 32 runtime PIDs with wrap-safe monotonic milliseconds.
+Selection uses freshness urgency, then priority and deadline, with an independent
+round-robin slot every ninth ordinary request. Completion accounts actual elapsed
+time. Successful scoped command-monitoring samples also satisfy ordinary polling
+cadence, so display/alerts can reuse them without another adapter request. The
+control owner retains its independent strict guard reads and original deadlines.
+
+Before MIL/code work, reserve the full request timeout, prompt margin and upcoming
+command guard/identity work; refresh each at-risk eligible reading once. If the
+window remains impossible, admit bounded diagnostic progress and count the
+freshness overrun instead of starving faults indefinitely. Background work retains
+a two-second spacing floor, 15-second MIL, 60-second stored/pending and 120-second
+permanent cadence, with per-reading/category failure backoff. A changed MIL or
+reported count accelerates category refresh. The worker yields 20 ms between
+transactions; every read still waits for a verified prompt or bounded recovery.
+
+Two fixed scheduler records live in PSRAM, owned by their respective workers.
+Minute logs record requests, reused guard samples, maximum ordinary/diagnostic
+request duration, preflight deferrals, forced admissions and missed display budgets.
+These are bounded counters, not another sample history. Rate classes and display
+retention belong to the [catalog contract](../development/reading-catalog-alerts.md#display-and-polling-classes).
+A timeout without a completed reply lets a last-good displayed value age normally;
+explicit NO DATA, unsupported/malformed replies and source loss invalidate it.
+Alert/control failure handling is unchanged. The [qualification plan](../development/gauge-continuity-plan.md)
+separates offline evidence from remaining physical tests.
+
+### Page cycling
+
+`page_cycle_step` owns the interval and pause reason independently of polling.
+Off, a single page, missing owner, maintenance, touch/gesture, action page, critical
+attention and showcase are explicit states. Routine command-worker ownership and
+phone reads do not reset the timer. Resume, manual navigation and interval changes
+start a full interval, with no catch-up burst. A lost touch event cancels gesture
+recognition without dispatching a command; impossible held states have a bounded
+recovery. Reasons are logged only when changed and stay out of the normal UI.
+
 
 Alert evaluation uses the decoded `double` before display range conversion. Zero dwell applies on the first qualifying sample. Delayed trigger and clear use unsigned elapsed time, hysteresis, and per-rule priority. An active alert remains visible when its source becomes stale and is marked unavailable. The 100 ms application tick drives freshness even while an adapter request is waiting.
 
