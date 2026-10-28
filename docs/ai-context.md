@@ -32,3 +32,7 @@ relative to `android/app/src/main/java/com/lstepnio/egauge/` unless specified.
 | Worker health and memory budget | `src/worker_health.c`, `src/memory_health.c`, `firmware/gauge/lvgl_memory.h`, `tools/check_firmware_memory.py` | [Firmware health](architecture/firmware-runtime.md#worker-progress-and-memory-evidence), [placement budget](architecture/firmware-runtime.md#memory-placement-and-admission-budget) |
 | Parked capture/replay | `tools/obd_capture.py`, `tools/obd_explore.py`, `tools/jeep_action_capture.py`, `tools/obd_tcm_values.py`, `tools/tests/` | [TCM resume](development/tcm-session-resume.md), [capture runbook](development/vehicle-capture-runbook.md), [parked action qualification](development/jeep-action-qualification.md) |
 | Research definitions | `tools/research/`, `data/vehicle-definitions/` | [Scope/license](vehicles/catalog-research.md); not executable vehicle support |
+
+Preserved future content: [ADR-018](architecture/phone-companion-content.md) and
+[inactive harness](development/companion-session-experiment.md). Jeep research coverage:
+[vehicle guide](vehicles/jeep/reading-coverage.md). These do not promote live capabilities.

@@ -141,13 +141,13 @@ fun SettingsScreen(
             }
         }, second = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                SectionTitle("Alerts")
-                PreferenceToggle("Phone alerts", phoneAlerts, onPhoneAlerts)
+                SectionTitle("Notifications")
+                PreferenceToggle("Phone notifications", phoneAlerts, onPhoneAlerts)
                 Text(
                     when {
-                        monitoring -> "Monitoring your connected gauge"
-                        phoneAlerts -> "Phone alerts enabled · monitoring is not active yet"
-                        else -> "Gauge alerts work independently. Phone monitoring is off."
+                        monitoring -> "Notifications are on for the connected gauge."
+                        phoneAlerts -> "Notifications resume when the gauge is connected."
+                        else -> "Gauge alerts still appear on the gauge."
                     },
                     style = MaterialTheme.typography.bodySmall
                 )

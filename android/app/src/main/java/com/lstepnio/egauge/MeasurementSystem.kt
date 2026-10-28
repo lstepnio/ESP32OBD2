@@ -80,15 +80,28 @@ object MeasurementUnits {
 
     fun label(unit: String, system: MeasurementSystem): String = when {
         system == MeasurementSystem.Imperial && unit == "°C" -> "°F"
+
         system == MeasurementSystem.Imperial && unit == "degC" -> "°F"
+
         system == MeasurementSystem.Imperial && unit == "km/h" -> "mph"
+
         system == MeasurementSystem.Imperial && unit == "kph" -> "mph"
+
         system == MeasurementSystem.Imperial && unit == "km" -> "mi"
+
         system == MeasurementSystem.Imperial && unit in setOf("kPa", "Pa") -> "psi"
+
         system == MeasurementSystem.Imperial && unit == "g/s" -> "lb/min"
+
         system == MeasurementSystem.Imperial && unit == "L/h" -> "US gal/h"
+
         system == MeasurementSystem.Imperial && unit == "Nm" -> "lb·ft"
-        else -> if (unit == "deg") "°" else unit
+
+        else -> when (unit) {
+            "deg" -> "°"
+            "degC" -> "°C"
+            else -> unit
+        }
     }
 
     fun value(canonical: Int, unit: String, system: MeasurementSystem): Int = value(canonical.toDouble(), unit, system).roundToInt()

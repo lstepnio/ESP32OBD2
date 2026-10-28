@@ -59,3 +59,6 @@ state and backlog to decide today's work, not the latest-looking archive title.
 Screen provenance is recorded with its capture procedure; gallery captions use screen names.
 
 Paired-phone provider integration: [typed notices, review and qualification](architecture/phone-alert-providers.md).
+
+Phone companion scope: [ADR-018](architecture/phone-companion-content.md) and the
+[inactive synthetic harness](development/companion-session-experiment.md).

@@ -1,27 +1,55 @@
 # eGauge continuation notes
 
-## PR cleanup, 2026-10-28
+## Current cleanup authority, 2026-10-28
 
-Worktree: `codex/assessment-remediation`, PR #93. Original assessment head
-`8261de3ca38edff96a66afc5f9daec75209917b5` is preserved in remote branch
-`codex/assessment-remediation-preserved-20261028`. Reconciliation incorporates main
-`f2dbf7596dbbb378eec9485c0f097ed79159ef10` without rewriting history.
+PR #119 (`codex/remaining-pr-reconciliation`) consolidates the preserved project
+work. Its final verification/merge/closure comment owns the exact accepted revision,
+CI run and outcome. Read the live PR and current checkout before resuming; this
+file is a source continuation index, not a deployment or live-health certificate.
 
-All assessment fixes remain. Newer mainline modal fixtures, profile schema 19,
-polling policy, Car UX, orientation and startup stack guards remain authoritative.
-Release evidence follows the chosen build directory and its recorded sdkconfig;
-default and both candidate selections have regression coverage. The Air up website
-link targets maintained implementation/qualification documentation. Closure evidence
-and retained unique PRs are in `docs/evidence/repository-maintenance.md`.
+Main #93 merged as `690439b`; its original assessment head `8261de3` remains in
+remote branch `codex/assessment-remediation-preserved-20261028`. The consolidation
+retains #116 head `7b766c7`, main #117 `ce8c381` and #118 head `6d04d43` as
+ancestors. It preserves concurrent idle-recovery and scoped container-trust fixes,
+rather than forcing an outdated protected merge. Implementation `968bb07` also
+fixes legacy diagnostics fallback on retired IO; six regressions require a fresh
+owner session only after confirmed unscoped unsupported-command rejection. Staging
+abort cleanup also uses a fresh owner, verifies transfer ID/phase and retains
+commit/activation uncertainty; six regressions cover the cleanup/lease boundary.
+Vehicle command uncertain-write readback likewise uses a fresh read-only owner
+without resubmitting Start/Stop; five real owner-channel cases cover that boundary.
 
-Fresh host lint, 156 host tests, 14 review-server tests, 42 Node fixtures and native
-sanitizers passed. Five focused evidence/candidate tests passed. Final formatting,
-Android/firmware builds and remote CI are checked before final delivery; exact head
-and final results belong to the PR check records and cleanup completion comment.
-Historical counts in the assessment record describe the original head only.
+## Preservation records
 
-The dirty `codex/obd-definition-catalog` checkout was not edited. PR #112 installation
-evidence and unique work in #41/#57/#58/#59/#64/#72/#73/#74/#77 remain separate.
-No merge to main, deployment, release publication, installation or physical
-qualification is authorized or established by this cleanup. Do not delete retained
-branches as an incidental cleanup step.
+- `docs/evidence/repository-maintenance.md`: initial superseded PR cleanup.
+- `docs/evidence/pr-unique-reconciliation.md`: #41/#59/#74/#77 retained work and
+  intentional supersession, including gesture/reset races, alert eligibility and
+  current waiting-logo allocation stability.
+- `docs/evidence/final-pr-consolidation.md`: #57/#58/#64/#72/#112, concurrent
+  #117/#118 and the legacy diagnostics compatibility correction.
+- Individual PR closure/merge comments retain the final source/verification links.
+  Source branches and discussion are retained; no old positive patch is discarded
+  merely because its branch was stale.
+
+## Verification and boundaries
+
+Local full affected checks passed: 172 host tests, 14 review-server tests, 42 Node
+fixtures and native sanitizers; 322 debug and 296 release Android JVM tests,
+instrumentation compilation, APK build and lint; ESP-IDF 5.4.1 image build and
+normal/parked production LVGL/configuration fixtures with deterministic PSRAM-mask
+failure. Formatting, host lint and contract/document links passed. Remote CI must
+accept the final head, not an earlier head. The previous integrated UI head passed
+87 managed fixtures; current exact-head results belong to #119's completion record.
+Compact/200% alert workflows and native/Android trend captures were visually reviewed.
+
+The companion probe is inactive, without UI/startup/service/provider activation.
+Jeep research capture remains explicit and opt-in; TIPM mapping is unqualified.
+Public/control/qualification masks remain unchanged. Historical dev.71 evidence
+must not replace the newer owner dev.72 recovery report. Current state and dated
+records distinguish exact image readbacks from owner reports and physical tests.
+
+No release publication, website/backend deployment, APK installation, gauge flash,
+live capture, vehicle action or physical qualification is part of this cleanup.
+Other chats' release/device tasks are separate authorities. The unrelated dirty
+`codex/obd-definition-catalog` checkout remains untouched. Managed worktrees and
+ignored local test artifacts are not deployment artifacts.

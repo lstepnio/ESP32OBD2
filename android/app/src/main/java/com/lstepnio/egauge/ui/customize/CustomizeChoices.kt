@@ -352,38 +352,30 @@ internal fun AlertManager(
     state: CustomizeUiState,
     onBack: () -> Unit,
     onEdit: (String) -> Unit,
-    actions: CustomizeActions
+    onReview: () -> Unit = onBack
 ) {
-    EditorScaffold("All alerts", onBack, "Done", onBack) {
-        Text(
-            "Alerts follow a reading across all pages, even when it is not on the screen.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        var query by rememberSaveable { mutableStateOf("") }
-        OutlinedTextField(query, {
-            query = it
-        }, modifier = Modifier.fillMaxWidth(), label = {
-            Text("Search readings")
-        }, singleLine = true)
-        val matches = state.readings.filter {
-            "${it.name} ${it.unit}".contains(query.trim(), ignoreCase = true)
+    var adding by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    EditorScaffold("Alert rules", onBack, "Review and send", onReview, state.editingEnabled) {
+        state.alerts.forEach { alert ->
+            val reading = state.readings.firstOrNull { it.id == alert.readingId }
+            EditorRow(reading?.name ?: alert.readingName, "${if (!alert.enabled) "Off · " else ""}${alert.summary()}", state.editingEnabled && reading != null) { onEdit(alert.readingId) }
         }
-            .sortedByDescending { reading -> state.alerts.any { it.readingId == reading.id } }
-        if (matches.isEmpty()) Text("No matching readings")
-        matches.forEach { reading ->
-            Surface(shape = MaterialTheme.shapes.large) {
-                EditorRow(
-                    reading.name,
-                    state.alerts.firstOrNull {
-                        it.readingId == reading.id
-                    }?.summary() ?: "Off",
-                    state.editingEnabled
-                ) {
-                    onEdit(reading.id)
-                }
+        if (state.alerts.isNotEmpty() && !adding) {
+            TextButton({ adding = true }, enabled = state.editingEnabled) { Text("Add alert") }
+        }
+        if (state.alerts.isEmpty()) Text("Choose a reading to add an alert.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (adding || state.alerts.isEmpty()) {
+            OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Search readings") }, singleLine = true)
+            val matches = state.readings.filter { reading ->
+                state.alerts.none { it.readingId == reading.id } && "${reading.name} ${reading.unit}".contains(query.trim(), ignoreCase = true)
+            }
+            if (matches.isEmpty()) Text("No matching readings")
+            matches.forEach { reading ->
+                EditorRow(reading.name, reading.unit, state.editingEnabled) { onEdit(reading.id) }
             }
         }
+        Text("Changes stay on this phone until you send them to the gauge.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

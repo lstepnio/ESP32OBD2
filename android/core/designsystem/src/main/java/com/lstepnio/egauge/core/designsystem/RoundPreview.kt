@@ -161,17 +161,19 @@ fun RoundPreview(
                         }
 
                         PreviewLayout.Trend -> if (!missing) {
-                            val path = Path().apply {
-                                moveTo(62f, 216f)
-                                lineTo(82f, 207f)
-                                lineTo(99f, 210f)
-                                lineTo(120f, 195f)
-                                lineTo(145f, 203f)
-                                lineTo(164f, 187f)
-                                lineTo(190f, 193f)
-                                lineTo(215f, 183f)
-                            }
-                            drawPath(path, accent, style = Stroke(3f, cap = StrokeCap.Round))
+                            val path = trendPath(
+                                listOf(
+                                    Offset(62f, 216f),
+                                    Offset(82f, 207f),
+                                    Offset(99f, 210f),
+                                    Offset(120f, 195f),
+                                    Offset(145f, 203f),
+                                    Offset(164f, 187f),
+                                    Offset(190f, 193f),
+                                    Offset(215f, 183f)
+                                )
+                            )
+                            drawPath(path, accent, style = Stroke(3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
                         }
 
                         else -> Unit

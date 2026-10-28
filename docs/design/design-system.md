@@ -164,3 +164,37 @@ Phone notifications name the system and, when captured, the first unfiltered cod
 and its explanation. Threshold notifications use the selected units. Tapping opens
 the same saved episode, not a fresh scan or a code-clearing action. Preserve existing
 opt-in, severity channels, foreground suppression, quiet replay, privacy and filters.
+
+
+## UX completion standard
+
+Apply this before extending a user-facing workflow. Reuse SettingsRow, Panel,
+EditorScaffold, tokens and the universal connection pill. Identify the user task,
+entry point, result and unnecessary steps removed; justify any new layout pattern.
+
+- One owner per task. Current alerts, saved history, configured rules and Phone
+  notifications have distinct destinations. Lead with the condition and useful action.
+- Review empty, loading, unavailable/stale, failure, success and critical states.
+  Missing evidence never implies a healthy vehicle or resolved alert.
+- Keep destructive and consequential confirmation/review boundaries. Saving a rule
+  changes the phone draft in Customize; Review and send retains admission and gauge verification.
+  Car retains its guarded Save to gauge or explicit Save on phone result.
+- Test the primary interaction and review rendered compact and 200% text captures.
+  Count steps from the owning surface. Compilation alone does not establish usability.
+
+### Alert task ownership
+
+| Task | Path | Guardrail |
+| --- | --- | --- |
+| Respond to a current alert | Current → Got it / Snooze 5 min | Current real available owned episode only; busy controls disabled; critical cannot snooze |
+| Understand an alert | Condition → full-screen detail | Recorded At alert value/limit/time, visible saved codes; technical capture stays out of routine detail |
+| Review an older episode | History → episode | Full lazy list with timestamp/state, no Show all gate; retained tab and scroll |
+| Edit a rule | Alert settings → configured rule / Add alert | Disabled rules retain limits and Off status; unconfigured readings appear only when adding |
+| Apply changes | Customize: Save alert → Review and send; Car: Save to gauge / Save on phone | Phone save never claims gauge change; guarded admission/readback remains required |
+| Delete history or clear codes | Contextual Options | Separate local deletion and guarded ECU clearing with existing confirmation/report policy |
+
+Got it and snooze change attention only after confirmed gauge readback. Seen/snoozed
+episodes stay in Current while active; the global attention banner stops after
+confirmation. History, simulated, unavailable and stale evidence offers no live action.
+The task path and rendered fixtures still need physical phone accessibility/legibility
+and gauge attention/readback qualification before physical usability is claimed.

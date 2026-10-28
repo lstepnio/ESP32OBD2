@@ -122,3 +122,13 @@ phone/gauge: boot mismatch, disconnect expiry, readback, autonomous gauge alert
 priority, incoming hazard while a local Critical is active, OTA contention and
 vehicle switching. Verify provider access, real relevance and attribution before
 promoting live support. Keep observed hardware results separate from simulations.
+
+## Preserved companion proposal and synthetic harness
+
+[ADR-018](phone-companion-content.md) preserves the typed road/navigation/media
+proposal. [The isolated harness](../development/companion-session-experiment.md)
+uses only simulated legacy `3E`/`3C`, verifies owner boot/runtime/slot/sequence scope
+and reads back application/removal. It has no UI/startup/service activation or live
+source. Legacy sender fencing does not implement proposed apply-time typed wire
+scope. Provider access/terms, Android consent/lifecycle and physical relevance remain
+future approval/qualification gates; no provider is enabled by this reconciliation.

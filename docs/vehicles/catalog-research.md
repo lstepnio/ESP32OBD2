@@ -39,8 +39,14 @@ To reconstruct the SQLite index from the compressed archive without the original
 ```sh
 python3 tools/research/query_vehicle_catalog.py vehicle JK --output references/vehicle-catalog/jeep-wrangler-jk.json
 python3 tools/research/query_vehicle_catalog.py search --category LiveData --module PCM --mode 22 --pid B010 --raw
+python3 tools/research/query_vehicle_catalog.py search --category LiveData --module TIPMCGW --name 'T-Case Encoder Sensor' --raw
 python3 tools/research/query_vehicle_catalog.py search --category VehicleAdaptations --name 'Engine Idle' --raw
 ```
+
+Live-data `--name` search resolves English module label records as well as stored
+translation IDs. Results retain the ID, resource variant and optional raw record;
+search is read-only and does not enable a definition. Broad searches are bounded
+and ask for a module/longer term instead of silently dropping matches.
 
 The [JK definition report](../../data/vehicle-definitions/vehicles/jeep/wrangler-jk.json) contains its vehicle profile, 17 candidate module routes, and all 332 top-level entries across its 21 referenced adaptation files. These include group headings and shared entries that may not apply to a particular JK. The report does not automatically attach the broader live-data, DTC, activation, or write resources to a JK. That requires module identification and matching diagnostic variants.
 

@@ -1,9 +1,17 @@
 package com.lstepnio.egauge
 
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.lstepnio.egauge.core.designsystem.EGaugeTheme
+import com.lstepnio.egauge.core.designsystem.PreviewLayout
+import com.lstepnio.egauge.core.designsystem.ReadingPreviewUi
+import com.lstepnio.egauge.core.designsystem.RoundPreview
 import com.lstepnio.egauge.ui.customize.AlertEditor
 import com.lstepnio.egauge.ui.customize.AlertManager
 import com.lstepnio.egauge.ui.customize.DashboardEditorScreen
@@ -26,11 +34,27 @@ class ReadingAlertsUiTest {
         editingEnabled = true
     )
 
+    @Test fun smoothTrendPreviewHasAReadableEquivalentAndCapture() {
+        compose.setContent {
+            EGaugeTheme(dark = true) {
+                Box(Modifier.requiredSize(320.dp, 340.dp).testTag("trend-preview")) {
+                    RoundPreview(ReadingPreviewUi("Coolant", "92", "°C", PreviewLayout.Trend))
+                }
+            }
+        }
+        compose.onNodeWithContentDescription("Preview. Coolant, 92 °C. Example reading.").assertExists()
+        val directory = androidx.test.platform.app.InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
+        if (directory != null) {
+            val file = java.io.File(directory, "trend-preview.png")
+            file.outputStream().use { check(compose.onNodeWithTag("trend-preview").captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)) }
+        }
+    }
+
     @Test fun alertSearchFindsTransmissionAndNewCommonReadings() {
         var selected: String? = null
         compose.setContent {
             EGaugeTheme {
-                AlertManager(state, {}, { selected = it }, ScreenFixtures.customizeActions)
+                AlertManager(state, {}, { selected = it })
             }
         }
         compose.onNodeWithText("Search readings").performTextInput("transmission")

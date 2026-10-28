@@ -51,6 +51,9 @@
 #include "ui.h"
 #include "alert_runtime.h"
 #include "gauge_layout.h"
+#include "trend_curve.h"
+#include "esp_heap_caps.h"
+#include "widgets/canvas/lv_canvas.h"
 #include "gauge_presentation.h"
 #include "display_showcase.h"
 #include "adapter_status.h"
@@ -115,14 +118,16 @@ struct _ui_t
     bool                long_press_handled;
     bool                press_active;
     bool                suppress_action_click;
+    bool                touch_moved, motion_click_allowed;
+    int16_t             touch_x, touch_y;
     page_action_t       action;
     atomic_bool         action_allowed, action_pending;
     atomic_uint         action_context_epoch;
     unsigned            action_seen_epoch;
     uint32_t            action_feedback_ms;
-    bool                action_feedback, action_enter_pending;
+    bool                action_feedback, action_feedback_cooldown, action_enter_pending;
     uint32_t            action_enter_at;
-    bool                rendered_action_visible, rendered_action_feedback;
+    bool                rendered_action_visible, rendered_action_feedback, rendered_action_feedback_cooldown;
     uint8_t             rendered_action_progress;
     lv_obj_t           *action_label, *action_arrows[5];
     lv_obj_t           *command_menu, *command_button, *command_back, *command_title, *command_value, *command_note,
@@ -228,7 +233,9 @@ struct _ui_t
         bool               rendered_available[2];
         bool               rendered_once;
         int                rendered_offset;
-        lv_point_precise_t trend_points[60];
+        lv_point_precise_t trend_points[TREND_CAPACITY];
+        float              trend_samples[TREND_CAPACITY];
+        uint8_t           *trend_mask;
         uint8_t            trend_count;
         TickType_t         trend_recorded_at;
     } display;
@@ -850,6 +857,7 @@ static bool action_context(ui_t *ui)
     {
         page_action_reset(&ui->action);
         ui->action_enter_pending = false;
+        ui->action_feedback      = false;
     }
     ui->action_seen_epoch = epoch;
     return allowed;
@@ -901,6 +909,10 @@ static void ui_touch_callback(lv_event_t *e)
     case LV_EVENT_PRESSED:
         ui->action_enter_pending  = false;
         ui->suppress_action_click = false;
+        ui->touch_moved           = false;
+        ui->motion_click_allowed  = !ui->action.config.enabled;
+        ui->touch_x               = point.x;
+        ui->touch_y               = point.y;
         if (actions_allowed && input)
             page_action_press(&ui->action, point.x, point.y, now);
         ui->press_active       = true;
@@ -912,20 +924,27 @@ static void ui_touch_callback(lv_event_t *e)
         page_action_reset(&ui->action);
         ui->press_active = ui->action_enter_pending = false;
         ui->suppress_action_click                   = true;
+        ui->touch_moved                             = true;
+        ui->motion_click_allowed                    = false;
         break;
     case LV_EVENT_PRESSING:
+        if (input && (abs((int)point.x - ui->touch_x) > 12 || abs((int)point.y - ui->touch_y) > 12))
+            ui->touch_moved = true;
         if (actions_allowed && input)
             page_action_move(&ui->action, point.x, point.y);
         break;
     case LV_EVENT_LONG_PRESSED:
-        if (actions_allowed && ui->action.pressed && !ui->action.cancelled && (int)ui->action.y - point.y >= 32)
+        /* Motion belongs to a stroke even when recognition will fail. */
+        if (ui->touch_moved)
             break;
         page_action_reset(&ui->action);
         ui->long_press_handled = true;
         dispatch_touch(ui, code);
         break;
     case LV_EVENT_CLICKED:
-        if (!ui->long_press_handled && !ui->suppress_action_click)
+        /* Browse-compatible motion is never a pairing/reset confirmation. */
+        if (!ui->long_press_handled && !ui->suppress_action_click &&
+            (!ui->touch_moved || (ui->motion_click_allowed && !ui->pairing_visible)))
         {
             if (ui->pairing_code == UI_PAIRING_RESET_CONFIRM)
                 dispatch_touch(ui, LV_EVENT_VALUE_CHANGED);
@@ -934,6 +953,21 @@ static void ui_touch_callback(lv_event_t *e)
         }
         break;
     case LV_EVENT_RELEASED:
+        if (!ui->press_active)
+        {
+            page_action_reset(&ui->action);
+            ui->suppress_action_click = true;
+            break;
+        }
+        if (input)
+        {
+            int dx = abs((int)point.x - ui->touch_x), dy = abs((int)point.y - ui->touch_y);
+            if (dx > 12 || dy > 12)
+                ui->touch_moved = true;
+            /* Keep horizontal browsing; failed bound upward strokes are consumed. */
+            if (dx >= 32 && dx >= 2 * dy)
+                ui->motion_click_allowed = true;
+        }
         if (actions_allowed && input && !ui->long_press_handled)
         {
             bool fired                = false;
@@ -949,11 +983,17 @@ static void ui_touch_callback(lv_event_t *e)
                 else
                     dispatch_touch(ui, UI_EVENT_PAGE_ACTION);
             }
+            else if (ui->suppress_action_click && ui->action.cooling)
+            {
+                ui->action_feedback          = true;
+                ui->action_feedback_cooldown = true;
+                ui->action_feedback_ms       = now;
+            }
         }
         else
             page_action_reset(&ui->action);
         /* A release without our matching press must never clear the owner. */
-        if (ui->press_active && xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000))
+        if (ui->press_active && !ui->touch_moved && xTaskGetTickCount() - ui->pressed_at >= pdMS_TO_TICKS(12000))
         {
             dispatch_touch(ui, code);
         }
@@ -963,6 +1003,7 @@ static void ui_touch_callback(lv_event_t *e)
         // ignore event
         break;
     }
+    atomic_store(&ui->action_pending, ui->action_enter_pending || ui->action.progress != 0 || ui->action.pressed);
 }
 
 static void format_reading(char out[32], const ui_metric_t *metric, bool available, double value, bool imperial)
@@ -982,7 +1023,26 @@ static void format_reading(char out[32], const ui_metric_t *metric, bool availab
 }
 static ui_alert_t       visible_alert(ui_t *ui);
 static ui_diagnostics_t visible_diagnostics(ui_t *ui);
-static void             render_page(ui_t *ui)
+/* Geometry remains in the design grid until the final surface transform. */
+static void update_trend(ui_t *ui)
+{
+    unsigned     count   = ui->display.trend_count;
+    const float *samples = ui->display.trend_samples + TREND_CAPACITY - count;
+    if (ui->display.trend_mask)
+    {
+        trend_curve_mask(ui->display.trend_mask, samples, count);
+        lv_obj_invalidate(ui->widgets.trend);
+    }
+    else
+    {
+        for (unsigned i = 0; i < count; i++)
+            ui->display.trend_points[i] =
+                (lv_point_precise_t){.x = (int32_t)(TREND_CAPACITY - count + i) * px(144) / (TREND_CAPACITY - 1),
+                                     .y = (int32_t)lroundf(samples[i] * px(30) / 30.f)};
+        lv_line_set_points(ui->widgets.trend, ui->display.trend_points, count);
+    }
+}
+static void render_page(ui_t *ui)
 {
     const ui_page_t                *page         = presented_page(ui);
     double                          values[2]    = {0};
@@ -1120,12 +1180,11 @@ static void             render_page(ui_t *ui)
             ui->display.trend_recorded_at = xTaskGetTickCount();
             if (ui->display.trend_count < 60)
                 ui->display.trend_count++;
-            memmove(ui->display.trend_points, ui->display.trend_points + 1, 59 * sizeof(ui->display.trend_points[0]));
-            for (unsigned i = 0; i < 60; i++)
-                ui->display.trend_points[i].x = (int32_t)i * px(144) / 59;
-            ui->display.trend_points[59].y = px(30) - normalized_value(values[0], primary, px(30));
-            lv_line_set_points(ui->widgets.trend, ui->display.trend_points + 60 - ui->display.trend_count,
-                               ui->display.trend_count);
+            memmove(ui->display.trend_samples, ui->display.trend_samples + 1,
+                    (TREND_CAPACITY - 1) * sizeof(ui->display.trend_samples[0]));
+            double normalized = (values[0] - primary->minimum) / bounded_range(primary->minimum, primary->maximum);
+            ui->display.trend_samples[TREND_CAPACITY - 1] = 30 - 30 * fmin(1, fmax(0, normalized));
+            update_trend(ui);
         }
         show(ui->widgets.trend, available[0] && ui->display.trend_count >= 2);
     }
@@ -1170,13 +1229,13 @@ static void showcase_frame(ui_t *ui)
     {
         for (unsigned i = 0; i < 60; i++)
         {
-            double sample = f->values[0] + 4 * sin(i * .24) + 2 * sin(i * .07);
-            ui->display.trend_points[i] =
-                (lv_point_precise_t){.x = (int)i * px(144) / 59,
-                                     .y = px(30) - normalized_value(sample, &ui->showcase_page.metrics[0], px(30))};
+            double             sample    = f->values[0] + 4 * sin(i * .24) + 2 * sin(i * .07);
+            const ui_metric_t *metric    = &ui->showcase_page.metrics[0];
+            double normalized            = (sample - metric->minimum) / bounded_range(metric->minimum, metric->maximum);
+            ui->display.trend_samples[i] = 30 - 30 * fmin(1, fmax(0, normalized));
         }
-        ui->display.trend_count = 60;
-        lv_line_set_points(ui->widgets.trend, ui->display.trend_points, 60);
+        ui->display.trend_count = TREND_CAPACITY;
+        update_trend(ui);
         ui->display.trend_recorded_at = xTaskGetTickCount();
     }
     showcase_publish(ui);
@@ -1308,7 +1367,10 @@ static void render_status(ui_t *ui)
     uint32_t chart_color = ui->display.rendered_available[chart_index] ? color : color_track;
     lv_obj_set_style_arc_color(ui->widgets.arc, lv_color_hex(chart_color), LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(ui->widgets.bar, lv_color_hex(chart_color), LV_PART_INDICATOR);
-    lv_obj_set_style_line_color(ui->widgets.trend, lv_color_hex(color), LV_PART_MAIN);
+    if (ui->display.trend_mask)
+        lv_obj_set_style_image_recolor(ui->widgets.trend, lv_color_hex(color), 0);
+    else
+        lv_obj_set_style_line_color(ui->widgets.trend, lv_color_hex(color), 0);
     bool diagnostic = d.valid && (d.mil_on || d.count);
     show(ui->widgets.diagnostics_icon, diagnostic);
     show(ui->widgets.diagnostics_lbl, diagnostic);
@@ -1485,21 +1547,17 @@ static void ui_task(lv_timer_t *timer)
         ui->suppress_action_click                   = true;
     }
     page_action_tick(&ui->action, action_now);
-    if (ui->action_enter_pending && action_now - ui->action_enter_at >= 350)
-    {
-        ui->action_enter_pending = false;
-        dispatch_touch(ui, UI_EVENT_PAGE_ACTION);
-    }
     unsigned progress = ui->action_enter_pending ? ui->action.config.count : ui->action.progress;
     atomic_store(&ui->action_pending, progress != 0 || ui->action.pressed);
-    if (ui->action_feedback && action_now - ui->action_feedback_ms >= 2000)
+    if (ui->action_feedback &&
+        (action_now - ui->action_feedback_ms >= 2000 || (ui->action_feedback_cooldown && !ui->action.cooling)))
         ui->action_feedback = false;
     if (ui->action_label && !ui->calibration_mode)
     {
         bool visible = !ui->pairing_visible && !ui->calibration_mode && !atomic_load(&ui->showcase_active) &&
                        !ui->rendered_alert.attention && !ui->command_menu_visible &&
                        (ui->action.progress || ui->action_feedback);
-        if (ui->action.config.vehicle_menu)
+        if (ui->action.config.vehicle_menu && !(ui->action_feedback && ui->action_feedback_cooldown))
         {
             lv_obj_add_flag(ui->action_label, LV_OBJ_FLAG_HIDDEN);
             if (ui->rendered_action_progress != progress)
@@ -1529,20 +1587,22 @@ static void ui_task(lv_timer_t *timer)
                 if (ui->action_arrows[i])
                     show(ui->action_arrows[i], false);
             if (visible && (!ui->rendered_action_visible || ui->rendered_action_feedback != ui->action_feedback ||
-                            ui->rendered_action_progress != ui->action.progress))
+                            ui->rendered_action_progress != ui->action.progress ||
+                            ui->rendered_action_feedback_cooldown != ui->action_feedback_cooldown))
             {
                 char feedback[32];
                 if (ui->action_feedback)
-                    snprintf(feedback, sizeof(feedback), "Page changed");
+                    snprintf(feedback, sizeof(feedback), "%s", ui->action_feedback_cooldown ? "Wait" : "Page changed");
                 else
                     snprintf(feedback, sizeof(feedback), "%u/%u", ui->action.progress, ui->action.config.count);
                 small_label(ui->action_label, feedback, gx(120), gy(199), px(160));
             }
             show(ui->action_label, visible);
         }
-        ui->rendered_action_visible  = visible;
-        ui->rendered_action_progress = ui->action.progress;
-        ui->rendered_action_feedback = ui->action_feedback;
+        ui->rendered_action_visible           = visible;
+        ui->rendered_action_progress          = ui->action.progress;
+        ui->rendered_action_feedback          = ui->action_feedback;
+        ui->rendered_action_feedback_cooldown = ui->action_feedback_cooldown;
     }
     if (ui->calibration_mode)
     {
@@ -1565,7 +1625,9 @@ static void ui_task(lv_timer_t *timer)
     uint32_t pairing_code;
     if (xQueueReceive(ui->rtos.pairing_que, &pairing_code, 0) == pdTRUE)
     {
-        page_action_reset(&ui->action);
+        /* Repeated hidden status on phone reconnect is not a context change. */
+        if (pairing_code != ui->pairing_code)
+            page_action_reset(&ui->action);
         show_pairing(ui, pairing_code);
     }
     if (ui->pairing_code == UI_PAIRING_RESET_CONFIRM &&
@@ -1608,6 +1670,14 @@ static void ui_task(lv_timer_t *timer)
                                   adapter_status_ready_for(0) || adapter_status_ready_for(1)))
         showcase_frame(ui);
 
+    /* Apply queued pairing/attention/showcase changes before deferred entry. */
+    action_context(ui);
+    if (ui->action_enter_pending && action_now - ui->action_enter_at >= 350)
+    {
+        ui->action_enter_pending = false;
+        dispatch_touch(ui, UI_EVENT_PAGE_ACTION);
+    }
+    atomic_store(&ui->action_pending, ui->action_enter_pending || ui->action.progress != 0 || ui->action.pressed);
     render_page(ui);
     if (ui->status_dirty)
         render_status(ui);
@@ -1716,12 +1786,29 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_set_style_radius(bar, px(3), LV_PART_INDICATOR);
     lv_obj_clear_flag(bar, LV_OBJ_FLAG_CLICKABLE);
     ui->widgets.bar = bar;
-    lv_obj_t *trend = lv_line_create(gauge_content);
-    lv_obj_remove_style_all(trend);
-    lv_obj_set_pos(trend, gx(48), gy(146));
-    lv_obj_set_size(trend, px(144), px(32));
-    lv_obj_set_style_line_color(trend, lv_color_hex(color_accent), 0);
-    lv_obj_set_style_line_width(trend, px(3), 0);
+    /* Cosmetic storage must not consume the internal radio/DMA heap. */
+    ui->display.trend_mask = heap_caps_calloc(1, TREND_MASK_BYTES, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    lv_obj_t *trend;
+    if (ui->display.trend_mask)
+    {
+        trend = lv_canvas_create(gauge_content);
+        lv_canvas_set_buffer(trend, ui->display.trend_mask, TREND_WIDTH, TREND_HEIGHT, LV_COLOR_FORMAT_A8);
+        lv_obj_set_pos(trend, gx(46), gy(144));
+        lv_image_set_pivot(trend, 0, 0);
+        lv_image_set_scale(trend, px(256));
+        lv_obj_set_style_image_recolor(trend, lv_color_hex(color_accent), 0);
+        lv_obj_set_style_image_recolor_opa(trend, LV_OPA_COVER, 0);
+    }
+    else
+    {
+        trend = lv_line_create(gauge_content);
+        lv_obj_remove_style_all(trend);
+        lv_obj_set_pos(trend, gx(48), gy(146));
+        lv_obj_set_size(trend, px(144), px(32));
+        lv_obj_set_style_line_color(trend, lv_color_hex(color_accent), 0);
+        lv_obj_set_style_line_width(trend, px(3), 0);
+        lv_obj_set_style_line_rounded(trend, true, 0);
+    }
     lv_obj_clear_flag(trend, LV_OBJ_FLAG_CLICKABLE);
     ui->widgets.trend = trend;
     for (unsigned i = 0; i < 2; i++)
@@ -1999,7 +2086,7 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
     for (unsigned i = 0; i < 60; ++i)
-        ui->display.trend_points[i].y = px(30);
+        ui->display.trend_samples[i] = 30;
     lv_arc_set_range(ui->widgets.arc, 0, 1000);
     lv_bar_set_range(ui->widgets.bar, 0, 1000);
     select_renderer_widgets(ui);
@@ -2173,8 +2260,9 @@ bool ui_action_pending(ui_t *ui)
 
 void ui_action_applied(ui_t *ui)
 {
-    ui->action_feedback    = true;
-    ui->action_feedback_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    ui->action_feedback          = true;
+    ui->action_feedback_cooldown = false;
+    ui->action_feedback_ms       = (uint32_t)(esp_timer_get_time() / 1000);
 }
 
 void ui_set_vehicle_diagnostics(ui_t *ui, const diagnostics_snapshot_t *snapshot)
