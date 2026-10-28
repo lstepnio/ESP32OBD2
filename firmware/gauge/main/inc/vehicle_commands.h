@@ -54,6 +54,7 @@ typedef struct
     uint8_t  qualified_mask, identity_mask;
     bool     connected, guards_fresh_and_met, normal_idle_verified, abs_reset_verified;
     bool     coolant_configured, coolant_valid;
+    bool     parked_idle_test; /* Local Start only; never a qualified controller mask. */
     double   coolant_c, coolant_limit_c;
     uint32_t coolant_at;
 } vehicle_command_context_t;
@@ -63,7 +64,8 @@ typedef struct
     vehicle_command_reason_t  reason;
     vehicle_command_request_t request;
     uint32_t                  active_at, last_report, sequence, identity, changed_at, fallback_at;
-    bool                      timed_fallback;
+    bool                      timed_fallback, recovery_verifying, recovery_attempted;
+    uint32_t                  recovery_at;
     bool                      pending_start, pending_stop, restart_required;
 } vehicle_command_state_t;
 typedef struct
@@ -126,3 +128,11 @@ size_t vehicle_commands_status(const vehicle_commands_t *commands,
                                uint32_t                  now,
                                uint8_t                   out[VEHICLE_COMMAND_STATUS_SIZE]);
 bool   vehicle_commands_maintenance_allowed(const vehicle_command_state_t states[2], bool configuration);
+
+/* Local presentation metadata; never serialized in the BLE status flags. */
+enum
+{
+    VEHICLE_UI_COOLANT_HIGH = 32U,
+    VEHICLE_UI_RECONNECTING = 64U
+};
+uint8_t vehicle_commands_ui_flags(uint8_t kind, vehicle_command_context_t context);

@@ -35,7 +35,9 @@ fun SettingsScreen(
     onAddGauge: () -> Unit = {},
     phoneAlerts: Boolean = false,
     monitoring: Boolean = false,
-    onPhoneAlerts: (Boolean) -> Unit = {}
+    onPhoneAlerts: (Boolean) -> Unit = {},
+    onSaveSmartCycle: (Int, Boolean) -> Unit = { seconds, _ -> onSaveCycle(seconds) },
+    onSaveOrientation: (Boolean, Int) -> Unit = { _, angle -> onRotate(angle) }
 ) {
     var gaugesOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var nameOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
@@ -78,8 +80,12 @@ fun SettingsScreen(
                 }
                 SettingsRow(
                     "Rotation",
-                    state.rotation?.let { "${it * 90}°" }
-                        ?: if (state.found) "Reading settings…" else "Connect a gauge",
+                    if (state.automaticOrientation) {
+                        if (state.orientationSensorStale) "Auto · holding orientation" else "Auto"
+                    } else {
+                        state.rotation?.let { "${it * 90}°" }
+                            ?: if (state.found) "Reading settings…" else "Connect a gauge"
+                    },
                     state.found && !state.busy && state.settingsCurrent &&
                         state.rotation != null
                 ) {
@@ -122,7 +128,7 @@ fun SettingsScreen(
                         when (state.cycleSeconds) {
                             null -> "Reading settings…"
                             0 -> "Off"
-                            else -> "Every ${state.cycleSeconds} seconds"
+                            else -> "Every ${state.cycleSeconds} seconds" + if (state.smartCycleSupported && state.smartCycle) " · Smart" else ""
                         }
                     },
                     state.displaySettingsVersion >= 3 && state.found && !state.busy &&
@@ -224,7 +230,7 @@ fun SettingsScreen(
     }
     if (rotationOpen) {
         var rotation by rememberSaveable(state.selectedGaugeId) {
-            mutableIntStateOf(state.rotation ?: 0)
+            mutableIntStateOf(if (state.automaticOrientation && state.autoOrientationSupported) -1 else state.rotation ?: 0)
         }
         AlertDialog(
             onDismissRequest = {
@@ -233,6 +239,13 @@ fun SettingsScreen(
             title = { Text("Rotate your display") },
             text = {
                 DialogContent {
+                    if (state.autoOrientationSupported) {
+                        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(rotation == -1, role = Role.RadioButton, onClick = { rotation = -1 }), verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(rotation == -1, null)
+                            Text("Auto")
+                        }
+                        if (state.orientationSensorStale) Text("Holding the last orientation until the sensor recovers.")
+                    }
                     (0..3).forEach { value ->
                         Row(
                             Modifier.fillMaxWidth().heightIn(
@@ -252,7 +265,9 @@ fun SettingsScreen(
             },
             confirmButton = {
                 Button({
-                    if (state.displaySettingsVersion >= 1) {
+                    if (state.orientationProtocolSupported) {
+                        onSaveOrientation(rotation == -1, if (rotation == -1) state.rotation ?: 0 else rotation)
+                    } else if (state.displaySettingsVersion >= 1) {
                         onSaveDisplay(rotation, state.brightness ?: 80)
                     } else {
                         onRotate(rotation)
@@ -345,6 +360,7 @@ fun SettingsScreen(
         var choice by rememberSaveable(state.selectedGaugeId) {
             mutableIntStateOf(state.cycleSeconds ?: 0)
         }
+        var smart by rememberSaveable(state.selectedGaugeId) { mutableStateOf(state.smartCycle) }
         AlertDialog(onDismissRequest = {
             cycleOpen = false
         }, title = { Text("Auto-cycle saved pages") }, text = {
@@ -364,6 +380,24 @@ fun SettingsScreen(
                         Text(if (seconds == 0) "Off" else "Every $seconds seconds")
                     }
                 }
+                if (state.smartCycleSupported) {
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(
+                            value = smart,
+                            enabled = choice != 0,
+                            role = Role.Switch,
+                            onValueChange = { smart = it }
+                        ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Smart", Modifier.weight(1f))
+                        Switch(checked = smart, onCheckedChange = null, enabled = choice != 0)
+                    }
+                    Text(
+                        if (choice == 0) "Choose an interval to use Smart." else "Prioritize alerts and changing readings.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
                 Text(
                     "A tap changes the page and restarts the timer.",
                     style = MaterialTheme.typography.bodyMedium
@@ -372,7 +406,7 @@ fun SettingsScreen(
         }, confirmButton = {
             Button(
                 {
-                    onSaveCycle(choice)
+                    if (state.smartCycleSupported) onSaveSmartCycle(choice, smart) else onSaveCycle(choice)
                     cycleOpen = false
                 },
                 enabled =
@@ -446,23 +480,5 @@ fun SettingsScreen(
             },
             dismissButton = { TextButton({ moveOwnerOpen = false }) { Text("Close") } }
         )
-    }
-}
-
-@Composable
-private fun PreferenceToggle(label: String, checked: Boolean, onChecked: (Boolean) -> Unit) {
-    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
-        Row(
-            Modifier.fillMaxWidth().toggleable(
-                checked,
-                role = Role.Switch,
-                onValueChange = onChecked
-            ).padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            Switch(checked, null)
-        }
     }
 }

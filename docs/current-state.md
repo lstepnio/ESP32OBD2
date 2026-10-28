@@ -1,23 +1,121 @@
 # Current implementation and evidence
 
-Updated 2026-10-20. This owns implemented/installed facts and their evidence limits.
+Updated 2026-10-28. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-Latest rollout merges approved action pages in PR #89 and installs the matching
-App plus signed dev.61 through App/Wi-Fi. [Indoor rollout evidence](evidence/action-pages-indoor.md)
-separates automated checks, owner display/touch confirmation and remaining Jeep gates. The
-[parked action runbook](development/jeep-action-qualification.md) now prepares a
-fixed read-only input capture; it does not enable vehicle controls.
+PRs #103, #104 and #105 are merged. App dev.53 is installed on the Pixel, and
+signed dev.70 is installed through App/Wi-Fi after the earlier explicitly
+authorized application-only USB dev.69 repair. [Current display evidence](evidence/display-evolution.md#dev69-authorized-usb-installation)
+records preservation, stable boot and the remaining sensor/physical gates. The
+[previous full App/Wi-Fi rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout)
+separates exact healthy-image/setup readbacks and indoor checks from physical
+display/touch and remaining loaded Jeep qualification.
+The opt-in [parked idle candidate](architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
+is installed and ready for supervised Air up/Winch checks using the
+[one-visit runbook](development/jeep-action-qualification.md#one-visit-idle-test-candidate).
+The owner subsequently reported successful Air up operation, with an unexpected
+“Coolant unavailable” note. The UI flag mismatch is corrected in installed dev.63; countdown duration
+and actual coolant availability during that run are not yet confirmed.
+On 2026-10-28 the owner reported Air up remaining at “Check idle / Status unknown”
+after restarting the vehicle and gauge, with normal physical idle and live RPM.
+The source retains a durable uncertainty marker; its parked adapter previously
+blocked identity acquisition in Unknown and had no reboot recovery verifier.
+The read-only [idle recovery source](architecture/vehicle-actions.md#read-only-recovery-of-an-uncertain-idle-operation)
+now prepares exact-ECM routine-status plus settled-RPM reconciliation, without
+replaying controls or erasing evidence. It is not yet installed/physically qualified.
+Website impact: corrective recovery behavior needs no new marketing claim or image.
+Ordinary builds still disable vehicle controls; both qualification masks remain zero
+and ABS/TCS execution remains disabled.
+
+## Continuity update
+
+The owner approved PERF-01 on 2026-10-27. Dev.65 source adds page-cache continuity,
+cycle-pause recovery, prioritized/shared polling, display-only rate classes and
+stable CEL presentation. It includes the approved action UI from published dev.64.
+[Implementation and qualification](development/gauge-continuity-plan.md) records
+scope, offline checks and the at-home/parked sequence. Signed installation, five
+Wi-Fi lifecycles, automatic/Bluetooth recovery and settings persistence passed.
+On dev.65, the owner confirmed clean pages, action navigation, no CEL question mark
+and ten-second cycling/resume after touch. Loaded ECM/TCM reading continuity and
+control/thermal timing still require the Jeep.
+
+Dev.66 introduced a fix for a concrete startup retry delay: an unanswered first
+code-list scan now retries from two seconds with bounded exponential backoff,
+instead of immediately waiting its steady 60/120-second interval. It also logs
+changes in MIL/filter presentation for attribution. Warning and filter validation
+remain strict. Automatic MIL status checks now have a 60-second floor; gauge/shared-diagnostic
+last-successful presentation bridges refresh/backoff gaps within the
+[diagnostic retention limits](architecture/alerts-and-diagnostics.md#mil-code-and-coverage-semantics).
+Raw phone/history freshness remains unchanged. The owner's later in-vehicle startup CEL
+observation is not yet attributed by a raw capture; [investigation evidence](evidence/action-pages-indoor.md#2026-10-27-startup-cel-investigation)
+separates that report from the installed source fix.
+The same image removes decorative play/stop glyphs from shared action progress
+states at the owner's request; colored progress rings and action controls remain.
+
+The subsequent owner report on Jeep connection still described a startup CEL.
+The follow-up source change defers the face's MIL icon until code identity is usable
+or coverage reconciled, keeping unresolved filter acquisition quiet without claiming
+ECU Off. Routine MIL/stored/pending checks target five minutes, permanent checks ten;
+initial category retry and explicit-clear verification remain responsive. Raw
+freshness/packets are unchanged. This change is not yet installed or Jeep-qualified;
+[diagnostic semantics](architecture/alerts-and-diagnostics.md#mil-code-and-coverage-semantics)
+own the evidence and latency tradeoff. Website review: no new marketing claim or
+visual asset is needed for this corrective behavior.
+
+## Smart page cycling
+
+FEATURE-11 is installed with the approved defaults: one opt-in Settings
+switch, existing interval selection, alert-driven/thermal/context priorities,
+minimum viewing/manual protection, bounded priority insertions and saved-page
+fairness. The [runtime contract](architecture/smart-page-cycling.md) owns behavior
+and tuning, and [offline evidence](evidence/smart-page-cycling.md) records executed
+checks. The additive `sp:1` protected settings path and revision-matched sidecars
+preserve legacy display compatibility. Existing public capability flags remain off.
+The combined source is installed; indoor results are recorded in the
+[display rollout evidence](evidence/display-evolution.md). Matched loaded timing, comfort and resource qualification
+remain in the [milestone procedure](development/smart-page-cycling-plan.md).
+
+## Display and adaptive sampling
+
+Dev.66 / App dev.53 introduced ten saved pages, numeric Dual + arc,
+shared explicit gear colors, an icon-only boot/no-data surface and reviewed
+PID-specific stability backoff. [Display contract](architecture/display-experience.md)
+and [sampling contract](development/reading-catalog-alerts.md#display-and-polling-classes)
+own defaults and boundaries. The Auto orientation candidate is implemented behind
+default-off probe/physical-qualification gates; the normal image does not offer it.
+The [display evidence](evidence/display-evolution.md) separates offline checks,
+indoor persistence and remaining physical/loaded qualification. App local profile
+schema is 18; its migration changed only the schema version, retaining all other
+profile fields. Gauge associations remain schema 2.
+
+The extended ten-page round trip passed with exact original five-page restoration
+at revision 63. The owner confirmed 10/10, wrap and clean labels without freezing.
+Populated Dual + arc also passed visual review. Hold-exit/navigation was reported,
+but a later active preview state makes explicit physical stopped-state proof pending.
+
+Installed dev.70 verifies sensor control-register readback and uses normal-power
+31.25 Hz sampling, resolving dev.69's pinned X symptom without calibration offsets
+or relaxed gravity guards. The guarded 4 KiB internal sensor stack survived the
+initial NACK/retry path; dev.70 observed worker/main margins of 1680/1080 bytes.
+Earlier withdrawn stack-failure candidates and the saturated-axis diagnosis remain
+in [dated evidence](evidence/display-evolution.md).
+
+Protected four-angle reads, Auto/Wi-Fi suspension/recovery and same-setup restart
+persistence passed on dev.70, retaining the current Smart On preference. The owner
+reported incorrect text orientation. Two labelled poses establish a fixed LCD
+quarter-turn offset; source dev.71 adds mapping version 2. Corrected all-angle/touch
+and explicit hold-exit qualification remain pending. Normal qualification and public
+flags stay off under the [indoor procedure](development/display-indoor-qualification.md).
 
 ## Installed baseline
 
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
-| Pixel | App `0.2.0-dev.51` built from `a6dd029` (merged in PR #90), approved action-page management; existing setup migrated to profile schema 17 / associations 2 | [Dev.61 indoor rollout](evidence/action-pages-indoor.md) |
-| Gauge | Signed `0.2.0-dev.61` from `a6dd029`, catalog generation 42, 240 MHz, configuration revision 55 | [Dev.61 App/Wi-Fi rollout](evidence/action-pages-indoor.md); exact healthy alternate image, cleared journal, preserved setup |
-| Physical display/touch | Normal page, clean text and working swipes confirmed by owner on dev.61 | [Owner observation](evidence/action-pages-indoor.md#physical-observation-and-limits); owner also confirmed action entry, horizontal browsing and downward return; extended edge/orientation/cycling checks remain |
+| Pixel | App `0.2.0-dev.53` / versionCode 53, reviewed source `fd8fae6`, merged PR #105; profile schema 18 / associations 2 | [Combined rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); profile migration retained all values; final alert policy restored, assignments and presentation byte-identical |
+| Gauge | Signed parked-idle/orientation candidate `0.2.0-dev.70` from `2341803`, generation 51, 240 MHz; configuration revision 65 after a verified same-functional-setup restart | [Dev.70 results](evidence/display-evolution.md#dev70-installation-and-mapping-observations): exact healthy image, cleared update/configuration trials, original functional dashboard retained; observed Smart On preference preserved. Mapping correction remains pending |
+| Physical display/touch | Owner confirmed dev.66 text-free logo, touch wake and normal reading/action navigation: “Logo and all navigation work.” | [Display rollout](evidence/display-evolution.md); all ten pages subsequently owner-confirmed; new-arc fit owner-confirmed; hold-exit was reported but later active state requires explicit stopped-state proof; loaded legibility and Auto sensor/touch alignment remain separate gates |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
-| Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Four exact TCM CEL filters retained at revision 55; per-gauge action pages replace the prior jump gesture. Other running settings and phone profiles preserved. [Configuration check](evidence/shared-alerts-implementation.md#2026-10-19-tcm-cel-filter-configuration) |
+| Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Five pages, four TCM CEL filters, thresholds and action settings retained; OTA preserved revision 60 and exact document bytes; the targeted same-setup test then advanced to 61 with only baseRevision changing. [Current preservation check](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout) |
 
 Recheck Git/CI and source version files before work. A branch push is not a merge,
 release or installation. Public repository: `lstepnio/ESP32OBD2`.
@@ -32,14 +130,29 @@ release or installation. Public repository: `lstepnio/ESP32OBD2`.
 | Faults | Independent controller endpoints across a primary/child transport, full categories, fair polling and global presentation | Mac captured stored/pending/permanent TCM lists; software fixtures | Live full App/gauge path; TCM faults through one shared primary transport |
 | Display settings | Persisted brightness, orientation, Metric/Imperial and page interval; regional first-use units | Protected post-restart reads, owner five-second cycling/cooldown; App Metric save and Imperial restoration | Physical unit rendering, cycling/gesture interaction and daylight readability |
 | Expert workspace | Compact task menu; useful support facts and recovery actions; optional adapter and code-filter sheets; obsolete/raw/duplicate data and synthetic notice UI removed | Updated debug App installed on Pixel; protected Gauge ready, focused menu/sheet checks and unchanged profile/association/preferences backups; 199 JVM and nine emulator UI tests passed | Broader accessibility and live-vehicle fault workflows remain separate |
-| Car workspace | Selected car, compact health/recent alerts, focused code/history sheets; exact coverage in Expert | [Pixel visual review and fifteen focused emulator fixtures](evidence/car-ux-review.md); existing phone setup preserved | Live vehicle alert/fault UX qualification |
+| Car workspace | Approved source: one attention list, direct fault/alert detail, Current/History, focused settings and shared hidden-code projection. Installed App retains the earlier compact health/recent-alert UI | [Pixel visual review and fifteen focused emulator fixtures](evidence/car-ux-review.md); existing phone setup preserved | Live vehicle alert/fault UX qualification |
 | Shared alert/history framework | Threshold/MIL/synthetic producers share lifecycle, attention, bounded gauge context/journal, phone history/export and opt-in monitoring | Dev.48 Pixel/gauge synthetic Entry/Expired import and shared context/banner; 162 JVM tests, eight earlier emulator fixtures | Real vehicle alerts/context, physical attention, background/OEM and storage/power-loss matrix |
-| Pages/catalog/alerts | Five renderers; one catalog with 53 Mode 01 and two existing JSS readings; any selectable reading can alert, including named gear conditions | Software vectors, editor fixtures and preserved installed dashboard | New decimals/rendering, hidden-page alerts, dwell/stale behavior on real vehicle |
+| Pages/catalog/alerts | Six renderers including numeric Dual + arc; negotiated ten-page support; one catalog with 53 Mode 01 and two existing JSS readings; every selectable reading can alert | Production fixtures and [combined rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout) retain the owner's five-page dashboard | Loaded layout/alert timing, units, dwell/stale behavior and legibility remain separate |
 | Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
-| Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | Full signed dev.60 App/Wi-Fi upload at 240 MHz; exact healthy alternate image, cleared journal and setup preserved; 10/50/90% and verified/preactivation serial-reset recovery, App process-loss recovery and subsequent maintenance passed | One owner preflight failure recovered through fresh reads; original cause, trial-boot rollback, rail-power loss and loaded live-adapter qualification remain |
-| Phone persistence | Schema 17 profiles / schema 2 assignments; serialized IO; cancellation-safe writes and typed pairing failures | 156 JVM tests, 18 emulator fixtures; initial Pixel migration retained data | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
+| Firmware updates | Signed catalog/bundle, owner bootstrap, private Wi-Fi, A/B boot health and durable journal | [Dev.66 full upload and five maintenance cycles](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); exact healthy alternate image, empty journal, retained setup and automatic/Bluetooth recovery. Dev.60 interruption checkpoints remain separate evidence | Trial-boot rollback, rail-power loss and loaded live-adapter qualification remain |
+| Phone persistence | Source schema 19 retains disabled alert drafts; installed schema 18 / schema 2 assignments; serialized IO, cancellation-safe writes and typed pairing failures | App dev.53 migration changed only schemaVersion 17 to 18; profile values, assignments and presentation preserved. OTA core preferences remained byte-identical | Process/storage failure and broader OEM cases; later child removal cause remains unconfirmed but cleanup was accepted |
 | Multiple adapters | One logical vehicle, optional Expert child, independent firmware workers and source freshness; direct child picker and scoped selection fix installed on Pixel | [Setup review](evidence/second-adapter-setup.md); [dev.53 live reads/resume, independent loss/recovery and phone off/on](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification); owner confirmed live ECM/TCM display and independent expiry/return | Startup absence, loaded maintenance, rates and sustained soak remain open |
-| Health measurements | Fixed worker records, queue drops, explicit internal/DMA/PSRAM lifecycle logs, allocation failure hook and sampled stack minima | [Bench and upload evidence](evidence/esp32-memory-hardening.md): zero recorded allocation failures/queue drops; 30 dev.59 close samples stable within 144 bytes after warm-up; dev.60 receiver internal minimum 93,975 bytes, largest block 31,744 bytes and OTA stack margin 1,340 bytes | Longer controlled loaded soak, missed transient/vendor-private failures and complete stack/progress-path coverage |
+| Health measurements | Fixed worker records, queue drops, internal/DMA/PSRAM lifecycle logs, allocation failure hook and sampled stack minima | [Dev.66 indoor measurements](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); zero observed allocation failures/queue drops across upload and maintenance checks | Longer loaded soak, radio coexistence, complete stack/progress coverage and unobserved vendor-private/transient failures |
+
+## Approved Car implementation, not yet installed
+
+The approved Car source replaces overlapping Vehicle health/recent Alerts cards with
+one attention list, direct issue detail, Current/History and focused Alert settings.
+Saved hidden-code intent projects current/history/context/Expert/notifications and
+ordinary reports through one owner; immutable raw evidence remains internal. Isolated
+connected edits reuse the existing transaction; unrelated pending setup keeps review.
+Phone schema 19 retains disabled alert drafts while excluding them from gauge payloads.
+Debug/release JVM checks, build/lint and 73 managed-emulator checks passed;
+[verification evidence](evidence/car-ux-review.md#2026-10-28-approved-car-and-hidden-code-implementation)
+records scope and the refreshed production Car capture. This implementation does
+not change the firmware wire schema or publish/install an APK.
+The [shared contract](architecture/alerts-and-diagnostics.md#advanced-vehicle-scoped-cel-code-filters)
+and [design rules](design/design-system.md#current-component-and-messaging-rules) own behavior.
 
 ## Installed Car fault experience
 
@@ -77,7 +190,7 @@ and enabled eGauge control are not established.
 
 ## Compatibility and public boundaries
 
-- Phone profiles: schema 17 reads schemas 1..17; installed Pixel migrated from 13. Gauge associations use schema 2. Older Apps reject new saved state;
+- Source phone profiles: schema 19 reads schemas 1..19; the last recorded installed App uses schema 18. Gauge associations use schema 2. Older Apps reject new saved state;
   downgrades require an explicit compatible migration. Legacy association files remain
   read-only migration inputs. See [Android storage](architecture/android-runtime.md#storage-and-recovery).
 - Gauge configuration remains schema 2. Installed development `cfg:7`, `va:1`, `da:1`, `ad:1`
@@ -85,8 +198,8 @@ and enabled eGauge control are not established.
   [protocol documents](README.md#protocols), not this status snapshot.
 - Public `configWrite:false`, `ota:false` and qualified link capacity one remain.
   Three NimBLE slots and independent workers do not establish physical coexistence.
-- Phone gauge values remain labelled previews; live companion telemetry, code clearing,
-  high idle and ABS/ESC control are not enabled. Local page-jump gestures are implemented.
+- Phone gauge values remain labelled previews; live companion telemetry, code clearing
+  and ABS/ESC control are not enabled. High idle is limited to the installed owner-supervised parked candidate. Local page-jump gestures are implemented.
 - TCM temperature interprets only the first byte as A−40 °C. Current/target candidates
   compare P=0D, R=0B, N=00 and stationary Drive=01. Pressure `225034` remains raw only.
   Drive is not a distinct selector value. The diagnostic endpoint/PCS bridge topology
@@ -94,8 +207,9 @@ and enabled eGauge control are not established.
   is not vehicle support.
 
 Auto orientation is specified in the [hardware policy](architecture/hardware-and-transports.md#automatic-display-orientation)
-and tracked as FEATURE-07. The current IMU path is unimplemented; manual rotation
-and timed page cycling remain independent implemented controls.
+and tracked as FEATURE-07. The installed candidate has a live, bounded IMU path but remains unqualified
+because of the pinned X reading documented above. Manual rotation and timed page
+cycling remain independent implemented controls.
 
 FEATURE-04 now has a [temporary-idle delivery proposal](architecture/vehicle-actions.md#first-vehicle-command-temporary-high-idle)
 for Air up and Winch presets using the existing gesture/profile foundation.
@@ -105,8 +219,9 @@ through one typed protected command interface (`vc:1` in document mode), one pri
 worker controller, bounded controller drivers, uncertainty journal and event ring.
 Idle uses the captured fixed setting; numeric target drafts never become commands.
 ABS/TCS Return remains Restart required. Both qualification masks are zero: no
-current profile can execute controls. The shared path is installed in dev.61;
-the scoped identity/guard/restoration evidence adapter remains unimplemented.
+generally qualified profile can execute controls. The shared path is installed in dev.62;
+the fully automatic Park/brake evidence adapter remains unimplemented. Installed
+dev.62 adds only the explicitly built, owner-supervised idle exception linked above.
 The [shared owner](architecture/vehicle-actions.md#shared-command-owner) records
 memory, cancellation, persistence, admission and remaining evidence requirements.
 The [offline foundation](architecture/vehicle-actions.md#implemented-offline-foundation)
@@ -118,7 +233,7 @@ has no qualified arbitrary-target mapping. Combined ABS/traction-control referen
 Off/Return replies were captured; dash warnings cleared only after the owner's
 ignition cycle. Owner fourth-button Start/Return replies were positive; a later
 attempt without fresh session entry failed. These are reference observations,
-not enabled eGauge controls or braking-performance qualification.
+not eGauge execution or braking-performance qualification.
 
 ## Known reliability limits
 
@@ -168,7 +283,15 @@ This is offline test coverage, not a new installed APK or physical observation.
 
 ## Approved action pages
 
-The approved review 2 action pages are merged through PR #89 and installed in dev.61. Gauge-tab configuration stores per-gauge typed
+Owner approved the review 4 simplification on 2026-10-27. Merged source now uses
+900 ms hold-to-start, one-tap Stop from either idle page, pending-state rings and
+verified direct return to Ready, with explicit high-coolant blocking. Android uses
+compact action rows and a focused editor. The [implementation evidence](evidence/action-pages-indoor.md#2026-10-27-approved-review-4-implementation)
+records offline checks. App dev.52 is installed and checked; signed firmware dev.65
+includes the simplified UI and is installed through App/Wi-Fi. Owner action navigation
+and the indoor protocol/preservation checks passed. Wire formats, guards and qualification flags are unchanged.
+
+The approved review 2 action pages were introduced in dev.61 and are refined by the installed review 4 UI. Gauge-tab configuration stores per-gauge typed
 page order and timers; firmware uses one reusable face with deliberate Start,
 direct Stop, attention return and bounded coolant fallback. Existing live command
 qualification masks remain zero. The App/Wi-Fi installation preserved the dashboard; the owner then requested replacing the jump binding with ordered action pages at revision 55.
@@ -189,6 +312,12 @@ latency and independent child continuity. Keep the masks disabled until those pr
 are implemented and verified.
 [Runtime contract](architecture/vehicle-actions.md#ordered-action-pages) and
 [backlog FEATURE-10](backlog.md) own behavior and remaining acceptance.
+
+The release gate exposed modal-editor fixture races in two CI attempts (saved-alert
+callback missing, then duration-editor scroll target absent). The test-only keyboard
+and destination synchronization from the pending UI-stability work is included,
+with the same boundary applied before Alert save. Real taps and exact value/disabled
+control assertions remain; no production App behavior or dependency changes.
 
 ## Assessment remediation prepared in source
 

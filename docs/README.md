@@ -11,10 +11,13 @@
 [Documentation map](documentation-map.json) provides the validated machine-readable inventory.
 Read only the affected contract/runbook before source work; evidence is not required onboarding.
 
+[Feature context index](features.md) links product features to their maintained contracts.
+
 ## Architecture
 
 - [System overview](architecture/system.md), [Android ownership](architecture/android-runtime.md), [firmware ownership](architecture/firmware-runtime.md)
-- [Interaction/recovery rules](architecture/interaction-recovery.md)
+- [Display experience](architecture/display-experience.md): ten pages, Dual + arc, gear colors and icon-only waiting
+- [Interaction/recovery rules](architecture/interaction-recovery.md), [Smart page cycling](architecture/smart-page-cycling.md)
 - [Vehicle connections and dashboard](architecture/vehicle-connections.md), [multi-adapter qualification](architecture/multi-adapter.md)
 - [Configuration storage](architecture/config-storage.md), [architecture decisions](decisions/README.md)
 - [Hardware strategy](architecture/hardware-and-transports.md), [local gestures and proposed controller actions](architecture/vehicle-actions.md)
@@ -32,6 +35,7 @@ Read only the affected contract/runbook before source work; evidence is not requ
 
 - [Setup and exact checks](development/setup.md), [quality/evidence gates](development/quality.md)
 - [Signed development release](development/firmware-release-runbook.md), [OTA interruption matrix](development/ota-recovery-matrix.md)
+- [Indoor display/Auto qualification](development/display-indoor-qualification.md)
 - [Parked Jeep action qualification](development/jeep-action-qualification.md)
 - [Dual-adapter recovery matrix](development/dual-adapter-recovery.md)
 - [Reading catalog and alert maintenance](development/reading-catalog-alerts.md)

@@ -31,6 +31,10 @@ void page_action_reset(page_action_t *s)
 }
 void page_action_tick(page_action_t *s, uint32_t now)
 {
+    /* A recognizer cannot accept a hold beyond 800 ms. Retire a lost release
+     * without firing an action; physical-touch/cycling policy is independent. */
+    if (s->pressed && now - s->press_ms > 800)
+        page_action_reset(s);
     if (s->progress && now - s->first_ms > s->config.window_ms)
         s->progress = 0;
     if (s->cooling && now - s->executed_ms >= 5000)

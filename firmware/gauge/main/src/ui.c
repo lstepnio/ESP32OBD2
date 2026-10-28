@@ -1,5 +1,6 @@
 #include "worker_health.h"
 #include "vehicle_commands.h"
+#include "jeep_idle_parked_test.h"
 #include "vehicle_idle_coolant.h"
 // ---------------------------------------------------------------------------------------------------------------------
 // Includes
@@ -13,6 +14,7 @@
 #include <string.h>
 #include <stdatomic.h>
 #include "transmission_gear.h"
+#include "display_idle_policy.h"
 #include "sdkconfig.h"
 #include "esp_timer.h"
 
@@ -52,6 +54,7 @@
 #include "gauge_presentation.h"
 #include "display_showcase.h"
 #include "adapter_status.h"
+#include "ble_mgr.h"
 #include "transfer_gate.h"
 #include "util.h"
 
@@ -67,10 +70,11 @@ static const char *TAG = "UI";
 
 typedef struct
 {
-    uint16_t   pid;
-    bool       present;
-    double     value;
-    TickType_t received_at;
+    uint16_t pid;
+    uint8_t  source;
+    bool     used, present;
+    double   value;
+    uint32_t observed_at_ms, revision, generation;
 } ui_sample_t;
 
 typedef struct
@@ -100,13 +104,6 @@ typedef struct
 
 typedef struct
 {
-    bool       present;
-    double     value;
-    TickType_t received_at;
-} ui_metric_sample_t;
-
-typedef struct
-{
     bool     enabled, vehicle_ready, maintenance;
     uint8_t  seconds;
     uint32_t sequence;
@@ -129,7 +126,7 @@ struct _ui_t
     uint8_t             rendered_action_progress;
     lv_obj_t           *action_label, *action_arrows[5];
     lv_obj_t           *command_menu, *command_button, *command_back, *command_title, *command_value, *command_note,
-        *command_button_text;
+        *command_button_text, *command_ring, *command_link_symbol;
     lv_obj_t   *command_dots[3];
     uint8_t     command_page, command_request_page, command_page_count, command_pages[3];
     bool        command_suspended, command_press, command_moved, command_waiting, idle_protection;
@@ -139,7 +136,11 @@ struct _ui_t
     atomic_uint command_ui[2];
     atomic_bool command_menu_active;
     bool        command_menu_visible, command_layer_dirty;
-    uint8_t     command_confirm, command_selected, command_done;
+    uint8_t     command_confirm, command_selected;
+    bool        command_hold_armed, command_hold_commit;
+    uint32_t    command_press_at, command_press_epoch, command_confirm_epoch;
+    atomic_uint command_epoch;
+    uint32_t    command_scope[2][3]; /* App-task writer only; epoch is the LVGL fence. */
     bool        command_request_stop, command_admission_failed;
     uint16_t    command_request_seconds, command_confirm_seconds;
 
@@ -179,7 +180,6 @@ struct _ui_t
 
     struct
     {
-        QueueHandle_t value_que;
         QueueHandle_t touch_ev_que;
         QueueHandle_t pairing_que;
         QueueHandle_t pairing_id_que;
@@ -210,10 +210,20 @@ struct _ui_t
         lv_obj_t *dual_info[2];
     } widgets;
 
+    display_idle_policy_t idle;
+    bool                  waiting_enabled, waiting_visible, wake_sequence;
+    atomic_uint           cycle_pause;
+    portMUX_TYPE          sample_lock;
+    ui_sample_t           samples[EGAUGE_RUNTIME_PIDS];
+    struct
+    {
+        bool     ready;
+        uint32_t revision, generation;
+    } sample_sources[2];
+
     struct
     {
         ui_page_t          page;
-        ui_metric_sample_t samples[2];
         double             rendered_values[2];
         bool               rendered_available[2];
         bool               rendered_once;
@@ -242,6 +252,7 @@ static const uint32_t color_background     = 0x05080A;
 static const uint32_t color_text_primary   = 0xE4EAED;
 static const uint32_t color_text_secondary = 0x9CAAB2;
 static const uint32_t color_track          = 0x1B2A30;
+static const uint32_t color_boot_logo      = 0x555555;
 static const uint32_t color_accent         = 0x00FF70;
 static const uint32_t color_warning        = 0xFF8A00;
 static const uint32_t color_critical       = 0xFF1744;
@@ -411,15 +422,157 @@ static int32_t normalized_value(double value, const ui_metric_t *metric, int32_t
     return (int32_t)lround(fmin(1, fmax(0, normalized)) * extent);
 }
 
+static lv_obj_t          *boot_logo;
+static ui_t              *boot_logo_ui;
+static bool               early_logo_touched;
+static lv_point_precise_t boot_needle[2];
+static void               boot_logo_touch(lv_event_t *event)
+{
+    (void)event;
+    early_logo_touched = true;
+    if (boot_logo_ui)
+    {
+        display_idle_touch(&boot_logo_ui->idle, (uint32_t)(esp_timer_get_time() / 1000));
+        boot_logo_ui->waiting_visible = false;
+        boot_logo_ui->wake_sequence   = true;
+        boot_logo_ui->status_dirty    = true;
+        if (boot_logo_ui->touch_cb)
+            boot_logo_ui->touch_cb(boot_logo_ui, LV_EVENT_PRESSED);
+    }
+    lv_obj_add_flag(boot_logo, LV_OBJ_FLAG_HIDDEN);
+}
+void ui_boot_logo_early(void)
+{
+    if (boot_logo)
+        return;
+    lv_obj_t *screen = lv_screen_active();
+    lv_obj_set_style_bg_color(screen, lv_color_hex(color_background), 0);
+    boot_logo = lv_obj_create(screen);
+    lv_obj_remove_style_all(boot_logo);
+    lv_obj_set_size(boot_logo, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(boot_logo, lv_color_hex(color_background), 0);
+    lv_obj_set_style_bg_opa(boot_logo, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(boot_logo, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_add_event_cb(boot_logo, boot_logo_touch, LV_EVENT_PRESSED, NULL);
+    lv_obj_t *arc = lv_arc_create(boot_logo);
+    lv_obj_set_size(arc, px(168), px(168));
+    lv_obj_set_pos(arc, gx(36), gy(36));
+    lv_arc_set_bg_angles(arc, 135, 405);
+    lv_arc_set_range(arc, 0, 100);
+    lv_arc_set_value(arc, 100);
+    lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
+    lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_arc_width(arc, px(12), LV_PART_MAIN);
+    lv_obj_set_style_arc_width(arc, px(12), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(arc, lv_color_hex(color_boot_logo), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(arc, lv_color_hex(color_boot_logo), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
+    boot_needle[0]   = (lv_point_precise_t){gx(120), gy(120)};
+    boot_needle[1]   = (lv_point_precise_t){gx(167), gy(73)};
+    lv_obj_t *needle = lv_line_create(boot_logo);
+    lv_line_set_points(needle, boot_needle, 2);
+    lv_obj_set_style_line_width(needle, px(12), 0);
+    lv_obj_set_style_line_rounded(needle, true, 0);
+    lv_obj_set_style_line_color(needle, lv_color_hex(color_boot_logo), 0);
+    lv_obj_clear_flag(needle, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_t *dot = lv_obj_create(boot_logo);
+    lv_obj_remove_style_all(dot);
+    lv_obj_set_size(dot, px(22), px(22));
+    lv_obj_set_pos(dot, gx(109), gy(109));
+    lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(dot, lv_color_hex(color_boot_logo), 0);
+    lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(dot, LV_OBJ_FLAG_CLICKABLE);
+    lv_refr_now(NULL);
+}
+void ui_waiting_logo_enable(ui_t *ui, bool enabled)
+{
+    if (!ui)
+        return;
+    if (enabled)
+        ui_boot_logo_early();
+    ui->waiting_enabled = enabled;
+    boot_logo_ui        = enabled ? ui : NULL;
+    if (enabled && early_logo_touched)
+        display_idle_touch(&ui->idle, (uint32_t)(esp_timer_get_time() / 1000));
+    ui->waiting_visible = enabled && !ui->pairing_visible && !ui->idle.touched;
+    if (boot_logo)
+    {
+        if (ui->waiting_visible)
+        {
+            lv_obj_remove_flag(boot_logo, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(boot_logo);
+        }
+        else
+            lv_obj_add_flag(boot_logo, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 static bool metric_value(ui_t *ui, unsigned index, double *value)
 {
-    if (index >= ui->display.page.metric_count || !ui->display.samples[index].present)
+    if (index >= ui->display.page.metric_count)
         return false;
-    TickType_t age = xTaskGetTickCount() - ui->display.samples[index].received_at;
-    if (age > pdMS_TO_TICKS(ui->display.page.metrics[index].stale_after_ms))
+    const ui_metric_t *metric = &ui->display.page.metrics[index];
+    unsigned           source = metric->scoped ? metric->source_index : UINT8_MAX;
+    /* Check live transport truth as well as the worker fence. A disconnected
+     * sample cannot reappear during the interval before the worker clears it. */
+    if (metric->scoped &&
+        (source >= 2 || !adapter_status_ready_for(source) || ble_mgr_is_paused() || transfer_gate_current() == 2))
         return false;
-    *value = ui->display.samples[index].value;
-    return true;
+    uint32_t generation = metric->scoped ? adapter_status_generation(source) : 0;
+    uint32_t now        = (uint32_t)(esp_timer_get_time() / 1000);
+    bool     available  = false;
+    portENTER_CRITICAL(&ui->sample_lock);
+    for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+    {
+        const ui_sample_t *sample = &ui->samples[i];
+        if (!sample->used || sample->pid != metric->pid || sample->source != source)
+            continue;
+        available = sample->present && now - sample->observed_at_ms <= metric->stale_after_ms;
+        if (metric->scoped)
+            available = available && ui->sample_sources[source].ready && sample->revision == metric->revision &&
+                        sample->generation == generation;
+        if (available)
+            *value = sample->value;
+        break;
+    }
+    portEXIT_CRITICAL(&ui->sample_lock);
+    return available;
+}
+
+bool ui_source_sample(ui_t     *ui,
+                      unsigned  source,
+                      uint32_t  revision,
+                      uint16_t  pid,
+                      uint32_t  age_ms,
+                      uint32_t  now,
+                      double   *value,
+                      uint32_t *at,
+                      uint32_t *generation)
+{
+    if (!ui || source >= 2 || !value || !at || !generation || !adapter_status_ready_for(source) ||
+        ble_mgr_is_paused() || transfer_gate_current() == 2)
+        return false;
+    uint32_t live_generation = adapter_status_generation(source);
+    bool     found           = false;
+    portENTER_CRITICAL(&ui->sample_lock);
+    for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+    {
+        const ui_sample_t *sample = &ui->samples[i];
+        if (!sample->used || sample->source != source || sample->pid != pid)
+            continue;
+        found = sample->present && now - sample->observed_at_ms <= age_ms && ui->sample_sources[source].ready &&
+                sample->revision == revision && sample->generation == live_generation;
+        if (found)
+        {
+            *value      = sample->value;
+            *at         = sample->observed_at_ms;
+            *generation = live_generation;
+        }
+        break;
+    }
+    portEXIT_CRITICAL(&ui->sample_lock);
+    return found;
 }
 
 static void show(lv_obj_t *object, bool visible)
@@ -626,11 +779,11 @@ static void render_calibration_page(ui_t *ui)
 static void select_renderer_widgets(ui_t *ui)
 {
     ui_renderer_t renderer = presented_page(ui)->renderer;
-    bool          dual     = renderer == UI_RENDERER_DUAL;
+    bool          dual     = renderer == UI_RENDERER_DUAL || renderer == UI_RENDERER_DUAL_ARC;
     show(ui->widgets.value_lbl, !dual);
     show(ui->widgets.info_lbl, !dual);
     show(ui->widgets.unit_lbl, !dual);
-    show(ui->widgets.arc, renderer == UI_RENDERER_ARC);
+    show(ui->widgets.arc, renderer == UI_RENDERER_ARC || renderer == UI_RENDERER_DUAL_ARC);
     show(ui->widgets.bar, renderer == UI_RENDERER_BAR);
     show(ui->widgets.trend, renderer == UI_RENDERER_TREND);
     for (unsigned i = 0; i < 2; ++i)
@@ -647,6 +800,8 @@ static void select_renderer_widgets(ui_t *ui)
 // ---------------------------------------------------------------------------------------------------------------------
 
 static void refresh_vehicle_menu(ui_t *ui);
+static void command_hold_tick(ui_t *ui);
+static void command_attention_ring(ui_t *ui);
 static void close_vehicle_menu(ui_t *ui);
 static bool command_busy(ui_t *ui);
 
@@ -706,6 +861,19 @@ static void ui_touch_callback(lv_event_t *e)
     ui_t *ui = (ui_t *)lv_event_get_user_data(e);
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     lv_event_code_t code = lv_event_get_code(e);
+    if (ui->wake_sequence)
+    {
+        if (code == LV_EVENT_PRESSED)
+            ui->wake_sequence = false;
+        else
+        {
+            if (code == LV_EVENT_CLICKED || code == LV_EVENT_PRESS_LOST)
+                ui->wake_sequence = false;
+            return;
+        }
+    }
+    if (code == LV_EVENT_PRESSED)
+        display_idle_touch(&ui->idle, (uint32_t)(esp_timer_get_time() / 1000));
     if (ui->command_menu_visible)
         return;
 #if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
@@ -739,6 +907,11 @@ static void ui_touch_callback(lv_event_t *e)
         ui->long_press_handled = false;
         ui->pressed_at         = xTaskGetTickCount();
         dispatch_touch(ui, LV_EVENT_PRESSED);
+        break;
+    case LV_EVENT_PRESS_LOST:
+        page_action_reset(&ui->action);
+        ui->press_active = ui->action_enter_pending = false;
+        ui->suppress_action_click                   = true;
         break;
     case LV_EVENT_PRESSING:
         if (actions_allowed && input)
@@ -840,7 +1013,7 @@ static void             render_page(ui_t *ui)
                      : 0;
     if (!ui->display.rendered_once)
         select_renderer_widgets(ui);
-    if (renderer == UI_RENDERER_DUAL)
+    if (renderer == UI_RENDERER_DUAL || renderer == UI_RENDERER_DUAL_ARC)
     {
         for (unsigned i = 0; i < 2; i++)
         {
@@ -850,9 +1023,10 @@ static void             render_page(ui_t *ui)
             const ui_metric_t *metric = &page->metrics[i];
             char               text[32];
             format_reading(text, metric, available[i], values[i], ui->imperial_units);
-            const char *label = gauge_layout_label(metric->name, metric->unit);
-            const char *unit  = gauge_layout_unit(label, display_units_label(metric->unit, ui->imperial_units));
-            small_label(ui->widgets.dual_info[i], label, gx(120), gy(i ? 135 : 72), px(184));
+            const char *label         = gauge_layout_label(metric->name, metric->unit);
+            const char *unit          = gauge_layout_unit(label, display_units_label(metric->unit, ui->imperial_units));
+            int         content_width = renderer == UI_RENDERER_DUAL_ARC ? 164 : 192;
+            small_label(ui->widgets.dual_info[i], label, gx(120), gy(i ? 135 : 72), px(content_width - 8));
             int   cy = gy(i ? 160 : 97);
             ink_t u;
             if (!ink(unit, font_subtitle, &u))
@@ -868,16 +1042,16 @@ static void             render_page(ui_t *ui)
                 if (previous == font_dual || previous == font_compact)
                     preferred = previous;
             }
-            const lv_font_t *font =
-                fit_value(text, gx(120) - (uw ? uw / 2 + px(3) : 0), cy, px(192) - (uw ? uw + px(6) : 0), preferred);
-            bool placed = false;
+            const lv_font_t *font   = fit_value(text, gx(120) - (uw ? uw / 2 + px(3) : 0), cy,
+                                                px(content_width) - (uw ? uw + px(6) : 0), preferred);
+            bool             placed = false;
             if (font)
             {
                 ink_t v;
                 ink(text, font, &v);
                 int vw = v.right - v.left;
                 placed = label_at(ui->widgets.dual_value[i], text, font, gx(120) - (uw ? uw / 2 + px(3) : 0), cy,
-                                  px(192) - (uw ? uw + px(6) : 0));
+                                  px(content_width) - (uw ? uw + px(6) : 0));
                 if (uw)
                     placed = label_at(ui->widgets.dual_unit[i], unit, font_subtitle, gx(120) + vw / 2 + px(3),
                                       cy + px(7), px(48)) &&
@@ -887,7 +1061,10 @@ static void             render_page(ui_t *ui)
                 small_label(ui->widgets.dual_value[i], "Value too wide", gx(120), cy, px(166));
             show(ui->widgets.dual_unit[i], uw && placed);
             lv_obj_set_style_text_color(ui->widgets.dual_value[i],
-                                        lv_color_hex(available[i] ? color_text_primary : color_text_secondary), 0);
+                                        lv_color_hex(!available[i]                   ? color_text_secondary
+                                                     : !strcmp(metric->unit, "gear") ? transmission_gear_color(text)
+                                                                                     : color_text_primary),
+                                        0);
         }
     }
     else if (!ui->display.rendered_once || offset != ui->display.rendered_offset ||
@@ -918,12 +1095,21 @@ static void             render_page(ui_t *ui)
         else if (!label_at(ui->widgets.unit_lbl, unit, font_unit, gx(120), gy(unit_y), px(156)))
             small_label(ui->widgets.unit_lbl, "Unit?", gx(120), gy(unit_y), px(140));
         lv_obj_set_style_text_color(ui->widgets.value_lbl,
-                                    lv_color_hex(available[0] ? color_text_primary : color_text_secondary), 0);
+                                    lv_color_hex(!available[0]                    ? color_text_secondary
+                                                 : !strcmp(primary->unit, "gear") ? transmission_gear_color(text)
+                                                                                  : color_text_primary),
+                                    0);
         if (renderer == UI_RENDERER_ARC)
             lv_arc_set_value(ui->widgets.arc, available[0] ? normalized_value(values[0], primary, 1000) : 0);
         if (renderer == UI_RENDERER_BAR)
             lv_bar_set_value(ui->widgets.bar, available[0] ? normalized_value(values[0], primary, 1000) : 0,
                              LV_ANIM_OFF);
+    }
+    if (renderer == UI_RENDERER_DUAL_ARC)
+    {
+        unsigned arc = page->arc_metric_index < 2 ? page->arc_metric_index : 0;
+        lv_arc_set_value(ui->widgets.arc,
+                         available[arc] ? normalized_value(values[arc], &page->metrics[arc], 1000) : 0);
     }
     if (renderer == UI_RENDERER_TREND)
     {
@@ -966,7 +1152,10 @@ static void showcase_publish(ui_t *ui)
 static void showcase_frame(ui_t *ui)
 {
     const display_showcase_frame_t *f = display_showcase_frame(ui->showcase.index);
-    ui->showcase_page = (ui_page_t){.name = f->name, .renderer = f->renderer, .metric_count = f->metrics};
+    ui->showcase_page                 = (ui_page_t){.name             = f->name,
+                                                    .renderer         = f->renderer,
+                                                    .metric_count     = f->metrics,
+                                                    .arc_metric_index = f->arc_metric_index};
     for (unsigned i = 0; i < f->metrics; i++)
         ui->showcase_page.metrics[i] = (ui_metric_t){.pid            = 0xd000 + i,
                                                      .name           = f->labels[i],
@@ -1113,7 +1302,10 @@ static void render_status(ui_t *ui)
     ui_alert_t       alert = visible_alert(ui);
     ui_diagnostics_t d     = visible_diagnostics(ui);
     uint32_t         color = alert.severity == 2 ? color_critical : alert.severity == 1 ? color_warning : color_accent;
-    uint32_t         chart_color = ui->display.rendered_available[0] ? color : color_track;
+    const ui_page_t *page  = presented_page(ui);
+    unsigned         chart_index =
+        page->renderer == UI_RENDERER_DUAL_ARC && page->arc_metric_index < 2 ? page->arc_metric_index : 0;
+    uint32_t chart_color = ui->display.rendered_available[chart_index] ? color : color_track;
     lv_obj_set_style_arc_color(ui->widgets.arc, lv_color_hex(chart_color), LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(ui->widgets.bar, lv_color_hex(chart_color), LV_PART_INDICATOR);
     lv_obj_set_style_line_color(ui->widgets.trend, lv_color_hex(color), LV_PART_MAIN);
@@ -1123,12 +1315,10 @@ static void render_status(ui_t *ui)
     if (diagnostic)
     {
         char count[12] = "";
-        if (!d.count_known || (d.count_partial && !d.count))
-            snprintf(count, sizeof(count), "?");
+        if (!d.count_known || d.count_partial)
+            count[0] = 0;
         else if (d.count > 9)
             snprintf(count, sizeof(count), "9+");
-        else if (d.count_partial)
-            snprintf(count, sizeof(count), "%u+", d.count);
         else if (d.count > 1)
             snprintf(count, sizeof(count), "%u", d.count);
         uint32_t dc = d.mil_on ? color_warning : color_text_secondary;
@@ -1166,16 +1356,16 @@ static void render_status(ui_t *ui)
         }
         int x = gx(120) - total / 2;
         icon_style(ui->widgets.alert_icon, alert.severity == 2 ? 3 : 2, color);
-        lv_obj_set_pos(ui->widgets.alert_icon, x, gy(183));
+        lv_obj_set_pos(ui->widgets.alert_icon, x, gy(ui->command_menu_visible ? 125 : 183));
         x += px(27);
         lv_obj_set_style_text_color(ui->widgets.alert_lbl, lv_color_hex(color), 0);
-        small_label(ui->widgets.alert_lbl, text, x + width / 2, gy(194), width + 1);
+        small_label(ui->widgets.alert_lbl, text, x + width / 2, gy(ui->command_menu_visible ? 136 : 194), width + 1);
         x += width;
         if (direction)
         {
             lv_line_set_points(ui->widgets.alert_arrow, alert.value < alert.limit ? arrow_down : arrow_up, 5);
             lv_obj_set_style_line_color(ui->widgets.alert_arrow, lv_color_hex(color), 0);
-            lv_obj_set_pos(ui->widgets.alert_arrow, x + px(5), gy(187));
+            lv_obj_set_pos(ui->widgets.alert_arrow, x + px(5), gy(ui->command_menu_visible ? 129 : 187));
             show(ui->widgets.alert_arrow, true);
         }
     }
@@ -1283,7 +1473,17 @@ static void ui_task(lv_timer_t *timer)
 
     action_context(ui);
     refresh_vehicle_menu(ui);
-    uint32_t action_now = (uint32_t)(esp_timer_get_time() / 1000);
+    command_hold_tick(ui);
+    command_attention_ring(ui);
+    uint32_t    action_now  = (uint32_t)(esp_timer_get_time() / 1000);
+    lv_indev_t *touch_input = lv_indev_get_next(NULL);
+    if (ui->press_active && ((uint32_t)(xTaskGetTickCount() - ui->pressed_at) > pdMS_TO_TICKS(15000) ||
+                             (touch_input && lv_indev_get_state(touch_input) == LV_INDEV_STATE_RELEASED)))
+    {
+        page_action_reset(&ui->action);
+        ui->press_active = ui->action_enter_pending = false;
+        ui->suppress_action_click                   = true;
+    }
     page_action_tick(&ui->action, action_now);
     if (ui->action_enter_pending && action_now - ui->action_enter_at >= 350)
     {
@@ -1346,6 +1546,7 @@ static void ui_task(lv_timer_t *timer)
     }
     if (ui->calibration_mode)
     {
+        atomic_store(&ui->cycle_pause, PAGE_CYCLE_ATTENTION);
         lv_event_code_t event_code;
         if (xQueueReceive(ui->rtos.touch_ev_que, &event_code, 0) == pdTRUE && ui->touch_cb)
             ui->touch_cb(ui, event_code);
@@ -1407,21 +1608,61 @@ static void ui_task(lv_timer_t *timer)
                                   adapter_status_ready_for(0) || adapter_status_ready_for(1)))
         showcase_frame(ui);
 
-    ui_sample_t sample;
-    while (xQueueReceive(ui->rtos.value_que, &sample, 0) == pdTRUE)
-    {
-        for (unsigned i = 0; i < ui->display.page.metric_count; ++i)
-        {
-            if (ui->display.page.metrics[i].pid != sample.pid)
-                continue;
-            ui->display.samples[i].present     = sample.present;
-            ui->display.samples[i].value       = sample.value;
-            ui->display.samples[i].received_at = sample.received_at;
-        }
-    }
     render_page(ui);
     if (ui->status_dirty)
         render_status(ui);
+    if (ui->waiting_enabled)
+    {
+        uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000), newest = 0, minimum_age = UINT32_MAX;
+        bool     available = false;
+        bool     source_ready[2];
+        uint32_t generations[2];
+        for (unsigned source = 0; source < 2; ++source)
+        {
+            source_ready[source] =
+                adapter_status_ready_for(source) && !ble_mgr_is_paused() && transfer_gate_current() != 2;
+            generations[source] = adapter_status_generation(source);
+        }
+        portENTER_CRITICAL(&ui->sample_lock);
+        for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+        {
+            const ui_sample_t *sample = &ui->samples[i];
+            if (!sample->used || !sample->present || sample->source >= 2 || !source_ready[sample->source] ||
+                !ui->sample_sources[sample->source].ready || sample->generation != generations[sample->source] ||
+                sample->revision != ui->sample_sources[sample->source].revision)
+                continue;
+            uint32_t age = now_ms - sample->observed_at_ms;
+            if (age < DISPLAY_IDLE_DATA_MS && age < minimum_age)
+            {
+                available   = true;
+                newest      = sample->observed_at_ms;
+                minimum_age = age;
+            }
+        }
+        portEXIT_CRITICAL(&ui->sample_lock);
+        ui_diagnostics_t d        = visible_diagnostics(ui);
+        bool             priority = ui->pairing_visible || ui->calibration_mode || ui->command_menu_visible ||
+                                    atomic_load(&ui->showcase_active) || ui->rendered_alert.severity ||
+                                    (d.valid && (d.mil_on || d.count));
+        bool             waiting  = display_idle_waiting(&ui->idle, available, newest, priority, now_ms);
+        if (waiting != ui->waiting_visible)
+        {
+            ui->waiting_visible = waiting;
+            if (waiting)
+            {
+                lv_obj_remove_flag(boot_logo, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_move_foreground(boot_logo);
+            }
+            else
+                lv_obj_add_flag(boot_logo, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    atomic_store(&ui->cycle_pause, ui->pairing_visible || ui->rendered_alert.attention    ? PAGE_CYCLE_ATTENTION
+                                   : ui->command_menu_visible                             ? PAGE_CYCLE_ACTIONS
+                                   : atomic_load(&ui->showcase_active)                    ? PAGE_CYCLE_SHOWCASE
+                                   : ui->waiting_visible                                  ? PAGE_CYCLE_WAITING
+                                   : ui->press_active || atomic_load(&ui->action_pending) ? PAGE_CYCLE_TOUCH
+                                                                                          : PAGE_CYCLE_RUNNING);
 }
 
 static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms)
@@ -1543,6 +1784,14 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_center(button_label);
     ui->widgets.attention_button = button;
     show(overlay, false);
+    /* New LVGL objects start visible. Keep status chrome hidden until its first
+     * truthful status render, including the boot interval before the UI timer. */
+    show(ui->widgets.alert_lbl, false);
+    show(ui->widgets.alert_icon, false);
+    show(ui->widgets.alert_arrow, false);
+    show(ui->widgets.diagnostics_lbl, false);
+    show(ui->widgets.diagnostics_icon, false);
+    show(ui->widgets.demo_lbl, false);
     ui->status_dirty = true;
     lv_arc_set_range(arc, 0, 1000);
     lv_bar_set_range(bar, 0, 1000);
@@ -1592,7 +1841,7 @@ ui_t *ui_init(ui_page_t const    *page,
     memset(ui, 0, sizeof(ui_t));
     ESP_LOGI(TAG, "ui pointer2: %p (addr: %p)", ui, (void *)&ui);
 
-    ui->rtos.value_que       = xQueueCreate(32, sizeof(ui_sample_t));
+    ui->sample_lock          = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
     ui->rtos.touch_ev_que    = xQueueCreate(4, sizeof(lv_event_code_t));
     ui->rtos.pairing_que     = xQueueCreate(1, sizeof(uint32_t));
     ui->rtos.pairing_id_que  = xQueueCreate(1, sizeof(ui->pairing_identifier));
@@ -1604,12 +1853,10 @@ ui_t *ui_init(ui_page_t const    *page,
     ui->pairing_visible      = pairing_required;
     ui->imperial_units       = imperial_units;
 
-    if (!ui->rtos.value_que || !ui->rtos.touch_ev_que || !ui->rtos.pairing_que || !ui->rtos.pairing_id_que ||
-        !ui->rtos.alert_que || !ui->rtos.diagnostics_que || !ui->rtos.showcase_que)
+    if (!ui->rtos.touch_ev_que || !ui->rtos.pairing_que || !ui->rtos.pairing_id_que || !ui->rtos.alert_que ||
+        !ui->rtos.diagnostics_que || !ui->rtos.showcase_que)
     {
         ESP_LOGE(TAG, "Failed to allocate UI mailboxes");
-        if (ui->rtos.value_que)
-            vQueueDelete(ui->rtos.value_que);
         if (ui->rtos.touch_ev_que)
             vQueueDelete(ui->rtos.touch_ev_que);
         if (ui->rtos.pairing_que)
@@ -1643,9 +1890,12 @@ ui_t *ui_init(ui_page_t const    *page,
     atomic_init(&ui->action_pending, false);
     atomic_init(&ui->action_context_epoch, 0);
     atomic_init(&ui->command_menu_active, false);
+    atomic_init(&ui->command_epoch, 0);
     atomic_init(&ui->command_ui[0], 0);
     atomic_init(&ui->command_ui[1], 0);
     ui_init_screen(ui, page, interval_ms);
+    if (boot_logo)
+        ui_waiting_logo_enable(ui, true);
     ui->action_label = lv_label_create(ui->widgets.gauge_content);
     lv_obj_set_style_text_color(ui->action_label, lv_color_hex(color_accent), 0);
     lv_obj_set_style_text_font(ui->action_label, font_subtitle, 0);
@@ -1658,21 +1908,80 @@ ui_t *ui_init(ui_page_t const    *page,
     return ui;
 }
 
+void ui_set_source_state(ui_t *ui, unsigned source, bool ready, uint32_t revision, uint32_t generation)
+{
+    if (!ui || source >= 2)
+        return;
+    portENTER_CRITICAL(&ui->sample_lock);
+    if (!ready || ui->sample_sources[source].revision != revision ||
+        ui->sample_sources[source].generation != generation)
+        for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+            if (ui->samples[i].used && ui->samples[i].source == source)
+                ui->samples[i].used = ui->samples[i].present = false;
+    ui->sample_sources[source].ready      = ready;
+    ui->sample_sources[source].revision   = revision;
+    ui->sample_sources[source].generation = generation;
+    portEXIT_CRITICAL(&ui->sample_lock);
+}
+
+static void set_sample(ui_t         *ui,
+                       unsigned      source,
+                       uint32_t      revision,
+                       uint32_t      generation,
+                       uint16_t      pid,
+                       double const *value,
+                       uint32_t      observed_at_ms)
+{
+    if (!ui || (source != UINT8_MAX && source >= 2))
+        return;
+    portENTER_CRITICAL(&ui->sample_lock);
+    if (source != UINT8_MAX && (!ui->sample_sources[source].ready || ui->sample_sources[source].revision != revision ||
+                                ui->sample_sources[source].generation != generation))
+    {
+        portEXIT_CRITICAL(&ui->sample_lock);
+        return;
+    }
+    ui_sample_t *slot = NULL;
+    for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+    {
+        if (ui->samples[i].used && ui->samples[i].source == source && ui->samples[i].pid == pid)
+        {
+            slot = &ui->samples[i];
+            break;
+        }
+        if (!ui->samples[i].used && !slot)
+            slot = &ui->samples[i];
+    }
+    if (slot)
+        *slot = (ui_sample_t){.used           = true,
+                              .source         = source,
+                              .pid            = pid,
+                              .present        = value && isfinite(*value),
+                              .value          = value && isfinite(*value) ? *value : 0,
+                              .revision       = revision,
+                              .generation     = generation,
+                              .observed_at_ms = observed_at_ms};
+    portEXIT_CRITICAL(&ui->sample_lock);
+}
+
+void ui_set_source_value(ui_t         *ui,
+                         unsigned      source,
+                         uint32_t      revision,
+                         uint32_t      generation,
+                         uint16_t      pid,
+                         double const *value,
+                         uint32_t      observed_at_ms)
+{
+    /* Reject retired callbacks even before the source worker observes loss. */
+    if (source >= 2 || !adapter_status_ready_for(source) || ble_mgr_is_paused() ||
+        adapter_status_generation(source) != generation || transfer_gate_current() == 2)
+        return;
+    set_sample(ui, source, revision, generation, pid, value, observed_at_ms);
+}
+
 void ui_set_value(ui_t *ui, uint16_t pid, double const *value)
 {
-    ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
-
-    ui_sample_t sample = {
-        .pid         = pid,
-        .present     = value != NULL && isfinite(*value),
-        .value       = value != NULL && isfinite(*value) ? *value : 0,
-        .received_at = xTaskGetTickCount(),
-    };
-
-    if (xQueueSend(ui->rtos.value_que, &sample, 0) != pdTRUE)
-    {
-        ESP_LOGW(TAG, "Dropped UI sample for PID 0x%02X", pid);
-    }
+    set_sample(ui, UINT8_MAX, 0, 0, pid, value, (uint32_t)(esp_timer_get_time() / 1000));
 }
 
 void ui_set_page(ui_t *ui, ui_page_t const *page)
@@ -1681,14 +1990,12 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     ESP_NULL_CHECK(page, TAG, "Page config is NULL");
 
     page_action_reset(&ui->action);
-    xQueueReset(ui->rtos.value_que);
     if (ui->showcase.active)
     {
         ui->showcase.active = false;
         showcase_publish(ui);
     }
-    ui->display.page = *page;
-    memset(ui->display.samples, 0, sizeof(ui->display.samples));
+    ui->display.page          = *page;
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
     for (unsigned i = 0; i < 60; ++i)
@@ -1979,11 +2286,16 @@ static bool command_busy(ui_t *ui)
 }
 static void close_vehicle_menu(ui_t *ui)
 {
-    ui->command_menu_visible = ui->command_suspended = ui->command_press = false;
-    ui->command_confirm                                                  = 0;
+    ui->command_menu_visible = ui->command_suspended = ui->command_press = ui->command_hold_armed = false;
+    ui->command_confirm                                                                           = 0;
     atomic_store(&ui->command_menu_active, false);
     if (ui->command_menu)
+    {
+        if (lv_obj_get_parent(ui->command_ring) != ui->command_menu)
+            lv_obj_set_parent(ui->command_ring, ui->command_menu);
+        show(ui->command_ring, false);
         lv_obj_add_flag(ui->command_menu, LV_OBJ_FLAG_HIDDEN);
+    }
     /* Restart the page-cycle quiet period without changing the originating page. */
     dispatch_touch(ui, LV_EVENT_PRESSED);
     render_page(ui);
@@ -2028,10 +2340,26 @@ static void command_sync_pages(ui_t *ui)
         if (ui->command_pages[i] == selected)
             ui->command_page = i;
 }
+static unsigned command_duration(ui_t *ui, unsigned id, unsigned state)
+{
+    unsigned seconds = id == 2 ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds;
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+    if (seconds > JEEP_IDLE_PARKED_MAX_SECONDS)
+        seconds = JEEP_IDLE_PARKED_MAX_SECONDS;
+#endif
+    if ((state & (16U << 8)) && seconds > 60)
+        seconds = 60;
+    return seconds;
+}
 static void refresh_vehicle_menu(ui_t *ui)
 {
     if (!ui->command_menu_visible || ui->command_suspended)
         return;
+    if (lv_obj_get_parent(ui->command_ring) != ui->command_menu)
+    {
+        lv_obj_set_parent(ui->command_ring, ui->command_menu);
+        lv_obj_center(ui->command_ring);
+    }
     command_sync_pages(ui);
     uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
     if (now - ui->command_activity >= 30000 && !command_busy(ui) && !ui->command_waiting)
@@ -2043,9 +2371,7 @@ static void refresh_vehicle_menu(ui_t *ui)
         ui->command_admission_failed = false;
     unsigned id = command_id(ui), kind = id == 3 ? 1 : 0;
     unsigned state = atomic_load(&ui->command_ui[kind]), phase = state & 255U;
-    if (phase != VEHICLE_RESTORED)
-        ui->command_done &= ~(1U << kind);
-    else if (ui->command_done & (1U << kind))
+    if (phase == VEHICLE_RESTORED)
         phase = VEHICLE_READY;
     unsigned    reason = (state >> 28) & 15U;
     const char *title  = id == 1 ? "Air up" : id == 2 ? "Winch" : id == 3 ? "ABS + TCS" : "No actions";
@@ -2053,113 +2379,97 @@ static void refresh_vehicle_menu(ui_t *ui)
     char        duration[24];
     bool        enabled = false;
     if (ui->command_confirm && ((phase != VEHICLE_READY && phase != VEHICLE_REJECTED) ||
-                                (state & 0x0c00ffffU) != (ui->command_confirm_state & 0x0c00ffffU)))
+                                (state & 0xfc00ffffU) != (ui->command_confirm_state & 0xfc00ffffU) ||
+                                ui->command_confirm_epoch != atomic_load(&ui->command_epoch)))
         ui->command_confirm = 0;
     ui->command_presented_state = state;
     if (ui->command_waiting && (phase != ui->command_selected || now - ui->command_wait_at >= 2000))
         ui->command_waiting = false;
+    unsigned ring = 0;
     if (!id)
-    {
         value = "Add in App";
-    }
-    else if (ui->command_waiting)
-    {
-        value = "Checking...";
-    }
-    else if (ui->command_confirm)
-    {
-        title = id == 3 ? "Disable both?" : id == 2 ? "Start Winch?" : "Start Air up?";
-        snprintf(duration, sizeof(duration), "%u:%02u", ui->command_confirm_seconds / 60,
-                 ui->command_confirm_seconds % 60);
-        value   = id == 3 ? "ABS + TCS" : duration;
-        button  = id == 3 ? "Disable" : "Start";
-        note    = id == 3 ? "Restart to restore" : (state & (16U << 8)) ? "Coolant unavailable" : "While parked";
-        enabled = (state & 256U) != 0;
-    }
-    else if (!id || !(state & 256U))
-    {
-        value = "Unavailable";
-        note  = "Not available yet";
-    }
     else if (phase == VEHICLE_UNKNOWN)
     {
-        value = "Unknown";
-        note  = id < 3 ? "Check idle" : "Check vehicle";
+        value = id < 3 ? "Check idle" : "Check vehicle";
+        note  = "Status unknown";
     }
     else if (id == 3 && (phase == VEHICLE_ACTIVE || phase == VEHICLE_RESTART_REQUIRED))
     {
-        value = "Disabled";
-        note  = "Cycle ignition";
-    }
-    else if (id < 3 && (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE) && id != active_idle_id(ui))
-    {
-        value   = "Idle is active";
-        button  = active_idle_id(ui) == 2 ? "View Winch" : "View Air up";
-        enabled = true;
-    }
-    else if (phase == VEHICLE_STARTING)
-    {
-        value   = "Starting...";
-        button  = "Stop";
-        enabled = true;
-    }
-    else if (phase == VEHICLE_ACTIVE)
-    {
-        unsigned seconds = (state >> 16) & 1023U;
-        snprintf(duration, sizeof(duration), "%u:%02u", seconds / 60, seconds % 60);
-        value   = duration;
-        button  = "Stop";
-        enabled = true;
-        if (state & (8U << 8))
-            note = "Coolant unavailable";
+        value = "Off";
+        note  = "Restart to restore";
     }
     else if (phase == VEHICLE_STOPPING || phase == VEHICLE_VERIFYING)
     {
-        value = phase == VEHICLE_STOPPING ? "Stopping..." : "Checking idle...";
-        note  = reason == VEHICLE_GUARD ? "Check coolant" : "";
+        value = "";
+        ring  = 2;
+        if (state & (VEHICLE_UI_COOLANT_HIGH << 8))
+            note = "Coolant high";
     }
-    else if (phase == VEHICLE_RESTORED)
+    else if (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE)
     {
-        value   = id == 3 ? "Enabled" : "Normal idle";
-        button  = "Done";
-        enabled = true;
+        unsigned seconds = (state >> 16) & 1023U;
+        snprintf(duration, sizeof(duration), "%u:%02u", seconds / 60, seconds % 60);
+        value   = phase == VEHICLE_STARTING ? "" : duration;
+        ring    = phase == VEHICLE_STARTING ? 1 : 0;
+        button  = id < 3 ? "Stop" : "";
+        enabled = id < 3;
+        if (id < 3 && id != active_idle_id(ui))
+            note = active_idle_id(ui) == 2 ? "Winch running" : "Air up running";
+        else if (state & (16U << 8))
+            note = "No coolant";
+    }
+    else if (ui->command_waiting)
+    {
+        value = "";
+        ring  = ui->command_request_stop ? 2 : 1;
+    }
+    else if (!(state & 256U))
+    {
+        value = (state & (VEHICLE_UI_RECONNECTING << 8)) ? "" : "Not supported";
+        ring  = (state & (VEHICLE_UI_RECONNECTING << 8)) ? 3 : 0;
     }
     else if (command_busy(ui))
-    {
         value = "Action in progress";
-    }
     else if (id < 3 && !ui->idle_protection)
     {
         value = "Set coolant limit";
         note  = "In the App";
     }
+    else if (id < 3 && (state & (VEHICLE_UI_COOLANT_HIGH << 8)))
+        value = "Coolant high";
     else if (phase == VEHICLE_READY || phase == VEHICLE_REJECTED)
     {
-        unsigned seconds = id == 2 ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds;
+        unsigned seconds = ui->command_confirm ? ui->command_confirm_seconds : command_duration(ui, id, state);
+        snprintf(duration, sizeof(duration), "%u:%02u", seconds / 60, seconds % 60);
+        value   = id == 3 ? "On" : duration;
+        button  = id == 3 ? "Disable" : "Hold to start";
+        enabled = true;
         if (id < 3 && (state & (16U << 8)))
         {
-            if (seconds > 60)
-                seconds = 60;
-            note = "Coolant unavailable";
+            note = ui->command_confirm ? "No coolant" : "No coolant · 1 min max";
+            if (!ui->command_confirm)
+                button = "Continue";
         }
-        snprintf(duration, sizeof(duration), "%u:%02u%s", seconds / 60, seconds % 60,
-                 (state & (16U << 8)) ? " max" : "");
-        value   = id == 3 ? "Enabled" : duration;
-        title   = id == 3 ? "Disable ABS + TCS" : title;
-        button  = id == 3 ? "Disable" : "Start";
-        enabled = true;
-        if (phase == VEHICLE_REJECTED && reason == VEHICLE_GUARD)
+        if (id == 3 && ui->command_confirm)
         {
-            value  = "Could not start";
-            note   = "Check conditions";
-            button = "Try again";
+            title = "Disable both?";
+            value = "ABS + TCS";
+            note  = "Restart to restore";
         }
+        if (phase == VEHICLE_REJECTED && reason == VEHICLE_GUARD && !note[0])
+            note = "Check conditions";
     }
     if (ui->command_admission_failed && enabled && !note[0] && !ui->rendered_alert.severity)
         note = "Try again";
-    command_text(ui, ui->command_title, title, 65, 184, font_subtitle);
-    command_text(ui, ui->command_value, value, 116, 186, font_compact);
-    command_text(ui, ui->command_note, note, 193, 160, font_subtitle);
+    /* Existing fonts and one arc tree, no per-frame allocations or animation task. */
+    command_text(ui, ui->command_title, title, 59, 184, font_unit);
+    command_text(ui, ui->command_value, value, 104, 186, strchr(value, ':') && id < 3 ? font_large : font_compact);
+    command_text(ui, ui->command_note, note, 136, 200, font_subtitle);
+    bool coolant_warning = id < 3 && (state & ((16U | VEHICLE_UI_COOLANT_HIGH) << 8));
+    lv_obj_set_style_text_color(ui->command_value, lv_color_hex(coolant_warning ? color_warning : color_text_primary),
+                                0);
+    bool quiet_note = !strcmp(note, "In the App") || strstr(note, "running");
+    lv_obj_set_style_text_color(ui->command_note, lv_color_hex(quiet_note ? color_text_secondary : color_warning), 0);
     if (strcmp(lv_label_get_text(ui->command_button_text), button))
         lv_label_set_text(ui->command_button_text, button);
     lv_obj_set_style_text_font(ui->command_button_text, font_subtitle, 0);
@@ -2169,6 +2479,24 @@ static void refresh_vehicle_menu(ui_t *ui)
         lv_obj_remove_state(ui->command_button, LV_STATE_DISABLED);
     else
         lv_obj_add_state(ui->command_button, LV_STATE_DISABLED);
+    show(ui->command_ring, ring != 0);
+    show(ui->command_link_symbol, ring == 3);
+    if (ring)
+    {
+        uint32_t color = ring == 1 ? color_accent : ring == 2 ? color_critical : 0xFFD600;
+        lv_obj_set_style_arc_color(ui->command_ring, lv_color_hex(color), LV_PART_INDICATOR);
+        lv_arc_set_rotation(ui->command_ring, (now % 1400) * 360 / 1400);
+        if (ring == 3)
+        {
+            static lv_point_precise_t symbols[8];
+            static const int16_t      points[8][2] = {{120, 95}, {108, 95}, {108, 109}, {122, 109},
+                                                      {122, 95}, {134, 95}, {134, 109}, {120, 109}};
+            for (unsigned i = 0; i < 8; i++)
+                symbols[i] = (lv_point_precise_t){px(points[i][0]), px(points[i][1])};
+            lv_line_set_points(ui->command_link_symbol, symbols, 8);
+            lv_obj_set_style_line_color(ui->command_link_symbol, lv_color_hex(color), 0);
+        }
+    }
     for (unsigned i = 0; i < 3; ++i)
     {
         lv_obj_set_pos(ui->command_dots[i], gx(120 - (int)ui->command_page_count * 6 + (int)i * 12 + 4), gy(211));
@@ -2201,37 +2529,35 @@ static void command_activate(ui_t *ui, bool back)
         return;
     unsigned state = atomic_load(&ui->command_ui[id == 3 ? 1 : 0]), phase = state & 255U;
     /* A state change must never turn a displayed Start into an implicit Stop. */
-    if ((state & 0x0c00ffffU) != (ui->command_presented_state & 0x0c00ffffU))
+    if ((state & 0xfc00ffffU) != (ui->command_presented_state & 0xfc00ffffU))
     {
         ui->command_confirm = 0;
-        return;
-    }
-    if (id < 3 && (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE) && id != active_idle_id(ui))
-    {
-        for (unsigned i = 0; i < ui->command_page_count; ++i)
-            if (ui->command_pages[i] == active_idle_id(ui))
-                ui->command_page = i;
-        return;
-    }
-    if (phase == VEHICLE_RESTORED && !(ui->command_done & (1U << (id == 3 ? 1 : 0))))
-    {
-        ui->command_done |= 1U << (id == 3 ? 1 : 0);
         return;
     }
     if (phase == VEHICLE_RESTORED)
         phase = VEHICLE_READY;
     bool stop = id < 3 && (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE);
-    if (!stop && !ui->command_confirm)
+    if (!stop && id < 3 && (!ui->idle_protection || (state & (VEHICLE_UI_COOLANT_HIGH << 8))))
+        return;
+    if (!stop && !ui->command_confirm && (id == 3 || (state & (16U << 8))))
     {
-        ui->command_confirm       = id;
-        ui->command_confirm_state = state;
-        ui->command_confirm_seconds =
-            id < 3 ? (id == 2 ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds) : 0;
-        if (id < 3 && (state & (16U << 8)) && ui->command_confirm_seconds > 60)
-            ui->command_confirm_seconds = 60;
+        ui->command_confirm         = id;
+        ui->command_confirm_state   = state;
+        ui->command_confirm_epoch   = atomic_load(&ui->command_epoch);
+        ui->command_confirm_seconds = id < 3 ? command_duration(ui, id, state) : 0;
         return;
     }
-    if (!(state & 256U) || (!stop && phase != VEHICLE_READY && phase != VEHICLE_REJECTED))
+    if (!stop && id < 3 && !ui->command_hold_commit)
+        return;
+    unsigned seconds = ui->command_confirm ? ui->command_confirm_seconds : command_duration(ui, id, state);
+    if (stop)
+    {
+        id = active_idle_id(ui);
+        for (unsigned i = 0; i < ui->command_page_count; i++)
+            if (ui->command_pages[i] == id)
+                ui->command_page = i;
+    }
+    if ((!stop && !(state & 256U)) || (!stop && phase != VEHICLE_READY && phase != VEHICLE_REJECTED))
     {
         ui->command_confirm = 0;
         return;
@@ -2240,7 +2566,7 @@ static void command_activate(ui_t *ui, bool back)
     ui->command_request_stop     = stop;
     ui->command_admission_failed = false;
     /* Freeze the confirmed duration. A later coolant recovery cannot lengthen it. */
-    ui->command_request_seconds = id < 3 && !stop ? ui->command_confirm_seconds : 0;
+    ui->command_request_seconds = id < 3 && !stop ? seconds : 0;
     ui->command_selected        = phase;
     ui->command_confirm         = 0;
     ui->command_waiting         = true;
@@ -2259,19 +2585,36 @@ static void command_pointer(ui_t *ui, lv_event_code_t code, lv_obj_t *target, in
         ui->command_x            = x;
         ui->command_y            = y;
         ui->command_press_target = target;
+        ui->command_press_at     = (uint32_t)(esp_timer_get_time() / 1000);
+        ui->command_press_epoch  = atomic_load(&ui->command_epoch);
+        ui->command_hold_armed =
+            target == ui->command_button && !strcmp(lv_label_get_text(ui->command_button_text), "Hold to start");
     }
-    else if (code == LV_EVENT_PRESSING && ui->command_press &&
-             (abs(x - ui->command_x) > 12 || abs(y - ui->command_y) > 12))
-        ui->command_moved = true;
-    else if (code == LV_EVENT_PRESS_LOST || code == LV_EVENT_LONG_PRESSED || code == LV_EVENT_LONG_PRESSED_REPEAT)
-        ui->command_press = false;
+    else if (code == LV_EVENT_PRESSING && ui->command_press)
+    {
+        if (abs(x - ui->command_x) > px(12) || abs(y - ui->command_y) > px(12))
+            ui->command_moved = true;
+        if (ui->command_hold_armed)
+        {
+            lv_area_t area;
+            lv_obj_get_coords(ui->command_button, &area);
+            if (x < area.x1 || x > area.x2 || y < area.y1 || y > area.y2)
+                ui->command_moved = true;
+        }
+    }
+    else if (code == LV_EVENT_PRESS_LOST)
+        ui->command_press = ui->command_hold_armed = false;
     else if (code == LV_EVENT_RELEASED && ui->command_press)
     {
-        ui->command_press = false;
+        bool held         = ui->command_hold_armed;
+        ui->command_press = ui->command_hold_armed = false;
         int dx = x - ui->command_x, dy = y - ui->command_y;
-        if (dy >= 32 && abs(dy) >= 2 * abs(dx))
-            command_activate(ui, true);
-        else if (abs(dx) >= 32 && abs(dx) >= 2 * abs(dy))
+        if (dy >= px(32) && abs(dy) >= 2 * abs(dx))
+        {
+            ui->command_confirm = 0;
+            close_vehicle_menu(ui);
+        }
+        else if (abs(dx) >= px(32) && abs(dx) >= 2 * abs(dy))
         {
             if (!ui->command_confirm && ui->command_page_count)
             {
@@ -2280,8 +2623,8 @@ static void command_pointer(ui_t *ui, lv_event_code_t code, lv_obj_t *target, in
                     ui->command_page = next;
             }
         }
-        else if (!ui->command_moved && abs(dx) <= 12 && abs(dy) <= 12 && target == ui->command_press_target &&
-                 (target == ui->command_button || target == ui->command_back))
+        else if (!held && !ui->command_moved && abs(dx) <= px(12) && abs(dy) <= px(12) &&
+                 target == ui->command_press_target && (target == ui->command_button || target == ui->command_back))
         {
             lv_area_t area;
             lv_obj_get_coords(target, &area);
@@ -2318,6 +2661,19 @@ void ui_show_vehicle_actions(ui_t *ui)
                            LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_EVENT_BUBBLE | LV_OBJ_FLAG_GESTURE_BUBBLE);
         lv_obj_add_flag(ui->command_menu, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(ui->command_menu, command_menu_event, LV_EVENT_ALL, ui);
+        ui->command_ring = lv_arc_create(ui->command_menu);
+        lv_obj_set_size(ui->command_ring, px(232), px(232));
+        lv_obj_center(ui->command_ring);
+        lv_arc_set_bg_angles(ui->command_ring, 0, 360);
+        lv_arc_set_angles(ui->command_ring, 0, 80);
+        lv_obj_remove_style(ui->command_ring, NULL, LV_PART_KNOB);
+        lv_obj_remove_flag(ui->command_ring, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_style_arc_width(ui->command_ring, px(6), LV_PART_MAIN);
+        lv_obj_set_style_arc_width(ui->command_ring, px(6), LV_PART_INDICATOR);
+        lv_obj_set_style_arc_color(ui->command_ring, lv_color_hex(color_track), LV_PART_MAIN);
+        ui->command_link_symbol = lv_line_create(ui->command_menu);
+        lv_obj_set_style_line_width(ui->command_link_symbol, px(3), 0);
+        lv_obj_remove_flag(ui->command_link_symbol, LV_OBJ_FLAG_CLICKABLE);
         ui->command_title = plain_label(ui->command_menu, color_text_primary);
         ui->command_value = plain_label(ui->command_menu, color_text_primary);
         ui->command_note  = plain_label(ui->command_menu, color_warning);
@@ -2340,10 +2696,12 @@ void ui_show_vehicle_actions(ui_t *ui)
             lv_obj_set_style_bg_opa(ui->command_dots[i], LV_OPA_COVER, 0);
             lv_obj_set_pos(ui->command_dots[i], px(106 + i * 12), px(211));
         }
-        ui->command_button = plain_view(ui->command_menu, 148, 44);
-        lv_obj_align(ui->command_button, LV_ALIGN_TOP_MID, 0, px(136));
+        ui->command_button = plain_view(ui->command_menu, 152, 48);
+        lv_obj_align(ui->command_button, LV_ALIGN_TOP_MID, 0, px(150));
         lv_obj_set_style_radius(ui->command_button, px(12), 0);
         lv_obj_set_style_bg_color(ui->command_button, lv_color_hex(color_accent), 0);
+        lv_obj_set_style_bg_color(ui->command_button, lv_color_mix(lv_color_hex(color_accent), lv_color_black(), 190),
+                                  LV_STATE_PRESSED);
         lv_obj_set_style_bg_opa(ui->command_button, LV_OPA_COVER, 0);
         ui->command_button_text = plain_label(ui->command_button, color_background);
         lv_obj_t *targets[]     = {ui->command_back, ui->command_button};
@@ -2385,14 +2743,21 @@ void ui_set_vehicle_action_status(ui_t    *ui,
 {
     if (ui && kind >= 1 && kind <= 2)
     {
-        atomic_store(&ui->command_ui[kind - 1], phase | ((unsigned)flags << 8) | (((unsigned)remaining & 1023U) << 16) |
-                                                    (((unsigned)preset & 3U) << 26) | (((unsigned)reason & 15U) << 28));
+        unsigned packed = phase | ((unsigned)flags << 8) | (((unsigned)remaining & 1023U) << 16) |
+                          (((unsigned)preset & 3U) << 26) | (((unsigned)reason & 15U) << 28);
+        unsigned old    = atomic_exchange(&ui->command_ui[kind - 1], packed);
+        if ((old & 0xfc00ffffU) != (packed & 0xfc00ffffU))
+            atomic_fetch_add(&ui->command_epoch, 1);
     }
 }
 void ui_set_idle_protection(ui_t *ui, bool configured)
 {
     if (ui)
+    {
+        if (ui->idle_protection != configured)
+            ui->command_press = ui->command_hold_armed = false;
         ui->idle_protection = configured;
+    }
 }
 void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *preset, uint16_t *seconds)
 {
@@ -2411,4 +2776,65 @@ void ui_vehicle_command_queued(ui_t *ui, bool accepted)
         ui->command_wait_at          = (uint32_t)(esp_timer_get_time() / 1000);
         refresh_vehicle_menu(ui);
     }
+}
+
+void ui_set_vehicle_action_snapshot(ui_t *ui, const uint8_t status[32])
+{
+    if (!ui || !status || status[1] < 1 || status[1] > 2)
+        return;
+    uint32_t scope[3];
+    memcpy(scope, status + 8, sizeof(scope));
+    unsigned kind = status[1];
+    if (memcmp(ui->command_scope[kind - 1], scope, sizeof(scope)))
+    {
+        memcpy(ui->command_scope[kind - 1], scope, sizeof(scope));
+        atomic_fetch_add(&ui->command_epoch, 1);
+    }
+    ui_set_vehicle_action_status(ui, kind, status[2], status[27], status[24] | (uint16_t)status[25] << 8, status[3],
+                                 status[26]);
+}
+static void command_hold_tick(ui_t *ui)
+{
+    if (!ui->command_press || !ui->command_hold_armed)
+        return;
+    if (!ui->command_menu_visible || ui->command_suspended || !action_context(ui) || ui->command_moved ||
+        ui->command_press_epoch != atomic_load(&ui->command_epoch) ||
+        lv_obj_has_state(ui->command_button, LV_STATE_DISABLED) ||
+        strcmp(lv_label_get_text(ui->command_button_text), "Hold to start"))
+    {
+        ui->command_press = ui->command_hold_armed = false;
+        return;
+    }
+    if ((uint32_t)(esp_timer_get_time() / 1000) - ui->command_press_at < 900)
+        return;
+    /* Consume the entire touch before dispatch: its release cannot also Stop. */
+    ui->command_press = ui->command_hold_armed = false;
+    ui->command_hold_commit                    = true;
+    command_activate(ui, false);
+    ui->command_hold_commit = false;
+    refresh_vehicle_menu(ui);
+}
+
+static void command_attention_ring(ui_t *ui)
+{
+    if (!ui->command_menu_visible || !ui->command_suspended || !ui->command_ring)
+        return;
+    unsigned phase    = atomic_load(&ui->command_ui[0]) & 255U;
+    bool     stopping = phase == VEHICLE_STOPPING || phase == VEHICLE_VERIFYING;
+    if (lv_obj_get_parent(ui->command_ring) != ui->widgets.alert_overlay)
+    {
+        lv_obj_set_parent(ui->command_ring, ui->widgets.alert_overlay);
+        lv_obj_center(ui->command_ring);
+    }
+    show(ui->command_ring, stopping);
+    if (stopping)
+    {
+        lv_obj_set_style_arc_color(ui->command_ring, lv_color_hex(color_critical), LV_PART_INDICATOR);
+        lv_arc_set_rotation(ui->command_ring, ((uint32_t)(esp_timer_get_time() / 1000) % 1400) * 360 / 1400);
+    }
+}
+
+page_cycle_reason_t ui_cycle_pause(ui_t *ui)
+{
+    return (page_cycle_reason_t)atomic_load(&ui->cycle_pause);
 }

@@ -36,6 +36,7 @@
 #include "diagnostic_clear.h"
 #include "config_runtime.h"
 #include "display_settings.h"
+#include "orientation_runtime.h"
 #include "hardware_probe.h"
 #include "ui.h"
 
@@ -174,8 +175,10 @@ static void owner_save_worker(void *arg)
 
 #if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED
 #define DISPLAY_SETTINGS_CAPABILITY ",\"ds\":3"
+#define SMART_PAGE_CAPABILITY ",\"sp\":1"
 #else
 #define DISPLAY_SETTINGS_CAPABILITY ""
+#define SMART_PAGE_CAPABILITY ""
 #endif
 
 #define LEGACY_CAPABILITY_BASE                                                                                         \
@@ -187,14 +190,16 @@ static void owner_save_worker(void *arg)
 #define DOCUMENT_CAPABILITY_BASE                                                                                       \
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","                                                      \
     "\"maxAdapterLinks\":1,"                                                                                           \
-    "\"savedStateRead\":false,\"displayRotationWrite\":false,"                                                         \
     "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"da\":1,\"va\":1,\"vc\":1,"                                             \
-    "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY
-static const char capabilities[]          = LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
-static const char document_capabilities[] = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
+    "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY SMART_PAGE_CAPABILITY ",\"mp\":10,\"dx\":1"
+static const char capabilities[]             = LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
+static const char document_capabilities[]    = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
+static const char orientation_capabilities[] = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY ",\"ao\":1}";
+_Static_assert(sizeof(orientation_capabilities) - 1U <= 255U, "Orientation capability JSON too large");
 #if CONFIG_EGAUGE_WIFI_BULK_ENABLED
-static const char capabilities_without_wifi[]          = LEGACY_CAPABILITY_BASE "}";
-static const char document_capabilities_without_wifi[] = DOCUMENT_CAPABILITY_BASE "}";
+static const char capabilities_without_wifi[]             = LEGACY_CAPABILITY_BASE "}";
+static const char document_capabilities_without_wifi[]    = DOCUMENT_CAPABILITY_BASE "}";
+static const char orientation_capabilities_without_wifi[] = DOCUMENT_CAPABILITY_BASE ",\"ao\":1}";
 #endif
 _Static_assert(sizeof(capabilities) - 1U <= 255U, "Public capability JSON exceeds the qualified Android read boundary");
 _Static_assert(sizeof(document_capabilities) - 1U <= 255U,
@@ -377,6 +382,71 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle, struct ble
     if (request[0] == 0x34 && length == 5)
     {
         extended_status_mode   = 8;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x6a)
+    {
+        if (length != 5)
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        if (read_u32(request + 1) != 1)
+            return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        extended_status_mode   = 21;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x6b)
+    {
+        if (length != 7)
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        display_settings_t settings = display_settings_snapshot();
+        if (request[1] > 1 || request[2] > 3 || settings.revision == UINT32_MAX ||
+            read_u32(request + 3) != settings.revision)
+            return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        if (request[1] && (!document_active || !orientation_runtime_snapshot().usable))
+            return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
+        companion_command_t command = {.opcode           = 0x6b,
+                                       .value            = request[2],
+                                       .auto_orientation = request[1] == 1,
+                                       .base_revision    = read_u32(request + 3)};
+        if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+            return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode   = 21;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x68)
+    {
+        if (length != 5)
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        if (read_u32(request + 1) != 1)
+            return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        extended_status_mode   = 20;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] == 0x69)
+    {
+        if (length != 11)
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        companion_command_t command = {
+            .opcode        = 0x69,
+            .value         = request[1],
+            .brightness    = request[2],
+            .units         = request[3],
+            .cycle_seconds = request[4] | ((uint16_t)request[5] << 8),
+            .smart_cycle   = request[6] == 1,
+            .base_revision = read_u32(request + 7),
+        };
+        uint16_t           interval = command.cycle_seconds;
+        display_settings_t settings = display_settings_snapshot();
+        if (command.value > 3 || command.brightness < 5 || command.brightness > 100 || command.units > 1 ||
+            request[6] > 1 || settings.revision == UINT32_MAX || command.base_revision != settings.revision ||
+            (interval != 0 && interval != 5 && interval != 10 && interval != 15 && interval != 30 && interval != 60))
+            return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+            return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode   = 20;
         status_snapshot_length = 0;
         return 0;
     }
@@ -720,6 +790,45 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_g
             return BLE_ATT_ERR_INVALID_OFFSET;
         return companion_gatt_read_value(ctxt->om, state, length, ctxt->offset);
     }
+    if (extended_status_mode == 21)
+    {
+        display_settings_t   settings    = display_settings_snapshot();
+        orientation_status_t orientation = orientation_runtime_snapshot();
+        uint8_t              state[]     = {24,
+                                            1,
+                                            settings.auto_orientation ? 1 : 0,
+                                            settings.rotation,
+                                            orientation.applied_angle,
+                                            orientation.sensor_status,
+                                            0,
+                                            0,
+                                            (uint8_t)settings.revision,
+                                            (uint8_t)(settings.revision >> 8),
+                                            (uint8_t)(settings.revision >> 16),
+                                            (uint8_t)(settings.revision >> 24)};
+        if (ctxt->offset > sizeof(state))
+            return BLE_ATT_ERR_INVALID_OFFSET;
+        return companion_gatt_read_value(ctxt->om, state, sizeof(state), ctxt->offset);
+    }
+    if (extended_status_mode == 20)
+    {
+        display_settings_t settings = display_settings_snapshot();
+        uint8_t            state[]  = {23,
+                                       settings.rotation,
+                                       settings.brightness,
+                                       settings.units,
+                                       (uint8_t)settings.revision,
+                                       (uint8_t)(settings.revision >> 8),
+                                       (uint8_t)(settings.revision >> 16),
+                                       (uint8_t)(settings.revision >> 24),
+                                       (uint8_t)settings.cycle_seconds,
+                                       (uint8_t)(settings.cycle_seconds >> 8),
+                                       settings.smart_cycle ? 1 : 0,
+                                       1};
+        if (ctxt->offset > sizeof(state))
+            return BLE_ATT_ERR_INVALID_OFFSET;
+        return companion_gatt_read_value(ctxt->om, state, sizeof(state), ctxt->offset);
+    }
     if (extended_status_mode == 9)
     {
         display_settings_t settings = display_settings_snapshot();
@@ -776,10 +885,15 @@ static int capabilities_read(uint16_t conn_handle, uint16_t attr_handle, struct 
     (void)arg;
     if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR)
         return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
-    const char *value = document_active ? document_capabilities : capabilities;
+    bool        auto_orientation = document_active && orientation_runtime_supported();
+    const char *value            = auto_orientation  ? orientation_capabilities
+                                   : document_active ? document_capabilities
+                                                     : capabilities;
 #if CONFIG_EGAUGE_WIFI_BULK_ENABLED
     if (!wifi_bulk_available())
-        value = document_active ? document_capabilities_without_wifi : capabilities_without_wifi;
+        value = auto_orientation  ? orientation_capabilities_without_wifi
+                : document_active ? document_capabilities_without_wifi
+                                  : capabilities_without_wifi;
 #endif
     size_t length = strlen(value);
     if (ctxt->offset > length)

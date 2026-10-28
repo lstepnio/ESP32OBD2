@@ -96,6 +96,31 @@ class ReviewHttpTest(unittest.TestCase):
             error.exception.close()
         self.assertFalse(self.storage.exists())
 
+    def test_stale_browser_revision_preserves_newer_feedback(self):
+        self.call(
+            {
+                "action": "save",
+                "baseRevision": 0,
+                "screen": {"id": "dual", "status": "approved", "feedback": "Saved in Chrome"},
+            }
+        )
+        before = self.storage.read_bytes()
+        with self.assertRaises(HTTPError) as error:
+            self.call(
+                {
+                    "action": "save",
+                    "baseRevision": 0,
+                    "screen": {
+                        "id": "dual",
+                        "status": "changes_requested",
+                        "feedback": "Old window",
+                    },
+                }
+            )
+        self.assertEqual(error.exception.code, 409)
+        error.exception.close()
+        self.assertEqual(self.storage.read_bytes(), before)
+
     def test_old_page_cannot_approve_new_images(self):
         with self.assertRaises(HTTPError) as error:
             self.call(
@@ -281,6 +306,46 @@ class ActionReviewTest(unittest.TestCase):
                 worker.join()
 
 
+class CarReviewTest(unittest.TestCase):
+    def test_car_routes_and_independent_feedback(self):
+        with tempfile.TemporaryDirectory() as folder:
+            server = build_server(0, Path(folder) / "car.json", UI_DIR / "car-pages")
+            worker = Thread(target=server.serve_forever, daemon=True)
+            worker.start()
+            base = f"http://127.0.0.1:{server.server_address[1]}"
+            try:
+                for name in ("index.html", "prototype.html", "app-attention.png", "review.js"):
+                    with urlopen(
+                        base + "/docs/design/gauge-ui-proposal/car-pages/" + name
+                    ) as response:
+                        self.assertEqual(response.status, 200)
+                with self.assertRaises(HTTPError) as error:
+                    urlopen(base + "/docs/design/gauge-ui-proposal/action-pages/index.html")
+                self.assertEqual(error.exception.code, 404)
+                error.exception.close()
+                store = server.store
+                self.assertEqual(store.review_id, "egauge-car-ux-2026-10-28")
+                saved = store.save(
+                    {
+                        "reviewId": store.review_id,
+                        "manifestSha256": store.manifest_hash,
+                        "baseRevision": 0,
+                        "action": "save",
+                        "screen": {
+                            "id": "app-attention",
+                            "status": "changes_requested",
+                            "feedback": "Use fewer words",
+                        },
+                    }
+                )
+                self.assertEqual(saved["screens"]["app-attention"]["feedback"], "Use fewer words")
+                self.assertEqual(store.load()["revision"], 1)
+            finally:
+                server.shutdown()
+                server.server_close()
+                worker.join()
+
+
 class ActionCarryTest(unittest.TestCase):
     def test_bound_assets_removed_examples_and_revised_notes(self):
         from review_server import ReviewStore, ReviewConflict
@@ -338,6 +403,23 @@ class ActionCarryTest(unittest.TestCase):
             with self.assertRaises(ReviewConflict):
                 unseeded.seed_from(old.storage, old_assets)
             self.assertFalse(unseeded.storage.exists())
+
+    def test_action_archives_match_original_review_digests(self):
+        from review_server import ReviewStore
+
+        # Original submission digests bind every screen and flow dependency.
+        digests = {
+            "v2": "e089e26f495fcf9061efb6e2a12ceb85efe091d2e2240988090d1567a8656bec",
+            "v3": "87c2aa7467a072496d55af36917670d14e90e491ad045c1f0a2925d204417b3e",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            for version, expected in digests.items():
+                with self.subTest(version=version):
+                    store = ReviewStore(
+                        Path(directory) / (version + ".json"),
+                        UI_DIR / "action-pages" / version,
+                    )
+                    self.assertEqual(store.manifest_hash, expected)
 
     def test_frozen_session_survives_source_edits(self):
         import review_server

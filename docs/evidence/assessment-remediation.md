@@ -69,3 +69,17 @@ vehicle command/Stop/restoration behavior. New software checks do not close them
 Website impact: the current form/consent/error path and generated recovery bundle
 change; publication remains a separate daily batch. Product layout/screens did not
 change, so new marketing screenshots are unnecessary.
+
+## Mainline reconciliation, 2026-10-28
+
+The original reviewed head `8261de3ca38edff96a66afc5f9daec75209917b5` is preserved
+by `codex/assessment-remediation-preserved-20261028`. PR #93 incorporates main
+`f2dbf7596dbbb378eec9485c0f097ed79159ef10` without rewriting that history.
+Current profile schema 19, polling/freshness policy, Car presentation, orientation
+and startup stack guards are retained. The newer shared modal-editor test helpers
+replace the older semantic-click workaround; all three Android test files from
+PR #102 already match main. Historical test counts above describe the original
+head only. Fresh reconciliation results are recorded below when completed.
+
+This cleanup does not merge the PR, publish a release, deploy the website/backend,
+install software, or close physical qualification gates.

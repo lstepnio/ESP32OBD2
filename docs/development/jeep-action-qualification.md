@@ -8,18 +8,36 @@ Do not add a second command transport or enable a mask from a reference capture.
 
 ## Readiness and the first trip
 
-The App/action pages and dev.61 are installed. The owner confirmed three upward
-swipes enter actions, horizontal swipes browse and a downward swipe returns.
-The signed update, five Wi-Fi maintenance cycles and Bluetooth recovery passed.
-Air up is configured for 5:00 and Winch for 1:00; their pressure calibration is
-not measured yet. Both use the captured **fixed** idle setting, not an arbitrary
-RPM request. Live command qualification remains disabled.
+Use the installed baseline in [current state](../current-state.md) and its linked
+indoor evidence. The signed App/Wi-Fi installation, protected readbacks, saved setup
+and physical action navigation are checked. No unresolved command journal was found.
+The next session can combine fixed read-only input capture with supervised idle
+Start/Stop; automatic Park/brake qualification and ABS/TCS remain separate.
 
-**Ready for the first parked input capture; not yet ready to execute controls from
-eGauge.** `main.c` supplies no qualified identity/guard/restoration proofs today.
-The first capture closes that input-definition gap. A scoped runtime evidence
-adapter and signed candidate follow validated input mappings, before phase 2.
-No current firmware update or App reinstall is required for phase 1.
+### One-visit idle test candidate
+
+The owner approved a temporary local-confirmation policy on 2026-10-26 so the
+missing automatic Park/brake mapping need not force a second Jeep visit. The
+[candidate contract](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
+owns exact identity, speed/RPM, coolant, timer and restoration limits. This is a
+separate build, now installed with indoor readiness checks passed. ABS/TCS stays disabled.
+
+Before leaving, check the installed identity and indoor acceptance in current state.
+Future candidate replacements follow the [release procedure](firmware-release-runbook.md)
+and require their own authorization. No adapter indoors means no Start. Keep Air up
+at **5:00** and Winch at **1:00**. Preserve the dashboard, bindings and four CEL filters.
+
+At the Jeep, use one session for the fixed phase-1 capture and idle checks below.
+Keep the gauge off while the Mac owns the adapter, then release the Mac connection
+before powering the gauge. Start the eGauge test in Park with parking brake set
+and owner at the ignition. On the first Air up attempt use Stop within about five
+seconds of accepted raised idle, verify ordinary RPM, then repeat for Winch. Only
+after successful Stop/restoration check the five-minute Air up timer. If coolant
+is missing/stale, the displayed duration is limited to one minute; fresh coolant
+does not shorten Air up. Capture device logs, owner observations and the original
+read-only labels separately. Do not enable ABS/TCS or remove Unknown markers to
+get another attempt. If this candidate fails, preserve the trace and use the
+existing Stop/engine-off cleanup; no additional trip is required just to gather inputs.
 
 Bring the Mac, unlocked Pixel, gauge, both Vgates and USB data cables. Work parked
 outdoors with parking brake set. No compressor, winch load, driving, Line Lock,
@@ -83,6 +101,10 @@ promote a runtime guard. Read latency through the Mac is not ESP32 timing proof.
 
 ## Phase 2: scoped gauge idle candidate
 
+The owner-supervised exception above permits only the idle tests in this phase
+before automatic Park/brake mapping. The following requirements apply to promoting
+the fully automatic vehicle definition; neither test mode nor its fixtures do that.
+
 Only after those input mappings and the runtime adapter are tested, build a signed
 candidate for the exact controller. Publication/installation follows the
 [release runbook](firmware-release-runbook.md) and requires owner authorization.
@@ -93,6 +115,7 @@ the prior phone/gauge filter divergence must not recur.
 | --- | --- | --- |
 | Baseline | Fresh identity, guards, coolant limit, ordinary RPM; no control active | Exact expected controller, coherent revision/link, valid guard age |
 | Air up | Local named confirmation; brief Start then immediate Stop | Accepted report plus physical raised idle; immediate same-session Return report and settled ordinary RPM |
+| Uncertain reboot recovery | Preserve a controlled unresolved marker; restart gauge/vehicle, retain normal idle and live primary RPM | Exact identity, read-only inactive report, three later settled samples, durable marker cleared; capture outgoing trace proving no Start/Return/session entry. Active/negative/missing report must remain Unknown without a control replay. |
 | Winch | Repeat Start/Stop using the same fixed-idle driver | Independent preset/countdown; no duplicate Start or arbitrary RPM claim |
 | Timer | Short bounded duration | One automatic Return, settled RPM, no restart without new confirmation |
 | Coolant | Temporary threshold crossed during ordinary warm-up, with owner present | Return latency recorded without deliberately overheating; original alert restored |
@@ -126,3 +149,36 @@ Finish in Park at ordinary idle or engine off, with ABS/TCS restored and both
 warning lights cleared. Restore original coolant thresholds, phone monitoring and
 wake settings; retain the three action pages, dashboard, bindings and four CEL
 filters. Raw recordings stay under ignored `artifacts/vehicle-captures/`.
+
+## 2026-10-27 Air up owner observation
+
+The owner reported Air up worked well on the installed candidate, but the active
+page displayed “Coolant unavailable.” Source inspection found that the active
+page tested the local-gauge Start requirement (status flag bit 3), which the
+parked candidate always sets, instead of coolant unavailable (bit 4). The UI fix
+uses bit 4; it changes no command admission, temperature protection or timer.
+Production-renderer cases cover fresh coolant with local-only Start, missing
+coolant, and recovered coolant with a retained fallback deadline.
+
+This observation does not establish the run duration, coolant freshness, thermal
+Stop or complete restoration/recovery behavior. The owner confirmed no coolant page is configured. Coolant protection polls the
+primary ECM independently of display pages; a coolant page is not required. The
+runtime replay now explicitly uses an RPM-only page and still checks fresh coolant,
+five-minute admission, thermal Stop and missing-coolant fallback. Confirm the
+actual countdown at the next opportunity. The display fix is installed in signed dev.63 through App/Wi-Fi; see the
+[rollout evidence](../evidence/action-pages-indoor.md#2026-10-27-dev63-coolant-status-correction).
+The owner confirmed physical dev.63 normal pages, swipes and action-page entry.
+Vehicle coolant/countdown and remaining protection/recovery checks remain.
+Website impact: no new public qualification claim or publication is warranted.
+
+## Read-only gauge diagnostic snapshot
+
+`DiagnosticReadbackJourneyTest` requires explicit `allowDiagnosticReadback=true`
+and may pin `expectedFirmwareVersion` / `expectedFirmwareElf`. Stop phone alert
+monitoring first, then run only this class on the authorized paired phone. It saves
+exact running setup and protected ECM/TCM diagnostic, adapter and command state in
+the App's private external `diagnostic-readback/` output. Unknown and stale fields
+are retained, not asserted fresh. These are gauge-cache reads, not forced ECU
+acquisition; retain original ages, session and revision when attributing an icon.
+No clearing, control, filter edit or configuration write is performed. Treat the
+output as private vehicle evidence and restore monitoring/wake preferences afterward.

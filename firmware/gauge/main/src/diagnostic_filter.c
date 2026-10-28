@@ -74,5 +74,10 @@ diagnostic_filter_result_t diagnostic_filter_project(const uint8_t              
     /* Only reconciled confirmed faults can explain the real ECU MIL. */
     out.suppress_mil = count && complete && (p[2] & 3) == 3 && p[23] == 1 && p[3] == 1 && p[22] > 0 && p[32] == 1 &&
                        (p[33] & 3) == 3 && p[34] == p[22] && out.hidden_count > 0 && !out.visible_count;
+    /* The instrument face must not flash a lamp while loading the very lists
+     * that can explain/filter it. This is pending presentation, not ECU Off or
+     * all-filtered proof. A decoded unfiltered fault needs no complete scan. */
+    out.show_mil =
+        (p[2] & 3) == 3 && p[3] == 1 && p[23] == 1 && !out.suppress_mil && (out.visible_count > 0 || complete);
     return out;
 }

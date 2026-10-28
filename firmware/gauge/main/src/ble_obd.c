@@ -1,3 +1,4 @@
+#include "esp_timer.h"
 // ---------------------------------------------------------------------------------------------------------------------
 // Includes
 // ---------------------------------------------------------------------------------------------------------------------
@@ -439,19 +440,22 @@ int ble_obd_rxtx_status_ecu(ble_obd_ctx_t *obd,
     return ble_obd_read_pid(obd, mode, pid, ecu, timeout_ms, status, NULL);
 }
 
-int ble_obd_read_pid(ble_obd_ctx_t *obd,
-                     uint8_t        mode,
-                     uint16_t       pid,
-                     uint32_t       ecu,
-                     uint32_t       timeout_ms,
-                     elm_result_t  *status,
-                     elm_payload_t *out)
+static int read_pid(ble_obd_ctx_t *obd,
+                    uint8_t        mode,
+                    uint16_t       pid,
+                    uint32_t       ecu,
+                    uint32_t       timeout_ms,
+                    elm_result_t  *status,
+                    elm_payload_t *out,
+                    uint16_t       header)
 {
     if (status)
         *status = ELM_ADAPTER_ERROR;
-    if (!obd || !timeout_ms || (mode != 1 && mode != 0x22) || (mode == 1 && pid > 255) ||
-        (mode == 0x22 && ecu != 0x7e9))
+    if (!obd || !timeout_ms || (mode != 1 && mode != 9 && mode != 0x22) || (mode == 1 && pid > 255) ||
+        (mode == 9 && (pid != 4 && pid != 6)) || (mode == 0x22 && ecu != 0x7e9))
         return -1;
+    if (status)
+        *status = ELM_PENDING; /* No completed reply yet; last-good display may age naturally. */
     TickType_t budget = pdMS_TO_TICKS(timeout_ms);
     if (!budget)
         budget = 1;
@@ -484,7 +488,7 @@ int ble_obd_read_pid(ble_obd_ctx_t *obd,
     }
     if (!drain_rx(obd))
         goto done;
-    if (!select_request_header_locked(obd, mode == 0x22 ? 0x7e1 : 0x7df, start, budget))
+    if (!select_request_header_locked(obd, header, start, budget))
         goto done;
     if (!obd_wait_remaining(start, xTaskGetTickCount(), budget))
         goto done;
@@ -504,8 +508,9 @@ int ble_obd_read_pid(ble_obd_ctx_t *obd,
     }
     obd->consecutive_timeouts = 0;
     elm_payload_t payload;
-    elm_result_t  decoded = mode == 0x22 ? elm_response_decode_identifier(&obd->response, pid, ecu, &payload)
-                                         : elm_response_decode_for_ecu(&obd->response, mode, pid, ecu, &payload);
+    elm_result_t  decoded = mode == 9      ? elm_response_decode_identity(&obd->response, pid, &payload)
+                            : mode == 0x22 ? elm_response_decode_identifier(&obd->response, pid, ecu, &payload)
+                                           : elm_response_decode_for_ecu(&obd->response, mode, pid, ecu, &payload);
     if (status)
         *status = decoded;
     obd_trace_emit(obd->source_id, obd->active_generation, "decoded", payload.bytes, payload.length, decoded);
@@ -513,8 +518,10 @@ int ble_obd_read_pid(ble_obd_ctx_t *obd,
     {
         if (out)
             *out = payload;
-        if (!out && obd->response_cb && (mode == 0x22 || pid % 32 != 0))
-            obd->response_cb(pid, payload.bytes, payload.length, obd->active_generation, obd->usr_ctx);
+        if (obd->response_cb && (mode == 0x22 || (mode == 1 && pid % 32 != 0)))
+            obd->response_cb(mode, pid, payload.has_responder ? payload.responder : ELM_ECU_ANY, payload.bytes,
+                             payload.length, obd->active_generation, (uint32_t)(esp_timer_get_time() / 1000),
+                             obd->usr_ctx);
         result = 0;
     }
     else
@@ -524,6 +531,34 @@ int ble_obd_read_pid(ble_obd_ctx_t *obd,
 done:
     xSemaphoreGive(obd->mutex);
     return result;
+}
+
+int ble_obd_read_pid(ble_obd_ctx_t *obd,
+                     uint8_t        mode,
+                     uint16_t       pid,
+                     uint32_t       ecu,
+                     uint32_t       timeout_ms,
+                     elm_result_t  *status,
+                     elm_payload_t *out)
+{
+    if (mode != 1 && mode != 0x22)
+        return -1;
+    return read_pid(obd, mode, pid, ecu, timeout_ms, status, out, mode == 0x22 ? 0x7e1 : 0x7df);
+}
+
+int ble_obd_read_primary_input(ble_obd_ctx_t *obd,
+                               uint8_t        mode,
+                               uint8_t        pid,
+                               uint32_t       timeout_ms,
+                               elm_result_t  *status,
+                               elm_payload_t *out)
+{
+    if (!obd || obd->source_id != 0 || !out ||
+        !((mode == 9 && (pid == 4 || pid == 6)) || (mode == 1 && (pid == 5 || pid == 12 || pid == 13))))
+        return -1;
+    /* Keep the 7E0 route during a captured idle job. Broadcast PID reads would
+     * otherwise replace its header between the driver's session/control steps. */
+    return read_pid(obd, mode, pid, 0x7e8, timeout_ms, status, out, 0x7e0);
 }
 
 bool ble_obd_is_connected(ble_obd_ctx_t *obd)

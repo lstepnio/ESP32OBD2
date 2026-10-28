@@ -110,10 +110,13 @@ def config(doc):
         physical_queries.add(q)
     for page in doc["pages"]:
         check(
-            len(page["pidIds"]) == (2 if page["renderer"] == "dual" else 1),
+            len(page["pidIds"]) == (2 if page["renderer"] in ("dual", "dualArc") else 1),
             "Renderer channel count",
         )
         check(all(x in defs for x in page["pidIds"]), "Page references unknown PID")
+        if page["renderer"] == "dualArc":
+            index = page["arcMetricIndex"]
+            check(defs[page["pidIds"][index]]["unit"] != "gear", "Arc requires a numeric reading")
     for action in doc.get("actions", []):
         check(
             action["type"] == "vehicleActions"

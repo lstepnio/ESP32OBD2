@@ -140,8 +140,12 @@ class GaugeConfigTransferClient(private val context: Context) {
         val revision: Long,
         val units: MeasurementSystem = MeasurementSystem.Metric,
         val version: Int = 1,
-        val cycleSeconds: Int = 0
-    )
+        val cycleSeconds: Int = 0,
+        val smartCycle: Boolean = false,
+        val smartPolicyVersion: Int = 0
+    ) {
+        val supportsSmartCycle: Boolean get() = smartPolicyVersion == 1
+    }
     data class UpdateResult(val running: BootIdentity)
     private data class Status(
         val phase: Int,
@@ -979,13 +983,48 @@ class GaugeConfigTransferClient(private val context: Context) {
         }
     }
 
-    suspend fun readDisplaySettings(device: BluetoothDevice): DisplaySettings {
+    suspend fun readOrientationSettings(device: BluetoothDevice): GaugeOrientationSettings {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x6a) + le32(1))
+            GaugeProtocolCodec.orientationSettings(readRaw())
+        }
+    }
+
+    suspend fun saveOrientationSettings(device: BluetoothDevice, automatic: Boolean, manualAngle: Int): GaugeOrientationSettings {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        require(manualAngle in 0..3)
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x6a) + le32(1))
+            val before = GaugeProtocolCodec.orientationSettings(readRaw())
+            require(!automatic || before.sensorStatus != 0) { "Automatic orientation is unavailable on this gauge" }
+            if (before.automatic == automatic && before.manualAngle == manualAngle) return@withGauge before
+            writeRaw(GaugeProtocolCodec.orientationSettingsWrite(automatic, manualAngle, before.revision))
+            repeat(20) {
+                val after = GaugeProtocolCodec.orientationSettings(readRaw())
+                if (after.revision > before.revision) {
+                    check(after.revision == before.revision + 1 && after.automatic == automatic && after.manualAngle == manualAngle) {
+                        "Gauge orientation changed during save; refresh and retry"
+                    }
+                    return@withGauge after
+                }
+                delay(100)
+            }
+            error("Gauge did not confirm saved orientation")
+        }
+    }
+
+    suspend fun readDisplaySettings(device: BluetoothDevice, smartPageCyclingVersion: Int = 0): DisplaySettings {
         require(device.bondState == BluetoothDevice.BOND_BONDED) {
             "Pair this phone as gauge owner first"
         }
         return withGauge(device) {
-            writeRaw(byteArrayOf(0x35) + le32(1))
-            GaugeProtocolCodec.displaySettings(readRaw())
+            writeRaw(byteArrayOf(if (smartPageCyclingVersion == 1) 0x68 else 0x35) + le32(1))
+            GaugeProtocolCodec.displaySettings(readRaw()).also {
+                check(it.supportsSmartCycle == (smartPageCyclingVersion == 1)) {
+                    "Gauge returned unexpected display settings"
+                }
+            }
         }
     }
 
@@ -994,7 +1033,9 @@ class GaugeConfigTransferClient(private val context: Context) {
         rotation: Int,
         brightness: Int,
         units: MeasurementSystem? = null,
-        cycleSeconds: Int? = null
+        cycleSeconds: Int? = null,
+        smartCycle: Boolean? = null,
+        smartPageCyclingVersion: Int = 0
     ): DisplaySettings {
         require(
             rotation in 0..3 && brightness in 5..100 &&
@@ -1006,23 +1047,36 @@ class GaugeConfigTransferClient(private val context: Context) {
             "Pair this phone as gauge owner first"
         }
         return withGauge(device) {
-            writeRaw(byteArrayOf(0x35) + le32(1))
+            writeRaw(byteArrayOf(if (smartPageCyclingVersion == 1) 0x68 else 0x35) + le32(1))
             val before = GaugeProtocolCodec.displaySettings(readRaw())
             val requestedUnits = units ?: before.units
+            check(before.supportsSmartCycle == (smartPageCyclingVersion == 1)) {
+                "Gauge returned unexpected display settings"
+            }
             val requestedCycle = cycleSeconds ?: before.cycleSeconds
+            val requestedSmart = smartCycle ?: before.smartCycle
+            require(smartCycle == null || before.supportsSmartCycle) {
+                "Gauge does not offer Smart page cycling"
+            }
             require(units == null || before.version >= 2) {
                 "Gauge does not offer measurement units"
             }
             require(cycleSeconds == null || before.version >= 3) {
                 "Gauge does not offer page cycling"
             }
-            if (before.rotation == rotation && before.brightness == brightness &&
-                before.units == requestedUnits &&
-                before.cycleSeconds == requestedCycle
-            ) {
+            val requested = before.copy(
+                rotation = rotation,
+                brightness = brightness,
+                units = requestedUnits,
+                cycleSeconds = requestedCycle,
+                smartCycle = requestedSmart
+            )
+            if (before == requested) {
                 return@withGauge before
             }
-            if (before.version >= 3) {
+            if (before.supportsSmartCycle) {
+                writeRaw(GaugeProtocolCodec.smartDisplaySettingsWrite(requested))
+            } else if (before.version >= 3) {
                 writeRaw(
                     byteArrayOf(
                         0x38,
@@ -1056,9 +1110,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 val after = GaugeProtocolCodec.displaySettings(readRaw())
                 if (after.revision > before.revision) {
                     check(
-                        after.revision == before.revision + 1 &&
-                            after.rotation == rotation && after.brightness == brightness &&
-                            after.units == requestedUnits && after.cycleSeconds == requestedCycle
+                        GaugeProtocolCodec.displaySettingsSaveConfirmed(before, requested, after)
                     ) {
                         "Gauge settings changed during save; refresh and retry"
                     }

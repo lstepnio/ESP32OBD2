@@ -72,7 +72,8 @@
               "arc",
               "bar",
               "trend",
-              "dual"
+              "dual",
+              "dualArc"
             ]
           },
           "pidIds": {
@@ -86,6 +87,11 @@
             "minItems": 1,
             "maxItems": 2,
             "uniqueItems": true
+          },
+          "arcMetricIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1
           }
         },
         "required": [
@@ -94,10 +100,39 @@
           "renderer",
           "pidIds"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "renderer": {
+                  "const": "dualArc"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "arcMetricIndex"
+              ],
+              "properties": {
+                "pidIds": {
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              }
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "arcMetricIndex"
+                ]
+              }
+            }
+          }
+        ]
       },
       "minItems": 1,
-      "maxItems": 8
+      "maxItems": 10
     },
     "alerts": {
       "type": "array",

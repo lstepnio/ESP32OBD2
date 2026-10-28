@@ -29,6 +29,13 @@ class DisplayPersistenceJourneyTest {
                 model.runtimeIdentity != null &&
                 model.displaySettings != null
         }
+        val evolution = InstrumentationRegistry.getArguments().getString("verifyDisplayEvolution") == "true"
+        if (evolution) {
+            assertEquals(10, model.capabilities?.maxPages)
+            assertTrue(GaugeLayout.DualArc in requireNotNull(model.capabilities).supportedRenderers)
+            assertEquals(1, model.capabilities?.smartPageCyclingVersion)
+            assertEquals("Unqualified sensor must remain unavailable", 0, model.capabilities?.automaticOrientationVersion)
+        }
         val original = requireNotNull(model.displaySettings)
         val document = requireNotNull(model.activeDocument)
         assertTrue(isConfirmedSetup(document.revision, document.sha256, model.runtimeIdentity))
@@ -42,17 +49,18 @@ class DisplayPersistenceJourneyTest {
             mkdirs()
         }
         val report = StringBuilder("Display persistence bench test\nOriginal: $original\n")
-        fun cycle(seconds: Int) {
+        fun cycle(seconds: Int, smart: Boolean? = null) {
             val previous = model.operation.id
-            compose.runOnUiThread { model.savePageCycleSeconds(seconds) }
+            compose.runOnUiThread { model.savePageCycling(seconds, smart) }
             compose.waitUntil(60_000) { model.operation.id > previous && model.operation.terminal }
             assertEquals(model.operation.detail, OperationStage.ACTIVE, model.operation.stage)
             assertEquals(seconds, model.displaySettings?.cycleSeconds)
+            if (smart != null) assertEquals(smart, model.displaySettings?.smartCycle)
         }
         File(output, "result.txt").writeText(report.toString())
         var originalFailure: Throwable? = null
         try {
-            cycle(5)
+            cycle(5, if (evolution) true else null)
             report.append("Five-second interval confirmed.\n")
             File(output, "result.txt").writeText(report.toString())
             val previous = model.operation.id
@@ -78,6 +86,10 @@ class DisplayPersistenceJourneyTest {
                 "After restart: $current\nConfirmation: ${android.os.SystemClock.elapsedRealtime() - started} ms\nRevision: ${model.activeConfigRevision}\nDigest: ${model.expectedSentDigest}\n"
             )
             assertEquals(5, current.cycleSeconds)
+            if (evolution) {
+                assertTrue(current.smartCycle)
+                report.append("Ten-page/Dual + arc capabilities and Smart restart persistence confirmed; Auto remains unqualified.\n")
+            }
             assertEquals(original.rotation, current.rotation)
             assertEquals(original.brightness, current.brightness)
             assertEquals(original.units, current.units)
@@ -103,7 +115,7 @@ class DisplayPersistenceJourneyTest {
                 if (current.cycleSeconds == 5 && current.rotation == original.rotation &&
                     current.brightness == original.brightness && current.units == original.units
                 ) {
-                    cycle(original.cycleSeconds)
+                    cycle(original.cycleSeconds, if (evolution) original.smartCycle else null)
                     report.append("Restored interval: ${model.displaySettings?.cycleSeconds}\n")
                 } else {
                     report.append("Restore skipped: settings changed during test: $current\n")

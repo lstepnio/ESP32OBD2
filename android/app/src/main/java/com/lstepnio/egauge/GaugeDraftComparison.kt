@@ -64,7 +64,8 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                     (0 until ids.length()).map {
                         localPid(ids.getString(it))
                             ?: error("Saved reading is not available")
-                    }
+                    },
+                    page.optInt("arcMetricIndex", 0)
                 )
             }
             val values = saved.getJSONArray("alerts")
@@ -122,7 +123,7 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
             fun pageSettings(local: List<GaugePageDraft>): String = local.mapIndexed { index, page ->
                 "${index + 1}. ${page.name} / ${page.layout.label} / ${page.pidIds.joinToString(
                     " + "
-                )}"
+                )}" + if (page.layout == GaugeLayout.DualArc) " / arc ${page.arcMetricIndex}" else ""
             }.joinToString("\n")
             fun savedPageSettings(): String? = pages?.let { value ->
                 (0 until value.length()).map { index ->
@@ -139,7 +140,7 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                     }
                     "${index + 1}. ${page.optString(
                         "name"
-                    )} / $renderer / ${mapped.joinToString(" + ")}"
+                    )} / $renderer / ${mapped.joinToString(" + ")}" + if (renderer == GaugeLayout.DualArc.label) " / arc ${page.optInt("arcMetricIndex", 0)}" else ""
                 }.joinToString("\n")
             }
             fun alertSettings(local: List<GaugeAlertDraft>): String = local.joinToString("\n") { alert ->
@@ -196,21 +197,18 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                             )
                         }.getOrNull()
                     ),
-                    field(
-                        "CEL code filters",
-                        DiagnosticCodeFilters.json(draft.diagnosticFilters).toString(),
-                        runCatching {
-                            DiagnosticCodeFilters.json(
-                                DiagnosticCodeFilters.fromDocument(saved)
-                            ).toString()
-                        }.getOrNull()
+                    GaugeDraftField(
+                        "Fault visibility",
+                        "Saved on phone",
+                        "Last confirmed on gauge",
+                        runCatching { draft.diagnosticFilters == DiagnosticCodeFilters.fromDocument(saved) }.getOrNull()
                     ),
                     field(
                         "Alert count",
-                        draft.alerts.size.toString(),
+                        draft.alerts.count { it.enabled }.toString(),
                         saved.optJSONArray("alerts")?.length()?.toString()
                     ),
-                    field("All alert settings", alertSettings(draft.alerts), savedAlertSettings())
+                    field("All alert settings", alertSettings(draft.alerts.filter { it.enabled }), savedAlertSettings())
                 )
             )
         }

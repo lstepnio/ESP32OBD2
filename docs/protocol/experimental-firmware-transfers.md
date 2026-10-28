@@ -158,7 +158,7 @@ selects the protected twenty-byte version `15` (decimal 21) status response:
 | 2 | Result: 0 applied, 1 refused |
 | 3 | Zero-based frame index |
 | 4..7 | Acknowledged request sequence, little endian |
-| 8 | Frame count (currently 21; reader bounds 1..64) |
+| 8 | Frame count (source 25; dev.66 has 21; reader bounds 1..64) |
 | 9 | Interval seconds |
 | 10 | Schema 1 |
 | 11 | Reserved zero |
@@ -196,6 +196,35 @@ The authenticated display-settings extension advertises `ds: 1` beginning with d
 Display settings version `ds: 2` extends the same eight-byte state to version `0B`. Byte 3 is the display units enum (`0` metric, `1` imperial); the other fields retain their offsets. Opcode `37` writes rotation, brightness, units, and the little-endian `u32` revision last read, for eight bytes total. Firmware rejects invalid values and stale revisions. The existing opcode `36` remains supported and preserves units. The saved NVS display record migrates version 1 to version 2 without changing rotation, brightness, or revision. Built-in and document readings remain canonical metric values; the gauge converts Celsius and kilometers per hour for display, and the app converts previews and alert editing at the presentation boundary. No configuration document or GATT database change is required.
 
 Display settings version `ds: 3` adds saved-page cycling. State version `0C` is ten bytes: version, rotation, brightness, units, little-endian `u32` revision, then little-endian `u16` cycle interval in seconds. The interval accepts `0` (Off) or `5`, `10`, `15`, `30`, and `60`. Opcode `38` writes rotation, brightness, units, little-endian `u16` interval, then little-endian `u32` expected revision, for ten bytes total. Older opcodes `36` and `37` preserve the cycle interval. Existing NVS records migrate to a disabled interval without changing their display values or revision. The gauge advances only when more than one saved page exists, resets the interval after a manual page change or owner selection, and pauses during a transfer. Automatic page changes are runtime only; they do not repeatedly write flash. The app verifies the saved interval by reading the next revision. This extension uses the existing protected characteristics and requires no GATT database or configuration document change.
+
+### Smart page cycling settings
+
+Configured dashboards add optional capability `sp:1`; `ds:3`, legacy capability
+flags and legacy state/opcodes retain their meanings. The document JSON omits
+`savedStateRead:false` and `displayRotationWrite:false`, whose supported decoders
+already default to false, to stay below the qualified 255-byte read boundary.
+The legacy built-in-page path does not advertise Smart.
+
+An authenticated owner writes `68 01 00 00 00` to request Smart display settings.
+The protected state is 12 bytes: `17` (decimal23), rotation, brightness, units,
+little-endian u32 settings revision, little-endian u16 cycle interval, Smart Boolean
+`0`/`1`, and policy version `1`. Reject other lengths, flags, policy versions or
+existing display field bounds. `0` interval makes Smart inactive without discarding
+its saved preference. This is distinct from Auto physical display orientation.
+
+Opcode `69` writes eleven bytes: opcode, rotation, brightness, units, LE16 interval,
+Smart Boolean, LE32 expected revision. Admission validates bounds/revision and queues
+without blocking. The application owner uses the existing display writer; confirmed
+success requires an exact next revision and all requested fields in extended readback.
+A lost acknowledgement is an uncertain outcome until fresh readback, never permission
+to replay. The new read/write leaves state in this extended mode for polling.
+
+Older write opcodes preserve the Smart preference on new firmware and leave their
+readback format unchanged. Capability absence means the new App retains ordinary
+cycling controls. NVS version/revision sidecars, interruption and downgrade semantics
+are owned by the [Smart cycling contract](../architecture/smart-page-cycling.md#settings-and-compatibility).
+No GATT database, saved configuration document or public capability-flag change is
+required. Existing owner authentication and operation serialization apply.
 
 The device uses LE Secure Connections, authenticated passkey entry, encryption and bonding. An unowned gauge starts on an exclusive pairing screen and automatically opens a 120-second association window. When the window expires, the screen shows **HOLD TO OPEN PAIRING** and a gauge long press opens another window. While the window is open, the screen says **OPEN APP TO PAIR GAUGE**. Readings, renderer graphics, alerts, and diagnostics stay hidden throughout pairing. The six-digit passkey appears on its LCD and Android shows the system pairing prompt. The first authenticated bonded phone identity is stored in NVS as owner, which closes pairing and restores the selected gauge page. Subsequent boots with a saved owner start on that page even when the phone is disconnected. Protected GATT access also checks the owner identity. A 12-second physical hold now opens a 30-second confirmation screen; a tap confirms erasing the owner association and bond, then restarts the gauge. This reset is intentionally local.
 
@@ -264,7 +293,9 @@ prevents traffic. Verified reconciliation is required before another Start.
 
 ## Shared vehicle commands v1
 
-**Implemented development interface; live controller qualification remains disabled.**
+**Implemented development interface; ordinary builds keep live controller qualification disabled.**
+The explicit [parked idle candidate](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
+uses the same wire with local-only Start and a separate temporary admission policy.
 Document-mode capability `vc:1` identifies the typed interface and actions-menu
 configuration extension. It does not establish a qualified car or enable vehicle
 writes. Legacy built-in mode does not advertise it. Public BLE capability flags
@@ -309,7 +340,7 @@ is checked by native and Kotlin tests.
 | 20 | 4 | Last event sequence for this kind |
 | 24 | 2 | Remaining idle seconds, otherwise zero |
 | 26 | 1 | Idle preset 1/2, otherwise zero |
-| 27 | 1 | Bit 0: qualified with usable journal; bit 1: ABS/TCS restart required; idle-only bit 2: latched timed fallback, bit 3: physical-gauge Start required, bit 4: coolant unavailable; bits 5..7 zero |
+| 27 | 1 | Bit 0: execution enabled with usable journal (qualification or the explicit parked idle candidate); bit 1: ABS/TCS restart required; idle-only bit 2: latched timed fallback, bit 3: physical-gauge Start required, bit 4: coolant unavailable; bits 5..7 zero |
 | 28 | 4 | Global last admitted Start operation; no wrap |
 
 Idle fallback flags report the [coolant policy](../architecture/vehicle-actions.md#coolant-protection-for-raised-idle).
@@ -317,6 +348,8 @@ Remaining seconds reflects the earlier deadline, rounded up. The physical-confir
 origin exists only inside the firmware queue; reserved request bytes remain zero
 and cannot authorize a missing-coolant Start. Older decoders refuse extended
 statuses rather than offering an unprotected Start. No public capability is promoted.
+The parked candidate always sets bit 3 for idle, even with fresh coolant; the App
+can retain monitoring/Stop without an APK update and cannot bypass local Start.
 
 An uncertain write is sent once and reconciled by bounded status reads. Status
 must match kind, boot, revision, link and operation. Foreground reads retry with
@@ -341,3 +374,42 @@ mutually exclusive. Reading cycling pauses in the branch and resumes with a full
 interval after returning. Existing command bytes/status, qualification masks and
 public capability flags are unchanged. The UI receives one packed atomic snapshot
 per kind; no new transport or polling worker is added.
+
+## Display capacity and Dual + arc extensions
+
+Document-mode capability `mp:10` advertises the ten-page bound and `dx:1` advertises
+Dual + arc. `cfg:7` and schema version 2 are unchanged. Absence retains legacy page
+limits and blocks the new renderer before transfer. `dualArc` requires two distinct
+PID references and integer `arcMetricIndex` 0 or 1 selecting a numeric, non-gear
+reading. Other renderers reject that field. The 32-reading/32-alert/64 KiB limits
+remain. Public configuration/OTA flags remain false. See the
+[display contract](../architecture/display-experience.md) for UX/resource semantics.
+
+## Sensor orientation extension
+
+Document-mode `ao:1` signals stable protocol support on an initialized, qualified
+board transport, independent of current sensor health. No GATT database change.
+Authenticated read `6a` plus LE32 selector 1 is five bytes. Write `6b` is seven
+bytes: opcode, mode (0 manual, 1 Auto), manual angle (0..3), then LE32 expected
+global display revision. Bounds, support and revision are validated before queuing.
+Auto requires previously established qualified sensor availability; unsupported
+writes are rejected. Every write requires matching protected readback, with no
+blind replay after an uncertain outcome.
+
+State tag 24 (`18` hex) has twelve bytes: tag, policy version 1, mode, saved manual
+angle, applied angle, sensor status, two reserved zero bytes, LE32 revision.
+Sensor status is 0 unavailable/unqualified/not yet healthy, 1 healthy, 2 stale after
+confirmed health. The App gates the Auto choice from this state, not cached
+capability JSON alone. Auto holds its angle during stale observations and resumes
+quietly after recovery. Read replies report only successfully applied transforms.
+
+`ds:3` and `sp:1` continue to report saved manual angle, never transient sensor
+angles. Smart write `69` preserves Auto when its manual angle is unchanged; a changed
+manual angle exits Auto. Legacy writes `36`, `37`, `38` always select manual mode.
+Use `6b` for an explicit same-angle manual choice. All share one display revision.
+Revision-matched NVS sidecars store Smart bit 0 and Auto bit 1; the unchanged legacy
+v3 record activates the revision last. Sensor angle changes never rewrite NVS or
+advance revision. Older firmware rejects unknown sidecar flags and safely loses
+optional modes rather than applying a mismatched record. Default images keep both
+orientation probe/qualification gates off. Physical acceptance is required before
+advertising usable Auto; see [hardware policy](../architecture/hardware-and-transports.md#automatic-display-orientation).

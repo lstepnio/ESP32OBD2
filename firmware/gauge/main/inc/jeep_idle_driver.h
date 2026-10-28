@@ -6,7 +6,8 @@ typedef enum
 {
     JEEP_IDLE_START_CAPTURED,
     JEEP_IDLE_REPORT,
-    JEEP_IDLE_RETURN
+    JEEP_IDLE_RETURN,
+    JEEP_IDLE_RECOVERY_REPORT /* Read-only, including cancellation and guard failure. */
 } jeep_idle_kind_t;
 typedef enum
 {

@@ -84,6 +84,36 @@ int main(int argc, char **argv)
     assert(!runtime.legacy_auto_discovery && !strcmp(runtime.sources[0].address, "C0:00:00:00:00:01") &&
            runtime.sources[0].address_type == 1);
     assert(runtime.pids[0].responder == 0x7e8);
+    cJSON *expanded       = cJSON_Duplicate(root, true);
+    cJSON *expanded_pages = cJSON_GetObjectItem(expanded, "pages");
+    while (cJSON_GetArraySize(expanded_pages) < 10)
+    {
+        cJSON *page = cJSON_Duplicate(cJSON_GetArrayItem(expanded_pages, 0), true);
+        char   id[32];
+        snprintf(id, sizeof(id), "page.extra-%d", cJSON_GetArraySize(expanded_pages));
+        cJSON_ReplaceItemInObject(page, "id", cJSON_CreateString(id));
+        cJSON_AddItemToArray(expanded_pages, page);
+    }
+    cJSON *arc_page = cJSON_GetArrayItem(expanded_pages, 9);
+    cJSON_ReplaceItemInObject(arc_page, "renderer", cJSON_CreateString("dualArc"));
+    cJSON_AddItemToArray(cJSON_GetObjectItem(arc_page, "pidIds"), cJSON_CreateString("engine.coolant"));
+    cJSON_AddNumberToObject(arc_page, "arcMetricIndex", 1);
+    set(expanded);
+    assert(validate() == ESP_OK && config_runtime_load(&runtime, &active, &previous) == ESP_OK);
+    assert(runtime.page_count == 10 && runtime.pages[9].renderer == RUNTIME_RENDERER_DUAL_ARC &&
+           runtime.pages[9].arc_metric_index == 1);
+    cJSON_SetNumberValue(cJSON_GetObjectItem(arc_page, "arcMetricIndex"), 2);
+    set(expanded);
+    assert(validate() != ESP_OK);
+    cJSON_SetNumberValue(cJSON_GetObjectItem(arc_page, "arcMetricIndex"), 1);
+    cJSON *eleventh = cJSON_Duplicate(cJSON_GetArrayItem(expanded_pages, 0), true);
+    cJSON_ReplaceItemInObject(eleventh, "id", cJSON_CreateString("page.eleven"));
+    cJSON_AddItemToArray(expanded_pages, eleventh);
+    set(expanded);
+    assert(validate() != ESP_OK);
+    cJSON_Delete(expanded);
+    set(root);
+    assert(validate() == ESP_OK);
     cJSON *filters = cJSON_Parse("[{\"controller\":\"ecm\",\"code\":\"P0420\"}]");
     cJSON_AddItemToObject(root, "diagnosticFilters", filters);
     set(root);

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location(
@@ -26,7 +27,9 @@ class EvidenceTests(unittest.TestCase):
             sdk = root / "sdk"
             sdk.mkdir()
             (sdk / "LICENSE").write_text("fixture license")
-            (build / "project_description.json").write_text(json.dumps({"idf_path": str(sdk)}))
+            (build / "project_description.json").write_text(
+                json.dumps({"idf_path": str(sdk), "config_file": str(gauge / "sdkconfig")})
+            )
             (gauge / "dependencies.lock").write_text(
                 "dependencies:\n  idf:\n    version: 5.4.1\n    source:\n      type: idf\n      path: /private/machine\n"
             )
@@ -57,3 +60,80 @@ class EvidenceTests(unittest.TestCase):
             (sdk / "LICENSE").unlink()
             with self.assertRaisesRegex(ValueError, "license"):
                 evidence.collect(root, build, "a" * 40)
+
+    def test_candidate_evidence_uses_selected_image_and_recorded_configuration(self):
+        for variant in ("parked-idle", "orientation-candidate"):
+            with self.subTest(variant=variant), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                gauge = root / "firmware/gauge"
+                build = gauge / ("build-" + variant)
+                build.mkdir(parents=True)
+                sdk = root / "sdk"
+                sdk.mkdir()
+                (sdk / "LICENSE").write_text("fixture license")
+                config = root / "artifacts/checks" / (variant + ".sdkconfig")
+                config.parent.mkdir(parents=True)
+                config.write_text("candidate config " + variant)
+                (gauge / "sdkconfig").write_text("normal config")
+                (build / "project_description.json").write_text(
+                    json.dumps({"idf_path": str(sdk), "config_file": str(config)})
+                )
+                (gauge / "dependencies.lock").write_text(
+                    "dependencies:\n  idf:\n    version: 5.4.1\n    source:\n      type: idf\n"
+                )
+                (gauge / "partitions.csv").write_text("fixture partitions")
+                for name in evidence.REQUIRED:
+                    path = build / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes((variant + ":" + name).encode())
+                for name in (
+                    "THIRD_PARTY_NOTICES.md",
+                    "third_party/NotoSans-OFL.txt",
+                    "firmware/gauge/LICENSE",
+                ):
+                    path = root / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text("fixture notice")
+                result = evidence.collect(root, build, "b" * 40)
+                self.assertEqual(result["source/sdkconfig"], config.read_bytes())
+                self.assertEqual(
+                    result["build/esp32-idf-project.bin"],
+                    (build / "esp32-idf-project.bin").read_bytes(),
+                )
+                provenance = json.loads(result["provenance.json"])
+                self.assertEqual(provenance["sourceCommit"], "b" * 40)
+                for name, digest in provenance["files"].items():
+                    self.assertEqual(hashlib.sha256(result[name]).hexdigest(), digest)
+                config.unlink()
+                with self.assertRaises(FileNotFoundError):
+                    evidence.collect(root, build, "b" * 40)
+                with self.assertRaisesRegex(ValueError, "source SHA"):
+                    evidence.collect(root, build, "short")
+
+    def test_cli_selects_build_and_rejects_dirty_sources_before_archiving(self):
+        for variant in (None, "build-parked-idle", "build-orientation-candidate"):
+            with self.subTest(variant=variant), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory) / "evidence.zip"
+                arguments = ["release_evidence.py", "--output", str(output)]
+                build = ROOT / "firmware/gauge" / (variant or "build")
+                if variant:
+                    arguments += ["--build-dir", str(build)]
+                with (
+                    mock.patch("sys.argv", arguments),
+                    mock.patch.object(evidence.subprocess, "check_output", return_value="a" * 40),
+                    mock.patch.object(evidence.subprocess, "run") as clean_check,
+                    mock.patch.object(evidence, "collect", return_value={}) as collect,
+                ):
+                    evidence.main()
+                    collect.assert_called_once_with(ROOT, build, "a" * 40)
+                    self.assertEqual(
+                        clean_check.call_args.args[0], ["git", "diff", "--exit-code", "HEAD", "--"]
+                    )
+                    self.assertTrue(clean_check.call_args.kwargs["check"])
+                    output.unlink()
+                    clean_check.side_effect = evidence.subprocess.CalledProcessError(1, "git")
+                    collect.reset_mock()
+                    with self.assertRaises(evidence.subprocess.CalledProcessError):
+                        evidence.main()
+                    collect.assert_not_called()
+                    self.assertFalse(output.exists())

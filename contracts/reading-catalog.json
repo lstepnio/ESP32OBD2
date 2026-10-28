@@ -57,7 +57,11 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 1
+      "configurationVersion": 1,
+      "samplingClass": "fast",
+      "smartInterest": {
+        "kind": "rpm"
+      }
     },
     {
       "id": "coolant",
@@ -111,7 +115,18 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 1
+      "configurationVersion": 1,
+      "samplingClass": "thermal",
+      "smartInterest": {
+        "kind": "coolant",
+        "approach": 5,
+        "riseRate": 0.2,
+        "riseDelta": 3
+      },
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
+      }
     },
     {
       "id": "speed",
@@ -165,7 +180,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 1
+      "configurationVersion": 1,
+      "samplingClass": "fast"
     },
     {
       "id": "load",
@@ -219,7 +235,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 1
+      "configurationVersion": 1,
+      "samplingClass": "fast"
     },
     {
       "id": "fuel",
@@ -273,7 +290,12 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 1
+      "configurationVersion": 1,
+      "samplingClass": "slow",
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
+      }
     },
     {
       "id": "tcmtemp",
@@ -328,7 +350,18 @@
         ],
         "sourceId": "tcm"
       },
-      "configurationVersion": 4
+      "configurationVersion": 4,
+      "samplingClass": "thermal",
+      "smartInterest": {
+        "kind": "thermal",
+        "approach": 5,
+        "riseRate": 0.2,
+        "riseDelta": 3
+      },
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
+      }
     },
     {
       "id": "tcmgear",
@@ -395,7 +428,8 @@
         ],
         "sourceId": "tcm"
       },
-      "configurationVersion": 4
+      "configurationVersion": 4,
+      "samplingClass": "fast"
     },
     {
       "id": "stft1",
@@ -457,7 +491,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "ltft1",
@@ -519,7 +554,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "stft2",
@@ -581,7 +617,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "ltft2",
@@ -643,7 +680,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "fuelpressure",
@@ -705,7 +743,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "map",
@@ -767,7 +806,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "timing",
@@ -829,7 +869,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "intake",
@@ -891,7 +932,12 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "thermal",
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
+      }
     },
     {
       "id": "maf",
@@ -953,7 +999,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "throttle",
@@ -1015,7 +1062,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "runtime",
@@ -1077,7 +1125,11 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "slow",
+      "smartInterest": {
+        "kind": "runtime"
+      }
     },
     {
       "id": "mildistance",
@@ -1139,7 +1191,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "slow"
     },
     {
       "id": "fuelrailrelative",
@@ -1201,7 +1254,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "fuelrail",
@@ -1263,7 +1317,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "egr",
@@ -1325,7 +1380,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "egrerror",
@@ -1387,7 +1443,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "evappurge",
@@ -1449,7 +1506,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "warmups",
@@ -1511,7 +1569,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "slow"
     },
     {
       "id": "cleardistance",
@@ -1573,7 +1632,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "slow"
     },
     {
       "id": "evappressure",
@@ -1635,7 +1695,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "baro",
@@ -1697,7 +1758,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "catb1s1",
@@ -1759,7 +1821,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "thermal"
     },
     {
       "id": "catb2s1",
@@ -1821,7 +1884,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "thermal"
     },
     {
       "id": "catb1s2",
@@ -1883,7 +1947,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "thermal"
     },
     {
       "id": "catb2s2",
@@ -1945,7 +2010,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "thermal"
     },
     {
       "id": "voltage",
@@ -2007,7 +2073,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "absoluteload",
@@ -2069,7 +2136,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "equivalence",
@@ -2131,7 +2199,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "relthrottle",
@@ -2193,7 +2262,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "ambient",
@@ -2255,7 +2325,12 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "thermal",
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
+      }
     },
     {
       "id": "throttleb",
@@ -2317,7 +2392,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "throttlec",
@@ -2379,7 +2455,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "pedald",
@@ -2441,7 +2518,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "pedale",
@@ -2503,7 +2581,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "pedalf",
@@ -2565,7 +2644,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "throttlecommand",
@@ -2627,7 +2707,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "miltime",
@@ -2689,7 +2770,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "slow"
     },
     {
       "id": "cleartime",
@@ -2751,7 +2833,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "slow"
     },
     {
       "id": "ethanol",
@@ -2813,7 +2896,12 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "slow",
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
+      }
     },
     {
       "id": "evapabsolute",
@@ -2875,7 +2963,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "railabsolute",
@@ -2937,7 +3026,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "relpedal",
@@ -2999,7 +3089,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "hybridbattery",
@@ -3061,7 +3152,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "oiltemp",
@@ -3123,7 +3215,12 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "thermal",
+      "samplingStability": {
+        "epsilon": 0.5,
+        "windowMs": 30000
+      }
     },
     {
       "id": "fuelrate",
@@ -3185,7 +3282,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "demandtorque",
@@ -3247,7 +3345,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "actualtorque",
@@ -3309,7 +3408,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "fast"
     },
     {
       "id": "referencetorque",
@@ -3371,7 +3471,8 @@
         ],
         "sourceId": "ecm"
       },
-      "configurationVersion": 5
+      "configurationVersion": 5,
+      "samplingClass": "slow"
     }
   ]
 }

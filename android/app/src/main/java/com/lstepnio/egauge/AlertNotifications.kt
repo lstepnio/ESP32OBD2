@@ -47,7 +47,8 @@ class AlertNotifications(private val context: Context) {
         foreground: Boolean,
         filtered: Boolean = false,
         system: MeasurementSystem = MeasurementSystem.Metric,
-        codes: List<com.lstepnio.egauge.ui.state.CarFaultUi> = emptyList()
+        codes: List<com.lstepnio.egauge.ui.state.CarFaultUi> = emptyList(),
+        reconcileOnly: Boolean = false
     ) {
         val id = event.id(gauge).hashCode()
         if (filtered) {
@@ -64,7 +65,9 @@ class AlertNotifications(private val context: Context) {
             manager.cancel(id)
             return
         }
-        if (!shouldNotifyAlert(event, live, foreground)) return
+        val alreadyPosted = manager.activeNotifications.any { it.id == id }
+        if (reconcileOnly && !alreadyPosted) return
+        if (!reconcileOnly && !shouldNotifyAlert(event, live, foreground)) return
         if (Build.VERSION.SDK_INT >= 33 &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
@@ -72,11 +75,13 @@ class AlertNotifications(private val context: Context) {
             return
         }
         val transition = event.transitionId(gauge)
-        if (transition in delivered ||
-            manager.activeNotifications.any {
-                it.id == id &&
-                    it.notification.extras.getString("egauge_transition") == transition
-            }
+        if (!reconcileOnly && (
+                transition in delivered ||
+                    manager.activeNotifications.any {
+                        it.id == id &&
+                            it.notification.extras.getString("egauge_transition") == transition
+                    }
+                )
         ) {
             return
         }
@@ -99,6 +104,7 @@ class AlertNotifications(private val context: Context) {
                 "vehicle-warning"
             }
         )
+            .setOnlyAlertOnce(reconcileOnly)
             .setSmallIcon(R.drawable.ic_alert_notification)
             .setContentTitle(com.lstepnio.egauge.ui.state.alertTitle(event))
             .setSubText(event.severity.name)
@@ -122,6 +128,37 @@ class AlertNotifications(private val context: Context) {
         ) {
             delivered.remove(delivered.keys.first())
         }
+    }
+
+    /** Policy edits reconcile posted content only. Revealing history never posts notifications. */
+    fun reconcile(
+        vehicle: String,
+        entries: List<StoredAlert>,
+        rules: List<DiagnosticCodeFilter>,
+        system: MeasurementSystem = MeasurementSystem.Metric
+    ) {
+        manager.activeNotifications.filter {
+            it.notification.extras.getString("egauge_vehicle") == vehicle
+        }.forEach { posted ->
+            val entry = entries.firstOrNull { it.vehicle == vehicle && it.event.id(it.gauge).hashCode() == posted.id }
+            val projected = entry?.let { AlertVisibility.project(it, rules) }
+            if (projected == null) {
+                manager.cancel(posted.id)
+                posted.notification.extras.getString("egauge_transition")?.let { delivered[it] = true }
+            } else {
+                show(
+                    projected.event,
+                    projected.vehicle,
+                    projected.gauge,
+                    live = false,
+                    foreground = false,
+                    system = system,
+                    codes = com.lstepnio.egauge.ui.state.recordedFaultCodes(projected.context),
+                    reconcileOnly = true
+                )
+            }
+        }
+        while (delivered.size > 256) delivered.remove(delivered.keys.first())
     }
     fun cancelGauge(gauge: String) {
         val ids =

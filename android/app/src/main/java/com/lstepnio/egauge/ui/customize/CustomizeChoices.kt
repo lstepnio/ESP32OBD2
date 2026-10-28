@@ -121,7 +121,7 @@ fun LayoutChoices(state: CustomizeUiState, current: PageUi, onSelect: (GaugeLayo
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             GaugeLayout.entries.filter {
                 current.readingId != "tcmgear" ||
-                    it in listOf(GaugeLayout.Numeric, GaugeLayout.Dual)
+                    it in listOf(GaugeLayout.Numeric, GaugeLayout.Dual, GaugeLayout.DualArc)
             }.chunked(columns).forEach { group ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     group.forEach { layout ->
@@ -216,7 +216,7 @@ internal fun PageManager(
     EditorScaffold("Manage pages", onBack, "Done", onBack) {
         OutlinedButton(
             onAdd,
-            enabled = state.editingEnabled && state.pages.size < 8,
+            enabled = state.editingEnabled && state.pages.size < 10,
             modifier = Modifier.fillMaxWidth()
         ) {
             EGaugeIcon(GaugeIcon.Add)
@@ -229,10 +229,10 @@ internal fun PageManager(
             Text("Keep at least one page.", style = MaterialTheme.typography.bodyMedium)
         }
         if (state.pages.size >=
-            8
+            10
         ) {
             Text(
-                "All 8 pages are in use. Remove one to add another.",
+                "All 10 pages are in use. Remove one to add another.",
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -393,4 +393,5 @@ private fun layoutDescription(layout: GaugeLayout): String = when (layout) {
     GaugeLayout.Bar -> "A horizontal scale"
     GaugeLayout.Trend -> "Changes over time"
     GaugeLayout.Dual -> "Two readings"
+    GaugeLayout.DualArc -> "Two readings with an arc"
 }

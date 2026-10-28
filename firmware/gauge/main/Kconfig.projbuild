@@ -1,5 +1,15 @@
 menu "eGauge configuration"
 
+config EGAUGE_JEEP_IDLE_PARKED_TEST
+    bool "Enable owner-supervised parked idle tests for the captured Jeep ECM"
+    default n
+    help
+        Temporary Air up/Winch qualification only. Requires exact primary ECM
+        calibration/CVN, fresh zero speed/running RPM, local gauge confirmation
+        of Park and parking brake, coolant protection and a five-minute ceiling.
+        Missing coolant retains the existing one-minute fallback. Phone Start,
+        ABS/TCS and public capabilities remain disabled. Never use for driving.
+
 config EGAUGE_OBD_TRACE
     bool "Record bounded OBD transport traces over USB serial"
     default n
@@ -55,3 +65,31 @@ config EGAUGE_DTC_CLEAR_ENABLED
     help
         Development qualification switch. Never enable for an unqualified vehicle
         or JSS transmission controller. Reading faults does not qualify clearing.
+
+config EGAUGE_AUTO_ORIENTATION_QUALIFIED
+    bool "Advertise physically qualified reference-board Auto orientation"
+    depends on EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED
+    default n
+    help
+        Keep disabled until mapping v1, display/touch alignment, motion stability,
+        shared-I2C contention, pairing, alerts, updates and cycling are physically
+        qualified. Identity/probe success and offline tests do not qualify hardware.
+
+config EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED
+    bool "Run offline-qualified candidate orientation sensor worker"
+    default n
+    help
+        Starts one low-priority worker with a 2048-byte internal stack and no
+        queue. Reads the existing shared touch I2C bus at 10Hz. Driver waits are
+        isolated from the rendering/control owner. Does not qualify Auto or
+        enable its capability by itself. Keep disabled in normal release images.
+
+config EGAUGE_AUTO_ORIENTATION_CANDIDATE
+    bool "Owner-supervised Auto orientation qualification candidate"
+    depends on EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED && !EGAUGE_AUTO_ORIENTATION_QUALIFIED
+    default n
+    help
+        Explicit development-only build for physical orientation qualification.
+        Allows the protected Auto choice only after live IMU health is established.
+        Does not mark the board physically qualified or enable public capabilities.
+        Keep disabled in ordinary images; use the signed candidate release path.

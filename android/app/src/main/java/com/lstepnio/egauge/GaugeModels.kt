@@ -49,14 +49,19 @@ enum class GaugeLayout(val label: String) {
     Arc("Arc"),
     Bar("Bar"),
     Trend("Trend"),
-    Dual("Dual")
+    Dual("Dual"),
+    DualArc("Dual + arc");
+
+    val isDual: Boolean get() = this == Dual || this == DualArc
+    val renderer: String get() = if (this == DualArc) "dualArc" else name.lowercase(java.util.Locale.ROOT)
 }
 
 data class GaugePageDraft(
     val id: String,
     val name: String,
     val layout: GaugeLayout,
-    val pidIds: List<String>
+    val pidIds: List<String>,
+    val arcMetricIndex: Int = 0
 )
 
 enum class AlertDirection { Above, Below, Equals }
@@ -70,7 +75,8 @@ data class GaugeAlertDraft(
     val hysteresis: Double = 3.0,
     val triggerDwellMs: Int = 1000,
     val clearDwellMs: Int = 2000,
-    val priority: Int = 8
+    val priority: Int = 8,
+    val enabled: Boolean = true
 ) {
     constructor(
         id: String,
@@ -81,10 +87,11 @@ data class GaugeAlertDraft(
         hysteresis: Int = 3,
         triggerDwellMs: Int = 1000,
         clearDwellMs: Int = 2000,
-        priority: Int = 8
+        priority: Int = 8,
+        enabled: Boolean = true
     ) : this(
         id, pidId, direction,
-        warning.toDouble(), critical.toDouble(), hysteresis.toDouble(), triggerDwellMs, clearDwellMs, priority
+        warning.toDouble(), critical.toDouble(), hysteresis.toDouble(), triggerDwellMs, clearDwellMs, priority, enabled
     )
 }
 
@@ -197,7 +204,20 @@ data class CapabilitySnapshot(
     val maxPages: Int = 0,
     val supportedRenderers: Set<GaugeLayout> = emptySet(),
     val displayShowcaseVersion: Int = 0,
-    val vehicleCommandsVersion: Int = 0
+    val vehicleCommandsVersion: Int = 0,
+    val smartPageCyclingVersion: Int = 0,
+    val automaticOrientationVersion: Int = 0
 )
 
 data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revision: Long)
+
+/** Protected orientation policy. Sensor loss holds the last applied angle. */
+data class GaugeOrientationSettings(
+    val automatic: Boolean,
+    val manualAngle: Int,
+    val appliedAngle: Int,
+    val sensorStatus: Int,
+    val revision: Long
+) {
+    val automaticAvailable: Boolean get() = sensorStatus in 1..2
+}

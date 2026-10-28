@@ -193,19 +193,71 @@ def idf_command():
     return [python, script]
 
 
-def firmware(action):
+def firmware_variant_config(text, *, parked_idle_test=False, orientation_candidate=False):
+    overrides = {}
+    if parked_idle_test:
+        overrides["CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST"] = True
+    if orientation_candidate:
+        overrides.update(
+            {
+                "CONFIG_EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED": True,
+                "CONFIG_EGAUGE_AUTO_ORIENTATION_CANDIDATE": True,
+                "CONFIG_EGAUGE_AUTO_ORIENTATION_QUALIFIED": False,
+            }
+        )
+    lines = [
+        line
+        for line in text.splitlines()
+        if not any(
+            line.startswith(key + "=") or line == "# " + key + " is not set" for key in overrides
+        )
+    ]
+    lines.extend(
+        key + "=y" if value else "# " + key + " is not set" for key, value in overrides.items()
+    )
+    return "\n".join([*lines, ""])
+
+
+def firmware(action, *, parked_idle_test=False, orientation_candidate=False):
     idf = idf_command()
     if action == "build":
-        run([*idf, "-C", FIRMWARE, "build"])
+        options = []
+        if parked_idle_test or orientation_candidate:
+            OUTPUT.mkdir(parents=True, exist_ok=True)
+            variant = "orientation-candidate" if orientation_candidate else "parked-idle"
+            config = OUTPUT / (variant + ".sdkconfig")
+            config.write_text(
+                firmware_variant_config(
+                    (FIRMWARE / "sdkconfig").read_text(),
+                    parked_idle_test=parked_idle_test,
+                    orientation_candidate=orientation_candidate,
+                )
+            )
+            options = ["-B", FIRMWARE / ("build-" + variant), "-D", "SDKCONFIG=" + str(config)]
+        run([*idf, "-C", FIRMWARE, *options, "build"])
     elif action == "test":
         idf = os.environ.get("IDF_PATH")
         if not idf:
             raise SystemExit("Source ESP-IDF 5.4.1 export.sh before firmware checks.")
         require("cmake")
         build = OUTPUT / "ui-host"
-        run(["cmake", "-S", FIRMWARE / "tests/ui_host", "-B", build])
+        run(
+            [
+                "cmake",
+                "-S",
+                FIRMWARE / "tests/ui_host",
+                "-B",
+                build,
+                "-DEGAUGE_PARKED_IDLE_TEST=OFF",
+            ]
+        )
         run(["cmake", "--build", build, "-j", "2"])
         run([build / "gauge_ui_render", OUTPUT / "ui-renders"])
+        run(
+            ["cmake", "-S", FIRMWARE / "tests/ui_host", "-B", build, "-DEGAUGE_PARKED_IDLE_TEST=ON"]
+        )
+        run(["cmake", "--build", build, "-j", "2"])
+        run([build / "gauge_ui_render", OUTPUT / "ui-renders-parked"])
         json_dir = Path(idf) / "components/json/cJSON"
         # Apple's SDK deprecates sprintf used by the pinned third-party cJSON.
         # Compile that vendor object separately so project warnings stay errors.
@@ -279,6 +331,11 @@ def android_ui(action):
         "ReadingAlertsUiTest",
         "OptimizationUiTest",
         "AlertNotificationTest",
+        "AlertVisibilityReportTest",
+        "AlertDetailUiTest",
+        "AlertJourneyTest",
+        "CarSettingsJourneyTest",
+        "HiddenFaultCodesUiTest",
         "RepositoryGalleryTest",
     )
     run(
@@ -309,7 +366,26 @@ def main():
         "--check", action="store_true", help="Check formatting without rewriting files"
     )
     parser.add_argument("--language", choices=("all", "python", "kotlin", "c"), default="all")
+    parser.add_argument(
+        "--parked-idle-test",
+        action="store_true",
+        help="Build the explicit owner-supervised Jeep idle candidate in a separate directory",
+    )
+    parser.add_argument(
+        "--orientation-candidate",
+        action="store_true",
+        help="Build an explicitly owner-supervised sensor-orientation candidate; default qualification stays off",
+    )
     args = parser.parse_args()
+    if args.parked_idle_test or args.orientation_candidate:
+        if args.action != "build" or args.target != "firmware":
+            parser.error("candidate options require build --target firmware")
+        firmware(
+            "build",
+            parked_idle_test=args.parked_idle_test,
+            orientation_candidate=args.orientation_candidate,
+        )
+        return
     if args.action == "bootstrap":
         bootstrap()
         return

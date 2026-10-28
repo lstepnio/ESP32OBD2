@@ -1,5 +1,6 @@
 package com.lstepnio.egauge.ui.expert
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
@@ -39,22 +40,30 @@ data class ExpertActions(
 fun ExpertScreen(
     state: ExpertUiState,
     actions: ExpertActions,
-    faultCoverage: @Composable () -> Unit = {}
+    faultCoverage: @Composable () -> Unit = {},
+    carAdvanced: Boolean = false,
+    onBack: () -> Unit = {},
+    onReview: () -> Unit = {}
 ) {
     var tool by rememberSaveable(state.vehicleId) { mutableStateOf<String?>(null) }
     var filtersOpen by rememberSaveable(state.vehicleId) { mutableStateOf(false) }
-    var codeInput by rememberSaveable(state.vehicleId) { mutableStateOf("") }
-    var controller by rememberSaveable(state.vehicleId) { mutableStateOf("ECM") }
     var secondOpen by rememberSaveable(state.vehicleId) { mutableStateOf(false) }
     var removeOpen by rememberSaveable(state.vehicleId) { mutableStateOf(false) }
+    if (filtersOpen) {
+        HiddenFaultCodesScreen(state, actions, { filtersOpen = false }, onReview)
+        return
+    }
+    BackHandler(carAdvanced) { onBack() }
     ScreenContent {
-        ScreenTitle("Expert")
+        ScreenTitle(if (carAdvanced) "Advanced" else "Expert", if (carAdvanced) onBack else null)
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                "Advanced setup and troubleshooting",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (!carAdvanced) {
+                Text(
+                    "Advanced setup and troubleshooting",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             if (state.vehicleId.isNotBlank() || state.vehicleName.isNotBlank()) {
                 SectionTitle(state.vehicleName.ifBlank { "Vehicle" })
                 if (BuildConfig.DEBUG && state.primarySource == "ECM") {
@@ -78,8 +87,8 @@ fun ExpertScreen(
                     )
                 }
                 SettingsRow(
-                    "Code filters",
-                    if (state.diagnosticFilters.isEmpty()) "Choose which fault codes to hide" else "${state.diagnosticFilters.size} codes filtered",
+                    "Hidden fault codes",
+                    null,
                     state.canEditVehicle
                 ) { filtersOpen = true }
                 if (state.legacyParents.isNotEmpty()) {
@@ -89,20 +98,22 @@ fun ExpertScreen(
                     ) { tool = "legacy" }
                 }
             }
-            SectionTitle("Troubleshooting")
-            SettingsRow("Fault diagnostics", "See which vehicle checks have completed") {
-                tool =
-                    "faults"
-            }
-            SettingsRow("Device data", "Gauge information and support checks") { tool = "device" }
-            if (BuildConfig.DEBUG && state.canShowcase) {
-                SettingsRow(
-                    if (state.showcaseActive) "Stop display demo" else "Preview gauge screens",
-                    "Generated examples · hold the gauge to exit",
-                    onClick = {
-                        actions.displayShowcase(!state.showcaseActive)
-                    }
-                )
+            if (!carAdvanced) {
+                SectionTitle("Troubleshooting")
+                SettingsRow("Fault diagnostics", "See which vehicle checks have completed") {
+                    tool =
+                        "faults"
+                }
+                SettingsRow("Device data", "Gauge information and support checks") { tool = "device" }
+                if (BuildConfig.DEBUG && state.canShowcase) {
+                    SettingsRow(
+                        if (state.showcaseActive) "Stop display demo" else "Preview gauge screens",
+                        "Generated examples · hold the gauge to exit",
+                        onClick = {
+                            actions.displayShowcase(!state.showcaseActive)
+                        }
+                    )
+                }
             }
         }
     }
@@ -172,63 +183,6 @@ fun ExpertScreen(
                         }
                     }
                 }
-            }
-        }
-    }
-    if (filtersOpen) {
-        ModalBottomSheet(onDismissRequest = { filtersOpen = false }) {
-            Column(
-                Modifier.fillMaxWidth().navigationBarsPadding().imePadding().verticalScroll(
-                    rememberScrollState()
-                ).padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                SectionTitle("Code filters")
-                Text(
-                    "For ${state.vehicleName}. Matching codes stay in Fault diagnostics and history. CEL is hidden only when all current codes are filtered and checks are complete."
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("ECM" to "Engine", "TCM" to "Transmission").forEach { (id, label) ->
-                        FilterChip(selected = controller == id, onClick = {
-                            controller = id
-                        }, label = { Text(label) })
-                    }
-                }
-                OutlinedTextField(value = codeInput, onValueChange = {
-                    codeInput = it.trim().take(6)
-                }, label = { Text("Code, for example P0420") }, singleLine = true)
-                val entry = codeInput.takeIf {
-                    it.length == 5
-                }?.let { runCatching { DiagnosticCodeFilters.rule(controller, it) }.getOrNull() }
-                val valid = entry != null && entry !in state.diagnosticFilters
-                Text(
-                    when {
-                        entry in state.diagnosticFilters -> "Already filtered"
-                        codeInput.isNotEmpty() && entry == null -> "Enter an exact five-character code."
-                        else -> "Up to 16 exact codes per vehicle."
-                    },
-                    style = MaterialTheme.typography.bodySmall
-                )
-                PrimaryAction(
-                    "Add filter",
-                    enabled =
-                        state.canEditVehicle && valid &&
-                            state.diagnosticFilters.size < DiagnosticCodeFilters.LIMIT,
-                    onClick = {
-                        actions.addCodeFilter(state.vehicleId, controller, codeInput)
-                        codeInput = ""
-                    }
-                )
-                state.diagnosticFilters.forEach { rule ->
-                    SettingsRow(
-                        "${rule.code} · ${if (rule.controller == "TCM") "Transmission" else "Engine"}",
-                        "Remove filter",
-                        state.canEditVehicle
-                    ) {
-                        actions.removeCodeFilter(state.vehicleId, rule)
-                    }
-                }
-                Text("Review and send this vehicle's setup to apply changes to the gauge.")
             }
         }
     }

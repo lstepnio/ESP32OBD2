@@ -18,7 +18,8 @@ data class PageUi(
     val unit: String,
     val layout: GaugeLayout,
     val preview: ReadingPreviewUi,
-    val secondaryId: String? = null
+    val secondaryId: String? = null,
+    val arcMetricIndex: Int = 0
 )
 
 @Immutable
@@ -46,7 +47,8 @@ data class AlertUi(
     val priority: Int = 8,
     val canonicalWarning: Double = warning,
     val canonicalCritical: Double = critical,
-    val canonicalResetMargin: Double = resetMargin
+    val canonicalResetMargin: Double = resetMargin,
+    val enabled: Boolean = true
 )
 
 @Immutable
@@ -167,7 +169,13 @@ data class SettingsUiState(
     val cycleSeconds: Int? = null,
     val settingsCurrent: Boolean = true,
     val gauges: List<GaugeUi> = emptyList(),
-    val selectedGaugeId: String? = null
+    val selectedGaugeId: String? = null,
+    val smartCycleSupported: Boolean = false,
+    val smartCycle: Boolean = false,
+    val autoOrientationSupported: Boolean = false,
+    val automaticOrientation: Boolean = false,
+    val orientationSensorStale: Boolean = false,
+    val orientationProtocolSupported: Boolean = false
 )
 
 @Immutable
@@ -225,7 +233,8 @@ data class ExpertUiState(
     val canShowcase: Boolean = false,
     val showcaseActive: Boolean = false,
     val diagnosticFilters: List<com.lstepnio.egauge.DiagnosticCodeFilter> = emptyList(),
-    val rawFaultSources: List<FaultSourceUi> = emptyList()
+    val visibleFaultSources: List<FaultSourceUi> = emptyList(),
+    val filterTargets: List<DetailUi> = emptyList()
 )
 
 @Immutable

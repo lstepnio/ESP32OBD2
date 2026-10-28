@@ -53,7 +53,7 @@ class TransmissionSetupTest {
             )
         )
         assertTrue(
-            ConfigurationProjector.blockers(arc).contains("Gear uses Numeric or Dual layout")
+            ConfigurationProjector.blockers(arc).contains("Gear uses Numeric, Dual or Dual + arc layout")
         )
     }
 

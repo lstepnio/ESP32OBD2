@@ -33,13 +33,13 @@ int main(int argc, char **argv)
     uint8_t original[248];
     memcpy(original, packet, 248);
     diagnostic_filter_result_t r = diagnostic_filter_project(packet, 0, rules, 1);
-    assert(r.suppress_mil && r.hidden_count == 1 && !r.visible_count && r.complete);
+    assert(r.suppress_mil && !r.show_mil && r.hidden_count == 1 && !r.visible_count && r.complete);
     assert(!memcmp(packet, original, 248));
     r = diagnostic_filter_project(packet, 0, NULL, 0);
-    assert(!r.suppress_mil && r.visible_count == 1);
+    assert(!r.suppress_mil && r.show_mil && r.visible_count == 1);
     rules[0].endpoint = 1;
     r                 = diagnostic_filter_project(packet, 0, rules, 1);
-    assert(!r.suppress_mil && r.visible_count == 1);
+    assert(!r.suppress_mil && r.show_mil && r.visible_count == 1);
     rules[0].endpoint = 0;
     packet[34]        = 2;
     packet[22]        = 2;
@@ -96,6 +96,25 @@ int main(int argc, char **argv)
     rules[0].endpoint = 1;
     r                 = diagnostic_filter_project(packet, 1, rules, 1);
     assert(r.suppress_mil);
+    /* Initial MIL On with unresolved lists is not a gauge warning. Partial
+     * decoded unfiltered evidence is sufficient, without waiting for slow modes. */
+    fixture();
+    memset(packet + 32, 0, 216);
+    r = diagnostic_filter_project(packet, 0, NULL, 0);
+    assert(!r.complete && !r.suppress_mil && !r.show_mil);
+    packet[32] = 1;
+    packet[33] = 3;
+    packet[34] = 1;
+    packet[40] = 0x04;
+    packet[41] = 0x20;
+    r          = diagnostic_filter_project(packet, 0, NULL, 0);
+    assert(!r.complete && r.show_mil && r.visible_count == 1);
+    rules[0].endpoint = 0;
+    r                 = diagnostic_filter_project(packet, 0, rules, 1);
+    assert(!r.complete && !r.show_mil && !r.suppress_mil && r.hidden_count == 1);
+    packet[2] &= ~1U;
+    r = diagnostic_filter_project(packet, 0, NULL, 0);
+    assert(!r.show_mil && r.visible_count == 1); /* Fault presence is not MIL truth. */
     if (argc == 2)
     {
         FILE *f = fopen(argv[1], "r");

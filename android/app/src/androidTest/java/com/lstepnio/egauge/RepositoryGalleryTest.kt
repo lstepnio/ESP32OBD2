@@ -16,6 +16,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.ConnectionStatusWidget
+import com.lstepnio.egauge.ui.car.CarScreen
 import com.lstepnio.egauge.ui.preview.ScreenFixtures
 import com.lstepnio.egauge.ui.settings.SettingsScreen
 import com.lstepnio.egauge.ui.state.*
@@ -45,7 +46,7 @@ class RepositoryGalleryTest {
                 }
             ) {
                 EGaugeTheme(dark = true) {
-                    Surface(Modifier.requiredSize(390.dp, 844.dp).testTag("gallery")) {
+                    Surface(Modifier.requiredSize(390.dp, 844.dp).testTag("gallery"), color = MaterialTheme.colorScheme.background) {
                         Column {
                             Box(Modifier.weight(1f)) {
                                 key(selected) {
@@ -58,12 +59,31 @@ class RepositoryGalleryTest {
                                             ),
                                             {}, {}, {}, {}, { _, _ -> }, {}, {}, {}
                                         )
+                                    } else if (selected == "car") {
+                                        CarScreen(
+                                            CarUiState(
+                                                "Jeep Wrangler", listOf(VehicleUi("jeep", "Jeep Wrangler")), "jeep",
+                                                StatusUi("Engine warning", tone = StatusTone.Warning), emptyList(), true, false, false, emptyList(),
+                                                gaugeKnown = true,
+                                                faultSources = listOf(
+                                                    FaultSourceUi(
+                                                        "Engine",
+                                                        StatusUi("Engine warning", tone = StatusTone.Warning),
+                                                        listOf(FaultCategoryUi("Stored", "Checked just now", listOf(FaultUi("P0300", "", "Stored"))))
+                                                    )
+                                                )
+                                            ),
+                                            {},
+                                            {},
+                                            {},
+                                            currentAlerts = listOf(CarAttentionAlert("coolant", "Coolant above your limit", "248 °F · Limit 230 °F", 3))
+                                        )
                                     } else {
                                         ScreenFixtures.Screen(selected, showPreviewLabel = false)
                                     }
                                 }
                             }
-                            NavigationBar {
+                            NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
                                 listOf("gauge", "car", "settings").forEach { name ->
                                     val icon = when (name) {
                                         "gauge" -> GaugeIcon.Gauge

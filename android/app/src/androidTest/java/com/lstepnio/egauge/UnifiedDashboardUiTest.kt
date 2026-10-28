@@ -1,6 +1,7 @@
 package com.lstepnio.egauge
 
 import android.graphics.Bitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -38,6 +39,26 @@ class UnifiedDashboardUiTest {
     )
     private fun actions(add: (String) -> Unit = {}) = CustomizeActions({}, {}, {}, add, {}, { _, _ -> }, {}, {}, {}, {}, {}, {})
 
+    @Test fun dualArcEditorOffersOnlyNumericArcReadings() {
+        val page = GaugePageDraft("page.arc", "TRANSMISSION", GaugeLayout.DualArc, listOf("tcmgear", "tcmtemp"), 1)
+        var selected: Int? = null
+        compose.setContent {
+            EGaugeTheme {
+                DashboardEditorScreen(
+                    state().copy(pages = listOf(pageUi(page))),
+                    0,
+                    {},
+                    {},
+                    actions().copy(selectArc = { selected = it })
+                )
+            }
+        }
+        compose.onNodeWithText("Arc reading").performScrollTo().assertIsDisplayed()
+        compose.onNode(hasText("Transmission temperature") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(1, selected) }
+        compose.onAllNodes(hasText("Transmission gear") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertCountEquals(0)
+    }
+
     @Test fun oneAddPickerIncludesEngineAndTransmissionReadings() {
         var selected: String? = null
         compose.setContent {
@@ -68,16 +89,13 @@ class UnifiedDashboardUiTest {
         ).apply {
             mkdirs()
         }
-        assertEquals(
-            "com.lstepnio.egauge",
-            InstrumentationRegistry.getInstrumentation().uiAutomation.rootInActiveWindow?.packageName?.toString()
-        )
+        // The Compose modal is the tested subject. Global accessibility roots can be absent
+        // on a managed emulator; capture the unique modal root containing the reading search.
+        val pickerRoot = compose.onNode(isRoot() and hasAnyDescendant(hasText("Search readings")), useUnmergedTree = true)
+        val bitmap = pickerRoot.assertIsDisplayed().captureToImage().asAndroidBitmap()
+        assertTrue(bitmap.width > 0 && bitmap.height > 0)
         File(output, "combined-reading-picker.png").outputStream().use {
-            InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().compress(
-                Bitmap.CompressFormat.PNG,
-                100,
-                it
-            )
+            assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
         }
         compose.onNode(
             hasText("Transmission temperature") and

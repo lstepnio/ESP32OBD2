@@ -17,7 +17,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.ConnectionStatusWidget
 import com.lstepnio.egauge.ui.car.CarScreen
-import com.lstepnio.egauge.ui.car.SavedFaultCodes
+import com.lstepnio.egauge.ui.car.FaultCodeExplanation
 import com.lstepnio.egauge.ui.home.HomeScreen
 import com.lstepnio.egauge.ui.settings.SettingsScreen
 import com.lstepnio.egauge.ui.setup.SetupScreen
@@ -49,22 +49,19 @@ class OptimizationUiTest {
         compose.onNodeWithText("What it means").assertExists()
         compose.onNodeWithText("Next step").performScrollTo().assertIsDisplayed()
         captureFaultScreen("fault-explanation")
-        compose.onNodeWithText("Close").performScrollTo().performClick()
-        compose.onNodeWithText("View all 4 codes").performScrollTo().performClick()
-        compose.onNodeWithText("P1DF3 · Transmission · Chrysler/Jeep reference").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Go back").performScrollTo().performClick()
+        compose.onNodeWithText("View all").performScrollTo().performClick()
+        compose.onNodeWithText("P1DF3 · Transmission").performScrollTo().performClick()
         compose.onNode(hasText("Controller not initialized") and hasAnyAncestor(hasTestTag("fault-explanation"))).assertExists()
         compose.onNodeWithText("Next step").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun savedCodesUseTheSameLookupAndStayClearlyHistorical() {
-        val faults = listOf(CarFaultUi("U0140", "", "Transmission", "Stored", listOf("Stored"), false))
-        compose.setContent { EGaugeTheme { Column { SavedFaultCodes(faults, "episode") } } }
-        compose.onNodeWithText("U0140 · Transmission · Saved with alert").assertIsDisplayed()
-        compose.onNodeWithText("U0140 · Transmission · Saved with alert").performClick()
+        val fault = CarFaultUi("U0140", "", "Transmission", "Stored", listOf("Stored"), false)
+        compose.setContent { EGaugeTheme { Column { FaultCodeExplanation(fault, recorded = true) } } }
+        compose.onNodeWithText("U0140 · Transmission").assertIsDisplayed()
         compose.onNodeWithText("What it means").assertExists()
         compose.onNodeWithText("Saved with this alert. This is not a live fault check.").assertExists()
-        compose.onNodeWithText("Back to saved codes").performClick()
-        compose.onNodeWithText("U0140 · Transmission · Saved with alert").assertIsDisplayed()
     }
 
     private fun captureFaultScreen(name: String) {
@@ -121,7 +118,7 @@ class OptimizationUiTest {
             .assertIsDisplayed().assertHasClickAction()
     }
 
-    @Test fun dualFaultsKeepSourceMeaningAndIndependentUnavailableStatus() {
+    @Test fun partialConnectionKeepsWorkingFaultDirectAndUnavailableSiblingQuiet() {
         val engine =
             FaultSourceUi(
                 "Engine",
@@ -142,7 +139,7 @@ class OptimizationUiTest {
                     FaultCategoryUi(
                         "Pending",
                         "",
-                        listOf(FaultUi("P0700", "Transmission fault", "Last checked · Pending"))
+                        listOf(FaultUi("P0700", "Transmission fault", "Last checked · Pending", current = false))
                     )
                 )
             )
@@ -156,15 +153,12 @@ class OptimizationUiTest {
                 emptyList(), true, false, false, emptyList(), faultSources = listOf(engine, child)
             )
         compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}) } }
-        compose.onNodeWithText("Fault checks incomplete").assertExists()
-        compose.onNodeWithText(
-            "Transmission checks are unavailable or out of date.",
-            substring = true
-        ).assertExists()
+        compose.onAllNodesWithText("Fault checks incomplete").assertCountEquals(0)
+        compose.onAllNodesWithText("Transmission checks are unavailable or out of date.", substring = true).assertCountEquals(0)
         compose.onAllNodesWithText("Pending").assertCountEquals(0)
         compose.onNodeWithText("P0301 · Engine").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("P0700 · Transmission · Last checked").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("P0700 · Transmission · Last checked").performClick()
+        compose.onAllNodesWithText("P0700", substring = true).assertCountEquals(0)
+        compose.onNodeWithText("P0301 · Engine").performClick()
         compose.onNodeWithText("What it means").assertExists()
         compose.onNodeWithText("Next step").performScrollTo().assertIsDisplayed()
         compose.onAllNodesWithText("Check coverage").assertCountEquals(0)
@@ -191,12 +185,13 @@ class OptimizationUiTest {
             }
         }
         compose.onNodeWithText("P0301 · Vehicle").performScrollTo().performClick()
-        compose.onNode(hasText("P0301 · Vehicle") and hasAnyAncestor(hasTestTag("fault-explanation"))).assertIsDisplayed()
+        compose.onNode(hasText("P0301 · Vehicle") and hasAnyAncestor(hasTestTag("fault-explanation"))).performScrollTo().assertIsDisplayed()
         compose.runOnIdle {
             state =
                 state.copy(activeId = "other", name = "Other car", faults = emptyList())
         }
         compose.onAllNodesWithText("P0301 · Vehicle").assertCountEquals(0)
+        compose.onNodeWithContentDescription("Car settings").performClick()
         compose.onNodeWithText("Adapter").performScrollTo().performClick()
         compose.onNodeWithText("Remove adapter").performScrollTo().assertIsDisplayed()
     }
@@ -213,7 +208,9 @@ class OptimizationUiTest {
         compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}) } }
         compose.onAllNodesWithText("Set up gauge").assertCountEquals(0)
         compose.onAllNodesWithText("Choose adapter").assertCountEquals(0)
-        compose.onNodeWithText("Waiting for car").assertExists()
+        compose.onAllNodesWithText("Waiting for car").assertCountEquals(0)
+        compose.onAllNodesWithText("Needs attention").assertCountEquals(0)
+        compose.onAllNodesWithText("No active alerts").assertCountEquals(0)
     }
 
     @Test fun ordinaryReconnectionDoesNotAddAnotherHomeStatusCard() {
@@ -284,6 +281,137 @@ class OptimizationUiTest {
         compose.onAllNodesWithText("Check gauge access").assertCountEquals(0)
     }
 
+    @Test fun orientationProtocolKeepsManualWritesAvailableWhileSensorBecomesReady() {
+        var state by mutableStateOf(
+            SettingsUiState(
+                "eGauge", true, 2, true, false, false, false, "test", emptyList(),
+                displaySettingsVersion = 3, brightness = 80, selectedGaugeId = "starting-sensor",
+                orientationProtocolSupported = true
+            )
+        )
+        val saves = mutableListOf<Pair<Boolean, Int>>()
+        var legacySaves = 0
+        compose.setContent {
+            EGaugeTheme {
+                SettingsScreen(
+                    state, {}, {}, {}, { legacySaves++ }, { _, _ -> legacySaves++ }, {}, {}, {},
+                    onSaveOrientation = { automatic, angle -> saves += automatic to angle }
+                )
+            }
+        }
+        compose.onNodeWithText("Rotation").performScrollTo().performClick()
+        compose.onAllNodesWithText("Auto").assertCountEquals(0)
+        compose.onNode(hasText("180°") and isSelected()).assertIsDisplayed()
+        compose.onNodeWithText("Rotate gauge").performClick()
+        compose.runOnIdle {
+            assertEquals(listOf(false to 2), saves)
+            assertEquals(0, legacySaves)
+        }
+        compose.runOnIdle { state = state.copy(automaticOrientation = false, autoOrientationSupported = true) }
+        compose.onNodeWithText("Rotation").performScrollTo().performClick()
+        compose.onNodeWithText("Auto").performClick()
+        compose.onNodeWithText("Rotate gauge").performClick()
+        compose.runOnIdle {
+            assertEquals(listOf(false to 2, true to 2), saves)
+            assertEquals(0, legacySaves)
+        }
+    }
+
+    @Test fun autoOrientationIsOfferedOnlyBySupportedHardwareAndManualSelectionExitsAuto() {
+        var state by mutableStateOf(
+            SettingsUiState(
+                "eGauge", true, 2, true, false, false, false, "test", emptyList(),
+                displaySettingsVersion = 3, brightness = 80, selectedGaugeId = "orientation-gauge"
+            )
+        )
+        val saves = mutableListOf<Pair<Boolean, Int>>()
+        compose.setContent {
+            EGaugeTheme {
+                SettingsScreen(
+                    state, {}, {}, {}, {}, { _, _ -> }, {}, {}, {},
+                    onSaveOrientation = { automatic, angle -> saves += automatic to angle }
+                )
+            }
+        }
+        compose.onNodeWithText("Rotation").performScrollTo().performClick()
+        compose.onAllNodesWithText("Auto").assertCountEquals(0)
+        compose.onNodeWithText("Cancel").performClick()
+        compose.runOnIdle { state = state.copy(orientationProtocolSupported = true, autoOrientationSupported = true, automaticOrientation = true, orientationSensorStale = true) }
+        compose.onNodeWithText("Auto · holding orientation").assertExists()
+        compose.onNodeWithText("Rotation").performScrollTo().performClick()
+        compose.onNodeWithText("Auto").assertExists()
+        compose.onNodeWithText("Holding the last orientation until the sensor recovers.").assertExists()
+        compose.onNodeWithText("180°").performClick()
+        compose.onNodeWithText("Rotate gauge").performClick()
+        compose.runOnIdle { assertEquals(listOf(false to 2), saves) }
+    }
+
+    @Test fun smartCyclingRetainsDisabledPreferenceAndSavesBothFieldsTogether() {
+        var state by mutableStateOf(
+            SettingsUiState(
+                "eGauge", true, 0, true, false, false, false, "test", emptyList(),
+                displaySettingsVersion = 3, brightness = 80, cycleSeconds = 10,
+                selectedGaugeId = "smart-gauge", smartCycleSupported = true, smartCycle = true
+            )
+        )
+        val saves = mutableListOf<Pair<Int, Boolean>>()
+        compose.setContent {
+            EGaugeTheme {
+                SettingsScreen(
+                    state, {}, {}, {}, {}, { _, _ -> }, {}, {}, {},
+                    onSaveSmartCycle = { seconds, smart ->
+                        saves += seconds to smart
+                        state = state.copy(cycleSeconds = seconds, smartCycle = smart)
+                    }
+                )
+            }
+        }
+        compose.onNodeWithText("Every 10 seconds · Smart").assertExists()
+        compose.onNodeWithText("Auto-cycle pages").performScrollTo().performClick()
+        compose.onNodeWithText("Smart").performScrollTo().assertIsOn().performClick().assertIsOff()
+        compose.onNodeWithText("Cancel").performClick()
+        compose.runOnIdle { assertTrue(saves.isEmpty()) }
+        compose.onNodeWithText("Every 10 seconds · Smart").assertExists()
+        compose.onNodeWithText("Auto-cycle pages").performScrollTo().performClick()
+        compose.onNodeWithText("Smart").performScrollTo().assertIsOn()
+        compose.onNodeWithText("Off", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithText("Smart").performScrollTo().assertIsNotEnabled().assertIsOn()
+        compose.onNodeWithText("Choose an interval to use Smart.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Save to gauge").performClick()
+        compose.runOnIdle { assertEquals(listOf(0 to true), saves) }
+        compose.onNodeWithText("Auto-cycle pages").performScrollTo().performClick()
+        compose.onNodeWithText("Smart").performScrollTo().assertIsOn().assertIsNotEnabled()
+        compose.onNodeWithText("Every 10 seconds").performScrollTo().performClick()
+        compose.onNodeWithText("Smart").performScrollTo().assertIsEnabled().assertIsOn()
+        compose.onNodeWithText("Save to gauge").performClick()
+        compose.runOnIdle { assertEquals(listOf(0 to true, 10 to true), saves) }
+        compose.onNodeWithText("Every 10 seconds · Smart").assertExists()
+        compose.onNodeWithText("Auto-cycle pages").performScrollTo().performClick()
+        compose.onNodeWithText("Smart").performScrollTo().performClick().assertIsOff()
+        compose.onNodeWithText("Save to gauge").performClick()
+        compose.runOnIdle { assertEquals(listOf(0 to true, 10 to true, 10 to false), saves) }
+        compose.onNodeWithText("Every 10 seconds · Smart").assertDoesNotExist()
+        compose.onNodeWithText("Every 10 seconds").assertExists()
+    }
+
+    @Test fun legacyCyclingEditorKeepsItsExistingSaveCallbackWithoutSmart() {
+        var saved: Int? = null
+        val state = SettingsUiState(
+            "eGauge", true, 0, true, false, false, false, "test", emptyList(),
+            displaySettingsVersion = 3, brightness = 80, cycleSeconds = 10
+        )
+        compose.setContent {
+            EGaugeTheme {
+                SettingsScreen(state, {}, {}, {}, {}, { _, _ -> }, {}, {}, {}, onSaveCycle = { saved = it })
+            }
+        }
+        compose.onNodeWithText("Auto-cycle pages").performScrollTo().performClick()
+        compose.onNodeWithText("Smart").assertDoesNotExist()
+        compose.onNodeWithText("Every 15 seconds").performScrollTo().performClick()
+        compose.onNodeWithText("Save to gauge").performClick()
+        compose.runOnIdle { assertEquals(15, saved) }
+    }
+
     @Test fun largeTextDialogKeepsTheLastCycleChoiceAndSaveReachable() {
         val state =
             SettingsUiState(
@@ -302,5 +430,92 @@ class OptimizationUiTest {
         compose.onNodeWithText("Auto-cycle pages").performScrollTo().performClick()
         compose.onNodeWithText("Every 60 seconds").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Save to gauge").assertIsDisplayed()
+    }
+
+    @Test fun startupKeepsConnectionWorkInThePillWithoutHealthOrIncompleteTasks() {
+        val state = CarUiState(
+            "Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep",
+            StatusUi("Waiting for car", tone = StatusTone.Loading), emptyList(),
+            false, true, false, emptyList(), gaugeKnown = true,
+            faultSources = listOf(FaultSourceUi("Engine", StatusUi("Checking", tone = StatusTone.Loading), emptyList()))
+        )
+        compose.setContent {
+            EGaugeTheme {
+                CompositionLocalProvider(LocalConnectionStatus provides { ConnectionPill("Car reconnecting", false, onClick = {}) }) {
+                    CarScreen(state, {}, {}, {})
+                }
+            }
+        }
+        compose.onNodeWithText("Car reconnecting").assertIsDisplayed()
+        listOf("Vehicle health", "Needs attention", "Fault checks incomplete", "Waiting for car", "No active alerts").forEach {
+            compose.onAllNodesWithText(it).assertCountEquals(0)
+        }
+        compose.onNodeWithText("History").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun completeHiddenOnlyCheckHasNoAttentionCardCodeOrHiddenCount() {
+        val raw = GaugeConfigTransferClient.Diagnostics(
+            true, true, 1, true, 1, "P0420", true, 0, null, true, 0, null,
+            milAgeMs = 0,
+            categories = listOf("Stored", "Pending", "Permanent").mapIndexed { index, name ->
+                DiagnosticCategory(name, DiagnosticAvailability.Available, true, true, if (index == 0) listOf("P0420") else emptyList(), 0)
+            }
+        )
+        val engine = diagnosticSources(raw, 0, "ECM", listOf(DiagnosticCodeFilter("ECM", "P0420"))).filter { it.title == "Engine" }
+        val state = CarUiState(
+            "Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", vehicleFaultStatus(engine),
+            emptyList(), true, false, false, emptyList(), faultSources = engine
+        )
+        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}) } }
+        compose.onNodeWithText("No active alerts").assertIsDisplayed()
+        listOf("Needs attention", "P0420", "hidden", "filtered").forEach {
+            compose.onAllNodesWithText(it, substring = true, ignoreCase = true, useUnmergedTree = true).assertCountEquals(0)
+        }
+        assertEquals(listOf("P0420"), raw.categories!!.first().codes)
+    }
+
+    @Test fun carUtilitiesAndSettingsDispatchTheirDirectDestinations() {
+        val calls = mutableListOf<String>()
+        val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", StatusUi("Waiting"), emptyList(), false, false, false, emptyList(), gaugeKnown = true)
+        compose.setContent {
+            EGaugeTheme {
+                CarScreen(state, {}, {}, {}, onHistory = { calls += "history" }, onAlertSettings = { calls += "alerts" }, onAdvanced = { calls += "advanced" }, onGaugeAssignment = { calls += "gauge" })
+            }
+        }
+        compose.onNodeWithText("History").performScrollTo().performClick()
+        compose.onNodeWithText("Alert settings").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Car settings").performScrollTo().performClick()
+        compose.onNodeWithText("Gauge").performScrollTo().performClick()
+        compose.onNodeWithText("Advanced").performScrollTo().performClick()
+        assertEquals(listOf("history", "alerts", "gauge", "advanced"), calls)
+        compose.onNodeWithContentDescription("Go back").performScrollTo().performClick()
+        compose.onNodeWithText("History").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun attentionEpisodeOpensDirectlyAndOldDriveLinksToHistoryWithoutHealthClaim() {
+        val calls = mutableListOf<String>()
+        var alerts by mutableStateOf(listOf(CarAttentionAlert("coolant", "Coolant temperature", "108 °C · Limit 105 °C", 3)))
+        val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", StatusUi("Waiting"), emptyList(), false, false, false, emptyList(), gaugeKnown = true)
+        compose.setContent {
+            EGaugeTheme {
+                CarScreen(state, {}, {}, {}, currentAlerts = alerts, historyCount = 1, lastRecordedAt = 1000, onOpenAlert = { calls += it }, onHistory = { calls += "history" })
+            }
+        }
+        compose.onNodeWithText("Coolant temperature").performScrollTo().performClick()
+        assertEquals(listOf("coolant"), calls)
+        compose.runOnIdle { alerts = emptyList() }
+        compose.onNodeWithText("Last drive").performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText("No active alerts").assertCountEquals(0)
+        compose.onNodeWithText("1 alert recorded").performScrollTo().performClick()
+        assertEquals(listOf("coolant", "history"), calls)
+    }
+
+    @Test fun unknownFaultOpensItsHonestExplanationInOneTap() {
+        val source = FaultSourceUi("Engine", StatusUi("Warning", tone = StatusTone.Warning), listOf(FaultCategoryUi("Stored", "", listOf(FaultUi("P1999", "", "Stored")))))
+        val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", source.status, emptyList(), true, false, false, emptyList(), faultSources = listOf(source))
+        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}) } }
+        compose.onNodeWithText("P1999 · Engine").performScrollTo().performClick()
+        compose.onNodeWithText("A verified explanation for P1999 is not included. Its meaning may depend on the vehicle and controller.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Next step").performScrollTo().assertIsDisplayed()
     }
 }

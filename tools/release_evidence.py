@@ -30,6 +30,10 @@ def collect(root, build, source_sha):
     root, build = Path(root), Path(build)
     if not re.fullmatch(r"[0-9a-f]{40}", source_sha):
         raise ValueError("Expected full source SHA")
+    description = json.loads((build / "project_description.json").read_text())
+    config = Path(description["config_file"])
+    if not config.is_absolute():
+        config = root / "firmware/gauge" / config
     lock = yaml.safe_load((root / "firmware/gauge/dependencies.lock").read_text())
     packages, licenses = [], {}
     for name, record in sorted(lock["dependencies"].items()):
@@ -48,9 +52,7 @@ def collect(root, build, source_sha):
             package["checksums"] = [{"algorithm": "SHA256", "checksumValue": digest}]
         packages.append(package)
         if name == "idf":
-            component = Path(
-                json.loads((build / "project_description.json").read_text())["idf_path"]
-            )
+            component = Path(description["idf_path"])
             candidates = [component / "LICENSE"]
         else:
             local = record["source"].get("type") == "local"
@@ -75,8 +77,8 @@ def collect(root, build, source_sha):
             relative = license_file.relative_to(component).as_posix()
             licenses["licenses/" + identifier + "/" + relative] = license_file.read_bytes()
     payload = {"build/" + name: (build / name).read_bytes() for name in REQUIRED}
-    for name in ("sdkconfig", "partitions.csv"):
-        payload["source/" + name] = (root / "firmware/gauge" / name).read_bytes()
+    payload["source/sdkconfig"] = config.read_bytes()
+    payload["source/partitions.csv"] = (root / "firmware/gauge/partitions.csv").read_bytes()
     # Strip machine-local paths; preserve all version/hash/source-type facts.
     resolved = {
         name: {k: v for k, v in item.items() if k != "source"}
@@ -129,6 +131,7 @@ def collect(root, build, source_sha):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--build-dir", type=Path, default=ROOT / "firmware/gauge/build")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
@@ -138,7 +141,7 @@ def main():
         check=True,
         stdout=subprocess.DEVNULL,
     )
-    payload = collect(ROOT, ROOT / "firmware/gauge/build", sha)
+    payload = collect(ROOT, args.build_dir, sha)
     with zipfile.ZipFile(args.output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, data in sorted(payload.items()):
             archive.writestr(name, data)

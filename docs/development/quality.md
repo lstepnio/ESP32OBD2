@@ -59,6 +59,12 @@ synthetic databases and restore checks.
 This lane checks interactions and accessibility-related semantics, not the old Pixel
 pixel baseline; API/font rasterizers differ.
 
+Native IME resizing can move modal-sheet touch targets outside Compose's clock.
+Text-entry fixtures close the keyboard through `closeKeyboardAndWaitForIdle`
+before touching non-text controls, then observe the expected editor destination
+with a bounded condition. Keep actual taps and exact saved-value assertions;
+do not hide keyboard-specific tests, retry taps, add sleeps or relax assertions.
+
 `RepositoryGalleryTest` captures current production Gauge/Car/Settings composables
 with fixed fixture state and the compact navigation shell. Copy its three PNGs from
 `android/app/build/outputs/managed_device_android_test_additional_output/` into

@@ -366,3 +366,12 @@ void alert_runtime_stale(unsigned pid, uint32_t milliseconds)
     else if (capture_pid_count < pid + 1)
         capture_pid_count = pid + 1;
 }
+
+bool alert_runtime_page_interest(uint32_t now, alert_page_interest_t out[32])
+{
+    if (!mutex || !out || xSemaphoreTake(mutex, 0) != pdTRUE)
+        return false;
+    alert_events_page_interest(&events, now, out);
+    xSemaphoreGive(mutex);
+    return true;
+}

@@ -129,7 +129,7 @@ class ReadingCatalogTest {
         val draft = Draft(alerts = listOf(alert))
         val profiles =
             ProfileCollection("default", listOf(VehicleProfile("default", "Vehicle", draft)))
-        assertEquals(17, JSONObject(ProfileDocumentCodec.encode(profiles)).getInt("schemaVersion"))
+        assertEquals(19, JSONObject(ProfileDocumentCodec.encode(profiles)).getInt("schemaVersion"))
         assertEquals(profiles, ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(profiles)))
         val bytes = ConfigurationProjector.project(
             template,
@@ -340,7 +340,7 @@ class ReadingCatalogTest {
         val caps = GaugeProtocolCodec.capabilities(raw.toByteArray())
         assertEquals(1, caps.pidCatalogVersion)
         assertEquals(5, caps.configurationVersion)
-        assertEquals(GaugeLayout.entries.toSet(), caps.supportedRenderers)
+        assertEquals(GaugeLayout.entries.filter { it != GaugeLayout.DualArc }.toSet(), caps.supportedRenderers)
         assertEquals(
             0,
             GaugeProtocolCodec.capabilities(

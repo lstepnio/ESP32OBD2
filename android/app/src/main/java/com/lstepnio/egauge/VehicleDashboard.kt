@@ -62,16 +62,16 @@ fun VehicleProfile.withDashboard(value: Draft): VehicleProfile {
 
 /** The older runtime ties request service to an entire adapter instead of each reading. */
 fun requiresVehicleDashboardFirmware(draft: Draft, secondAdapter: Boolean): Boolean = secondAdapter ||
-    (draft.pages.flatMap { it.pidIds } + draft.alerts.map { it.pidId }).any {
+    (draft.pages.flatMap { it.pidIds } + draft.alerts.filter { it.enabled }.map { it.pidId }).any {
         it in
             ConfigurationProjector.transmissionPidIds
     }
 
 /** Additive capability gates new rendering and alert semantics on older firmware. */
-fun requiresPidCatalogFirmware(draft: Draft): Boolean = (draft.pages.flatMap { it.pidIds } + draft.alerts.map { it.pidId }).any {
+fun requiresPidCatalogFirmware(draft: Draft): Boolean = (draft.pages.flatMap { it.pidIds } + draft.alerts.filter { it.enabled }.map { it.pidId }).any {
     readingCatalog.firstOrNull { row -> row.id == it }?.configurationVersion == 5
 } ||
-    draft.alerts.any {
+    draft.alerts.filter { it.enabled }.any {
         it.pidId in ConfigurationProjector.transmissionPidIds ||
             it.direction == AlertDirection.Equals
     }

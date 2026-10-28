@@ -5,7 +5,7 @@
 typedef struct
 {
     const char *name, *labels[2], *units[2];
-    uint8_t     renderer, metrics;
+    uint8_t     renderer, metrics, arc_metric_index;
     double      values[2], minimum, maximum;
     bool        present[2], mil, count_known, attention, last_seen;
     uint8_t     faults, severity;

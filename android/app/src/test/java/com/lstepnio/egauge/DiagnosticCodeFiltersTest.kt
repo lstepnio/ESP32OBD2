@@ -31,6 +31,19 @@ class DiagnosticCodeFiltersTest {
         }
     )
 
+    @Test fun countZeroStartupIsNeitherAWarningNorAnAllClear() {
+        val source = com.lstepnio.egauge.ui.state.diagnosticSources(data(emptyList()), 0, "ECM").first { it.title == "Engine" }
+        assertEquals(com.lstepnio.egauge.core.designsystem.StatusTone.Loading, source.status.tone)
+        assertTrue(source.categories.all { it.faults.isEmpty() })
+    }
+
+    @Test fun usableVisibleCodesAppearWithoutWaitingForEveryCategory() {
+        val raw = data().let { it.copy(categories = it.categories!!.mapIndexed { index, category -> if (index == 1) category.copy(fresh = false) else category }) }
+        val source = com.lstepnio.egauge.ui.state.diagnosticSources(raw, 0, "ECM").first { it.title == "Engine" }
+        assertEquals(com.lstepnio.egauge.core.designsystem.StatusTone.Warning, source.status.tone)
+        assertEquals("P0420", source.categories.flatMap { it.faults }.single().code)
+    }
+
     @Test fun exactControllerFilterNeverChangesRawEvidence() {
         val raw = data()
         val result = DiagnosticCodeFilters.project(raw, 0, listOf(rule))
@@ -93,47 +106,6 @@ class DiagnosticCodeFiltersTest {
             assertFalse(DiagnosticCodeFilters.project(it, 0, listOf(rule)).suppressMil)
         }
         assertFalse(DiagnosticCodeFilters.project(raw, 30_001, listOf(rule)).suppressMil)
-    }
-
-    @Test fun onlyScopedDiagnosticNotificationsAndBannersAreFiltered() {
-        val raw = data().copy(revision = 5)
-        val event =
-            AlertEvent(1, 1, 1, 100, 32, AlertSeverity.Warning, false, AlertLifecycle.Active, 1, false, 1f, 0f, "Check engine", "codes", 100, 5)
-        assertTrue(DiagnosticCodeFilters.filtersAlert(event, raw, 0, listOf(rule)))
-        val pending = raw.copy(categories = raw.categories!!.map { it.copy(fresh = false) })
-        assertFalse(DiagnosticCodeFilters.filtersAlert(event, pending, 0, listOf(rule)))
-        assertTrue(DiagnosticCodeFilters.filtersAlert(event, raw, 0, listOf(rule))) // Same event; checks completed later.
-        assertFalse(DiagnosticCodeFilters.filtersAlert(event.copy(key = 0), raw, 0, listOf(rule)))
-        assertFalse(
-            DiagnosticCodeFilters.filtersAlert(
-                event.copy(severity = AlertSeverity.Critical),
-                raw,
-                0,
-                listOf(rule)
-            )
-        )
-        assertFalse(
-            DiagnosticCodeFilters.filtersAlert(event.copy(revision = 6), raw, 0, listOf(rule))
-        )
-        assertFalse(DiagnosticCodeFilters.filtersAlert(event.copy(key = 33), raw, 0, listOf(rule)))
-        val normal = com.lstepnio.egauge.ui.state.diagnosticSources(
-            raw,
-            0,
-            "ECM",
-            listOf(rule)
-        ).first()
-        val expert = com.lstepnio.egauge.ui.state.diagnosticSources(
-            raw,
-            0,
-            "ECM",
-            listOf(rule),
-            true
-        ).first()
-        assertTrue(normal.categories.flatMap { it.faults }.isEmpty())
-        assertEquals("Only filtered codes", normal.status.title)
-        assertEquals("P0420", expert.categories.first().faults.first().code)
-        assertTrue(expert.categories.first().faults.first().category.startsWith("Filtered"))
-        assertEquals(com.lstepnio.egauge.core.designsystem.StatusTone.Warning, expert.status.tone)
     }
 
     @Test fun sharedFirmwarePacketUsesTheSameDistinctCodeAndMilPolicy() {
@@ -211,7 +183,7 @@ class DiagnosticCodeFiltersTest {
         val capabilities = GaugeProtocolCodec.capabilities(
             "{\"protocolMajor\":0,\"board\":\"test\",\"maxAdapterLinks\":1,\"configWrite\":false,\"ota\":false,\"cfg\":6}".toByteArray()
         )
-        assertEquals(GaugeLayout.entries.toSet(), capabilities.supportedRenderers)
+        assertEquals(GaugeLayout.entries.filter { it != GaugeLayout.DualArc }.toSet(), capabilities.supportedRenderers)
         assertTrue(
             com.lstepnio.egauge.ui.state.presentationBlockers(
                 draft,

@@ -69,8 +69,11 @@ The worker associates the decoded reply with its endpoint/request, instead of as
 Mode 01 PID 01 from an untagged callback to whichever adapter is currently active.
 
 Replace background admission based on ten normal PID reads with monotonic deadlines
-and fair endpoint/category selection. Starting tuning targets: MIL every 15 seconds,
-stored/pending every 60 seconds, permanent every 120 seconds. These are targets, not
+and fair endpoint/category selection. Automatic MIL status checks have a five-minute
+minimum interval per endpoint, including cold failures; stored/pending target five
+minutes and permanent targets ten minutes. Initial/incomplete code lists may retry
+sooner to classify configured filters, independently of the MIL check limit. Explicit
+ECU-clear verification remains immediate. These are targets, not
 promised vehicle latency. Give changed MIL one coalesced fault-refresh request; do not
 restart a scan for each poll. Keep foreground readings first, admit one due diagnostic
 job at a time, cap each request and back off failures per endpoint/category with jitter.
@@ -92,6 +95,40 @@ any fresh reported On makes the aggregate malfunction state On, with partial cov
 if another required endpoint is unknown. Off requires fresh Off for every required
 MIL-capable endpoint. Otherwise show Unknown or Last checked. Known unsupported
 queries are explicit coverage limitations, never fresh Off.
+
+The gauge and shared diagnostic-episode availability retain the last successful
+same-session MIL/category presentation during
+a transient failed refresh: MIL for up to ten minutes and compatible code lists
+for up to fifteen minutes from their original successful observations. This gauge-only
+retention bridges five/ten-minute polling and the bounded four-minute retry cap, so expiring
+filter evidence cannot make a known filtered CEL blink during ordinary refresh.
+Raw phone/history packets retain their strict 60/120-second freshness and report
+failed attempts; retained presentation is never exported as a new observation.
+New MIL/count evidence invalidates incompatible category/filter proof, and reconnect clears it. Unsupported
+or partial coverage cannot erase previously known faults into all-filtered proof.
+The instrument face uses an icon without a number when count coverage is incomplete;
+it never shows `?` or draws a warning solely because diagnostics are loading.
+An initial MIL bit alone does not light the gauge icon while code identity is
+unresolved. The face requires usable MIL On plus a decoded unfiltered code or
+complete reconciled coverage, and applies the existing exact filters. This also
+keeps an incomplete all-filtered startup quiet. A decoded unfiltered fault surfaces
+immediately, even if another category is still loading; it is not held behind a
+startup timer. Pending presentation is not ECU Off and never grants all-filtered
+proof. Raw ECU state, fault history and App coverage remain unchanged. If the ECU
+never supplies usable code identity/reconciled coverage, its raw lamp evidence
+remains available in the App rather than becoming a speculative gauge icon.
+Expert retains exact coverage and failure detail.
+
+These are deliberately low-priority diagnostics: a newly changed lamp may take up
+to the next five-minute check plus transport delays to appear. Explicit clear
+verification is still immediate; live readings, threshold alerts and command
+protection keep their existing priorities and freshness. No protocol/schema change
+or configuration migration is required.
+`diagnostic_alerts.c` reads one retained snapshot for both alert producers and the
+face; a healthy five-minute refresh must not append unavailable/recovered events while
+its reply is in flight. Shared events keep the original MIL timestamp and the oldest
+contributing category timestamp, not the App tick time. Expired evidence and source
+loss still transition availability; raw diagnostic reads remain strict.
 
 Deduplicate by endpoint, category and code; retain overlapping categories and ECU
 origins. A code disappearing from a fresh complete category can resolve that occurrence;
@@ -483,42 +520,80 @@ publish firmware, enable a capability or authorize an unattended vehicle command
 
 ## Advanced vehicle-scoped CEL code filters
 
-The owner requested suppressing the gauge CEL indication when all checked codes
-are filtered. Prepared App dev.51 / firmware dev.55 implements this as presentation
-policy, separate from ECU clearing, acknowledgment, event lifecycle and raw evidence.
+Hidden codes are a reversible presentation policy, independent of ECU clearing,
+acknowledgment, event lifecycle and immutable evidence. **Car > Car settings >
+Advanced > Hidden fault codes** and the equivalent Expert entry are the only App
+surfaces that intentionally name hidden rules. Each vehicle can save up to sixteen
+exact five-character codes scoped to Engine or Transmission. The role is independent
+of transport, so a TCM child does not change rule identity. No wildcards, P0000 or
+duplicate pairs are accepted.
 
-Advanced/Expert contains the sole filter editor. A vehicle can save up to sixteen
-exact standard five-character codes, each scoped to Engine or Transmission. The
-controller role is independent of its physical adapter and supports one connector
-or an optional child connector. No wildcards, padding P0000 or duplicate pairs are
-accepted. Older profiles default to no filters; unknown future formats fail closed.
-Filters join the normal serialized vehicle configuration and review/send path.
-Only the confirmed running document governs phone display and notification policy;
-a saved phone draft does not silently change the running gauge behavior.
+### App visibility and gauge truth
 
-A controller's CEL may be suppressed only when its real MIL is fresh/known, all
-supported categories have complete fresh results, all distinct returned codes are
-filtered, at least one code is present, and confirmed count equals its positive
-MIL-reported count. Unsupported categories do not invent codes; an unsupported or
-unavailable confirmed category cannot explain an active MIL. Staleness, truncation,
-failed reads, unknown MIL or count disagreement cannot suppress it. Independent
-controllers are evaluated separately; a healthy or filtered parent never masks a
-child's unfiltered warning or unknown coverage. These are decisions from the latest
-fresh polling observations, not a guarantee that an ECU cannot change between polls.
+Saved vehicle intent governs every App consumer, including offline history. Unsaved
+form edits do nothing. `AlertVisibility` projects copied evidence before Car/current
+lists, history, recorded context, Expert diagnostic lists, banners, semantics,
+notifications/deep links and ordinary shared reports. Raw SQLite entries, protected
+packets and developer captures remain intact. Ordinary exports exclude configuration
+and filter-policy objects as well as matching code strings and their hidden totals.
+Suppressed lamp facts are omitted from normal report context, never rewritten as
+ECU Off.
+There is no everyday “show hidden” bypass or hidden-count placeholder.
 
-The gauge top CEL/count and ordinary App lists/recent banners use this projection.
-Threshold, provider and critical attention remain independent. Filtered diagnostic
-notifications are canceled and their current transition is marked delivered so
-removing a filter does not replay an old notification. Every alert poll also reconciles filtered diagnostic notifications against newly completed details, even when there is no new MIL event; bounded delivery receipts avoid repeated cancellations. A new unfiltered event still
-uses the shared notifier. The shared journal, immutable entry context, raw ECU MIL,
-protected diagnostic packets and exports retain all codes. Advanced diagnostics
-shows all raw codes, marks matching codes Filtered and reports the real ECU lamp.
-No command is sent to turn off the vehicle's own lamp or erase ECU codes.
+Resolve policy using the recorded vehicle, not whichever car happens to be selected.
+Deduplicate codes across categories within a controller, never across controllers or
+gauges. A mixed episode keeps its visible remainder; diagnostic-only episodes with
+complete attributable hidden-only evidence disappear. A threshold/provider episode
+survives hidden incidental context. Old generic MIL episodes without enough recorded
+code/count evidence may remain generic, without hidden strings or totals. Missing,
+truncated or mismatched evidence cannot invent attribution.
 
-Implementation: `DiagnosticCodeFilters.kt`, `DiagnosticPresentation.kt`,
-`AlertNotifications.kt`, existing config/profile owners and `diagnostic_filter.c`.
-Firmware runtime adds a fixed sixteen-rule array; projection uses bounded stack
-storage without persistent per-poll allocation. Production C and JVM fixtures share
-`diagnostics-tcm-v15.hex`; negative cases cover missing links, unknown/stale counts,
-partial/truncated replies, endpoint mismatch, raw evidence preservation and unrelated
-alerts. Vehicle qualification and signed installation remain separate gates.
+Saving a rule changes App presentation immediately after the existing durable commit.
+For a clean, authenticated, exactly acknowledged setup, an isolated alert/filter edit
+can initiate the existing full configuration transaction after releasing the local
+save lease. The full projected setup, including primary/child bindings, routing
+and gauge action overrides, must structurally match acknowledged running setup
+before admitting that shortcut; draft equality alone is insufficient. Unrelated staged changes always retain explicit Review and send. Writes
+are never partially patched or blindly replayed. An offline/unconfirmed gauge keeps
+its last acknowledged configuration; Advanced lists each assigned gauge as Applied
+only with exact current proof, otherwise Change waiting. Normal pages use the generic
+pending-setup affordance.
+
+A policy change reconciles already-posted notifications: hidden-only notices cancel,
+mixed notices update silently, and removing a rule never posts a historical notice.
+The normal transition receipt also prevents replay after unhiding. Deep links to an
+omitted episode fall back to that vehicle's Alerts view. A new visible live transition
+continues through the shared notifier and existing opt-in/severity/privacy policy.
+
+### Gauge suppression proof
+
+The gauge CEL may be suppressed only with a usable real MIL, complete supported
+categories, at least one hidden code, no visible remainder and a positive confirmed
+count exactly equal to the MIL-reported count. Unsupported categories do not invent
+codes; unknown counts, truncation, staleness or disagreement cannot establish new
+suppression proof. Existing compatible proof can bridge only the documented
+[presentation limits](#mil-code-and-coverage-semantics). Independent sources retain
+independent truth. No command turns off the vehicle lamp or clears its codes.
+
+The existing fixed sixteen-rule firmware projection and diagnostic banner path
+already enforce this policy; this Car implementation adds no firmware allocation,
+poller or wire field. Dev.72's inherited MIL-on/count-zero presentation remains quiet
+under its startup proof rule. It is not evidence of ECU Off; qualifying a confirmed
+unexplained count-zero warning requires a separate labelled capture before changing
+that policy.
+
+### Owners and acceptance
+
+`AlertVisibility.kt` owns recorded App projection; `DiagnosticCodeFilters.kt` owns
+exact rules and live snapshot projection; existing profile/transaction owners persist
+intent. `AlertNotifications.kt` and `AlertReportExporter.kt` consume projected copies.
+Firmware owners remain `diagnostic_filter.c` and the shared alert producer. The
+[Car design rules](../design/design-system.md#current-component-and-messaging-rules)
+own hierarchy and navigation.
+
+Tests cover historical/offline/mixed/controller-scoped evidence, strict MIL count
+attribution, unchanged raw JSON/SQLite, normal ZIP/transition redaction, posted-notice
+reconciliation, silent unhide, startup/partial states, direct details and large text.
+Emulator proofs do not qualify live adapters, physical gauge behavior or Android OEM
+notification handling. Parked filtered/unfiltered/partial-source checks remain a
+separate vehicle gate.

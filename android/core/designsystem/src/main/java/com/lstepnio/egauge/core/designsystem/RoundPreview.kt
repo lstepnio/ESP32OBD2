@@ -51,7 +51,7 @@ fun RoundPreview(
                 )
                 val missing =
                     state.condition in setOf(PreviewCondition.Stale, PreviewCondition.Offline)
-                if (state.layout == PreviewLayout.Arc) {
+                if (state.layout == PreviewLayout.Arc || state.layout == PreviewLayout.DualArc) {
                     drawArc(
                         EGaugeTokens.Dark.gaugeTrack,
                         138f,
@@ -66,11 +66,11 @@ fun RoundPreview(
                             accent,
                             138f,
                             if (state.condition ==
-                                PreviewCondition.Critical
+                                PreviewCondition.Critical && state.layout != PreviewLayout.DualArc
                             ) {
                                 258f
                             } else {
-                                148f
+                                264f * state.arcFraction.coerceIn(0f, 1f)
                             },
                             false,
                             Offset(19.5f, 19.5f),
@@ -107,9 +107,9 @@ fun RoundPreview(
                     drawContext.canvas.nativeCanvas.drawText(fitted, 140f, y, paint)
                 }
                 text("PREVIEW", 55f, 10f, EGaugeTokens.Dark.gaugeMuted)
-                if (state.layout == PreviewLayout.Dual) {
+                if (state.layout == PreviewLayout.Dual || state.layout == PreviewLayout.DualArc) {
                     text(state.name, 82f, 12f)
-                    text(state.shownValue, 121f, 38f, accent, true)
+                    text(state.shownValue, 121f, 38f, readingColor(state.primaryGear, state.shownValue, state.condition, accent), true)
                     text(state.unit, 141f, 12f, EGaugeTokens.Dark.gaugeMuted)
                     drawLine(
                         EGaugeTokens.Dark.gaugeTrack,
@@ -122,6 +122,7 @@ fun RoundPreview(
                         if (missing) "--" else state.secondaryValue ?: "--",
                         212f,
                         34f,
+                        color = readingColor(state.secondaryGear, state.secondaryValue.orEmpty(), state.condition, EGaugeTokens.Dark.gaugeText),
                         bold = true
                     )
                     text(state.secondaryUnit ?: "", 232f, 12f, EGaugeTokens.Dark.gaugeMuted)
@@ -134,7 +135,7 @@ fun RoundPreview(
                         if (state.condition ==
                             PreviewCondition.Normal
                         ) {
-                            EGaugeTokens.Dark.gaugeText
+                            readingColor(state.primaryGear, state.shownValue, state.condition, EGaugeTokens.Dark.gaugeText)
                         } else {
                             accent
                         },
@@ -193,7 +194,7 @@ fun RoundPreview(
         if (showDescription) {
             val summary = "Preview · ${state.name} · ${state.shownValue} ${state.unit}" +
                 (if (state.condition == PreviewCondition.Normal) "" else " · ${state.stateLabel}") +
-                if (state.layout == PreviewLayout.Dual) {
+                if (state.layout == PreviewLayout.Dual || state.layout == PreviewLayout.DualArc) {
                     "\n${state.secondaryName.orEmpty()} · " +
                         "${if (state.shownValue == "--") "--" else state.secondaryValue.orEmpty()} ${state.secondaryUnit.orEmpty()}"
                 } else {

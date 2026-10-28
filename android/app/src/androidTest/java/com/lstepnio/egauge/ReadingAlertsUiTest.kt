@@ -42,6 +42,29 @@ class ReadingAlertsUiTest {
         assertEquals("voltage", selected)
     }
 
+    @Test fun disablingAnAlertRetainsItsLimitsAndTiming() {
+        val original = defaultAlert("coolant").copy(triggerDwellMs = 3000, clearDwellMs = 5000)
+        var saved: GaugeAlertDraft? = null
+        compose.setContent {
+            EGaugeTheme {
+                AlertEditor(
+                    state,
+                    readingUi(readingCatalog.first { it.id == "coolant" }),
+                    alertUi(original),
+                    {},
+                    ScreenFixtures.customizeActions.copy(saveAlert = { saved = it })
+                )
+            }
+        }
+        compose.onNodeWithText("Alert enabled").performScrollTo().performClick()
+        compose.closeKeyboardAndWaitForIdle()
+        compose.onNodeWithText("Save alert").assertIsEnabled().performClick()
+        compose.runOnIdle {
+            assertEquals(original.copy(enabled = false), saved)
+            assertNull(idleCoolantLimitC(listOf(saved!!)))
+        }
+    }
+
     @Test fun fractionalVoltageLimitsCanBeSavedWithoutInventingAnAlertOnOpen() {
         var saved: GaugeAlertDraft? = null
         compose.setContent {
@@ -64,7 +87,8 @@ class ReadingAlertsUiTest {
         compose.onNodeWithText("Falls below").performScrollTo().performClick()
         compose.onNodeWithText("Warning").performTextInput("12.2")
         compose.onNodeWithText("Critical").performTextInput("11.7")
-        compose.onNodeWithText("Save alert").performClick()
+        compose.closeKeyboardAndWaitForIdle()
+        compose.onNodeWithText("Save alert").assertIsDisplayed().assertIsEnabled().performClick()
         compose.runOnIdle {
             assertEquals(12.2, saved!!.warning, 1e-9)
             assertEquals(11.7, saved!!.critical, 1e-9)
@@ -94,7 +118,8 @@ class ReadingAlertsUiTest {
         compose.onNodeWithText("Rises above").assertDoesNotExist()
         compose.onAllNodesWithText("R")[0].performScrollTo().performClick()
         compose.onAllNodesWithText("P")[1].performScrollTo().performClick()
-        compose.onNodeWithText("Save alert").performClick()
+        compose.closeKeyboardAndWaitForIdle()
+        compose.onNodeWithText("Save alert").assertIsDisplayed().assertIsEnabled().performClick()
         compose.runOnIdle {
             assertEquals(AlertDirection.Equals, saved!!.direction)
             assertEquals(11.0, saved!!.warning, 0.0)

@@ -30,6 +30,11 @@
 #include "freertos/task.h"
 #include "portmacro.h"
 
+/* The main task boots BSP/LVGL before app_tick exists. Candidate dev.67 exhausted
+ * its separate startup stack with a 3584-byte configured budget. IDF adds its own
+ * logging allowance; app_tick's independent 4096-byte budget cannot cover boot. */
+_Static_assert(CONFIG_ESP_MAIN_TASK_STACK_SIZE >= 4608, "Review the measured main-task startup stack budget");
+
 #include "display/lv_display.h"
 #include "misc/lv_event.h"
 
@@ -43,6 +48,9 @@
 #include "ble_mgr.h"
 #include "config.h"
 #include "display_settings.h"
+#include "smart_page_policy.h"
+#include "smart_metric_catalog.h"
+#include "orientation_runtime.h"
 #include "config_store.h"
 #include "config_transfer.h"
 #include "config_runtime.h"
@@ -58,6 +66,7 @@
 #include "elm_response.h"
 #include "diagnostics_state.h"
 #include "diagnostic_filter.h"
+#include "diagnostic_alerts.h"
 #include "hardware_probe.h"
 #include "esp_heap_caps.h"
 #include "config_document.h"
@@ -65,6 +74,8 @@
 #include "obd.h"
 #include "transmission_gear.h"
 #include "poll_scheduler.h"
+#include "reading_policy.h"
+#include "esp_attr.h"
 #include "page_save_policy.h"
 #include "ui.h"
 #include "util.h"
@@ -120,9 +131,110 @@ static config_runtime_t     *g_runtime;
 static config_store_record_t g_running_config_record;
 static bool                  g_running_previous_config;
 
+static EXT_RAM_BSS_ATTR smart_page_policy_t   smart_pages;
+static EXT_RAM_BSS_ATTR alert_page_interest_t smart_alerts[EGAUGE_RUNTIME_ALERTS];
+static atomic_uchar                           g_upcoming_page;
+static uint32_t                               smart_maximum_us;
+_Static_assert(sizeof(smart_pages) + sizeof(smart_alerts) <= 4096, "Smart PSRAM budget exceeded");
+
 static unsigned page_count(void)
 {
     return g_runtime ? g_runtime->page_count : ARRAY_SIZE(g_obd_pids);
+}
+
+static void smart_configure(void)
+{
+    if (!g_runtime)
+        return;
+    smart_pages.pid_count  = g_runtime->pid_count;
+    smart_pages.page_count = g_runtime->page_count;
+    for (unsigned i = 0; i < g_runtime->page_count; ++i)
+    {
+        smart_pages.pages[i].count = g_runtime->pages[i].pid_count;
+        memcpy(smart_pages.pages[i].pids, g_runtime->pages[i].pid_indices, sizeof(smart_pages.pages[i].pids));
+    }
+    for (unsigned i = 0; i < g_runtime->pid_count; ++i)
+    {
+        const runtime_pid_t *pid = &g_runtime->pids[i];
+        smart_pages.config[i].rule =
+            smart_metric_rule(pid->id, pid->service, pid->obd.pid, pid->responder, pid->unit, &pid->obd.decoder);
+        smart_pages.config[i].stale_ms = pid->stale_ms;
+    }
+}
+static bool smart_sample(ui_t *ui, unsigned i, uint32_t now, double *value, uint32_t *at, uint32_t *generation)
+{
+    const runtime_pid_t *pid = &g_runtime->pids[i];
+    return ui_source_sample(ui, pid->source_index, g_running_config_record.revision, pid->obd.pid, pid->stale_ms, now,
+                            value, at, generation);
+}
+static bool smart_select(ui_t                  *ui,
+                         display_settings_t     settings,
+                         uint8_t                selected,
+                         uint32_t               activity,
+                         page_cycle_reason_t    pause,
+                         uint32_t               now,
+                         smart_page_decision_t *choice)
+{
+    if (!smart_page_prepare(&smart_pages, settings.cycle_seconds, selected, activity, pause != PAGE_CYCLE_RUNNING, now))
+    {
+        atomic_store(&g_upcoming_page, (selected + 1U) % page_count());
+        return false;
+    }
+    int64_t started = esp_timer_get_time();
+    if (!smart_pages.evaluated || now - smart_pages.evaluated_at >= SMART_PAGE_EVALUATE_MS)
+    {
+        if (!alert_runtime_page_interest(now, smart_alerts))
+        {
+            atomic_store(&g_upcoming_page,
+                         smart_pages.cursor == selected ? (selected + 1U) % page_count() : smart_pages.cursor);
+            return smart_page_fallback(&smart_pages, now, choice);
+        }
+        for (unsigned i = 0; i < g_runtime->pid_count; ++i)
+        {
+            double              value = 0;
+            uint32_t            at = 0, generation = 0, episode = 0;
+            uint8_t             severity   = 0;
+            bool                suppressed = false;
+            smart_pid_config_t *policy     = &smart_pages.config[i];
+            policy->has_low = policy->has_high = false;
+            for (unsigned a = 0; a < g_runtime->alert_count; ++a)
+            {
+                if (g_runtime->alerts[a].pid_index != i)
+                    continue;
+                const runtime_alert_t *rule = &g_runtime->alerts[a];
+                suppressed |= smart_alerts[a].suppressed;
+                if (!smart_alerts[a].suppressed && !rule->equals)
+                {
+                    float limit = (float)(rule->has_warning ? rule->warning : rule->critical);
+                    if (rule->above)
+                    {
+                        if (!policy->has_high || limit < policy->high)
+                            policy->high = limit;
+                        policy->has_high = true;
+                    }
+                    else
+                    {
+                        if (!policy->has_low || limit > policy->low)
+                            policy->low = limit;
+                        policy->has_low = true;
+                    }
+                }
+                if (smart_alerts[a].severity > severity)
+                {
+                    severity = smart_alerts[a].severity;
+                    episode  = smart_alerts[a].episode;
+                }
+            }
+            bool valid = smart_sample(ui, i, now, &value, &at, &generation);
+            smart_page_observe(&smart_pages, i, valid, value, at, generation, severity, suppressed, episode);
+        }
+    }
+    bool due = smart_page_choose(&smart_pages, now, choice);
+    atomic_store(&g_upcoming_page, smart_page_upcoming(&smart_pages, now));
+    uint32_t duration = (uint32_t)(esp_timer_get_time() - started);
+    if (duration > smart_maximum_us)
+        smart_maximum_us = duration;
+    return due;
 }
 
 static ui_renderer_t ui_renderer(runtime_renderer_t renderer)
@@ -131,7 +243,8 @@ static ui_renderer_t ui_renderer(runtime_renderer_t renderer)
                        (int)RUNTIME_RENDERER_ARC == (int)UI_RENDERER_ARC &&
                        (int)RUNTIME_RENDERER_BAR == (int)UI_RENDERER_BAR &&
                        (int)RUNTIME_RENDERER_TREND == (int)UI_RENDERER_TREND &&
-                       (int)RUNTIME_RENDERER_DUAL == (int)UI_RENDERER_DUAL,
+                       (int)RUNTIME_RENDERER_DUAL == (int)UI_RENDERER_DUAL &&
+                       (int)RUNTIME_RENDERER_DUAL_ARC == (int)UI_RENDERER_DUAL_ARC,
                    "Runtime and UI renderer values must remain aligned");
     return (ui_renderer_t)renderer;
 }
@@ -147,11 +260,13 @@ static void page_ui(unsigned index, ui_page_t *out)
         out->metric_count        = 1;
         out->metrics[0]          = (ui_metric_t){
             .pid            = pid->pid,
+            .scoped         = true,
+            .source_index   = 0,
             .name           = pid->name,
             .unit           = pid->unit,
             .minimum        = pid->decoder.minimum,
             .maximum        = pid->decoder.maximum,
-            .stale_after_ms = 1500,
+            .stale_after_ms = 3000,
         };
         return;
     }
@@ -159,27 +274,39 @@ static void page_ui(unsigned index, ui_page_t *out)
     out->name                  = page->name;
     out->renderer              = ui_renderer(page->renderer);
     out->metric_count          = page->pid_count;
+    out->arc_metric_index      = page->arc_metric_index;
     for (unsigned i = 0; i < page->pid_count; ++i)
     {
         const runtime_pid_t *pid = &g_runtime->pids[page->pid_indices[i]];
         out->metrics[i]          = (ui_metric_t){
-            .pid            = pid->obd.pid,
-            .name           = pid->name,
-            .unit           = pid->unit,
-            .minimum        = pid->obd.decoder.minimum,
-            .maximum        = pid->obd.decoder.maximum,
-            .stale_after_ms = pid->stale_ms,
+            .pid          = pid->obd.pid,
+            .scoped       = true,
+            .source_index = pid->source_index,
+            .revision     = g_running_config_record.revision,
+            .name         = pid->name,
+            .unit         = pid->unit,
+            .minimum      = pid->obd.decoder.minimum,
+            .maximum      = pid->obd.decoder.maximum,
+            .stale_after_ms =
+                reading_policy(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms, false, false, false)
+                    .display_age_ms,
         };
     }
 }
 
 typedef struct
 {
-    ui_t    *ui;
-    unsigned source;
+    ui_t             *ui;
+    unsigned          source;
+    poll_scheduler_t *scheduler; /* Called only on this serial transport owner. */
+    uint8_t           indices[POLL_SCHEDULER_MAX_PIDS], count;
+    bool              decoded_sample, command_poll;
+    uint32_t          reused_samples;
 } source_worker_t;
-static source_worker_t source_workers[2];
-static unsigned        runtime_source_count(void)
+static source_worker_t                      source_workers[2];
+static EXT_RAM_BSS_ATTR poll_scheduler_t    source_schedulers[2];
+static EXT_RAM_BSS_ATTR reading_stability_t reading_stability[EGAUGE_RUNTIME_PIDS];
+static unsigned                             runtime_source_count(void)
 {
     return g_runtime ? g_runtime->source_count : 1;
 }
@@ -194,24 +321,16 @@ static bool runtime_simulated(void)
 }
 static void clear_source(ui_t *ui, unsigned source)
 {
-    /* Only visible metrics need queue entries; page switches reset hidden samples.
-     * Bound invalidation to two entries even when an absent source owns 32 PIDs. */
-    ui_page_t page;
-    page_ui(atomic_load(&g_selected_page), &page);
-    for (unsigned metric = 0; metric < page.metric_count; ++metric)
-    {
-        if (!g_runtime)
-        {
-            ui_set_value(ui, page.metrics[metric].pid, NULL);
-            continue;
-        }
-        for (unsigned i = 0; i < g_runtime->pid_count; ++i)
-            if (g_runtime->pids[i].source_index == source && g_runtime->pids[i].obd.pid == page.metrics[metric].pid)
-            {
-                ui_set_value(ui, page.metrics[metric].pid, NULL);
-                break;
-            }
-    }
+    ui_set_source_state(ui, source, false, g_runtime ? g_running_config_record.revision : 0,
+                        adapter_status_generation(source));
+}
+
+static void publish_ui_sample(ui_t *ui, unsigned source, uint32_t generation, uint16_t pid, const double *value)
+{
+    if (ble_mgr_is_paused())
+        return;
+    ui_set_source_value(ui, source, g_runtime ? g_running_config_record.revision : 0, generation, pid, value,
+                        (uint32_t)(esp_timer_get_time() / 1000));
 }
 
 static const obd_pid_cfg_t *poll_cfg(unsigned index)
@@ -228,6 +347,19 @@ static config_t g_config = {
     .cfg_idx  = 0,
     .disp_rot = LV_DISPLAY_ROTATION_0,
 };
+/* Called under the rendering owner's existing LVGL lease. Keep wire applied
+ * truth unchanged on a private board failure and retry through the main loop. */
+static bool apply_display_rotation(lv_display_rotation_t rotation)
+{
+    if (gauge_display_set_rotation(rotation) == ESP_OK)
+    {
+        orientation_runtime_applied((uint8_t)rotation);
+        return true;
+    }
+    orientation_runtime_apply_failed((uint32_t)(esp_timer_get_time() / 1000));
+    return false;
+}
+
 static QueueHandle_t g_phone_command_queue;
 typedef struct
 {
@@ -326,7 +458,14 @@ static void boot_health_task(void *arg)
 // Private Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
-static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t generation, void *usr_ctx)
+static void obd_response_cb(uint8_t        service,
+                            uint16_t       pid,
+                            uint32_t       responder,
+                            uint8_t const *data,
+                            size_t         len,
+                            uint32_t       generation,
+                            uint32_t       observed_at_ms,
+                            void          *usr_ctx)
 {
     ESP_NULL_CHECK(usr_ctx, TAG, "User context is NULL");
     source_worker_t *worker = usr_ctx;
@@ -335,38 +474,35 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     if (!adapter_status_ready_for(source) || generation != adapter_status_generation(source))
         return;
 
-    if (pid < 0)
-    {
-        ESP_LOGW(TAG, "Error in RX/TX response callback: %d", pid);
-        return;
-    }
-
-    if (data == NULL || len == 0)
-    {
-        ESP_LOGE(TAG, "Received empty data for PID 0x%02X", pid);
-        queue_alert_sample(source, pid, generation, NAN);
-        ui_set_value(ui, pid, NULL);
-        return;
-    }
-
     /* Diagnostic PID replies are consumed synchronously with endpoint identity. */
     if (pid == 0x01)
         return;
 
     const obd_pid_cfg_t *definition = NULL;
     for (unsigned i = 0; i < poll_count(); ++i)
-        if (poll_cfg(i)->pid == pid && (!g_runtime || g_runtime->pids[i].source_index == source))
+        if (poll_cfg(i)->pid == pid &&
+            (g_runtime ? g_runtime->pids[i].source_index == source && g_runtime->pids[i].service == service &&
+                             g_runtime->pids[i].responder == responder
+                       : source == 0 && service == 1 && (responder == 0x7e8 || responder == ELM_ECU_ANY)))
         {
             definition = poll_cfg(i);
             break;
         }
     if (!definition)
         return;
+    if (data == NULL || len == 0)
+    {
+        ESP_LOGE(TAG, "Received empty data for PID 0x%02X", pid);
+        queue_alert_sample(source, pid, generation, NAN);
+        publish_ui_sample(ui, source, generation, pid, NULL);
+        return;
+    }
+
     if (len != definition->len)
     {
         ESP_LOGW(TAG, "Invalid length for PID 0x%02X: expected %zu, got %zu", pid, definition->len, len);
         queue_alert_sample(source, pid, generation, NAN);
-        ui_set_value(ui, pid, NULL);
+        publish_ui_sample(ui, source, generation, pid, NULL);
         return;
     }
 
@@ -374,27 +510,46 @@ static void obd_response_cb(int pid, uint8_t const *data, size_t len, uint32_t g
     if (g_runtime && pid == 0x5503 && !transmission_gear_label(data[0]))
     {
         queue_alert_sample(source, pid, generation, NAN);
-        ui_set_value(ui, pid, NULL);
+        publish_ui_sample(ui, source, generation, pid, NULL);
         return;
     }
     if (!pid_decoder_eval(&definition->decoder, data, len, &decoded))
     {
         ESP_LOGW(TAG, "Rejected invalid value for PID 0x%02X", pid);
         queue_alert_sample(source, pid, generation, NAN);
-        ui_set_value(ui, pid, NULL);
+        publish_ui_sample(ui, source, generation, pid, NULL);
         return;
     }
 
     queue_alert_sample(source, pid, generation, decoded);
 
     ESP_LOGD(TAG, "Received PID 0x%02X (%s): %.3f", pid, definition->name, decoded);
-    ui_set_value(ui, pid, &decoded);
+    ui_set_source_value(ui, source, g_runtime ? g_running_config_record.revision : 0, generation, pid, &decoded,
+                        observed_at_ms);
+    worker->decoded_sample = true;
+    if (g_runtime)
+    {
+        for (unsigned index = 0; index < g_runtime->pid_count; ++index)
+        {
+            const runtime_pid_t *configured = &g_runtime->pids[index];
+            if (configured->source_index == source && &configured->obd == definition)
+                reading_stability_observe(&reading_stability[index], configured->id, configured->service,
+                                          configured->obd.pid, configured->poll_ms, configured->stale_ms,
+                                          (float)decoded, observed_at_ms, generation);
+        }
+    }
+    if (worker->command_poll && worker->reused_samples != UINT32_MAX)
+        ++worker->reused_samples;
+    for (unsigned i = 0; worker->scheduler && i < worker->count; ++i)
+        if (poll_cfg(worker->indices[i]) == definition)
+            poll_scheduler_sample(worker->scheduler, i, observed_at_ms);
 }
 
 static void app_tick_task(void *arg)
 {
-    ui_t      *ui        = arg;
-    TickType_t last_wake = xTaskGetTickCount();
+    ui_t      *ui                 = arg;
+    TickType_t last_wake          = xTaskGetTickCount();
+    uint32_t   diagnostic_view[2] = {UINT32_MAX, UINT32_MAX};
     for (;;)
     {
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(100));
@@ -403,9 +558,8 @@ static void app_tick_task(void *arg)
         for (uint8_t kind = 1; kind <= 2; ++kind)
         {
             uint8_t status[32];
-            if (vehicle_commands_runtime_status(kind, status))
-                ui_set_vehicle_action_status(ui, kind, status[2], status[27], status[24] | (uint16_t)status[25] << 8,
-                                             status[3], status[26]);
+            if (vehicle_commands_runtime_ui_status(kind, status))
+                ui_set_vehicle_action_snapshot(ui, status);
         }
         alert_sample_event_t event;
         for (unsigned drained = 0;
@@ -440,6 +594,9 @@ static void app_tick_task(void *arg)
                 alert_runtime_sample(i, NAN, now_ms);
             }
         for (unsigned source = 0; source < runtime_source_count(); ++source)
+        {
+            if (!adapter_status_ready_for(source) || ble_mgr_is_paused() || transfer_gate_current() == 2)
+                clear_source(ui, source);
             if (!adapter_status_ready_for(source))
             {
                 alert_engine_invalidate_source(source);
@@ -448,6 +605,7 @@ static void app_tick_task(void *arg)
                         if (g_runtime->pids[i].source_index == source)
                             alert_runtime_sample(i, NAN, now_ms);
             }
+        }
         alert_summary_t alert = alert_engine_tick(now_ms);
         (void)alert;
         diagnostics_snapshot_t presentation          = {.mil_known = true};
@@ -457,42 +615,32 @@ static void app_tick_task(void *arg)
             if (!diagnostics_endpoint_enabled(endpoint))
                 continue;
             uint8_t packet[248];
-            if (!diagnostics_endpoint_status(endpoint, now_ms, packet))
+            if (!diagnostic_alerts_observe(endpoint, now_ms, packet, alert_runtime_observe))
             {
                 presentation_complete  = false;
                 presentation.mil_known = false;
                 continue;
             }
-            const char *name  = endpoint ? "Transmission warning" : "Check engine";
-            bool        fresh = (packet[2] & 1) != 0;
+            bool fresh = (packet[2] & 1) != 0;
             presentation.mil_known &= fresh;
-            alert_runtime_observe(32 + endpoint, fresh && (packet[2] & 2) ? 3 : 0, !fresh, name, "codes", packet[22], 0,
-                                  now_ms, now_ms);
-            unsigned count    = 0;
-            bool     complete = true;
-            uint8_t  severity = 0;
-            for (unsigned i = 0; i < 3; i++)
-            {
-                const uint8_t *category = packet + 32 + i * 72;
-                if (category[0] == 3)
-                    continue;
-                if (!(category[1] & 2))
-                {
-                    complete = false;
-                    continue;
-                }
-                count += category[2];
-                if (category[2])
-                    severity = i == 2 ? (severity ? severity : 1) : 2;
-            }
-            alert_runtime_observe(34 + endpoint, severity, !complete && !severity,
-                                  endpoint ? "Transmission faults" : "Engine faults", "codes", count, 0, now_ms,
-                                  now_ms);
             diagnostic_filter_result_t visible =
                 diagnostic_filter_project(packet, endpoint, g_runtime ? g_runtime->diagnostic_filters : NULL,
                                           g_runtime ? g_runtime->diagnostic_filter_count : 0);
+            uint32_t view = (fresh ? 1U : 0U) | (packet[2] & 2U) | (visible.complete ? 4U : 0U) |
+                            (visible.count_known ? 8U : 0U) | (visible.suppress_mil ? 16U : 0U) |
+                            (visible.show_mil ? 32U : 0U) | ((uint32_t)visible.visible_count << 8) |
+                            ((uint32_t)visible.hidden_count << 16) | ((uint32_t)packet[22] << 24);
+            if (view != diagnostic_view[endpoint])
+            {
+                diagnostic_view[endpoint] = view;
+                ESP_LOGI(TAG,
+                         "diag_view endpoint=%u usable_mil=%u mil_bit=%u reported=%u visible=%u hidden=%u complete=%u "
+                         "suppressed=%u shown=%u",
+                         endpoint, fresh, (packet[2] & 2) != 0, packet[22], visible.visible_count, visible.hidden_count,
+                         visible.complete, visible.suppress_mil, visible.show_mil);
+            }
             presentation.valid |= fresh || visible.count_known;
-            presentation.mil_on |= fresh && (packet[2] & 2) && !visible.suppress_mil;
+            presentation.mil_on |= visible.show_mil;
             presentation.count_known |= visible.count_known;
             presentation.distinct_count += visible.visible_count;
             if (!visible.complete || !visible.count_known)
@@ -541,6 +689,11 @@ static void app_tick_task(void *arg)
                              health.queue_drops, health.stack_observed ? 1U : 0U, health.minimum_stack_free);
             }
             memory_health_log("periodic");
+#if CONFIG_EGAUGE_AUTO_ORIENTATION_PROBE_ENABLED
+            orientation_diagnostics_t orientation = orientation_runtime_diagnostics();
+            ESP_LOGI(TAG, "orientation health=%u phase=%u failures=%lu stack_free=%u", orientation.healthy,
+                     orientation.phase, (unsigned long)orientation.failures, orientation_runtime_stack_margin());
+#endif
         }
     }
 }
@@ -555,40 +708,56 @@ static void obd_task(void *arg)
     bool                    transmission = configured && configured->transmission;
     bool                    simulated    = configured && configured->simulated;
     uint32_t                responder    = transmission ? 0x7e9 : 0x7e8;
-    uint8_t                 pid_indices[POLL_SCHEDULER_MAX_PIDS];
-    uint8_t                 count = 0;
+    uint8_t                *pid_indices  = worker->indices;
+    uint8_t                 count        = 0;
     for (unsigned i = 0; i < poll_count(); ++i)
         if (!g_runtime || g_runtime->pids[i].source_index == source)
             pid_indices[count++] = i;
+    worker->count = count;
     ESP_LOGI(TAG, "RX/TX source %u task started", source);
 
     ble_obd_ctx_t *obd                = NULL;
     uint32_t       reconnect_delay_ms = 500;
 
-    const uint32_t   period_ms    = 100;
-    const uint32_t   timeout_ms   = 300;
-    const uint8_t    dtc_modes[3] = {3, 7, 10};
-    poll_scheduler_t scheduler;
-    uint8_t          endpoints[2], endpoint_count = 0;
+    const uint32_t    period_ms    = 20;
+    const uint32_t    timeout_ms   = 300;
+    const uint8_t     dtc_modes[3] = {3, 7, 10};
+    poll_scheduler_t *scheduler = worker->scheduler = &source_schedulers[source];
+    uint8_t           endpoints[2], endpoint_count = 0;
     for (unsigned e = 0; e < 2; ++e)
         if (diagnostics_endpoint_enabled(e) && diagnostics_endpoint_transport(e) == source)
             endpoints[endpoint_count++] = e;
-    poll_scheduler_init(&scheduler);
-    poll_scheduler_endpoints(&scheduler, endpoint_count);
+    poll_scheduler_init(scheduler);
+    poll_scheduler_endpoints(scheduler, simulated ? 0 : endpoint_count);
 
+    uint32_t logged_at = 0, transactions = 0, maximum_request_ms = 0;
     while (true)
     {
         vTaskDelay(pdMS_TO_TICKS(period_ms));
+        uint32_t health_now = (uint32_t)(esp_timer_get_time() / 1000);
+        if (health_now - logged_at >= 60000)
+        {
+            logged_at = health_now;
+            ESP_LOGI(TAG,
+                     "poll source=%u requests=%" PRIu32 " reused=%" PRIu32 " max_ms=%" PRIu32 " deferred=%" PRIu32
+                     " forced=%" PRIu32 " gaps=%" PRIu32,
+                     source, transactions, worker->reused_samples, maximum_request_ms, scheduler->deferred_diagnostics,
+                     scheduler->forced_diagnostics, scheduler->deadline_misses);
+        }
         worker_health_progress(source == 0 ? WORKER_ECM : WORKER_TCM, (uint32_t)(esp_timer_get_time() / 1000));
-        /* No profile currently supplies qualified control/identity/gear proofs.
-         * Keep the shared worker bridge live for status/recovery, with both
-         * controller masks zero until the parked qualification is implemented. */
+        /* Normal controller masks remain zero. An explicitly built parked-idle
+         * test adapter may supply scoped evidence inside this primary owner. */
         vehicle_command_context_t command_context = {
             .revision  = g_runtime ? g_running_config_record.revision : 0,
             .link      = adapter_status_generation(source),
             .connected = obd && ble_obd_is_connected(obd) && transfer_gate_vehicle_allowed() && !ble_mgr_is_paused()};
-        if (vehicle_commands_runtime_worker(source, obd, command_context,
-                                            (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS)))
+        if (command_context.connected && transfer_gate_current() != 2)
+            ui_set_source_state(ui, source, true, command_context.revision, command_context.link);
+        worker->command_poll  = true;
+        bool command_reserved = vehicle_commands_runtime_worker(source, obd, command_context,
+                                                                (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS));
+        worker->command_poll  = false;
+        if (command_reserved)
             continue;
         if (transfer_gate_current() == 2 || ble_mgr_is_paused())
         {
@@ -625,14 +794,16 @@ static void obd_task(void *arg)
             for (unsigned e = 0; e < endpoint_count; ++e)
                 diagnostics_state_connected_for(2 + endpoints[e]);
             reconnect_delay_ms = 500;
-            poll_scheduler_init(&scheduler);
-            poll_scheduler_endpoints(&scheduler, endpoint_count);
+            poll_scheduler_init(scheduler);
+            poll_scheduler_endpoints(scheduler, simulated ? 0 : endpoint_count);
             continue;
         }
 
-        uint32_t      now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        ui_set_source_state(ui, source, true, g_runtime ? g_running_config_record.revision : 0,
+                            adapter_status_generation(source));
+        uint32_t      now_ms = (uint32_t)(esp_timer_get_time() / 1000);
         clear_state_t clear;
-        if (diagnostic_clear_take(source, now_ms, &clear))
+        if (diagnostic_clear_take(source, pdTICKS_TO_MS(xTaskGetTickCount()), &clear))
         {
             uint8_t       bytes[64];
             size_t        length = sizeof(bytes);
@@ -688,14 +859,48 @@ static void obd_task(void *arg)
                                                  : CLEAR_VERIFIED;
             }
             diagnostic_clear_finish(clear.operation, phase);
-            poll_scheduler_init(&scheduler);
-            poll_scheduler_endpoints(&scheduler, endpoint_count);
+            poll_scheduler_init(scheduler);
+            poll_scheduler_endpoints(scheduler, simulated ? 0 : endpoint_count);
             continue;
         }
-        uint32_t intervals[POLL_SCHEDULER_MAX_PIDS];
+        /* A Stop may have arrived during the preceding guard reads. */
+        if (source == 0 && vehicle_commands_runtime_pending())
+            continue;
+        poll_pid_policy_t policies[POLL_SCHEDULER_MAX_PIDS];
+        unsigned          selected = atomic_load(&g_selected_page);
+        unsigned          next     = display_settings_snapshot().smart_cycle && g_runtime
+                                         ? atomic_load(&g_upcoming_page) % page_count()
+                                         : (selected + 1) % page_count();
+        bool              cycling  = display_settings_snapshot().cycle_seconds != 0;
         for (uint8_t i = 0; i < count; ++i)
-            intervals[i] = g_runtime ? g_runtime->pids[pid_indices[i]].poll_ms : 500;
-        poll_job_t job = poll_scheduler_next(&scheduler, now_ms, intervals, count);
+        {
+            unsigned index   = pid_indices[i];
+            bool     visible = false, upcoming = false, alert = false;
+            if (g_runtime)
+            {
+                const runtime_page_t *page      = &g_runtime->pages[selected % page_count()];
+                const runtime_page_t *following = &g_runtime->pages[next];
+                for (unsigned m = 0; m < page->pid_count; ++m)
+                    visible |= page->pid_indices[m] == index;
+                for (unsigned m = 0; cycling && m < following->pid_count; ++m)
+                    upcoming |= following->pid_indices[m] == index;
+                for (unsigned a = 0; a < g_runtime->alert_count; ++a)
+                    alert |= g_runtime->alerts[a].pid_index == index;
+                const runtime_pid_t *pid = &g_runtime->pids[index];
+                policies[i] = reading_policy_adaptive(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms,
+                                                      visible, upcoming, alert, &reading_stability[index], now_ms,
+                                                      adapter_status_generation(source));
+            }
+            else
+                policies[i] = (poll_pid_policy_t){500, 3000, selected == index ? 2 : 0};
+        }
+        const poll_scheduler_budget_t budget = {.pid_timeout_ms = timeout_ms,
+                                                .mil_timeout_ms = 700,
+                                                .dtc_timeout_ms = 1500,
+                                                .recovery_ms    = period_ms + 50,
+                                                .foreground_ms  = vehicle_commands_runtime_poll_reserve(
+                                                    source, 1500 + period_ms, pdTICKS_TO_MS(xTaskGetTickCount()))};
+        poll_job_t                    job = poll_scheduler_next_budgeted(scheduler, now_ms, policies, count, &budget);
         if (job.kind == POLL_JOB_NONE)
             continue;
         if (simulated && (job.kind == POLL_JOB_MIL || job.kind == POLL_JOB_DTC))
@@ -710,20 +915,32 @@ static void obd_task(void *arg)
             unsigned     slot_count = (transmission == (endpoint == 1)) ? 2 : 1;
             elm_result_t response   = ELM_ADAPTER_ERROR;
             uint8_t      previous[248];
-            bool     had_previous = diagnostics_endpoint_status(endpoint, now_ms, previous) != 0 && (previous[2] & 1);
-            uint32_t generation   = adapter_status_generation(source);
-            uint8_t  mode         = job.kind == POLL_JOB_MIL ? 1 : dtc_modes[job.index];
-            elm_payload_t payload = {0};
+            bool         had_previous =
+                diagnostics_endpoint_status(endpoint, pdTICKS_TO_MS(xTaskGetTickCount()), previous) != 0 &&
+                (previous[2] & 12) == 4 && previous[23];
+            uint32_t      generation = adapter_status_generation(source);
+            uint8_t       mode       = job.kind == POLL_JOB_MIL ? 1 : dtc_modes[job.index];
+            elm_payload_t payload    = {0};
             uint8_t       codes[64];
-            size_t        length = sizeof(codes);
+            size_t        length     = sizeof(codes);
+            uint32_t      started_at = (uint32_t)(esp_timer_get_time() / 1000);
             int result = mode == 1 ? ble_obd_read_pid(obd, 1, 1, ecu, 700, &response, &payload)
                                    : ble_obd_read_service_status_ecu(obd, mode, ecu, 1500, codes, &length, &response);
+            uint32_t duration = (uint32_t)(esp_timer_get_time() / 1000) - started_at;
+            if (duration > maximum_request_ms)
+                maximum_request_ms = duration;
+            if (transactions != UINT32_MAX)
+                ++transactions;
             if (generation != adapter_status_generation(source) || !adapter_status_ready_for(source))
                 continue;
-            poll_scheduler_background_result(&scheduler, job, result == 0 && (mode != 1 || payload.length >= 4));
+            poll_scheduler_diagnostic_complete(scheduler, job, (uint32_t)(esp_timer_get_time() / 1000),
+                                               result == 0 && (mode != 1 || payload.length >= 4) ? POLL_DIAGNOSTIC_OK
+                                               : response == ELM_UNSUPPORTED ? POLL_DIAGNOSTIC_UNSUPPORTED
+                                                                             : POLL_DIAGNOSTIC_RETRY);
             if (mode == 1 && result == 0 && payload.length >= 4 && had_previous &&
-                ((previous[2] & 2) != 0) != ((payload.bytes[0] & 0x80) != 0))
-                poll_scheduler_mil_changed(&scheduler, job.endpoint);
+                ((((previous[2] & 2) != 0) != ((payload.bytes[0] & 0x80) != 0)) ||
+                 previous[22] != (payload.bytes[0] & 0x7f)))
+                poll_scheduler_mil_changed(scheduler, job.endpoint);
             for (unsigned slot = 0; slot < slot_count; ++slot)
             {
                 if (result == 0 && mode == 1 && payload.length >= 4)
@@ -741,17 +958,30 @@ static void obd_task(void *arg)
         const obd_pid_cfg_t *requested = poll_cfg(pid_indices[job.index]);
         const uint8_t        obd_mode  = g_runtime ? g_runtime->pids[pid_indices[job.index]].service : 0x01;
 
-        uint32_t poll_generation = adapter_status_generation(source);
-        int      status =
-            ble_obd_rxtx_ecu(obd, obd_mode, requested->pid,
-                             g_runtime ? g_runtime->pids[pid_indices[job.index]].responder : ELM_ECU_ANY, timeout_ms);
-
-        poll_scheduler_result(&scheduler, job.index, status == 0);
+        uint32_t     poll_generation = adapter_status_generation(source);
+        elm_result_t response        = ELM_PENDING;
+        worker->decoded_sample       = false;
+        uint32_t started_at          = (uint32_t)(esp_timer_get_time() / 1000);
+        int      status              = ble_obd_rxtx_status_ecu(
+            obd, obd_mode, requested->pid, g_runtime ? g_runtime->pids[pid_indices[job.index]].responder : ELM_ECU_ANY,
+            timeout_ms, &response);
+        uint32_t duration = (uint32_t)(esp_timer_get_time() / 1000) - started_at;
+        if (duration > maximum_request_ms)
+            maximum_request_ms = duration;
+        if (transactions != UINT32_MAX)
+            ++transactions;
+        poll_scheduler_complete(scheduler, job, (uint32_t)(esp_timer_get_time() / 1000),
+                                status == 0 && worker->decoded_sample);
+        if (status != 0 || !worker->decoded_sample)
+            reading_stability_reset(&reading_stability[pid_indices[job.index]]);
         if (status != 0)
         {
             queue_alert_sample(source, requested->pid, poll_generation, NAN);
-            ui_set_value(ui, requested->pid, NULL);
-            ESP_LOGW(TAG, "Failed to send request: %d", status);
+            /* No completed reply is a transient gap, not a new observation.
+             * Strict alert/guard consumers still fail; display expires naturally. */
+            if (response != ELM_PENDING)
+                publish_ui_sample(ui, source, poll_generation, requested->pid, NULL);
+            ESP_LOGW(TAG, "Reading request incomplete: result=%d response=%u", status, response);
         }
     }
 }
@@ -879,6 +1109,16 @@ static void init_config(void)
     ESP_LOGI(TAG, "Initializing configuration...");
 
     ESP_ERROR_CHECK(config_init());
+    ESP_ERROR_CHECK(display_settings_init(0, 80, 0));
+    gauge_board_initialize();
+    gauge_display_set_rotation((lv_display_rotation_t)display_settings_snapshot().rotation);
+    if (lvgl_port_lock(portMAX_DELAY))
+    {
+        ui_boot_logo_early();
+        lvgl_port_unlock();
+    }
+    gauge_display_set_power(true);
+    ESP_ERROR_CHECK(gauge_display_set_brightness(display_settings_snapshot().brightness));
     ESP_ERROR_CHECK(config_store_init());
     ESP_ERROR_CHECK(config_trial_init());
     ESP_ERROR_CHECK(ota_transfer_init());
@@ -954,8 +1194,16 @@ void app_main(void)
 
     memory_health_init();
 
+    const gauge_board_t *board = gauge_board_description();
+    if (board == NULL || !gauge_presentation_matches(board->surface))
+    {
+        ESP_LOGE(TAG, "No matching UI profile for this display surface");
+        return;
+    }
+
     config_document_init();
     init_config();
+    ESP_LOGI(TAG, "Main startup stack_free=%u", (unsigned)uxTaskGetStackHighWaterMark(NULL));
     for (unsigned source = 0; source < runtime_source_count(); ++source)
         diagnostics_state_configure_for(source, g_runtime && g_runtime->sources[source].transmission,
                                         g_runtime ? g_running_config_record.revision : 0,
@@ -978,16 +1226,9 @@ void app_main(void)
             alert_runtime_simulated(
                 i, g_runtime->sources[g_runtime->pids[g_runtime->alerts[i].pid_index].source_index].simulated);
 
-    const gauge_board_t *board = gauge_board_description();
-    if (board == NULL || !gauge_presentation_matches(board->surface))
-    {
-        ESP_LOGE(TAG, "No matching UI profile for this display surface");
-        return;
-    }
-    gauge_board_initialize();
     hardware_probe_set_ready(HARDWARE_FEATURE_DISPLAY | HARDWARE_FEATURE_TOUCH | HARDWARE_FEATURE_BACKLIGHT, true);
 
-    gauge_display_set_rotation(g_config.disp_rot);
+    apply_display_rotation(g_config.disp_rot);
 
     const uint32_t ui_interval_ms = 50;
     ui_page_t      initial_page;
@@ -1006,8 +1247,8 @@ void app_main(void)
         }
         lvgl_port_unlock();
     }
-    gauge_display_set_power(true);
     ESP_ERROR_CHECK(gauge_display_set_brightness(display_settings_snapshot().brightness));
+    orientation_runtime_init(display_settings_snapshot().rotation);
 
 #if CONFIG_EGAUGE_DISPLAY_CALIBRATION
     ui_start_display_calibration(ui);
@@ -1063,6 +1304,8 @@ void app_main(void)
             diagnostics_endpoint_configure(e, transport, g_running_config_record.revision,
                                            g_runtime && g_runtime->sources[transport].simulated);
     }
+    smart_configure();
+    atomic_store(&g_upcoming_page, (atomic_load(&g_selected_page) + 1U) % page_count());
     init_obd_task(ui);
     BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 4096, ui, 5, NULL);
     ESP_CHECK(tick_started == pdPASS, TAG, "Application tick task creation failed");
@@ -1073,7 +1316,8 @@ void app_main(void)
         ESP_CHECK(started == pdPASS, TAG, "Boot health task creation failed");
     }
 
-    page_save_policy_t page_save = {0};
+    page_save_policy_t  page_save = {0};
+    page_cycle_policy_t cycling   = {0};
     atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
     while (true)
     {
@@ -1117,7 +1361,7 @@ void app_main(void)
             if (lvgl_port_lock(portMAX_DELAY))
             {
                 ui_reset_action_sequence(ui);
-                gauge_display_set_rotation(saved.disp_rot);
+                apply_display_rotation(saved.disp_rot);
                 lvgl_port_unlock();
             }
             ESP_LOGI(TAG, "Display rotation saved: %u", (unsigned)command.value * 90);
@@ -1133,7 +1377,7 @@ void app_main(void)
             if (lvgl_port_lock(portMAX_DELAY))
             {
                 ui_reset_action_sequence(ui);
-                gauge_display_set_rotation(g_config.disp_rot);
+                apply_display_rotation(g_config.disp_rot);
                 lvgl_port_unlock();
             }
             ESP_ERROR_CHECK(gauge_display_set_brightness(saved.brightness));
@@ -1151,7 +1395,7 @@ void app_main(void)
             if (lvgl_port_lock(portMAX_DELAY))
             {
                 ui_reset_action_sequence(ui);
-                gauge_display_set_rotation(g_config.disp_rot);
+                apply_display_rotation(g_config.disp_rot);
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
             }
@@ -1159,17 +1403,26 @@ void app_main(void)
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u", (unsigned)saved.rotation * 90,
                      (unsigned)saved.brightness, (unsigned)saved.units);
         }
-        else if (has_command && command.opcode == 0x38)
+        else if (has_command && (command.opcode == 0x38 || command.opcode == 0x69))
         {
             display_settings_t saved;
-            if (display_settings_save(command.value, command.brightness, command.units, command.cycle_seconds,
-                                      command.base_revision, &saved) != ESP_OK)
+            esp_err_t result = command.opcode == 0x69
+                                   ? display_settings_save_smart(command.value, command.brightness, command.units,
+                                                                 command.cycle_seconds, command.smart_cycle,
+                                                                 command.base_revision, &saved)
+                                   : display_settings_save(command.value, command.brightness, command.units,
+                                                           command.cycle_seconds, command.base_revision, &saved);
+            if (result != ESP_OK)
                 continue;
-            g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
+            if (!saved.auto_orientation)
+                g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
             if (lvgl_port_lock(portMAX_DELAY))
             {
                 ui_reset_action_sequence(ui);
-                gauge_display_set_rotation(g_config.disp_rot);
+                if (!saved.auto_orientation)
+                {
+                    apply_display_rotation(g_config.disp_rot);
+                }
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
             }
@@ -1178,6 +1431,23 @@ void app_main(void)
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u cycle=%us",
                      (unsigned)saved.rotation * 90, (unsigned)saved.brightness, (unsigned)saved.units,
                      (unsigned)saved.cycle_seconds);
+        }
+        else if (has_command && command.opcode == 0x6b)
+        {
+            display_settings_t saved;
+            if (command.auto_orientation && !orientation_runtime_snapshot().usable)
+                continue;
+            if (display_settings_save_orientation(command.auto_orientation, command.value, command.base_revision,
+                                                  &saved) != ESP_OK)
+                continue;
+            if (!saved.auto_orientation && lvgl_port_lock(portMAX_DELAY))
+            {
+                ui_reset_action_sequence(ui);
+                apply_display_rotation((lv_display_rotation_t)saved.rotation);
+                g_config.disp_rot = (lv_display_rotation_t)saved.rotation;
+                lvgl_port_unlock();
+            }
+            atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
         }
         else if (has_command && command.opcode == 0x64)
         {
@@ -1189,25 +1459,104 @@ void app_main(void)
         else if (has_command && command.opcode == 3)
             ble_companion_forget_owner();
 
-        uint32_t           now_ms        = pdTICKS_TO_MS(xTaskGetTickCount());
-        display_settings_t cycle         = display_settings_snapshot();
-        bool               owner_ready   = ble_companion_has_owner();
-        bool               transfer_idle = transfer_gate_current() == 0;
-        ui_set_action_context(ui, owner_ready && transfer_gate_vehicle_allowed());
-        if (!owner_ready || !transfer_idle || ui_showcase_active(ui))
-            atomic_store(&g_page_activity_ms, now_ms);
-        if (page_cycle_due(cycle.cycle_seconds, page_count(), owner_ready, transfer_idle && !ui_action_pending(ui),
-                           atomic_load(&g_page_activity_ms), now_ms) &&
-            lvgl_port_lock(0))
+        uint32_t           now_ms      = (uint32_t)(esp_timer_get_time() / 1000);
+        display_settings_t cycle       = display_settings_snapshot();
+        bool               owner_ready = ble_companion_has_owner();
+        bool               maintenance = !transfer_gate_vehicle_allowed();
+        uint8_t            auto_angle;
+        if (orientation_runtime_poll(cycle.auto_orientation, cycle.rotation,
+                                     maintenance || ble_mgr_is_paused() ||
+                                         transfer_gate_current() == TRANSFER_GATE_VEHICLE_COMMAND ||
+                                         vehicle_commands_runtime_pending() || ui_action_pending(ui),
+                                     &auto_angle) &&
+            orientation_runtime_retry_ready(now_ms) && lvgl_port_lock(0))
         {
-            uint8_t   selected = (atomic_load(&g_selected_page) + 1) % page_count();
-            ui_page_t page;
-            page_ui(selected, &page);
-            ui_set_page(ui, &page);
-            ui_set_page_position(ui, selected, page_count());
-            atomic_store(&g_selected_page, selected);
-            ble_companion_selection_applied(selected);
-            atomic_store(&g_page_activity_ms, now_ms);
+            ui_reset_action_sequence(ui);
+            if (apply_display_rotation((lv_display_rotation_t)auto_angle))
+            {
+                g_config.disp_rot = (lv_display_rotation_t)auto_angle;
+            }
+            lvgl_port_unlock();
+        }
+#if CONFIG_EGAUGE_AUTO_ORIENTATION_CANDIDATE
+        static uint32_t orientation_logged_at;
+        static uint64_t orientation_config_logged = UINT64_MAX;
+        if ((uint32_t)(now_ms - orientation_logged_at) >= 2000)
+        {
+            orientation_logged_at                 = now_ms;
+            orientation_diagnostics_t sensor      = orientation_runtime_diagnostics();
+            orientation_status_t      orientation = orientation_runtime_snapshot();
+            uint64_t config_key = sensor.control_verified | (sensor.have_revision ? 8 : 0) |
+                                  (sensor.have_direct_x ? 16 : 0) | ((uint64_t)sensor.ctrl[0] << 8) |
+                                  ((uint64_t)sensor.ctrl[1] << 16) | ((uint64_t)sensor.ctrl[2] << 24) |
+                                  ((uint64_t)sensor.revision << 32) | ((uint64_t)(uint16_t)sensor.direct_x << 40);
+            if (config_key != orientation_config_logged)
+            {
+                orientation_config_logged = config_key;
+                ESP_LOGI(TAG,
+                         "orientation config ctrl=%02x/%02x/%02x verified=%u revision=%02x revision_valid=%u "
+                         "direct_x=%d direct_valid=%u",
+                         sensor.ctrl[0], sensor.ctrl[1], sensor.ctrl[2], sensor.control_verified, sensor.revision,
+                         sensor.have_revision, sensor.direct_x, sensor.have_direct_x);
+            }
+            ESP_LOGI(TAG,
+                     "orientation sample=%u xyz_mg=%ld,%ld,%ld proposed=%u applied=%u health=%u phase=%u failures=%lu "
+                     "stack=%u main_stack=%u age_ms=%lu max_tick_us=%lu",
+                     sensor.have_observation, (long)sensor.x_mg, (long)sensor.y_mg, (long)sensor.z_mg,
+                     sensor.proposed_angle, orientation.applied_angle, sensor.healthy, sensor.phase,
+                     (unsigned long)sensor.failures, orientation_runtime_stack_margin(),
+                     (unsigned)uxTaskGetStackHighWaterMark(NULL),
+                     (unsigned long)(pdTICKS_TO_MS(xTaskGetTickCount()) - sensor.observed_at_ms),
+                     (unsigned long)sensor.maximum_tick_us);
+        }
+#endif
+        ui_set_action_context(ui, owner_ready && !maintenance);
+        uint8_t             selected_before = atomic_load(&g_selected_page);
+        uint32_t            activity_before = atomic_load(&g_page_activity_ms);
+        page_cycle_reason_t before_reason   = cycling.reason;
+        bool cycle_due = page_cycle_step(&cycling, cycle.cycle_seconds, page_count(), owner_ready, maintenance,
+                                         ui_cycle_pause(ui), activity_before, now_ms);
+        if (before_reason != cycling.reason)
+            ESP_LOGI(TAG, "page cycle reason=%u interval_s=%u", cycling.reason, cycle.cycle_seconds);
+        smart_page_decision_t choice = {0};
+        bool                  smart  = cycle.smart_cycle && g_runtime;
+        if (smart)
+            cycle_due = smart_select(ui, cycle, selected_before, activity_before, cycling.reason, now_ms, &choice);
+        else
+        {
+            smart_page_suspend(&smart_pages);
+            atomic_store(&g_upcoming_page, (atomic_load(&g_selected_page) + 1U) % page_count());
+        }
+        if (cycle_due && lvgl_port_lock(0))
+        {
+            bool eligible = atomic_load(&g_selected_page) == selected_before &&
+                            atomic_load(&g_page_activity_ms) == activity_before &&
+                            ui_cycle_pause(ui) == PAGE_CYCLE_RUNNING && transfer_gate_vehicle_allowed() &&
+                            ble_companion_has_owner();
+            if (smart && choice.priority)
+            {
+                double   value;
+                uint32_t at, generation;
+                eligible = eligible && smart_sample(ui, choice.pid, now_ms, &value, &at, &generation) &&
+                           generation == smart_pages.pids[choice.pid].generation;
+            }
+            if (eligible)
+            {
+                uint8_t   selected = smart ? choice.page : (atomic_load(&g_selected_page) + 1) % page_count();
+                ui_page_t page;
+                page_ui(selected, &page);
+                ui_set_page(ui, &page);
+                ui_set_page_position(ui, selected, page_count());
+                atomic_store(&g_selected_page, selected);
+                ble_companion_selection_applied(selected);
+                atomic_store(&g_page_activity_ms, now_ms);
+                if (smart)
+                {
+                    smart_page_commit(&smart_pages, &choice, now_ms);
+                    ESP_LOGI(TAG, "smart_page page=%u reason=%u pid=%u early=%u cursor=%u max_us=%" PRIu32, selected,
+                             choice.reason, choice.pid, choice.early, smart_pages.cursor, smart_maximum_us);
+                }
+            }
             lvgl_port_unlock();
         }
         page_save_observe(&page_save, atomic_load(&g_local_page_generation), now_ms);

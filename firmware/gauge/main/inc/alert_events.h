@@ -7,7 +7,7 @@
 #define ALERT_EVENT_WIRE 84
 #define ALERT_EVENT_PACKET 360
 /* Severity: 0 inactive, 1 information, 2 advisory, 3 warning, 4 critical.
- * Availability: 0 fresh, 1 unavailable. Lifecycle: 0 resolved, 1 active, 2 expired. */
+ * Availability: 0 usable under producer age policy, 1 unavailable. Lifecycle: 0 resolved, 1 active, 2 expired. */
 typedef struct
 {
     uint32_t sequence, boot, episode, at;
@@ -71,3 +71,11 @@ bool alert_events_condition_summary(const alert_events_t *events,
                                     alert_event_t        *out,
                                     bool                 *attention,
                                     uint8_t              *additional);
+
+typedef struct
+{
+    uint32_t episode;
+    uint8_t  severity;
+    bool     suppressed;
+} alert_page_interest_t;
+void alert_events_page_interest(const alert_events_t *events, uint32_t now, alert_page_interest_t out[32]);

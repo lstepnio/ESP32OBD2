@@ -12,7 +12,7 @@ distance/time since diagnostic events, ethanol, fuel rate and torque.
 identity, source/category, gauge label, example, minimum configuration capability
 and the complete wire definition, provenance and synthetic decode vectors.
 `tools/generate_reading_catalog.py` generates Android `ReadingCatalog.kt` and the
-wire template. `tools/validate.py` rejects drift and validates every definition
+wire template plus firmware `reading_policy_catalog.inc`. `tools/validate.py` rejects drift and validates every definition
 and a selected one-reading configuration. The template is a definition library;
 it is not itself an executable 55-reading configuration.
 
@@ -54,7 +54,7 @@ local profiles but cannot be selected for execution or alerts.
   not invalidate healthy-source samples. A single primary transport can carry both
   kinds of requests without adding a child in Expert.
 - Only definitions referenced by pages or alerts are transmitted/polled. Limits
-  remain 32 different active readings, 32 alerts, eight pages and 64 KiB. Asking for
+  remain 32 different active readings, 32 alerts, ten pages and 64 KiB (subject to negotiated `mp` capacity). Asking for
   short intervals does not guarantee that rate on a slow or missing adapter.
 - Configuration and alerts retain canonical metric values. Imperial display and
   editing convert temperature, speed/distance, pressure, flow and torque. Saving an
@@ -63,6 +63,41 @@ local profiles but cannot be selected for execution or alerts.
   three decimals. Familiar temperature/speed/RPM pages retain whole-number display.
   Arc/Bar/Trend normalize using the full canonical range, including negative values
   and sub-unit ranges.
+
+## Display and polling classes
+
+Each catalog row has explicit `samplingClass` metadata, separate from the wire
+PID definition. The generator emits a flash-resident firmware table keyed by
+reading ID, service and PID, with the original polling/stale defaults. Class
+policies apply only to unchanged catalog timings. Unknown/custom definitions or
+explicit timing overrides keep their configured values; labels/units never infer
+policy. Adding a class requires rate/age and native-policy tests.
+
+| Class | Polling target | Display age limit |
+| --- | --- | --- |
+| Fast | Visible 250 ms; upcoming cycling page 500 ms; hidden 1,000 ms | 3 seconds |
+| Thermal | 1,500 ms | 8 seconds |
+| Slow | Visible 2,000 ms; upcoming 2,500 ms; hidden 5,000 ms | 20 seconds |
+
+Only reviewed catalog rows have `samplingStability` metadata. Coolant, controller,
+intake, ambient and oil temperature allow 0.5 °C variation; fuel level and ethanol
+allow 0.5 percentage points. After thirty seconds within that distance of a fixed
+anchor, a hidden thermal reading can back off to 3,000 ms and a hidden slow reading
+to 10,000 ms. Visible/upcoming readings immediately regain their normal class
+interval. RPM, gear and other fast signals never slow down just because they are
+steady. Gradual cumulative drift resets the window, as do failed/nonfinite reads,
+a stale gap or a source generation change. Stability state is bounded per reading
+in PSRAM and introduces no additional queries. Custom/overridden definitions retain
+explicit timing; new adaptive rows need semantic review and native tests.
+
+Configured alerts cap the interval at their original polling requirement. Their
+`staleAfterMs`, dwell and control freshness are not increased. A display age limit
+never changes with visibility and page navigation never renews the timestamp.
+The table schedules only configured page/alert readings; it does not start querying
+all 55 catalog entries. Rates remain subject to measured adapter capacity.
+Metadata does not add wire fields, change saved configuration digests or require an
+App migration. Existing installed definitions acquire the firmware presentation
+policy when their identities and timings match the catalog.
 
 ## Compatibility
 
@@ -99,7 +134,7 @@ support. Dated build/editor/install results are in [catalog rollout evidence](..
 ## Extending the catalog
 
 1. Add a project-authored definition to the catalog with authoritative formula,
-   responder, minimum payload, range, units, reasonable poll/stale intervals and
+   responder, minimum payload, range, units, an explicit sampling class, reasonable poll/stale intervals and
    min/mid/max vectors. Keep query identities unique.
 2. Choose numeric or named-state alert semantics, include provenance and license,
    and avoid claiming compatibility from an example.
@@ -107,3 +142,11 @@ support. Dated build/editor/install results are in [catalog rollout evidence](..
    fixtures. A definition that the firmware compiler cannot execute must not appear
    as selectable. Add mappings for genuinely new units in both App and firmware.
 4. Record physical qualification separately; do not change public flags implicitly.
+
+## Smart presentation metadata
+
+Optional `smartInterest` metadata and its generated flash table provide semantic
+context/thermal hints. The [Smart cycling contract](../architecture/smart-page-cycling.md)
+owns defaults, exact-definition matching, tuning validation, limits and qualification.
+This is independent of `samplingClass`: it never creates queries, widens freshness
+or changes actual alert thresholds. Unknown/custom readings keep active-alert priority.

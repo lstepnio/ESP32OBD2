@@ -23,7 +23,8 @@
       "docs/roadmap.md",
       "docs/backlog.md",
       "docs/documentation.md",
-      "docs/requirements.md"
+      "docs/requirements.md",
+      "docs/features.md"
     ],
     "architecture": [
       "docs/architecture/alerts-and-diagnostics.md",
@@ -38,7 +39,9 @@
       "docs/architecture/system.md",
       "docs/architecture/vehicle-actions.md",
       "docs/architecture/vehicle-connections.md",
-      "docs/architecture/platforms-and-releases.md"
+      "docs/architecture/platforms-and-releases.md",
+      "docs/architecture/smart-page-cycling.md",
+      "docs/architecture/display-experience.md"
     ],
     "development-contracts-and-proposals": [
       "docs/protocol/adapter-bindings-v1.md",
@@ -48,7 +51,10 @@
       "docs/protocol/firmware-update.md",
       "docs/protocol/hardware-probe.md",
       "docs/protocol/pid-discovery.md",
-      "docs/protocol/wifi-bulk-v1.md"
+      "docs/protocol/wifi-bulk-v1.md",
+      "docs/development/gauge-continuity-plan.md",
+      "docs/development/smart-page-cycling-plan.md",
+      "docs/design/car-ui-proposal.md"
     ],
     "maintained-runbooks": [
       "docs/development/display-showcase.md",
@@ -66,7 +72,8 @@
       "firmware/gauge/assets/fonts/README.md",
       "mechanical/jk-dash-pod/README.md",
       "data/vehicle-definitions/README.md",
-      "website/README.md"
+      "website/README.md",
+      "docs/development/display-indoor-qualification.md"
     ],
     "vehicle-research": [
       "docs/vehicles/README.md",

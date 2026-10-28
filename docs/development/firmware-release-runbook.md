@@ -46,8 +46,9 @@ New workflow releases also retain and sign `egauge-build-evidence-VERSION.zip`.
 It contains exact ELF/map/application/bootstrap outputs, configuration/layout,
 resolved dependency versions/hashes, license notices and an SPDX dependency inventory.
 `provenance.json` records the full source SHA, qualified container and every payload
-hash. Dependency metadata omits machine-local paths; original ELF/map may retain build
-paths. Signing material is excluded. The separate DER
+hash. Evidence uses the selected normal, parked-idle or orientation-candidate build
+and the sdkconfig recorded by that build. Dependency metadata omits machine-local
+paths; original ELF/map may retain build paths. Signing material is excluded. The separate DER
 signature uses the existing development key and can be checked with `openssl dgst
 -sha256 -verify PUBLIC_KEY -signature EVIDENCE.sig EVIDENCE.zip`.
 
@@ -57,13 +58,22 @@ fields marked `NOASSERTION` are not a license review or a complete transitive so
 SBOM; retained notices support that review. Historical releases do not retroactively
 acquire original CI support artifacts. No new release is implied by source changes.
 
+## Parked idle qualification candidate
+
+The optional `parked_idle_test` workflow input defaults to `false`. Use `true` only
+for an owner-authorized [parked idle candidate](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate),
+and identify that limitation in its release notes. It selects the separately built
+`build-parked-idle` image; ordinary releases keep the test switch off. CI compiles
+both images from the exact source before publication. Publication and installation
+still require owner authorization; this input does not qualify a vehicle profile.
+
 ## Publish
 
 1. Merge or select the exact reviewed commit. Confirm quality CI is green.
 2. Choose a new semantic development version and a monotonically increasing release sequence. Never reuse a published tag, version, sequence, or asset name.
 3. Run the **Publish development firmware** workflow with version, sequence, and concise notes.
 4. Confirm the workflow built from the intended commit and the release is marked prerelease.
-5. Download all three assets and verify catalog signature, bundle size/hash, bundle signature, board ID, layout, and ESP app descriptor.
+5. Download all five assets and verify catalog signature, bundle size/hash, bundle signature, board ID, layout, ESP app descriptor, and build evidence signature/inventory. Confirm the evidence application hash matches the application in the signed bundle.
 6. From a fresh companion install, check GitHub, download, verify, upload to a powered gauge, and read running firmware after reboot. Record the app commit, release tag, phone, gauge, partition, and ELF hash.
 
 The catalog expires after 180 days. A newer release publishes a new catalog containing the supported set. Published versions are not edited in place.
@@ -168,3 +178,14 @@ App/BLE and App/Wi-Fi installation cannot repair that image. Any USB recovery ne
 separate explicit authorization, a verified signed image, private flash backup,
 application-only partition targeting and preservation checks. Do not erase NVS,
 configuration slots or the partition table, or bypass authentication to make OTA work.
+
+## Owner-supervised orientation qualification candidate
+
+The optional `orientation_candidate` workflow input defaults false. After explicit
+owner authorization it selects `build-orientation-candidate`, can retain the existing
+parked-idle option, and forces the board-qualified orientation flag off. The test-only
+permission offers protected Auto after live sensor health without promoting public
+capabilities or default board support. Record its limitation in release notes; do
+not publish it as a qualified normal image. Use the [indoor procedure](display-indoor-qualification.md)
+and restore user settings after testing. A candidate build is compiled in quality
+CI before publication, including the optional sensor worker's real IDF branch.

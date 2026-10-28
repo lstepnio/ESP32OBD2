@@ -76,3 +76,37 @@ errors or skipped tests, and compiled the debug instrumentation source. Kotlin/P
 format checks and host lint/tests passed. The earlier 201-case/29-failure comparison
 remains historical. Required CI now runs both JVM variants and preserves failure-only
 XML/HTML diagnostics for seven days; no owner device or sensitive trace is involved.
+
+## PR backlog cleanup, 2026-10-28
+
+Audit baseline: main `f2dbf7596dbbb378eec9485c0f097ed79159ef10`.
+PR #93 retains the original assessment head in the remote branch
+`codex/assessment-remediation-preserved-20261028` and incorporates this mainline
+through a merge, preserving both histories. Current main's schema 19, diagnostic
+policy, modal-editor fixtures, Car UX and orientation/stack protections are retained.
+The release evidence collector now follows the selected IDF build directory and
+its resolved configuration rather than assuming the default build.
+
+Superseded PRs selected for closure, with explanatory comments and branches retained:
+
+| PR | Mainline evidence and disposition |
+| --- | --- |
+| [#71](https://github.com/lstepnio/ESP32OBD2/pull/71) | Recovery source, release loader/tests, generated bundle and build integration match main; later website styling/docs remain authoritative. |
+| [#78](https://github.com/lstepnio/ESP32OBD2/pull/78) | Off-road action content is present in main; shared content and recovery files match. Later website layout supersedes the older markup. |
+| [#79](https://github.com/lstepnio/ESP32OBD2/pull/79) | Main website and roadmap retain basic iOS and browser USB configuration as plans with explicit limits. Historical status snapshots are retained in the closed PR. |
+| [#81](https://github.com/lstepnio/ESP32OBD2/pull/81) | Main retains coolant fallback policy and exact coolant helper/Android command code and tests; later action runtime and qualification records own current behavior. |
+| [#82](https://github.com/lstepnio/ESP32OBD2/pull/82) | AirUpTimer, TemporaryIdle, timer editor and idle sheet match main. Main's later schema, runtime and test coverage supersede the original integration. |
+| [#102](https://github.com/lstepnio/ESP32OBD2/pull/102) | All three changed Android test files match main, including the shared keyboard helper. Later mainline quality/evidence records remain authoritative. |
+
+The website Air up progress link now targets the maintained implementation and
+qualification documentation, rather than the superseded PR. This is a source
+update; website publication remains separate.
+
+PRs #41, #59, #73, #74 and #77 remain open for residual behavior/test/evidence review
+against later implementations. PRs #57, #58, #64 and #72 retain unique proposals,
+experiments, trend rendering and Jeep research. PR #112 retains installation and
+owner-observation evidence for separate reconciliation. PR #93 remains the active
+assessment remediation PR. No branches, unique patches or historical evidence are
+deleted. Old green CI is historical; only fresh checks apply to the reconciled head.
+No merge to main, deployment, release, installation or physical qualification is
+established by this cleanup.

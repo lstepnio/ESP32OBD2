@@ -23,3 +23,35 @@ bool page_cycle_due(uint16_t interval_seconds,
                     bool     transfer_idle,
                     uint32_t last_activity_ms,
                     uint32_t now_ms);
+
+/* Reasons are diagnostic state, never user-facing error messages. */
+typedef enum
+{
+    PAGE_CYCLE_RUNNING,
+    PAGE_CYCLE_OFF,
+    PAGE_CYCLE_SINGLE,
+    PAGE_CYCLE_OWNER,
+    PAGE_CYCLE_MAINTENANCE,
+    PAGE_CYCLE_TOUCH,
+    PAGE_CYCLE_ACTIONS,
+    PAGE_CYCLE_ATTENTION,
+    PAGE_CYCLE_SHOWCASE,
+    PAGE_CYCLE_WAITING
+} page_cycle_reason_t;
+typedef struct
+{
+    bool                initialized;
+    uint16_t            interval_seconds;
+    page_cycle_reason_t reason;
+    uint32_t            activity_ms, started_ms;
+} page_cycle_policy_t;
+/* A resume/interaction starts one full interval. No catch-up or implicit reset
+ * for routine adapter polling, command ownership or phone status reads. */
+bool page_cycle_step(page_cycle_policy_t *state,
+                     uint16_t             interval_seconds,
+                     unsigned             pages,
+                     bool                 owner,
+                     bool                 maintenance,
+                     page_cycle_reason_t  ui_reason,
+                     uint32_t             activity_ms,
+                     uint32_t             now_ms);

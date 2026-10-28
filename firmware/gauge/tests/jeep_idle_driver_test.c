@@ -100,6 +100,32 @@ static void happy_path_and_scope(void)
     assert(d.result == JEEP_IDLE_RETURN_CONFIRMED);
     assert(sizeof(d) < 768);
 }
+static void recovery_reports_never_write(void)
+{
+    for (unsigned step = 0; step < 4; ++step)
+    {
+        jeep_idle_driver_t d;
+        begin(&d, JEEP_IDLE_RECOVERY_REPORT);
+        d.control_possible = true; /* Even a discovered active controller cannot authorize Return. */
+        for (unsigned i = 0; i < step; ++i)
+            exchange(&d, i);
+        jeep_idle_driver_cancel(&d);
+        assert(!jeep_idle_driver_next(&d, owner, now).text && d.phase == JEEP_IDLE_CANCELLED);
+    }
+    for (unsigned active = 0; active < 2; ++active)
+    {
+        jeep_idle_driver_t d;
+        begin(&d, JEEP_IDLE_RECOVERY_REPORT);
+        route(&d);
+        jeep_idle_command_t c             = issue(&d, "33 05 1");
+        idle_context_t      failed_guard  = owner;
+        failed_guard.guards_fresh_and_met = false;
+        reply(&d, c, active ? "7E8 03 73 05 02\r>" : "7E8 03 73 05 01\r>", failed_guard);
+        assert(d.phase == JEEP_IDLE_CONFIRMED);
+        assert(!jeep_idle_driver_next(&d, owner, now).text);
+        assert(d.request.kind == JEEP_IDLE_RECOVERY_REPORT);
+    }
+}
 static void admission_and_cancellation(void)
 {
     jeep_idle_driver_t d;
@@ -351,6 +377,7 @@ static void lifecycle_fixture(void)
 }
 int main(void)
 {
+    recovery_reports_never_write();
     assert(!strcmp(capture[3].command, "10 92 1"));
     assert(!strcmp(capture[5].command, "31 05 06 80 1"));
     assert(!strcmp(capture[7].command, "32 05 1"));

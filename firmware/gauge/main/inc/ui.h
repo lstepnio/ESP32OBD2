@@ -12,6 +12,7 @@
 
 #include "obd.h"
 #include "page_action.h"
+#include "page_save_policy.h"
 #include "diagnostics_state.h"
 
 /* Internal callback event; no external vehicle control operation. */
@@ -41,11 +42,15 @@ typedef enum
     UI_RENDERER_BAR,
     UI_RENDERER_TREND,
     UI_RENDERER_DUAL,
+    UI_RENDERER_DUAL_ARC,
 } ui_renderer_t;
 
 typedef struct
 {
     uint16_t    pid;
+    uint8_t     source_index;
+    bool        scoped;
+    uint32_t    revision;
     const char *name;
     const char *unit;
     double      minimum;
@@ -59,6 +64,7 @@ typedef struct
     ui_renderer_t renderer;
     uint8_t       metric_count;
     ui_metric_t   metrics[2];
+    uint8_t       arc_metric_index;
 } ui_page_t;
 
 typedef void (*ui_touch_callback_t)(ui_t *ui, lv_event_code_t event_code);
@@ -67,15 +73,36 @@ typedef void (*ui_touch_callback_t)(ui_t *ui, lv_event_code_t event_code);
 // Public Function Declarations
 // ---------------------------------------------------------------------------------------------------------------------
 
+/* Reused vector mark drawn as soon as the display is ready; no bitmap/framebuffer. */
+void  ui_boot_logo_early(void);
+void  ui_waiting_logo_enable(ui_t *ui, bool enabled);
 ui_t *ui_init(ui_page_t const    *page,
               uint32_t            interval_ms,
               ui_touch_callback_t touch_cb,
               bool                pairing_required,
               bool                imperial_units);
-/* Thread-safe presentation mailbox. Samples are accepted only when their PID
- * still matches the selected page, preventing late replies from crossing a
- * page change. Passing NULL publishes an unavailable sample for that PID. */
+/* Bounded latest-value mailbox. Legacy/test values are unscoped. Production
+ * values require the exact source scope armed by its worker. Observations use
+ * monotonic milliseconds and retain their original age across page changes. */
 void ui_set_value(ui_t *ui, uint16_t pid, double const *value);
+/* Read-only latest sample for presentation policy. No LVGL lock or timestamp renewal. */
+bool ui_source_sample(ui_t     *ui,
+                      unsigned  source,
+                      uint32_t  revision,
+                      uint16_t  pid,
+                      uint32_t  age_ms,
+                      uint32_t  now,
+                      double   *value,
+                      uint32_t *observed_at,
+                      uint32_t *generation);
+void ui_set_source_state(ui_t *ui, unsigned source, bool ready, uint32_t revision, uint32_t generation);
+void ui_set_source_value(ui_t         *ui,
+                         unsigned      source,
+                         uint32_t      revision,
+                         uint32_t      generation,
+                         uint16_t      pid,
+                         double const *value,
+                         uint32_t      observed_at_ms);
 void ui_set_page(ui_t *ui, ui_page_t const *page);
 void ui_set_page_position(ui_t *ui, unsigned index, unsigned count);
 /* LVGL owner only for configuration and target access. Context mailbox is thread-safe. */
@@ -148,6 +175,9 @@ void ui_set_vehicle_action_status(ui_t    *ui,
                                   uint16_t remaining,
                                   uint8_t  reason,
                                   uint8_t  preset);
+void ui_set_vehicle_action_snapshot(ui_t *ui, const uint8_t status[32]);
 void ui_set_idle_protection(ui_t *ui, bool configured);
 void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *preset, uint16_t *seconds);
 void ui_vehicle_command_queued(ui_t *ui, bool accepted);
+
+page_cycle_reason_t ui_cycle_pause(ui_t *ui);

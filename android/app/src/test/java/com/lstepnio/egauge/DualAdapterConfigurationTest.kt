@@ -76,7 +76,7 @@ class DualAdapterConfigurationTest {
         }
         val many = vehicle.copy(
             draft = vehicle.draft.copy(
-                pages = (1..8).map {
+                pages = (1..10).map {
                     GaugePageDraft("engine.$it", "RPM", GaugeLayout.Numeric, listOf("rpm"))
                 }
             )

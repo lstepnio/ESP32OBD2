@@ -51,6 +51,8 @@ jobs:
         run: |
           . /opt/esp/idf/export.sh
           python tools/dev.py build --target firmware
+          python tools/dev.py build --target firmware --parked-idle-test
+          python tools/dev.py build --target firmware --parked-idle-test --orientation-candidate
           python tools/dev.py test --target firmware
 
   android-app:

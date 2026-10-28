@@ -15,6 +15,15 @@ on:
         description: Short development release notes
         required: true
         type: string
+      parked_idle_test:
+        description: Owner-supervised Jeep idle candidate; local Start only, ABS/TCS disabled
+        type: boolean
+        default: false
+
+      orientation_candidate:
+        description: Owner-supervised Auto orientation qualification only; not public board qualification
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -48,6 +57,8 @@ jobs:
     needs: quality-prerequisite
     timeout-minutes: 15
     runs-on: ubuntu-24.04
+    env:
+      FIRMWARE_BUILD_DIR: ${{ inputs.orientation_candidate && 'firmware/gauge/build-orientation-candidate' || inputs.parked_idle_test && 'firmware/gauge/build-parked-idle' || 'firmware/gauge/build' }}
     container: espressif/idf:v5.4.1@sha256:6b4adab7b282e9261a154d7130fb4945a3c28bd35c2e914357c2f522643cb92a
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,20 +67,27 @@ jobs:
       - name: Build Waveshare ESP32-S3-Touch-LCD-1.28 firmware
         shell: bash
         working-directory: firmware/gauge
+        env:
+          PARKED_IDLE_TEST: ${{ inputs.parked_idle_test }}
+          ORIENTATION_CANDIDATE: ${{ inputs.orientation_candidate }}
         run: |
           . /opt/esp/idf/export.sh
-          python ../../tools/dev.py build --target firmware
+          build_options=()
+          if [[ "$PARKED_IDLE_TEST" == "true" ]]; then build_options+=(--parked-idle-test); fi
+          if [[ "$ORIENTATION_CANDIDATE" == "true" ]]; then build_options+=(--orientation-candidate); fi
+          python ../../tools/dev.py build --target firmware "${build_options[@]}"
       - name: Retain exact build evidence and dependency licenses
         shell: bash
         run: |
           . /opt/esp/idf/export.sh
-          python tools/release_evidence.py --output firmware/gauge/build/release-evidence.zip
+          python tools/release_evidence.py --build-dir "$FIRMWARE_BUILD_DIR" \
+            --output "$FIRMWARE_BUILD_DIR/release-evidence.zip"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: waveshare-esp32-s3-touch-lcd-1.28
           path: |
-            firmware/gauge/build/esp32-idf-project.bin
-            firmware/gauge/build/release-evidence.zip
+            ${{ env.FIRMWARE_BUILD_DIR }}/esp32-idf-project.bin
+            ${{ env.FIRMWARE_BUILD_DIR }}/release-evidence.zip
           if-no-files-found: error
 
   publish:
