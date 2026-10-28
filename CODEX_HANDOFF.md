@@ -46,5 +46,5 @@ The earlier overlap audit above is superseded by the implementation record in
 dispositions are recorded there. All unique source/test work from #41/#59/#74/#77
 is selectively reconciled; no old Car/card, cache or waiting design is reinstated.
 Complete affected local checks and exact-head remote CI precede closure of originals.
-The replacement PR and its final verification comment own the final head/results.
+Replacement PR #116 and its final verification comment own the final head/results.
 No deployment/release/installation/physical qualification is part of this work.
