@@ -2,13 +2,12 @@
 
 Updated 2026-10-28. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-PRs #103, #104 and #105 are merged. App dev.53 is installed on the Pixel, and
-signed dev.70 is installed through App/Wi-Fi after the earlier explicitly
-authorized application-only USB dev.69 repair. [Current display evidence](evidence/display-evolution.md#dev69-authorized-usb-installation)
-records preservation, stable boot and the remaining sensor/physical gates. The
-[previous full App/Wi-Fi rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout)
-separates exact healthy-image/setup readbacks and indoor checks from physical
-display/touch and remaining loaded Jeep qualification.
+PRs #113 and #114 are merged. App dev.53 remains installed on the Pixel;
+signed dev.72 is installed through App/Wi-Fi. The [combined indoor rollout](evidence/dev72-indoor-rollout.md)
+records exact healthy-image/setup readbacks, five maintenance lifecycles,
+automatic/radio recovery, resource observations and owner display/navigation confirmation.
+[Earlier display evidence](evidence/display-evolution.md) retains the stack/sensor
+repairs and separate orientation qualification limits.
 The opt-in [parked idle candidate](architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
 is installed and ready for supervised Air up/Winch checks using the
 [one-visit runbook](development/jeep-action-qualification.md#one-visit-idle-test-candidate).
@@ -21,7 +20,7 @@ The source retains a durable uncertainty marker; its parked adapter previously
 blocked identity acquisition in Unknown and had no reboot recovery verifier.
 The read-only [idle recovery source](architecture/vehicle-actions.md#read-only-recovery-of-an-uncertain-idle-operation)
 now prepares exact-ECM routine-status plus settled-RPM reconciliation, without
-replaying controls or erasing evidence. It is not yet installed/physically qualified.
+replaying controls or erasing evidence. It is installed in dev.72; actual ECM recovery remains parked qualification.
 Website impact: corrective recovery behavior needs no new marketing claim or image.
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
@@ -42,7 +41,7 @@ Dev.66 introduced a fix for a concrete startup retry delay: an unanswered first
 code-list scan now retries from two seconds with bounded exponential backoff,
 instead of immediately waiting its steady 60/120-second interval. It also logs
 changes in MIL/filter presentation for attribution. Warning and filter validation
-remain strict. Automatic MIL status checks now have a 60-second floor; gauge/shared-diagnostic
+remain strict. At that version MIL checks had a 60-second floor; gauge/shared-diagnostic
 last-successful presentation bridges refresh/backoff gaps within the
 [diagnostic retention limits](architecture/alerts-and-diagnostics.md#mil-code-and-coverage-semantics).
 Raw phone/history freshness remains unchanged. The owner's later in-vehicle startup CEL
@@ -56,7 +55,7 @@ The follow-up source change defers the face's MIL icon until code identity is us
 or coverage reconciled, keeping unresolved filter acquisition quiet without claiming
 ECU Off. Routine MIL/stored/pending checks target five minutes, permanent checks ten;
 initial category retry and explicit-clear verification remain responsive. Raw
-freshness/packets are unchanged. This change is not yet installed or Jeep-qualified;
+freshness/packets are unchanged. This is installed in dev.72 and passed indoor checks; Jeep qualification remains.
 [diagnostic semantics](architecture/alerts-and-diagnostics.md#mil-code-and-coverage-semantics)
 own the evidence and latency tradeoff. Website review: no new marketing claim or
 visual asset is needed for this corrective behavior.
@@ -92,7 +91,7 @@ at revision 63. The owner confirmed 10/10, wrap and clean labels without freezin
 Populated Dual + arc also passed visual review. Hold-exit/navigation was reported,
 but a later active preview state makes explicit physical stopped-state proof pending.
 
-Installed dev.70 verifies sensor control-register readback and uses normal-power
+Dev.70 introduced verified sensor control-register readback and uses normal-power
 31.25 Hz sampling, resolving dev.69's pinned X symptom without calibration offsets
 or relaxed gravity guards. The guarded 4 KiB internal sensor stack survived the
 initial NACK/retry path; dev.70 observed worker/main margins of 1680/1080 bytes.
