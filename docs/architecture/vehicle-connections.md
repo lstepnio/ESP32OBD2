@@ -94,3 +94,40 @@ and bonds remain unchanged; affected remembered gauges need explicit reassignmen
 Choosing a different vehicle resets that gauge's local second-adapter mode. Other
 gauges keep their own assignments. Corrupt associations fail closed and remain
 recoverable; they never silently select another vehicle.
+
+
+## Role verification for accidentally swapped adapters
+
+Bluetooth identity identifies the transport, not the module behind it. Single
+adapter operation is unchanged. For two saved, distinct, real primary/child
+bindings, the gauge opens probe-capable transports and reads Mode 09 calibration
+and CVN at exact responders 7E8 and 7E9. Only the captured Jeep pair can exchange
+roles: ECM `68059434AD` / `CA36378C`, TCM `68274867AE` / `8240DAE8`.
+The [ECM](../evidence/jeep-actions-live-qualification.md) and
+[TCM reference](../development/tcm-session-resume.md) retain the evidence.
+A generic PID reply, device name, negative response or timeout is insufficient.
+
+Both peers must produce fresh, complete, opposite-only matches within 15 seconds
+of each other before one runtime exchange. Both workers retire their contexts,
+source epochs, cached values, diagnostics and presentation state before the inverse
+address map becomes visible. No saved configuration, Bluetooth bond or profile is
+rewritten. Logical source 0 remains ECM; source 1 remains its TCM child. The inverse
+map remains stable across reconnect; reboot re-verifies the saved bindings.
+
+Missing/ambiguous matches and ports exposing both modules retain the current map
+and ordinary telemetry. No other nearby adapter is discovered or auto-bound.
+Each cycle runs one fixed read per ordinary worker iteration, after command I/O:
+first protocol discovery allows up to 15 seconds, subsequent reads one second,
+and a complete cycle has a 20-second bound, retried after 30 seconds. An outstanding
+prompt drains before another request. Deferred per-page discovery preserves normal
+PID support inventories. No ECU session, actuator or configuration write is part
+of role probing; AT commands only select the adapter's request/response route.
+
+A complete positive ECM identity establishes a source-generation-scoped primary
+proof, including when the same port also exposes TCM. Mere refresh timeouts do not
+clear it. Retirement or a positively different identity does. Vehicle actions still
+require the independent exact ECM admission policy; ECM identity is not ABS
+controller identity. There is no automatic Start or control replay on exchange.
+Offline policy/production transport tests cover role combinations, stale epochs,
+missing/ambiguous replies, inverse-map continuity, prompt draining and callback
+retirement. Physical swapped-port/loaded recovery remains qualification work.

@@ -105,6 +105,8 @@ static_assert(ARRAY_SIZE(ble_mgr_status_strs) == BLE_MGR_E_API_LOCK_ERROR + 1,
 
 ble_mgr_ctx_t *ble_mgr_init(unsigned source_id, int timeout_ms);
 
+/* Total monotonic budget includes bounded scanner admission, the source
+ * attempt and asynchronous cancellation cleanup. See ble_recovery_policy.h. */
 ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
                                          ble_mgr_disc_cfg_t const *disc_cfg,
                                          uint32_t                  timeout_ms,

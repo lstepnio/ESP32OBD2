@@ -126,3 +126,29 @@ int ble_obd_read_primary_input(ble_obd_ctx_t *obd,
                                uint32_t       timeout_ms,
                                elm_result_t  *status,
                                elm_payload_t *out);
+
+/* Worker-only read-only role evidence. Fixed Mode09 PID04/06, exact 7E8/7E9
+ * responder and physical 7E0/7E1 request header. No session or actuator request.
+ * The existing per-request route owner selects the next poll header as usual. */
+int ble_obd_read_role_identity(ble_obd_ctx_t *obd,
+                               uint32_t       ecu,
+                               uint16_t       pid,
+                               uint32_t       timeout_ms,
+                               elm_result_t  *status,
+                               elm_payload_t *out);
+
+/* Read-only role admission: establish/subcribe/setup the ELM transport without
+ * role-dependent Mode01 support-map discovery. Caller must gate normal polling
+ * until its positive identity policy accepts the source. No saved binding change. */
+ble_obd_ctx_t *ble_obd_connect_role_probe(unsigned              source_id,
+                                          const char           *peer_mac,
+                                          uint8_t               address_type,
+                                          const char           *driver,
+                                          uint32_t              ecu,
+                                          ble_obd_response_cb_t response_cb,
+                                          void                 *usr_ctx);
+
+/* One deferred support-map page, exact logical ECU and physical header. Fixed
+ * Mode01 bases0..224 in steps32; publishes support only on a complete4-byte reply.
+ * Caller schedules one page per phase and retires progress on source generation. */
+int ble_obd_read_support_map(ble_obd_ctx_t *obd, uint8_t base, uint32_t timeout_ms, bool *more);

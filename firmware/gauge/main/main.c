@@ -1,4 +1,5 @@
 #include "vehicle_commands_runtime.h"
+#include "adapter_role_policy.h"
 #include "vehicle_idle_coolant.h"
 #include "worker_health.h"
 #include "boot_health.h"
@@ -303,8 +304,14 @@ typedef struct
     uint8_t           indices[POLL_SCHEDULER_MAX_PIDS], count;
     bool              decoded_sample, command_poll;
     uint32_t          reused_samples;
+    uint32_t          routing_revision, probe_generation, probe_due, probe_started;
+    uint8_t           probe_step, probe_roles, probe_contradicted, support_base;
+    bool              probe_calibration, probe_protocol_ready, support_done, role_retired;
 } source_worker_t;
 static source_worker_t                      source_workers[2];
+static adapter_role_policy_t                adapter_roles;
+static portMUX_TYPE                         adapter_role_mux = portMUX_INITIALIZER_UNLOCKED;
+static bool                                 adapter_role_enabled;
 static EXT_RAM_BSS_ATTR poll_scheduler_t    source_schedulers[2];
 static EXT_RAM_BSS_ATTR reading_stability_t reading_stability[EGAUGE_RUNTIME_PIDS];
 static unsigned                             runtime_source_count(void)
@@ -324,6 +331,130 @@ static void clear_source(ui_t *ui, unsigned source)
 {
     ui_set_source_state(ui, source, false, g_runtime ? g_running_config_record.revision : 0,
                         adapter_status_generation(source));
+}
+
+/* The workers keep their logical ECU/source ownership. Only the saved transport
+ * binding changes, after both serial owners have retired their old contexts. */
+static bool role_barrier(source_worker_t *worker, ble_obd_ctx_t **obd)
+{
+    if (!adapter_role_enabled)
+        return false;
+    portENTER_CRITICAL(&adapter_role_mux);
+    bool     pending  = adapter_roles.pending;
+    uint32_t revision = adapter_roles.revision;
+    portEXIT_CRITICAL(&adapter_role_mux);
+    if (!pending)
+    {
+        if (worker->routing_revision != revision)
+        {
+            worker->routing_revision = revision;
+            worker->role_retired     = false;
+            worker->probe_generation = worker->probe_due = 0;
+            worker->probe_step = worker->probe_roles = worker->probe_contradicted = 0;
+        }
+        return false;
+    }
+    if (!worker->role_retired)
+    {
+        /* BLE retirement synchronously invalidates the source generation; a
+         * later connect drains old manager callback leases before slot reuse. */
+        ble_obd_disconnect(*obd);
+        *obd = NULL;
+        clear_source(worker->ui, worker->source);
+        diagnostics_state_disconnected_for(worker->source);
+        for (unsigned e = 0; e < 2; ++e)
+            if (diagnostics_endpoint_enabled(e) && diagnostics_endpoint_transport(e) == worker->source)
+                diagnostics_state_disconnected_for(2 + e);
+        poll_scheduler_init(worker->scheduler);
+        for (unsigned i = 0; i < worker->count; ++i)
+            memset(&reading_stability[worker->indices[i]], 0, sizeof(reading_stability[0]));
+        worker->role_retired = true;
+        portENTER_CRITICAL(&adapter_role_mux);
+        bool committed = adapter_role_policy_retire(&adapter_roles, worker->source);
+        portEXIT_CRITICAL(&adapter_role_mux);
+        if (committed)
+            ESP_LOGI(TAG, "Known ECM/TCM transport roles exchanged after both sources retired");
+    }
+    return true;
+}
+
+static void role_probe(source_worker_t *worker, ble_obd_ctx_t *obd, uint32_t now)
+{
+    if (!adapter_role_enabled || !obd || !ble_obd_is_connected(obd))
+        return;
+    uint32_t generation = adapter_status_generation(worker->source);
+    if (worker->probe_generation != generation)
+    {
+        worker->probe_generation     = generation;
+        worker->probe_protocol_ready = worker->support_done = false;
+        worker->support_base                                = 0;
+        worker->probe_due                                   = now;
+        worker->probe_step = worker->probe_roles = worker->probe_contradicted = 0;
+    }
+    if ((int32_t)(now - worker->probe_due) < 0)
+        return;
+    if (worker->probe_step && now - worker->probe_started > 20000)
+        worker->probe_step = worker->probe_roles = worker->probe_contradicted = 0;
+    if (!worker->probe_step)
+        worker->probe_started = now;
+    unsigned      role    = worker->probe_step < 2 ? ADAPTER_ROLE_ECM : ADAPTER_ROLE_TCM;
+    uint32_t      ecu     = role == ADAPTER_ROLE_ECM ? 0x7e8 : 0x7e9;
+    uint16_t      pid     = worker->probe_step % 2 ? 6 : 4;
+    elm_result_t  status  = ELM_ADAPTER_ERROR;
+    elm_payload_t payload = {0};
+    /* ATSP0 may SEARCH on the first vehicle request. It gets the same bounded
+     * initial protocol budget as normal support-map discovery, once per link. */
+    uint32_t timeout_ms = worker->probe_protocol_ready ? 1000 : 15000;
+    bool received = ble_obd_read_role_identity(obd, ecu, pid, timeout_ms, &status, &payload) == 0 && status == ELM_OK &&
+                    payload.has_responder && payload.responder == ecu;
+    bool matched = received && adapter_role_identity_match(role, pid, payload.responder, payload.bytes, payload.length);
+    worker->probe_protocol_ready = true;
+    if (generation != adapter_status_generation(worker->source) || !ble_obd_is_connected(obd))
+        return;
+    if (received && !matched)
+    {
+        worker->probe_contradicted |= role;
+        if (!worker->source && role == ADAPTER_ROLE_ECM)
+        {
+            portENTER_CRITICAL(&adapter_role_mux);
+            adapter_role_policy_reject_primary(&adapter_roles, generation);
+            portEXIT_CRITICAL(&adapter_role_mux);
+        }
+    }
+    if (pid == 4)
+        worker->probe_calibration = matched;
+    else if (matched && worker->probe_calibration)
+        worker->probe_roles |= role;
+    if (++worker->probe_step == 4)
+    {
+        portENTER_CRITICAL(&adapter_role_mux);
+        /* Fence the sibling too: its disconnect callback may have advanced the
+         * link before that serial worker reaches its next loop iteration. */
+        for (unsigned source = 0; source < 2; ++source)
+            adapter_role_policy_scope(&adapter_roles, source, adapter_status_generation(source));
+        adapter_role_policy_observe(&adapter_roles, worker->source, generation, worker->probe_roles,
+                                    worker->probe_contradicted, now);
+        portEXIT_CRITICAL(&adapter_role_mux);
+        worker->probe_step = worker->probe_roles = worker->probe_contradicted = 0;
+        worker->probe_due                                                     = now + 30000;
+    }
+    /* Each bounded read owns its request header. The next normal PID, fault or
+     * command owner explicitly selects its own route before sending a request. */
+}
+
+/* Probe-only connection establishment must not erase normal capability maps.
+ * Discover the configured responder's support map after the first identity
+ * cycle, one bounded read at a time, even if this is another vehicle profile. */
+static void role_support_probe(source_worker_t *worker, ble_obd_ctx_t *obd, uint32_t now)
+{
+    if (!adapter_role_enabled || vehicle_commands_runtime_pending() || worker->support_done || worker->probe_step ||
+        (int32_t)(now - worker->probe_due) >= 0 || !ble_obd_is_connected(obd))
+        return;
+    bool more = false;
+    if (ble_obd_read_support_map(obd, worker->support_base, 1000, &more) != 0 || !more)
+        worker->support_done = true;
+    else
+        worker->support_base += 32;
 }
 
 static void publish_ui_sample(ui_t *ui, unsigned source, uint32_t generation, uint16_t pid, const double *value)
@@ -472,6 +603,14 @@ static void obd_response_cb(uint8_t        service,
     source_worker_t *worker = usr_ctx;
     ui_t            *ui     = worker->ui;
     unsigned         source = worker->source;
+    if (adapter_role_enabled)
+    {
+        portENTER_CRITICAL(&adapter_role_mux);
+        bool retired = adapter_roles.pending || worker->routing_revision != adapter_roles.revision;
+        portEXIT_CRITICAL(&adapter_role_mux);
+        if (retired)
+            return;
+    }
     if (!adapter_status_ready_for(source) || generation != adapter_status_generation(source))
         return;
 
@@ -747,12 +886,26 @@ static void obd_task(void *arg)
                      scheduler->forced_diagnostics, scheduler->deadline_misses);
         }
         worker_health_progress(source == 0 ? WORKER_ECM : WORKER_TCM, (uint32_t)(esp_timer_get_time() / 1000));
+        /* Retired owners perform no further command or telemetry work while
+         * waiting for their sibling, including an absent/disconnected sibling. */
+        if (worker->role_retired && role_barrier(worker, &obd))
+            continue;
+        bool role_verified = true;
+        if (adapter_role_enabled)
+        {
+            portENTER_CRITICAL(&adapter_role_mux);
+            adapter_role_policy_scope(&adapter_roles, source, adapter_status_generation(source));
+            role_verified =
+                source != 0 || adapter_role_policy_primary_verified(&adapter_roles, adapter_status_generation(source));
+            portEXIT_CRITICAL(&adapter_role_mux);
+        }
         /* Normal controller masks remain zero. An explicitly built parked-idle
          * test adapter may supply scoped evidence inside this primary owner. */
-        vehicle_command_context_t command_context = {
-            .revision  = g_runtime ? g_running_config_record.revision : 0,
-            .link      = adapter_status_generation(source),
-            .connected = obd && ble_obd_is_connected(obd) && transfer_gate_vehicle_allowed() && !ble_mgr_is_paused()};
+        vehicle_command_context_t command_context = {.revision  = g_runtime ? g_running_config_record.revision : 0,
+                                                     .link      = adapter_status_generation(source),
+                                                     .connected = role_verified && obd && ble_obd_is_connected(obd) &&
+                                                                  transfer_gate_vehicle_allowed() &&
+                                                                  !ble_mgr_is_paused()};
         if (command_context.connected && transfer_gate_current() != 2)
             ui_set_source_state(ui, source, true, command_context.revision, command_context.link);
         worker->command_poll  = true;
@@ -760,6 +913,8 @@ static void obd_task(void *arg)
                                                                 (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS));
         worker->command_poll  = false;
         if (command_reserved)
+            continue;
+        if (role_barrier(worker, &obd))
             continue;
         if (transfer_gate_current() == 2 || ble_mgr_is_paused())
         {
@@ -778,11 +933,20 @@ static void obd_task(void *arg)
                 diagnostics_state_disconnected_for(2 + endpoints[e]);
             if (g_runtime && !g_runtime->legacy_auto_discovery && !configured->address[0])
                 continue;
-            const char *address =
-                configured && configured->address[0] ? configured->address : CONFIG_EGAUGE_ECM_ADAPTER_MAC;
-            uint8_t address_type = configured ? configured->address_type : 0;
-            obd = ble_obd_connect_profile_ecu(source, address, address_type, simulated ? "elm-bench-v1" : "elm-18f0-v1",
-                                              responder, obd_response_cb, worker);
+            const runtime_source_t *binding = configured;
+            if (adapter_role_enabled)
+            {
+                portENTER_CRITICAL(&adapter_role_mux);
+                binding = &g_runtime->sources[adapter_roles.transport[source]];
+                portEXIT_CRITICAL(&adapter_role_mux);
+            }
+            const char *address = binding && binding->address[0] ? binding->address : CONFIG_EGAUGE_ECM_ADAPTER_MAC;
+            uint8_t     address_type = binding ? binding->address_type : 0;
+            obd = adapter_role_enabled ? ble_obd_connect_role_probe(source, address, address_type, "elm-18f0-v1",
+                                                                    responder, obd_response_cb, worker)
+                                       : ble_obd_connect_profile_ecu(source, address, address_type,
+                                                                     simulated ? "elm-bench-v1" : "elm-18f0-v1",
+                                                                     responder, obd_response_cb, worker);
             if (!obd)
             {
                 ESP_LOGW(TAG, "Vehicle adapter unavailable; retrying in %" PRIu32 " ms", reconnect_delay_ms);
@@ -801,6 +965,10 @@ static void obd_task(void *arg)
             continue;
         }
 
+        role_probe(worker, obd, (uint32_t)(esp_timer_get_time() / 1000));
+        if (role_barrier(worker, &obd))
+            continue;
+        role_support_probe(worker, obd, (uint32_t)(esp_timer_get_time() / 1000));
         ui_set_source_state(ui, source, true, g_runtime ? g_running_config_record.revision : 0,
                             adapter_status_generation(source));
         uint32_t      now_ms = (uint32_t)(esp_timer_get_time() / 1000);
@@ -1007,6 +1175,12 @@ static bool adapter_mac_valid(const char *mac)
 
 static void init_obd_task(ui_t *ui)
 {
+    adapter_role_policy_init(&adapter_roles);
+    adapter_role_enabled = g_runtime && g_runtime->source_count == 2 && !g_runtime->legacy_auto_discovery &&
+                           !g_runtime->sources[0].simulated && !g_runtime->sources[1].simulated &&
+                           !g_runtime->sources[0].transmission && g_runtime->sources[1].transmission &&
+                           g_runtime->sources[0].address[0] && g_runtime->sources[1].address[0] &&
+                           strcasecmp(g_runtime->sources[0].address, g_runtime->sources[1].address);
     for (unsigned source = 0; source < runtime_source_count(); ++source)
     {
         source_workers[source] = (source_worker_t){.ui = ui, .source = source};

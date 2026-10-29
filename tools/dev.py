@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "artifacts/checks"
 FIRMWARE = ROOT / "firmware/gauge"
 NATIVE_TESTS = {
+    "adapter_role_policy": ["tests/adapter_role_policy_test.c", "main/src/adapter_role_policy.c"],
     "reading_presentation": [
         "tests/reading_presentation_test.c",
         "main/src/reading_presentation.c",
