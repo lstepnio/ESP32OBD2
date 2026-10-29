@@ -5,6 +5,7 @@
 .DS_Store
 **/build/
 /firmware/gauge/build-parked-idle/
+/firmware/gauge/build-brake-actions-test/
 /firmware/gauge/build-orientation-candidate/
 **/managed_components/
 **/sdkconfig.old

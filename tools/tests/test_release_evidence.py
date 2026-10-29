@@ -64,7 +64,7 @@ class EvidenceTests(unittest.TestCase):
                 evidence.collect(root, build, "a" * 40)
 
     def test_candidate_evidence_uses_selected_image_and_recorded_configuration(self):
-        for variant in ("parked-idle", "orientation-candidate"):
+        for variant in ("parked-idle", "orientation-candidate", "brake-actions-test"):
             with self.subTest(variant=variant), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 gauge = root / "firmware/gauge"
@@ -156,7 +156,12 @@ class EvidenceTests(unittest.TestCase):
                     evidence.checked_source(root)
 
     def test_cli_selects_build_and_rejects_dirty_sources_before_archiving(self):
-        for variant in (None, "build-parked-idle", "build-orientation-candidate"):
+        for variant in (
+            None,
+            "build-parked-idle",
+            "build-orientation-candidate",
+            "build-brake-actions-test",
+        ):
             with self.subTest(variant=variant), tempfile.TemporaryDirectory() as directory:
                 output = Path(directory) / "evidence.zip"
                 arguments = ["release_evidence.py", "--output", str(output)]
