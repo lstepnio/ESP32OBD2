@@ -2,11 +2,12 @@
 
 Updated 2026-10-29. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-App dev.54/code54 and signed dev.76 from PR #126 source `4abfc60` are installed
-on the Pixel/reference gauge through replacement APK installation and App/Wi-Fi.
-[Current delivery evidence](evidence/dev76-indoor-rollout.md) records exact signed
-image/health verification, Wi-Fi lifecycle/readback checks and the four-action menu
-at revision 66. Both owner-supervised brake actions are enabled on the matched Jeep;
+App dev.54/code54 and signed dev.77 from PR #126 source `5898c80` are installed
+on the Pixel/reference gauge. The App is unchanged from the prior replacement APK;
+the firmware used App/Wi-Fi. [Current delivery evidence](evidence/dev77-action-recovery.md)
+records the corrected action-recovery presentation and exact signed image/health
+verification. [Prior delivery evidence](evidence/dev76-indoor-rollout.md) retains
+the four-action menu at revision 66. Both owner-supervised brake actions are enabled on the matched Jeep;
 physical qualification remains open. PR #126 remains unmerged.
 PRs #122/#123 and the [prior dev.75 delivery](evidence/dev75-indoor-rollout.md) retain
 foreground/history/radio checks and the earlier owner navigation observation.
@@ -463,5 +464,7 @@ records and independent physical confirmation are unchanged. Real-LVGL normal an
 fallback regressions reproduce the cross-action blocker and preserve independent
 recovery. The [recovery contract](architecture/vehicle-actions.md#reviewing-a-different-actions-retained-state)
 and [parked procedure](development/jeep-action-qualification.md#brake-actions-follow-up)
-own the behavior. Dev.77 delivery is pending; dev.76 remains installed.
+own the behavior. Signed dev.77 is installed through App/Wi-Fi;
+[delivery evidence](evidence/dev77-action-recovery.md) separates the retained
+ABS record and offline verification from remaining parked Jeep checks.
 Website impact: corrective UI copy/navigation only; defer new qualification claims.
