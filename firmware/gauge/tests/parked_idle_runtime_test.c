@@ -373,6 +373,15 @@ static void burnout_release_during_journal_write(void)
     assert(vehicle_commands_runtime_status(VEHICLE_BURNOUT, snapshot) == 32);
     assert(released_during_save && !burnout_starts && burnout_returns == 1);
     assert(snapshot[2] == VEHICLE_VERIFYING && journal[1] == 4 && journal_length == 40);
+    /* Initialization must block maintenance before the primary worker claims
+     * its lease, while the durable operation is already known unresolved. */
+    transfer_gate_release(TRANSFER_GATE_VEHICLE_COMMAND);
+    assert(vehicle_commands_runtime_init(&runtime) == ESP_OK);
+    assert(vehicle_commands_runtime_status(VEHICLE_BURNOUT, snapshot) == 32);
+    assert(snapshot[2] == VEHICLE_UNKNOWN && snapshot[4]);
+    assert(!vehicle_commands_runtime_pending());
+    assert(!vehicle_commands_runtime_maintenance_allowed(false));
+    assert(!vehicle_commands_runtime_maintenance_allowed(true));
 }
 
 #if CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST

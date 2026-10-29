@@ -453,7 +453,10 @@ bool vehicle_commands_runtime_maintenance_allowed(bool configuration)
     vehicle_command_state_t values[VEHICLE_COMMAND_KIND_COUNT] = {0};
     portENTER_CRITICAL(&cache_lock);
     for (unsigned i = 0; i < VEHICLE_COMMAND_KIND_COUNT; ++i)
-        values[i].phase = cached_status[i][2];
+    {
+        values[i].phase             = cached_status[i][2];
+        values[i].request.operation = u32(cached_status[i] + 4);
+    }
     portEXIT_CRITICAL(&cache_lock);
     return vehicle_commands_maintenance_allowed(values, configuration);
 }
