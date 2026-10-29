@@ -455,7 +455,10 @@ This is a retained ABS reset-confirmation record, not evidence of active Burnout
 
 The UI-only dev.77 source now identifies the actual blocker and adds Review
 navigation, removes the misleading ready instruction, and distinguishes missing
-ECM from unmet stationary confirmation input. Existing command gates, bytes,
+ECM from unmet stationary confirmation input. It also scopes coolant flag handling
+to idle actions: the local brake-readiness bit previously caused a hidden second
+Burnout hold and a false coolant note. Actual runtime-flag regression now requires
+one hold and preserves **Release to stop** while active. Existing command gates, bytes,
 records and independent physical confirmation are unchanged. Real-LVGL normal and
 fallback regressions reproduce the cross-action blocker and preserve independent
 recovery. The [recovery contract](architecture/vehicle-actions.md#reviewing-a-different-actions-retained-state)

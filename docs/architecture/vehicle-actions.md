@@ -812,6 +812,10 @@ requiring every other Unknown record to clear first would create a recovery cycl
 It shows **Connect Jeep** without matched ECM context, **Park and idle** while the
 stationary confirmation input is unmet, and the existing physical confirmation
 only when its scoped runtime gate passes. This changes presentation, not admission.
+The local stationary brake-readiness bit is interpreted only in its brake context.
+It must not trigger an idle coolant confirmation, timer clamp or **No coolant**
+warning. A ready Burnout control needs one 900 ms hold, not a hidden second hold;
+without stationary readiness, show **Park and idle** rather than inviting Start.
 Reboot retains unresolved control records; Unknown is missing outcome proof, not
 proof that the physical action is running. Downward navigation returns to readings
 without acknowledging the retained state.

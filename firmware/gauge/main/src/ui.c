@@ -2504,7 +2504,7 @@ static unsigned command_duration(ui_t *ui, unsigned id, unsigned state)
     if (seconds > JEEP_IDLE_PARKED_MAX_SECONDS)
         seconds = JEEP_IDLE_PARKED_MAX_SECONDS;
 #endif
-    if ((state & (16U << 8)) && seconds > 60)
+    if (id < 3 && (state & (16U << 8)) && seconds > 60)
         seconds = 60;
     return seconds;
 }
@@ -2590,7 +2590,7 @@ static void refresh_vehicle_menu(ui_t *ui)
         }
         if (id < 3 && id != active_idle_id(ui))
             note = active_idle_id(ui) == 2 ? "Winch running" : "Air up running";
-        else if (state & (16U << 8))
+        else if (id < 3 && (state & (16U << 8)))
             note = "No coolant";
     }
     else if (ui->command_waiting)
@@ -2659,7 +2659,10 @@ static void refresh_vehicle_menu(ui_t *ui)
                             : "Brakes normal?";
     }
     else if (id == 4 && (state & (VEHICLE_UI_OWNER_TEST << 8)) && phase == VEHICLE_READY && enabled && !blocker)
-        note = "Hold brake pedal";
+    {
+        enabled = state & (16U << 8);
+        note    = enabled ? "Hold brake pedal" : "Park and idle";
+    }
     if (blocker && !owner_check && (state & 256U) && (phase == VEHICLE_READY || phase == VEHICLE_REJECTED))
     {
         unsigned blocked_state = atomic_load(&ui->command_ui[command_index(blocker)]);
@@ -2787,7 +2790,7 @@ static void command_activate(ui_t *ui, bool back)
     }
     if (!stop && id < 3 && (!ui->idle_protection || (state & (VEHICLE_UI_COOLANT_HIGH << 8))))
         return;
-    if (!stop && !ui->command_confirm && (id == 3 || (state & (16U << 8))))
+    if (!stop && !ui->command_confirm && (id == 3 || (id < 3 && (state & (16U << 8)))))
     {
         ui->command_confirm         = id;
         ui->command_confirm_state   = state;
