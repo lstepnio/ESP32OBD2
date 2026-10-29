@@ -23,8 +23,10 @@ static bool valid_kind(uint8_t kind)
 static bool qualified(vehicle_command_context_t c, uint8_t kind)
 {
     unsigned mask    = 1U << index_of(kind);
-    bool     enabled = c.parked_idle_test ? kind == VEHICLE_IDLE : (c.qualified_mask & mask) != 0;
-    return c.connected && c.revision && c.link && c.identity && enabled && (c.identity_mask & mask);
+    bool     enabled = ((c.qualified_mask & mask) && (c.identity_mask & mask)) ||
+                       (c.parked_idle_test && kind == VEHICLE_IDLE && (c.identity_mask & 1U)) ||
+                       (kind != VEHICLE_IDLE && (c.supervised_mask & mask));
+    return c.connected && c.revision && c.link && c.identity && enabled;
 }
 static bool coolant_fresh(vehicle_command_context_t c, uint32_t now)
 {
@@ -39,9 +41,17 @@ static bool inputs_fresh(vehicle_command_context_t c, uint32_t now)
 {
     return c.guards_fresh_and_met && c.guard_at && now - c.guard_at <= 2000;
 }
+static bool command_inputs(vehicle_command_context_t c, uint8_t kind, uint32_t now, bool start)
+{
+    unsigned bit = 1U << index_of(kind);
+    if (kind != VEHICLE_IDLE && (c.supervised_mask & bit))
+        return ((start ? c.supervised_start_mask : c.supervised_run_mask) & bit) && c.supervised_at &&
+               now - c.supervised_at <= 2000;
+    return inputs_fresh(c, now);
+}
 static bool guarded(const vehicle_commands_t *s, vehicle_command_context_t c, uint8_t kind, uint32_t now)
 {
-    if (!inputs_fresh(c, now))
+    if (!command_inputs(c, kind, now, s->states[index_of(kind)].phase != VEHICLE_ACTIVE))
         return false;
     if (kind == VEHICLE_BURNOUT)
         return c.burnout_held && c.burnout_hold_at && now - c.burnout_hold_at <= VEHICLE_BURNOUT_HOLD_MS;
@@ -205,7 +215,10 @@ bool vehicle_command_decode(const uint8_t *b, size_t n, vehicle_command_request_
 }
 static bool valid_request(vehicle_command_request_t r)
 {
-    uint8_t b[24] = {r.kind == VEHICLE_BURNOUT ? 2 : 1, r.kind, r.verb, r.preset};
+    if (r.verb == VEHICLE_OWNER_CONFIRM && (!r.gauge_confirmed || r.kind == VEHICLE_IDLE))
+        return false;
+    uint8_t b[24] = {r.kind == VEHICLE_BURNOUT ? 2 : 1, r.kind, r.verb == VEHICLE_OWNER_CONFIRM ? VEHICLE_STOP : r.verb,
+                     r.preset};
     put32(b + 4, r.operation);
     put32(b + 8, r.revision);
     put32(b + 12, r.link);
@@ -227,6 +240,30 @@ bool vehicle_commands_submit(vehicle_commands_t       *s,
     if (!valid_request(r) || r.boot != s->boot || r.revision != c.revision || r.link != c.link || !c.connected)
         return false;
     vehicle_command_state_t *v = &s->states[index_of(r.kind)];
+    if (r.verb == VEHICLE_OWNER_CONFIRM)
+    {
+        unsigned bit      = 1U << index_of(r.kind);
+        bool     eligible = r.kind != VEHICLE_IDLE && (c.supervised_mask & bit) && r.gauge_confirmed &&
+                            qualified(c, r.kind) && command_inputs(c, r.kind, now, true) && !s->worker_kind &&
+                            !v->pending_start && !v->pending_stop && r.operation == v->request.operation &&
+                            c.identity == v->identity && c.revision == v->request.revision && (s->marker.mask & bit) &&
+                            (v->phase == VEHICLE_VERIFYING || v->phase == VEHICLE_RESTART_REQUIRED ||
+                             (r.kind == VEHICLE_ABS_TCS && v->phase == VEHICLE_ACTIVE) ||
+                             (v->phase == VEHICLE_UNKNOWN && (r.kind == VEHICLE_ABS_TCS || v->release_attempted)));
+        if (!eligible)
+            return false;
+        vehicle_command_marker_t marker = s->marker;
+        marker.mask &= ~bit;
+        if (!save_marker(s, marker))
+            return false;
+        v->request.link     = c.link;
+        v->request.boot     = s->boot;
+        v->restart_required = v->pending_start = v->pending_stop = false;
+        transition(s, r.kind, VEHICLE_RESTORED, VEHICLE_OK, now);
+        /* Provenance stays distinct from a decoded controller-state proof. */
+        s->history[(s->history_next + VEHICLE_COMMAND_HISTORY_SIZE - 1) % VEHICLE_COMMAND_HISTORY_SIZE].reserved = 1;
+        return true;
+    }
     if (r.verb == VEHICLE_STOP)
     {
         /* Only an explicit release may rebind durable Burnout uncertainty after
@@ -274,12 +311,12 @@ bool vehicle_commands_submit(vehicle_commands_t       *s,
         transition(s, r.kind, VEHICLE_REJECTED, s->journal_ready ? VEHICLE_UNQUALIFIED : VEHICLE_STORAGE, now);
         return false;
     }
-    if (c.parked_idle_test && (!r.gauge_confirmed || r.kind != VEHICLE_IDLE))
+    if ((c.parked_idle_test || (c.supervised_mask & (1U << index_of(r.kind)))) && !r.gauge_confirmed)
     {
         transition(s, r.kind, VEHICLE_REJECTED, VEHICLE_GUARD, now);
         return false;
     }
-    if (c.parked_idle_test && v->request.seconds > JEEP_IDLE_PARKED_MAX_SECONDS)
+    if (r.kind == VEHICLE_IDLE && c.parked_idle_test && v->request.seconds > JEEP_IDLE_PARKED_MAX_SECONDS)
         v->request.seconds = JEEP_IDLE_PARKED_MAX_SECONDS;
     if (r.kind == VEHICLE_BURNOUT && (!r.gauge_confirmed || !guarded(s, c, r.kind, now)))
     {
@@ -289,7 +326,7 @@ bool vehicle_commands_submit(vehicle_commands_t       *s,
     if (r.kind == VEHICLE_BURNOUT)
         v->request.seconds = VEHICLE_BURNOUT_MAX_SECONDS;
     bool fresh = r.kind != VEHICLE_IDLE || coolant_fresh(c, now);
-    if (!c.guards_fresh_and_met || !c.guard_at || now - c.guard_at > 2000 ||
+    if (!command_inputs(c, r.kind, now, true) ||
         (r.kind == VEHICLE_IDLE && (!fallback_safe(c) || ((!fresh || v->timed_fallback) && !r.gauge_confirmed))))
     {
         transition(s, r.kind, VEHICLE_REJECTED, VEHICLE_GUARD, now);
@@ -702,8 +739,11 @@ uint8_t vehicle_commands_ui_flags(uint8_t kind, vehicle_command_context_t c)
 {
     if (!valid_kind(kind))
         return 0;
-    bool    supported = c.parked_idle_test ? kind == VEHICLE_IDLE : (c.qualified_mask & (1U << index_of(kind))) != 0;
-    uint8_t flags     = supported && !qualified(c, kind) ? VEHICLE_UI_RECONNECTING : 0;
+    bool supported = c.parked_idle_test ? kind == VEHICLE_IDLE : (c.qualified_mask & (1U << index_of(kind))) != 0;
+    supported |= kind != VEHICLE_IDLE && c.brake_owner_test;
+    uint8_t flags = supported && !qualified(c, kind) ? VEHICLE_UI_RECONNECTING : 0;
+    if (kind != VEHICLE_IDLE && c.brake_owner_test)
+        flags |= VEHICLE_UI_OWNER_TEST;
     if (kind == VEHICLE_IDLE && c.coolant_configured && c.coolant_valid &&
         !vehicle_idle_coolant_fallback_safe(true, true, c.coolant_c, c.coolant_limit_c))
         flags |= VEHICLE_UI_COOLANT_HIGH;

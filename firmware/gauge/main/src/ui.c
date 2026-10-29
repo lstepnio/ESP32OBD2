@@ -2622,6 +2622,28 @@ static void refresh_vehicle_menu(ui_t *ui)
         if (phase == VEHICLE_REJECTED && reason == VEHICLE_GUARD && !note[0])
             note = "Check conditions";
     }
+    bool owner_check = id >= 3 && (state & (VEHICLE_UI_OWNER_TEST << 8)) &&
+                       (phase == VEHICLE_VERIFYING || phase == VEHICLE_RESTART_REQUIRED ||
+                        (id == 3 && (phase == VEHICLE_ACTIVE || phase == VEHICLE_UNKNOWN)) ||
+                        (id == 4 && phase == VEHICLE_UNKNOWN && (state & (32U << 8))));
+    if (id >= 3 && (state & (VEHICLE_UI_OWNER_TEST << 8)) && !(state & 256U) && phase != VEHICLE_UNKNOWN)
+    {
+        value   = "Connect Jeep";
+        note    = "";
+        ring    = 0;
+        enabled = false;
+        button  = "";
+    }
+    if (owner_check)
+    {
+        button  = "Hold to confirm";
+        enabled = (state & 256U) && (state & (16U << 8));
+        ring    = 0;
+        value   = phase == VEHICLE_UNKNOWN ? "Check brakes" : id == 3 ? "Restart" : "Release sent";
+        note    = !enabled ? "Stop vehicle" : id == 3 ? "Reset checked?" : "Brakes normal?";
+    }
+    else if (id == 4 && (state & (VEHICLE_UI_OWNER_TEST << 8)) && phase == VEHICLE_READY)
+        note = "Hold brake pedal";
     if (ui->command_admission_failed && enabled && !note[0] && !ui->rendered_alert.severity)
         note = "Try again";
     /* Existing fonts and one arc tree, no per-frame allocations or animation task. */
@@ -2699,6 +2721,18 @@ static void command_activate(ui_t *ui, bool back)
     }
     if (phase == VEHICLE_RESTORED)
         phase = VEHICLE_READY;
+    if (!strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm"))
+    {
+        if (!ui->command_hold_commit)
+            return;
+        ui->command_request_page = id;
+        ui->command_request_stop = true;
+        ui->command_selected     = phase;
+        ui->command_waiting      = true;
+        ui->command_wait_at      = (uint32_t)(esp_timer_get_time() / 1000);
+        dispatch_touch(ui, UI_EVENT_VEHICLE_CONFIRM);
+        return;
+    }
     bool stop = (id < 3 || id == 4) &&
                 (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE || (id == 4 && phase == VEHICLE_UNKNOWN));
     if (!stop && id < 3 && (!ui->idle_protection || (state & (VEHICLE_UI_COOLANT_HIGH << 8))))
@@ -2753,7 +2787,8 @@ static void command_pointer(ui_t *ui, lv_event_code_t code, lv_obj_t *target, in
         ui->command_press_epoch  = atomic_load(&ui->command_epoch);
         ui->command_hold_armed =
             target == ui->command_button && (!strcmp(lv_label_get_text(ui->command_button_text), "Hold to start") ||
-                                             !strcmp(lv_label_get_text(ui->command_button_text), "Hold to run"));
+                                             !strcmp(lv_label_get_text(ui->command_button_text), "Hold to run") ||
+                                             !strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm"));
     }
     else if (code == LV_EVENT_PRESSING && ui->command_press)
     {
@@ -2992,7 +3027,8 @@ static void command_hold_tick(ui_t *ui)
         ui->command_press_epoch != atomic_load(&ui->command_epoch) ||
         lv_obj_has_state(ui->command_button, LV_STATE_DISABLED) ||
         (strcmp(lv_label_get_text(ui->command_button_text), "Hold to start") &&
-         strcmp(lv_label_get_text(ui->command_button_text), "Hold to run")))
+         strcmp(lv_label_get_text(ui->command_button_text), "Hold to run") &&
+         strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm")))
     {
         ui->command_press = ui->command_hold_armed = false;
         return;
@@ -3000,7 +3036,7 @@ static void command_hold_tick(ui_t *ui)
     if ((uint32_t)(esp_timer_get_time() / 1000) - ui->command_press_at < 900)
         return;
     /* Burnout keeps a fresh physical-contact lease; release cannot re-trigger Start. */
-    bool burnout                    = command_id(ui) == 4;
+    bool burnout = command_id(ui) == 4 && !strcmp(lv_label_get_text(ui->command_button_text), "Hold to run");
     ui->command_burnout_committed   = burnout;
     ui->command_burnout_scope_epoch = atomic_load(&ui->command_scope_epoch);
     atomic_store(&ui->command_burnout_held, burnout);

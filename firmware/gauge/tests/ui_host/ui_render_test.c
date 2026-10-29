@@ -20,10 +20,13 @@ static bool     vehicle, maintenance, paused;
 static uint32_t source_generations[2] = {1, 1};
 static unsigned acknowledgments;
 static unsigned command_requests;
+static unsigned owner_confirmations;
 static void     command_touch(ui_t *ui, lv_event_code_t event)
 {
     if (event == UI_EVENT_VEHICLE_COMMAND)
         ++command_requests;
+    else if (event == UI_EVENT_VEHICLE_CONFIRM)
+        ++owner_confirmations;
     else if (event == UI_EVENT_PAGE_ACTION)
         ui_show_vehicle_actions(ui);
 }
@@ -966,6 +969,21 @@ int main(int argc, char **argv)
     tick(60);
     assert(!strcmp(lv_label_get_text(ui->command_button_text), "Release"));
     capture(argv[1], "actions-burnout-unknown");
+    ui_set_vehicle_action_status(ui, 3, VEHICLE_UNKNOWN, 1 | 8 | 16 | 32 | 128, 0, 0, 0);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm"));
+    unsigned checked = owner_confirmations;
+    action_press(ui);
+    action_release(ui);
+    tick(60);
+    assert(owner_confirmations == checked && !ui_vehicle_burnout_held(ui));
+    action_press(ui);
+    tick(1000);
+    assert(owner_confirmations == checked + 1 && !ui_vehicle_burnout_held(ui));
+    capture(argv[1], "actions-burnout-owner-check");
+    action_release(ui);
+    assert(owner_confirmations == checked + 1 && !ui_vehicle_burnout_held(ui));
+
     close_vehicle_menu(ui);
     assert(!ui_vehicle_burnout_held(ui));
     /* A dual arc reuses the original arc object, selects either numeric slot,

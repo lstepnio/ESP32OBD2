@@ -1,6 +1,7 @@
 # Parked Jeep action qualification
 
-This is the next-session runbook for Air up, Winch and combined ABS/TCS.
+This is the next-session runbook for Air up, Winch and the explicit owner-supervised
+ABS/TCS and Burnout candidate.
 [Current state](../current-state.md) owns the installed baseline;
 [vehicle actions](../architecture/vehicle-actions.md#shared-command-owner) owns
 command behavior. Use the existing workers, typed intents and shared alerts.
@@ -12,7 +13,8 @@ Use the installed baseline in [current state](../current-state.md) and its linke
 indoor evidence. The signed App/Wi-Fi installation, protected readbacks, saved setup
 and physical action navigation are checked. The latest indoor delivery retains an Unknown idle journal; resolve it using fresh ECM evidence before another Start.
 The next session can combine fixed read-only input capture with supervised idle
-Start/Stop; automatic Park/brake qualification and ABS/TCS remain separate.
+Start/Stop; full automatic Park/brake and brake-controller qualification remain
+separate from the owner-supervised exceptions.
 
 ### One-visit idle test candidate
 
@@ -20,7 +22,9 @@ The owner approved a temporary local-confirmation policy on 2026-10-26 so the
 missing automatic Park/brake mapping need not force a second Jeep visit. The
 [candidate contract](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
 owns exact identity, speed/RPM, coolant, timer and restoration limits. This is a
-separate build, now installed with indoor readiness checks passed. ABS/TCS stays disabled.
+separate build, now installed with indoor readiness checks passed. Its idle switch
+alone does not enable brake actions; the independent owner brake candidate is
+described [below](#brake-actions-follow-up).
 
 Before leaving, check the installed identity and indoor acceptance in current state.
 Future candidate replacements follow the [release procedure](firmware-release-runbook.md)
@@ -35,8 +39,8 @@ seconds of accepted raised idle, verify ordinary RPM, then repeat for Winch. Onl
 after successful Stop/restoration check the five-minute Air up timer. If coolant
 is missing/stale, the displayed duration is limited to one minute; fresh coolant
 does not shorten Air up. Capture device logs, owner observations and the original
-read-only labels separately. Do not enable ABS/TCS or remove Unknown markers to
-get another attempt. If this candidate fails, preserve the trace and use the
+read-only labels separately. Keep brake actions out of this idle-only sequence
+and never remove Unknown markers merely to get another attempt. If this candidate fails, preserve the trace and use the
 existing Stop/engine-off cleanup; no additional trip is required just to gather inputs.
 
 Bring the Mac, unlocked Pixel, gauge, both Vgates and USB data cables. Work parked
@@ -130,7 +134,9 @@ a timer is not pressure sensing. No loaded air-up/winch test is needed here.
 
 ## Phase 3: combined ABS/TCS
 
-Use the separately matched controller definition after idle acceptance. Keep the
+For the explicit owner candidate, follow [the brake procedure](#brake-actions-follow-up).
+For full controller qualification, use the separately matched definition after
+idle acceptance. Keep the
 Jeep parked, capture baseline module state/dash, then one explicit Disable.
 Record the accepted reply and owner-observed warnings independently. Return can
 leave warnings active; the captured Jeep required a full ignition cycle. Keep
@@ -249,27 +255,45 @@ samples must remain visible in timing evidence.
 
 ## Brake actions follow-up
 
-The owner requested both combined ABS/TCS and Burnout Mode on 2026-10-29. Offline
-integration does not authorize live admission. Begin with read-only identification
-of the captured front-controller route620/504 and ABS route784/785, plus labelled
-Park/brake/speed state evidence. Do not infer these modules' identity from the ECM
-calibration, adapter name or an accepted session. Preserve primary/child attribution.
+The owner authorized an enabled best-effort candidate and firmware/App installation
+on 2026-10-29. Use only the explicit
+`CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST` build on the captured Jeep with matching
+ECM CalID/CVN. This enables both actions independently of the parked-idle switch;
+it does not establish ABS-controller identity or full qualification. Verify the
+installed signed image and saved setup before operating. Ordinary/public
+qualification masks and public BLE capability flags remain disabled.
 
-Before enabling combined shutdown, establish exact controller applicability,
-positive independent disabled-state coverage and same-controller restoration/reset
-proof after ignition cycling. The previous JScan capture demonstrated dash lights,
-not braking performance or a verified state decoder.
+1. Connect the matched Jeep and wait for fresh speed/RPM. Start stationary at
+   normal idle (400..1200 RPM); admission requires zero speed. The operator checks
+   the actual brake state and surroundings. Use the physical gauge to Start;
+   the phone cannot Start either action. Keep other commands inactive.
+2. **Disable ABS + TCS:** use the explicit local confirmation. Record replies and
+   observed warnings separately. Restore by the captured ignition-cycle procedure,
+   then check the warnings and actual brakes. At stationary normal idle use
+   **Hold to confirm** only after the reset is checked. No additional Return is
+   required after the ignition reset; confirmation sends no vehicle control.
+3. **Burnout:** hold the brake pedal and use **Hold to run**. Releasing the control,
+   leaving its touch area or losing UI/worker ownership requests Return; the
+   ten-second deadline also initiates release. Motion/throttle after Start is
+   allowed while speed/RPM remain fresh. The timer does not guarantee hydraulic
+   release or a controller-side timeout. Stop if behavior is unexpected.
+4. After Burnout Return completes or is attempted, stop at normal idle and check
+   actual brakes. Use **Hold to confirm** only when brakes are normal. Unknown
+   Burnout requires a recorded release attempt before confirmation is admitted.
+   Keep uncertainty if the observation is missing or doubtful. Never repeat Start
+   to clear a warning or recover a lost reply.
+5. Retain logs, operation/revision, exact image/App identities, raw replies and
+   owner observations. Manual confirmation records human provenance and clears
+   that operation's marker; it is not automatic restoration proof. Finish parked
+   with normal brakes and warnings cleared. Preserve setup and unrelated data.
 
-Before enabling Burnout, resolve the installed `Lock front` setting versus documented
-rear-brake release, identify exact controller/software, capture valid pedal/state
-inputs and a non-mutating released-state readback. Establish controller-side timeout
-and measure release after ordinary touch-up, UI/phone/link loss, lost Start/Return
-replies and reboot. A ten-second gauge timer cannot guarantee physical release.
-Brake-force/holding/release qualification requires an appropriate controlled test
-setup; do not use public-road operation or infer force from warning lamps. Keep the
-feature disabled if a reliable release boundary cannot be established.
-
-After those proofs exist, integrate them through the shared context owner, keeping
-local-only hold-to-run, explicit Stop, durable Unknown, independent TCM telemetry,
-radio/memory checks and exact signed-image evidence. No new remote Start, arbitrary
-valve command, automatic retry or automatic restart is part of this scope.
+Full qualification still requires read-only identification of the captured
+front-controller route620/504 and ABS route784/785, exact controller/software,
+labelled pedal/state inputs and independent restoration/reset readback. Resolve
+`Lock front` versus documented rear-brake release and measure release after
+ordinary touch-up, UI/link loss, lost replies and reboot, including controller-side
+expiry. ECM identity, accepted replies and dash lamps do not prove module identity
+or brake force. Use an appropriate controlled setup for physical holding/release
+qualification. Integrate proven evidence through the shared context owner; retain
+local-only Start, durable uncertainty, independent TCM telemetry and signed-image
+provenance. No arbitrary valve command, automatic retry or restart is authorized.

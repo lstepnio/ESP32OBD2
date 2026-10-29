@@ -13,7 +13,7 @@ static bool     connected, bad_identity, missing_coolant, lose_start_reply, cont
 static uint8_t  journal[VEHICLE_COMMAND_MARKER_SIZE];
 static size_t   journal_length = 28;
 static bool     release_during_save, released_during_save;
-static unsigned burnout_starts, burnout_returns;
+static unsigned burnout_starts, burnout_returns, abs_starts, abs_returns;
 static unsigned header, reports;
 static bool recovery_only, fail_save, fail_report, negative_report, diagnostic_session, fail_session, negative_session;
 static ble_obd_ctx_t *const adapter = (ble_obd_ctx_t *)1;
@@ -184,6 +184,28 @@ int ble_obd_control_exchange(ble_obd_ctx_t *a, const char *text, uint32_t timeou
         header = 0x7e0;
     else if (!strcmp(text, "AT SH 784"))
         header = 0x784;
+    else if (!strcmp(text, "AT SH 620"))
+        header = 0x620;
+    else if (header == 0x620)
+    {
+        if (!strcmp(text, "AT FC SH 620") || !strcmp(text, "AT CRA 504"))
+        {
+        }
+        else if (!strcmp(text, "10 92 1"))
+            reply = "504 02 50 92\r>";
+        else if (!strcmp(text, "31 A4"))
+        {
+            ++abs_starts;
+            reply = "504 02 71 A4\r>";
+        }
+        else if (!strcmp(text, "32 A4"))
+        {
+            ++abs_returns;
+            reply = "504 02 72 A4\r>";
+        }
+        else
+            assert(0);
+    }
     else if (header == 0x784)
     {
         if (!strcmp(text, "AT FC SH 784") || !strcmp(text, "AT CRA 785"))
@@ -353,6 +375,44 @@ static void burnout_release_during_journal_write(void)
     assert(snapshot[2] == VEHICLE_VERIFYING && journal[1] == 4 && journal_length == 40);
 }
 
+#if CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
+static void owner_brake_runtime_paths(void)
+{
+    setup(false);
+    abs_starts = abs_returns = burnout_starts = burnout_returns = 0;
+    uint8_t snapshot[32];
+    assert(vehicle_commands_runtime_ui_status(VEHICLE_ABS_TCS, snapshot));
+    assert((snapshot[27] & (1 | 128)) == (1 | 128));
+    assert(vehicle_commands_runtime_intent(VEHICLE_ABS_TCS, false, 0, 0));
+    run(30);
+    assert(abs_starts == 1 && journal[1] == 2);
+    assert(vehicle_commands_runtime_status(VEHICLE_ABS_TCS, snapshot) && snapshot[2] == VEHICLE_ACTIVE);
+    assert(vehicle_commands_runtime_intent(VEHICLE_ABS_TCS, true, 0, 0));
+    run(30);
+    assert(abs_returns == 1 && journal[1] == 2);
+    assert(vehicle_commands_runtime_confirm(VEHICLE_ABS_TCS));
+    run(5);
+    assert(vehicle_commands_runtime_status(VEHICLE_ABS_TCS, snapshot) && snapshot[2] == VEHICLE_RESTORED);
+    assert(!journal[1]);
+    setup(false);
+    vehicle_commands_runtime_burnout_hold(true);
+    assert(vehicle_commands_runtime_intent(VEHICLE_BURNOUT, false, 0, 0));
+    for (unsigned i = 0; i < 12; ++i)
+    {
+        vehicle_commands_runtime_burnout_hold(true);
+        tick();
+    }
+    assert(burnout_starts == 1 && !burnout_returns && journal[1] == 4);
+    vehicle_commands_runtime_burnout_hold(false);
+    run(30);
+    assert(burnout_returns == 1 && journal[1] == 4);
+    assert(vehicle_commands_runtime_confirm(VEHICLE_BURNOUT));
+    run(5);
+    assert(vehicle_commands_runtime_status(VEHICLE_BURNOUT, snapshot) && snapshot[2] == VEHICLE_RESTORED);
+    assert(!journal[1]);
+}
+#endif
+
 int main(void)
 {
     assert(vehicle_commands_runtime_poll_reserve(1, 1500, 0) == 0);
@@ -363,7 +423,9 @@ int main(void)
     phase(VEHICLE_READY);
     uint8_t request[24] = {1, 1, 1, 1, 1, 0, 0, 0, 7, 0, 0, 0, 9, 0, 0, 0, 17, 0, 0, 0, 44, 1, 0, 0};
     assert(!vehicle_commands_runtime_submit(request, sizeof(request)));
+#if !CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
     assert(!vehicle_commands_runtime_intent(VEHICLE_ABS_TCS, false, 0, 0));
+#endif
     unsigned before = reads;
     assert(!vehicle_commands_runtime_worker(1, adapter, (vehicle_command_context_t){0}, clock_ms));
     assert(before == reads);
@@ -480,6 +542,9 @@ int main(void)
     phase(VEHICLE_RESTORED);
     assert(!journal[1] && !returns && starts == 1);
     burnout_release_during_journal_write();
+#if CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
+    owner_brake_runtime_paths();
+#endif
     puts("primary worker parked idle replay passed; local Start, five-minute expiry, coolant, Stop, restoration, "
          "uncertainty and child isolation");
 }

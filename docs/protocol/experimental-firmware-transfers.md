@@ -296,6 +296,9 @@ prevents traffic. Verified reconciliation is required before another Start.
 **Implemented development interface; ordinary builds keep live controller qualification disabled.**
 The explicit [parked idle candidate](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
 uses the same wire with local-only Start and a separate temporary admission policy.
+The independent [brake owner candidate](../architecture/vehicle-actions.md#explicit-owner-supervised-brake-candidate)
+uses authenticated `bt:1` to identify its enabled best-effort test policy; this
+declaration is not a qualified ABS-controller identity or public capability.
 Document-mode capability `vc:1` identifies the typed interface and actions-menu
 configuration extension. It does not establish a qualified car or enable vehicle
 writes. Legacy built-in mode does not advertise it. Public BLE capability flags
@@ -340,7 +343,7 @@ is checked by native and Kotlin tests.
 | 20 | 4 | Last event sequence for this kind |
 | 24 | 2 | Remaining idle seconds, otherwise zero |
 | 26 | 1 | Idle preset 1/2, otherwise zero |
-| 27 | 1 | Bit 0: execution enabled with usable journal (qualification or the explicit parked idle candidate); bit 1: ABS/TCS restart required; idle-only bit 2: latched timed fallback, bit 3: physical-gauge Start required, bit 4: coolant unavailable; bits 5..7 zero |
+| 27 | 1 | Bit 0: execution enabled with usable journal (qualification or an explicit owner candidate); bit 1: ABS/TCS restart required; idle-only bit 2: latched timed fallback, bit 3: physical-gauge Start required, bit 4: coolant unavailable; bits 5..7 zero |
 | 28 | 4 | Global last admitted Start operation; no wrap |
 
 Idle fallback flags report the [coolant policy](../architecture/vehicle-actions.md#coolant-protection-for-raised-idle).
@@ -423,15 +426,19 @@ The protected status selector is `67` + `le32(2)` + `03`; legacy kinds use selec
 version1. The 24-byte command uses version byte2 for kind3, zero preset/duration
 and the same operation/revision/link/boot fences. Only local physical admission can
 Start; wire Start is refused. Explicit Stop (`verb2`) is permitted for a qualified
+or explicitly owner-supervised
 Starting/Active/Unknown operation and never starts/replays control. A lost-link or
 reboot Unknown can rebind only for that explicit release, with matching durable
 identity/revision/operation and current boot/link.
 
 Status remains tag22/32 bytes: kind3, remaining software-run seconds0..10, preset0,
-flag bit0 for independently qualified execution and bit3 for physical-gauge-only
-Start. Idle-only fallback/coolant bits and ABS-only restart bit are invalid for
-kind3. An accepted Return yields Verifying; only independent release proof yields
-Restored. The ten-second deadline requests release, not proof of brake release or
+flag bit0 for execution enabled through qualification or the owner candidate and
+bit3 for physical-gauge-only Start. The owner-policy, manual-confirmation and
+Return-attempt flags are gauge-local UI overlays, not additional wire-status bits.
+Idle-only fallback/coolant bits and ABS-only restart bit remain invalid
+for kind3. An accepted Return yields Verifying. Independent release proof yields
+Restored; the explicit physical owner confirmation can also clear its operation
+with human provenance, without claiming controller proof. The ten-second deadline requests release, not proof of brake release or
 a controller-side lease. Public capability flags stay disabled.
 
 Configuration schema2 with `cfg:7` + `vc:1` + optional `bm:1` accepts an explicit fourth unique page

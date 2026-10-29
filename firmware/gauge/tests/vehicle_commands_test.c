@@ -807,8 +807,62 @@ static void burnout_wire_and_marker_compatibility(void)
     assert(vehicle_command_marker_decode(encoded, 28, &decoded) && decoded.mask == 2);
 }
 
+static void supervised_brake_start_and_manual_confirmation(void)
+{
+    vehicle_commands_t s;
+    init(&s);
+    context.qualified_mask = context.identity_mask = 0;
+    context.brake_owner_test                       = true;
+    context.supervised_mask = context.supervised_start_mask = context.supervised_run_mask = 6;
+    context.supervised_at                                                                 = now;
+    assert(vehicle_commands_ui_flags(VEHICLE_ABS_TCS, context) == VEHICLE_UI_OWNER_TEST);
+    vehicle_command_request_t r = request(VEHICLE_ABS_TCS, VEHICLE_START, 1);
+    assert(!vehicle_commands_submit(&s, r, context, now));
+    r.operation++;
+    r.gauge_confirmed             = true;
+    context.supervised_start_mask = 0;
+    assert(!vehicle_commands_submit(&s, r, context, now));
+    r.operation++;
+    context.supervised_start_mask = 6;
+    assert(vehicle_commands_submit(&s, r, context, now));
+    exchange(&s, "AT SH 620", "OK\r\r>");
+    exchange(&s, "AT FC SH 620", "OK\r\r>");
+    exchange(&s, "AT CRA 504", "OK\r\r>");
+    exchange(&s, "10 92 1", "504 02 50 92\r\r>");
+    exchange(&s, "31 A4", "504 02 71 A4\r\r>");
+    assert(s.states[1].phase == VEHICLE_ACTIVE && durable.mask == 2);
+    r.verb            = VEHICLE_OWNER_CONFIRM;
+    r.gauge_confirmed = false;
+    assert(!vehicle_commands_submit(&s, r, context, now));
+    r.gauge_confirmed             = true;
+    context.supervised_start_mask = 0;
+    assert(!vehicle_commands_submit(&s, r, context, now));
+    context.supervised_start_mask = 6;
+    storage_ok                    = false;
+    assert(!vehicle_commands_submit(&s, r, context, now) && durable.mask == 2);
+    storage_ok = true;
+    assert(vehicle_commands_submit(&s, r, context, now));
+    assert(s.states[1].phase == VEHICLE_RESTORED && !durable.mask && !s.worker_kind);
+    assert(s.history[(s.history_next + VEHICLE_COMMAND_HISTORY_SIZE - 1) % VEHICLE_COMMAND_HISTORY_SIZE].reserved == 1);
+    assert(!vehicle_commands_next(&s, context, now).text);
+    uint8_t                   wire[24] = {1, VEHICLE_ABS_TCS, VEHICLE_OWNER_CONFIRM};
+    vehicle_command_request_t ignored;
+    assert(!vehicle_command_decode(wire, sizeof(wire), &ignored));
+    init(&s);
+    burnout_start(&s);
+    context.qualified_mask = context.identity_mask = 0;
+    context.supervised_mask = context.supervised_start_mask = context.supervised_run_mask = 6;
+    context.supervised_at                                                                 = now;
+    r                 = burnout_request(VEHICLE_OWNER_CONFIRM, 1);
+    s.states[2].phase = VEHICLE_UNKNOWN;
+    assert(!vehicle_commands_submit(&s, r, context, now));
+    s.states[2].release_attempted = true;
+    assert(vehicle_commands_submit(&s, r, context, now) && !durable.mask);
+}
+
 int main(int argc, char **argv)
 {
+    supervised_brake_start_and_manual_confirmation();
     recovery_scope_and_retry_fences();
     assert(argc == 2);
     FILE *file = fopen(argv[1], "r");

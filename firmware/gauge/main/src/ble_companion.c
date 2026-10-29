@@ -181,6 +181,11 @@ static void owner_save_worker(void *arg)
 #define SMART_PAGE_CAPABILITY ""
 #endif
 
+#if CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
+#define BRAKE_OWNER_CAPABILITY ",\"bt\":1"
+#else
+#define BRAKE_OWNER_CAPABILITY ""
+#endif
 #define LEGACY_CAPABILITY_BASE                                                                                         \
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","                                                      \
     "\"maxAdapterLinks\":1,"                                                                                           \
@@ -191,7 +196,8 @@ static void owner_save_worker(void *arg)
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","                                                      \
     "\"maxAdapterLinks\":1,"                                                                                           \
     "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"da\":1,\"va\":1,\"vc\":1,\"bm\":1,"                                    \
-    "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY SMART_PAGE_CAPABILITY ",\"mp\":10,\"dx\":1"
+    "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY SMART_PAGE_CAPABILITY                                \
+    ",\"mp\":10,\"dx\":1" BRAKE_OWNER_CAPABILITY
 static const char capabilities[]             = LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
 static const char document_capabilities[]    = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
 static const char orientation_capabilities[] = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY ",\"ao\":1}";

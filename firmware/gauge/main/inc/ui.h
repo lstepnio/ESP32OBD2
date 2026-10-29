@@ -19,6 +19,7 @@
 /* Internal callback event; no external vehicle control operation. */
 #define UI_EVENT_PAGE_ACTION LV_EVENT_REFRESH
 #define UI_EVENT_VEHICLE_COMMAND LV_EVENT_READY
+#define UI_EVENT_VEHICLE_CONFIRM LV_EVENT_CANCEL
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Definitions

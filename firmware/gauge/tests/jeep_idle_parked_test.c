@@ -148,6 +148,41 @@ static void reboot_recovery_requires_inactive_and_later_samples(void)
         assert(!c.normal_idle_verified && !t.recovery_baseline && !t.baseline_valid);
     }
 }
+static void supervised_brake_vehicle_and_input_policy(void)
+{
+    jeep_idle_parked_test_t   t                                  = {0};
+    vehicle_command_context_t c                                  = {.revision = 7, .link = 9, .connected = true};
+    vehicle_command_state_t   states[VEHICLE_COMMAND_KIND_COUNT] = {0};
+    jeep_idle_parked_test_scope(&t, c);
+    jeep_brake_owner_test_context(&t, &c, states, 120);
+    assert(c.brake_owner_test && !c.supervised_mask);
+    identity(&t);
+    rpm(&t, 700, 120);
+    speed(&t, 0, 125);
+    jeep_brake_owner_test_context(&t, &c, states, 130);
+    assert(c.supervised_mask == 6 && c.supervised_start_mask == 6 && c.supervised_run_mask == 6);
+    assert(!c.qualified_mask && c.identity == 0xca36378cU && c.supervised_at == 120);
+    speed(&t, 20, 140);
+    rpm(&t, 2300, 140);
+    jeep_brake_owner_test_context(&t, &c, states, 150);
+    assert(!c.supervised_start_mask && c.supervised_run_mask == 6);
+    jeep_brake_owner_test_context(&t, &c, states, 2141);
+    assert(!c.supervised_start_mask && !c.supervised_run_mask);
+    jeep_brake_owner_test_context(&t, &c, states, 30111);
+    assert(!c.supervised_mask);
+    states[1].phase             = VEHICLE_ACTIVE;
+    states[1].request.operation = 1;
+    jeep_brake_owner_test_context(&t, &c, states, 30111);
+    assert(c.supervised_mask == 6 && !c.supervised_run_mask);
+    c.link++;
+    jeep_idle_parked_test_scope(&t, c);
+    jeep_brake_owner_test_context(&t, &c, states, 30112);
+    assert(!c.supervised_mask);
+    identity(&t);
+    c.connected = false;
+    jeep_brake_owner_test_context(&t, &c, states, 30113);
+    assert(!c.supervised_mask && !c.supervised_start_mask);
+}
 static elm_result_t decode(const char *text, uint8_t pid, elm_payload_t *p)
 {
     elm_response_t response = {0};
@@ -173,6 +208,7 @@ int main(void)
 {
     reboot_recovery_requires_inactive_and_later_samples();
     identity_and_guards();
+    supervised_brake_vehicle_and_input_policy();
     restoration_needs_post_return_samples();
     attributed_multiframe_identity();
     printf("parked idle evidence policy passed (%zu bytes); no live IO\n", sizeof(jeep_idle_parked_test_t));

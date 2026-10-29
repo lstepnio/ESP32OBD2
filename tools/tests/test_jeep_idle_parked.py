@@ -5,9 +5,15 @@ from tools import dev
 
 
 class ParkedIdleTests(unittest.TestCase):
+    def test_actual_primary_worker_with_brake_owner_mode(self):
+        self._primary_worker(True)
+
     def test_actual_primary_worker_with_fixed_fake_adapter(self):
+        self._primary_worker(False)
+
+    def _primary_worker(self, brake_owner):
         dev.native(
-            "parked_idle_runtime",
+            "parked_idle_runtime_owner" if brake_owner else "parked_idle_runtime",
             [
                 "tests/parked_idle_runtime_test.c",
                 "main/src/vehicle_commands_runtime.c",
@@ -24,6 +30,7 @@ class ParkedIdleTests(unittest.TestCase):
                 "-include",
                 "firmware/gauge/tests/runtime_stubs/environment.h",
                 "-DCONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST=1",
+                f"-DCONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST={int(brake_owner)}",
             ],
         )
 

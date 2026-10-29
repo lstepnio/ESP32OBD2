@@ -2,7 +2,7 @@
 
 **Status:** Shared command path implemented; vehicle execution gated pending parked qualification
 **Date:** 2026-10-07
-**Updated:** 2026-10-29; idle, combined ABS/TCS and Burnout Mode share the command owner; brake-controller execution remains unqualified
+**Updated:** 2026-10-29; idle, combined ABS/TCS and Burnout Mode share the command owner; explicit owner-supervised brake candidate enabled; ordinary brake profiles remain unqualified
 **Deciders:** Project owner for interaction choices; implementation and physical
 qualification determine which controller definitions become available.
 
@@ -485,7 +485,7 @@ inputs. It is not a production vehicle definition or driving mode.
   [ordered action-page contract](#ordered-action-pages). Review 4 replaces the ordinary
   repeated Park/brake confirmation screen with hold-to-start. The App can monitor
   and Stop but cannot Start, including by
-  sending raw authenticated command bytes. ABS/TCS remains unavailable.
+  sending raw authenticated command bytes. This idle switch alone does not enable ABS/TCS.
 - Air up can run **five minutes** with fresh coolant; Winch keeps its saved one-minute
   preset. Longer test drafts are capped at five minutes in both confirmation and
   admission. Missing/stale coolant retains the existing at-most-one-minute fallback,
@@ -687,11 +687,10 @@ profile, the next parked increment must close the remaining evidence inputs:
 4. Extend failure/recovery and independent TCM checks using explicit reconciliation.
    One observed return after process/link loss does not define the ECU timeout.
 
-No new release, installation or vehicle-control authorization follows from these
-notes. Combined ABS/TCS is the next active command after idle integration and
-needs its own controller qualification. The owner subsequently requested Burnout Mode (Line Lock); its offline integration is
-recorded below. Neither brake path shares the idle driver implicitly, and neither
-acquires qualification from the request or from replay tests.
+The owner subsequently authorized an explicit best-effort brake candidate and
+firmware/App installation. Its separate policy is recorded below; neither brake
+path shares the idle driver implicitly or acquires general qualification from
+that authorization or replay tests.
 
 ## Remaining qualification
 
@@ -757,11 +756,13 @@ expiry or release from a positive diagnostic reply.
 The App can explicitly add/order/remove a fourth `burnout` page. Existing menus
 retain their three legacy defaults. Configuration/status negotiation uses `vc:1` + optional `bm:1`;
 old gauges retain Idle/ABS polling and refuse sending unsupported Burnout drafts.
-App dev.54/code54 adds this interface, without authorizing a controller. Shared
+App dev.54/code54 adds this interface; `bt:1` separately identifies the explicit
+owner-supervised brake candidate. Shared
 configuration schema2/profile schema19 remain structurally unchanged; strict older
 readers preserve unknown input rather than silently dropping the page.
 
-On a qualified controller, Burnout has one physical **Hold to run** control. A tap
+On a qualified controller or the explicit owner candidate below, Burnout has one
+physical **Hold to run** control. A tap
 cannot activate it, and the phone can only request release. The existing 900ms hold
 opens a run; touch release, movement outside the hit area, attention/context loss,
 a 300ms stale UI heartbeat or a 500ms stale worker lease requests Return. Status
@@ -770,7 +771,8 @@ deadline also requests Return and cannot be extended by continued touch. It is a
 release-initiation deadline, **not a guaranteed hydraulic duration**: queued work,
 bounded IO, route/session setup, link loss and controller behavior affect actual
 release latency. Controller-side expiry and physical release timing need evidence
-before live enablement. No control task or heap allocation is added.
+for full qualification. The owner candidate accepts these unresolved limits
+explicitly. No control task or heap allocation is added.
 
 Configuration/OTA/Wi-Fi maintenance waits while a recorded Burnout outcome remains
 Unknown, so it cannot retire a still-needed release path. Ordinary malformed-journal
@@ -779,9 +781,11 @@ cannot overlap any other active/unresolved control. One primary-worker lease and
 the existing bounded queue own all adapter IO. Lost Start replies remain Unknown;
 a physical release latches at most one same-scope Return attempt, never replays
 Start. A failed Return is not retried automatically. Explicit Stop after a reboot
-or reconnect requires the same independently verified controller identity, durable
+or reconnect requires the same scoped identity (captured ECM identity in owner
+mode, independently verified controller identity in qualified mode), durable
 revision/operation and current boot/link. It remains Verifying after an accepted
-Return until independent, fresh release evidence clears the durable marker.
+Return until independent, fresh release evidence clears the durable marker, or
+the explicit owner-mode manual confirmation below records a human observation.
 A known durable same-operation marker permits protective Return without another
 flash commit; failed persistence never clears uncertainty. ABS/TCS instead retains its existing Restart required semantics and independent
 reset/state proof. Reboots never resume either command or manufacture restoration.
@@ -792,13 +796,33 @@ that larger record rather than losing the uncertainty. Once no Burnout uncertain
 remains, saves use version1 again so ordinary idle/ABS rollback stays compatible.
 Malformed/newer journals remain retained and refuse execution.
 
-Neither brake action is enabled by this change: no live profile supplies the
-necessary controller identity/guard/release/reset proof, so their qualification
-masks stay zero. The parked-idle build option does not enable them. The
-[parked qualification runbook](../development/jeep-action-qualification.md#brake-actions-follow-up)
-owns the remaining vehicle work. Native/Compose fixtures verify routing, parser,
-version negotiation, deadline/hold loss, lost acknowledgments, uncertainty and
-legacy-menu preservation; they do not establish braking behavior.
+### Explicit owner-supervised brake candidate
+
+`CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST` defaults off and is independent of
+`CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST`. The owner-authorized build enables both
+**Disable ABS + TCS** and **Burnout Mode** only for the captured Jeep's matching
+ECM CalID/CVN through the existing idle identity policy. That match identifies the
+captured vehicle, not the ABS controller. Ordinary profile qualification masks
+remain zero and public BLE capability flags stay disabled.
+
+Start is physical-gauge-only with fresh zero speed and normal idle (400..1200 RPM).
+After Start, fresh running RPM/speed remain required; motion or throttle alone no
+longer cancels the supervised run. Burnout retains hold-to-run and its ten-second
+release-initiation bound. Neither this policy nor manual pedal confirmation
+establishes automatic brake/Park sensing, brake force, controller-side expiry or
+independent restoration proof.
+
+For Burnout, complete or attempt Return, then stop at normal idle and inspect the
+actual brake state. For ABS/TCS, perform the required ignition reset and check
+that the warnings and brakes are normal; this manual reset check does not require
+another Return. Only then use the physical **Hold to confirm** control while
+stationary at normal idle. Confirmation sends no vehicle control. It records
+human provenance in command history/logs and clears that operation's uncertainty;
+it is not decoded controller proof. Unchecked or unexpected behavior stays
+unresolved. The [operator procedure](../development/jeep-action-qualification.md#brake-actions-follow-up)
+owns the test sequence and remaining controller/release qualification.
+Native/Compose fixtures cover protocol, routing, hold loss, uncertainty and legacy
+menus; vehicle braking behavior still requires physical observation.
 
 Website impact: current public ABS/TCS-disabled language remains accurate. Queue
 Burnout screenshots/status for the next eligible daily batch after a qualified

@@ -17,8 +17,9 @@ typedef enum
 } vehicle_command_kind_t;
 typedef enum
 {
-    VEHICLE_START = 1,
-    VEHICLE_STOP  = 2
+    VEHICLE_START         = 1,
+    VEHICLE_STOP          = 2,
+    VEHICLE_OWNER_CONFIRM = 3 /* Local physical observation only; never decoded from BLE. */
 } vehicle_command_verb_t;
 typedef enum
 {
@@ -58,10 +59,13 @@ typedef struct
     uint32_t revision, link, identity, verified_operation[VEHICLE_COMMAND_KIND_COUNT],
         proof_at[VEHICLE_COMMAND_KIND_COUNT], guard_at;
     uint8_t  qualified_mask, identity_mask;
+    uint8_t  supervised_mask, supervised_start_mask, supervised_run_mask;
+    uint32_t supervised_at;
     bool     connected, guards_fresh_and_met, normal_idle_verified, abs_reset_verified;
     bool     coolant_configured, coolant_valid;
     bool     burnout_released_verified, burnout_held;
     uint32_t burnout_hold_at;
+    bool     brake_owner_test;
     bool     parked_idle_test; /* Local Start only; never a qualified controller mask. */
     double   coolant_c, coolant_limit_c;
     uint32_t coolant_at;
@@ -147,6 +151,7 @@ bool   vehicle_commands_maintenance_allowed(const vehicle_command_state_t states
 enum
 {
     VEHICLE_UI_COOLANT_HIGH = 32U,
-    VEHICLE_UI_RECONNECTING = 64U
+    VEHICLE_UI_RECONNECTING = 64U,
+    VEHICLE_UI_OWNER_TEST   = 128U
 };
 uint8_t vehicle_commands_ui_flags(uint8_t kind, vehicle_command_context_t context);

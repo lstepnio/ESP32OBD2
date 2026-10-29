@@ -1056,6 +1056,17 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         ui_vehicle_command_queued(ui, vehicle_commands_runtime_intent(kind, stop, preset, seconds));
         break;
     }
+    case UI_EVENT_VEHICLE_CONFIRM:
+    {
+        if (!transfer_gate_vehicle_allowed() || !ble_companion_has_owner())
+            break;
+        uint8_t  kind, preset;
+        bool     stop;
+        uint16_t seconds;
+        ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
+        ui_vehicle_command_queued(ui, vehicle_commands_runtime_confirm(kind));
+        break;
+    }
     case UI_EVENT_PAGE_ACTION:
         if (!transfer_gate_vehicle_allowed() || !ble_companion_has_owner())
             break;

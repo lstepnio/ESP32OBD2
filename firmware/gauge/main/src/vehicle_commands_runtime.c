@@ -35,7 +35,7 @@ static struct
     double   limit_c, value_c;
     uint32_t observed_at, attempted_at, link, revision, identity;
 } coolant;
-#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST || CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
 static jeep_idle_parked_test_t parked;
 static bool                    parked_enabled, identity_attempted, speed_attempted, rpm_attempted;
 static uint8_t                 identity_step;
@@ -73,6 +73,14 @@ static void parked_context(vehicle_command_context_t *context, uint32_t now)
     }
     jeep_idle_parked_test_scope(&parked, *context);
     jeep_idle_parked_test_context(&parked, context, &commands.states[0], now);
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+    context->parked_idle_test = true;
+#else
+    context->parked_idle_test = false;
+#endif
+#if CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
+    jeep_brake_owner_test_context(&parked, context, commands.states, now);
+#endif
 }
 
 static void parked_poll(ble_obd_ctx_t *adapter, vehicle_command_context_t *context, bool stop, uint32_t *now)
@@ -81,7 +89,12 @@ static void parked_poll(ble_obd_ctx_t *adapter, vehicle_command_context_t *conte
         commands.states[0].phase == VEHICLE_STOPPING)
         return;
     vehicle_command_state_t *idle = &commands.states[0];
-    bool busy = commands.worker_kind || idle->phase == VEHICLE_ACTIVE || idle->phase == VEHICLE_VERIFYING;
+    /* Engine guard reads must not corrupt a routed brake-controller transaction. */
+    if (commands.worker_kind == VEHICLE_ABS_TCS || commands.worker_kind == VEHICLE_BURNOUT)
+        return;
+    bool brake_recorded = (commands.marker.mask & 6U) && parked.calibration && parked.cvn;
+    bool busy =
+        commands.worker_kind || idle->phase == VEHICLE_ACTIVE || idle->phase == VEHICLE_VERIFYING || brake_recorded;
     if (!busy && (identity_step || (!identity_attempted || *now - identity_attempt_at >= 30000)))
     {
         if (!identity_step)
@@ -149,8 +162,14 @@ static void publish(vehicle_command_context_t context, uint32_t now)
     {
         vehicle_commands_status(&commands, i + 1, context, now, snapshot[i]);
         ui_flags[i] = vehicle_commands_ui_flags(i + 1, context);
+        if (i == 2 && (context.supervised_mask & 4U) && commands.states[i].release_attempted)
+            ui_flags[i] |= 32U;
+        if (i && (context.supervised_start_mask & (1U << i)) && context.supervised_at &&
+            now - context.supervised_at <= 2000 && !commands.worker_kind && !commands.states[i].pending_stop &&
+            !commands.states[i].pending_start)
+            ui_flags[i] |= 16U;
     }
-#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST || CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
     static uint32_t logged_sequence = UINT32_MAX;
     if (parked_enabled && logged_sequence != commands.sequence)
     {
@@ -167,7 +186,7 @@ static void publish(vehicle_command_context_t context, uint32_t now)
 }
 esp_err_t vehicle_commands_runtime_init(const config_runtime_t *runtime)
 {
-#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST || CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
     memset(&parked, 0, sizeof(parked));
     parked_enabled     = runtime && runtime->source_count && !runtime->sources[0].simulated &&
                          !runtime->sources[0].transmission && runtime->sources[0].address[0];
@@ -218,8 +237,8 @@ static bool submit(const uint8_t *bytes, size_t length, bool gauge_confirmed)
     vehicle_commands_runtime_status(request.kind, status);
     if (!(status[27] & 1U))
         return false;
-#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
-    if (parked_enabled && request.verb == VEHICLE_START && (!gauge_confirmed || request.kind != VEHICLE_IDLE))
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST || CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
+    if (parked_enabled && request.verb == VEHICLE_START && !gauge_confirmed)
         return false;
 #endif
     if (request.kind == VEHICLE_BURNOUT && request.verb == VEHICLE_START && !gauge_confirmed)
@@ -286,7 +305,7 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
         queued_idle_start |= queued[queued_count].kind == VEHICLE_IDLE && queued[queued_count].verb == VEHICLE_START;
         ++queued_count;
     }
-#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST || CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
     parked_context(&context, now);
 #endif
     if (coolant.link != context.link || coolant.revision != context.revision || coolant.identity != context.identity ||
@@ -299,14 +318,15 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
     /* Once a running guard fails, latch Stop before a later cooler sample can
      * erase it. Never delay a queued Stop behind another guard read. */
     vehicle_commands_observe(&commands, context, now);
-#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST || CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
     parked_poll(adapter, &context, queued_stop, &now);
     coolant_context(&context);
     burnout_context(&context);
     vehicle_commands_observe(&commands, context, now);
 #endif
     vehicle_command_state_t *idle = &commands.states[0];
-    if ((!commands.worker_kind || context.parked_idle_test) && !idle->pending_stop && !queued_stop && adapter &&
+    if (commands.worker_kind != VEHICLE_ABS_TCS && commands.worker_kind != VEHICLE_BURNOUT &&
+        (!commands.worker_kind || context.parked_idle_test) && !idle->pending_stop && !queued_stop && adapter &&
         context.connected &&
         ((context.qualified_mask | (context.parked_idle_test ? 1U : 0U)) & context.identity_mask & 1U) &&
         coolant.configured && (queued_idle_start || idle->phase == VEHICLE_ACTIVE || context.parked_idle_test) &&
@@ -339,15 +359,18 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
         coolant_context(&context);
         burnout_context(&context);
     }
-#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST || CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
     parked_context(&context, now);
 #endif
     /* Stop submissions do not depend on a passing coolant guard. */
     for (unsigned i = 0; i < queued_count; ++i)
     {
         bool accepted = vehicle_commands_submit(&commands, queued[i], context, now);
-#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
-        if (accepted && context.parked_idle_test && queued[i].verb == VEHICLE_START)
+        if (accepted && queued[i].verb == VEHICLE_OWNER_CONFIRM)
+            ESP_LOGI("brake_test", "owner checked kind=%u operation=%lu", queued[i].kind,
+                     (unsigned long)queued[i].operation);
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST || CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
+        if (accepted && context.parked_idle_test && queued[i].kind == VEHICLE_IDLE && queued[i].verb == VEHICLE_START)
             jeep_idle_parked_test_started(&parked, idle);
 #else
         (void)accepted;
@@ -384,7 +407,7 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
             vehicle_commands_feed(&commands, command.ticket, response, length, context, completed);
         }
     }
-#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST || CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
     if ((command.text || had_lease) && !commands.worker_kind &&
         commands.driver.idle.request.kind == JEEP_IDLE_RECOVERY_REPORT)
         ESP_LOGI("idle_test", "recovery phase=%u result=%u error=%u nrc=%02x", commands.driver.idle.phase,
@@ -448,12 +471,13 @@ size_t vehicle_commands_runtime_ui_status(uint8_t kind, uint8_t out[32])
 
 uint32_t vehicle_commands_runtime_poll_reserve(unsigned source, uint32_t horizon, uint32_t now)
 {
-#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST
+#if CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST || CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
     if (source != 0 || !parked_enabled)
         return 0;
     uint32_t reserve = 0;
     bool     busy    = commands.worker_kind || commands.states[0].phase == VEHICLE_ACTIVE ||
-                       commands.states[0].phase == VEHICLE_VERIFYING;
+                       commands.states[0].phase == VEHICLE_VERIFYING ||
+                       ((commands.marker.mask & 6U) && parked.calibration && parked.cvn);
     if (!busy && (identity_step || !identity_attempted || now - identity_attempt_at + horizon >= 30000))
         reserve += 1200;
     if (!speed_attempted || now - speed_attempt_at + horizon >= 500)
@@ -475,4 +499,20 @@ uint32_t vehicle_commands_runtime_poll_reserve(unsigned source, uint32_t horizon
 bool vehicle_commands_runtime_pending(void)
 {
     return requests && uxQueueMessagesWaiting(requests) != 0;
+}
+bool vehicle_commands_runtime_confirm(uint8_t kind)
+{
+    uint8_t status[32];
+    if (!requests || kind == VEHICLE_IDLE || !vehicle_commands_runtime_ui_status(kind, status) ||
+        !(status[27] & VEHICLE_UI_OWNER_TEST) || !(status[27] & 1U) || !u32(status + 4) ||
+        !transfer_gate_vehicle_allowed() || ble_mgr_is_paused())
+        return false;
+    vehicle_command_request_t request = {.kind            = kind,
+                                         .verb            = VEHICLE_OWNER_CONFIRM,
+                                         .operation       = u32(status + 4),
+                                         .revision        = u32(status + 8),
+                                         .link            = u32(status + 12),
+                                         .boot            = u32(status + 16),
+                                         .gauge_confirmed = true};
+    return xQueueSend(requests, &request, 0) == pdTRUE;
 }

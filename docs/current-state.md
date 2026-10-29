@@ -31,7 +31,7 @@ This correction is retained in signed dev.74 after the dev.73 USB delivery;
 actual ECM recovery remains parked qualification.
 Website impact: corrective recovery behavior needs no new marketing claim or image.
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
-and ABS/TCS execution remains disabled.
+and brake actions require the separate explicit owner candidate described below.
 
 ## Installed foreground, fault and idle-target follow-up
 
@@ -239,7 +239,9 @@ and enabled eGauge control are not established.
 - Public `configWrite:false`, `ota:false` and qualified link capacity one remain.
   Three NimBLE slots and independent workers do not establish physical coexistence.
 - Phone gauge values remain labelled previews; live companion telemetry, code clearing
-  and ABS/ESC control are not enabled. High idle is limited to the installed owner-supervised parked candidate. Local page-jump gestures are implemented.
+  are not enabled. Brake controls are available only in the explicit owner candidate
+  described below. High idle is limited to the installed owner-supervised parked
+  candidate. Local page-jump gestures are implemented.
 - TCM temperature interprets only the first byte as A−40 °C. Current/target candidates
   compare P=0D, R=0B, N=00 and stationary Drive=01. Pressure `225034` remains raw only.
   Drive is not a distinct selector value. The diagnostic endpoint/PCS bridge topology
@@ -411,9 +413,15 @@ App dev.54/code54 adds an explicit fourth **Burnout Mode** action using negotiat
 `vc:1` + optional `bm:1`; legacy menus/gauges retain their previous behavior. Firmware integrates
 its captured distinct ABS route through the shared worker, physical hold-to-run,
 bounded release request, durable uncertainty and independent release-proof gate.
-Combined **Disable ABS + TCS** retains ignition-cycle/reset-proof semantics. Both
-brake actions remain unqualified and unavailable on live profiles; no device or
-vehicle test is implied. [Action contract](architecture/vehicle-actions.md#burnout-mode-and-brake-actions)
+Combined **Disable ABS + TCS** retains ignition-cycle restoration. The new default-off
+`CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST` enables both actions on the captured
+Jeep ECM match, with physical Start, fresh stationary normal-idle admission and
+manual brake/reset confirmation. Authenticated `bt:1` identifies that policy.
+Burnout allows motion/throttle after Start with fresh data and retains its
+ten-second release-initiation limit. Human confirmation is recorded separately
+from automatic controller proof. Both ordinary qualification masks remain zero;
+public capabilities remain disabled. This is prepared source with owner-authorized
+installation, not evidence of installation or vehicle qualification. [Action contract](architecture/vehicle-actions.md#burnout-mode-and-brake-actions)
 and [parked follow-up](development/jeep-action-qualification.md#brake-actions-follow-up)
 define the remaining evidence. This source work does not replace the installed
 App/dev.75 device record above or publish a new firmware release.
