@@ -8,13 +8,16 @@
     "size": 1447
   },
   "app": {
-    "version": "0.2.0-dev.51",
-    "sourceCommit": "414cedd46a2273dd13435ddce273236b70db7b74",
+    "version": "0.2.0-dev.53",
+    "versionCode": 53,
+    "packageName": "com.lstepnio.egauge",
     "variant": "debug",
     "signingCertificateSha256": "be0fae89e04e5c71660273c4084ed0c98879f567fe13b6d15f5df9b243586f87",
-    "url": "/downloads/egauge-android-7ea52f9c0d98d6db.apk",
-    "sha256": "7ea52f9c0d98d6dbb6fa2793d7a0eadaa79b4e30230668f296c538077ea2210e",
-    "size": 45109037
+    "sourceCommit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "sourceProvenance": "Operator-supplied build revision; APK signature, package and version independently verified",
+    "url": "/downloads/egauge-android-f47c10aa9cc9b6af.apk",
+    "sha256": "f47c10aa9cc9b6afca2e84ef9d5574e46fdf7bf10fcf1b93b43e48abeac10280",
+    "size": 33788998
   },
   "files": {
     "dev60-9e973ad2c2da/bootloader.bin": {
@@ -37,9 +40,9 @@
       "sha256": "499326bf066771aaa1dc17e7965ae4a13b5a40e76f20908d93fde781cc4d1f92",
       "size": 1447
     },
-    "egauge-android-7ea52f9c0d98d6db.apk": {
-      "sha256": "7ea52f9c0d98d6dbb6fa2793d7a0eadaa79b4e30230668f296c538077ea2210e",
-      "size": 45109037
+    "egauge-android-f47c10aa9cc9b6af.apk": {
+      "sha256": "f47c10aa9cc9b6afca2e84ef9d5574e46fdf7bf10fcf1b93b43e48abeac10280",
+      "size": 33788998
     }
   }
 }

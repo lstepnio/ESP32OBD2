@@ -7,7 +7,7 @@ import struct
 import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
-FRAMES = {"numeric": 1, "arc": 2, "bar": 3, "trend": 4, "dual": 5, "alerts": 16}
+FRAMES = {"numeric": 1, "arc": 2, "bar": 3, "trend": 4, "dual": 5, "dual-arc": 6, "alerts": 20}
 
 
 def png(rgb):
@@ -35,8 +35,10 @@ def main():
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     output = ROOT / "docs/assets/gauge"
-    for name, frame in FRAMES.items():
-        rendered = png((args.frames / f"demo-{frame:02d}.rgb").read_bytes())
+    sources = {name: f"demo-{frame:02d}" for name, frame in FRAMES.items()}
+    sources.update({"action-ready": "actions-ready", "action-active": "actions-active"})
+    for name, frame in sources.items():
+        rendered = png((args.frames / f"{frame}.rgb").read_bytes())
         target = output / f"{name}.png"
         if args.check:
             if not target.exists() or target.read_bytes() != rendered:
@@ -44,7 +46,9 @@ def main():
         else:
             output.mkdir(parents=True, exist_ok=True)
             target.write_bytes(rendered)
-    print(f"PASS: {len(FRAMES)} production gauge screens " + ("match" if args.check else "written"))
+    print(
+        f"PASS: {len(sources)} production gauge screens " + ("match" if args.check else "written")
+    )
 
 
 if __name__ == "__main__":
