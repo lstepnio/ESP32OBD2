@@ -99,7 +99,8 @@ recurrence, not distinct faults. Within loaded history, kept reports remain sepa
 rows, respecting the same visibility filters, so newer observations cannot hide
 their detail or Unpin action. Unpinning restores ordinary grouping without deleting
 any evidence. Current warnings without codes are also coalesced
-per controller. Grouping does not edit storage, lifecycle, original context, filters
+per controller, retaining the highest severity (and existing order for ties), so a
+newer low-priority code-list event cannot hide an active MIL warning. Grouping does not edit storage, lifecycle, original context, filters
 or reports, and never borrows another observation's codes. A later identified code
 is its own evidence, not a retroactive diagnosis of an earlier unattributed warning.
 Simulated diagnostic records retain an explicit marker in list summaries as well

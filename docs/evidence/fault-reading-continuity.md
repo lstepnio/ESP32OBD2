@@ -107,3 +107,10 @@ unpinning restores ordinary grouping without deleting records. A regression cove
 older-kept/newer-unkept IDs, preserved fault detail, unpin regrouping and unchanged
 Current deduplication. JVM totals are now 332 debug/306 release, all passed; the
 focused managed history interaction and final exact-head CI remain required.
+
+A further review caught a severity-selection regression when multiple active MIL
+and code-list episodes share a controller without usable code rows. Current Car
+attention now stably selects highest severity before coalescing, preserving source
+priority and ties. The newer-severity-1/2 versus older-MIL-3 regression passes;
+JVM totals are 333 debug/307 release and Android lint passed. Firmware and transfer
+semantics are unchanged; the final exact-head CI/review gate remains required.

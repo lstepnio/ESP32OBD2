@@ -121,4 +121,18 @@ class CarPresentationTest {
         )
         assertEquals(listOf("mil", "engine"), carAttention(state(), alerts).map { it.alertId })
     }
+
+    @Test fun newerLowPriorityCodeCheckCannotHideOlderActiveLampSeverity() {
+        for (lowSeverity in listOf(1, 2)) {
+            val alerts = listOf(
+                CarAttentionAlert("new-codes", "Engine codes", "", lowSeverity, "Engine"),
+                CarAttentionAlert("threshold", "Threshold", "", 2),
+                CarAttentionAlert("older-mil", "Engine warning light", "", 3, "Engine")
+            )
+            val rows = carAttention(state(), alerts)
+            assertEquals(listOf("older-mil", "threshold"), rows.map { it.alertId })
+            assertEquals(3, rows.first().severity)
+            assertEquals("Engine warning light", rows.first().title)
+        }
+    }
 }
