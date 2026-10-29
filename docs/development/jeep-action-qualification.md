@@ -136,7 +136,7 @@ Record the accepted reply and owner-observed warnings independently. Return can
 leave warnings active; the captured Jeep required a full ignition cycle. Keep
 Restart required until actual reset/state proof, then verify both warnings clear.
 Do not run road/brake-performance tests or claim an acknowledgment means restoration.
-Line Lock and ABS-only remain outside scope.
+ABS-only remains outside scope. Burnout Mode has a separate gated follow-up below.
 
 ## Stop and cleanup
 
@@ -246,3 +246,30 @@ separately from presentation settling: the existing 250 ms visible fast-class ta
 is not an adapter throughput guarantee. A new measured analog target settles over
 the 150 ms window plus its next ordinary render frame; task stalls and missed
 samples must remain visible in timing evidence.
+
+## Brake actions follow-up
+
+The owner requested both combined ABS/TCS and Burnout Mode on 2026-10-29. Offline
+integration does not authorize live admission. Begin with read-only identification
+of the captured front-controller route620/504 and ABS route784/785, plus labelled
+Park/brake/speed state evidence. Do not infer these modules' identity from the ECM
+calibration, adapter name or an accepted session. Preserve primary/child attribution.
+
+Before enabling combined shutdown, establish exact controller applicability,
+positive independent disabled-state coverage and same-controller restoration/reset
+proof after ignition cycling. The previous JScan capture demonstrated dash lights,
+not braking performance or a verified state decoder.
+
+Before enabling Burnout, resolve the installed `Lock front` setting versus documented
+rear-brake release, identify exact controller/software, capture valid pedal/state
+inputs and a non-mutating released-state readback. Establish controller-side timeout
+and measure release after ordinary touch-up, UI/phone/link loss, lost Start/Return
+replies and reboot. A ten-second gauge timer cannot guarantee physical release.
+Brake-force/holding/release qualification requires an appropriate controlled test
+setup; do not use public-road operation or infer force from warning lamps. Keep the
+feature disabled if a reliable release boundary cannot be established.
+
+After those proofs exist, integrate them through the shared context owner, keeping
+local-only hold-to-run, explicit Stop, durable Unknown, independent TCM telemetry,
+radio/memory checks and exact signed-image evidence. No new remote Start, arbitrary
+valve command, automatic retry or automatic restart is part of this scope.

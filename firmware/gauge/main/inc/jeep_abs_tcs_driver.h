@@ -1,7 +1,12 @@
 #pragma once
 #include "jeep_idle_driver.h"
 
-/* Combined ABS/TCS shutdown only. The fourth-button valve control is excluded. */
+/* Two distinct captured procedures, never arbitrary diagnostic requests. */
+typedef enum
+{
+    JEEP_BRAKE_ABS_TCS,
+    JEEP_BRAKE_BURNOUT
+} jeep_brake_control_t;
 typedef enum
 {
     JEEP_ABS_DISABLE,
@@ -18,9 +23,10 @@ typedef enum
 } jeep_abs_phase_t;
 typedef struct
 {
-    jeep_abs_kind_t kind;
-    uint32_t        operation, revision, link;
-    uint8_t         source;
+    jeep_abs_kind_t      kind;
+    uint32_t             operation, revision, link;
+    uint8_t              source;
+    jeep_brake_control_t control;
 } jeep_abs_request_t;
 typedef struct
 {

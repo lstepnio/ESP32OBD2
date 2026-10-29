@@ -171,6 +171,10 @@ int main(int argc, char **argv)
     assert(config_runtime_load(&runtime, &active, &previous) == ESP_OK);
     assert(runtime.page_action.pages_explicit && runtime.page_action.page_count == 2 &&
            runtime.page_action.pages[0] == 3 && runtime.page_action.pages[1] == 1);
+    cJSON_ReplaceItemInObject(action, "pages", cJSON_Parse("[\"airUp\",\"winch\",\"absTcs\",\"burnout\"]"));
+    set(root);
+    assert(validate() == ESP_OK && config_runtime_load(&runtime, &active, &previous) == ESP_OK);
+    assert(runtime.page_action.page_count == 4 && runtime.page_action.pages[3] == 4);
     const char *bad_pages[] = {"[\"airUp\",\"airUp\"]", "[\"rawCommand\"]", "[1]",
                                "[\"airUp\",\"winch\",\"absTcs\",\"airUp\"]"};
     for (unsigned i = 0; i < 4; ++i)

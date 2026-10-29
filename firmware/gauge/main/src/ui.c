@@ -133,20 +133,24 @@ struct _ui_t
     lv_obj_t           *action_label, *action_arrows[5];
     lv_obj_t           *command_menu, *command_button, *command_back, *command_title, *command_value, *command_note,
         *command_button_text, *command_ring, *command_link_symbol;
-    lv_obj_t   *command_dots[3];
-    uint8_t     command_page, command_request_page, command_page_count, command_pages[3];
+    lv_obj_t   *command_dots[4];
+    uint8_t     command_page, command_request_page, command_page_count, command_pages[4];
     bool        command_suspended, command_press, command_moved, command_waiting, idle_protection;
     int16_t     command_x, command_y;
     lv_obj_t   *command_press_target;
     uint32_t    command_activity, command_wait_at, command_presented_state, command_confirm_state;
-    atomic_uint command_ui[2];
+    atomic_uint command_ui[VEHICLE_COMMAND_KIND_COUNT];
     atomic_bool command_menu_active;
     bool        command_menu_visible, command_layer_dirty;
     uint8_t     command_confirm, command_selected;
     bool        command_hold_armed, command_hold_commit;
     uint32_t    command_press_at, command_press_epoch, command_confirm_epoch;
-    atomic_uint command_epoch;
-    uint32_t    command_scope[2][3]; /* App-task writer only; epoch is the LVGL fence. */
+    atomic_uint command_epoch, command_scope_epoch;
+    atomic_bool command_burnout_held, command_burnout_recorded;
+    atomic_uint command_burnout_at;
+    bool        command_burnout_committed;
+    uint32_t    command_burnout_scope_epoch;
+    uint32_t    command_scope[VEHICLE_COMMAND_KIND_COUNT][3]; /* App-task writer only; epoch is the LVGL fence. */
     bool        command_request_stop, command_admission_failed;
     uint16_t    command_request_seconds, command_confirm_seconds;
 
@@ -2003,6 +2007,11 @@ ui_t *ui_init(ui_page_t const    *page,
     atomic_init(&ui->command_epoch, 0);
     atomic_init(&ui->command_ui[0], 0);
     atomic_init(&ui->command_ui[1], 0);
+    atomic_init(&ui->command_ui[2], 0);
+    atomic_init(&ui->command_scope_epoch, 0);
+    atomic_init(&ui->command_burnout_held, false);
+    atomic_init(&ui->command_burnout_recorded, false);
+    atomic_init(&ui->command_burnout_at, 0);
     ui_init_screen(ui, page, interval_ms);
     if (boot_logo)
         ui_waiting_logo_enable(ui, true);
@@ -2193,6 +2202,11 @@ void ui_set_alert_condition(ui_t       *ui,
 {
     if (!ui || !ui->rtos.alert_que)
         return;
+    if (attention)
+    {
+        atomic_store(&ui->command_burnout_held, false);
+        atomic_fetch_add(&ui->command_scope_epoch, 1);
+    }
     ui_alert_t alert = {.severity    = severity,
                         .attention   = attention,
                         .unavailable = unavailable,
@@ -2268,6 +2282,11 @@ void ui_configure_page_action(ui_t *ui, page_action_config_t config)
 }
 void ui_set_action_context(ui_t *ui, bool allowed)
 {
+    if (!allowed)
+    {
+        atomic_store(&ui->command_burnout_held, false);
+        atomic_fetch_add(&ui->command_scope_epoch, 1);
+    }
     if (atomic_exchange(&ui->action_allowed, allowed) != allowed)
         atomic_fetch_add(&ui->action_context_epoch, 1);
 }
@@ -2391,9 +2410,13 @@ static uint8_t command_id(ui_t *ui)
 {
     return ui->command_page_count ? ui->command_pages[ui->command_page] : 0;
 }
+static unsigned command_index(unsigned id)
+{
+    return id == 4 ? 2 : id == 3 ? 1 : 0;
+}
 static bool command_busy(ui_t *ui)
 {
-    for (unsigned i = 0; i < 2; ++i)
+    for (unsigned i = 0; i < VEHICLE_COMMAND_KIND_COUNT; ++i)
     {
         unsigned phase = atomic_load(&ui->command_ui[i]) & 255U;
         if (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE || phase == VEHICLE_STOPPING ||
@@ -2406,6 +2429,8 @@ static void close_vehicle_menu(ui_t *ui)
 {
     ui->command_menu_visible = ui->command_suspended = ui->command_press = ui->command_hold_armed = false;
     ui->command_confirm                                                                           = 0;
+    ui->command_burnout_committed                                                                 = false;
+    atomic_store(&ui->command_burnout_held, false);
     atomic_store(&ui->command_menu_active, false);
     if (ui->command_menu)
     {
@@ -2440,17 +2465,18 @@ static void command_sync_pages(ui_t *ui)
 {
     uint8_t selected       = command_id(ui);
     ui->command_page_count = ui->action.config.page_count;
-    memcpy(ui->command_pages, ui->action.config.pages, 3);
-    for (unsigned k = 0; k < 2; ++k)
+    memcpy(ui->command_pages, ui->action.config.pages, sizeof(ui->command_pages));
+    for (unsigned k = 0; k < VEHICLE_COMMAND_KIND_COUNT; ++k)
     {
         unsigned state = atomic_load(&ui->command_ui[k]), phase = state & 255U;
         bool unresolved = phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE || phase == VEHICLE_STOPPING ||
                           phase == VEHICLE_VERIFYING || phase == VEHICLE_UNKNOWN || phase == VEHICLE_RESTART_REQUIRED;
-        uint8_t id      = k ? 3 : active_idle_id(ui);
+        uint8_t id      = k == 2 ? 4 : k == 1 ? 3 : active_idle_id(ui);
         bool    exists  = false;
         for (unsigned i = 0; i < ui->command_page_count; ++i)
             exists |= ui->command_pages[i] == id;
-        if (unresolved && !exists && ui->command_page_count < 3)
+        if (unresolved && !exists && ui->command_page_count < 4 &&
+            (k != 2 || atomic_load(&ui->command_burnout_recorded)))
             ui->command_pages[ui->command_page_count++] = id;
     }
     ui->command_page = 0;
@@ -2487,12 +2513,16 @@ static void refresh_vehicle_menu(ui_t *ui)
     }
     if (ui->command_admission_failed && now - ui->command_wait_at >= 2000)
         ui->command_admission_failed = false;
-    unsigned id = command_id(ui), kind = id == 3 ? 1 : 0;
+    unsigned id = command_id(ui), kind = command_index(id);
     unsigned state = atomic_load(&ui->command_ui[kind]), phase = state & 255U;
     if (phase == VEHICLE_RESTORED)
         phase = VEHICLE_READY;
     unsigned    reason = (state >> 28) & 15U;
-    const char *title  = id == 1 ? "Air up" : id == 2 ? "Winch" : id == 3 ? "ABS + TCS" : "No actions";
+    const char *title  = id == 1   ? "Air up"
+                         : id == 2 ? "Winch"
+                         : id == 3 ? "ABS + TCS"
+                         : id == 4 ? "Burnout Mode"
+                                   : "No actions";
     const char *value = "Unavailable", *note = "", *button = "";
     char        duration[24];
     bool        enabled = false;
@@ -2508,8 +2538,13 @@ static void refresh_vehicle_menu(ui_t *ui)
         value = "Add in App";
     else if (phase == VEHICLE_UNKNOWN)
     {
-        value = id < 3 ? "Check idle" : "Check vehicle";
+        value = id == 4 ? "Check brakes" : id < 3 ? "Check idle" : "Check vehicle";
         note  = "Status unknown";
+        if (id == 4 && (state & 256U))
+        {
+            button  = "Release";
+            enabled = true;
+        }
     }
     else if (id == 3 && (phase == VEHICLE_ACTIVE || phase == VEHICLE_RESTART_REQUIRED))
     {
@@ -2520,7 +2555,9 @@ static void refresh_vehicle_menu(ui_t *ui)
     {
         value = "";
         ring  = 2;
-        if (state & (VEHICLE_UI_COOLANT_HIGH << 8))
+        if (id == 4)
+            note = "Check brakes";
+        else if (state & (VEHICLE_UI_COOLANT_HIGH << 8))
             note = "Coolant high";
     }
     else if (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE)
@@ -2531,6 +2568,12 @@ static void refresh_vehicle_menu(ui_t *ui)
         ring    = phase == VEHICLE_STARTING ? 1 : 0;
         button  = id < 3 ? "Stop" : "";
         enabled = id < 3;
+        if (id == 4)
+        {
+            button  = "Hold to run";
+            note    = "Release to stop";
+            enabled = true;
+        }
         if (id < 3 && id != active_idle_id(ui))
             note = active_idle_id(ui) == 2 ? "Winch running" : "Air up running";
         else if (state & (16U << 8))
@@ -2559,8 +2602,10 @@ static void refresh_vehicle_menu(ui_t *ui)
     {
         unsigned seconds = ui->command_confirm ? ui->command_confirm_seconds : command_duration(ui, id, state);
         snprintf(duration, sizeof(duration), "%u:%02u", seconds / 60, seconds % 60);
-        value   = id == 3 ? "On" : duration;
-        button  = id == 3 ? "Disable" : "Hold to start";
+        value  = id == 4 ? "Rear brakes" : id == 3 ? "On" : duration;
+        button = id == 4 ? "Hold to run" : id == 3 ? "Disable" : "Hold to start";
+        if (id == 4)
+            note = "Off-road only";
         enabled = true;
         if (id < 3 && (state & (16U << 8)))
         {
@@ -2615,7 +2660,7 @@ static void refresh_vehicle_menu(ui_t *ui)
             lv_obj_set_style_line_color(ui->command_link_symbol, lv_color_hex(color), 0);
         }
     }
-    for (unsigned i = 0; i < 3; ++i)
+    for (unsigned i = 0; i < 4; ++i)
     {
         lv_obj_set_pos(ui->command_dots[i], gx(120 - (int)ui->command_page_count * 6 + (int)i * 12 + 4), gy(211));
         show(ui->command_dots[i], ui->command_page_count > 1 && i < ui->command_page_count);
@@ -2645,7 +2690,7 @@ static void command_activate(ui_t *ui, bool back)
     unsigned id = command_id(ui);
     if (!id || ui->command_waiting || lv_obj_has_state(ui->command_button, LV_STATE_DISABLED))
         return;
-    unsigned state = atomic_load(&ui->command_ui[id == 3 ? 1 : 0]), phase = state & 255U;
+    unsigned state = atomic_load(&ui->command_ui[command_index(id)]), phase = state & 255U;
     /* A state change must never turn a displayed Start into an implicit Stop. */
     if ((state & 0xfc00ffffU) != (ui->command_presented_state & 0xfc00ffffU))
     {
@@ -2654,7 +2699,8 @@ static void command_activate(ui_t *ui, bool back)
     }
     if (phase == VEHICLE_RESTORED)
         phase = VEHICLE_READY;
-    bool stop = id < 3 && (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE);
+    bool stop = (id < 3 || id == 4) &&
+                (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE || (id == 4 && phase == VEHICLE_UNKNOWN));
     if (!stop && id < 3 && (!ui->idle_protection || (state & (VEHICLE_UI_COOLANT_HIGH << 8))))
         return;
     if (!stop && !ui->command_confirm && (id == 3 || (state & (16U << 8))))
@@ -2665,10 +2711,10 @@ static void command_activate(ui_t *ui, bool back)
         ui->command_confirm_seconds = id < 3 ? command_duration(ui, id, state) : 0;
         return;
     }
-    if (!stop && id < 3 && !ui->command_hold_commit)
+    if (!stop && (id < 3 || id == 4) && !ui->command_hold_commit)
         return;
     unsigned seconds = ui->command_confirm ? ui->command_confirm_seconds : command_duration(ui, id, state);
-    if (stop)
+    if (stop && id < 3)
     {
         id = active_idle_id(ui);
         for (unsigned i = 0; i < ui->command_page_count; i++)
@@ -2706,7 +2752,8 @@ static void command_pointer(ui_t *ui, lv_event_code_t code, lv_obj_t *target, in
         ui->command_press_at     = (uint32_t)(esp_timer_get_time() / 1000);
         ui->command_press_epoch  = atomic_load(&ui->command_epoch);
         ui->command_hold_armed =
-            target == ui->command_button && !strcmp(lv_label_get_text(ui->command_button_text), "Hold to start");
+            target == ui->command_button && (!strcmp(lv_label_get_text(ui->command_button_text), "Hold to start") ||
+                                             !strcmp(lv_label_get_text(ui->command_button_text), "Hold to run"));
     }
     else if (code == LV_EVENT_PRESSING && ui->command_press)
     {
@@ -2721,11 +2768,15 @@ static void command_pointer(ui_t *ui, lv_event_code_t code, lv_obj_t *target, in
         }
     }
     else if (code == LV_EVENT_PRESS_LOST)
-        ui->command_press = ui->command_hold_armed = false;
+    {
+        ui->command_press = ui->command_hold_armed = ui->command_burnout_committed = false;
+        atomic_store(&ui->command_burnout_held, false);
+    }
     else if (code == LV_EVENT_RELEASED && ui->command_press)
     {
-        bool held         = ui->command_hold_armed;
-        ui->command_press = ui->command_hold_armed = false;
+        bool held         = ui->command_hold_armed || ui->command_burnout_committed;
+        ui->command_press = ui->command_hold_armed = ui->command_burnout_committed = false;
+        atomic_store(&ui->command_burnout_held, false);
         int dx = x - ui->command_x, dy = y - ui->command_y;
         if (dy >= px(32) && abs(dy) >= 2 * abs(dx))
         {
@@ -2807,7 +2858,7 @@ void ui_show_vehicle_actions(ui_t *ui)
         lv_obj_set_style_line_width(chevron, px(2), 0);
         lv_obj_center(chevron);
         lv_obj_remove_flag(chevron, LV_OBJ_FLAG_CLICKABLE);
-        for (unsigned i = 0; i < 3; ++i)
+        for (unsigned i = 0; i < 4; ++i)
         {
             ui->command_dots[i] = plain_view(ui->command_menu, 4, 4);
             lv_obj_set_style_radius(ui->command_dots[i], px(2), 0);
@@ -2836,8 +2887,8 @@ void ui_show_vehicle_actions(ui_t *ui)
     ui->command_activity = (uint32_t)(esp_timer_get_time() / 1000);
     for (unsigned i = 0; i < ui->command_page_count; ++i)
     {
-        unsigned id = ui->command_pages[i], phase = atomic_load(&ui->command_ui[id == 3 ? 1 : 0]) & 255U;
-        if ((id == 3 || id == active_idle_id(ui)) &&
+        unsigned id = ui->command_pages[i], phase = atomic_load(&ui->command_ui[command_index(id)]) & 255U;
+        if ((id >= 3 || id == active_idle_id(ui)) &&
             (phase == VEHICLE_ACTIVE || phase == VEHICLE_STARTING || phase == VEHICLE_STOPPING ||
              phase == VEHICLE_VERIFYING || phase == VEHICLE_UNKNOWN || phase == VEHICLE_RESTART_REQUIRED))
         {
@@ -2859,7 +2910,7 @@ void ui_set_vehicle_action_status(ui_t    *ui,
                                   uint8_t  reason,
                                   uint8_t  preset)
 {
-    if (ui && kind >= 1 && kind <= 2)
+    if (ui && kind >= 1 && kind <= VEHICLE_COMMAND_KIND_COUNT)
     {
         unsigned packed = phase | ((unsigned)flags << 8) | (((unsigned)remaining & 1023U) << 16) |
                           (((unsigned)preset & 3U) << 26) | (((unsigned)reason & 15U) << 28);
@@ -2880,7 +2931,7 @@ void ui_set_idle_protection(ui_t *ui, bool configured)
 void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *preset, uint16_t *seconds)
 {
     unsigned id = ui->command_request_page;
-    *kind       = id == 3 ? 2 : 1;
+    *kind       = command_index(id) + 1;
     *stop       = ui->command_request_stop;
     *preset     = *kind == 1 && !*stop ? id : 0;
     *seconds    = ui->command_request_seconds;
@@ -2898,36 +2949,65 @@ void ui_vehicle_command_queued(ui_t *ui, bool accepted)
 
 void ui_set_vehicle_action_snapshot(ui_t *ui, const uint8_t status[32])
 {
-    if (!ui || !status || status[1] < 1 || status[1] > 2)
+    if (!ui || !status || status[1] < 1 || status[1] > VEHICLE_COMMAND_KIND_COUNT)
         return;
     uint32_t scope[3];
     memcpy(scope, status + 8, sizeof(scope));
     unsigned kind = status[1];
+    if (kind == VEHICLE_BURNOUT)
+        atomic_store(&ui->command_burnout_recorded, (status[4] | status[5] | status[6] | status[7]) != 0);
     if (memcmp(ui->command_scope[kind - 1], scope, sizeof(scope)))
     {
         memcpy(ui->command_scope[kind - 1], scope, sizeof(scope));
+        atomic_fetch_add(&ui->command_scope_epoch, 1);
         atomic_fetch_add(&ui->command_epoch, 1);
     }
     ui_set_vehicle_action_status(ui, kind, status[2], status[27], status[24] | (uint16_t)status[25] << 8, status[3],
                                  status[26]);
 }
+bool ui_vehicle_burnout_held(ui_t *ui)
+{
+    return ui && atomic_load(&ui->command_burnout_held) &&
+           (uint32_t)(esp_timer_get_time() / 1000) - atomic_load(&ui->command_burnout_at) <= 300;
+}
 static void command_hold_tick(ui_t *ui)
 {
+    if (ui->command_burnout_committed)
+    {
+        lv_indev_t *input = lv_indev_get_next(NULL);
+        bool held = ui->command_press && !ui->command_moved && ui->command_menu_visible && !ui->command_suspended &&
+                    action_context(ui) && command_id(ui) == 4 &&
+                    ui->command_burnout_scope_epoch == atomic_load(&ui->command_scope_epoch) &&
+                    (!input || lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED);
+        atomic_store(&ui->command_burnout_held, held);
+        if (held)
+            atomic_store(&ui->command_burnout_at, (uint32_t)(esp_timer_get_time() / 1000));
+        else
+            ui->command_burnout_committed = ui->command_press = ui->command_hold_armed = false;
+        return;
+    }
     if (!ui->command_press || !ui->command_hold_armed)
         return;
     if (!ui->command_menu_visible || ui->command_suspended || !action_context(ui) || ui->command_moved ||
         ui->command_press_epoch != atomic_load(&ui->command_epoch) ||
         lv_obj_has_state(ui->command_button, LV_STATE_DISABLED) ||
-        strcmp(lv_label_get_text(ui->command_button_text), "Hold to start"))
+        (strcmp(lv_label_get_text(ui->command_button_text), "Hold to start") &&
+         strcmp(lv_label_get_text(ui->command_button_text), "Hold to run")))
     {
         ui->command_press = ui->command_hold_armed = false;
         return;
     }
     if ((uint32_t)(esp_timer_get_time() / 1000) - ui->command_press_at < 900)
         return;
-    /* Consume the entire touch before dispatch: its release cannot also Stop. */
-    ui->command_press = ui->command_hold_armed = false;
-    ui->command_hold_commit                    = true;
+    /* Burnout keeps a fresh physical-contact lease; release cannot re-trigger Start. */
+    bool burnout                    = command_id(ui) == 4;
+    ui->command_burnout_committed   = burnout;
+    ui->command_burnout_scope_epoch = atomic_load(&ui->command_scope_epoch);
+    atomic_store(&ui->command_burnout_held, burnout);
+    atomic_store(&ui->command_burnout_at, (uint32_t)(esp_timer_get_time() / 1000));
+    ui->command_press       = burnout;
+    ui->command_hold_armed  = false;
+    ui->command_hold_commit = true;
     command_activate(ui, false);
     ui->command_hold_commit = false;
     refresh_vehicle_menu(ui);

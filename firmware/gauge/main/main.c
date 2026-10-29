@@ -556,7 +556,8 @@ static void app_tick_task(void *arg)
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(100));
         uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
         ble_companion_tick();
-        for (uint8_t kind = 1; kind <= 2; ++kind)
+        vehicle_commands_runtime_burnout_hold(ui_vehicle_burnout_held(ui));
+        for (uint8_t kind = 1; kind <= VEHICLE_COMMAND_KIND_COUNT; ++kind)
         {
             uint8_t status[32];
             if (vehicle_commands_runtime_ui_status(kind, status))
@@ -1050,6 +1051,8 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         bool     stop;
         uint16_t seconds;
         ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
+        if (kind == VEHICLE_BURNOUT)
+            vehicle_commands_runtime_burnout_hold(ui_vehicle_burnout_held(ui));
         ui_vehicle_command_queued(ui, vehicle_commands_runtime_intent(kind, stop, preset, seconds));
         break;
     }

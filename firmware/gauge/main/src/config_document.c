@@ -515,12 +515,12 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
             const cJSON *action_pages = cJSON_GetObjectItemCaseSensitive(action, "pages");
             if (action_pages)
             {
-                static const char *const ids[] = {"airUp", "winch", "absTcs"};
-                if (!array_size(action_pages, 0, 3))
+                static const char *const ids[] = {"airUp", "winch", "absTcs", "burnout"};
+                if (!array_size(action_pages, 0, 4))
                     return false;
                 for (const cJSON *id = action_pages->child; id; id = id->next)
                 {
-                    if (!one_of(id, ids, 3))
+                    if (!one_of(id, ids, 4))
                         return false;
                     for (const cJSON *prior = action_pages->child; prior != id; prior = prior->next)
                         if (!strcmp(prior->valuestring, id->valuestring))

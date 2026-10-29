@@ -212,7 +212,7 @@ static void wire_and_cancel(const uint8_t *fixture)
     assert(vehicle_commands_status(&s, VEHICLE_IDLE, context, now, status) == 32);
     assert(status[0] == 22 && status[2] == VEHICLE_RESTORED && status[16] == 17 && status[27] == 1);
     assert(sizeof(s) < 2048);
-    vehicle_command_state_t maintenance[2] = {{.phase = VEHICLE_RESTART_REQUIRED}};
+    vehicle_command_state_t maintenance[VEHICLE_COMMAND_KIND_COUNT] = {{.phase = VEHICLE_RESTART_REQUIRED}};
     assert(!vehicle_commands_maintenance_allowed(maintenance, true));
     assert(vehicle_commands_maintenance_allowed(maintenance, false));
     maintenance[0].phase = VEHICLE_UNKNOWN;
@@ -595,6 +595,203 @@ static void recovery_scope_and_retry_fences(void)
     assert(command.text && !strcmp(command.text, "AT SH 7E0"));
     assert(durable.mask == 1 && durable.operation[0] == 42);
 }
+
+static void test_put32(uint8_t *p, uint32_t value)
+{
+    for (unsigned i = 0; i < 4; ++i)
+        p[i] = value >> (8 * i);
+}
+
+static vehicle_command_request_t burnout_request(uint8_t verb, uint32_t op)
+{
+    vehicle_command_request_t r = request(VEHICLE_BURNOUT, verb, op);
+    r.gauge_confirmed           = true;
+    return r;
+}
+static void burnout_context(void)
+{
+    context.qualified_mask = context.identity_mask = 7;
+    context.burnout_held                           = true;
+    context.guard_at = context.burnout_hold_at = now;
+}
+static void burnout_route(vehicle_commands_t *s)
+{
+    exchange(s, "AT SH 784", "OK\r\r>");
+    exchange(s, "AT FC SH 784", "OK\r\r>");
+    exchange(s, "AT CRA 785", "OK\r\r>");
+    exchange(s, "10 92 1", "785 02 50 92\r\r>");
+}
+static void burnout_start(vehicle_commands_t *s)
+{
+    burnout_context();
+    assert(vehicle_commands_submit(s, burnout_request(VEHICLE_START, 1), context, now));
+    burnout_route(s);
+    exchange(s, "30 11 07 A0 00", "785 03 70 11 07\r\r>");
+    assert(s->states[2].phase == VEHICLE_ACTIVE && durable.mask == 4);
+}
+static void burnout_hold_release_and_uncertainty(void)
+{
+    vehicle_commands_t s;
+    init(&s);
+    burnout_context();
+    vehicle_command_request_t r = burnout_request(VEHICLE_START, 1);
+    r.gauge_confirmed           = false;
+    assert(!vehicle_commands_submit(&s, r, context, now));
+    assert(!vehicle_commands_next(&s, context, now).text && !durable.mask);
+    init(&s);
+    burnout_start(&s);
+    assert(!vehicle_commands_submit(&s, request(VEHICLE_IDLE, VEHICLE_START, 2), context, now));
+    assert(!vehicle_commands_submit(&s, request(VEHICLE_ABS_TCS, VEHICLE_START, 2), context, now));
+    /* Release is independent of queue admission. ACK does not clear uncertainty. */
+    context.burnout_held = false;
+    burnout_route(&s);
+    exchange(&s, "30 11 07 00 00", "785 03 70 11 07\r\r>");
+    assert(s.states[2].phase == VEHICLE_VERIFYING && durable.mask == 4);
+    assert(!s.states[2].restart_required);
+    assert(!vehicle_commands_maintenance_allowed(s.states, false));
+    context.burnout_released_verified = true;
+    context.verified_operation[2]     = 1;
+    context.proof_at[2]               = s.states[2].changed_at; /* not newer evidence */
+    vehicle_commands_observe(&s, context, now);
+    assert(durable.mask == 4);
+    context.proof_at[2] = ++now;
+    vehicle_commands_observe(&s, context, now);
+    assert(s.states[2].phase == VEHICLE_RESTORED && durable.mask == 0);
+    assert(vehicle_commands_maintenance_allowed(s.states, true));
+
+    init(&s);
+    burnout_start(&s);
+    now += VEHICLE_BURNOUT_HOLD_MS + 1;
+    context.guard_at = now;
+    burnout_route(&s); /* stale UI heartbeat causes Return, even with fresh vehicle guards */
+    exchange(&s, "30 11 07 00 00", "785 03 70 11 07\r\r>");
+    assert(s.states[2].phase == VEHICLE_VERIFYING);
+
+    init(&s);
+    burnout_start(&s);
+    now += 10001;
+    burnout_context();
+    burnout_route(&s); /* fresh held contact cannot extend the hard deadline */
+    exchange(&s, "30 11 07 00 00", "785 03 70 11 07\r\r>");
+    assert(s.states[2].phase == VEHICLE_VERIFYING);
+
+    init(&s);
+    burnout_context();
+    assert(vehicle_commands_submit(&s, burnout_request(VEHICLE_START, 1), context, now));
+    burnout_route(&s);
+    exchange(&s, "30 11 07 A0 00", "504 03 70 11 07\r\r>");
+    assert(s.states[2].phase == VEHICLE_UNKNOWN && durable.mask == 4);
+    assert(!vehicle_commands_maintenance_allowed(s.states, false));
+    assert(!vehicle_commands_next(&s, context, now).text); /* no blind replay */
+    assert(vehicle_commands_submit(&s, burnout_request(VEHICLE_STOP, 1), context, now));
+    burnout_route(&s);
+    exchange(&s, "30 11 07 00 00", "785 03 70 11 07\r\r>");
+    assert(s.states[2].phase == VEHICLE_VERIFYING && durable.mask == 4);
+    vehicle_commands_t reboot;
+    vehicle_commands_init(&reboot, 18, save, NULL, &durable, true);
+    assert(reboot.states[2].phase == VEHICLE_UNKNOWN && !reboot.states[2].restart_required);
+    assert(!vehicle_commands_next(&reboot, context, now).text);
+
+    /* Lost activation reply plus physical release attempts one Return, then
+     * keeps uncertainty if that reply is lost too. No release retry loop. */
+    init(&s);
+    burnout_context();
+    assert(vehicle_commands_submit(&s, burnout_request(VEHICLE_START, 1), context, now));
+    burnout_route(&s);
+    jeep_idle_command_t sent = vehicle_commands_next(&s, context, now++);
+    assert(sent.text && !strcmp(sent.text, "30 11 07 A0 00") && durable.mask == 4);
+    context.burnout_held = false;
+    vehicle_commands_observe(&s, context, now);
+    vehicle_commands_transport_failed(&s, now);
+    burnout_route(&s);
+    sent = vehicle_commands_next(&s, context, now++);
+    assert(sent.text && !strcmp(sent.text, "30 11 07 00 00"));
+    vehicle_commands_transport_failed(&s, now);
+    assert(s.states[2].phase == VEHICLE_UNKNOWN && !s.states[2].pending_stop);
+    assert(!vehicle_commands_next(&s, context, now).text);
+    /* A new live link needs an explicit same-identity release request. */
+    vehicle_commands_init(&reboot, 18, save, NULL, &durable, true);
+    context.link                      = 10;
+    vehicle_command_request_t release = burnout_request(VEHICLE_STOP, 1);
+    release.boot                      = 18;
+    release.link                      = 10;
+    context.identity                  = 12;
+    assert(!vehicle_commands_submit(&reboot, release, context, now));
+    context.identity = 11;
+    assert(vehicle_commands_submit(&reboot, release, context, now));
+    burnout_route(&reboot);
+    exchange(&reboot, "30 11 07 00 00", "785 03 70 11 07\r\r>");
+    assert(reboot.states[2].phase == VEHICLE_VERIFYING && durable.mask == 4);
+
+    /* A previously durable uncertainty marker permits protective Return even
+     * when a later flash write fails; proof cannot clear it without storage. */
+    init(&s);
+    burnout_start(&s);
+    context.burnout_held = false;
+    storage_ok           = false;
+    burnout_route(&s);
+    exchange(&s, "30 11 07 00 00", "785 03 70 11 07\r\r>");
+    assert(s.states[2].phase == VEHICLE_VERIFYING && durable.mask == 4);
+    context.burnout_released_verified = true;
+    context.verified_operation[2]     = 1;
+    context.proof_at[2]               = ++now;
+    vehicle_commands_observe(&s, context, now);
+    assert(s.states[2].phase == VEHICLE_UNKNOWN && durable.mask == 4);
+
+    /* A stored combined-shutdown state blocks Burnout, not just adapter IO. */
+    init(&s);
+    abs_job(&s, false, 1);
+    burnout_context();
+    assert(!vehicle_commands_submit(&s, burnout_request(VEHICLE_START, 2), context, now));
+}
+static void burnout_wire_and_marker_compatibility(void)
+{
+    uint8_t bytes[24] = {2, 3, 1};
+    test_put32(bytes + 4, 1);
+    test_put32(bytes + 8, 7);
+    test_put32(bytes + 12, 9);
+    test_put32(bytes + 16, 17);
+    vehicle_command_request_t r;
+    assert(vehicle_command_decode(bytes, sizeof(bytes), &r) && r.kind == VEHICLE_BURNOUT && !r.gauge_confirmed);
+    bytes[0] = 1;
+    assert(!vehicle_command_decode(bytes, sizeof(bytes), &r));
+    bytes[0] = 2;
+    bytes[3] = 1;
+    assert(!vehicle_command_decode(bytes, sizeof(bytes), &r));
+    bytes[3]  = 0;
+    bytes[20] = 10;
+    assert(!vehicle_command_decode(bytes, sizeof(bytes), &r)); /* deadline cannot come from a client */
+
+    uint8_t legacy[28] = {1, 2};
+    test_put32(legacy + 16, 5);
+    test_put32(legacy + 20, 7);
+    test_put32(legacy + 24, 11);
+    vehicle_command_marker_t marker;
+    assert(vehicle_command_marker_decode(legacy, sizeof(legacy), &marker));
+    assert(marker.mask == 2 && marker.operation[1] == 5 && !marker.operation[2]);
+    marker.mask |= 4;
+    marker.operation[2] = 6;
+    marker.revision[2]  = 7;
+    marker.identity[2]  = 11;
+    uint8_t encoded[VEHICLE_COMMAND_MARKER_SIZE];
+    vehicle_command_marker_encode(&marker, encoded);
+    vehicle_command_marker_t decoded;
+    assert(encoded[0] == 2 && vehicle_command_marker_decode(encoded, sizeof(encoded), &decoded));
+    assert(decoded.mask == 6 && decoded.operation[1] == 5 && decoded.operation[2] == 6);
+    assert(!vehicle_command_marker_decode(encoded, 28, &decoded));
+    encoded[0] = 3;
+    assert(!vehicle_command_marker_decode(encoded, sizeof(encoded), &decoded));
+    encoded[0] = 2;
+    encoded[1] |= 8;
+    assert(!vehicle_command_marker_decode(encoded, sizeof(encoded), &decoded));
+    encoded[1] = 4;
+    memset(encoded + 28, 0, 4);
+    assert(!vehicle_command_marker_decode(encoded, sizeof(encoded), &decoded));
+    marker.mask = 2;
+    assert(vehicle_command_marker_encode(&marker, encoded) == 28 && encoded[0] == 1);
+    assert(vehicle_command_marker_decode(encoded, 28, &decoded) && decoded.mask == 2);
+}
+
 int main(int argc, char **argv)
 {
     recovery_scope_and_retry_fences();
@@ -611,6 +808,8 @@ int main(int argc, char **argv)
     fclose(file);
     parked_test_is_local_idle_only_and_bounded();
     coolant_timer_requires_local_start_and_never_extends();
+    burnout_hold_release_and_uncertainty();
+    burnout_wire_and_marker_compatibility();
     coolant_limit_selection_and_freshness();
     coolant_guard_refuses_start_and_latches_release();
     two_actions_share_worker_and_restore_independently();

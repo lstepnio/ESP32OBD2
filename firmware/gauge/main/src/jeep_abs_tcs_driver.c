@@ -1,7 +1,8 @@
 #include "jeep_abs_tcs_driver.h"
 #include <string.h>
 
-static const char *const route[] = {"AT SH 620", "AT FC SH 620", "AT CRA 504", "10 92 1"};
+static const char *const abs_route[]     = {"AT SH 620", "AT FC SH 620", "AT CRA 504", "10 92 1"};
+static const char *const burnout_route[] = {"AT SH 784", "AT FC SH 784", "AT CRA 785", "10 92 1"};
 void                     jeep_abs_driver_init(jeep_abs_driver_t *d)
 {
     memset(d, 0, sizeof(*d));
@@ -31,8 +32,8 @@ static bool current(jeep_abs_driver_t *d, idle_context_t c, uint32_t now)
 bool jeep_abs_driver_begin(jeep_abs_driver_t *d, jeep_abs_request_t r, idle_context_t c, uint32_t now)
 {
     if (d->phase == JEEP_ABS_WORKING || d->phase == JEEP_ABS_UNKNOWN || (unsigned)r.kind > JEEP_ABS_RETURN ||
-        r.source || !r.operation || !r.revision || !r.link || !c.connected || c.revision != r.revision ||
-        c.link != r.link || d->ticket > UINT32_MAX - 8U)
+        (unsigned)r.control > JEEP_BRAKE_BURNOUT || r.source || !r.operation || !r.revision || !r.link ||
+        !c.connected || c.revision != r.revision || c.link != r.link || d->ticket > UINT32_MAX - 8U)
         return false;
     if (r.kind == JEEP_ABS_DISABLE &&
         (!c.guards_fresh_and_met || d->control_possible || r.operation <= d->last_disable))
@@ -69,9 +70,13 @@ jeep_idle_command_t jeep_abs_driver_next(jeep_abs_driver_t *d, idle_context_t c,
         d->phase = d->control_possible ? JEEP_ABS_UNKNOWN : JEEP_ABS_CANCELLED;
         return none;
     }
-    const char *text = d->step < 4 ? route[d->step] : d->request.kind == JEEP_ABS_DISABLE ? "31 A4" : "32 A4";
-    d->waiting       = true;
-    d->sent_at       = now;
+    bool               burnout = d->request.control == JEEP_BRAKE_BURNOUT;
+    const char *const *route   = burnout ? burnout_route : abs_route;
+    const char        *text    = d->step < 4 ? route[d->step]
+                                 : burnout ? (d->request.kind == JEEP_ABS_DISABLE ? "30 11 07 A0 00" : "30 11 07 00 00")
+                                           : (d->request.kind == JEEP_ABS_DISABLE ? "31 A4" : "32 A4");
+    d->waiting                 = true;
+    d->sent_at                 = now;
     elm_response_reset(&d->response);
     if (d->step == 4)
         d->control_possible = true;
@@ -96,8 +101,9 @@ static void complete(jeep_abs_driver_t *d)
         return;
     }
     elm_payload_t p;
-    uint8_t       service = d->step == 3 ? 0x10 : d->request.kind == JEEP_ABS_DISABLE ? 0x31 : 0x32;
-    if (elm_response_decode_control_frame(&d->response, 0x504, &p) != ELM_OK)
+    bool          burnout = d->request.control == JEEP_BRAKE_BURNOUT;
+    uint8_t       service = d->step == 3 ? 0x10 : burnout ? 0x30 : d->request.kind == JEEP_ABS_DISABLE ? 0x31 : 0x32;
+    if (elm_response_decode_control_frame(&d->response, burnout ? 0x785 : 0x504, &p) != ELM_OK)
     {
         fail(d, JEEP_IDLE_ERROR_FRAMING);
         return;
@@ -108,7 +114,11 @@ static void complete(jeep_abs_driver_t *d)
         fail(d, p.bytes[2] == 0x78 ? JEEP_IDLE_ERROR_PENDING : JEEP_IDLE_ERROR_NEGATIVE);
         return;
     }
-    if (p.length != 2 || p.bytes[0] != service + 0x40 || p.bytes[1] != (d->step == 3 ? 0x92 : 0xa4))
+    if (p.length != (d->step == 4 && burnout ? 3 : 2) || p.bytes[0] != service + 0x40 ||
+        p.bytes[1] != (d->step == 3 ? 0x92
+                       : burnout    ? 0x11
+                                    : 0xa4) ||
+        (d->step == 4 && burnout && p.bytes[2] != 0x07))
     {
         fail(d, JEEP_IDLE_ERROR_FRAMING);
         return;

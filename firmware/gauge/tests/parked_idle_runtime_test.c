@@ -72,8 +72,10 @@ esp_err_t nvs_open(const char *name, unsigned mode, nvs_handle_t *out)
 }
 esp_err_t nvs_get_blob(nvs_handle_t h, const char *key, void *out, size_t *length)
 {
-    assert(h && !strcmp(key, "intent_v1") && *length == sizeof(journal));
-    memcpy(out, journal, *length);
+    /* NVS takes buffer capacity and returns the actual stored record length. */
+    assert(h && !strcmp(key, "intent_v1") && *length >= sizeof(journal));
+    memcpy(out, journal, sizeof(journal));
+    *length = sizeof(journal);
     return ESP_OK;
 }
 esp_err_t nvs_set_blob(nvs_handle_t h, const char *key, const void *in, size_t length)

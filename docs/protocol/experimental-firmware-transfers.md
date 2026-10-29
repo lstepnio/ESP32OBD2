@@ -305,7 +305,7 @@ fixture contract, not an alternative live request path.
 Authenticated control `0x66` contains exactly one 24-byte inner request. `0x67` +
 nonzero read sequence u32 + kind u8 selects a 32-byte protected snapshot. The kind
 also selects the response after a command. There is no arbitrary diagnostic text,
-child-adapter selector, fourth-button control or numeric RPM field.
+child-adapter selector or numeric RPM field. Burnout uses the gated v2 extension below.
 
 | Inner offset | Size | Field |
 | --- | --- | --- |
@@ -413,3 +413,29 @@ advance revision. Older firmware rejects unknown sidecar flags and safely loses
 optional modes rather than applying a mismatched record. Default images keep both
 orientation probe/qualification gates off. Physical acceptance is required before
 advertising usable Auto; see [hardware policy](../architecture/hardware-and-transports.md#automatic-display-orientation).
+
+## Burnout command extension v2
+
+Optional authenticated capability `bm:1` adds kind3 **Burnout Mode** without changing v1 Idle/ABS requests or their `vc:1` declaration. Older Apps
+ignore the additional key and retain their existing path. It declares the typed
+interface, never live controller qualification.
+The protected status selector is `67` + `le32(2)` + `03`; legacy kinds use selector
+version1. The 24-byte command uses version byte2 for kind3, zero preset/duration
+and the same operation/revision/link/boot fences. Only local physical admission can
+Start; wire Start is refused. Explicit Stop (`verb2`) is permitted for a qualified
+Starting/Active/Unknown operation and never starts/replays control. A lost-link or
+reboot Unknown can rebind only for that explicit release, with matching durable
+identity/revision/operation and current boot/link.
+
+Status remains tag22/32 bytes: kind3, remaining software-run seconds0..10, preset0,
+flag bit0 for independently qualified execution and bit3 for physical-gauge-only
+Start. Idle-only fallback/coolant bits and ABS-only restart bit are invalid for
+kind3. An accepted Return yields Verifying; only independent release proof yields
+Restored. The ten-second deadline requests release, not proof of brake release or
+a controller-side lease. Public capability flags stay disabled.
+
+Configuration schema2 with `cfg:7` + `vc:1` + optional `bm:1` accepts an explicit fourth unique page
+ID `burnout` (0..4 pages). Absent `pages` still means the original three-page menu,
+never an implicit Burnout page. App preflight refuses sending it to v1/unknown
+gauges while retaining the editable local draft. Runtime journal compatibility
+and physical hold ownership are defined in the [action contract](../architecture/vehicle-actions.md#burnout-mode-and-brake-actions).

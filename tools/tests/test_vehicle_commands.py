@@ -5,7 +5,7 @@ from tools import dev
 
 
 class VehicleCommandsTests(unittest.TestCase):
-    def test_shared_worker_replays_both_controllers_and_negative_outcomes(self):
+    def test_shared_worker_replays_three_actions_and_negative_outcomes(self):
         dev.native(
             "vehicle_commands",
             [

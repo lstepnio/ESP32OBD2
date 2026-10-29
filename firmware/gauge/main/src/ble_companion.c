@@ -190,7 +190,7 @@ static void owner_save_worker(void *arg)
 #define DOCUMENT_CAPABILITY_BASE                                                                                       \
     "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","                                                      \
     "\"maxAdapterLinks\":1,"                                                                                           \
-    "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"da\":1,\"va\":1,\"vc\":1,"                                             \
+    "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"da\":1,\"va\":1,\"vc\":1,\"bm\":1,"                                    \
     "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY SMART_PAGE_CAPABILITY ",\"mp\":10,\"dx\":1"
 static const char capabilities[]             = LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
 static const char document_capabilities[]    = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
@@ -262,7 +262,8 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle, struct ble
         }
         else
         {
-            if (length != 6 || request[5] < 1 || request[5] > 2)
+            if (length != 6 || request[5] < 1 || request[5] > VEHICLE_COMMAND_KIND_COUNT ||
+                read_u32(request + 1) != (request[5] == VEHICLE_BURNOUT ? 2U : 1U))
                 return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
             extended_source = request[5];
         }

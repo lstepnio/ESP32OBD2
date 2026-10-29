@@ -302,20 +302,35 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
             ++target;
         if (!menu && target == out->page_count)
             goto done;
-        out->page_action                = (page_action_config_t){.enabled        = true,
-                                                                 .target_page    = target,
-                                                                 .count          = field(action, "count")->valueint,
-                                                                 .window_ms      = field(action, "windowMs")->valueint,
-                                                                 .vehicle_menu   = menu,
-                                                                 .air_up_seconds = menu ? air->valueint : 300,
-                                                                 .winch_seconds  = menu ? winch->valueint : 300};
-        const cJSON *list               = field(action, "pages");
+        out->page_action  = (page_action_config_t){.enabled        = true,
+                                                   .target_page    = target,
+                                                   .count          = field(action, "count")->valueint,
+                                                   .window_ms      = field(action, "windowMs")->valueint,
+                                                   .vehicle_menu   = menu,
+                                                   .air_up_seconds = menu ? air->valueint : 300,
+                                                   .winch_seconds  = menu ? winch->valueint : 300};
+        const cJSON *list = field(action, "pages");
+        if (list && (!cJSON_IsArray(list) || cJSON_GetArraySize(list) > 4))
+            goto done;
+        unsigned seen                   = 0;
         out->page_action.pages_explicit = menu;
         out->page_action.page_count     = menu ? (list ? cJSON_GetArraySize(list) : 3) : 0;
         for (unsigned i = 0; i < out->page_action.page_count; ++i)
         {
-            const char *id            = list ? cJSON_GetArrayItem(list, i)->valuestring : NULL;
-            out->page_action.pages[i] = !list ? i + 1 : !strcmp(id, "airUp") ? 1 : !strcmp(id, "winch") ? 2 : 3;
+            const cJSON *item = list ? cJSON_GetArrayItem(list, i) : NULL;
+            if (item && !cJSON_IsString(item))
+                goto done;
+            const char *id    = item ? item->valuestring : NULL;
+            uint8_t     value = !list                    ? i + 1
+                                : !strcmp(id, "airUp")   ? 1
+                                : !strcmp(id, "winch")   ? 2
+                                : !strcmp(id, "absTcs")  ? 3
+                                : !strcmp(id, "burnout") ? 4
+                                                         : 0;
+            if (!value || (seen & (1U << value)))
+                goto done;
+            seen |= 1U << value;
+            out->page_action.pages[i] = value;
         }
     }
     err = ESP_OK;

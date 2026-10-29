@@ -331,13 +331,14 @@
           },
           "pages": {
             "type": "array",
-            "maxItems": 3,
+            "maxItems": 4,
             "uniqueItems": true,
             "items": {
               "enum": [
                 "airUp",
                 "winch",
-                "absTcs"
+                "absTcs",
+                "burnout"
               ]
             }
           }

@@ -888,6 +888,86 @@ int main(int argc, char **argv)
     tick(200);
     assert(ui->command_menu_visible && command_requests == before);
     close_vehicle_menu(ui);
+    /* Burnout is an explicit fourth page, never a legacy default. A tap cannot
+     * Start, and phase updates cannot consume its physical hold as a second action. */
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1, 0, 0, 0);
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_READY, 1, 0, 0, 0);
+    uint8_t empty_brake_journal[32] = {22, 3, VEHICLE_UNKNOWN};
+    ui_set_vehicle_action_snapshot(ui, empty_brake_journal);
+    ui_configure_page_action(ui, (page_action_config_t){.enabled        = true,
+                                                        .vehicle_menu   = true,
+                                                        .count          = 3,
+                                                        .window_ms      = 5000,
+                                                        .air_up_seconds = 300,
+                                                        .winch_seconds  = 60});
+    ui_show_vehicle_actions(ui);
+    tick(60);
+    assert(ui->command_page_count == 3); /* Generic journal errors never invent a fourth page. */
+    close_vehicle_menu(ui);
+    ui_set_vehicle_action_status(ui, 3, VEHICLE_UNAVAILABLE, 8, 0, 0, 0);
+    page_action_config_t brake_pages = {.enabled        = true,
+                                        .vehicle_menu   = true,
+                                        .count          = 3,
+                                        .window_ms      = 5000,
+                                        .air_up_seconds = 300,
+                                        .winch_seconds  = 60,
+                                        .pages_explicit = true,
+                                        .page_count     = 4,
+                                        .pages          = {1, 2, 3, 4}};
+    ui_configure_page_action(ui, brake_pages);
+    ui_show_vehicle_actions(ui);
+    ui->command_page = 3;
+    tick(60);
+    assert(ui->command_page_count == 4 && !strcmp(lv_label_get_text(ui->command_title), "Burnout Mode"));
+    assert(!strcmp(lv_label_get_text(ui->command_value), "Not supported"));
+    capture(argv[1], "actions-burnout-unavailable");
+    ui_set_vehicle_action_status(ui, 3, VEHICLE_READY, 1 | 8, 0, 0, 0);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_button_text), "Hold to run"));
+    capture(argv[1], "actions-burnout-ready");
+    before = command_requests;
+    action_press(ui);
+    action_release(ui);
+    tick(60);
+    assert(command_requests == before && !ui_vehicle_burnout_held(ui));
+    action_press(ui);
+    tick(1000);
+    assert(command_requests == before + 1 && ui_vehicle_burnout_held(ui));
+    ui_vehicle_command_request(ui, &kind, &stop, &preset, &seconds);
+    assert(kind == 3 && !stop && !preset && !seconds);
+    ui_set_vehicle_action_status(ui, 3, VEHICLE_STARTING, 1 | 8, 0, 0, 0);
+    tick(60);
+    assert(ui_vehicle_burnout_held(ui));
+    ui_set_vehicle_action_status(ui, 3, VEHICLE_ACTIVE, 1 | 8, 8, 0, 0);
+    tick(60);
+    assert(ui_vehicle_burnout_held(ui));
+    capture(argv[1], "actions-burnout-held");
+    action_release(ui);
+    assert(!ui_vehicle_burnout_held(ui) && command_requests == before + 1);
+    ui_set_vehicle_action_status(ui, 3, VEHICLE_VERIFYING, 1 | 8, 0, 0, 0);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_note), "Check brakes"));
+    capture(argv[1], "actions-burnout-release-check");
+    ui_set_vehicle_action_status(ui, 3, VEHICLE_READY, 1 | 8, 0, 0, 0);
+    tick(60);
+    action_press(ui);
+    tick(1000);
+    assert(ui_vehicle_burnout_held(ui));
+    host_ms += 301; /* UI-task stall cannot keep the physical lease alive. */
+    assert(!ui_vehicle_burnout_held(ui));
+    ui_set_alert_full(ui, 2, false, "Coolant", true);
+    tick(60);
+    assert(!ui_vehicle_burnout_held(ui));
+    action_release(ui);
+    ui_set_alert_full(ui, 0, false, "", false);
+    tick(60);
+    tick(60);
+    ui_set_vehicle_action_status(ui, 3, VEHICLE_UNKNOWN, 1 | 8, 0, 0, 0);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_button_text), "Release"));
+    capture(argv[1], "actions-burnout-unknown");
+    close_vehicle_menu(ui);
+    assert(!ui_vehicle_burnout_held(ui));
     /* A dual arc reuses the original arc object, selects either numeric slot,
      * and retains the two reading identities/colors and tenth-page position. */
     ui->simulated = false;
