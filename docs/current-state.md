@@ -468,3 +468,46 @@ own the behavior. Signed dev.77 is installed through App/Wi-Fi;
 [delivery evidence](evidence/dev77-action-recovery.md) separates the retained
 ABS record and offline verification from remaining parked Jeep checks.
 Website impact: corrective UI copy/navigation only; defer new qualification claims.
+
+
+## Unreleased field-recovery follow-up
+
+The owner reports ABS/TCS stayed disabled across ignition restarts until JScan
+was toggled and the Jeep restarted. The source exposed only reset confirmation,
+omitting the explicit Return used in the successful reference. The follow-up adds
+**Restore** before ignition reset, explicit same-vehicle Unknown recovery and a
+durable acknowledged-Return receipt, keeping acceptance distinct from physical
+restoration. See the [recovery contract](architecture/vehicle-actions.md#abs-return-receipt-and-paused-burnout-menus).
+These changes are source-level; installed dev.77 does not yet include them.
+
+The owner also requested removing Burnout/Line Lock for now. Normal App action
+menus and firmware configuration omit it; older pending records retain release
+recovery. App fixtures pass offline, while a physical menu/configuration check is
+still pending. Burnout actuation and front-lock qualification are deferred.
+
+A field report that unplugging TCM allowed a blocked ECM to connect prompted
+shared BLE discovery/admission and callback-lifetime hardening. The observation
+is consistent with contention, not proof of its cause. Offline starvation and
+late-callback regressions must be separated from loaded dual-adapter qualification.
+Website impact: remove any available-Burnout claim in the next eligible batch;
+make no new restoration or loaded-recovery claim before physical qualification.
+
+
+The owner approved automatic swapped-port recovery. The unreleased role verifier
+uses the captured ECM/TCM calibration+CVN pairs through bounded fixed read-only
+requests. An opposite-only positive pair retires both sources before exchanging
+runtime transport bindings, preserving raw configuration and logical source roles.
+Ambiguous/missing evidence retains the working map; same-session ECM proof survives
+mere refresh loss. The [role contract](architecture/vehicle-connections.md#role-verification-for-accidentally-swapped-adapters)
+owns admission, budgets and limits. Policy/transport regressions pass offline;
+physical swapped-port recovery remains unqualified and installed dev.77 lacks it.
+
+
+Candidate metadata is prepared as firmware dev.78 / App dev.55. The combined
+owner-candidate firmware builds locally; 184 host and 14 review-server tests,
+341 JVM tests, 28 managed-emulator action UI checks, firmware normal/fallback/parked
+rendering and configuration fixtures pass. Android lint and format checks pass.
+The production transport bodies run under ASan/UBSan fixtures, and the role policy
+covers opposite/both/missing identities, stale epochs, two-worker retirement,
+inverse-map continuity and transient identity loss. Exact published/installed
+candidate evidence and loaded Jeep checks are not supplied by these offline results.
