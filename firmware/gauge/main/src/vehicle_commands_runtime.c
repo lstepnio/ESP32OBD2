@@ -242,9 +242,10 @@ size_t vehicle_commands_runtime_status(uint8_t kind, uint8_t out[32])
 }
 void vehicle_commands_runtime_burnout_hold(bool held)
 {
+    uint32_t now = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
     portENTER_CRITICAL(&cache_lock);
     burnout_hold.held = held;
-    burnout_hold.at   = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+    burnout_hold.at   = now;
     portEXIT_CRITICAL(&cache_lock);
 }
 static void burnout_context(vehicle_command_context_t *context)
@@ -356,12 +357,24 @@ bool vehicle_commands_runtime_worker(unsigned                  source,
     jeep_idle_command_t command   = vehicle_commands_next(&commands, context, now);
     if (command.text)
     {
-        uint8_t *response  = control_response;
-        size_t   length    = sizeof(control_response);
+        uint8_t *response = control_response;
+        size_t   length   = sizeof(control_response);
+        burnout_context(&context);
         uint32_t before_io = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
         uint32_t spent     = before_io - now;
-        if (!adapter || spent >= JEEP_IDLE_IO_TIMEOUT_MS ||
-            ble_obd_control_exchange(adapter, command.text, JEEP_IDLE_IO_TIMEOUT_MS - spent, response, &length) != 0)
+        bool     hold_lost = commands.worker_kind == VEHICLE_BURNOUT &&
+                             commands.driver.abs.request.kind == JEEP_ABS_DISABLE &&
+                             (!context.burnout_held || !context.burnout_hold_at ||
+                              before_io - context.burnout_hold_at > VEHICLE_BURNOUT_HOLD_MS);
+        if (hold_lost)
+        {
+            /* Persistence may have outlived the last physical-contact proof. */
+            vehicle_commands_observe(&commands, context, before_io);
+            vehicle_commands_transport_failed(&commands, before_io);
+        }
+        else if (!adapter || spent >= JEEP_IDLE_IO_TIMEOUT_MS ||
+                 ble_obd_control_exchange(adapter, command.text, JEEP_IDLE_IO_TIMEOUT_MS - spent, response, &length) !=
+                     0)
             vehicle_commands_transport_failed(&commands, (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS));
         else
         {
