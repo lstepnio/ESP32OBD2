@@ -5,6 +5,11 @@
 #include <sys/stat.h>
 #include "lvgl.h"
 #include "../../main/src/ui.c"
+static bool metric_value(ui_t *ui, unsigned index, double *value)
+{
+    uint32_t generation;
+    return metric_snapshot(ui, index, value, &generation);
+}
 
 bool            host_psram_failure;
 uint32_t        host_ms;
@@ -250,6 +255,42 @@ int main(int argc, char **argv)
     scoped.metrics[0].revision = 8;
     ui_set_page(ui, &scoped);
     assert(metric_value(ui, 0, &actual));
+    /* Production renderer uses bounded analog motion and a separate numeric
+     * value, while raw policy reads and source-age invalidation stay exact. */
+    scoped.renderer                = UI_RENDERER_ARC;
+    scoped.metrics[0].presentation = READING_PRESENT_RPM;
+    scoped.metrics[0].maximum      = 8000;
+    child                          = 675;
+    ui_set_source_value(ui, 1, 8, 2, 12, &child, host_ms);
+    ui_set_page(ui, &scoped);
+    assert(!strcmp(lv_label_get_text(ui->widgets.value_lbl), "675"));
+    child = 1700;
+    host_ms += 50;
+    ui_set_source_value(ui, 1, 8, 2, 12, &child, host_ms);
+    render_page(ui);
+    int arc_start = lv_arc_get_value(ui->widgets.arc);
+    host_ms += 50;
+    render_page(ui);
+    assert(lv_arc_get_value(ui->widgets.arc) > arc_start);
+    assert(lv_arc_get_value(ui->widgets.arc) < normalized_value(child, &scoped.metrics[0], 1000));
+    assert(!strcmp(lv_label_get_text(ui->widgets.value_lbl), "675"));
+    assert(ui_source_sample(ui, 1, 8, 12, 2000, host_ms, &policy_value, &policy_at, &policy_generation));
+    assert(policy_value == 1700); /* UI never rewrites measured values. */
+    host_ms += 200;
+    render_page(ui);
+    assert(!strcmp(lv_label_get_text(ui->widgets.value_lbl), "1700"));
+    host_ms += 2001;
+    render_page(ui);
+    assert(!strcmp(lv_label_get_text(ui->widgets.value_lbl), "--"));
+    assert(lv_arc_get_value(ui->widgets.arc) == 0 && !ui->display.presentation[0].initialized);
+    child                 = 700;
+    source_generations[1] = 3;
+    ui_set_source_state(ui, 1, true, 8, 3);
+    ui_set_source_value(ui, 1, 8, 3, 12, &child, host_ms);
+    render_page(ui);
+    assert(lv_arc_get_value(ui->widgets.arc) == normalized_value(child, &scoped.metrics[0], 1000));
+    source_generations[1] = 2;
+    ui_set_source_state(ui, 1, true, 8, 2);
     ui_set_page(ui, &saved);
     /* Capacity follows the runtime PID ceiling, and source clear frees every
      * slot, including hidden entries. Both independent sources still fit. */

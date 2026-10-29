@@ -53,6 +53,7 @@ idf_component_register(
         "src/pid_decoder.c"
         "src/poll_scheduler.c"
         "src/reading_policy.c"
+        "src/reading_presentation.c"
         "src/page_save_policy.c"
         "src/smart_page_policy.c"
         "src/smart_metric_catalog.c"

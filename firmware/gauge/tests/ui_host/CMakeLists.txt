@@ -11,7 +11,7 @@ add_subdirectory("${EGAUGE_LVGL_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/lvgl")
 include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/presentation.cmake")
 add_executable(gauge_ui_render ui_render_test.c
     ../../main/src/gauge_presentation.c ${EGAUGE_UI_PROFILE_SOURCE}
-    ../../main/src/gauge_layout.c
+    ../../main/src/gauge_layout.c ../../main/src/reading_presentation.c
     ../../main/src/trend_curve.c ../../main/src/gauge_surface.c ../../main/src/display_showcase.c
     ../../main/src/display_idle_policy.c ../../main/src/display_units.c ../../main/src/page_action.c ${FONT_SOURCES})
 target_include_directories(gauge_ui_render BEFORE PRIVATE stubs ../../main/inc "${EGAUGE_LVGL_SOURCE_DIR}/src")

@@ -141,10 +141,13 @@ poll_job_t poll_scheduler_next_budgeted(poll_scheduler_t              *s,
             break;
         }
         bool    has_sample = (s->successful_pids & (1UL << i)) != 0;
-        int64_t remaining  = !has_sample           ? INT32_MIN
+        int64_t remaining  = !has_sample           ? INT32_MAX
                              : p[i].display_age_ms ? (int64_t)p[i].display_age_ms - (now - s->last_success[i])
                                                    : INT32_MAX;
-        /* Urgent readings precede nonurgent ones; otherwise priority orders
+        /* A missing first sample has no retention deadline. Warmup therefore
+         * respects foreground priority instead of declaring every unseen hidden
+         * PID infinitely overdue. The ninth-slot fairness still warms hidden PIDs.
+         * Urgent measured readings precede nonurgent ones; otherwise priority orders
          * due work, with deadline and rotating cursor breaking ties. */
         bool urgent      = remaining <= (int64_t)bounded_sum(budget->pid_timeout_ms, budget->recovery_ms);
         bool best_urgent = best_deadline <= (int64_t)bounded_sum(budget->pid_timeout_ms, budget->recovery_ms);
@@ -168,8 +171,9 @@ poll_job_t poll_scheduler_next_budgeted(poll_scheduler_t              *s,
     {
         if (!s->preflight_background)
         {
-            s->preflight_background = (uint8_t)(background + 1);
-            s->preflight_pids       = 0;
+            s->preflight_background       = (uint8_t)(background + 1);
+            s->preflight_pids             = 0;
+            s->preflight_since_foreground = 0;
         }
         uint32_t diagnostic = background % 4 == 0 ? budget->mil_timeout_ms : budget->dtc_timeout_ms;
         /* Reserve the diagnostic's full budget, its recovery, and the next
@@ -178,6 +182,7 @@ poll_job_t poll_scheduler_next_budgeted(poll_scheduler_t              *s,
                                        bounded_sum(budget->pid_timeout_ms, budget->recovery_ms));
         reserve          = bounded_sum(reserve, budget->foreground_ms);
         bool blocked     = false;
+        int  refresh     = -1;
         for (unsigned step = 0; step < count; ++step)
         {
             unsigned i = (s->cursor + step) % count;
@@ -186,19 +191,40 @@ poll_job_t poll_scheduler_next_budgeted(poll_scheduler_t              *s,
             blocked = true;
             if (!(s->preflight_pids & (1UL << i)) && retry_ready(s, p, i, now))
             {
-                s->preflight_pids |= 1UL << i;
-                increment(&s->deferred_diagnostics);
-                return select_pid(s, i, count, p, false);
+                if (refresh < 0 || p[i].priority > p[refresh].priority)
+                    refresh = (int)i;
             }
+        }
+        if (refresh >= 0)
+        {
+            /* A cold 32-PID walk must not blank the foreground while warming
+             * hidden pages. Each pair of finite preflight reads earns at most
+             * one due visible read, so diagnostics still have a finite bound. */
+            if (s->preflight_since_foreground >= 2)
+                for (unsigned step = 0; step < count; ++step)
+                {
+                    unsigned i = (s->cursor + step) % count;
+                    if (p[i].priority < 2 || !eligible(s, p, i, now))
+                        continue;
+                    s->preflight_since_foreground = 0;
+                    increment(&s->deferred_diagnostics);
+                    return select_pid(s, i, count, p, true);
+                }
+            if (s->preflight_since_foreground < 2)
+                ++s->preflight_since_foreground;
+            s->preflight_pids |= 1UL << refresh;
+            increment(&s->deferred_diagnostics);
+            return select_pid(s, (unsigned)refresh, count, p, false);
         }
         /* An impossible window or failed/backed-off reading must not suppress
          * diagnostic progress forever. Each preflight touches a PID once. */
         if (blocked)
             increment(&s->forced_diagnostics);
-        s->normal_since_background = 0;
-        s->preflight_background    = 0;
-        s->preflight_pids          = 0;
-        s->background_cursor       = (uint8_t)((background + 1) % (s->endpoint_count * 4U));
+        s->normal_since_background    = 0;
+        s->preflight_since_foreground = 0;
+        s->preflight_background       = 0;
+        s->preflight_pids             = 0;
+        s->background_cursor          = (uint8_t)((background + 1) % (s->endpoint_count * 4U));
         return (poll_job_t){.kind     = background % 4 == 0 ? POLL_JOB_MIL : POLL_JOB_DTC,
                             .index    = (uint8_t)(background % 4 == 0 ? 0 : background % 4 - 1),
                             .endpoint = (uint8_t)(background / 4)};
@@ -290,9 +316,10 @@ void poll_scheduler_endpoints(poll_scheduler_t *s, uint8_t count)
 {
     if (s && count <= 2)
     {
-        s->endpoint_count       = count;
-        s->preflight_background = 0;
-        s->preflight_pids       = 0;
+        s->endpoint_count             = count;
+        s->preflight_since_foreground = 0;
+        s->preflight_background       = 0;
+        s->preflight_pids             = 0;
     }
 }
 

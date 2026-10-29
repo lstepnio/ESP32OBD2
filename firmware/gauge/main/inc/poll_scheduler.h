@@ -68,7 +68,8 @@ typedef struct
     uint32_t deadline_misses;      /* Completed refreshes beyond the prior sample budget. */
     uint32_t pending_age_ms;
     uint32_t pending_sample_at;
-    uint8_t  preflight_background; /* 1..8, zero means no pending diagnostic. */
+    uint8_t  preflight_background;       /* 1..8, zero means no pending diagnostic. */
+    uint8_t  preflight_since_foreground; /* At most two preflight reads before a due visible slot. */
     uint8_t  priority_streak;
     uint8_t  fairness_cursor;
     bool     pending_had_sample;

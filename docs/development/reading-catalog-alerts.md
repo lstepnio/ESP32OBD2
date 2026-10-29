@@ -99,6 +99,35 @@ Metadata does not add wire fields, change saved configuration digests or require
 App migration. Existing installed definitions acquire the firmware presentation
 policy when their identities and timings match the catalog.
 
+## Gauge presentation smoothing
+
+The raw cache remains the authority for alerts, controls, Smart selection and trend
+history. A separate fixed state for each of the two visible metrics handles display
+motion on the existing 50 ms UI timer. It adds no task, queue, framebuffer or history.
+
+- Unchanged catalog continuous readings interpolate arc/bar position over 150 ms
+  with monotone ease-out, bounded by the previous displayed position and latest
+  measured target. New samples retarget from the current position, without prediction,
+  overshoot or manufactured samples. Their numeric text retains measured precision.
+- RPM numeric text uses 25-RPM bins, a 17.5-RPM change deadband and at least 250 ms
+  between ordinary numeric changes. Page entry/recovery starts at the actual cached
+  value; engine-off zero and shared severity transitions bypass these filters.
+- Gear and unknown/custom definitions, including explicit timing overrides, stay
+  direct. Policy is assigned from catalog identity/service/PID/timings, never labels.
+- Missing/expired/invalid samples clear immediately. Source-generation changes,
+  page changes and unit changes start fresh, with no animation from zero or across
+  sources. Animation never renews a sample timestamp or widens any age limit.
+
+During ordinary scheduling, a never-seen PID has no retention deadline and cannot
+claim infinite urgency ahead of a due visible reading. Measured readings near expiry
+still take precedence; visible/upcoming priority orders other eligible work. Every
+ninth ordinary slot remains round-robin. Diagnostic preflight refreshes higher-priority
+at-risk metrics first, interleaving at most one due visible read per pair of
+preflight reads. A diagnostic walk stays bounded to 32 preflight plus at most 16
+extra visible requests; it retains full timeout reserves and retry backoff. A saturated adapter cannot guarantee nominal rates or eliminate
+every gap; physical rate/legibility acceptance is in the
+[continuity plan](gauge-continuity-plan.md#one-parked-jeep-session).
+
 ## Compatibility
 
 Development capability `cfg:5` includes `cfg:4` and signals expanded decimal

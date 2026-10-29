@@ -1,4 +1,5 @@
 #pragma once
+#include "reading_presentation.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Definitions
@@ -47,15 +48,16 @@ typedef enum
 
 typedef struct
 {
-    uint16_t    pid;
-    uint8_t     source_index;
-    bool        scoped;
-    uint32_t    revision;
-    const char *name;
-    const char *unit;
-    double      minimum;
-    double      maximum;
-    uint32_t    stale_after_ms;
+    reading_presentation_kind_t presentation;
+    uint16_t                    pid;
+    uint8_t                     source_index;
+    bool                        scoped;
+    uint32_t                    revision;
+    const char                 *name;
+    const char                 *unit;
+    double                      minimum;
+    double                      maximum;
+    uint32_t                    stale_after_ms;
 } ui_metric_t;
 
 typedef struct

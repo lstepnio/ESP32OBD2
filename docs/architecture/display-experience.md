@@ -5,6 +5,8 @@ icon-only waiting surface. [Sampling](../development/reading-catalog-alerts.md#d
 [Smart selection](smart-page-cycling.md) and [orientation](hardware-and-transports.md#automatic-display-orientation)
 have separate owners. [Current state](../current-state.md) distinguishes source
 from installed and physically qualified behavior.
+[Gauge presentation rules](../development/reading-catalog-alerts.md#gauge-presentation-smoothing)
+own bounded motion, RPM text stabilization and immediate raw-data invalidation.
 
 ## Ten saved pages
 
