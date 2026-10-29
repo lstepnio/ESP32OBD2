@@ -1,12 +1,15 @@
 # Current implementation and evidence
 
-Updated 2026-10-28. This owns implemented/installed facts and their evidence limits.
+Updated 2026-10-29. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-PRs #122 and #123 are merged. The consolidated App is installed on the Pixel
-(App label dev.53, Android source `62d1e4b`); signed dev.75 is installed through
-App/Wi-Fi. [Current delivery evidence](evidence/dev75-indoor-rollout.md) records
-exact healthy image/setup proof, final radio recovery, history preservation and
-owner display/navigation confirmation, with interrupted attempts retained separately.
+App dev.54/code54 and signed dev.76 from PR #126 source `4abfc60` are installed
+on the Pixel/reference gauge through replacement APK installation and App/Wi-Fi.
+[Current delivery evidence](evidence/dev76-indoor-rollout.md) records exact signed
+image/health verification, Wi-Fi lifecycle/readback checks and the four-action menu
+at revision 66. Both owner-supervised brake actions are enabled on the matched Jeep;
+physical qualification remains open. PR #126 remains unmerged.
+PRs #122/#123 and the [prior dev.75 delivery](evidence/dev75-indoor-rollout.md) retain
+foreground/history/radio checks and the earlier owner navigation observation.
 Live Jeep recovery and loaded presentation remain unqualified.
 [Earlier display evidence](evidence/display-evolution.md) retains the stack/sensor
 repairs and separate orientation qualification limits.
@@ -407,7 +410,7 @@ records baseline checks; final publication and comparison are recorded separatel
 [delivery results](../review/IMPLEMENTATION.md). Normal website cadence still applies.
 
 
-## Brake action integration in source
+## Installed owner-supervised brake candidate
 
 App dev.54/code54 adds an explicit fourth **Burnout Mode** action using negotiated
 `vc:1` + optional `bm:1`; legacy menus/gauges retain their previous behavior. Firmware integrates
@@ -420,8 +423,10 @@ manual brake/reset confirmation. Authenticated `bt:1` identifies that policy.
 Burnout allows motion/throttle after Start with fresh data and retains its
 ten-second release-initiation limit. Human confirmation is recorded separately
 from automatic controller proof. Both ordinary qualification masks remain zero;
-public capabilities remain disabled. This is prepared source with owner-authorized
-installation, not evidence of installation or vehicle qualification. [Action contract](architecture/vehicle-actions.md#burnout-mode-and-brake-actions)
+public capabilities remain disabled. Signed dev.76 and App dev.54 are now installed;
+[delivery evidence](evidence/dev76-indoor-rollout.md) separates indoor verification
+from actual vehicle behavior. The four-page menu is healthy at revision 66 with
+existing readings, bindings, timers, filters and settings preserved. [Action contract](architecture/vehicle-actions.md#burnout-mode-and-brake-actions)
 and [parked follow-up](development/jeep-action-qualification.md#brake-actions-follow-up)
-define the remaining evidence. This source work does not replace the installed
-App/dev.75 device record above or publish a new firmware release.
+define the remaining physical evidence. Website impact: retain qualification
+language; defer working-brake marketing claims until the parked checks.
