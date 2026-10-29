@@ -104,3 +104,4 @@
 .recovery-paths{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0 12px}.recovery-paths .button{font-size:14px}@media(max-width:580px){.recovery-paths{flex-direction:column}.recovery-paths .button{justify-content:center}}
 
 .action-screen-examples{display:flex;justify-content:center;flex-wrap:wrap;gap:40px;margin:32px auto}.action-screen-examples figure{margin:0;width:240px}.action-screen-examples img{width:240px;border-radius:50%}.action-screen-examples figcaption{text-align:center;font-size:13px;margin-top:12px;color:#d1d9c9}
+.offroad-section .screen-provenance{color:#bdc7b9}
