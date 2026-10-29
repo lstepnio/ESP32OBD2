@@ -1,6 +1,8 @@
 #ifndef LV_CONF_H
 #define LV_CONF_H
+#ifndef LV_COLOR_DEPTH
 #define LV_COLOR_DEPTH 32
+#endif
 #define LV_USE_OS LV_OS_NONE
 /* Match the device's fixed LVGL arena so new screens cannot hide allocation
  * regressions behind an unbounded host heap. Draw buffers remain host-owned. */

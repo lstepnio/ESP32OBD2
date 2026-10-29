@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(gauge_ui_host C CXX)
 option(EGAUGE_PARKED_IDLE_TEST "Render the supervised parked idle candidate" OFF)
+option(EGAUGE_HOST_RGB565 "Capture the reference panel's RGB565 rendering format" OFF)
 set(LV_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/lv_conf.h" CACHE STRING "" FORCE)
 set(LV_CONF_BUILD_DISABLE_EXAMPLES ON CACHE BOOL "" FORCE)
 set(LV_CONF_BUILD_DISABLE_DEMOS ON CACHE BOOL "" FORCE)
@@ -8,6 +9,9 @@ set(LV_CONF_BUILD_DISABLE_THORVG_INTERNAL ON CACHE BOOL "" FORCE)
 set(EGAUGE_LVGL_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../managed_components/lvgl__lvgl"
     CACHE PATH "Pinned LVGL source for offline host rendering")
 add_subdirectory("${EGAUGE_LVGL_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/lvgl")
+if(EGAUGE_HOST_RGB565)
+    target_compile_definitions(lvgl PUBLIC LV_COLOR_DEPTH=16)
+endif()
 include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/presentation.cmake")
 add_executable(gauge_ui_render ui_render_test.c
     ../../main/src/gauge_presentation.c ${EGAUGE_UI_PROFILE_SOURCE}

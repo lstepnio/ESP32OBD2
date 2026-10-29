@@ -57,13 +57,24 @@ bool alert_runtime_command(const uint8_t *data, size_t length)
     acknowledgments++;
     return true;
 }
-static uint32_t *pixels, *draw_buffer;
+static uint32_t *pixels;
+static uint8_t  *draw_buffer;
 static unsigned  width, height;
 static void      flush(lv_display_t *display, const lv_area_t *area, uint8_t *data)
 {
     unsigned stride = area->x2 - area->x1 + 1;
     for (int y = area->y1; y <= area->y2; y++)
+#if LV_COLOR_DEPTH == 16
+        for (unsigned x = 0; x < stride; ++x)
+        {
+            uint16_t value;
+            memcpy(&value, data + ((y - area->y1) * stride + x) * 2, sizeof(value));
+            uint32_t r = (value >> 11) & 31, g = (value >> 5) & 63, b = value & 31;
+            pixels[y * width + area->x1 + x] = ((r << 3 | r >> 2) << 16) | ((g << 2 | g >> 4) << 8) | (b << 3 | b >> 2);
+        }
+#else
         memcpy(pixels + y * width + area->x1, data + (y - area->y1) * stride * 4, stride * 4);
+#endif
     lv_display_flush_ready(display);
 }
 static void tick(unsigned ms)
@@ -310,16 +321,20 @@ int main(int argc, char **argv)
     assert(gauge_presentation_px(-1) == -gauge_presentation_px(1));
     assert(abs(2 * gauge_presentation_x(120) - surface->width) <= 1);
     assert(abs(2 * gauge_presentation_y(120) - surface->height) <= 1);
-    width       = surface->width;
-    height      = surface->height;
-    pixels      = calloc(width * height, sizeof(*pixels));
-    draw_buffer = calloc(width * height, sizeof(*draw_buffer));
+    width             = surface->width;
+    height            = surface->height;
+    pixels            = calloc(width * height, sizeof(*pixels));
+    size_t draw_bytes = width * height * (LV_COLOR_DEPTH / 8);
+    draw_buffer       = calloc(draw_bytes, 1);
     assert(pixels && draw_buffer);
     lv_display_t *display = lv_display_create(width, height);
+#if LV_COLOR_DEPTH == 16
+    lv_display_set_color_format(display, LV_COLOR_FORMAT_RGB565);
+#else
     lv_display_set_color_format(display, LV_COLOR_FORMAT_XRGB8888);
+#endif
     lv_display_set_flush_cb(display, flush);
-    lv_display_set_buffers(display, draw_buffer, NULL, width * height * sizeof(*draw_buffer),
-                           LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_buffers(display, draw_buffer, NULL, draw_bytes, LV_DISPLAY_RENDER_MODE_FULL);
     ui_page_t saved = {
         .name         = "RPM",
         .renderer     = UI_RENDERER_NUMERIC,

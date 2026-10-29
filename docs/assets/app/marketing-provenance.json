@@ -1,0 +1,99 @@
+{
+  "captured_at_utc": "2026-10-29T06:44:18.852095+00:00",
+  "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+  "runtime_source_equivalent_to": "62d1e4b (git diff of main/debug/core/Gradle inputs empty)",
+  "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+  "harness_sha256": "547492257c283683ea6f6ae4a416ded46929278a3de7b045d4356e340b55af4a",
+  "capture_method": "Compose captureToImage, managed ciPhone API35 google_apis arm64-v8a Pixel2, SwiftShader indirect; no physical device",
+  "fonts": "Production EGaugeTheme typography and API35 sans-serif fallback; no downloaded fonts",
+  "caveats": [
+    "Composition only; static three-tab shell, no CompanionApp navigation/global banners/window insets/SystemUI.",
+    "Production Gauge retains PREVIEW label; no added Demo badge.",
+    "No radio, device, vehicle, durable-save or action execution qualification.",
+    "72-image review/screens/android audit baseline unchanged."
+  ],
+  "entries": [
+    {
+      "path": "docs/assets/app/gauge.png",
+      "sha256": "31ba3abaed21dc3f498569fd3af264047f493a1f1864806d0dd297ac3a1b70fc",
+      "route": "gauge",
+      "source_capture": "android/app/build/outputs/managed_device_android_test_additional_output/debug/ciPhone/website-marketing/gauge-default-phone-dark.png",
+      "resolution_px": [
+        780,
+        1688
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 2.0,
+      "font_scale": 1.0,
+      "theme": "dark",
+      "advanced": false,
+      "navigation": [
+        "Gauge",
+        "Car",
+        "Settings"
+      ],
+      "synthetic": true,
+      "synthetic_data": "Example car; stored Engine P0300; coolant108C/limit105C; preview RPM2840; brightness80%; rotation0; cycle10s. Fixture values, not live readings.",
+      "gauge_connection": "Synthetic Gauge ready and Car connected through the production ConnectionStatusWidget; example readings retain PREVIEW, not live vehicle evidence.",
+      "controls": "Production composables, canEditActions=false and canEditActionPages=false. Disabled rows retain production arrow styling; no execution or public-control capability claim."
+    },
+    {
+      "path": "docs/assets/app/car.png",
+      "sha256": "f5ea11a4defc8ef9fd8dbb470247a7cfa6ac69c4fd92e905aa0271877231c9be",
+      "route": "car",
+      "source_capture": "android/app/build/outputs/managed_device_android_test_additional_output/debug/ciPhone/website-marketing/car-default-phone-dark.png",
+      "resolution_px": [
+        780,
+        1688
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 2.0,
+      "font_scale": 1.0,
+      "theme": "dark",
+      "advanced": false,
+      "navigation": [
+        "Gauge",
+        "Car",
+        "Settings"
+      ],
+      "synthetic": true,
+      "synthetic_data": "Example car; stored Engine P0300; coolant108C/limit105C; preview RPM2840; brightness80%; rotation0; cycle10s. Fixture values, not live readings.",
+      "gauge_connection": "Synthetic Gauge ready and Car connected through the production ConnectionStatusWidget; example readings retain PREVIEW, not live vehicle evidence.",
+      "controls": "Production composables, canEditActions=false and canEditActionPages=false. Disabled rows retain production arrow styling; no execution or public-control capability claim."
+    },
+    {
+      "path": "docs/assets/app/settings.png",
+      "sha256": "105859ed65f2129e0437ccab392aba29679f6d7046460d42cd97d24207390c30",
+      "route": "settings",
+      "source_capture": "android/app/build/outputs/managed_device_android_test_additional_output/debug/ciPhone/website-marketing/settings-default-phone-dark.png",
+      "resolution_px": [
+        780,
+        1688
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 2.0,
+      "font_scale": 1.0,
+      "theme": "dark",
+      "advanced": false,
+      "navigation": [
+        "Gauge",
+        "Car",
+        "Settings"
+      ],
+      "synthetic": true,
+      "synthetic_data": "Example car; stored Engine P0300; coolant108C/limit105C; preview RPM2840; brightness80%; rotation0; cycle10s. Fixture values, not live readings.",
+      "gauge_connection": "Synthetic Gauge ready and Car connected through the production ConnectionStatusWidget; example readings retain PREVIEW, not live vehicle evidence.",
+      "controls": "Production composables, canEditActions=false and canEditActionPages=false. Disabled rows retain production arrow styling; no execution or public-control capability claim."
+    }
+  ],
+  "validation": "Focused managed marketing test passed1/1 in41s after capture-only formatting; no production App changes."
+}
