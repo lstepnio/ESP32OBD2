@@ -2,13 +2,12 @@
 
 Updated 2026-10-28. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-PRs #119 and #120 are merged. The latest consolidated App is installed on the
-Pixel (App label dev.53, Android source `c8ab21a`); signed dev.74 is installed
-through App/Wi-Fi. [Current delivery evidence](evidence/dev74-indoor-rollout.md)
-records exact healthy image/setup proof, radio recovery, history preservation and
-owner display/navigation confirmation. The [prior dev.73 USB delivery](evidence/dev73-indoor-rollout.md)
-retains its separate preservation evidence; its deferred phone/Wi-Fi checks passed
-with the latest App before this update. Live Jeep recovery remains unqualified.
+PRs #122 and #123 are merged. The consolidated App is installed on the Pixel
+(App label dev.53, Android source `62d1e4b`); signed dev.75 is installed through
+App/Wi-Fi. [Current delivery evidence](evidence/dev75-indoor-rollout.md) records
+exact healthy image/setup proof, final radio recovery, history preservation and
+owner display/navigation confirmation, with interrupted attempts retained separately.
+Live Jeep recovery and loaded presentation remain unqualified.
 [Earlier display evidence](evidence/display-evolution.md) retains the stack/sensor
 repairs and separate orientation qualification limits.
 The opt-in [parked idle candidate](architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
@@ -34,12 +33,12 @@ Website impact: corrective recovery behavior needs no new marketing claim or ima
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
 
-## Combined foreground, fault and idle-target follow-up in review
+## Installed foreground, fault and idle-target follow-up
 
-PR #122 merged at `e166fa0` after four checks passed on corrected source `3e17eaa`.
-PR #123 integrates it before the owner-authorized dev.75 publication and one
-App/Wi-Fi installation. Publication and installed identity remain unverified until
-the delivery evidence is recorded; dev.74 remains the installed baseline above.
+PR #122 merged at `e166fa0`; PR #123 merged at `b3f679f` after integrating it.
+All four CI lanes passed on final source `62d1e4b`. One combined App/dev.75
+installation and final indoor checks passed; [delivery evidence](evidence/dev75-indoor-rollout.md)
+separates successful checks from intermittent recovery failures and remaining Jeep gates.
 
 One [presentation owner](development/reading-catalog-alerts.md#gauge-presentation-smoothing)
 combines foreground warmup/preflight priority, bounded 150 ms analog easing and
@@ -47,7 +46,7 @@ independent RPM text stabilization, with original-age accounting and continuity
 fences across source retirement, invalidation and missed stale gaps. Raw readings,
 trend history, alert and control ages remain authoritative. A separate debounced
 [Auto boot-angle checkpoint](architecture/hardware-and-transports.md#automatic-display-orientation)
-retains manual fallback independently. These are source changes, not physical proof.
+retains manual fallback independently. These changes are installed; loaded smoothing and cold-boot checkpoint behavior remain unqualified.
 
 The App removes the misleading last-drive episode total, groups repeated warning
 history without inventing codes, keeps last-known code detail reachable and uses
@@ -150,9 +149,9 @@ flags stay off under the [indoor procedure](development/display-indoor-qualifica
 
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
-| Pixel | App dev.53/versionCode 53, consolidated Android source `c8ab21a` (PR #119); profile schema 19 / associations 2 | [Dev.74 delivery](evidence/dev74-indoor-rollout.md): installed APK hash matches build, profiles/settings/history retained, original phone policy restored |
-| Gauge | Signed parked-idle/orientation candidate dev.74, generation 55; healthy state 2 at `0x60000`, configuration revision 65 | [Dev.74 delivery](evidence/dev74-indoor-rollout.md): full App/Wi-Fi installation, radio recovery, setup and owner display/navigation checks passed; Jeep recovery pending |
-| Physical display/touch | Owner confirmed dev.66 text-free logo, touch wake and normal reading/action navigation: “Logo and all navigation work.” | [Display rollout](evidence/display-evolution.md); all ten pages subsequently owner-confirmed; new-arc fit owner-confirmed; hold-exit was reported but later active state requires explicit stopped-state proof; loaded legibility and Auto sensor/touch alignment remain separate gates |
+| Pixel | App dev.53/versionCode 53, consolidated Android source `62d1e4b` (PRs #122/#123); profile schema 19 / associations 2 | [Dev.75 delivery](evidence/dev75-indoor-rollout.md): installed APK hash matches build, profiles/settings/history retained, original phone policy restored |
+| Gauge | Signed parked-idle/orientation candidate dev.75, generation 56; healthy state 2 at `0x360000`, configuration revision 65 | [Dev.75 delivery](evidence/dev75-indoor-rollout.md): full App/Wi-Fi installation, radio recovery, setup and owner display/navigation checks passed; Jeep recovery pending |
+| Physical display/touch | Owner confirmed dev.75 clean display and navigation; requested checks covered touch wake, normal reading swipes and action entry/return. | [Dev.75 delivery](evidence/dev75-indoor-rollout.md); [earlier display rollout](evidence/display-evolution.md); all ten pages subsequently owner-confirmed; new-arc fit owner-confirmed; hold-exit was reported but later active state requires explicit stopped-state proof; loaded legibility and Auto sensor/touch alignment remain separate gates |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
 | Saved setup | One whole-vehicle dashboard, distinct ECM/child-TCM bindings, dual mode On | Five pages, four TCM CEL filters, thresholds and action settings retained; OTA preserved revision 60 and exact document bytes; the targeted same-setup test then advanced to 61 with only baseRevision changing. [Current preservation check](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout) |
