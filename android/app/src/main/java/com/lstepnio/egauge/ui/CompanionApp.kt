@@ -418,7 +418,7 @@ fun CompanionApp(
                                                     }
                                                 )
                                             },
-                                            historyCount = history.size, lastRecordedAt = history.maxOfOrNull { it.recordedAt },
+                                            hasRecordedHistory = history.isNotEmpty(),
                                             onOpenAlert = {
                                                 carAlertId = it
                                                 carHistory = false

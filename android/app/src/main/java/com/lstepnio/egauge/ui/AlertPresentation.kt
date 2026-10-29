@@ -43,14 +43,16 @@ fun CarAlertWorkspace(
     var selectedId by rememberSaveable(vehicle) { mutableStateOf(initialAlertId) }
     var selectedFaultKey by rememberSaveable(vehicle) { mutableStateOf<String?>(null) }
     val entries = model.visibleAlertHistory().filter { it.vehicle == vehicle }
+    val rows = alertWorkspaceRows(entries, history, model::isAlertCurrent)
     val selected = entries.firstOrNull { it.id == selectedId }
+    val selectedRow = rows.firstOrNull { row -> row.occurrences.any { it.id == selectedId } && row.fault?.let { "${it.source}:${it.code}" } == selectedFaultKey }
     val currentScroll = rememberLazyListState()
     val historyScroll = rememberLazyListState()
     val back = { if (selectedId != null) selectedId = null else onBack() }
     BackHandler(onBack = back)
     LaunchedEffect(selectedId, entries, selectedFaultKey) {
         val faultMissing = selectedFaultKey != null && selected?.let { entry ->
-            recordedFaultCodes(entry.context).none { "${it.source}:${it.code}" == selectedFaultKey }
+            recordedFaultCodes(entry.context, entry.event.key).none { "${it.source}:${it.code}" == selectedFaultKey }
         } == true
         if (selectedId != null && (selected == null || faultMissing)) selectedId = null
     }
@@ -60,7 +62,8 @@ fun CarAlertWorkspace(
             selected,
             onBack = { selectedId = null },
             onExport = onExport,
-            selectedFault = recordedFaultCodes(selected.context).firstOrNull { "${it.source}:${it.code}" == selectedFaultKey }
+            selectedFault = recordedFaultCodes(selected.context, selected.event.key).firstOrNull { "${it.source}:${it.code}" == selectedFaultKey },
+            occurrences = selectedRow?.occurrences.orEmpty()
         )
         return
     }
@@ -77,7 +80,7 @@ fun CarAlertWorkspace(
             }
         }
         AlertWorkspaceList(
-            alertWorkspaceRows(entries, history, model::isAlertCurrent),
+            rows,
             history,
             if (history) historyScroll else currentScroll,
             Modifier.weight(1f),
@@ -133,6 +136,7 @@ internal fun AlertWorkspaceList(
                         row.fault?.let { "${it.code} · ${it.source}" },
                         if (entry.event.key < 32) alertNotificationText(entry.event, system, emptyList()) else null,
                         alertEntryStatus(entry.event, isCurrent(entry)),
+                        if (row.fault == null && entry.event.key in 32..35) "Codes not recorded" else null,
                         alertRecordedTime(entry.recordedAt)
                     ).joinToString(" · "),
                     onClick = { onOpen(row) }
@@ -157,8 +161,17 @@ internal fun alertWorkspaceEntries(
 }
 
 /** One row per visible controller/code, without altering the episode or its immutable context. */
-internal data class AlertWorkspaceRow(val entry: StoredAlert, val fault: CarFaultUi? = null) {
-    val title: String get() = fault?.let { FaultCodeCatalog.lookup(it.code).title } ?: alertTitle(entry.event)
+internal data class AlertWorkspaceRow(
+    val entry: StoredAlert,
+    val fault: CarFaultUi? = null,
+    val occurrences: List<StoredAlert> = listOf(entry)
+) {
+    val title: String get() = fault?.let { FaultCodeCatalog.lookup(it.code).title }
+        ?: when (entry.event.key) {
+            32, 34 -> "Engine warning"
+            33, 35 -> "Transmission warning"
+            else -> alertTitle(entry.event)
+        }
 }
 
 internal fun alertWorkspaceRows(
@@ -172,15 +185,31 @@ internal fun alertWorkspaceRows(
             33, 35 -> "Transmission"
             else -> null
         }
-        val faults = if (source == null) emptyList() else recordedFaultCodes(entry.context).filter { it.source == source }
+        val faults = if (source == null) emptyList() else recordedFaultCodes(entry.context, entry.event.key).filter { it.source == source }
         if (faults.isEmpty()) listOf(AlertWorkspaceRow(entry)) else faults.map { AlertWorkspaceRow(entry, it) }
     }
-    if (history) return rows
-    // Code identity is scoped to the observation's vehicle and gauge, independent of event producer.
-    return rows.distinctBy { row ->
-        row.fault?.let { listOf(row.entry.vehicle, row.entry.gauge, it.source, it.code) }
-            ?: listOf(row.entry.vehicle, row.entry.gauge, row.entry.id)
+    // A known current code is the useful destination; keep its earlier unattributed
+    // warning in History without presenting it as an additional current issue.
+    val visible = if (history) {
+        rows
+    } else {
+        rows.filterNot { row ->
+            row.fault == null && row.entry.event.key in 32..35 && rows.any { known ->
+                known.fault != null && known.entry.vehicle == row.entry.vehicle && known.entry.gauge == row.entry.gauge &&
+                    known.entry.event.simulated == row.entry.event.simulated && known.entry.event.key % 2 == row.entry.event.key % 2
+            }
+        }
     }
+    // Only presentation is grouped. Every observation and its original context remains in storage.
+    return visible.groupBy { row ->
+        val e = row.entry
+        val identity = row.fault?.let { "${it.source}:${it.code}" }
+            ?: if (e.event.key in 32..35) "warning:${e.event.key % 2}" else "${e.event.revision}:${e.event.key}"
+        listOf(e.vehicle, e.gauge, e.event.simulated, identity)
+    }.values.map { group ->
+        val representative = if (history) group.maxBy { it.entry.recordedAt } else group.first()
+        representative.copy(occurrences = group.map { it.entry }.distinctBy { it.id }.sortedByDescending { it.recordedAt })
+    }.let { grouped -> if (history) grouped.sortedByDescending { it.entry.recordedAt } else grouped }
 }
 
 internal fun alertRecordedTime(recordedAt: Long): String = DateFormat.getDateTimeInstance(
@@ -279,7 +308,8 @@ fun CarAlertDetail(
     entry: StoredAlert,
     onBack: () -> Unit,
     onExport: (() -> Unit)? = null,
-    selectedFault: CarFaultUi? = null
+    selectedFault: CarFaultUi? = null,
+    occurrences: List<StoredAlert> = emptyList()
 ) {
     var options by remember(entry.id) { mutableStateOf(false) }
     val current = model.isAlertCurrent(entry)
@@ -313,6 +343,12 @@ fun CarAlertDetail(
                 Text(model.profileCollection.profiles.firstOrNull { it.id == entry.vehicle }?.name ?: "Recorded vehicle", style = MaterialTheme.typography.labelLarge)
             }
             AlertDetailContent(entry, current, system, selectedFault)
+            if (occurrences.size > 1) {
+                Panel {
+                    SectionTitle("Recorded activity")
+                    Text("${occurrences.size} records · ${alertRecordedTime(occurrences.minOf { it.recordedAt })} to ${alertRecordedTime(occurrences.maxOf { it.recordedAt })}")
+                }
+            }
             AlertAttentionActions(
                 alertAttentionState(entry, current, entry.vehicle == model.profileCollection.activeId, model.operation.stage != OperationStage.IDLE && !model.operation.terminal),
                 { model.acknowledgeAlert(entry) },
@@ -351,7 +387,7 @@ internal fun AlertAttentionActions(state: AlertAttentionState, onSeen: () -> Uni
 @Composable
 internal fun AlertDetailContent(entry: StoredAlert, current: Boolean, system: MeasurementSystem, selectedFault: CarFaultUi? = null) {
     val event = entry.event
-    val faults = recordedFaultCodes(entry.context)
+    val faults = recordedFaultCodes(entry.context, entry.event.key)
     val selected = selectedFault?.let { requested -> faults.firstOrNull { it.source == requested.source && it.code == requested.code } }
     ScreenTitle(if (selected == null) alertTitle(event) else "Vehicle fault")
     Text(alertEntryStatus(event, current), style = MaterialTheme.typography.titleMedium)
@@ -376,7 +412,8 @@ internal fun AlertDetailContent(entry: StoredAlert, current: Boolean, system: Me
     if (event.key >= 36 && event.unit.isNotBlank()) Text(event.unit)
     (selected?.let(::listOf) ?: faults).forEach { fault -> Panel { FaultCodeExplanation(fault, recorded = true) } }
     if (event.key in 32..35 && faults.isEmpty()) {
-        Text("A vehicle warning was recorded. Code information was unavailable at the time.")
+        Text("No fault codes were saved with this warning.")
+        Text("This record does not establish how many faults the car has. Current checks appear under Car.", color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

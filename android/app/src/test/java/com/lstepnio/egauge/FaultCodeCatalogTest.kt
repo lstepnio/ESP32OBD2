@@ -57,7 +57,7 @@ class FaultCodeCatalogTest {
 
     @Test fun notificationUsesDecodedCodesFromTheCorrectRecordedController() {
         val codes = listOf(CarFaultUi("U0121", "", "Transmission", "Stored"), CarFaultUi("P0301", "", "Engine", "Stored"))
-        assertEquals("Transmission fault codes", alertTitle(event))
+        assertEquals("Transmission warning", alertTitle(event))
         assertEquals("U0121 · ABS communication lost", alertNotificationText(event, MeasurementSystem.Metric, codes))
         assertFalse(alertNotificationText(event, MeasurementSystem.Metric).contains("TCM"))
         assertTrue(alertNotificationText(event.copy(key = 0, unit = "°C", value = 100f, limit = 90f), MeasurementSystem.Imperial).contains("212 °F"))

@@ -136,4 +136,22 @@ class AlertWorkflowUiTest {
         compose.onNodeWithText("Review and send").performClick()
         assertTrue(review)
     }
+    private fun groupedUnknownHistory(scale: Float) {
+        val entries = (1..24).map { n -> entry("warning-$n", event.copy(key = if (n % 2 == 0) 33 else 35)) }
+        val rows = alertWorkspaceRows(entries, true) { false }
+        var opened: AlertWorkspaceRow? = null
+        frame(scale) {
+            AlertWorkspaceList(rows, true, rememberLazyListState(), Modifier.fillMaxSize(), { false }, { error("History attention") }, { opened = it }, {}, {})
+        }
+        compose.onAllNodesWithText("Transmission warning").assertCountEquals(1)
+        compose.onNodeWithText("Codes not recorded", substring = true).assertExists()
+        compose.onNodeWithText("Transmission warning").performScrollTo().performClick()
+        assertEquals(24, opened!!.occurrences.size)
+        assertNull(opened!!.fault)
+        capture(if (scale > 1f) "grouped-warning-large-text" else "grouped-warning-compact")
+    }
+
+    @Test fun repeatedWarningsShowOneHonestHistoryRow() = groupedUnknownHistory(1f)
+
+    @Test fun repeatedWarningsRemainReadableAtLargeText() = groupedUnknownHistory(2f)
 }

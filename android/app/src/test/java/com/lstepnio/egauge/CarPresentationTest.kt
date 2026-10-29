@@ -112,4 +112,13 @@ class CarPresentationTest {
         assertFalse(carChecksComplete(complete.copy(incomplete = true)))
         assertFalse(carChecksComplete(state(source("Engine", StatusTone.Success))))
     }
+
+    @Test fun duplicateUnknownDiagnosticProducersShareOneAttentionRowPerController() {
+        val alerts = listOf(
+            CarAttentionAlert("mil", "Transmission warning", "", 3, "Transmission"),
+            CarAttentionAlert("codes", "Transmission warning", "", 3, "Transmission"),
+            CarAttentionAlert("engine", "Engine warning", "", 3, "Engine")
+        )
+        assertEquals(listOf("mil", "engine"), carAttention(state(), alerts).map { it.alertId })
+    }
 }
