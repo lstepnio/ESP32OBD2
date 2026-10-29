@@ -24,6 +24,7 @@ fun VehicleActionsSheet(
     var presetsOpen by remember(state.activeId) { mutableStateOf(false) }
     var confirm by remember(state.activeId) { mutableStateOf<Pair<VehicleCommandKind, IdlePreset?>?>(null) }
     val idle = state.vehicleCommands[VehicleCommandKind.Idle] ?: VehicleCommandStatus(VehicleCommandKind.Idle)
+    val burnout = state.vehicleCommands[VehicleCommandKind.Burnout] ?: VehicleCommandStatus(VehicleCommandKind.Burnout)
     val abs = state.vehicleCommands[VehicleCommandKind.AbsTcs] ?: VehicleCommandStatus(VehicleCommandKind.AbsTcs)
     if (presetsOpen) {
         IdleActionsSheet(state.activeId, state.idlePresets, state.canEditActions && !idle.busy, onSave, { presetsOpen = false }, coolantLimitC = state.idleCoolantLimitC, system = state.measurementSystem)
@@ -67,6 +68,12 @@ fun VehicleActionsSheet(
                     OutlinedButton({ confirm = VehicleCommandKind.AbsTcs to null }, enabled = state.commandsFresh && abs.canStart) { Text("Disable ABS + TCS") }
                 }
                 if (abs.qualified) Text("Remains off until the next ignition cycle. A green button does not confirm restoration.", style = MaterialTheme.typography.bodySmall)
+                HorizontalDivider()
+                Text("Burnout Mode", style = MaterialTheme.typography.titleMedium)
+                Text(burnout.message)
+                if (burnout.canStop) {
+                    PrimaryAction("Stop Burnout Mode", { onCommand(VehicleCommandKind.Burnout, true, null) }, enabled = state.commandsFresh)
+                }
                 Spacer(Modifier.height(12.dp))
             }
         }

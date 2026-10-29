@@ -206,7 +206,8 @@ data class CapabilitySnapshot(
     val displayShowcaseVersion: Int = 0,
     val vehicleCommandsVersion: Int = 0,
     val smartPageCyclingVersion: Int = 0,
-    val automaticOrientationVersion: Int = 0
+    val automaticOrientationVersion: Int = 0,
+    val burnoutActionsVersion: Int = 0
 )
 
 data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revision: Long)

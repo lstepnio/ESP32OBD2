@@ -61,10 +61,50 @@ class VehicleCommandsTest {
         assertTrue(active.canStop)
         val stop = VehicleCommandProtocol.request(active, true)
         assertEquals(3, ByteBuffer.wrap(stop, 4, 4).order(ByteOrder.LITTLE_ENDIAN).int)
-        for ((at, value) in listOf(0 to 1, 1 to 3, 2 to 10, 3 to 9, 27 to 4)) {
+        for ((at, value) in listOf(0 to 1, 1 to 4, 2 to 10, 3 to 9, 27 to 4)) {
             val corrupt = statusBytes()
             corrupt[at] = value.toByte()
             assertTrue(runCatching { VehicleCommandProtocol.status(corrupt) }.isFailure)
+        }
+    }
+
+    @Test fun burnoutIsGaugeStartOnlyAndUsesVersionTwoForStop() {
+        val ready = ready(VehicleCommandKind.Burnout)
+        assertFalse(ready.canStart)
+        assertTrue(runCatching { VehicleCommandProtocol.request(ready, false) }.isFailure)
+        val active = ready.copy(phase = VehicleCommandPhase.Active, operation = 3, remainingSeconds = 10)
+        val request = VehicleCommandProtocol.request(active, true)
+        assertEquals(24, request.size)
+        assertEquals(2, request[0].toInt())
+        assertEquals(3, request[1].toInt())
+        assertEquals(0, request[3].toInt())
+        assertTrue(active.copy(phase = VehicleCommandPhase.Unknown).message.contains("not verified"))
+        assertFalse(active.copy(phase = VehicleCommandPhase.Restored).message.contains("restored"))
+        val unknown = active.copy(phase = VehicleCommandPhase.Unknown)
+        assertTrue(unknown.canStop)
+        assertEquals(2, VehicleCommandProtocol.request(unknown, true)[2].toInt())
+        assertFalse(unknown.copy(operation = 0).canStop)
+        assertFalse(unknown.copy(qualified = false).canStop)
+        assertFalse(active.copy(qualified = false).canStop)
+        assertEquals(listOf(VehicleCommandKind.Idle, VehicleCommandKind.AbsTcs), VehicleCommandKind.supported(1))
+        assertEquals(VehicleCommandKind.entries.toList(), VehicleCommandKind.supported(1, 1))
+        assertTrue(VehicleCommandKind.supported(2).isEmpty())
+        assertTrue(VehicleCommandKind.supported(null).isEmpty())
+    }
+
+    @Test fun burnoutStatusBoundsAndFlagsAreStrict() {
+        val bytes = statusBytes().apply {
+            this[1] = 3
+            this[2] = 3
+            this[24] = 10
+            this[27] = 9
+        }
+        val status = VehicleCommandProtocol.status(bytes)
+        assertTrue(status.gaugeStartRequired)
+        assertTrue(status.canStop)
+        assertEquals(10, status.remainingSeconds)
+        for ((at, value) in listOf(24 to 11, 26 to 1, 27 to 11, 27 to 13, 27 to 25, 2 to 7)) {
+            assertTrue(runCatching { VehicleCommandProtocol.status(bytes.copyOf().apply { this[at] = value.toByte() }) }.isFailure)
         }
     }
 

@@ -130,7 +130,7 @@ class DiagnosticReadbackJourneyTest {
                     }
                     val commands = JSONArray()
                     report.put("vehicleCommandStates", commands)
-                    for (kind in VehicleCommandKind.entries) {
+                    for (kind in VehicleCommandKind.supported(model.capabilities?.vehicleCommandsVersion, model.capabilities?.burnoutActionsVersion)) {
                         val requestedAt = System.currentTimeMillis()
                         val state = withTimeout(20_000) { client.readVehicleCommand(device, kind) }
                         commands.put(

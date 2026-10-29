@@ -403,3 +403,17 @@ offer signed published candidates, including dev.75. No new firmware runtime, co
 qualification or stable channel is implied. [Review evidence](../review/REPORT.md)
 records baseline checks; final publication and comparison are recorded separately in
 [delivery results](../review/IMPLEMENTATION.md). Normal website cadence still applies.
+
+
+## Brake action integration in source
+
+App dev.54/code54 adds an explicit fourth **Burnout Mode** action using negotiated
+`vc:1` + optional `bm:1`; legacy menus/gauges retain their previous behavior. Firmware integrates
+its captured distinct ABS route through the shared worker, physical hold-to-run,
+bounded release request, durable uncertainty and independent release-proof gate.
+Combined **Disable ABS + TCS** retains ignition-cycle/reset-proof semantics. Both
+brake actions remain unqualified and unavailable on live profiles; no device or
+vehicle test is implied. [Action contract](architecture/vehicle-actions.md#burnout-mode-and-brake-actions)
+and [parked follow-up](development/jeep-action-qualification.md#brake-actions-follow-up)
+define the remaining evidence. This source work does not replace the installed
+App/dev.75 device record above or publish a new firmware release.

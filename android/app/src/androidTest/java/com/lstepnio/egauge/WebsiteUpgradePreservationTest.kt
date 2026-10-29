@@ -43,8 +43,9 @@ class WebsiteUpgradePreservationTest {
             check(it.moveToFirst() && it.getString(0) == eventJson)
         }
         check(preferences.getString("collection", null) == raw)
-        val evidence = JSONObject().put("phase", if (seed) "old51-seeded-and-decoded" else "new53-decoded")
-            .put("installedVersion", context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode)
+        val installedVersion = context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
+        val evidence = JSONObject().put("phase", if (seed) "old$installedVersion-seeded-and-decoded" else "new$installedVersion-decoded")
+            .put("installedVersion", installedVersion)
             .put("rawProfile", JSONObject(raw)).put("profileError", loaded.error)
             .put("decodedProfile", ProfileDocumentCodec.encode(loaded.collection))
             .put("presentation", context.getSharedPreferences("presentation", 0).all.toString())

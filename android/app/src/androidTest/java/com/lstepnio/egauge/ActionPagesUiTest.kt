@@ -43,6 +43,18 @@ class ActionPagesUiTest {
         }
     }
 
+    @Test fun savedBurnoutDraftStaysEditableWithoutCommandSupport() {
+        var saved: PageAction? = null
+        val action = PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.Burnout))
+        compose.setContent { EGaugeTheme { ActionPagesSheet(state().copy(actions = listOf(action), vehicleCommands = emptyMap(), commandsSupported = false), { value, _ -> saved = value }, {}) } }
+        compose.onNodeWithText("Burnout Mode").performClick()
+        compose.onNodeWithText("Hold on gauge. Release to stop.").assertIsDisplayed()
+        compose.onNodeWithText("Duration").assertDoesNotExist()
+        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.onNodeWithText("Save on phone").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(action, saved) }
+    }
+
     @Test fun editTimerAndSaveOnlyConfiguration() {
         var saved: PageAction? = null
         compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { action, _ -> saved = action }, {}) } }
@@ -54,7 +66,7 @@ class ActionPagesUiTest {
         compose.onNodeWithText("Save on phone").performScrollTo().performClick()
         compose.runOnIdle {
             assertEquals(150, saved!!.winchSeconds)
-            assertEquals(ActionPageId.entries.toList(), saved!!.pages)
+            assertEquals(legacyActionPages, saved!!.pages)
         }
     }
 
@@ -131,6 +143,37 @@ class ActionPagesUiTest {
         }
     }
 
+    @Test fun largeTextBurnoutEditorKeepsDoneAndSaveReachable() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        check(android.os.Build.HARDWARE in setOf("ranchu", "goldfish"))
+        val originalScale = instrumentation.targetContext.resources.configuration.fontScale
+        fun scale(value: Float) {
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                instrumentation.uiAutomation.executeShellCommand("settings put system font_scale $value")
+            ).use { it.readBytes() }
+            compose.waitUntil(5_000) { instrumentation.targetContext.resources.configuration.fontScale == value }
+            instrumentation.waitForIdleSync()
+        }
+        var saved: PageAction? = null
+        val action = PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.Burnout))
+        try {
+            scale(2f)
+            compose.setContent { EGaugeTheme { ActionPagesSheet(state().copy(actions = listOf(action), vehicleCommands = emptyMap()), { value, _ -> saved = value }, {}) } }
+            compose.onNodeWithText("Burnout Mode").performScrollTo().performClick()
+            compose.onNodeWithText("Hold on gauge. Release to stop.").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Duration").assertDoesNotExist()
+            compose.onNodeWithText("Done").performScrollTo().assertIsEnabled().assertIsDisplayed()
+            capture("burnout-editor-large-text.png")
+            finishEditor()
+            compose.onNodeWithText("Save on phone").performScrollTo().assertIsEnabled().assertIsDisplayed()
+            capture("burnout-save-large-text.png")
+            compose.onNodeWithText("Save on phone").performClick()
+            compose.runOnIdle { assertEquals(action, saved) }
+        } finally {
+            scale(originalScale)
+        }
+    }
+
     @Test fun largeTextTargetEditorKeepsDraftAndDoneReachable() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val originalScale = instrumentation.targetContext.resources.configuration.fontScale
@@ -179,7 +222,7 @@ class ActionPagesUiTest {
         compose.onNodeWithText("Winch").assertDoesNotExist()
         compose.onNodeWithText("Undo").performScrollTo().performClick()
         compose.onNodeWithText("Save on phone").performScrollTo().performClick()
-        compose.runOnIdle { assertEquals(ActionPageId.entries.toList(), saved!!.pages) }
+        compose.runOnIdle { assertEquals(legacyActionPages, saved!!.pages) }
     }
 
     @Test fun namedOverflowReordersWithoutChangingTimers() {

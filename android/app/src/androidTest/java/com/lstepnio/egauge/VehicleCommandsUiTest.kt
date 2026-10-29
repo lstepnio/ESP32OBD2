@@ -28,6 +28,23 @@ class VehicleCommandsUiTest {
         vehicleCommands = VehicleCommandKind.entries.associateWith { VehicleCommandStatus(it, if (it == VehicleCommandKind.Idle && phase == VehicleCommandPhase.RestartRequired) VehicleCommandPhase.Unavailable else phase, qualified = qualified) }
     )
 
+    @Test fun burnoutOffersOnlyQualifiedStopAndNeverStart() {
+        var stopped = false
+        compose.setContent {
+            EGaugeTheme {
+                VehicleActionsSheet(state().copy(vehicleCommands = mapOf(VehicleCommandKind.Burnout to VehicleCommandStatus(VehicleCommandKind.Burnout, VehicleCommandPhase.Unknown, operation = 3, qualified = true, remainingSeconds = 10))), {}, { kind, stop, preset ->
+                    assertEquals(VehicleCommandKind.Burnout, kind)
+                    assertTrue(stop)
+                    assertNull(preset)
+                    stopped = true
+                }, {})
+            }
+        }
+        compose.onNodeWithText("Start Burnout Mode").assertDoesNotExist()
+        compose.onNodeWithText("Stop Burnout Mode").performScrollTo().performClick()
+        compose.runOnIdle { assertTrue(stopped) }
+    }
+
     @Test fun shortcutConfirmationDoesNotSendUntilConfirmed() {
         var starts = 0
         compose.setContent {

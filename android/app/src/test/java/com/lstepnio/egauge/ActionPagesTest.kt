@@ -10,12 +10,45 @@ class ActionPagesTest {
 
     @Test fun legacyMenuMigratesInOrderAndKeepsGestureAndDurations() {
         val migrated = ProfileActions.decode(JSONArray(legacy)).single()
-        assertEquals(ActionPageId.entries.toList(), migrated.pages)
+        assertEquals(legacyActionPages, migrated.pages)
         assertEquals(3, migrated.count)
         assertEquals(60, migrated.airUpSeconds)
         assertEquals(listOf(migrated), ProfileActions.decode(ProfileActions.json(listOf(migrated))))
         val empty = migrated.copy(pages = emptyList())
         assertTrue(ProfileActions.decode(ProfileActions.json(listOf(empty))).single().pages.isEmpty())
+    }
+
+    @Test fun burnoutDraftRoundTripsWithoutChangingLegacyOrJumpDefaults() {
+        val action = PageAction(type = PageActionType.VehicleActions, pages = ActionPageId.entries.toList())
+        assertEquals(4, action.pages.size)
+        assertEquals(action, ProfileActions.decode(ProfileActions.json(listOf(action))).single())
+        assertEquals(legacyActionPages, PageAction(pageId = "main").pages)
+        assertFalse(ProfileActions.supported(listOf(action), 1))
+        assertFalse(ProfileActions.supported(listOf(action), null))
+        assertTrue(ProfileActions.supported(listOf(action), 1, 1))
+        assertTrue(ProfileActions.supported(listOf(action.copy(pages = legacyActionPages)), 1))
+    }
+
+    @Test fun optionalBurnoutCapabilityKeepsLegacyVehicleCommandsVersion() {
+        val base = """{"board":"board","protocolMajor":0,"maxAdapterLinks":2,"configWrite":false,"ota":false,"vc":1}"""
+        assertEquals(0, GaugeProtocolCodec.capabilities(base.toByteArray()).burnoutActionsVersion)
+        val extended = base.dropLast(1) + ",\"bm\":1}"
+        val capabilities = GaugeProtocolCodec.capabilities(extended.toByteArray())
+        assertEquals(1, capabilities.vehicleCommandsVersion)
+        assertEquals(1, capabilities.burnoutActionsVersion)
+        listOf("2", "-1", "1.5", "true", "\"1\"").forEach { invalid ->
+            assertTrue(runCatching { GaugeProtocolCodec.capabilities((base.dropLast(1) + ",\"bm\":$invalid}").toByteArray()) }.isFailure)
+        }
+    }
+
+    @Test fun profileSchemaPreservesExplicitBurnoutAndRejectsUnknownPages() {
+        val action = PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.Burnout))
+        val collection = ProfileCollection("jeep", listOf(VehicleProfile("jeep", "Jeep", Draft(actions = listOf(action)))))
+        val encoded = ProfileDocumentCodec.encode(collection)
+        assertEquals(19, JSONObject(encoded).getInt("schemaVersion"))
+        assertEquals(listOf(action), ProfileDocumentCodec.decode(encoded).active.draft.actions)
+        assertTrue(runCatching { ProfileDocumentCodec.decode(encoded.replace("burnout", "futureBrakeAction")) }.isFailure)
+        assertEquals(listOf(action), ProfileDocumentCodec.decode(encoded).active.draft.actions)
     }
 
     @Test fun unsupportedDuplicateAndOversizedCollectionsAreRejected() {
