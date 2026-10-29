@@ -36,6 +36,11 @@ and ABS/TCS execution remains disabled.
 
 ## Offline follow-up in review
 
+The owner authorized PR #123 merge after CI, App installation, signed dev.75
+publication with the installed candidate options retained, App/Wi-Fi installation
+and indoor checks. The version-only bump prepares that release; publication and
+installed identity remain unverified until the delivery evidence is recorded.
+
 Source now adds bounded 100 ms presentation easing for reviewed fast readings and a
 debounced Auto boot-angle checkpoint. Neither is yet installed; the display and
 hardware contracts own behavior and persistence limits. Source also removes the
