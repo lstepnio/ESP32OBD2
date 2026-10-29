@@ -4,15 +4,18 @@ import android.os.Build
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.ui.state.PresentationPreferenceStore
 import org.json.JSONObject
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /** Isolated emulator only. Exercises the installed APK stores without Activity/radio startup. */
 class WebsiteUpgradePreservationTest {
     @Test fun preserveLegacyFixture() {
+        val phase = InstrumentationRegistry.getArguments().getString("upgradePhase")
+        assumeTrue("Run explicitly with upgradePhase=seed or verify on a disposable emulator", phase in setOf("seed", "verify"))
         check(Build.HARDWARE in setOf("ranchu", "goldfish"))
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
-        val seed = InstrumentationRegistry.getArguments().getString("upgradePhase") == "seed"
+        val seed = phase == "seed"
         val raw = """{"schemaVersion":1,"activeId":"website-upgrade","profiles":[{"id":"website-upgrade","name":"Upgrade example","draft":{"pidId":"rpm","layout":"Arc","source":"ECM","warning":103,"critical":113}}]}"""
         val preferences = context.getSharedPreferences("profiles-v1", 0)
         if (seed) {

@@ -34,6 +34,8 @@ seeded legacy schema1 profile with RPM Arc/coolant thresholds, appearance prefer
 and one diagnostic history event. Replacement with the fresh code53 APK retained
 raw profile/preferences/event, while the decoded profile migrated14→19. This bounded
 fixture does not establish every possible prior-profile upgrade or live radio path.
+The preservation harness is opt-in with `upgradePhase=seed` or `verify`; ordinary
+instrumentation discovery skips it, and the fixture refuses physical-device hardware.
 [Before](android-upgrade-before.json) / [after](android-upgrade-after.json) retain the
 synthetic proof. The owner phone/gauge were not used.
 
