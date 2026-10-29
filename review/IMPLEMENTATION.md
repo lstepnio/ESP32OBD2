@@ -67,3 +67,9 @@ to the checked PR head; a source commit or CI result alone does not prove public
 deployment. Private deployment receipts retain backup path, exact source and hashes.
 No physical-device installation is implied by this website update. Firmware dev.75 remains current;
 website/test-harness work needs no new firmware release.
+
+Raw generated logs/XML and full Lighthouse JSON/HTML are retained byte-for-byte
+in [raw-tool-evidence.zip](raw-tool-evidence.zip) with a
+[SHA256 inventory](raw-tool-evidence-index.json). This avoids duplicated generated
+report source and tool whitespace in the review diff. Structured summaries, native
+images and before/after captures remain directly browsable.

@@ -117,3 +117,7 @@ pinned ktlint tool. The exact focused capture test passed again (1/1, BUILD
 SUCCESSFUL in 1 minute); `capture-format-recheck.log` retains that result.
 PNGs and their manifest were regenerated afterward, so the harness SHA256 refers
 to the formatted source used in the latest successful run.
+
+Original command logs/XML referenced above are now retained unchanged inside
+`raw-tool-evidence.zip`, under their original relative paths; the SHA256 index
+allows individual verification. This packaging does not change test outcomes.

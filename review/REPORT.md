@@ -283,8 +283,8 @@ were separately read from HTTPS. Configuration follows the
 | Recovery / mobile | 92 | 100 | 100 | 63 | 93 / 100 / 100 / 63 |
 | Recovery / desktop | 99 | 100 | 100 | 63 | 99 / 100 / 100 / 63 |
 
-[Raw reports and metrics](lighthouse/baseline-summary.json) link to the adjacent JSON/HTML
-runs. No run warnings were reported. SEO's failed crawlability audit is expected:
+[Summary metrics](lighthouse/baseline-summary.json) accompany the complete JSON/HTML
+runs in [raw tool evidence](raw-tool-evidence.zip), with a [hash inventory](raw-tool-evidence-index.json). No run warnings were reported. SEO's failed crawlability audit is expected:
 `robots.txt`, meta and production headers intentionally prohibit indexing. Preserve
 that policy; do not chase a score by changing it. Mobile hero native resolution
 explains the one best-practice failure. Recovery mobile also reports unused JavaScript
