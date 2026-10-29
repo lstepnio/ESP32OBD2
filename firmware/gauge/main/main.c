@@ -279,16 +279,15 @@ static void page_ui(unsigned index, ui_page_t *out)
     {
         const runtime_pid_t *pid = &g_runtime->pids[page->pid_indices[i]];
         out->metrics[i]          = (ui_metric_t){
+            .presentation = reading_presentation_kind(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms),
             .pid          = pid->obd.pid,
             .scoped       = true,
             .source_index = pid->source_index,
             .revision     = g_running_config_record.revision,
-            .presentation_eased =
-                reading_presentation_eased(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms),
-            .name    = pid->name,
-            .unit    = pid->unit,
-            .minimum = pid->obd.decoder.minimum,
-            .maximum = pid->obd.decoder.maximum,
+            .name         = pid->name,
+            .unit         = pid->unit,
+            .minimum      = pid->obd.decoder.minimum,
+            .maximum      = pid->obd.decoder.maximum,
             .stale_after_ms =
                 reading_policy(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms, false, false, false)
                     .display_age_ms,

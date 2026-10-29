@@ -69,12 +69,17 @@ static unsigned catalog_slot(const char *id, uint8_t service, uint16_t pid, uint
             return i + 1;
     return 0;
 }
-bool reading_presentation_eased(const char *id, uint8_t service, uint16_t pid, uint32_t poll_ms, uint32_t stale_ms)
+reading_presentation_kind_t reading_presentation_kind(const char *id,
+                                                      uint8_t     service,
+                                                      uint16_t    pid,
+                                                      uint32_t    poll_ms,
+                                                      uint32_t    stale_ms)
 {
     unsigned slot = catalog_slot(id, service, pid, poll_ms, stale_ms);
-    return slot && catalog[slot - 1].kind == READING_FAST && strcmp(id, "transmission.gear");
+    if (!slot || catalog[slot - 1].kind == READING_CUSTOM || !strcmp(id, "transmission.gear"))
+        return READING_PRESENT_DIRECT;
+    return service == 1 && pid == 0x0c ? READING_PRESENT_RPM : READING_PRESENT_CONTINUOUS;
 }
-
 void reading_stability_reset(reading_stability_t *state)
 {
     if (state)

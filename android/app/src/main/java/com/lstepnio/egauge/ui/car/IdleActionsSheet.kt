@@ -2,12 +2,10 @@ package com.lstepnio.egauge.ui.car
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.*
 import com.lstepnio.egauge.core.designsystem.*
@@ -23,8 +21,8 @@ fun IdleActionsSheet(vehicleId: String, saved: List<IdlePreset>, editable: Boole
     val airUpDraft = remember(vehicleId, selected) { AirUpTimerDraft(value.airUp) }
     val pressureValid = selected != IdlePresetId.AirUp || airUpDraft.valid
     fun editedPreset() = if (selected == IdlePresetId.AirUp) airUpDraft.applyTo(value) else value
-    val rpm = rpmText.toIntOrNull()
-    val valid = rpmText.isEmpty() || (rpm != null && rpm in 400..3000)
+    val rpm = IdleTargetDraft.parse(rpmText)
+    val valid = IdleTargetDraft.valid(rpmText)
     fun saveValue(next: IdlePreset) {
         values = values.filterNot { it.id == next.id } + next
     }
@@ -43,7 +41,7 @@ fun IdleActionsSheet(vehicleId: String, saved: List<IdlePreset>, editable: Boole
                     }, label = { Text(id.label) }, enabled = editable && !control.configurationLocked && pressureValid)
                 }
             }
-            OutlinedTextField(rpmText, { rpmText = it }, label = { Text("Target RPM") }, supportingText = { Text("Leave blank to use the car's fixed raised-idle setting. Numeric targets stay as drafts.") }, isError = !valid, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = editable && !control.configurationLocked, modifier = Modifier.fillMaxWidth())
+            IdleTargetEditor(selected, rpmText, { rpmText = it }, editable && !control.configurationLocked)
             if (selected == IdlePresetId.AirUp) AirUpTimerEditor(airUpDraft, editable && !control.configurationLocked)
             if (selected != IdlePresetId.AirUp || !airUpDraft.enabled) {
                 Text("Duration")
@@ -56,7 +54,7 @@ fun IdleActionsSheet(vehicleId: String, saved: List<IdlePreset>, editable: Boole
                 onSave(next)
                 onDismiss()
             }, enabled = editable && valid && pressureValid && !control.configurationLocked)
-            PrimaryAction("Start ${selected.label}", { onStart?.invoke(editedPreset().copy(rpm = rpm)) }, enabled = onStart != null && control.canStart && valid && pressureValid && rpm != null && editable && coolantLimitC != null)
+            PrimaryAction("Start ${selected.label}", { onStart?.invoke(editedPreset().copy(rpm = rpm)) }, enabled = onStart != null && control.canStart && valid && pressureValid && rpm == null && editable && coolantLimitC != null)
             if (saved.any { it.id == selected }) {
                 TextButton({
                     onSave(saved.filterNot { it.id == selected })

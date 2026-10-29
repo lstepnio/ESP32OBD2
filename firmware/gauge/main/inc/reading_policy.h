@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "poll_scheduler.h"
+#include "reading_presentation.h"
 /* Catalog classes only affect display/scheduling. Unknown/custom timings retain
  * their explicit profile limits; no guard or alert freshness is widened. */
 poll_pid_policy_t reading_policy(const char *id,
@@ -12,10 +13,6 @@ poll_pid_policy_t reading_policy(const char *id,
                                  bool        visible,
                                  bool        next_page,
                                  bool        alert);
-
-/* Internal display hint only. Exact reviewed fast definitions opt in; custom
- * definitions/timings and categorical gear remain immediate. No wire field. */
-bool reading_presentation_eased(const char *id, uint8_t service, uint16_t pid, uint32_t poll_ms, uint32_t stale_ms);
 
 /* One fixed state per PID/source. No heap, queries, or display-age changes. */
 typedef struct
@@ -46,3 +43,9 @@ poll_pid_policy_t reading_policy_adaptive(const char                *id,
                                           const reading_stability_t *state,
                                           uint32_t                   now_ms,
                                           uint32_t                   generation);
+
+reading_presentation_kind_t reading_presentation_kind(const char *id,
+                                                      uint8_t     service,
+                                                      uint16_t    pid,
+                                                      uint32_t    poll_ms,
+                                                      uint32_t    stale_ms);

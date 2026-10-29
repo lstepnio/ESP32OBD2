@@ -10,9 +10,25 @@ enum class IdlePresetId(val wire: Int, val label: String) { AirUp(1, "Air up"), 
 /** Local draft limits bound storage, not controller support. No unverified RPM default. */
 data class IdlePreset(val id: IdlePresetId, val rpm: Int? = null, val seconds: Int = 300, val airUp: AirUpTimer? = null) {
     init {
-        require(rpm == null || rpm in 400..3000)
+        require(rpm == null || rpm in IdleTargetDraft.RANGE)
         require(seconds in 10..600)
         require(airUp == null || (id == IdlePresetId.AirUp && seconds == airUp.sessionSeconds))
+    }
+}
+
+/** Numeric intent is local preparation only until a matched controller supports it.
+ * Air up requests a target; Winch requests a floor with normal throttle above it.
+ * Neither meaning is inferred from the captured fixed-setting driver. */
+object IdleTargetDraft {
+    val RANGE = 400..3000
+    fun label(id: IdlePresetId) = if (id == IdlePresetId.AirUp) "Target RPM" else "Minimum RPM"
+    fun parse(text: String): Int? = text.takeIf { it.matches(Regex("[0-9]+")) }?.toIntOrNull()?.takeIf { it in RANGE }
+    fun valid(text: String) = text.isEmpty() || parse(text) != null
+    fun projectionBlockers(presets: List<IdlePreset>, actions: List<PageAction>): List<String> {
+        val pages = actions.filter { it.type == PageActionType.VehicleActions }.flatMap { it.pages }.toSet()
+        return presets.filter { it.rpm != null && (if (it.id == IdlePresetId.AirUp) ActionPageId.AirUp else ActionPageId.Winch) in pages }.map {
+            "${it.id.label}: numeric RPM is saved on this phone. Clear it to use the fixed setting before sending action pages."
+        }
     }
 }
 

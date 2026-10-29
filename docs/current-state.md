@@ -34,26 +34,36 @@ Website impact: corrective recovery behavior needs no new marketing claim or ima
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
 
-## Offline follow-up in review
+## Combined foreground, fault and idle-target follow-up in review
 
-The owner authorized PR #123 merge after CI, App installation, signed dev.75
-publication with the installed candidate options retained, App/Wi-Fi installation
-and indoor checks. The version-only bump prepares that release; publication and
-installed identity remain unverified until the delivery evidence is recorded.
+PR #122 merged at `e166fa0` after four checks passed on corrected source `3e17eaa`.
+PR #123 integrates it before the owner-authorized dev.75 publication and one
+App/Wi-Fi installation. Publication and installed identity remain unverified until
+the delivery evidence is recorded; dev.74 remains the installed baseline above.
 
-Source now adds bounded 100 ms presentation easing for reviewed fast readings and a
-debounced Auto boot-angle checkpoint. Neither is yet installed; the display and
-hardware contracts own behavior and persistence limits. Source also removes the
-misleading last-drive episode total, groups repeated warning
-history without inventing codes, keeps last-known code detail reachable, and uses
+One [presentation owner](development/reading-catalog-alerts.md#gauge-presentation-smoothing)
+combines foreground warmup/preflight priority, bounded 150 ms analog easing and
+independent RPM text stabilization, with original-age accounting and continuity
+fences across source retirement, invalidation and missed stale gaps. Raw readings,
+trend history, alert and control ages remain authoritative. A separate debounced
+[Auto boot-angle checkpoint](architecture/hardware-and-transports.md#automatic-display-orientation)
+retains manual fallback independently. These are source changes, not physical proof.
+
+The App removes the misleading last-drive episode total, groups repeated warning
+history without inventing codes, keeps last-known code detail reachable and uses
 explicit code-unavailable wording. The [shared alert contract](architecture/alerts-and-diagnostics.md#app-fault-and-history-presentation)
-owns grouping and evidence semantics. [Offline verification](evidence/fault-reading-continuity.md) separates these checks
-from installed-device evidence.
-The next configurable-idle/pedal capture is prepared in the
-[parked runbook](development/jeep-action-qualification.md#next-session-configurable-idle-and-pedal-investigation);
-arbitrary targets and Winch pedal behavior remain unqualified.
-Website impact: review current Car/circular-gauge captures after offline verification;
-publish only in the normal daily window and do not imply configurable idle is live.
+owns grouping and evidence semantics. [Offline verification](evidence/fault-reading-continuity.md)
+separates original branch checks from combined integration checks and installation.
+
+The App reuses nullable preset RPM for an [Air up target and Winch minimum floor](architecture/vehicle-actions.md),
+preserves it during timer edits and keeps numeric drafts phone-only. Local semantic
+validation permits other valid edits; transfer admission alone rejects unsupported
+numeric action intent rather than stripping it into a fixed target. No new wire,
+firmware target mapping or live throttle behavior is enabled. The next
+[parked session](development/jeep-action-qualification.md#next-session-configurable-idle-and-pedal-investigation)
+separates variable targets, ECU pedal behavior and the existing guard.
+Website impact: defer new idle claims; review current Car/circular-gauge captures
+for the normal daily window after qualification.
 
 ## Continuity update
 

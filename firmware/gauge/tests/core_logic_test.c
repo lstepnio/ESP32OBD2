@@ -498,6 +498,65 @@ static void test_scheduler_budgeted(void)
     job = poll_scheduler_next_budgeted(&s, 999, NULL, 0, &budget);
     assert(job.kind == POLL_JOB_DTC && job.index == 0);
 
+    /* Hidden warmup cannot claim an infinitely overdue deadline ahead of a
+     * measured foreground PID. Charge completion/recovery time on every read. */
+    poll_scheduler_init(&s);
+    poll_scheduler_endpoints(&s, 0);
+    for (unsigned i = 0; i < 32; ++i)
+        p[i] = (poll_pid_policy_t){.interval_ms = 250, .display_age_ms = 3000, .priority = i == 31 ? 2 : 0};
+    poll_scheduler_sample(&s, 31, 0);
+    now                       = 250;
+    unsigned foreground_reads = 0, warmup_reads = 0;
+    for (unsigned i = 0; i < 20; ++i)
+    {
+        job = poll_scheduler_next_budgeted(&s, now, p, 32, &budget);
+        assert(job.kind == POLL_JOB_PID);
+        if (i == 0)
+            assert(job.index == 31);
+        if (job.index == 31)
+            ++foreground_reads;
+        else
+            ++warmup_reads;
+        now += 200;
+        poll_scheduler_complete(&s, job, now, true);
+        now += 100;
+    }
+    assert(foreground_reads >= 8 && warmup_reads > 0);
+    /* Cold diagnostic preflight also starts with the visible metric, regardless
+     * of configuration order. Each PID is still touched at most once. */
+    poll_scheduler_init(&s);
+    job = poll_scheduler_next_budgeted(&s, 100, p, 32, &budget);
+    assert(job.kind == POLL_JOB_PID && job.index == 31);
+
+    /* Retain foreground service throughout a cold 32-reading diagnostic walk,
+     * not just its first slot. The diagnostic must still finish within a bound. */
+    poll_scheduler_init(&s);
+    now                      = 100;
+    uint32_t last_foreground = now;
+    unsigned preflight_reads = 0;
+    do
+    {
+        job = poll_scheduler_next_budgeted(&s, now, p, 32, &budget);
+        if (job.kind == POLL_JOB_PID)
+        {
+            ++preflight_reads;
+            if (job.index == 31)
+            {
+                assert(now - last_foreground <= 900);
+                last_foreground = now;
+            }
+            now += 200;
+        }
+        else
+        {
+            assert(job.kind == POLL_JOB_MIL && preflight_reads <= 48);
+            now += 700;
+        }
+        poll_scheduler_complete(&s, job, now, true);
+        now += 100;
+    } while (job.kind == POLL_JOB_PID);
+    assert(preflight_reads >= 32);
+
     /* Priorities get useful preference, but the independent fairness cursor
      * eventually reaches all hidden PIDs even with a permanently due visible PID. */
     poll_scheduler_init(&s);
@@ -585,7 +644,7 @@ static void test_scheduler_budgeted(void)
         now += 100;
     }
     assert(s.forced_diagnostics > 0 && s.deadline_misses > 0 && failure_count > 1);
-    assert(max_since_due <= 42); /* Once due: ten ordinary + at most 32 preflight reads. */
+    assert(max_since_due <= 58); /* Ten ordinary + 32 preflight + up to 16 visible reads. */
     for (unsigned i = 0; i < 32; ++i)
         assert(counts[i] > 1);
     for (unsigned i = 0; i < 8; ++i)

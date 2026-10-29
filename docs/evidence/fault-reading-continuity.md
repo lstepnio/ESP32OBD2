@@ -22,7 +22,7 @@ Behavior authorities: [shared alerts](../architecture/alerts-and-diagnostics.md#
 The [next Jeep plan](../development/jeep-action-qualification.md#next-session-configurable-idle-and-pedal-investigation)
 prepares configurable targets and pedal attribution without enabling new commands.
 
-## Executed checks
+## Original PR #123 checks
 
 - Host lint/contracts/docs and format checks passed. Host tests: 173 Python suites,
   14 review-server tests, Node recovery fixtures and native sanitizer fixtures passed.
@@ -58,3 +58,38 @@ wire schema or owner settings revision change is introduced.
 Website impact: inspect production Car/circular-gauge captures in the normal daily
 window after qualification. This corrective change makes no new marketed vehicle
 capability claim and does not authorize an extra publication.
+
+## Combined integration after PR #122
+
+The owner authorized one combined release with Mainline. PR #122 merged at
+`e166fa02822a6842d20d4c2b1ac83886eeb1a801` after four successful checks on its
+corrected `3e17eaa` source. PR #123 integrates that base before publication; its
+original independent 100 ms policy is superseded by one 150 ms analog/RPM-text
+owner with original-observation age accounting and continuity fencing.
+The corrected local-semantic/transfer blocker split is retained unchanged.
+
+Combined source checks passed: 173 host Python tests, 14 review-server tests and
+native sanitizer fixtures; 329 debug/303 release JVM tests; Android build/lint and
+instrumentation compilation; all three production LVGL variants; firmware build
+with image size `0x1993a0`, internal static RAM 164602 bytes and existing gates.
+Source-generation, configuration, missed-invalid/stale gaps, raw cache/history,
+RPM cadence, critical/zero bypass and delayed-sample tests exercise the one path.
+
+The first combined 93-test UI run completed with one failure. Its stack points to
+Espresso keyboard closure selecting the unfocused base Activity behind a dialog in
+the native-200% target editor. The test helper now addresses the focused window's
+IME controller and awaits native hidden insets; it does not press Back, retry a tap
+or weaken any reachability/value assertion. The full suite then passed all 93
+tests with no failures or skips (4m01s), including actual Android 200% target entry,
+Car/history/filter/notification paths and compact/large-text captures. The failed
+run is retained privately under `artifacts/checks/combined-ui-before-imefix/`.
+
+Mainline owns the single signed release, App/Wi-Fi installation and combined device
+evidence update. This source integration performs no further device operations.
+Fresh pre-delivery protected reads confirmed dev.74 healthy, configuration revision
+65 and the retained digest; display preferences now have revision 48, Auto enabled
+and 15-second Smart cycling. Both command states were Unavailable with operation 0.
+Those are cache observations indoors, not proof of live recovery or vehicle control.
+Private setup/history backups and original phone notification/wake preferences were
+handed to the sole device owner. The before-install Car capture reproduced exactly
+Last drive / 24 alerts recorded; no history was deleted to change that presentation.

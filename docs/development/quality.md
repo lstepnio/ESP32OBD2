@@ -62,7 +62,9 @@ pixel baseline; API/font rasterizers differ.
 Native IME resizing can move modal-sheet touch targets outside Compose's clock.
 Text-entry fixtures close the keyboard through `closeKeyboardAndWaitForIdle`
 before touching non-text controls, then observe the expected editor destination
-with a bounded condition. Keep actual taps and exact saved-value assertions;
+with a bounded condition. On API 30+ the helper addresses the focused window's
+IME controller and awaits hidden insets: Espresso may otherwise select the
+unfocused Activity behind a Compose dialog. It never dismisses a dialog with Back. Keep actual taps and exact saved-value assertions;
 do not hide keyboard-specific tests, retry taps, add sleeps or relax assertions.
 
 `RepositoryGalleryTest` captures current production Gauge/Car/Settings composables

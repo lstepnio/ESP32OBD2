@@ -53,6 +53,48 @@ class TemporaryIdleTest {
         assertEquals(updated, ProfileDocumentCodec.decode(encoded).active)
     }
 
+    @Test fun numericDraftsUseDifferentIntentLabelsWithSharedStrictStorageBounds() {
+        assertEquals("Target RPM", IdleTargetDraft.label(IdlePresetId.AirUp))
+        assertEquals("Minimum RPM", IdleTargetDraft.label(IdlePresetId.Winch))
+        assertTrue(IdleTargetDraft.valid(""))
+        listOf("400", "1200", "3000").forEach { assertEquals(it.toInt(), IdleTargetDraft.parse(it)) }
+        listOf("399", "3001", "1200.0", "-1200", "+1200", " 1200", "1e3", "999999999999").forEach {
+            assertFalse(it, IdleTargetDraft.valid(it))
+        }
+        listOf(400, 3000).forEach { rpm ->
+            val presets = IdlePresetId.entries.map { IdlePreset(it, rpm) }
+            assertEquals(presets, IdlePresets.decode(IdlePresets.json(presets)))
+        }
+        val legacy = JSONObject(ProfileDocumentCodec.encode(ProfileCollection("jeep", listOf(VehicleProfile("jeep", "Jeep", Draft(idlePresets = presets)))))).put("schemaVersion", 14)
+        assertEquals(presets, ProfileDocumentCodec.decode(legacy.toString()).active.draft.idlePresets)
+    }
+
+    @Test fun numericActionPageCannotLoseItsTargetInFixedOnlyGaugeProjection() {
+        val template = File("src/main/assets/numeric_config_template.json").readText()
+        for (id in IdlePresetId.entries) {
+            val page = if (id == IdlePresetId.AirUp) ActionPageId.AirUp else ActionPageId.Winch
+            val draft = Draft(idlePresets = listOf(IdlePreset(id, 1200)), actions = listOf(PageAction(type = PageActionType.VehicleActions, pages = listOf(page))))
+            val vehicle = VehicleProfile("jeep", "Jeep", draft)
+            assertTrue(ConfigurationProjector.transferBlockers(draft).any { it.contains("numeric RPM") })
+            // Preparing an unsupported target cannot make local alert Save silently fail.
+            val added = draft.copy(alerts = listOf(defaultAlert("coolant")))
+            val edited = added.copy(alerts = listOf(added.alerts.single().copy(warning = 105.0, critical = 115.0)))
+            for (local in listOf(added, edited)) {
+                assertTrue(ConfigurationProjector.blockers(local).isEmpty())
+                val saved = ProfileCollection("jeep", listOf(vehicle.copy(draft = local)))
+                assertEquals(saved, ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(saved)))
+                assertTrue(ConfigurationProjector.transferBlockers(local).any { it.contains("numeric RPM") })
+            }
+            assertTrue(runCatching { ConfigurationProjector.projectVehicle(template, vehicle, 7, false) }.isFailure)
+            // A gauge override is resolved before admission; it cannot bypass the draft.
+            assertTrue(runCatching { ConfigurationProjector.projectVehicle(template, vehicle.copy(draft = draft.copy(actions = emptyList())), 7, false, actions = draft.actions) }.isFailure)
+            // A saved draft without a matching enabled page still permits unrelated setup.
+            val unrelated = listOf(PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.AbsTcs)))
+            assertTrue(runCatching { ConfigurationProjector.projectVehicle(template, vehicle, 7, false, actions = unrelated) }.isSuccess)
+            assertTrue(runCatching { ConfigurationProjector.projectVehicle(template, vehicle.copy(draft = draft.copy(idlePresets = listOf(IdlePreset(id)))), 7, false) }.isSuccess)
+        }
+    }
+
     @Test fun innerRequestsMatchTheCDecoderAndKeepRoleAndReservedBytesZero() {
         val expected = File("../../contracts/examples/temporary-idle-start.hex").readText().trim()
         val bytes = IdleCommandProtocol.request(1, 1, 7, 9, presets[0].copy(seconds = 10))

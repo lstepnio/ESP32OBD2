@@ -620,6 +620,52 @@ per-gauge projection, rejected definitions, navigation/cancellation and renderin
 Physical edge/touch, cycle timing, connected source continuity and command outcomes
 still require the parked qualification below.
 
+### Numeric idle target preparation
+
+The existing parent-vehicle `IdlePreset.rpm` remains the sole optional numeric
+request. For Air up it represents a target idle RPM, with deliberate accelerator
+input intended to cancel the operation. For Winch it represents a minimum idle
+floor, with normal accelerator control intended above the floor. These are desired
+behaviors for future matched controller support, not capabilities of the current
+fixed-setting driver. App polling alone cannot promise ECM pedal override or
+bounded cancellation latency. No pedal threshold or throttle mapping is assumed.
+
+The existing 400..3000 RPM bounds admit phone drafts only, not a qualified vehicle
+range. A blank value retains the distinct captured fixed-setting operation. The
+profile schema and serialized fields are unchanged, so legacy null/numeric presets
+and four-tire timer calibration retain their existing meaning and data. Action-page
+editing uses the same field and preserves it when editing time/calibration. Air up
+labels it Target RPM; Winch labels it Minimum RPM. Expanded editing explains that
+numeric values are saved on the phone and require controller verification.
+
+Data flows through the existing parent profile, local setup transaction and gauge
+assignment projection. App Start rejects numeric presets through the shared command
+protocol. Gauge configuration projection also rejects any enabled Air up/Winch page
+whose corresponding preset has a numeric value, including per-gauge overrides.
+Transfer-only rejection is separate from local draft validation, so unrelated
+alert additions/edits remain saveable while a numeric target is prepared.
+This prevents old fixed-only firmware from receiving an action after its numeric
+intent was stripped. Unused numeric drafts do not block unrelated gauge setup.
+Saving a phone draft does not alter an already acknowledged gauge configuration;
+that gauge retains its previous fixed setting. Clearing the numeric field explicitly
+returns the preset to that fixed operation. No new command, capability or firmware
+wire field is added, and no target is inferred from the approximately 1,700 RPM
+reference observation.
+
+The [RPM encoding analysis](../vehicles/jeep/jk-handler-analysis.md) is a research
+lead only. Controller acceptance, range/step, settled RPM tracking, Air up pedal
+cancellation and Winch throttle-above-floor behavior each require separate parked
+evidence before a versioned capability can admit numeric requests. Timer, Stop,
+coolant/protection, ownership, uncertainty and no-replay rules remain mandatory for
+both intents. Unit coverage checks strict bounds, existing-schema round trips and
+projection/Start rejection. Managed fixtures cover numeric intent retained through
+timer edits, invalid floors, explicit fixed-setting selection and disabled numeric
+Start. Review compact and actual Android 200% font-scale dialog layout independently;
+an outer Compose density provider does not establish dialog accessibility. Source
+verification and pending accessibility evidence belong in current state and the
+verification record. Website impact: this phone-only preparation creates no public
+control claim or publication requirement.
+
 ### Next parked Jeep increment
 
 Execution order, prepared capture commands and acceptance rows are maintained in

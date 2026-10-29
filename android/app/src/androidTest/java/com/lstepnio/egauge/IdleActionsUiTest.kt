@@ -29,7 +29,7 @@ class IdleActionsUiTest {
         var saved: List<IdlePreset>? = null
         compose.setContent { EGaugeTheme { IdleActionsSheet("jeep", emptyList(), true, { saved = it }, {}) } }
         compose.onNodeWithText("Winch").performClick()
-        compose.onNodeWithText("Target RPM").performTextInput("1200")
+        compose.onNodeWithText("Minimum RPM").performTextInput("1200")
         compose.closeKeyboardAndWaitForIdle()
         compose.onNodeWithText("Start Winch").performScrollTo().assertIsNotEnabled()
         capture("idle-setup.png")
@@ -40,11 +40,15 @@ class IdleActionsUiTest {
         }
     }
 
-    @Test fun verifiedFixtureStartsOnlyTheChosenPreset() {
+    @Test fun qualifiedFixtureRejectsNumericDraftUntilFixedSettingIsExplicitlyChosen() {
         var selected: IdlePreset? = null
         compose.setContent { EGaugeTheme { IdleActionsSheet("fixture", listOf(IdlePreset(IdlePresetId.AirUp, 1200)), true, {}, {}, IdleControlState(IdlePhase.Ready), { selected = it }, coolantLimitC = 105.0) } }
-        compose.onNodeWithText("Start Air up").performScrollTo().performClick()
-        compose.runOnIdle { assertEquals(IdlePreset(IdlePresetId.AirUp, 1200), selected) }
+        compose.onNodeWithText("Start Air up").performScrollTo().assertIsNotEnabled()
+        compose.runOnIdle { assertNull(selected) }
+        compose.onNodeWithText("Target RPM").performScrollTo().performTextClearance()
+        compose.closeKeyboardAndWaitForIdle()
+        compose.onNodeWithText("Start Air up").performScrollTo().assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(IdlePreset(IdlePresetId.AirUp), selected) }
     }
 
     @Test fun calibratedFourTirePresetShowsEstimateAndSavesOverride() {

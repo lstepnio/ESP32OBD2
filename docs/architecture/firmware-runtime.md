@@ -83,15 +83,15 @@ Before MIL/code work, reserve the full request timeout, prompt margin and upcomi
 command guard/identity work; refresh each at-risk eligible reading once. If the
 window remains impossible, admit bounded diagnostic progress and count the
 freshness overrun instead of starving faults indefinitely. Background work retains
-a two-second spacing floor, 60-second MIL, 60-second stored/pending and 120-second
+a two-second spacing floor, five-minute MIL/stored/pending and ten-minute
 permanent cadence, with per-reading/category failure backoff. A changed MIL or
 reported count accelerates category refresh, including when the prior same-session
 MIL has aged beyond raw freshness. Before a code-list job has its first valid or
 definitively unsupported answer, transient failures become eligible again
 after 2, 4, 8, 16, 32, 64 and 128 seconds, then cap at 240 seconds. These are retry
 eligibility intervals, still subject to normal-reading reservation and background
-spacing. They avoid applying a 60/120-second steady cadence to an initializing ECU.
-MIL checks retain their 60-second minimum even after an unanswered first attempt.
+spacing. They avoid applying a five/ten-minute steady cadence to an initializing ECU.
+MIL checks retain their five-minute minimum even after an unanswered first attempt.
 An explicit unsupported reply exits the code-list startup path, as does a successful reply;
 later failures keep the existing steady-state backoff. Changed MIL/count evidence
 restarts category acquisition without inheriting an old failure penalty.
@@ -106,6 +106,7 @@ The App tick also logs diagnostic presentation only when its endpoint state chan
 usable MIL, reported/visible/filtered counts, scan completeness and suppression.
 This separates a real reported warning from pending filter classification without
 adding an on-screen loading warning or an unbounded history.
+Display motion uses [two bounded presentation states](../development/reading-catalog-alerts.md#gauge-presentation-smoothing) on the existing LVGL timer; raw samples remain authoritative.
 Rate classes and display retention belong to the
 [catalog contract](../development/reading-catalog-alerts.md#display-and-polling-classes).
 A timeout without a completed reply lets a last-good displayed value age normally;

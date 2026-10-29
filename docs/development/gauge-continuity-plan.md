@@ -43,6 +43,19 @@ The authoritative runtime behavior is in [firmware ownership](../architecture/fi
 [diagnostic semantics](../architecture/alerts-and-diagnostics.md). Extend these
 contracts and their tests rather than duplicating policy in UI consumers.
 
+## Foreground presentation follow-up
+
+The approved 2026-10-28 follow-up separates bounded display interpolation/RPM text
+stabilization from raw measurements. [Presentation rules](reading-catalog-alerts.md#gauge-presentation-smoothing)
+own constants, reset semantics and scheduler warmup behavior. This is an offline
+source change, not an installed firmware claim. Native policy tests cover mid-flight
+retargeting, no overshoot/prediction, generation/expiry/zero/severity resets, numeric
+cadence/deadband and clock wrap. Production LVGL fixtures verify arc motion while
+raw control reads stay exact, cached first-frame text and immediate expiry.
+Scheduler fixtures charge real transaction/recovery duration while checking warmup,
+foreground preference, hidden fairness and bounded foreground service throughout
+a 32-reading diagnostic preflight.
+
 ## Offline evidence
 
 Production native fixtures exercise original-age cache/page entry, invalidation,
@@ -91,6 +104,12 @@ removed at a time. Test manual and automatic page changes plus owner-supervised
 Air up/Winch Start/Stop and coolant/fallback protection. Targets:
 
 - No blank first frame when a valid cached sample exists.
+- Compare foreground RPM sample spacing and raw `poll` counters under the same
+  dashboard before/after, including hidden warmup and a failing child adapter.
+  Arc/bar motion should be legible without overshoot; numeric RPM should not chatter.
+  Change pages during a rising/falling value, trigger a real threshold transition,
+  then remove the adapter: cached entry, immediate severity and honest unavailability
+  must survive smoothing. Record display observations separately from sample ages.
 - No stuck cycling pause; full configured interval resumes consistently.
 - No unknown-count glyph or initialization-only warning; confirmed faults remain.
 - Fewer duplicate ordinary/guard requests and fewer age-budget misses without

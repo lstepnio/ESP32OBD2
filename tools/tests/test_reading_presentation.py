@@ -22,6 +22,7 @@ class ReadingPresentationTest(unittest.TestCase):
                     "-fsanitize=address,undefined",
                     "-Ifirmware/gauge/main/inc",
                     "firmware/gauge/tests/reading_presentation_test.c",
+                    "firmware/gauge/main/src/reading_presentation.c",
                     "-lm",
                     "-o",
                     binary,

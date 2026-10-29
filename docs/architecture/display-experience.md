@@ -5,6 +5,8 @@ icon-only waiting surface. [Sampling](../development/reading-catalog-alerts.md#d
 [Smart selection](smart-page-cycling.md) and [orientation](hardware-and-transports.md#automatic-display-orientation)
 have separate owners. [Current state](../current-state.md) distinguishes source
 from installed and physically qualified behavior.
+[Gauge presentation rules](../development/reading-catalog-alerts.md#gauge-presentation-smoothing)
+own bounded motion, RPM text stabilization and immediate raw-data invalidation.
 
 ## Ten saved pages
 
@@ -40,27 +42,13 @@ unavailable rules as catalog readings. No label-based guessing of enum semantics
 
 ## Foreground reading motion
 
-Reviewed fast-class catalog signals use a bounded 100 ms causal ease-out for
-numeric/arc/bar and dual presentation. All widgets for one reading use the same
-eased value; the 50 ms UI cadence completes settlement on the first following
-frame. A new target is always a measured value, and the transition stays between
-the prior presented value and that target. Its original observation age pays down
-the easing window, so delayed delivery does not add a second full delay. Equal
-samples do not restart convergence. There is no prediction or extrapolation.
-
-Page entry immediately paints the latest valid cached sample. Page/unit changes,
-invalid/stale samples, gaps beyond the allowed age, and retired source/revision/
-generation reset easing; invalidation between frames also breaks continuity.
-Gear, custom definitions and trend chronology remain immediate. Catalog class
-metadata selects eligibility; labels and numerical magnitude never guess semantics.
-A custom timing override retains its existing behavior. Raw cache samples,
-thresholds, command guards, logs and timestamps never receive eased values.
-
-This reuses the LVGL owner and two fixed presentation states, with no new task,
-animation buffer or allocation. Existing priority/deadline polling, shared guard
-reads and background backoff remain authoritative; smoothing is not a substitute
-for collecting timely data. Adapter gaps still expire at the original policy age.
-Loaded cadence/comfort and resource measurements remain a vehicle qualification.
+The [sampling/presentation contract](../development/reading-catalog-alerts.md#gauge-presentation-smoothing)
+owns the single 150 ms analog and bounded RPM text policy, catalog matching,
+foreground preference, original observation age and continuity/reset rules.
+Presentation values never enter raw cache, trend history, alerts or vehicle guards.
+Page entry uses the latest valid cached value immediately. The existing LVGL owner
+uses two fixed states, without a new task, animation buffer or allocation.
+Loaded cadence, comfort and memory qualification remain separate from fixture proof.
 
 ## Gear color
 

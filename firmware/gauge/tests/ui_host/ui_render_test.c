@@ -5,7 +5,6 @@
 #include <sys/stat.h>
 #include "lvgl.h"
 #include "../../main/src/ui.c"
-
 static bool metric_value(ui_t *ui, unsigned index, double *value)
 {
     ui_sample_t sample;
@@ -145,12 +144,12 @@ static void presentation_regression(ui_t *ui)
 {
     ui_page_t           page        = {.name         = "RPM",
                                        .metric_count = 1,
-                                       .metrics      = {{.pid                = 12,
-                                                         .name               = "Engine RPM",
-                                                         .unit               = "rpm",
-                                                         .maximum            = 8000,
-                                                         .stale_after_ms     = 2000,
-                                                         .presentation_eased = true}}};
+                                       .metrics      = {{.pid            = 12,
+                                                         .name           = "Engine RPM",
+                                                         .unit           = "rpm",
+                                                         .maximum        = 8000,
+                                                         .stale_after_ms = 2000,
+                                                         .presentation   = READING_PRESENT_RPM}}};
     const ui_renderer_t renderers[] = {UI_RENDERER_NUMERIC, UI_RENDERER_ARC, UI_RENDERER_BAR, UI_RENDERER_DUAL,
                                        UI_RENDERER_DUAL_ARC};
     for (unsigned r = 0; r < sizeof(renderers) / sizeof(renderers[0]); r++)
@@ -169,8 +168,8 @@ static void presentation_regression(ui_t *ui)
         assert(ui->display.rendered_values[0] == 1000);
         host_ms += 60;
         render_page(ui);
-        double shown = ui->display.rendered_values[0];
-        assert(shown > 3500 && shown < measured);
+        double shown = 1000 + (measured - 1000) * (60.0 / 150.0) * (2 - 60.0 / 150.0);
+        assert(ui->display.rendered_values[0] == 1000);
         double raw;
         assert(metric_value(ui, 0, &raw) && raw == measured); /* Raw remains measured. */
         if (page.renderer == UI_RENDERER_ARC || page.renderer == UI_RENDERER_DUAL_ARC)
@@ -178,8 +177,15 @@ static void presentation_regression(ui_t *ui)
         if (page.renderer == UI_RENDERER_BAR)
             assert(lv_bar_get_value(ui->widgets.bar) == normalized_value(shown, &page.metrics[0], 1000));
         if (page.metric_count == 2)
-            assert(ui->display.rendered_values[1] == shown);
-        host_ms += 60;
+            assert(ui->display.rendered_values[1] == 1000);
+        host_ms += 90;
+        render_page(ui);
+        if (page.renderer == UI_RENDERER_ARC || page.renderer == UI_RENDERER_DUAL_ARC)
+            assert(lv_arc_get_value(ui->widgets.arc) == normalized_value(measured, &page.metrics[0], 1000));
+        if (page.renderer == UI_RENDERER_BAR)
+            assert(lv_bar_get_value(ui->widgets.bar) == normalized_value(measured, &page.metrics[0], 1000));
+        assert(ui->display.rendered_values[0] == 1000); /* RPM text has its own cadence. */
+        host_ms += 100;
         render_page(ui);
         assert(ui->display.rendered_values[0] == measured);
         /* Invalid then recovery between frames cannot bridge a dropout. */
@@ -197,7 +203,7 @@ static void presentation_regression(ui_t *ui)
         assert(ui->display.rendered_values[0] == measured);
         host_ms += 2001;
         render_page(ui);
-        assert(!ui->display.rendered_available[0] && !ui->display.eased[0].initialized);
+        assert(!ui->display.rendered_available[0] && !ui->display.presentation[0].initialized);
         measured = 3000;
         ui_set_value(ui, 12, &measured);
         render_page(ui);
@@ -208,21 +214,39 @@ static void presentation_regression(ui_t *ui)
         ui_set_value(ui, 12, &measured);
         render_page(ui);
         assert(ui->display.rendered_values[0] == measured);
+        host_ms += 100;
+        measured = 4000;
+        set_sample(ui, UINT8_MAX, 0, 0, 12, &measured, host_ms - 60);
+        render_page(ui);
+        assert(ui->display.rendered_values[0] == 6000);
+        double delayed = 6000 + (measured - 6000) * (60.0 / 150.0) * (2 - 60.0 / 150.0);
+        if (page.renderer == UI_RENDERER_ARC || page.renderer == UI_RENDERER_DUAL_ARC)
+            assert(lv_arc_get_value(ui->widgets.arc) == normalized_value(delayed, &page.metrics[0], 1000));
+        if (page.renderer == UI_RENDERER_BAR)
+            assert(lv_bar_get_value(ui->widgets.bar) == normalized_value(delayed, &page.metrics[0], 1000));
     }
     page.renderer     = UI_RENDERER_TREND;
     page.metric_count = 1;
-    ui_set_page(ui, &page);
-    double measured = 2200;
+    double measured   = 1000;
     ui_set_value(ui, 12, &measured);
+    ui_set_page(ui, &page);
+    host_ms += 50;
+    measured = 2200;
+    ui_set_value(ui, 12, &measured);
+    ui->display.trend_recorded_at = xTaskGetTickCount() - pdMS_TO_TICKS(500);
     render_page(ui);
-    assert(ui->display.rendered_values[0] == measured && !ui->display.eased[0].initialized);
+    assert(ui->display.rendered_values[0] == 1000); /* Trend label shares RPM stabilization. */
+    assert(fabs(ui->display.trend_samples[TREND_CAPACITY - 1] - 21.75) < .001); /* History is raw 2200 RPM. */
+    host_ms += 200;
+    render_page(ui);
+    assert(ui->display.rendered_values[0] == measured);
     page.renderer        = UI_RENDERER_NUMERIC;
     page.metrics[0].unit = "gear";
     ui_set_page(ui, &page);
     measured = 3;
     ui_set_value(ui, 12, &measured);
     render_page(ui);
-    assert(ui->display.rendered_values[0] == measured && !ui->display.eased[0].initialized);
+    assert(ui->display.rendered_values[0] == measured);
     /* Source/session reset is immediate even when no disconnected UI frame ran. */
     page.metrics[0].unit         = "rpm";
     page.metrics[0].scoped       = true;
@@ -264,7 +288,7 @@ static void presentation_regression(ui_t *ui)
     ui_set_alert_event(ui, 2, false, "RPM", true, 1, 7, 7, measured, 4000, "rpm");
     tick(50);
     assert(ui->rendered_alert.attention && ui->rendered_alert.value == measured);
-    assert(visible_alert(ui).attention && ui->display.rendered_values[0] < measured);
+    assert(visible_alert(ui).attention && ui->display.rendered_values[0] == measured);
     ui_set_alert_full(ui, 0, false, "", false);
     tick(60);
     puts("PASS: production numeric/arc/bar/dual easing, raw cache, unit/page, stale and dropout resets");
@@ -388,6 +412,42 @@ int main(int argc, char **argv)
     scoped.metrics[0].revision = 8;
     ui_set_page(ui, &scoped);
     assert(metric_value(ui, 0, &actual));
+    /* Production renderer uses bounded analog motion and a separate numeric
+     * value, while raw policy reads and source-age invalidation stay exact. */
+    scoped.renderer                = UI_RENDERER_ARC;
+    scoped.metrics[0].presentation = READING_PRESENT_RPM;
+    scoped.metrics[0].maximum      = 8000;
+    child                          = 675;
+    ui_set_source_value(ui, 1, 8, 2, 12, &child, host_ms);
+    ui_set_page(ui, &scoped);
+    assert(!strcmp(lv_label_get_text(ui->widgets.value_lbl), "675"));
+    child = 1700;
+    host_ms += 50;
+    ui_set_source_value(ui, 1, 8, 2, 12, &child, host_ms);
+    render_page(ui);
+    int arc_start = lv_arc_get_value(ui->widgets.arc);
+    host_ms += 50;
+    render_page(ui);
+    assert(lv_arc_get_value(ui->widgets.arc) > arc_start);
+    assert(lv_arc_get_value(ui->widgets.arc) < normalized_value(child, &scoped.metrics[0], 1000));
+    assert(!strcmp(lv_label_get_text(ui->widgets.value_lbl), "675"));
+    assert(ui_source_sample(ui, 1, 8, 12, 2000, host_ms, &policy_value, &policy_at, &policy_generation));
+    assert(policy_value == 1700); /* UI never rewrites measured values. */
+    host_ms += 200;
+    render_page(ui);
+    assert(!strcmp(lv_label_get_text(ui->widgets.value_lbl), "1700"));
+    host_ms += 2001;
+    render_page(ui);
+    assert(!strcmp(lv_label_get_text(ui->widgets.value_lbl), "--"));
+    assert(lv_arc_get_value(ui->widgets.arc) == 0 && !ui->display.presentation[0].initialized);
+    child                 = 700;
+    source_generations[1] = 3;
+    ui_set_source_state(ui, 1, true, 8, 3);
+    ui_set_source_value(ui, 1, 8, 3, 12, &child, host_ms);
+    render_page(ui);
+    assert(lv_arc_get_value(ui->widgets.arc) == normalized_value(child, &scoped.metrics[0], 1000));
+    source_generations[1] = 2;
+    ui_set_source_state(ui, 1, true, 8, 2);
     ui_set_page(ui, &saved);
     /* Capacity follows the runtime PID ceiling, and source clear frees every
      * slot, including hidden entries. Both independent sources still fit. */

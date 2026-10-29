@@ -231,7 +231,8 @@ struct _ui_t
     struct
     {
         ui_page_t              page;
-        reading_presentation_t eased[2];
+        reading_presentation_t presentation[2];
+        uint8_t                presentation_severity;
         double                 rendered_values[2];
         bool                   rendered_available[2];
         bool                   rendered_once;
@@ -1050,8 +1051,10 @@ static void render_page(ui_t *ui)
     const ui_page_t                *page         = presented_page(ui);
     double                          values[2]    = {0};
     bool                            available[2] = {false};
-    bool                            demo         = atomic_load(&ui->showcase_active);
-    const display_showcase_frame_t *frame        = demo ? display_showcase_frame(ui->showcase.index) : NULL;
+    ui_sample_t                     samples[2]   = {0};
+    double                          numeric[2] = {0}, analog[2] = {0};
+    bool                            demo  = atomic_load(&ui->showcase_active);
+    const display_showcase_frame_t *frame = demo ? display_showcase_frame(ui->showcase.index) : NULL;
     for (unsigned i = 0; i < page->metric_count; i++)
     {
         if (frame)
@@ -1061,23 +1064,8 @@ static void render_page(ui_t *ui)
         }
         else
         {
-            ui_sample_t sample        = {0};
-            available[i]              = metric_sample(ui, i, &sample);
-            values[i]                 = sample.value;
-            const ui_metric_t *metric = &page->metrics[i];
-            /* Keep trends chronological and categorical states immediate. Only
-             * reviewed foreground fast metrics opt in to numeric/arc/bar easing. */
-            if (metric->presentation_eased && page->renderer != UI_RENDERER_TREND && strcmp(metric->unit, "gear"))
-            {
-                if (ui->display.eased[i].initialized &&
-                    sample.observed_at_ms - ui->display.eased[i].last_observed_at_ms > metric->stale_after_ms)
-                    ui->display.eased[i] = (reading_presentation_t){0};
-                values[i] =
-                    reading_presentation_value(&ui->display.eased[i], available[i], values[i], sample.observed_at_ms,
-                                               sample.continuity, (uint32_t)(esp_timer_get_time() / 1000));
-            }
-            else
-                ui->display.eased[i] = (reading_presentation_t){0};
+            available[i] = metric_sample(ui, i, &samples[i]);
+            values[i]    = samples[i].value;
         }
     }
     if (frame && page->renderer == UI_RENDERER_TREND)
@@ -1086,6 +1074,20 @@ static void render_page(ui_t *ui)
     ui_renderer_t      renderer    = page->renderer;
     ui_alert_t         condition   = visible_alert(ui);
     ui_diagnostics_t   diagnostics = visible_diagnostics(ui);
+    uint32_t           now_ms      = (uint32_t)(esp_timer_get_time() / 1000);
+    for (unsigned i = 0; i < page->metric_count; ++i)
+    {
+        const ui_metric_t      *metric = &page->metrics[i];
+        reading_presentation_t *state  = &ui->display.presentation[i];
+        if (state->initialized && samples[i].observed_at_ms - state->last_observed_at_ms > metric->stale_after_ms)
+            *state = (reading_presentation_t){0};
+        reading_presentation_kind_t kind =
+            frame || !strcmp(metric->unit, "gear") ? READING_PRESENT_DIRECT : metric->presentation;
+        analog[i] = reading_presentation_step(state, kind, available[i], values[i], samples[i].generation,
+                                              samples[i].observed_at_ms, samples[i].continuity, now_ms,
+                                              condition.severity != ui->display.presentation_severity, &numeric[i]);
+    }
+    ui->display.presentation_severity = condition.severity;
     /* Owner's Round 3 optical correction, only for the no-CEL Numeric
      * condition view. CEL combinations and chart geometry remain unchanged. */
     int offset = renderer == UI_RENDERER_NUMERIC && condition.severity && !condition.attention &&
@@ -1099,11 +1101,11 @@ static void render_page(ui_t *ui)
         for (unsigned i = 0; i < 2; i++)
         {
             if (ui->display.rendered_once && available[i] == ui->display.rendered_available[i] &&
-                (!available[i] || values[i] == ui->display.rendered_values[i]))
+                (!available[i] || numeric[i] == ui->display.rendered_values[i]))
                 continue;
             const ui_metric_t *metric = &page->metrics[i];
             char               text[32];
-            format_reading(text, metric, available[i], values[i], ui->imperial_units);
+            format_reading(text, metric, available[i], numeric[i], ui->imperial_units);
             const char *label         = gauge_layout_label(metric->name, metric->unit);
             const char *unit          = gauge_layout_unit(label, display_units_label(metric->unit, ui->imperial_units));
             int         content_width = renderer == UI_RENDERER_DUAL_ARC ? 164 : 192;
@@ -1150,10 +1152,10 @@ static void render_page(ui_t *ui)
     }
     else if (!ui->display.rendered_once || offset != ui->display.rendered_offset ||
              available[0] != ui->display.rendered_available[0] ||
-             (available[0] && values[0] != ui->display.rendered_values[0]))
+             (available[0] && numeric[0] != ui->display.rendered_values[0]))
     {
         char text[32];
-        format_reading(text, primary, available[0], values[0], ui->imperial_units);
+        format_reading(text, primary, available[0], numeric[0], ui->imperial_units);
         const char *label   = gauge_layout_label(page->name ? page->name : primary->name, primary->unit);
         const char *unit    = gauge_layout_unit(label, display_units_label(primary->unit, ui->imperial_units));
         int         title_y = renderer == UI_RENDERER_BAR ? 70 : renderer == UI_RENDERER_TREND ? 72 : 87;
@@ -1180,17 +1182,16 @@ static void render_page(ui_t *ui)
                                                  : !strcmp(primary->unit, "gear") ? transmission_gear_color(text)
                                                                                   : color_text_primary),
                                     0);
-        if (renderer == UI_RENDERER_ARC)
-            lv_arc_set_value(ui->widgets.arc, available[0] ? normalized_value(values[0], primary, 1000) : 0);
-        if (renderer == UI_RENDERER_BAR)
-            lv_bar_set_value(ui->widgets.bar, available[0] ? normalized_value(values[0], primary, 1000) : 0,
-                             LV_ANIM_OFF);
     }
+    if (renderer == UI_RENDERER_ARC)
+        lv_arc_set_value(ui->widgets.arc, available[0] ? normalized_value(analog[0], primary, 1000) : 0);
+    if (renderer == UI_RENDERER_BAR)
+        lv_bar_set_value(ui->widgets.bar, available[0] ? normalized_value(analog[0], primary, 1000) : 0, LV_ANIM_OFF);
     if (renderer == UI_RENDERER_DUAL_ARC)
     {
         unsigned arc = page->arc_metric_index < 2 ? page->arc_metric_index : 0;
         lv_arc_set_value(ui->widgets.arc,
-                         available[arc] ? normalized_value(values[arc], &page->metrics[arc], 1000) : 0);
+                         available[arc] ? normalized_value(analog[arc], &page->metrics[arc], 1000) : 0);
     }
     if (renderer == UI_RENDERER_TREND)
     {
@@ -1213,7 +1214,7 @@ static void render_page(ui_t *ui)
     {
         if (available[i] != ui->display.rendered_available[i])
             ui->status_dirty = true;
-        ui->display.rendered_values[i]    = values[i];
+        ui->display.rendered_values[i]    = numeric[i];
         ui->display.rendered_available[i] = available[i];
     }
     ui->display.rendered_once   = true;
@@ -1243,7 +1244,7 @@ static void showcase_frame(ui_t *ui)
                                                      .minimum        = f->minimum,
                                                      .maximum        = f->maximum,
                                                      .stale_after_ms = 2000};
-    memset(ui->display.eased, 0, sizeof(ui->display.eased));
+    memset(ui->display.presentation, 0, sizeof(ui->display.presentation));
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
     ui->status_dirty          = true;
@@ -2109,8 +2110,8 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
         ui->showcase.active = false;
         showcase_publish(ui);
     }
-    ui->display.page = *page;
-    memset(ui->display.eased, 0, sizeof(ui->display.eased));
+    memset(ui->display.presentation, 0, sizeof(ui->display.presentation));
+    ui->display.page          = *page;
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
     for (unsigned i = 0; i < 60; ++i)
@@ -2130,7 +2131,7 @@ void ui_set_units(ui_t *ui, bool imperial_units)
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     if (ui->imperial_units == imperial_units)
         return;
-    memset(ui->display.eased, 0, sizeof(ui->display.eased));
+    memset(ui->display.presentation, 0, sizeof(ui->display.presentation));
     ui->imperial_units        = imperial_units;
     ui->status_dirty          = true;
     ui->display.rendered_once = false;
