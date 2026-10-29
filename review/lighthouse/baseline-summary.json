@@ -1,0 +1,114 @@
+[
+  {
+    "run": "home-desktop-before",
+    "lighthouse": "13.0.1",
+    "url": "http://127.0.0.1:8772/",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "formFactor": "desktop",
+    "scores": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 66
+    },
+    "failedBinaryAudits": [
+      {
+        "id": "is-crawlable",
+        "title": "Page is blocked from indexing"
+      }
+    ],
+    "warnings": [],
+    "metrics": {
+      "first-contentful-paint": "0.3\u00a0s",
+      "largest-contentful-paint": "0.3\u00a0s",
+      "total-blocking-time": "0\u00a0ms",
+      "cumulative-layout-shift": "0",
+      "speed-index": "0.3\u00a0s"
+    }
+  },
+  {
+    "run": "home-mobile-before",
+    "lighthouse": "13.0.1",
+    "url": "http://127.0.0.1:8772/",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "formFactor": "mobile",
+    "scores": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 96,
+      "seo": 66
+    },
+    "failedBinaryAudits": [
+      {
+        "id": "image-size-responsive",
+        "title": "Serves images with low resolution"
+      },
+      {
+        "id": "is-crawlable",
+        "title": "Page is blocked from indexing"
+      }
+    ],
+    "warnings": [],
+    "metrics": {
+      "first-contentful-paint": "1.2\u00a0s",
+      "largest-contentful-paint": "1.5\u00a0s",
+      "total-blocking-time": "0\u00a0ms",
+      "cumulative-layout-shift": "0",
+      "speed-index": "2.1\u00a0s"
+    }
+  },
+  {
+    "run": "recovery-desktop-before",
+    "lighthouse": "13.0.1",
+    "url": "http://127.0.0.1:8772/recovery/",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "formFactor": "desktop",
+    "scores": {
+      "performance": 99,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 63
+    },
+    "failedBinaryAudits": [
+      {
+        "id": "is-crawlable",
+        "title": "Page is blocked from indexing"
+      }
+    ],
+    "warnings": [],
+    "metrics": {
+      "first-contentful-paint": "0.5\u00a0s",
+      "largest-contentful-paint": "1.0\u00a0s",
+      "total-blocking-time": "0\u00a0ms",
+      "cumulative-layout-shift": "0",
+      "speed-index": "0.5\u00a0s"
+    }
+  },
+  {
+    "run": "recovery-mobile-before",
+    "lighthouse": "13.0.1",
+    "url": "http://127.0.0.1:8772/recovery/",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "formFactor": "mobile",
+    "scores": {
+      "performance": 92,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 63
+    },
+    "failedBinaryAudits": [
+      {
+        "id": "is-crawlable",
+        "title": "Page is blocked from indexing"
+      }
+    ],
+    "warnings": [],
+    "metrics": {
+      "first-contentful-paint": "2.7\u00a0s",
+      "largest-contentful-paint": "2.7\u00a0s",
+      "total-blocking-time": "0\u00a0ms",
+      "cumulative-layout-shift": "0",
+      "speed-index": "2.7\u00a0s"
+    }
+  }
+]

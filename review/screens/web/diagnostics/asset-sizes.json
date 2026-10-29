@@ -1,0 +1,92 @@
+[
+  {
+    "path": "assets/5491d2dfe77a74b7/app/car.png",
+    "bytes": 34673,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/app/fault-history-large-text.png",
+    "bytes": 30553,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/app/fault-history.png",
+    "bytes": 15107,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/app/gauge.png",
+    "bytes": 41961,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/app/settings.png",
+    "bytes": 33752,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/app.js",
+    "bytes": 2968,
+    "gzipBytes": 1293
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/future/police-alert-concept.png",
+    "bytes": 1755109,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/future/report-hazard-concept.png",
+    "bytes": 1869402,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/gauge/alerts.png",
+    "bytes": 3382,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/gauge/arc.png",
+    "bytes": 4772,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/gauge/bar.png",
+    "bytes": 2170,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/gauge/dual.png",
+    "bytes": 2164,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/gauge/numeric.png",
+    "bytes": 2429,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/gauge/trend.png",
+    "bytes": 2831,
+    "gzipBytes": null
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/recovery/recovery.js",
+    "bytes": 332410,
+    "gzipBytes": 121153
+  },
+  {
+    "path": "assets/5491d2dfe77a74b7/styles.css",
+    "bytes": 30045,
+    "gzipBytes": 7291
+  },
+  {
+    "path": "index.html",
+    "bytes": 30692,
+    "gzipBytes": 9951
+  },
+  {
+    "path": "recovery/index.html",
+    "bytes": 12404,
+    "gzipBytes": 4641
+  }
+]

@@ -1,0 +1,28 @@
++ /Users/lukasz.stepniowski/.codex/worktrees/egauge-display-update/ESP32OBD2/.venv/bin/ruff check docs/design/gauge-ui-proposal/action-pages/generate.py docs/design/gauge-ui-proposal/car-pages/render_plan.py docs/design/gauge-ui-proposal/generate_mocks.py docs/design/gauge-ui-proposal/review_server.py docs/design/gauge-ui-proposal/test_review_server.py firmware/gauge/sim/adv_gatt.py mechanical/jk-dash-pod/build.py tools/adb_debug_awake.py tools/ble_probe.py tools/build_website.py tools/check_firmware_dependencies.py tools/check_firmware_memory.py tools/check_release_ready.py tools/dev.py tools/documentation_policy.py tools/generate_design_tokens.py tools/generate_reading_catalog.py tools/jeep_action_capture.py tools/make_dev_release_catalog.py tools/obd_bench_simulator.py tools/obd_capture.py tools/obd_capture_core.py tools/obd_explore.py tools/obd_jeep_transfer_case.py tools/obd_tcm_gear_candidate.py tools/obd_tcm_temperature_candidate.py tools/obd_tcm_values.py tools/obd_temperature_candidate.py tools/ota_interrupt_at_progress.py tools/package_web_recovery.py tools/platform_policy.py tools/release_evidence.py tools/render_gauge_gallery.py tools/research/audit_vehicle_readings.py tools/research/export_vehicle_catalog.py tools/research/extract_managed_assemblies.py tools/research/import_vehicle_archive.py tools/research/inspect_action_handlers.py tools/research/package_vehicle_catalog.py tools/research/query_vehicle_catalog.py tools/sign_dev_update.py tools/tests/test_alert_protocol.py tools/tests/test_ble_security_policy.py tools/tests/test_boot_health.py tools/tests/test_companion_gatt_read.py tools/tests/test_dev_toolchain.py tools/tests/test_display_experience.py tools/tests/test_documentation_policy.py tools/tests/test_firmware_candidate_options.py tools/tests/test_firmware_memory.py tools/tests/test_font_generation.py tools/tests/test_gauge_platform.py tools/tests/test_intake.py tools/tests/test_jeep_action_capture.py tools/tests/test_jeep_idle_driver.py tools/tests/test_jeep_idle_parked.py tools/tests/test_jeep_transfer_case.py tools/tests/test_obd_adapter_sources.py tools/tests/test_obd_bench.py tools/tests/test_obd_capture.py tools/tests/test_obd_diagnostic_filters.py tools/tests/test_obd_diagnostics_state.py tools/tests/test_obd_display_settings.py tools/tests/test_obd_explore.py tools/tests/test_obd_fault_probe.py tools/tests/test_obd_gauge_presentation.py tools/tests/test_obd_tcm_gear.py tools/tests/test_obd_tcm_temperature.py tools/tests/test_obd_tcm_values.py tools/tests/test_obd_temperature_candidate.py tools/tests/test_obd_wait_policy.py tools/tests/test_obd_wifi_bulk_io.py tools/tests/test_obd_worker_health.py tools/tests/test_platform_policy.py tools/tests/test_reading_policy.py tools/tests/test_reading_presentation.py tools/tests/test_release_evidence.py tools/tests/test_release_ready.py tools/tests/test_smart_page_cycling.py tools/tests/test_trend_curve.py tools/tests/test_vehicle_commands.py tools/tests/test_vehicle_reading_audit.py tools/tests/test_web_recovery.py tools/tests/test_wifi_driver_lifecycle.py tools/validate.py tools/vehicle_session.py website/interest-api/backup.py website/interest-api/server.py
+All checks passed!
++ /Users/lukasz.stepniowski/.codex/worktrees/egauge-display-update/ESP32OBD2/.venv/bin/python tools/validate.py
+PASS: Android and browser design tokens match design/tokens.json
+PASS: 4 schemas, 11 examples, 30 rejection cases, signed decode vector, 146 document link sets, color token parity.
++ /Users/lukasz.stepniowski/.codex/worktrees/egauge-display-update/ESP32OBD2/.venv/bin/python tools/platform_policy.py --check
+PASS: public firmware remains limited to the reference board
++ /Users/lukasz.stepniowski/.codex/worktrees/egauge-display-update/ESP32OBD2/.venv/bin/python tools/build_website.py --check
+PASS: website links, 7 image placements, 22 assets; catalog 55
++ node --check design/prototype/app.js
++ node --check docs/design/gauge-ui-proposal/action-pages/gallery.js
++ node --check docs/design/gauge-ui-proposal/action-pages/mock-data.js
++ node --check docs/design/gauge-ui-proposal/action-pages/prototype.js
++ node --check docs/design/gauge-ui-proposal/action-pages/rings.js
++ node --check docs/design/gauge-ui-proposal/action-pages/v2/mock-data.js
++ node --check docs/design/gauge-ui-proposal/action-pages/v2/prototype.js
++ node --check docs/design/gauge-ui-proposal/action-pages/v3/mock-data.js
++ node --check docs/design/gauge-ui-proposal/action-pages/v3/prototype.js
++ node --check docs/design/gauge-ui-proposal/car-pages/mock-data.js
++ node --check docs/design/gauge-ui-proposal/car-pages/review.js
++ node --check docs/design/gauge-ui-proposal/car-pages/screens.js
++ node --check docs/design/gauge-ui-proposal/gallery.js
++ node --check docs/design/gauge-ui-proposal/mock-data.js
++ node --check docs/design/gauge-ui-proposal/v3/mock-data.js
++ node --check web-recovery/recovery.js
++ node --check website/app.js
++ node --check website/recovery/recovery.js
++ git diff --check

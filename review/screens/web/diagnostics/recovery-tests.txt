@@ -1,0 +1,54 @@
+
+> test
+> node --test *.test.mjs
+
+✔ writes only public regions and activates recovered slot last (2.035ms)
+✔ already matching regions are skipped (0.364584ms)
+✔ wrong chip is rejected before writing (0.326084ms)
+✔ wrong flash is rejected before writing (0.080416ms)
+✔ secure download is rejected before writing (0.068084ms)
+✔ missing stub is rejected before writing (0.189666ms)
+✔ secure boot is rejected before writing (0.379125ms)
+✔ encryption is rejected before writing (0.101792ms)
+✔ a different board cannot receive a retry (0.433708ms)
+✔ invalid region cannot touch settings (0.723333ms)
+✔ trailing read digest is checked before writes (0.30575ms)
+✔ write mismatch prevents OTA activation (0.187875ms)
+✔ reset failure preserves verified-write result (0.186875ms)
+✔ timeout closes transport and fences late write packets (14.163292ms)
+✔ pre-cancelled work never opens the loader (0.722708ms)
+✔ all payload hashes pass before serial is requested (15.710708ms)
+✔ cross-origin payload is rejected during preparation (0.421834ms)
+✔ changed payload is rejected during preparation (0.563208ms)
+✔ oversized region is rejected during preparation (0.371875ms)
+✔ wrong layout is rejected during preparation (0.285667ms)
+✔ changed manifest is rejected before fetching firmware (0.238792ms)
+✔ #interest-form html503 preserves input unless acknowledged (2.188292ms)
+✔ #interest-form disconnect preserves input unless acknowledged (0.149833ms)
+✔ #interest-form timeout preserves input unless acknowledged (0.082041ms)
+✔ #interest-form invalid-json preserves input unless acknowledged (0.086459ms)
+✔ #interest-form validation preserves input unless acknowledged (0.076667ms)
+✔ #interest-form success preserves input unless acknowledged (0.102458ms)
+✔ #custom-form html503 preserves input unless acknowledged (0.083375ms)
+✔ #custom-form disconnect preserves input unless acknowledged (0.07525ms)
+✔ #custom-form timeout preserves input unless acknowledged (0.092416ms)
+✔ #custom-form invalid-json preserves input unless acknowledged (0.132208ms)
+✔ #custom-form validation preserves input unless acknowledged (0.090583ms)
+✔ #custom-form success preserves input unless acknowledged (0.582417ms)
+✔ late metadata cannot change active bundle or consent during port and retry (6.0995ms)
+✔ late metadata cannot change active bundle or consent during write and retry (0.946834ms)
+✔ release choices include prereleases, exclude drafts and reject foreign URLs (0.695458ms)
+✔ APK detection requires a unique exact repository asset and bounded size (0.123959ms)
+✔ signed package with ZIP method 0 is verified before use (5.079166ms)
+✔ signed package with ZIP method 8 is verified before use (1.503583ms)
+✔ wrong release hash/length/version and invalid signature never return image bytes (3.19725ms)
+✔ archive rejects paths, trailing bytes, encryption and excessive data (0.492959ms)
+✔ network body limit applies to decoded bytes, not reported Content-Length (10.312875ms)
+ℹ tests 42
+ℹ suites 0
+ℹ pass 42
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 167.192708

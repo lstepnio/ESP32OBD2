@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="com.lstepnio.egauge.WebsiteReviewCaptureTest" tests="1" failures="0" errors="0" skipped="0" time="24.788" timestamp="2026-10-29T06:03:46" hostname="localhost">
+  <properties>
+    <property name="device" value="ciPhone" />
+    <property name="flavor" value="" />
+    <property name="project" value=":app" />
+  </properties>
+  <testcase name="captureWebsiteReview" classname="com.lstepnio.egauge.WebsiteReviewCaptureTest" time="18.44" />
+</testsuite>

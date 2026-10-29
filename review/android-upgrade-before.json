@@ -1,0 +1,45 @@
+{
+  "phase": "old51-seeded-and-decoded",
+  "installedVersion": 51,
+  "rawProfile": {
+    "schemaVersion": 1,
+    "activeId": "website-upgrade",
+    "profiles": [
+      {
+        "id": "website-upgrade",
+        "name": "Upgrade example",
+        "draft": {
+          "pidId": "rpm",
+          "layout": "Arc",
+          "source": "ECM",
+          "warning": 103,
+          "critical": 113
+        }
+      }
+    ]
+  },
+  "decodedProfile": "{\"schemaVersion\":14,\"activeId\":\"website-upgrade\",\"profiles\":[{\"id\":\"website-upgrade\",\"name\":\"Upgrade example\",\"pageOrder\":[],\"draft\":{\"actions\":[],\"idlePresets\":[],\"diagnosticFilters\":[],\"pidId\":\"rpm\",\"layout\":\"Arc\",\"source\":\"ECM\",\"pages\":[{\"id\":\"page.1.rpm\",\"name\":\"ENGINE RPM\",\"layout\":\"Arc\",\"pidIds\":[\"rpm\"]},{\"id\":\"page.2.coolant\",\"name\":\"COOLANT\",\"layout\":\"Numeric\",\"pidIds\":[\"coolant\"]},{\"id\":\"page.3.speed\",\"name\":\"SPEED\",\"layout\":\"Numeric\",\"pidIds\":[\"speed\"]}],\"alerts\":[{\"id\":\"alert.coolant\",\"pidId\":\"coolant\",\"direction\":\"above\",\"warning\":103,\"critical\":113,\"hysteresis\":3,\"triggerDwellMs\":1000,\"clearDwellMs\":2000,\"priority\":8}]}}]}",
+  "presentation": "{measurement-system=Metric, gauge-name=Upgrade gauge, advanced=false, dynamic-colour=false}",
+  "historyEvent": {
+    "sequence": 1,
+    "boot": 1,
+    "episode": 1,
+    "atMs": 0,
+    "key": 0,
+    "severity": 3,
+    "unavailable": false,
+    "lifecycle": 1,
+    "kind": 1,
+    "acknowledged": false,
+    "value": 108,
+    "limit": 105,
+    "label": "Coolant",
+    "unit": "degC",
+    "observedAtMs": 0,
+    "revision": 1,
+    "simulated": false,
+    "snoozed": false
+  },
+  "historyCount": 1,
+  "databaseVersion": 1
+}

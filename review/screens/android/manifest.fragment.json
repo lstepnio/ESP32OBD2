@@ -1,0 +1,2527 @@
+{
+  "captured_at_utc": "2026-10-29T06:24:45.090698+00:00",
+  "capture_count": 72,
+  "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+  "entries": [
+    {
+      "path": "review/screens/android/alert-settings-default-large-dark.png",
+      "surface": "android",
+      "route": "alert-settings",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarAlertSettingsScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "78955598aa4f116f6c6d53bc5cb57578e5b34449436711abbec2647dd517a9ba"
+    },
+    {
+      "path": "review/screens/android/alert-settings-default-large-light.png",
+      "surface": "android",
+      "route": "alert-settings",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarAlertSettingsScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "372811c3c767c1d603644ad52ae96261f338d309b44f628f2b3707acb831a255"
+    },
+    {
+      "path": "review/screens/android/alert-settings-default-phone-dark.png",
+      "surface": "android",
+      "route": "alert-settings",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarAlertSettingsScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "6f8a635b77b0cc360c32353aab1caa26e95b607aacd8601ec79603d68a4319d4"
+    },
+    {
+      "path": "review/screens/android/alert-settings-default-phone-light.png",
+      "surface": "android",
+      "route": "alert-settings",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarAlertSettingsScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "8b4044ddd6f07a1dea76a8b44b39e9e4d6e7a6c2d686ec0bf1e58ed4b46e6984"
+    },
+    {
+      "path": "review/screens/android/alerts-default-large-dark.png",
+      "surface": "android",
+      "route": "alerts",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt (CarAlertWorkspace or AlertWorkspaceList)",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "fc2f9bc1bb64e693d45d286e29bf05e2f699c0ddc28a344530f944037065953b"
+    },
+    {
+      "path": "review/screens/android/alerts-default-large-light.png",
+      "surface": "android",
+      "route": "alerts",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt (CarAlertWorkspace or AlertWorkspaceList)",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "e3cb5ed6f71f925af4bdf3194775a9f3324d360963e84c0a9b5a463c23939551"
+    },
+    {
+      "path": "review/screens/android/alerts-default-phone-dark.png",
+      "surface": "android",
+      "route": "alerts",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt (CarAlertWorkspace or AlertWorkspaceList)",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "ed9e986d1ebfdf1dcbb0d922c07b8d7c6cf35133eb4cb55f3ba4c8f983dfbada"
+    },
+    {
+      "path": "review/screens/android/alerts-default-phone-light.png",
+      "surface": "android",
+      "route": "alerts",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt (CarAlertWorkspace or AlertWorkspaceList)",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "b9ce78549f5c2cc88880cd552d8ed8685e67625db6ccabc3e51b49999fa1ba99"
+    },
+    {
+      "path": "review/screens/android/alerts-empty-large-dark.png",
+      "surface": "android",
+      "route": "alerts",
+      "state": "empty",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt (CarAlertWorkspace or AlertWorkspaceList)",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "fc2f9bc1bb64e693d45d286e29bf05e2f699c0ddc28a344530f944037065953b"
+    },
+    {
+      "path": "review/screens/android/alerts-empty-large-light.png",
+      "surface": "android",
+      "route": "alerts",
+      "state": "empty",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt (CarAlertWorkspace or AlertWorkspaceList)",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "e3cb5ed6f71f925af4bdf3194775a9f3324d360963e84c0a9b5a463c23939551"
+    },
+    {
+      "path": "review/screens/android/alerts-empty-phone-dark.png",
+      "surface": "android",
+      "route": "alerts",
+      "state": "empty",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt (CarAlertWorkspace or AlertWorkspaceList)",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "ed9e986d1ebfdf1dcbb0d922c07b8d7c6cf35133eb4cb55f3ba4c8f983dfbada"
+    },
+    {
+      "path": "review/screens/android/alerts-empty-phone-light.png",
+      "surface": "android",
+      "route": "alerts",
+      "state": "empty",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt (CarAlertWorkspace or AlertWorkspaceList)",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "b9ce78549f5c2cc88880cd552d8ed8685e67625db6ccabc3e51b49999fa1ba99"
+    },
+    {
+      "path": "review/screens/android/alerts-synthetic-current-large-dark.png",
+      "surface": "android",
+      "route": "alerts",
+      "state": "synthetic-current",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt (CarAlertWorkspace or AlertWorkspaceList)",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "249d72f7ed779e2b9315072d761f27d23decbcd0837fd45a254f68e3495a2998"
+    },
+    {
+      "path": "review/screens/android/alerts-synthetic-current-large-light.png",
+      "surface": "android",
+      "route": "alerts",
+      "state": "synthetic-current",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt (CarAlertWorkspace or AlertWorkspaceList)",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "462b687add60ff8467d306bb937d41d02328e491732c2d82b73d2b2107637315"
+    },
+    {
+      "path": "review/screens/android/alerts-synthetic-current-phone-dark.png",
+      "surface": "android",
+      "route": "alerts",
+      "state": "synthetic-current",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt (CarAlertWorkspace or AlertWorkspaceList)",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "9fef777d02e707003588153aee351f79c46b224f98aeb982fdd6a389bcefe8c0"
+    },
+    {
+      "path": "review/screens/android/alerts-synthetic-current-phone-light.png",
+      "surface": "android",
+      "route": "alerts",
+      "state": "synthetic-current",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt (CarAlertWorkspace or AlertWorkspaceList)",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "dd5c6bbec414ea4110d6499eb076d049c2c7bf1531742a297ec698f43860c1c8"
+    },
+    {
+      "path": "review/screens/android/car-advanced-default-large-dark.png",
+      "surface": "android",
+      "route": "car-advanced",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt or HiddenFaultCodesScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "34afd96fbb5bc6adc385a3665bed282a923737b524dfccedac70d372294d94a8"
+    },
+    {
+      "path": "review/screens/android/car-advanced-default-large-light.png",
+      "surface": "android",
+      "route": "car-advanced",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt or HiddenFaultCodesScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "8547656b5eb7821a04995fc4ef5513b31c78b37a9bcf82fdb103937a8670171d"
+    },
+    {
+      "path": "review/screens/android/car-advanced-default-phone-dark.png",
+      "surface": "android",
+      "route": "car-advanced",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt or HiddenFaultCodesScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "15a7a713103d89c33900f22e71dd6acd28729cf6c03c5455e9788f169edc842f"
+    },
+    {
+      "path": "review/screens/android/car-advanced-default-phone-light.png",
+      "surface": "android",
+      "route": "car-advanced",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt or HiddenFaultCodesScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "50d22fa21260ae3aca9332cae3fc6e3198e4fd904d0c9ebbbf7b83e529cf3ed8"
+    },
+    {
+      "path": "review/screens/android/car-advanced-hidden-codes-large-dark.png",
+      "surface": "android",
+      "route": "car-advanced",
+      "state": "hidden-codes",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt or HiddenFaultCodesScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "cb7faddaac2271eb10d3618ed5e3bf565911dce1b1b7228d8f33e7e2513b64c8"
+    },
+    {
+      "path": "review/screens/android/car-advanced-hidden-codes-large-light.png",
+      "surface": "android",
+      "route": "car-advanced",
+      "state": "hidden-codes",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt or HiddenFaultCodesScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "cf74bacf58f4cf66a9d19e2c5c4d286ccbefb5379ea2ea1b8ab8c104bb5e5d5c"
+    },
+    {
+      "path": "review/screens/android/car-advanced-hidden-codes-phone-dark.png",
+      "surface": "android",
+      "route": "car-advanced",
+      "state": "hidden-codes",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt or HiddenFaultCodesScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "d0b5d902409371fb2846528a8dfef4644a696dc550e104b45da3a75b556e355c"
+    },
+    {
+      "path": "review/screens/android/car-advanced-hidden-codes-phone-light.png",
+      "surface": "android",
+      "route": "car-advanced",
+      "state": "hidden-codes",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt or HiddenFaultCodesScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "b8e19981a6798824df1fd792a5273c69f77e870ea724743a03238ec5ad31859a"
+    },
+    {
+      "path": "review/screens/android/car-advanced-second-adapter-large-dark.png",
+      "surface": "android",
+      "route": "car-advanced",
+      "state": "second-adapter",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt or HiddenFaultCodesScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "2f8ea75a28826655607783ccbb31f94ade3100cd4ef19c9821cb653660e50d70"
+    },
+    {
+      "path": "review/screens/android/car-advanced-second-adapter-large-light.png",
+      "surface": "android",
+      "route": "car-advanced",
+      "state": "second-adapter",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt or HiddenFaultCodesScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "74052e6a3c753529c7b9ab2fb0dcdff988ecf80b5d84b04f1321556420fcb0c1"
+    },
+    {
+      "path": "review/screens/android/car-advanced-second-adapter-phone-dark.png",
+      "surface": "android",
+      "route": "car-advanced",
+      "state": "second-adapter",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt or HiddenFaultCodesScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "b41f989ac741f3d5ca9728e02cb61706e55de827e4ffe94a5908fe648ddfea98"
+    },
+    {
+      "path": "review/screens/android/car-advanced-second-adapter-phone-light.png",
+      "surface": "android",
+      "route": "car-advanced",
+      "state": "second-adapter",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt or HiddenFaultCodesScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "a585b4c97f120ec01c9380ca9fcb3ff0b73d203f5f1a3adc4a81d652532f230e"
+    },
+    {
+      "path": "review/screens/android/car-default-large-dark.png",
+      "surface": "android",
+      "route": "car",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "1548b5035484d6d85f628db37d5817657b6db5bcf9249aee034b4520df216ee0"
+    },
+    {
+      "path": "review/screens/android/car-default-large-light.png",
+      "surface": "android",
+      "route": "car",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "0fcc08d0130e1881d25ed2165450ddaa405dad8b544647236f96f1c948018f60"
+    },
+    {
+      "path": "review/screens/android/car-default-phone-dark.png",
+      "surface": "android",
+      "route": "car",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "e4992dd390f7d9567d3b880f51740cd95078786bd5ebb9cc6d90d930d0b07d10"
+    },
+    {
+      "path": "review/screens/android/car-default-phone-light.png",
+      "surface": "android",
+      "route": "car",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "e9f62536d10c2de93d37f91b9d71612c0e1d09c0bf89ad39c79d6aa36d69da49"
+    },
+    {
+      "path": "review/screens/android/customize-default-large-dark.png",
+      "surface": "android",
+      "route": "customize",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/customize/DashboardEditorScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "e5f9b67913d69691a27c2e8ed2f370c3d0a0a28f6dd975ed754c352d77747275"
+    },
+    {
+      "path": "review/screens/android/customize-default-large-light.png",
+      "surface": "android",
+      "route": "customize",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/customize/DashboardEditorScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "f87a1e9d15d1689cee7c8dfdb71edfc7a58c9b39eb84ee31f4c82e8cd885ca71"
+    },
+    {
+      "path": "review/screens/android/customize-default-phone-dark.png",
+      "surface": "android",
+      "route": "customize",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/customize/DashboardEditorScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "4a12a0c71fb99f1d266a37968cef8dca10cd2a39bebfadf9d626925b0e7e8599"
+    },
+    {
+      "path": "review/screens/android/customize-default-phone-light.png",
+      "surface": "android",
+      "route": "customize",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/customize/DashboardEditorScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "0f331119b1f4cb0a20b33358ff5e2afe802fec8363ef0d021645e5a4c41046dc"
+    },
+    {
+      "path": "review/screens/android/customize-review-large-dark.png",
+      "surface": "android",
+      "route": "customize",
+      "state": "review",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/customize/DashboardEditorScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "292474b6e8414fa2ca7c8288678977a30fe24f0555eb19a679f82a7b937ea850"
+    },
+    {
+      "path": "review/screens/android/customize-review-large-light.png",
+      "surface": "android",
+      "route": "customize",
+      "state": "review",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/customize/DashboardEditorScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "3d0c08f45c9598b669d56cdff4a8cc270122a41ca7446870941a5a58b58c4982"
+    },
+    {
+      "path": "review/screens/android/customize-review-phone-dark.png",
+      "surface": "android",
+      "route": "customize",
+      "state": "review",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/customize/DashboardEditorScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "20d8809cbe2105de015ca56bced5c330c01345be9ebc00cc7b810f5f342977d5"
+    },
+    {
+      "path": "review/screens/android/customize-review-phone-light.png",
+      "surface": "android",
+      "route": "customize",
+      "state": "review",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/customize/DashboardEditorScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "1811cead2c7d0e79d686c34aaa89183618e8f7c7e8eecd11697a9b2c6040c1c8"
+    },
+    {
+      "path": "review/screens/android/expert-default-large-dark.png",
+      "surface": "android",
+      "route": "expert",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "0093609a63f1d9aac59900e40c3eb8de53e48c844c1fc923a14f039d84e2da44"
+    },
+    {
+      "path": "review/screens/android/expert-default-large-light.png",
+      "surface": "android",
+      "route": "expert",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "d420d47c8d84e90b82b2661d013bafe2923d0e9ff3b75781f9884635c8d683bc"
+    },
+    {
+      "path": "review/screens/android/expert-default-phone-dark.png",
+      "surface": "android",
+      "route": "expert",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "53a79cb49b7b5540b164d775a1c0022a1d9a33a1155a370f21b5ca0221c64a1a"
+    },
+    {
+      "path": "review/screens/android/expert-default-phone-light.png",
+      "surface": "android",
+      "route": "expert",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "7421dd305f88afedaa1f877561bd8a66e410e12161ec71b36af501f6043ddc80"
+    },
+    {
+      "path": "review/screens/android/gauge-default-large-dark.png",
+      "surface": "android",
+      "route": "gauge",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "dbf373b8302fedeb8d855f28d7c91420a60b2e2f0a409284b70baf3ea81679aa"
+    },
+    {
+      "path": "review/screens/android/gauge-default-large-light.png",
+      "surface": "android",
+      "route": "gauge",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "e5206c99a6f9833dc740ee2a4d9fe9a66f9c8b37aa5141a087dda9a5dd0ef950"
+    },
+    {
+      "path": "review/screens/android/gauge-default-phone-dark.png",
+      "surface": "android",
+      "route": "gauge",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "c358d90b1018337b266efcdc9d2f0b527d75383baf12b7b953244e268e2fe95c"
+    },
+    {
+      "path": "review/screens/android/gauge-default-phone-light.png",
+      "surface": "android",
+      "route": "gauge",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "35c54b139867974a43e1d2ff3d828a3389d2e1b91b0c120c3c5622c3c41233de"
+    },
+    {
+      "path": "review/screens/android/gauge-permission-denied-large-dark.png",
+      "surface": "android",
+      "route": "gauge",
+      "state": "permission-denied",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "42c1dac4380c0f614aa7f89632c82bf92b8f2bc7fe972c7186b1450bb0690af1"
+    },
+    {
+      "path": "review/screens/android/gauge-permission-denied-large-light.png",
+      "surface": "android",
+      "route": "gauge",
+      "state": "permission-denied",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "94f35fb9aca1431988e088daaa4bbea9dbd35261c7a397464029770223bfaaee"
+    },
+    {
+      "path": "review/screens/android/gauge-permission-denied-phone-dark.png",
+      "surface": "android",
+      "route": "gauge",
+      "state": "permission-denied",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "ec0c05fbcbd5c86c01a92a82a7af6f845ff633cc19ac8000ac3a0f2353fd027a"
+    },
+    {
+      "path": "review/screens/android/gauge-permission-denied-phone-light.png",
+      "surface": "android",
+      "route": "gauge",
+      "state": "permission-denied",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "43157eceb427c8e773c527ece91b3b25d5eea96c49ca7ba0b8e47d14c959e768"
+    },
+    {
+      "path": "review/screens/android/settings-default-large-dark.png",
+      "surface": "android",
+      "route": "settings",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SettingsScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "461c2c7106239a19dceefa4df8f3cee37e34a7592b1aec022424d680eb85ed13"
+    },
+    {
+      "path": "review/screens/android/settings-default-large-light.png",
+      "surface": "android",
+      "route": "settings",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SettingsScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "774e696b03c8fa30abb7595f597e0d7679e2d995f0e7406323d892943b8c6839"
+    },
+    {
+      "path": "review/screens/android/settings-default-phone-dark.png",
+      "surface": "android",
+      "route": "settings",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SettingsScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "8cf77575b7ba8eb68371eb540dbf68d641362ffdb7e73a16bd1f2be550191394"
+    },
+    {
+      "path": "review/screens/android/settings-default-phone-light.png",
+      "surface": "android",
+      "route": "settings",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SettingsScreen.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "a193c9e9edb11ec6aa17e1ce2e257c28c5e6d1c15839610321a3a0b81fd783b9"
+    },
+    {
+      "path": "review/screens/android/setup-default-large-dark.png",
+      "surface": "android",
+      "route": "setup",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "bfb9a7a8faf4c947d9fcad8f268efdd1283b8fde6a1ea14aa9108a9426a86e97"
+    },
+    {
+      "path": "review/screens/android/setup-default-large-light.png",
+      "surface": "android",
+      "route": "setup",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "21bbf906b02afce148a92a25bab9946c280a1d9713d60f30f6a061580d9d7254"
+    },
+    {
+      "path": "review/screens/android/setup-default-phone-dark.png",
+      "surface": "android",
+      "route": "setup",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "e80fe28ee416d0d17aa6dde6d4ede440c0c0b4cf97bf58d601703c587cf58d72"
+    },
+    {
+      "path": "review/screens/android/setup-default-phone-light.png",
+      "surface": "android",
+      "route": "setup",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "e24f5193442938eed4cff05ac1ef81deebb90958c84ab6cdc954ee7e3d484f04"
+    },
+    {
+      "path": "review/screens/android/setup-loading-large-dark.png",
+      "surface": "android",
+      "route": "setup",
+      "state": "loading",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "371f2ff223bdac0c38fd462afbe0557c5ac9f029a746e989cb195906078ae3e8"
+    },
+    {
+      "path": "review/screens/android/setup-loading-large-light.png",
+      "surface": "android",
+      "route": "setup",
+      "state": "loading",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "2f0eea578211f7fbd5826900eb7d8485d52facb2923961f046984dd1ea589267"
+    },
+    {
+      "path": "review/screens/android/setup-loading-phone-dark.png",
+      "surface": "android",
+      "route": "setup",
+      "state": "loading",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "ea528d81edb9ca66dfc7e4d1f12010bc00b11b994fd850871894c52de730a862"
+    },
+    {
+      "path": "review/screens/android/setup-loading-phone-light.png",
+      "surface": "android",
+      "route": "setup",
+      "state": "loading",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "00ffe2fb17115f738036d976ede162cc2440269078284b0f697b4177e0c3b233"
+    },
+    {
+      "path": "review/screens/android/updates-default-large-dark.png",
+      "surface": "android",
+      "route": "updates",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "c77932dbae5c117f2ad53779a721ebaa1d0a413e648f5a7517e2f0b7bdf34b56"
+    },
+    {
+      "path": "review/screens/android/updates-default-large-light.png",
+      "surface": "android",
+      "route": "updates",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "619ff16a638759628ae723bae9f7949970762b39274b70fc495eac32f82ed028"
+    },
+    {
+      "path": "review/screens/android/updates-default-phone-dark.png",
+      "surface": "android",
+      "route": "updates",
+      "state": "default",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "6c1b18895ab5b426f6ea7c3732d22eb47393d727b75f215d667d0cdd4cd81426"
+    },
+    {
+      "path": "review/screens/android/updates-default-phone-light.png",
+      "surface": "android",
+      "route": "updates",
+      "state": "default",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "1f0c44da9209043fd521ee69573d235123a1c4c5d75438d74204158d76555c13"
+    },
+    {
+      "path": "review/screens/android/updates-error-large-dark.png",
+      "surface": "android",
+      "route": "updates",
+      "state": "error",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "c12edbfb1e1e2fb5d3dbf0aa6a56b44a3dc659b8b8de36d3d64c81aab5f61e7b"
+    },
+    {
+      "path": "review/screens/android/updates-error-large-light.png",
+      "surface": "android",
+      "route": "updates",
+      "state": "error",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        1000,
+        800
+      ],
+      "layout_dp": [
+        1000,
+        800
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "45e85b2a6c49464ccc8c9bc50e112694373d35e9b994a3f17dd275ab092b0abe"
+    },
+    {
+      "path": "review/screens/android/updates-error-phone-dark.png",
+      "surface": "android",
+      "route": "updates",
+      "state": "error",
+      "theme": "dark",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "5ad9eb4e05918bd6780b69feca90f9c7f551714e5cdbac931f1862eb8de155a4"
+    },
+    {
+      "path": "review/screens/android/updates-error-phone-light.png",
+      "surface": "android",
+      "route": "updates",
+      "state": "error",
+      "theme": "light",
+      "simulated": true,
+      "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+      "source": "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt + debug ui/preview/ScreenFixtures.kt",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "a2969703117167cf19f67d4cccf5c72960ec1e8efeefac61b0d845aa80b3185c",
+      "synthetic_data": "Fixed ScreenFixtures and WebsiteReviewCaptureTest values; model-only disposable emulator defaults for empty Alerts and notification policy. Example car/gauge/adapter identities, temperatures, RPM, faults and versions are fictional.",
+      "resolution_px": [
+        390,
+        844
+      ],
+      "layout_dp": [
+        390,
+        844
+      ],
+      "density": 1.0,
+      "font_scale": 1.0,
+      "fonts": "Production EGaugeTheme Typography; Android API35 default sans-serif fallback (no downloaded fonts).",
+      "renderer": "Compose captureToImage().asAndroidBitmap() PNG, focused managed emulator instrumentation; SwiftShader indirect",
+      "device": "Gradle ciPhone: API35 google_apis arm64-v8a Pixel 2, configured physical display1080x1920 density420; composition overrides density1",
+      "system_ui": "Excluded by composition capture; no demo mode changes",
+      "caveats": [
+        "Static navigation shell mirrors production bottom-bar/rail breakpoints; CompanionApp/model navigation, global operation/alert banners, window insets and full-device SystemUI are not exercised.",
+        "Default Alerts and empty Alerts intentionally show the same production empty workspace. Populated synthetic-current uses production list inside a test header and tabs, not the model-owned live workspace.",
+        "Alert settings combines production ScreenFixtures.customize with model-only default phone policy; saved-on-phone panel is fixture/model comparison, not proof of a durable save.",
+        "Second-adapter variant captures the production Advanced summary with synthetic bindings; chooser sheet, discovery and transport compatibility are untested.",
+        "No radio, controller, physical phone, gauge, installed artifact or live vehicle behavior is qualified. Offscreen content and dialogs require separate captures."
+      ],
+      "sha256": "dffcb1468e0562155b0021ff91ce6b1f5cb9e16e9c33aba304be5e3d3caaa5ae"
+    }
+  ]
+}

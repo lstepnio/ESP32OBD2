@@ -1,0 +1,734 @@
+{
+  "pages": [
+    {
+      "path": "/",
+      "steps": [
+        {
+          "tag": "A",
+          "text": "Skip to content",
+          "settledVisible": true,
+          "top": 10,
+          "bottom": 58,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "eGauge home",
+          "settledVisible": true,
+          "top": 39.5,
+          "bottom": 72.5,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "The gauge",
+          "settledVisible": true,
+          "top": 46,
+          "bottom": 66,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Android App",
+          "settledVisible": true,
+          "top": 46,
+          "bottom": 66,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Progress",
+          "settledVisible": true,
+          "top": 46,
+          "bottom": 66,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Recovery",
+          "settledVisible": true,
+          "top": 46,
+          "bottom": 66,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "GitHub \u2197",
+          "settledVisible": true,
+          "top": 46,
+          "bottom": 66,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Try it free \u2197",
+          "settledVisible": true,
+          "top": 32,
+          "bottom": 80,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Try it free \u2197",
+          "settledVisible": true,
+          "top": 556.390625,
+          "bottom": 613.390625,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Explore the display \u2197",
+          "settledVisible": true,
+          "top": 555.390625,
+          "bottom": 614.390625,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Get updates \u2197",
+          "settledVisible": true,
+          "top": 637.390625,
+          "bottom": 651.390625,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Numeric",
+          "settledVisible": true,
+          "top": 948.84375,
+          "bottom": 988.84375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Arc",
+          "settledVisible": true,
+          "top": 948.84375,
+          "bottom": 988.84375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Bar",
+          "settledVisible": true,
+          "top": 948.84375,
+          "bottom": 988.84375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Trend",
+          "settledVisible": true,
+          "top": 948.84375,
+          "bottom": 988.84375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Dual",
+          "settledVisible": true,
+          "top": 948.84375,
+          "bottom": 988.84375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Dual + arc",
+          "settledVisible": true,
+          "top": 948.84375,
+          "bottom": 988.84375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Alerts",
+          "settledVisible": true,
+          "top": 948.84375,
+          "bottom": 988.84375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "reference touch-display board and a compatible BLE OBD-II adapter",
+          "settledVisible": true,
+          "top": 948.515625,
+          "bottom": 963.515625,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "USB recovery tool",
+          "settledVisible": true,
+          "top": 950.140625,
+          "bottom": 965.140625,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Air up implementation and qualification \u2197",
+          "settledVisible": true,
+          "top": 943.953125,
+          "bottom": 987.953125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Follow vehicle-action development \u2197",
+          "settledVisible": true,
+          "top": 981.703125,
+          "bottom": 997.703125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Waveshare ESP32-S3-Touch-LCD-1.28 \u2197",
+          "settledVisible": true,
+          "top": 942.578125,
+          "bottom": 985.828125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "check Waveshare for current pricing \u2197",
+          "settledVisible": true,
+          "top": 965.578125,
+          "bottom": 982.578125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "browser-based USB recovery",
+          "settledVisible": true,
+          "top": 926.078125,
+          "bottom": 943.078125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Vgate iCar Pro Bluetooth 4.0 (BLE) OBD-II adapter \u2197",
+          "settledVisible": true,
+          "top": 926.078125,
+          "bottom": 970.265625,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Get the free firmware & Android App \u2197",
+          "settledVisible": true,
+          "top": 999.453125,
+          "bottom": 1056.453125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "View the development board \u2197",
+          "settledVisible": true,
+          "top": 919.453125,
+          "bottom": 936.453125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Explore custom projects",
+          "settledVisible": true,
+          "top": 998.453125,
+          "bottom": 1013.453125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Your interest can help set the order.",
+          "settledVisible": true,
+          "top": 991.21875,
+          "bottom": 1031.015625,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Current state \u2197",
+          "settledVisible": true,
+          "top": 974.8125,
+          "bottom": 996.8125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Roadmap \u2197",
+          "settledVisible": true,
+          "top": 974.8125,
+          "bottom": 996.8125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Backlog \u2197",
+          "settledVisible": true,
+          "top": 974.8125,
+          "bottom": 996.8125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "start with the free software",
+          "settledVisible": true,
+          "top": 983.53125,
+          "bottom": 1026.78125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "tell us what you have in mind.",
+          "settledVisible": true,
+          "top": 991.28125,
+          "bottom": 1034.53125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "roadmap_idea",
+          "settledVisible": true,
+          "top": 937.78125,
+          "bottom": 1008.78125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "INPUT",
+          "text": "email",
+          "settledVisible": true,
+          "top": 949.78125,
+          "bottom": 997.78125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Keep me posted",
+          "settledVisible": true,
+          "top": 949.78125,
+          "bottom": 997.78125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "Can I buy a finished gauge from you?+",
+          "settledVisible": true,
+          "top": 438.4375,
+          "bottom": 503.4375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "ask us about a tailored build",
+          "settledVisible": true,
+          "top": 554.21875,
+          "bottom": 592.609375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "How is my contact information used?+",
+          "settledVisible": true,
+          "top": 622,
+          "bottom": 687,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "Can I help shape what comes next?+",
+          "settledVisible": true,
+          "top": 688,
+          "bottom": 753,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "Will it work with my vehicle?+",
+          "settledVisible": true,
+          "top": 754,
+          "bottom": 819,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "What can it do today?+",
+          "settledVisible": true,
+          "top": 820,
+          "bottom": 885,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "Do I need to keep the App connected?+",
+          "settledVisible": true,
+          "top": 886,
+          "bottom": 951,
+          "outline": "solid 3px"
+        }
+      ]
+    },
+    {
+      "path": "/recovery/",
+      "steps": [
+        {
+          "tag": "A",
+          "text": "Skip to recovery",
+          "settledVisible": true,
+          "top": 10,
+          "bottom": 58,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "eGauge home",
+          "settledVisible": true,
+          "top": 39.5,
+          "bottom": 72.5,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Hardware",
+          "settledVisible": true,
+          "top": 46,
+          "bottom": 66,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "GitHub \u2197",
+          "settledVisible": true,
+          "top": 46,
+          "bottom": 66,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Get the Android App",
+          "settledVisible": true,
+          "top": 504,
+          "bottom": 558,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Install firmware on a computer",
+          "settledVisible": true,
+          "top": 504,
+          "bottom": 558,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Waveshare ESP32-S3-Touch-LCD-1.28 \u2197",
+          "settledVisible": true,
+          "top": 753.890625,
+          "bottom": 770.890625,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Vgate iCar Pro Bluetooth 4.0 (BLE) \u2197",
+          "settledVisible": true,
+          "top": 796.28125,
+          "bottom": 813.28125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SELECT",
+          "text": "Verified recovery \u00b7 0.2.0-dev.60Open a downloaded package0.2.0-de",
+          "settledVisible": true,
+          "top": 936.03125,
+          "bottom": 984.03125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Release notes on GitHub \u2197",
+          "settledVisible": true,
+          "top": 969.8125,
+          "bottom": 986.8125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "All releases \u2197",
+          "settledVisible": true,
+          "top": 969.8125,
+          "bottom": 986.8125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Download selected firmware",
+          "settledVisible": true,
+          "top": 999.203125,
+          "bottom": 1016.203125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "settledVisible": true,
+          "top": 918.953125,
+          "bottom": 978.921875,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "settledVisible": true,
+          "top": 982.234375,
+          "bottom": 1002.234375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "Board not found or connection failed?",
+          "settledVisible": true,
+          "top": 672.1875,
+          "bottom": 737.1875,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "What if installation is interrupted?",
+          "settledVisible": true,
+          "top": 775.1875,
+          "bottom": 840.1875,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "When should I use this?",
+          "settledVisible": true,
+          "top": 878.1875,
+          "bottom": 943.1875,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SELECT",
+          "text": "Verified download \u00b7 0.2.0-dev.53",
+          "settledVisible": true,
+          "top": 926.78125,
+          "bottom": 974.78125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Download Android APK",
+          "settledVisible": true,
+          "top": 964.171875,
+          "bottom": 1023.265625,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "GitHub releases \u2197",
+          "settledVisible": true,
+          "top": 984.171875,
+          "bottom": 1001.171875,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "Install on your Android phone",
+          "settledVisible": true,
+          "top": 935.265625,
+          "bottom": 1000.265625,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "Already have eGauge, or installation failed?",
+          "settledVisible": true,
+          "top": 947.21875,
+          "bottom": 1012.21875,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Verified download hashes and build provenance \u2197",
+          "settledVisible": true,
+          "top": 982,
+          "bottom": 997,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Talk to us about your setup",
+          "settledVisible": true,
+          "top": 964.4375,
+          "bottom": 979.4375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "eGauge releases on GitHub \u2197",
+          "settledVisible": true,
+          "top": 929.375,
+          "bottom": 946.375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Browse older releases \u2197",
+          "settledVisible": true,
+          "top": 989.984375,
+          "bottom": 1046.984375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "eGauge.",
+          "settledVisible": true,
+          "top": 998.984375,
+          "bottom": 1027.984375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Recovery source and maintenance \u2197",
+          "settledVisible": true,
+          "top": 985.984375,
+          "bottom": 1006.984375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Skip to recovery",
+          "settledVisible": true,
+          "top": -41,
+          "bottom": 7,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "eGauge home",
+          "settledVisible": true,
+          "top": -11.5,
+          "bottom": 21.5,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Hardware",
+          "settledVisible": true,
+          "top": -5,
+          "bottom": 15,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "GitHub \u2197",
+          "settledVisible": true,
+          "top": -5,
+          "bottom": 15,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Get the Android App",
+          "settledVisible": true,
+          "top": 453,
+          "bottom": 507,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Install firmware on a computer",
+          "settledVisible": true,
+          "top": 453,
+          "bottom": 507,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Waveshare ESP32-S3-Touch-LCD-1.28 \u2197",
+          "settledVisible": true,
+          "top": 702.890625,
+          "bottom": 719.890625,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Vgate iCar Pro Bluetooth 4.0 (BLE) \u2197",
+          "settledVisible": true,
+          "top": 745.28125,
+          "bottom": 762.28125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SELECT",
+          "text": "Verified recovery \u00b7 0.2.0-dev.60Open a downloaded package0.2.0-de",
+          "settledVisible": true,
+          "top": 989.03125,
+          "bottom": 1037.03125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Release notes on GitHub \u2197",
+          "settledVisible": true,
+          "top": 994.8125,
+          "bottom": 1011.8125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "All releases \u2197",
+          "settledVisible": true,
+          "top": 994.8125,
+          "bottom": 1011.8125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "A",
+          "text": "Download selected firmware",
+          "settledVisible": true,
+          "top": 998.203125,
+          "bottom": 1015.203125,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "settledVisible": true,
+          "top": 937.953125,
+          "bottom": 997.921875,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "settledVisible": true,
+          "top": 998.234375,
+          "bottom": 1018.234375,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "Board not found or connection failed?",
+          "settledVisible": true,
+          "top": 688.1875,
+          "bottom": 753.1875,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "What if installation is interrupted?",
+          "settledVisible": true,
+          "top": 791.1875,
+          "bottom": 856.1875,
+          "outline": "solid 3px"
+        },
+        {
+          "tag": "SUMMARY",
+          "text": "When should I use this?",
+          "settledVisible": true,
+          "top": 894.1875,
+          "bottom": 959.1875,
+          "outline": "solid 3px"
+        }
+      ]
+    }
+  ]
+}

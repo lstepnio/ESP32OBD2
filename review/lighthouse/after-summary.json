@@ -1,0 +1,46 @@
+[
+  {
+    "run": "home-desktop-after.report",
+    "scores": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 66
+    },
+    "lighthouse": "13.0.1",
+    "warnings": []
+  },
+  {
+    "run": "home-mobile-after.report",
+    "scores": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 96,
+      "seo": 66
+    },
+    "lighthouse": "13.0.1",
+    "warnings": []
+  },
+  {
+    "run": "recovery-desktop-after.report",
+    "scores": {
+      "performance": 99,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 63
+    },
+    "lighthouse": "13.0.1",
+    "warnings": []
+  },
+  {
+    "run": "recovery-mobile-after.report",
+    "scores": {
+      "performance": 93,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 63
+    },
+    "lighthouse": "13.0.1",
+    "warnings": []
+  }
+]
