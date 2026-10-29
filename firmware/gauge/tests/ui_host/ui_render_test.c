@@ -822,6 +822,11 @@ int main(int argc, char **argv)
     command_activate(ui, true);
     refresh_vehicle_menu(ui);
     assert(!ui->command_confirm);
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_ACTIVE, 1 | 16 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_button_text), "Restore"));
+    assert(!strcmp(lv_label_get_text(ui->command_value), "Off"));
+    capture(argv[1], "actions-abs-restore");
     ui_set_vehicle_action_status(ui, 2, VEHICLE_RESTART_REQUIRED, 1, 0, 0, 0);
     tick(60);
     capture(argv[1], "actions-restart-required");
@@ -937,7 +942,7 @@ int main(int argc, char **argv)
         tick(60);
         assert(!strcmp(lv_label_get_text(ui->command_title), "Burnout Mode"));
         assert(!strcmp(lv_label_get_text(ui->command_value), n ? "ABS + TCS" : "Idle"));
-        assert(!strcmp(lv_label_get_text(ui->command_note), n == 2 ? "Restart to restore" : "Status unknown"));
+        assert(!strcmp(lv_label_get_text(ui->command_note), n == 2 ? "Restart Jeep" : "Status unknown"));
         assert(!strcmp(lv_label_get_text(ui->command_button_text), "Review"));
         assert(!lv_obj_has_state(ui->command_button, LV_STATE_DISABLED));
         capture(argv[1], n == 0   ? "actions-burnout-idle-unknown"
@@ -949,7 +954,7 @@ int main(int argc, char **argv)
         tick(60);
         assert(command_id(ui) == (n ? 3 : 1));
         if (n)
-            assert(!strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm"));
+            assert(!strcmp(lv_label_get_text(ui->command_button_text), n == 1 ? "Restore" : "Hold to confirm"));
         assert(command_requests == requests_before && owner_confirmations == confirms_before);
         assert(!ui->command_waiting && !ui->command_confirm && !ui_vehicle_burnout_held(ui));
         command_activate(ui, true);
@@ -959,20 +964,34 @@ int main(int argc, char **argv)
         ui_set_vehicle_action_status(ui, blocking_kinds[n], VEHICLE_READY, 1, 0, 0, 0);
     }
     /* Owner recovery explains whether ECU qualification or parked idle is missing. */
-    ui_set_vehicle_action_status(ui, 2, VEHICLE_UNKNOWN, VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_RESTART_REQUIRED, VEHICLE_UI_OWNER_TEST, 0, 0, 0);
     ui->command_page = 2;
     tick(60);
     assert(!strcmp(lv_label_get_text(ui->command_note), "Connect Jeep"));
     assert(lv_obj_has_state(ui->command_button, LV_STATE_DISABLED));
-    ui_set_vehicle_action_status(ui, 2, VEHICLE_UNKNOWN, 1 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_RESTART_REQUIRED, 1 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
     tick(60);
     assert(!strcmp(lv_label_get_text(ui->command_note), "Park and idle"));
     assert(lv_obj_has_state(ui->command_button, LV_STATE_DISABLED));
-    ui_set_vehicle_action_status(ui, 2, VEHICLE_UNKNOWN, 1 | 16 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_RESTART_REQUIRED, 1 | 16 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
     tick(60);
     assert(!strcmp(lv_label_get_text(ui->command_note), "Reset checked?"));
+    capture(argv[1], "actions-abs-reset-confirm");
     assert(!strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm"));
     assert(!lv_obj_has_state(ui->command_button, LV_STATE_DISABLED));
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_READY, 1, 0, 0, 0);
+    /* Uncertain ABS restoration is an explicit Return, never a reset acknowledgement. */
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_UNKNOWN, 1 | 16 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    ui->command_page = 2;
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_button_text), "Restore"));
+    capture(argv[1], "actions-abs-unknown-restore");
+    unsigned restore_requests = command_requests, restore_confirms = owner_confirmations;
+    action_press(ui);
+    action_release(ui);
+    assert(command_requests == restore_requests + 1 && owner_confirmations == restore_confirms);
+    assert(ui->command_request_stop && ui->command_request_page == 3);
+    ui->command_waiting = false;
     ui_set_vehicle_action_status(ui, 2, VEHICLE_READY, 1, 0, 0, 0);
     /* Independent owner recovery stays available when multiple records need review. */
     ui_set_vehicle_action_status(ui, 1, VEHICLE_UNKNOWN, 1, 0, 0, 0);

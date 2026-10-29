@@ -32,12 +32,14 @@ data class PageAction(
         require(airUpSeconds in 10..600 && winchSeconds in 10..600)
         require(type == PageActionType.VehicleActions || (airUpSeconds == 300 && winchSeconds == 300))
     }
+    fun withoutBurnout() = if (type == PageActionType.VehicleActions) copy(pages = pages - ActionPageId.Burnout) else this
+
     fun json(): JSONObject = JSONObject().put("type", type.wire).put("gesture", "up").put("count", count).put("windowMs", windowMs).also {
         if (type == PageActionType.JumpPage) {
             it.put("pageId", pageId)
         } else {
             it.put("airUpSeconds", airUpSeconds).put("winchSeconds", winchSeconds)
-                .put("pages", JSONArray(pages.map { page -> page.wire }))
+                .put("pages", JSONArray(pages.filterNot { it == ActionPageId.Burnout }.map { page -> page.wire }))
         }
     }
 }
@@ -83,7 +85,7 @@ object ProfileActions {
                 } else {
                     legacyActionPages
                 }
-            )
+            ).withoutBurnout()
         }
     }
     fun summary(actions: List<PageAction>) = actions.joinToString("\n") {

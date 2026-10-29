@@ -28,6 +28,13 @@ class VehicleCommandsUiTest {
         vehicleCommands = VehicleCommandKind.entries.associateWith { VehicleCommandStatus(it, if (it == VehicleCommandKind.Idle && phase == VehicleCommandPhase.RestartRequired) VehicleCommandPhase.Unavailable else phase, qualified = qualified) }
     )
 
+    @Test fun readyBurnoutIsHiddenFromNormalActions() {
+        compose.setContent { EGaugeTheme { VehicleActionsSheet(state(), {}, { _, _, _ -> fail("No command expected") }, {}) } }
+        compose.onNodeWithText("Burnout Mode").assertDoesNotExist()
+        compose.onNodeWithText("Burnout recovery").assertDoesNotExist()
+        compose.onNodeWithText("Stop Burnout Mode").assertDoesNotExist()
+    }
+
     @Test fun burnoutOffersOnlyQualifiedStopAndNeverStart() {
         var stopped = false
         compose.setContent {
@@ -177,7 +184,7 @@ class VehicleCommandsUiTest {
         compose.setContent { EGaugeTheme { VehicleActionsSheet(state(VehicleCommandPhase.RestartRequired, false), {}, { _, _, _ -> fail("Unavailable command sent") }, {}) } }
         compose.onNodeWithText("Air up").assertIsNotEnabled()
         compose.onNodeWithText("Disable ABS + TCS").assertDoesNotExist()
-        compose.onNodeWithText("Restart the vehicle to restore ABS and traction control").assertIsDisplayed()
+        compose.onNodeWithText("After Restore, reset ignition while parked and check the dash").assertIsDisplayed()
     }
 
     @Test fun stopNeedsNoSecondConfirmation() {

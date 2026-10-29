@@ -794,7 +794,7 @@ static void burnout_wire_and_marker_compatibility(void)
     assert(encoded[0] == 2 && vehicle_command_marker_decode(encoded, sizeof(encoded), &decoded));
     assert(decoded.mask == 6 && decoded.operation[1] == 5 && decoded.operation[2] == 6);
     assert(!vehicle_command_marker_decode(encoded, 28, &decoded));
-    encoded[0] = 3;
+    encoded[0] = 4;
     assert(!vehicle_command_marker_decode(encoded, sizeof(encoded), &decoded));
     encoded[0] = 2;
     encoded[1] |= 8;
@@ -805,6 +805,26 @@ static void burnout_wire_and_marker_compatibility(void)
     marker.mask = 2;
     assert(vehicle_command_marker_encode(&marker, encoded) == 28 && encoded[0] == 1);
     assert(vehicle_command_marker_decode(encoded, 28, &decoded) && decoded.mask == 2);
+}
+
+static void abs_return_receipt_storage_failure_stays_uncertain(void)
+{
+    vehicle_commands_t s;
+    init(&s);
+    abs_job(&s, false, 1);
+    assert(vehicle_commands_submit(&s, request(VEHICLE_ABS_TCS, VEHICLE_STOP, 1), context, now));
+    exchange(&s, "AT SH 620", "OK\r\r>");
+    exchange(&s, "AT FC SH 620", "OK\r\r>");
+    exchange(&s, "AT CRA 504", "OK\r\r>");
+    exchange(&s, "10 92 1", "504 02 50 92\r\r>");
+    jeep_idle_command_t command = vehicle_commands_next(&s, context, now);
+    assert(command.text && !strcmp(command.text, "32 A4"));
+    storage_ok        = false;
+    const char *reply = "504 02 72 A4\r\r>";
+    assert(vehicle_commands_feed(&s, command.ticket, (const uint8_t *)reply, strlen(reply), context, now));
+    assert(s.states[1].phase == VEHICLE_UNKNOWN && s.states[1].reason == VEHICLE_STORAGE);
+    assert(durable.mask == 2 && !durable.abs_return_acknowledged && !s.worker_kind);
+    assert(!vehicle_commands_next(&s, context, now).text);
 }
 
 static void supervised_brake_start_and_manual_confirmation(void)
@@ -838,7 +858,45 @@ static void supervised_brake_start_and_manual_confirmation(void)
     context.supervised_start_mask = 0;
     assert(!vehicle_commands_submit(&s, r, context, now));
     context.supervised_start_mask = 6;
-    storage_ok                    = false;
+    assert(!vehicle_commands_submit(&s, r, context, now)); /* A key-cycle claim cannot skip Return. */
+    vehicle_command_marker_t retained = durable;
+    vehicle_commands_init(&s, 19, save, NULL, &retained, true);
+    context.link++;
+    r.link = context.link;
+    r.boot = 19;
+    assert(s.states[1].phase == VEHICLE_UNKNOWN && durable.mask == 2);
+    assert(!vehicle_commands_next(&s, context, now).text); /* Reboot never replays a control. */
+    assert(!vehicle_commands_submit(&s, r, context, now));
+    r.verb = VEHICLE_STOP;
+    context.identity++;
+    assert(!vehicle_commands_submit(&s, r, context, now));
+    context.identity--;
+    assert(vehicle_commands_submit(&s, r, context, now));
+    assert(!vehicle_commands_submit(&s, r, context, now)); /* One queued explicit Return. */
+    exchange(&s, "AT SH 620", "OK\r\r>");
+    exchange(&s, "AT FC SH 620", "OK\r\r>");
+    exchange(&s, "AT CRA 504", "OK\r\r>");
+    exchange(&s, "10 92 1", "504 02 50 92\r\r>");
+    exchange(&s, "32 A4", "504 02 72 A4\r\r>");
+    assert(s.states[1].phase == VEHICLE_RESTART_REQUIRED && durable.mask == 2);
+    assert(durable.abs_return_acknowledged);
+    uint8_t                  receipt_bytes[VEHICLE_COMMAND_MARKER_SIZE];
+    vehicle_command_marker_t receipt;
+    assert(vehicle_command_marker_encode(&durable, receipt_bytes) == VEHICLE_COMMAND_MARKER_SIZE);
+    assert(receipt_bytes[0] == 3 && vehicle_command_marker_decode(receipt_bytes, sizeof(receipt_bytes), &receipt));
+    receipt_bytes[2] = 2;
+    assert(!vehicle_command_marker_decode(receipt_bytes, sizeof(receipt_bytes), &receipt));
+    receipt_bytes[2] = 1;
+    receipt_bytes[1] = 0;
+    assert(!vehicle_command_marker_decode(receipt_bytes, sizeof(receipt_bytes), &receipt));
+    receipt_bytes[1] = 2;
+    assert(vehicle_command_marker_decode(receipt_bytes, sizeof(receipt_bytes), &receipt));
+    vehicle_commands_init(&s, 21, save, NULL, &receipt, true);
+    r.boot = 21;
+    assert(s.states[1].phase == VEHICLE_RESTART_REQUIRED && durable.mask == 2);
+    assert(!vehicle_commands_next(&s, context, now).text); /* Return receipt never replays IO. */
+    r.verb     = VEHICLE_OWNER_CONFIRM;
+    storage_ok = false;
     assert(!vehicle_commands_submit(&s, r, context, now) && durable.mask == 2);
     storage_ok = true;
     assert(vehicle_commands_submit(&s, r, context, now));
@@ -862,6 +920,7 @@ static void supervised_brake_start_and_manual_confirmation(void)
 
 int main(int argc, char **argv)
 {
+    abs_return_receipt_storage_failure_stays_uncertain();
     supervised_brake_start_and_manual_confirmation();
     recovery_scope_and_retry_fences();
     assert(argc == 2);

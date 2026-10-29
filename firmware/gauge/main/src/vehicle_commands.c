@@ -123,12 +123,16 @@ static bool save_marker(vehicle_commands_t *s, vehicle_command_marker_t marker)
 }
 bool vehicle_command_marker_decode(const uint8_t *b, size_t n, vehicle_command_marker_t *out)
 {
-    if (!b || !out || n < 4 || b[2] || b[3] ||
-        !((b[0] == 1 && n == 28 && !(b[1] & ~3U)) || (b[0] == 2 && n == VEHICLE_COMMAND_MARKER_SIZE && !(b[1] & ~7U))))
+    if (!b || !out || n < 4 || b[3] || (b[2] && b[0] != 3) ||
+        !((b[0] == 1 && n == 28 && !(b[1] & ~3U)) ||
+          ((b[0] == 2 || b[0] == 3) && n == VEHICLE_COMMAND_MARKER_SIZE && !(b[1] & ~7U))))
         return false;
     vehicle_command_marker_t marker = {0};
     marker.mask                     = b[1];
-    unsigned count                  = b[0] == 1 ? 2 : VEHICLE_COMMAND_KIND_COUNT;
+    if (b[0] == 3 && (b[2] != 1 || !(marker.mask & 2U)))
+        return false;
+    marker.abs_return_acknowledged = b[0] == 3;
+    unsigned count                 = b[0] == 1 ? 2 : VEHICLE_COMMAND_KIND_COUNT;
     for (unsigned i = 0; i < count; ++i)
     {
         marker.operation[i] = u32(b + 4 + i * 12);
@@ -143,8 +147,9 @@ bool vehicle_command_marker_decode(const uint8_t *b, size_t n, vehicle_command_m
 size_t vehicle_command_marker_encode(const vehicle_command_marker_t *marker, uint8_t out[VEHICLE_COMMAND_MARKER_SIZE])
 {
     memset(out, 0, VEHICLE_COMMAND_MARKER_SIZE);
-    bool extended = (marker->mask & 4U) != 0;
-    out[0]        = extended ? 2 : 1;
+    bool extended = (marker->mask & 4U) != 0 || marker->abs_return_acknowledged;
+    out[0]        = marker->abs_return_acknowledged ? 3 : extended ? 2 : 1;
+    out[2]        = marker->abs_return_acknowledged ? 1 : 0;
     out[1]        = marker->mask;
     for (unsigned i = 0; i < VEHICLE_COMMAND_KIND_COUNT; ++i)
     {
@@ -167,7 +172,7 @@ void vehicle_commands_init(vehicle_commands_t             *s,
     s->save          = save;
     s->save_context  = context;
     s->journal_ready = journal_ready && boot && save;
-    if (restored && (restored->mask & ~7U))
+    if (restored && ((restored->mask & ~7U) || (restored->abs_return_acknowledged && !(restored->mask & 2U))))
         s->journal_ready = false;
     if (restored && s->journal_ready)
         s->marker = *restored;
@@ -176,9 +181,9 @@ void vehicle_commands_init(vehicle_commands_t             *s,
         vehicle_command_state_t *v = &s->states[i];
         if (!s->journal_ready || (s->marker.mask & (1U << i)))
         {
-            v->phase             = VEHICLE_UNKNOWN;
-            v->reason            = s->journal_ready ? VEHICLE_CONTEXT : VEHICLE_STORAGE;
-            v->request.kind      = i + 1;
+            v->phase        = i == 1 && s->marker.abs_return_acknowledged ? VEHICLE_RESTART_REQUIRED : VEHICLE_UNKNOWN;
+            v->reason       = s->journal_ready ? VEHICLE_CONTEXT : VEHICLE_STORAGE;
+            v->request.kind = i + 1;
             v->request.operation = s->marker.operation[i];
             v->request.revision  = s->marker.revision[i];
             v->identity          = s->marker.identity[i];
@@ -248,12 +253,13 @@ bool vehicle_commands_submit(vehicle_commands_t       *s,
                             !v->pending_start && !v->pending_stop && r.operation == v->request.operation &&
                             c.identity == v->identity && c.revision == v->request.revision && (s->marker.mask & bit) &&
                             (v->phase == VEHICLE_VERIFYING || v->phase == VEHICLE_RESTART_REQUIRED ||
-                             (r.kind == VEHICLE_ABS_TCS && v->phase == VEHICLE_ACTIVE) ||
-                             (v->phase == VEHICLE_UNKNOWN && (r.kind == VEHICLE_ABS_TCS || v->release_attempted)));
+                             (v->phase == VEHICLE_UNKNOWN && r.kind == VEHICLE_BURNOUT && v->release_attempted));
         if (!eligible)
             return false;
         vehicle_command_marker_t marker = s->marker;
         marker.mask &= ~bit;
+        if (r.kind == VEHICLE_ABS_TCS)
+            marker.abs_return_acknowledged = false;
         if (!save_marker(s, marker))
             return false;
         v->request.link     = c.link;
@@ -266,9 +272,9 @@ bool vehicle_commands_submit(vehicle_commands_t       *s,
     }
     if (r.verb == VEHICLE_STOP)
     {
-        /* Only an explicit release may rebind durable Burnout uncertainty after
-         * a reboot/link loss, using the same independently verified controller. */
-        bool rebind = r.kind == VEHICLE_BURNOUT && v->phase == VEHICLE_UNKNOWN && qualified(c, r.kind) &&
+        /* An explicit captured Return may rebind brake uncertainty after reboot/link
+         * loss. Vehicle identity and configuration must still match the record. */
+        bool rebind = r.kind != VEHICLE_IDLE && v->phase == VEHICLE_UNKNOWN && qualified(c, r.kind) &&
                       v->identity == c.identity && v->request.revision == c.revision &&
                       v->request.operation == r.operation;
         if (rebind)
@@ -278,7 +284,7 @@ bool vehicle_commands_submit(vehicle_commands_t       *s,
         }
         if (r.operation != v->request.operation || !scoped(v, c) || v->pending_stop ||
             (v->phase != VEHICLE_STARTING && v->phase != VEHICLE_ACTIVE &&
-             !(r.kind == VEHICLE_BURNOUT && v->phase == VEHICLE_UNKNOWN && qualified(c, r.kind))))
+             !(r.kind != VEHICLE_IDLE && v->phase == VEHICLE_UNKNOWN && qualified(c, r.kind))))
             return false;
         v->pending_stop = true;
         if (s->worker_kind == r.kind && r.kind == VEHICLE_IDLE)
@@ -386,6 +392,17 @@ static void finish(vehicle_commands_t *s, vehicle_command_context_t c, uint32_t 
             return;
         if (d->phase == JEEP_ABS_ACKNOWLEDGED)
         {
+            if (kind == VEHICLE_ABS_TCS && d->request.kind == JEEP_ABS_RETURN)
+            {
+                vehicle_command_marker_t receipt = s->marker;
+                receipt.abs_return_acknowledged  = true;
+                if (!save_marker(s, receipt))
+                {
+                    transition(s, kind, VEHICLE_UNKNOWN, VEHICLE_STORAGE, now);
+                    s->worker_kind = 0;
+                    return;
+                }
+            }
             v->restart_required = kind == VEHICLE_ABS_TCS;
             if (d->request.kind == JEEP_ABS_DISABLE && kind != VEHICLE_BURNOUT)
                 v->active_at = now;
@@ -437,6 +454,8 @@ void vehicle_commands_observe(vehicle_commands_t *s, vehicle_command_context_t c
         {
             vehicle_command_marker_t m = s->marker;
             m.mask &= ~(1U << i);
+            if (i == 1)
+                m.abs_return_acknowledged = false;
             if (save_marker(s, m))
             {
                 v->restart_required = v->pending_start = v->pending_stop = false;
@@ -569,7 +588,7 @@ jeep_idle_command_t vehicle_commands_next(vehicle_commands_t *s, vehicle_command
                 v->pending_start = false;
                 transition(s, i + 1, VEHICLE_RESTORED, VEHICLE_OK, now);
             }
-            else if (v->phase == VEHICLE_ACTIVE || (i == 2 && v->phase == VEHICLE_UNKNOWN))
+            else if (v->phase == VEHICLE_ACTIVE || (i > 0 && v->phase == VEHICLE_UNKNOWN))
                 begin_job(s, i + 1, true, false, c, now);
         }
         for (unsigned i = 0; i < VEHICLE_COMMAND_KIND_COUNT && !s->worker_kind; ++i)

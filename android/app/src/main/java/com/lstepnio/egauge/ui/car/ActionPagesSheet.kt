@@ -27,7 +27,7 @@ fun ActionPagesSheet(
 ) {
     val original = state.actions.firstOrNull { it.type == PageActionType.VehicleActions }
     var action by remember(assignmentId, state.activeId, original) {
-        mutableStateOf(original ?: PageAction(type = PageActionType.VehicleActions, count = state.actions.firstOrNull()?.count ?: 3, windowMs = state.actions.firstOrNull()?.windowMs ?: 5000, airUpSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.AirUp }?.seconds ?: 300, winchSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.Winch }?.seconds ?: 60, pages = emptyList()))
+        mutableStateOf(original?.withoutBurnout() ?: PageAction(type = PageActionType.VehicleActions, count = state.actions.firstOrNull()?.count ?: 3, windowMs = state.actions.firstOrNull()?.windowMs ?: 5000, airUpSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.AirUp }?.seconds ?: 300, winchSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.Winch }?.seconds ?: 60, pages = emptyList()))
     }
     var presets by remember(assignmentId, state.activeId, state.idlePresets) { mutableStateOf(state.idlePresets) }
     var editing by remember(assignmentId, state.activeId) { mutableStateOf<ActionPageId?>(null) }
@@ -81,7 +81,7 @@ fun ActionPagesSheet(
                         }
                     }
                 } else {
-                    Text(if (selected == ActionPageId.Burnout) "Hold on gauge. Release to stop." else "Disable ABS and traction control together. Restart while parked to restore them on the tested Jeep.")
+                    Text("Disable ABS and traction control together. Use Restore on the gauge to return control, then reset the ignition while parked and check the dash.")
                 }
                 PrimaryAction("Done", {
                     if (selected.kind == VehicleCommandKind.Idle) {
@@ -99,7 +99,7 @@ fun ActionPagesSheet(
                 }, enabled = editable) { Text("Remove action") }
                 TextButton({ editing = null }) { Text("Back") }
             } else if (adding) {
-                val available = ActionPageId.entries.filter { it in action.pages || state.vehicleCommands[it.kind]?.let { status -> status.qualified || status.ownerSupervised } == true }
+                val available = legacyActionPages.filter { it in action.pages || state.vehicleCommands[it.kind]?.let { status -> status.qualified || status.ownerSupervised } == true }
                 if (available.none { it !in action.pages }) Text("No additional actions available for this car yet.")
                 available.forEach { id ->
                     val added = id in action.pages
@@ -110,8 +110,6 @@ fun ActionPagesSheet(
                             "Already added"
                         } else if (!compatible) {
                             "Not available for this car yet"
-                        } else if (id == ActionPageId.Burnout) {
-                            if (state.vehicleCommands[id.kind]?.ownerSupervised == true) "Hold on gauge · release to stop" else "Hold on gauge · release not qualified"
                         } else if (id == ActionPageId.AbsTcs) {
                             "ABS and traction control"
                         } else {
@@ -144,13 +142,11 @@ fun ActionPagesSheet(
                 action.pages.forEachIndexed { index, id ->
                     SettingsRow(
                         id.label,
-                        if (id == ActionPageId.Burnout) {
-                            if (state.vehicleCommands[id.kind]?.ownerSupervised == true) "Hold on gauge · release to stop" else "Hold on gauge · release not qualified"
-                        } else if (id == ActionPageId.AbsTcs) {
+                        if (id == ActionPageId.AbsTcs) {
                             if (state.vehicleCommands[id.kind]?.ownerSupervised == true) {
-                                "Start on gauge · restart to restore"
+                                "Start and Restore on gauge · ignition reset required"
                             } else if (state.vehicleCommands[id.kind]?.qualified == true) {
-                                "Restart to restore"
+                                "Restore on gauge, then reset ignition"
                             } else {
                                 "Not supported yet"
                             }
@@ -184,7 +180,7 @@ fun ActionPagesSheet(
                         }, enabled = editable) { Text("Undo") }
                     }
                 }
-                OutlinedButton({ adding = true }, enabled = editable && action.pages.size < 4) { Text("Add action") }
+                OutlinedButton({ adding = true }, enabled = editable && action.pages.size < legacyActionPages.size) { Text("Add action") }
                 if (locked) Text("Finish the active action before changing its pages.")
                 if (original == null && state.actions.any { it.type == PageActionType.JumpPage }) Text("Saving action pages replaces this gauge’s page-jump gesture. Other gauges keep their choices.")
                 if (!state.actionsSupported) Text("Save on this phone now. Update the gauge before sending action pages.")

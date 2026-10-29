@@ -92,6 +92,7 @@ typedef struct
     uint32_t operation[VEHICLE_COMMAND_KIND_COUNT], revision[VEHICLE_COMMAND_KIND_COUNT],
         identity[VEHICLE_COMMAND_KIND_COUNT];
     uint8_t mask;
+    bool    abs_return_acknowledged; /* Receipt only, not physical restoration proof. */
 } vehicle_command_marker_t;
 typedef bool (*vehicle_command_save_t)(const vehicle_command_marker_t *marker, void *context);
 typedef struct
@@ -116,8 +117,8 @@ void vehicle_commands_init(vehicle_commands_t             *commands,
                            void                           *save_context,
                            const vehicle_command_marker_t *restored,
                            bool                            journal_ready);
-/* Version 1 journals migrate without discarding uncertainty. Older firmware
- * refuses the larger version 2 record, including a Burnout uncertainty marker. */
+/* Legacy journals preserve uncertainty. Version 2 retains Burnout; version 3
+ * retains an ABS Return receipt. Older firmware rejects unsupported receipts. */
 bool   vehicle_command_marker_decode(const uint8_t *bytes, size_t length, vehicle_command_marker_t *out);
 size_t vehicle_command_marker_encode(const vehicle_command_marker_t *marker, uint8_t out[VEHICLE_COMMAND_MARKER_SIZE]);
 bool   vehicle_command_decode(const uint8_t *bytes, size_t length, vehicle_command_request_t *request);

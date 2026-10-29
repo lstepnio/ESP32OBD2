@@ -432,7 +432,7 @@ bool vehicle_commands_runtime_intent(uint8_t kind, bool stop, uint8_t preset, ui
     if (!vehicle_commands_runtime_status(kind, status) || !(status[27] & 1U))
         return false;
     bool can = stop ? status[2] == VEHICLE_STARTING || status[2] == VEHICLE_ACTIVE ||
-                          (kind == VEHICLE_BURNOUT && status[2] == VEHICLE_UNKNOWN)
+                          (kind != VEHICLE_IDLE && status[2] == VEHICLE_UNKNOWN)
                     : status[2] == VEHICLE_READY || status[2] == VEHICLE_RESTORED || status[2] == VEHICLE_REJECTED;
     if (!can || (!stop && u32(status + 28) == UINT32_MAX))
         return false;

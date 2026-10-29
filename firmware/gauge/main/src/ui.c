@@ -2563,7 +2563,12 @@ static void refresh_vehicle_menu(ui_t *ui)
     else if (id == 3 && (phase == VEHICLE_ACTIVE || phase == VEHICLE_RESTART_REQUIRED))
     {
         value = "Off";
-        note  = "Restart to restore";
+        note  = phase == VEHICLE_ACTIVE ? "" : "Restart Jeep";
+        if (phase == VEHICLE_ACTIVE)
+        {
+            button  = "Restore";
+            enabled = state & 256U;
+        }
     }
     else if (phase == VEHICLE_STOPPING || phase == VEHICLE_VERIFYING)
     {
@@ -2631,14 +2636,13 @@ static void refresh_vehicle_menu(ui_t *ui)
         {
             title = "Disable both?";
             value = "ABS + TCS";
-            note  = "Restart to restore";
+            note  = "Restore, then restart";
         }
         if (phase == VEHICLE_REJECTED && reason == VEHICLE_GUARD && !note[0])
             note = "Check conditions";
     }
     bool owner_check = id >= 3 && (state & (VEHICLE_UI_OWNER_TEST << 8)) &&
                        (phase == VEHICLE_VERIFYING || phase == VEHICLE_RESTART_REQUIRED ||
-                        (id == 3 && (phase == VEHICLE_ACTIVE || phase == VEHICLE_UNKNOWN)) ||
                         (id == 4 && phase == VEHICLE_UNKNOWN && (state & (32U << 8))));
     if (id >= 3 && (state & (VEHICLE_UI_OWNER_TEST << 8)) && !(state & 256U) && phase != VEHICLE_UNKNOWN)
     {
@@ -2647,6 +2651,13 @@ static void refresh_vehicle_menu(ui_t *ui)
         ring    = 0;
         enabled = false;
         button  = "";
+    }
+    if (id == 3 && phase == VEHICLE_UNKNOWN)
+    {
+        value   = "Check brakes";
+        button  = "Restore";
+        enabled = state & 256U;
+        note    = enabled ? "" : "Connect Jeep";
     }
     if (owner_check)
     {
@@ -2675,7 +2686,7 @@ static void refresh_vehicle_menu(ui_t *ui)
                                                     : "Idle";
         note    = blocked_phase == VEHICLE_UNKNOWN ? "Status unknown"
                   : blocked_phase == VEHICLE_RESTART_REQUIRED || (blocker == 3 && blocked_phase == VEHICLE_ACTIVE)
-                      ? "Restart to restore"
+                      ? (blocked_phase == VEHICLE_ACTIVE ? "Restore required" : "Restart Jeep")
                       : "Action in progress";
         button  = "Review";
         enabled = false;
@@ -2781,8 +2792,7 @@ static void command_activate(ui_t *ui, bool back)
         dispatch_touch(ui, UI_EVENT_VEHICLE_CONFIRM);
         return;
     }
-    bool stop = (id < 3 || id == 4) &&
-                (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE || (id == 4 && phase == VEHICLE_UNKNOWN));
+    bool stop = (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE || (id >= 3 && phase == VEHICLE_UNKNOWN));
     if (!stop && command_busy(ui))
     {
         ui->command_confirm = 0;

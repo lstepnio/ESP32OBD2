@@ -314,8 +314,9 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
             goto done;
         unsigned seen                   = 0;
         out->page_action.pages_explicit = menu;
-        out->page_action.page_count     = menu ? (list ? cJSON_GetArraySize(list) : 3) : 0;
-        for (unsigned i = 0; i < out->page_action.page_count; ++i)
+        unsigned input_pages            = menu ? (list ? cJSON_GetArraySize(list) : 3) : 0;
+        out->page_action.page_count     = 0;
+        for (unsigned i = 0; i < input_pages; ++i)
         {
             const cJSON *item = list ? cJSON_GetArrayItem(list, i) : NULL;
             if (item && !cJSON_IsString(item))
@@ -330,7 +331,10 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
             if (!value || (seen & (1U << value)))
                 goto done;
             seen |= 1U << value;
-            out->page_action.pages[i] = value;
+            /* Retain wire/config compatibility, but pause normal Burnout pages.
+             * Durable unresolved brake records still add their recovery face. */
+            if (value != 4)
+                out->page_action.pages[out->page_action.page_count++] = value;
         }
     }
     err = ESP_OK;

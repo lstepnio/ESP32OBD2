@@ -47,20 +47,9 @@ class ActionPagesUiTest {
         var saved: PageAction? = null
         val action = PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.Burnout))
         compose.setContent { EGaugeTheme { ActionPagesSheet(state().copy(actions = listOf(action), vehicleCommands = emptyMap(), commandsSupported = false), { value, _ -> saved = value }, {}) } }
-        compose.onNodeWithText("Burnout Mode").performClick()
-        compose.onNodeWithText("Hold on gauge. Release to stop.").assertIsDisplayed()
-        compose.onNodeWithText("Duration").assertDoesNotExist()
-        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.onNodeWithText("Burnout Mode").assertDoesNotExist()
         compose.onNodeWithText("Save on phone").performScrollTo().performClick()
-        compose.runOnIdle { assertEquals(action, saved) }
-    }
-
-    @Test fun supervisedBurnoutListUsesEnabledGaugeInstructions() {
-        val action = PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.Burnout))
-        val burnout = VehicleCommandStatus(VehicleCommandKind.Burnout, VehicleCommandPhase.Ready, qualified = true).withBrakeActionsTestVersion(1)
-        compose.setContent { EGaugeTheme { ActionPagesSheet(state().copy(actions = listOf(action), vehicleCommands = mapOf(VehicleCommandKind.Burnout to burnout)), { _, _ -> }, {}) } }
-        compose.onNodeWithText("Hold on gauge · release to stop").assertIsDisplayed()
-        compose.onNodeWithText("Hold on gauge · release not qualified").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(action.withoutBurnout(), saved) }
     }
 
     @Test fun editTimerAndSaveOnlyConfiguration() {
@@ -151,7 +140,7 @@ class ActionPagesUiTest {
         }
     }
 
-    @Test fun largeTextBurnoutEditorKeepsDoneAndSaveReachable() {
+    @Test fun largeTextRemovedBurnoutDraftKeepsSaveReachable() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         check(android.os.Build.HARDWARE in setOf("ranchu", "goldfish"))
         val originalScale = instrumentation.targetContext.resources.configuration.fontScale
@@ -167,16 +156,11 @@ class ActionPagesUiTest {
         try {
             scale(2f)
             compose.setContent { EGaugeTheme { ActionPagesSheet(state().copy(actions = listOf(action), vehicleCommands = emptyMap()), { value, _ -> saved = value }, {}) } }
-            compose.onNodeWithText("Burnout Mode").performScrollTo().performClick()
-            compose.onNodeWithText("Hold on gauge. Release to stop.").performScrollTo().assertIsDisplayed()
-            compose.onNodeWithText("Duration").assertDoesNotExist()
-            compose.onNodeWithText("Done").performScrollTo().assertIsEnabled().assertIsDisplayed()
-            capture("burnout-editor-large-text.png")
-            finishEditor()
+            compose.onNodeWithText("Burnout Mode").assertDoesNotExist()
             compose.onNodeWithText("Save on phone").performScrollTo().assertIsEnabled().assertIsDisplayed()
             capture("burnout-save-large-text.png")
             compose.onNodeWithText("Save on phone").performClick()
-            compose.runOnIdle { assertEquals(action, saved) }
+            compose.runOnIdle { assertEquals(action.withoutBurnout(), saved) }
         } finally {
             scale(originalScale)
         }
@@ -266,7 +250,7 @@ class ActionPagesUiTest {
         compose.onNodeWithText("Add action").performScrollTo().assertIsNotEnabled()
     }
 
-    @Test fun offlineSupervisedBurnoutCanBeAddedWithoutChangingLegacyPagesOrTimers() {
+    @Test fun supervisedBurnoutCannotBeAddedAndPreservesLegacyPagesAndTimers() {
         var saved: PageAction? = null
         var savedPresets: List<IdlePreset>? = null
         val original = PageAction(type = PageActionType.VehicleActions, airUpSeconds = 60, winchSeconds = 180)
@@ -282,13 +266,11 @@ class ActionPagesUiTest {
                 }, {})
             }
         }
-        compose.onNodeWithText("Add action").performScrollTo().performClick()
-        compose.onNodeWithText("Burnout Mode").performScrollTo().assertIsEnabled().performClick()
-        compose.onNodeWithText("Hold on gauge. Release to stop.").assertIsDisplayed()
-        finishEditor()
+        compose.onNodeWithText("Add action").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Burnout Mode").assertDoesNotExist()
         compose.onNodeWithText("Save on phone").performScrollTo().performClick()
         compose.runOnIdle {
-            assertEquals(original.copy(pages = legacyActionPages + ActionPageId.Burnout), saved)
+            assertEquals(original, saved)
             assertEquals(presets, savedPresets)
             assertFalse(burnout.canStart)
         }

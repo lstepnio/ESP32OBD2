@@ -18,15 +18,27 @@ class ActionPagesTest {
         assertTrue(ProfileActions.decode(ProfileActions.json(listOf(empty))).single().pages.isEmpty())
     }
 
-    @Test fun burnoutDraftRoundTripsWithoutChangingLegacyOrJumpDefaults() {
+    @Test fun burnoutDraftNormalizesWithoutChangingLegacyOrJumpDefaults() {
         val action = PageAction(type = PageActionType.VehicleActions, pages = ActionPageId.entries.toList())
         assertEquals(4, action.pages.size)
-        assertEquals(action, ProfileActions.decode(ProfileActions.json(listOf(action))).single())
+        assertEquals(action.copy(pages = legacyActionPages), action.withoutBurnout())
+        assertEquals(action.withoutBurnout(), ProfileActions.decode(ProfileActions.json(listOf(action))).single())
         assertEquals(legacyActionPages, PageAction(pageId = "main").pages)
         assertFalse(ProfileActions.supported(listOf(action), 1))
         assertFalse(ProfileActions.supported(listOf(action), null))
         assertTrue(ProfileActions.supported(listOf(action), 1, 1))
         assertTrue(ProfileActions.supported(listOf(action.copy(pages = legacyActionPages)), 1))
+    }
+
+    @Test fun savedFourActionMenuDropsOnlyBurnoutAndPreservesOrderGestureAndTimers() {
+        val item = JSONArray(legacy).getJSONObject(0).put("count", 5).put("windowMs", 9000)
+            .put("pages", JSONArray(listOf("absTcs", "burnout", "winch", "airUp")))
+        val normalized = ProfileActions.decode(JSONArray().put(item)).single()
+        assertEquals(listOf(ActionPageId.AbsTcs, ActionPageId.Winch, ActionPageId.AirUp), normalized.pages)
+        assertEquals(5, normalized.count)
+        assertEquals(9000, normalized.windowMs)
+        assertEquals(60, normalized.airUpSeconds)
+        assertEquals(300, normalized.winchSeconds)
     }
 
     @Test fun optionalBurnoutCapabilityKeepsLegacyVehicleCommandsVersion() {
@@ -55,14 +67,14 @@ class ActionPagesTest {
         }
     }
 
-    @Test fun profileSchemaPreservesExplicitBurnoutAndRejectsUnknownPages() {
+    @Test fun profileSchemaRemovesExplicitBurnoutAndRejectsUnknownPages() {
         val action = PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.Burnout))
         val collection = ProfileCollection("jeep", listOf(VehicleProfile("jeep", "Jeep", Draft(actions = listOf(action)))))
         val encoded = ProfileDocumentCodec.encode(collection)
         assertEquals(19, JSONObject(encoded).getInt("schemaVersion"))
-        assertEquals(listOf(action), ProfileDocumentCodec.decode(encoded).active.draft.actions)
-        assertTrue(runCatching { ProfileDocumentCodec.decode(encoded.replace("burnout", "futureBrakeAction")) }.isFailure)
-        assertEquals(listOf(action), ProfileDocumentCodec.decode(encoded).active.draft.actions)
+        assertEquals(listOf(action.withoutBurnout()), ProfileDocumentCodec.decode(encoded).active.draft.actions)
+        assertTrue(runCatching { ProfileDocumentCodec.decode(encoded.replace("\"pages\":[]", "\"pages\":[\"futureBrakeAction\"]")) }.isFailure)
+        assertEquals(listOf(action.withoutBurnout()), ProfileDocumentCodec.decode(encoded).active.draft.actions)
     }
 
     @Test fun unsupportedDuplicateAndOversizedCollectionsAreRejected() {

@@ -56,7 +56,7 @@ class VehicleCommandsTest {
         assertTrue(status.restartRequired)
         assertFalse(status.canStart)
         assertFalse(status.canStop)
-        assertTrue(status.message.contains("Restart"))
+        assertTrue(status.message.contains("After Restore, reset ignition"))
         val active = status.copy(phase = VehicleCommandPhase.Active)
         assertTrue(active.canStop)
         val stop = VehicleCommandProtocol.request(active, true)
@@ -138,7 +138,10 @@ class VehicleCommandsTest {
         val abs = VehicleCommandProtocol.status(statusBytes()).withBrakeActionsTestVersion(1)
         assertTrue(abs.gaugeStartRequired)
         assertEquals(VehicleCommandPhase.RestartRequired, abs.phase)
-        assertTrue(abs.message.contains("Restart while parked"))
+        assertTrue(abs.message.contains("Reset ignition while parked"))
+        val uncertain = abs.copy(phase = VehicleCommandPhase.Unknown)
+        assertEquals("Use Restore on the gauge, then reset ignition while parked and check the dash", uncertain.message)
+        assertFalse(uncertain.message.contains("confirm"))
     }
 
     @Test fun coolantTimerRetainsStopAndRequiresGaugeRestart() {

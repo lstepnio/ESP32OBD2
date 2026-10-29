@@ -67,12 +67,14 @@ fun VehicleActionsSheet(
                 if (!abs.busy && !abs.gaugeStartRequired) {
                     OutlinedButton({ confirm = VehicleCommandKind.AbsTcs to null }, enabled = state.commandsFresh && abs.canStart) { Text("Disable ABS + TCS") }
                 }
-                if (abs.qualified) Text(if (abs.ownerSupervised) "Confirm the actual ignition reset and normal dash on the gauge." else "Remains off until the next ignition cycle. A green button does not confirm restoration.", style = MaterialTheme.typography.bodySmall)
-                HorizontalDivider()
-                Text("Burnout Mode", style = MaterialTheme.typography.titleMedium)
-                Text(burnout.message)
-                if (burnout.canStop) {
-                    PrimaryAction("Stop Burnout Mode", { onCommand(VehicleCommandKind.Burnout, true, null) }, enabled = state.commandsFresh)
+                if (abs.qualified) Text("Use Restore on the gauge to return control, then reset the ignition while parked. Confirm the normal dash separately on the gauge.", style = MaterialTheme.typography.bodySmall)
+                if (burnout.busy) {
+                    HorizontalDivider()
+                    Text("Burnout recovery", style = MaterialTheme.typography.titleMedium)
+                    Text(burnout.message)
+                    if (burnout.canStop) {
+                        PrimaryAction("Stop Burnout Mode", { onCommand(VehicleCommandKind.Burnout, true, null) }, enabled = state.commandsFresh)
+                    }
                 }
                 Spacer(Modifier.height(12.dp))
             }
@@ -99,7 +101,7 @@ fun VehicleActionsSheet(
                         OutlinedTextField(sessionTime, { sessionTime = it }, label = { Text("Time for this session") }, supportingText = { Text("Minutes:seconds, 0:10 to 10:00. Your saved preset stays unchanged.") }, isError = sessionPreset == null, singleLine = true, modifier = Modifier.fillMaxWidth())
                     }
                 } else {
-                    Text(if (kind == VehicleCommandKind.Idle) "Use this car's fixed raised-idle setting for ${preset!!.seconds} seconds while parked." else "Use only while parked for off-road setup. Restart the vehicle to restore normal operation.")
+                    Text(if (kind == VehicleCommandKind.Idle) "Use this car's fixed raised-idle setting for ${preset!!.seconds} seconds while parked." else "Use only while parked for off-road setup. Use Restore on the gauge to return control, then reset the ignition and check the dash.")
                 }
             },
             confirmButton = {

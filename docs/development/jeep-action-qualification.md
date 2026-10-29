@@ -268,16 +268,17 @@ qualification masks and public BLE capability flags remain disabled.
    the actual brake state and surroundings. Use the physical gauge to Start;
    the phone cannot Start either action. Keep other commands inactive.
 2. **Disable ABS + TCS:** use the explicit local confirmation. Record replies and
-   observed warnings separately. Restore by the captured ignition-cycle procedure,
-   then check the warnings and actual brakes. At stationary normal idle use
-   **Hold to confirm** only after the reset is checked. No additional Return is
-   required after the ignition reset; confirmation sends no vehicle control.
+   observed warnings separately. Use **Restore** and record the `32 A4` / `72 A4`
+   transaction before the ignition cycle, then check the warnings and actual brakes. At stationary normal idle use
+   **Hold to confirm** only after the reset is checked. A reboot must retain the
+   acknowledged Return receipt without replaying it; confirmation sends no vehicle control.
    A gauge reboot does not acknowledge this persisted record. If another action
    shows it as a blocker, use **Review** (or swipe to **ABS + TCS** on older images).
    With the matched ECM, parked normal idle and the reset personally checked,
    use the existing **Hold to confirm** control. Indoors, **Connect Jeep** means
    that live confirmation context is absent; do not clear NVS to bypass it.
-3. **Burnout:** the requested mode is **Front Lock**. Read the
+3. **Burnout is paused and removed from normal menus.** Historical qualification
+   instructions below are deferred until explicitly resumed. The requested mode is **Front Lock**. Read the
    [JK/JL selector finding](../architecture/vehicle-actions.md#front-lock-selection-captured-jk-versus-jljt)
    first: the captured JK handler ignores that selector, so another full capture
    solely to change it is unnecessary in the inspected build. Compare observed

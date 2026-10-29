@@ -601,7 +601,7 @@ not qualify live controller execution.
   band; one supporting line sits between the value and primary control. The shared
   critical overlay preserves its measured condition and reuses the same red arc during
   protective Return, then restores the action branch without restarting. The tested Jeep's ABS/TCS
-  Disabled state has ignition-cycle guidance and no misleading Restore control.
+  Disabled state offers the captured Return before ignition-cycle guidance; acknowledgement is not restoration proof.
 - An unresolved operation is appended to the displayed branch if its configured
   page is absent. This is an ephemeral recovery view, never a configuration write.
   Navigation cannot conceal Stop merely because the phone started the operation.
@@ -868,9 +868,11 @@ establishes automatic brake/Park sensing, brake force, controller-side expiry or
 independent restoration proof.
 
 For Burnout, complete or attempt Return, then stop at normal idle and inspect the
-actual brake state. For ABS/TCS, perform the required ignition reset and check
-that the warnings and brakes are normal; this manual reset check does not require
-another Return. Only then use the physical **Hold to confirm** control while
+actual brake state. For ABS/TCS, first use **Restore** to send captured `32 A4`,
+then perform the ignition reset and check that the warnings and brakes are normal.
+Ignition alone is not established restoration: the owner reported it remained
+disabled until JScan toggled the function and the Jeep restarted. Only then use
+the physical **Hold to confirm** control while
 stationary at normal idle. Confirmation sends no vehicle control. It records
 human provenance in command history/logs and clears that operation's uncertainty;
 it is not decoded controller proof. Unchecked or unexpected behavior stays
@@ -882,3 +884,32 @@ menus; vehicle braking behavior still requires physical observation.
 Website impact: current public ABS/TCS-disabled language remains accurate. Queue
 Burnout screenshots/status for the next eligible daily batch after a qualified
 availability change; do not market a working control from offline fixtures.
+
+
+### ABS Return receipt and paused Burnout menus
+
+The ABS/TCS restore sequence is captured Return, ignition reset, then a physical
+normal-state check. Active or uncertain ABS presents **Restore**; Unknown accepts
+only an explicit same-operation Return against the retained vehicle identity and
+configuration. A new link/boot may rebind that Return, never Start. There is no
+automatic control replay. A positive `72 A4` acknowledgement retains uncertainty
+and writes a version-3 Return receipt before offering reset confirmation.
+
+This receipt uses the existing 40-byte NVS envelope: version 3, byte 2 = 1 only
+with ABS bit 1 still pending. It survives gauge power loss with the ignition,
+returns to Restart required and does not resend Return. It proves only request
+acceptance, never actual ABS/TCS operation. Failed receipt storage stays Unknown.
+The receipt clears only with independently verified restoration or the existing
+explicit owner reset confirmation. Versions 1/2 still decode without invented
+receipts. Older firmware rejects version 3, preserving the record; do not downgrade
+while this receipt is pending. Normal saves return to legacy format once resolved.
+BLE control/status layouts and actuator bytes are unchanged.
+
+Burnout/Line Lock is paused at the owner's request. App menu decoding/editing and
+firmware runtime configuration omit its page, preserving remaining order, timers
+and gestures. No new normal-menu Start is exposed. The typed wire, driver and
+pending-record recovery remain for older configurations and uncertain releases;
+a pending record may still surface its recovery face. This is compatibility, not
+an available normal action. Existing raw gauge configuration is not rewritten or
+its uncertainty erased as a side effect; a subsequent permitted App save removes
+the old menu entry. Front-lock qualification remains deferred.
