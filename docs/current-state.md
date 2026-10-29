@@ -2,12 +2,13 @@
 
 Updated 2026-10-28. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-PR #117 is merged. The PR #115 App dev.53 remains installed on the Pixel;
-signed dev.73 was installed through an explicit USB application-only exception
-while the owner took the phone away. [Current delivery evidence](evidence/dev73-indoor-rollout.md)
-records signed provenance, flash preservation, boot observations and deferred
-post-installation phone/Jeep checks. [Previous dev.72 indoor evidence](evidence/dev72-indoor-rollout.md)
-retains the measured App/Wi-Fi and radio recovery results; they do not qualify dev.73.
+PRs #119 and #120 are merged. The latest consolidated App is installed on the
+Pixel (App label dev.53, Android source `c8ab21a`); signed dev.74 is installed
+through App/Wi-Fi. [Current delivery evidence](evidence/dev74-indoor-rollout.md)
+records exact healthy image/setup proof, radio recovery, history preservation and
+owner display/navigation confirmation. The [prior dev.73 USB delivery](evidence/dev73-indoor-rollout.md)
+retains its separate preservation evidence; its deferred phone/Wi-Fi checks passed
+with the latest App before this update. Live Jeep recovery remains unqualified.
 [Earlier display evidence](evidence/display-evolution.md) retains the stack/sensor
 repairs and separate orientation qualification limits.
 The opt-in [parked idle candidate](architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate)
@@ -27,7 +28,7 @@ normal physical idle and live RPM. Offline replay now reproduces a missing
 diagnostic-session prerequisite already recorded in the parked reference. The
 follow-up source opens that captured session before recovery status, requires its
 positive acknowledgement and retains all inactive/settled-RPM evidence gates.
-This correction is installed in signed dev.73 through the authorized USB exception;
+This correction is retained in signed dev.74 after the dev.73 USB delivery;
 actual ECM recovery remains parked qualification.
 Website impact: corrective recovery behavior needs no new marketing claim or image.
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
@@ -118,8 +119,8 @@ flags stay off under the [indoor procedure](development/display-indoor-qualifica
 
 | Item | Last recorded state | Evidence |
 | --- | --- | --- |
-| Pixel | App `0.2.0-dev.53` / versionCode 53, reviewed source `fd8fae6`, merged PR #105; profile schema 18 / associations 2 | [Combined rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout); profile migration retained all values; final alert policy restored, assignments and presentation byte-identical |
-| Gauge | Signed parked-idle/orientation candidate `0.2.0-dev.73`, generation 54; configuration revision 65 and saved flash regions retained | [Current USB delivery](evidence/dev73-indoor-rollout.md): signed image, application-slot hash verification and matching boot identity; post-installation protected phone readback and physical/Jeep checks deferred |
+| Pixel | App dev.53/versionCode 53, consolidated Android source `c8ab21a` (PR #119); profile schema 19 / associations 2 | [Dev.74 delivery](evidence/dev74-indoor-rollout.md): installed APK hash matches build, profiles/settings/history retained, original phone policy restored |
+| Gauge | Signed parked-idle/orientation candidate dev.74, generation 55; healthy state 2 at `0x60000`, configuration revision 65 | [Dev.74 delivery](evidence/dev74-indoor-rollout.md): full App/Wi-Fi installation, radio recovery, setup and owner display/navigation checks passed; Jeep recovery pending |
 | Physical display/touch | Owner confirmed dev.66 text-free logo, touch wake and normal reading/action navigation: “Logo and all navigation work.” | [Display rollout](evidence/display-evolution.md); all ten pages subsequently owner-confirmed; new-arc fit owner-confirmed; hold-exit was reported but later active state requires explicit stopped-state proof; loaded legibility and Auto sensor/touch alignment remain separate gates |
 | Hardware | Waveshare ESP32-S3-Touch-LCD-1.28, 240 × 240 GC9A01, CST816S, 16 MB flash, 2 MB PSRAM | Qualified toolchain baseline ESP-IDF 5.4.1 |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800; two same-model adapters | [Dev.53 live simultaneous sources and independent recovery](evidence/gatt-long-read-recovery.md#dev53-parked-jeep-dual-source-qualification) |
@@ -138,7 +139,7 @@ release or installation. Public repository: `lstepnio/ESP32OBD2`.
 | Faults | Independent controller endpoints across a primary/child transport, full categories, fair polling and global presentation | Mac captured stored/pending/permanent TCM lists; software fixtures | Live full App/gauge path; TCM faults through one shared primary transport |
 | Display settings | Persisted brightness, orientation, Metric/Imperial and page interval; regional first-use units | Protected post-restart reads, owner five-second cycling/cooldown; App Metric save and Imperial restoration | Physical unit rendering, cycling/gesture interaction and daylight readability |
 | Expert workspace | Compact task menu; useful support facts and recovery actions; optional adapter and code-filter sheets; obsolete/raw/duplicate data and synthetic notice UI removed | Updated debug App installed on Pixel; protected Gauge ready, focused menu/sheet checks and unchanged profile/association/preferences backups; 199 JVM and nine emulator UI tests passed | Broader accessibility and live-vehicle fault workflows remain separate |
-| Car workspace | Installed from PR #115 source `37029a3`: one attention list, direct fault/alert detail, Current/History, focused settings and shared hidden-code projection | [Pixel installation and indoor checks](evidence/car-ux-review.md#2026-10-28-pixel-installation-and-indoor-checks); existing phone setup and raw history preserved | Live vehicle alert/fault UX qualification |
+| Car workspace | Installed from consolidated PR #119 source `c8ab21a`: one attention list, direct fault/alert detail, Current/History, focused settings and shared hidden-code projection | [Pixel installation and indoor checks](evidence/car-ux-review.md#2026-10-28-pixel-installation-and-indoor-checks); existing phone setup and raw history preserved | Live vehicle alert/fault UX qualification |
 | Shared alert/history framework | Threshold/MIL/synthetic producers share lifecycle, attention, bounded gauge context/journal, phone history/export and opt-in monitoring | Dev.48 Pixel/gauge synthetic Entry/Expired import and shared context/banner; 162 JVM tests, eight earlier emulator fixtures | Real vehicle alerts/context, physical attention, background/OEM and storage/power-loss matrix |
 | Pages/catalog/alerts | Six renderers including numeric Dual + arc; negotiated ten-page support; one catalog with 53 Mode 01 and two existing JSS readings; every selectable reading can alert | Production fixtures and [combined rollout](evidence/action-pages-indoor.md#2026-10-27-combined-dev66-rollout) retain the owner's five-page dashboard | Loaded layout/alert timing, units, dwell/stale behavior and legibility remain separate |
 | Configuration | Coupled reviewed payload, dual storage generations, running revision/hash, trial/fallback | Prior protected sends and restart/recovery readback | Power/interruption and all-layout hardware matrix |
@@ -346,8 +347,9 @@ current neutral-grey design. Configured alert rules, explicit Add alert, lazy fu
 history and eligible Current actions preserve newer Car navigation, filters and
 schema 19 disabled drafts. Their topic contracts own behavior and qualification.
 
-These source changes do not update installed App/gauge state above, publish the
-website/backend, promote capability flags or close physical/vehicle gates.
+The source-consolidation task did not itself deploy; subsequent device delivery is
+recorded above. It did not publish the website/backend, promote capability flags or
+close remaining vehicle gates.
 
 ## Remaining PR source preservation
 
