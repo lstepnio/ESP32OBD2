@@ -642,6 +642,8 @@ Data flows through the existing parent profile, local setup transaction and gaug
 assignment projection. App Start rejects numeric presets through the shared command
 protocol. Gauge configuration projection also rejects any enabled Air up/Winch page
 whose corresponding preset has a numeric value, including per-gauge overrides.
+Transfer-only rejection is separate from local draft validation, so unrelated
+alert additions/edits remain saveable while a numeric target is prepared.
 This prevents old fixed-only firmware from receiving an action after its numeric
 intent was stripped. Unused numeric drafts do not block unrelated gauge setup.
 Saving a phone draft does not alter an already acknowledged gauge configuration;

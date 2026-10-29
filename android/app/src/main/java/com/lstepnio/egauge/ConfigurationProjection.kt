@@ -61,7 +61,7 @@ object ConfigurationProjector {
                 ProfileActions.validate(draft.actions, draft.pages)
             }.exceptionOrNull()?.let { listOf(it.message ?: "Invalid actions") }
                 ?: emptyList()
-        return actionIssues + IdleTargetDraft.projectionBlockers(draft.idlePresets, draft.actions) + buildList {
+        return actionIssues + buildList {
             runCatching {
                 DiagnosticCodeFilters.validate(draft.diagnosticFilters)
             }.exceptionOrNull()?.let { add(it.message ?: "Invalid code filters") }
@@ -196,6 +196,9 @@ object ConfigurationProjector {
         }
     }
 
+    /** Local drafts may contain future targets; only transfer rejects unsupported intent. */
+    fun transferBlockers(draft: Draft): List<String> = blockers(draft) + IdleTargetDraft.projectionBlockers(draft.idlePresets, draft.actions)
+
     fun project(
         template: String,
         draft: Draft,
@@ -204,7 +207,7 @@ object ConfigurationProjector {
         adapter: AdapterBinding? = null,
         schemaVersion: Int = 1
     ): Pair<ConfigurationProjection, ByteArray> {
-        val issues = blockers(draft)
+        val issues = transferBlockers(draft)
         require(issues.isEmpty()) { issues.joinToString(". ") }
         val json = JSONObject(template)
         require(schemaVersion in 1..2 && (adapter == null || schemaVersion == 2))

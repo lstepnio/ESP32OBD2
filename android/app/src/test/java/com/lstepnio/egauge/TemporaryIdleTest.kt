@@ -75,7 +75,16 @@ class TemporaryIdleTest {
             val page = if (id == IdlePresetId.AirUp) ActionPageId.AirUp else ActionPageId.Winch
             val draft = Draft(idlePresets = listOf(IdlePreset(id, 1200)), actions = listOf(PageAction(type = PageActionType.VehicleActions, pages = listOf(page))))
             val vehicle = VehicleProfile("jeep", "Jeep", draft)
-            assertTrue(ConfigurationProjector.blockers(draft).any { it.contains("numeric RPM") })
+            assertTrue(ConfigurationProjector.transferBlockers(draft).any { it.contains("numeric RPM") })
+            // Preparing an unsupported target cannot make local alert Save silently fail.
+            val added = draft.copy(alerts = listOf(defaultAlert("coolant")))
+            val edited = added.copy(alerts = listOf(added.alerts.single().copy(warning = 105.0, critical = 115.0)))
+            for (local in listOf(added, edited)) {
+                assertTrue(ConfigurationProjector.blockers(local).isEmpty())
+                val saved = ProfileCollection("jeep", listOf(vehicle.copy(draft = local)))
+                assertEquals(saved, ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(saved)))
+                assertTrue(ConfigurationProjector.transferBlockers(local).any { it.contains("numeric RPM") })
+            }
             assertTrue(runCatching { ConfigurationProjector.projectVehicle(template, vehicle, 7, false) }.isFailure)
             // A gauge override is resolved before admission; it cannot bypass the draft.
             assertTrue(runCatching { ConfigurationProjector.projectVehicle(template, vehicle.copy(draft = draft.copy(actions = emptyList())), 7, false, actions = draft.actions) }.isFailure)

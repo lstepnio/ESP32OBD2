@@ -101,7 +101,7 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
     ) {
         add("Update gauge firmware to use CEL code filters.")
     }
-    ConfigurationProjector.blockers(draft).forEach { raw ->
+    ConfigurationProjector.transferBlockers(draft).forEach { raw ->
         add(
             when {
                 "reset margin" in raw -> "Leave more space between warning and critical. Adjust the limits."
@@ -773,7 +773,7 @@ private fun AppViewModel.carState(
             !busy && connection.fresh(now) && profileError == null &&
                 capabilities?.adapterRegistryVersion == 1 &&
                 activeConfigRevision != null && verifiedConfigHash != null &&
-                ConfigurationProjector.blockers(transmittedDraft).isEmpty() &&
+                ConfigurationProjector.transferBlockers(transmittedDraft).isEmpty() &&
                 (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion in 1..2) &&
                 (transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || (capabilities?.vehicleCommandsVersion == 1 && capabilities?.pageActionsVersion == 2)) &&
                 (!bothAdapters || capabilities?.dualAdapterVersion == 1) &&
