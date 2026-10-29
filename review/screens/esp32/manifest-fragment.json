@@ -1,0 +1,3970 @@
+[
+  {
+    "file": "esp32/raw/esp32_actions-abs-confirm_dark_240.png",
+    "sourceFrame": "actions-abs-confirm",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "650fb4dd8e4dac081e10f7b10bf2967162e1ea3fd65fa324ae71ed8ed462cbb8"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-abs-confirm_round.svg",
+    "sourceFrame": "actions-abs-confirm",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "92974be17ced6456319c24f7d26ad428e2e3576464569f46d16bbd1f22abfe38"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-abs-ready_dark_240.png",
+    "sourceFrame": "actions-abs-ready",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "1ea4a9efb5f760092cfc360a5b702738d7c1bda7e8ee99e068852e2c929e02a2"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-abs-ready_round.svg",
+    "sourceFrame": "actions-abs-ready",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "6f571f627ae19bfbf9708e1df19aefd33f72bd3987688295131bcd2b2506a3ee"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-active-other_dark_240.png",
+    "sourceFrame": "actions-active-other",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "7af87ff7fe7918cbf52b5cd6d5222298ea32ca3aec7d5c9a2682a7e08b807cac"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-active-other_round.svg",
+    "sourceFrame": "actions-active-other",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "c56ac3bf27a441291ffeda245329d2369ebd7ffaa9ee59a6c5b55d1d0b2a2006"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-active_dark_240.png",
+    "sourceFrame": "actions-active",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "0fbf00be5c92132c5e9b5efc82f70bfa43782c09c24357f0a723858ef077a425"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-active_round.svg",
+    "sourceFrame": "actions-active",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "204b4a59ccfd04f66e9d463ce6c758f8d86f53f2ddc4e83daabf0d338f152099"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-coolant-confirm_dark_240.png",
+    "sourceFrame": "actions-coolant-confirm",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "70ca1ee1d9dd6428a28ac798384f43e941eb90e306f9d554dc184310825756fb"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-coolant-confirm_round.svg",
+    "sourceFrame": "actions-coolant-confirm",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "e0922da29e4feb9915e1d1eded6720d8ade97da13e34ca33fef08c0b0b39c4eb"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-coolant-missing_dark_240.png",
+    "sourceFrame": "actions-coolant-missing",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "eaa66fb89bd90426f2619b7ae7a1e5d3e4865df6f776c38cc1bec50505b4d0e1"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-coolant-missing_round.svg",
+    "sourceFrame": "actions-coolant-missing",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "64541a587f22ad3def336ecbaa9d18144217e47488bc73989da775b5aad9831d"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-coolant-recovered_dark_240.png",
+    "sourceFrame": "actions-coolant-recovered",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "6393fe3f007d45b9cf17a1c87dc0201d4d5852f0e711985e31b105028cee50d3"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-coolant-recovered_round.svg",
+    "sourceFrame": "actions-coolant-recovered",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "f8662cf75c1ffde911a3455cc2e722d2dad093aa72bd01da235158b306f2b245"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-coolant-timer_dark_240.png",
+    "sourceFrame": "actions-coolant-timer",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "b9d72dd17f192047c02b01bc4df4be33b48693d36d305771cdab1772a16c543c"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-coolant-timer_round.svg",
+    "sourceFrame": "actions-coolant-timer",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "789fc4a5d346ded1abf2f1708d207f047fb045579eeedfa58af774d59a432c32"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-critical-stop_dark_240.png",
+    "sourceFrame": "actions-critical-stop",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "20f1530e6583bb559f15a27144abfa40ae801eb78eb598b93b2cc761b819b7ca"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-critical-stop_round.svg",
+    "sourceFrame": "actions-critical-stop",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "9eebd80a87fda1a2726b648d4d82cc405f5fcff9a1925328d44e3bf2bba13d1d"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-empty_dark_240.png",
+    "sourceFrame": "actions-empty",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "ef63da0fc83e23423001800d2ffc342b003bb1740c8ecfba389b0354bd52c42a"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-empty_round.svg",
+    "sourceFrame": "actions-empty",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "250bbb13137701f6348119ac84d4a599157f70b85f8c8de046b0740817a8c1b8"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-entry-one_dark_240.png",
+    "sourceFrame": "actions-entry-one",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "83a441e24e5ebe9cb12a0d2b0b0d6a7a3205faf71957d9077caa673d0a02a230"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-entry-one_round.svg",
+    "sourceFrame": "actions-entry-one",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "fc80f2d4f6d26d88d388b8231d5343dd70be9ffff97441783523e375cb160042"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-entry-three_dark_240.png",
+    "sourceFrame": "actions-entry-three",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "2e6b376f4845428e2f4c31d533a1138a2de6776d7d55ff897f3af26c967e66b6"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-entry-three_round.svg",
+    "sourceFrame": "actions-entry-three",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "15436aeea066dfdbf5c24e2136505e93b3e61ec08270c7d7c85d4a427d34c62f"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-entry-two_dark_240.png",
+    "sourceFrame": "actions-entry-two",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "8a181fd3b25dd5c912586475bd371dfb49c22fd2c1df2eb3d3d3ce5efcbacc11"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-entry-two_round.svg",
+    "sourceFrame": "actions-entry-two",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "80e805f7405b4dde5a8e5b805393a6b58410ebfd72d19b67c0766bed384dcddc"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-hot-blocked_dark_240.png",
+    "sourceFrame": "actions-hot-blocked",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "d6e32c569f17e66a0627f83f73aada2d380d1bfaeb59b2a90d8a032f7088d00e"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-hot-blocked_round.svg",
+    "sourceFrame": "actions-hot-blocked",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "dcda90b77c39e457d1dc19e44b53a0ca13126d5e029558279c4f28cff0756bf8"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-protection-setup_dark_240.png",
+    "sourceFrame": "actions-protection-setup",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "9e817b536edb9409188f9187098e310eebe2978f5cd907c5f223dfd6647f5673"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-protection-setup_round.svg",
+    "sourceFrame": "actions-protection-setup",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "6a258d29112d44c612396cc66bd660331a937dad306475dea8cbeecc8e743aa0"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-ready_dark_240.png",
+    "sourceFrame": "actions-ready",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "72ead36544ec4409a7fa8f1fef95e882426b54cedcfcc1f4c5d79096eb774b19"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-ready_round.svg",
+    "sourceFrame": "actions-ready",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "ced3799810a3d805346e4f1466c74e1af681d71109e592f6366eecd2bca0331a"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-reconnecting_dark_240.png",
+    "sourceFrame": "actions-reconnecting",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "ffa7c1207d5b677b2dd16c4fabc0845bbf3116b9a4efe8c6e61ae9593b9b7e57"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-reconnecting_round.svg",
+    "sourceFrame": "actions-reconnecting",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "d7abfefbd8998c39e55008729536176dad9c2486eb7acf01db4cb3012f8aef07"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-restart-required_dark_240.png",
+    "sourceFrame": "actions-restart-required",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "dbe444f12d0e6955c584ee39d57b3684216522339c6aa0ddee9c7cc1be969560"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-restart-required_round.svg",
+    "sourceFrame": "actions-restart-required",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "a5b13a3cff3bb1f9849dfd91ba77ca4d3551d0bfef8ad84c292a6bbb0fc7d704"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-restored-ready_dark_240.png",
+    "sourceFrame": "actions-restored-ready",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "72ead36544ec4409a7fa8f1fef95e882426b54cedcfcc1f4c5d79096eb774b19"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-restored-ready_round.svg",
+    "sourceFrame": "actions-restored-ready",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "b37fef1a01e6fe7d864d36de9de718e59cfd9a068bc906f6dd644b645251b061"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-starting_dark_240.png",
+    "sourceFrame": "actions-starting",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "558491e2e29142de4ccfb28e8fe6d00dcb5e968d0ae264e008956f5ffa726370"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-starting_round.svg",
+    "sourceFrame": "actions-starting",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "8739904cf7345cc662187046641f455489fe21c0a1d45c235ae542800f9be518"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-stopping_dark_240.png",
+    "sourceFrame": "actions-stopping",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "185726bf75d9945c48b57d2f5d3a4f7438dbf2455a2769229f6c59cf9e37ee9e"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-stopping_round.svg",
+    "sourceFrame": "actions-stopping",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "51bbfb06e60614580c080234cf45fadfc4fdef239142b80a74a74294fc66bdfd"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-thermal-stop_dark_240.png",
+    "sourceFrame": "actions-thermal-stop",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "500bdd87c8bf6c497b180f5ecee792f3c72dca87a64282f5594ecb9bc5ab68e1"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-thermal-stop_round.svg",
+    "sourceFrame": "actions-thermal-stop",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "14d5262b9eacf79e7508464f1b2d6824fd83f6e96974a95ab2bbbfc6f19d46dd"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-threshold-mil_dark_240.png",
+    "sourceFrame": "actions-threshold-mil",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "77aabf520f103dfa421729a851a3942e9bd6521e8377a18c221501fae19a56ce"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-threshold-mil_round.svg",
+    "sourceFrame": "actions-threshold-mil",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "274db5cadcbe1e437ee11c3c70f04db4032fc7307b559e532cec9a73e0ec2e8e"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-unavailable_dark_240.png",
+    "sourceFrame": "actions-unavailable",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "6e3127fd0af17b3be4bb582b489ddca3d57e7c67abdd963569f1b1c636804c5b"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-unavailable_round.svg",
+    "sourceFrame": "actions-unavailable",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "301d9470076fe14c7f9d88c2c7d81ae831feb63703ae610ff96e50d9626d1db2"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-unconfigured-active_dark_240.png",
+    "sourceFrame": "actions-unconfigured-active",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "4e2395a660f0e4186be1360ea5ef29e63d7ae9e12c2af1a5a5fcd330825929d8"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-unconfigured-active_round.svg",
+    "sourceFrame": "actions-unconfigured-active",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "42bca7dc1552393a1a4db552d7d9d740aea95241ea36a629191d4dc1679bacec"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-unknown_dark_240.png",
+    "sourceFrame": "actions-unknown",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "2492075b45a4c959c2babc10cc44416b01701d494329e55046a10927363f9a59"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-unknown_round.svg",
+    "sourceFrame": "actions-unknown",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "608de1ec47ea672d57c7a6b365c2eba2c376599a52cc8af88847c1c6a5fc6bbf"
+  },
+  {
+    "file": "esp32/raw/esp32_actions-verifying_dark_240.png",
+    "sourceFrame": "actions-verifying",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "f4caa9648f8d7aadf08bfedf41a9e346959d358f7c9495a358529260212821d9"
+  },
+  {
+    "file": "esp32/framed/esp32_actions-verifying_round.svg",
+    "sourceFrame": "actions-verifying",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "1f63cf4cec97edeb76504e661e3fe7c48ed69516165a68001fd88829e1b97043"
+  },
+  {
+    "file": "esp32/raw/esp32_calibration-1_dark_240.png",
+    "sourceFrame": "calibration-1",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "17f588f4b5fe856a6c3fc46da389d53c3375be42db541ae542b574c4e8471d39"
+  },
+  {
+    "file": "esp32/framed/esp32_calibration-1_round.svg",
+    "sourceFrame": "calibration-1",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "ee293538581078b7f344498cfdc7f6a837aec828f33b15ef9bc7bdfbf478a1ab"
+  },
+  {
+    "file": "esp32/raw/esp32_calibration-2_dark_240.png",
+    "sourceFrame": "calibration-2",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "b6852087142605238842f84a52fe8a5637001a23e93d67da2615b81567918be6"
+  },
+  {
+    "file": "esp32/framed/esp32_calibration-2_round.svg",
+    "sourceFrame": "calibration-2",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "7d1664e06ac85e99c838372d37d0fdf616e2f65fd56ef02be680bc5900ec74d1"
+  },
+  {
+    "file": "esp32/raw/esp32_calibration-3_dark_240.png",
+    "sourceFrame": "calibration-3",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "1b4ed0ee8075fe7097e8b23063bfa0381bb22e2e9732b61fff3dcbe7239defb8"
+  },
+  {
+    "file": "esp32/framed/esp32_calibration-3_round.svg",
+    "sourceFrame": "calibration-3",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "38a5a304e0b14cfe5bf961ef4c8bf538a64ff05b71852580de842384af77ca60"
+  },
+  {
+    "file": "esp32/raw/esp32_calibration-4_dark_240.png",
+    "sourceFrame": "calibration-4",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "6f8ead213e1ddd37d47afe45932c5a38460fe1f586266bd17b67fd2ecd9f8dea"
+  },
+  {
+    "file": "esp32/framed/esp32_calibration-4_round.svg",
+    "sourceFrame": "calibration-4",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "0343ab3c38af212c2597809e9c9dc049548cd491452aede4fba9bc8ab754291a"
+  },
+  {
+    "file": "esp32/raw/esp32_calibration-5_dark_240.png",
+    "sourceFrame": "calibration-5",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "8a14808ebb21dfd96d1d6c31ed51f3ca12d3ea3de715c8be72c02fc9c7493980"
+  },
+  {
+    "file": "esp32/framed/esp32_calibration-5_round.svg",
+    "sourceFrame": "calibration-5",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "daabf558ed956d3596ab492ef62b43d1fa7514aff40f1d90c4cb3c46daf353ea"
+  },
+  {
+    "file": "esp32/raw/esp32_critical-live_dark_240.png",
+    "sourceFrame": "critical-live",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "53093c808ebc59ded4c3c729784e20f71feb03423c029a6ab0d88d04f83d5db6"
+  },
+  {
+    "file": "esp32/framed/esp32_critical-live_round.svg",
+    "sourceFrame": "critical-live",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "aca9155fda68e8ebc9f8c89100f6f3321b4fa70bc9ae8091a0e5a5a317812989"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-numeric-rpm_dark_240.png",
+    "sourceFrame": "demo-01",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "06a75d12d91dc8a092bcb317c8e20b5566cc726e600e3d6e85b9460bae4bf429"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-numeric-rpm_round.svg",
+    "sourceFrame": "demo-01",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "68aee9a15fc4a1bf3ce1f67612890ecef082b84a9f46aae87140eb83775c6665"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-arc-coolant_dark_240.png",
+    "sourceFrame": "demo-02",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "6a6ff1939c7c82a3aebe0a1137400e11bdc95e9524724d8158f853d4e9676686"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-arc-coolant_round.svg",
+    "sourceFrame": "demo-02",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "01cb7497d9d684576081b54ad8c15a5fe48a25a6ca7880561268805f8131c9a1"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-bar-coolant_dark_240.png",
+    "sourceFrame": "demo-03",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "6d5991d465bb5f68db70566ce13a73e6610cce45325dffc7cb19da52ffc9b007"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-bar-coolant_round.svg",
+    "sourceFrame": "demo-03",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "5261321c847b895ba51073494bd32a6dce5c0e95d568e1e3d7f2b5d21eb3fa62"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-trend-coolant_dark_240.png",
+    "sourceFrame": "demo-04",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "3900ea75617dbf888907f66703bd56a661bc2821d3bd4f2e3136d03626fe0958"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-trend-coolant_round.svg",
+    "sourceFrame": "demo-04",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "f811e47928693e589a143b1c9975e3934091445fe1fda3db7c7d27ff14c5606b"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-dual-gear-rpm_dark_240.png",
+    "sourceFrame": "demo-05",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "b62fb39930b5243050e6381b55df27d771c64e8cc57f28ac7557770f5b7bec42"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-dual-gear-rpm_round.svg",
+    "sourceFrame": "demo-05",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "a23354c58a54e6d117363eaade39e7e480282d719de0e3d6388bbfbcde4c8b62"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-dual-arc-gear-rpm_dark_240.png",
+    "sourceFrame": "demo-06",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "f8e0a5f39a8f6eab3f81de6cd8ac693a7ffc705cfdc98702cc234601f79c6702"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-dual-arc-gear-rpm_round.svg",
+    "sourceFrame": "demo-06",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "e6a7fa362011e6db504f2649318cf4056f9c4f795bd89a90c7194f4b92f537cb"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-dual-arc-reverse-rpm_dark_240.png",
+    "sourceFrame": "demo-07",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "336d95508cad03b471d36d21cc94e5150af527d58ad0611e7e78cee3ac790f70"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-dual-arc-reverse-rpm_round.svg",
+    "sourceFrame": "demo-07",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "06329d53d82785ab63b7016258b31d1ce469c3c8094f3f7dc372cf2850371bea"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-dual-arc-coolant-gear_dark_240.png",
+    "sourceFrame": "demo-08",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "b40d1e86df3ec2fc873f4ac61f836def2ad77d95882a279ea15189900b9b2dfb"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-dual-arc-coolant-gear_round.svg",
+    "sourceFrame": "demo-08",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "098a09e5a4ae16c842e8e5781a0d47d7d139b3234f6c2ede86fc0456eacb32f8"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-dual-arc-source-unavailable_dark_240.png",
+    "sourceFrame": "demo-09",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "494ebb602289c2c5ccd2799569ed6c6bc868683a994bf93a7dd61aea0fc3e1c9"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-dual-arc-source-unavailable_round.svg",
+    "sourceFrame": "demo-09",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "6361329428082f48d5ef85b6e2a7d019872da486d65f9bf5856cb366c2d31efd"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-dual-mixed-units_dark_240.png",
+    "sourceFrame": "demo-10",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "66b48632d3a462b99b35379291d5478b7814c986a4cdf7a6196894584a0d3ccb"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-dual-mixed-units_round.svg",
+    "sourceFrame": "demo-10",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "ffafc649e0d04bcc5ba99314bcd84be54ea8ed1627be760d47af20ff6203a67a"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-numeric-fuel-pressure_dark_240.png",
+    "sourceFrame": "demo-11",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "425be927164e53470c673909cb04d46ba042bf1d40e206d714737bc5ee64deae"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-numeric-fuel-pressure_round.svg",
+    "sourceFrame": "demo-11",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "9b8c98078f23cf66a2ad5dea888a8ad9888c174cc801988ffbe5735ae0236530"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-numeric-negative-ignition_dark_240.png",
+    "sourceFrame": "demo-12",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "936c7d30b29707aa51f6aefbbcb67d3337b97b062b77ec4ecc641bb4aaaf610d"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-numeric-negative-ignition_round.svg",
+    "sourceFrame": "demo-12",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "2bcddaccaec15cb6a359d425539b7895a68fc9c4be1d0597719e4eac72b7b0a1"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-numeric-wide-rpm_dark_240.png",
+    "sourceFrame": "demo-13",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "df2f838dfc1606d8c0d6106e8e31f9bc96d68005560f4c018dff33b2fde25e89"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-numeric-wide-rpm_round.svg",
+    "sourceFrame": "demo-13",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "ea1635a7494a62a42e7ed2fafcffd6dfa4f91d1af6f205def9c0603dc1d0dade"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-bar-battery_dark_240.png",
+    "sourceFrame": "demo-14",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "1e6f37e7ae7b482cf52268adbe9017406f118db9bf2c2eeec248910aeb51f2cf"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-bar-battery_round.svg",
+    "sourceFrame": "demo-14",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "276ed66b935a348e6aa057168bcb461438c7ed08d962de61c8ff8831a75b686f"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-dual-mil-codes_dark_240.png",
+    "sourceFrame": "demo-15",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "e67040ac0b22825693b4727b759304f2d47c045e1e9f1c9de07973e856b47620"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-dual-mil-codes_round.svg",
+    "sourceFrame": "demo-15",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "3ce662a64e154f24aeccbff7ebbcb6cb79e1520331c9515e04bf19c479bcc3bd"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-numeric-threshold-warning_dark_240.png",
+    "sourceFrame": "demo-16",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "1c66b976eaaccb51cfdd8e63ab0fd5726000eba7986328d09cded2cb2fbc7dbf"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-numeric-threshold-warning_round.svg",
+    "sourceFrame": "demo-16",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "b1d97d0c0ef89e477fd820a67624a428b996d0b91ef0029a841ab23cec14297a"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-arc-threshold-mil_dark_240.png",
+    "sourceFrame": "demo-17",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "ec5576ab67cf12abec3ced15333d0657e00c6df6041a535d6bac24e5302767a1"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-arc-threshold-mil_round.svg",
+    "sourceFrame": "demo-17",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "477759a698274a3f1faab7bc34c10dca130f1f78e79c51a90478e015883d6c51"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-bar-threshold-mil_dark_240.png",
+    "sourceFrame": "demo-18",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "ac0f1be43106ae079211e84d7baa1f8bfb57cfff6e8dc55138f6bbe2db35951a"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-bar-threshold-mil_round.svg",
+    "sourceFrame": "demo-18",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "7302caededfae02fcc7d5c75bac1a6faed34ba65eefe5d0c98f91d835c9e6889"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-trend-threshold-mil_dark_240.png",
+    "sourceFrame": "demo-19",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "3f11f4bec88c1e98eb30b7ec40d3df1843f0535e53d34cb092dcf8d415ba048e"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-trend-threshold-mil_round.svg",
+    "sourceFrame": "demo-19",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "89d6b89a442c313f231bdc6bc279d5be5365617d19689e1c38abd1a5b9687327"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-dual-threshold-mil_dark_240.png",
+    "sourceFrame": "demo-20",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "1beea1a58dccf4518066b863a5f63de0274a0cf23cab2e6ae6930de7b1afa9b4"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-dual-threshold-mil_round.svg",
+    "sourceFrame": "demo-20",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "8adc140bca7432bb38b92cd05b5457ea5b82aab30df0d0cdf380ce74b2cb757a"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-critical-attention_dark_240.png",
+    "sourceFrame": "demo-21",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "53093c808ebc59ded4c3c729784e20f71feb03423c029a6ab0d88d04f83d5db6"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-critical-attention_round.svg",
+    "sourceFrame": "demo-21",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "b98fae8ad97890f26dbda4384a92fc550978cd5db5dfb71123ad6383f952f0b7"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-critical-mil_dark_240.png",
+    "sourceFrame": "demo-22",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "2e29b4410d77ee1c890b2e6e5542a6331dfd414c450cbadcfaf2e580a62978d8"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-critical-mil_round.svg",
+    "sourceFrame": "demo-22",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "7d3f5413bda863994608232ad3508588a89bb6dbfab9cfe3e7bcbb854d285916"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-dual-child-loss_dark_240.png",
+    "sourceFrame": "demo-23",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "f66cc7b78df03d069ecf4540917ff2123ae15f1513c7ef24f1945901b8195cfe"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-dual-child-loss_round.svg",
+    "sourceFrame": "demo-23",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "2c35aecfd839d279541589e651db38bb53da50119bfc6313731f0d11ea17f48d"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-dual-both-sources-absent_dark_240.png",
+    "sourceFrame": "demo-24",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "9661f474ea148a35e1a3233495bdfc92f34388861646114367fbdfb4aa5f785d"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-dual-both-sources-absent_round.svg",
+    "sourceFrame": "demo-24",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "ab6b5bc6ba7db94ac1b635f1f3e5eaefb9da5a942c440fbe0650abae559cb8a6"
+  },
+  {
+    "file": "esp32/raw/esp32_showcase-stored-codes-without-mil_dark_240.png",
+    "sourceFrame": "demo-25",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "13d5f4f3cc518ba13d58897510b0ccf66a6a850f89793d94d4981f8b579b40e6"
+  },
+  {
+    "file": "esp32/framed/esp32_showcase-stored-codes-without-mil_round.svg",
+    "sourceFrame": "demo-25",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "1f3022765a887522636b4923a17f88de1ed5ea97a77207f1f4aa133d7db6ca90"
+  },
+  {
+    "file": "esp32/raw/esp32_dual-arc-gear-rpm_dark_240.png",
+    "sourceFrame": "dual-arc-gear-rpm",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "d2cdb86d4e16a46d034110f4a464548760c08e6aaf968e2597cf50683c637da6"
+  },
+  {
+    "file": "esp32/framed/esp32_dual-arc-gear-rpm_round.svg",
+    "sourceFrame": "dual-arc-gear-rpm",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "3328ea5cdd11237ce46b8f2c5fb89ac4c444454a50642f82a4003d2c6e290b4f"
+  },
+  {
+    "file": "esp32/raw/esp32_dual-arc-reverse_dark_240.png",
+    "sourceFrame": "dual-arc-reverse",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "eb2ff0b24ae13c48c748bdc10ab5edcb2ab1b92dce238de773412eccb0776e24"
+  },
+  {
+    "file": "esp32/framed/esp32_dual-arc-reverse_round.svg",
+    "sourceFrame": "dual-arc-reverse",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "79e22d6a5d194983a1b4c856f954e0d4596625242c82d93911ee15a317183f55"
+  },
+  {
+    "file": "esp32/raw/esp32_pair-code_dark_240.png",
+    "sourceFrame": "pair-code",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "601101e280ca393c33161f166c3119e2bb38fd05edf69c6bbb0e6954e859866d"
+  },
+  {
+    "file": "esp32/framed/esp32_pair-code_round.svg",
+    "sourceFrame": "pair-code",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "a49c1df2ee1f69dd4c18a20025fe3cf2e9ad97e223043d487708d9f362ebe30b"
+  },
+  {
+    "file": "esp32/raw/esp32_pair-ready_dark_240.png",
+    "sourceFrame": "pair-ready",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "980e7befa7192e4d36ca0b8bbfe841768d5c5532a857eca03d56c3e2e65a147b"
+  },
+  {
+    "file": "esp32/framed/esp32_pair-ready_round.svg",
+    "sourceFrame": "pair-ready",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "efc08a6688aa7a17100d6d1cf932389b59fb496150067a32b2883cb84a319628"
+  },
+  {
+    "file": "esp32/raw/esp32_pair-success_dark_240.png",
+    "sourceFrame": "pair-success",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "3c37b209d85313368f8132884e655b8e4e89c04f6cd919ac08601bfbe42e21d8"
+  },
+  {
+    "file": "esp32/framed/esp32_pair-success_round.svg",
+    "sourceFrame": "pair-success",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "b66534dba6c90ecc4b270e5284a7d377090450c1c8844d1507a8925094397d8d"
+  },
+  {
+    "file": "esp32/raw/esp32_waiting-logo_dark_240.png",
+    "sourceFrame": "waiting-logo",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      240,
+      240
+    ],
+    "theme": "dark",
+    "variant": "raw",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "722ebd4ad43a6c3c5b083618cf7b0e1b6a6fe04b50f7aad92e5365d068a12bee"
+  },
+  {
+    "file": "esp32/framed/esp32_waiting-logo_round.svg",
+    "sourceFrame": "waiting-logo",
+    "kind": "simulated",
+    "data": "synthetic host fixtures",
+    "source": "firmware/gauge/tests/ui_host/ui_render_test.c + production main/src/ui.c and fonts",
+    "commit": "083b0013363a697ab832179ee1af71b4456ca181",
+    "workingTreeChanges": "capture-only RGB565 option in host fixture",
+    "renderer": "LVGL 9.2.2 software, RGB565 render buffer expanded to RGB888 PNG",
+    "nativePanel": {
+      "width": 240,
+      "height": 240,
+      "colorDepth": 16
+    },
+    "resolution": [
+      320,
+      320
+    ],
+    "theme": "dark",
+    "variant": "illustrated-frame",
+    "buildOptions": {
+      "EGAUGE_HOST_RGB565": true,
+      "EGAUGE_PARKED_IDLE_TEST": true
+    },
+    "caveats": [
+      "not physical display/touch/radio evidence",
+      "fixture-injected action states do not enable or qualify commands",
+      "frame is an illustration, not a product photograph"
+    ],
+    "sha256": "b4e056c4c466619e458d29eb158de71cba897c527d31e292768ac44d57b95f08"
+  }
+]

@@ -1,5 +1,5 @@
 {
-  "reviewedOn": "2026-10-19",
+  "reviewedOn": "2026-10-29",
   "sourceDocuments": [
     "docs/current-state.md",
     "docs/roadmap.md",
@@ -8,5 +8,70 @@
     "docs/architecture/alerts-and-diagnostics.md",
     "docs/architecture/vehicle-actions.md",
     "docs/evidence/jeep-high-idle-reference.md"
-  ]
+  ],
+  "screens": [
+    {
+      "key": "numeric",
+      "label": "Numeric",
+      "caption": "Numeric · One reading, at a glance.",
+      "alt": "Numeric layout showing engine speed",
+      "source": "firmware/gauge/main/src/ui.c"
+    },
+    {
+      "key": "arc",
+      "label": "Arc",
+      "caption": "Arc · A clear curved scale.",
+      "alt": "Arc layout showing coolant temperature",
+      "source": "firmware/gauge/main/src/ui.c"
+    },
+    {
+      "key": "bar",
+      "label": "Bar",
+      "caption": "Bar · A compact horizontal scale.",
+      "alt": "Bar layout showing coolant temperature",
+      "source": "firmware/gauge/main/src/ui.c"
+    },
+    {
+      "key": "trend",
+      "label": "Trend",
+      "caption": "Trend · See how a reading changes.",
+      "alt": "Trend layout showing coolant temperature",
+      "source": "firmware/gauge/main/src/ui.c"
+    },
+    {
+      "key": "dual",
+      "label": "Dual",
+      "caption": "Dual · Two readings, one page.",
+      "alt": "Dual layout showing gear and engine speed",
+      "source": "firmware/gauge/main/src/ui.c"
+    },
+    {
+      "key": "dual-arc",
+      "label": "Dual + arc",
+      "caption": "Dual + arc · Two readings and a visual scale.",
+      "alt": "Dual plus arc layout showing gear and engine speed",
+      "source": "firmware/gauge/main/src/ui.c"
+    },
+    {
+      "key": "alerts",
+      "label": "Alerts",
+      "caption": "Alerts · Check-engine indicator above, warning below.",
+      "alt": "Dual page with a check-engine indicator and coolant warning",
+      "source": "firmware/gauge/main/src/ui.c"
+    }
+  ],
+  "actionAvailability": {
+    "airUp": {
+      "text": "Limited Jeep testing · Fixed idle setting. Adjustable RPM remains a phone-only draft.",
+      "source": "docs/architecture/vehicle-actions.md"
+    },
+    "winch": {
+      "text": "Limited Jeep testing · Fixed idle setting. Minimum RPM and throttle-above-idle behavior still need controller qualification.",
+      "source": "docs/architecture/vehicle-actions.md"
+    },
+    "absTcs": {
+      "text": "In development · ABS/TCS execution is disabled.",
+      "source": "firmware/gauge/main/src/jeep_abs_tcs_driver.c"
+    }
+  }
 }

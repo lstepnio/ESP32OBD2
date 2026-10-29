@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from datetime import date
 import hashlib
+from html import escape
 from html.parser import HTMLParser
 import json
 from pathlib import Path
@@ -37,10 +38,38 @@ class SiteHTML(HTMLParser):
         for key in ("href", "src", "action"):
             if attrs.get(key):
                 self.links.append(attrs[key])
+        for candidate in attrs.get("srcset", "").split(","):
+            if candidate.strip():
+                self.links.append(candidate.strip().split()[0])
         if tag == "img":
             if not attrs.get("alt"):
                 raise ValueError("Website images need descriptive alt text")
             self.images += 1
+
+
+def gallery(content):
+    screens = content["screens"]
+    choices, data, names = [], {}, set()
+    for screen in screens:
+        key = screen["key"]
+        if not re.fullmatch(r"[a-z]+(?:-[a-z]+)*", key) or key in names:
+            raise ValueError("Invalid or duplicate gallery key")
+        names.add(key)
+        if not (ROOT / screen["source"]).is_file():
+            raise ValueError("Missing gallery source authority")
+        if not (ROOT / "docs/assets/gauge" / (key + ".png")).is_file():
+            raise ValueError("Missing gallery screen")
+        label, caption, alt = (screen[k] for k in ("label", "caption", "alt"))
+        if not all(isinstance(v, str) and v.strip() for v in (label, caption, alt)):
+            raise ValueError("Gallery labels must be nonempty text")
+        pressed = "true" if len(choices) == 0 else "false"
+        choices.append(
+            f'<button type="button" data-screen="{key}" aria-pressed="{pressed}">{escape(label)}</button>'
+        )
+        data[key] = [caption, alt]
+    if not screens or screens[0]["key"] != "numeric":
+        raise ValueError("Gallery must start with Numeric")
+    return "".join(choices), json.dumps(data, ensure_ascii=False)
 
 
 def build(output: Path, downloads: Path | None = None, metadata_only=False):
@@ -50,12 +79,20 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
         if not (ROOT / document).is_file():
             raise ValueError(f"Missing website source authority: {document}")
     reviewed = date.fromisoformat(content["reviewedOn"])
+    choices, screen_data = gallery(content)
     readings = json.loads((ROOT / "contracts/reading-catalog.json").read_text())["readings"]
     files = {name: (source / name).read_bytes() for name in ("styles.css", "app.js", "favicon.svg")}
+    marker = b"/* EGAUGE_SCREEN_DATA */ {}"
+    if marker not in files["app.js"]:
+        raise ValueError("Missing build-time gallery data marker")
+    files["app.js"] = files["app.js"].replace(marker, screen_data.encode())
     for image in sorted((ROOT / "docs/assets").rglob("*.png")):
         files[image.relative_to(ROOT / "docs/assets").as_posix()] = image.read_bytes()
-    for image in sorted((source / "future").glob("*.png")):
+    for image in sorted((source / "future").glob("*")):
+        if image.suffix not in {".png", ".webp"}:
+            continue
         files["future/" + image.name] = image.read_bytes()
+    files["social-preview.png"] = (source / "social-preview.png").read_bytes()
     for asset in sorted((source / "recovery").iterdir()):
         if asset.suffix != ".html" and asset.name != "package.json":
             files["recovery/" + asset.name] = asset.read_bytes()
@@ -101,10 +138,19 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
         "FIRMWARE_RELEASE": package["firmware"]["release"],
         "APK_URL": package["app"]["url"],
         "APP_VERSION": package["app"]["version"],
+        "APP_VERSION_CODE": str(package["app"].get("versionCode", "not recorded")),
         "READING_COUNT": str(len(readings)),
         "UPDATED_DATE": reviewed.isoformat(),
         "UPDATED_LABEL": f"{reviewed.day} {reviewed.strftime('%B %Y')}",
+        "SCREEN_CHOICES": choices,
+        "SOCIAL_IMAGE": "https://egauge.majjix.com" + prefix + "/social-preview.png",
     }
+    for key in ("airUp", "winch", "absTcs"):
+        item = content["actionAvailability"][key]
+        if not (ROOT / item["source"]).is_file():
+            raise ValueError("Missing action availability authority")
+        token = {"airUp": "AIR_UP_STATUS", "winch": "WINCH_STATUS", "absTcs": "ABS_TCS_STATUS"}[key]
+        replacements[token] = escape(item["text"])
     image_count = 0
     for name in ("index.html", "recovery/index.html"):
         html = (source / name).read_text()
@@ -117,10 +163,13 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
         target.write_text(html)
     (output / "robots.txt").write_bytes((source / "robots.txt").read_bytes())
     (output / "favicon.svg").write_bytes(files["favicon.svg"])
+    documents = {}
     for name in ("index.html", "recovery/index.html"):
         document = SiteHTML()
         document.feed((output / name).read_text())
+        documents[name] = document
         image_count += document.images
+    for name, document in documents.items():
         for link in document.links:
             url = urlsplit(link)
             if url.scheme or url.netloc or url.path.startswith("/api/"):
@@ -134,7 +183,11 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
                 asset = asset / "index.html"
             if path and not asset.is_file() and path not in virtual:
                 raise ValueError(f"Missing website asset: {link}")
-            if url.fragment and not path and url.fragment not in document.ids:
+            if url.fragment and asset.is_file() and asset.suffix == ".html":
+                target_name = asset.relative_to(output).as_posix()
+                if target_name in documents and url.fragment not in documents[target_name].ids:
+                    raise ValueError(f"Missing website anchor: {link}")
+            elif url.fragment and not path and url.fragment not in document.ids:
                 raise ValueError(f"Missing website anchor: {link}")
     manifest = {
         "sourceCommit": source_commit,

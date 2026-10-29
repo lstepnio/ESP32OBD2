@@ -1,0 +1,31 @@
+{
+  "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
+  "runtime_source_equivalent_to": "62d1e4b",
+  "build_command": "./android/gradlew -p android :app:clean :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon",
+  "build_log": "review/android-build-fresh.log",
+  "source_attestation": "Clean local build context; not a signed embedded source attestation. Capture and upgrade tests are separate androidTest APK only.",
+  "apk": "android/app/build/outputs/apk/debug/app-debug.apk",
+  "apk_sha256": "f47c10aa9cc9b6afca2e84ef9d5574e46fdf7bf10fcf1b93b43e48abeac10280",
+  "apk_size": 33788998,
+  "version_name": "0.2.0-dev.53",
+  "version_code": 53,
+  "package": "com.lstepnio.egauge",
+  "min_sdk": 29,
+  "target_sdk": 36,
+  "certificate_sha256": "be0fae89e04e5c71660273c4084ed0c98879f567fe13b6d15f5df9b243586f87",
+  "upgrade": {
+    "old_apk_sha256": "7ea52f9c0d98d6dbb6fa2793d7a0eadaa79b4e30230668f296c538077ea2210e",
+    "serial": "emulator-5580",
+    "avd": "website_upgrade_20261029",
+    "before": "review/android-upgrade-before.json",
+    "after": "review/android-upgrade-after.json",
+    "same_raw_fields": [
+      "rawProfile",
+      "presentation",
+      "historyEvent",
+      "historyCount",
+      "databaseVersion"
+    ],
+    "scope": "Schema1 profile read-only migration, appearance settings, SQLitev1 history; same signer adb install -r51->53; no Activity/Bluetooth. No schema19 save rewrite, gauge assignments, keys, real user data or every historical schema qualified."
+  }
+}

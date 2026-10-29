@@ -1,0 +1,977 @@
+{
+  "viewports": [
+    {
+      "page": "home",
+      "width": 375,
+      "height": 1024,
+      "scrollWidth": 375,
+      "clientWidth": 375,
+      "images": [],
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Your vehicle.Your view."
+        },
+        {
+          "level": "H2",
+          "text": "More connected.Less complicated."
+        },
+        {
+          "level": "H3",
+          "text": "Your readings."
+        },
+        {
+          "level": "H3",
+          "text": "Your style."
+        },
+        {
+          "level": "H3",
+          "text": "Your setup."
+        },
+        {
+          "level": "H2",
+          "text": "A little circle.A lot of possibility."
+        },
+        {
+          "level": "H2",
+          "text": "Your setup.One place."
+        },
+        {
+          "level": "H3",
+          "text": "Alerts with context."
+        },
+        {
+          "level": "H3",
+          "text": "One vehicle. Optional second adapter."
+        },
+        {
+          "level": "H3",
+          "text": "Advanced fault filters."
+        },
+        {
+          "level": "H3",
+          "text": "More ways to make it yours."
+        },
+        {
+          "level": "H4",
+          "text": "iPhone: the essentials."
+        },
+        {
+          "level": "H4",
+          "text": "Set up over USB."
+        },
+        {
+          "level": "H4",
+          "text": "More with Android."
+        },
+        {
+          "level": "H2",
+          "text": "Air up. Winch.Get back to the trail."
+        },
+        {
+          "level": "H3",
+          "text": "Air up at raised idle."
+        },
+        {
+          "level": "H3",
+          "text": "A preset for winching."
+        },
+        {
+          "level": "H3",
+          "text": "ABS + traction control."
+        },
+        {
+          "level": "H2",
+          "text": "Build on whatis working."
+        },
+        {
+          "level": "H3",
+          "text": "Try it free. Bring your own hardware."
+        },
+        {
+          "level": "H3",
+          "text": "Affordable hardware. The value is in the software."
+        },
+        {
+          "level": "H2",
+          "text": "Working today.Proving what is next."
+        },
+        {
+          "level": "H3",
+          "text": "Engine and transmission, together"
+        },
+        {
+          "level": "H3",
+          "text": "Setup and update recovery"
+        },
+        {
+          "level": "H3",
+          "text": "More time in the vehicle"
+        },
+        {
+          "level": "H3",
+          "text": "Next vehicles, shaped by interest."
+        },
+        {
+          "level": "H2",
+          "text": "See what matters.Share what you see."
+        },
+        {
+          "level": "H2",
+          "text": "For sale?Probably not."
+        },
+        {
+          "level": "H2",
+          "text": "Have a specific build in mind?"
+        },
+        {
+          "level": "H3",
+          "text": "Shaped around you."
+        },
+        {
+          "level": "H3",
+          "text": "Make it all connect."
+        },
+        {
+          "level": "H3",
+          "text": "Go straight to the data."
+        },
+        {
+          "level": "H3",
+          "text": "Switches, reimagined."
+        },
+        {
+          "level": "H3",
+          "text": "Touch, voice and feedback."
+        },
+        {
+          "level": "H3",
+          "text": "Build new. Reimagine existing."
+        },
+        {
+          "level": "H3",
+          "text": "Bring us your idea."
+        },
+        {
+          "level": "H4",
+          "text": "Investigate it remotely."
+        }
+      ],
+      "smallTargets": [
+        {
+          "text": "Follow vehicle-action development \u2197",
+          "height": 16,
+          "width": 231.890625
+        },
+        {
+          "text": "View the development board \u2197",
+          "height": 17,
+          "width": 222.953125
+        },
+        {
+          "text": "bring us your idea",
+          "height": 17,
+          "width": 127.1875
+        },
+        {
+          "text": "Current state \u2197",
+          "height": 22,
+          "width": 84.703125
+        },
+        {
+          "text": "Roadmap \u2197",
+          "height": 22,
+          "width": 67.375
+        },
+        {
+          "text": "Backlog \u2197",
+          "height": 22,
+          "width": 58.03125
+        },
+        {
+          "text": "buy the development board",
+          "height": 17,
+          "width": 181.796875
+        },
+        {
+          "text": "get the software free",
+          "height": 17,
+          "width": 136.75
+        },
+        {
+          "text": "Share an idea",
+          "height": 15,
+          "width": 80.953125
+        },
+        {
+          "text": "progress section",
+          "height": 15,
+          "width": 95.390625
+        },
+        {
+          "text": "Vehicle controls",
+          "height": 15,
+          "width": 91.0625
+        }
+      ]
+    },
+    {
+      "page": "recovery",
+      "width": 375,
+      "height": 1024,
+      "scrollWidth": 375,
+      "clientWidth": 375,
+      "images": [],
+      "firmwareChoices": [
+        "Verified recovery \u00b7 0.2.0-dev.60",
+        "Open a downloaded package",
+        "0.2.0-dev.75 \u00b7 Development",
+        "0.2.0-dev.74 \u00b7 Development",
+        "0.2.0-dev.73 \u00b7 Development",
+        "0.2.0-dev.72 \u00b7 Development",
+        "0.2.0-dev.71 \u00b7 Development",
+        "0.2.0-dev.70 \u00b7 Development",
+        "0.2.0-dev.69 \u00b7 Development",
+        "0.2.0-dev.68 \u00b7 Development",
+        "0.2.0-dev.67 \u00b7 Development",
+        "0.2.0-dev.66 \u00b7 Development",
+        "0.2.0-dev.65 \u00b7 Development",
+        "0.2.0-dev.64 \u00b7 Development",
+        "0.2.0-dev.63 \u00b7 Development",
+        "0.2.0-dev.62 \u00b7 Development",
+        "0.2.0-dev.61 \u00b7 Development",
+        "0.2.0-dev.60 \u00b7 Development",
+        "0.2.0-dev.59 \u00b7 Development",
+        "0.2.0-dev.58 \u00b7 Development",
+        "0.2.0-dev.57 \u00b7 Development",
+        "0.2.0-dev.56 \u00b7 Development",
+        "0.2.0-dev.55 \u00b7 Development",
+        "0.2.0-dev.53 \u00b7 Development",
+        "0.2.0-dev.52 \u00b7 Development",
+        "0.2.0-dev.51 \u00b7 Development",
+        "0.2.0-dev.50 \u00b7 Development",
+        "0.2.0-dev.49 \u00b7 Development",
+        "0.2.0-dev.48 \u00b7 Development",
+        "0.2.0-dev.47 \u00b7 Development",
+        "0.2.0-dev.46 \u00b7 Development",
+        "0.2.0-dev.45 \u00b7 Development",
+        "0.2.0-dev.44 \u00b7 Development",
+        "0.2.0-dev.43 \u00b7 Development",
+        "0.2.0-dev.42 \u00b7 Development",
+        "0.2.0-dev.40 \u00b7 Development",
+        "0.2.0-dev.32 \u00b7 Development",
+        "0.2.0-dev.31 \u00b7 Development",
+        "0.2.0-dev.30 \u00b7 Development",
+        "0.2.0-dev.29 \u00b7 Development",
+        "0.2.0-dev.28 \u00b7 Development",
+        "0.2.0-dev.27 \u00b7 Development",
+        "0.2.0-dev.24 \u00b7 Development",
+        "0.2.0-dev.23 \u00b7 Development",
+        "0.2.0-dev.22 \u00b7 Development",
+        "0.2.0-dev.21 \u00b7 Development",
+        "0.2.0-dev.9 \u00b7 Development",
+        "0.2.0-dev.20 \u00b7 Development",
+        "0.2.0-dev.19 \u00b7 Development",
+        "0.2.0-dev.18 \u00b7 Development",
+        "0.2.0-dev.17 \u00b7 Development",
+        "0.2.0-dev.16 \u00b7 Development",
+        "0.2.0-dev.15 \u00b7 Development",
+        "0.2.0-dev.14 \u00b7 Development",
+        "0.2.0-dev.13 \u00b7 Development",
+        "0.2.0-dev.12 \u00b7 Development",
+        "0.2.0-dev.11 \u00b7 Development",
+        "0.2.0-dev.3 \u00b7 Development"
+      ],
+      "apkChoices": [
+        "Verified download \u00b7 0.2.0-dev.51"
+      ]
+    },
+    {
+      "page": "home",
+      "width": 768,
+      "height": 1024,
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "images": [],
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Your vehicle.Your view."
+        },
+        {
+          "level": "H2",
+          "text": "More connected.Less complicated."
+        },
+        {
+          "level": "H3",
+          "text": "Your readings."
+        },
+        {
+          "level": "H3",
+          "text": "Your style."
+        },
+        {
+          "level": "H3",
+          "text": "Your setup."
+        },
+        {
+          "level": "H2",
+          "text": "A little circle.A lot of possibility."
+        },
+        {
+          "level": "H2",
+          "text": "Your setup.One place."
+        },
+        {
+          "level": "H3",
+          "text": "Alerts with context."
+        },
+        {
+          "level": "H3",
+          "text": "One vehicle. Optional second adapter."
+        },
+        {
+          "level": "H3",
+          "text": "Advanced fault filters."
+        },
+        {
+          "level": "H3",
+          "text": "More ways to make it yours."
+        },
+        {
+          "level": "H4",
+          "text": "iPhone: the essentials."
+        },
+        {
+          "level": "H4",
+          "text": "Set up over USB."
+        },
+        {
+          "level": "H4",
+          "text": "More with Android."
+        },
+        {
+          "level": "H2",
+          "text": "Air up. Winch.Get back to the trail."
+        },
+        {
+          "level": "H3",
+          "text": "Air up at raised idle."
+        },
+        {
+          "level": "H3",
+          "text": "A preset for winching."
+        },
+        {
+          "level": "H3",
+          "text": "ABS + traction control."
+        },
+        {
+          "level": "H2",
+          "text": "Build on whatis working."
+        },
+        {
+          "level": "H3",
+          "text": "Try it free. Bring your own hardware."
+        },
+        {
+          "level": "H3",
+          "text": "Affordable hardware. The value is in the software."
+        },
+        {
+          "level": "H2",
+          "text": "Working today.Proving what is next."
+        },
+        {
+          "level": "H3",
+          "text": "Engine and transmission, together"
+        },
+        {
+          "level": "H3",
+          "text": "Setup and update recovery"
+        },
+        {
+          "level": "H3",
+          "text": "More time in the vehicle"
+        },
+        {
+          "level": "H3",
+          "text": "Next vehicles, shaped by interest."
+        },
+        {
+          "level": "H2",
+          "text": "See what matters.Share what you see."
+        },
+        {
+          "level": "H2",
+          "text": "For sale?Probably not."
+        },
+        {
+          "level": "H2",
+          "text": "Have a specific build in mind?"
+        },
+        {
+          "level": "H3",
+          "text": "Shaped around you."
+        },
+        {
+          "level": "H3",
+          "text": "Make it all connect."
+        },
+        {
+          "level": "H3",
+          "text": "Go straight to the data."
+        },
+        {
+          "level": "H3",
+          "text": "Switches, reimagined."
+        },
+        {
+          "level": "H3",
+          "text": "Touch, voice and feedback."
+        },
+        {
+          "level": "H3",
+          "text": "Build new. Reimagine existing."
+        },
+        {
+          "level": "H3",
+          "text": "Bring us your idea."
+        },
+        {
+          "level": "H4",
+          "text": "Investigate it remotely."
+        }
+      ],
+      "smallTargets": [
+        {
+          "text": "The gauge",
+          "height": 20,
+          "width": 62.171875
+        },
+        {
+          "text": "Android App",
+          "height": 20,
+          "width": 70.84375
+        },
+        {
+          "text": "Progress",
+          "height": 20,
+          "width": 52.03125
+        },
+        {
+          "text": "Recovery",
+          "height": 20,
+          "width": 54.921875
+        },
+        {
+          "text": "GitHub \u2197",
+          "height": 20,
+          "width": 57.078125
+        },
+        {
+          "text": "Follow vehicle-action development \u2197",
+          "height": 16,
+          "width": 231.890625
+        },
+        {
+          "text": "Waveshare development board \u2197",
+          "height": 17,
+          "width": 242.203125
+        },
+        {
+          "text": "View the development board \u2197",
+          "height": 17,
+          "width": 222.953125
+        },
+        {
+          "text": "bring us your idea",
+          "height": 17,
+          "width": 127.1875
+        },
+        {
+          "text": "Your interest can help set the order.",
+          "height": 16,
+          "width": 220.515625
+        },
+        {
+          "text": "Current state \u2197",
+          "height": 22,
+          "width": 84.703125
+        },
+        {
+          "text": "Roadmap \u2197",
+          "height": 22,
+          "width": 67.375
+        },
+        {
+          "text": "Backlog \u2197",
+          "height": 22,
+          "width": 58.03125
+        },
+        {
+          "text": "buy the development board",
+          "height": 17,
+          "width": 181.796875
+        },
+        {
+          "text": "get the software free",
+          "height": 17,
+          "width": 136.75
+        },
+        {
+          "text": "Share an idea",
+          "height": 15,
+          "width": 80.953125
+        },
+        {
+          "text": "progress section",
+          "height": 15,
+          "width": 95.390625
+        },
+        {
+          "text": "Vehicle controls",
+          "height": 15,
+          "width": 91.0625
+        }
+      ]
+    },
+    {
+      "page": "recovery",
+      "width": 768,
+      "height": 1024,
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "images": [],
+      "firmwareChoices": [
+        "Verified recovery \u00b7 0.2.0-dev.60",
+        "Open a downloaded package",
+        "0.2.0-dev.75 \u00b7 Development",
+        "0.2.0-dev.74 \u00b7 Development",
+        "0.2.0-dev.73 \u00b7 Development",
+        "0.2.0-dev.72 \u00b7 Development",
+        "0.2.0-dev.71 \u00b7 Development",
+        "0.2.0-dev.70 \u00b7 Development",
+        "0.2.0-dev.69 \u00b7 Development",
+        "0.2.0-dev.68 \u00b7 Development",
+        "0.2.0-dev.67 \u00b7 Development",
+        "0.2.0-dev.66 \u00b7 Development",
+        "0.2.0-dev.65 \u00b7 Development",
+        "0.2.0-dev.64 \u00b7 Development",
+        "0.2.0-dev.63 \u00b7 Development",
+        "0.2.0-dev.62 \u00b7 Development",
+        "0.2.0-dev.61 \u00b7 Development",
+        "0.2.0-dev.60 \u00b7 Development",
+        "0.2.0-dev.59 \u00b7 Development",
+        "0.2.0-dev.58 \u00b7 Development",
+        "0.2.0-dev.57 \u00b7 Development",
+        "0.2.0-dev.56 \u00b7 Development",
+        "0.2.0-dev.55 \u00b7 Development",
+        "0.2.0-dev.53 \u00b7 Development",
+        "0.2.0-dev.52 \u00b7 Development",
+        "0.2.0-dev.51 \u00b7 Development",
+        "0.2.0-dev.50 \u00b7 Development",
+        "0.2.0-dev.49 \u00b7 Development",
+        "0.2.0-dev.48 \u00b7 Development",
+        "0.2.0-dev.47 \u00b7 Development",
+        "0.2.0-dev.46 \u00b7 Development",
+        "0.2.0-dev.45 \u00b7 Development",
+        "0.2.0-dev.44 \u00b7 Development",
+        "0.2.0-dev.43 \u00b7 Development",
+        "0.2.0-dev.42 \u00b7 Development",
+        "0.2.0-dev.40 \u00b7 Development",
+        "0.2.0-dev.32 \u00b7 Development",
+        "0.2.0-dev.31 \u00b7 Development",
+        "0.2.0-dev.30 \u00b7 Development",
+        "0.2.0-dev.29 \u00b7 Development",
+        "0.2.0-dev.28 \u00b7 Development",
+        "0.2.0-dev.27 \u00b7 Development",
+        "0.2.0-dev.24 \u00b7 Development",
+        "0.2.0-dev.23 \u00b7 Development",
+        "0.2.0-dev.22 \u00b7 Development",
+        "0.2.0-dev.21 \u00b7 Development",
+        "0.2.0-dev.9 \u00b7 Development",
+        "0.2.0-dev.20 \u00b7 Development",
+        "0.2.0-dev.19 \u00b7 Development",
+        "0.2.0-dev.18 \u00b7 Development",
+        "0.2.0-dev.17 \u00b7 Development",
+        "0.2.0-dev.16 \u00b7 Development",
+        "0.2.0-dev.15 \u00b7 Development",
+        "0.2.0-dev.14 \u00b7 Development",
+        "0.2.0-dev.13 \u00b7 Development",
+        "0.2.0-dev.12 \u00b7 Development",
+        "0.2.0-dev.11 \u00b7 Development",
+        "0.2.0-dev.3 \u00b7 Development"
+      ],
+      "apkChoices": [
+        "Verified download \u00b7 0.2.0-dev.51"
+      ]
+    },
+    {
+      "page": "home",
+      "width": 1440,
+      "height": 1000,
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "images": [],
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Your vehicle.Your view."
+        },
+        {
+          "level": "H2",
+          "text": "More connected.Less complicated."
+        },
+        {
+          "level": "H3",
+          "text": "Your readings."
+        },
+        {
+          "level": "H3",
+          "text": "Your style."
+        },
+        {
+          "level": "H3",
+          "text": "Your setup."
+        },
+        {
+          "level": "H2",
+          "text": "A little circle.A lot of possibility."
+        },
+        {
+          "level": "H2",
+          "text": "Your setup.One place."
+        },
+        {
+          "level": "H3",
+          "text": "Alerts with context."
+        },
+        {
+          "level": "H3",
+          "text": "One vehicle. Optional second adapter."
+        },
+        {
+          "level": "H3",
+          "text": "Advanced fault filters."
+        },
+        {
+          "level": "H3",
+          "text": "More ways to make it yours."
+        },
+        {
+          "level": "H4",
+          "text": "iPhone: the essentials."
+        },
+        {
+          "level": "H4",
+          "text": "Set up over USB."
+        },
+        {
+          "level": "H4",
+          "text": "More with Android."
+        },
+        {
+          "level": "H2",
+          "text": "Air up. Winch.Get back to the trail."
+        },
+        {
+          "level": "H3",
+          "text": "Air up at raised idle."
+        },
+        {
+          "level": "H3",
+          "text": "A preset for winching."
+        },
+        {
+          "level": "H3",
+          "text": "ABS + traction control."
+        },
+        {
+          "level": "H2",
+          "text": "Build on whatis working."
+        },
+        {
+          "level": "H3",
+          "text": "Try it free. Bring your own hardware."
+        },
+        {
+          "level": "H3",
+          "text": "Affordable hardware. The value is in the software."
+        },
+        {
+          "level": "H2",
+          "text": "Working today.Proving what is next."
+        },
+        {
+          "level": "H3",
+          "text": "Engine and transmission, together"
+        },
+        {
+          "level": "H3",
+          "text": "Setup and update recovery"
+        },
+        {
+          "level": "H3",
+          "text": "More time in the vehicle"
+        },
+        {
+          "level": "H3",
+          "text": "Next vehicles, shaped by interest."
+        },
+        {
+          "level": "H2",
+          "text": "See what matters.Share what you see."
+        },
+        {
+          "level": "H2",
+          "text": "For sale?Probably not."
+        },
+        {
+          "level": "H2",
+          "text": "Have a specific build in mind?"
+        },
+        {
+          "level": "H3",
+          "text": "Shaped around you."
+        },
+        {
+          "level": "H3",
+          "text": "Make it all connect."
+        },
+        {
+          "level": "H3",
+          "text": "Go straight to the data."
+        },
+        {
+          "level": "H3",
+          "text": "Switches, reimagined."
+        },
+        {
+          "level": "H3",
+          "text": "Touch, voice and feedback."
+        },
+        {
+          "level": "H3",
+          "text": "Build new. Reimagine existing."
+        },
+        {
+          "level": "H3",
+          "text": "Bring us your idea."
+        },
+        {
+          "level": "H4",
+          "text": "Investigate it remotely."
+        }
+      ],
+      "smallTargets": [
+        {
+          "text": "The gauge",
+          "height": 20,
+          "width": 62.171875
+        },
+        {
+          "text": "Android App",
+          "height": 20,
+          "width": 70.84375
+        },
+        {
+          "text": "Progress",
+          "height": 20,
+          "width": 52.03125
+        },
+        {
+          "text": "Recovery",
+          "height": 20,
+          "width": 54.921875
+        },
+        {
+          "text": "GitHub \u2197",
+          "height": 20,
+          "width": 57.078125
+        },
+        {
+          "text": "USB recovery tool",
+          "height": 15,
+          "width": 104.765625
+        },
+        {
+          "text": "Follow vehicle-action development \u2197",
+          "height": 16,
+          "width": 231.890625
+        },
+        {
+          "text": "Waveshare ESP32-S3-Touch-LCD-1.28 \u2197",
+          "height": 17,
+          "width": 282.90625
+        },
+        {
+          "text": "Waveshare development board \u2197",
+          "height": 17,
+          "width": 242.203125
+        },
+        {
+          "text": "View the development board \u2197",
+          "height": 17,
+          "width": 222.953125
+        },
+        {
+          "text": "bring us your idea",
+          "height": 17,
+          "width": 127.1875
+        },
+        {
+          "text": "Current state \u2197",
+          "height": 22,
+          "width": 84.703125
+        },
+        {
+          "text": "Roadmap \u2197",
+          "height": 22,
+          "width": 67.375
+        },
+        {
+          "text": "Backlog \u2197",
+          "height": 22,
+          "width": 58.03125
+        },
+        {
+          "text": "get the software free",
+          "height": 17,
+          "width": 136.75
+        },
+        {
+          "text": "Tell us what you have in mind.",
+          "height": 17,
+          "width": 200.109375
+        },
+        {
+          "text": "Share an idea",
+          "height": 15,
+          "width": 80.953125
+        },
+        {
+          "text": "progress section",
+          "height": 15,
+          "width": 95.390625
+        },
+        {
+          "text": "Vehicle controls",
+          "height": 15,
+          "width": 91.0625
+        }
+      ]
+    },
+    {
+      "page": "recovery",
+      "width": 1440,
+      "height": 1000,
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "images": [],
+      "firmwareChoices": [
+        "Verified recovery \u00b7 0.2.0-dev.60",
+        "Open a downloaded package",
+        "0.2.0-dev.75 \u00b7 Development",
+        "0.2.0-dev.74 \u00b7 Development",
+        "0.2.0-dev.73 \u00b7 Development",
+        "0.2.0-dev.72 \u00b7 Development",
+        "0.2.0-dev.71 \u00b7 Development",
+        "0.2.0-dev.70 \u00b7 Development",
+        "0.2.0-dev.69 \u00b7 Development",
+        "0.2.0-dev.68 \u00b7 Development",
+        "0.2.0-dev.67 \u00b7 Development",
+        "0.2.0-dev.66 \u00b7 Development",
+        "0.2.0-dev.65 \u00b7 Development",
+        "0.2.0-dev.64 \u00b7 Development",
+        "0.2.0-dev.63 \u00b7 Development",
+        "0.2.0-dev.62 \u00b7 Development",
+        "0.2.0-dev.61 \u00b7 Development",
+        "0.2.0-dev.60 \u00b7 Development",
+        "0.2.0-dev.59 \u00b7 Development",
+        "0.2.0-dev.58 \u00b7 Development",
+        "0.2.0-dev.57 \u00b7 Development",
+        "0.2.0-dev.56 \u00b7 Development",
+        "0.2.0-dev.55 \u00b7 Development",
+        "0.2.0-dev.53 \u00b7 Development",
+        "0.2.0-dev.52 \u00b7 Development",
+        "0.2.0-dev.51 \u00b7 Development",
+        "0.2.0-dev.50 \u00b7 Development",
+        "0.2.0-dev.49 \u00b7 Development",
+        "0.2.0-dev.48 \u00b7 Development",
+        "0.2.0-dev.47 \u00b7 Development",
+        "0.2.0-dev.46 \u00b7 Development",
+        "0.2.0-dev.45 \u00b7 Development",
+        "0.2.0-dev.44 \u00b7 Development",
+        "0.2.0-dev.43 \u00b7 Development",
+        "0.2.0-dev.42 \u00b7 Development",
+        "0.2.0-dev.40 \u00b7 Development",
+        "0.2.0-dev.32 \u00b7 Development",
+        "0.2.0-dev.31 \u00b7 Development",
+        "0.2.0-dev.30 \u00b7 Development",
+        "0.2.0-dev.29 \u00b7 Development",
+        "0.2.0-dev.28 \u00b7 Development",
+        "0.2.0-dev.27 \u00b7 Development",
+        "0.2.0-dev.24 \u00b7 Development",
+        "0.2.0-dev.23 \u00b7 Development",
+        "0.2.0-dev.22 \u00b7 Development",
+        "0.2.0-dev.21 \u00b7 Development",
+        "0.2.0-dev.9 \u00b7 Development",
+        "0.2.0-dev.20 \u00b7 Development",
+        "0.2.0-dev.19 \u00b7 Development",
+        "0.2.0-dev.18 \u00b7 Development",
+        "0.2.0-dev.17 \u00b7 Development",
+        "0.2.0-dev.16 \u00b7 Development",
+        "0.2.0-dev.15 \u00b7 Development",
+        "0.2.0-dev.14 \u00b7 Development",
+        "0.2.0-dev.13 \u00b7 Development",
+        "0.2.0-dev.12 \u00b7 Development",
+        "0.2.0-dev.11 \u00b7 Development",
+        "0.2.0-dev.3 \u00b7 Development"
+      ],
+      "apkChoices": [
+        "Verified download \u00b7 0.2.0-dev.51"
+      ]
+    }
+  ],
+  "layoutChoices": [
+    {
+      "name": "Numeric",
+      "pressed": "true",
+      "caption": "Numeric \u00b7 One reading, at a glance.",
+      "imageAlt": "Numeric layout showing engine speed"
+    },
+    {
+      "name": "Arc",
+      "pressed": "true",
+      "caption": "Arc \u00b7 A clear curved scale.",
+      "imageAlt": "Arc layout showing coolant temperature"
+    },
+    {
+      "name": "Bar",
+      "pressed": "true",
+      "caption": "Bar \u00b7 A compact horizontal scale.",
+      "imageAlt": "Bar layout showing coolant temperature"
+    },
+    {
+      "name": "Trend",
+      "pressed": "true",
+      "caption": "Trend \u00b7 See how a reading changes.",
+      "imageAlt": "Trend layout showing coolant temperature"
+    },
+    {
+      "name": "Dual",
+      "pressed": "true",
+      "caption": "Dual \u00b7 Two readings, one page.",
+      "imageAlt": "Dual layout showing gear and engine speed"
+    },
+    {
+      "name": "Alerts",
+      "pressed": "true",
+      "caption": "Alerts \u00b7 CEL above, warning below.",
+      "imageAlt": "Dual page with a check-engine indicator and coolant warning"
+    }
+  ],
+  "console": [],
+  "requests": []
+}

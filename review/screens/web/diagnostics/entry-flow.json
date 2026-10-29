@@ -1,0 +1,96 @@
+{
+  "entry": [
+    {
+      "page": "home",
+      "width": 375,
+      "recoveryLinks": [
+        {
+          "text": "USB recovery tool",
+          "pageY": 6224
+        },
+        {
+          "text": "Get the free firmware & Android App \u2197",
+          "pageY": 9404
+        },
+        {
+          "text": "get the software free",
+          "pageY": 13827
+        }
+      ],
+      "totalHeight": 18629
+    },
+    {
+      "page": "recovery",
+      "width": 375,
+      "androidSectionY": 3399,
+      "totalHeight": 6506
+    },
+    {
+      "page": "home",
+      "width": 768,
+      "recoveryLinks": [
+        {
+          "text": "Recovery",
+          "pageY": 46
+        },
+        {
+          "text": "USB recovery tool",
+          "pageY": 3689
+        },
+        {
+          "text": "Get the free firmware & Android App \u2197",
+          "pageY": 5717
+        },
+        {
+          "text": "get the software free",
+          "pageY": 8668
+        }
+      ],
+      "totalHeight": 11454
+    },
+    {
+      "page": "recovery",
+      "width": 768,
+      "androidSectionY": 2258,
+      "totalHeight": 4334
+    },
+    {
+      "page": "home",
+      "width": 1440,
+      "recoveryLinks": [
+        {
+          "text": "Recovery",
+          "pageY": 46
+        },
+        {
+          "text": "USB recovery tool",
+          "pageY": 3708
+        },
+        {
+          "text": "Get the free firmware & Android App \u2197",
+          "pageY": 5329
+        },
+        {
+          "text": "get the software free",
+          "pageY": 8146
+        }
+      ],
+      "totalHeight": 10515
+    },
+    {
+      "page": "recovery",
+      "width": 1440,
+      "androidSectionY": 1975,
+      "totalHeight": 3744
+    }
+  ],
+  "recoveryMissingFeed": {
+    "firmwareStatus": "GitHub releases could not be loaded. Use the verified recovery build, open a downloaded package, or browse GitHub below.",
+    "apkStatus": "Verified App 0.2.0-dev.51 is available below. GitHub releases are checked for additional APKs. The GitHub list is temporarily unavailable.",
+    "choices": [
+      "Verified recovery \u00b7 0.2.0-dev.60",
+      "Open a downloaded package"
+    ],
+    "firmwareInstallEnabled": false
+  }
+}

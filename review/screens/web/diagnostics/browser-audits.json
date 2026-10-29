@@ -1,0 +1,25 @@
+{
+  "contrast": [
+    {
+      "path": "/",
+      "error": "cdpSession.send: Protocol error (Audits.checkContrast): 'Audits.checkContrast' wasn't found"
+    },
+    {
+      "path": "/recovery/",
+      "error": "cdpSession.send: Protocol error (Audits.checkContrast): 'Audits.checkContrast' wasn't found"
+    }
+  ],
+  "reflow": [
+    {
+      "path": "/",
+      "clientWidth": 320,
+      "scrollWidth": 320
+    },
+    {
+      "path": "/recovery/",
+      "clientWidth": 320,
+      "scrollWidth": 320
+    }
+  ],
+  "browser": "156.0.8078.48"
+}

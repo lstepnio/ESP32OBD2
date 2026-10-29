@@ -390,3 +390,16 @@ current display/Car/gesture behavior and capability gates stay authoritative. Tr
 fixtures and fake owner/probe sessions do not prove physical rendering/radio/provider
 behavior. The dev.71 installation record above is historical evidence retained from
 PR #112; this cleanup did not interact with the phone, gauge or vehicle.
+
+## Website and public download refresh
+
+The reviewed website source now provides a direct mobile install path, distinct
+Android/desktop recovery entry points, source-traced gallery/status data, current
+App/circular-gauge images and precise development boundaries. The hosted App inventory
+references dev.53/code 53 from unchanged Android production source at `083b001`,
+with the existing signer retained and an isolated dev.51-to-dev.53 preservation check.
+The reviewed USB fallback stays dev.60; the dynamic firmware selector continues to
+offer signed published candidates, including dev.75. No new firmware runtime, control
+qualification or stable channel is implied. [Review evidence](../review/REPORT.md)
+records baseline checks; final publication and comparison are recorded separately in
+[delivery results](../review/IMPLEMENTATION.md). Normal website cadence still applies.

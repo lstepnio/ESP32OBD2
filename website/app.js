@@ -1,12 +1,5 @@
 'use strict';
-const screens = {
-  numeric: ['Numeric · One reading, at a glance.', 'Numeric layout showing engine speed'],
-  arc: ['Arc · A clear curved scale.', 'Arc layout showing coolant temperature'],
-  bar: ['Bar · A compact horizontal scale.', 'Bar layout showing coolant temperature'],
-  trend: ['Trend · See how a reading changes.', 'Trend layout showing coolant temperature'],
-  dual: ['Dual · Two readings, one page.', 'Dual layout showing gear and engine speed'],
-  alerts: ['Alerts · CEL above, warning below.', 'Dual page with a check-engine indicator and coolant warning']
-};
+const screens = /* EGAUGE_SCREEN_DATA */ {};
 const screenImage = document.querySelector('#screen-image');
 document.querySelectorAll('[data-screen]').forEach(button => {
   button.addEventListener('click', () => {

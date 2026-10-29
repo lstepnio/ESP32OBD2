@@ -1,0 +1,132 @@
+{
+  "entry": [
+    {
+      "page": "home",
+      "width": 375,
+      "recoveryLinks": [
+        {
+          "text": "Try it free \u2197",
+          "pageY": 23
+        },
+        {
+          "text": "Try it free \u2197",
+          "pageY": 445
+        },
+        {
+          "text": "USB recovery tool",
+          "pageY": 6998
+        },
+        {
+          "text": "browser-based USB recovery",
+          "pageY": 10596
+        },
+        {
+          "text": "Get the free firmware & Android App \u2197",
+          "pageY": 10833
+        },
+        {
+          "text": "start with the free software",
+          "pageY": 14292
+        }
+      ],
+      "totalHeight": 18928
+    },
+    {
+      "page": "recovery",
+      "width": 375,
+      "androidSectionY": 3632,
+      "totalHeight": 6898
+    },
+    {
+      "page": "home",
+      "width": 768,
+      "recoveryLinks": [
+        {
+          "text": "Recovery",
+          "pageY": 46
+        },
+        {
+          "text": "Try it free \u2197",
+          "pageY": 32
+        },
+        {
+          "text": "Try it free \u2197",
+          "pageY": 506
+        },
+        {
+          "text": "USB recovery tool",
+          "pageY": 4057
+        },
+        {
+          "text": "browser-based USB recovery",
+          "pageY": 6353
+        },
+        {
+          "text": "Get the free firmware & Android App \u2197",
+          "pageY": 6481
+        },
+        {
+          "text": "start with the free software",
+          "pageY": 8892
+        }
+      ],
+      "totalHeight": 11525
+    },
+    {
+      "page": "recovery",
+      "width": 768,
+      "androidSectionY": 2413,
+      "totalHeight": 4542
+    },
+    {
+      "page": "home",
+      "width": 1440,
+      "recoveryLinks": [
+        {
+          "text": "Recovery",
+          "pageY": 46
+        },
+        {
+          "text": "Try it free \u2197",
+          "pageY": 32
+        },
+        {
+          "text": "Try it free \u2197",
+          "pageY": 556
+        },
+        {
+          "text": "USB recovery tool",
+          "pageY": 3930
+        },
+        {
+          "text": "browser-based USB recovery",
+          "pageY": 5864
+        },
+        {
+          "text": "Get the free firmware & Android App \u2197",
+          "pageY": 5937
+        },
+        {
+          "text": "start with the free software",
+          "pageY": 8378
+        }
+      ],
+      "totalHeight": 10633
+    },
+    {
+      "page": "recovery",
+      "width": 1440,
+      "androidSectionY": 2094,
+      "totalHeight": 3890
+    }
+  ],
+  "recoveryMissingFeed": {
+    "firmwareStatus": "GitHub releases could not be loaded. Use the verified recovery build, open a downloaded package, or browse GitHub below.",
+    "apkStatus": "Verified App 0.2.0-dev.53 is available below. GitHub releases are checked for additional APKs. The GitHub list is temporarily unavailable.",
+    "choices": [
+      "Verified recovery \u00b7 0.2.0-dev.60",
+      "Open a downloaded package"
+    ],
+    "firmwareInstallEnabled": false
+  }
+}

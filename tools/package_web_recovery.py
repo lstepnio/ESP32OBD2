@@ -135,6 +135,55 @@ def verify_apk(apk, certificate, expected_version, tools=None, expected_code=Non
     }
 
 
+def source_apk_identity(apk, app_commit, certificate):
+    subprocess.run(["git", "cat-file", "-e", app_commit + "^{commit}"], cwd=ROOT, check=True)
+    source = subprocess.check_output(
+        ["git", "show", app_commit + ":android/app/build.gradle.kts"], cwd=ROOT, text=True
+    )
+    version = re.search(r'versionName = "([^"]+)"', source)
+    code = re.search(r"versionCode = ([0-9]+)", source)
+    if version is None or code is None:
+        raise ValueError("Reviewed App source needs an explicit version and version code")
+    return verify_apk(apk, certificate, version[1], expected_code=int(code[1]))
+
+
+def refresh_apk(downloads, apk, app_commit, output):
+    """Refresh only the App, retaining verified recovery bytes and the pinned signer."""
+    inventory = json.loads((ROOT / "website/downloads/manifest.json").read_text())
+    identity = source_apk_identity(apk, app_commit, inventory["app"]["signingCertificateSha256"])
+    payloads = {}
+    old_app = inventory["app"]["url"].removeprefix("/downloads/")
+    for name, record in inventory["files"].items():
+        if name == old_app:
+            continue
+        if Path(name).is_absolute() or ".." in Path(name).parts:
+            raise ValueError("Invalid pinned download path")
+        data = (downloads / name).read_bytes()
+        if sha(data) != record["sha256"] or len(data) != record["size"]:
+            raise ValueError("Recovery download verification failed")
+        payloads[name] = data
+    data = apk.read_bytes()
+    if not zipfile.is_zipfile(apk):
+        raise ValueError("Not an APK archive")
+    name = "egauge-android-" + sha(data)[:16] + ".apk"
+    payloads[name] = data
+    inventory["files"] = {}
+    for path, payload in payloads.items():
+        target = output / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+        inventory["files"][path] = {"sha256": sha(payload), "size": len(payload)}
+    inventory["app"] = {
+        **identity,
+        "sourceCommit": app_commit,
+        "sourceProvenance": "Operator-supplied build revision; APK signature, package and version independently verified",
+        "url": "/downloads/" + name,
+        **inventory["files"][name],
+    }
+    (output / "manifest.json").write_text(json.dumps(inventory, indent=2) + "\n")
+    return inventory
+
+
 def package(inputs, source, apk, app_commit, certificate, output):
     # The export must contain the release's exact board configuration and layout.
     for name in [
@@ -181,17 +230,7 @@ def package(inputs, source, apk, app_commit, certificate, output):
         raise ValueError("Partition layout mismatch")
     if len(certificate) != 64 or any(c not in "0123456789abcdef" for c in certificate):
         raise ValueError("APK signing-certificate SHA-256 required")
-    subprocess.run(["git", "cat-file", "-e", app_commit + "^{commit}"], cwd=ROOT, check=True)
-    app_source = subprocess.check_output(
-        ["git", "show", app_commit + ":android/app/build.gradle.kts"], cwd=ROOT, text=True
-    )
-    expected = re.search(r'versionName = "([^"]+)"', app_source)
-    if expected is None:
-        raise ValueError("Reviewed App source has no explicit version")
-    expected_code = re.search(r"versionCode = ([0-9]+)", app_source)
-    if expected_code is None:
-        raise ValueError("Reviewed App source has no explicit version code")
-    app_identity = verify_apk(apk, certificate, expected[1], expected_code=int(expected_code[1]))
+    app_identity = source_apk_identity(apk, app_commit, certificate)
     files = [
         ("bootloader.bin", 0, boot),
         ("partition-table.bin", 0x8000, table),
@@ -247,18 +286,38 @@ def package(inputs, source, apk, app_commit, certificate, output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ["input", "source", "apk", "output"]:
+    for name in ["apk", "output"]:
         parser.add_argument("--" + name, required=True, type=Path)
+    for name in ["input", "source", "downloads"]:
+        parser.add_argument("--" + name, type=Path)
+    parser.add_argument(
+        "--refresh-apk", action="store_true", help="Retain pinned USB firmware and signer"
+    )
     parser.add_argument("--app-commit", required=True)
-    parser.add_argument("--apk-certificate-sha256", required=True)
+    parser.add_argument("--apk-certificate-sha256")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     if any(args.output.iterdir()):
         parser.error("Use an empty output directory")
-    package(
-        args.input, args.source, args.apk, args.app_commit, args.apk_certificate_sha256, args.output
-    )
-    print("Verified signed application and packaged USB recovery; no firmware release created")
+    if args.refresh_apk:
+        if not args.downloads or args.input or args.source or args.apk_certificate_sha256:
+            parser.error("App refresh needs --downloads and retains the pinned signer")
+        refresh_apk(args.downloads, args.apk, args.app_commit, args.output)
+        print("Verified App refresh; pinned recovery firmware and signing identity retained")
+    else:
+        if not args.input or not args.source or not args.apk_certificate_sha256:
+            parser.error(
+                "Full recovery packaging needs --input, --source and --apk-certificate-sha256"
+            )
+        package(
+            args.input,
+            args.source,
+            args.apk,
+            args.app_commit,
+            args.apk_certificate_sha256,
+            args.output,
+        )
+        print("Verified signed application and packaged USB recovery; no firmware release created")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,4 @@
+PASS: production pointer taps, fast/slow/diagonal strokes, reconnect, cooldown, lost input and hold arbitration
+PASS: production numeric/arc/bar/dual easing, raw cache, unit/page, stale and dropout resets
+LVGL fixed arena: total=62112 free=51064 biggest=38728 used_pct=18
+PASS: production LVGL showcase frames, circular glyphs, vehicle/maintenance/critical preemption and pairing restore

@@ -112,6 +112,27 @@ sets `absolute_redirect off` so directory redirects keep the public HTTPS origin
 instead of exposing the internal HTTP port behind Caddy. Self-hosted scripts/downloads
 fit the existing same-origin CSP. Preserve existing contact APIs and no-index policy.
 
+## Refreshing the hosted Android APK
+
+Keep the reviewed firmware fallback and its immutable URLs when only the App needs
+an update. Build the current debug APK, verify the pinned signing identity and
+run an in-place upgrade/preservation check on a disposable emulator first:
+
+```sh
+python tools/package_web_recovery.py --refresh-apk \
+  --downloads artifacts/website-downloads \
+  --apk android/app/build/outputs/apk/debug/app-debug.apk \
+  --app-commit EXACT_CLEAN_APP_COMMIT --output artifacts/website-app-refresh
+```
+
+The mode verifies source version/code, package and the existing pinned signer;
+checks every retained recovery input before writing; and emits a new content-addressed
+APK plus inventory. It creates no firmware release and cannot rotate the signer.
+Review/copy the resulting manifest into `website/downloads/manifest.json`, then use
+that output as `--downloads` for the website build. Retain older URLs on the server.
+Source revision is operator build provenance, not an embedded signed source proof.
+A diagnostic report export is not a full setup backup or restoration mechanism.
+
 ## Hardware acceptance still required
 
 On a spare exact board: blank-board install; repair from both OTA slots; verify

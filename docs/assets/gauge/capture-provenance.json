@@ -1,0 +1,47 @@
+{
+  "sourceCommit": "083b0013363a697ab832179ee1af71b4456ca181",
+  "renderer": "Production LVGL9.2.2 and fonts via host fixture; RGB565 at240x240, expanded RGB PNG",
+  "data": "Synthetic source fixtures, not hardware/vehicle evidence",
+  "candidateOptions": {
+    "EGAUGE_HOST_RGB565": true,
+    "EGAUGE_PARKED_IDLE_TEST": true
+  },
+  "entries": [
+    {
+      "file": "action-active.png",
+      "sha256": "0fbf00be5c92132c5e9b5efc82f70bfa43782c09c24357f0a723858ef077a425"
+    },
+    {
+      "file": "action-ready.png",
+      "sha256": "72ead36544ec4409a7fa8f1fef95e882426b54cedcfcc1f4c5d79096eb774b19"
+    },
+    {
+      "file": "alerts.png",
+      "sha256": "1beea1a58dccf4518066b863a5f63de0274a0cf23cab2e6ae6930de7b1afa9b4"
+    },
+    {
+      "file": "arc.png",
+      "sha256": "6a6ff1939c7c82a3aebe0a1137400e11bdc95e9524724d8158f853d4e9676686"
+    },
+    {
+      "file": "bar.png",
+      "sha256": "6d5991d465bb5f68db70566ce13a73e6610cce45325dffc7cb19da52ffc9b007"
+    },
+    {
+      "file": "dual-arc.png",
+      "sha256": "f8e0a5f39a8f6eab3f81de6cd8ac693a7ffc705cfdc98702cc234601f79c6702"
+    },
+    {
+      "file": "dual.png",
+      "sha256": "b62fb39930b5243050e6381b55df27d771c64e8cc57f28ac7557770f5b7bec42"
+    },
+    {
+      "file": "numeric.png",
+      "sha256": "06a75d12d91dc8a092bcb317c8e20b5566cc726e600e3d6e85b9460bae4bf429"
+    },
+    {
+      "file": "trend.png",
+      "sha256": "3900ea75617dbf888907f66703bd56a661bc2821d3bd4f2e3136d03626fe0958"
+    }
+  ]
+}

@@ -1,0 +1,285 @@
+{
+  "purpose": "Unmodified raw browser/Android/Lighthouse output; archived to keep code review and AI context lean",
+  "entries": [
+    {
+      "file": "android-build-fresh.log",
+      "size": 11302,
+      "sha256": "0a0a9c526a75a4ce8df817e464cc88e748c9a9cfcfc8ce6f5df03319d4a3ce6d"
+    },
+    {
+      "file": "android-marketing-capture.log",
+      "size": 7023,
+      "sha256": "6505a53859b6b257478c64ffd5efbc772d1678e2b9057649885b85e2c47bb36b"
+    },
+    {
+      "file": "android-upgrade-device.txt",
+      "size": 40,
+      "sha256": "fc3c8c637bdcacaa818b3b69169df0141aca02effee9402f4c695192e204f948"
+    },
+    {
+      "file": "android-upgrade-emulator.log",
+      "size": 7889,
+      "sha256": "e8e5d048174553e0cc6e5bd23ce93b6974c0ddb684eec3fe772cfef441149d74"
+    },
+    {
+      "file": "android-upgrade-install53.log",
+      "size": 36,
+      "sha256": "781a31c82430c97897af612ece5e0ca2205e301cb5ff121ce2660541ea5182c7"
+    },
+    {
+      "file": "android-upgrade-new53.log",
+      "size": 82,
+      "sha256": "14ee8dc5d545fa49dbf39f7e6c8e673a685ecc608e115f2fdec6522a5e8703ed"
+    },
+    {
+      "file": "android-upgrade-old51.log",
+      "size": 82,
+      "sha256": "decc5875a02e1224802825e1e9e7ad0e7e4192ef5c5aa6396896d62cee630dc2"
+    },
+    {
+      "file": "host-lint.txt",
+      "size": 4996,
+      "sha256": "9c9679bf4f68fe3d53113500bbcd2ec3a4adf2b9993d39b2faef08a46e6bda4c"
+    },
+    {
+      "file": "lighthouse/home-desktop-after.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "lighthouse/home-desktop-after.report.html",
+      "size": 1074257,
+      "sha256": "e3a3386bbb20e25cb6d46ea83fe08ea5baf749742a1f899c5d7bea7ddfc57245"
+    },
+    {
+      "file": "lighthouse/home-desktop-after.report.json",
+      "size": 976555,
+      "sha256": "e3945fd26b214d878d3af89e3581d614cf00b421d91f35f1614b5fec9946ff14"
+    },
+    {
+      "file": "lighthouse/home-desktop-before.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "lighthouse/home-desktop-before.report.html",
+      "size": 1100203,
+      "sha256": "ed40e7cc09df6e9d2a96a53a2c7eab0a89ad74b6dd673a5e23ce71f64c19cbbb"
+    },
+    {
+      "file": "lighthouse/home-desktop-before.report.json",
+      "size": 1001651,
+      "sha256": "8123c13d9f19a57dba221597595f61db54dbf891826076d3e488d5101e8da099"
+    },
+    {
+      "file": "lighthouse/home-desktop-contrast-failure.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "lighthouse/home-desktop-contrast-failure.report.html",
+      "size": 1074284,
+      "sha256": "0b6cee458f8ed21e31c497132e4fa47b71338123c60f7d3b6810c319c0f9053f"
+    },
+    {
+      "file": "lighthouse/home-desktop-contrast-failure.report.json",
+      "size": 977713,
+      "sha256": "36e12db819d2820499349ebbfa967b5db624e871536277fb789df61e32ba9184"
+    },
+    {
+      "file": "lighthouse/home-mobile-after.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "lighthouse/home-mobile-after.report.html",
+      "size": 1035609,
+      "sha256": "8cd23a4250ef23b9b01ab5120f0515f34285d81a1a84701311e92fd7c5bb1a8b"
+    },
+    {
+      "file": "lighthouse/home-mobile-after.report.json",
+      "size": 934796,
+      "sha256": "a1a23d8e113a519410c86a764ba4c98b08e39fd4d0ce003cbf8974179245d85d"
+    },
+    {
+      "file": "lighthouse/home-mobile-before.log",
+      "size": 95,
+      "sha256": "291cc539e77709a4c30b5ee9ffe8ee22a996e62a2c0f2fe499b5961a1d88fc26"
+    },
+    {
+      "file": "lighthouse/home-mobile-before.report.html",
+      "size": 981324,
+      "sha256": "9a1e1a050a48b2aba8a8cb243dbf10c87f55ece4293c6db8884dc50f747d3945"
+    },
+    {
+      "file": "lighthouse/home-mobile-before.report.json",
+      "size": 879102,
+      "sha256": "dde8a41c6fd78deb55321a47c5a0e48b560eaa6d3ded9eb307bc673ba5a6d143"
+    },
+    {
+      "file": "lighthouse/home-mobile-contrast-failure.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "lighthouse/home-mobile-contrast-failure.report.html",
+      "size": 1035773,
+      "sha256": "fc5d0ffe97797608d9bb09449687ce7c247d898bc63add72a65f0d8961f64e38"
+    },
+    {
+      "file": "lighthouse/home-mobile-contrast-failure.report.json",
+      "size": 936091,
+      "sha256": "86374f33edfd5cb60279e8f7c5e2cce7c234666d26181e75c4e8b9b7bca6a318"
+    },
+    {
+      "file": "lighthouse/recovery-desktop-after.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "lighthouse/recovery-desktop-after.report.html",
+      "size": 794583,
+      "sha256": "43bffe2d9f48c0e13f7205d9d779bd6757f73ab050b0e46a660bcfaa64ab5de5"
+    },
+    {
+      "file": "lighthouse/recovery-desktop-after.report.json",
+      "size": 691536,
+      "sha256": "a0c97efe3a01318f734c7c3247957f015bd7b423b282cda7e35c5051b108de0f"
+    },
+    {
+      "file": "lighthouse/recovery-desktop-before.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "lighthouse/recovery-desktop-before.report.html",
+      "size": 802732,
+      "sha256": "9e02282aa33bd67036c369b5da730aba94eddccd6828e9c0cd03b51b6a2bf959"
+    },
+    {
+      "file": "lighthouse/recovery-desktop-before.report.json",
+      "size": 699465,
+      "sha256": "e872bfade38ea8c0cdb59d8abe88c9fc7b7eb3aeb471fc627c7248b76cdc1229"
+    },
+    {
+      "file": "lighthouse/recovery-mobile-after.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "lighthouse/recovery-mobile-after.report.html",
+      "size": 881584,
+      "sha256": "beff325bb6ee6e441a63c4547620349fa55fddde260823c9f863f4a087f4d2ae"
+    },
+    {
+      "file": "lighthouse/recovery-mobile-after.report.json",
+      "size": 778830,
+      "sha256": "12a3bbf1f6ea26ac07892679edf1064f6555340502a991e68015887c26d408f2"
+    },
+    {
+      "file": "lighthouse/recovery-mobile-before.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "lighthouse/recovery-mobile-before.report.html",
+      "size": 863789,
+      "sha256": "c496609f543bbe81ac3f22a27b975022fce69581a31c6e09846f946f0d1b1dc2"
+    },
+    {
+      "file": "lighthouse/recovery-mobile-before.report.json",
+      "size": 760865,
+      "sha256": "b032a3232b46d651c8f7270437590de75d553832c4f7a29be647b8d06343328b"
+    },
+    {
+      "file": "screens/android/capture-attempt2-failure.log",
+      "size": 8169,
+      "sha256": "16c2ba53a18c876e837e2cacf3ec1f2bab909507487d881b1a120240ec0942e1"
+    },
+    {
+      "file": "screens/android/capture-format-recheck.log",
+      "size": 7334,
+      "sha256": "b9f7d58d94231f55d56b9e1af8ded6fe4b0ac08a66227044116c2c19d2919bec"
+    },
+    {
+      "file": "screens/android/capture.log",
+      "size": 7335,
+      "sha256": "a0cfad2be79b9e5d4c68c6e6f0b8cbd9c2dd514e7ae68e6853548445559e6d3c"
+    },
+    {
+      "file": "screens/android/compile.log",
+      "size": 5357,
+      "sha256": "4414b2850734a231f0010043186850a90ae0424b17036f62385213925fea2f77"
+    },
+    {
+      "file": "screens/android/test-result.xml",
+      "size": 513,
+      "sha256": "23303f891ee47ce22280e405b9ddc728fba90b6b46f7abd40d371c949cc97488"
+    },
+    {
+      "file": "screens/web/diagnostics/after-entry-flow.txt",
+      "size": 3790,
+      "sha256": "8f0fb9b29ad9295ed65d50c05d501a942b8a6cc800af9efc59f176dcf864ec68"
+    },
+    {
+      "file": "screens/web/diagnostics/after-interaction-checks.txt",
+      "size": 53529,
+      "sha256": "f2596ddb7f041c9d1a02b4c9772b11315689ac84c91fa8863455e2e10307fad5"
+    },
+    {
+      "file": "screens/web/diagnostics/after-interaction-contrast-failure.txt",
+      "size": 53527,
+      "sha256": "835e2aabf244d68659d4449ecfaff0df4b3e38b9cb6449abef38c1bdf4559c87"
+    },
+    {
+      "file": "screens/web/diagnostics/after-keyboard-settled.txt",
+      "size": 12167,
+      "sha256": "39fbde0adbe84df9bd4af6c3c5b4023ebf9e6c8d8f3c2ef78270639ea5dde9ff"
+    },
+    {
+      "file": "screens/web/diagnostics/after-responsive-checks.txt",
+      "size": 19000,
+      "sha256": "a83054ab61e50c142de60dbc7771587e84e1759fb5b897fc51d096118c8daa50"
+    },
+    {
+      "file": "screens/web/diagnostics/browser-audits.txt",
+      "size": 1357,
+      "sha256": "d8e2e79fc685d11cf6f55026b3f399b922ca5d9c63835417d14af80f53aff4ff"
+    },
+    {
+      "file": "screens/web/diagnostics/entry-flow.txt",
+      "size": 3384,
+      "sha256": "77cb9060003692d478dace3f0a5caa0c7c521e67983f85af09adc72303af7b2b"
+    },
+    {
+      "file": "screens/web/diagnostics/interaction-checks.txt",
+      "size": 51780,
+      "sha256": "e7ad1459d66fd76141505b689b5bbee25dc205139949fbab746fcbb018f9a8b0"
+    },
+    {
+      "file": "screens/web/diagnostics/keyboard-settled.txt",
+      "size": 12200,
+      "sha256": "b3f6faabca4aea783a43113897dceb66d820df133760395772090d6ae63154a7"
+    },
+    {
+      "file": "screens/web/diagnostics/live-recovery-redirect.txt",
+      "size": 559,
+      "sha256": "114932210f2435ee6807524d73eed6ce609a10517a5d150724389b77ea9f01b7"
+    },
+    {
+      "file": "screens/web/diagnostics/live-response-headers.txt",
+      "size": 630,
+      "sha256": "c4bf368fa5bffb39fd6c7ddbef0d013830ad8e68071972fde61771814c971f8d"
+    },
+    {
+      "file": "screens/web/diagnostics/recovery-tests.txt",
+      "size": 3149,
+      "sha256": "d57fe29833fd751c926053af7ef1437e07b9c6801a5d3e9921ab652bc41ca52c"
+    },
+    {
+      "file": "screens/web/diagnostics/responsive-checks.txt",
+      "size": 18552,
+      "sha256": "5ac205628154429de26dc03efbf41b13e2853067c101b9a209b18308952fc9b3"
+    }
+  ]
+}

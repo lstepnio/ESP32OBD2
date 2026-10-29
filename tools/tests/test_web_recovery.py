@@ -1,6 +1,7 @@
 """USB recovery package trust and deployable-site boundaries."""
 
 import hashlib
+import copy
 import importlib.util
 import json
 from pathlib import Path
@@ -111,6 +112,46 @@ if __name__ == "__main__":
 
 
 class ApkIdentityTests(unittest.TestCase):
+    def test_app_refresh_preserves_firmware_and_rejects_corruption_before_writing(self):
+        inventory = {
+            "firmware": {"version": "reviewed-fallback"},
+            "app": {"url": "/downloads/old.apk", "signingCertificateSha256": "a" * 64},
+            "files": {
+                "fallback/application.bin": {"sha256": package.sha(b"firmware"), "size": 8},
+                "old.apk": {"sha256": package.sha(b"old"), "size": 3},
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "website/downloads/manifest.json"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(json.dumps(inventory))
+            downloads, output = root / "downloads", root / "output"
+            (downloads / "fallback").mkdir(parents=True)
+            (downloads / "fallback/application.bin").write_bytes(b"firmware")
+            output.mkdir()
+            apk = root / "new.apk"
+            apk.write_bytes(b"verified-apk")
+            with (
+                patch.object(package, "ROOT", root),
+                patch.object(
+                    package, "source_apk_identity", return_value={"versionCode": 53}
+                ) as verify,
+                patch.object(package.zipfile, "is_zipfile", return_value=True),
+            ):
+                result = package.refresh_apk(downloads, apk, "source", output)
+                verify.assert_called_once_with(apk, "source", "a" * 64)
+                self.assertEqual(result["firmware"], inventory["firmware"])
+                self.assertEqual((output / "fallback/application.bin").read_bytes(), b"firmware")
+                self.assertNotIn("old.apk", result["files"])
+                self.assertEqual(result["app"]["versionCode"], 53)
+                (downloads / "fallback/application.bin").write_bytes(b"tampered")
+                empty = root / "empty"
+                empty.mkdir()
+                with self.assertRaisesRegex(ValueError, "verification failed"):
+                    package.refresh_apk(downloads, apk, "source", empty)
+                self.assertEqual(list(empty.iterdir()), [])
+
     def test_verifier_derives_identity_and_rejects_wrong_signer_package_or_version(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -152,3 +193,34 @@ class ApkIdentityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(ValueError, "build-tools"):
                 package.verify_apk(Path(directory) / "app.apk", "a" * 64, "0.2.0-dev.51", directory)
+
+
+class WebsiteMetadataTests(unittest.TestCase):
+    def test_gallery_is_shared_escaped_and_source_traced(self):
+        content = json.loads((ROOT / "website/content.json").read_text())
+        changed = copy.deepcopy(content)
+        changed["screens"][0]["label"] = '<img src="untrusted">'
+        choices, payload = site.gallery(changed)
+        self.assertIn("&lt;img", choices)
+        self.assertNotIn('<img src="untrusted">', choices)
+        self.assertIn("dual-arc", json.loads(payload))
+        changed["screens"][1]["key"] = changed["screens"][0]["key"]
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            site.gallery(changed)
+
+    def test_generated_site_has_gallery_and_keeps_indexing_policy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            manifest = site.build(output, metadata_only=True)
+            html = (output / "index.html").read_text()
+            script = (output / manifest["assetPrefix"].lstrip("/") / "app.js").read_text()
+            self.assertIn('data-screen="dual-arc"', html)
+            self.assertIn('"dual-arc":', script)
+            self.assertNotIn("EGAUGE_SCREEN_DATA", script)
+            self.assertIn('content="noindex, nofollow"', html)
+            self.assertIn('property="og:image"', html)
+
+    def test_responsive_image_sources_are_link_checked(self):
+        parsed = site.SiteHTML()
+        parsed.feed('<source srcset="/small.webp 1x, /large.webp 2x">')
+        self.assertEqual(parsed.links, ["/small.webp", "/large.webp"])
