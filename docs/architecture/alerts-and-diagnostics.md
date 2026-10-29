@@ -91,12 +91,16 @@ Last checked meaning when no current attention is available.
 
 History groups repeated observations by vehicle, gauge, simulation status and
 controller/code. Warnings without recorded codes group separately by controller;
-threshold/provider groups retain definition revision and producer key. The latest
+threshold groups retain definition revision and producer key. Provider notices
+retain independent episode identities until a stable provider issue identity is
+available; reusing a provider slot does not establish recurrence. The latest
 observation represents the group; record count and first/last times inside detail describe
 recurrence, not distinct faults. Current warnings without codes are also coalesced
 per controller. Grouping does not edit storage, lifecycle, original context, filters
 or reports, and never borrows another observation's codes. A later identified code
 is its own evidence, not a retroactive diagnosis of an earlier unattributed warning.
+Simulated diagnostic records retain an explicit marker in list summaries as well
+as details, and never merge with real observations.
 The detail explicitly says when no codes were saved; neither missing codes nor an
 empty current view proves the vehicle is fault-free. Notifications use the same
 warning terminology and show available scoped codes in their body.

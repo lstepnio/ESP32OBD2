@@ -69,7 +69,7 @@ owner with original-observation age accounting and continuity fencing.
 The corrected local-semantic/transfer blocker split is retained unchanged.
 
 Combined source checks passed: 173 host Python tests, 14 review-server tests and
-native sanitizer fixtures; 329 debug/303 release JVM tests; Android build/lint and
+native sanitizer fixtures; 331 debug/305 release JVM tests; Android build/lint and
 instrumentation compilation; all three production LVGL variants; firmware build
 with image size `0x1993a0`, internal static RAM 164602 bytes and existing gates.
 Source-generation, configuration, missed-invalid/stale gaps, raw cache/history,
@@ -93,3 +93,9 @@ Those are cache observations indoors, not proof of live recovery or vehicle cont
 Private setup/history backups and original phone notification/wake preferences were
 handed to the sole device owner. The before-install Car capture reproduced exactly
 Last drive / 24 alerts recorded; no history was deleted to change that presentation.
+
+Final presentation review also retained simulated-diagnostic markers in historical
+summaries and preserved independent provider episode IDs when a slot is reused.
+Two focused JVM regressions passed in both variants; Android lint passed. These
+are App presentation-preservation corrections, with no firmware-source change.
+The full final-head CI gate is still required before merge/publication.

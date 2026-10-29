@@ -146,4 +146,27 @@ class AlertWorkspacePresentationTest {
         org.junit.Assert.assertFalse(summary.contains("Warning"))
         org.junit.Assert.assertFalse(summary.contains("Last checked"))
     }
+
+    @Test fun reusedProviderSlotDoesNotMergeIndependentNotices() {
+        val first = entry("police", AlertSeverity.Warning, 1).let { it.copy(event = it.event.copy(key = 36, label = "Police ahead")) }
+        val second = first.copy(id = "traffic", recordedAt = 2, event = first.event.copy(episode = 2, label = "Traffic ahead"))
+        for (history in listOf(false, true)) {
+            val rows = alertWorkspaceRows(listOf(first, second), history) { true }
+            assertEquals(2, rows.size)
+            assertEquals(setOf("Police ahead", "Traffic ahead"), rows.map { it.title }.toSet())
+            org.junit.Assert.assertTrue(rows.all { it.occurrences.size == 1 })
+        }
+    }
+
+    @Test fun simulatedDiagnosticHistoryRetainsItsExplicitMarker() {
+        val actual = diagnostic("actual", 33, code = "U0140")
+        val simulated = actual.copy(id = "bench", event = actual.event.copy(simulated = true))
+        val row = alertWorkspaceRows(listOf(simulated), true) { false }.single()
+        val text = alertWorkspaceSummary(row, true, false, MeasurementSystem.Metric)
+        org.junit.Assert.assertTrue(text.startsWith("Simulated · U0140 · Transmission · "))
+        assertEquals(2, alertWorkspaceRows(listOf(actual, simulated), true) { false }.size)
+        val withoutCodes = simulated.copy(context = JSONObject())
+        val unknown = alertWorkspaceRows(listOf(withoutCodes), true) { false }.single()
+        org.junit.Assert.assertTrue(alertWorkspaceSummary(unknown, true, false, MeasurementSystem.Metric).startsWith("Simulated · Codes not recorded · "))
+    }
 }

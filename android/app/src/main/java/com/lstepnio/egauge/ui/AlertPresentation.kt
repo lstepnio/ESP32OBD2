@@ -198,7 +198,11 @@ internal fun alertWorkspaceRows(
     return visible.groupBy { row ->
         val e = row.entry
         val identity = row.fault?.let { "${it.source}:${it.code}" }
-            ?: if (e.event.key in 32..35) "warning:${e.event.key % 2}" else "${e.event.revision}:${e.event.key}"
+            ?: when (e.event.key) {
+                in 32..35 -> "warning:${e.event.key % 2}"
+                in 0..31 -> "${e.event.revision}:${e.event.key}"
+                else -> "notice:${e.id}"
+            }
         listOf(e.vehicle, e.gauge, e.event.simulated, identity)
     }.values.map { group ->
         val representative = if (history) group.maxBy { it.entry.recordedAt } else group.first()
@@ -210,6 +214,7 @@ internal fun alertWorkspaceSummary(row: AlertWorkspaceRow, history: Boolean, cur
     val entry = row.entry
     return if (history && entry.event.key in 32..35) {
         listOfNotNull(
+            if (entry.event.simulated) "Simulated" else null,
             row.fault?.let { "${it.code} · ${it.source}" } ?: "Codes not recorded",
             if (entry.event.lifecycle == AlertLifecycle.Resolved) "Resolved" else null,
             alertRecordedTime(entry.recordedAt)
