@@ -99,11 +99,11 @@ fun ActionPagesSheet(
                 }, enabled = editable) { Text("Remove action") }
                 TextButton({ editing = null }) { Text("Back") }
             } else if (adding) {
-                val available = ActionPageId.entries.filter { it in action.pages || state.vehicleCommands[it.kind]?.qualified == true }
+                val available = ActionPageId.entries.filter { it in action.pages || state.vehicleCommands[it.kind]?.let { status -> status.qualified || status.ownerSupervised } == true }
                 if (available.none { it !in action.pages }) Text("No additional actions available for this car yet.")
                 available.forEach { id ->
                     val added = id in action.pages
-                    val compatible = state.vehicleCommands[id.kind]?.qualified == true
+                    val compatible = state.vehicleCommands[id.kind]?.let { it.qualified || it.ownerSupervised } == true
                     SettingsRow(
                         id.label,
                         if (added) {
@@ -147,7 +147,13 @@ fun ActionPagesSheet(
                         if (id == ActionPageId.Burnout) {
                             if (state.vehicleCommands[id.kind]?.ownerSupervised == true) "Hold on gauge · release to stop" else "Hold on gauge · release not qualified"
                         } else if (id == ActionPageId.AbsTcs) {
-                            if (state.vehicleCommands[id.kind]?.qualified == true) "Restart to restore" else "Not supported yet"
+                            if (state.vehicleCommands[id.kind]?.ownerSupervised == true) {
+                                "Start on gauge · restart to restore"
+                            } else if (state.vehicleCommands[id.kind]?.qualified == true) {
+                                "Restart to restore"
+                            } else {
+                                "Not supported yet"
+                            }
                         } else {
                             val duration = airUpDuration(if (id == ActionPageId.AirUp) action.airUpSeconds else action.winchSeconds)
                             val presetId = if (id == ActionPageId.AirUp) IdlePresetId.AirUp else IdlePresetId.Winch

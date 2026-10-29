@@ -266,10 +266,39 @@ class ActionPagesUiTest {
         compose.onNodeWithText("Add action").performScrollTo().assertIsNotEnabled()
     }
 
+    @Test fun offlineSupervisedBurnoutCanBeAddedWithoutChangingLegacyPagesOrTimers() {
+        var saved: PageAction? = null
+        var savedPresets: List<IdlePreset>? = null
+        val original = PageAction(type = PageActionType.VehicleActions, airUpSeconds = 60, winchSeconds = 180)
+        val presets = listOf(IdlePreset(IdlePresetId.AirUp, seconds = 60), IdlePreset(IdlePresetId.Winch, seconds = 180))
+        val burnout = VehicleCommandStatus(VehicleCommandKind.Burnout).withBrakeActionsTestVersion(1)
+        assertFalse(burnout.qualified)
+        assertFalse(burnout.canStart)
+        compose.setContent {
+            EGaugeTheme {
+                ActionPagesSheet(state().copy(actions = listOf(original), idlePresets = presets, vehicleCommands = mapOf(VehicleCommandKind.Burnout to burnout)), { action, values ->
+                    saved = action
+                    savedPresets = values
+                }, {})
+            }
+        }
+        compose.onNodeWithText("Add action").performScrollTo().performClick()
+        compose.onNodeWithText("Burnout Mode").performScrollTo().assertIsEnabled().performClick()
+        compose.onNodeWithText("Hold on gauge. Release to stop.").assertIsDisplayed()
+        finishEditor()
+        compose.onNodeWithText("Save on phone").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(original.copy(pages = legacyActionPages + ActionPageId.Burnout), saved)
+            assertEquals(presets, savedPresets)
+            assertFalse(burnout.canStart)
+        }
+    }
+
     @Test fun emptySetupDoesNotOfferUnsupportedCommands() {
         compose.setContent { EGaugeTheme { ActionPagesSheet(state().copy(actions = emptyList(), vehicleCommands = emptyMap()), { _, _ -> }, {}) } }
         compose.onNodeWithText("Add action").performScrollTo().performClick()
         compose.onNodeWithText("No additional actions available for this car yet.").assertIsDisplayed()
         compose.onNodeWithText("Disable ABS + TCS").assertDoesNotExist()
+        compose.onNodeWithText("Burnout Mode").assertDoesNotExist()
     }
 }

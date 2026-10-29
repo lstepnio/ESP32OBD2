@@ -804,6 +804,7 @@ Malformed/newer journals remain retained and refuse execution.
 ECM CalID/CVN through the existing idle identity policy. That match identifies the
 captured vehicle, not the ABS controller. Ordinary profile qualification masks
 remain zero and public BLE capability flags stay disabled.
+The App allows offline setup of owner-supervised brake action pages from `bt:1` capability without a live ECM connection; execution still requires the physical gauge and current vehicle guards.
 
 Start is physical-gauge-only with fresh zero speed and normal idle (400..1200 RPM).
 After Start, fresh running RPM/speed remain required; motion or throttle alone no
