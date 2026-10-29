@@ -1,6 +1,6 @@
 # Dev.76 owner brake candidate delivery
 
-> Historical delivery evidence. [Current state](../current-state.md) and [backlog](../backlog.md) own current support and remaining work.
+> Historical evidence. [Current state](../current-state.md) and [backlog](../backlog.md) own current support and remaining work.
 
 Recorded 2026-10-29. The owner explicitly requested enabled, best-effort ABS/TCS
 and Burnout actions and App/firmware delivery. This is indoor device evidence;
