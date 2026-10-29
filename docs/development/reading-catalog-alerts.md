@@ -150,3 +150,11 @@ context/thermal hints. The [Smart cycling contract](../architecture/smart-page-c
 owns defaults, exact-definition matching, tuning validation, limits and qualification.
 This is independent of `samplingClass`: it never creates queries, widens freshness
 or changes actual alert thresholds. Unknown/custom readings keep active-alert priority.
+
+## Per-vehicle coverage audit
+
+Compare captured per-responder support maps with executable definitions using
+`tools/research/audit_vehicle_readings.py`, then separately inventory enhanced
+modules. The [Hemi-swapped JK audit](../vehicles/jeep/reading-coverage.md) records
+standard gaps, conflicting transfer-case variants and promotion checks. Imported
+definitions or a responding PID do not establish a selectable reading or scale.

@@ -238,3 +238,21 @@ Record first pairing and absent/mismatched owner/bond recovery separately, then
 verify the durable owner after restart. Never silently recreate ownership or erase
 bonds from routine retry. An absent owner record is an unresolved persistence or
 reset event until supported by evidence; do not infer its cause from a pairing screen.
+
+## One-session Wi-Fi update bootstrap
+
+The signed update path reads protected boot identity and opens the temporary AP
+inside one authenticated BLE session and one 90-second operation budget. It rejects
+an already-running image before AP startup. If AP startup has an uncertain result
+or is cancelled, GATT cleanup completes before a bounded five-second best-effort
+AP-close operation; the original failure/cancellation is retained, without replay.
+A failed identity read does not request or close an AP. The existing update lease,
+network-loss/socket cancellation, signature validation, healthy post-boot identity
+and recovery journal remain authoritative. CONNECTING_WIFI/first-response and flash
+preparation precede byte progress; no extra public capability is introduced.
+
+`WifiUpdateBootstrapTest` uses the production orchestration with fake protected
+sessions to verify ordering, image rejection, error preservation and cancellation
+before/after AP request. Android GATT/network timing and interruption recovery still
+need explicit physical qualification. [Dated evidence](../evidence/wifi-update-bootstrap.md)
+preserves the original dev.24 captures without promoting their historical claims.

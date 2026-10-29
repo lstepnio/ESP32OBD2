@@ -77,7 +77,7 @@ fun DashboardEditorScreen(
 
         destination == 2 -> PageManager(state, ::done, { picker = "add" }, actions)
 
-        destination == 3 -> AlertManager(state, ::done, ::editAlert, actions)
+        destination == 3 -> AlertManager(state, ::done, ::editAlert, { onDestination(5) })
 
         destination == 4 -> {
             val reading =
@@ -213,7 +213,7 @@ fun DashboardEditorScreen(
                         }
                         TextButton({
                             onDestination(3)
-                        }, Modifier.fillMaxWidth()) { Text("All alerts (${state.alerts.size})") }
+                        }, Modifier.fillMaxWidth()) { Text("Alert rules (${state.alerts.size})") }
                     }
                     (state.editingIssue ?: state.blockers.firstOrNull())?.let {
                         StatusCard(StatusUi("Check your settings", it, StatusTone.Error))

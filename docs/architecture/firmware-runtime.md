@@ -279,3 +279,13 @@ and existing board I2C, disabled in ordinary images. Rendering applies display/t
 transforms and acknowledges only success; no sensor I/O belongs in callbacks.
 Static linked placement and bounded native LVGL checks are necessary but do not
 replace loaded Wi-Fi/BLE/dual-source stack, fragmentation and failure qualification.
+
+## Trend rendering storage
+
+The trend renderer's optional 148 × 36 A8 mask is a one-time 5,328-byte PSRAM
+allocation. CPU interpolation retains fractional positions and touches no DMA
+transport setting. A failed allocation selects the existing bounded line fallback;
+no buffer is allocated per redraw. The sample array adds 240 bytes to the existing
+UI context. The [display rules](../design/round-display-ui-guidelines.md#trend-trace-rendering)
+own geometry and sampling limits. Software fallback checks are not a loaded-memory
+or physical-frame-time qualification.

@@ -45,6 +45,15 @@ int main(void)
     assert(!s.progress);
     page_action_init(&s, cfg);
     assert(!swipe(&s, UINT32_MAX - 500) && !swipe(&s, 100) && swipe(&s, 500));  // clock wrap
+    page_action_init(&s, cfg);
+    page_action_press(&s, 120, 160, 1000);
+    page_action_move(&s, 120, 120);
+    assert(page_action_release(&s, 120, 100, 1060, &fired) && !fired && s.progress == 1);
+    page_action_reset(&s);
+    page_action_press(&s, 120, 160, 2000);
+    assert(!page_action_release(&s, 120, 100, 2039, &fired));
+    page_action_press(&s, 120, 160, 3000);
+    assert(page_action_release(&s, 120, 100, 3040, &fired) && s.progress == 1);
     cfg.count = 1;
     page_action_init(&s, cfg);
     page_action_press(&s, 120, 160, 1000);

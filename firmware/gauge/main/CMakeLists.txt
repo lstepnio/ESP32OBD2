@@ -72,6 +72,7 @@ idf_component_register(
         "src/diagnostic_filter.c"
         "src/display_showcase.c"
         "src/ui.c"
+    "src/trend_curve.c"
         ${FONT_SOURCES}
     INCLUDE_DIRS
         "."

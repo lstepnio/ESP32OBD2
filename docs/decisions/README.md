@@ -24,6 +24,8 @@ below; [current state](../current-state.md) owns qualification, not this ledger.
 | ADR-016 | Shared reference core with private hardware adapters, target descriptors and per-target RC promotion | Small ports, common behavior and controlled distribution; each hardware target still needs physical qualification | Second-board bring-up or virtual display demonstrates a missing seam |
 | ADR-017 | [Deterministic opt-in Smart cycling](../architecture/smart-page-cycling.md) over existing scoped samples and alert episodes | One setting; bounded insertion/fairness and phase-aware hints preserve predictable navigation. Additive protected settings retain older App/FW compatibility; no learned model or extra polling owner | Labelled loaded evidence shows distracting choices, additional contexts are needed, or another surface requires different dwell rules |
 
+| ADR-018 | [Typed phone companion content and isolated synthetic harness](../architecture/phone-companion-content.md) | Preserve autonomous instrument truth, typed bounded content, lexical owner sessions and explicit source feasibility gates; no live provider or background activation | Scoped wire, supported navigation/media acquisition and separate physical/provider approval justify activation |
+
 ## Implementation details
 
 - [System boundaries](../architecture/system.md): ADR-001 through ADR-010.
@@ -34,6 +36,7 @@ below; [current state](../current-state.md) owns qualification, not this ledger.
 - [Shared alerts and diagnostics](../architecture/alerts-and-diagnostics.md): ADR-015.
 - [Platforms and release boundaries](../architecture/platforms-and-releases.md): ADR-016.
 - [Smart page cycling](../architecture/smart-page-cycling.md): ADR-017.
+- [Phone companion proposal](../architecture/phone-companion-content.md): ADR-018.
 
 Add a short numbered record here for a major choice, explaining the reason, tradeoff
 and revisit condition. Use a separate file only when the decision needs substantial

@@ -74,9 +74,9 @@ class AlertJourneyTest {
         compose.onNode(
             hasText("Coolant fixture") and hasAnyAncestor(hasTestTag("alert-history"))
         ).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Current").performScrollTo().performClick()
+        compose.onNodeWithText("Current").assertIsDisplayed().performClick()
         compose.onAllNodesWithText("Coolant fixture").assertCountEquals(0)
-        compose.onNodeWithText("History").performScrollTo().performClick()
+        compose.onNodeWithText("History").assertIsDisplayed().performClick()
         compose.onNodeWithText("Coolant fixture").performScrollTo().assertIsDisplayed()
         val uri = exportAlertReport(compose.activity, repository.list(vehicle), repository, vehicle) { emptyList() }
         val zip = java.util.zip.ZipInputStream(

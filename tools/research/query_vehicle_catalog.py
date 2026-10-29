@@ -60,7 +60,47 @@ def vehicle_report(database: sqlite3.Connection, key: str) -> dict:
     }
 
 
+def translated_labels(
+    database: sqlite3.Connection, module: str | None, term: str
+) -> dict[str, str]:
+    """Live-data names are translation IDs; resolve the English label resources.
+
+    Keep the research database read-only. Bound SQL parameters for broad searches
+    instead of silently dropping matches or rewriting the imported archive.
+    """
+    pattern = "%.Labels." + (module.upper() if module else "%") + ".dat"
+    labels = {}
+    for row in database.execute(
+        "SELECT payload_json FROM resources WHERE category = 'Descriptions' AND name LIKE ?",
+        (pattern,),
+    ):
+        for item in json.loads(row[0]):
+            if (
+                isinstance(item, dict)
+                and isinstance(item.get("D"), str)
+                and term.casefold() in item["D"].casefold()
+            ):
+                identifier = item.get("Id")
+                if isinstance(identifier, str):
+                    previous = labels.get(identifier)
+                    if previous is not None and previous != item["D"]:
+                        raise ValueError("Conflicting label translations for " + identifier)
+                    labels[identifier] = item["D"]
+                    if len(labels) > 4000:
+                        raise ValueError(
+                            "Name search is too broad; specify a module or a longer name"
+                        )
+    return labels
+
+
 def search(database: sqlite3.Connection, args: argparse.Namespace) -> None:
+    if (
+        type(args.limit) is not int
+        or not 1 <= args.limit <= 500
+        or type(args.offset) is not int
+        or args.offset < 0
+    ):
+        raise ValueError("Search requires limit 1..500 and a nonnegative offset")
     conditions = []
     parameters: list[object] = []
     if args.category:
@@ -78,9 +118,20 @@ def search(database: sqlite3.Connection, args: argparse.Namespace) -> None:
     if args.dtc:
         conditions.append("UPPER(e.dtc) = UPPER(?)")
         parameters.append(args.dtc)
+    labels = (
+        translated_labels(database, args.module, args.name)
+        if args.name and args.category in (None, "LiveData")
+        else {}
+    )
     if args.name:
-        conditions.append("e.name LIKE ?")
-        parameters.append("%" + args.name + "%")
+        if labels:
+            conditions.append(
+                "(e.name LIKE ? OR e.name IN (" + ",".join("?" for _ in labels) + "))"
+            )
+            parameters.extend(["%" + args.name + "%", *labels])
+        else:
+            conditions.append("e.name LIKE ?")
+            parameters.append("%" + args.name + "%")
     if not conditions:
         raise SystemExit("Set at least one search filter")
     query = """SELECT r.id AS resource_id, r.name AS resource_name, r.category,
@@ -92,6 +143,7 @@ def search(database: sqlite3.Connection, args: argparse.Namespace) -> None:
     cached_payloads = {}
     for row in database.execute(query, parameters):
         item = dict(row)
+        item["display_name"] = labels.get(item["name"], item["name"])
         if args.raw:
             resource_id = item["resource_id"]
             if resource_id not in cached_payloads:

@@ -26,6 +26,7 @@ import obd_tcm_temperature_candidate as tcm_temperature
 import obd_tcm_gear_candidate as tcm_gear
 import obd_tcm_values as tcm_values
 import jeep_action_capture as jeep_actions
+import obd_jeep_transfer_case as transfer_case
 
 IDENTITY_COMMANDS = frozenset(("0900", "0904", "0906", "090A"))
 MONITOR_SETUP = frozenset(("ATTP0", "ATTP6", "ATTP7", "ATCSM1", "ATCAF0", "ATCAF1", "ATCRA"))
@@ -57,6 +58,13 @@ def tcm_temperature_v3_policy(command):
 
 def tcm_gear_policy(command):
     return exploration_policy(command) or command in (*tcm_gear.COMMANDS, "ATSH7E1", "ATSH7DF")
+
+
+def transfer_case_policy(command):
+    return exploration_policy(command) or command in (
+        transfer_case.COMMAND,
+        *transfer_case.ADAPTER_COMMANDS,
+    )
 
 
 def tcm_values_policy(command):
@@ -230,9 +238,12 @@ async def explore(args):
     recording = Recording(args.output, args.source, "mac_ble")
     values_mode = getattr(args, "tcm_values", False)
     actions_mode = bool(getattr(args, "jeep_action_state", None))
-    bounded = values_mode or actions_mode
+    transfer_mode = getattr(args, "jeep_transfer_case", None)
+    bounded = values_mode or actions_mode or bool(transfer_mode)
     policy = (
-        jeep_actions.policy
+        transfer_case_policy
+        if transfer_mode
+        else jeep_actions.policy
         if actions_mode
         else tcm_values_policy
         if values_mode
@@ -377,6 +388,19 @@ async def explore(args):
                     # Scope advertised support to this responder, never another ECU.
                     tcm_maps = {base: {"7E9": replies["7E9"]} for base, replies in maps.items()}
                     await tcm_values.probe(session, result["tcm_values"], tcm_maps, args.duration)
+                if transfer_mode:
+                    jeep_actions.verify_route(result["protocol_number_hex"], maps)
+                    result["transfer_case_candidate"] = {
+                        "owner_reported_position": transfer_mode,
+                        "verified_primary_identity": jeep_actions.verify_identity(
+                            result["identity"]
+                        ),
+                        "request_id": "620",
+                        "expected_response_id": "504",
+                        "qualified": False,
+                        "samples": [],
+                    }
+                    await transfer_case.probe(session, result["transfer_case_candidate"])
                 if args.tcm_gear_position:
                     selected = bytes.fromhex(result["protocol_number_hex"]).strip(b"\r\n >")
                     if selected not in (b"6", b"A6") or set(maps.get(0, {})) != {"7E9"}:
@@ -484,7 +508,9 @@ async def explore(args):
                 if not session.waiting_prompt:
                     try:
                         restore = (
-                            jeep_actions.RESTORE
+                            ("ATCRA", "ATSH7DF", "ATCAF1", "ATTP0")
+                            if transfer_mode
+                            else jeep_actions.RESTORE
                             if actions_mode
                             else (
                                 ("ATSH7DF", "ATCAF1", "ATTP0")
@@ -584,7 +610,31 @@ def main():
         default=30,
         help="Combined polling seconds, 3..120; discovery adds at most 60 seconds",
     )
+    parser.add_argument(
+        "--jeep-transfer-case",
+        choices=transfer_case.POSITIONS,
+        help="Three fixed read-only TIPM 2111 samples at one parked owner-labelled position",
+    )
     args = parser.parse_args()
+    if args.jeep_transfer_case and (
+        args.source != "engine"
+        or args.duration != 30
+        or args.tcm_state
+        or args.jeep_action_state
+        or any(
+            (
+                args.monitor,
+                args.hemi_temperature,
+                args.tcm_faults,
+                args.tcm_temperature,
+                args.tcm_temperature_v2,
+                args.tcm_temperature_v3,
+                args.tcm_gear_position,
+                args.tcm_values,
+            )
+        )
+    ):
+        parser.error("--jeep-transfer-case requires engine, default duration and no other probes")
     if args.jeep_action_state:
         if (
             args.source != "engine"

@@ -41,7 +41,8 @@
       "docs/architecture/vehicle-connections.md",
       "docs/architecture/platforms-and-releases.md",
       "docs/architecture/smart-page-cycling.md",
-      "docs/architecture/display-experience.md"
+      "docs/architecture/display-experience.md",
+      "docs/architecture/phone-companion-content.md"
     ],
     "development-contracts-and-proposals": [
       "docs/protocol/adapter-bindings-v1.md",
@@ -73,13 +74,15 @@
       "mechanical/jk-dash-pod/README.md",
       "data/vehicle-definitions/README.md",
       "website/README.md",
-      "docs/development/display-indoor-qualification.md"
+      "docs/development/display-indoor-qualification.md",
+      "docs/development/companion-session-experiment.md"
     ],
     "vehicle-research": [
       "docs/vehicles/README.md",
       "docs/vehicles/catalog-research.md",
       "docs/vehicles/jeep/jk-handler-analysis.md",
-      "docs/vehicles/jeep/wrangler-jk.md"
+      "docs/vehicles/jeep/wrangler-jk.md",
+      "docs/vehicles/jeep/reading-coverage.md"
     ],
     "design-rules": [
       "docs/design/design-system.md",

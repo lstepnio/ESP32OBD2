@@ -119,33 +119,63 @@ interface VehicleCommandSession {
     suspend fun writeOnce(request: ByteArray)
 }
 
+interface VehicleCommandSessions {
+    suspend fun <T> use(action: suspend VehicleCommandSession.() -> T): T
+}
+
 /** Read reconciliation is bounded. An uncertain write is never resubmitted. */
-class VehicleCommandClient(private val session: VehicleCommandSession, private val pause: suspend () -> Unit = { delay(150) }) {
+class VehicleCommandClient(private val sessions: VehicleCommandSessions, private val pause: suspend () -> Unit = { delay(150) }) {
+    private data class Readback(val before: VehicleCommandStatus, val uncertain: VehicleCommandStatus)
+    private sealed interface Outcome {
+        data class Complete(val status: VehicleCommandStatus) : Outcome
+        data class Reconcile(val context: Readback) : Outcome
+    }
+
     suspend fun execute(kind: VehicleCommandKind, stop: Boolean, preset: IdlePreset? = null, expected: VehicleCommandStatus? = null): VehicleCommandStatus {
-        val before = session.read(kind)
-        require(before.kind == kind)
-        require(expected == null || (before.kind == expected.kind && before.boot == expected.boot && before.revision == expected.revision && before.link == expected.link && (!stop || before.operation == expected.operation))) { "Vehicle command context changed before confirmation" }
-        val request = VehicleCommandProtocol.request(before, stop, preset)
-        val operation = ByteBuffer.wrap(request, 4, 4).order(ByteOrder.LITTLE_ENDIAN).int.toLong() and 0xffffffffL
-        var uncertain = before.copy(phase = VehicleCommandPhase.Unknown, operation = operation, preset = preset?.id ?: before.preset)
-        try {
-            session.writeOnce(request)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            // The protected write might have reached the gauge. Only read afterward.
+        val outcome = sessions.use {
+            val before = read(kind)
+            require(before.kind == kind)
+            require(expected == null || (before.kind == expected.kind && before.boot == expected.boot && before.revision == expected.revision && before.link == expected.link && (!stop || before.operation == expected.operation))) { "Vehicle command context changed before confirmation" }
+            val request = VehicleCommandProtocol.request(before, stop, preset)
+            val operation = ByteBuffer.wrap(request, 4, 4).order(ByteOrder.LITTLE_ENDIAN).int.toLong() and 0xffffffffL
+            val context = Readback(before, before.copy(phase = VehicleCommandPhase.Unknown, operation = operation, preset = preset?.id ?: before.preset))
+            try {
+                writeOnce(request)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Leave the retired owner before reconciling. Never resubmit the mutation.
+                return@use Outcome.Reconcile(context)
+            }
+            Outcome.Complete(readback(this, context))
         }
+        return when (outcome) {
+            is Outcome.Complete -> outcome.status
+
+            is Outcome.Reconcile -> try {
+                sessions.use { readback(this, outcome.context) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                outcome.context.uncertain
+            }
+        }
+    }
+
+    private suspend fun readback(session: VehicleCommandSession, context: Readback): VehicleCommandStatus {
+        val before = context.before
+        var uncertain = context.uncertain
         repeat(70) {
             pause()
             val observed = try {
-                session.read(kind)
+                session.read(before.kind)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
                 return uncertain
             }
-            if (observed.kind != kind || observed.boot != before.boot || observed.revision != before.revision || observed.link != before.link) return uncertain
-            if (observed.operation == operation) {
+            if (observed.kind != before.kind || observed.boot != before.boot || observed.revision != before.revision || observed.link != before.link) return uncertain
+            if (observed.operation == context.uncertain.operation) {
                 uncertain = observed.copy(phase = VehicleCommandPhase.Unknown)
                 if (observed.phase !in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Stopping, VehicleCommandPhase.Verifying)) return observed
             }

@@ -109,7 +109,8 @@ in [dated evidence](evidence/display-evolution.md).
 Protected four-angle reads, Auto/Wi-Fi suspension/recovery and same-setup restart
 persistence passed on dev.70, retaining the current Smart On preference. The owner
 reported incorrect text orientation. Two labelled poses establish a fixed LCD
-quarter-turn offset; source dev.71 adds mapping version 2. Corrected all-angle/touch
+quarter-turn offset; the historically installed dev.71 includes mapping version 2 and the larger muted-grey logo. The owner
+confirmed the grey icon and tap-to-wake. Corrected all-angle/touch
 and explicit hold-exit qualification remain pending. Normal qualification and public
 flags stay off under the [indoor procedure](development/display-indoor-qualification.md).
 
@@ -334,3 +335,26 @@ backup/readiness/parsing/proxy trust/consent, release evidence and APK identity 
 catalog diagnostics and continuous accessibility coverage. The [maintenance record](evidence/assessment-remediation.md)
 owns software verification and remaining deployment/physical limits. Installed App,
 gauge and host services are unchanged by this work; existing QUAL gates remain open.
+
+## Preserved PR work reconciled in source, 2026-10-28
+
+The unique work from PRs #41/#59/#74/#77 is reconciled against main `690439b`.
+The signed update bootstrap shares one owner session and retains bounded uncertain
+startup cleanup. Gesture motion arbitration and pointer regressions retain the
+current cache/attention/action-arrow policies; waiting-logo redraw tests retain the
+current neutral-grey design. Configured alert rules, explicit Add alert, lazy full
+history and eligible Current actions preserve newer Car navigation, filters and
+schema 19 disabled drafts. Their topic contracts own behavior and qualification.
+
+These source changes do not update installed App/gauge state above, publish the
+website/backend, promote capability flags or close physical/vehicle gates.
+
+## Remaining PR source preservation
+
+The [remaining consolidation](evidence/final-pr-consolidation.md) preserves the
+inactive companion proposal/probe and shared protected owner factory, bounded trend
+rendering/fallback and opt-in Jeep coverage/capture research. Normal owner operations,
+current display/Car/gesture behavior and capability gates stay authoritative. Trend
+fixtures and fake owner/probe sessions do not prove physical rendering/radio/provider
+behavior. The dev.71 installation record above is historical evidence retained from
+PR #112; this cleanup did not interact with the phone, gauge or vehicle.

@@ -154,3 +154,46 @@ Strict validation binds the stored effective seconds to the estimate or explicit
 override; children/Winch cannot own this record. Older Apps reject schema 16 rather
 than silently dropping calibration. [Four-tire timer policy](vehicle-actions.md#four-tire-air-up-timer)
 owns calculation, limits and evidence boundaries.
+
+## Lexical protected owner sessions
+
+`AndroidGaugeOwnerSessions` owns the existing bounded GATT connection/discovery,
+callback-generation/overflow guards, owner establishment and cleanup. The normal
+`GaugeConfigTransferClient` wraps each existing operation in one lexical transaction.
+`GaugeOwnerSession` serializes ATT and transaction work, copies mutable buffers and
+retires a session/escaped transaction handle after failure, cancellation or factory
+exit. Only transient ATT read resource pressure is retried; uncertain writes are
+never replayed. Nested transactions fail instead of waiting on their own mutex.
+The application operation lease remains required; this is not a persistent connection
+cache or a new background owner. Existing semantic status errors/boot confirmation,
+new Wi-Fi one-session bootstrap and capability restrictions remain authoritative.
+
+The [isolated synthetic experiment](../development/companion-session-experiment.md)
+has only fake-transport tests and no App entry point, permission/service wiring or
+live provider. [ADR-018](phone-companion-content.md) keeps proposed typed content
+and source feasibility separate from implemented infrastructure. Shared owner/probe
+regressions exercise serialization, callback-handle retirement, scope/slot/sequence,
+no replay and expiry. They do not qualify actual phone/gauge streaming or provider use.
+
+Legacy diagnostic snapshot fallback (`39` to `30`) opens a fresh protected session
+only after a confirmed unsupported-command/length rejection (GATT 6/13) from the
+snapshot write itself. It never writes through retired IO, downgrades scoped `3A`,
+or mistakes authentication, malformed snapshots, cancellation or link loss for a
+protocol fallback. `DiagnosticsReadTest` uses the real owner retirement policy to
+verify both sessions and cleanup order, plus these rejection boundaries.
+
+Configuration and Bluetooth OTA staging cleanup also opens a fresh owner after the
+retired operation closes. A bounded three-second cleanup queries status and aborts
+only the same nonzero transfer ID in metadata/receiving/verified phases. Preflight
+failure, another transfer and applied/activating state are never aborted. The caller
+marks commit/activation before sending, retaining ambiguous durable outcomes for
+readback instead of aborting them. Cleanup failure preserves the primary error or
+cancellation and keeps the App operation lease until cleanup finishes.
+
+Vehicle command admission/write/readback normally retains one owner session. An
+uncertain write exits that session before opening one fresh authenticated read-only
+reconciliation session. Start/Stop is never resubmitted. Kind, boot, revision, ECU
+link and operation must still match; missing/mismatched status remains Unknown and
+cancellation propagates. One outer 40-second bound covers the original maximum
+20-second connection plus 20-second operation budget, including an optional readback
+reconnect. The App operation lease remains held through connection cleanup.

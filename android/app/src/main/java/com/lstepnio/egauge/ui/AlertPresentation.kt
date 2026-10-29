@@ -2,6 +2,10 @@ package com.lstepnio.egauge.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
@@ -19,6 +23,7 @@ import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.car.FaultCodeExplanation
 import com.lstepnio.egauge.ui.state.CarFaultUi
 import com.lstepnio.egauge.ui.state.alertContextReading
+import com.lstepnio.egauge.ui.state.alertNotificationText
 import com.lstepnio.egauge.ui.state.alertTitle
 import com.lstepnio.egauge.ui.state.recordedFaultCodes
 import java.text.DateFormat
@@ -39,8 +44,8 @@ fun CarAlertWorkspace(
     var selectedFaultKey by rememberSaveable(vehicle) { mutableStateOf<String?>(null) }
     val entries = model.visibleAlertHistory().filter { it.vehicle == vehicle }
     val selected = entries.firstOrNull { it.id == selectedId }
-    val currentScroll = rememberScrollState()
-    val historyScroll = rememberScrollState()
+    val currentScroll = rememberLazyListState()
+    val historyScroll = rememberLazyListState()
     val back = { if (selectedId != null) selectedId = null else onBack() }
     BackHandler(onBack = back)
     LaunchedEffect(selectedId, entries, selectedFaultKey) {
@@ -64,40 +69,76 @@ fun CarAlertWorkspace(
             TextButton(onBack) { Text("Back") }
             AlertOptions(model, entries, onExport)
         }
-        Column(
-            Modifier.weight(1f).verticalScroll(if (history) historyScroll else currentScroll)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        Column(Modifier.padding(horizontal = 24.dp)) {
             ScreenTitle("Alerts")
             TabRow(selectedTabIndex = if (history) 1 else 0) {
                 Tab(selected = !history, onClick = { history = false }, text = { Text("Current") })
                 Tab(selected = history, onClick = { history = true }, text = { Text("History") })
             }
-            val visible = alertWorkspaceRows(entries, history, model::isAlertCurrent)
-            if (visible.isEmpty()) {
+        }
+        AlertWorkspaceList(
+            alertWorkspaceRows(entries, history, model::isAlertCurrent),
+            history,
+            if (history) historyScroll else currentScroll,
+            Modifier.weight(1f),
+            model::isAlertCurrent,
+            { entry ->
+                alertAttentionState(entry, model.isAlertCurrent(entry), entry.vehicle == vehicle, model.operation.stage != OperationStage.IDLE && !model.operation.terminal)
+            },
+            { row ->
+                selectedFaultKey = row.fault?.let { "${it.source}:${it.code}" }
+                selectedId = row.entry.id
+            },
+            { model.acknowledgeAlert(it) },
+            { model.acknowledgeAlert(it, true) },
+            model.displaySettings?.takeIf { it.version >= 2 }?.units ?: model.presentationPreferences.measurementSystem
+        )
+        model.alertHistoryError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        model.clearMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+    }
+}
+
+/** The production list is lazy and receives only already-filtered visible evidence. */
+@Composable
+internal fun AlertWorkspaceList(
+    rows: List<AlertWorkspaceRow>,
+    history: Boolean,
+    scroll: LazyListState,
+    modifier: Modifier = Modifier,
+    isCurrent: (StoredAlert) -> Boolean,
+    attention: (StoredAlert) -> AlertAttentionState,
+    onOpen: (AlertWorkspaceRow) -> Unit,
+    onSeen: (StoredAlert) -> Unit,
+    onSnooze: (StoredAlert) -> Unit,
+    system: MeasurementSystem = MeasurementSystem.Metric
+) {
+    LazyColumn(
+        modifier.testTag("alert-history-list"),
+        state = scroll,
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        if (rows.isEmpty()) {
+            item {
                 Text(if (history) "No recorded alerts" else "No current alerts available", style = MaterialTheme.typography.titleMedium)
                 if (!history) Text("Previous activity is in History.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            visible.forEach { row ->
-                val entry = row.entry
-                Panel {
-                    SettingsRow(
-                        row.title,
-                        listOfNotNull(
-                            row.fault?.let { "${it.code} · ${it.source}" },
-                            alertEntryStatus(entry.event, model.isAlertCurrent(entry)),
-                            alertRecordedTime(entry.recordedAt)
-                        ).joinToString(" · "),
-                        onClick = {
-                            selectedFaultKey = row.fault?.let { "${it.source}:${it.code}" }
-                            selectedId = entry.id
-                        }
-                    )
-                }
+        }
+        items(rows, key = { row -> "${row.entry.id}:${row.fault?.source}:${row.fault?.code}" }) { row ->
+            val entry = row.entry
+            Panel {
+                SettingsRow(
+                    row.title,
+                    listOfNotNull(
+                        row.fault?.let { "${it.code} · ${it.source}" },
+                        if (entry.event.key < 32) alertNotificationText(entry.event, system, emptyList()) else null,
+                        alertEntryStatus(entry.event, isCurrent(entry)),
+                        alertRecordedTime(entry.recordedAt)
+                    ).joinToString(" · "),
+                    onClick = { onOpen(row) }
+                )
+                if (!history) AlertAttentionActions(attention(entry), { onSeen(entry) }, { onSnooze(entry) })
             }
-            model.alertHistoryError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            model.clearMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
     }
 }
@@ -155,7 +196,7 @@ internal fun alertEntryStatus(event: AlertEvent, current: Boolean): String {
         !current -> "Last checked"
         event.unavailable -> "Data unavailable · not confirmed resolved"
         event.snoozed -> "Snoozed · active"
-        event.acknowledged -> "Acknowledged · active"
+        event.acknowledged -> "Seen · still active"
         else -> "Active"
     }
     return "${if (event.simulated) "Simulated · " else ""}${event.severity.name} · $state"
@@ -272,16 +313,38 @@ fun CarAlertDetail(
                 Text(model.profileCollection.profiles.firstOrNull { it.id == entry.vehicle }?.name ?: "Recorded vehicle", style = MaterialTheme.typography.labelLarge)
             }
             AlertDetailContent(entry, current, system, selectedFault)
-            if (current && entry.vehicle == model.profileCollection.activeId && entry.event.lifecycle == AlertLifecycle.Active) {
-                PrimaryAction("Got it", { model.acknowledgeAlert(entry) }, enabled = !entry.event.acknowledged)
-                if (entry.event.severity < AlertSeverity.Critical) {
-                    OutlinedButton({ model.acknowledgeAlert(entry, true) }, Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                        Text("Snooze 5 min")
-                    }
-                }
-            }
+            AlertAttentionActions(
+                alertAttentionState(entry, current, entry.vehicle == model.profileCollection.activeId, model.operation.stage != OperationStage.IDLE && !model.operation.terminal),
+                { model.acknowledgeAlert(entry) },
+                { model.acknowledgeAlert(entry, true) },
+                primary = true
+            )
         }
     }
+}
+
+/** UI eligibility is separate from command admission, which rechecks the live episode. */
+internal data class AlertAttentionState(val offersSeen: Boolean, val offersSnooze: Boolean, val busy: Boolean)
+
+internal fun alertAttentionState(entry: StoredAlert, current: Boolean, activeVehicle: Boolean, busy: Boolean = false): AlertAttentionState = AlertAttentionState(
+    canChangeAlertAttention(entry, current, activeVehicle),
+    canChangeAlertAttention(entry, current, activeVehicle, snooze = true),
+    busy
+)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun AlertAttentionActions(state: AlertAttentionState, onSeen: () -> Unit, onSnooze: () -> Unit, primary: Boolean = false) {
+    if (primary) {
+        if (state.offersSeen) PrimaryAction("Got it", onSeen, enabled = !state.busy)
+        if (state.offersSnooze) OutlinedButton(onSnooze, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !state.busy) { Text("Snooze 5 min") }
+    } else {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (state.offersSeen) TextButton(onSeen, enabled = !state.busy) { Text("Got it") }
+            if (state.offersSnooze) TextButton(onSnooze, enabled = !state.busy) { Text("Snooze 5 min") }
+        }
+    }
+    if (state.offersSeen || state.offersSnooze) Text("Changes attention only. The alert stays active until the condition clears.", style = MaterialTheme.typography.bodySmall)
 }
 
 /** Receives visible evidence only; the raw repository and capture windows stay untouched. */
@@ -321,7 +384,7 @@ internal fun AlertDetailContent(entry: StoredAlert, current: Boolean, system: Me
 fun GlobalAlertBanner(model: AppViewModel, criticalOnly: Boolean = false) {
     val entry = model.visibleAlertHistory().filter {
         it.vehicle == model.profileCollection.activeId && model.isAlertCurrent(it) &&
-            it.event.lifecycle == AlertLifecycle.Active && (!criticalOnly || it.event.severity == AlertSeverity.Critical)
+            it.event.lifecycle == AlertLifecycle.Active && !it.event.acknowledged && !it.event.snoozed && (!criticalOnly || it.event.severity == AlertSeverity.Critical)
     }.maxByOrNull { it.event.severity } ?: return
     Surface(
         color = if (entry.event.severity == AlertSeverity.Critical) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,

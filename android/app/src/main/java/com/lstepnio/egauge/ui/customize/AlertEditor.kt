@@ -114,7 +114,7 @@ fun AlertEditor(
             }
         }
         EditorScaffold(
-            "Edit alert",
+            if (original == null) "Add alert" else "Edit alert",
             onBack,
             saveLabel,
             {
