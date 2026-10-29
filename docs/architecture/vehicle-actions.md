@@ -796,6 +796,36 @@ that larger record rather than losing the uncertainty. Once no Burnout uncertain
 remains, saves use version1 again so ordinary idle/ABS rollback stays compatible.
 Malformed/newer journals remain retained and refuse execution.
 
+### Front Lock selection: captured JK versus JL/JT
+
+The owner specified **Front Lock** as the desired Burnout mode on 2026-10-29.
+An offline review of the same JScan build used for the capture resolves the
+setting's software scope, not the vehicle's hydraulic behavior. Assembly provenance
+is retained in the [handler analysis](../vehicles/jeep/jk-handler-analysis.md#detailed-offline-control-flow-review-2026-10-19):
+`obd4u.cleversoftware.net.Common.dll`, SHA-256
+`aa3b31566a772781149a0c4b65d12e3d5180da6ebba866829739237bc30289df`,
+JScan build `v21.09.2026.12:45`.
+
+| JScan path in that build | Mode selection | Evidence and consequence |
+| --- | --- | --- |
+| `PrepareLiveDataForJK` → `AddABSBurnoutMode` | No `BurnOutType` read | Fixed rear-outlet-valve procedure at `784`/`785`; Start/Return match the captured requests already used by eGauge. Changing the global selector does not select another command in this JK handler. |
+| `PrepareLiveDataForJLJT` → `AddABSPNBurnoutMode` | `LockFront=0`, `UnlockRear=1` | Separate ABSPN implementation at `747`/`4C7`. Its Begin/Keep methods read `BurnOutType`; the selector changes this path. These are not interchangeable JK control bytes. |
+
+The getter-reference review also finds the settings UI and Burnout description;
+those labels alone do not establish that the JK actuator uses the selection.
+Earlier capture notes recorded `Lock front`, but did not independently bind that
+selection to the accepted on/off sequence. Preserve those observations as history;
+do not claim selection-specific Front Lock qualification from them.
+
+A new full capture solely to change this selector is not justified for the
+inspected JK build. First compare the installed function with the owner's intended
+behavior. Rear-brake release with pedal-applied front braking must not be silently
+equated with independently holding front pressure. If behavior differs, or a newer
+JScan/another actual controller path honors the selector on this Jeep, capture only
+that labelled Front Lock Start/Return sequence with exact app/profile/controller
+identity and observed release behavior. The installed dev.76 request and enabled
+owner mode remain unchanged by this research; no alternate valve bytes are inferred.
+
 ### Explicit owner-supervised brake candidate
 
 `CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST` defaults off and is independent of

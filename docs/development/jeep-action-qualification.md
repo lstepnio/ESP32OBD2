@@ -272,7 +272,14 @@ qualification masks and public BLE capability flags remain disabled.
    then check the warnings and actual brakes. At stationary normal idle use
    **Hold to confirm** only after the reset is checked. No additional Return is
    required after the ignition reset; confirmation sends no vehicle control.
-3. **Burnout:** hold the brake pedal and use **Hold to run**. Releasing the control,
+3. **Burnout:** the requested mode is **Front Lock**. Read the
+   [JK/JL selector finding](../architecture/vehicle-actions.md#front-lock-selection-captured-jk-versus-jljt)
+   first: the captured JK handler ignores that selector, so another full capture
+   solely to change it is unnecessary in the inspected build. Compare observed
+   behavior with the required front-hold behavior; if it differs, obtain one short,
+   labelled JScan Front Lock Start/Return capture for the actual app/profile/controller.
+   Do not substitute the JL/JT route or infer valve bytes. For the existing
+   supervised function, hold the brake pedal and use **Hold to run**. Releasing the control,
    leaving its touch area or losing UI/worker ownership requests Return; the
    ten-second deadline also initiates release. Motion/throttle after Start is
    allowed while speed/RPM remain fresh. The timer does not guarantee hydraulic
@@ -289,8 +296,9 @@ qualification masks and public BLE capability flags remain disabled.
 
 Full qualification still requires read-only identification of the captured
 front-controller route620/504 and ABS route784/785, exact controller/software,
-labelled pedal/state inputs and independent restoration/reset readback. Resolve
-`Lock front` versus documented rear-brake release and measure release after
+labelled pedal/state inputs and independent restoration/reset readback. The static
+selector scope is resolved for the captured JScan build; requested physical
+Front Lock behavior remains unverified. Measure release after
 ordinary touch-up, UI/link loss, lost replies and reboot, including controller-side
 expiry. ECM identity, accepted replies and dash lamps do not prove module identity
 or brake force. Use an appropriate controlled setup for physical holding/release

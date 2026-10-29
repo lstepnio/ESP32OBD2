@@ -430,3 +430,15 @@ existing readings, bindings, timers, filters and settings preserved. [Action con
 and [parked follow-up](development/jeep-action-qualification.md#brake-actions-follow-up)
 define the remaining physical evidence. Website impact: retain qualification
 language; defer working-brake marketing claims until the parked checks.
+
+
+### Front Lock follow-up
+
+The owner specified Front Lock for Burnout. [Offline selector analysis](architecture/vehicle-actions.md#front-lock-selection-captured-jk-versus-jljt)
+found that the captured JScan JK handler uses fixed rear-outlet control and does
+not read the setting; selectable Lock Front/Unlock Rear belongs to a separate
+JL/JT ABSPN path in that build. A fresh full capture merely to change the selector
+is therefore unnecessary for that JK path. The owner is comparing physical behavior;
+actual front-hold/release semantics remain unqualified. Dev.76's enabled owner
+function and request bytes have not changed. A different observed behavior/path
+needs a short labelled capture before any command change.
