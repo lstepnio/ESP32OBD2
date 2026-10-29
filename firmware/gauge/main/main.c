@@ -279,6 +279,7 @@ static void page_ui(unsigned index, ui_page_t *out)
     {
         const runtime_pid_t *pid = &g_runtime->pids[page->pid_indices[i]];
         out->metrics[i]          = (ui_metric_t){
+            .presentation = reading_presentation_kind(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms),
             .pid          = pid->obd.pid,
             .scoped       = true,
             .source_index = pid->source_index,

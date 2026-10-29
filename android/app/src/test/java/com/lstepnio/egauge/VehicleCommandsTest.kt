@@ -25,7 +25,11 @@ class VehicleCommandsTest {
     @Test fun capturedTargetWireMatchesTheNativeContractAndRejectsInventedRpm() {
         val request = VehicleCommandProtocol.request(ready(), false, IdlePreset(IdlePresetId.AirUp, seconds = 10))
         assertEquals(File("../../contracts/examples/vehicle-command-idle-start.hex").readText().trim(), request.joinToString("") { "%02x".format(it.toInt() and 255) })
-        assertTrue(runCatching { VehicleCommandProtocol.request(ready(), false, IdlePreset(IdlePresetId.AirUp, 1200)) }.isFailure)
+        IdlePresetId.entries.forEach { id ->
+            listOf(400, 1200, 3000).forEach { rpm ->
+                assertTrue(runCatching { VehicleCommandProtocol.request(ready(), false, IdlePreset(id, rpm)) }.isFailure)
+            }
+        }
         assertTrue(runCatching { VehicleCommandProtocol.request(ready().copy(qualified = false), false, IdlePreset(IdlePresetId.AirUp)) }.isFailure)
         assertTrue(runCatching { VehicleCommandProtocol.request(ready().copy(lastOperation = 0xffffffffL), false, IdlePreset(IdlePresetId.AirUp)) }.isFailure)
         assertTrue(runCatching { VehicleCommandProtocol.request(ready(VehicleCommandKind.AbsTcs), false, IdlePreset(IdlePresetId.AirUp)) }.isFailure)

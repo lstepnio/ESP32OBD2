@@ -45,12 +45,19 @@ fun ActionPagesSheet(
                 val idleId = if (selected == ActionPageId.AirUp) IdlePresetId.AirUp else IdlePresetId.Winch
                 val saved = presets.firstOrNull { it.id == idleId } ?: IdlePreset(idleId)
                 val seconds = if (selected == ActionPageId.AirUp) action.airUpSeconds else action.winchSeconds
+                var rpmText by remember(assignmentId, selected) { mutableStateOf(saved.rpm?.toString().orEmpty()) }
+                var targetOpen by remember(assignmentId, selected) { mutableStateOf(false) }
                 var duration by remember(assignmentId, selected) { mutableStateOf(airUpDuration(seconds)) }
                 val pressure = remember(assignmentId, selected) { AirUpTimerDraft(saved.airUp) }
                 var durationOpen by remember(assignmentId, selected) { mutableStateOf(false) }
                 var pressureOpen by remember(assignmentId, selected) { mutableStateOf(false) }
                 val resolved = if (selected == ActionPageId.AirUp && pressure.enabled) pressure.timer?.let { runCatching { it.sessionSeconds }.getOrNull() } else airUpSeconds(duration)?.takeIf { it in 10..600 }
                 if (selected != ActionPageId.AbsTcs) {
+                    if (!targetOpen) {
+                        SettingsRow(IdleTargetDraft.label(idleId), saved.rpm?.let { "$it RPM · Saved on phone" } ?: "Car's fixed setting", editable, { targetOpen = true })
+                    } else {
+                        IdleTargetEditor(idleId, rpmText, { rpmText = it }, editable)
+                    }
                     if (!durationOpen) {
                         SettingsRow("Duration", airUpDuration(resolved ?: seconds), editable, {
                             durationOpen = true
@@ -79,12 +86,12 @@ fun ActionPagesSheet(
                 PrimaryAction("Done", {
                     if (selected != ActionPageId.AbsTcs) {
                         val timer = if (selected == ActionPageId.AirUp && pressure.enabled) pressure.timer else null
-                        val next = IdlePreset(idleId, seconds = requireNotNull(resolved), airUp = timer)
+                        val next = saved.copy(rpm = IdleTargetDraft.parse(rpmText), seconds = requireNotNull(resolved), airUp = timer)
                         presets = presets.filterNot { it.id == idleId } + next
                         action = if (selected == ActionPageId.AirUp) action.copy(airUpSeconds = next.seconds) else action.copy(winchSeconds = next.seconds)
                     }
                     editing = null
-                }, enabled = editable && (selected == ActionPageId.AbsTcs || resolved != null))
+                }, enabled = editable && (selected == ActionPageId.AbsTcs || (resolved != null && IdleTargetDraft.valid(rpmText))))
                 TextButton({
                     removed = action.pages.indexOf(selected) to selected
                     action = action.copy(pages = action.pages - selected)
@@ -138,7 +145,9 @@ fun ActionPagesSheet(
                         if (id == ActionPageId.AbsTcs) {
                             if (state.vehicleCommands[id.kind]?.qualified == true) "Restart to restore" else "Not supported yet"
                         } else {
-                            airUpDuration(if (id == ActionPageId.AirUp) action.airUpSeconds else action.winchSeconds)
+                            val duration = airUpDuration(if (id == ActionPageId.AirUp) action.airUpSeconds else action.winchSeconds)
+                            val presetId = if (id == ActionPageId.AirUp) IdlePresetId.AirUp else IdlePresetId.Winch
+                            presets.firstOrNull { it.id == presetId }?.rpm?.let { "$duration · $it RPM · Saved on phone" } ?: duration
                         },
                         editable && !reorder,
                         { editing = id }

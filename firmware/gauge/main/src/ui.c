@@ -228,16 +228,18 @@ struct _ui_t
 
     struct
     {
-        ui_page_t          page;
-        double             rendered_values[2];
-        bool               rendered_available[2];
-        bool               rendered_once;
-        int                rendered_offset;
-        lv_point_precise_t trend_points[TREND_CAPACITY];
-        float              trend_samples[TREND_CAPACITY];
-        uint8_t           *trend_mask;
-        uint8_t            trend_count;
-        TickType_t         trend_recorded_at;
+        ui_page_t              page;
+        reading_presentation_t presentation[2];
+        uint8_t                presentation_severity;
+        double                 rendered_values[2];
+        bool                   rendered_available[2];
+        bool                   rendered_once;
+        int                    rendered_offset;
+        lv_point_precise_t     trend_points[TREND_CAPACITY];
+        float                  trend_samples[TREND_CAPACITY];
+        uint8_t               *trend_mask;
+        uint8_t                trend_count;
+        TickType_t             trend_recorded_at;
     } display;
 };
 
@@ -515,7 +517,7 @@ void ui_waiting_logo_enable(ui_t *ui, bool enabled)
     }
 }
 
-static bool metric_value(ui_t *ui, unsigned index, double *value)
+static bool metric_snapshot(ui_t *ui, unsigned index, double *value, uint32_t *sample_generation)
 {
     if (index >= ui->display.page.metric_count)
         return false;
@@ -540,7 +542,10 @@ static bool metric_value(ui_t *ui, unsigned index, double *value)
             available = available && ui->sample_sources[source].ready && sample->revision == metric->revision &&
                         sample->generation == generation;
         if (available)
-            *value = sample->value;
+        {
+            *value             = sample->value;
+            *sample_generation = sample->generation;
+        }
         break;
     }
     portEXIT_CRITICAL(&ui->sample_lock);
@@ -1044,11 +1049,13 @@ static void update_trend(ui_t *ui)
 }
 static void render_page(ui_t *ui)
 {
-    const ui_page_t                *page         = presented_page(ui);
-    double                          values[2]    = {0};
-    bool                            available[2] = {false};
-    bool                            demo         = atomic_load(&ui->showcase_active);
-    const display_showcase_frame_t *frame        = demo ? display_showcase_frame(ui->showcase.index) : NULL;
+    const ui_page_t                *page           = presented_page(ui);
+    double                          values[2]      = {0};
+    bool                            available[2]   = {false};
+    uint32_t                        generations[2] = {0};
+    double                          numeric[2] = {0}, analog[2] = {0};
+    bool                            demo  = atomic_load(&ui->showcase_active);
+    const display_showcase_frame_t *frame = demo ? display_showcase_frame(ui->showcase.index) : NULL;
     for (unsigned i = 0; i < page->metric_count; i++)
     {
         if (frame)
@@ -1057,7 +1064,7 @@ static void render_page(ui_t *ui)
             available[i] = frame->present[i];
         }
         else
-            available[i] = metric_value(ui, i, &values[i]);
+            available[i] = metric_snapshot(ui, i, &values[i], &generations[i]);
     }
     if (frame && page->renderer == UI_RENDERER_TREND)
         values[0] += 2 * sin((esp_timer_get_time() / 1000000.0) * 1.5);
@@ -1065,6 +1072,12 @@ static void render_page(ui_t *ui)
     ui_renderer_t      renderer    = page->renderer;
     ui_alert_t         condition   = visible_alert(ui);
     ui_diagnostics_t   diagnostics = visible_diagnostics(ui);
+    uint32_t           now_ms      = (uint32_t)(esp_timer_get_time() / 1000);
+    for (unsigned i = 0; i < page->metric_count; ++i)
+        analog[i] = reading_presentation_step(&ui->display.presentation[i], page->metrics[i].presentation, available[i],
+                                              values[i], generations[i], now_ms,
+                                              condition.severity != ui->display.presentation_severity, &numeric[i]);
+    ui->display.presentation_severity = condition.severity;
     /* Owner's Round 3 optical correction, only for the no-CEL Numeric
      * condition view. CEL combinations and chart geometry remain unchanged. */
     int offset = renderer == UI_RENDERER_NUMERIC && condition.severity && !condition.attention &&
@@ -1078,11 +1091,11 @@ static void render_page(ui_t *ui)
         for (unsigned i = 0; i < 2; i++)
         {
             if (ui->display.rendered_once && available[i] == ui->display.rendered_available[i] &&
-                (!available[i] || values[i] == ui->display.rendered_values[i]))
+                (!available[i] || numeric[i] == ui->display.rendered_values[i]))
                 continue;
             const ui_metric_t *metric = &page->metrics[i];
             char               text[32];
-            format_reading(text, metric, available[i], values[i], ui->imperial_units);
+            format_reading(text, metric, available[i], numeric[i], ui->imperial_units);
             const char *label         = gauge_layout_label(metric->name, metric->unit);
             const char *unit          = gauge_layout_unit(label, display_units_label(metric->unit, ui->imperial_units));
             int         content_width = renderer == UI_RENDERER_DUAL_ARC ? 164 : 192;
@@ -1129,10 +1142,10 @@ static void render_page(ui_t *ui)
     }
     else if (!ui->display.rendered_once || offset != ui->display.rendered_offset ||
              available[0] != ui->display.rendered_available[0] ||
-             (available[0] && values[0] != ui->display.rendered_values[0]))
+             (available[0] && numeric[0] != ui->display.rendered_values[0]))
     {
         char text[32];
-        format_reading(text, primary, available[0], values[0], ui->imperial_units);
+        format_reading(text, primary, available[0], numeric[0], ui->imperial_units);
         const char *label   = gauge_layout_label(page->name ? page->name : primary->name, primary->unit);
         const char *unit    = gauge_layout_unit(label, display_units_label(primary->unit, ui->imperial_units));
         int         title_y = renderer == UI_RENDERER_BAR ? 70 : renderer == UI_RENDERER_TREND ? 72 : 87;
@@ -1159,17 +1172,16 @@ static void render_page(ui_t *ui)
                                                  : !strcmp(primary->unit, "gear") ? transmission_gear_color(text)
                                                                                   : color_text_primary),
                                     0);
-        if (renderer == UI_RENDERER_ARC)
-            lv_arc_set_value(ui->widgets.arc, available[0] ? normalized_value(values[0], primary, 1000) : 0);
-        if (renderer == UI_RENDERER_BAR)
-            lv_bar_set_value(ui->widgets.bar, available[0] ? normalized_value(values[0], primary, 1000) : 0,
-                             LV_ANIM_OFF);
     }
+    if (renderer == UI_RENDERER_ARC)
+        lv_arc_set_value(ui->widgets.arc, available[0] ? normalized_value(analog[0], primary, 1000) : 0);
+    if (renderer == UI_RENDERER_BAR)
+        lv_bar_set_value(ui->widgets.bar, available[0] ? normalized_value(analog[0], primary, 1000) : 0, LV_ANIM_OFF);
     if (renderer == UI_RENDERER_DUAL_ARC)
     {
         unsigned arc = page->arc_metric_index < 2 ? page->arc_metric_index : 0;
         lv_arc_set_value(ui->widgets.arc,
-                         available[arc] ? normalized_value(values[arc], &page->metrics[arc], 1000) : 0);
+                         available[arc] ? normalized_value(analog[arc], &page->metrics[arc], 1000) : 0);
     }
     if (renderer == UI_RENDERER_TREND)
     {
@@ -1192,7 +1204,7 @@ static void render_page(ui_t *ui)
     {
         if (available[i] != ui->display.rendered_available[i])
             ui->status_dirty = true;
-        ui->display.rendered_values[i]    = values[i];
+        ui->display.rendered_values[i]    = numeric[i];
         ui->display.rendered_available[i] = available[i];
     }
     ui->display.rendered_once   = true;
@@ -1222,6 +1234,7 @@ static void showcase_frame(ui_t *ui)
                                                      .minimum        = f->minimum,
                                                      .maximum        = f->maximum,
                                                      .stale_after_ms = 2000};
+    memset(ui->display.presentation, 0, sizeof(ui->display.presentation));
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
     ui->status_dirty          = true;
@@ -2082,6 +2095,7 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
         ui->showcase.active = false;
         showcase_publish(ui);
     }
+    memset(ui->display.presentation, 0, sizeof(ui->display.presentation));
     ui->display.page          = *page;
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
@@ -2102,6 +2116,7 @@ void ui_set_units(ui_t *ui, bool imperial_units)
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     if (ui->imperial_units == imperial_units)
         return;
+    memset(ui->display.presentation, 0, sizeof(ui->display.presentation));
     ui->imperial_units        = imperial_units;
     ui->status_dirty          = true;
     ui->display.rendered_once = false;

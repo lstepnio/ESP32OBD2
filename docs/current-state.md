@@ -34,6 +34,26 @@ Website impact: corrective recovery behavior needs no new marketing claim or ima
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
 
+## Offline foreground and idle-target preparation
+
+The approved follow-up implements [foreground warmup preference and bounded gauge
+presentation](development/reading-catalog-alerts.md#gauge-presentation-smoothing),
+with raw sampling, freshness, alert and control semantics unchanged. This source is
+not installed; dev.74 remains the last qualified indoor device image above.
+The App reuses nullable preset RPM for an [Air up target and Winch minimum floor](architecture/vehicle-actions.md),
+preserves it during timer edits and keeps numeric drafts phone-only. Sending action
+pages with unsupported numeric intent is blocked instead of silently stripping it.
+No new wire/schema, firmware target mapping or live throttle behavior is enabled.
+Offline checks passed: host/native and production LVGL fixtures (including fallback
+and parked layouts), normal/parked firmware builds, 324 debug and 298 release JVM
+tests, Android build/lint, and 25 managed-emulator interactions with no skips or
+failures. Compact and actual Android 200% target editors were reviewed; the latter
+fixture restores the prior font scale. This does not establish vehicle behavior.
+Next Jeep work is the [parked qualification runbook](development/jeep-action-qualification.md):
+variable target acceptance, Winch throttle-above-floor/release behavior and Air up
+pedal cancellation, plus loaded presentation/guard timing. Website impact: defer
+marketing/screenshot changes until the intended hardware behavior is qualified.
+
 ## Continuity update
 
 The owner approved PERF-01 on 2026-10-27. Dev.65 source adds page-cache continuity,

@@ -26,6 +26,8 @@ below; [current state](../current-state.md) owns qualification, not this ledger.
 
 | ADR-018 | [Typed phone companion content and isolated synthetic harness](../architecture/phone-companion-content.md) | Preserve autonomous instrument truth, typed bounded content, lexical owner sessions and explicit source feasibility gates; no live provider or background activation | Scoped wire, supported navigation/media acquisition and separate physical/provider approval justify activation |
 
+| ADR-019 | [Display-only bounded interpolation](../development/reading-catalog-alerts.md#gauge-presentation-smoothing), keeping raw samples authoritative | Improve motion/text legibility without predicted measurements or changed control/alert freshness; two visible-metric states on the existing UI timer. Saturated transport still needs honest expiry | Loaded comparison shows distracting lag, misleading bins or a different surface needs its own presentation policy |
+
 ## Implementation details
 
 - [System boundaries](../architecture/system.md): ADR-001 through ADR-010.

@@ -101,6 +101,63 @@ class ActionPagesUiTest {
         }
     }
 
+    @Test fun numericTargetSurvivesTimerEditAndFloorIsExplicit() {
+        var saved: List<IdlePreset>? = null
+        compose.setContent {
+            EGaugeTheme {
+                ActionPagesSheet(state().copy(idlePresets = listOf(IdlePreset(IdlePresetId.AirUp, 1400))), { _, presets -> saved = presets }, {})
+            }
+        }
+        compose.onNodeWithText("Air up").performScrollTo().performClick()
+        compose.onNodeWithText("1400 RPM · Saved on phone").assertExists()
+        compose.onNodeWithText("Duration").performScrollTo().performClick()
+        compose.onNodeWithText("Duration").performTextReplacement("2:30")
+        compose.closeKeyboardAndWaitForIdle()
+        finishEditor()
+        compose.onNodeWithText("Winch").performScrollTo().performClick()
+        compose.onNodeWithText("Minimum RPM").performScrollTo().performClick()
+        compose.onNodeWithText("Minimum RPM").performTextInput("3001")
+        compose.closeKeyboardAndWaitForIdle()
+        compose.onNodeWithText("Done").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Minimum RPM").performScrollTo().performTextReplacement("1300")
+        compose.closeKeyboardAndWaitForIdle()
+        capture("action-target-minimum-compact.png")
+        finishEditor()
+        compose.onNodeWithText("Save on phone").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(1400, saved!!.single { it.id == IdlePresetId.AirUp }.rpm)
+            assertEquals(150, saved!!.single { it.id == IdlePresetId.AirUp }.seconds)
+            assertEquals(1300, saved!!.single { it.id == IdlePresetId.Winch }.rpm)
+        }
+    }
+
+    @Test fun largeTextTargetEditorKeepsDraftAndDoneReachable() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val originalScale = instrumentation.targetContext.resources.configuration.fontScale
+        fun scale(value: Float) {
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                instrumentation.uiAutomation.executeShellCommand("settings put system font_scale $value")
+            ).use { it.readBytes() }
+            compose.waitUntil(5_000) { instrumentation.targetContext.resources.configuration.fontScale == value }
+            instrumentation.waitForIdleSync()
+        }
+        try {
+            // Dialog windows obtain density from Android resources, not an outer
+            // Compose LocalDensity provider. Exercise the actual 200% setting.
+            scale(2f)
+            compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { _, _ -> }, {}) } }
+            compose.onNodeWithText("Air up").performScrollTo().performClick()
+            compose.onNodeWithText("Target RPM").performScrollTo().performClick()
+            compose.onNodeWithText("Target RPM").performTextInput("1200")
+            compose.closeKeyboardAndWaitForIdle()
+            compose.onNodeWithText("Target RPM").performScrollTo().assertIsDisplayed()
+            capture("action-target-large-text.png")
+            compose.onNodeWithText("Done").performScrollTo().assertIsEnabled()
+        } finally {
+            scale(originalScale)
+        }
+    }
+
     @Test fun expandedInvalidEstimateBlocksSavingPage() {
         compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { _, _ -> fail("Invalid estimate cannot save") }, {}) } }
         compose.onNodeWithText("Air up").performScrollTo().performClick()
