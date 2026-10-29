@@ -64,10 +64,10 @@ fun VehicleActionsSheet(
                 HorizontalDivider()
                 Text("ABS & traction control", style = MaterialTheme.typography.titleMedium)
                 Text(abs.message)
-                if (!abs.busy) {
+                if (!abs.busy && !abs.gaugeStartRequired) {
                     OutlinedButton({ confirm = VehicleCommandKind.AbsTcs to null }, enabled = state.commandsFresh && abs.canStart) { Text("Disable ABS + TCS") }
                 }
-                if (abs.qualified) Text("Remains off until the next ignition cycle. A green button does not confirm restoration.", style = MaterialTheme.typography.bodySmall)
+                if (abs.qualified) Text(if (abs.ownerSupervised) "Confirm the actual ignition reset and normal dash on the gauge." else "Remains off until the next ignition cycle. A green button does not confirm restoration.", style = MaterialTheme.typography.bodySmall)
                 HorizontalDivider()
                 Text("Burnout Mode", style = MaterialTheme.typography.titleMedium)
                 Text(burnout.message)

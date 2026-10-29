@@ -449,9 +449,9 @@ class GaugeConfigTransferClient(private val context: Context) {
                 }
             )
     }
-    suspend fun readVehicleCommand(device: BluetoothDevice, kind: VehicleCommandKind): VehicleCommandStatus = withGauge(device) {
+    suspend fun readVehicleCommand(device: BluetoothDevice, kind: VehicleCommandKind, brakeActionsTestVersion: Int = 0): VehicleCommandStatus = withGauge(device) {
         writeRaw(byteArrayOf(0x67) + le32(if (kind == VehicleCommandKind.Burnout) 2 else 1) + byteArrayOf(kind.wire.toByte()))
-        VehicleCommandProtocol.status(readRaw()).also { require(it.kind == kind) }
+        VehicleCommandProtocol.status(readRaw()).withBrakeActionsTestVersion(brakeActionsTestVersion).also { require(it.kind == kind) }
     }
     suspend fun executeVehicleCommand(device: BluetoothDevice, kind: VehicleCommandKind, stop: Boolean, preset: IdlePreset? = null, expected: VehicleCommandStatus): VehicleCommandStatus = withTimeout(40_000) {
         // Preserve the original total bound: up to 20 s to connect plus 20 s for the operation.
@@ -462,7 +462,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                 action(object : VehicleCommandSession {
                     override suspend fun read(kind: VehicleCommandKind): VehicleCommandStatus {
                         ownerSession.writeRaw(byteArrayOf(0x67) + le32(if (kind == VehicleCommandKind.Burnout) 2 else 1) + byteArrayOf(kind.wire.toByte()))
-                        return VehicleCommandProtocol.status(ownerSession.readRaw()).also { require(it.kind == kind) }
+                        return VehicleCommandProtocol.status(ownerSession.readRaw()).withBrakeActionsTestVersion(if (expected.ownerSupervised) 1 else 0).also { require(it.kind == kind) }
                     }
                     override suspend fun writeOnce(request: ByteArray) {
                         ownerSession.writeRaw(byteArrayOf(0x66) + request)

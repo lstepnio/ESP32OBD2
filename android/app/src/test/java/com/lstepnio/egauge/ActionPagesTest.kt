@@ -41,6 +41,20 @@ class ActionPagesTest {
         }
     }
 
+    @Test fun optionalBrakeSupervisorCapabilityIsStrictAndKeepsLegacyDefaults() {
+        val base = """{"board":"board","protocolMajor":0,"maxAdapterLinks":2,"configWrite":false,"ota":false,"vc":1}"""
+        assertEquals(0, GaugeProtocolCodec.capabilities(base.toByteArray()).brakeActionsTestVersion)
+        for (version in 0..1) {
+            val caps = GaugeProtocolCodec.capabilities((base.dropLast(1) + ",\"bt\":$version,\"future\":true}").toByteArray())
+            assertEquals(version, caps.brakeActionsTestVersion)
+            assertEquals(0, caps.burnoutActionsVersion)
+            assertEquals(1, caps.vehicleCommandsVersion)
+        }
+        listOf("2", "-1", "1.5", "true", "null", "\"1\"").forEach { invalid ->
+            assertTrue(runCatching { GaugeProtocolCodec.capabilities((base.dropLast(1) + ",\"bt\":$invalid}").toByteArray()) }.isFailure)
+        }
+    }
+
     @Test fun profileSchemaPreservesExplicitBurnoutAndRejectsUnknownPages() {
         val action = PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.Burnout))
         val collection = ProfileCollection("jeep", listOf(VehicleProfile("jeep", "Jeep", Draft(actions = listOf(action)))))

@@ -45,7 +45,8 @@ data class VehicleCommandStatus(
     val lastOperation: Long = 0,
     val timedFallback: Boolean = false,
     val gaugeStartRequired: Boolean = false,
-    val coolantUnavailable: Boolean = false
+    val coolantUnavailable: Boolean = false,
+    val ownerSupervised: Boolean = false
 ) {
     val busy get() = phase in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Active, VehicleCommandPhase.Stopping, VehicleCommandPhase.Verifying, VehicleCommandPhase.Unknown, VehicleCommandPhase.RestartRequired)
     val canStart get() = kind != VehicleCommandKind.Burnout && qualified && !gaugeStartRequired && phase in setOf(VehicleCommandPhase.Ready, VehicleCommandPhase.Restored, VehicleCommandPhase.Rejected)
@@ -54,7 +55,40 @@ data class VehicleCommandStatus(
     } else {
         phase in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Active)
     }
+
+    /** Local capability context only. ABS flag 8 remains forbidden on the legacy wire. */
+    fun withBrakeActionsTestVersion(version: Int): VehicleCommandStatus {
+        require(version in 0..1)
+        return if (version == 1 && kind != VehicleCommandKind.Idle) {
+            copy(gaugeStartRequired = true, ownerSupervised = true)
+        } else {
+            this
+        }
+    }
     val message get() = when {
+        ownerSupervised && kind == VehicleCommandKind.Burnout -> when (phase) {
+            VehicleCommandPhase.Ready -> "Hold on gauge · release to stop"
+            VehicleCommandPhase.Starting -> "Starting Burnout Mode"
+            VehicleCommandPhase.Active -> "Hold on gauge · $remainingSeconds seconds remaining"
+            VehicleCommandPhase.Stopping -> "Returning brake control"
+            VehicleCommandPhase.Verifying -> "Check normal braking, then confirm on the gauge"
+            VehicleCommandPhase.Restored -> "Normal braking confirmed on the gauge"
+            VehicleCommandPhase.Unknown -> "Check braking and confirm on the gauge"
+            VehicleCommandPhase.Rejected -> "Could not start · check the gauge"
+            else -> "Check the gauge before starting"
+        }
+
+        ownerSupervised && kind == VehicleCommandKind.AbsTcs -> when (phase) {
+            VehicleCommandPhase.Ready -> "Start on the gauge"
+            VehicleCommandPhase.Starting -> "Switching ABS and traction control off"
+            VehicleCommandPhase.Active -> "ABS and traction control off · restart required to restore"
+            VehicleCommandPhase.Stopping, VehicleCommandPhase.RestartRequired -> "Restart while parked, check the dash, then confirm on the gauge"
+            VehicleCommandPhase.Verifying, VehicleCommandPhase.Unknown -> "Check the dash and confirm on the gauge"
+            VehicleCommandPhase.Restored -> "Normal dash confirmed on the gauge"
+            VehicleCommandPhase.Rejected -> "Could not start · check the gauge"
+            else -> "Check the gauge before starting"
+        }
+
         kind == VehicleCommandKind.Burnout -> when (phase) {
             VehicleCommandPhase.Unknown -> "Outcome unknown · brake release not verified"
             VehicleCommandPhase.Active -> "Hold on gauge · $remainingSeconds seconds remaining"

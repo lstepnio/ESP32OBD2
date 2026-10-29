@@ -127,6 +127,10 @@ object GaugeProtocolCodec {
                 require(!json.has("bm") || json.get("bm") is Int)
                 require(it in 0..1)
             },
+            brakeActionsTestVersion = json.optInt("bt", 0).also {
+                require(!json.has("bt") || json.get("bt") is Int) { "Invalid brake actions test capability" }
+                require(it in 0..1) { "Unsupported brake actions test capability" }
+            },
             adapterRegistryVersion = json.optInt("ad", 0).also { require(it in 0..1) },
             maxPages = if (json.has("mp")) {
                 require(configurationVersion >= 2 && json.get("mp") is Int && json.getInt("mp") in 1..10) { "Invalid page limit" }

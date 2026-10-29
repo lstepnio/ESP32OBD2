@@ -132,7 +132,7 @@ class DiagnosticReadbackJourneyTest {
                     report.put("vehicleCommandStates", commands)
                     for (kind in VehicleCommandKind.supported(model.capabilities?.vehicleCommandsVersion, model.capabilities?.burnoutActionsVersion)) {
                         val requestedAt = System.currentTimeMillis()
-                        val state = withTimeout(20_000) { client.readVehicleCommand(device, kind) }
+                        val state = withTimeout(20_000) { client.readVehicleCommand(device, kind, model.capabilities?.brakeActionsTestVersion ?: 0) }
                         commands.put(
                             JSONObject()
                                 .put("requestedAtUnixMs", requestedAt)
@@ -147,6 +147,7 @@ class DiagnosticReadbackJourneyTest {
                                 .put("qualified", state.qualified).put("restartRequired", state.restartRequired)
                                 .put("lastOperation", state.lastOperation).put("timedFallback", state.timedFallback)
                                 .put("gaugeStartRequired", state.gaugeStartRequired)
+                                .put("ownerSupervised", state.ownerSupervised)
                                 .put("coolantUnavailable", state.coolantUnavailable)
                         )
                         saveReport()

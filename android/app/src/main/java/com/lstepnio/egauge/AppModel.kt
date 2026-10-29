@@ -258,7 +258,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         var healthy = false
         try {
             val values = withTimeout(8_000) {
-                VehicleCommandKind.supported(capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion).associateWith { client.readVehicleCommand(device, it) }
+                VehicleCommandKind.supported(capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion).associateWith { client.readVehicleCommand(device, it, capabilities?.brakeActionsTestVersion ?: 0) }
             }
             if (currentGaugeId == gauge && profileCollection.activeId == vehicle && activeDocument?.revision == config.revision && values.values.all { it.revision == config.revision }) {
                 vehicleCommands = values

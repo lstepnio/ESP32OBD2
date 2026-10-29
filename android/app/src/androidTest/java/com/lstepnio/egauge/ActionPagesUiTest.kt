@@ -55,6 +55,14 @@ class ActionPagesUiTest {
         compose.runOnIdle { assertEquals(action, saved) }
     }
 
+    @Test fun supervisedBurnoutListUsesEnabledGaugeInstructions() {
+        val action = PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.Burnout))
+        val burnout = VehicleCommandStatus(VehicleCommandKind.Burnout, VehicleCommandPhase.Ready, qualified = true).withBrakeActionsTestVersion(1)
+        compose.setContent { EGaugeTheme { ActionPagesSheet(state().copy(actions = listOf(action), vehicleCommands = mapOf(VehicleCommandKind.Burnout to burnout)), { _, _ -> }, {}) } }
+        compose.onNodeWithText("Hold on gauge · release to stop").assertIsDisplayed()
+        compose.onNodeWithText("Hold on gauge · release not qualified").assertDoesNotExist()
+    }
+
     @Test fun editTimerAndSaveOnlyConfiguration() {
         var saved: PageAction? = null
         compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { action, _ -> saved = action }, {}) } }

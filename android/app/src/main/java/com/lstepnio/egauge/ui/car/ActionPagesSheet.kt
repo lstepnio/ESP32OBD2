@@ -111,7 +111,7 @@ fun ActionPagesSheet(
                         } else if (!compatible) {
                             "Not available for this car yet"
                         } else if (id == ActionPageId.Burnout) {
-                            "Hold on gauge · release not qualified"
+                            if (state.vehicleCommands[id.kind]?.ownerSupervised == true) "Hold on gauge · release to stop" else "Hold on gauge · release not qualified"
                         } else if (id == ActionPageId.AbsTcs) {
                             "ABS and traction control"
                         } else {
@@ -145,7 +145,7 @@ fun ActionPagesSheet(
                     SettingsRow(
                         id.label,
                         if (id == ActionPageId.Burnout) {
-                            "Hold on gauge · release not qualified"
+                            if (state.vehicleCommands[id.kind]?.ownerSupervised == true) "Hold on gauge · release to stop" else "Hold on gauge · release not qualified"
                         } else if (id == ActionPageId.AbsTcs) {
                             if (state.vehicleCommands[id.kind]?.qualified == true) "Restart to restore" else "Not supported yet"
                         } else {

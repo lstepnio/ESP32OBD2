@@ -108,6 +108,39 @@ class VehicleCommandsTest {
         }
     }
 
+    @Test fun ownerSupervisedBrakesKeepWireStrictAndPhoneStartDisabled() = runBlocking {
+        for (kind in listOf(VehicleCommandKind.AbsTcs, VehicleCommandKind.Burnout)) {
+            val local = ready(kind).withBrakeActionsTestVersion(1)
+            assertTrue(local.ownerSupervised && local.gaugeStartRequired)
+            assertFalse(local.canStart)
+            assertTrue(runCatching { VehicleCommandProtocol.request(local, false) }.isFailure)
+            var writes = 0
+            val session = object : VehicleCommandSession {
+                override suspend fun read(kind: VehicleCommandKind) = local
+                override suspend fun writeOnce(request: ByteArray) {
+                    writes++
+                }
+            }
+            assertTrue(runCatching { VehicleCommandClient(sessions(session)) {}.execute(kind, false, expected = local) }.isFailure)
+            assertEquals(0, writes)
+            val active = local.copy(phase = VehicleCommandPhase.Active, operation = 3)
+            assertTrue(active.canStop)
+            assertEquals(2, VehicleCommandProtocol.request(active, true)[2].toInt())
+            assertTrue(local.copy(phase = VehicleCommandPhase.Verifying).message.contains("confirm on the gauge"))
+            assertTrue(local.copy(phase = VehicleCommandPhase.Restored).message.contains("confirmed on the gauge"))
+            assertFalse(local.message.contains("unqualified"))
+            assertFalse(local.message.contains("unavailable"))
+        }
+        assertTrue(ready(VehicleCommandKind.AbsTcs).withBrakeActionsTestVersion(0).canStart)
+        assertEquals(ready(), ready().withBrakeActionsTestVersion(1))
+        val wire = statusBytes().apply { this[27] = 11 }
+        assertTrue(runCatching { VehicleCommandProtocol.status(wire) }.isFailure)
+        val abs = VehicleCommandProtocol.status(statusBytes()).withBrakeActionsTestVersion(1)
+        assertTrue(abs.gaugeStartRequired)
+        assertEquals(VehicleCommandPhase.RestartRequired, abs.phase)
+        assertTrue(abs.message.contains("Restart while parked"))
+    }
+
     @Test fun coolantTimerRetainsStopAndRequiresGaugeRestart() {
         val bytes = statusBytes().apply {
             this[1] = 1

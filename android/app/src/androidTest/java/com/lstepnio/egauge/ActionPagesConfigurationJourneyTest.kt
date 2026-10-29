@@ -83,7 +83,7 @@ class ActionPagesConfigurationJourneyTest {
                 .getRemoteDevice(requireNotNull(model.rememberedGaugeId))
             val client = GaugeConfigTransferClient(context)
             val commands = runBlocking {
-                withTimeout(45_000) { VehicleCommandKind.supported(model.capabilities?.vehicleCommandsVersion, model.capabilities?.burnoutActionsVersion).map { client.readVehicleCommand(device, it) } }
+                withTimeout(45_000) { VehicleCommandKind.supported(model.capabilities?.vehicleCommandsVersion, model.capabilities?.burnoutActionsVersion).map { client.readVehicleCommand(device, it, model.capabilities?.brakeActionsTestVersion ?: 0) } }
             }
             assertTrue(commands.all { it.revision == after.revision && !it.qualified && !it.busy })
         } finally {
