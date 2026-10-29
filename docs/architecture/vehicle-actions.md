@@ -796,6 +796,26 @@ that larger record rather than losing the uncertainty. Once no Burnout uncertain
 remains, saves use version1 again so ordinary idle/ABS rollback stays compatible.
 Malformed/newer journals remain retained and refuse execution.
 
+### Reviewing a different action's retained state
+
+A ready action can be blocked by another kind's Active, Verifying, Unknown or
+Restart-required state. Its face must name that action and its status, with a
+**Review** button leading directly to the existing action page. Review is local
+navigation; it must not Start, Stop, acknowledge or clear any operation. A state
+change during that tap must not turn it into Start. Do not add an unrecorded
+Burnout page to represent a generic journal error.
+
+The ready Burnout instruction **Hold brake pedal** appears only when its ready
+control is admissible, never alongside a different action's blocker. The existing
+owner recovery control remains independent when more than one record needs review;
+requiring every other Unknown record to clear first would create a recovery cycle.
+It shows **Connect Jeep** without matched ECM context, **Park and idle** while the
+stationary confirmation input is unmet, and the existing physical confirmation
+only when its scoped runtime gate passes. This changes presentation, not admission.
+Reboot retains unresolved control records; Unknown is missing outcome proof, not
+proof that the physical action is running. Downward navigation returns to readings
+without acknowledging the retained state.
+
 ### Front Lock selection: captured JK versus JL/JT
 
 The owner specified **Front Lock** as the desired Burnout mode on 2026-10-29.

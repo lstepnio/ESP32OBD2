@@ -924,6 +924,74 @@ int main(int argc, char **argv)
     assert(ui->command_page_count == 4 && !strcmp(lv_label_get_text(ui->command_title), "Burnout Mode"));
     assert(!strcmp(lv_label_get_text(ui->command_value), "Not supported"));
     capture(argv[1], "actions-burnout-unavailable");
+    /* A persisted action on another face must be identifiable and reviewable.
+     * Review is a short navigation tap, never a command or owner confirmation. */
+    ui_set_vehicle_action_status(ui, 3, VEHICLE_READY, 1 | 8 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    const unsigned blocking_kinds[]  = {1, 2, 2};
+    const unsigned blocking_phases[] = {VEHICLE_UNKNOWN, VEHICLE_UNKNOWN, VEHICLE_RESTART_REQUIRED};
+    for (unsigned n = 0; n < 3; ++n)
+    {
+        ui_set_vehicle_action_status(ui, blocking_kinds[n], blocking_phases[n], 1 | 16 | VEHICLE_UI_OWNER_TEST, 0, 0,
+                                     0);
+        ui->command_page = 3;
+        tick(60);
+        assert(!strcmp(lv_label_get_text(ui->command_title), "Burnout Mode"));
+        assert(!strcmp(lv_label_get_text(ui->command_value), n ? "ABS + TCS" : "Idle"));
+        assert(!strcmp(lv_label_get_text(ui->command_note), n == 2 ? "Restart to restore" : "Status unknown"));
+        assert(!strcmp(lv_label_get_text(ui->command_button_text), "Review"));
+        assert(!lv_obj_has_state(ui->command_button, LV_STATE_DISABLED));
+        capture(argv[1], n == 0   ? "actions-burnout-idle-unknown"
+                         : n == 1 ? "actions-burnout-abs-unknown"
+                                  : "actions-burnout-abs-restart");
+        unsigned requests_before = command_requests, confirms_before = owner_confirmations;
+        action_press(ui);
+        action_release(ui);
+        tick(60);
+        assert(command_id(ui) == (n ? 3 : 1));
+        if (n)
+            assert(!strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm"));
+        assert(command_requests == requests_before && owner_confirmations == confirms_before);
+        assert(!ui->command_waiting && !ui->command_confirm && !ui_vehicle_burnout_held(ui));
+        command_activate(ui, true);
+        assert(!ui->command_menu_visible);
+        ui_show_vehicle_actions(ui);
+        tick(60);
+        ui_set_vehicle_action_status(ui, blocking_kinds[n], VEHICLE_READY, 1, 0, 0, 0);
+    }
+    /* Owner recovery explains whether ECU qualification or parked idle is missing. */
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_UNKNOWN, VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    ui->command_page = 2;
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_note), "Connect Jeep"));
+    assert(lv_obj_has_state(ui->command_button, LV_STATE_DISABLED));
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_UNKNOWN, 1 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_note), "Park and idle"));
+    assert(lv_obj_has_state(ui->command_button, LV_STATE_DISABLED));
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_UNKNOWN, 1 | 16 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_note), "Reset checked?"));
+    assert(!strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm"));
+    assert(!lv_obj_has_state(ui->command_button, LV_STATE_DISABLED));
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_READY, 1, 0, 0, 0);
+    /* Independent owner recovery stays available when multiple records need review. */
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_UNKNOWN, 1, 0, 0, 0);
+    ui_set_vehicle_action_status(ui, 3, VEHICLE_UNKNOWN, 1 | 8 | 16 | 32 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    ui->command_page = 3;
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm"));
+    unsigned confirms_before = owner_confirmations;
+    action_press(ui);
+    action_release(ui);
+    assert(owner_confirmations == confirms_before);
+    action_press(ui);
+    tick(1000);
+    action_release(ui);
+    assert(owner_confirmations == confirms_before + 1 && !ui_vehicle_burnout_held(ui));
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1, 0, 0, 0);
+    ui_set_vehicle_action_status(ui, 3, VEHICLE_READY, 1 | 8 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    tick(60);
+    assert(!strcmp(lv_label_get_text(ui->command_note), "Hold brake pedal"));
     ui_set_vehicle_action_status(ui, 3, VEHICLE_READY, 1 | 8, 0, 0, 0);
     tick(60);
     assert(!strcmp(lv_label_get_text(ui->command_button_text), "Hold to run"));

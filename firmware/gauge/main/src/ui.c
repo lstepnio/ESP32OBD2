@@ -2484,6 +2484,19 @@ static void command_sync_pages(ui_t *ui)
         if (ui->command_pages[i] == selected)
             ui->command_page = i;
 }
+/* The selected face can be ready while another persisted action is unresolved. */
+static uint8_t command_blocker(ui_t *ui, unsigned selected_kind)
+{
+    for (unsigned k = 0; k < VEHICLE_COMMAND_KIND_COUNT; ++k)
+    {
+        unsigned phase = atomic_load(&ui->command_ui[k]) & 255U;
+        if (k != selected_kind &&
+            (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE || phase == VEHICLE_STOPPING ||
+             phase == VEHICLE_VERIFYING || phase == VEHICLE_UNKNOWN || phase == VEHICLE_RESTART_REQUIRED))
+            return k == 2 ? 4 : k == 1 ? 3 : active_idle_id(ui);
+    }
+    return 0;
+}
 static unsigned command_duration(ui_t *ui, unsigned id, unsigned state)
 {
     unsigned seconds = id == 2 ? ui->action.config.winch_seconds : ui->action.config.air_up_seconds;
@@ -2515,6 +2528,7 @@ static void refresh_vehicle_menu(ui_t *ui)
         ui->command_admission_failed = false;
     unsigned id = command_id(ui), kind = command_index(id);
     unsigned state = atomic_load(&ui->command_ui[kind]), phase = state & 255U;
+    uint8_t  blocker = command_blocker(ui, kind);
     if (phase == VEHICLE_RESTORED)
         phase = VEHICLE_READY;
     unsigned    reason = (state >> 28) & 15U;
@@ -2528,7 +2542,7 @@ static void refresh_vehicle_menu(ui_t *ui)
     bool        enabled = false;
     if (ui->command_confirm && ((phase != VEHICLE_READY && phase != VEHICLE_REJECTED) ||
                                 (state & 0xfc00ffffU) != (ui->command_confirm_state & 0xfc00ffffU) ||
-                                ui->command_confirm_epoch != atomic_load(&ui->command_epoch)))
+                                ui->command_confirm_epoch != atomic_load(&ui->command_epoch) || blocker))
         ui->command_confirm = 0;
     ui->command_presented_state = state;
     if (ui->command_waiting && (phase != ui->command_selected || now - ui->command_wait_at >= 2000))
@@ -2640,10 +2654,32 @@ static void refresh_vehicle_menu(ui_t *ui)
         enabled = (state & 256U) && (state & (16U << 8));
         ring    = 0;
         value   = phase == VEHICLE_UNKNOWN ? "Check brakes" : id == 3 ? "Restart" : "Release sent";
-        note    = !enabled ? "Stop vehicle" : id == 3 ? "Reset checked?" : "Brakes normal?";
+        note    = !enabled  ? (!(state & 256U) ? "Connect Jeep" : "Park and idle")
+                  : id == 3 ? "Reset checked?"
+                            : "Brakes normal?";
     }
-    else if (id == 4 && (state & (VEHICLE_UI_OWNER_TEST << 8)) && phase == VEHICLE_READY)
+    else if (id == 4 && (state & (VEHICLE_UI_OWNER_TEST << 8)) && phase == VEHICLE_READY && enabled && !blocker)
         note = "Hold brake pedal";
+    if (blocker && !owner_check && (state & 256U) && (phase == VEHICLE_READY || phase == VEHICLE_REJECTED))
+    {
+        unsigned blocked_state = atomic_load(&ui->command_ui[command_index(blocker)]);
+        unsigned blocked_phase = blocked_state & 255U;
+        unsigned idle_preset   = (blocked_state >> 26) & 3U;
+        value                  = blocker == 4       ? "Burnout Mode"
+                                 : blocker == 3     ? "ABS + TCS"
+                                 : idle_preset == 2 ? "Winch"
+                                 : idle_preset == 1 ? "Air up"
+                                                    : "Idle";
+        note    = blocked_phase == VEHICLE_UNKNOWN ? "Status unknown"
+                  : blocked_phase == VEHICLE_RESTART_REQUIRED || (blocker == 3 && blocked_phase == VEHICLE_ACTIVE)
+                      ? "Restart to restore"
+                      : "Action in progress";
+        button  = "Review";
+        enabled = false;
+        for (unsigned i = 0; i < ui->command_page_count; ++i)
+            enabled |= ui->command_pages[i] == blocker;
+        ring = 0;
+    }
     if (ui->command_admission_failed && enabled && !note[0] && !ui->rendered_alert.severity)
         note = "Try again";
     /* Existing fonts and one arc tree, no per-frame allocations or animation task. */
@@ -2721,6 +2757,15 @@ static void command_activate(ui_t *ui, bool back)
     }
     if (phase == VEHICLE_RESTORED)
         phase = VEHICLE_READY;
+    if (!strcmp(lv_label_get_text(ui->command_button_text), "Review"))
+    {
+        uint8_t blocker     = command_blocker(ui, command_index(id));
+        ui->command_confirm = 0;
+        for (unsigned i = 0; blocker && i < ui->command_page_count; ++i)
+            if (ui->command_pages[i] == blocker)
+                ui->command_page = i;
+        return;
+    }
     if (!strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm"))
     {
         if (!ui->command_hold_commit)
@@ -2735,6 +2780,11 @@ static void command_activate(ui_t *ui, bool back)
     }
     bool stop = (id < 3 || id == 4) &&
                 (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE || (id == 4 && phase == VEHICLE_UNKNOWN));
+    if (!stop && command_busy(ui))
+    {
+        ui->command_confirm = 0;
+        return;
+    }
     if (!stop && id < 3 && (!ui->idle_protection || (state & (VEHICLE_UI_COOLANT_HIGH << 8))))
         return;
     if (!stop && !ui->command_confirm && (id == 3 || (state & (16U << 8))))

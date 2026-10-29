@@ -442,3 +442,23 @@ is therefore unnecessary for that JK path. The owner is comparing physical behav
 actual front-hold/release semantics remain unqualified. Dev.76's enabled owner
 function and request bytes have not changed. A different observed behavior/path
 needs a short labelled capture before any command change.
+
+
+### Action recovery presentation follow-up
+
+The owner reported a persistent Burnout **Action in progress / Hold brake pedal**
+face after gauge and Jeep restarts. Protected dev.76 readback at revision 66
+identified ABS/TCS operation 2 as Unknown/Context with restart-required retained;
+Burnout and Idle both had operation 0. No qualified ECM context was present during
+the readback. The owner reported normal Jeep/brake behavior after restarting.
+This is a retained ABS reset-confirmation record, not evidence of active Burnout.
+
+The UI-only dev.77 source now identifies the actual blocker and adds Review
+navigation, removes the misleading ready instruction, and distinguishes missing
+ECM from unmet stationary confirmation input. Existing command gates, bytes,
+records and independent physical confirmation are unchanged. Real-LVGL normal and
+fallback regressions reproduce the cross-action blocker and preserve independent
+recovery. The [recovery contract](architecture/vehicle-actions.md#reviewing-a-different-actions-retained-state)
+and [parked procedure](development/jeep-action-qualification.md#brake-actions-follow-up)
+own the behavior. Dev.77 delivery is pending; dev.76 remains installed.
+Website impact: corrective UI copy/navigation only; defer new qualification claims.
