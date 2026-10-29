@@ -50,6 +50,7 @@ typedef struct
     uint16_t    pid;
     uint8_t     source_index;
     bool        scoped;
+    bool        presentation_eased; /* Internal reviewed fast numeric hint, never serialized. */
     uint32_t    revision;
     const char *name;
     const char *unit;

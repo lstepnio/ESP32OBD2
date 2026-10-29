@@ -283,10 +283,12 @@ static void page_ui(unsigned index, ui_page_t *out)
             .scoped       = true,
             .source_index = pid->source_index,
             .revision     = g_running_config_record.revision,
-            .name         = pid->name,
-            .unit         = pid->unit,
-            .minimum      = pid->obd.decoder.minimum,
-            .maximum      = pid->obd.decoder.maximum,
+            .presentation_eased =
+                reading_presentation_eased(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms),
+            .name    = pid->name,
+            .unit    = pid->unit,
+            .minimum = pid->obd.decoder.minimum,
+            .maximum = pid->obd.decoder.maximum,
             .stale_after_ms =
                 reading_policy(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms, false, false, false)
                     .display_age_ms,
@@ -1111,7 +1113,7 @@ static void init_config(void)
     ESP_ERROR_CHECK(config_init());
     ESP_ERROR_CHECK(display_settings_init(0, 80, 0));
     gauge_board_initialize();
-    gauge_display_set_rotation((lv_display_rotation_t)display_settings_snapshot().rotation);
+    gauge_display_set_rotation((lv_display_rotation_t)display_settings_boot_rotation());
     if (lvgl_port_lock(portMAX_DELAY))
     {
         ui_boot_logo_early();
@@ -1173,7 +1175,7 @@ static void init_config(void)
     uint8_t default_rotation   = g_runtime ? g_runtime->rotation : (uint8_t)g_config.disp_rot;
     uint8_t default_brightness = g_runtime ? g_runtime->brightness : 80;
     ESP_ERROR_CHECK(display_settings_init(default_rotation, default_brightness, 0));
-    g_config.disp_rot = (lv_display_rotation_t)display_settings_snapshot().rotation;
+    g_config.disp_rot = (lv_display_rotation_t)display_settings_boot_rotation();
     atomic_store(&g_selected_page, g_config.cfg_idx);
 }
 
@@ -1248,7 +1250,7 @@ void app_main(void)
         lvgl_port_unlock();
     }
     ESP_ERROR_CHECK(gauge_display_set_brightness(display_settings_snapshot().brightness));
-    orientation_runtime_init(display_settings_snapshot().rotation);
+    orientation_runtime_init((uint8_t)g_config.disp_rot);
 
 #if CONFIG_EGAUGE_DISPLAY_CALIBRATION
     ui_start_display_calibration(ui);
@@ -1477,6 +1479,18 @@ void app_main(void)
                 g_config.disp_rot = (lv_display_rotation_t)auto_angle;
             }
             lvgl_port_unlock();
+        }
+        /* Checkpoint only an angle successfully applied by the display owner.
+         * Flash work is serialized with settings and runs outside the LVGL lock. */
+        uint64_t orientation_now_ms = (uint64_t)(esp_timer_get_time() / 1000);
+        display_settings_observe_auto_rotation(orientation_runtime_snapshot().applied_angle, orientation_now_ms);
+        static uint64_t orientation_checkpoint_at_ms;
+        if (!maintenance && transfer_gate_current() != TRANSFER_GATE_VEHICLE_COMMAND &&
+            !vehicle_commands_runtime_pending() && !ui_action_pending(ui) &&
+            orientation_now_ms - orientation_checkpoint_at_ms >= 1000)
+        {
+            orientation_checkpoint_at_ms = orientation_now_ms;
+            (void)display_settings_persist_auto_rotation(orientation_now_ms);
         }
 #if CONFIG_EGAUGE_AUTO_ORIENTATION_CANDIDATE
         static uint32_t orientation_logged_at;

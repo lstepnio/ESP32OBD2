@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "artifacts/checks"
 FIRMWARE = ROOT / "firmware/gauge"
 NATIVE_TESTS = {
+    "reading_presentation": ["tests/reading_presentation_test.c"],
     "temporary_idle": [
         "tests/temporary_idle_test.c",
         "main/src/temporary_idle.c",

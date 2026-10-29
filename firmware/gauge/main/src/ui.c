@@ -15,6 +15,7 @@
 #include <stdatomic.h>
 #include "transmission_gear.h"
 #include "display_idle_policy.h"
+#include "reading_presentation.h"
 #include "sdkconfig.h"
 #include "esp_timer.h"
 
@@ -77,7 +78,7 @@ typedef struct
     uint8_t  source;
     bool     used, present;
     double   value;
-    uint32_t observed_at_ms, revision, generation;
+    uint32_t observed_at_ms, revision, generation, continuity;
 } ui_sample_t;
 
 typedef struct
@@ -220,6 +221,7 @@ struct _ui_t
     atomic_uint           cycle_pause;
     portMUX_TYPE          sample_lock;
     ui_sample_t           samples[EGAUGE_RUNTIME_PIDS];
+    uint32_t              sample_continuity;
     struct
     {
         bool     ready;
@@ -228,16 +230,17 @@ struct _ui_t
 
     struct
     {
-        ui_page_t          page;
-        double             rendered_values[2];
-        bool               rendered_available[2];
-        bool               rendered_once;
-        int                rendered_offset;
-        lv_point_precise_t trend_points[TREND_CAPACITY];
-        float              trend_samples[TREND_CAPACITY];
-        uint8_t           *trend_mask;
-        uint8_t            trend_count;
-        TickType_t         trend_recorded_at;
+        ui_page_t              page;
+        reading_presentation_t eased[2];
+        double                 rendered_values[2];
+        bool                   rendered_available[2];
+        bool                   rendered_once;
+        int                    rendered_offset;
+        lv_point_precise_t     trend_points[TREND_CAPACITY];
+        float                  trend_samples[TREND_CAPACITY];
+        uint8_t               *trend_mask;
+        uint8_t                trend_count;
+        TickType_t             trend_recorded_at;
     } display;
 };
 
@@ -515,7 +518,7 @@ void ui_waiting_logo_enable(ui_t *ui, bool enabled)
     }
 }
 
-static bool metric_value(ui_t *ui, unsigned index, double *value)
+static bool metric_sample(ui_t *ui, unsigned index, ui_sample_t *out)
 {
     if (index >= ui->display.page.metric_count)
         return false;
@@ -540,7 +543,7 @@ static bool metric_value(ui_t *ui, unsigned index, double *value)
             available = available && ui->sample_sources[source].ready && sample->revision == metric->revision &&
                         sample->generation == generation;
         if (available)
-            *value = sample->value;
+            *out = *sample;
         break;
     }
     portEXIT_CRITICAL(&ui->sample_lock);
@@ -1057,7 +1060,25 @@ static void render_page(ui_t *ui)
             available[i] = frame->present[i];
         }
         else
-            available[i] = metric_value(ui, i, &values[i]);
+        {
+            ui_sample_t sample        = {0};
+            available[i]              = metric_sample(ui, i, &sample);
+            values[i]                 = sample.value;
+            const ui_metric_t *metric = &page->metrics[i];
+            /* Keep trends chronological and categorical states immediate. Only
+             * reviewed foreground fast metrics opt in to numeric/arc/bar easing. */
+            if (metric->presentation_eased && page->renderer != UI_RENDERER_TREND && strcmp(metric->unit, "gear"))
+            {
+                if (ui->display.eased[i].initialized &&
+                    sample.observed_at_ms - ui->display.eased[i].last_observed_at_ms > metric->stale_after_ms)
+                    ui->display.eased[i] = (reading_presentation_t){0};
+                values[i] =
+                    reading_presentation_value(&ui->display.eased[i], available[i], values[i], sample.observed_at_ms,
+                                               sample.continuity, (uint32_t)(esp_timer_get_time() / 1000));
+            }
+            else
+                ui->display.eased[i] = (reading_presentation_t){0};
+        }
     }
     if (frame && page->renderer == UI_RENDERER_TREND)
         values[0] += 2 * sin((esp_timer_get_time() / 1000000.0) * 1.5);
@@ -1222,6 +1243,7 @@ static void showcase_frame(ui_t *ui)
                                                      .minimum        = f->minimum,
                                                      .maximum        = f->maximum,
                                                      .stale_after_ms = 2000};
+    memset(ui->display.eased, 0, sizeof(ui->display.eased));
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
     ui->status_dirty          = true;
@@ -2040,7 +2062,11 @@ static void set_sample(ui_t         *ui,
             slot = &ui->samples[i];
     }
     if (slot)
-        *slot = (ui_sample_t){.used           = true,
+    {
+        uint32_t continuity =
+            slot->used && slot->present && value && isfinite(*value) ? slot->continuity : ++ui->sample_continuity;
+        *slot = (ui_sample_t){.continuity     = continuity,
+                              .used           = true,
                               .source         = source,
                               .pid            = pid,
                               .present        = value && isfinite(*value),
@@ -2048,6 +2074,7 @@ static void set_sample(ui_t         *ui,
                               .revision       = revision,
                               .generation     = generation,
                               .observed_at_ms = observed_at_ms};
+    }
     portEXIT_CRITICAL(&ui->sample_lock);
 }
 
@@ -2082,7 +2109,8 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
         ui->showcase.active = false;
         showcase_publish(ui);
     }
-    ui->display.page          = *page;
+    ui->display.page = *page;
+    memset(ui->display.eased, 0, sizeof(ui->display.eased));
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
     for (unsigned i = 0; i < 60; ++i)
@@ -2102,6 +2130,7 @@ void ui_set_units(ui_t *ui, bool imperial_units)
     ESP_NULL_CHECK(ui, TAG, "UI context is NULL");
     if (ui->imperial_units == imperial_units)
         return;
+    memset(ui->display.eased, 0, sizeof(ui->display.eased));
     ui->imperial_units        = imperial_units;
     ui->status_dirty          = true;
     ui->display.rendered_once = false;

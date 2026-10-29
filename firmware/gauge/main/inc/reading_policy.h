@@ -13,6 +13,10 @@ poll_pid_policy_t reading_policy(const char *id,
                                  bool        next_page,
                                  bool        alert);
 
+/* Internal display hint only. Exact reviewed fast definitions opt in; custom
+ * definitions/timings and categorical gear remain immediate. No wire field. */
+bool reading_presentation_eased(const char *id, uint8_t service, uint16_t pid, uint32_t poll_ms, uint32_t stale_ms);
+
 /* One fixed state per PID/source. No heap, queries, or display-age changes. */
 typedef struct
 {

@@ -33,6 +33,32 @@ _Static_assert(sizeof(display_record_t) == 12, "Legacy display record layout cha
 _Static_assert(sizeof(smart_record_t) == 8, "Smart sidecar layout changed");
 static const char *const smart_keys[] = {"smart0", "smart1"};
 
+/* This independent boot hint never activates owner settings or changes revision. */
+typedef struct
+{
+    uint8_t  version;
+    uint8_t  rotation;
+    uint16_t reserved;
+} auto_rotation_record_t;
+_Static_assert(sizeof(auto_rotation_record_t) == 4, "Auto boot hint layout changed");
+static bool     auto_hint_valid, auto_candidate_valid, auto_attempted;
+static uint8_t  auto_hint, auto_candidate;
+static uint64_t auto_candidate_since_ms, auto_attempted_at_ms;
+#define AUTO_ROTATION_STABLE_MS UINT64_C(5000)
+#define AUTO_ROTATION_WRITE_INTERVAL_MS UINT64_C(60000)
+
+static void load_auto_rotation(nvs_handle_t nvs)
+{
+    auto_rotation_record_t record = {0};
+    size_t                 length = sizeof(record);
+    if (nvs_get_blob(nvs, "auto_angle", &record, &length) == ESP_OK && length == sizeof(record) &&
+        record.version == 1 && record.rotation <= 3 && record.reserved == 0)
+    {
+        auto_hint       = record.rotation;
+        auto_hint_valid = true;
+    }
+}
+
 static uint8_t load_smart(nvs_handle_t nvs, uint32_t revision)
 {
     active_smart_slot = -1;
@@ -67,12 +93,14 @@ esp_err_t display_settings_init(uint8_t default_rotation, uint8_t default_bright
         return ESP_ERR_NO_MEM;
     current           = (display_settings_t){default_rotation, default_brightness, default_units, 0, 0, false, false};
     active_smart_slot = -1;
+    auto_hint_valid = auto_candidate_valid = auto_attempted = false;
     nvs_handle_t nvs;
     esp_err_t    err = nvs_open("display", NVS_READONLY, &nvs);
     if (err == ESP_ERR_NVS_NOT_FOUND)
         return ESP_OK;
     if (err != ESP_OK)
         return err;
+    load_auto_rotation(nvs);
     display_record_t stored = {0};
     size_t           length = sizeof(stored);
     err                     = nvs_get_blob(nvs, "settings", &stored, &length);
@@ -160,6 +188,8 @@ static esp_err_t save_settings(uint8_t             rotation,
     if (err == ESP_OK)
     {
         portENTER_CRITICAL(&snapshot_mux);
+        if (current.auto_orientation != next.auto_orientation)
+            auto_candidate_valid = false;
         current           = next;
         active_smart_slot = next_slot;
         portEXIT_CRITICAL(&snapshot_mux);
@@ -199,4 +229,71 @@ esp_err_t display_settings_save_orientation(bool                automatic,
     display_settings_t previous = display_settings_snapshot();
     return save_settings(manual_rotation, previous.brightness, previous.units, previous.cycle_seconds, false, true,
                          automatic ? 1 : 0, expected_revision, saved);
+}
+
+uint8_t display_settings_boot_rotation(void)
+{
+    portENTER_CRITICAL(&snapshot_mux);
+    uint8_t rotation = current.auto_orientation && auto_hint_valid ? auto_hint : current.rotation;
+    portEXIT_CRITICAL(&snapshot_mux);
+    return rotation;
+}
+
+void display_settings_observe_auto_rotation(uint8_t applied_rotation, uint64_t now_ms)
+{
+    portENTER_CRITICAL(&snapshot_mux);
+    if (!current.auto_orientation || applied_rotation > 3)
+        auto_candidate_valid = false;
+    else if (!auto_candidate_valid || auto_candidate != applied_rotation || now_ms < auto_candidate_since_ms)
+    {
+        auto_candidate          = applied_rotation;
+        auto_candidate_since_ms = now_ms;
+        auto_candidate_valid    = true;
+    }
+    portEXIT_CRITICAL(&snapshot_mux);
+}
+
+esp_err_t display_settings_persist_auto_rotation(uint64_t now_ms)
+{
+    if (!settings_lock)
+        return ESP_ERR_INVALID_STATE;
+    /* Never delay the application loop behind a settings writer. */
+    if (xSemaphoreTake(settings_lock, 0) != pdTRUE)
+        return ESP_ERR_TIMEOUT;
+    portENTER_CRITICAL(&snapshot_mux);
+    bool ready = current.auto_orientation && auto_candidate_valid &&
+                 (!auto_hint_valid || auto_hint != auto_candidate) && now_ms >= auto_candidate_since_ms &&
+                 now_ms - auto_candidate_since_ms >= AUTO_ROTATION_STABLE_MS &&
+                 (!auto_attempted ||
+                  (now_ms >= auto_attempted_at_ms && now_ms - auto_attempted_at_ms >= AUTO_ROTATION_WRITE_INTERVAL_MS));
+    uint8_t rotation = auto_candidate;
+    if (ready)
+    {
+        auto_attempted       = true;
+        auto_attempted_at_ms = now_ms;
+    }
+    portEXIT_CRITICAL(&snapshot_mux);
+    esp_err_t err = ESP_OK;
+    if (ready)
+    {
+        auto_rotation_record_t record = {1, rotation, 0};
+        nvs_handle_t           nvs;
+        err = nvs_open("display", NVS_READWRITE, &nvs);
+        if (err == ESP_OK)
+        {
+            err = nvs_set_blob(nvs, "auto_angle", &record, sizeof(record));
+            if (err == ESP_OK)
+                err = nvs_commit(nvs);
+            nvs_close(nvs);
+        }
+        if (err == ESP_OK)
+        {
+            portENTER_CRITICAL(&snapshot_mux);
+            auto_hint       = rotation;
+            auto_hint_valid = true;
+            portEXIT_CRITICAL(&snapshot_mux);
+        }
+    }
+    xSemaphoreGive(settings_lock);
+    return err;
 }

@@ -94,7 +94,16 @@ one-second stale observations hold the last angle. Axis mapping version 2 compen
 offset measured at labelled USB-down and USB-left poses. It remains a candidate
 until all four text/touch orientations are physically verified on the new image. Rotation is
 applied through the existing board display/touch transform; applied state changes
-only after successful application. Sensor motion never writes flash.
+only after successful application. In Auto, startup uses a separate validated NVS
+hint for the last checkpointed applied angle, before the logo and sensor setup.
+Manual mode continues using its saved manual angle. The hint changes neither the
+manual preference nor settings revision/wire. Missing/malformed hints fall back
+to the manual angle. An applied angle must remain stable for five seconds before
+checkpointing; attempts (including failures) are limited to once per minute and
+unchanged angles cause no write. The application owner performs flash work outside
+the LVGL lock, skips maintenance, and publishes the hint only after commit. An
+abrupt power cut shortly after motion can restore the prior checkpoint. Fresh
+qualified sensor observations subsequently adjust it under the existing policy.
 
 The [protected orientation extension](../protocol/experimental-firmware-transfers.md#sensor-orientation-extension)
 separates stable protocol support (`ao:1`) from sensor state. The App automatically

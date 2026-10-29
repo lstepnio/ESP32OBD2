@@ -38,6 +38,30 @@ The existing single arc object is reused; text is narrowed to fit within its rin
 Custom definitions follow the same measured glyph fitting, units, range and
 unavailable rules as catalog readings. No label-based guessing of enum semantics.
 
+## Foreground reading motion
+
+Reviewed fast-class catalog signals use a bounded 100 ms causal ease-out for
+numeric/arc/bar and dual presentation. All widgets for one reading use the same
+eased value; the 50 ms UI cadence completes settlement on the first following
+frame. A new target is always a measured value, and the transition stays between
+the prior presented value and that target. Its original observation age pays down
+the easing window, so delayed delivery does not add a second full delay. Equal
+samples do not restart convergence. There is no prediction or extrapolation.
+
+Page entry immediately paints the latest valid cached sample. Page/unit changes,
+invalid/stale samples, gaps beyond the allowed age, and retired source/revision/
+generation reset easing; invalidation between frames also breaks continuity.
+Gear, custom definitions and trend chronology remain immediate. Catalog class
+metadata selects eligibility; labels and numerical magnitude never guess semantics.
+A custom timing override retains its existing behavior. Raw cache samples,
+thresholds, command guards, logs and timestamps never receive eased values.
+
+This reuses the LVGL owner and two fixed presentation states, with no new task,
+animation buffer or allocation. Existing priority/deadline polling, shared guard
+reads and background backoff remain authoritative; smoothing is not a substitute
+for collecting timely data. Adapter gaps still expire at the original policy age.
+Loaded cadence/comfort and resource measurements remain a vehicle qualification.
+
 ## Gear color
 
 `design/tokens.json` owns the shared palette, generated into firmware and Android.
@@ -52,7 +76,7 @@ Red stays reserved for critical attention. Shared alert presentation keeps prior
 After NVS display preferences load, the board initializes and presents the logo
 before heavier configuration/radio setup. It uses four retained LVGL objects
 (container, arc, line and dot), with no bitmap, additional framebuffer or animation
-task. Saved brightness and manual angle apply at startup. The logo has no text.
+task. Saved brightness and the manual angle (or last checkpointed applied angle in Auto) apply at startup. The logo has no text.
 Its icon occupies a centered 168-pixel diameter on the 240-pixel reference display,
 using a muted neutral grey (`#555555`) for the arc, needle and pivot. Dimensions
 scale through the existing presentation profile. It reuses the same objects and
