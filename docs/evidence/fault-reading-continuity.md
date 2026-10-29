@@ -99,3 +99,11 @@ summaries and preserved independent provider episode IDs when a slot is reused.
 Two focused JVM regressions passed in both variants; Android lint passed. These
 are App presentation-preservation corrections, with no firmware-source change.
 The full final-head CI gate is still required before merge/publication.
+
+A subsequent review found that an older kept report could lose its detail/unpin
+path behind a newer group representative. The scoped correction retains each
+kept observation as a separate history row while leaving Current grouping alone;
+unpinning restores ordinary grouping without deleting records. A regression covers
+older-kept/newer-unkept IDs, preserved fault detail, unpin regrouping and unchanged
+Current deduplication. JVM totals are now 332 debug/306 release, all passed; the
+focused managed history interaction and final exact-head CI remain required.

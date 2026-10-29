@@ -154,4 +154,17 @@ class AlertWorkflowUiTest {
     @Test fun repeatedWarningsShowOneHonestHistoryRow() = groupedUnknownHistory(1f)
 
     @Test fun repeatedWarningsRemainReadableAtLargeText() = groupedUnknownHistory(2f)
+
+    @Test fun olderKeptHistoryRowRemainsDirectlyOpenable() {
+        val kept = entry("kept", event.copy(key = 33)).copy(pinned = true, recordedAt = 1000)
+        val newest = kept.copy(id = "newest", pinned = false, recordedAt = 2000)
+        var opened: StoredAlert? = null
+        frame {
+            AlertWorkspaceList(alertWorkspaceRows(listOf(kept, newest), true) { false }, true, rememberLazyListState(), Modifier.fillMaxSize(), { false }, { error("History attention") }, { opened = it.entry }, {}, {})
+        }
+        compose.onAllNodesWithText("Transmission warning").assertCountEquals(2)
+        compose.onNodeWithText("Kept", substring = true).performScrollTo().performClick()
+        assertEquals("kept", opened!!.id)
+        assertTrue(opened!!.pinned)
+    }
 }

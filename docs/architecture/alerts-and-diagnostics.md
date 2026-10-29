@@ -95,7 +95,10 @@ threshold groups retain definition revision and producer key. Provider notices
 retain independent episode identities until a stable provider issue identity is
 available; reusing a provider slot does not establish recurrence. The latest
 observation represents the group; record count and first/last times inside detail describe
-recurrence, not distinct faults. Current warnings without codes are also coalesced
+recurrence, not distinct faults. Within loaded history, kept reports remain separately reachable history
+rows, respecting the same visibility filters, so newer observations cannot hide
+their detail or Unpin action. Unpinning restores ordinary grouping without deleting
+any evidence. Current warnings without codes are also coalesced
 per controller. Grouping does not edit storage, lifecycle, original context, filters
 or reports, and never borrows another observation's codes. A later identified code
 is its own evidence, not a retroactive diagnosis of an earlier unattributed warning.

@@ -169,4 +169,23 @@ class AlertWorkspacePresentationTest {
         val unknown = alertWorkspaceRows(listOf(withoutCodes), true) { false }.single()
         org.junit.Assert.assertTrue(alertWorkspaceSummary(unknown, true, false, MeasurementSystem.Metric).startsWith("Simulated · Codes not recorded · "))
     }
+
+    @Test fun olderKeptReportKeepsItsOwnDetailIdentityAndUnpinRegroupsWithoutDeletion() {
+        val kept = diagnostic("kept", 33, 1000, "U0140").copy(pinned = true)
+        val middle = diagnostic("middle", 35, 1500, "U0140")
+        val newest = diagnostic("newest", 35, 2000, "U0140")
+        val entries = listOf(kept, middle, newest)
+        val rows = alertWorkspaceRows(entries, true) { false }
+        assertEquals(listOf("newest", "kept"), rows.map { it.entry.id })
+        val keptRow = rows.last()
+        org.junit.Assert.assertTrue(keptRow.entry.pinned)
+        assertEquals(listOf("kept"), keptRow.occurrences.map { it.id })
+        assertEquals("U0140", keptRow.fault!!.code)
+        org.junit.Assert.assertTrue(alertWorkspaceSummary(keptRow, true, false, MeasurementSystem.Metric).contains("Kept"))
+        val regrouped = alertWorkspaceRows(entries.map { it.copy(pinned = false) }, true) { false }.single()
+        assertEquals("newest", regrouped.entry.id)
+        assertEquals(setOf("kept", "middle", "newest"), regrouped.occurrences.map { it.id }.toSet())
+        org.junit.Assert.assertTrue(kept.pinned)
+        assertEquals(1, alertWorkspaceRows(entries, false) { true }.size)
+    }
 }

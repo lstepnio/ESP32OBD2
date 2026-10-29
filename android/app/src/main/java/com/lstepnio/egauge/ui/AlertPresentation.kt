@@ -203,7 +203,7 @@ internal fun alertWorkspaceRows(
                 in 0..31 -> "${e.event.revision}:${e.event.key}"
                 else -> "notice:${e.id}"
             }
-        listOf(e.vehicle, e.gauge, e.event.simulated, identity)
+        listOf(e.vehicle, e.gauge, e.event.simulated, identity, e.id.takeIf { history && e.pinned })
     }.values.map { group ->
         val representative = if (history) group.maxBy { it.entry.recordedAt } else group.first()
         representative.copy(occurrences = group.map { it.entry }.distinctBy { it.id }.sortedByDescending { it.recordedAt })
@@ -215,12 +215,14 @@ internal fun alertWorkspaceSummary(row: AlertWorkspaceRow, history: Boolean, cur
     return if (history && entry.event.key in 32..35) {
         listOfNotNull(
             if (entry.event.simulated) "Simulated" else null,
+            if (entry.pinned) "Kept" else null,
             row.fault?.let { "${it.code} · ${it.source}" } ?: "Codes not recorded",
             if (entry.event.lifecycle == AlertLifecycle.Resolved) "Resolved" else null,
             alertRecordedTime(entry.recordedAt)
         ).joinToString(" · ")
     } else {
         listOfNotNull(
+            if (history && entry.pinned) "Kept" else null,
             row.fault?.let { "${it.code} · ${it.source}" },
             if (entry.event.key < 32) alertNotificationText(entry.event, system, emptyList()) else null,
             alertEntryStatus(entry.event, current),
