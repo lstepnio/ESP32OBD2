@@ -61,7 +61,7 @@ object ConfigurationProjector {
                 ProfileActions.validate(draft.actions, draft.pages)
             }.exceptionOrNull()?.let { listOf(it.message ?: "Invalid actions") }
                 ?: emptyList()
-        return actionIssues + buildList {
+        return actionIssues + IdleTargetDraft.projectionBlockers(draft.idlePresets, draft.actions) + buildList {
             runCatching {
                 DiagnosticCodeFilters.validate(draft.diagnosticFilters)
             }.exceptionOrNull()?.let { add(it.message ?: "Invalid code filters") }

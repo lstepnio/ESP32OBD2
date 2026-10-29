@@ -182,3 +182,34 @@ are retained, not asserted fresh. These are gauge-cache reads, not forced ECU
 acquisition; retain original ages, session and revision when attributing an icon.
 No clearing, control, filter edit or configuration write is performed. Treat the
 output as private vehicle evidence and restore monitoring/wake preferences afterward.
+
+## Numeric Air up target and Winch floor: future qualification only
+
+Current App preparation saves the existing optional RPM draft without changing
+firmware capabilities. A selected numeric preset cannot Start through the App or
+be projected as a fixed-target action page. A blank RPM deliberately selects the
+captured legacy operation. Previously applied gauge setup remains its acknowledged
+fixed operation until a supported setup is applied. Do not treat a saved numeric
+phone value as an installed gauge request.
+
+Before extending the captured driver, review the existing
+[static RPM encoding research](../vehicles/jeep/jk-handler-analysis.md). The source
+expression and `31 05 HH LL` example establish a lead, not permission to substitute
+arbitrary bytes into the captured command. This offline preparation authorizes no
+additional ECU probing or live numeric target experiments.
+
+A separately approved parked qualification must establish controller-specific
+accepted ranges/steps and response semantics, actual settled RPM, refresh/Return
+and loss-of-contact behavior. Qualify these two behaviors independently:
+
+| Intent | Required physical evidence before enablement |
+| --- | --- |
+| Air up target | Requested RPM is reached within a defined bound; deliberate pedal input cancels through the control owner; Return and settled normal idle are verified; cancellation latency and any ECM-native override are measured, not assumed. |
+| Winch minimum idle | Requested floor is maintained when appropriate; accelerator input above it remains under normal driver control; release returns to the floor; movement/gear guards, Stop and settled restoration remain effective. |
+
+Preserve coolant heat Stop and missing/stale-coolant deadlines, the saved timer,
+explicit Stop, durable Unknown and read-only recovery across both tests. Check
+primary/child reading continuity under the added inputs. A native ECU throttle
+policy and an App-observed pedal cancellation policy are different evidence; neither
+can be inferred from the existing fixed-target JScan observation. Do not advertise
+numeric support until the entire matched path is implemented and qualified.
