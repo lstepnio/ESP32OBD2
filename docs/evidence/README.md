@@ -9,6 +9,7 @@ Search only the relevant report when exact evidence is needed.
 - [GATT long-read recovery investigation](gatt-long-read-recovery.md)
 - [ESP32 memory audit and hardening](esp32-memory-hardening.md)
 - [Second-adapter setup investigation](second-adapter-setup.md)
+- [Dev.75 combined App/Wi-Fi delivery](dev75-indoor-rollout.md)
 - [Fault presentation, reading easing and Auto boot continuity](fault-reading-continuity.md)
 - [Car workspace UX review](car-ux-review.md)
 - [Shared alerts and diagnostics implementation](shared-alerts-implementation.md)
