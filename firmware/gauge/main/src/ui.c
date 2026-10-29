@@ -1234,6 +1234,7 @@ static void showcase_frame(ui_t *ui)
                                                      .minimum        = f->minimum,
                                                      .maximum        = f->maximum,
                                                      .stale_after_ms = 2000};
+    memset(ui->display.presentation, 0, sizeof(ui->display.presentation));
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
     ui->status_dirty          = true;

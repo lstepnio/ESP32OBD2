@@ -115,7 +115,7 @@ motion on the existing 50 ms UI timer. It adds no task, queue, framebuffer or hi
 - Gear and unknown/custom definitions, including explicit timing overrides, stay
   direct. Policy is assigned from catalog identity/service/PID/timings, never labels.
 - Missing/expired/invalid samples clear immediately. Source-generation changes,
-  page changes and unit changes start fresh, with no animation from zero or across
+  page/showcase changes and unit changes start fresh, with no animation from zero or across
   sources. Animation never renews a sample timestamp or widens any age limit.
 
 During ordinary scheduling, a never-seen PID has no retention deadline and cannot
