@@ -10,7 +10,7 @@ Do not add a second command transport or enable a mask from a reference capture.
 
 Use the installed baseline in [current state](../current-state.md) and its linked
 indoor evidence. The signed App/Wi-Fi installation, protected readbacks, saved setup
-and physical action navigation are checked. No unresolved command journal was found.
+and physical action navigation are checked. The latest indoor delivery retains an Unknown idle journal; resolve it using fresh ECM evidence before another Start.
 The next session can combine fixed read-only input capture with supervised idle
 Start/Stop; automatic Park/brake qualification and ABS/TCS remain separate.
 
@@ -182,3 +182,57 @@ are retained, not asserted fresh. These are gauge-cache reads, not forced ECU
 acquisition; retain original ages, session and revision when attributing an icon.
 No clearing, control, filter edit or configuration write is performed. Treat the
 output as private vehicle evidence and restore monitoring/wake preferences afterward.
+
+## Next-session configurable idle and pedal investigation
+
+Prepared offline on 2026-10-28. This is a qualification plan, not permission to
+transmit a new actuator value. The current driver supports one captured Start word
+(`06 80`, observed around 1,700 RPM); it does not establish a general RPM encoding.
+The [reference](../evidence/jeep-high-idle-reference.md) owns captured bytes and limits.
+
+Desired product behavior: separate saved Air up and Winch RPM targets, retaining
+independent timers and coolant protection. Prefer an absolute minimum engine-speed
+target that the pedal can exceed during Winch; an offset above a sampled baseline
+would change with engine conditions and is not yet a supported controller mode.
+Do not label a preset with an arbitrary RPM while issuing the existing fixed word.
+Keep the existing local Start, direct Stop, uncertainty/recovery and coolant owners.
+
+Before leaving, preserve current setup, filters and exact installed build, prepare
+a timestamped trace and confirm the primary ECM identity. Bring Mac, Pixel, gauge
+and both adapters. Use one connection owner at a time. Stay parked in Park with
+parking brake set, engine at normal idle and no compressor/winch load for this
+first capability session. Keep source-level and owner observations separate.
+
+| Order | Test | Decision/evidence |
+| --- | --- | --- |
+| 1 | Resolve retained Unknown through the installed read-only recovery | Positive inactive report and settled RPM; no Start replay or manual marker deletion |
+| 2 | Capture a known fixed-target JScan Start/Stop again | Exact ECM, raw command/report, actual RPM and normal restoration establish the reference |
+| 3 | Inspect the applicable JScan target-setting path | Capture a documented selectable setting if one exists. If unavailable, do not guess parameter bytes or scan arbitrary RPM values |
+| 4 | Brief gentle pedal input during fixed-target idle, then pedal release | Record requested routine state, actual RPM, speed, guard reason and whether the ECU relinquishes/retains idle. The current parked runtime stops above 2,500 RPM, which must be distinguished from ECU cancellation |
+| 5 | Repeat as separate Air up and Winch observations | Determine whether mode-specific pedal behavior can be implemented or the ECU uses one common cancellation behavior |
+| 6 | Only with an established target definition, validate a conservative bounded second setting | Exact encoded target, acceptance/report, measured RPM, allowed range/steps and explicit Stop. Stop on rejection; no blind retry |
+| 7 | Return and verify ordinary idle; restore previous setup | Preserve timestamps, guard results, source loss and negative responses; reconnect child TCM and confirm independent readings |
+
+Acceptance before adjustable targets ship: validated encoding/range/steps for the
+exact ECM; target versus actual distinction; unsupported-controller behavior;
+parameter-boundary replay tests; fresh-input and thermal stops; bounded timer;
+explicit Stop/restoration; no automatic Start on pedal release or reconnect.
+Winch may tolerate pedal input only where the controller and approved guard policy
+support it. Never simply raise/remove the current 2,500 RPM guard to mask a stop.
+If the ECU cancels its routine on throttle, report that limitation and design a
+clear deliberate Resume rather than silently reasserting high idle.
+
+After capability proof, App setup can offer one RPM control per action, validated
+to the controller's supported range and saved in the existing preset/command path.
+The gauge keeps the compact ready/running/Stop layout. No extra confirmation page,
+PID page requirement, command transport or notification framework is proposed.
+
+In the same session, record fast-PID arrival timestamps and foreground deadline
+counters while tapping/cycling RPM, changing to a cached page and running both
+adapters. Compare stable, rising/falling and rapid-reversal readings with easing;
+check that categorical gear and critical attention remain immediate, source loss
+clears only its own readings, and a valid cached value paints the first frame.
+Measure source cadence separately from presentation settling: the existing 250 ms
+visible fast-class target is not an adapter throughput guarantee. A new measured
+target settles over at most the 100 ms window plus its next ordinary render frame;
+task stalls and missed samples must remain visible in timing evidence.

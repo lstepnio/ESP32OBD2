@@ -34,6 +34,22 @@ Website impact: corrective recovery behavior needs no new marketing claim or ima
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
 
+## Offline follow-up in review
+
+Source now adds bounded 100 ms presentation easing for reviewed fast readings and a
+debounced Auto boot-angle checkpoint. Neither is yet installed; the display and
+hardware contracts own behavior and persistence limits. Source also removes the
+misleading last-drive episode total, groups repeated warning
+history without inventing codes, keeps last-known code detail reachable, and uses
+explicit code-unavailable wording. The [shared alert contract](architecture/alerts-and-diagnostics.md#app-fault-and-history-presentation)
+owns grouping and evidence semantics. [Offline verification](evidence/fault-reading-continuity.md) separates these checks
+from installed-device evidence.
+The next configurable-idle/pedal capture is prepared in the
+[parked runbook](development/jeep-action-qualification.md#next-session-configurable-idle-and-pedal-investigation);
+arbitrary targets and Winch pedal behavior remain unqualified.
+Website impact: review current Car/circular-gauge captures after offline verification;
+publish only in the normal daily window and do not imply configurable idle is live.
+
 ## Continuity update
 
 The owner approved PERF-01 on 2026-10-27. Dev.65 source adds page-cache continuity,
