@@ -100,7 +100,9 @@ recoverable; they never silently select another vehicle.
 
 Bluetooth identity identifies the transport, not the module behind it. Single
 adapter operation is unchanged. For two saved, distinct, real primary/child
-bindings, the gauge opens probe-capable transports and reads Mode 09 calibration
+bindings, the gauge clears retained adapter receive/flow filters and performs an
+optional bounded functional support request to establish the CAN protocol without
+assuming either module role. It then reads Mode 09 calibration
 and CVN at exact responders 7E8 and 7E9. Only the captured Jeep pair can exchange
 roles: ECM `68059434AD` / `CA36378C`, TCM `68274867AE` / `8240DAE8`.
 The [ECM](../evidence/jeep-actions-live-qualification.md) and
@@ -118,9 +120,12 @@ Missing/ambiguous matches and ports exposing both modules retain the current map
 and ordinary telemetry. No other nearby adapter is discovered or auto-bound.
 Each cycle runs one fixed read per ordinary worker iteration, after command I/O:
 first protocol discovery allows up to 15 seconds, subsequent reads one second,
-and a complete cycle has a 20-second bound, retried after 30 seconds. An outstanding
-prompt drains before another request. Deferred per-page discovery preserves normal
-PID support inventories. No ECU session, actuator or configuration write is part
+and a complete cycle has a 20-second bound. Unknown/opposite roles retry after
+30 seconds; a correct-role proof stops repeated identity polling for that BLE
+generation. A stale opposite pair requests a paced fresh comparison, never a swap
+on old evidence. An outstanding prompt drains before another request. Deferred
+support pages retry failures with capped 1/2/4/8-second backoff and finish only on
+a successful terminal reply. Identity/support share one background-I/O slot per loop. No ECU session, actuator or configuration write is part
 of role probing; AT commands only select the adapter's request/response route.
 
 A complete positive ECM identity establishes a source-generation-scoped primary

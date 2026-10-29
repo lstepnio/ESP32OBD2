@@ -41,6 +41,14 @@
 // ---------------------------------------------------------------------------------------------------------------------
 
 static void ble_obd_notify_cb(const uint8_t *data, size_t len, uint16_t attr_handle, void *usr_ctx);
+static int  read_pid(ble_obd_ctx_t *obd,
+                     uint8_t        mode,
+                     uint16_t       pid,
+                     uint32_t       ecu,
+                     uint32_t       timeout_ms,
+                     elm_result_t  *status,
+                     elm_payload_t *out,
+                     uint16_t       header);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Constants
@@ -245,6 +253,30 @@ static bool initialize_adapter(ble_obd_ctx_t *obd, bool probe_only)
         }
     }
     obd->request_header = 0x7df;
+    if (probe_only)
+    {
+        /* Auto protocol detection must reach whichever controller is on this
+         * physical port. A role-specific first request can target an absent
+         * ECU and never establish the bus. This fixed bootstrap publishes no
+         * support map, role evidence or numeric sample. */
+        if (!adapter_command(obd, "ATCRA\r", 2000) || !adapter_command(obd, "ATFCSM0\r", 2000))
+            return false;
+        uint32_t      bootstrap_generation = atomic_load(&obd->generation);
+        elm_payload_t bootstrap            = {0};
+        elm_result_t  bootstrap_status     = ELM_ADAPTER_ERROR;
+        bool framed = read_pid(obd, 1, 0, ELM_ECU_ANY, 15000, &bootstrap_status, &bootstrap, 0x7df) == 0 &&
+                      bootstrap.has_responder && (bootstrap.responder == 0x7e8 || bootstrap.responder == 0x7e9) &&
+                      bootstrap.length == 4;
+        obd_trace_emit(obd->source_id, atomic_load(&obd->generation), "protocol_bootstrap", NULL, 0,
+                       framed                       ? ELM_OK
+                       : bootstrap_status == ELM_OK ? ELM_MALFORMED
+                                                    : bootstrap_status);
+        /* Completed NO DATA/malformed/ambiguous replies stay unknown and may
+         * proceed to exact identity reads. An unclosed prompt cannot be reused. */
+        if (obd->awaiting_prompt || atomic_load(&obd->rx_overflow) || !ble_mgr_is_connected(obd->mgr_ctx) ||
+            atomic_load(&obd->generation) != bootstrap_generation)
+            return false;
+    }
     /* Bounded standard support-map discovery, attributed to the engine ECU.
      * A missing reply remains unknown; it is not evidence of unsupported PIDs. */
     for (unsigned base = 0; !probe_only && base <= 224; base += 32)

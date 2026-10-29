@@ -67,7 +67,15 @@ with unchanged token/context, and unchanged healthy sibling state. Existing sour
 source retirement and tick rollover. This is offline transport evidence; actual
 ECM/TCM startup, radio coexistence and recovery latency remain physical gates.
 `ble_obd_connect_role_probe` shares subscription and bounded ELM setup while
-preserving the logical ECU. It skips role-dependent Mode 01 support discovery;
+preserving the logical ECU. Before exact identity requests it clears retained
+receive/flow filters with fixed ATCRA/ATFCSM0 and sends one functional 7DF Mode 01
+PID 00 read with the existing 15 s auto-protocol budget. A complete framed 7E8 or
+7E9 support reply can bootstrap the bus regardless of the expected logical role;
+this reply publishes neither support maps nor controller identity. Completed
+NO DATA/malformed/ambiguous replies remain unknown and can proceed to exact
+identity probes; an unfinished prompt, overflow or retired link fails setup.
+The retained TCM capture reports support map 98180001, but this does not qualify
+a particular adapter's auto-detection behavior under swapped physical ports. It skips role-dependent Mode 01 support discovery;
 normal connections retain their prior support-map initialization. Probe-connected
 workers can recover availability through `ble_obd_read_support_map`, one fixed
 Mode 01 page per phase, against the logical ECU with its physical header. Support

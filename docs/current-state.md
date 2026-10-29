@@ -504,7 +504,7 @@ physical swapped-port recovery remains unqualified and installed dev.77 lacks it
 
 
 Candidate metadata is prepared as firmware dev.78 / App dev.55. The combined
-owner-candidate firmware builds locally; 184 host and 14 review-server tests,
+owner-candidate firmware builds locally; 185 host and 14 review-server tests,
 341 JVM tests, 28 managed-emulator action UI checks, firmware normal/fallback/parked
 rendering and configuration fixtures pass. Android lint and format checks pass.
 The production transport bodies run under ASan/UBSan fixtures, and the role policy

@@ -63,6 +63,23 @@ int main(void)
     assert(adapter_role_policy_primary_verified(&p, 10));
     adapter_role_policy_observe(&p, 0, 10, 0, ADAPTER_ROLE_ECM, 60100);
     assert(!adapter_role_policy_primary_verified(&p, 10));
+    /* Opposite-only cycles offset by 16s must request a fresh counterpart,
+     * rather than staying forever stale on their independent 30s cadence. */
+    scope(&p);
+    adapter_role_policy_observe(&p, 0, 10, ADAPTER_ROLE_TCM, 0, 1000);
+    adapter_role_policy_observe(&p, 1, 20, ADAPTER_ROLE_ECM, 0, 17000);
+    assert(!p.pending && p.transport[0] == 0);
+    assert(!adapter_role_policy_take_refresh(&p, 1));
+    assert(adapter_role_policy_take_refresh(&p, 0));
+    assert(!adapter_role_policy_take_refresh(&p, 0));
+    adapter_role_policy_observe(&p, 1, 20, ADAPTER_ROLE_ECM, 0, 18000);
+    assert(!adapter_role_policy_take_refresh(&p, 0)); /* Requests are paced. */
+    adapter_role_policy_observe(&p, 0, 10, ADAPTER_ROLE_TCM, 0, 19000);
+    assert(p.pending && p.transport[0] == 0);
+    assert(!adapter_role_policy_retire(&p, 0));
+    assert(adapter_role_policy_retire(&p, 1));
+    assert(p.transport[0] == 1 && p.revision == 1);
+    assert(!adapter_role_policy_retire(&p, 1) && p.revision == 1);
     uint8_t       cal[16] = "68059434AD";
     const uint8_t ecm[] = {0xca, 0x36, 0x37, 0x8c}, tcm[] = {0x82, 0x40, 0xda, 0xe8};
     assert(adapter_role_identity_match(ADAPTER_ROLE_ECM, 4, 0x7e8, cal, 16));

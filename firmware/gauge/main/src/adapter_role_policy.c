@@ -13,6 +13,8 @@ void adapter_role_policy_scope(adapter_role_policy_t *p, unsigned source, uint32
         return;
     p->generation[source] = generation;
     p->observed &= (uint8_t)~(1U << source);
+    p->refresh_requested &= (uint8_t)~(1U << source);
+    p->refresh_issued &= (uint8_t)~(1U << source);
     p->roles[source] = 0;
     if (!source)
         p->primary_proven = false;
@@ -59,14 +61,33 @@ void adapter_role_policy_observe(adapter_role_policy_t *p,
     p->roles[source]       = roles & (ADAPTER_ROLE_ECM | ADAPTER_ROLE_TCM);
     p->observed_at[source] = now;
     p->observed |= (uint8_t)(1U << source);
-    if (p->observed != 3 || now - p->observed_at[0] > ADAPTER_ROLE_EVIDENCE_WINDOW_MS ||
-        now - p->observed_at[1] > ADAPTER_ROLE_EVIDENCE_WINDOW_MS)
+    if (p->observed != 3 || p->roles[0] != ADAPTER_ROLE_TCM || p->roles[1] != ADAPTER_ROLE_ECM)
         return;
-    if (p->roles[0] == ADAPTER_ROLE_TCM && p->roles[1] == ADAPTER_ROLE_ECM)
-    {
-        p->pending = true;
-        p->retired = 0;
-    }
+    uint8_t stale = 0;
+    for (unsigned candidate = 0; candidate < 2; ++candidate)
+        if (now - p->observed_at[candidate] > ADAPTER_ROLE_EVIDENCE_WINDOW_MS)
+        {
+            uint8_t bit = (uint8_t)(1U << candidate);
+            stale |= bit;
+            if (!(p->refresh_issued & bit) || now - p->refresh_at[candidate] >= ADAPTER_ROLE_REFRESH_INTERVAL_MS)
+            {
+                p->refresh_requested |= bit;
+                p->refresh_issued |= bit;
+                p->refresh_at[candidate] = now;
+            }
+        }
+    if (stale)
+        return; /* Refresh a stale counterpart, never exchange on stale proof. */
+    p->pending = true;
+    p->retired = 0;
+}
+
+bool adapter_role_policy_take_refresh(adapter_role_policy_t *p, unsigned source)
+{
+    if (source > 1 || p->pending || !(p->refresh_requested & (1U << source)))
+        return false;
+    p->refresh_requested &= (uint8_t)~(1U << source);
+    return true;
 }
 
 bool adapter_role_policy_retire(adapter_role_policy_t *p, unsigned source)
@@ -81,7 +102,7 @@ bool adapter_role_policy_retire(adapter_role_policy_t *p, unsigned source)
     p->revision++;
     p->pending        = false;
     p->primary_proven = false;
-    p->retired = p->observed = 0;
+    p->retired = p->observed = p->refresh_requested = p->refresh_issued = 0;
     p->roles[0] = p->roles[1] = 0;
     return true;
 }

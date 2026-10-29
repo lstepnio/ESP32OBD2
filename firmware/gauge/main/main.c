@@ -305,8 +305,9 @@ typedef struct
     bool              decoded_sample, command_poll;
     uint32_t          reused_samples;
     uint32_t          routing_revision, probe_generation, probe_due, probe_started;
+    uint32_t          support_due, support_retry_ms;
     uint8_t           probe_step, probe_roles, probe_contradicted, support_base;
-    bool              probe_calibration, probe_protocol_ready, support_done, role_retired;
+    bool              probe_calibration, probe_protocol_ready, probe_complete, support_done, role_retired;
 } source_worker_t;
 static source_worker_t                      source_workers[2];
 static adapter_role_policy_t                adapter_roles;
@@ -378,21 +379,38 @@ static bool role_barrier(source_worker_t *worker, ble_obd_ctx_t **obd)
     return true;
 }
 
-static void role_probe(source_worker_t *worker, ble_obd_ctx_t *obd, uint32_t now)
+static bool role_probe(source_worker_t *worker, ble_obd_ctx_t *obd, uint32_t now)
 {
     if (!adapter_role_enabled || !obd || !ble_obd_is_connected(obd))
-        return;
+        return false;
     uint32_t generation = adapter_status_generation(worker->source);
     if (worker->probe_generation != generation)
     {
         worker->probe_generation     = generation;
-        worker->probe_protocol_ready = worker->support_done = false;
-        worker->support_base                                = 0;
-        worker->probe_due                                   = now;
+        worker->probe_protocol_ready = worker->probe_complete = worker->support_done = false;
+        worker->support_base                                                         = 0;
+        worker->support_due                                                          = now;
+        worker->support_retry_ms                                                     = 1000;
+        worker->probe_due                                                            = now;
         worker->probe_step = worker->probe_roles = worker->probe_contradicted = 0;
     }
+    if (!worker->probe_step)
+    {
+        /* A paired freshness request wakes a completed proof only at a phase
+         * boundary; it never restarts an in-flight identity cycle. */
+        portENTER_CRITICAL(&adapter_role_mux);
+        bool refresh = adapter_role_policy_take_refresh(&adapter_roles, worker->source);
+        portEXIT_CRITICAL(&adapter_role_mux);
+        if (refresh)
+        {
+            worker->probe_complete = false;
+            worker->probe_due      = now;
+        }
+        if (worker->probe_complete)
+            return false;
+    }
     if ((int32_t)(now - worker->probe_due) < 0)
-        return;
+        return false;
     if (worker->probe_step && now - worker->probe_started > 20000)
         worker->probe_step = worker->probe_roles = worker->probe_contradicted = 0;
     if (!worker->probe_step)
@@ -410,7 +428,7 @@ static void role_probe(source_worker_t *worker, ble_obd_ctx_t *obd, uint32_t now
     bool matched = received && adapter_role_identity_match(role, pid, payload.responder, payload.bytes, payload.length);
     worker->probe_protocol_ready = true;
     if (generation != adapter_status_generation(worker->source) || !ble_obd_is_connected(obd))
-        return;
+        return true;
     if (received && !matched)
     {
         worker->probe_contradicted |= role;
@@ -435,11 +453,14 @@ static void role_probe(source_worker_t *worker, ble_obd_ctx_t *obd, uint32_t now
         adapter_role_policy_observe(&adapter_roles, worker->source, generation, worker->probe_roles,
                                     worker->probe_contradicted, now);
         portEXIT_CRITICAL(&adapter_role_mux);
+        unsigned expected_role = worker->source ? ADAPTER_ROLE_TCM : ADAPTER_ROLE_ECM;
+        worker->probe_complete = (worker->probe_roles & expected_role) != 0;
         worker->probe_step = worker->probe_roles = worker->probe_contradicted = 0;
         worker->probe_due                                                     = now + 30000;
     }
     /* Each bounded read owns its request header. The next normal PID, fault or
      * command owner explicitly selects its own route before sending a request. */
+    return true;
 }
 
 /* Probe-only connection establishment must not erase normal capability maps.
@@ -448,10 +469,24 @@ static void role_probe(source_worker_t *worker, ble_obd_ctx_t *obd, uint32_t now
 static void role_support_probe(source_worker_t *worker, ble_obd_ctx_t *obd, uint32_t now)
 {
     if (!adapter_role_enabled || vehicle_commands_runtime_pending() || worker->support_done || worker->probe_step ||
-        (int32_t)(now - worker->probe_due) >= 0 || !ble_obd_is_connected(obd))
+        (!worker->probe_complete && (int32_t)(now - worker->probe_due) >= 0) ||
+        (int32_t)(now - worker->support_due) < 0 || !ble_obd_is_connected(obd))
         return;
-    bool more = false;
-    if (ble_obd_read_support_map(obd, worker->support_base, 1000, &more) != 0 || !more)
+    bool     more      = false;
+    int      result    = ble_obd_read_support_map(obd, worker->support_base, 1000, &more);
+    uint32_t completed = (uint32_t)(esp_timer_get_time() / 1000);
+    if (result != 0)
+    {
+        /* A timeout is unknown capability, not a terminal support page. Keep
+         * prior pages and retry this page quietly on a bounded backoff. */
+        uint32_t delay_ms        = worker->support_retry_ms ? worker->support_retry_ms : 1000;
+        worker->support_due      = completed + delay_ms;
+        worker->support_retry_ms = delay_ms < 8000 ? delay_ms * 2 : 8000;
+        return;
+    }
+    worker->support_retry_ms = 1000;
+    worker->support_due      = completed + 1000;
+    if (!more)
         worker->support_done = true;
     else
         worker->support_base += 32;
@@ -965,10 +1000,11 @@ static void obd_task(void *arg)
             continue;
         }
 
-        role_probe(worker, obd, (uint32_t)(esp_timer_get_time() / 1000));
+        bool role_io = role_probe(worker, obd, (uint32_t)(esp_timer_get_time() / 1000));
         if (role_barrier(worker, &obd))
             continue;
-        role_support_probe(worker, obd, (uint32_t)(esp_timer_get_time() / 1000));
+        if (!role_io)
+            role_support_probe(worker, obd, (uint32_t)(esp_timer_get_time() / 1000));
         ui_set_source_state(ui, source, true, g_runtime ? g_running_config_record.revision : 0,
                             adapter_status_generation(source));
         uint32_t      now_ms = (uint32_t)(esp_timer_get_time() / 1000);

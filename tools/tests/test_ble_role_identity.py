@@ -55,11 +55,16 @@ static void adapter_status_event(unsigned source, uint32_t generation, unsigned 
     (void)source; (void)status; if (phase == 1) retired_generation = generation;
 }
 static elm_response_t response;
-static unsigned calls, seen_header, initialization_requests, setup_commands, support_updates;
+static unsigned calls, seen_header, initialization_requests, setup_commands, support_updates, last_request_budget;
+static bool sticky_ecm_filter, custom_flow;
+static int bootstrap_observed;
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define ESP_LOGW(...) ((void)0)
 static bool adapter_command(ble_obd_ctx_t *obd, const char *command, uint32_t timeout) {
-    (void)obd; assert(timeout == 2000); assert(!strncmp(command, "AT", 2)); setup_commands++; return true;
+    (void)obd; assert(timeout == 2000); assert(!strncmp(command, "AT", 2));
+    if (!strcmp(command, "ATCRA\r")) sticky_ecm_filter = false;
+    if (!strcmp(command, "ATFCSM0\r")) custom_flow = false;
+    setup_commands++; return true;
 }
 int ble_obd_rxtx_ecu(ble_obd_ctx_t *obd, uint8_t mode, uint16_t pid, uint32_t ecu, uint32_t timeout) {
     assert(mode == 1 && pid == 0 && ecu == obd->discovery_ecu && timeout == 15000);
@@ -91,10 +96,13 @@ static bool select_request_header_locked(ble_obd_ctx_t *obd, uint16_t header, Ti
 }
 static int send_command_budget(ble_obd_ctx_t *obd, const char *command, uint32_t budget) {
     assert(budget && (!strcmp(command, "0904\r") || !strcmp(command, "0906\r") || !strcmp(command, "0100\r") || !strcmp(command, "0120\r")));
+    assert(!sticky_ecm_filter && !custom_flow);
+    last_request_budget = budget;
     calls++; obd->response = response; return BLE_MGR_E_OK;
 }
 static void obd_trace_emit(unsigned source, uint32_t generation, const char *event, const void *data, size_t length, int status) {
-    (void)source; (void)generation; (void)event; (void)data; (void)length; (void)status;
+    (void)source; (void)generation; (void)data; (void)length;
+    if (!strcmp(event, "protocol_bootstrap")) bootstrap_observed = status;
 }
 static uint64_t esp_timer_get_time(void) { return 0; }
 static void wire(const char *text) {
@@ -166,9 +174,23 @@ int main(void) {
     assert(ctx.generation == 8);
     ble_obd_disconnect(NULL);
     ctx.discovery_ecu = 0x7e9;
+    sticky_ecm_filter = custom_flow = true;
+    manager_connected = true;
+    wire("7E9 06 41 00 98 18 00 01\r>");
     assert(initialize_adapter(&ctx, true));
-    assert(ctx.ready && ctx.discovery_ecu == 0x7e9 && setup_commands == 7);
+    assert(ctx.ready && ctx.discovery_ecu == 0x7e9 && setup_commands == 9);
+    assert(!sticky_ecm_filter && !custom_flow && seen_header == 0x7df);
+    assert(last_request_budget == 15000 && bootstrap_observed == ELM_OK);
     assert(initialization_requests == 0 && support_updates == 1);
+    /* TCM bus bootstrap is not ECM calibration/identity evidence. */
+    assert(elm_response_decode_identity_for_ecu(&response, 4, 0x7e8, &p) != ELM_OK);
+    ctx.ready = false; prompt_available = false;
+    before = calls;
+    assert(!initialize_adapter(&ctx, true));
+    assert(ctx.awaiting_prompt && !ctx.ready && calls == before + 1);
+    before = calls;
+    assert(ble_obd_read_role_identity(&ctx, 0x7e8, 4, 1200, &status, &p) != 0 && calls == before);
+    prompt_available = true; ctx.awaiting_prompt = false;
     ctx.discovery_ecu = 0x7e8;
     assert(initialize_adapter(&ctx, false));
     assert(initialization_requests == 1 && support_updates == 2);
