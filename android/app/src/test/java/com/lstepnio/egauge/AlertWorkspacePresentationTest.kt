@@ -2,6 +2,7 @@ package com.lstepnio.egauge
 
 import com.lstepnio.egauge.ui.alertWorkspaceEntries
 import com.lstepnio.egauge.ui.alertWorkspaceRows
+import com.lstepnio.egauge.ui.alertWorkspaceSummary
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -135,5 +136,14 @@ class AlertWorkspacePresentationTest {
         assertEquals(4, alertWorkspaceRows(entries, true) { false }.size)
         val threshold = entry("threshold", AlertSeverity.Warning, 1)
         assertEquals(2, alertWorkspaceRows(listOf(threshold, threshold.copy(id = "changed", event = threshold.event.copy(revision = 2))), true) { false }.size)
+    }
+
+    @Test fun historicalWarningSummaryDoesNotRepeatSeverityOrImplyCodeTotal() {
+        val warning = entry("unknown", AlertSeverity.Warning, 1000).let { it.copy(event = it.event.copy(key = 33)) }
+        val row = alertWorkspaceRows(listOf(warning), true) { false }.single()
+        val summary = alertWorkspaceSummary(row, true, false, MeasurementSystem.Metric)
+        org.junit.Assert.assertTrue(summary.startsWith("Codes not recorded · "))
+        org.junit.Assert.assertFalse(summary.contains("Warning"))
+        org.junit.Assert.assertFalse(summary.contains("Last checked"))
     }
 }

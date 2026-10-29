@@ -132,13 +132,7 @@ internal fun AlertWorkspaceList(
             Panel {
                 SettingsRow(
                     row.title,
-                    listOfNotNull(
-                        row.fault?.let { "${it.code} · ${it.source}" },
-                        if (entry.event.key < 32) alertNotificationText(entry.event, system, emptyList()) else null,
-                        alertEntryStatus(entry.event, isCurrent(entry)),
-                        if (row.fault == null && entry.event.key in 32..35) "Codes not recorded" else null,
-                        alertRecordedTime(entry.recordedAt)
-                    ).joinToString(" · "),
+                    alertWorkspaceSummary(row, history, isCurrent(entry), system),
                     onClick = { onOpen(row) }
                 )
                 if (!history) AlertAttentionActions(attention(entry), { onSeen(entry) }, { onSnooze(entry) })
@@ -210,6 +204,25 @@ internal fun alertWorkspaceRows(
         val representative = if (history) group.maxBy { it.entry.recordedAt } else group.first()
         representative.copy(occurrences = group.map { it.entry }.distinctBy { it.id }.sortedByDescending { it.recordedAt })
     }.let { grouped -> if (history) grouped.sortedByDescending { it.entry.recordedAt } else grouped }
+}
+
+internal fun alertWorkspaceSummary(row: AlertWorkspaceRow, history: Boolean, current: Boolean, system: MeasurementSystem): String {
+    val entry = row.entry
+    return if (history && entry.event.key in 32..35) {
+        listOfNotNull(
+            row.fault?.let { "${it.code} · ${it.source}" } ?: "Codes not recorded",
+            if (entry.event.lifecycle == AlertLifecycle.Resolved) "Resolved" else null,
+            alertRecordedTime(entry.recordedAt)
+        ).joinToString(" · ")
+    } else {
+        listOfNotNull(
+            row.fault?.let { "${it.code} · ${it.source}" },
+            if (entry.event.key < 32) alertNotificationText(entry.event, system, emptyList()) else null,
+            alertEntryStatus(entry.event, current),
+            if (row.fault == null && entry.event.key in 32..35) "Codes not recorded" else null,
+            alertRecordedTime(entry.recordedAt)
+        ).joinToString(" · ")
+    }
 }
 
 internal fun alertRecordedTime(recordedAt: Long): String = DateFormat.getDateTimeInstance(

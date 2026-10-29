@@ -137,7 +137,7 @@ class AlertWorkflowUiTest {
         assertTrue(review)
     }
     private fun groupedUnknownHistory(scale: Float) {
-        val entries = (1..24).map { n -> entry("warning-$n", event.copy(key = if (n % 2 == 0) 33 else 35)) }
+        val entries = (1..24).map { n -> entry("warning-$n", event.copy(key = if (n % 2 == 0) 33 else 35)).copy(recordedAt = 1793217600000L + n) }
         val rows = alertWorkspaceRows(entries, true) { false }
         var opened: AlertWorkspaceRow? = null
         frame(scale) {
