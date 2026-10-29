@@ -2,6 +2,7 @@ package com.lstepnio.egauge
 
 import com.lstepnio.egauge.ui.alertWorkspaceEntries
 import com.lstepnio.egauge.ui.alertWorkspaceRows
+import com.lstepnio.egauge.ui.alertWorkspaceSummary
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -76,25 +77,24 @@ class AlertWorkspacePresentationTest {
         assertEquals(listOf("gauge", "gauge", "gauge", "independent"), rows.map { it.entry.gauge })
     }
 
-    @Test fun historyRetainsSeparateDatedEpisodesForTheSameCode() {
+    @Test fun historyGroupsSameCodeButRetainsEveryDatedObservation() {
         val early = diagnostic("early", 33, 1000)
         val later = diagnostic("later", 35, 2000)
         val rows = alertWorkspaceRows(listOf(early, later), true) { false }
-        assertEquals(listOf("later", "early"), rows.map { it.entry.id })
-        assertEquals(listOf(2000L, 1000L), rows.map { it.entry.recordedAt })
-        assertEquals(listOf("P0700", "P0700"), rows.map { it.fault!!.code })
+        assertEquals("later", rows.single().entry.id)
+        assertEquals(listOf(2000L, 1000L), rows.single().occurrences.map { it.recordedAt })
+        assertEquals("P0700", rows.single().fault!!.code)
     }
 
-    @Test fun thresholdsRemainIndependentAndUnattributedWarningsRemainGeneric() {
+    @Test fun thresholdsRemainIndependentAndKnownCodesReplaceDuplicateCurrentWarnings() {
         val code = diagnostic("code", 34)
         val threshold = entry("coolant", AlertSeverity.Warning, 1).copy(context = code.context)
         val unknownMil = entry("unknown", AlertSeverity.Warning, 1).let { it.copy(event = it.event.copy(key = 32)) }
         val rows = alertWorkspaceRows(listOf(threshold, code, unknownMil), false) { true }
-        assertEquals(3, rows.size)
+        assertEquals(2, rows.size)
         assertEquals("Coolant", rows.first().title)
         assertEquals(null, rows.first().fault)
-        assertEquals("Engine warning light", rows.last().title)
-        assertEquals(null, rows.last().fault)
+        assertEquals("P0700", rows.last().fault!!.code)
     }
 
     @Test fun diagnosticRowsUseOnlyTheRecordedControllerAndPreserveUnknownMeaning() {
@@ -104,5 +104,88 @@ class AlertWorkspacePresentationTest {
         assertEquals("P1999", unknown.fault!!.code)
         val transmissionWarning = engineContext.copy(event = engineContext.event.copy(key = 33))
         assertEquals(null, alertWorkspaceRows(listOf(transmissionWarning), false) { true }.single().fault)
+    }
+
+    @Test fun repeatedUnattributedDiagnosticsBecomeOneWarningPerControllerWithoutCodeCount() {
+        val entries = (1..24).map { n ->
+            entry("warning-$n", AlertSeverity.Warning, n.toLong()).let {
+                it.copy(event = it.event.copy(key = if (n % 2 == 0) 33 else 35))
+            }
+        }
+        val raw = entries.map { it.context.toString() }
+        val row = alertWorkspaceRows(entries, true) { false }.single()
+        assertEquals("Transmission warning", row.title)
+        assertEquals(null, row.fault)
+        assertEquals(24, row.occurrences.size)
+        assertEquals(raw, entries.map { it.context.toString() })
+    }
+
+    @Test fun groupedHistoryNeverBorrowsCodesFromLaterOrOtherSourceObservations() {
+        val early = entry("unknown", AlertSeverity.Warning, 1).let { it.copy(event = it.event.copy(key = 33)) }
+        val later = diagnostic("known", 35, 2, "U0140")
+        val rows = alertWorkspaceRows(listOf(early, later), true) { false }
+        assertEquals(2, rows.size)
+        assertEquals("U0140", rows.first().fault!!.code)
+        assertEquals(null, rows.last().fault)
+        assertEquals(null, early.context.optJSONObject("diagnostics"))
+    }
+
+    @Test fun historyGroupingKeepsVehicleGaugeSimulationAndThresholdRevisionScopes() {
+        val first = diagnostic("one", 33)
+        val entries = listOf(first, first.copy(id = "car2", vehicle = "other"), first.copy(id = "gauge2", gauge = "other"), first.copy(id = "simulation", event = first.event.copy(simulated = true)))
+        assertEquals(4, alertWorkspaceRows(entries, true) { false }.size)
+        val threshold = entry("threshold", AlertSeverity.Warning, 1)
+        assertEquals(2, alertWorkspaceRows(listOf(threshold, threshold.copy(id = "changed", event = threshold.event.copy(revision = 2))), true) { false }.size)
+    }
+
+    @Test fun historicalWarningSummaryDoesNotRepeatSeverityOrImplyCodeTotal() {
+        val warning = entry("unknown", AlertSeverity.Warning, 1000).let { it.copy(event = it.event.copy(key = 33)) }
+        val row = alertWorkspaceRows(listOf(warning), true) { false }.single()
+        val summary = alertWorkspaceSummary(row, true, false, MeasurementSystem.Metric)
+        org.junit.Assert.assertTrue(summary.startsWith("Codes not recorded · "))
+        org.junit.Assert.assertFalse(summary.contains("Warning"))
+        org.junit.Assert.assertFalse(summary.contains("Last checked"))
+    }
+
+    @Test fun reusedProviderSlotDoesNotMergeIndependentNotices() {
+        val first = entry("police", AlertSeverity.Warning, 1).let { it.copy(event = it.event.copy(key = 36, label = "Police ahead")) }
+        val second = first.copy(id = "traffic", recordedAt = 2, event = first.event.copy(episode = 2, label = "Traffic ahead"))
+        for (history in listOf(false, true)) {
+            val rows = alertWorkspaceRows(listOf(first, second), history) { true }
+            assertEquals(2, rows.size)
+            assertEquals(setOf("Police ahead", "Traffic ahead"), rows.map { it.title }.toSet())
+            org.junit.Assert.assertTrue(rows.all { it.occurrences.size == 1 })
+        }
+    }
+
+    @Test fun simulatedDiagnosticHistoryRetainsItsExplicitMarker() {
+        val actual = diagnostic("actual", 33, code = "U0140")
+        val simulated = actual.copy(id = "bench", event = actual.event.copy(simulated = true))
+        val row = alertWorkspaceRows(listOf(simulated), true) { false }.single()
+        val text = alertWorkspaceSummary(row, true, false, MeasurementSystem.Metric)
+        org.junit.Assert.assertTrue(text.startsWith("Simulated · U0140 · Transmission · "))
+        assertEquals(2, alertWorkspaceRows(listOf(actual, simulated), true) { false }.size)
+        val withoutCodes = simulated.copy(context = JSONObject())
+        val unknown = alertWorkspaceRows(listOf(withoutCodes), true) { false }.single()
+        org.junit.Assert.assertTrue(alertWorkspaceSummary(unknown, true, false, MeasurementSystem.Metric).startsWith("Simulated · Codes not recorded · "))
+    }
+
+    @Test fun olderKeptReportKeepsItsOwnDetailIdentityAndUnpinRegroupsWithoutDeletion() {
+        val kept = diagnostic("kept", 33, 1000, "U0140").copy(pinned = true)
+        val middle = diagnostic("middle", 35, 1500, "U0140")
+        val newest = diagnostic("newest", 35, 2000, "U0140")
+        val entries = listOf(kept, middle, newest)
+        val rows = alertWorkspaceRows(entries, true) { false }
+        assertEquals(listOf("newest", "kept"), rows.map { it.entry.id })
+        val keptRow = rows.last()
+        org.junit.Assert.assertTrue(keptRow.entry.pinned)
+        assertEquals(listOf("kept"), keptRow.occurrences.map { it.id })
+        assertEquals("U0140", keptRow.fault!!.code)
+        org.junit.Assert.assertTrue(alertWorkspaceSummary(keptRow, true, false, MeasurementSystem.Metric).contains("Kept"))
+        val regrouped = alertWorkspaceRows(entries.map { it.copy(pinned = false) }, true) { false }.single()
+        assertEquals("newest", regrouped.entry.id)
+        assertEquals(setOf("kept", "middle", "newest"), regrouped.occurrences.map { it.id }.toSet())
+        org.junit.Assert.assertTrue(kept.pinned)
+        assertEquals(1, alertWorkspaceRows(entries, false) { true }.size)
     }
 }

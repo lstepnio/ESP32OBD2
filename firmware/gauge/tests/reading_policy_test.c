@@ -23,6 +23,9 @@ int main(void)
     assert(reading_presentation_kind("transmission.gear", 0x22, 0x5503, 500, 2000) == READING_PRESENT_DIRECT);
     assert(reading_presentation_kind("custom", 1, 12, 500, 2000) == READING_PRESENT_DIRECT);
     assert(reading_presentation_kind("engine.rpm", 1, 12, 1000, 2000) == READING_PRESENT_DIRECT);
+    assert(reading_presentation_kind(NULL, 1, 12, 500, 2000) == READING_PRESENT_DIRECT);
+    assert(reading_presentation_kind("engine.rpm", 0x22, 12, 500, 2000) == READING_PRESENT_DIRECT);
+    assert(reading_presentation_kind("vehicle.fuel", 1, 0x2f, 500, 2000) == READING_PRESENT_CONTINUOUS);
     poll_pid_policy_t rpm = reading_policy("engine.rpm", 1, 12, 500, 2000, true, false, false);
     assert(rpm.interval_ms == 250 && rpm.display_age_ms == 3000 && rpm.priority == 2);
     poll_pid_policy_t hidden = reading_policy("engine.rpm", 1, 12, 500, 2000, false, false, false);

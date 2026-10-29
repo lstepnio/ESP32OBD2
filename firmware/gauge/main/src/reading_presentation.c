@@ -8,7 +8,8 @@ static double analog_at(const reading_presentation_t *s, uint32_t now)
         return s->target;
     double t = elapsed / 150.0;
     /* Monotone ease-out between measured endpoints, never prediction. */
-    return s->origin + (s->target - s->origin) * t * (2 - t);
+    double value = s->origin + (s->target - s->origin) * t * (2 - t);
+    return fmin(fmax(s->origin, s->target), fmax(fmin(s->origin, s->target), value));
 }
 
 double reading_presentation_step(reading_presentation_t     *s,
@@ -16,6 +17,8 @@ double reading_presentation_step(reading_presentation_t     *s,
                                  bool                        available,
                                  double                      raw,
                                  uint32_t                    generation,
+                                 uint32_t                    observed_at_ms,
+                                 uint32_t                    continuity,
                                  uint32_t                    now,
                                  bool                        immediate,
                                  double                     *numeric)
@@ -26,22 +29,25 @@ double reading_presentation_step(reading_presentation_t     *s,
         *numeric = 0;
         return 0;
     }
-    bool reset =
-        !s->initialized || s->generation != generation || immediate || kind == READING_PRESENT_DIRECT || raw == 0;
+    bool reset = !s->initialized || s->generation != generation || s->continuity != continuity || immediate ||
+                 kind == READING_PRESENT_DIRECT || raw == 0;
     if (reset)
-        *s = (reading_presentation_t){.origin      = raw,
-                                      .target      = raw,
-                                      .numeric     = raw,
-                                      .started_ms  = now,
-                                      .numeric_ms  = now,
-                                      .generation  = generation,
-                                      .initialized = true};
+        *s = (reading_presentation_t){.origin              = raw,
+                                      .target              = raw,
+                                      .numeric             = raw,
+                                      .started_ms          = observed_at_ms,
+                                      .numeric_ms          = now,
+                                      .generation          = generation,
+                                      .continuity          = continuity,
+                                      .last_observed_at_ms = observed_at_ms,
+                                      .initialized         = true};
     else if (raw != s->target)
     {
         s->origin     = analog_at(s, now);
         s->target     = raw;
-        s->started_ms = now;
+        s->started_ms = observed_at_ms;
     }
+    s->last_observed_at_ms = observed_at_ms;
     if (!reset && kind == READING_PRESENT_RPM)
     {
         /* Quantization is presentation-only. Hysteresis prevents bin-edge chatter;

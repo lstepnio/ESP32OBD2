@@ -40,3 +40,17 @@ esp_err_t display_settings_save_orientation(bool                automatic,
                                             uint8_t             manual_rotation,
                                             uint32_t            expected_revision,
                                             display_settings_t *saved);
+
+/* Auto cold boot uses the last checkpointed applied angle; manual mode always
+ * uses the owner angle. Missing/malformed hints fall back to that owner angle. */
+uint8_t display_settings_boot_rotation(void);
+
+/* RAM-only observation of the successfully applied angle, on a monotonic clock.
+ * Call regularly while Auto holds the angle; invalid/manual clears stability. */
+void display_settings_observe_auto_rotation(uint8_t applied_rotation, uint64_t now_ms);
+
+/* Application owner only, outside LVGL/BLE callbacks and the LVGL lock. Saves
+ * after 5 seconds unchanged, at most one attempt per minute (including failures).
+ * No settings revision changes. Success includes a no-op; busy returns TIMEOUT.
+ * A last-second movement/power loss can therefore retain the older boot hint. */
+esp_err_t display_settings_persist_auto_rotation(uint64_t now_ms);

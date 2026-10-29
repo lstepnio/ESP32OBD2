@@ -108,15 +108,19 @@ motion on the existing 50 ms UI timer. It adds no task, queue, framebuffer or hi
 - Unchanged catalog continuous readings interpolate arc/bar position over 150 ms
   with monotone ease-out, bounded by the previous displayed position and latest
   measured target. New samples retarget from the current position, without prediction,
-  overshoot or manufactured samples. Their numeric text retains measured precision.
+  overshoot or manufactured samples. Original observation age pays down the window,
+  so delayed consumption does not add a second full delay. Equal targets do not
+  restart convergence. Their numeric text retains measured precision.
 - RPM numeric text uses 25-RPM bins, a 17.5-RPM change deadband and at least 250 ms
   between ordinary numeric changes. Page entry/recovery starts at the actual cached
   value; engine-off zero and shared severity transitions bypass these filters.
 - Gear and unknown/custom definitions, including explicit timing overrides, stay
   direct. Policy is assigned from catalog identity/service/PID/timings, never labels.
 - Missing/expired/invalid samples clear immediately. Source-generation changes,
-  page/showcase changes and unit changes start fresh, with no animation from zero or across
-  sources. Animation never renews a sample timestamp or widens any age limit.
+  revision/session changes, invalidation between UI frames, missed stale intervals,
+  page/showcase changes and unit changes start fresh, with no animation from zero or
+  across sources. Trend history records only raw samples; its RPM label can use the
+  numeric policy. Animation never renews a timestamp or widens any age limit.
 
 During ordinary scheduling, a never-seen PID has no retention deadline and cannot
 claim infinite urgency ahead of a due visible reading. Measured readings near expiry

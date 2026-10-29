@@ -64,7 +64,7 @@ class AlertNotificationTest {
         notifications.show(diagnostic, "car", "gauge", true, false, codes = listOf(CarFaultUi("U0121", "", "Transmission", "Stored")))
         awaitCount(1)
         val posted = manager.activeNotifications.single().notification
-        assertEquals("Transmission fault codes", posted.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals("Transmission warning", posted.extras.getString(Notification.EXTRA_TITLE))
         assertEquals("U0121 · ABS communication lost", posted.extras.getString(Notification.EXTRA_TEXT))
         notifications.show(diagnostic, "car", "gauge", true, false, filtered = true)
         awaitCount(0)

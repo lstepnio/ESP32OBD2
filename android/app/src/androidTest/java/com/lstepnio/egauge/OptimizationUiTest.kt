@@ -492,21 +492,21 @@ class OptimizationUiTest {
         compose.onNodeWithText("History").performScrollTo().assertIsDisplayed()
     }
 
-    @Test fun attentionEpisodeOpensDirectlyAndOldDriveLinksToHistoryWithoutHealthClaim() {
+    @Test fun attentionEpisodeOpensDirectlyAndPreviousActivityDoesNotInventDriveOrCount() {
         val calls = mutableListOf<String>()
         var alerts by mutableStateOf(listOf(CarAttentionAlert("coolant", "Coolant temperature", "108 °C · Limit 105 °C", 3)))
         val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", StatusUi("Waiting"), emptyList(), false, false, false, emptyList(), gaugeKnown = true)
         compose.setContent {
             EGaugeTheme {
-                CarScreen(state, {}, {}, {}, currentAlerts = alerts, historyCount = 1, lastRecordedAt = 1000, onOpenAlert = { calls += it }, onHistory = { calls += "history" })
+                CarScreen(state, {}, {}, {}, currentAlerts = alerts, hasRecordedHistory = true, onOpenAlert = { calls += it }, onHistory = { calls += "history" })
             }
         }
         compose.onNodeWithText("Coolant temperature").performScrollTo().performClick()
         assertEquals(listOf("coolant"), calls)
         compose.runOnIdle { alerts = emptyList() }
-        compose.onNodeWithText("Last drive").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Previous activity").performScrollTo().assertIsDisplayed()
         compose.onAllNodesWithText("No active alerts").assertCountEquals(0)
-        compose.onNodeWithText("1 alert recorded").performScrollTo().performClick()
+        compose.onNodeWithText("Previous activity").performScrollTo().performClick()
         assertEquals(listOf("coolant", "history"), calls)
     }
 
@@ -517,5 +517,13 @@ class OptimizationUiTest {
         compose.onNodeWithText("P1999 · Engine").performScrollTo().performClick()
         compose.onNodeWithText("A verified explanation for P1999 is not included. Its meaning may depend on the vehicle and controller.").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Next step").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun lastKnownCodeRemainsDirectlyReachableWithoutClaimingCurrentFault() {
+        val source = FaultSourceUi("Engine", StatusUi("Last checked", tone = StatusTone.Stale), listOf(FaultCategoryUi("Stored", "", listOf(FaultUi("P0700", "", "Stored", current = false)))))
+        val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", source.status, emptyList(), false, true, false, emptyList(), faultSources = listOf(source))
+        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}, hasRecordedHistory = true) } }
+        compose.onNodeWithText("P0700 · Engine · Last checked").performScrollTo().performClick()
+        compose.onNodeWithText("Last checked. This code has not been confirmed cleared.").performScrollTo().assertIsDisplayed()
     }
 }

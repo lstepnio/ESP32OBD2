@@ -40,6 +40,16 @@ The existing single arc object is reused; text is narrowed to fit within its rin
 Custom definitions follow the same measured glyph fitting, units, range and
 unavailable rules as catalog readings. No label-based guessing of enum semantics.
 
+## Foreground reading motion
+
+The [sampling/presentation contract](../development/reading-catalog-alerts.md#gauge-presentation-smoothing)
+owns the single 150 ms analog and bounded RPM text policy, catalog matching,
+foreground preference, original observation age and continuity/reset rules.
+Presentation values never enter raw cache, trend history, alerts or vehicle guards.
+Page entry uses the latest valid cached value immediately. The existing LVGL owner
+uses two fixed states, without a new task, animation buffer or allocation.
+Loaded cadence, comfort and memory qualification remain separate from fixture proof.
+
 ## Gear color
 
 `design/tokens.json` owns the shared palette, generated into firmware and Android.
@@ -54,7 +64,7 @@ Red stays reserved for critical attention. Shared alert presentation keeps prior
 After NVS display preferences load, the board initializes and presents the logo
 before heavier configuration/radio setup. It uses four retained LVGL objects
 (container, arc, line and dot), with no bitmap, additional framebuffer or animation
-task. Saved brightness and manual angle apply at startup. The logo has no text.
+task. Saved brightness and the manual angle (or last checkpointed applied angle in Auto) apply at startup. The logo has no text.
 Its icon occupies a centered 168-pixel diameter on the 240-pixel reference display,
 using a muted neutral grey (`#555555`) for the arc, needle and pivot. Dimensions
 scale through the existing presentation profile. It reuses the same objects and

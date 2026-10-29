@@ -80,6 +80,35 @@ job at a time, cap each request and back off failures per endpoint/category with
 Measure late-job age and PID latency; no catch-up burst or permanent-code starvation.
 Discovery, configuration, OTA and explicit clear operations retain coordinator priority.
 
+## App fault and history presentation
+
+Car displays identified codes with their lookup descriptions and controller directly.
+When only an unattributed diagnostic warning is recorded, describe it as a warning,
+never as a known number of fault codes. Historical episode totals are not fault
+counts or drive counts; without a verified drive boundary the entry point is
+Previous activity, not Last drive. Last-known codes remain inspectable with their
+Last checked meaning when no current attention is available.
+
+History groups repeated observations by vehicle, gauge, simulation status and
+controller/code. Warnings without recorded codes group separately by controller;
+threshold groups retain definition revision and producer key. Provider notices
+retain independent episode identities until a stable provider issue identity is
+available; reusing a provider slot does not establish recurrence. The latest
+observation represents the group; record count and first/last times inside detail describe
+recurrence, not distinct faults. Within loaded history, kept reports remain separately reachable history
+rows, respecting the same visibility filters, so newer observations cannot hide
+their detail or Unpin action. Unpinning restores ordinary grouping without deleting
+any evidence. Current warnings without codes are also coalesced
+per controller, retaining the highest severity (and existing order for ties), so a
+newer low-priority code-list event cannot hide an active MIL warning. Grouping does not edit storage, lifecycle, original context, filters
+or reports, and never borrows another observation's codes. A later identified code
+is its own evidence, not a retroactive diagnosis of an earlier unattributed warning.
+Simulated diagnostic records retain an explicit marker in list summaries as well
+as details, and never merge with real observations.
+The detail explicitly says when no codes were saved; neither missing codes nor an
+empty current view proves the vehicle is fault-free. Notifications use the same
+warning terminology and show available scoped codes in their body.
+
 ## MIL, code and coverage semantics
 
 Keep lamp state independent of code presence. Mode 01 PID 01 contains a commanded

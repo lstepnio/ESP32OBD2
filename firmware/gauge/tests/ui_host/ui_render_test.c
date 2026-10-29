@@ -7,8 +7,11 @@
 #include "../../main/src/ui.c"
 static bool metric_value(ui_t *ui, unsigned index, double *value)
 {
-    uint32_t generation;
-    return metric_snapshot(ui, index, value, &generation);
+    ui_sample_t sample;
+    bool        available = metric_sample(ui, index, &sample);
+    if (available)
+        *value = sample.value;
+    return available;
 }
 
 bool            host_psram_failure;
@@ -136,6 +139,160 @@ static void touch(ui_t *ui, lv_event_code_t event)
     (void)event;
 }
 #include "gesture_regression.inc"
+
+static void presentation_regression(ui_t *ui)
+{
+    ui_page_t           page        = {.name         = "RPM",
+                                       .metric_count = 1,
+                                       .metrics      = {{.pid            = 12,
+                                                         .name           = "Engine RPM",
+                                                         .unit           = "rpm",
+                                                         .maximum        = 8000,
+                                                         .stale_after_ms = 2000,
+                                                         .presentation   = READING_PRESENT_RPM}}};
+    const ui_renderer_t renderers[] = {UI_RENDERER_NUMERIC, UI_RENDERER_ARC, UI_RENDERER_BAR, UI_RENDERER_DUAL,
+                                       UI_RENDERER_DUAL_ARC};
+    for (unsigned r = 0; r < sizeof(renderers) / sizeof(renderers[0]); r++)
+    {
+        page.renderer     = renderers[r];
+        page.metric_count = r >= 3 ? 2 : 1;
+        page.metrics[1]   = page.metrics[0];
+        double measured   = 1000;
+        ui_set_value(ui, 12, &measured);
+        ui_set_page(ui, &page);
+        assert(ui->display.rendered_values[0] == 1000); /* Cache on entry. */
+        host_ms++;
+        measured = 4000;
+        ui_set_value(ui, 12, &measured);
+        render_page(ui);
+        assert(ui->display.rendered_values[0] == 1000);
+        host_ms += 60;
+        render_page(ui);
+        double shown = 1000 + (measured - 1000) * (60.0 / 150.0) * (2 - 60.0 / 150.0);
+        assert(ui->display.rendered_values[0] == 1000);
+        double raw;
+        assert(metric_value(ui, 0, &raw) && raw == measured); /* Raw remains measured. */
+        if (page.renderer == UI_RENDERER_ARC || page.renderer == UI_RENDERER_DUAL_ARC)
+            assert(lv_arc_get_value(ui->widgets.arc) == normalized_value(shown, &page.metrics[0], 1000));
+        if (page.renderer == UI_RENDERER_BAR)
+            assert(lv_bar_get_value(ui->widgets.bar) == normalized_value(shown, &page.metrics[0], 1000));
+        if (page.metric_count == 2)
+            assert(ui->display.rendered_values[1] == 1000);
+        host_ms += 90;
+        render_page(ui);
+        if (page.renderer == UI_RENDERER_ARC || page.renderer == UI_RENDERER_DUAL_ARC)
+            assert(lv_arc_get_value(ui->widgets.arc) == normalized_value(measured, &page.metrics[0], 1000));
+        if (page.renderer == UI_RENDERER_BAR)
+            assert(lv_bar_get_value(ui->widgets.bar) == normalized_value(measured, &page.metrics[0], 1000));
+        assert(ui->display.rendered_values[0] == 1000); /* RPM text has its own cadence. */
+        host_ms += 100;
+        render_page(ui);
+        assert(ui->display.rendered_values[0] == measured);
+        /* Invalid then recovery between frames cannot bridge a dropout. */
+        ui_set_value(ui, 12, NULL);
+        measured = 2000;
+        ui_set_value(ui, 12, &measured);
+        render_page(ui);
+        assert(ui->display.rendered_values[0] == measured);
+        host_ms++;
+        measured = 5000;
+        ui_set_value(ui, 12, &measured);
+        render_page(ui);
+        assert(ui->display.rendered_values[0] == 2000);
+        ui_set_units(ui, !ui->imperial_units);
+        assert(ui->display.rendered_values[0] == measured);
+        host_ms += 2001;
+        render_page(ui);
+        assert(!ui->display.rendered_available[0] && !ui->display.presentation[0].initialized);
+        measured = 3000;
+        ui_set_value(ui, 12, &measured);
+        render_page(ui);
+        assert(ui->display.rendered_values[0] == measured);
+        /* A missed stale interval also resets without an intermediate render. */
+        host_ms += 2001;
+        measured = 6000;
+        ui_set_value(ui, 12, &measured);
+        render_page(ui);
+        assert(ui->display.rendered_values[0] == measured);
+        host_ms += 100;
+        measured = 4000;
+        set_sample(ui, UINT8_MAX, 0, 0, 12, &measured, host_ms - 60);
+        render_page(ui);
+        assert(ui->display.rendered_values[0] == 6000);
+        double delayed = 6000 + (measured - 6000) * (60.0 / 150.0) * (2 - 60.0 / 150.0);
+        if (page.renderer == UI_RENDERER_ARC || page.renderer == UI_RENDERER_DUAL_ARC)
+            assert(lv_arc_get_value(ui->widgets.arc) == normalized_value(delayed, &page.metrics[0], 1000));
+        if (page.renderer == UI_RENDERER_BAR)
+            assert(lv_bar_get_value(ui->widgets.bar) == normalized_value(delayed, &page.metrics[0], 1000));
+    }
+    page.renderer     = UI_RENDERER_TREND;
+    page.metric_count = 1;
+    double measured   = 1000;
+    ui_set_value(ui, 12, &measured);
+    ui_set_page(ui, &page);
+    host_ms += 50;
+    measured = 2200;
+    ui_set_value(ui, 12, &measured);
+    ui->display.trend_recorded_at = xTaskGetTickCount() - pdMS_TO_TICKS(500);
+    render_page(ui);
+    assert(ui->display.rendered_values[0] == 1000); /* Trend label shares RPM stabilization. */
+    assert(fabs(ui->display.trend_samples[TREND_CAPACITY - 1] - 21.75) < .001); /* History is raw 2200 RPM. */
+    host_ms += 200;
+    render_page(ui);
+    assert(ui->display.rendered_values[0] == measured);
+    page.renderer        = UI_RENDERER_NUMERIC;
+    page.metrics[0].unit = "gear";
+    ui_set_page(ui, &page);
+    measured = 3;
+    ui_set_value(ui, 12, &measured);
+    render_page(ui);
+    assert(ui->display.rendered_values[0] == measured);
+    /* Source/session reset is immediate even when no disconnected UI frame ran. */
+    page.metrics[0].unit         = "rpm";
+    page.metrics[0].scoped       = true;
+    page.metrics[0].source_index = 0;
+    page.metrics[0].revision     = 30;
+    vehicle                      = true;
+    paused = maintenance  = false;
+    source_generations[0] = 40;
+    ui_set_source_state(ui, 0, true, 30, 40);
+    measured = 1000;
+    ui_set_source_value(ui, 0, 30, 40, 12, &measured, host_ms);
+    ui_set_page(ui, &page);
+    assert(ui->display.rendered_values[0] == measured);
+    host_ms++;
+    measured = 7000;
+    ui_set_source_value(ui, 0, 30, 40, 12, &measured, host_ms);
+    render_page(ui);
+    assert(ui->display.rendered_values[0] == 1000);
+    source_generations[0] = 41;
+    ui_set_source_state(ui, 0, true, 30, 41);
+    ui_set_source_value(ui, 0, 30, 41, 12, &measured, host_ms);
+    render_page(ui);
+    assert(ui->display.rendered_values[0] == measured);
+    ui_set_source_state(ui, 0, true, 31, 41);
+    measured = 2500;
+    ui_set_source_value(ui, 0, 31, 41, 12, &measured, host_ms);
+    render_page(ui);
+    assert(!ui->display.rendered_available[0]); /* Old page revision stays unavailable. */
+    page.metrics[0].revision = 31;
+    ui_set_page(ui, &page);
+    assert(ui->display.rendered_values[0] == measured);
+    host_ms++;
+    measured = 4500;
+    ui_set_source_value(ui, 0, 31, 41, 12, &measured, host_ms);
+    render_page(ui);
+    assert(ui->display.rendered_values[0] == 2500);
+    /* Critical attention retains the measured event and its existing next-frame
+     * delivery while the ordinary reading is still catching up. */
+    ui_set_alert_event(ui, 2, false, "RPM", true, 1, 7, 7, measured, 4000, "rpm");
+    tick(50);
+    assert(ui->rendered_alert.attention && ui->rendered_alert.value == measured);
+    assert(visible_alert(ui).attention && ui->display.rendered_values[0] == measured);
+    ui_set_alert_full(ui, 0, false, "", false);
+    tick(60);
+    puts("PASS: production numeric/arc/bar/dual easing, raw cache, unit/page, stale and dropout resets");
+}
 
 int main(int argc, char **argv)
 {
@@ -826,6 +983,8 @@ int main(int argc, char **argv)
     assert(ui->display.trend_count == 0);
     ui_set_page(ui, &saved);
     assert(ui->display.trend_count == 0);
+    presentation_regression(ui);
+    ui_set_page(ui, &saved);
     /* Calibration pages exercise geometry/fonts outside the instrument compositor. */
     for (unsigned i = 0; i < CALIBRATION_PAGE_COUNT; i++)
     {

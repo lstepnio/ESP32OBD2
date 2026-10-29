@@ -34,25 +34,36 @@ Website impact: corrective recovery behavior needs no new marketing claim or ima
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and ABS/TCS execution remains disabled.
 
-## Offline foreground and idle-target preparation
+## Combined foreground, fault and idle-target follow-up in review
 
-The approved follow-up implements [foreground warmup preference and bounded gauge
-presentation](development/reading-catalog-alerts.md#gauge-presentation-smoothing),
-with raw sampling, freshness, alert and control semantics unchanged. This source is
-not installed; dev.74 remains the last qualified indoor device image above.
+PR #122 merged at `e166fa0` after four checks passed on corrected source `3e17eaa`.
+PR #123 integrates it before the owner-authorized dev.75 publication and one
+App/Wi-Fi installation. Publication and installed identity remain unverified until
+the delivery evidence is recorded; dev.74 remains the installed baseline above.
+
+One [presentation owner](development/reading-catalog-alerts.md#gauge-presentation-smoothing)
+combines foreground warmup/preflight priority, bounded 150 ms analog easing and
+independent RPM text stabilization, with original-age accounting and continuity
+fences across source retirement, invalidation and missed stale gaps. Raw readings,
+trend history, alert and control ages remain authoritative. A separate debounced
+[Auto boot-angle checkpoint](architecture/hardware-and-transports.md#automatic-display-orientation)
+retains manual fallback independently. These are source changes, not physical proof.
+
+The App removes the misleading last-drive episode total, groups repeated warning
+history without inventing codes, keeps last-known code detail reachable and uses
+explicit code-unavailable wording. The [shared alert contract](architecture/alerts-and-diagnostics.md#app-fault-and-history-presentation)
+owns grouping and evidence semantics. [Offline verification](evidence/fault-reading-continuity.md)
+separates original branch checks from combined integration checks and installation.
+
 The App reuses nullable preset RPM for an [Air up target and Winch minimum floor](architecture/vehicle-actions.md),
-preserves it during timer edits and keeps numeric drafts phone-only. Sending action
-pages with unsupported numeric intent is blocked instead of silently stripping it.
-No new wire/schema, firmware target mapping or live throttle behavior is enabled.
-Offline checks passed: host/native and production LVGL fixtures (including fallback
-and parked layouts), normal/parked firmware builds, 324 debug and 298 release JVM
-tests, Android build/lint, and 25 managed-emulator interactions with no skips or
-failures. Compact and actual Android 200% target editors were reviewed; the latter
-fixture restores the prior font scale. This does not establish vehicle behavior.
-Next Jeep work is the [parked qualification runbook](development/jeep-action-qualification.md):
-variable target acceptance, Winch throttle-above-floor/release behavior and Air up
-pedal cancellation, plus loaded presentation/guard timing. Website impact: defer
-marketing/screenshot changes until the intended hardware behavior is qualified.
+preserves it during timer edits and keeps numeric drafts phone-only. Local semantic
+validation permits other valid edits; transfer admission alone rejects unsupported
+numeric action intent rather than stripping it into a fixed target. No new wire,
+firmware target mapping or live throttle behavior is enabled. The next
+[parked session](development/jeep-action-qualification.md#next-session-configurable-idle-and-pedal-investigation)
+separates variable targets, ECU pedal behavior and the existing guard.
+Website impact: defer new idle claims; review current Car/circular-gauge captures
+for the normal daily window after qualification.
 
 ## Continuity update
 

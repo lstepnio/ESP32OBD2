@@ -12,7 +12,7 @@ typedef struct
     unsigned char bytes[16];
     size_t        length;
 } blob_t;
-static blob_t             flash[3], pending[3];
+static blob_t             flash[4], pending[4];
 static int                commit_count, cut_commit, fail_commit, fail_set, set_count;
 static bool               cut_after;
 static jmp_buf            power_loss;
@@ -23,8 +23,10 @@ static int                key_index(const char *key)
         return 0;
     if (strcmp(key, "smart0") == 0)
         return 1;
-    assert(strcmp(key, "smart1") == 0);
-    return 2;
+    if (strcmp(key, "smart1") == 0)
+        return 2;
+    assert(strcmp(key, "auto_angle") == 0);
+    return 3;
 }
 esp_err_t nvs_open(const char *key, int mode, nvs_handle_t *handle)
 {
@@ -277,6 +279,110 @@ int main(void)
         assert(display_settings_save_orientation(true, 2, before.revision, NULL) == ESP_FAIL);
         reboot();
         assert(!before.auto_orientation && before.rotation == 2);
+    }
+    /* Auto boot hint is independent from owner rotation/revision. */
+    memset(flash, 0, sizeof(flash));
+    reboot();
+    assert(display_settings_boot_rotation() == 0);
+    assert(display_settings_save_orientation(true, 2, 0, NULL) == ESP_OK);
+    reboot();
+    assert(display_settings_boot_rotation() == 2);
+    display_settings_observe_auto_rotation(1, 1000);
+    assert(display_settings_persist_auto_rotation(5999) == ESP_OK && commit_count == 0);
+    /* Movement restarts dwell; observations of the same angle do not. */
+    display_settings_observe_auto_rotation(3, 5999);
+    display_settings_observe_auto_rotation(3, 7000);
+    assert(display_settings_persist_auto_rotation(10998) == ESP_OK && commit_count == 0);
+    assert(display_settings_persist_auto_rotation(10999) == ESP_OK && commit_count == 1);
+    assert(display_settings_snapshot().revision == 1 && display_settings_snapshot().rotation == 2);
+    reboot();
+    assert(before.auto_orientation && before.rotation == 2 && display_settings_boot_rotation() == 3);
+    display_settings_observe_auto_rotation(3, 0);
+    assert(display_settings_persist_auto_rotation(5000) == ESP_OK && commit_count == 0);
+    display_settings_observe_auto_rotation(1, 6000);
+    assert(display_settings_persist_auto_rotation(11000) == ESP_OK && commit_count == 1);
+    display_settings_observe_auto_rotation(0, 12000);
+    assert(display_settings_persist_auto_rotation(17000) == ESP_OK && commit_count == 1);
+    assert(display_settings_persist_auto_rotation(70999) == ESP_OK && commit_count == 1);
+    fail_commit = 2;
+    assert(display_settings_persist_auto_rotation(71000) == ESP_FAIL && commit_count == 2);
+    assert(display_settings_boot_rotation() == 1); /* publish only committed */
+    assert(display_settings_persist_auto_rotation(76000) == ESP_OK && commit_count == 2);
+    assert(display_settings_persist_auto_rotation(131000) == ESP_OK && commit_count == 3);
+    reboot();
+    assert(display_settings_boot_rotation() == 0 && before.rotation == 2 && before.revision == 1);
+    assert(display_settings_save_orientation(false, 2, 1, NULL) == ESP_OK);
+    reboot();
+    assert(display_settings_boot_rotation() == 2);
+    display_settings_observe_auto_rotation(1, 0);
+    assert(display_settings_persist_auto_rotation(5000) == ESP_OK && commit_count == 0);
+    assert(display_settings_save_orientation(true, 2, 2, NULL) == ESP_OK);
+    reboot();
+    assert(display_settings_boot_rotation() == 0 && before.rotation == 2);
+    /* Invalid samples reset dwell and writer contention never writes. */
+    display_settings_observe_auto_rotation(1, 0);
+    display_settings_observe_auto_rotation(4, 4000);
+    assert(display_settings_persist_auto_rotation(5000) == ESP_OK && commit_count == 0);
+    display_settings_observe_auto_rotation(1, 6000);
+    test_lock_busy = 1;
+    assert(display_settings_persist_auto_rotation(11000) == ESP_ERR_TIMEOUT && commit_count == 0);
+    test_lock_busy = 0;
+    fail_set       = 1;
+    assert(display_settings_persist_auto_rotation(11000) == ESP_FAIL && commit_count == 0);
+    reboot();
+    assert(display_settings_boot_rotation() == 0);
+    /* Corrupt or missing hints never change the manual fallback or Auto mode. */
+    blob_t good_hint = flash[3];
+    for (int field = 0; field < 7; ++field)
+    {
+        flash[3] = good_hint;
+        if (field == 0)
+            flash[3].bytes[0] = 2;
+        if (field == 1)
+            flash[3].bytes[1] = 4;
+        if (field == 2)
+            flash[3].bytes[2] = 1;
+        if (field == 3)
+            flash[3].bytes[3] = 1;
+        if (field == 4)
+            flash[3].length = 3;
+        if (field == 5)
+            flash[3].length = 5;
+        if (field == 6)
+            flash[3].length = 0;
+        reboot();
+        assert(display_settings_boot_rotation() == 2 && before.auto_orientation && before.revision == 3);
+    }
+    /* Independent hint commit preserves the old boot angle on failure/cut. */
+    for (int checkpoint = 0; checkpoint < 3; ++checkpoint)
+    {
+        memset(flash, 0, sizeof(flash));
+        reboot();
+        assert(display_settings_save_orientation(true, 2, 0, NULL) == ESP_OK);
+        reboot();
+        display_settings_observe_auto_rotation(1, 0);
+        assert(display_settings_persist_auto_rotation(5000) == ESP_OK);
+        reboot();
+        display_settings_observe_auto_rotation(3, 0);
+        if (checkpoint == 0)
+        {
+            fail_commit = 1;
+            assert(display_settings_persist_auto_rotation(5000) == ESP_FAIL);
+            assert(display_settings_boot_rotation() == 1);
+        }
+        else
+        {
+            cut_commit = 1;
+            cut_after  = checkpoint == 2;
+            if (setjmp(power_loss) == 0)
+            {
+                (void)display_settings_persist_auto_rotation(5000);
+                assert(false);
+            }
+        }
+        reboot();
+        assert(display_settings_boot_rotation() == (checkpoint == 2 ? 3 : 1));
+        assert(before.auto_orientation && before.rotation == 2 && before.revision == 1);
     }
     seed_legacy(3, 1);
     memset(flash[0].bytes + 4, 255, 4);

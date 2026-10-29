@@ -30,8 +30,7 @@ fun CarScreen(
     onSaveIdlePresets: (List<com.lstepnio.egauge.IdlePreset>) -> Unit = {},
     onVehicleCommand: (com.lstepnio.egauge.VehicleCommandKind, Boolean, com.lstepnio.egauge.IdlePreset?) -> Unit = { _, _, _ -> },
     currentAlerts: List<com.lstepnio.egauge.ui.state.CarAttentionAlert> = emptyList(),
-    historyCount: Int = 0,
-    lastRecordedAt: Long? = null,
+    hasRecordedHistory: Boolean = false,
     onOpenAlert: (String) -> Unit = {},
     onHistory: () -> Unit = {},
     onAlertSettings: () -> Unit = {},
@@ -146,16 +145,16 @@ fun CarScreen(
                     Text("No active alerts", style = MaterialTheme.typography.titleMedium)
                     Text("Checked recently", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            } else if (historyCount > 0) {
+            } else if (faults.isNotEmpty()) {
                 Panel {
-                    SectionTitle("Last drive")
-                    SettingsRow(
-                        "$historyCount ${if (historyCount == 1) "alert" else "alerts"} recorded",
-                        lastRecordedAt?.let {
-                            java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(it))
-                        },
-                        onClick = onHistory
-                    )
+                    SectionTitle("Last checked")
+                    faults.take(3).forEach { fault ->
+                        FaultCodeRow(fault, onClick = { selectFault(fault) })
+                    }
+                }
+            } else if (hasRecordedHistory) {
+                Panel {
+                    SettingsRow("Previous activity", "View recorded issues", onClick = onHistory)
                 }
             }
             Panel {

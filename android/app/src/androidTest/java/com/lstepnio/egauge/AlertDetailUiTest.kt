@@ -58,4 +58,11 @@ class AlertDetailUiTest {
         compose.onNodeWithText("What it means").performScrollTo().assertIsDisplayed()
         compose.onAllNodesWithText("Back to saved codes").assertCountEquals(0)
     }
+
+    @Test fun anotherControllersCodesNeverBecomeThisWarningsExplanation() {
+        val context = JSONObject("""{"diagnostics":{"TCM":{"categories":[{"name":"Stored","codes":["U0140"]}]}}}""")
+        render(StoredAlert("engine", "car", "gauge", 1000, false, event.copy(key = 32, unit = "codes"), context), dark = true, fontScale = 2f)
+        compose.onNodeWithText("No fault codes were saved with this warning.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("U0140 · Transmission").assertDoesNotExist()
+    }
 }

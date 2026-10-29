@@ -50,7 +50,7 @@ fun carAttention(state: CarUiState, alerts: List<CarAttentionAlert>): List<CarAt
     }
     val episodes = alerts.filterNot { alert ->
         alert.diagnosticSource != null && faults.any { it.source == alert.diagnosticSource }
-    }.map { CarAttentionIssue(it.title, it.detail, it.severity, alertId = it.id) }
+    }.sortedByDescending { it.severity }.distinctBy { it.diagnosticSource ?: it.id }.map { CarAttentionIssue(it.title, it.detail, it.severity, alertId = it.id) }
     val unknownWarnings = state.faultSources.filter { source ->
         source.status.tone == StatusTone.Warning && faults.none { it.source == source.title } &&
             alerts.none { it.diagnosticSource == source.title }

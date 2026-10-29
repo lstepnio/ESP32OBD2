@@ -15,6 +15,7 @@
 #include <stdatomic.h>
 #include "transmission_gear.h"
 #include "display_idle_policy.h"
+#include "reading_presentation.h"
 #include "sdkconfig.h"
 #include "esp_timer.h"
 
@@ -77,7 +78,7 @@ typedef struct
     uint8_t  source;
     bool     used, present;
     double   value;
-    uint32_t observed_at_ms, revision, generation;
+    uint32_t observed_at_ms, revision, generation, continuity;
 } ui_sample_t;
 
 typedef struct
@@ -220,6 +221,7 @@ struct _ui_t
     atomic_uint           cycle_pause;
     portMUX_TYPE          sample_lock;
     ui_sample_t           samples[EGAUGE_RUNTIME_PIDS];
+    uint32_t              sample_continuity;
     struct
     {
         bool     ready;
@@ -517,7 +519,7 @@ void ui_waiting_logo_enable(ui_t *ui, bool enabled)
     }
 }
 
-static bool metric_snapshot(ui_t *ui, unsigned index, double *value, uint32_t *sample_generation)
+static bool metric_sample(ui_t *ui, unsigned index, ui_sample_t *out)
 {
     if (index >= ui->display.page.metric_count)
         return false;
@@ -542,10 +544,7 @@ static bool metric_snapshot(ui_t *ui, unsigned index, double *value, uint32_t *s
             available = available && ui->sample_sources[source].ready && sample->revision == metric->revision &&
                         sample->generation == generation;
         if (available)
-        {
-            *value             = sample->value;
-            *sample_generation = sample->generation;
-        }
+            *out = *sample;
         break;
     }
     portEXIT_CRITICAL(&ui->sample_lock);
@@ -1049,10 +1048,10 @@ static void update_trend(ui_t *ui)
 }
 static void render_page(ui_t *ui)
 {
-    const ui_page_t                *page           = presented_page(ui);
-    double                          values[2]      = {0};
-    bool                            available[2]   = {false};
-    uint32_t                        generations[2] = {0};
+    const ui_page_t                *page         = presented_page(ui);
+    double                          values[2]    = {0};
+    bool                            available[2] = {false};
+    ui_sample_t                     samples[2]   = {0};
     double                          numeric[2] = {0}, analog[2] = {0};
     bool                            demo  = atomic_load(&ui->showcase_active);
     const display_showcase_frame_t *frame = demo ? display_showcase_frame(ui->showcase.index) : NULL;
@@ -1064,7 +1063,10 @@ static void render_page(ui_t *ui)
             available[i] = frame->present[i];
         }
         else
-            available[i] = metric_snapshot(ui, i, &values[i], &generations[i]);
+        {
+            available[i] = metric_sample(ui, i, &samples[i]);
+            values[i]    = samples[i].value;
+        }
     }
     if (frame && page->renderer == UI_RENDERER_TREND)
         values[0] += 2 * sin((esp_timer_get_time() / 1000000.0) * 1.5);
@@ -1074,9 +1076,17 @@ static void render_page(ui_t *ui)
     ui_diagnostics_t   diagnostics = visible_diagnostics(ui);
     uint32_t           now_ms      = (uint32_t)(esp_timer_get_time() / 1000);
     for (unsigned i = 0; i < page->metric_count; ++i)
-        analog[i] = reading_presentation_step(&ui->display.presentation[i], page->metrics[i].presentation, available[i],
-                                              values[i], generations[i], now_ms,
+    {
+        const ui_metric_t      *metric = &page->metrics[i];
+        reading_presentation_t *state  = &ui->display.presentation[i];
+        if (state->initialized && samples[i].observed_at_ms - state->last_observed_at_ms > metric->stale_after_ms)
+            *state = (reading_presentation_t){0};
+        reading_presentation_kind_t kind =
+            frame || !strcmp(metric->unit, "gear") ? READING_PRESENT_DIRECT : metric->presentation;
+        analog[i] = reading_presentation_step(state, kind, available[i], values[i], samples[i].generation,
+                                              samples[i].observed_at_ms, samples[i].continuity, now_ms,
                                               condition.severity != ui->display.presentation_severity, &numeric[i]);
+    }
     ui->display.presentation_severity = condition.severity;
     /* Owner's Round 3 optical correction, only for the no-CEL Numeric
      * condition view. CEL combinations and chart geometry remain unchanged. */
@@ -2053,7 +2063,11 @@ static void set_sample(ui_t         *ui,
             slot = &ui->samples[i];
     }
     if (slot)
-        *slot = (ui_sample_t){.used           = true,
+    {
+        uint32_t continuity =
+            slot->used && slot->present && value && isfinite(*value) ? slot->continuity : ++ui->sample_continuity;
+        *slot = (ui_sample_t){.continuity     = continuity,
+                              .used           = true,
                               .source         = source,
                               .pid            = pid,
                               .present        = value && isfinite(*value),
@@ -2061,6 +2075,7 @@ static void set_sample(ui_t         *ui,
                               .revision       = revision,
                               .generation     = generation,
                               .observed_at_ms = observed_at_ms};
+    }
     portEXIT_CRITICAL(&ui->sample_lock);
 }
 
