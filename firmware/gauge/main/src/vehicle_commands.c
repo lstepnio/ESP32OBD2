@@ -421,7 +421,7 @@ void vehicle_commands_observe(vehicle_commands_t *s, vehicle_command_context_t c
          * same-scope Return attempt is allowed; failures never replay it. */
         if (kind == VEHICLE_BURNOUT && (s->marker.mask & 4U) && !v->release_attempted &&
             (v->phase == VEHICLE_UNKNOWN || v->phase == VEHICLE_STARTING) && qualified(c, kind) && scoped(v, c) &&
-            !guarded(s, c, kind, now))
+            (!guarded(s, c, kind, now) || remaining_ms(v, now) == 0))
             v->pending_stop = true;
         if (v->phase == VEHICLE_UNAVAILABLE && qualified(c, kind))
             transition(s, kind, VEHICLE_READY, VEHICLE_OK, now);

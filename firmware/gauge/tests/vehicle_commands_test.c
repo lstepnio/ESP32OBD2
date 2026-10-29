@@ -692,6 +692,21 @@ static void burnout_hold_release_and_uncertainty(void)
     assert(reboot.states[2].phase == VEHICLE_UNKNOWN && !reboot.states[2].restart_required);
     assert(!vehicle_commands_next(&reboot, context, now).text);
 
+    /* Lost Start acknowledgement cannot defeat the release-initiation deadline. */
+    init(&s);
+    burnout_context();
+    assert(vehicle_commands_submit(&s, burnout_request(VEHICLE_START, 1), context, now));
+    burnout_route(&s);
+    jeep_idle_command_t uncertain = vehicle_commands_next(&s, context, now++);
+    assert(uncertain.text && !strcmp(uncertain.text, "30 11 07 A0 00"));
+    vehicle_commands_transport_failed(&s, now);
+    assert(s.states[2].phase == VEHICLE_UNKNOWN && !s.states[2].pending_stop);
+    now = s.states[2].active_at + 10001;
+    burnout_context();
+    burnout_route(&s);
+    exchange(&s, "30 11 07 00 00", "785 03 70 11 07\r\r>");
+    assert(s.states[2].phase == VEHICLE_VERIFYING && s.states[2].release_attempted);
+
     /* Lost activation reply plus physical release attempts one Return, then
      * keeps uncertainty if that reply is lost too. No release retry loop. */
     init(&s);
