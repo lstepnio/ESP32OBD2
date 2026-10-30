@@ -235,10 +235,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    var vehicleCommands by mutableStateOf<Map<VehicleCommandKind, VehicleCommandStatus>>(emptyMap())
-        private set
-    var vehicleCommandsObservedAt by mutableStateOf<Long?>(null)
-        private set
+    private var commandObservations by mutableStateOf(VehicleCommandObservations())
+    val vehicleCommands get() = commandObservations.values
+    private fun vehicleCommandScope(): VehicleCommandScope? {
+        val gauge = currentGaugeId ?: return null
+        val vehicle = profileCollection.activeId
+        val config = activeDocument?.takeIf { it.vehicleProfileId == vehicle } ?: return null
+        return VehicleCommandScope(gauge, vehicle, config.revision, config.sha256)
+    }
+    fun freshVehicleCommandKinds(now: Long) = commandObservations.freshKinds(vehicleCommandScope(), now)
     private val commandPoll = VehiclePollSchedule()
     private var commandScope = ""
     private suspend fun pollVehicleCommands(client: GaugeConfigTransferClient, device: BluetoothDevice): Long {
@@ -246,24 +251,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val gauge = currentGaugeId ?: return 20_000L
         val vehicle = profileCollection.activeId
         val config = activeDocument?.takeIf { it.vehicleProfileId == vehicle } ?: return 20_000L
-        val scope = "$gauge:$vehicle:${config.revision}"
+        val context = VehicleCommandScope(gauge, vehicle, config.revision, config.sha256)
+        val scope = "$gauge:$vehicle:${config.revision}:${config.sha256}"
         val now = android.os.SystemClock.elapsedRealtime()
         if (commandScope != scope) {
             commandScope = scope
-            vehicleCommands = emptyMap()
-            vehicleCommandsObservedAt = null
+            commandObservations = commandObservations.inScope(context)
             commandPoll.reset()
         }
         if (!commandPoll.due(scope, now)) return commandPoll.pause(now)
+        val epoch = commandObservations.epoch
         var healthy = false
         try {
             val values = withTimeout(8_000) {
-                VehicleCommandKind.supported(capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion).associateWith { client.readVehicleCommand(device, it, capabilities?.brakeActionsTestVersion ?: 0) }
+                VehicleCommandKind.supported(capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion).associateWith { VehicleCommandObservation(client.readVehicleCommand(device, it, capabilities?.brakeActionsTestVersion ?: 0), android.os.SystemClock.elapsedRealtime()) }
             }
-            if (currentGaugeId == gauge && profileCollection.activeId == vehicle && activeDocument?.revision == config.revision && values.values.all { it.revision == config.revision }) {
-                vehicleCommands = values
-                vehicleCommandsObservedAt = android.os.SystemClock.elapsedRealtime()
-                healthy = true
+            if (vehicleCommandScope() == context) {
+                val updated = commandObservations.snapshot(context, epoch, values)
+                healthy = updated.scope == context && updated.entries == values && values.isNotEmpty()
+                commandObservations = updated
             }
         } catch (_: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()
@@ -284,20 +290,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val gauge = currentGaugeId ?: error("Connect your gauge first")
         val config = activeDocument?.takeIf { it.vehicleProfileId == vehicle } ?: error("Confirm this car's setup first")
         require(kind in VehicleCommandKind.supported(capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion) && isConfirmedSetup(config.revision, config.sha256, runtimeIdentity))
+        val context = VehicleCommandScope(gauge, vehicle, config.revision, config.sha256)
+        val epoch = commandObservations.epoch
         val previous = vehicleCommands[kind] ?: error("Waiting for current command status")
-        val observedAt = vehicleCommandsObservedAt ?: error("Waiting for current command status")
-        require(android.os.SystemClock.elapsedRealtime() - observedAt in 0..30_000 && connection.fresh(android.os.SystemClock.elapsedRealtime()))
+        val now = android.os.SystemClock.elapsedRealtime()
+        require(kind in commandObservations.freshKinds(context, now) && connection.fresh(now))
         require(if (stop) previous.canStop else previous.canStart)
         if (kind == VehicleCommandKind.Idle && !stop) {
             require(GaugeDraftComparison.savedDraft(config, vehicle)?.let { idleCoolantLimitC(it.alerts) } != null) { "Send a high-temperature Coolant alert to the gauge before starting raised idle" }
         }
         val client = GaugeConfigTransferClient(getApplication())
-        vehicleCommands = vehicleCommands + (kind to previous.copy(phase = VehicleCommandPhase.Unknown))
+        commandObservations = commandObservations.pending(context, epoch, kind)
         commandPoll.reset()
         val result = client.executeVehicleCommand(bleClient.selectedGauge(), kind, stop, preset, previous)
-        if (currentGaugeId == gauge && profileCollection.activeId == vehicle && activeDocument?.revision == config.revision) {
-            vehicleCommands = vehicleCommands + (kind to result)
-            vehicleCommandsObservedAt = android.os.SystemClock.elapsedRealtime()
+        if (vehicleCommandScope() == context && commandObservations.epoch == epoch) {
+            commandObservations = commandObservations.observed(context, epoch, kind, result, android.os.SystemClock.elapsedRealtime())
             operation = OperationState(
                 id,
                 OperationKind.VEHICLE_COMMAND,
@@ -1697,6 +1704,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun clearVehicleEvidence() {
+        commandObservations = commandObservations.retired()
+        commandScope = ""
+        commandPoll.reset()
         vehicleFailures = emptySet()
         sentDraft = null
         sentProfileId = null
@@ -2448,8 +2458,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun invalidateAlertTransport() {
         // Unsupported is a property of one running image/session, not the saved vehicle.
-        vehicleCommands = emptyMap()
-        vehicleCommandsObservedAt = null
+        commandObservations = commandObservations.retired()
         commandScope = ""
         commandPoll.reset()
         alertScope = ""

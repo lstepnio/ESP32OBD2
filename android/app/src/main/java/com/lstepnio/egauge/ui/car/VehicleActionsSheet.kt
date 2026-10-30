@@ -35,12 +35,12 @@ fun VehicleActionsSheet(
                 Text("Air up & winch", style = MaterialTheme.typography.titleMedium)
                 Text(idle.message)
                 if (idle.canStop) {
-                    PrimaryAction("Stop raised idle", { onCommand(VehicleCommandKind.Idle, true, null) }, enabled = state.commandsFresh)
+                    PrimaryAction("Stop raised idle", { onCommand(VehicleCommandKind.Idle, true, null) }, enabled = VehicleCommandKind.Idle in state.freshCommandKinds)
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         IdlePresetId.entries.forEach { id ->
                             val preset = state.idlePresets.firstOrNull { it.id == id } ?: IdlePreset(id)
-                            OutlinedButton({ confirm = VehicleCommandKind.Idle to preset }, enabled = state.commandsFresh && idle.canStart && state.runningIdleCoolantLimitC != null && preset.rpm == null) { Text(id.label) }
+                            OutlinedButton({ confirm = VehicleCommandKind.Idle to preset }, enabled = VehicleCommandKind.Idle in state.freshCommandKinds && idle.canStart && state.runningIdleCoolantLimitC != null && preset.rpm == null) { Text(id.label) }
                         }
                     }
                 }
@@ -65,14 +65,14 @@ fun VehicleActionsSheet(
                 Text("ABS + TCS", style = MaterialTheme.typography.titleMedium)
                 Text(abs.message)
                 if (!abs.busy && !abs.gaugeStartRequired) {
-                    OutlinedButton({ confirm = VehicleCommandKind.AbsTcs to null }, enabled = state.commandsFresh && abs.canStart) { Text("Disable ABS + TCS") }
+                    OutlinedButton({ confirm = VehicleCommandKind.AbsTcs to null }, enabled = VehicleCommandKind.AbsTcs in state.freshCommandKinds && abs.canStart) { Text("Disable ABS + TCS") }
                 }
                 if (burnout.busy) {
                     HorizontalDivider()
                     Text("Burnout recovery", style = MaterialTheme.typography.titleMedium)
                     Text(burnout.message)
                     if (burnout.canStop) {
-                        PrimaryAction("Stop Burnout Mode", { onCommand(VehicleCommandKind.Burnout, true, null) }, enabled = state.commandsFresh)
+                        PrimaryAction("Stop Burnout Mode", { onCommand(VehicleCommandKind.Burnout, true, null) }, enabled = VehicleCommandKind.Burnout in state.freshCommandKinds)
                     }
                 }
                 Spacer(Modifier.height(12.dp))
@@ -107,7 +107,7 @@ fun VehicleActionsSheet(
                 TextButton({
                     confirm = null
                     onCommand(kind, false, sessionPreset)
-                }, enabled = state.commandsFresh && (if (kind == VehicleCommandKind.Idle) idle.canStart && state.runningIdleCoolantLimitC != null && sessionPreset != null else abs.canStart)) { Text("Confirm") }
+                }, enabled = kind in state.freshCommandKinds && (if (kind == VehicleCommandKind.Idle) idle.canStart && state.runningIdleCoolantLimitC != null && sessionPreset != null else abs.canStart)) { Text("Confirm") }
             },
             dismissButton = { TextButton({ confirm = null }) { Text("Cancel") } }
         )

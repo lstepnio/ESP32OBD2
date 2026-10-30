@@ -88,7 +88,7 @@ class WebsiteReviewCaptureTest {
         val output = File(requireNotNull(InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")), if (marketing) "website-marketing" else "website-review")
         check(output.mkdirs() || output.isDirectory)
         val routes = listOf("gauge", "car", "settings", "expert", "setup", "customize", "alerts", "alert-settings", "car-advanced", "updates")
-        val cases = if (marketing) listOf("gauge" to "default", "car" to "default", "settings" to "default") else routes.map { it to "default" } + listOf("alerts" to "empty", "setup" to "loading", "gauge" to "permission-denied", "updates" to "error", "alerts" to "synthetic-current", "customize" to "review", "car-advanced" to "hidden-codes", "car-advanced" to "second-adapter")
+        val cases = if (marketing) listOf("gauge" to "default", "car" to "default", "settings" to "default", "actions" to "default") else routes.map { it to "default" } + listOf("alerts" to "empty", "setup" to "loading", "gauge" to "permission-denied", "updates" to "error", "alerts" to "synthetic-current", "customize" to "review", "car-advanced" to "hidden-codes", "car-advanced" to "second-adapter")
         try {
             for (large in if (marketing) listOf(false) else listOf(false, true)) {
                 for (dark in if (marketing) listOf(true) else listOf(false, true)) {
@@ -97,7 +97,13 @@ class WebsiteReviewCaptureTest {
                         compose.mainClock.advanceTimeBy(1_000)
                         compose.waitForIdle()
                         val name = "$route-$state-${if (large) "large" else "phone"}-${if (dark) "dark" else "light"}.png"
-                        File(output, name).outputStream().use { check(compose.onNodeWithTag("review-capture").captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it)) }
+                        val bitmap = if (route == "actions") {
+                            compose.onNodeWithText("Action pages").assertIsDisplayed()
+                            InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+                        } else {
+                            compose.onNodeWithTag("review-capture").captureToImage().asAndroidBitmap()
+                        }
+                        File(output, name).outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
                     }
                 }
             }
@@ -153,6 +159,19 @@ class WebsiteReviewCaptureTest {
                     ScreenFixtures.Screen("gauge", false)
                 }
             }
+
+            "actions" -> ActionPagesSheet(
+                car.copy(
+                    canEditActions = false,
+                    actionsSupported = true,
+                    commandsSupported = true,
+                    actions = listOf(PageAction(type = PageActionType.VehicleActions, winchSeconds = 60)),
+                    idlePresets = listOf(IdlePreset(IdlePresetId.AirUp, seconds = 300), IdlePreset(IdlePresetId.Winch, seconds = 60)),
+                    idleCoolantLimitC = 105.0
+                ),
+                { _, _ -> error("Capture cannot save vehicle configuration") },
+                {}
+            )
 
             "car" -> CarScreen(car, {}, {}, {}, currentAlerts = listOf(CarAttentionAlert("coolant", "Coolant above your limit", "108 °C · Limit 105 °C", 3)), hasRecordedHistory = true)
 

@@ -786,7 +786,7 @@ private fun AppViewModel.carState(
         runningIdleCoolantLimitC = activeDocument?.takeIf { it.vehicleProfileId == profileCollection.activeId && isConfirmedSetup(it.revision, it.sha256, runtimeIdentity) }?.let { GaugeDraftComparison.savedDraft(it, profileCollection.activeId) }?.let { idleCoolantLimitC(it.alerts) },
         measurementSystem = system,
         vehicleCommands = vehicleCommands, commandsSupported = capabilities?.vehicleCommandsVersion == 1,
-        commandsFresh = !busy && connection.fresh(now) && vehicleCommandsObservedAt?.let { now - it in 0..30_000 } == true,
+        freshCommandKinds = if (!busy && connection.fresh(now)) freshVehicleCommandKinds(now) else emptySet(),
         canEditActions =
             !busy && profileError == null,
         actionsSupported = capabilities?.pageActionsVersion in 1..2, canManageVehicles = canManageVehicles,

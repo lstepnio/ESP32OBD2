@@ -21,9 +21,13 @@ data class VehicleCommandObservations(
         entries.filterValues { it.observedAt?.let { at -> now >= at && now - at <= 30_000 } == true }.keys
     }
 
-    fun snapshot(value: VehicleCommandScope, expectedEpoch: Long, statuses: Map<VehicleCommandKind, VehicleCommandStatus>, observedAt: Long): VehicleCommandObservations {
-        if (!accepts(value, expectedEpoch) || observedAt < 0 || statuses.isEmpty() || statuses.any { (kind, status) -> !valid(kind, status) } || statuses.values.map { it.boot }.distinct().size != 1) return this
-        return copy(entries = statuses.mapValues { VehicleCommandObservation(it.value, observedAt) })
+    fun snapshot(value: VehicleCommandScope, expectedEpoch: Long, observations: Map<VehicleCommandKind, VehicleCommandObservation>): VehicleCommandObservations {
+        if (!accepts(value, expectedEpoch) || observations.isEmpty() || observations.any { (kind, observation) -> observation.observedAt == null || observation.observedAt < 0 || !valid(kind, observation.status) }) return this
+        if (observations.values.map { it.status.boot }.distinct().size != 1) {
+            return copy(epoch = epoch + 1, entries = entries.mapValues { it.value.copy(observedAt = null) })
+        }
+        val rebooted = entries.values.any { it.status.boot != observations.values.first().status.boot }
+        return copy(epoch = epoch + if (rebooted) 1 else 0, entries = observations.toMap())
     }
 
     fun pending(value: VehicleCommandScope, expectedEpoch: Long, kind: VehicleCommandKind): VehicleCommandObservations {
@@ -35,8 +39,9 @@ data class VehicleCommandObservations(
     fun observed(value: VehicleCommandScope, expectedEpoch: Long, kind: VehicleCommandKind, status: VehicleCommandStatus, observedAt: Long): VehicleCommandObservations {
         if (!accepts(value, expectedEpoch) || observedAt < 0 || !valid(kind, status)) return this
         // A new gauge boot retires sibling receipts, even with unchanged image/configuration.
-        val retained = if (entries.values.any { it.status.boot != status.boot }) emptyMap() else entries
-        return copy(entries = retained + (kind to VehicleCommandObservation(status, observedAt)))
+        val rebooted = entries.values.any { it.status.boot != status.boot }
+        val retained = if (rebooted) emptyMap() else entries
+        return copy(epoch = epoch + if (rebooted) 1 else 0, entries = retained + (kind to VehicleCommandObservation(status, observedAt.takeUnless { status.phase == VehicleCommandPhase.Unknown })))
     }
 
     private fun accepts(value: VehicleCommandScope, expectedEpoch: Long) = value == scope && expectedEpoch == epoch

@@ -197,3 +197,21 @@ link and operation must still match; missing/mismatched status remains Unknown a
 cancellation propagates. One outer 40-second bound covers the original maximum
 20-second connection plus 20-second operation budget, including an optional readback
 reconnect. The App operation lease remains held through connection cleanup.
+
+
+## Action observations and partial replies
+
+`VehicleCommandObservations` owns each action status and its monotonic receipt age.
+The AppModel uses the same per-kind freshness set for presentation and command
+admission; completing one command cannot renew a sibling status. Pending writes
+retain an Unknown face with no fresh receipt. A complete successful poll replaces
+the snapshot; a failed/partial poll preserves previous receipts without refreshing
+them. The existing 30-second limit is unchanged.
+
+Scope includes gauge, vehicle, running revision and hash. Context switches and
+connection invalidation retire an epoch, so delayed replies cannot repopulate a
+new session even if it returns to the same saved scope. Different boot nonces retire
+sibling receipts, and mixed-boot snapshots are rejected. Firmware still independently
+validates command context. Fake-clock coordinator and Compose confirmation tests
+cover partial replies, expiry, reconnect and context changes; they do not establish
+physical BLE or controller behavior.
