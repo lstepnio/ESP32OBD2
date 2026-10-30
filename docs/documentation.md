@@ -121,7 +121,8 @@ owner candidate is not automatically merged, generally available or vehicle-qual
 Never reduce them to a single Done badge. Public availability must name its audience
 and supported hardware/profile, especially for owner-only control candidates.
 
-Keep current-state summaries focused on the current baseline, active limitations
+Keep current-state summaries under 200 lines with one Pixel/Gauge baseline table,
+focused on the current baseline, active limitations
 and evidence links. Replace superseded statements in place; move historical
 narrative to dated evidence without losing measurements or inbound anchors. The
 backlog row describes the next acceptance outcome, not the feature's release diary.

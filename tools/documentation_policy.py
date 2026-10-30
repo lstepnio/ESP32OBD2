@@ -148,6 +148,19 @@ def check_decision_ids(root: Path) -> None:
         raise ValueError("Missing or duplicate architecture decision IDs")
 
 
+def check_current_context(root: Path) -> None:
+    text = (root / "docs/current-state.md").read_text()
+    if len(text.splitlines()) > 200:
+        raise ValueError(
+            "Keep current state under 200 lines; move historical narratives to evidence"
+        )
+    for item in ("Pixel", "Gauge"):
+        if len(re.findall(r"^\| " + item + r" \|", prose(text), re.MULTILINE)) != 1:
+            raise ValueError(
+                "Current state needs one recorded Pixel/Gauge baseline, not competing delivery tables"
+            )
+
+
 def check_documentation(root: Path) -> int:
     documents = authored_documents(root)
     if len((root / "AGENTS.md").read_text().splitlines()) > 150:
@@ -155,4 +168,5 @@ def check_documentation(root: Path) -> int:
     check_links(root, documents)
     check_map(root, documents)
     check_decision_ids(root)
+    check_current_context(root)
     return len(documents)

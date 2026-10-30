@@ -7,7 +7,13 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from documentation_policy import check_decision_ids, check_links, check_map, heading_anchors
+from documentation_policy import (
+    check_current_context,
+    check_decision_ids,
+    check_links,
+    check_map,
+    heading_anchors,
+)
 
 
 class DocumentationPolicyTest(unittest.TestCase):
@@ -118,6 +124,17 @@ class DocumentationPolicyTest(unittest.TestCase):
             "| ADR-019 | First |\n| ADR-020 | Second |\nSee ADR-019.\n```md\n| ADR-019 | Example |\n```\n",
         )
         check_decision_ids(self.root)
+
+    def test_current_context_rejects_growth_and_competing_device_baselines(self):
+        baseline = "# Current\n| Pixel | App |\n| Gauge | Firmware |\n"
+        self.save("docs/current-state.md", baseline)
+        check_current_context(self.root)
+        self.save("docs/current-state.md", baseline + "| Gauge | Older Firmware |\n")
+        with self.assertRaisesRegex(ValueError, "competing delivery tables"):
+            check_current_context(self.root)
+        self.save("docs/current-state.md", baseline + "Old narrative\n" * 200)
+        with self.assertRaisesRegex(ValueError, "under 200 lines"):
+            check_current_context(self.root)
 
     def test_historical_report_requires_scope(self):
         extra = self.save("docs/evidence/old.md", "# Earlier rollout\nInstall old image\n")
