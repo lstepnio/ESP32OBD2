@@ -570,7 +570,7 @@ not qualify live controller execution.
   three strokes show arrow geometry without growing the font set; the completed
   cue lasts 350 ms before entry. Returning permits immediate re-entry to reach Stop;
   the legacy page-jump cooldown is unchanged. Left/right
-  browses; Down returns to readings and the top chevron cancels a confirmation first.
+  browses; Down or the top chevron returns to readings without acknowledging an operation.
   Holds do not pair inside actions. Ordinary idle Start requires a continuous 900 ms
   hold on the ready control, replacing the repeated confirmation screen. Releasing
   early, leaving its hit region, moving over 12 logical pixels, attention/context loss,
@@ -578,19 +578,12 @@ not qualify live controller execution.
   and restored status still cancels the hold. Completion consumes the entire touch,
   so its release cannot Stop or issue a second Start. Removing Park/brake display copy
   does not remove any command guard or qualify the owner-supervised parked candidate.
-- Missing coolant retains Continue followed by a fresh hold, with No coolant visible
-  at commitment and its frozen one-minute maximum. State/context drift cancels that
-  confirmation; recovery cannot enlarge a queued request. ABS/TCS retains its named
-  Disable confirmation and Restart to restore guidance. Stop is one tap, including
-  from the sibling idle page, and always targets the actual running operation.
-- Starting, Return/verification and reconnection use green, red and yellow rotating
-  edge arcs. Starting and Return have no decorative play triangle or stop square;
-  reconnection retains its link symbol. They indicate pending work, not
-  percentage complete. Reuse the existing UI timer and LVGL arc; no animation task,
-  framebuffer or extra font set. Render timing, cancel/retry policy and command jobs
-  remain independent. Unknown keeps Check idle / Status unknown until reconciliation.
-  Verified restoration returns directly to Ready with no Done/success screen; known
-  high coolant keeps Start blocked. Worker validation remains authoritative.
+- The [approved compact presentation](#approved-compact-action-presentation) owns
+  current fallback commitment, ABS disable/Restore/reset controls and quiet
+  transition states. Start holds are explicit confirmation; Stop remains one tap
+  and targets the actual running operation even from the sibling idle page.
+  Verified restoration returns directly to Ready, while known high coolant keeps
+  Start blocked. Worker validation remains authoritative.
 - Readings remain selected behind the branch; remote selection and page cycling
   wait until it exits. Closing restarts the cycle quiet period and renders the
   cached samples through their existing freshness rules. Thirty idle seconds
@@ -809,9 +802,8 @@ The ready Burnout instruction **Hold brake pedal** appears only when its ready
 control is admissible, never alongside a different action's blocker. The existing
 owner recovery control remains independent when more than one record needs review;
 requiring every other Unknown record to clear first would create a recovery cycle.
-It shows **Connect Jeep** without matched ECM context, **Park and idle** while the
-stationary confirmation input is unmet, and the existing physical confirmation
-only when its scoped runtime gate passes. This changes presentation, not admission.
+The approved action presentation below replaces the old stacked connection/check
+wording. Runtime identity, stationary and recovery admission remain unchanged.
 The local stationary brake-readiness bit is interpreted only in its brake context.
 It must not trigger an idle coolant confirmation, timer clamp or **No coolant**
 warning. A ready Burnout control needs one 900 ms hold, not a hidden second hold;
@@ -872,8 +864,8 @@ actual brake state. For ABS/TCS, first use **Restore** to send captured `32 A4`,
 then perform the ignition reset and check that the warnings and brakes are normal.
 Ignition alone is not established restoration: the owner reported it remained
 disabled until JScan toggled the function and the Jeep restarted. Only then use
-the physical **Hold to confirm** control while
-stationary at normal idle. Confirmation sends no vehicle control. It records
+the physical **Confirm reset** control for ABS/TCS, or the retained
+**Hold to confirm** control for legacy Burnout, while stationary at normal idle. Confirmation sends no vehicle control. It records
 human provenance in command history/logs and clears that operation's uncertainty;
 it is not decoded controller proof. Unchecked or unexpected behavior stays
 unresolved. The [operator procedure](../development/jeep-action-qualification.md#brake-actions-follow-up)
@@ -913,3 +905,49 @@ a pending record may still surface its recovery face. This is compatibility, not
 an available normal action. Existing raw gauge configuration is not rewritten or
 its uncertainty erased as a side effect; a subsequent permitted App save removes
 the old menu entry. Front-lock qualification remains deferred.
+
+
+## Approved compact action presentation
+
+The owner approved all 14 states in `actions-simplified-review-1` on 2026-10-29.
+The [retained decisions](../design/gauge-ui-proposal/action-pages/approved-normalization.json)
+own that review; this section owns implementation behavior. Air up, Winch and
+ABS + TCS reuse the existing title/value/note/control face and page navigation.
+No custom reconnect glyph, normal transition ring, animation task or framebuffer
+is added. Critical shared attention retains its existing stopping indicator.
+
+- Ready idle shows its configured duration and **Hold to start**. Missing coolant
+  shows the shortened one-minute duration and **Coolant unavailable** before the
+  same 900 ms hold. That hold explicitly accepts the fallback; there is no Continue
+  page. Existing coolant protection and timing admission remain authoritative.
+- ABS availability is **Ready**, never an unverified **On**. **Hold to disable**
+  uses the same 900 ms deliberate gesture, replacing the second confirmation page.
+  Motion, touch loss, scope/state change, attention and navigation cancel the hold.
+- Running idle shows the countdown and one-tap **Stop**. Stop/verification retains
+  the last displayed countdown on this face, disables repeat requests and returns
+  quietly to Ready only when the command owner reports completion. That countdown
+  is a frozen presentation value, not a new live sample or renewed deadline; it is
+  discarded on source-scope retirement or idle Ready/Unknown.
+- Disabled/uncertain ABS offers **Restore**. Return processing stays on the same
+  face with **Restoring...**. The command owner retains Unknown, while the face
+  omits a generic verdict and offers the admissible recovery control. Offline
+  faces all show one neutral **Connecting** value at the same location/font, with
+  no duplicate subtitle or control; the existing connection owner retries quietly.
+- An acknowledged ABS Return retains **Restart Jeep**. **Confirm reset** is a
+  single local tap only when the existing owner-mode identity/stationary gate
+  permits it. It records the human observation and sends no control request.
+  It neither bypasses restoration proof nor enables restart-free restoration.
+- Menu entry always selects the first configured action after synchronizing page
+  order. Active/uncertain records never select a later page automatically; pending
+  legacy recovery is appended without replacing that configured first page.
+- Another unresolved action retains its named **Review** navigation. Legacy
+  Burnout recovery remains compatible; Burnout is still absent from normal menus.
+
+The App uses the same concise Ready/Disabled/Restore/Connecting/reset language
+and identifies the gauge as the owner of supervised physical controls. The phone
+cannot newly Start an owner-only brake action. Wire/storage/controller commands,
+qualification flags, explicit Return, pending receipts and automatic recovery
+policies are unchanged. Publication does not qualify actual brake restoration.
+
+Website impact: defer screenshot refresh to the next normal daily window after
+device validation. This UI correction establishes no new supported vehicle action.

@@ -78,21 +78,23 @@ data class VehicleCommandStatus(
             else -> "Check the gauge before starting"
         }
 
-        ownerSupervised && kind == VehicleCommandKind.AbsTcs -> when (phase) {
-            VehicleCommandPhase.Ready -> "Start on the gauge"
-            VehicleCommandPhase.Starting -> "Switching ABS and traction control off"
-            VehicleCommandPhase.Active -> "ABS and traction control off · Restore on gauge, then reset ignition"
-            VehicleCommandPhase.Stopping -> "Returning ABS and traction control"
-            VehicleCommandPhase.RestartRequired -> "Reset ignition while parked, check the dash, then confirm on the gauge"
-            VehicleCommandPhase.Verifying -> "Check the dash and confirm on the gauge"
-            VehicleCommandPhase.Unknown -> "Use Restore on the gauge, then reset ignition while parked and check the dash"
-            VehicleCommandPhase.Restored -> "Normal dash confirmed on the gauge"
-            VehicleCommandPhase.Rejected -> "Could not start · check the gauge"
-            else -> "Check the gauge before starting"
+        kind == VehicleCommandKind.AbsTcs && ownerSupervised && !qualified -> "Connecting"
+
+        kind == VehicleCommandKind.AbsTcs -> when (phase) {
+            VehicleCommandPhase.Ready -> if (gaugeStartRequired) "Hold to disable on the gauge" else "Ready"
+            VehicleCommandPhase.Starting -> "Disabling…"
+            VehicleCommandPhase.Active -> "Disabled · Restore on the gauge"
+            VehicleCommandPhase.Stopping -> "Restoring…"
+            VehicleCommandPhase.RestartRequired -> "Restart Jeep · Confirm reset on the gauge"
+            VehicleCommandPhase.Verifying -> "Restoring…"
+            VehicleCommandPhase.Unknown -> "Restore on the gauge"
+            VehicleCommandPhase.Restored -> if (ownerSupervised) "Reset confirmed on the gauge" else "Restoration confirmed"
+            VehicleCommandPhase.Rejected -> "Could not start · Check the gauge"
+            VehicleCommandPhase.Unavailable -> if (ownerSupervised) "Connecting" else "Not available for this car yet"
         }
 
         kind == VehicleCommandKind.Burnout -> when (phase) {
-            VehicleCommandPhase.Unknown -> "Outcome unknown · brake release not verified"
+            VehicleCommandPhase.Unknown -> "Release on the gauge"
             VehicleCommandPhase.Active -> "Hold on gauge · $remainingSeconds seconds remaining"
             VehicleCommandPhase.Starting -> "Starting Burnout Mode"
             VehicleCommandPhase.Stopping, VehicleCommandPhase.Verifying -> "Checking control release"

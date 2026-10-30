@@ -2,14 +2,16 @@
 
 Updated 2026-10-29. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-App dev.55/code55 and signed dev.78 from PR #126 source `8408307` are installed
-on the Pixel/reference gauge. The App used replacement installation and firmware
-used App/Wi-Fi. [Current delivery evidence](evidence/dev78-indoor-rollout.md) records
-exact source/image verification, healthy OTA, connection/Wi-Fi checks and preserved
-configuration/uncertainty/history. Burnout/Line Lock is paused in normal menus;
-ABS/TCS Restore and automatic swapped-adapter roles remain parked qualification.
-PR #126 remains unmerged. The owner confirmed clean display, navigation and the
-three-action menu; live vehicle behavior remains unqualified.
+App dev.57/code57 and signed dev.80 are installed on the Pixel/reference gauge.
+The App used replacement installation; firmware used App/Wi-Fi. The
+[current delivery evidence](evidence/dev80-action-entry.md) records exact signed
+source/image, healthy OTA, indoor checks and preserved setup/history/uncertainty.
+Actions enter at the first configured page. Offline status is one neutral Connecting
+label, without a generic unknown verdict. The owner confirmed first-page entry
+and consistent Connecting styling; [dev.79](evidence/dev79-action-ui.md) retains the
+owner's prior clean display/navigation observation. Burnout stays paused. Actual
+ABS/TCS restoration and swapped-adapter roles remain parked qualification. PR #127
+is stacked on unmerged PR #126; no main merge occurred.
 PRs #122/#123 and the [prior dev.75 delivery](evidence/dev75-indoor-rollout.md) retain
 foreground/history/radio checks and the earlier owner navigation observation.
 Live Jeep recovery and loaded presentation remain unqualified.
@@ -37,6 +39,20 @@ actual ECM recovery remains parked qualification.
 Website impact: corrective recovery behavior needs no new marketing claim or image.
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and brake actions require the separate explicit owner candidate described below.
+
+## Action presentation follow-up
+
+The dev.80/App dev.57 source follow-up removes recovery-driven entry jumps: entry
+starts at the first configured action, including after reorder. All offline action
+faces share a neutral centered **Connecting** label. Generic “Not verified” copy is
+omitted without clearing command uncertainty or enabling Start. The [signed indoor delivery](evidence/dev80-action-entry.md) passed; physical and
+parked qualification remain separate.
+
+Dev.79/App dev.56 source implements the owner-approved compact action review.
+The [presentation contract](architecture/vehicle-actions.md#approved-compact-action-presentation)
+owns the single hold, quiet transitions, connection and recovery wording. The [signed indoor delivery](evidence/dev79-action-ui.md) passed; physical UI/navigation was confirmed by the owner. Jeep qualification
+remains separate. No new controller
+sequence, brake-state proof or restart-free restoration is introduced.
 
 ## Installed foreground, fault and idle-target follow-up
 

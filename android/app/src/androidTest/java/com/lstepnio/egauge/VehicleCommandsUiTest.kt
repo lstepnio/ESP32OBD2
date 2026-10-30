@@ -1,6 +1,8 @@
 package com.lstepnio.egauge
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -56,6 +58,38 @@ class VehicleCommandsUiTest {
 
     @Test fun supervisedBrakeConfirmationRemainsReachableAtLargeText() = supervisedBrakeUi(2f)
 
+    @Test fun normalizedAbsRecoveryCompact() = normalizedAbsRecovery(1f)
+
+    @Test fun normalizedAbsRecoveryLargeText() = normalizedAbsRecovery(2f)
+
+    private fun normalizedAbsRecovery(fontScale: Float) {
+        var status by androidx.compose.runtime.mutableStateOf(
+            VehicleCommandStatus(VehicleCommandKind.AbsTcs, VehicleCommandPhase.Unknown, qualified = true).withBrakeActionsTestVersion(1)
+        )
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
+                EGaugeTheme {
+                    VehicleActionsSheet(state().copy(vehicleCommands = mapOf(VehicleCommandKind.AbsTcs to status)), {}, { _, _, _ -> fail("Presentation must not operate the vehicle") }, {})
+                }
+            }
+        }
+        val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        val output = androidx.test.platform.app.InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
+        for (phase in listOf(VehicleCommandPhase.Unknown, VehicleCommandPhase.Stopping, VehicleCommandPhase.RestartRequired, VehicleCommandPhase.Unavailable)) {
+            compose.runOnIdle { status = status.copy(phase = phase) }
+            compose.onNodeWithText(status.message).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Check brakes").assertDoesNotExist()
+            compose.onNodeWithText("Connect Jeep").assertDoesNotExist()
+            compose.onNodeWithText("Disable ABS + TCS").assertDoesNotExist()
+            if (output != null) {
+                java.io.File(output, "normalized-abs-${phase.name}-$fontScale.png").outputStream().use {
+                    instrumentation.uiAutomation.takeScreenshot().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+                }
+            }
+        }
+    }
+
     private fun supervisedBrakeUi(fontScale: Float) {
         val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
         check(android.os.Build.HARDWARE in setOf("ranchu", "goldfish"))
@@ -87,7 +121,7 @@ class VehicleCommandsUiTest {
             }
             compose.onNodeWithText("Disable ABS + TCS").assertDoesNotExist()
             compose.onNodeWithText("Start Burnout Mode").assertDoesNotExist()
-            compose.onNodeWithText("Start on the gauge").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Hold to disable on the gauge").performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("Check normal braking, then confirm on the gauge").performScrollTo().assertIsDisplayed()
             val output = androidx.test.platform.app.InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
             if (output != null) {
@@ -184,7 +218,7 @@ class VehicleCommandsUiTest {
         compose.setContent { EGaugeTheme { VehicleActionsSheet(state(VehicleCommandPhase.RestartRequired, false), {}, { _, _, _ -> fail("Unavailable command sent") }, {}) } }
         compose.onNodeWithText("Air up").assertIsNotEnabled()
         compose.onNodeWithText("Disable ABS + TCS").assertDoesNotExist()
-        compose.onNodeWithText("After Restore, reset ignition while parked and check the dash").assertIsDisplayed()
+        compose.onNodeWithText("Restart Jeep · Confirm reset on the gauge").assertIsDisplayed()
     }
 
     @Test fun stopNeedsNoSecondConfirmation() {

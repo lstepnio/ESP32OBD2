@@ -96,3 +96,16 @@ pending note into current authorization.
 - P2 action availability copy: `ActionPagesSheet.kt` still presents “Not supported
   yet” for the owner-supervised ABS entry without live ECM context. Use the shared
   unavailable/reconnecting wording without weakening execution admission.
+
+- FEATURE-04 compact action presentation: all 14 review states approved. Dev.79/App
+  dev.56 source replaces the reconnect squares, modal ABS/fallback confirmation
+  and stacked recovery wording. The [signed indoor delivery](evidence/dev79-action-ui.md)
+  passed; the owner confirmed clean physical UI/navigation and removal of the yellow
+  icon. Actual Jeep restoration remains unqualified; admission and durable uncertainty
+  are unchanged.
+
+- FEATURE-04 entry follow-up: dev.80/App dev.57 source restores first-configured-page
+  entry and one Connecting presentation across action states. Pending records and
+  admissible recovery controls remain intact. The [signed indoor delivery](evidence/dev80-action-entry.md)
+  passed. The owner confirmed first-page entry and matching Connecting styling;
+  parked checks remain separate.

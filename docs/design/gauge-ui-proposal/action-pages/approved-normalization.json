@@ -1,0 +1,78 @@
+{
+  "review": "actions-simplified-review-1",
+  "approvedOn": "2026-10-29",
+  "overall": "",
+  "screens": [
+    {
+      "id": "air-ready",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "air-running",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "winch-ready",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "winch-running",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "abs-ready",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "abs-off",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "connecting",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "stopping",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "abs-restoring",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "abs-restart",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "abs-uncertain",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "coolant-missing",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "coolant-high",
+      "decision": "approved",
+      "feedback": ""
+    },
+    {
+      "id": "abs-offline",
+      "decision": "approved",
+      "feedback": ""
+    }
+  ],
+  "scope": "Design approval and requested implementation; not vehicle-control operation approval."
+}
