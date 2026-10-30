@@ -4,7 +4,9 @@ Describe the user-visible result and its scope.
 
 ## Verification
 
-List the relevant checks and remaining device/vehicle qualification.
+List the relevant checks and remaining device/vehicle qualification. For stateful
+changes, name the failure/recovery scenarios and affected App/gauge surfaces.
+Keep source, installed identity and physical observations separate.
 
 For UI changes, include the before/after task path, interaction checks and rendered
 compact/200% text review from the [UX completion standard](https://github.com/lstepnio/ESP32OBD2/blob/main/docs/design/design-system.md#ux-completion-standard).
@@ -15,3 +17,6 @@ compact/200% text review from the [UX completion standard](https://github.com/ls
 - [ ] Updated feature/source links and implemented/installed/qualified status where affected; reviewed website impact under its maintenance policy.
 
 Link the documents updated. Keep detailed behavior in those documents rather than duplicating it here.
+
+Website delta: name affected copy/screens and availability evidence, or explain why
+none changes. Prepare it with the feature; publish under the existing daily policy.

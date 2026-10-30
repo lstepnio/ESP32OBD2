@@ -53,6 +53,41 @@ change, including accepted owner feedback, priority changes and usability improv
   jobs to the default build/CI path. Record successful publication time, source
   commit and private backup location in the deployment receipt/task outcome.
 
+## Brand and editorial direction
+
+Present eGauge as Luke's hands-on demonstration of thoughtful software on capable,
+affordable hardware. The personal brand is expressed through clear design decisions,
+real progress and useful experiences. Confident, curious and occasionally playful
+copy fits; generic superlatives and promises of universal compatibility do not.
+
+A useful narrative is: **Small hardware. Thoughtful software. Built around you.**
+Follow it with a concrete outcome, a current screen or short interaction clip, and
+a clear invitation to try the development platform or discuss a custom project.
+Use the existing Lukasz (Luke) Stepniowski credit and profile links. Do not invent
+credentials, customers, testimonials, performance results or a larger team.
+
+- Lead with what someone can do and why it is interesting. Explain engineering only
+  when it helps them choose hardware, understand availability or take the next step.
+- Show the product first, then a short build story: problem, design choice, observed
+  result and what is next. Link GitHub evidence for readers who want depth.
+- Distinguish **Available on the development platform**, **Being tested**, and
+  **Exploring** in relevant sections. An owner-only installed action is not public
+  support. Pair each material claim with its source/evidence reference in content
+  metadata; a file existing is not proof that the claim is true.
+- Keep labels understandable and scoped. Avoid a wall of caveats, but retain material
+  limits next to the relevant claim rather than hiding them in a footer.
+- Share the same App/gauge assets with GitHub. Use real production-rendered states,
+  circular gauge presentation, consistent colors and legible crops. Keep technical
+  provenance off the hero; future concepts must still be identified as future work.
+- Refresh the public roadmap around outcomes, using owner priorities and evidence.
+  Avoid release-number diaries, speculative dates and a list of every internal task.
+
+Before publication, answer: is this useful, distinctive, visually convincing and
+supported by the current implementation/evidence for the audience named? If not,
+rewrite or defer that item. The [product delivery loop](../docs/documentation.md#product-quality-and-public-story)
+connects this editorial review to feature work. It does not authorize automatic
+LinkedIn posts, testimonials or changes to customer consent.
+
 ## Build and preview
 
 Use the repository Python environment from the [root setup](../README.md#development):

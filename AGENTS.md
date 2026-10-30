@@ -40,6 +40,8 @@ contracts/status and dated evidence. `data/vehicle-definitions/` is research onl
   and [feature index](docs/features.md); include behavior/defaults, UX, ownership,
   compatibility, tests and remaining limits. Do not call undocumented work complete.
   Keep one topic authority; major choices belong in [ADRs](docs/decisions/README.md).
+- Use the [product delivery loop](docs/documentation.md#product-quality-and-public-story)
+  to connect runtime evidence, cross-surface state review and the public story.
 - Feature completion includes a website-impact review. Follow [website maintenance](website/README.md#maintenance-cadence)
   for resource-aware daily publication, owner-led roadmap updates and current App/circular-gauge screens;
   keep marketing capture/publication off the normal build path.

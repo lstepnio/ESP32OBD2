@@ -16,6 +16,12 @@ Updated 2026-10-28. This document orders outcomes, not individual task status.
 | Beta preparation | Broader phones/adapters, accessibility and reliable distribution | QUAL-09, QUAL-10, RELEASE-01 | [Quality gates](development/quality.md), compatibility evidence and explicit release review |
 | Future capability | Broader definitions, live phone telemetry, optional sensors and additional reviewed controls | FEATURE-01, FEATURE-02, FEATURE-06 | Bounded contracts, authoritative definitions and complete protected path before advertising support; Burnout Mode and ABS/TCS have an explicit captured-Jeep owner candidate; brake-controller identity, release latency and state/reset qualification remain required for full profiles |
 
+The [product delivery framework](documentation.md#product-quality-and-public-story)
+strengthens this sequence through CODE-06, CODE-07, CODE-08 and CODE-09: coherent
+state freshness, failure evidence, compact current context and source-aware public
+visuals/claims. These support existing reliability milestones rather than replacing
+them with a new architecture or delaying fixes for a marketing refresh.
+
 Dependencies and precise acceptance criteria belong to the backlog. There are no
 implied dates or automatic release authorizations. Unavailable hardware blocks its
 qualification task, not useful independent offline work.
