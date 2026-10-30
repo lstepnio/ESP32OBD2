@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from documentation_policy import check_links, check_map, heading_anchors
+from documentation_policy import check_decision_ids, check_links, check_map, heading_anchors
 
 
 class DocumentationPolicyTest(unittest.TestCase):
@@ -95,6 +95,29 @@ class DocumentationPolicyTest(unittest.TestCase):
         self.save("docs/backlog.md", "| QUAL-01 | Ready |\n| QUAL-01 | Blocked |\n")
         with self.assertRaisesRegex(ValueError, "duplicate backlog"):
             check_map(self.root, self.documents)
+
+    def test_all_existing_task_families_are_checked(self):
+        for family in ("PERF", "UX", "QUALITY"):
+            with self.subTest(family=family):
+                self.save("docs/roadmap.md", f"Next {family}-99\n")
+                with self.assertRaisesRegex(ValueError, "undefined backlog IDs"):
+                    check_map(self.root, self.documents)
+                self.save("docs/backlog.md", f"| {family}-99 | Ready |\n")
+                check_map(self.root, self.documents)
+                self.save("docs/backlog.md", f"| {family}-99 | Ready |\n| {family}-99 | Ready |\n")
+                with self.assertRaisesRegex(ValueError, "duplicate backlog"):
+                    check_map(self.root, self.documents)
+                self.save("docs/backlog.md", "| QUAL-01 | Ready |\n")
+
+    def test_duplicate_decision_ids_fail_but_references_and_examples_do_not(self):
+        self.save("docs/decisions/README.md", "| ADR-019 | First |\n| ADR-019 | Second |\n")
+        with self.assertRaisesRegex(ValueError, "duplicate architecture"):
+            check_decision_ids(self.root)
+        self.save(
+            "docs/decisions/README.md",
+            "| ADR-019 | First |\n| ADR-020 | Second |\nSee ADR-019.\n```md\n| ADR-019 | Example |\n```\n",
+        )
+        check_decision_ids(self.root)
 
     def test_historical_report_requires_scope(self):
         extra = self.save("docs/evidence/old.md", "# Earlier rollout\nInstall old image\n")

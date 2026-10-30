@@ -8,7 +8,7 @@ import unicodedata
 from pathlib import Path
 from urllib.parse import unquote
 
-TASK_ID = r"(?:QUAL|CODE|RELEASE|FEATURE|PLATFORM)-\d{2}"
+TASK_ID = r"(?:QUAL|QUALITY|CODE|RELEASE|FEATURE|PLATFORM|PERF|UX)-\d{2}"
 
 
 def authored_documents(root: Path) -> list[Path]:
@@ -141,10 +141,18 @@ def check_map(root: Path, documents: list[Path]) -> None:
         raise ValueError(f"Roadmap references undefined backlog IDs: {sorted(unknown)}")
 
 
+def check_decision_ids(root: Path) -> None:
+    ledger = prose((root / "docs/decisions/README.md").read_text())
+    ids = re.findall(r"^\| (ADR-\d{3}) \|", ledger, re.MULTILINE)
+    if not ids or len(ids) != len(set(ids)):
+        raise ValueError("Missing or duplicate architecture decision IDs")
+
+
 def check_documentation(root: Path) -> int:
     documents = authored_documents(root)
     if len((root / "AGENTS.md").read_text().splitlines()) > 150:
         raise ValueError("Keep AGENTS.md under 150 lines; link topic owners instead")
     check_links(root, documents)
     check_map(root, documents)
+    check_decision_ids(root)
     return len(documents)
