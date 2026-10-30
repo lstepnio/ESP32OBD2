@@ -34,6 +34,7 @@
 #include "ble_util.h"
 #include "obd_adapter_profile.h"
 #include "obd_wait_policy.h"
+#include "ble_recovery_policy.h"
 #include "sdkconfig.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -48,6 +49,9 @@ struct ble_mgr_ctx
     atomic_bool           scanning;
     atomic_bool           write_inflight;
     atomic_uint           write_generation;
+    atomic_uintptr_t      attempt_token;
+    atomic_uint           callback_readers;
+    atomic_bool           callback_retiring;
     QueueHandle_t         write_result;
 
     ble_mgr_disc_cfg_t const *disc_cfg;
@@ -86,22 +90,47 @@ static void ble_mgr_gap_notification_cb(ble_mgr_ctx_t  *mgr_ctx,
                                         uint16_t        conn_handle,
                                         bool            indication);
 
-static void ble_mgr_gap_connected_cb(ble_mgr_ctx_t *mgr_ctx, uint16_t conn_handle, int status);
-static void ble_mgr_connect_complete(ble_mgr_ctx_t *mgr_ctx, ble_mgr_status_t status);
-static int  ble_mgr_gatt_dsc_discovered_cb(uint16_t                     conn_handle,
-                                           const struct ble_gatt_error *error,
-                                           uint16_t                     chr_val_handle,
-                                           const struct ble_gatt_dsc   *dsc,
-                                           void                        *arg);
-static void observe(ble_mgr_ctx_t *ctx, const char *event, const void *data, size_t length, int status);
+static void           ble_mgr_gap_connected_cb(ble_mgr_ctx_t *mgr_ctx, uint16_t conn_handle, int status, void *arg);
+static void           ble_mgr_connect_complete(ble_mgr_ctx_t *mgr_ctx, ble_mgr_status_t status);
+static int            ble_mgr_gatt_dsc_discovered_cb(uint16_t                     conn_handle,
+                                                     const struct ble_gatt_error *error,
+                                                     uint16_t                     chr_val_handle,
+                                                     const struct ble_gatt_dsc   *dsc,
+                                                     void                        *arg);
+static void           observe(ble_mgr_ctx_t *ctx, const char *event, const void *data, size_t length, int status);
+static ble_mgr_ctx_t *attempt_context(void *arg);
+static ble_mgr_ctx_t *callback_enter(void *arg);
+static void           callback_leave(ble_mgr_ctx_t *ctx);
+static void           retire_write(ble_mgr_ctx_t *ctx);
+static void          *attempt_arg(ble_mgr_ctx_t *ctx);
+
+static int cccd_readback_leased(uint16_t                     conn_handle,
+                                const struct ble_gatt_error *error,
+                                struct ble_gatt_attr        *attr,
+                                void                        *arg);
 
 static int cccd_readback(uint16_t                     conn_handle,
                          const struct ble_gatt_error *error,
                          struct ble_gatt_attr        *attr,
                          void                        *arg)
 {
-    ble_mgr_ctx_t *ctx = arg;
-    if (conn_handle != ctx->conn_handle)
+    ble_mgr_ctx_t *lease = callback_enter(arg);
+    if (!lease)
+    {
+        return 0;
+    }
+    int result = cccd_readback_leased(conn_handle, error, attr, arg);
+    callback_leave(lease);
+    return result;
+}
+
+static int cccd_readback_leased(uint16_t                     conn_handle,
+                                const struct ble_gatt_error *error,
+                                struct ble_gatt_attr        *attr,
+                                void                        *arg)
+{
+    ble_mgr_ctx_t *ctx = attempt_context(arg);
+    if (!ctx || conn_handle != ctx->conn_handle)
         return 0;
     uint8_t bytes[2];
     size_t  length = 0;
@@ -164,6 +193,111 @@ static SemaphoreHandle_t stack_ready;
 static bool              stack_started;
 static atomic_bool       central_paused;
 static atomic_bool       user_scan_active;
+
+/* Callback arguments carry an immutable attempt identity, never a mutable slot.
+ * This also fences old GATT callbacks if NimBLE reuses a connection handle. */
+static void *attempt_arg(ble_mgr_ctx_t *ctx)
+{
+    return (void *)atomic_load(&ctx->attempt_token);
+}
+
+static ble_mgr_ctx_t *attempt_context(void *arg)
+{
+    uintptr_t      token = (uintptr_t)arg;
+    ble_mgr_ctx_t *ctx   = &BLE_MGR_CTX[token & 1U];
+    return token && token == atomic_load(&ctx->attempt_token) ? ctx : NULL;
+}
+
+/* Admission uses a reader lease. The worker closes admission before waiting
+ * for readers, so a callback that passed lookup pins the entire mutable slot. */
+static ble_mgr_ctx_t *callback_enter(void *arg)
+{
+    ble_mgr_ctx_t *ctx = attempt_context(arg);
+    if (!ctx)
+        return NULL;
+    atomic_fetch_add(&ctx->callback_readers, 1);
+    if (atomic_load(&ctx->callback_retiring) || attempt_context(arg) != ctx)
+    {
+        atomic_fetch_sub(&ctx->callback_readers, 1);
+        return NULL;
+    }
+    return ctx;
+}
+
+static void callback_leave(ble_mgr_ctx_t *ctx)
+{
+    atomic_fetch_sub(&ctx->callback_readers, 1);
+}
+
+static bool drain_retired_callbacks(uint32_t started_ms, uint32_t timeout_ms)
+{
+    uint32_t drain_started_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+    for (size_t i = 0; i < ARRAY_SIZE(BLE_MGR_CTX); ++i)
+        if (!atomic_load(&BLE_MGR_CTX[i].is_connected))
+            atomic_store(&BLE_MGR_CTX[i].callback_retiring, true);
+    for (;;)
+    {
+        bool busy = false;
+        for (size_t i = 0; i < ARRAY_SIZE(BLE_MGR_CTX); ++i)
+            if (atomic_load(&BLE_MGR_CTX[i].callback_retiring) && atomic_load(&BLE_MGR_CTX[i].callback_readers))
+                busy = true;
+        if (!busy)
+        {
+            for (size_t i = 0; i < ARRAY_SIZE(BLE_MGR_CTX); ++i)
+                if (atomic_load(&BLE_MGR_CTX[i].is_connected))
+                    atomic_store(&BLE_MGR_CTX[i].callback_retiring, false);
+            return true;
+        }
+        if (!obd_wait_remaining(drain_started_ms, pdTICKS_TO_MS(xTaskGetTickCount()), BLE_RECOVERY_CLEANUP_MS) ||
+            !obd_wait_remaining(started_ms, pdTICKS_TO_MS(xTaskGetTickCount()), timeout_ms))
+            return false;
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+/* A disconnect arriving while admission is closed is intentionally rejected.
+ * After readers drain, reconcile the retired handle against host truth. */
+static bool reap_retired_links(void)
+{
+    bool clean = true;
+    for (size_t i = 0; i < ARRAY_SIZE(BLE_MGR_CTX); ++i)
+    {
+        ble_mgr_ctx_t *ctx    = &BLE_MGR_CTX[i];
+        uint16_t       handle = atomic_load(&ctx->conn_handle);
+        if (!atomic_load(&ctx->callback_retiring) || handle == BLE_HS_CONN_HANDLE_NONE)
+            continue;
+        struct ble_gap_conn_desc desc;
+        if (ble_gap_conn_find(handle, &desc) == BLE_HS_ENOTCONN)
+        {
+            ctx->conn_handle = BLE_HS_CONN_HANDLE_NONE;
+            retire_write(ctx);
+            if (ctx->disc_cfg && ctx->disc_cfg->disconnected_cb)
+                ctx->disc_cfg->disconnected_cb(ctx, ctx->usr_ctx);
+        }
+        else
+        {
+            ble_gap_terminate(handle, BLE_ERR_REM_USER_CONN_TERM);
+            clean = false;
+        }
+    }
+    return clean;
+}
+
+/* A retired CONNECT may be delivered after the host has reused its handle.
+ * Preserve any currently owned source session before cleaning up an orphan. */
+static ble_mgr_ctx_t *gap_attempt_context(struct ble_gap_event *event, void *arg)
+{
+    ble_mgr_ctx_t *ctx = attempt_context(arg);
+    if (!ctx && event->type == BLE_GAP_EVENT_CONNECT && event->connect.status == 0)
+    {
+        uint16_t handle = event->connect.conn_handle;
+        for (size_t i = 0; i < ARRAY_SIZE(BLE_MGR_CTX); ++i)
+            if (handle == atomic_load(&BLE_MGR_CTX[i].conn_handle))
+                return NULL;
+        ble_gap_terminate(handle, BLE_ERR_REM_USER_CONN_TERM);
+    }
+    return ctx;
+}
 
 static void observe(ble_mgr_ctx_t *ctx, const char *event, const void *data, size_t length, int status)
 {
@@ -303,13 +437,29 @@ static bool ble_mgr_adv_contains_service(const struct ble_hs_adv_fields *adv_fie
     return false;
 }
 
+static int ble_mgr_gap_event_cb_leased(struct ble_gap_event *event, void *arg);
+
 static int ble_mgr_gap_event_cb(struct ble_gap_event *event, void *arg)
+{
+    ble_mgr_ctx_t *lease = callback_enter(arg);
+    if (!lease)
+    {
+        gap_attempt_context(event, NULL);
+        return 0;
+    }
+    int result = ble_mgr_gap_event_cb_leased(event, arg);
+    callback_leave(lease);
+    return result;
+}
+
+static int ble_mgr_gap_event_cb_leased(struct ble_gap_event *event, void *arg)
 {
     char                     addr_str[BLE_ADDR_STR_LEN];
     struct ble_hs_adv_fields adv_fields;
 
-    ble_mgr_ctx_t *mgr_ctx = (ble_mgr_ctx_t *)arg;
-    ESP_NULL_CHECK(mgr_ctx, TAG, "scan context is NULL");
+    ble_mgr_ctx_t *mgr_ctx = gap_attempt_context(event, arg);
+    if (!mgr_ctx)
+        return 0;
     ble_mgr_disc_cfg_t const *disc_cfg = mgr_ctx->disc_cfg;
     ESP_NULL_CHECK(disc_cfg, TAG, "discovery config is NULL");
 
@@ -340,7 +490,7 @@ static int ble_mgr_gap_event_cb(struct ble_gap_event *event, void *arg)
                 mgr_ctx->scanning = false;
                 ble_gap_disc_cancel();
                 int connect_rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &event->disc.addr, 8000, &conn_params,
-                                                 ble_mgr_gap_event_cb, mgr_ctx);
+                                                 ble_mgr_gap_event_cb, arg);
                 if (connect_rc != 0)
                     ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_NOT_CONNECTED);
             }
@@ -351,7 +501,9 @@ static int ble_mgr_gap_event_cb(struct ble_gap_event *event, void *arg)
         if (mgr_ctx->scanning && !atomic_load(&central_paused))
         {
             ESP_LOGD(TAG, "Device discovery window complete. Continuing...");
-            ble_gap_disc(0, BLE_DISCOVERY_TIMEOUT_MS, &disc_params, ble_mgr_gap_event_cb, mgr_ctx);
+            int scan_rc = ble_gap_disc(0, BLE_DISCOVERY_TIMEOUT_MS, &disc_params, ble_mgr_gap_event_cb, arg);
+            if (scan_rc)
+                ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
         }
         break;
 
@@ -364,7 +516,7 @@ static int ble_mgr_gap_event_cb(struct ble_gap_event *event, void *arg)
         {
             ESP_LOGW(TAG, "Connection attempt failed: %d", event->connect.status);
         }
-        ble_mgr_gap_connected_cb(mgr_ctx, event->connect.conn_handle, event->connect.status);
+        ble_mgr_gap_connected_cb(mgr_ctx, event->connect.conn_handle, event->connect.status, arg);
         break;
 
     case BLE_GAP_EVENT_DISCONNECT:
@@ -460,7 +612,9 @@ static void ble_mgr_connect_complete(ble_mgr_ctx_t *mgr_ctx, ble_mgr_status_t st
     API_QUEUE_SEND(mgr_ctx, status);
 }
 
-static void ble_mgr_gatt_svc_chr_disc_completed_check(ble_mgr_ctx_t *mgr_ctx, const struct ble_gatt_error *error)
+static void ble_mgr_gatt_svc_chr_disc_completed_check(ble_mgr_ctx_t               *mgr_ctx,
+                                                      const struct ble_gatt_error *error,
+                                                      void                        *arg)
 {
     ESP_NULL_CHECK(error, TAG, "error is NULL");
     ESP_NULL_CHECK(mgr_ctx, TAG, "context is NULL");
@@ -505,8 +659,8 @@ static void ble_mgr_gatt_svc_chr_disc_completed_check(ble_mgr_ctx_t *mgr_ctx, co
                 end_handle = service->chars[next].def_handle - 1;
         mgr_ctx->svc_disc_ctx.notify_index     = i;
         mgr_ctx->svc_disc_ctx.dsc_disc_started = true;
-        int rc = ble_gattc_disc_all_dscs(mgr_ctx->conn_handle, chr->handle, end_handle, ble_mgr_gatt_dsc_discovered_cb,
-                                         mgr_ctx);
+        int rc =
+            ble_gattc_disc_all_dscs(mgr_ctx->conn_handle, chr->handle, end_handle, ble_mgr_gatt_dsc_discovered_cb, arg);
         if (rc != 0)
         {
             mgr_ctx->svc_disc_ctx.dsc_disc_started = false;
@@ -535,7 +689,7 @@ static void ble_mgr_gatt_svc_chr_disc_completed_check(ble_mgr_ctx_t *mgr_ctx, co
         mgr_ctx->svc_disc_ctx.notify_index         = i;
         mgr_ctx->svc_disc_ctx.subscription_started = true;
         int rc = ble_gattc_write_flat(mgr_ctx->conn_handle, chr->cccd_handle, cccd_notify_enable_cfg,
-                                      sizeof(cccd_notify_enable_cfg), ble_mgr_gatt_subscription_cb, mgr_ctx);
+                                      sizeof(cccd_notify_enable_cfg), ble_mgr_gatt_subscription_cb, arg);
         if (rc != 0)
         {
             mgr_ctx->svc_disc_ctx.subscription_started = false;
@@ -546,13 +700,35 @@ static void ble_mgr_gatt_svc_chr_disc_completed_check(ble_mgr_ctx_t *mgr_ctx, co
     ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_OK);
 }
 
+static int ble_mgr_gatt_dsc_discovered_cb_leased(uint16_t                     conn_handle,
+                                                 const struct ble_gatt_error *error,
+                                                 uint16_t                     chr_val_handle,
+                                                 const struct ble_gatt_dsc   *dsc,
+                                                 void                        *arg);
+
 static int ble_mgr_gatt_dsc_discovered_cb(uint16_t                     conn_handle,
                                           const struct ble_gatt_error *error,
                                           uint16_t                     chr_val_handle,
                                           const struct ble_gatt_dsc   *dsc,
                                           void                        *arg)
 {
-    ble_mgr_ctx_t *mgr_ctx = arg;
+    ble_mgr_ctx_t *lease = callback_enter(arg);
+    if (!lease)
+    {
+        return 0;
+    }
+    int result = ble_mgr_gatt_dsc_discovered_cb_leased(conn_handle, error, chr_val_handle, dsc, arg);
+    callback_leave(lease);
+    return result;
+}
+
+static int ble_mgr_gatt_dsc_discovered_cb_leased(uint16_t                     conn_handle,
+                                                 const struct ble_gatt_error *error,
+                                                 uint16_t                     chr_val_handle,
+                                                 const struct ble_gatt_dsc   *dsc,
+                                                 void                        *arg)
+{
+    ble_mgr_ctx_t *mgr_ctx = attempt_context(arg);
     if (!mgr_ctx || !atomic_load(&mgr_ctx->connecting) || conn_handle != mgr_ctx->conn_handle)
         return 0;
     ble_mgr_svc_def_t   *service = (ble_mgr_svc_def_t *)mgr_ctx->disc_cfg->svc_def;
@@ -575,17 +751,37 @@ static int ble_mgr_gatt_dsc_discovered_cb(uint16_t                     conn_hand
         return 0;
     }
     mgr_ctx->svc_disc_ctx.notify_index++;
-    ble_mgr_gatt_svc_chr_disc_completed_check(mgr_ctx, error);
+    ble_mgr_gatt_svc_chr_disc_completed_check(mgr_ctx, error, arg);
     return 0;
 }
+
+static int ble_mgr_gatt_subscription_cb_leased(uint16_t                     conn_handle,
+                                               const struct ble_gatt_error *error,
+                                               struct ble_gatt_attr        *attr,
+                                               void                        *arg);
 
 static int ble_mgr_gatt_subscription_cb(uint16_t                     conn_handle,
                                         const struct ble_gatt_error *error,
                                         struct ble_gatt_attr        *attr,
                                         void                        *arg)
 {
+    ble_mgr_ctx_t *lease = callback_enter(arg);
+    if (!lease)
+    {
+        return 0;
+    }
+    int result = ble_mgr_gatt_subscription_cb_leased(conn_handle, error, attr, arg);
+    callback_leave(lease);
+    return result;
+}
+
+static int ble_mgr_gatt_subscription_cb_leased(uint16_t                     conn_handle,
+                                               const struct ble_gatt_error *error,
+                                               struct ble_gatt_attr        *attr,
+                                               void                        *arg)
+{
     (void)attr;
-    ble_mgr_ctx_t *mgr_ctx = arg;
+    ble_mgr_ctx_t *mgr_ctx = attempt_context(arg);
     if (!mgr_ctx || !atomic_load(&mgr_ctx->connecting) || conn_handle != mgr_ctx->conn_handle)
         return 0;
     if (error->status != 0)
@@ -596,7 +792,7 @@ static int ble_mgr_gatt_subscription_cb(uint16_t                     conn_handle
     ble_mgr_svc_def_t   *service    = (ble_mgr_svc_def_t *)mgr_ctx->disc_cfg->svc_def;
     ble_gatt_char_def_t *subscribed = &service->chars[mgr_ctx->svc_disc_ctx.notify_index];
     observe(mgr_ctx, "cccd_written", cccd_notify_enable_cfg, sizeof(cccd_notify_enable_cfg), 0);
-    int read_rc = ble_gattc_read(conn_handle, subscribed->cccd_handle, cccd_readback, mgr_ctx);
+    int read_rc = ble_gattc_read(conn_handle, subscribed->cccd_handle, cccd_readback, arg);
     if (read_rc)
         observe(mgr_ctx, "cccd_readback", NULL, 0, read_rc);
     for (size_t i = mgr_ctx->svc_disc_ctx.notify_index + 1; i < service->num_chars; ++i)
@@ -606,7 +802,7 @@ static int ble_mgr_gatt_subscription_cb(uint16_t                     conn_handle
             continue;
         mgr_ctx->svc_disc_ctx.notify_index = i;
         int rc = ble_gattc_write_flat(conn_handle, chr->cccd_handle, cccd_notify_enable_cfg,
-                                      sizeof(cccd_notify_enable_cfg), ble_mgr_gatt_subscription_cb, mgr_ctx);
+                                      sizeof(cccd_notify_enable_cfg), ble_mgr_gatt_subscription_cb, arg);
         if (rc != 0)
             ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
         return 0;
@@ -616,14 +812,35 @@ static int ble_mgr_gatt_subscription_cb(uint16_t                     conn_handle
     return 0;
 }
 
+static int ble_mgr_gatt_chr_discovered_cb_leased(uint16_t                     conn_handle,
+                                                 const struct ble_gatt_error *error,
+                                                 const struct ble_gatt_chr   *chr,
+                                                 void                        *arg);
+
 static int ble_mgr_gatt_chr_discovered_cb(uint16_t                     conn_handle,
                                           const struct ble_gatt_error *error,
                                           const struct ble_gatt_chr   *chr,
                                           void                        *arg)
 {
+    ble_mgr_ctx_t *lease = callback_enter(arg);
+    if (!lease)
+    {
+        return 0;
+    }
+    int result = ble_mgr_gatt_chr_discovered_cb_leased(conn_handle, error, chr, arg);
+    callback_leave(lease);
+    return result;
+}
+
+static int ble_mgr_gatt_chr_discovered_cb_leased(uint16_t                     conn_handle,
+                                                 const struct ble_gatt_error *error,
+                                                 const struct ble_gatt_chr   *chr,
+                                                 void                        *arg)
+{
     ESP_NULL_CHECK(error, TAG, "error is NULL");
-    ble_mgr_ctx_t *mgr_ctx = (ble_mgr_ctx_t *)arg;
-    ESP_NULL_CHECK(mgr_ctx, TAG, "context is NULL");
+    ble_mgr_ctx_t *mgr_ctx = attempt_context(arg);
+    if (!mgr_ctx)
+        return 0;
     if (!atomic_load(&mgr_ctx->connecting) || conn_handle != mgr_ctx->conn_handle)
         return 0;
 
@@ -649,20 +866,41 @@ static int ble_mgr_gatt_chr_discovered_cb(uint16_t                     conn_hand
     {
         ESP_LOGD(TAG, "Characteristic discovery complete");
         mgr_ctx->svc_disc_ctx.chr_disc_completed = true;
-        ble_mgr_gatt_svc_chr_disc_completed_check(mgr_ctx, error);
+        ble_mgr_gatt_svc_chr_disc_completed_check(mgr_ctx, error, arg);
     }
 
     return 0;
 }
+
+static int ble_mgr_gatt_svc_discovered_cb_leased(uint16_t                     conn_handle,
+                                                 const struct ble_gatt_error *error,
+                                                 const struct ble_gatt_svc   *service,
+                                                 void                        *arg);
 
 static int ble_mgr_gatt_svc_discovered_cb(uint16_t                     conn_handle,
                                           const struct ble_gatt_error *error,
                                           const struct ble_gatt_svc   *service,
                                           void                        *arg)
 {
+    ble_mgr_ctx_t *lease = callback_enter(arg);
+    if (!lease)
+    {
+        return 0;
+    }
+    int result = ble_mgr_gatt_svc_discovered_cb_leased(conn_handle, error, service, arg);
+    callback_leave(lease);
+    return result;
+}
+
+static int ble_mgr_gatt_svc_discovered_cb_leased(uint16_t                     conn_handle,
+                                                 const struct ble_gatt_error *error,
+                                                 const struct ble_gatt_svc   *service,
+                                                 void                        *arg)
+{
     ESP_NULL_CHECK(error, TAG, "error is NULL");
-    ble_mgr_ctx_t *mgr_ctx = (ble_mgr_ctx_t *)arg;
-    ESP_NULL_CHECK(mgr_ctx, TAG, "context is NULL");
+    ble_mgr_ctx_t *mgr_ctx = attempt_context(arg);
+    if (!mgr_ctx)
+        return 0;
     if (!atomic_load(&mgr_ctx->connecting) || conn_handle != mgr_ctx->conn_handle)
         return 0;
 
@@ -682,10 +920,11 @@ static int ble_mgr_gatt_svc_discovered_cb(uint16_t                     conn_hand
             mgr_ctx->svc_disc_ctx.service_end_handle = service->end_handle;
 
             int rc = ble_gattc_disc_all_chrs(conn_handle, service->start_handle, service->end_handle,
-                                             ble_mgr_gatt_chr_discovered_cb, mgr_ctx);
+                                             ble_mgr_gatt_chr_discovered_cb, arg);
             if (rc != 0)
             {
                 ESP_LOGE(TAG, "Failed to start characteristic discovery: %d", rc);
+                ble_mgr_connect_complete(mgr_ctx, BLE_MGR_E_DISCOVERY_FAILED);
             }
         }
     }
@@ -693,13 +932,13 @@ static int ble_mgr_gatt_svc_discovered_cb(uint16_t                     conn_hand
     {
         ESP_LOGD(TAG, "Service discovery complete");
         mgr_ctx->svc_disc_ctx.svc_disc_completed = true;
-        ble_mgr_gatt_svc_chr_disc_completed_check(mgr_ctx, error);
+        ble_mgr_gatt_svc_chr_disc_completed_check(mgr_ctx, error, arg);
     }
 
     return 0;
 }
 
-static void ble_mgr_gap_connected_cb(ble_mgr_ctx_t *mgr_ctx, uint16_t conn_handle, int status)
+static void ble_mgr_gap_connected_cb(ble_mgr_ctx_t *mgr_ctx, uint16_t conn_handle, int status, void *arg)
 {
     ESP_NULL_CHECK(mgr_ctx, TAG, "Manager context is NULL");
 
@@ -725,7 +964,7 @@ static void ble_mgr_gap_connected_cb(ble_mgr_ctx_t *mgr_ctx, uint16_t conn_handl
     mgr_ctx->svc_disc_ctx.notify_index         = 0;
     mgr_ctx->svc_disc_ctx.service_end_handle   = 0;
 
-    int rc = ble_gattc_disc_all_svcs(mgr_ctx->conn_handle, ble_mgr_gatt_svc_discovered_cb, mgr_ctx);
+    int rc = ble_gattc_disc_all_svcs(mgr_ctx->conn_handle, ble_mgr_gatt_svc_discovered_cb, arg);
     if (rc != 0)
     {
         ESP_LOGE(TAG, "Failed to start service discovery: %d", rc);
@@ -782,11 +1021,10 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
 
     if (atomic_load(&mgr_ctx->is_connected))
         return BLE_MGR_E_OK;
-    if (atomic_load(&central_paused) || atomic_load(&user_scan_active) ||
-        mgr_ctx->conn_handle != BLE_HS_CONN_HANDLE_NONE || atomic_load(&mgr_ctx->write_inflight))
+    if (atomic_load(&central_paused) || atomic_load(&user_scan_active) || atomic_load(&mgr_ctx->write_inflight))
         return BLE_MGR_E_NOT_CONNECTED;
     uint32_t started_ms = pdTICKS_TO_MS(xTaskGetTickCount());
-    if (xSemaphoreTake(scan_lock, pdMS_TO_TICKS(timeout_ms)) != pdTRUE)
+    if (xSemaphoreTake(scan_lock, pdMS_TO_TICKS(ble_recovery_admission_ms(timeout_ms))) != pdTRUE)
         return BLE_MGR_E_TIMEOUT;
     if (xSemaphoreTake(mgr_ctx->api.lock_mtx,
                        pdMS_TO_TICKS(obd_wait_remaining(started_ms, pdTICKS_TO_MS(xTaskGetTickCount()), timeout_ms))) !=
@@ -808,6 +1046,42 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
         xSemaphoreGive(scan_lock);
         return BLE_MGR_E_TIMEOUT;
     }
+    if (!drain_retired_callbacks(started_ms, timeout_ms) || !reap_retired_links())
+    {
+        xSemaphoreGive(mgr_ctx->api.lock_mtx);
+        xSemaphoreGive(scan_lock);
+        return BLE_MGR_E_TIMEOUT;
+    }
+    if (atomic_load(&mgr_ctx->is_connected))
+    {
+        xSemaphoreGive(mgr_ctx->api.lock_mtx);
+        xSemaphoreGive(scan_lock);
+        return BLE_MGR_E_OK;
+    }
+    /* Admission has its own reserved allowance. A missing sibling cannot spend
+     * this source's discovery budget while it waits in the mutex queue. */
+    if (ble_gap_conn_active())
+    {
+        /* A prior cancel may have outlived its cleanup allowance. Retry only
+         * the shared initiator cancellation while holding its lease. This
+         * never terminates an established sibling connection. */
+        ble_gap_conn_cancel();
+        uint32_t cleanup_started_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        while (ble_gap_conn_active() &&
+               obd_wait_remaining(cleanup_started_ms, pdTICKS_TO_MS(xTaskGetTickCount()), BLE_RECOVERY_CLEANUP_MS) &&
+               obd_wait_remaining(started_ms, pdTICKS_TO_MS(xTaskGetTickCount()), timeout_ms))
+            vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    uint32_t operation_started_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+    uint32_t operation_ms = ble_recovery_operation_ms(obd_wait_remaining(started_ms, operation_started_ms, timeout_ms));
+    if (!operation_ms || ble_gap_conn_active())
+    {
+        xSemaphoreGive(mgr_ctx->api.lock_mtx);
+        xSemaphoreGive(scan_lock);
+        return BLE_MGR_E_TIMEOUT;
+    }
+    uintptr_t old_token = atomic_load(&mgr_ctx->attempt_token);
+    atomic_store(&mgr_ctx->attempt_token, ble_recovery_next_token(old_token, (unsigned)(mgr_ctx - BLE_MGR_CTX)));
     xQueueReset(mgr_ctx->api.result_que);
     retire_write(mgr_ctx);
     mgr_ctx->conn_handle = BLE_HS_CONN_HANDLE_NONE;
@@ -820,24 +1094,34 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
         disc_cfg->svc_def->chars[i].cccd_handle = 0;
         disc_cfg->svc_def->chars[i].properties  = 0;
     }
-    mgr_ctx->disc_cfg       = disc_cfg;
-    mgr_ctx->usr_ctx        = usr_ctx;
-    int              rc     = ble_gap_disc(0, BLE_DISCOVERY_TIMEOUT_MS, &disc_params, ble_mgr_gap_event_cb, mgr_ctx);
+    mgr_ctx->disc_cfg = disc_cfg;
+    mgr_ctx->usr_ctx  = usr_ctx;
+    atomic_store(&mgr_ctx->callback_retiring, false);
+    int rc = ble_gap_disc(0, BLE_DISCOVERY_TIMEOUT_MS, &disc_params, ble_mgr_gap_event_cb, attempt_arg(mgr_ctx));
     ble_mgr_status_t status = BLE_MGR_E_DISCOVERY_FAILED;
     if (rc == 0)
     {
         if (!API_QUEUE_WAIT(mgr_ctx, &status,
-                            obd_wait_remaining(started_ms, pdTICKS_TO_MS(xTaskGetTickCount()), timeout_ms)))
+                            obd_wait_remaining(operation_started_ms, pdTICKS_TO_MS(xTaskGetTickCount()), operation_ms)))
             status = BLE_MGR_E_TIMEOUT;
     }
     mgr_ctx->scanning = false;
     if (status != BLE_MGR_E_OK)
     {
+        atomic_store(&mgr_ctx->is_connected, false);
         atomic_store(&mgr_ctx->connecting, false);
         ble_gap_disc_cancel();
         ble_gap_conn_cancel();
         if (mgr_ctx->conn_handle != BLE_HS_CONN_HANDLE_NONE)
             ble_gap_terminate(mgr_ctx->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+        /* Cancellation completes asynchronously. Keep the scanner lease until
+         * the host is idle or the reserved cleanup budget expires. Never reset
+         * the host or tear down a healthy sibling to recover this attempt. */
+        uint32_t cleanup_started_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        while ((ble_gap_conn_active() || mgr_ctx->conn_handle != BLE_HS_CONN_HANDLE_NONE) &&
+               obd_wait_remaining(cleanup_started_ms, pdTICKS_TO_MS(xTaskGetTickCount()), BLE_RECOVERY_CLEANUP_MS) &&
+               obd_wait_remaining(started_ms, pdTICKS_TO_MS(xTaskGetTickCount()), timeout_ms))
+            vTaskDelay(pdMS_TO_TICKS(10));
     }
     xSemaphoreGive(mgr_ctx->api.lock_mtx);
     xSemaphoreGive(scan_lock);
@@ -849,6 +1133,7 @@ typedef struct
 {
     ble_mgr_ctx_t *ctx;
     unsigned       generation;
+    uintptr_t      attempt_token;
 } write_request_t;
 
 static int write_completed(uint16_t                     conn_handle,
@@ -857,16 +1142,26 @@ static int write_completed(uint16_t                     conn_handle,
                            void                        *arg)
 {
     (void)attr;
-    write_request_t *request    = arg;
-    ble_mgr_ctx_t   *ctx        = request->ctx;
-    unsigned         generation = request->generation;
+    write_request_t *request = arg;
+    ble_mgr_ctx_t   *lease   = callback_enter((void *)request->attempt_token);
+    if (!lease)
+    {
+        free(request);
+        return 0;
+    }
+    ble_mgr_ctx_t *ctx        = request->ctx;
+    unsigned       generation = request->generation;
     free(request);
     if (generation != atomic_load(&ctx->write_generation) || conn_handle != ctx->conn_handle ||
         !atomic_exchange(&ctx->write_inflight, false))
+    {
+        callback_leave(lease);
         return 0;
+    }
     ble_mgr_status_t status = error->status ? BLE_MGR_E_GATT_SEND_FAILED : BLE_MGR_E_OK;
     observe(ctx, "write_completed", NULL, 0, error->status);
     xQueueSend(ctx->write_result, &status, 0);
+    callback_leave(lease);
     return 0;
 }
 
@@ -906,8 +1201,9 @@ ble_mgr_status_t ble_mgr_send_with_timeout(ble_mgr_ctx_t *mgr_ctx,
     write_request_t *request = malloc(sizeof(*request));
     if (!request)
         return API_UNLOCK(mgr_ctx, BLE_MGR_E_GATT_SEND_FAILED);
-    request->ctx        = mgr_ctx;
-    request->generation = atomic_fetch_add(&mgr_ctx->write_generation, 1) + 1;
+    request->ctx           = mgr_ctx;
+    request->attempt_token = atomic_load(&mgr_ctx->attempt_token);
+    request->generation    = atomic_fetch_add(&mgr_ctx->write_generation, 1) + 1;
     xQueueReset(mgr_ctx->write_result);
     atomic_store(&mgr_ctx->write_inflight, true);
     int rc = ble_gattc_write_flat(mgr_ctx->conn_handle, chr_handle, data, len, write_completed, request);

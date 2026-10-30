@@ -29,3 +29,9 @@ uint32_t vehicle_commands_runtime_poll_reserve(unsigned source, uint32_t horizon
 
 /* Recheck at an ordinary-work boundary so newly queued Stop is serviced first. */
 bool vehicle_commands_runtime_pending(void);
+/* Physical UI heartbeat only; expiry/release is observed directly by the worker,
+ * even if its intent queue is full. No callbacks perform adapter IO. */
+void vehicle_commands_runtime_burnout_hold(bool held);
+
+/* Local operator observation only, never a wire command or ECU-state decoder. */
+bool vehicle_commands_runtime_confirm(uint8_t kind);

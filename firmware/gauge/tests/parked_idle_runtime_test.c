@@ -10,7 +10,10 @@
 static uint32_t clock_ms, generation;
 static unsigned engine_rpm, speed_kph, coolant_c, starts, returns, reads;
 static bool     connected, bad_identity, missing_coolant, lose_start_reply, control_active, stored;
-static uint8_t  journal[28];
+static uint8_t  journal[VEHICLE_COMMAND_MARKER_SIZE];
+static size_t   journal_length = 28;
+static bool     release_during_save, released_during_save;
+static unsigned burnout_starts, burnout_returns, abs_starts, abs_returns;
 static unsigned header, reports;
 static bool recovery_only, fail_save, fail_report, negative_report, diagnostic_session, fail_session, negative_session;
 static ble_obd_ctx_t *const adapter = (ble_obd_ctx_t *)1;
@@ -72,16 +75,26 @@ esp_err_t nvs_open(const char *name, unsigned mode, nvs_handle_t *out)
 }
 esp_err_t nvs_get_blob(nvs_handle_t h, const char *key, void *out, size_t *length)
 {
-    assert(h && !strcmp(key, "intent_v1") && *length == sizeof(journal));
-    memcpy(out, journal, *length);
+    /* NVS takes buffer capacity and returns the actual stored record length. */
+    assert(h && !strcmp(key, "intent_v1") && *length >= journal_length);
+    memcpy(out, journal, journal_length);
+    *length = journal_length;
     return ESP_OK;
 }
 esp_err_t nvs_set_blob(nvs_handle_t h, const char *key, const void *in, size_t length)
 {
-    assert(h && !strcmp(key, "intent_v1") && length == sizeof(journal));
+    assert(h && !strcmp(key, "intent_v1") && (length == 28 || length == VEHICLE_COMMAND_MARKER_SIZE));
     if (fail_save)
         return -1;
     memcpy(journal, in, length);
+    journal_length = length;
+    if (release_during_save && (journal[1] & 4U))
+    {
+        released_during_save = true;
+        release_during_save  = false;
+        clock_ms += 600;
+        vehicle_commands_runtime_burnout_hold(false);
+    }
     stored = true;
     return ESP_OK;
 }
@@ -169,6 +182,50 @@ int ble_obd_control_exchange(ble_obd_ctx_t *a, const char *text, uint32_t timeou
     clock_ms += 40;
     if (!strcmp(text, "AT SH 7E0"))
         header = 0x7e0;
+    else if (!strcmp(text, "AT SH 784"))
+        header = 0x784;
+    else if (!strcmp(text, "AT SH 620"))
+        header = 0x620;
+    else if (header == 0x620)
+    {
+        if (!strcmp(text, "AT FC SH 620") || !strcmp(text, "AT CRA 504"))
+        {
+        }
+        else if (!strcmp(text, "10 92 1"))
+            reply = "504 02 50 92\r>";
+        else if (!strcmp(text, "31 A4"))
+        {
+            ++abs_starts;
+            reply = "504 02 71 A4\r>";
+        }
+        else if (!strcmp(text, "32 A4"))
+        {
+            ++abs_returns;
+            reply = "504 02 72 A4\r>";
+        }
+        else
+            assert(0);
+    }
+    else if (header == 0x784)
+    {
+        if (!strcmp(text, "AT FC SH 784") || !strcmp(text, "AT CRA 785"))
+        {
+        }
+        else if (!strcmp(text, "10 92 1"))
+            reply = "785 02 50 92\r>";
+        else if (!strcmp(text, "30 11 07 A0 00"))
+        {
+            ++burnout_starts;
+            reply = "785 03 70 11 07\r>";
+        }
+        else if (!strcmp(text, "30 11 07 00 00"))
+        {
+            ++burnout_returns;
+            reply = "785 03 70 11 07\r>";
+        }
+        else
+            assert(0);
+    }
     else if (!strcmp(text, "AT FC SH 7E0") || !strcmp(text, "AT CRA 7E8"))
     {
     }
@@ -269,6 +326,8 @@ static void setup(bool wrong)
     bad_identity                                                                                = wrong;
     missing_coolant = lose_start_reply = control_active = stored = false;
     memset(journal, 0, sizeof(journal));
+    journal_length      = 28;
+    release_during_save = released_during_save = false;
     initialize();
     run(20);
 }
@@ -282,6 +341,87 @@ static void start(void)
     phase(VEHICLE_ACTIVE);
     assert(starts == 1 && status[24] + 256U * status[25] > 290 && journal[1] == 1);
 }
+static void burnout_release_during_journal_write(void)
+{
+    transfer_gate_release(TRANSFER_GATE_VEHICLE_COMMAND);
+    stored = recovery_only = false;
+    release_during_save    = true;
+    released_during_save   = false;
+    burnout_starts = burnout_returns = 0;
+    config_runtime_t runtime         = {0}; /* Disable the parked-idle fixture policy. */
+    assert(vehicle_commands_runtime_init(&runtime) == ESP_OK);
+    vehicle_command_context_t c = {.revision             = 7,
+                                   .link                 = generation,
+                                   .identity             = 99,
+                                   .qualified_mask       = 4,
+                                   .identity_mask        = 4,
+                                   .connected            = true,
+                                   .guards_fresh_and_met = true};
+    c.guard_at                  = clock_ms;
+    vehicle_commands_runtime_worker(0, adapter, c, clock_ms);
+    vehicle_commands_runtime_burnout_hold(true);
+    assert(vehicle_commands_runtime_intent(VEHICLE_BURNOUT, false, 0, 0));
+    for (unsigned i = 0; i < 15; ++i)
+    {
+        if (!released_during_save)
+            vehicle_commands_runtime_burnout_hold(true);
+        c.guard_at = clock_ms;
+        vehicle_commands_runtime_worker(0, adapter, c, clock_ms);
+        clock_ms += 100;
+    }
+    uint8_t snapshot[32];
+    assert(vehicle_commands_runtime_status(VEHICLE_BURNOUT, snapshot) == 32);
+    assert(released_during_save && !burnout_starts && burnout_returns == 1);
+    assert(snapshot[2] == VEHICLE_VERIFYING && journal[1] == 4 && journal_length == 40);
+    /* Initialization must block maintenance before the primary worker claims
+     * its lease, while the durable operation is already known unresolved. */
+    transfer_gate_release(TRANSFER_GATE_VEHICLE_COMMAND);
+    assert(vehicle_commands_runtime_init(&runtime) == ESP_OK);
+    assert(vehicle_commands_runtime_status(VEHICLE_BURNOUT, snapshot) == 32);
+    assert(snapshot[2] == VEHICLE_UNKNOWN && snapshot[4]);
+    assert(!vehicle_commands_runtime_pending());
+    assert(!vehicle_commands_runtime_maintenance_allowed(false));
+    assert(!vehicle_commands_runtime_maintenance_allowed(true));
+}
+
+#if CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
+static void owner_brake_runtime_paths(void)
+{
+    setup(false);
+    abs_starts = abs_returns = burnout_starts = burnout_returns = 0;
+    uint8_t snapshot[32];
+    assert(vehicle_commands_runtime_ui_status(VEHICLE_ABS_TCS, snapshot));
+    assert((snapshot[27] & (1 | 128)) == (1 | 128));
+    assert(vehicle_commands_runtime_intent(VEHICLE_ABS_TCS, false, 0, 0));
+    run(30);
+    assert(abs_starts == 1 && journal[1] == 2);
+    assert(vehicle_commands_runtime_status(VEHICLE_ABS_TCS, snapshot) && snapshot[2] == VEHICLE_ACTIVE);
+    assert(vehicle_commands_runtime_intent(VEHICLE_ABS_TCS, true, 0, 0));
+    run(30);
+    assert(abs_returns == 1 && journal[1] == 2);
+    assert(vehicle_commands_runtime_confirm(VEHICLE_ABS_TCS));
+    run(5);
+    assert(vehicle_commands_runtime_status(VEHICLE_ABS_TCS, snapshot) && snapshot[2] == VEHICLE_RESTORED);
+    assert(!journal[1]);
+    setup(false);
+    vehicle_commands_runtime_burnout_hold(true);
+    assert(vehicle_commands_runtime_intent(VEHICLE_BURNOUT, false, 0, 0));
+    for (unsigned i = 0; i < 12; ++i)
+    {
+        vehicle_commands_runtime_burnout_hold(true);
+        tick();
+    }
+    assert(burnout_starts == 1 && !burnout_returns && journal[1] == 4);
+    vehicle_commands_runtime_burnout_hold(false);
+    run(30);
+    assert(burnout_returns == 1 && journal[1] == 4);
+    assert(vehicle_commands_runtime_confirm(VEHICLE_BURNOUT));
+    run(5);
+    assert(vehicle_commands_runtime_status(VEHICLE_BURNOUT, snapshot) && snapshot[2] == VEHICLE_RESTORED);
+    assert(!journal[1]);
+}
+#endif
+
 int main(void)
 {
     assert(vehicle_commands_runtime_poll_reserve(1, 1500, 0) == 0);
@@ -292,7 +432,9 @@ int main(void)
     phase(VEHICLE_READY);
     uint8_t request[24] = {1, 1, 1, 1, 1, 0, 0, 0, 7, 0, 0, 0, 9, 0, 0, 0, 17, 0, 0, 0, 44, 1, 0, 0};
     assert(!vehicle_commands_runtime_submit(request, sizeof(request)));
+#if !CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
     assert(!vehicle_commands_runtime_intent(VEHICLE_ABS_TCS, false, 0, 0));
+#endif
     unsigned before = reads;
     assert(!vehicle_commands_runtime_worker(1, adapter, (vehicle_command_context_t){0}, clock_ms));
     assert(before == reads);
@@ -408,6 +550,10 @@ int main(void)
     run(100);
     phase(VEHICLE_RESTORED);
     assert(!journal[1] && !returns && starts == 1);
+    burnout_release_during_journal_write();
+#if CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
+    owner_brake_runtime_paths();
+#endif
     puts("primary worker parked idle replay passed; local Start, five-minute expiry, coolant, Stop, restoration, "
          "uncertainty and child isolation");
 }

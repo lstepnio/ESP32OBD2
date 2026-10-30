@@ -2,7 +2,7 @@
 
 **Status:** Shared command path implemented; vehicle execution gated pending parked qualification
 **Date:** 2026-10-07
-**Updated:** 2026-10-19; idle and combined ABS/TCS share the command path, live qualification disabled
+**Updated:** 2026-10-29; idle, combined ABS/TCS and Burnout Mode share the command owner; explicit owner-supervised brake candidate enabled; ordinary brake profiles remain unqualified
 **Deciders:** Project owner for interaction choices; implementation and physical
 qualification determine which controller definitions become available.
 
@@ -172,8 +172,8 @@ insufficient to enable high idle or ABS on this Jeep.
 **Offline foundation implemented; vehicle execution proposed and disabled.** Reuse ADR-013 for configurable commands. The first
 scope is temporary engine idle for air-up and winching. The owner-selected next
 command is combined ABS/TCS shutdown through the same framework, with its separate
-controller route and ignition-cycle restoration semantics. Fourth-button Line Lock
-work is deferred; persistent PCM adaptations remain outside this increment. The command does not operate the winch
+controller route and ignition-cycle restoration semantics. Fourth-button Line Lock was deferred in the initial increment and now uses the
+separate [Burnout Mode path](#burnout-mode-and-brake-actions). Persistent PCM adaptations remain outside scope. The command does not operate the winch
 or compressor. Its remaining work is owned by FEATURE-04, not a separate backlog.
 
 ### Compatibility and research gate
@@ -412,13 +412,13 @@ This delivers the offline driver without claiming a complete vehicle-control pat
 
 ### Shared command owner
 
-`vehicle_commands.c` owns two independent action slots and one driver lease. Idle
+`vehicle_commands.c` owns three independent action slots and one driver lease. Idle
 can remain active while ABS/TCS needs restart; neither operation can run concurrent
 adapter transactions. Start/Stop, countdown expiry, guard loss and cancellation use
 one typed admission/state path. `jeep_idle_driver.c` and `jeep_abs_tcs_driver.c`
 contain only their captured controller procedures. The latter addresses 620/504,
 enters the diagnostic session for each job, and never equates an acknowledgment
-with restored ABS/TCS. Fourth-button valve commands are not included.
+with restored ABS/TCS. Burnout Mode uses a distinct typed procedure and never the combined-shutdown route.
 
 `vehicle_commands_runtime.c` runs on the existing primary adapter worker. Its
 fixed queue has four entries; callbacks only enqueue and snapshots use a short
@@ -485,7 +485,7 @@ inputs. It is not a production vehicle definition or driving mode.
   [ordered action-page contract](#ordered-action-pages). Review 4 replaces the ordinary
   repeated Park/brake confirmation screen with hold-to-start. The App can monitor
   and Stop but cannot Start, including by
-  sending raw authenticated command bytes. ABS/TCS remains unavailable.
+  sending raw authenticated command bytes. This idle switch alone does not enable ABS/TCS.
 - Air up can run **five minutes** with fresh coolant; Winch keeps its saved one-minute
   preset. Longer test drafts are capped at five minutes in both confirmation and
   admission. Missing/stale coolant retains the existing at-most-one-minute fallback,
@@ -601,7 +601,7 @@ not qualify live controller execution.
   band; one supporting line sits between the value and primary control. The shared
   critical overlay preserves its measured condition and reuses the same red arc during
   protective Return, then restores the action branch without restarting. The tested Jeep's ABS/TCS
-  Disabled state has ignition-cycle guidance and no misleading Restore control.
+  Disabled state offers the captured Return before ignition-cycle guidance; acknowledgement is not restoration proof.
 - An unresolved operation is appended to the displayed branch if its configured
   page is absent. This is an ephemeral recovery view, never a configuration write.
   Navigation cannot conceal Stop merely because the phone started the operation.
@@ -687,11 +687,10 @@ profile, the next parked increment must close the remaining evidence inputs:
 4. Extend failure/recovery and independent TCM checks using explicit reconciliation.
    One observed return after process/link loss does not define the ECU timeout.
 
-No new release, installation or vehicle-control authorization follows from these
-notes. Combined ABS/TCS is the next active command after idle integration and
-needs its own controller qualification. Fourth-button Line Lock is explicitly
-deferred by owner; preserve the reference evidence without implementing or exposing
-it in the current command UI. Neither path shares the idle driver implicitly.
+The owner subsequently authorized an explicit best-effort brake candidate and
+firmware/App installation. Its separate policy is recorded below; neither brake
+path shares the idle driver implicitly or acquires general qualification from
+that authorization or replay tests.
 
 ## Remaining qualification
 
@@ -743,3 +742,174 @@ Offline acceptance covers calculation/rounding, invalid inputs, over-limit estim
 explicit overrides, schema migration, parent-vehicle persistence, duration-only
 wire encoding and the editor flow. Parked command qualification and a measured
 four-tire calibration with the owner's actual equipment remain separate gates.
+
+## Burnout Mode and brake actions
+
+The 2026-10-29 owner request adds **Burnout Mode**, the captured fourth-button Line
+Lock function, alongside **Disable ABS + TCS**. These are distinct controller
+procedures, not separate ABS-only/TCS-only switches. The [parked reference](../evidence/jeep-actions-live-qualification.md#fourth-button)
+records accepted transactions and uncertain physical semantics. [JScan's manual](https://jscan-docs.readthedocs.io/en/latest/general/user_manual.html#bottom-row-icons)
+describes combined shutdown until an ignition cycle and Burnout as releasing rear
+brakes while the pedal is held. Do not infer brake force, valve mapping, automatic
+expiry or release from a positive diagnostic reply.
+
+The App can explicitly add/order/remove a fourth `burnout` page. Existing menus
+retain their three legacy defaults. Configuration/status negotiation uses `vc:1` + optional `bm:1`;
+old gauges retain Idle/ABS polling and refuse sending unsupported Burnout drafts.
+App dev.54/code54 adds this interface; `bt:1` separately identifies the explicit
+owner-supervised brake candidate. Shared
+configuration schema2/profile schema19 remain structurally unchanged; strict older
+readers preserve unknown input rather than silently dropping the page.
+
+On a qualified controller or the explicit owner candidate below, Burnout has one
+physical **Hold to run** control. A tap
+cannot activate it, and the phone can only request release. The existing 900ms hold
+opens a run; touch release, movement outside the hit area, attention/context loss,
+a 300ms stale UI heartbeat or a 500ms stale worker lease requests Return. Status
+changes cannot turn that same touch into a second Start. A ten-second software
+deadline also requests Return and cannot be extended by continued touch. It is a
+release-initiation deadline, **not a guaranteed hydraulic duration**: queued work,
+bounded IO, route/session setup, link loss and controller behavior affect actual
+release latency. Controller-side expiry and physical release timing need evidence
+for full qualification. The owner candidate accepts these unresolved limits
+explicitly. No control task or heap allocation is added.
+
+Configuration/OTA/Wi-Fi maintenance waits while a recorded Burnout outcome remains
+Unknown, so it cannot retire a still-needed release path. Ordinary malformed-journal
+repair behavior is unchanged. Idle/combined shutdown cannot start while Burnout is active or unresolved; Burnout
+cannot overlap any other active/unresolved control. One primary-worker lease and
+the existing bounded queue own all adapter IO. Lost Start replies remain Unknown;
+a physical release latches at most one same-scope Return attempt, never replays
+Start. A failed Return is not retried automatically. Explicit Stop after a reboot
+or reconnect requires the same scoped identity (captured ECM identity in owner
+mode, independently verified controller identity in qualified mode), durable
+revision/operation and current boot/link. It remains Verifying after an accepted
+Return until independent, fresh release evidence clears the durable marker, or
+the explicit owner-mode manual confirmation below records a human observation.
+A known durable same-operation marker permits protective Return without another
+flash commit; failed persistence never clears uncertainty. ABS/TCS instead retains its existing Restart required semantics and independent
+reset/state proof. Reboots never resume either command or manufacture restoration.
+
+The existing NVS `intent_v1` key accepts its original 28-byte version1 record.
+Only a live Burnout uncertainty bit needs version2/40 bytes; older firmware refuses
+that larger record rather than losing the uncertainty. Once no Burnout uncertainty
+remains, saves use version1 again so ordinary idle/ABS rollback stays compatible.
+Malformed/newer journals remain retained and refuse execution.
+
+### Reviewing a different action's retained state
+
+A ready action can be blocked by another kind's Active, Verifying, Unknown or
+Restart-required state. Its face must name that action and its status, with a
+**Review** button leading directly to the existing action page. Review is local
+navigation; it must not Start, Stop, acknowledge or clear any operation. A state
+change during that tap must not turn it into Start. Do not add an unrecorded
+Burnout page to represent a generic journal error.
+
+The ready Burnout instruction **Hold brake pedal** appears only when its ready
+control is admissible, never alongside a different action's blocker. The existing
+owner recovery control remains independent when more than one record needs review;
+requiring every other Unknown record to clear first would create a recovery cycle.
+It shows **Connect Jeep** without matched ECM context, **Park and idle** while the
+stationary confirmation input is unmet, and the existing physical confirmation
+only when its scoped runtime gate passes. This changes presentation, not admission.
+The local stationary brake-readiness bit is interpreted only in its brake context.
+It must not trigger an idle coolant confirmation, timer clamp or **No coolant**
+warning. A ready Burnout control needs one 900 ms hold, not a hidden second hold;
+without stationary readiness, show **Park and idle** rather than inviting Start.
+Reboot retains unresolved control records; Unknown is missing outcome proof, not
+proof that the physical action is running. Downward navigation returns to readings
+without acknowledging the retained state.
+
+### Front Lock selection: captured JK versus JL/JT
+
+The owner specified **Front Lock** as the desired Burnout mode on 2026-10-29.
+An offline review of the same JScan build used for the capture resolves the
+setting's software scope, not the vehicle's hydraulic behavior. Assembly provenance
+is retained in the [handler analysis](../vehicles/jeep/jk-handler-analysis.md#detailed-offline-control-flow-review-2026-10-19):
+`obd4u.cleversoftware.net.Common.dll`, SHA-256
+`aa3b31566a772781149a0c4b65d12e3d5180da6ebba866829739237bc30289df`,
+JScan build `v21.09.2026.12:45`.
+
+| JScan path in that build | Mode selection | Evidence and consequence |
+| --- | --- | --- |
+| `PrepareLiveDataForJK` → `AddABSBurnoutMode` | No `BurnOutType` read | Fixed rear-outlet-valve procedure at `784`/`785`; Start/Return match the captured requests already used by eGauge. Changing the global selector does not select another command in this JK handler. |
+| `PrepareLiveDataForJLJT` → `AddABSPNBurnoutMode` | `LockFront=0`, `UnlockRear=1` | Separate ABSPN implementation at `747`/`4C7`. Its Begin/Keep methods read `BurnOutType`; the selector changes this path. These are not interchangeable JK control bytes. |
+
+The getter-reference review also finds the settings UI and Burnout description;
+those labels alone do not establish that the JK actuator uses the selection.
+Earlier capture notes recorded `Lock front`, but did not independently bind that
+selection to the accepted on/off sequence. Preserve those observations as history;
+do not claim selection-specific Front Lock qualification from them.
+
+A new full capture solely to change this selector is not justified for the
+inspected JK build. First compare the installed function with the owner's intended
+behavior. Rear-brake release with pedal-applied front braking must not be silently
+equated with independently holding front pressure. If behavior differs, or a newer
+JScan/another actual controller path honors the selector on this Jeep, capture only
+that labelled Front Lock Start/Return sequence with exact app/profile/controller
+identity and observed release behavior. The installed dev.76 request and enabled
+owner mode remain unchanged by this research; no alternate valve bytes are inferred.
+
+### Explicit owner-supervised brake candidate
+
+`CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST` defaults off and is independent of
+`CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST`. The owner-authorized build enables both
+**Disable ABS + TCS** and **Burnout Mode** only for the captured Jeep's matching
+ECM CalID/CVN through the existing idle identity policy. That match identifies the
+captured vehicle, not the ABS controller. Ordinary profile qualification masks
+remain zero and public BLE capability flags stay disabled.
+The App allows offline setup of owner-supervised brake action pages from `bt:1` capability without a live ECM connection; execution still requires the physical gauge and current vehicle guards.
+
+Start is physical-gauge-only with fresh zero speed and normal idle (400..1200 RPM).
+After Start, fresh running RPM/speed remain required; motion or throttle alone no
+longer cancels the supervised run. Burnout retains hold-to-run and its ten-second
+release-initiation bound. Neither this policy nor manual pedal confirmation
+establishes automatic brake/Park sensing, brake force, controller-side expiry or
+independent restoration proof.
+
+For Burnout, complete or attempt Return, then stop at normal idle and inspect the
+actual brake state. For ABS/TCS, first use **Restore** to send captured `32 A4`,
+then perform the ignition reset and check that the warnings and brakes are normal.
+Ignition alone is not established restoration: the owner reported it remained
+disabled until JScan toggled the function and the Jeep restarted. Only then use
+the physical **Hold to confirm** control while
+stationary at normal idle. Confirmation sends no vehicle control. It records
+human provenance in command history/logs and clears that operation's uncertainty;
+it is not decoded controller proof. Unchecked or unexpected behavior stays
+unresolved. The [operator procedure](../development/jeep-action-qualification.md#brake-actions-follow-up)
+owns the test sequence and remaining controller/release qualification.
+Native/Compose fixtures cover protocol, routing, hold loss, uncertainty and legacy
+menus; vehicle braking behavior still requires physical observation.
+
+Website impact: current public ABS/TCS-disabled language remains accurate. Queue
+Burnout screenshots/status for the next eligible daily batch after a qualified
+availability change; do not market a working control from offline fixtures.
+
+
+### ABS Return receipt and paused Burnout menus
+
+The ABS/TCS restore sequence is captured Return, ignition reset, then a physical
+normal-state check. Active or uncertain ABS presents **Restore**; Unknown accepts
+only an explicit same-operation Return against the retained vehicle identity and
+configuration. A new link/boot may rebind that Return, never Start. There is no
+automatic control replay. A positive `72 A4` acknowledgement retains uncertainty
+and writes a version-3 Return receipt before offering reset confirmation.
+
+This receipt uses the existing 40-byte NVS envelope: version 3, byte 2 = 1 only
+with ABS bit 1 still pending. It survives gauge power loss with the ignition,
+returns to Restart required and does not resend Return. It proves only request
+acceptance, never actual ABS/TCS operation. Failed receipt storage stays Unknown.
+The receipt clears only with independently verified restoration or the existing
+explicit owner reset confirmation. Versions 1/2 still decode without invented
+receipts. Older firmware rejects version 3, preserving the record; do not downgrade
+while this receipt is pending. Normal saves return to legacy format once resolved.
+BLE control/status layouts and actuator bytes are unchanged.
+
+Burnout/Line Lock is paused at the owner's request. App menu decoding/editing and
+firmware runtime configuration omit its page, preserving remaining order, timers
+and gestures. No new normal-menu Start is exposed. The typed wire, driver and
+pending-record recovery remain for older configurations and uncertain releases;
+a pending record may still surface its recovery face. This is compatibility, not
+an available normal action. Existing raw gauge configuration is not rewritten or
+its uncertainty erased as a side effect; a subsequent permitted App save removes
+the old menu entry. Front-lock qualification remains deferred.

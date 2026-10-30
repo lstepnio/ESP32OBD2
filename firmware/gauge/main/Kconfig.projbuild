@@ -7,8 +7,20 @@ config EGAUGE_JEEP_IDLE_PARKED_TEST
         Temporary Air up/Winch qualification only. Requires exact primary ECM
         calibration/CVN, fresh zero speed/running RPM, local gauge confirmation
         of Park and parking brake, coolant protection and a five-minute ceiling.
-        Missing coolant retains the existing one-minute fallback. Phone Start,
-        ABS/TCS and public capabilities remain disabled. Never use for driving.
+        Missing coolant retains the existing one-minute fallback. Phone Start
+        remains disabled. Brake actions require their independent owner-test
+        switch. Public
+        capabilities remain disabled. Never use for driving.
+
+config EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
+    bool "Enable owner-supervised brake actions for the captured Jeep"
+    default n
+    help
+        Development-only ABS/TCS and Burnout candidate for the matched captured
+        Jeep. Requires the runtime identity and safety checks plus physical gauge
+        Start and manual brake-state confirmation. Manual confirmation does not
+        establish automatic brake-state sensing or controller qualification.
+        Independent of parked idle tests. Public BLE capabilities stay disabled.
 
 config EGAUGE_OBD_TRACE
     bool "Record bounded OBD transport traces over USB serial"

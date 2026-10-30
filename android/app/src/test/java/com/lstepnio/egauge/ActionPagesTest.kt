@@ -10,12 +10,71 @@ class ActionPagesTest {
 
     @Test fun legacyMenuMigratesInOrderAndKeepsGestureAndDurations() {
         val migrated = ProfileActions.decode(JSONArray(legacy)).single()
-        assertEquals(ActionPageId.entries.toList(), migrated.pages)
+        assertEquals(legacyActionPages, migrated.pages)
         assertEquals(3, migrated.count)
         assertEquals(60, migrated.airUpSeconds)
         assertEquals(listOf(migrated), ProfileActions.decode(ProfileActions.json(listOf(migrated))))
         val empty = migrated.copy(pages = emptyList())
         assertTrue(ProfileActions.decode(ProfileActions.json(listOf(empty))).single().pages.isEmpty())
+    }
+
+    @Test fun burnoutDraftNormalizesWithoutChangingLegacyOrJumpDefaults() {
+        val action = PageAction(type = PageActionType.VehicleActions, pages = ActionPageId.entries.toList())
+        assertEquals(4, action.pages.size)
+        assertEquals(action.copy(pages = legacyActionPages), action.withoutBurnout())
+        assertEquals(action.withoutBurnout(), ProfileActions.decode(ProfileActions.json(listOf(action))).single())
+        assertEquals(legacyActionPages, PageAction(pageId = "main").pages)
+        assertFalse(ProfileActions.supported(listOf(action), 1))
+        assertFalse(ProfileActions.supported(listOf(action), null))
+        assertTrue(ProfileActions.supported(listOf(action), 1, 1))
+        assertTrue(ProfileActions.supported(listOf(action.copy(pages = legacyActionPages)), 1))
+    }
+
+    @Test fun savedFourActionMenuDropsOnlyBurnoutAndPreservesOrderGestureAndTimers() {
+        val item = JSONArray(legacy).getJSONObject(0).put("count", 5).put("windowMs", 9000)
+            .put("pages", JSONArray(listOf("absTcs", "burnout", "winch", "airUp")))
+        val normalized = ProfileActions.decode(JSONArray().put(item)).single()
+        assertEquals(listOf(ActionPageId.AbsTcs, ActionPageId.Winch, ActionPageId.AirUp), normalized.pages)
+        assertEquals(5, normalized.count)
+        assertEquals(9000, normalized.windowMs)
+        assertEquals(60, normalized.airUpSeconds)
+        assertEquals(300, normalized.winchSeconds)
+    }
+
+    @Test fun optionalBurnoutCapabilityKeepsLegacyVehicleCommandsVersion() {
+        val base = """{"board":"board","protocolMajor":0,"maxAdapterLinks":2,"configWrite":false,"ota":false,"vc":1}"""
+        assertEquals(0, GaugeProtocolCodec.capabilities(base.toByteArray()).burnoutActionsVersion)
+        val extended = base.dropLast(1) + ",\"bm\":1}"
+        val capabilities = GaugeProtocolCodec.capabilities(extended.toByteArray())
+        assertEquals(1, capabilities.vehicleCommandsVersion)
+        assertEquals(1, capabilities.burnoutActionsVersion)
+        listOf("2", "-1", "1.5", "true", "\"1\"").forEach { invalid ->
+            assertTrue(runCatching { GaugeProtocolCodec.capabilities((base.dropLast(1) + ",\"bm\":$invalid}").toByteArray()) }.isFailure)
+        }
+    }
+
+    @Test fun optionalBrakeSupervisorCapabilityIsStrictAndKeepsLegacyDefaults() {
+        val base = """{"board":"board","protocolMajor":0,"maxAdapterLinks":2,"configWrite":false,"ota":false,"vc":1}"""
+        assertEquals(0, GaugeProtocolCodec.capabilities(base.toByteArray()).brakeActionsTestVersion)
+        for (version in 0..1) {
+            val caps = GaugeProtocolCodec.capabilities((base.dropLast(1) + ",\"bt\":$version,\"future\":true}").toByteArray())
+            assertEquals(version, caps.brakeActionsTestVersion)
+            assertEquals(0, caps.burnoutActionsVersion)
+            assertEquals(1, caps.vehicleCommandsVersion)
+        }
+        listOf("2", "-1", "1.5", "true", "null", "\"1\"").forEach { invalid ->
+            assertTrue(runCatching { GaugeProtocolCodec.capabilities((base.dropLast(1) + ",\"bt\":$invalid}").toByteArray()) }.isFailure)
+        }
+    }
+
+    @Test fun profileSchemaRemovesExplicitBurnoutAndRejectsUnknownPages() {
+        val action = PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.Burnout))
+        val collection = ProfileCollection("jeep", listOf(VehicleProfile("jeep", "Jeep", Draft(actions = listOf(action)))))
+        val encoded = ProfileDocumentCodec.encode(collection)
+        assertEquals(19, JSONObject(encoded).getInt("schemaVersion"))
+        assertEquals(listOf(action.withoutBurnout()), ProfileDocumentCodec.decode(encoded).active.draft.actions)
+        assertTrue(runCatching { ProfileDocumentCodec.decode(encoded.replace("\"pages\":[]", "\"pages\":[\"futureBrakeAction\"]")) }.isFailure)
+        assertEquals(listOf(action.withoutBurnout()), ProfileDocumentCodec.decode(encoded).active.draft.actions)
     }
 
     @Test fun unsupportedDuplicateAndOversizedCollectionsAreRejected() {

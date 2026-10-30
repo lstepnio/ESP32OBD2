@@ -126,3 +126,33 @@ void jeep_idle_parked_test_started(jeep_idle_parked_test_t *t, const vehicle_com
     t->baseline_valid     = t->rpm_valid;
     t->proof_count        = 0;
 }
+
+void jeep_brake_owner_test_context(const jeep_idle_parked_test_t *t,
+                                   vehicle_command_context_t     *c,
+                                   const vehicle_command_state_t  states[VEHICLE_COMMAND_KIND_COUNT],
+                                   uint32_t                       now)
+{
+    c->brake_owner_test = true;
+    c->supervised_mask = c->supervised_start_mask = c->supervised_run_mask = 0;
+    c->supervised_at                                                       = 0;
+    bool recorded                                                          = false;
+    for (unsigned i = 1; i < VEHICLE_COMMAND_KIND_COUNT; ++i)
+        recorded |= states[i].request.operation && states[i].phase != VEHICLE_READY &&
+                    states[i].phase != VEHICLE_RESTORED && states[i].phase != VEHICLE_REJECTED &&
+                    states[i].phase != VEHICLE_UNAVAILABLE;
+    if (!c->connected || t->revision != c->revision || t->link != c->link || !t->calibration || !t->cvn ||
+        (!recorded && now - t->identity_at > 30000))
+        return;
+    c->identity        = 0xca36378cU; /* Captured vehicle identity, not an ABS module identity. */
+    c->supervised_mask = 6;
+    uint32_t rpm_age = now - t->rpm_at, speed_age = now - t->speed_at;
+    c->supervised_at = rpm_age > speed_age ? t->rpm_at : t->speed_at;
+    bool fresh = t->rpm_valid && t->speed_valid && t->rpm_at && t->speed_at && rpm_age <= 2000 && speed_age <= 2000 &&
+                 t->rpm >= 400;
+    if (fresh)
+    {
+        c->supervised_run_mask = 6;
+        if (!t->speed && t->rpm <= 1200)
+            c->supervised_start_mask = 6;
+    }
+}

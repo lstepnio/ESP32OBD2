@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "artifacts/checks"
 FIRMWARE = ROOT / "firmware/gauge"
 NATIVE_TESTS = {
+    "adapter_role_policy": ["tests/adapter_role_policy_test.c", "main/src/adapter_role_policy.c"],
     "reading_presentation": [
         "tests/reading_presentation_test.c",
         "main/src/reading_presentation.c",
@@ -197,10 +198,14 @@ def idf_command():
     return [python, script]
 
 
-def firmware_variant_config(text, *, parked_idle_test=False, orientation_candidate=False):
+def firmware_variant_config(
+    text, *, parked_idle_test=False, brake_actions_test=False, orientation_candidate=False
+):
     overrides = {}
     if parked_idle_test:
         overrides["CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST"] = True
+    if brake_actions_test:
+        overrides["CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST"] = True
     if orientation_candidate:
         overrides.update(
             {
@@ -222,18 +227,27 @@ def firmware_variant_config(text, *, parked_idle_test=False, orientation_candida
     return "\n".join([*lines, ""])
 
 
-def firmware(action, *, parked_idle_test=False, orientation_candidate=False):
+def firmware(
+    action, *, parked_idle_test=False, brake_actions_test=False, orientation_candidate=False
+):
     idf = idf_command()
     if action == "build":
         options = []
-        if parked_idle_test or orientation_candidate:
+        if parked_idle_test or brake_actions_test or orientation_candidate:
             OUTPUT.mkdir(parents=True, exist_ok=True)
-            variant = "orientation-candidate" if orientation_candidate else "parked-idle"
+            variant = (
+                "brake-actions-test"
+                if brake_actions_test
+                else "orientation-candidate"
+                if orientation_candidate
+                else "parked-idle"
+            )
             config = OUTPUT / (variant + ".sdkconfig")
             config.write_text(
                 firmware_variant_config(
                     (FIRMWARE / "sdkconfig").read_text(),
                     parked_idle_test=parked_idle_test,
+                    brake_actions_test=brake_actions_test,
                     orientation_candidate=orientation_candidate,
                 )
             )
@@ -378,17 +392,23 @@ def main():
         help="Build the explicit owner-supervised Jeep idle candidate in a separate directory",
     )
     parser.add_argument(
+        "--brake-actions-test",
+        action="store_true",
+        help="Build the explicit owner-supervised Jeep brake-actions candidate in a separate directory",
+    )
+    parser.add_argument(
         "--orientation-candidate",
         action="store_true",
         help="Build an explicitly owner-supervised sensor-orientation candidate; default qualification stays off",
     )
     args = parser.parse_args()
-    if args.parked_idle_test or args.orientation_candidate:
+    if args.parked_idle_test or args.brake_actions_test or args.orientation_candidate:
         if args.action != "build" or args.target != "firmware":
             parser.error("candidate options require build --target firmware")
         firmware(
             "build",
             parked_idle_test=args.parked_idle_test,
+            brake_actions_test=args.brake_actions_test,
             orientation_candidate=args.orientation_candidate,
         )
         return

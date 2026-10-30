@@ -15,6 +15,7 @@ idf_component_register(
         "src/ble_mgr.c"
         "src/adapter_registry.c"
         "src/adapter_status.c"
+        "src/adapter_role_policy.c"
         "src/obd_adapter_profile.c"
         "src/ble_obd.c"
         "src/obd_trace.c"

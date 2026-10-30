@@ -541,15 +541,18 @@ elm_result_t elm_response_decode_dtcs_for_ecu(const elm_response_t *response,
     return ELM_OK;
 }
 
-elm_result_t elm_response_decode_identity(const elm_response_t *response, uint8_t pid, elm_payload_t *payload)
+elm_result_t elm_response_decode_identity_for_ecu(const elm_response_t *response,
+                                                  uint8_t               pid,
+                                                  uint32_t              ecu,
+                                                  elm_payload_t        *payload)
 {
     if (!payload)
         return ELM_MALFORMED;
     memset(payload, 0, sizeof(*payload));
-    if (pid != 4 && pid != 6)
+    if ((pid != 4 && pid != 6) || (ecu != 0x7e8 && ecu != 0x7e9))
         return ELM_MALFORMED;
     elm_payload_t message;
-    elm_result_t  result = decode_message(response, 9, 0x7e8, true, &message);
+    elm_result_t  result = decode_message(response, 9, ecu, true, &message);
     if (result != ELM_OK)
         return result;
     if (message.length != (pid == 4 ? 19U : 7U) || message.bytes[1] != pid || message.bytes[2] != 1)
@@ -558,4 +561,9 @@ elm_result_t elm_response_decode_identity(const elm_response_t *response, uint8_
     payload->length -= 3;
     memmove(payload->bytes, payload->bytes + 3, payload->length);
     return ELM_OK;
+}
+
+elm_result_t elm_response_decode_identity(const elm_response_t *response, uint8_t pid, elm_payload_t *payload)
+{
+    return elm_response_decode_identity_for_ecu(response, pid, 0x7e8, payload);
 }

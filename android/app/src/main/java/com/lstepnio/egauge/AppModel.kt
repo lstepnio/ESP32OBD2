@@ -258,7 +258,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         var healthy = false
         try {
             val values = withTimeout(8_000) {
-                VehicleCommandKind.entries.associateWith { client.readVehicleCommand(device, it) }
+                VehicleCommandKind.supported(capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion).associateWith { client.readVehicleCommand(device, it, capabilities?.brakeActionsTestVersion ?: 0) }
             }
             if (currentGaugeId == gauge && profileCollection.activeId == vehicle && activeDocument?.revision == config.revision && values.values.all { it.revision == config.revision }) {
                 vehicleCommands = values
@@ -283,7 +283,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val vehicle = profileCollection.activeId
         val gauge = currentGaugeId ?: error("Connect your gauge first")
         val config = activeDocument?.takeIf { it.vehicleProfileId == vehicle } ?: error("Confirm this car's setup first")
-        require(capabilities?.vehicleCommandsVersion == 1 && isConfirmedSetup(config.revision, config.sha256, runtimeIdentity))
+        require(kind in VehicleCommandKind.supported(capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion) && isConfirmedSetup(config.revision, config.sha256, runtimeIdentity))
         val previous = vehicleCommands[kind] ?: error("Waiting for current command status")
         val observedAt = vehicleCommandsObservedAt ?: error("Waiting for current command status")
         require(android.os.SystemClock.elapsedRealtime() - observedAt in 0..30_000 && connection.fresh(android.os.SystemClock.elapsedRealtime()))
@@ -1826,7 +1826,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         require(transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || capabilities?.pageActionsVersion == 2) {
             "Update the gauge before sending action pages"
         }
-        require((transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion in 1..2) && (transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || capabilities?.vehicleCommandsVersion == 1)) {
+        require((transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion in 1..2) && ProfileActions.supported(transmittedDraft.actions, capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion)) {
             "Update the gauge before sending gesture actions"
         }
         require(

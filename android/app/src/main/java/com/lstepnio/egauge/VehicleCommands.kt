@@ -10,7 +10,12 @@ private const val VEHICLE_COMMAND_COOLANT_TIMER = 9
 
 enum class VehicleCommandKind(val wire: Int, val title: String) {
     Idle(1, "Raised idle"),
-    AbsTcs(2, "ABS & traction control")
+    AbsTcs(2, "ABS & traction control"),
+    Burnout(3, "Burnout Mode");
+
+    companion object {
+        fun supported(version: Int?, burnoutVersion: Int? = 0) = entries.filter { version == 1 && (it != Burnout || burnoutVersion == 1) }
+    }
 }
 enum class VehicleCommandPhase {
     Unavailable,
@@ -40,30 +45,86 @@ data class VehicleCommandStatus(
     val lastOperation: Long = 0,
     val timedFallback: Boolean = false,
     val gaugeStartRequired: Boolean = false,
-    val coolantUnavailable: Boolean = false
+    val coolantUnavailable: Boolean = false,
+    val ownerSupervised: Boolean = false
 ) {
     val busy get() = phase in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Active, VehicleCommandPhase.Stopping, VehicleCommandPhase.Verifying, VehicleCommandPhase.Unknown, VehicleCommandPhase.RestartRequired)
-    val canStart get() = qualified && !gaugeStartRequired && phase in setOf(VehicleCommandPhase.Ready, VehicleCommandPhase.Restored, VehicleCommandPhase.Rejected)
-    val canStop get() = qualified && phase in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Active)
+    val canStart get() = kind != VehicleCommandKind.Burnout && qualified && !gaugeStartRequired && phase in setOf(VehicleCommandPhase.Ready, VehicleCommandPhase.Restored, VehicleCommandPhase.Rejected)
+    val canStop get() = qualified && if (kind == VehicleCommandKind.Burnout) {
+        operation > 0 && phase in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Active, VehicleCommandPhase.Unknown)
+    } else {
+        phase in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Active)
+    }
+
+    /** Local capability context only. ABS flag 8 remains forbidden on the legacy wire. */
+    fun withBrakeActionsTestVersion(version: Int): VehicleCommandStatus {
+        require(version in 0..1)
+        return if (version == 1 && kind != VehicleCommandKind.Idle) {
+            copy(gaugeStartRequired = true, ownerSupervised = true)
+        } else {
+            this
+        }
+    }
     val message get() = when {
+        ownerSupervised && kind == VehicleCommandKind.Burnout -> when (phase) {
+            VehicleCommandPhase.Ready -> "Hold on gauge · release to stop"
+            VehicleCommandPhase.Starting -> "Starting Burnout Mode"
+            VehicleCommandPhase.Active -> "Hold on gauge · $remainingSeconds seconds remaining"
+            VehicleCommandPhase.Stopping -> "Returning brake control"
+            VehicleCommandPhase.Verifying -> "Check normal braking, then confirm on the gauge"
+            VehicleCommandPhase.Restored -> "Normal braking confirmed on the gauge"
+            VehicleCommandPhase.Unknown -> "Check braking and confirm on the gauge"
+            VehicleCommandPhase.Rejected -> "Could not start · check the gauge"
+            else -> "Check the gauge before starting"
+        }
+
+        ownerSupervised && kind == VehicleCommandKind.AbsTcs -> when (phase) {
+            VehicleCommandPhase.Ready -> "Start on the gauge"
+            VehicleCommandPhase.Starting -> "Switching ABS and traction control off"
+            VehicleCommandPhase.Active -> "ABS and traction control off · Restore on gauge, then reset ignition"
+            VehicleCommandPhase.Stopping -> "Returning ABS and traction control"
+            VehicleCommandPhase.RestartRequired -> "Reset ignition while parked, check the dash, then confirm on the gauge"
+            VehicleCommandPhase.Verifying -> "Check the dash and confirm on the gauge"
+            VehicleCommandPhase.Unknown -> "Use Restore on the gauge, then reset ignition while parked and check the dash"
+            VehicleCommandPhase.Restored -> "Normal dash confirmed on the gauge"
+            VehicleCommandPhase.Rejected -> "Could not start · check the gauge"
+            else -> "Check the gauge before starting"
+        }
+
+        kind == VehicleCommandKind.Burnout -> when (phase) {
+            VehicleCommandPhase.Unknown -> "Outcome unknown · brake release not verified"
+            VehicleCommandPhase.Active -> "Hold on gauge · $remainingSeconds seconds remaining"
+            VehicleCommandPhase.Starting -> "Starting Burnout Mode"
+            VehicleCommandPhase.Stopping, VehicleCommandPhase.Verifying -> "Checking control release"
+            VehicleCommandPhase.Restored -> "Control released"
+            else -> if (qualified) "Hold on gauge · release to stop" else "Hold on gauge · release not qualified"
+        }
+
         kind == VehicleCommandKind.Idle && phase in setOf(VehicleCommandPhase.Ready, VehicleCommandPhase.Restored, VehicleCommandPhase.Rejected) && gaugeStartRequired -> if (coolantUnavailable) "Start on the gauge. Without coolant readings, sessions are limited to one minute." else "Start again on the gauge."
+
         kind == VehicleCommandKind.Idle && timedFallback && phase == VehicleCommandPhase.Active -> "${if (coolantUnavailable) "Coolant unavailable · " else ""}Timed idle · ${remainingSeconds / 60}:${(remainingSeconds % 60).toString().padStart(2, '0')} remaining"
+
         kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_COOLANT_TIMER && phase == VehicleCommandPhase.Stopping -> "Timed session ended. Returning to normal idle."
+
         kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_COOLANT_TIMER && phase == VehicleCommandPhase.Verifying -> "Checking normal idle after the timed session."
+
         kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_GUARD && phase == VehicleCommandPhase.Rejected -> "Idle cannot start. Check coolant and vehicle conditions."
+
         kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_GUARD && phase == VehicleCommandPhase.Stopping -> "Stopping raised idle. Check coolant and vehicle conditions."
+
         kind == VehicleCommandKind.Idle && reason == VEHICLE_COMMAND_GUARD && phase == VehicleCommandPhase.Verifying -> "Checking normal idle after a condition changed."
+
         else -> phaseMessage
     }
     private val phaseMessage get() = when (phase) {
         VehicleCommandPhase.Unavailable -> "Not available for this car yet"
         VehicleCommandPhase.Ready -> "Ready"
         VehicleCommandPhase.Starting -> if (kind == VehicleCommandKind.Idle) "Raising idle" else "Switching ABS and traction control off"
-        VehicleCommandPhase.Active -> if (kind == VehicleCommandKind.Idle) "Raised idle · ${remainingSeconds / 60}:${(remainingSeconds % 60).toString().padStart(2, '0')} remaining" else "ABS and traction control off · restart required to restore"
+        VehicleCommandPhase.Active -> if (kind == VehicleCommandKind.Idle) "Raised idle · ${remainingSeconds / 60}:${(remainingSeconds % 60).toString().padStart(2, '0')} remaining" else "ABS and traction control off · Restore on gauge, then reset ignition"
         VehicleCommandPhase.Stopping -> if (kind == VehicleCommandKind.Idle) "Returning to normal idle" else "Ending control"
         VehicleCommandPhase.Verifying -> "Checking normal idle"
         VehicleCommandPhase.Restored -> if (kind == VehicleCommandKind.Idle) "Normal idle restored" else "ABS and traction control restored"
-        VehicleCommandPhase.RestartRequired -> "Restart the vehicle to restore ABS and traction control"
+        VehicleCommandPhase.RestartRequired -> "After Restore, reset ignition while parked and check the dash"
         VehicleCommandPhase.Rejected -> "Command could not start"
         VehicleCommandPhase.Unknown -> "Outcome unknown · check the vehicle before another command"
     }
@@ -79,7 +140,7 @@ object VehicleCommandProtocol {
         val operation = if (stop) status.operation else (status.lastOperation + 1).also { require(it in 1..0xffffffffL) }
         require(operation in 1..0xffffffffL)
         return ByteBuffer.allocate(24).order(ByteOrder.LITTLE_ENDIAN).apply {
-            put(1)
+            put(if (status.kind == VehicleCommandKind.Burnout) 2.toByte() else 1.toByte())
             put(status.kind.wire.toByte())
             put(if (stop) 2.toByte() else 1.toByte())
             put((preset?.id?.wire ?: 0).toByte())
@@ -101,11 +162,19 @@ object VehicleCommandProtocol {
         val seconds = u8(24) or (u8(25) shl 8)
         val preset = IdlePresetId.entries.firstOrNull { it.wire == u8(26) }
         require(seconds <= 600 && u8(26) in 0..2 && u32(16) != 0L)
-        require(kind == VehicleCommandKind.Idle || (seconds == 0 && preset == null))
+        require(
+            when (kind) {
+                VehicleCommandKind.Idle -> true
+                VehicleCommandKind.AbsTcs -> seconds == 0 && preset == null
+                VehicleCommandKind.Burnout -> seconds <= 10 && preset == null
+            }
+        )
         require(phase != VehicleCommandPhase.Active || u32(4) != 0L)
         require(u8(27) and 1 == 0 || (u32(8) > 0 && u32(12) > 0))
         require(kind == VehicleCommandKind.AbsTcs || u8(27) and 2 == 0)
-        require(kind == VehicleCommandKind.Idle || (u8(27) and 0x1c == 0 && u8(3) != 9))
+        require(kind == VehicleCommandKind.Idle || (u8(27) and 0x14 == 0 && u8(3) != 9))
+        require(kind != VehicleCommandKind.AbsTcs || u8(27) and 8 == 0)
+        require(kind != VehicleCommandKind.Burnout || (u8(26) == 0 && phase != VehicleCommandPhase.RestartRequired))
         return VehicleCommandStatus(
             kind, phase, u8(3), u32(4), u32(8), u32(12), u32(16), u32(20), seconds, preset,
             u8(27) and 1 != 0, u8(27) and 2 != 0, u32(28),

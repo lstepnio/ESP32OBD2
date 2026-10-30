@@ -119,7 +119,7 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
         if (requiresPidCatalogFirmware(draft) && it.pidCatalogVersion != 1) {
             add("Update the gauge before sending the expanded readings and alerts")
         }
-        if (draft.actions.any { action -> action.type == PageActionType.VehicleActions } && it.vehicleCommandsVersion != 1) {
+        if (!ProfileActions.supported(draft.actions, it.vehicleCommandsVersion, it.burnoutActionsVersion)) {
             add("Update the gauge before sending the vehicle actions menu")
         }
         if (draft.actions.isNotEmpty() &&
@@ -775,7 +775,7 @@ private fun AppViewModel.carState(
                 activeConfigRevision != null && verifiedConfigHash != null &&
                 ConfigurationProjector.transferBlockers(transmittedDraft).isEmpty() &&
                 (transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion in 1..2) &&
-                (transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || (capabilities?.vehicleCommandsVersion == 1 && capabilities?.pageActionsVersion == 2)) &&
+                (transmittedDraft.actions.none { it.type == PageActionType.VehicleActions } || (ProfileActions.supported(transmittedDraft.actions, capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion) && capabilities?.pageActionsVersion == 2)) &&
                 (!bothAdapters || capabilities?.dualAdapterVersion == 1) &&
                 (
                     !requiresVehicleDashboardFirmware(transmittedDraft, bothAdapters) ||

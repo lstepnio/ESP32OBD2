@@ -79,7 +79,7 @@ class ActionPagesPhoneJourneyTest {
             val client = GaugeConfigTransferClient(context)
             runBlocking {
                 withTimeout(45_000) {
-                    VehicleCommandKind.entries.map { client.readVehicleCommand(device, it) }
+                    VehicleCommandKind.supported(model.capabilities?.vehicleCommandsVersion, model.capabilities?.burnoutActionsVersion).map { client.readVehicleCommand(device, it, model.capabilities?.brakeActionsTestVersion ?: 0) }
                 }
             }.also { states ->
                 assertTrue(

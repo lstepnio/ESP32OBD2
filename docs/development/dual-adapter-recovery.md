@@ -21,6 +21,88 @@ start vehicle/BLE work unattended.
 - Focused source/sanitizer fixtures are recorded in [hardening evidence](../evidence/offline-hardening.md).
   These checks do not qualify concurrent radios, display behavior or vehicle signals.
 
+## Source recovery ownership and offline regression
+
+The shared NimBLE scanner/initiator has one mutex owner. Each source keeps its own
+link, parser, retry backoff and generation. A failed source must not reset the host,
+disconnect its healthy sibling or change saved bindings. Worker backoff remains
+500 ms, doubling to an 8 s cap after unsuccessful attempts and resetting on readiness.
+
+The source admission budget is now separate from its actual discovery/connect
+allowance, within one 26 s monotonic deadline: at most 13 s for queued scanner
+admission, 12 s for that source's operation and 1 s for cancellation cleanup.
+An uncontended absent source still spends at most 12 s discovering/connecting,
+plus bounded cleanup. Previously waiting behind a 12 s sibling attempt could
+consume the entire 12 s deadline before the queued source began scanning.
+That starvation path is a source-level defect consistent with the owner report
+that unplugging TCM allowed ECM to connect. It does not establish the physical
+cause without a capture of the failing startup.
+
+GAP and discovery/subscription callbacks carry an immutable per-attempt token.
+Callbacks arriving with a retired token are rejected before applying discovered
+handles or completing the new attempt. GAP/GATT callbacks hold a reader lease
+for their entire body. Before rollover, the worker closes callback admission on
+retired sources and drains existing readers for at most 1 s inside the total
+budget. If a reader cannot drain, retry returns timeout with its token/context
+unchanged; the next retry drains again. Healthy sibling callbacks remain admitted.
+Rejected retired disconnects are reconciled against host handle existence after
+readers drain. Follow-up registrations preserve the received immutable token.
+A late successful connection for a retired attempt is terminated only when neither
+source currently owns that handle. This preserves a sibling or newer session if
+the host has reused the connection handle.
+Timeout cleanup retains the scanner lease while the initiator/disconnecting link
+settles, up to its allowance. If a global initiation remains active on the next
+admission, cancellation is retried under the lease before a new scan is admitted.
+A permanently unresponsive host still cannot be recovered by these local retries;
+no host reset is introduced because that would tear down a healthy sibling.
+Scan restart and characteristic-discovery start errors now complete the failed
+attempt immediately instead of silently spending its entire operation timeout.
+
+`tools/tests/test_ble_recovery.py` executes the production admission/cleanup body
+and token helpers with a deterministic host, under address/undefined sanitizers.
+It covers a queued source behind a 12 s sibling, cancellation acknowledgement,
+ignored cancellation with bounded retry, token retirement/wrap, reused-handle
+ownership, a worker retry during an admitted callback, bounded reader-drain failure
+with unchanged token/context, and unchanged healthy sibling state. Existing source snapshot and deadline tests cover independent
+source retirement and tick rollover. This is offline transport evidence; actual
+ECM/TCM startup, radio coexistence and recovery latency remain physical gates.
+`ble_obd_connect_role_probe` shares subscription and bounded ELM setup while
+preserving the logical ECU. Before exact identity requests it clears retained
+receive/flow filters with fixed ATCRA/ATFCSM0 and sends one functional 7DF Mode 01
+PID 00 read with the existing 15 s auto-protocol budget. A complete framed 7E8 or
+7E9 support reply can bootstrap the bus regardless of the expected logical role;
+this reply publishes neither support maps nor controller identity. Completed
+NO DATA/malformed/ambiguous replies remain unknown and can proceed to exact
+identity probes; an unfinished prompt, overflow or retired link fails setup.
+The retained TCM capture reports support map 98180001, but this does not qualify
+a particular adapter's auto-detection behavior under swapped physical ports. It skips role-dependent Mode 01 support discovery;
+normal connections retain their prior support-map initialization. Probe-connected
+workers can recover availability through `ble_obd_read_support_map`, one fixed
+Mode 01 page per phase, against the logical ECU with its physical header. Support
+is published only after an exact four-byte reply; missing/wrong-ECU evidence does
+not become unsupported or erase a prior map. Probe-only setup
+does not itself identify the controller or establish protocol-search completion.
+The first vehicle request after ATSP0 may need the existing 15 s search allowance;
+subsequent identity framing and role-policy scheduling have separate budgets.
+
+The worker-only `ble_obd_read_role_identity` transport API admits only Mode 09
+PID 04/06 against exact responders 7E8/7E9, with physical request headers 7E0/7E1.
+It uses the existing serialized request/header owner; later polling selects its
+normal route. Identity parsing requires one exact responder and one complete
+record; missing headers, mixed responders and malformed ISO-TP fail closed.
+The legacy identity decoder remains ECM-only. This API performs no ECU session,
+control or actuation request. `ble_obd_disconnect` retires source readiness,
+generation and adapter status synchronously; physical teardown remains asynchronous
+and the next connect still drains/reconciles callbacks before slot reuse.
+
+Worker health reports observed progress age/gaps without an adapter-stall reset
+threshold. The configured 5 s task watchdog monitors idle tasks; adapter workers
+are not explicitly subscribed, and admission, response and drain waits yield to
+the scheduler. The 26 s transport bound therefore requires no watchdog-policy
+relaxation. Adapter initialization and the existing worker backoff are additional
+bounded phases; a transport deadline is not a complete readiness deadline.
+Website impact: corrective recovery behavior adds no public capability or marketing claim.
+
 ## Prepare once, without driving
 
 1. Obtain a second supported adapter with a distinct address. On the bench, two
@@ -42,6 +124,7 @@ start vehicle/BLE work unattended.
 | Case | Action | Required observation |
 | --- | --- | --- |
 | Single-source regression | Move one adapter ECM to TCM with one unchanged whole dashboard | Existing pages stay visible; inaccessible readings become unavailable; available readings and automatic retry work |
+| Bindings in swapped physical ports | With power off, swap the two adapters between ECM/TCM ports, then restart | Adapter IDs retain their saved roles; wrong-controller data stays unavailable or identity validation fails. No automatic rebinding or new role-verification probe is implemented; sibling retries remain independent |
 | Both present + phone | Start both, open app | Both source statuses and independent fault categories appear; correct role, ECU, revision and session |
 | TCM absent at startup | Power only ECM | ECM reaches live readings despite repeated TCM discovery failure; child is unavailable; app remains usable |
 | ECM absent at startup | Power only TCM | TCM reaches live readings independently; engine/alerts unavailable; no parent-radio dependency |
@@ -98,3 +181,21 @@ time, timeout/flood/drop counts, minimum internal/PSRAM memory and worker stack 
 Record physical LCD/touch, Android, serial and simulated observations separately.
 Update [current state](../current-state.md) only after observed gates pass. Do not
 call two-central-plus-phone coexistence qualified from configuration capacity or builds.
+
+
+### Swapped-port check
+
+With controls inactive, exchange the two adapters physically while retaining their
+saved Bluetooth bindings. Record exact identities read on both links, old/new
+source epochs and one runtime map exchange. Expect old values to clear before
+fresh ECM and TCM values resume on their original logical pages. No configuration
+hash, profile, bond or automatic vehicle command should change. Reconnect each
+adapter and verify the inverse mapping stays stable; reboot and verify it is
+rediscovered without intervention. Restore the physical arrangement and repeat.
+
+One missing adapter, absent identity replies and ports exposing both modules must
+retain the working map and continue independent recovery. Positive ECM proof on a
+shared port must not disable valid ECM actions. A timeout after a good identity
+must not revoke that same-session proof. A new link epoch or a positively different
+identity must invalidate it. Follow the [role contract](../architecture/vehicle-connections.md#role-verification-for-accidentally-swapped-adapters)
+and keep offline test evidence separate from actual Jeep qualification.

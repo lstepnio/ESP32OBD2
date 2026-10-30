@@ -19,6 +19,7 @@
 /* Internal callback event; no external vehicle control operation. */
 #define UI_EVENT_PAGE_ACTION LV_EVENT_REFRESH
 #define UI_EVENT_VEHICLE_COMMAND LV_EVENT_READY
+#define UI_EVENT_VEHICLE_CONFIRM LV_EVENT_CANCEL
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Definitions
@@ -177,6 +178,7 @@ void ui_set_vehicle_action_status(ui_t    *ui,
                                   uint16_t remaining,
                                   uint8_t  reason,
                                   uint8_t  preset);
+bool ui_vehicle_burnout_held(ui_t *ui);
 void ui_set_vehicle_action_snapshot(ui_t *ui, const uint8_t status[32]);
 void ui_set_idle_protection(ui_t *ui, bool configured);
 void ui_vehicle_command_request(ui_t *ui, uint8_t *kind, bool *stop, uint8_t *preset, uint16_t *seconds);

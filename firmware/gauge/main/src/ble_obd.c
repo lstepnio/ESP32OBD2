@@ -29,6 +29,7 @@
 
 #include "ble_mgr.h"
 #include "ble_obd.h"
+#include "ble_recovery_policy.h"
 #include "obd_wait_policy.h"
 #include "obd_trace.h"
 #include "adapter_status.h"
@@ -40,6 +41,14 @@
 // ---------------------------------------------------------------------------------------------------------------------
 
 static void ble_obd_notify_cb(const uint8_t *data, size_t len, uint16_t attr_handle, void *usr_ctx);
+static int  read_pid(ble_obd_ctx_t *obd,
+                     uint8_t        mode,
+                     uint16_t       pid,
+                     uint32_t       ecu,
+                     uint32_t       timeout_ms,
+                     elm_result_t  *status,
+                     elm_payload_t *out,
+                     uint16_t       header);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Constants
@@ -224,7 +233,7 @@ static void transport_observe(const char *event, const void *data, size_t length
     obd_trace_emit(obd->source_id, atomic_load(&obd->generation), event, data, length, status);
 }
 
-static bool initialize_adapter(ble_obd_ctx_t *obd)
+static bool initialize_adapter(ble_obd_ctx_t *obd, bool probe_only)
 {
     adapter_status_event(obd->source_id, atomic_load(&obd->generation), 3, 0);
     if (obd->control_dirty)
@@ -244,9 +253,33 @@ static bool initialize_adapter(ble_obd_ctx_t *obd)
         }
     }
     obd->request_header = 0x7df;
+    if (probe_only)
+    {
+        /* Auto protocol detection must reach whichever controller is on this
+         * physical port. A role-specific first request can target an absent
+         * ECU and never establish the bus. This fixed bootstrap publishes no
+         * support map, role evidence or numeric sample. */
+        if (!adapter_command(obd, "ATCRA\r", 2000) || !adapter_command(obd, "ATFCSM0\r", 2000))
+            return false;
+        uint32_t      bootstrap_generation = atomic_load(&obd->generation);
+        elm_payload_t bootstrap            = {0};
+        elm_result_t  bootstrap_status     = ELM_ADAPTER_ERROR;
+        bool framed = read_pid(obd, 1, 0, ELM_ECU_ANY, 15000, &bootstrap_status, &bootstrap, 0x7df) == 0 &&
+                      bootstrap.has_responder && (bootstrap.responder == 0x7e8 || bootstrap.responder == 0x7e9) &&
+                      bootstrap.length == 4;
+        obd_trace_emit(obd->source_id, atomic_load(&obd->generation), "protocol_bootstrap", NULL, 0,
+                       framed                       ? ELM_OK
+                       : bootstrap_status == ELM_OK ? ELM_MALFORMED
+                                                    : bootstrap_status);
+        /* Completed NO DATA/malformed/ambiguous replies stay unknown and may
+         * proceed to exact identity reads. An unclosed prompt cannot be reused. */
+        if (obd->awaiting_prompt || atomic_load(&obd->rx_overflow) || !ble_mgr_is_connected(obd->mgr_ctx) ||
+            atomic_load(&obd->generation) != bootstrap_generation)
+            return false;
+    }
     /* Bounded standard support-map discovery, attributed to the engine ECU.
      * A missing reply remains unknown; it is not evidence of unsupported PIDs. */
-    for (unsigned base = 0; base <= 224; base += 32)
+    for (unsigned base = 0; !probe_only && base <= 224; base += 32)
     {
         /* ATSP0 starts protocol discovery at the first vehicle request.
          * Do not let normal poll timeouts interrupt its SEARCHING reply. */
@@ -271,7 +304,7 @@ static bool initialize_adapter(ble_obd_ctx_t *obd)
         if (!(map.bytes[3] & 1))
             break;
     }
-    if (obd->discovery_ecu == 0x7e9)
+    if (!probe_only && obd->discovery_ecu == 0x7e9)
     {
         if (!adapter_command(obd, "ATSH7E1\r", 2000))
             return false;
@@ -286,6 +319,15 @@ static bool initialize_adapter(ble_obd_ctx_t *obd)
 // Public Function Definitions
 // ---------------------------------------------------------------------------------------------------------------------
 
+static ble_obd_ctx_t *connect_profile_internal(unsigned              source_id,
+                                               const char           *peer_mac,
+                                               uint8_t               address_type,
+                                               const char           *driver,
+                                               uint32_t              ecu,
+                                               ble_obd_response_cb_t response_cb,
+                                               void                 *usr_ctx,
+                                               bool                  probe_only);
+
 ble_obd_ctx_t *ble_obd_connect_profile(unsigned              source_id,
                                        const char           *peer_mac,
                                        uint8_t               address_type,
@@ -296,13 +338,14 @@ ble_obd_ctx_t *ble_obd_connect_profile(unsigned              source_id,
     return ble_obd_connect_profile_ecu(source_id, peer_mac, address_type, driver, 0x7e8, response_cb, usr_ctx);
 }
 
-ble_obd_ctx_t *ble_obd_connect_profile_ecu(unsigned              source_id,
-                                           const char           *peer_mac,
-                                           uint8_t               address_type,
-                                           const char           *driver,
-                                           uint32_t              ecu,
-                                           ble_obd_response_cb_t response_cb,
-                                           void                 *usr_ctx)
+static ble_obd_ctx_t *connect_profile_internal(unsigned              source_id,
+                                               const char           *peer_mac,
+                                               uint8_t               address_type,
+                                               const char           *driver,
+                                               uint32_t              ecu,
+                                               ble_obd_response_cb_t response_cb,
+                                               void                 *usr_ctx,
+                                               bool                  probe_only)
 {
     ESP_LOGD(TAG, "Connecting to BLE RX/TX service...");
 
@@ -364,7 +407,7 @@ ble_obd_ctx_t *ble_obd_connect_profile_ecu(unsigned              source_id,
         return NULL;
     if (ble_mgr_is_connected(obd->mgr_ctx))
     {
-        if (atomic_load(&obd->ready) || initialize_adapter(obd))
+        if (atomic_load(&obd->ready) || initialize_adapter(obd, probe_only))
             return obd;
         ble_mgr_disconnect(obd->mgr_ctx);
         return NULL;
@@ -373,7 +416,7 @@ ble_obd_ctx_t *ble_obd_connect_profile_ecu(unsigned              source_id,
     ESP_LOGD(TAG, "Connecting source %u to RX/TX service...", source_id);
     atomic_fetch_add(&obd->generation, 1);
     adapter_status_event(obd->source_id, atomic_load(&obd->generation), 2, 0);
-    ble_mgr_status_t status = ble_mgr_connect_service(obd->mgr_ctx, &obd->disc_cfg, 12000U, obd);
+    ble_mgr_status_t status = ble_mgr_connect_service(obd->mgr_ctx, &obd->disc_cfg, BLE_RECOVERY_TOTAL_MS, obd);
 
     if (status != BLE_MGR_E_OK)
     {
@@ -390,7 +433,7 @@ ble_obd_ctx_t *ble_obd_connect_profile_ecu(unsigned              source_id,
                  obd->chars[1].uuid, obd->chars[1].handle, obd->chars[1].properties, obd->chars[1].cccd_handle);
     if (gatt_length > 0 && (size_t)gatt_length < sizeof(gatt))
         obd_trace_emit(obd->source_id, atomic_load(&obd->generation), "gatt", gatt, gatt_length, 0);
-    if (!initialize_adapter(obd))
+    if (!initialize_adapter(obd, probe_only))
     {
         ble_mgr_disconnect(obd->mgr_ctx);
         return NULL;
@@ -399,6 +442,28 @@ ble_obd_ctx_t *ble_obd_connect_profile_ecu(unsigned              source_id,
     obd_trace_emit(obd->source_id, atomic_load(&obd->generation), "link_ready", NULL, 0, 0);
 
     return obd;
+}
+
+ble_obd_ctx_t *ble_obd_connect_profile_ecu(unsigned              source_id,
+                                           const char           *peer_mac,
+                                           uint8_t               address_type,
+                                           const char           *driver,
+                                           uint32_t              ecu,
+                                           ble_obd_response_cb_t response_cb,
+                                           void                 *usr_ctx)
+{
+    return connect_profile_internal(source_id, peer_mac, address_type, driver, ecu, response_cb, usr_ctx, false);
+}
+
+ble_obd_ctx_t *ble_obd_connect_role_probe(unsigned              source_id,
+                                          const char           *peer_mac,
+                                          uint8_t               address_type,
+                                          const char           *driver,
+                                          uint32_t              ecu,
+                                          ble_obd_response_cb_t response_cb,
+                                          void                 *usr_ctx)
+{
+    return connect_profile_internal(source_id, peer_mac, address_type, driver, ecu, response_cb, usr_ctx, true);
 }
 
 /* The adapter is a transport. Each definition chooses its ECU request header.
@@ -508,7 +573,7 @@ static int read_pid(ble_obd_ctx_t *obd,
     }
     obd->consecutive_timeouts = 0;
     elm_payload_t payload;
-    elm_result_t  decoded = mode == 9      ? elm_response_decode_identity(&obd->response, pid, &payload)
+    elm_result_t  decoded = mode == 9      ? elm_response_decode_identity_for_ecu(&obd->response, pid, ecu, &payload)
                             : mode == 0x22 ? elm_response_decode_identifier(&obd->response, pid, ecu, &payload)
                                            : elm_response_decode_for_ecu(&obd->response, mode, pid, ecu, &payload);
     if (status)
@@ -544,6 +609,40 @@ int ble_obd_read_pid(ble_obd_ctx_t *obd,
     if (mode != 1 && mode != 0x22)
         return -1;
     return read_pid(obd, mode, pid, ecu, timeout_ms, status, out, mode == 0x22 ? 0x7e1 : 0x7df);
+}
+
+int ble_obd_read_role_identity(ble_obd_ctx_t *obd,
+                               uint32_t       ecu,
+                               uint16_t       pid,
+                               uint32_t       timeout_ms,
+                               elm_result_t  *status,
+                               elm_payload_t *out)
+{
+    if (status)
+        *status = ELM_ADAPTER_ERROR;
+    if (out)
+        memset(out, 0, sizeof(*out));
+    if (!obd || !out || !timeout_ms || (ecu != 0x7e8 && ecu != 0x7e9) || (pid != 4 && pid != 6))
+        return -1;
+    return read_pid(obd, 9, pid, ecu, timeout_ms, status, out, ecu == 0x7e8 ? 0x7e0 : 0x7e1);
+}
+
+int ble_obd_read_support_map(ble_obd_ctx_t *obd, uint8_t base, uint32_t timeout_ms, bool *more)
+{
+    if (more)
+        *more = false;
+    if (!obd || !more || !timeout_ms || base % 32 || base > 224 ||
+        (obd->discovery_ecu != 0x7e8 && obd->discovery_ecu != 0x7e9))
+        return -1;
+    elm_payload_t payload;
+    elm_result_t  status;
+    uint32_t      ecu = obd->discovery_ecu;
+    if (read_pid(obd, 1, base, ecu, timeout_ms, &status, &payload, ecu == 0x7e8 ? 0x7e0 : 0x7e1) != 0 ||
+        payload.length != 4)
+        return -1;
+    adapter_status_support(obd->source_id, atomic_load(&obd->generation), ecu, base, payload.bytes, payload.length);
+    *more = base < 224 && (payload.bytes[3] & 1U);
+    return 0;
 }
 
 int ble_obd_read_primary_input(ble_obd_ctx_t *obd,
@@ -680,7 +779,15 @@ void ble_obd_disconnect(ble_obd_ctx_t *obd)
 {
     if (!obd)
         return;
-    atomic_store(&obd->ready, false);
+    bool was_ready = atomic_exchange(&obd->ready, false);
+    if (was_ready || (obd->mgr_ctx && ble_mgr_is_connected(obd->mgr_ctx)))
+    {
+        /* A role-routing barrier must retire evidence before acknowledging
+         * its local stop; physical teardown can finish asynchronously. */
+        atomic_fetch_add(&obd->generation, 1);
+        atomic_store(&obd->rx_overflow, false);
+        adapter_status_event(obd->source_id, atomic_load(&obd->generation), 1, 0);
+    }
     ble_mgr_disconnect(obd->mgr_ctx);
 }
 

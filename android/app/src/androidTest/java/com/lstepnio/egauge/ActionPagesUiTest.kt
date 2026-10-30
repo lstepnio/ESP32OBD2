@@ -43,6 +43,15 @@ class ActionPagesUiTest {
         }
     }
 
+    @Test fun savedBurnoutDraftStaysEditableWithoutCommandSupport() {
+        var saved: PageAction? = null
+        val action = PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.Burnout))
+        compose.setContent { EGaugeTheme { ActionPagesSheet(state().copy(actions = listOf(action), vehicleCommands = emptyMap(), commandsSupported = false), { value, _ -> saved = value }, {}) } }
+        compose.onNodeWithText("Burnout Mode").assertDoesNotExist()
+        compose.onNodeWithText("Save on phone").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(action.withoutBurnout(), saved) }
+    }
+
     @Test fun editTimerAndSaveOnlyConfiguration() {
         var saved: PageAction? = null
         compose.setContent { EGaugeTheme { ActionPagesSheet(state(), { action, _ -> saved = action }, {}) } }
@@ -54,7 +63,7 @@ class ActionPagesUiTest {
         compose.onNodeWithText("Save on phone").performScrollTo().performClick()
         compose.runOnIdle {
             assertEquals(150, saved!!.winchSeconds)
-            assertEquals(ActionPageId.entries.toList(), saved!!.pages)
+            assertEquals(legacyActionPages, saved!!.pages)
         }
     }
 
@@ -131,6 +140,32 @@ class ActionPagesUiTest {
         }
     }
 
+    @Test fun largeTextRemovedBurnoutDraftKeepsSaveReachable() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        check(android.os.Build.HARDWARE in setOf("ranchu", "goldfish"))
+        val originalScale = instrumentation.targetContext.resources.configuration.fontScale
+        fun scale(value: Float) {
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                instrumentation.uiAutomation.executeShellCommand("settings put system font_scale $value")
+            ).use { it.readBytes() }
+            compose.waitUntil(5_000) { instrumentation.targetContext.resources.configuration.fontScale == value }
+            instrumentation.waitForIdleSync()
+        }
+        var saved: PageAction? = null
+        val action = PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.Burnout))
+        try {
+            scale(2f)
+            compose.setContent { EGaugeTheme { ActionPagesSheet(state().copy(actions = listOf(action), vehicleCommands = emptyMap()), { value, _ -> saved = value }, {}) } }
+            compose.onNodeWithText("Burnout Mode").assertDoesNotExist()
+            compose.onNodeWithText("Save on phone").performScrollTo().assertIsEnabled().assertIsDisplayed()
+            capture("burnout-save-large-text.png")
+            compose.onNodeWithText("Save on phone").performClick()
+            compose.runOnIdle { assertEquals(action.withoutBurnout(), saved) }
+        } finally {
+            scale(originalScale)
+        }
+    }
+
     @Test fun largeTextTargetEditorKeepsDraftAndDoneReachable() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val originalScale = instrumentation.targetContext.resources.configuration.fontScale
@@ -179,7 +214,7 @@ class ActionPagesUiTest {
         compose.onNodeWithText("Winch").assertDoesNotExist()
         compose.onNodeWithText("Undo").performScrollTo().performClick()
         compose.onNodeWithText("Save on phone").performScrollTo().performClick()
-        compose.runOnIdle { assertEquals(ActionPageId.entries.toList(), saved!!.pages) }
+        compose.runOnIdle { assertEquals(legacyActionPages, saved!!.pages) }
     }
 
     @Test fun namedOverflowReordersWithoutChangingTimers() {
@@ -215,10 +250,37 @@ class ActionPagesUiTest {
         compose.onNodeWithText("Add action").performScrollTo().assertIsNotEnabled()
     }
 
+    @Test fun supervisedBurnoutCannotBeAddedAndPreservesLegacyPagesAndTimers() {
+        var saved: PageAction? = null
+        var savedPresets: List<IdlePreset>? = null
+        val original = PageAction(type = PageActionType.VehicleActions, airUpSeconds = 60, winchSeconds = 180)
+        val presets = listOf(IdlePreset(IdlePresetId.AirUp, seconds = 60), IdlePreset(IdlePresetId.Winch, seconds = 180))
+        val burnout = VehicleCommandStatus(VehicleCommandKind.Burnout).withBrakeActionsTestVersion(1)
+        assertFalse(burnout.qualified)
+        assertFalse(burnout.canStart)
+        compose.setContent {
+            EGaugeTheme {
+                ActionPagesSheet(state().copy(actions = listOf(original), idlePresets = presets, vehicleCommands = mapOf(VehicleCommandKind.Burnout to burnout)), { action, values ->
+                    saved = action
+                    savedPresets = values
+                }, {})
+            }
+        }
+        compose.onNodeWithText("Add action").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Burnout Mode").assertDoesNotExist()
+        compose.onNodeWithText("Save on phone").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(original, saved)
+            assertEquals(presets, savedPresets)
+            assertFalse(burnout.canStart)
+        }
+    }
+
     @Test fun emptySetupDoesNotOfferUnsupportedCommands() {
         compose.setContent { EGaugeTheme { ActionPagesSheet(state().copy(actions = emptyList(), vehicleCommands = emptyMap()), { _, _ -> }, {}) } }
         compose.onNodeWithText("Add action").performScrollTo().performClick()
         compose.onNodeWithText("No additional actions available for this car yet.").assertIsDisplayed()
         compose.onNodeWithText("Disable ABS + TCS").assertDoesNotExist()
+        compose.onNodeWithText("Burnout Mode").assertDoesNotExist()
     }
 }

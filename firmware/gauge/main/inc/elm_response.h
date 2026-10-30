@@ -74,3 +74,9 @@ elm_result_t elm_response_decode_control_frame(const elm_response_t *response, u
 /* One 7E8 Mode 09 calibration/CVN record only. Strict source and ISO-TP framing;
  * return the 16 calibration bytes or four CVN bytes, excluding record count. */
 elm_result_t elm_response_decode_identity(const elm_response_t *response, uint8_t pid, elm_payload_t *payload);
+
+/* Role evidence only: same strict one-record framing, fixed 7E8/7E9 responder. */
+elm_result_t elm_response_decode_identity_for_ecu(const elm_response_t *response,
+                                                  uint8_t               pid,
+                                                  uint32_t              ecu,
+                                                  elm_payload_t        *payload);

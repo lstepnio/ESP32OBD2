@@ -46,7 +46,7 @@ New workflow releases also retain and sign `egauge-build-evidence-VERSION.zip`.
 It contains exact ELF/map/application/bootstrap outputs, configuration/layout,
 resolved dependency versions/hashes, license notices and an SPDX dependency inventory.
 `provenance.json` records the full source SHA, qualified container and every payload
-hash. Evidence uses the selected normal, parked-idle or orientation-candidate build
+hash. Evidence uses the selected normal, parked-idle, brake-actions-test or orientation-candidate build
 and the sdkconfig recorded by that build. Dependency metadata omits machine-local
 paths; original ELF/map may retain build paths. Signing material is excluded. The separate DER
 signature uses the existing development key and can be checked with `openssl dgst
@@ -67,8 +67,28 @@ The optional `parked_idle_test` workflow input defaults to `false`. Use `true` o
 for an owner-authorized [parked idle candidate](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate),
 and identify that limitation in its release notes. It selects the separately built
 `build-parked-idle` image; ordinary releases keep the test switch off. CI compiles
-both images from the exact source before publication. Publication and installation
+the ordinary and candidate images from the exact source before publication. Publication and installation
 still require owner authorization; this input does not qualify a vehicle profile.
+
+## Owner-supervised brake-actions candidate
+
+The optional `brake_actions_test` workflow input defaults to `false` and is
+independent of `parked_idle_test`. Enable it only for an explicitly owner-authorized
+ABS/TCS and Burnout candidate on the matched captured Jeep, and record that scope
+in the release notes. It selects `build-brake-actions-test` and its retained build
+evidence even when parked idle and orientation are also requested. The equivalent
+local build is `python tools/dev.py build --target firmware --brake-actions-test`;
+append `--parked-idle-test --orientation-candidate` for the combined candidate.
+Without the brake switch, the existing build-directory choices are unchanged.
+
+Start requires the physical gauge and manual brake-state confirmation, alongside
+the runtime identity and safety checks. Owner confirmation is evidence of the
+operator's observation only. It does not qualify automatic brake-state detection,
+the controller's automatic safety path, or a general vehicle profile. Keep public
+BLE capability flags disabled. Record physical Jeep and gauge observations
+separately from build, simulator, app and transport results. CI compiles the combined
+parked-idle, brake-actions and orientation branch as well as the existing variants;
+compilation does not establish physical qualification.
 
 ## Publish
 
@@ -185,8 +205,8 @@ configuration slots or the partition table, or bypass authentication to make OTA
 ## Owner-supervised orientation qualification candidate
 
 The optional `orientation_candidate` workflow input defaults false. After explicit
-owner authorization it selects `build-orientation-candidate`, can retain the existing
-parked-idle option, and forces the board-qualified orientation flag off. The test-only
+owner authorization it selects `build-orientation-candidate` unless brake actions
+selects `build-brake-actions-test`, can retain the existing parked-idle option, and forces the board-qualified orientation flag off. The test-only
 permission offers protected Auto after live sensor health without promoting public
 capabilities or default board support. Record its limitation in release notes; do
 not publish it as a qualified normal image. Use the [indoor procedure](display-indoor-qualification.md)

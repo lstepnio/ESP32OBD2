@@ -1,5 +1,8 @@
 """The repository venv must not shadow the SDK's Python interpreter."""
 
+import contextlib
+import io
+import itertools
 import os
 from pathlib import Path
 import sys
@@ -36,6 +39,74 @@ class ToolchainEnvironmentTest(unittest.TestCase):
                 run.reset_mock()
                 dev.firmware("build")
                 self.assertNotIn("-B", run.call_args.args[0])
+
+    def test_brake_build_directory_wins_and_preserves_requested_options(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            firmware = root / "firmware"
+            firmware.mkdir()
+            ordinary = "CONFIG_OTHER=y\n"
+            (firmware / "sdkconfig").write_text(ordinary)
+            with (
+                patch.object(dev, "FIRMWARE", firmware),
+                patch.object(dev, "OUTPUT", root / "output"),
+                patch.object(dev, "idf_command", return_value=["python", "idf.py"]),
+                patch.object(dev, "run") as run,
+            ):
+                for parked, orientation in itertools.product((False, True), repeat=2):
+                    with self.subTest(parked=parked, orientation=orientation):
+                        dev.firmware(
+                            "build",
+                            parked_idle_test=parked,
+                            brake_actions_test=True,
+                            orientation_candidate=orientation,
+                        )
+                        command = run.call_args.args[0]
+                        self.assertIn(firmware / "build-brake-actions-test", command)
+                        candidate = (root / "output/brake-actions-test.sdkconfig").read_text()
+                        self.assertIn("CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST=y", candidate)
+                        self.assertEqual(
+                            "CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST=y" in candidate, parked
+                        )
+                        self.assertEqual(
+                            "CONFIG_EGAUGE_AUTO_ORIENTATION_CANDIDATE=y" in candidate, orientation
+                        )
+                        self.assertEqual((firmware / "sdkconfig").read_text(), ordinary)
+
+    def test_brake_cli_forwards_combined_flags_and_rejects_nonfirmware_builds(self):
+        with (
+            patch.object(
+                sys,
+                "argv",
+                [
+                    "dev.py",
+                    "build",
+                    "--target",
+                    "firmware",
+                    "--brake-actions-test",
+                    "--parked-idle-test",
+                    "--orientation-candidate",
+                ],
+            ),
+            patch.object(dev, "firmware") as firmware,
+        ):
+            dev.main()
+            firmware.assert_called_once_with(
+                "build", parked_idle_test=True, brake_actions_test=True, orientation_candidate=True
+            )
+        for arguments in (
+            ["test", "--target", "firmware"],
+            ["build", "--target", "host"],
+            ["build"],
+        ):
+            with (
+                self.subTest(arguments=arguments),
+                patch.object(sys, "argv", ["dev.py", *arguments, "--brake-actions-test"]),
+                contextlib.redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit) as failure,
+            ):
+                dev.main()
+            self.assertEqual(failure.exception.code, 2)
 
     def test_firmware_uses_sdk_python_despite_an_active_repository_venv(self):
         with tempfile.TemporaryDirectory() as directory:

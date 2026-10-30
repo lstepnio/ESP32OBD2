@@ -16,7 +16,12 @@ on:
         required: true
         type: string
       parked_idle_test:
-        description: Owner-supervised Jeep idle candidate; local Start only, ABS/TCS disabled
+        description: Owner-supervised Jeep idle candidate; local Start only, brake switch independent
+        type: boolean
+        default: false
+
+      brake_actions_test:
+        description: Owner-supervised matched-Jeep brake candidate; physical Start and manual brake-state confirmation
         type: boolean
         default: false
 
@@ -58,7 +63,7 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-24.04
     env:
-      FIRMWARE_BUILD_DIR: ${{ inputs.orientation_candidate && 'firmware/gauge/build-orientation-candidate' || inputs.parked_idle_test && 'firmware/gauge/build-parked-idle' || 'firmware/gauge/build' }}
+      FIRMWARE_BUILD_DIR: ${{ inputs.brake_actions_test && 'firmware/gauge/build-brake-actions-test' || inputs.orientation_candidate && 'firmware/gauge/build-orientation-candidate' || inputs.parked_idle_test && 'firmware/gauge/build-parked-idle' || 'firmware/gauge/build' }}
     container: espressif/idf:v5.4.1@sha256:6b4adab7b282e9261a154d7130fb4945a3c28bd35c2e914357c2f522643cb92a
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -69,11 +74,13 @@ jobs:
         working-directory: firmware/gauge
         env:
           PARKED_IDLE_TEST: ${{ inputs.parked_idle_test }}
+          BRAKE_ACTIONS_TEST: ${{ inputs.brake_actions_test }}
           ORIENTATION_CANDIDATE: ${{ inputs.orientation_candidate }}
         run: |
           . /opt/esp/idf/export.sh
           build_options=()
           if [[ "$PARKED_IDLE_TEST" == "true" ]]; then build_options+=(--parked-idle-test); fi
+          if [[ "$BRAKE_ACTIONS_TEST" == "true" ]]; then build_options+=(--brake-actions-test); fi
           if [[ "$ORIENTATION_CANDIDATE" == "true" ]]; then build_options+=(--orientation-candidate); fi
           python ../../tools/dev.py build --target firmware "${build_options[@]}"
       - name: Retain exact build evidence and dependency licenses

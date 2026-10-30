@@ -27,7 +27,7 @@ fun ActionPagesSheet(
 ) {
     val original = state.actions.firstOrNull { it.type == PageActionType.VehicleActions }
     var action by remember(assignmentId, state.activeId, original) {
-        mutableStateOf(original ?: PageAction(type = PageActionType.VehicleActions, count = state.actions.firstOrNull()?.count ?: 3, windowMs = state.actions.firstOrNull()?.windowMs ?: 5000, airUpSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.AirUp }?.seconds ?: 300, winchSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.Winch }?.seconds ?: 60, pages = emptyList()))
+        mutableStateOf(original?.withoutBurnout() ?: PageAction(type = PageActionType.VehicleActions, count = state.actions.firstOrNull()?.count ?: 3, windowMs = state.actions.firstOrNull()?.windowMs ?: 5000, airUpSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.AirUp }?.seconds ?: 300, winchSeconds = state.idlePresets.firstOrNull { it.id == IdlePresetId.Winch }?.seconds ?: 60, pages = emptyList()))
     }
     var presets by remember(assignmentId, state.activeId, state.idlePresets) { mutableStateOf(state.idlePresets) }
     var editing by remember(assignmentId, state.activeId) { mutableStateOf<ActionPageId?>(null) }
@@ -52,7 +52,7 @@ fun ActionPagesSheet(
                 var durationOpen by remember(assignmentId, selected) { mutableStateOf(false) }
                 var pressureOpen by remember(assignmentId, selected) { mutableStateOf(false) }
                 val resolved = if (selected == ActionPageId.AirUp && pressure.enabled) pressure.timer?.let { runCatching { it.sessionSeconds }.getOrNull() } else airUpSeconds(duration)?.takeIf { it in 10..600 }
-                if (selected != ActionPageId.AbsTcs) {
+                if (selected.kind == VehicleCommandKind.Idle) {
                     if (!targetOpen) {
                         SettingsRow(IdleTargetDraft.label(idleId), saved.rpm?.let { "$it RPM · Saved on phone" } ?: "Car's fixed setting", editable, { targetOpen = true })
                     } else {
@@ -81,17 +81,17 @@ fun ActionPagesSheet(
                         }
                     }
                 } else {
-                    Text("Disable ABS and traction control together. Restart while parked to restore them on the tested Jeep.")
+                    Text("Disable ABS and traction control together. Use Restore on the gauge to return control, then reset the ignition while parked and check the dash.")
                 }
                 PrimaryAction("Done", {
-                    if (selected != ActionPageId.AbsTcs) {
+                    if (selected.kind == VehicleCommandKind.Idle) {
                         val timer = if (selected == ActionPageId.AirUp && pressure.enabled) pressure.timer else null
                         val next = saved.copy(rpm = IdleTargetDraft.parse(rpmText), seconds = requireNotNull(resolved), airUp = timer)
                         presets = presets.filterNot { it.id == idleId } + next
                         action = if (selected == ActionPageId.AirUp) action.copy(airUpSeconds = next.seconds) else action.copy(winchSeconds = next.seconds)
                     }
                     editing = null
-                }, enabled = editable && (selected == ActionPageId.AbsTcs || (resolved != null && IdleTargetDraft.valid(rpmText))))
+                }, enabled = editable && (selected.kind != VehicleCommandKind.Idle || (resolved != null && IdleTargetDraft.valid(rpmText))))
                 TextButton({
                     removed = action.pages.indexOf(selected) to selected
                     action = action.copy(pages = action.pages - selected)
@@ -99,11 +99,11 @@ fun ActionPagesSheet(
                 }, enabled = editable) { Text("Remove action") }
                 TextButton({ editing = null }) { Text("Back") }
             } else if (adding) {
-                val available = ActionPageId.entries.filter { it in action.pages || state.vehicleCommands[it.kind]?.qualified == true }
+                val available = legacyActionPages.filter { it in action.pages || state.vehicleCommands[it.kind]?.let { status -> status.qualified || status.ownerSupervised } == true }
                 if (available.none { it !in action.pages }) Text("No additional actions available for this car yet.")
                 available.forEach { id ->
                     val added = id in action.pages
-                    val compatible = state.vehicleCommands[id.kind]?.qualified == true
+                    val compatible = state.vehicleCommands[id.kind]?.let { it.qualified || it.ownerSupervised } == true
                     SettingsRow(
                         id.label,
                         if (added) {
@@ -143,7 +143,13 @@ fun ActionPagesSheet(
                     SettingsRow(
                         id.label,
                         if (id == ActionPageId.AbsTcs) {
-                            if (state.vehicleCommands[id.kind]?.qualified == true) "Restart to restore" else "Not supported yet"
+                            if (state.vehicleCommands[id.kind]?.ownerSupervised == true) {
+                                "Start and Restore on gauge · ignition reset required"
+                            } else if (state.vehicleCommands[id.kind]?.qualified == true) {
+                                "Restore on gauge, then reset ignition"
+                            } else {
+                                "Not supported yet"
+                            }
                         } else {
                             val duration = airUpDuration(if (id == ActionPageId.AirUp) action.airUpSeconds else action.winchSeconds)
                             val presetId = if (id == ActionPageId.AirUp) IdlePresetId.AirUp else IdlePresetId.Winch
@@ -174,7 +180,7 @@ fun ActionPagesSheet(
                         }, enabled = editable) { Text("Undo") }
                     }
                 }
-                OutlinedButton({ adding = true }, enabled = editable && action.pages.size < 3) { Text("Add action") }
+                OutlinedButton({ adding = true }, enabled = editable && action.pages.size < legacyActionPages.size) { Text("Add action") }
                 if (locked) Text("Finish the active action before changing its pages.")
                 if (original == null && state.actions.any { it.type == PageActionType.JumpPage }) Text("Saving action pages replaces this gauge’s page-jump gesture. Other gauges keep their choices.")
                 if (!state.actionsSupported) Text("Save on this phone now. Update the gauge before sending action pages.")

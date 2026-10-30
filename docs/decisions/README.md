@@ -25,6 +25,7 @@ below; [current state](../current-state.md) owns qualification, not this ledger.
 | ADR-017 | [Deterministic opt-in Smart cycling](../architecture/smart-page-cycling.md) over existing scoped samples and alert episodes | One setting; bounded insertion/fairness and phase-aware hints preserve predictable navigation. Additive protected settings retain older App/FW compatibility; no learned model or extra polling owner | Labelled loaded evidence shows distracting choices, additional contexts are needed, or another surface requires different dwell rules |
 
 | ADR-018 | [Typed phone companion content and isolated synthetic harness](../architecture/phone-companion-content.md) | Preserve autonomous instrument truth, typed bounded content, lexical owner sessions and explicit source feasibility gates; no live provider or background activation | Scoped wire, supported navigation/media acquisition and separate physical/provider approval justify activation |
+| ADR-019 | Verify module roles separately from saved BLE transports | Exact positive identities allow accidental swapped-port recovery without changing configuration; ambiguous evidence keeps the map and adds bounded read-only discovery cost | Broader vehicle profiles provide qualified identity signatures |
 
 | ADR-019 | [Display-only bounded interpolation](../development/reading-catalog-alerts.md#gauge-presentation-smoothing), keeping raw samples authoritative | Improve motion/text legibility without predicted measurements or changed control/alert freshness; two visible-metric states on the existing UI timer. Saturated transport still needs honest expiry | Loaded comparison shows distracting lag, misleading bins or a different surface needs its own presentation policy |
 
@@ -39,6 +40,7 @@ below; [current state](../current-state.md) owns qualification, not this ledger.
 - [Platforms and release boundaries](../architecture/platforms-and-releases.md): ADR-016.
 - [Smart page cycling](../architecture/smart-page-cycling.md): ADR-017.
 - [Phone companion proposal](../architecture/phone-companion-content.md): ADR-018.
+- [Adapter role verification](../architecture/vehicle-connections.md#role-verification-for-accidentally-swapped-adapters): ADR-019.
 
 Add a short numbered record here for a major choice, explaining the reason, tradeoff
 and revisit condition. Use a separate file only when the decision needs substantial

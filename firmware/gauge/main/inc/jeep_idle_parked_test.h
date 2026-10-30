@@ -35,3 +35,8 @@ void jeep_idle_parked_test_context(jeep_idle_parked_test_t       *test,
                                    const vehicle_command_state_t *idle,
                                    uint32_t                       now);
 void jeep_idle_parked_test_started(jeep_idle_parked_test_t *test, const vehicle_command_state_t *idle);
+
+void jeep_brake_owner_test_context(const jeep_idle_parked_test_t *test,
+                                   vehicle_command_context_t     *context,
+                                   const vehicle_command_state_t  states[VEHICLE_COMMAND_KIND_COUNT],
+                                   uint32_t                       now);

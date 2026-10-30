@@ -28,6 +28,77 @@ class VehicleCommandsUiTest {
         vehicleCommands = VehicleCommandKind.entries.associateWith { VehicleCommandStatus(it, if (it == VehicleCommandKind.Idle && phase == VehicleCommandPhase.RestartRequired) VehicleCommandPhase.Unavailable else phase, qualified = qualified) }
     )
 
+    @Test fun readyBurnoutIsHiddenFromNormalActions() {
+        compose.setContent { EGaugeTheme { VehicleActionsSheet(state(), {}, { _, _, _ -> fail("No command expected") }, {}) } }
+        compose.onNodeWithText("Burnout Mode").assertDoesNotExist()
+        compose.onNodeWithText("Burnout recovery").assertDoesNotExist()
+        compose.onNodeWithText("Stop Burnout Mode").assertDoesNotExist()
+    }
+
+    @Test fun burnoutOffersOnlyQualifiedStopAndNeverStart() {
+        var stopped = false
+        compose.setContent {
+            EGaugeTheme {
+                VehicleActionsSheet(state().copy(vehicleCommands = mapOf(VehicleCommandKind.Burnout to VehicleCommandStatus(VehicleCommandKind.Burnout, VehicleCommandPhase.Unknown, operation = 3, qualified = true, remainingSeconds = 10))), {}, { kind, stop, preset ->
+                    assertEquals(VehicleCommandKind.Burnout, kind)
+                    assertTrue(stop)
+                    assertNull(preset)
+                    stopped = true
+                }, {})
+            }
+        }
+        compose.onNodeWithText("Start Burnout Mode").assertDoesNotExist()
+        compose.onNodeWithText("Stop Burnout Mode").performScrollTo().performClick()
+        compose.runOnIdle { assertTrue(stopped) }
+    }
+
+    @Test fun supervisedBrakesStartOnGaugeAndDescribeManualConfirmation() = supervisedBrakeUi(1f)
+
+    @Test fun supervisedBrakeConfirmationRemainsReachableAtLargeText() = supervisedBrakeUi(2f)
+
+    private fun supervisedBrakeUi(fontScale: Float) {
+        val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        check(android.os.Build.HARDWARE in setOf("ranchu", "goldfish"))
+        val originalScale = instrumentation.targetContext.resources.configuration.fontScale
+        fun scale(value: Float) {
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                instrumentation.uiAutomation.executeShellCommand("settings put system font_scale $value")
+            ).use { it.readBytes() }
+            compose.waitUntil(5_000) { instrumentation.targetContext.resources.configuration.fontScale == value }
+            instrumentation.waitForIdleSync()
+        }
+        var commands = 0
+        try {
+            scale(fontScale)
+            compose.setContent {
+                EGaugeTheme {
+                    VehicleActionsSheet(
+                        state().copy(
+                            vehicleCommands = mapOf(
+                                VehicleCommandKind.AbsTcs to VehicleCommandStatus(VehicleCommandKind.AbsTcs, VehicleCommandPhase.Ready, qualified = true).withBrakeActionsTestVersion(1),
+                                VehicleCommandKind.Burnout to VehicleCommandStatus(VehicleCommandKind.Burnout, VehicleCommandPhase.Verifying, qualified = true).withBrakeActionsTestVersion(1)
+                            )
+                        ),
+                        {},
+                        { _, _, _ -> commands++ },
+                        {}
+                    )
+                }
+            }
+            compose.onNodeWithText("Disable ABS + TCS").assertDoesNotExist()
+            compose.onNodeWithText("Start Burnout Mode").assertDoesNotExist()
+            compose.onNodeWithText("Start on the gauge").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Check normal braking, then confirm on the gauge").performScrollTo().assertIsDisplayed()
+            val output = androidx.test.platform.app.InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
+            if (output != null) {
+                java.io.File(output, "supervised-brakes-$fontScale.png").outputStream().use { instrumentation.uiAutomation.takeScreenshot().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            }
+            compose.runOnIdle { assertEquals(0, commands) }
+        } finally {
+            scale(originalScale)
+        }
+    }
+
     @Test fun shortcutConfirmationDoesNotSendUntilConfirmed() {
         var starts = 0
         compose.setContent {
@@ -113,7 +184,7 @@ class VehicleCommandsUiTest {
         compose.setContent { EGaugeTheme { VehicleActionsSheet(state(VehicleCommandPhase.RestartRequired, false), {}, { _, _, _ -> fail("Unavailable command sent") }, {}) } }
         compose.onNodeWithText("Air up").assertIsNotEnabled()
         compose.onNodeWithText("Disable ABS + TCS").assertDoesNotExist()
-        compose.onNodeWithText("Restart the vehicle to restore ABS and traction control").assertIsDisplayed()
+        compose.onNodeWithText("After Restore, reset ignition while parked and check the dash").assertIsDisplayed()
     }
 
     @Test fun stopNeedsNoSecondConfirmation() {

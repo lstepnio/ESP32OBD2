@@ -1,12 +1,17 @@
 # Current implementation and evidence
 
-Updated 2026-10-28. This owns implemented/installed facts and their evidence limits.
+Updated 2026-10-29. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-PRs #122 and #123 are merged. The consolidated App is installed on the Pixel
-(App label dev.53, Android source `62d1e4b`); signed dev.75 is installed through
-App/Wi-Fi. [Current delivery evidence](evidence/dev75-indoor-rollout.md) records
-exact healthy image/setup proof, final radio recovery, history preservation and
-owner display/navigation confirmation, with interrupted attempts retained separately.
+App dev.55/code55 and signed dev.78 from PR #126 source `8408307` are installed
+on the Pixel/reference gauge. The App used replacement installation and firmware
+used App/Wi-Fi. [Current delivery evidence](evidence/dev78-indoor-rollout.md) records
+exact source/image verification, healthy OTA, connection/Wi-Fi checks and preserved
+configuration/uncertainty/history. Burnout/Line Lock is paused in normal menus;
+ABS/TCS Restore and automatic swapped-adapter roles remain parked qualification.
+PR #126 remains unmerged. The owner confirmed clean display, navigation and the
+three-action menu; live vehicle behavior remains unqualified.
+PRs #122/#123 and the [prior dev.75 delivery](evidence/dev75-indoor-rollout.md) retain
+foreground/history/radio checks and the earlier owner navigation observation.
 Live Jeep recovery and loaded presentation remain unqualified.
 [Earlier display evidence](evidence/display-evolution.md) retains the stack/sensor
 repairs and separate orientation qualification limits.
@@ -31,7 +36,7 @@ This correction is retained in signed dev.74 after the dev.73 USB delivery;
 actual ECM recovery remains parked qualification.
 Website impact: corrective recovery behavior needs no new marketing claim or image.
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
-and ABS/TCS execution remains disabled.
+and brake actions require the separate explicit owner candidate described below.
 
 ## Installed foreground, fault and idle-target follow-up
 
@@ -239,7 +244,9 @@ and enabled eGauge control are not established.
 - Public `configWrite:false`, `ota:false` and qualified link capacity one remain.
   Three NimBLE slots and independent workers do not establish physical coexistence.
 - Phone gauge values remain labelled previews; live companion telemetry, code clearing
-  and ABS/ESC control are not enabled. High idle is limited to the installed owner-supervised parked candidate. Local page-jump gestures are implemented.
+  are not enabled. Brake controls are available only in the explicit owner candidate
+  described below. High idle is limited to the installed owner-supervised parked
+  candidate. Local page-jump gestures are implemented.
 - TCM temperature interprets only the first byte as A−40 °C. Current/target candidates
   compare P=0D, R=0B, N=00 and stationary Drive=01. Pressure `225034` remains raw only.
   Drive is not a distinct selector value. The diagnostic endpoint/PCS bridge topology
@@ -403,3 +410,105 @@ offer signed published candidates, including dev.75. No new firmware runtime, co
 qualification or stable channel is implied. [Review evidence](../review/REPORT.md)
 records baseline checks; final publication and comparison are recorded separately in
 [delivery results](../review/IMPLEMENTATION.md). Normal website cadence still applies.
+
+
+## Installed owner-supervised brake candidate
+
+App dev.54/code54 adds an explicit fourth **Burnout Mode** action using negotiated
+`vc:1` + optional `bm:1`; legacy menus/gauges retain their previous behavior. Firmware integrates
+its captured distinct ABS route through the shared worker, physical hold-to-run,
+bounded release request, durable uncertainty and independent release-proof gate.
+Combined **Disable ABS + TCS** retains ignition-cycle restoration. The new default-off
+`CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST` enables both actions on the captured
+Jeep ECM match, with physical Start, fresh stationary normal-idle admission and
+manual brake/reset confirmation. Authenticated `bt:1` identifies that policy.
+Burnout allows motion/throttle after Start with fresh data and retains its
+ten-second release-initiation limit. Human confirmation is recorded separately
+from automatic controller proof. Both ordinary qualification masks remain zero;
+public capabilities remain disabled. Signed dev.76 and App dev.54 are now installed;
+[delivery evidence](evidence/dev76-indoor-rollout.md) separates indoor verification
+from actual vehicle behavior. The four-page menu is healthy at revision 66 with
+existing readings, bindings, timers, filters and settings preserved. [Action contract](architecture/vehicle-actions.md#burnout-mode-and-brake-actions)
+and [parked follow-up](development/jeep-action-qualification.md#brake-actions-follow-up)
+define the remaining physical evidence. Website impact: retain qualification
+language; defer working-brake marketing claims until the parked checks.
+
+
+### Front Lock follow-up
+
+The owner specified Front Lock for Burnout. [Offline selector analysis](architecture/vehicle-actions.md#front-lock-selection-captured-jk-versus-jljt)
+found that the captured JScan JK handler uses fixed rear-outlet control and does
+not read the setting; selectable Lock Front/Unlock Rear belongs to a separate
+JL/JT ABSPN path in that build. A fresh full capture merely to change the selector
+is therefore unnecessary for that JK path. The owner is comparing physical behavior;
+actual front-hold/release semantics remain unqualified. Dev.76's enabled owner
+function and request bytes have not changed. A different observed behavior/path
+needs a short labelled capture before any command change.
+
+
+### Action recovery presentation follow-up
+
+The owner reported a persistent Burnout **Action in progress / Hold brake pedal**
+face after gauge and Jeep restarts. Protected dev.76 readback at revision 66
+identified ABS/TCS operation 2 as Unknown/Context with restart-required retained;
+Burnout and Idle both had operation 0. No qualified ECM context was present during
+the readback. The owner reported normal Jeep/brake behavior after restarting.
+This is a retained ABS reset-confirmation record, not evidence of active Burnout.
+
+The UI-only dev.77 source now identifies the actual blocker and adds Review
+navigation, removes the misleading ready instruction, and distinguishes missing
+ECM from unmet stationary confirmation input. It also scopes coolant flag handling
+to idle actions: the local brake-readiness bit previously caused a hidden second
+Burnout hold and a false coolant note. Actual runtime-flag regression now requires
+one hold and preserves **Release to stop** while active. Existing command gates, bytes,
+records and independent physical confirmation are unchanged. Real-LVGL normal and
+fallback regressions reproduce the cross-action blocker and preserve independent
+recovery. The [recovery contract](architecture/vehicle-actions.md#reviewing-a-different-actions-retained-state)
+and [parked procedure](development/jeep-action-qualification.md#brake-actions-follow-up)
+own the behavior. Signed dev.77 is installed through App/Wi-Fi;
+[delivery evidence](evidence/dev77-action-recovery.md) separates the retained
+ABS record and offline verification from remaining parked Jeep checks.
+Website impact: corrective UI copy/navigation only; defer new qualification claims.
+
+
+## Unreleased field-recovery follow-up
+
+The owner reports ABS/TCS stayed disabled across ignition restarts until JScan
+was toggled and the Jeep restarted. The source exposed only reset confirmation,
+omitting the explicit Return used in the successful reference. The follow-up adds
+**Restore** before ignition reset, explicit same-vehicle Unknown recovery and a
+durable acknowledged-Return receipt, keeping acceptance distinct from physical
+restoration. See the [recovery contract](architecture/vehicle-actions.md#abs-return-receipt-and-paused-burnout-menus).
+These changes are installed in signed dev.78; actual Jeep restoration is not yet qualified.
+
+The owner also requested removing Burnout/Line Lock for now. Normal App action
+menus and firmware configuration omit it; older pending records retain release
+recovery. App fixtures pass offline, while a physical menu/configuration check is
+still pending. Burnout actuation and front-lock qualification are deferred.
+
+A field report that unplugging TCM allowed a blocked ECM to connect prompted
+shared BLE discovery/admission and callback-lifetime hardening. The observation
+is consistent with contention, not proof of its cause. Offline starvation and
+late-callback regressions must be separated from loaded dual-adapter qualification.
+Website impact: remove any available-Burnout claim in the next eligible batch;
+make no new restoration or loaded-recovery claim before physical qualification.
+
+
+The owner approved automatic swapped-port recovery. The unreleased role verifier
+uses the captured ECM/TCM calibration+CVN pairs through bounded fixed read-only
+requests. An opposite-only positive pair retires both sources before exchanging
+runtime transport bindings, preserving raw configuration and logical source roles.
+Ambiguous/missing evidence retains the working map; same-session ECM proof survives
+mere refresh loss. The [role contract](architecture/vehicle-connections.md#role-verification-for-accidentally-swapped-adapters)
+owns admission, budgets and limits. Policy/transport regressions pass offline;
+physical swapped-port recovery remains unqualified; signed dev.78 installs this path.
+
+
+Firmware dev.78 / App dev.55 are installed with the evidence linked above. The combined
+owner-candidate firmware builds locally; 185 host and 14 review-server tests,
+341 JVM tests, 28 managed-emulator action UI checks, firmware normal/fallback/parked
+rendering and configuration fixtures pass. Android lint and format checks pass.
+The production transport bodies run under ASan/UBSan fixtures, and the role policy
+covers opposite/both/missing identities, stale epochs, two-worker retirement,
+inverse-map continuity and transient identity loss. Published/installed evidence is recorded separately above; these offline results
+do not supply loaded Jeep or physical controller qualification.
