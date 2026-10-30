@@ -96,9 +96,11 @@ owns details. Parked thermal/fallback and real compressor calibration remain ope
 Use backlog FEATURE-04 and QUAL-04/08 for parked Restore/reset, independent loaded
 recovery and swapped ports. QUAL-02 owns configuration/OTA interruption; QUAL-07/13
 own physical rendering/gesture acceptance. Offline changes never close those gates.
-The website uses one [daily, source-aware batch](../website/README.md#maintenance-cadence);
-its public manifest records deployed source, not latest installed private candidates.
-CODE-09 updates current production assets/claim provenance before the next publication.
+The website published `13eef6b` on 2026-10-30 after all four CI lanes passed.
+[Delivery evidence](evidence/product-quality-implementation.md#public-preview-and-handoff)
+records 40 HTTPS file matches and live desktop/mobile checks. Its manifest identifies
+deployed website source separately from installed App/FW. The [daily policy](../website/README.md#maintenance-cadence)
+remains; closing documentation creates no second publication.
 
 ## Earlier status references
 

@@ -227,7 +227,7 @@
   ],
   "claimInputProvenance": {
     "reviewedOn": "2026-10-30",
-    "reason": "Reviewed consolidated dev80/current scope and source: ordinary builds keep controls disabled; fixed-target idle and ABS/TCS are explicit owner-only candidates with parked restoration/load gates still open; numeric RPM, providers, iOS and USB configuration remain future work. Build story uses retained live independent-source evidence. Current screenshots use production interfaces and synthetic values, never vehicle proof.",
+    "reason": "Reviewed consolidated dev80/current scope and source: ordinary builds keep controls disabled; fixed-target idle and ABS/TCS are explicit owner-only candidates with parked restoration/load gates still open; numeric RPM, providers, iOS and USB configuration remain future work. Build story uses retained live independent-source evidence. Current screenshots use production interfaces and synthetic values, never vehicle proof. Closing delivery receipts/status changed no public capability, copy or screenshot; reviewed after live publication.",
     "sha256": {
       "contracts/reading-catalog.json": "ccda2356aecf4ba003f0b34be3b41262b50bf1c77ac119c0518e1af0851cf1f5",
       "docs/architecture/alerts-and-diagnostics.md": "d63fa5de38347a0f1e3ce3d3e1547ee8b41c559da2558d11c92ed5a3a6e5f858",
@@ -238,8 +238,8 @@
       "docs/architecture/platforms-and-releases.md": "6ccb5b1f4c51fc400068613853024edbf191ef9b70aae51b9d9396f9dd8d1576",
       "docs/architecture/vehicle-actions.md": "31a0baf65eb19aa6d68d2f788965f1560657c588e807e497436a15303edd6bf3",
       "docs/architecture/vehicle-connections.md": "3f0cfea953340596d86a865dd28a0372129214e05b37d15bbcd37090d91680b0",
-      "docs/backlog.md": "7001a57dc9587d5ea5a927f8f91219d01192dd97bbd736464039b9e6a987809c",
-      "docs/current-state.md": "941883e5b545889957ffd42e4066ba7b823554ced8d9e89a44f7857557b17da8",
+      "docs/backlog.md": "07808ff9a178b3f26ad8ec5b98a0937436b9678547abba314c6215ff8dc1b56a",
+      "docs/current-state.md": "982273d1472c58b4bfa076d7212481da5de55ab0b2f85f260ffa3dc495f9c914",
       "docs/development/reading-catalog-alerts.md": "6d2a6d365516d14e339303d19ef2014e522beb3f2f00e36f104baf43fbe7fdeb",
       "docs/evidence/action-pages-indoor.md": "3720880cb92f1a647f64939fde649f57e4eaf22ee35b6a87c3e3b70c8273e6a3",
       "docs/evidence/dev75-indoor-rollout.md": "10d3b6d4dfdf6267b02db07c48013fb3dd18e3db67b9cb3abaf6f40db0daaf5c",

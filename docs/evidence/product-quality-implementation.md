@@ -88,11 +88,21 @@ also built with all six immutable existing public download files verified agains
 their manifest hashes/sizes. This changes neither the download versions nor the
 signed release catalog.
 
-Public deployment is blocked by SSH public-key rejection for the configured login
-to one.majjix.com. No server files/services or live website were changed. The verified
-bundle is under ignored artifacts/website-publication; it must be rebuilt from the
-final pushed commit before deployment. Main merges, signed firmware publication,
-installation and parked acceptance remain separately authorized delivery steps.
+The first direct-host SSH attempt used the wrong account and was rejected. The
+existing `one-codex` profile resolved access without new credentials or privilege
+changes. After all four CI lanes passed on `13eef6b`, the static site was published
+at **2026-10-30T07:00:57.940381+00:00**. A complete prior-site rollback archive is
+recorded in the ignored private publication receipt. The webroot inode was retained;
+all 40 staged and public HTTPS files matched, and configured Nginx security/cache
+headers matched. Caddy, Nginx configuration, containers, API/backend and customer
+data were untouched. No contact forms were submitted.
+
+Live desktop1280×720 and mobile390×844 checks passed with no horizontal overflow or
+failed loaded images. The public manifest records `13eef6b`; the closing documentation
+commit records this delivery without making another daily publication. Its metadata
+review updates the hashes of status receipts only; public claims/layouts are unchanged.
+Main merges, signed firmware publication, installation and parked acceptance remain
+separate delivery steps. The installed dev.57/dev.80 pair remains unchanged.
 
 CI status is available on PR #128. Local results above describe the actual offline
 checks, not an assertion that all remote jobs or physical scenarios passed.
