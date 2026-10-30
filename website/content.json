@@ -147,7 +147,9 @@
     "ANDROID": {
       "scope": "development",
       "sources": [
-        "docs/architecture/platforms-and-releases.md"
+        "docs/architecture/android-runtime.md",
+        "docs/architecture/interaction-recovery.md",
+        "docs/protocol/wifi-bulk-v1.md"
       ],
       "evidence": [
         "docs/evidence/dev75-indoor-rollout.md"
@@ -229,7 +231,9 @@
     "sha256": {
       "contracts/reading-catalog.json": "ccda2356aecf4ba003f0b34be3b41262b50bf1c77ac119c0518e1af0851cf1f5",
       "docs/architecture/alerts-and-diagnostics.md": "d63fa5de38347a0f1e3ce3d3e1547ee8b41c559da2558d11c92ed5a3a6e5f858",
+      "docs/architecture/android-runtime.md": "cbec3bcbc4d4ac7437e8fb030f27598ce64a6f4bc2579eef24b9990b9d51fb0d",
       "docs/architecture/display-experience.md": "7efc90da48dbfc3a38a12eda6ed9c62c57a9508263e360ec44ea0f544c58f8e1",
+      "docs/architecture/interaction-recovery.md": "2b2a8ae31b07292b35f8c62f3e8e5463222a4464b60a9d3502c3d09df9614b54",
       "docs/architecture/phone-alert-providers.md": "6b3a04988f2da30db963c6e37fe55cd7a228c78487eb001a6b5d98204af511dd",
       "docs/architecture/platforms-and-releases.md": "6ccb5b1f4c51fc400068613853024edbf191ef9b70aae51b9d9396f9dd8d1576",
       "docs/architecture/vehicle-actions.md": "31a0baf65eb19aa6d68d2f788965f1560657c588e807e497436a15303edd6bf3",
@@ -244,6 +248,7 @@
       "docs/evidence/gatt-long-read-recovery.md": "5de44236f645e52686eee817b0f6e575d56c3850ae56f03a012aa361a2fcb487",
       "docs/evidence/jeep-high-idle-reference.md": "35112c013262fce0a8e0a60771fd99d674d5970ecd2679f26620e00a51cac462",
       "docs/features.md": "6888bae16b39bea9e868811ba32bdfe2ce1d194e42327e6db2fa5d6d60200c97",
+      "docs/protocol/wifi-bulk-v1.md": "c06ca3529e17446d81fe1609994b564688ca103a7cc6ec3a5dbe5c342382c8c8",
       "docs/roadmap.md": "5f284fffe07a518c3a93a26fc8c94ab3e5cfbf289ccb9e0eedb6a15026a05b4e",
       "firmware/gauge/main/src/jeep_abs_tcs_driver.c": "6cd5949a9b2caa24a3e7505bae16819ad7f14c1b1be1fdc2a33e0d5eeec52370"
     }

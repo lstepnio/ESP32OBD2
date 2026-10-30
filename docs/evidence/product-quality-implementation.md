@@ -52,14 +52,16 @@ masks were introduced. It does not establish OOM immunity or broaden vehicle sup
 - Host suite: 197 tests plus 14 review-server tests, all passed; native policy and
   transport fixtures ran with ASan/UBSan. The first host attempt overlapped a tooling
   edit and saw two outdated download-test mocks; the settled source run passed.
-- Android: 354 debug and 328 release JVM tests passed; focused action-page/command UI run passed
+- Android: 355 debug and 329 release JVM tests passed; focused action-page/command UI run passed
   32/32 with no skips. Separate current marketing capture passed. Android lint passed.
 - Firmware: ordinary and parked-idle/brake/orientation candidate builds passed with
   pinned ESP-IDF 5.4.1; production normal/fallback/parked rendering/config fixtures passed.
 - Independent review found that a mixed-boot poll initially retained old freshness;
   the implementation now retires those receipts and tests delayed-epoch rejection.
   A follow-up partial-batch case retains positive reboot evidence immediately,
-  even if a later kind fails. The production read coordinator has direct JVM tests.
+  even if a later kind fails. A contradictory typed kind/revision also retires
+  receipts, covering configuration rollback. The production read coordinator has
+  direct JVM tests.
 - A later JVM run stalled before the subject code in SocketIoTest's unbounded
   ServerSocket.accept. Thread evidence was retained privately. The test fixture now
   binds IPv4 loopback explicitly and bounds connect/accept/entry waits. Its production

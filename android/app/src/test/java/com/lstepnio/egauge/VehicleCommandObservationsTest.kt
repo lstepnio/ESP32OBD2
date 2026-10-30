@@ -29,6 +29,18 @@ class VehicleCommandObservationsTest {
         assertSame(observed, observed.observed(scope, oldEpoch, VehicleCommandKind.Idle, status(VehicleCommandKind.Idle), 1_001))
     }
 
+    @Test fun contradictoryCurrentScopeReplyRetiresFreshnessBeforeRetry() = runBlocking {
+        val replies = listOf(status(VehicleCommandKind.Idle).copy(revision = 6, boot = 18), status(VehicleCommandKind.AbsTcs), status(VehicleCommandKind.Idle, boot = 0))
+        for (reply in replies) {
+            var observed = snapshot()
+            val epoch = observed.epoch
+            assertFalse(readVehicleCommandObservations(scope, listOf(VehicleCommandKind.Idle), { observed }, { observed = it }, { 10 }) { reply })
+            assertTrue(observed.freshKinds(scope, 10).isEmpty())
+            assertTrue(observed.epoch > epoch)
+            assertEquals(7L, observed.values.getValue(VehicleCommandKind.Idle).revision)
+        }
+    }
+
     @Test fun pollCannotPublishAfterItsScopeIsRetiredAndRestored() = runBlocking {
         var observed = snapshot()
         val healthy = readVehicleCommandObservations(scope, listOf(VehicleCommandKind.Idle), { observed }, { observed = it }, { 10 }) { kind ->

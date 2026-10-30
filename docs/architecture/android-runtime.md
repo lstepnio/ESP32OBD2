@@ -213,7 +213,10 @@ connection invalidation retire an epoch, so delayed replies cannot repopulate a
 new session even if it returns to the same saved scope. Different boot nonces retire
 sibling receipts, and mixed-boot snapshots are rejected. Positive boot evidence
 retires old freshness immediately, even if a later status read fails; the shared
-read coordinator still publishes new statuses only as a complete batch. Firmware still independently
+read coordinator still publishes new statuses only as a complete batch. A typed
+reply contradicting the requested kind/running revision also retires receipts,
+including a reboot that rolls back configuration; it never replaces expected state
+with an unverified configuration. Firmware still independently
 validates command context. Fake-clock coordinator and Compose confirmation tests
 cover partial replies, expiry, reconnect and context changes; they do not establish
 physical BLE or controller behavior.

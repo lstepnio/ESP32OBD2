@@ -25,7 +25,7 @@ data class VehicleCommandObservations(
     fun snapshot(value: VehicleCommandScope, expectedEpoch: Long, observations: Map<VehicleCommandKind, VehicleCommandObservation>): VehicleCommandObservations {
         if (!accepts(value, expectedEpoch) || observations.isEmpty() || observations.any { (kind, observation) -> observation.observedAt == null || observation.observedAt < 0 || !valid(kind, observation.status) }) return this
         if (observations.values.map { it.status.boot }.distinct().size != 1) {
-            return copy(epoch = epoch + 1, entries = entries.mapValues { it.value.copy(observedAt = null) })
+            return invalidated()
         }
         val boot = observations.values.first().status.boot
         val rebooted = observedBoot?.let { it != boot } ?: entries.values.any { it.status.boot != boot }
@@ -45,6 +45,8 @@ data class VehicleCommandObservations(
         val retained = if (rebooted) emptyMap() else entries
         return copy(epoch = epoch + if (rebooted) 1 else 0, observedBoot = status.boot, entries = retained + (kind to VehicleCommandObservation(status, observedAt.takeUnless { status.phase == VehicleCommandPhase.Unknown })))
     }
+
+    fun invalidated() = copy(epoch = epoch + 1, entries = entries.mapValues { it.value.copy(observedAt = null) })
 
     fun bootEvidence(value: VehicleCommandScope, expectedEpoch: Long, status: VehicleCommandStatus): VehicleCommandObservations {
         if (!accepts(value, expectedEpoch) || !valid(status.kind, status)) return this
@@ -76,7 +78,10 @@ internal suspend fun readVehicleCommandObservations(
         val status = read(kind)
         val receivedAt = now()
         val active = current()?.takeIf { it.scope == scope && it.epoch == epoch } ?: return false
-        require(status.kind == kind && status.revision == scope.revision && status.boot > 0)
+        if (status.kind != kind || status.revision != scope.revision || status.boot <= 0) {
+            publish(active.invalidated())
+            return false
+        }
         val noted = active.bootEvidence(scope, epoch, status)
         publish(noted)
         epoch = noted.epoch
