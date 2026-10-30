@@ -100,5 +100,6 @@ pending note into current authorization.
 - FEATURE-04 compact action presentation: all 14 review states approved. Dev.79/App
   dev.56 source replaces the reconnect squares, modal ABS/fallback confirmation
   and stacked recovery wording. The [signed indoor delivery](evidence/dev79-action-ui.md)
-  passed; physical UI and actual Jeep restoration qualification remain separate.
-  Admission and durable uncertainty are unchanged.
+  passed; the owner confirmed clean physical UI/navigation and removal of the yellow
+  icon. Actual Jeep restoration remains unqualified; admission and durable uncertainty
+  are unchanged.

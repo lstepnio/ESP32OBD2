@@ -57,7 +57,9 @@ were restored after the bounded device session.
 
 ## Remaining physical checks
 
-Physical gauge display/navigation confirmation is recorded separately when supplied.
+The owner confirmed clean physical display/navigation, three-up action entry and
+removal of the yellow two-square icon. This observation is separate from transport
+and fixture results; no Start, Restore or reset-confirmation operation was requested.
 Parked Jeep Restore followed by the actual controller reset/state check, uncertain
 recovery and dual-adapter swapped-port/loaded behavior remain unqualified. Restart-free
 ABS/TCS restoration is not implemented or implied. Burnout remains paused.

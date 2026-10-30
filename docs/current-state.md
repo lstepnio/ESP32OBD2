@@ -6,8 +6,8 @@ App dev.56/code56 and signed dev.79 are installed on the Pixel/reference gauge.
 The App used replacement installation; firmware used App/Wi-Fi. The
 [current delivery evidence](evidence/dev79-action-ui.md) records exact source/image,
 healthy OTA, indoor checks and preserved setup/history/uncertainty. The approved
-compact action presentation is installed. Physical panel/navigation confirmation
-for this delivery is separate from transport checks; live vehicle behavior remains
+compact action presentation is installed. The owner confirmed clean physical
+display/navigation and removal of the yellow icon; live vehicle behavior remains
 unqualified. Burnout is paused in normal menus. ABS/TCS Restore/reset and swapped
 adapter roles retain the [prior delivery's](evidence/dev78-indoor-rollout.md) parked
 qualification limits. PR #127 is stacked on unmerged PR #126; no main merge occurred.
@@ -43,8 +43,8 @@ and brake actions require the separate explicit owner candidate described below.
 
 Dev.79/App dev.56 source implements the owner-approved compact action review.
 The [presentation contract](architecture/vehicle-actions.md#approved-compact-action-presentation)
-owns the single hold, quiet transitions, connection and recovery wording. The [signed indoor delivery](evidence/dev79-action-ui.md) passed; physical UI
-and Jeep qualification remain separate. No new controller
+owns the single hold, quiet transitions, connection and recovery wording. The [signed indoor delivery](evidence/dev79-action-ui.md) passed; physical UI/navigation was confirmed by the owner. Jeep qualification
+remains separate. No new controller
 sequence, brake-state proof or restart-free restoration is introduced.
 
 ## Installed foreground, fault and idle-target follow-up
