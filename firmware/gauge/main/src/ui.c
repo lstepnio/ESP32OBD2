@@ -132,19 +132,19 @@ struct _ui_t
     uint8_t             rendered_action_progress;
     lv_obj_t           *action_label, *action_arrows[5];
     lv_obj_t           *command_menu, *command_button, *command_back, *command_title, *command_value, *command_note,
-        *command_button_text, *command_ring, *command_link_symbol;
+        *command_button_text, *command_ring;
     lv_obj_t   *command_dots[4];
     uint8_t     command_page, command_request_page, command_page_count, command_pages[4];
     bool        command_suspended, command_press, command_moved, command_waiting, idle_protection;
     int16_t     command_x, command_y;
     lv_obj_t   *command_press_target;
-    uint32_t    command_activity, command_wait_at, command_presented_state, command_confirm_state;
+    uint32_t    command_activity, command_wait_at, command_presented_state;
     atomic_uint command_ui[VEHICLE_COMMAND_KIND_COUNT];
     atomic_bool command_menu_active;
     bool        command_menu_visible, command_layer_dirty;
-    uint8_t     command_confirm, command_selected;
+    uint8_t     command_selected;
     bool        command_hold_armed, command_hold_commit;
-    uint32_t    command_press_at, command_press_epoch, command_confirm_epoch;
+    uint32_t    command_press_at, command_press_epoch;
     atomic_uint command_epoch, command_scope_epoch;
     atomic_bool command_burnout_held, command_burnout_recorded;
     atomic_uint command_burnout_at;
@@ -152,7 +152,9 @@ struct _ui_t
     uint32_t    command_burnout_scope_epoch;
     uint32_t    command_scope[VEHICLE_COMMAND_KIND_COUNT][3]; /* App-task writer only; epoch is the LVGL fence. */
     bool        command_request_stop, command_admission_failed;
-    uint16_t    command_request_seconds, command_confirm_seconds;
+    uint16_t    command_request_seconds;
+    uint16_t    command_last_seconds;
+    unsigned    command_last_scope_epoch;
 
     bool               pairing_visible;
     uint32_t           pairing_code;
@@ -852,7 +854,6 @@ static bool action_context(ui_t *ui)
     {
         ui->command_suspended = ui->rendered_alert.attention;
         ui->command_press     = false;
-        ui->command_confirm   = 0;
         if (ui->command_suspended)
             lv_obj_add_flag(ui->command_menu, LV_OBJ_FLAG_HIDDEN);
         else
@@ -2428,7 +2429,6 @@ static bool command_busy(ui_t *ui)
 static void close_vehicle_menu(ui_t *ui)
 {
     ui->command_menu_visible = ui->command_suspended = ui->command_press = ui->command_hold_armed = false;
-    ui->command_confirm                                                                           = 0;
     ui->command_burnout_committed                                                                 = false;
     atomic_store(&ui->command_burnout_held, false);
     atomic_store(&ui->command_menu_active, false);
@@ -2539,21 +2539,25 @@ static void refresh_vehicle_menu(ui_t *ui)
                                    : "No actions";
     const char *value = "Unavailable", *note = "", *button = "";
     char        duration[24];
-    bool        enabled = false;
-    if (ui->command_confirm && ((phase != VEHICLE_READY && phase != VEHICLE_REJECTED) ||
-                                (state & 0xfc00ffffU) != (ui->command_confirm_state & 0xfc00ffffU) ||
-                                ui->command_confirm_epoch != atomic_load(&ui->command_epoch) || blocker))
-        ui->command_confirm = 0;
+    bool        enabled         = false;
     ui->command_presented_state = state;
     if (ui->command_waiting && (phase != ui->command_selected || now - ui->command_wait_at >= 2000))
         ui->command_waiting = false;
-    unsigned ring = 0;
+    unsigned scope_epoch = atomic_load(&ui->command_scope_epoch);
+    if (scope_epoch != ui->command_last_scope_epoch)
+    {
+        ui->command_last_seconds     = 0;
+        ui->command_last_scope_epoch = scope_epoch;
+    }
+    if (kind == 0 && phase == VEHICLE_ACTIVE)
+        ui->command_last_seconds = (state >> 16) & 1023U;
+    if (kind == 0 && (phase == VEHICLE_READY || phase == VEHICLE_UNKNOWN))
+        ui->command_last_seconds = 0;
     if (!id)
         value = "Add in App";
     else if (phase == VEHICLE_UNKNOWN)
     {
-        value = id == 4 ? "Check brakes" : id < 3 ? "Check idle" : "Check vehicle";
-        note  = "Status unknown";
+        value = "Not verified";
         if (id == 4 && (state & 256U))
         {
             button  = "Release";
@@ -2562,8 +2566,7 @@ static void refresh_vehicle_menu(ui_t *ui)
     }
     else if (id == 3 && (phase == VEHICLE_ACTIVE || phase == VEHICLE_RESTART_REQUIRED))
     {
-        value = "Off";
-        note  = phase == VEHICLE_ACTIVE ? "" : "Restart Jeep";
+        value = phase == VEHICLE_ACTIVE ? "Disabled" : "Restart Jeep";
         if (phase == VEHICLE_ACTIVE)
         {
             button  = "Restore";
@@ -2572,8 +2575,14 @@ static void refresh_vehicle_menu(ui_t *ui)
     }
     else if (phase == VEHICLE_STOPPING || phase == VEHICLE_VERIFYING)
     {
-        value = "";
-        ring  = 2;
+        value  = id == 3 ? "Not verified" : "";
+        button = id == 3 ? "Restoring..." : "Stopping...";
+        if (id < 3 && ui->command_last_seconds)
+        {
+            snprintf(duration, sizeof(duration), "%u:%02u", ui->command_last_seconds / 60,
+                     ui->command_last_seconds % 60);
+            value = duration;
+        }
         if (id == 4)
             note = "Check brakes";
         else if (state & (VEHICLE_UI_COOLANT_HIGH << 8))
@@ -2583,8 +2592,7 @@ static void refresh_vehicle_menu(ui_t *ui)
     {
         unsigned seconds = (state >> 16) & 1023U;
         snprintf(duration, sizeof(duration), "%u:%02u", seconds / 60, seconds % 60);
-        value   = phase == VEHICLE_STARTING ? "" : duration;
-        ring    = phase == VEHICLE_STARTING ? 1 : 0;
+        value   = phase == VEHICLE_STARTING ? "Starting..." : duration;
         button  = id < 3 ? "Stop" : "";
         enabled = id < 3;
         if (id == 4)
@@ -2596,17 +2604,22 @@ static void refresh_vehicle_menu(ui_t *ui)
         if (id < 3 && id != active_idle_id(ui))
             note = active_idle_id(ui) == 2 ? "Winch running" : "Air up running";
         else if (id < 3 && (state & (16U << 8)))
-            note = "No coolant";
+            note = "Coolant unavailable";
     }
     else if (ui->command_waiting)
     {
-        value = "";
-        ring  = ui->command_request_stop ? 2 : 1;
+        if (id < 3)
+        {
+            unsigned seconds = ui->command_request_stop ? ui->command_last_seconds : ui->command_request_seconds;
+            snprintf(duration, sizeof(duration), "%u:%02u", seconds / 60, seconds % 60);
+            value = seconds ? duration : "";
+        }
+        else
+            value = "Not verified";
     }
     else if (!(state & 256U))
     {
-        value = (state & (VEHICLE_UI_RECONNECTING << 8)) ? "" : "Not supported";
-        ring  = (state & (VEHICLE_UI_RECONNECTING << 8)) ? 3 : 0;
+        value = (state & (VEHICLE_UI_RECONNECTING << 8)) ? "Connecting..." : "Not supported";
     }
     else if (command_busy(ui))
         value = "Action in progress";
@@ -2619,24 +2632,16 @@ static void refresh_vehicle_menu(ui_t *ui)
         value = "Coolant high";
     else if (phase == VEHICLE_READY || phase == VEHICLE_REJECTED)
     {
-        unsigned seconds = ui->command_confirm ? ui->command_confirm_seconds : command_duration(ui, id, state);
+        unsigned seconds = command_duration(ui, id, state);
         snprintf(duration, sizeof(duration), "%u:%02u", seconds / 60, seconds % 60);
-        value  = id == 4 ? "Rear brakes" : id == 3 ? "On" : duration;
-        button = id == 4 ? "Hold to run" : id == 3 ? "Disable" : "Hold to start";
+        value  = id == 4 ? "Rear brakes" : id == 3 ? "Ready" : duration;
+        button = id == 4 ? "Hold to run" : id == 3 ? "Hold to disable" : "Hold to start";
         if (id == 4)
             note = "Off-road only";
         enabled = true;
         if (id < 3 && (state & (16U << 8)))
         {
-            note = ui->command_confirm ? "No coolant" : "No coolant · 1 min max";
-            if (!ui->command_confirm)
-                button = "Continue";
-        }
-        if (id == 3 && ui->command_confirm)
-        {
-            title = "Disable both?";
-            value = "ABS + TCS";
-            note  = "Restore, then restart";
+            note = "Coolant unavailable";
         }
         if (phase == VEHICLE_REJECTED && reason == VEHICLE_GUARD && !note[0])
             note = "Check conditions";
@@ -2646,28 +2651,24 @@ static void refresh_vehicle_menu(ui_t *ui)
                         (id == 4 && phase == VEHICLE_UNKNOWN && (state & (32U << 8))));
     if (id >= 3 && (state & (VEHICLE_UI_OWNER_TEST << 8)) && !(state & 256U) && phase != VEHICLE_UNKNOWN)
     {
-        value   = "Connect Jeep";
+        value   = "Connecting...";
         note    = "";
-        ring    = 0;
         enabled = false;
         button  = "";
     }
     if (id == 3 && phase == VEHICLE_UNKNOWN)
     {
-        value   = "Check brakes";
-        button  = "Restore";
+        value   = "Not verified";
         enabled = state & 256U;
-        note    = enabled ? "" : "Connect Jeep";
+        button  = enabled ? "Restore" : "";
+        note    = enabled ? "" : "Connecting...";
     }
     if (owner_check)
     {
-        button  = "Hold to confirm";
+        button  = id == 3 ? "Confirm reset" : "Hold to confirm";
         enabled = (state & 256U) && (state & (16U << 8));
-        ring    = 0;
-        value   = phase == VEHICLE_UNKNOWN ? "Check brakes" : id == 3 ? "Restart" : "Release sent";
-        note    = !enabled  ? (!(state & 256U) ? "Connect Jeep" : "Park and idle")
-                  : id == 3 ? "Reset checked?"
-                            : "Brakes normal?";
+        value   = phase == VEHICLE_UNKNOWN ? "Not verified" : id == 3 ? "Restart Jeep" : "Release sent";
+        note    = !enabled ? (!(state & 256U) ? "Connecting..." : "Park and idle") : id == 3 ? "" : "Brakes normal?";
     }
     else if (id == 4 && (state & (VEHICLE_UI_OWNER_TEST << 8)) && phase == VEHICLE_READY && enabled && !blocker)
     {
@@ -2684,7 +2685,7 @@ static void refresh_vehicle_menu(ui_t *ui)
                                  : idle_preset == 2 ? "Winch"
                                  : idle_preset == 1 ? "Air up"
                                                     : "Idle";
-        note    = blocked_phase == VEHICLE_UNKNOWN ? "Status unknown"
+        note    = blocked_phase == VEHICLE_UNKNOWN ? "Not verified"
                   : blocked_phase == VEHICLE_RESTART_REQUIRED || (blocker == 3 && blocked_phase == VEHICLE_ACTIVE)
                       ? (blocked_phase == VEHICLE_ACTIVE ? "Restore required" : "Restart Jeep")
                       : "Action in progress";
@@ -2692,46 +2693,41 @@ static void refresh_vehicle_menu(ui_t *ui)
         enabled = false;
         for (unsigned i = 0; i < ui->command_page_count; ++i)
             enabled |= ui->command_pages[i] == blocker;
-        ring = 0;
     }
     if (ui->command_admission_failed && enabled && !note[0] && !ui->rendered_alert.severity)
         note = "Try again";
+    if (ui->command_waiting)
+    {
+        button  = ui->command_request_stop ? (id == 3 ? "Restoring..." : "Stopping...") : "Starting...";
+        enabled = false;
+    }
     /* Existing fonts and one arc tree, no per-frame allocations or animation task. */
     command_text(ui, ui->command_title, title, 59, 184, font_unit);
     command_text(ui, ui->command_value, value, 104, 186, strchr(value, ':') && id < 3 ? font_large : font_compact);
     command_text(ui, ui->command_note, note, 136, 200, font_subtitle);
-    bool coolant_warning = id < 3 && (state & ((16U | VEHICLE_UI_COOLANT_HIGH) << 8));
+    bool coolant_warning = id < 3 && (state & (VEHICLE_UI_COOLANT_HIGH << 8));
     lv_obj_set_style_text_color(ui->command_value, lv_color_hex(coolant_warning ? color_warning : color_text_primary),
                                 0);
-    bool quiet_note = !strcmp(note, "In the App") || strstr(note, "running");
+    bool quiet_note = !strcmp(note, "In the App") || !strcmp(note, "Connecting...") || strstr(note, "running");
     lv_obj_set_style_text_color(ui->command_note, lv_color_hex(quiet_note ? color_text_secondary : color_warning), 0);
     if (strcmp(lv_label_get_text(ui->command_button_text), button))
         lv_label_set_text(ui->command_button_text, button);
     lv_obj_set_style_text_font(ui->command_button_text, font_subtitle, 0);
+    bool quiet_button = !strcmp(button, "Stop") || !strcmp(button, "Confirm reset") || !strcmp(button, "Stopping...") ||
+                        !strcmp(button, "Restoring...");
+    lv_obj_set_style_bg_opa(ui->command_button, quiet_button ? LV_OPA_TRANSP : LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(ui->command_button, quiet_button ? px(1) : 0, 0);
+    lv_obj_set_style_border_color(ui->command_button, lv_color_hex(color_text_secondary), 0);
+    lv_obj_set_style_text_color(ui->command_button_text,
+                                lv_color_hex(quiet_button ? color_text_primary : color_background), 0);
     lv_obj_center(ui->command_button_text);
     show(ui->command_button, button[0]);
     if (enabled)
         lv_obj_remove_state(ui->command_button, LV_STATE_DISABLED);
     else
         lv_obj_add_state(ui->command_button, LV_STATE_DISABLED);
-    show(ui->command_ring, ring != 0);
-    show(ui->command_link_symbol, ring == 3);
-    if (ring)
-    {
-        uint32_t color = ring == 1 ? color_accent : ring == 2 ? color_critical : 0xFFD600;
-        lv_obj_set_style_arc_color(ui->command_ring, lv_color_hex(color), LV_PART_INDICATOR);
-        lv_arc_set_rotation(ui->command_ring, (now % 1400) * 360 / 1400);
-        if (ring == 3)
-        {
-            static lv_point_precise_t symbols[8];
-            static const int16_t      points[8][2] = {{120, 95}, {108, 95}, {108, 109}, {122, 109},
-                                                      {122, 95}, {134, 95}, {134, 109}, {120, 109}};
-            for (unsigned i = 0; i < 8; i++)
-                symbols[i] = (lv_point_precise_t){px(points[i][0]), px(points[i][1])};
-            lv_line_set_points(ui->command_link_symbol, symbols, 8);
-            lv_obj_set_style_line_color(ui->command_link_symbol, lv_color_hex(color), 0);
-        }
-    }
+    /* Quiet transitions share this face. The arc remains only for critical attention. */
+    show(ui->command_ring, false);
     for (unsigned i = 0; i < 4; ++i)
     {
         lv_obj_set_pos(ui->command_dots[i], gx(120 - (int)ui->command_page_count * 6 + (int)i * 12 + 4), gy(211));
@@ -2753,10 +2749,7 @@ static void command_activate(ui_t *ui, bool back)
 {
     if (back)
     {
-        if (ui->command_confirm)
-            ui->command_confirm = 0;
-        else
-            close_vehicle_menu(ui);
+        close_vehicle_menu(ui);
         return;
     }
     unsigned id = command_id(ui);
@@ -2766,23 +2759,22 @@ static void command_activate(ui_t *ui, bool back)
     /* A state change must never turn a displayed Start into an implicit Stop. */
     if ((state & 0xfc00ffffU) != (ui->command_presented_state & 0xfc00ffffU))
     {
-        ui->command_confirm = 0;
         return;
     }
     if (phase == VEHICLE_RESTORED)
         phase = VEHICLE_READY;
     if (!strcmp(lv_label_get_text(ui->command_button_text), "Review"))
     {
-        uint8_t blocker     = command_blocker(ui, command_index(id));
-        ui->command_confirm = 0;
+        uint8_t blocker = command_blocker(ui, command_index(id));
         for (unsigned i = 0; blocker && i < ui->command_page_count; ++i)
             if (ui->command_pages[i] == blocker)
                 ui->command_page = i;
         return;
     }
-    if (!strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm"))
+    if (!strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm") ||
+        !strcmp(lv_label_get_text(ui->command_button_text), "Confirm reset"))
     {
-        if (!ui->command_hold_commit)
+        if (id != 3 && !ui->command_hold_commit)
             return;
         ui->command_request_page = id;
         ui->command_request_stop = true;
@@ -2795,22 +2787,13 @@ static void command_activate(ui_t *ui, bool back)
     bool stop = (phase == VEHICLE_STARTING || phase == VEHICLE_ACTIVE || (id >= 3 && phase == VEHICLE_UNKNOWN));
     if (!stop && command_busy(ui))
     {
-        ui->command_confirm = 0;
         return;
     }
     if (!stop && id < 3 && (!ui->idle_protection || (state & (VEHICLE_UI_COOLANT_HIGH << 8))))
         return;
-    if (!stop && !ui->command_confirm && (id == 3 || (id < 3 && (state & (16U << 8)))))
-    {
-        ui->command_confirm         = id;
-        ui->command_confirm_state   = state;
-        ui->command_confirm_epoch   = atomic_load(&ui->command_epoch);
-        ui->command_confirm_seconds = id < 3 ? command_duration(ui, id, state) : 0;
+    if (!stop && !ui->command_hold_commit)
         return;
-    }
-    if (!stop && (id < 3 || id == 4) && !ui->command_hold_commit)
-        return;
-    unsigned seconds = ui->command_confirm ? ui->command_confirm_seconds : command_duration(ui, id, state);
+    unsigned seconds = command_duration(ui, id, state);
     if (stop && id < 3)
     {
         id = active_idle_id(ui);
@@ -2820,7 +2803,6 @@ static void command_activate(ui_t *ui, bool back)
     }
     if ((!stop && !(state & 256U)) || (!stop && phase != VEHICLE_READY && phase != VEHICLE_REJECTED))
     {
-        ui->command_confirm = 0;
         return;
     }
     ui->command_request_page     = id;
@@ -2829,7 +2811,6 @@ static void command_activate(ui_t *ui, bool back)
     /* Freeze the confirmed duration. A later coolant recovery cannot lengthen it. */
     ui->command_request_seconds = id < 3 && !stop ? seconds : 0;
     ui->command_selected        = phase;
-    ui->command_confirm         = 0;
     ui->command_waiting         = true;
     ui->command_wait_at         = (uint32_t)(esp_timer_get_time() / 1000);
     dispatch_touch(ui, UI_EVENT_VEHICLE_COMMAND);
@@ -2850,6 +2831,7 @@ static void command_pointer(ui_t *ui, lv_event_code_t code, lv_obj_t *target, in
         ui->command_press_epoch  = atomic_load(&ui->command_epoch);
         ui->command_hold_armed =
             target == ui->command_button && (!strcmp(lv_label_get_text(ui->command_button_text), "Hold to start") ||
+                                             !strcmp(lv_label_get_text(ui->command_button_text), "Hold to disable") ||
                                              !strcmp(lv_label_get_text(ui->command_button_text), "Hold to run") ||
                                              !strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm"));
     }
@@ -2878,12 +2860,11 @@ static void command_pointer(ui_t *ui, lv_event_code_t code, lv_obj_t *target, in
         int dx = x - ui->command_x, dy = y - ui->command_y;
         if (dy >= px(32) && abs(dy) >= 2 * abs(dx))
         {
-            ui->command_confirm = 0;
             close_vehicle_menu(ui);
         }
         else if (abs(dx) >= px(32) && abs(dx) >= 2 * abs(dy))
         {
-            if (!ui->command_confirm && ui->command_page_count)
+            if (ui->command_page_count)
             {
                 int next = (int)ui->command_page + (dx < 0 ? 1 : -1);
                 if (next >= 0 && next < ui->command_page_count)
@@ -2938,9 +2919,6 @@ void ui_show_vehicle_actions(ui_t *ui)
         lv_obj_set_style_arc_width(ui->command_ring, px(6), LV_PART_MAIN);
         lv_obj_set_style_arc_width(ui->command_ring, px(6), LV_PART_INDICATOR);
         lv_obj_set_style_arc_color(ui->command_ring, lv_color_hex(color_track), LV_PART_MAIN);
-        ui->command_link_symbol = lv_line_create(ui->command_menu);
-        lv_obj_set_style_line_width(ui->command_link_symbol, px(3), 0);
-        lv_obj_remove_flag(ui->command_link_symbol, LV_OBJ_FLAG_CLICKABLE);
         ui->command_title = plain_label(ui->command_menu, color_text_primary);
         ui->command_value = plain_label(ui->command_menu, color_text_primary);
         ui->command_note  = plain_label(ui->command_menu, color_warning);
@@ -2980,7 +2958,7 @@ void ui_show_vehicle_actions(ui_t *ui)
     }
     ui->command_menu_visible = true;
     ui->command_layer_dirty = ui->status_dirty = true;
-    ui->command_page = ui->command_confirm = 0;
+    ui->command_page                           = 0;
     command_sync_pages(ui);
     ui->command_activity = (uint32_t)(esp_timer_get_time() / 1000);
     for (unsigned i = 0; i < ui->command_page_count; ++i)
@@ -3090,6 +3068,7 @@ static void command_hold_tick(ui_t *ui)
         ui->command_press_epoch != atomic_load(&ui->command_epoch) ||
         lv_obj_has_state(ui->command_button, LV_STATE_DISABLED) ||
         (strcmp(lv_label_get_text(ui->command_button_text), "Hold to start") &&
+         strcmp(lv_label_get_text(ui->command_button_text), "Hold to disable") &&
          strcmp(lv_label_get_text(ui->command_button_text), "Hold to run") &&
          strcmp(lv_label_get_text(ui->command_button_text), "Hold to confirm")))
     {

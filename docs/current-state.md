@@ -38,6 +38,15 @@ Website impact: corrective recovery behavior needs no new marketing claim or ima
 Ordinary builds still disable vehicle controls; both qualification masks remain zero
 and brake actions require the separate explicit owner candidate described below.
 
+## Action presentation follow-up
+
+Dev.79/App dev.56 source implements the owner-approved compact action review.
+The [presentation contract](architecture/vehicle-actions.md#approved-compact-action-presentation)
+owns the single hold, quiet transitions, connection and recovery wording. Local
+and device delivery evidence will be recorded separately; dev.78/App dev.55 remain
+the last verified installation until that delivery completes. No new controller
+sequence, brake-state proof or restart-free restoration is introduced.
+
 ## Installed foreground, fault and idle-target follow-up
 
 PR #122 merged at `e166fa0`; PR #123 merged at `b3f679f` after integrating it.

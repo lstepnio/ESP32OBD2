@@ -96,3 +96,8 @@ pending note into current authorization.
 - P2 action availability copy: `ActionPagesSheet.kt` still presents “Not supported
   yet” for the owner-supervised ABS entry without live ECM context. Use the shared
   unavailable/reconnecting wording without weakening execution admission.
+
+- FEATURE-04 compact action presentation: all 14 review states approved. Dev.79/App
+  dev.56 source replaces the reconnect squares, modal ABS/fallback confirmation
+  and stacked recovery wording. Admission, durable uncertainty and actual Jeep
+  restoration qualification remain unchanged; signed device delivery is pending.

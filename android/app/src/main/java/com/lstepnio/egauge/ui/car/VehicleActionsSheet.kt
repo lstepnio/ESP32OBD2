@@ -62,12 +62,11 @@ fun VehicleActionsSheet(
                 if (idle.qualified) Text("Uses this car's fixed raised-idle setting, approximately 1,700 RPM.", style = MaterialTheme.typography.bodySmall)
                 if (state.idlePresets.any { it.rpm != null }) Text("Numeric targets remain saved drafts. Clear the target in a preset to use the verified fixed setting.", style = MaterialTheme.typography.bodySmall)
                 HorizontalDivider()
-                Text("ABS & traction control", style = MaterialTheme.typography.titleMedium)
+                Text("ABS + TCS", style = MaterialTheme.typography.titleMedium)
                 Text(abs.message)
                 if (!abs.busy && !abs.gaugeStartRequired) {
                     OutlinedButton({ confirm = VehicleCommandKind.AbsTcs to null }, enabled = state.commandsFresh && abs.canStart) { Text("Disable ABS + TCS") }
                 }
-                if (abs.qualified) Text("Use Restore on the gauge to return control, then reset the ignition while parked. Confirm the normal dash separately on the gauge.", style = MaterialTheme.typography.bodySmall)
                 if (burnout.busy) {
                     HorizontalDivider()
                     Text("Burnout recovery", style = MaterialTheme.typography.titleMedium)

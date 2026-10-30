@@ -809,9 +809,8 @@ The ready Burnout instruction **Hold brake pedal** appears only when its ready
 control is admissible, never alongside a different action's blocker. The existing
 owner recovery control remains independent when more than one record needs review;
 requiring every other Unknown record to clear first would create a recovery cycle.
-It shows **Connect Jeep** without matched ECM context, **Park and idle** while the
-stationary confirmation input is unmet, and the existing physical confirmation
-only when its scoped runtime gate passes. This changes presentation, not admission.
+The approved action presentation below replaces the old stacked connection/check
+wording. Runtime identity, stationary and recovery admission remain unchanged.
 The local stationary brake-readiness bit is interpreted only in its brake context.
 It must not trigger an idle coolant confirmation, timer clamp or **No coolant**
 warning. A ready Burnout control needs one 900 ms hold, not a hidden second hold;
@@ -913,3 +912,45 @@ a pending record may still surface its recovery face. This is compatibility, not
 an available normal action. Existing raw gauge configuration is not rewritten or
 its uncertainty erased as a side effect; a subsequent permitted App save removes
 the old menu entry. Front-lock qualification remains deferred.
+
+
+## Approved compact action presentation
+
+The owner approved all 14 states in `actions-simplified-review-1` on 2026-10-29.
+The [retained decisions](../design/gauge-ui-proposal/action-pages/approved-normalization.json)
+own that review; this section owns implementation behavior. Air up, Winch and
+ABS + TCS reuse the existing title/value/note/control face and page navigation.
+No custom reconnect glyph, normal transition ring, animation task or framebuffer
+is added. Critical shared attention retains its existing stopping indicator.
+
+- Ready idle shows its configured duration and **Hold to start**. Missing coolant
+  shows the shortened one-minute duration and **Coolant unavailable** before the
+  same 900 ms hold. That hold explicitly accepts the fallback; there is no Continue
+  page. Existing coolant protection and timing admission remain authoritative.
+- ABS availability is **Ready**, never an unverified **On**. **Hold to disable**
+  uses the same 900 ms deliberate gesture, replacing the second confirmation page.
+  Motion, touch loss, scope/state change, attention and navigation cancel the hold.
+- Running idle shows the countdown and one-tap **Stop**. Stop/verification retains
+  the last displayed countdown on this face, disables repeat requests and returns
+  quietly to Ready only when the command owner reports completion. That countdown
+  is a frozen presentation value, not a new live sample or renewed deadline; it is
+  discarded on source-scope retirement or idle Ready/Unknown.
+- Disabled/uncertain ABS offers **Restore**. Return processing stays on the same
+  face with **Restoring...**. Unknown is **Not verified**, never proof of a running
+  action or normal braking. Offline recovery shows only **Connecting...** below
+  that retained state and automatically retries through the existing connection owner.
+- An acknowledged ABS Return retains **Restart Jeep**. **Confirm reset** is a
+  single local tap only when the existing owner-mode identity/stationary gate
+  permits it. It records the human observation and sends no control request.
+  It neither bypasses restoration proof nor enables restart-free restoration.
+- Another unresolved action retains its named **Review** navigation. Legacy
+  Burnout recovery remains compatible; Burnout is still absent from normal menus.
+
+The App uses the same concise Ready/Disabled/Not verified/Restoring/reset language
+and identifies the gauge as the owner of supervised physical controls. The phone
+cannot newly Start an owner-only brake action. Wire/storage/controller commands,
+qualification flags, explicit Return, pending receipts and automatic recovery
+policies are unchanged. Publication does not qualify actual brake restoration.
+
+Website impact: defer screenshot refresh to the next normal daily window after
+device validation. This UI correction establishes no new supported vehicle action.

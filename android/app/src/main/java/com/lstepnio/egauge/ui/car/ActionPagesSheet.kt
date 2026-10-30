@@ -81,7 +81,7 @@ fun ActionPagesSheet(
                         }
                     }
                 } else {
-                    Text("Disable ABS and traction control together. Use Restore on the gauge to return control, then reset the ignition while parked and check the dash.")
+                    Text("Hold to disable on the gauge. Use Restore when finished; follow the reset instruction if shown.")
                 }
                 PrimaryAction("Done", {
                     if (selected.kind == VehicleCommandKind.Idle) {
@@ -144,9 +144,9 @@ fun ActionPagesSheet(
                         id.label,
                         if (id == ActionPageId.AbsTcs) {
                             if (state.vehicleCommands[id.kind]?.ownerSupervised == true) {
-                                "Start and Restore on gauge · ignition reset required"
+                                "Hold to disable · Restore on gauge"
                             } else if (state.vehicleCommands[id.kind]?.qualified == true) {
-                                "Restore on gauge, then reset ignition"
+                                "Disable and Restore on gauge"
                             } else {
                                 "Not supported yet"
                             }
