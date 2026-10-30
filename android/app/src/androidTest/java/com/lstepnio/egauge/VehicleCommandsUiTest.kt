@@ -24,11 +24,26 @@ class VehicleCommandsUiTest {
     @get:Rule val compose = createComposeRule()
     private fun state(phase: VehicleCommandPhase = VehicleCommandPhase.Ready, qualified: Boolean = true, runningLimit: Double? = 105.0, configuredLimit: Double? = 105.0) = CarUiState(
         "Jeep", emptyList(), "jeep", StatusUi("Example", "Fixture"), emptyList(), false, false, false, emptyList(),
-        canEditActions = true, commandsFresh = true,
+        canEditActions = true, freshCommandKinds = VehicleCommandKind.entries.toSet(),
         idleCoolantLimitC = configuredLimit, runningIdleCoolantLimitC = runningLimit,
         idlePresets = listOf(IdlePreset(IdlePresetId.AirUp, seconds = 10)),
         vehicleCommands = VehicleCommandKind.entries.associateWith { VehicleCommandStatus(it, if (it == VehicleCommandKind.Idle && phase == VehicleCommandPhase.RestartRequired) VehicleCommandPhase.Unavailable else phase, qualified = qualified) }
     )
+
+    @Test fun refreshingAnotherActionNeverEnablesAStaleIdleControlOrConfirmation() {
+        var fresh by androidx.compose.runtime.mutableStateOf(setOf(VehicleCommandKind.Idle))
+        var commands = 0
+        compose.setContent {
+            EGaugeTheme { VehicleActionsSheet(state().copy(freshCommandKinds = fresh), {}, { _, _, _ -> commands++ }, {}) }
+        }
+        compose.onNodeWithText("Air up").assertIsEnabled().performClick()
+        compose.onNodeWithText("Confirm").assertIsEnabled()
+        compose.runOnIdle { fresh = setOf(VehicleCommandKind.AbsTcs) }
+        compose.onNodeWithText("Confirm").assertIsNotEnabled()
+        compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithText("Air up").assertIsNotEnabled()
+        compose.runOnIdle { assertEquals(0, commands) }
+    }
 
     @Test fun readyBurnoutIsHiddenFromNormalActions() {
         compose.setContent { EGaugeTheme { VehicleActionsSheet(state(), {}, { _, _, _ -> fail("No command expected") }, {}) } }

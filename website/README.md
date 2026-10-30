@@ -4,6 +4,8 @@ Static source for [egauge.majjix.com](https://egauge.majjix.com/). Keep the exis
 visual style and contact forms. Product claims follow the authorities listed in
 [content.json](content.json); update its review date only after checking those sources.
 Catalog size is derived from the reading contract, not a vehicle compatibility claim.
+Material claims carry named audience, availability, implementation source and evidence.
+These are authored judgments for review, not a claim that a file path proves truth.
 Gallery choices/captions/alt text and action availability are build-time fields in
 `content.json`, traced to source authorities. The builder escapes visible text and
 checks referenced images; no extra runtime fetch or dependency is used.
@@ -53,12 +55,47 @@ change, including accepted owner feedback, priority changes and usability improv
   jobs to the default build/CI path. Record successful publication time, source
   commit and private backup location in the deployment receipt/task outcome.
 
+## Brand and editorial direction
+
+Present eGauge as Luke's hands-on demonstration of thoughtful software on capable,
+affordable hardware. The personal brand is expressed through clear design decisions,
+real progress and useful experiences. Confident, curious and occasionally playful
+copy fits; generic superlatives and promises of universal compatibility do not.
+
+A useful narrative is: **Small hardware. Thoughtful software. Built around you.**
+Follow it with a concrete outcome, a current screen or short interaction clip, and
+a clear invitation to try the development platform or discuss a custom project.
+Use the existing Lukasz (Luke) Stepniowski credit and profile links. Do not invent
+credentials, customers, testimonials, performance results or a larger team.
+
+- Lead with what someone can do and why it is interesting. Explain engineering only
+  when it helps them choose hardware, understand availability or take the next step.
+- Show the product first, then a short build story: problem, design choice, observed
+  result and what is next. Link GitHub evidence for readers who want depth.
+- Distinguish **Available on the development platform**, **Being tested**, and
+  **Exploring** in relevant sections. An owner-only installed action is not public
+  support. Pair each material claim with its source/evidence reference in content
+  metadata; a file existing is not proof that the claim is true.
+- Keep labels understandable and scoped. Avoid a wall of caveats, but retain material
+  limits next to the relevant claim rather than hiding them in a footer.
+- Share the same App/gauge assets with GitHub. Use real production-rendered states,
+  circular gauge presentation, consistent colors and legible crops. Keep technical
+  provenance off the hero; future concepts must still be identified as future work.
+- Refresh the public roadmap around outcomes, using owner priorities and evidence.
+  Avoid release-number diaries, speculative dates and a list of every internal task.
+
+Before publication, answer: is this useful, distinctive, visually convincing and
+supported by the current implementation/evidence for the audience named? If not,
+rewrite or defer that item. The [product delivery loop](../docs/documentation.md#product-quality-and-public-story)
+connects this editorial review to feature work. It does not authorize automatic
+LinkedIn posts, testimonials or changes to customer consent.
+
 ## Build and preview
 
 Use the repository Python environment from the [root setup](../README.md#development):
 
 ```sh
-python tools/build_website.py --check
+python tools/build_website.py --check --review-report artifacts/website-review.json
 python tools/build_website.py --downloads artifacts/website-downloads --output artifacts/website-preview
 python3 -m http.server 8771 --bind 127.0.0.1 --directory artifacts/website-preview
 ```
@@ -77,16 +114,56 @@ App images come from the existing Compose capture procedure in
 [quality guidance](../docs/development/quality.md). Gauge images use the production
 LVGL host renderer and [gallery exporter](../tools/render_gauge_gallery.py).
 Both live in `docs/assets/`, shared with the GitHub README. Captions use screen names.
-The current App marketing set uses 390 × 844 dp production composables at density 2
+The Gauge/Car/Settings marketing set uses 390 × 844 dp production composables at density 2
 (780 × 1688 pixels), ordinary three-tab navigation and synthetic example data;
-`docs/assets/app/marketing-provenance.json` records its source and hashes. This is
+`docs/assets/app/marketing-provenance.json` records its source and hashes. Actions uses a native modal screenshot at1080×1920; its separate capture method is recorded there. This is
 not physical-device or vehicle evidence. Native gauge captures can use the existing
 host CMake option `EGAUGE_HOST_RGB565=ON`; default test rendering remains unchanged.
 The gallery exporter includes Dual + arc and the current combined CEL/threshold
-frame. Preserve native files; do not upscale a 240-pixel panel to invent detail.
+frame. Preserve native files; do not upscale a 240-pixel panel to invent detail. The gallery exporter keeps visible RGB pixels and makes nonexistent circular-panel corners transparent, so the same files work on GitHub and the site.
 The site publishes WebP alternatives for the large future concepts with PNG fallback.
 The dated `review/` report/captures record this audit and its verification limits;
 they are not a second feature-status authority.
+The builder requires hash-matched provenance for every placed App/gauge image,
+including dynamically selected gallery screens. Relevant renderer, layout, theme,
+resource and capture-harness inputs are hashed at the recorded capture revision.
+A changed, added or removed input creates an item in `site-review.json` and the
+manifest. Offline `--check` reports these items without recapturing; deployable
+builds reject unresolved items and pending representative captures. Asset age by
+itself never requires a new capture. This remains an inexpensive check, outside
+normal firmware and App capture/build work.
+
+For each changed-input item, inspect the actual diff and represented states. If the
+image changed, run the existing production capture/exporter and update its entry
+hash and capture input baseline, recording source revision, renderer/options and
+synthetic-data limits. Preserve the shared `docs/assets/` images used by GitHub.
+Never replace old input hashes with current hashes merely to pass the check.
+If the visible represented states remain equivalent, retain the capture baseline
+and add `equivalenceReview` to that provenance JSON: `reviewedOn`, a specific
+`reason`, repository `evidence` paths, and `sha256` containing the exact current
+relevant input map. That acknowledgement accepts only those bytes; subsequent
+drift reopens review. A date or source commit alone cannot acknowledge it.
+
+Material copy used through `CLAIM_*` tokens has a mandatory `claims` record;
+`claimScopes` names the audience and availability, and each claim/action status
+links implementation sources plus evidence. The manifest includes these records
+and the full image metadata. Review semantics and audience before changing copy:
+ordinary public controls remain disabled, owner-only candidates are separate, and
+Burnout is paused.
+`claimInputProvenance` holds one shared SHA-256 map for claim sources, evidence and
+source authorities. Missing baseline/review metadata fails the check. Changed,
+newly referenced or removed sources create `changedClaimInputs`, listing affected
+claims and the exact current hash map, and block deployable builds. Inspect the
+actual changes against the named audiences and availability, revise claims when
+needed, then update `reviewedOn`, a specific semantic-review `reason` and `sha256`
+with the report's current map. Do not rehash sources merely to make publication
+pass. The metadata check remains fast and reports unresolved drift without
+claiming it was reviewed. Keep repeated action availability in `actionAvailability`, never
+as independently maintained HTML assertions. `pendingCaptures` is the explicit
+publication gate for missing representative views, not permission to use stale
+screens. Clear it only after saving/reviewing the production capture or deciding
+with the owner that the view is outside the public batch.
+
 Future road-awareness illustrations are stored separately in `future/` and must
 remain explicitly described as unavailable future concepts.
 

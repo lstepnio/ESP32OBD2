@@ -1,5 +1,7 @@
 package com.lstepnio.egauge
 
+import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.Executors
@@ -8,9 +10,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SocketIoTest {
+    private fun server() = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).apply { soTimeout = 2_000 }
+    private fun client(server: ServerSocket) = Socket().apply { connect(InetSocketAddress("127.0.0.1", server.localPort), 2_000) }
+
     @Test fun cancellationClosesSilentSocketAndReleasesWorker() = runBlocking<Unit> {
-        ServerSocket(0).use { server ->
-            Socket("127.0.0.1", server.localPort).use { client ->
+        server().use { server ->
+            client(server).use { client ->
                 server.accept().use {
                     val entered = CompletableDeferred<Unit>()
                     val task =
@@ -20,7 +25,7 @@ class SocketIoTest {
                                 client.getInputStream().read()
                             }
                         }
-                    entered.await()
+                    withTimeout(2_000) { entered.await() }
                     withTimeout(1_000) { task.cancelAndJoin() }
                     assertTrue(client.isClosed)
                 }
@@ -29,8 +34,8 @@ class SocketIoTest {
     }
 
     @Test fun cancellationAlsoUnblocksAWriteUnderBackpressure() = runBlocking<Unit> {
-        ServerSocket(0).use { server ->
-            Socket("127.0.0.1", server.localPort).use { client ->
+        server().use { server ->
+            client(server).use { client ->
                 server.accept().use {
                     client.sendBufferSize = 1024
                     val entered = CompletableDeferred<Unit>()
@@ -40,7 +45,7 @@ class SocketIoTest {
                             client.getOutputStream().write(ByteArray(8 * 1024 * 1024))
                         }
                     }
-                    entered.await()
+                    withTimeout(2_000) { entered.await() }
                     delay(30)
                     assertTrue(task.isActive)
                     withTimeout(1_000) { task.cancelAndJoin() }
@@ -51,8 +56,8 @@ class SocketIoTest {
     }
 
     @Test fun partialResponsesCannotExtendTotalDeadline() = runBlocking<Unit> {
-        ServerSocket(0).use { server ->
-            Socket("127.0.0.1", server.localPort).use { client ->
+        server().use { server ->
+            client(server).use { client ->
                 server.accept().use { peer ->
                     val executor = Executors.newSingleThreadExecutor()
                     try {
@@ -85,8 +90,8 @@ class SocketIoTest {
     }
 
     @Test fun successfulExchangeKeepsSocketAndFailureInvalidatesIt() = runBlocking<Unit> {
-        ServerSocket(0).use { server ->
-            Socket("127.0.0.1", server.localPort).use { client ->
+        server().use { server ->
+            client(server).use { client ->
                 server.accept().use { peer ->
                     peer.getOutputStream().write(byteArrayOf(9, 8))
                     assertEquals(9, socketIo(client, 1_000) { client.getInputStream().read() })

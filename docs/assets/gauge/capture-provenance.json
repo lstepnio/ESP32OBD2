@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "083b0013363a697ab832179ee1af71b4456ca181",
-  "renderer": "Production LVGL9.2.2 and fonts via host fixture; RGB565 at240x240, expanded RGB PNG",
+  "sourceCommit": "a4341d6328fa70f4e4c6ba1c90515763ba4ad8e3",
+  "renderer": "Production LVGL9.2.2/fonts via RGB565 host fixture at240x240; visible RGB preserved, circular panel corners transparent",
   "data": "Synthetic source fixtures, not hardware/vehicle evidence",
   "candidateOptions": {
     "EGAUGE_HOST_RGB565": true,
@@ -9,39 +9,185 @@
   "entries": [
     {
       "file": "action-active.png",
-      "sha256": "0fbf00be5c92132c5e9b5efc82f70bfa43782c09c24357f0a723858ef077a425"
+      "sha256": "e74a115a65fefb0312b74506aa3073bbc27382611c873a632b0675ee405e31d3"
     },
     {
       "file": "action-ready.png",
-      "sha256": "72ead36544ec4409a7fa8f1fef95e882426b54cedcfcc1f4c5d79096eb774b19"
+      "sha256": "e8b60512025257e56ef9a71debef0024b9c1a1c00d72540dec01ab824589713f"
+    },
+    {
+      "file": "action-recovery.png",
+      "sha256": "b809b5fedc613f6cbe79ed05d77e8fd785064eec18c7e8b2fc910ef330a3dcfd"
     },
     {
       "file": "alerts.png",
-      "sha256": "1beea1a58dccf4518066b863a5f63de0274a0cf23cab2e6ae6930de7b1afa9b4"
+      "sha256": "c1c364b21fbfe50433c4190d5bb741d33b13d78256876bda2e9fd12bb414b0f5"
     },
     {
       "file": "arc.png",
-      "sha256": "6a6ff1939c7c82a3aebe0a1137400e11bdc95e9524724d8158f853d4e9676686"
+      "sha256": "8092107ed59d4d7e190cf3ea1e2d61cf1d98082419fd7a1060fb5dcc5202c1bd"
     },
     {
       "file": "bar.png",
-      "sha256": "6d5991d465bb5f68db70566ce13a73e6610cce45325dffc7cb19da52ffc9b007"
+      "sha256": "afe919b23446010148ab90444501f5312e12a34b7a43021d12a6d8a4f2d7868f"
     },
     {
       "file": "dual-arc.png",
-      "sha256": "f8e0a5f39a8f6eab3f81de6cd8ac693a7ffc705cfdc98702cc234601f79c6702"
+      "sha256": "6795f671e77a475d53ecdbed9ad009d9b69852b49dddb7eaae4367bee72d159f"
     },
     {
       "file": "dual.png",
-      "sha256": "b62fb39930b5243050e6381b55df27d771c64e8cc57f28ac7557770f5b7bec42"
+      "sha256": "55a3fc28a49292c3fe4dbe0e3b6547504422533812b5164117db8f73c2d012ce"
     },
     {
       "file": "numeric.png",
-      "sha256": "06a75d12d91dc8a092bcb317c8e20b5566cc726e600e3d6e85b9460bae4bf429"
+      "sha256": "305c4f96aab478adc208478a95fe2218a8e5916308ce79b325c94845cb2563ef"
     },
     {
       "file": "trend.png",
-      "sha256": "3900ea75617dbf888907f66703bd56a661bc2821d3bd4f2e3136d03626fe0958"
+      "sha256": "ad25985dd4227c0e1ffb28e0814af6c1c661aee845e29d723951328bab783f23"
     }
-  ]
+  ],
+  "inputProvenance": {
+    "revision": "bf5ad0ab663445056319febe8aecffcd3927a6b5",
+    "paths": [
+      "firmware/gauge/main/src/ui.c",
+      "firmware/gauge/main/src/gauge_presentation.c",
+      "firmware/gauge/main/src/gauge_presentation_reference.c",
+      "firmware/gauge/main/src/gauge_layout.c",
+      "firmware/gauge/main/src/reading_presentation.c",
+      "firmware/gauge/main/src/trend_curve.c",
+      "firmware/gauge/main/src/gauge_surface.c",
+      "firmware/gauge/main/src/display_showcase.c",
+      "firmware/gauge/main/src/display_idle_policy.c",
+      "firmware/gauge/main/src/display_units.c",
+      "firmware/gauge/main/src/page_action.c",
+      "firmware/gauge/main/inc",
+      "firmware/gauge/main/fonts",
+      "firmware/gauge/tests/ui_host",
+      "firmware/gauge/cmake/presentation.cmake",
+      "firmware/gauge/assets/fonts/sources.cmake",
+      "tools/render_gauge_gallery.py"
+    ],
+    "sha256": {
+      "firmware/gauge/assets/fonts/sources.cmake": "af0d2810752f3acde11eb8f006ee707aa1daf7318863903d9235d502e10b4eb2",
+      "firmware/gauge/cmake/presentation.cmake": "1a2affef467c8dfadc9205cc05b1725c1a05ba4e26e7679c612fe6d7cec6b4bf",
+      "firmware/gauge/main/fonts/notosans_medium_16.c": "ab4822d247da60c4aa55d9a8e9a7f51b31d3ee43b29496e8d14eb46ad0539fa0",
+      "firmware/gauge/main/fonts/notosans_medium_24.c": "5f778dd620048bf4dee3fca1eddfba744a4b1bffadc6eb24aab1fa260089b9fa",
+      "firmware/gauge/main/fonts/notosans_semibold_32.c": "7c665450e0de481d2705dc9ccd6cbc1d32ebdad8446b0bbd6f982e02c412f891",
+      "firmware/gauge/main/fonts/notosans_semibold_40.c": "485032fcd9983fcd5915db0980515b01a00db19010e2595d3dd8678e6e043509",
+      "firmware/gauge/main/fonts/notosans_semibold_48.c": "f5c7bbcab3b0a3f29bf6e3e2c6487683a2c813c74fb16bcb9735361781857727",
+      "firmware/gauge/main/fonts/notosans_semibold_64.c": "38e6ff7c6fbdb0819aa6b59c13a277884c21d43f45bacb4e5f1c36eb0a1d406a",
+      "firmware/gauge/main/inc/adapter_registry.h": "49061120d930a8db937f1aaf9304977ef081ba449aac54b53ae7df4ebe9f018b",
+      "firmware/gauge/main/inc/adapter_role_policy.h": "f3ec9d5c0c8c39b04cb35ac3433fae54a59a48b6b120c2f0464c07e208a0b48f",
+      "firmware/gauge/main/inc/adapter_status.h": "68a08ce0ec761a521b5fcb5574433aeb27f1fc00e07d1bdee6d7d3da05cc9b04",
+      "firmware/gauge/main/inc/alert_engine.h": "ce6fda7b3236b6103467c5ea47f72147ceaca0ee69ab515b2ff89f23217e08d4",
+      "firmware/gauge/main/inc/alert_events.h": "9667712631eaf1655338843e36025ac843c28497e4480bed62a7b3f8f277e010",
+      "firmware/gauge/main/inc/alert_runtime.h": "7b6eddb5bb35c1fd7b3670a049dbb4ef48af175066a9c4355eace13cb709cd7f",
+      "firmware/gauge/main/inc/ble_companion.h": "6b9643e5cf1549cd490d54a3959b4421390033b75bb6ee30192e2c43a9ecc95d",
+      "firmware/gauge/main/inc/ble_init.h": "4c2d022adcc0b2c1e6567771308040a8aaaf7445a6191fa9bbd9a2daf97dc5d0",
+      "firmware/gauge/main/inc/ble_mgr.h": "2e2db377e2d565586ce7d6b2c143fdbddb151fc54aaa9338b8cdcf72cf142572",
+      "firmware/gauge/main/inc/ble_obd.h": "0ad2a795cc57c2ec12acb8466d77613af8dd720754b223834eacdea9a1ebee0c",
+      "firmware/gauge/main/inc/ble_recovery_policy.h": "f602239f99ec02baa1657e74b75407aa5b8c4d78eb13a77c2c80b4f042ae9d1a",
+      "firmware/gauge/main/inc/ble_security_policy.h": "cb1178b2531714213d487586bac1d94a45bd66f3cb8ab5268d67b8715b57e70d",
+      "firmware/gauge/main/inc/ble_util.h": "6afc1dbb9f68f34eecd6cb62f948d56f1807eb429421a2e6f65bed85e0ab6a08",
+      "firmware/gauge/main/inc/boot_health.h": "e5c5e66a8b9daaccad421898dc29f9553abec5b7ae8d438251cda3b99a5105e2",
+      "firmware/gauge/main/inc/companion_gatt_read.h": "7403a44fd3e299f4dc9c1313e2bd750ecf7a75aef07a72435afae051bacccbb3",
+      "firmware/gauge/main/inc/config.h": "8efe67ba14a2d350fa7acee1119d0873091697021b904f75c71e80ae574a74ba",
+      "firmware/gauge/main/inc/config_document.h": "817b2c09f26bdb8c7ad565e02babeed9110733916d52b97b94cecb7914dacd3c",
+      "firmware/gauge/main/inc/config_runtime.h": "fc170dd5ede69a99aae77b9bc2f4b2f4812cc47506c24c942c65c3a89a60d6e7",
+      "firmware/gauge/main/inc/config_store.h": "88681ad220ee632c129584510e9c0d3a0959f90fbf32d49952bded313d5b73d9",
+      "firmware/gauge/main/inc/config_transfer.h": "63aa617254db6358d7b1adeee381f765419550212ac151918325b7eaec3a626d",
+      "firmware/gauge/main/inc/config_trial.h": "979626652d1296fad2570222bb3bbab987e0afbfc1b868ad6974587daa3d6bdb",
+      "firmware/gauge/main/inc/config_trial_policy.h": "e081442c2b624d303494a9d82d2c67b05b805bf4e6947133ef41d4413d755a7d",
+      "firmware/gauge/main/inc/diagnostic_alerts.h": "fbb242e868fa82595f3eaf50b20c67cba86e4211ef98c898d0e86f8ab07fac28",
+      "firmware/gauge/main/inc/diagnostic_clear.h": "16e97226e6edd12133220684399301df67c9767a9b388ae35e8a510cdd961312",
+      "firmware/gauge/main/inc/diagnostic_filter.h": "9ac0bb9a141eb00f492d003d45efcfa0ea9e56648607d669d629a2dd9fc5ac35",
+      "firmware/gauge/main/inc/diagnostics_state.h": "4cf52144e13bab3610df152821cef755319bc64a557e8517080caf9d8d3beaa4",
+      "firmware/gauge/main/inc/display_idle_policy.h": "0431da3c4c9352711eedbfef7835c21401c4761fcf29b79960ff84645d9b7777",
+      "firmware/gauge/main/inc/display_settings.h": "0181bd73a4047b20ec85b7ee21e6436e2103aa874a5650394c39f8138aba4ea1",
+      "firmware/gauge/main/inc/display_showcase.h": "3d4bcebe448b8b0e6f03fb7bcb81fdf22dd7dfae1269ed936a9911517379a82c",
+      "firmware/gauge/main/inc/display_units.h": "e801e513c679d05df568201ea3f21b2b642ba7b8ad409b9f2058e7ffa5626e7b",
+      "firmware/gauge/main/inc/elm_response.h": "be9ec803afd1641d64169e2ecbbdc0afd8a701a9b070bad39072209307b3fe2b",
+      "firmware/gauge/main/inc/gauge_board.h": "baf9ddb2b854ddbd8a36b2c1c288be3eae1ef08aef9e1ebd4cf547ea03e72834",
+      "firmware/gauge/main/inc/gauge_gear_colors.h": "68a027db258e20a72fb56e67d9557cc5f2660a4af4fcfaec2b2d74a5a86a865f",
+      "firmware/gauge/main/inc/gauge_layout.h": "1ad39f9b519a3a1bc7b4d16fbb9d2fa31c26aca08d7c6ab8841b2ff3095c8512",
+      "firmware/gauge/main/inc/gauge_presentation.h": "28c8374d4b36c86df93af952a16c592ac0351739ef70c064b46438eaf5a43f3c",
+      "firmware/gauge/main/inc/gauge_surface.h": "48cffcac2295c471a8fd0747f6eff9eb5750e17fdc8c30fc921c8d3f2c15adfb",
+      "firmware/gauge/main/inc/gauge_symbol_paths.inc": "1adde361b886c2be54da2c9b859e57488887e3c1fe9b5623f27d643611e93c27",
+      "firmware/gauge/main/inc/hardware_probe.h": "0cba119c59cdd5140558b9e0272e373499c9d1f2b548d490d5896b23550ea2d6",
+      "firmware/gauge/main/inc/jeep_abs_tcs_driver.h": "ef799b0718003b1502e11428e1746f61de49bbd3eb340a644dbb503ae72e0187",
+      "firmware/gauge/main/inc/jeep_idle_driver.h": "b2e58a9b3627e2d026500a12d21d598754af71c65e0215f0755b1b37f6227c2f",
+      "firmware/gauge/main/inc/jeep_idle_parked_test.h": "c53b52f580f730fc213477cdc6d8fa2f4e07d49b3b4ead6668a768db43b0c53f",
+      "firmware/gauge/main/inc/json_guard.h": "e506639b96420d86e2f02f541d4fd1bcdc07a54ff26e02f4e73c5b3e6cc543ba",
+      "firmware/gauge/main/inc/memory_health.h": "581caa759ff9999ba45bd564e1cc7b607e441a77c9fcaec1da4f205cca1c5d67",
+      "firmware/gauge/main/inc/obd.h": "1dcc810699f1c8a0594a7b7f2e7fa6a6d7beea00f36f113c7cf5caeeee402c25",
+      "firmware/gauge/main/inc/obd_adapter_profile.h": "fa633a51e4ad0b5d1f9ff4b2654d03b9129c2c1f7ce88e5fa432513e33d8a71d",
+      "firmware/gauge/main/inc/obd_trace.h": "d91bc344e1e19a1e2f175bff15c499488dae417ca1f46589047b14222e7189e0",
+      "firmware/gauge/main/inc/obd_wait_policy.h": "a1ee4eac232ed35b7c5cfe968e975dabbac679dd9c76154cad69c1f11d3300f2",
+      "firmware/gauge/main/inc/orientation_policy.h": "b60cbf9a424e8ce9b87f6a1821ed78ae90bdf38ffb76378c0615fe2d00829df0",
+      "firmware/gauge/main/inc/orientation_runtime.h": "2f9301dd8f5a404199f840b27bfb235e5af444cfe2588a66b95ad4790d296567",
+      "firmware/gauge/main/inc/ota_recovery_policy.h": "cec7da2d3e2ec548e9ac593dec7838745a694779fa23356a19906377f0964cce",
+      "firmware/gauge/main/inc/ota_transfer.h": "374ce984cd0f74531c6398fdb76bb7906c447b5852bf1ef52ca55d9b95e86236",
+      "firmware/gauge/main/inc/page_action.h": "b5fe82e3c9a648ea8d1e7aca0bdcbe6f7272cb413e6f1b662def6d14c49a6ea9",
+      "firmware/gauge/main/inc/page_save_policy.h": "9fbe32ef33c5d07528b0b6dbdf4312435ac3f3f422a92d2face7f75e62e18dcd",
+      "firmware/gauge/main/inc/pid_decoder.h": "242a79c3a5176aa20df3d9557d0291b94523e5a1a04f1fac779c9409bc17e92c",
+      "firmware/gauge/main/inc/poll_scheduler.h": "bf3e924de07ec14b50121808897959a754a377b395cbb7a63ecff1306f78f99d",
+      "firmware/gauge/main/inc/reading_policy.h": "2801469bb75f6c1285941a88fb4a36bf5ac1544a3e3cec411fe4654707e560b8",
+      "firmware/gauge/main/inc/reading_presentation.h": "f640b4bc8b820e2aa97454014cff85057b0c25361bee95d6ee38f1358ef71182",
+      "firmware/gauge/main/inc/smart_metric_catalog.h": "07616d942b72242c337edab13344475eb7df6a83e7f122fe5453e64f48f62a0d",
+      "firmware/gauge/main/inc/smart_page_policy.h": "70270d51b3b25e38a9bf01a7d9ba781e9e4382e34440e6424420ced8ec025817",
+      "firmware/gauge/main/inc/temporary_idle.h": "8775db3517285b70077acb779bb29b426c9403fb4ab4ac5f1cb741d3de7ece27",
+      "firmware/gauge/main/inc/transfer_gate.h": "e7ea8274a7b69826b3334e25478f84b3f41624c8eb78f029b29337745ac2c6f0",
+      "firmware/gauge/main/inc/transmission_gear.h": "de0bbbe7cebf63f6b1ba5839f3fb8daa468218f62a16af1ce23f4cedcca5dd5f",
+      "firmware/gauge/main/inc/trend_curve.h": "38215e8eed651a91b2a8156700b2fb471f46472c8f0aedf4ea52f96e890083e5",
+      "firmware/gauge/main/inc/ui.h": "042e9bd9a430b9139a5323f95c86446167631cb833634e0f27867b94a3e75fd2",
+      "firmware/gauge/main/inc/util.h": "29f48af496e35dfd90d040d3fa088652fed30c95da8fa6451d95263d843107ba",
+      "firmware/gauge/main/inc/vehicle_commands.h": "f56a39fc5dc7da4c9a5fc6b9b960fa97648fa8e7d4dba0abad9aa73d22baa50e",
+      "firmware/gauge/main/inc/vehicle_commands_runtime.h": "9248126f05104a6e31e64f3461b6c2bf50e3b8608a19547a3903f59bb7b401ee",
+      "firmware/gauge/main/inc/vehicle_idle_coolant.h": "489fc82b17044835b050abbfd16faf48b61c8339e8d9919d60088b77f02a5118",
+      "firmware/gauge/main/inc/wifi_bulk.h": "f53c0303abb83d3417afcfeb8cc0aa597cf6aaa69a70025cf953b97f53b6f1ca",
+      "firmware/gauge/main/inc/wifi_bulk_io.h": "06967d6ada5eaf0e679400af76f9a266946d86067bee00094304690b997b637d",
+      "firmware/gauge/main/inc/wifi_bulk_policy.h": "db00ae5c3a3c381a4eebf81cd56f0d2961f830b2decc953aff5032201ab489b6",
+      "firmware/gauge/main/inc/worker_health.h": "c4176b6f49b7384032b27b3b50be14ed6fa6b169e40d0127abfecf1b5d80022d",
+      "firmware/gauge/main/src/display_idle_policy.c": "bd4d3bc3b1a50f09dff2e326aa4a5b7d9477cad4bebefd9cb08d64867ed693a6",
+      "firmware/gauge/main/src/display_showcase.c": "4ba214662d0bb7417c4034a629e5102d944b8a3052a0c5c1ce84275c2de88a21",
+      "firmware/gauge/main/src/display_units.c": "a2808c609eb367a2264f6f38a9c65639272090de22fbd0eeb6aa86c4dbdf33b0",
+      "firmware/gauge/main/src/gauge_layout.c": "ab55264c29c7ce675a7108cdfadf8da47cdd5f8b19220eb228096bb95227c88d",
+      "firmware/gauge/main/src/gauge_presentation.c": "c901b0eba52333fcc6a1d22dc750c875452e3e9960869ce7b95bc7352bf43274",
+      "firmware/gauge/main/src/gauge_presentation_reference.c": "a3bb876902a8b9de3a7b98de477391593e93455c6c889dfc0838523ef6bbad77",
+      "firmware/gauge/main/src/gauge_surface.c": "f32fc6bbff65b22382d53e308076cb82072b1e8611fa5c60e80f651de90f4379",
+      "firmware/gauge/main/src/page_action.c": "aec32811972f9572bff9079a74855501318f82f6a899462dde60f9bed2d01ada",
+      "firmware/gauge/main/src/reading_presentation.c": "f20e91a695ccabbc771f7b9b006bed2cfc6ad718abc71f545450c4bc13939162",
+      "firmware/gauge/main/src/trend_curve.c": "bcab8f89ecdefeb1dda7f8ebf1c83625123efc8f940696fcb80769a37e4cb1b7",
+      "firmware/gauge/main/src/ui.c": "a3e90d0d05bb6eb7fa686dfb18e369295b807d9f2659267b271c308ab2637478",
+      "firmware/gauge/tests/ui_host/CMakeLists.txt": "a0dc58da8533248b0a70fc7b2d540ea3e520620c43665c908cc63f46a130a61a",
+      "firmware/gauge/tests/ui_host/gesture_regression.inc": "8c7b447350a8e89065d9031240445879c80b938a043bfbac938b7d700fe1b0b2",
+      "firmware/gauge/tests/ui_host/lv_conf.h": "9febe67c6853174c32159bdf4a1271b5819439fa205d486c6195162bc877fda1",
+      "firmware/gauge/tests/ui_host/stubs/ble_mgr.h": "870822b00df8f4935eb2cc0ace8b6f6313f1ad4b387c551cdeab8c6297960822",
+      "firmware/gauge/tests/ui_host/stubs/esp_err.h": "b659e5e2f875eb1bb5c06f374a8a735c1379671d8860ef394f0958b39307f50f",
+      "firmware/gauge/tests/ui_host/stubs/esp_heap_caps.h": "ed5cc4e031e90edc4f560b80c6d4306d1107325a9a7646c31563d1b6eb40395a",
+      "firmware/gauge/tests/ui_host/stubs/esp_log.h": "7f9aa63a8dc3ab2c774520fffbaf7e12adc9270a4efa447bbbb0f4edd2dd1146",
+      "firmware/gauge/tests/ui_host/stubs/esp_log_color.h": "b3adf106d95b8934f690943f2921308b90be5b766c4c8ba250c792de56400201",
+      "firmware/gauge/tests/ui_host/stubs/esp_lvgl_port.h": "f5204a4cf7b4ffc46e5307a6993b18dc267f75d9298b9c41f06ed938d79e8fc6",
+      "firmware/gauge/tests/ui_host/stubs/esp_partition.h": "9eb85a7e6a221c79fdc0bdb3a4c105a85750836613e3677e77ba263060007db1",
+      "firmware/gauge/tests/ui_host/stubs/esp_timer.h": "6721d9476ef6b62e171488b966e298a8fa9fda16e4cef7aa1375a0e95333e029",
+      "firmware/gauge/tests/ui_host/stubs/freertos/FreeRTOS.h": "54199ececb104375af43aab5fc3e02f09715319bc3bfcc9df1d130e94dabec39",
+      "firmware/gauge/tests/ui_host/stubs/freertos/projdefs.h": "eaf5283b1ab35f4c3a3312f4172c4968e16ba9754d5355f5c7be159d23182017",
+      "firmware/gauge/tests/ui_host/stubs/freertos/queue.h": "d85fa954cea180066d2c9a0f9af2364c53ecaab956d5fb49ec112d77e5a077ae",
+      "firmware/gauge/tests/ui_host/stubs/freertos/task.h": "b376e7feafbe3afded20bc53230438d4435302de6d6856ae48cdbd216ca85cce",
+      "firmware/gauge/tests/ui_host/stubs/portmacro.h": "f050e65ba1b7ae07942ec43cf0589675bb4ff7475aa154f23f50982204921460",
+      "firmware/gauge/tests/ui_host/stubs/sdkconfig.h": "68406ac34e5616a424a4137191598e92441e221680d8e1c1caff30446f453aa6",
+      "firmware/gauge/tests/ui_host/stubs/util.h": "3835e23455df29249bf62678f08430b2b8805cb9c0095f7b5f8280bdd1d6a752",
+      "firmware/gauge/tests/ui_host/ui_render_test.c": "ef1acbf3f6c23a4475914ad4520aac1a40ecea3b7b185aae871261bb46843c90",
+      "tools/render_gauge_gallery.py": "f2764334c567393932a3057051f8896caa0d5ae55c193b072d1865e6e83d8bc9"
+    },
+    "reviewPolicy": "Capture baseline from the actual current production render. Changed inputs need semantic review or recapture; age alone does not require recapture."
+  },
+  "previousCaptureRevision": "083b0013363a697ab832179ee1af71b4456ca181",
+  "capturedOn": "2026-10-29",
+  "command": "CMake EGAUGE_HOST_RGB565=ON EGAUGE_PARKED_IDLE_TEST=ON; gauge_ui_render artifacts/website-ui-renders; tools/render_gauge_gallery.py --frames artifacts/website-ui-renders",
+  "dependency": "Existing pinned LVGL managed component reused from action-ui-approved checkout, without dependency changes",
+  "exportSourceCommit": "bf5ad0ab663445056319febe8aecffcd3927a6b5",
+  "exportedAtUtc": "2026-10-30T06:15:30.081409+00:00"
 }

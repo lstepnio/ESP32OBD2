@@ -158,7 +158,15 @@ def host(action):
         run([Path(sys.executable).parent / "ruff", "check", *tracked_files((".py",))])
         run([sys.executable, "tools/validate.py"])
         run([sys.executable, "tools/platform_policy.py", "--check"])
-        run([sys.executable, "tools/build_website.py", "--check"])
+        run(
+            [
+                sys.executable,
+                "tools/build_website.py",
+                "--check",
+                "--review-report",
+                OUTPUT / "website-review.json",
+            ]
+        )
         for source in tracked_files((".js",)):
             run(["node", "--check", source])
         run(["git", "diff", "--check"])

@@ -424,7 +424,24 @@ with restored ABS/TCS. Burnout Mode uses a distinct typed procedure and never th
 fixed queue has four entries; callbacks only enqueue and snapshots use a short
 critical section. Driver buffers, IO scratch and the sixteen-record event ring
 are fixed external BSS in PSRAM. No task or control-time heap allocation is added.
-The child worker keeps its independent transport and scheduler.
+The child worker keeps its independent transport and scheduler. A full action
+queue explicitly rejects the submission and increments the existing primary
+adapter (`WORKER_ECM`) health queue-drop counter, including local owner
+confirmation. Admission rejection schedules no retry or replay. Validation and
+policy refusals before queue admission are not queue drops.
+
+The native `parked_idle_runtime_test.c` fixture runs the production worker with
+separate staged and committed NVS bytes, independent read/write-open, set and
+commit failures, and simulated reboot boundaries immediately after set or commit.
+It checks that failed writes retain the prior committed marker, failed clears
+remain unresolved after reboot, queued RAM intents disappear on reboot and a
+committed unresolved operation recovers only through read-only evidence. Queue
+saturation/drain covers Start, Stop and owner confirmation; a combined scenario
+adds cached UI/reservation queries, maintenance exclusion and link retirement
+during read-only recovery. The fixture uses deterministic fake adapter time;
+it establishes neither physical flash interruption behavior nor loaded radio,
+UI/source/recovery latency budgets. Those remain hardware qualification.
+Website impact: this hardening adds no public capability or marketing claim.
 
 A versioned NVS uncertainty marker is committed before any control leaves the
 worker. Failed/malformed/newer journal reads refuse execution without overwriting

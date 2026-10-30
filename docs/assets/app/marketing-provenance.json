@@ -1,16 +1,14 @@
 {
-  "captured_at_utc": "2026-10-29T06:44:18.852095+00:00",
-  "source_commit": "083b0013363a697ab832179ee1af71b4456ca181",
-  "runtime_source_equivalent_to": "62d1e4b (git diff of main/debug/core/Gradle inputs empty)",
+  "captured_at_utc": "2026-10-30T06:10:15+00:00",
+  "source_commit": "ebdaf6b0de82d7d6e5db38a18c91528c71fa7197",
   "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
-  "harness_sha256": "547492257c283683ea6f6ae4a416ded46929278a3de7b045d4356e340b55af4a",
-  "capture_method": "Compose captureToImage, managed ciPhone API35 google_apis arm64-v8a Pixel2, SwiftShader indirect; no physical device",
+  "harness_sha256": "624a9f10e4550bb381a11db7ee479613738a4df00678f2dcc4b0d0ab48b26b90",
+  "capture_method": "Production Compose captureToImage for Gauge/Car/Settings; UiAutomation native dialog screenshot for Actions; isolated managed ciPhone API35; no physical device",
   "fonts": "Production EGaugeTheme typography and API35 sans-serif fallback; no downloaded fonts",
   "caveats": [
-    "Composition only; static three-tab shell, no CompanionApp navigation/global banners/window insets/SystemUI.",
-    "Production Gauge retains PREVIEW label; no added Demo badge.",
-    "No radio, device, vehicle, durable-save or action execution qualification.",
-    "72-image review/screens/android audit baseline unchanged."
+    "Synthetic setup/attention values; no radio, vehicle or durable-save qualification.",
+    "Gauge/Car/Settings use production composables in three-tab capture shell; Actions captures the production native modal and Android SystemUI.",
+    "Actions configuration is read-only in this fixture; no command or save callback is executed."
   ],
   "entries": [
     {
@@ -93,7 +91,92 @@
       "synthetic_data": "Example car; stored Engine P0300; coolant108C/limit105C; preview RPM2840; brightness80%; rotation0; cycle10s. Fixture values, not live readings.",
       "gauge_connection": "Synthetic Gauge ready and Car connected through the production ConnectionStatusWidget; example readings retain PREVIEW, not live vehicle evidence.",
       "controls": "Production composables, canEditActions=false and canEditActionPages=false. Disabled rows retain production arrow styling; no execution or public-control capability claim."
+    },
+    {
+      "path": "docs/assets/app/actions.png",
+      "sha256": "fb883d441db1b9f5f038ca8fe2b5d56b6b3dda5ed2b2a40839d5ecb3302acdc7",
+      "route": "actions",
+      "source_capture": "android/app/build/outputs/managed_device_android_test_additional_output/debug/ciPhone/website-marketing/actions-default-phone-dark.png",
+      "resolution_px": [
+        1080,
+        1920
+      ],
+      "font_scale": 1.0,
+      "theme": "dark",
+      "advanced": false,
+      "synthetic": true,
+      "capture_method": "Native modal window via UiAutomation; platform-native dialog/SystemUI density",
+      "synthetic_data": "Air up5:00, Winch1:00, ABS+TCS not publicly supported; no actual vehicle data.",
+      "controls": "Read-only configuration fixture; callbacks cannot save or execute commands."
     }
   ],
-  "validation": "Focused managed marketing test passed1/1 in41s after capture-only formatting; no production App changes."
+  "validation": "Current managed marketing capture passed1/1; images inspected, including native modal root. Separate action UI suite32/32 passed. No physical-device qualification.",
+  "inputProvenance": {
+    "revision": "ebdaf6b0de82d7d6e5db38a18c91528c71fa7197",
+    "paths": [
+      "android/app/src/main/java/com/lstepnio/egauge/ui",
+      "android/app/src/main/res",
+      "android/core/designsystem/src/main",
+      "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "android/app/build.gradle.kts"
+    ],
+    "sha256": {
+      "android/app/build.gradle.kts": "bcaf4045c98bf562ecb554796470867f60bad8607298e56fc6787682cfc50dc9",
+      "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt": "624a9f10e4550bb381a11db7ee479613738a4df00678f2dcc4b0d0ab48b26b90",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt": "ef9497d134409f7e1274a7319c68d63f4ed39a2705820f24539ee89e5d1a0eea",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/CompanionApp.kt": "44323e268a675e98946317965442750924ff2783c27e39592de3a820fa221e81",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/ConnectionStatusWidget.kt": "5dff48527e861a2bd1903c2bbc8391445bf403dbe9017fad48fd54d18aee03dc",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/Layouts.kt": "4cf790eca642c7aee94f570d8c62062c807d1420e9ae2f495046e033fd4f429e",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/car/ActionPagesSheet.kt": "312a2725dddd9c8722e658dd60e169f1263d577855dd3f9484d634d94fd762e9",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/car/AirUpTimerEditor.kt": "bcefd61a8d3f2439acdc5aeaa5410632920546e205f17f2b17c93683bce0d04a",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarAlertSettingsScreen.kt": "fbd4ec2744524cc868354b9116551c46b475ca8704ac5a1d87d5811a9700536e",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarScreen.kt": "a857d4e15c37ec832986768af4ab21bcea24d0a55c6fdf1a9f4e6d584fa488f2",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/car/FaultCodeContent.kt": "8950cc6c8181aaf01f1bd7b91cf0972c9c460df99b24ac79f8a87e9a321abbc2",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/car/IdleActionsSheet.kt": "493da964fab8ba1b5c7f2711568345efab4b655e60237eccc806b7b58b289049",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/car/IdleCoolantNotice.kt": "0db0286e64b464d7d95ef739f02bd2427a0bd7667bc0f5126de6e32b4ff0b488",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/car/IdleTargetEditor.kt": "7aa0680e9ea93c5b49a7fb1ed9bfa6eb660bf4bb3614a3f2e0f053149d744406",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/car/PageActionsSheet.kt": "c759cfbde3c3f9629516ff43760024fa1c22cd9423e5073518fdea84e86725ed",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/car/VehicleActionsSheet.kt": "00c146abd655c3a9ada471e733e47249908bf16cd400e07407fcca12ebef1d6f",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/customize/AlertEditor.kt": "71acc1e7bce1c25b80a46138f49f4377e8d6bfafe9ac914788adc9a7e80ab221",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/customize/AlertForm.kt": "d90ae1a99ad909726f09c2625fc7c139c26ad87facbc16a59c8c552f75af9e1b",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/customize/CustomizeChoices.kt": "b35cba395fbf66fd295fe241c78daa1aa4dea3b799fea2357c2ad370a971cfcf",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/customize/DashboardEditorScreen.kt": "3587c0d8d53e4256489529ea15ed57b6c493808098e01095699b064830d941d3",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt": "839528f649175dce80031eb24b5d54d7228ca7da59d5ec74e8da2a6229bb00de",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/expert/HiddenFaultCodesScreen.kt": "499f224949c5884b69f0da272e7e64e37f17b2d3d2ff310c163b55d7a6b42bda",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt": "816d30a4929162e2997e05f32d1dee6c739450e2b25afd6666abf20bbcfde025",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SettingsScreen.kt": "173be4037c39f249c374d26eb7f27ddd4b7dc23dc27ea701cb07701ef9f2b3a8",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt": "4761680fd5f20dbf38e5a0b7e9b44b4328a7bcdb293e2c4136def2961b690f60",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt": "2662465aa758198d62715357259996399627c6ae7b95acaa39235143702ef8f0",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/AlertContextCopy.kt": "367a204da69e53206014e5953ae043ac67bb52acc1887a8192b3107439d24830",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/AlertCopy.kt": "2c25fa12fa7bb99ce9f678edde6823353da524c1ede24418582140d8cf62f365",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/CarPresentation.kt": "be9b9d0ebc523c6e53808085430a3ec8ce5d6eb5e7bd4d4a3679117bf779ea85",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/ConnectionCopy.kt": "ffe60ad0686abd094e5484025a96001863008cfd629b9cbd6ac3acac2d958a6d",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/DiagnosticPresentation.kt": "20927a5c825d5d75cc1825b8026edbe31e53801a919f8fbe6258fd0965b6ace8",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/OperationCopy.kt": "d007e5066af80cf337a23c6efa3d8a24e1f3000a93b86bba303a944f15398a11",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationDetails.kt": "f976ca048a41b7d43c6c2717c4a868b730a44b66aaf5f94a440f7d1773a97d1f",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationMapper.kt": "fb70802460f3fa9655eb3543a296440a1baee4ae727b27b8cfe90e7c7a373e4b",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationPreferences.kt": "6fddc9dd88728794c9068f23c16e441f322834bf029eb331172aa0bf44dc3e6e",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/ScreenStates.kt": "f3754721dc343f744b9cb1d264f7fc5d53adce817a31747b86152c3f8e68a6a5",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/SecondAdapterPresentation.kt": "eeab334e8f826089e1c16377f9cbc8a722f4592c6ea3df703b4eafeda051f753",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/VehicleConnectionCopy.kt": "5c9636285d4bda39e9be1f7980ecad9bfa54ff1f9ca7479c216cd6bc3b27310c",
+      "android/app/src/main/res/drawable/ic_alert_notification.xml": "5a1ef06d88ee8f876fce3909aa707022aff8a048d5f5fe428b7aa4fc0e243efc",
+      "android/app/src/main/res/drawable/ic_launcher_foreground.xml": "3ddcd7c1f7a6581b58bc6fa72e2c4fcd0e1fe2c1b0c1fc9d079ccdf1c9915078",
+      "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml": "32715ff646f6b9fef7c321138e4a14556c4a1f98a87b06070b56f41643dad718",
+      "android/app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml": "678da6560d837e905ba0c82a15a11918714729de283138721e85ccc1eb1ee9ff",
+      "android/app/src/main/res/values/icon_colors.xml": "721bbfa98b259e727b25b66cf5f79847c2ab412daa8fc3cd79ce0a70c866d6ec",
+      "android/app/src/main/res/values/strings.xml": "fc204cd5614ba17f2f2c1755e8760acc602d1aeaa9136f90a5c35710a1d93d94",
+      "android/app/src/main/res/xml/report_paths.xml": "1a8d5fc22a32d6f9d942dc4579c5868ec3e294cf92ab6995f14599eaf3338704",
+      "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/ComponentPreviews.kt": "ea6c4ff07c805e5faeacc44197166df01e1d6bc58eec432ca092082d8cc52018",
+      "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Components.kt": "b327d1adb668c135b1cc8484f32092ddc92c9dc042e911882cef194da180449e",
+      "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/GearColors.kt": "09fc2cd18da537d58d9eddf52b281235d6af2649fed1b609d590b5c08bf5485f",
+      "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/GeneratedFixtures.kt": "d7a7716d0cda318dde946b2038c249b46e793d1be24d836aafade6759704f0aa",
+      "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/GeneratedTokens.kt": "cdb4e2e4a77cc9fa2f57ea58008e769588dc7ab17aa0d9c4d2584f50a499929a",
+      "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Icons.kt": "fc953c0dcc502b65c64c5381482ab8fbeabe2286a918fdbee3649d799cbc2b98",
+      "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Models.kt": "8fff04b2013644a435553d8639d9bd28d4a3b883ebefc8916cc68cc15fecbaca",
+      "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/RoundPreview.kt": "203f3c1eccd2e52f35fc6a86d36ba200582d314d46c8a924e3596a87ac679b23",
+      "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Theme.kt": "622c975b915ea4bb7fe6cdcdc7105478e48a5117ed041e4ff56909cc1d9d83d0",
+      "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/TrendCurve.kt": "ccb1ae90f00c54da8a407a2fe4b5985eaba751222dabc67364ce90bf160ae562"
+    },
+    "reviewPolicy": "Any changed, added or removed relevant input requires semantic review. Hash mismatch alone is not proof that a screen changed. Do not replace baseline hashes without a capture or documented equivalence review."
+  }
 }

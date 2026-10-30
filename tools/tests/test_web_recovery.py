@@ -91,7 +91,19 @@ class RecoveryTests(unittest.TestCase):
 
     def test_deployable_build_requires_real_downloads(self):
         with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaisesRegex(ValueError, "--downloads"):
+            with (
+                patch.object(
+                    site,
+                    "review_images",
+                    return_value={
+                        "publicationReady": True,
+                        "changedImageInputs": [],
+                        "pendingCaptures": [],
+                    },
+                ),
+                patch.object(site, "review_claim_inputs", return_value=[]),
+                self.assertRaisesRegex(ValueError, "--downloads"),
+            ):
                 site.build(Path(directory))
 
     def test_changed_download_rejected(self):
@@ -103,7 +115,19 @@ class RecoveryTests(unittest.TestCase):
             first = inputs / next(iter(inventory["files"]))
             first.parent.mkdir(parents=True)
             first.write_bytes(b"changed")
-            with self.assertRaisesRegex(ValueError, "Download verification failed"):
+            with (
+                patch.object(
+                    site,
+                    "review_images",
+                    return_value={
+                        "publicationReady": True,
+                        "changedImageInputs": [],
+                        "pendingCaptures": [],
+                    },
+                ),
+                patch.object(site, "review_claim_inputs", return_value=[]),
+                self.assertRaisesRegex(ValueError, "Download verification failed"),
+            ):
                 site.build(output, inputs)
 
 
@@ -219,6 +243,150 @@ class WebsiteMetadataTests(unittest.TestCase):
             self.assertNotIn("EGAUGE_SCREEN_DATA", script)
             self.assertIn('content="noindex, nofollow"', html)
             self.assertIn('property="og:image"', html)
+
+    def test_missing_claim_scope_or_evidence_is_rejected(self):
+        content = json.loads((ROOT / "website/content.json").read_text())
+        html = (ROOT / "website/index.html").read_text()
+        for field in ("scope", "evidence"):
+            changed = copy.deepcopy(content)
+            del changed["claims"]["CORE"][field]
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "Missing claim"):
+                site.validate_claims(changed, html)
+        changed = copy.deepcopy(content)
+        del changed["claims"]["CORE"]
+        with self.assertRaisesRegex(ValueError, "claim provenance"):
+            site.validate_claims(changed, html)
+
+    def test_claim_source_changes_and_new_references_require_review(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "runtime.c"
+            source.write_text("public defaults disabled")
+            evidence = root / "evidence.md"
+            evidence.write_text("owner candidate only")
+            baseline = {
+                name: hashlib.sha256((root / name).read_bytes()).hexdigest()
+                for name in ("runtime.c", "evidence.md")
+            }
+            content = {
+                "claims": {"CONTROL": {"sources": ["runtime.c"], "evidence": ["evidence.md"]}},
+                "claimInputProvenance": {
+                    "reviewedOn": "2026-10-29",
+                    "reason": "Reviewed owner-only scope",
+                    "sha256": baseline,
+                },
+            }
+            with patch.object(site, "ROOT", root):
+                self.assertEqual(site.review_claim_inputs(content), [])
+                source.write_text("changed runtime availability")
+                report = site.review_claim_inputs(content)
+                self.assertEqual(report[0]["changedInputs"], ["runtime.c"])
+                self.assertEqual(report[0]["affectedClaims"], ["CONTROL"])
+                # Explicit semantic review accepts only the exact reviewed source bytes.
+                content["claimInputProvenance"]["sha256"] = report[0]["currentSha256"]
+                content["claimInputProvenance"]["reason"] = (
+                    "Revised CONTROL copy after inspecting changed admission"
+                )
+                self.assertEqual(site.review_claim_inputs(content), [])
+                (root / "new.md").write_text("new evidence")
+                content["claims"]["CONTROL"]["evidence"].append("new.md")
+                self.assertEqual(site.review_claim_inputs(content)[0]["changedInputs"], ["new.md"])
+                content["claims"]["CONTROL"]["evidence"].remove("new.md")
+                evidence.write_text("changed evidence")
+                self.assertEqual(
+                    site.review_claim_inputs(content)[0]["changedInputs"], ["evidence.md"]
+                )
+
+    def test_missing_claim_input_or_review_metadata_is_rejected(self):
+        for baseline in (
+            {},
+            {"sha256": {"runtime.c": "a" * 64}},
+            {"sha256": {}, "reviewedOn": "2026-10-29", "reason": "review"},
+        ):
+            with (
+                self.subTest(baseline=baseline),
+                self.assertRaisesRegex(ValueError, "Missing claim input provenance"),
+            ):
+                site.review_claim_inputs({"claimInputProvenance": baseline})
+
+    def test_deployable_build_rejects_claim_source_drift(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                patch.object(site, "review_images", return_value={"publicationReady": True}),
+                patch.object(
+                    site, "review_claim_inputs", return_value=[{"changedInputs": ["runtime.c"]}]
+                ),
+            ):
+                with self.assertRaisesRegex(ValueError, "semantic review/capture pending"):
+                    site.build(Path(directory))
+
+    def test_missing_image_provenance_is_rejected(self):
+        content = json.loads((ROOT / "website/content.json").read_text())
+        content["imageProvenance"] = []
+        with self.assertRaisesRegex(ValueError, "Missing image provenance"):
+            site.review_images(content, (ROOT / "website/index.html").read_text())
+
+    def test_changed_inputs_need_exact_documented_equivalence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            asset = root / "docs/assets/gauge/numeric.png"
+            asset.parent.mkdir(parents=True)
+            asset.write_bytes(b"capture")
+            source = root / "renderer.c"
+            source.write_text("baseline")
+            content = {"screens": [{"key": "numeric"}], "imageProvenance": ["capture.json"]}
+            baseline = hashlib.sha256(source.read_bytes()).hexdigest()
+            metadata = {
+                "inputProvenance": {
+                    "revision": "capture-revision",
+                    "paths": ["renderer.c"],
+                    "sha256": {"renderer.c": baseline},
+                },
+                "entries": [
+                    {
+                        "path": "docs/assets/gauge/numeric.png",
+                        "sha256": hashlib.sha256(asset.read_bytes()).hexdigest(),
+                    }
+                ],
+            }
+            provenance = root / "capture.json"
+
+            def save():
+                provenance.write_text(json.dumps(metadata))
+
+            save()
+            with patch.object(site, "ROOT", root):
+                self.assertTrue(site.review_images(content, "")["publicationReady"])
+                saved = metadata.pop("inputProvenance")
+                save()
+                with self.assertRaisesRegex(ValueError, "Missing image input provenance"):
+                    site.review_images(content, "")
+                metadata["inputProvenance"] = saved
+                save()
+                source.write_text("changed")
+                report = site.review_images(content, "")
+                self.assertFalse(report["publicationReady"])
+                self.assertEqual(report["changedImageInputs"][0]["changedInputs"], ["renderer.c"])
+                (root / "review.md").write_text("Review found an unchanged represented state")
+                metadata["equivalenceReview"] = {
+                    "reviewedOn": "2026-10-29",
+                    "reason": "Unchanged represented state",
+                    "evidence": ["review.md"],
+                    "sha256": {"renderer.c": hashlib.sha256(source.read_bytes()).hexdigest()},
+                }
+                save()
+                self.assertTrue(site.review_images(content, "")["publicationReady"])
+                source.write_text("changed again")
+                self.assertFalse(site.review_images(content, "")["publicationReady"])
+                asset.write_bytes(b"replaced without provenance")
+                with self.assertRaisesRegex(ValueError, "capture hash mismatch"):
+                    site.review_images(content, "")
+
+    def test_deployable_build_rejects_unreviewed_visual_drift(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(site, "review_images", return_value={"publicationReady": False}):
+                with self.assertRaisesRegex(ValueError, "semantic review/capture pending"):
+                    site.build(Path(directory))
 
     def test_responsive_image_sources_are_link_checked(self):
         parsed = site.SiteHTML()

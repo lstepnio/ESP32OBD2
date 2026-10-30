@@ -72,6 +72,165 @@ def gallery(content):
     return "".join(choices), json.dumps(data, ensure_ascii=False)
 
 
+def repository_file(name):
+    path = ROOT / name
+    if Path(name).is_absolute() or ".." in Path(name).parts or not path.is_file():
+        raise ValueError(f"Missing or invalid provenance reference: {name}")
+    return path
+
+
+def validate_claims(content, html):
+    """Authored scope/evidence is reviewable metadata, not automatic truth proof."""
+    claims = content.get("claims", {})
+    tokens = set(re.findall(r"{{CLAIM_([A-Z_]+)}}", html))
+    if not tokens or tokens != set(claims):
+        raise ValueError("Every material claim needs a used claim provenance record")
+    scopes = content.get("claimScopes", {})
+    replacements = {}
+    for key, claim in {**claims, **content["actionAvailability"]}.items():
+        scope = scopes.get(claim.get("scope"), {})
+        if not scope.get("audience") or scope.get("availability") not in {
+            "available-development",
+            "observed-limited",
+            "owner-only-candidate",
+            "planned",
+            "exploring",
+            "paused",
+        }:
+            raise ValueError(f"Missing claim audience/availability: {key}")
+        if not claim.get("text") or not claim.get("evidence"):
+            raise ValueError(f"Missing claim text/evidence: {key}")
+        sources = claim.get("sources", [claim["source"]] if "source" in claim else [])
+        if not sources:
+            raise ValueError(f"Missing claim source: {key}")
+        for name in [*sources, *claim["evidence"]]:
+            repository_file(name)
+        if key in claims:
+            replacements["CLAIM_" + key] = escape(claim["text"])
+    return replacements
+
+
+def claim_inputs(content):
+    """One shared input inventory covers material claims and their evidence."""
+    references = set(content.get("sourceDocuments", []))
+    for claim in [
+        *content.get("claims", {}).values(),
+        *content.get("actionAvailability", {}).values(),
+    ]:
+        references.update(claim.get("sources", [claim["source"]] if "source" in claim else []))
+        references.update(claim.get("evidence", []))
+    return references
+
+
+def review_claim_inputs(content):
+    baseline = content.get("claimInputProvenance", {})
+    hashes = baseline.get("sha256", {})
+    if not hashes or not baseline.get("reviewedOn") or not baseline.get("reason"):
+        raise ValueError("Missing claim input provenance or semantic review metadata")
+    date.fromisoformat(baseline["reviewedOn"])
+    current = {
+        name: hashlib.sha256(repository_file(name).read_bytes()).hexdigest()
+        for name in sorted(claim_inputs(content))
+    }
+    differences = sorted(
+        name for name in hashes.keys() | current.keys() if hashes.get(name) != current.get(name)
+    )
+    if not differences:
+        return []
+    affected = []
+    for key, claim in {
+        **content.get("claims", {}),
+        **content.get("actionAvailability", {}),
+    }.items():
+        references = set(claim.get("sources", [claim["source"]] if "source" in claim else []))
+        references.update(claim.get("evidence", []))
+        if references.intersection(differences):
+            affected.append(key)
+    return [
+        {
+            "changedInputs": differences,
+            "affectedClaims": sorted(affected),
+            "currentSha256": current,
+            "requiredAction": "Review affected claim scope, availability, copy and evidence against these exact sources; update claimInputProvenance with reviewedOn, specific reason and this exact currentSha256 map only after semantic review.",
+        }
+    ]
+
+
+def review_images(content, html):
+    """Keep capture baselines immutable; only explicit equivalence reviews accept drift."""
+    records = {}
+    pending = list(content.get("pendingCaptures", []))
+    changed = []
+    for name in content.get("imageProvenance", []):
+        metadata_path = repository_file(name)
+        metadata = json.loads(metadata_path.read_text())
+        inputs = metadata.get("inputProvenance", {})
+        hashes, paths = inputs.get("sha256", {}), inputs.get("paths", [])
+        if not hashes or not paths or not inputs.get("revision"):
+            raise ValueError(f"Missing image input provenance: {name}")
+        current_names = set()
+        for source in paths:
+            path = ROOT / source
+            if Path(source).is_absolute() or ".." in Path(source).parts:
+                raise ValueError("Invalid image input path")
+            if path.is_file():
+                current_names.add(source)
+            elif path.is_dir():
+                current_names.update(
+                    p.relative_to(ROOT).as_posix() for p in path.rglob("*") if p.is_file()
+                )
+        current = {
+            path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
+            for path in sorted(current_names)
+        }
+        differences = sorted(
+            path for path in hashes.keys() | current.keys() if hashes.get(path) != current.get(path)
+        )
+        review = metadata.get("equivalenceReview", {})
+        accepted = bool(
+            differences
+            and review.get("reason")
+            and review.get("evidence")
+            and review.get("reviewedOn")
+            and review.get("sha256") == current
+        )
+        if accepted:
+            date.fromisoformat(review["reviewedOn"])
+            for evidence in review["evidence"]:
+                repository_file(evidence)
+        if differences and not accepted:
+            changed.append(
+                {
+                    "provenance": name,
+                    "changedInputs": differences,
+                    "currentSha256": current,
+                    "requiredAction": "Recapture affected screens or document a semantic equivalenceReview with reason, evidence, reviewedOn and exact current sha256 map.",
+                }
+            )
+        for entry in metadata.get("entries", []):
+            asset = (
+                entry.get("path")
+                or (metadata_path.parent / entry["file"]).relative_to(ROOT).as_posix()
+            )
+            if asset in records:
+                raise ValueError(f"Duplicate image provenance: {asset}")
+            if hashlib.sha256(repository_file(asset).read_bytes()).hexdigest() != entry.get(
+                "sha256"
+            ):
+                raise ValueError(f"Image capture hash mismatch: {asset}")
+            records[asset] = name
+    used = set(re.findall(r"{{ASSET_PREFIX}}/((?:app|gauge)/[^\" ]+\.png)", html))
+    used.update("gauge/" + screen["key"] + ".png" for screen in content["screens"])
+    for asset in used:
+        if "docs/assets/" + asset not in records:
+            raise ValueError(f"Missing image provenance: {asset}")
+    return {
+        "changedImageInputs": changed,
+        "pendingCaptures": pending,
+        "publicationReady": not changed and not pending,
+    }
+
+
 def build(output: Path, downloads: Path | None = None, metadata_only=False):
     source = ROOT / "website"
     content = json.loads((source / "content.json").read_text())
@@ -79,6 +238,20 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
         if not (ROOT / document).is_file():
             raise ValueError(f"Missing website source authority: {document}")
     reviewed = date.fromisoformat(content["reviewedOn"])
+    template = (source / "index.html").read_text()
+    claim_replacements = validate_claims(content, template)
+    review = review_images(content, template)
+    review["changedClaimInputs"] = review_claim_inputs(content)
+    review["publicationReady"] = review["publicationReady"] and not review["changedClaimInputs"]
+    if not metadata_only and not review["publicationReady"]:
+        raise ValueError("Website semantic review/capture pending; run --check for review items")
+    (output / "site-review.json").write_text(json.dumps(review, indent=2) + "\n")
+    if not review["publicationReady"]:
+        print(
+            f"REVIEW REQUIRED: {len(review['changedClaimInputs'])} changed claim input sets, "
+            f"{len(review['changedImageInputs'])} changed image input sets, "
+            f"{len(review['pendingCaptures'])} pending captures (use --review-report)"
+        )
     choices, screen_data = gallery(content)
     readings = json.loads((ROOT / "contracts/reading-catalog.json").read_text())["readings"]
     files = {name: (source / name).read_bytes() for name in ("styles.css", "app.js", "favicon.svg")}
@@ -86,8 +259,10 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
     if marker not in files["app.js"]:
         raise ValueError("Missing build-time gallery data marker")
     files["app.js"] = files["app.js"].replace(marker, screen_data.encode())
-    for image in sorted((ROOT / "docs/assets").rglob("*.png")):
-        files[image.relative_to(ROOT / "docs/assets").as_posix()] = image.read_bytes()
+    used_images = set(re.findall(r"{{ASSET_PREFIX}}/((?:app|gauge)/[^\" ]+\.png)", template))
+    used_images.update("gauge/" + screen["key"] + ".png" for screen in content["screens"])
+    for name in sorted(used_images):
+        files[name] = (ROOT / "docs/assets" / name).read_bytes()
     for image in sorted((source / "future").glob("*")):
         if image.suffix not in {".png", ".webp"}:
             continue
@@ -145,6 +320,7 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
         "SCREEN_CHOICES": choices,
         "SOCIAL_IMAGE": "https://egauge.majjix.com" + prefix + "/social-preview.png",
     }
+    replacements.update(claim_replacements)
     for key in ("airUp", "winch", "absTcs"):
         item = content["actionAvailability"][key]
         if not (ROOT / item["source"]).is_file():
@@ -194,6 +370,17 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
         "reviewedOn": reviewed.isoformat(),
         "assetPrefix": prefix,
         "sourceDocuments": content["sourceDocuments"],
+        "claims": {
+            "scopes": content["claimScopes"],
+            "items": content["claims"],
+            "actions": content["actionAvailability"],
+            "inputProvenance": content["claimInputProvenance"],
+        },
+        "visualReview": review,
+        "imageProvenance": {
+            name: json.loads(repository_file(name).read_text())
+            for name in content["imageProvenance"]
+        },
         "files": {
             p.relative_to(output).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
             for p in sorted(output.rglob("*"))
@@ -214,10 +401,16 @@ def main():
     parser.add_argument(
         "--downloads", type=Path, help="Verified package output; required for deployment"
     )
+    parser.add_argument(
+        "--review-report", type=Path, help="Save actionable source/image review JSON during --check"
+    )
     args = parser.parse_args()
     if args.check:
         with tempfile.TemporaryDirectory(prefix="egauge-site-") as directory:
-            build(Path(directory), args.downloads, metadata_only=args.downloads is None)
+            manifest = build(Path(directory), args.downloads, metadata_only=args.downloads is None)
+            if args.review_report:
+                args.review_report.parent.mkdir(parents=True, exist_ok=True)
+                args.review_report.write_text(json.dumps(manifest["visualReview"], indent=2) + "\n")
     else:
         output = args.output.resolve()
         # Never overwrite the source tree, repo root, or an arbitrary existing directory.

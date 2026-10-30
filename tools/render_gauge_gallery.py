@@ -20,10 +20,20 @@ def png(rgb):
             struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
         )
 
-    rows = b"".join(b"\0" + rgb[i : i + width * 3] for i in range(0, len(rgb), width * 3))
+    # Physical reference panel is circular; preserve every visible RGB pixel and
+    # make its nonexistent corners transparent for both GitHub and the website.
+    rows = b""
+    for y in range(height):
+        row = bytearray(b"\0")
+        for x in range(width):
+            i = (y * width + x) * 3
+            alpha = 255 if (x - 119.5) ** 2 + (y - 119.5) ** 2 <= 120**2 else 0
+            row.extend(rgb[i : i + 3])
+            row.append(alpha)
+        rows += row
     return (
         b"\x89PNG\r\n\x1a\n"
-        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
         + chunk(b"IDAT", zlib.compress(rows, 9))
         + chunk(b"IEND", b"")
     )
@@ -36,7 +46,13 @@ def main():
     args = parser.parse_args()
     output = ROOT / "docs/assets/gauge"
     sources = {name: f"demo-{frame:02d}" for name, frame in FRAMES.items()}
-    sources.update({"action-ready": "actions-ready", "action-active": "actions-active"})
+    sources.update(
+        {
+            "action-ready": "actions-ready",
+            "action-active": "actions-active",
+            "action-recovery": "actions-unknown",
+        }
+    )
     for name, frame in sources.items():
         rendered = png((args.frames / f"{frame}.rgb").read_bytes())
         target = output / f"{name}.png"

@@ -19,6 +19,13 @@ firmware updates. Normal use needs no account.
 | :---: | :---: | :---: | :---: | :---: |
 | <img src="docs/assets/gauge/numeric.png" width="180" alt="Numeric reading"> | <img src="docs/assets/gauge/arc.png" width="180" alt="Arc reading"> | <img src="docs/assets/gauge/dual.png" width="180" alt="Dual readings"> | <img src="docs/assets/gauge/dual-arc.png" width="180" alt="Dual readings with arc scale"> | <img src="docs/assets/gauge/alerts.png" width="180" alt="Alert and engine warning indicators"> |
 
+| App action setup | Air up preset | Running session | Connecting |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/assets/app/actions.png" width="180" alt="App action configuration"> | <img src="docs/assets/gauge/action-ready.png" width="180" alt="Air up preset"> | <img src="docs/assets/gauge/action-active.png" width="180" alt="Air up countdown and Stop"> | <img src="docs/assets/gauge/action-recovery.png" width="180" alt="Action connection recovery"> |
+
+Action interfaces are shown with example data. Vehicle controls remain limited to
+explicit owner-supervised Jeep candidates; [availability and remaining qualification](docs/current-state.md#actions-and-retained-recovery).
+
 [Current support and installed-device evidence](docs/current-state.md) ·
 [Roadmap](docs/roadmap.md) · [Backlog](docs/backlog.md)
 
