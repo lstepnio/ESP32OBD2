@@ -27,7 +27,9 @@ and the approved CODE-06 through CODE-09 follow-up. Per-action observation recei
 the shared freshness timestamp; storage/queue fixtures and admission telemetry,
 compact current context, and source-aware public claims/screenshots are
 implemented and verified offline. [Implementation evidence](evidence/product-quality-implementation.md)
-records final checks. This work does not establish a new installed App/FW pair.
+records final checks. App dev.58 and firmware dev.81 are prepared for the owner-authorized combined
+merge/release/Wi-Fi delivery. The installed baseline above remains unchanged until
+exact post-install readback.
 
 ## Implemented product
 
