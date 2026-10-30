@@ -260,16 +260,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             commandPoll.reset()
         }
         if (!commandPoll.due(scope, now)) return commandPoll.pause(now)
-        val epoch = commandObservations.epoch
         var healthy = false
         try {
-            val values = withTimeout(8_000) {
-                VehicleCommandKind.supported(capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion).associateWith { VehicleCommandObservation(client.readVehicleCommand(device, it, capabilities?.brakeActionsTestVersion ?: 0), android.os.SystemClock.elapsedRealtime()) }
-            }
-            if (vehicleCommandScope() == context) {
-                val updated = commandObservations.snapshot(context, epoch, values)
-                healthy = updated.scope == context && updated.entries == values && values.isNotEmpty()
-                commandObservations = updated
+            healthy = withTimeout(8_000) {
+                readVehicleCommandObservations(
+                    context,
+                    VehicleCommandKind.supported(capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion),
+                    { commandObservations.takeIf { vehicleCommandScope() == context } },
+                    { commandObservations = it },
+                    { android.os.SystemClock.elapsedRealtime() },
+                    { client.readVehicleCommand(device, it, capabilities?.brakeActionsTestVersion ?: 0) }
+                )
             }
         } catch (_: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()

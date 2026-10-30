@@ -1,5 +1,6 @@
 package com.lstepnio.egauge
 
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -9,6 +10,42 @@ class VehicleCommandObservationsTest {
     private fun snapshot(at: Long = 0): VehicleCommandObservations {
         val initial = VehicleCommandObservations().inScope(scope)
         return initial.snapshot(scope, initial.epoch, VehicleCommandKind.entries.associateWith { VehicleCommandObservation(status(it), at) })
+    }
+
+    @Test fun rebootProofSurvivesFailureOfALaterReadWithoutPublishingPartialStatus() = runBlocking {
+        var observed = snapshot()
+        val oldEpoch = observed.epoch
+        val result = runCatching {
+            readVehicleCommandObservations(scope, listOf(VehicleCommandKind.Idle, VehicleCommandKind.AbsTcs), { observed }, { observed = it }, { 1_000 }) { kind ->
+                if (kind == VehicleCommandKind.AbsTcs) error("next read failed")
+                status(kind, boot = 18)
+            }
+        }
+        assertTrue(result.isFailure)
+        assertTrue(observed.freshKinds(scope, 1_001).isEmpty())
+        assertEquals(18L, observed.observedBoot)
+        assertTrue(observed.epoch > oldEpoch)
+        assertEquals(17L, observed.values.getValue(VehicleCommandKind.Idle).boot)
+        assertSame(observed, observed.observed(scope, oldEpoch, VehicleCommandKind.Idle, status(VehicleCommandKind.Idle), 1_001))
+    }
+
+    @Test fun pollCannotPublishAfterItsScopeIsRetiredAndRestored() = runBlocking {
+        var observed = snapshot()
+        val healthy = readVehicleCommandObservations(scope, listOf(VehicleCommandKind.Idle), { observed }, { observed = it }, { 10 }) { kind ->
+            observed = observed.retired().inScope(scope)
+            status(kind)
+        }
+        assertFalse(healthy)
+        assertTrue(observed.entries.isEmpty())
+    }
+
+    @Test fun mixedBootPollIsUnhealthyAndTheNextCompletePollRecovers() = runBlocking {
+        var observed = snapshot()
+        val kinds = listOf(VehicleCommandKind.Idle, VehicleCommandKind.AbsTcs)
+        assertFalse(readVehicleCommandObservations(scope, kinds, { observed }, { observed = it }, { 10 }) { kind -> status(kind, if (kind == VehicleCommandKind.Idle) 17 else 18) })
+        assertTrue(observed.freshKinds(scope, 10).isEmpty())
+        assertTrue(readVehicleCommandObservations(scope, kinds, { observed }, { observed = it }, { 20 }) { kind -> status(kind, 18) })
+        assertEquals(kinds.toSet(), observed.freshKinds(scope, 20))
     }
 
     @Test fun batchCompletionKeepsEachIndividualReceiptAge() {
