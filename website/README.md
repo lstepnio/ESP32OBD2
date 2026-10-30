@@ -4,6 +4,8 @@ Static source for [egauge.majjix.com](https://egauge.majjix.com/). Keep the exis
 visual style and contact forms. Product claims follow the authorities listed in
 [content.json](content.json); update its review date only after checking those sources.
 Catalog size is derived from the reading contract, not a vehicle compatibility claim.
+Material claims carry named audience, availability, implementation source and evidence.
+These are authored judgments for review, not a claim that a file path proves truth.
 Gallery choices/captions/alt text and action availability are build-time fields in
 `content.json`, traced to source authorities. The builder escapes visible text and
 checks referenced images; no extra runtime fetch or dependency is used.
@@ -93,7 +95,7 @@ LinkedIn posts, testimonials or changes to customer consent.
 Use the repository Python environment from the [root setup](../README.md#development):
 
 ```sh
-python tools/build_website.py --check
+python tools/build_website.py --check --review-report artifacts/website-review.json
 python tools/build_website.py --downloads artifacts/website-downloads --output artifacts/website-preview
 python3 -m http.server 8771 --bind 127.0.0.1 --directory artifacts/website-preview
 ```
@@ -122,6 +124,37 @@ frame. Preserve native files; do not upscale a 240-pixel panel to invent detail.
 The site publishes WebP alternatives for the large future concepts with PNG fallback.
 The dated `review/` report/captures record this audit and its verification limits;
 they are not a second feature-status authority.
+The builder requires hash-matched provenance for every placed App/gauge image,
+including dynamically selected gallery screens. Relevant renderer, layout, theme,
+resource and capture-harness inputs are hashed at the recorded capture revision.
+A changed, added or removed input creates an item in `site-review.json` and the
+manifest. Offline `--check` reports these items without recapturing; deployable
+builds reject unresolved items and pending representative captures. Asset age by
+itself never requires a new capture. This remains an inexpensive check, outside
+normal firmware and App capture/build work.
+
+For each changed-input item, inspect the actual diff and represented states. If the
+image changed, run the existing production capture/exporter and update its entry
+hash and capture input baseline, recording source revision, renderer/options and
+synthetic-data limits. Preserve the shared `docs/assets/` images used by GitHub.
+Never replace old input hashes with current hashes merely to pass the check.
+If the visible represented states remain equivalent, retain the capture baseline
+and add `equivalenceReview` to that provenance JSON: `reviewedOn`, a specific
+`reason`, repository `evidence` paths, and `sha256` containing the exact current
+relevant input map. That acknowledgement accepts only those bytes; subsequent
+drift reopens review. A date or source commit alone cannot acknowledge it.
+
+Material copy used through `CLAIM_*` tokens has a mandatory `claims` record;
+`claimScopes` names the audience and availability, and each claim/action status
+links implementation sources plus evidence. The manifest includes these records
+and the full image metadata. Review semantics and audience before changing copy:
+ordinary public controls remain disabled, owner-only candidates are separate, and
+Burnout is paused. Keep repeated action availability in `actionAvailability`, never
+as independently maintained HTML assertions. `pendingCaptures` is the explicit
+publication gate for missing representative views, not permission to use stale
+screens. Clear it only after saving/reviewing the production capture or deciding
+with the owner that the view is outside the public batch.
+
 Future road-awareness illustrations are stored separately in `future/` and must
 remain explicitly described as unavailable future concepts.
 

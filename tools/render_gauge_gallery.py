@@ -36,7 +36,13 @@ def main():
     args = parser.parse_args()
     output = ROOT / "docs/assets/gauge"
     sources = {name: f"demo-{frame:02d}" for name, frame in FRAMES.items()}
-    sources.update({"action-ready": "actions-ready", "action-active": "actions-active"})
+    sources.update(
+        {
+            "action-ready": "actions-ready",
+            "action-active": "actions-active",
+            "action-recovery": "actions-unknown",
+        }
+    )
     for name, frame in sources.items():
         rendered = png((args.frames / f"{frame}.rgb").read_bytes())
         target = output / f"{name}.png"

@@ -62,16 +62,172 @@
   ],
   "actionAvailability": {
     "airUp": {
-      "text": "Limited Jeep testing · Fixed idle setting. Adjustable RPM remains a phone-only draft.",
-      "source": "docs/architecture/vehicle-actions.md"
+      "text": "Owner-only candidate · Fixed idle setting. Adjustable RPM remains a phone-only draft.",
+      "source": "docs/architecture/vehicle-actions.md",
+      "scope": "candidate",
+      "evidence": [
+        "docs/architecture/vehicle-actions.md",
+        "docs/evidence/dev80-action-entry.md"
+      ],
+      "publicAvailability": "disabled",
+      "ownerAvailability": "explicit-supervised-candidate; physical qualification incomplete"
     },
     "winch": {
-      "text": "Limited Jeep testing · Fixed idle setting. Minimum RPM and throttle-above-idle behavior still need controller qualification.",
-      "source": "docs/architecture/vehicle-actions.md"
+      "text": "Owner-only candidate · Fixed idle setting. Minimum RPM and throttle-above-idle behavior still need controller qualification.",
+      "source": "docs/architecture/vehicle-actions.md",
+      "scope": "candidate",
+      "evidence": [
+        "docs/architecture/vehicle-actions.md",
+        "docs/evidence/dev80-action-entry.md"
+      ],
+      "publicAvailability": "disabled",
+      "ownerAvailability": "explicit-supervised-candidate; physical qualification incomplete"
     },
     "absTcs": {
-      "text": "In development · ABS/TCS execution is disabled.",
-      "source": "firmware/gauge/main/src/jeep_abs_tcs_driver.c"
+      "text": "Public builds: execution disabled. An explicit owner-only candidate is installed; parked restoration qualification remains open.",
+      "source": "firmware/gauge/main/src/jeep_abs_tcs_driver.c",
+      "scope": "candidate",
+      "evidence": [
+        "docs/architecture/vehicle-actions.md",
+        "docs/evidence/dev80-action-entry.md"
+      ],
+      "publicAvailability": "disabled",
+      "ownerAvailability": "explicit-supervised-candidate; physical qualification incomplete"
     }
-  }
+  },
+  "claimScopes": {
+    "development": {
+      "audience": "public reference-board development users",
+      "availability": "available-development"
+    },
+    "observed": {
+      "audience": "captured Hemi-swapped Jeep setup",
+      "availability": "observed-limited"
+    },
+    "candidate": {
+      "audience": "explicit owner-supervised candidate only",
+      "availability": "owner-only-candidate"
+    },
+    "planned": {
+      "audience": "future users",
+      "availability": "planned"
+    },
+    "exploring": {
+      "audience": "future users",
+      "availability": "exploring"
+    },
+    "paused": {
+      "audience": "owner and future users",
+      "availability": "paused"
+    }
+  },
+  "claims": {
+    "CORE": {
+      "scope": "development",
+      "sources": [
+        "docs/features.md",
+        "docs/architecture/vehicle-connections.md"
+      ],
+      "evidence": [
+        "docs/evidence/gatt-long-read-recovery.md"
+      ],
+      "text": "Your own pages, readings and alerts on a small display that runs on its own once configured. Thoughtful software, on hardware you buy independently."
+    },
+    "LAYOUTS": {
+      "scope": "development",
+      "sources": [
+        "docs/architecture/display-experience.md",
+        "contracts/reading-catalog.json"
+      ],
+      "evidence": [
+        "docs/evidence/display-evolution.md"
+      ],
+      "text": "Numeric, Arc, Bar, Trend, Dual, or Dual + arc. Arrange pages and save your display settings. Optional Smart cycling uses reading context and alert priorities while giving every saved page time on screen."
+    },
+    "ANDROID": {
+      "scope": "development",
+      "sources": [
+        "docs/architecture/platforms-and-releases.md"
+      ],
+      "evidence": [
+        "docs/evidence/dev75-indoor-rollout.md"
+      ],
+      "text": "The Android App manages vehicles, gauges, pages, and alerts. It reconnects and reads saved settings automatically, and installs signed development firmware over private Wi-Fi."
+    },
+    "READINGS": {
+      "scope": "observed",
+      "sources": [
+        "docs/architecture/vehicle-connections.md"
+      ],
+      "evidence": [
+        "docs/evidence/gatt-long-read-recovery.md"
+      ],
+      "text": "Live engine RPM has matched the Jeep's dash. Transmission temperature and gear display on the gauge. Simultaneous ECM and TCM readings, independent adapter loss and return, and operation without the phone have been checked on this setup."
+    },
+    "UPDATES": {
+      "scope": "observed",
+      "sources": [
+        "docs/architecture/platforms-and-releases.md"
+      ],
+      "evidence": [
+        "docs/evidence/dev75-indoor-rollout.md",
+        "docs/evidence/action-pages-indoor.md"
+      ],
+      "text": "Saved configuration and signed App/Wi-Fi firmware installation are working. Repeated Wi-Fi sessions and controlled interrupted-update checks have passed with saved setup retained. Longer loaded tests and physical power-loss cases remain."
+    },
+    "PLATFORMS": {
+      "scope": "planned",
+      "sources": [
+        "docs/roadmap.md"
+      ],
+      "evidence": [
+        "docs/backlog.md"
+      ],
+      "text": "A basic iPhone App and browser-over-USB setup are planned. Core configuration should be available without relying on an Android phone; neither path is available today."
+    },
+    "BURNOUT": {
+      "scope": "paused",
+      "sources": [
+        "docs/architecture/vehicle-actions.md"
+      ],
+      "evidence": [
+        "docs/backlog.md"
+      ],
+      "text": "Burnout Mode is paused. It is not a public capability or an active qualification promise."
+    },
+    "ROAD_ALERTS": {
+      "scope": "exploring",
+      "sources": [
+        "docs/roadmap.md",
+        "docs/architecture/phone-alert-providers.md"
+      ],
+      "evidence": [
+        "docs/backlog.md"
+      ],
+      "text": "Crowdsourced alerts and touch reporting are not available today. Provider access, relevance, accuracy, coverage, privacy, and safe interaction must be validated before release."
+    },
+    "BUILD_STORY": {
+      "scope": "observed",
+      "sources": [
+        "docs/architecture/vehicle-connections.md"
+      ],
+      "evidence": [
+        "docs/evidence/gatt-long-read-recovery.md"
+      ],
+      "text": "Built by Luke around a real Hemi-swapped Wrangler: keep engine and transmission readings together, save the setup on the gauge, and leave the phone in your pocket. Independent adapter loss and return have been checked on that Jeep. Broader vehicle and loaded-operation testing come next."
+    }
+  },
+  "pendingCaptures": [
+    {
+      "surface": "app/actions",
+      "reason": "Current compact action flow has no representative marketing capture. Reuse production Compose capture tooling before adding it.",
+      "sources": [
+        "android/app/src/main/java/com/lstepnio/egauge/ui/car/VehicleActionsSheet.kt"
+      ]
+    }
+  ],
+  "imageProvenance": [
+    "docs/assets/app/marketing-provenance.json",
+    "docs/assets/gauge/capture-provenance.json"
+  ]
 }
