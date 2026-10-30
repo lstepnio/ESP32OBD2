@@ -24,6 +24,7 @@ class ParkedIdleTests(unittest.TestCase):
                 "main/src/jeep_abs_tcs_driver.c",
                 "main/src/elm_response.c",
                 "main/src/transfer_gate.c",
+                "main/src/worker_health.c",
             ],
             includes=[
                 "-Ifirmware/gauge/tests/runtime_stubs",

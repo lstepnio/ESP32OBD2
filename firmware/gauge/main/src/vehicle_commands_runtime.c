@@ -5,6 +5,7 @@
 #include "transfer_gate.h"
 #include "ble_mgr.h"
 #include "adapter_status.h"
+#include "worker_health.h"
 #include "vehicle_idle_coolant.h"
 #include "jeep_idle_parked_test.h"
 #include "sdkconfig.h"
@@ -225,6 +226,13 @@ esp_err_t vehicle_commands_runtime_init(const config_runtime_t *runtime)
     publish((vehicle_command_context_t){0}, 0);
     return requests ? ESP_OK : ESP_ERR_NO_MEM;
 }
+static bool enqueue(const vehicle_command_request_t *request)
+{
+    if (xQueueSend(requests, request, 0) == pdTRUE)
+        return true;
+    worker_health_queue_drop(WORKER_ECM);
+    return false;
+}
 static bool submit(const uint8_t *bytes, size_t length, bool gauge_confirmed)
 {
     vehicle_command_request_t request;
@@ -244,7 +252,7 @@ static bool submit(const uint8_t *bytes, size_t length, bool gauge_confirmed)
     if (request.kind == VEHICLE_BURNOUT && request.verb == VEHICLE_START && !gauge_confirmed)
         return false;
     request.gauge_confirmed = gauge_confirmed;
-    return xQueueSend(requests, &request, 0) == pdTRUE;
+    return enqueue(&request);
 }
 bool vehicle_commands_runtime_submit(const uint8_t *bytes, size_t length)
 {
@@ -517,5 +525,5 @@ bool vehicle_commands_runtime_confirm(uint8_t kind)
                                          .link            = u32(status + 12),
                                          .boot            = u32(status + 16),
                                          .gauge_confirmed = true};
-    return xQueueSend(requests, &request, 0) == pdTRUE;
+    return enqueue(&request);
 }
