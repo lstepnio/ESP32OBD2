@@ -73,7 +73,7 @@ class WebsiteReviewCaptureTest {
                 }
             ) {
                 EGaugeTheme(dark = scene.dark) {
-                    Surface(Modifier.requiredSize(if (scene.large) 1000.dp else 390.dp, if (scene.large) 800.dp else 844.dp).testTag("review-capture"), color = MaterialTheme.colorScheme.background) {
+                    Surface((if (scene.route == "actions") Modifier.fillMaxSize() else Modifier.requiredSize(if (scene.large) 1000.dp else 390.dp, if (scene.large) 800.dp else 844.dp)).testTag("review-capture"), color = MaterialTheme.colorScheme.background) {
                         Row {
                             if (scene.large) NavigationRail(containerColor = MaterialTheme.colorScheme.background) { navigation(scene, true) }
                             Column(Modifier.weight(1f)) {
