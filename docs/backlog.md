@@ -103,3 +103,7 @@ pending note into current authorization.
   passed; the owner confirmed clean physical UI/navigation and removal of the yellow
   icon. Actual Jeep restoration remains unqualified; admission and durable uncertainty
   are unchanged.
+
+- FEATURE-04 entry follow-up: dev.80/App dev.57 source restores first-configured-page
+  entry and one Connecting presentation across action states. Pending records and
+  admissible recovery controls remain intact; device delivery is pending.

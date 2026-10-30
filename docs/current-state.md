@@ -41,6 +41,12 @@ and brake actions require the separate explicit owner candidate described below.
 
 ## Action presentation follow-up
 
+The dev.80/App dev.57 source follow-up removes recovery-driven entry jumps: entry
+starts at the first configured action, including after reorder. All offline action
+faces share a neutral centered **Connecting** label. Generic “Not verified” copy is
+omitted without clearing command uncertainty or enabling Start. This follow-up is
+not installed until separately verified; the current verified image is dev.79.
+
 Dev.79/App dev.56 source implements the owner-approved compact action review.
 The [presentation contract](architecture/vehicle-actions.md#approved-compact-action-presentation)
 owns the single hold, quiet transitions, connection and recovery wording. The [signed indoor delivery](evidence/dev79-action-ui.md) passed; physical UI/navigation was confirmed by the owner. Jeep qualification

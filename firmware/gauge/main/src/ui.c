@@ -2557,7 +2557,7 @@ static void refresh_vehicle_menu(ui_t *ui)
         value = "Add in App";
     else if (phase == VEHICLE_UNKNOWN)
     {
-        value = "Not verified";
+        value = id < 3 ? "Checking..." : "";
         if (id == 4 && (state & 256U))
         {
             button  = "Release";
@@ -2575,7 +2575,7 @@ static void refresh_vehicle_menu(ui_t *ui)
     }
     else if (phase == VEHICLE_STOPPING || phase == VEHICLE_VERIFYING)
     {
-        value  = id == 3 ? "Not verified" : "";
+        value  = "";
         button = id == 3 ? "Restoring..." : "Stopping...";
         if (id < 3 && ui->command_last_seconds)
         {
@@ -2614,12 +2614,10 @@ static void refresh_vehicle_menu(ui_t *ui)
             snprintf(duration, sizeof(duration), "%u:%02u", seconds / 60, seconds % 60);
             value = seconds ? duration : "";
         }
-        else
-            value = "Not verified";
     }
     else if (!(state & 256U))
     {
-        value = (state & (VEHICLE_UI_RECONNECTING << 8)) ? "Connecting..." : "Not supported";
+        value = "Not supported";
     }
     else if (command_busy(ui))
         value = "Action in progress";
@@ -2651,24 +2649,24 @@ static void refresh_vehicle_menu(ui_t *ui)
                         (id == 4 && phase == VEHICLE_UNKNOWN && (state & (32U << 8))));
     if (id >= 3 && (state & (VEHICLE_UI_OWNER_TEST << 8)) && !(state & 256U) && phase != VEHICLE_UNKNOWN)
     {
-        value   = "Connecting...";
+        value   = "Connecting";
         note    = "";
         enabled = false;
         button  = "";
     }
     if (id == 3 && phase == VEHICLE_UNKNOWN)
     {
-        value   = "Not verified";
+        value   = "";
         enabled = state & 256U;
         button  = enabled ? "Restore" : "";
-        note    = enabled ? "" : "Connecting...";
+        note    = "";
     }
     if (owner_check)
     {
         button  = id == 3 ? "Confirm reset" : "Hold to confirm";
         enabled = (state & 256U) && (state & (16U << 8));
-        value   = phase == VEHICLE_UNKNOWN ? "Not verified" : id == 3 ? "Restart Jeep" : "Release sent";
-        note    = !enabled ? (!(state & 256U) ? "Connecting..." : "Park and idle") : id == 3 ? "" : "Brakes normal?";
+        value   = phase == VEHICLE_UNKNOWN ? "" : id == 3 ? "Restart Jeep" : "Release sent";
+        note    = !enabled ? "Park and idle" : id == 3 ? "" : "Brakes normal?";
     }
     else if (id == 4 && (state & (VEHICLE_UI_OWNER_TEST << 8)) && phase == VEHICLE_READY && enabled && !blocker)
     {
@@ -2685,7 +2683,9 @@ static void refresh_vehicle_menu(ui_t *ui)
                                  : idle_preset == 2 ? "Winch"
                                  : idle_preset == 1 ? "Air up"
                                                     : "Idle";
-        note    = blocked_phase == VEHICLE_UNKNOWN ? "Not verified"
+        note    = blocked_phase == VEHICLE_UNKNOWN ? (blocker == 3   ? "Restore required"
+                                                      : blocker == 4 ? "Release required"
+                                                                     : "Recovery needed")
                   : blocked_phase == VEHICLE_RESTART_REQUIRED || (blocker == 3 && blocked_phase == VEHICLE_ACTIVE)
                       ? (blocked_phase == VEHICLE_ACTIVE ? "Restore required" : "Restart Jeep")
                       : "Action in progress";
@@ -2701,14 +2701,30 @@ static void refresh_vehicle_menu(ui_t *ui)
         button  = ui->command_request_stop ? (id == 3 ? "Restoring..." : "Stopping...") : "Starting...";
         enabled = false;
     }
+    /* One connection treatment across every face; uncertainty remains in the command owner. */
+    bool connecting = id && !(state & 256U) &&
+                      ((state & (VEHICLE_UI_RECONNECTING << 8)) || phase == VEHICLE_UNKNOWN ||
+                       (id >= 3 && (state & (VEHICLE_UI_OWNER_TEST << 8))));
+    if (connecting)
+    {
+        value = "Connecting";
+        note = button = "";
+        enabled       = false;
+    }
     /* Existing fonts and one arc tree, no per-frame allocations or animation task. */
     command_text(ui, ui->command_title, title, 59, 184, font_unit);
-    command_text(ui, ui->command_value, value, 104, 186, strchr(value, ':') && id < 3 ? font_large : font_compact);
+    command_text(ui, ui->command_value, value, 104, 186,
+                 connecting                     ? font_unit
+                 : strchr(value, ':') && id < 3 ? font_large
+                                                : font_compact);
     command_text(ui, ui->command_note, note, 136, 200, font_subtitle);
     bool coolant_warning = id < 3 && (state & (VEHICLE_UI_COOLANT_HIGH << 8));
-    lv_obj_set_style_text_color(ui->command_value, lv_color_hex(coolant_warning ? color_warning : color_text_primary),
+    lv_obj_set_style_text_color(ui->command_value,
+                                lv_color_hex(connecting        ? color_text_secondary
+                                             : coolant_warning ? color_warning
+                                                               : color_text_primary),
                                 0);
-    bool quiet_note = !strcmp(note, "In the App") || !strcmp(note, "Connecting...") || strstr(note, "running");
+    bool quiet_note = !strcmp(note, "In the App") || strstr(note, "running");
     lv_obj_set_style_text_color(ui->command_note, lv_color_hex(quiet_note ? color_text_secondary : color_warning), 0);
     if (strcmp(lv_label_get_text(ui->command_button_text), button))
         lv_label_set_text(ui->command_button_text, button);
@@ -2960,20 +2976,10 @@ void ui_show_vehicle_actions(ui_t *ui)
     }
     ui->command_menu_visible = true;
     ui->command_layer_dirty = ui->status_dirty = true;
-    ui->command_page                           = 0;
     command_sync_pages(ui);
+    /* Always enter at the first configured page, not a retained recovery record. */
+    ui->command_page     = 0;
     ui->command_activity = (uint32_t)(esp_timer_get_time() / 1000);
-    for (unsigned i = 0; i < ui->command_page_count; ++i)
-    {
-        unsigned id = ui->command_pages[i], phase = atomic_load(&ui->command_ui[command_index(id)]) & 255U;
-        if ((id >= 3 || id == active_idle_id(ui)) &&
-            (phase == VEHICLE_ACTIVE || phase == VEHICLE_STARTING || phase == VEHICLE_STOPPING ||
-             phase == VEHICLE_VERIFYING || phase == VEHICLE_UNKNOWN || phase == VEHICLE_RESTART_REQUIRED))
-        {
-            ui->command_page = i;
-            break;
-        }
-    }
     atomic_store(&ui->command_menu_active, true);
     page_action_reset(&ui->action);
     lv_obj_remove_flag(ui->command_menu, LV_OBJ_FLAG_HIDDEN);

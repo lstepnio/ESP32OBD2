@@ -78,7 +78,7 @@ class VehicleCommandsTest {
         assertEquals(2, request[0].toInt())
         assertEquals(3, request[1].toInt())
         assertEquals(0, request[3].toInt())
-        assertTrue(active.copy(phase = VehicleCommandPhase.Unknown).message.contains("not verified"))
+        assertEquals("Release on the gauge", active.copy(phase = VehicleCommandPhase.Unknown).message)
         assertFalse(active.copy(phase = VehicleCommandPhase.Restored).message.contains("restored"))
         val unknown = active.copy(phase = VehicleCommandPhase.Unknown)
         assertTrue(unknown.canStop)
@@ -126,7 +126,7 @@ class VehicleCommandsTest {
             val active = local.copy(phase = VehicleCommandPhase.Active, operation = 3)
             assertTrue(active.canStop)
             assertEquals(2, VehicleCommandProtocol.request(active, true)[2].toInt())
-            assertTrue(local.copy(phase = VehicleCommandPhase.Verifying).message.contains(if (kind == VehicleCommandKind.AbsTcs) "not verified" else "confirm on the gauge"))
+            assertTrue(local.copy(phase = VehicleCommandPhase.Verifying).message.contains(if (kind == VehicleCommandKind.AbsTcs) "Restoring" else "confirm on the gauge"))
             assertTrue(local.copy(phase = VehicleCommandPhase.Restored).message.contains("confirmed on the gauge"))
             assertFalse(local.message.contains("unqualified"))
             assertFalse(local.message.contains("unavailable"))
@@ -140,19 +140,23 @@ class VehicleCommandsTest {
         assertEquals(VehicleCommandPhase.RestartRequired, abs.phase)
         assertEquals("Restart Jeep · Confirm reset on the gauge", abs.message)
         val uncertain = abs.copy(phase = VehicleCommandPhase.Unknown)
-        assertEquals("Not verified · Restore on the gauge", uncertain.message)
+        assertEquals("Restore on the gauge", uncertain.message)
         assertFalse(uncertain.message.contains("confirm"))
     }
 
     @Test fun absPresentationNeverTurnsAvailabilityOrReturnAcknowledgementIntoRestoration() {
         val status = ready(VehicleCommandKind.AbsTcs).withBrakeActionsTestVersion(1)
         assertEquals("Hold to disable on the gauge", status.message)
-        assertEquals("Connecting…", status.copy(phase = VehicleCommandPhase.Unavailable).message)
+        assertEquals("Connecting", status.copy(phase = VehicleCommandPhase.Unavailable).message)
         for (phase in listOf(VehicleCommandPhase.Unknown, VehicleCommandPhase.Verifying, VehicleCommandPhase.RestartRequired)) {
             val pending = status.copy(phase = phase)
             assertFalse(pending.message.contains("restored", ignoreCase = true))
             assertFalse(pending.canStart)
         }
+        for (phase in listOf(VehicleCommandPhase.Unavailable, VehicleCommandPhase.Unknown, VehicleCommandPhase.RestartRequired)) {
+            assertEquals("Connecting", status.copy(phase = phase, qualified = false).message)
+        }
+        assertEquals("Restore on the gauge", status.copy(phase = VehicleCommandPhase.Unknown).message)
         assertEquals("Restoring…", status.copy(phase = VehicleCommandPhase.Stopping).message)
         assertEquals("Reset confirmed on the gauge", status.copy(phase = VehicleCommandPhase.Restored).message)
     }

@@ -929,17 +929,21 @@ is added. Critical shared attention retains its existing stopping indicator.
   is a frozen presentation value, not a new live sample or renewed deadline; it is
   discarded on source-scope retirement or idle Ready/Unknown.
 - Disabled/uncertain ABS offers **Restore**. Return processing stays on the same
-  face with **Restoring...**. Unknown is **Not verified**, never proof of a running
-  action or normal braking. Offline recovery shows only **Connecting...** below
-  that retained state and automatically retries through the existing connection owner.
+  face with **Restoring...**. The command owner retains Unknown, while the face
+  omits a generic verdict and offers the admissible recovery control. Offline
+  faces all show one neutral **Connecting** value at the same location/font, with
+  no duplicate subtitle or control; the existing connection owner retries quietly.
 - An acknowledged ABS Return retains **Restart Jeep**. **Confirm reset** is a
   single local tap only when the existing owner-mode identity/stationary gate
   permits it. It records the human observation and sends no control request.
   It neither bypasses restoration proof nor enables restart-free restoration.
+- Menu entry always selects the first configured action after synchronizing page
+  order. Active/uncertain records never select a later page automatically; pending
+  legacy recovery is appended without replacing that configured first page.
 - Another unresolved action retains its named **Review** navigation. Legacy
   Burnout recovery remains compatible; Burnout is still absent from normal menus.
 
-The App uses the same concise Ready/Disabled/Not verified/Restoring/reset language
+The App uses the same concise Ready/Disabled/Restore/Connecting/reset language
 and identifies the gauge as the owner of supervised physical controls. The phone
 cannot newly Start an owner-only brake action. Wire/storage/controller commands,
 qualification flags, explicit Return, pending receipts and automatic recovery

@@ -800,11 +800,11 @@ int main(int argc, char **argv)
     tick(60);
     capture(argv[1], "actions-reconnecting");
     assert(lv_obj_has_flag(ui->command_ring, LV_OBJ_FLAG_HIDDEN));
-    assert(!strcmp(lv_label_get_text(ui->command_value), "Connecting..."));
+    assert(!strcmp(lv_label_get_text(ui->command_value), "Connecting"));
     ui_set_vehicle_action_status(ui, 1, VEHICLE_UNKNOWN, 0, 0, 0, 1);
     tick(30100);
     capture(argv[1], "actions-unknown");
-    assert(ui->command_menu_visible && !strcmp(lv_label_get_text(ui->command_value), "Not verified"));
+    assert(ui->command_menu_visible && !strcmp(lv_label_get_text(ui->command_value), "Connecting"));
     unsigned children = lv_obj_get_child_count(ui->command_menu);
     for (unsigned n = 0; n < 30; n++)
     {
@@ -914,6 +914,45 @@ int main(int argc, char **argv)
     tick(200);
     assert(ui->command_menu_visible && command_requests == before);
     close_vehicle_menu(ui);
+    /* A retained third-page recovery never hijacks entry. All offline faces use
+     * exactly the same status, location, font and tone without an unknown verdict. */
+    ui_set_vehicle_action_status(ui, 1, VEHICLE_UNAVAILABLE, VEHICLE_UI_RECONNECTING, 0, 0, 0);
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_UNKNOWN, VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    unsigned entry_requests = command_requests, entry_confirms = owner_confirmations;
+    ui_show_vehicle_actions(ui);
+    tick(60);
+    assert(ui->command_page == 0 && command_id(ui) == 1);
+    for (unsigned page = 0; page < 3; ++page)
+    {
+        ui->command_page = page;
+        tick(60);
+        assert(!strcmp(lv_label_get_text(ui->command_value), "Connecting"));
+        assert(!strcmp(lv_label_get_text(ui->command_note), ""));
+        assert(lv_obj_has_flag(ui->command_button, LV_OBJ_FLAG_HIDDEN));
+        assert(lv_obj_get_style_text_font(ui->command_value, 0) == font_unit);
+        assert(lv_color_eq(lv_obj_get_style_text_color(ui->command_value, 0), lv_color_hex(color_text_secondary)));
+        capture(argv[1], page == 0   ? "actions-air-connecting"
+                         : page == 1 ? "actions-winch-connecting"
+                                     : "actions-abs-connecting");
+    }
+    close_vehicle_menu(ui);
+    ui_show_vehicle_actions(ui);
+    tick(60);
+    assert(ui->command_page == 0 && command_id(ui) == 1);
+    page_action_config_t original_order = ui->action.config, reordered = original_order;
+    reordered.pages_explicit = true;
+    reordered.page_count     = 3;
+    reordered.pages[0]       = 2;
+    reordered.pages[1]       = 1;
+    reordered.pages[2]       = 3;
+    close_vehicle_menu(ui);
+    ui_configure_page_action(ui, reordered);
+    ui_show_vehicle_actions(ui);
+    tick(60);
+    assert(command_id(ui) == 2 && ui->command_page == 0);
+    assert(command_requests == entry_requests && owner_confirmations == entry_confirms);
+    close_vehicle_menu(ui);
+    ui_configure_page_action(ui, original_order);
     /* Burnout is an explicit fourth page, never a legacy default. A tap cannot
      * Start, and phase updates cannot consume its physical hold as a second action. */
     ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1, 0, 0, 0);
@@ -960,7 +999,9 @@ int main(int argc, char **argv)
         tick(60);
         assert(!strcmp(lv_label_get_text(ui->command_title), "Burnout Mode"));
         assert(!strcmp(lv_label_get_text(ui->command_value), n ? "ABS + TCS" : "Idle"));
-        assert(!strcmp(lv_label_get_text(ui->command_note), n == 2 ? "Restart Jeep" : "Not verified"));
+        assert(!strcmp(lv_label_get_text(ui->command_note), n == 2   ? "Restart Jeep"
+                                                            : n == 1 ? "Restore required"
+                                                                     : "Recovery needed"));
         assert(!strcmp(lv_label_get_text(ui->command_button_text), "Review"));
         assert(!lv_obj_has_state(ui->command_button, LV_STATE_DISABLED));
         capture(argv[1], n == 0   ? "actions-burnout-idle-unknown"
@@ -985,7 +1026,8 @@ int main(int argc, char **argv)
     ui_set_vehicle_action_status(ui, 2, VEHICLE_RESTART_REQUIRED, VEHICLE_UI_OWNER_TEST, 0, 0, 0);
     ui->command_page = 2;
     tick(60);
-    assert(!strcmp(lv_label_get_text(ui->command_note), "Connecting..."));
+    assert(!strcmp(lv_label_get_text(ui->command_value), "Connecting"));
+    assert(!strcmp(lv_label_get_text(ui->command_note), ""));
     assert(lv_obj_has_state(ui->command_button, LV_STATE_DISABLED));
     ui_set_vehicle_action_status(ui, 2, VEHICLE_RESTART_REQUIRED, 1 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
     tick(60);
