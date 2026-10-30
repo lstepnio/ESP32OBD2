@@ -89,3 +89,10 @@ pending note into current authorization.
 - Automatic role correction is prepared for the exact captured Jeep ECM/TCM pair.
   Qualify opposite port detection, atomic retirement, unchanged configuration,
   inverse-map reconnect/reboot and no control replay using the expanded matrix.
+
+- Dev.78/App dev.55 are installed after exact green CI; [indoor delivery](evidence/dev78-indoor-rollout.md)
+  preserved setup, pending ABS operation and history. Physical panel/navigation
+  passed by owner confirmation; ABS Restore/reset and swapped-port/loaded tests remain.
+- P2 action availability copy: `ActionPagesSheet.kt` still presents “Not supported
+  yet” for the owner-supervised ABS entry without live ECM context. Use the shared
+  unavailable/reconnecting wording without weakening execution admission.

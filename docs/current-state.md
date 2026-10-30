@@ -2,13 +2,14 @@
 
 Updated 2026-10-29. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-App dev.54/code54 and signed dev.77 from PR #126 source `5898c80` are installed
-on the Pixel/reference gauge. The App is unchanged from the prior replacement APK;
-the firmware used App/Wi-Fi. [Current delivery evidence](evidence/dev77-action-recovery.md)
-records the corrected action-recovery presentation and exact signed image/health
-verification. [Prior delivery evidence](evidence/dev76-indoor-rollout.md) retains
-the four-action menu at revision 66. Both owner-supervised brake actions are enabled on the matched Jeep;
-physical qualification remains open. PR #126 remains unmerged.
+App dev.55/code55 and signed dev.78 from PR #126 source `8408307` are installed
+on the Pixel/reference gauge. The App used replacement installation and firmware
+used App/Wi-Fi. [Current delivery evidence](evidence/dev78-indoor-rollout.md) records
+exact source/image verification, healthy OTA, connection/Wi-Fi checks and preserved
+configuration/uncertainty/history. Burnout/Line Lock is paused in normal menus;
+ABS/TCS Restore and automatic swapped-adapter roles remain parked qualification.
+PR #126 remains unmerged. The owner confirmed clean display, navigation and the
+three-action menu; live vehicle behavior remains unqualified.
 PRs #122/#123 and the [prior dev.75 delivery](evidence/dev75-indoor-rollout.md) retain
 foreground/history/radio checks and the earlier owner navigation observation.
 Live Jeep recovery and loaded presentation remain unqualified.
@@ -478,7 +479,7 @@ omitting the explicit Return used in the successful reference. The follow-up add
 **Restore** before ignition reset, explicit same-vehicle Unknown recovery and a
 durable acknowledged-Return receipt, keeping acceptance distinct from physical
 restoration. See the [recovery contract](architecture/vehicle-actions.md#abs-return-receipt-and-paused-burnout-menus).
-These changes are source-level; installed dev.77 does not yet include them.
+These changes are installed in signed dev.78; actual Jeep restoration is not yet qualified.
 
 The owner also requested removing Burnout/Line Lock for now. Normal App action
 menus and firmware configuration omit it; older pending records retain release
@@ -500,14 +501,14 @@ runtime transport bindings, preserving raw configuration and logical source role
 Ambiguous/missing evidence retains the working map; same-session ECM proof survives
 mere refresh loss. The [role contract](architecture/vehicle-connections.md#role-verification-for-accidentally-swapped-adapters)
 owns admission, budgets and limits. Policy/transport regressions pass offline;
-physical swapped-port recovery remains unqualified and installed dev.77 lacks it.
+physical swapped-port recovery remains unqualified; signed dev.78 installs this path.
 
 
-Candidate metadata is prepared as firmware dev.78 / App dev.55. The combined
+Firmware dev.78 / App dev.55 are installed with the evidence linked above. The combined
 owner-candidate firmware builds locally; 185 host and 14 review-server tests,
 341 JVM tests, 28 managed-emulator action UI checks, firmware normal/fallback/parked
 rendering and configuration fixtures pass. Android lint and format checks pass.
 The production transport bodies run under ASan/UBSan fixtures, and the role policy
 covers opposite/both/missing identities, stale epochs, two-worker retirement,
-inverse-map continuity and transient identity loss. Exact published/installed
-candidate evidence and loaded Jeep checks are not supplied by these offline results.
+inverse-map continuity and transient identity loss. Published/installed evidence is recorded separately above; these offline results
+do not supply loaded Jeep or physical controller qualification.
