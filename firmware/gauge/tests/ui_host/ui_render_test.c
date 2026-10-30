@@ -998,6 +998,14 @@ int main(int argc, char **argv)
     assert(!strcmp(lv_label_get_text(ui->command_button_text), "Confirm reset"));
     assert(!lv_obj_has_state(ui->command_button, LV_STATE_DISABLED));
     unsigned reset_confirmations = owner_confirmations, reset_requests = command_requests;
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_UNKNOWN, 1 | 16 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    tick(60);
+    action_press(ui);
+    ui_set_vehicle_action_status(ui, 2, VEHICLE_RESTART_REQUIRED, 1 | 16 | VEHICLE_UI_OWNER_TEST, 0, 0, 0);
+    tick(60);
+    action_release(ui);
+    assert(owner_confirmations == reset_confirmations && command_requests == reset_requests);
+    /* Only a fresh tap on the reset face records the human acknowledgement. */
     action_press(ui);
     action_release(ui);
     assert(owner_confirmations == reset_confirmations + 1 && command_requests == reset_requests);

@@ -570,7 +570,7 @@ not qualify live controller execution.
   three strokes show arrow geometry without growing the font set; the completed
   cue lasts 350 ms before entry. Returning permits immediate re-entry to reach Stop;
   the legacy page-jump cooldown is unchanged. Left/right
-  browses; Down returns to readings and the top chevron cancels a confirmation first.
+  browses; Down or the top chevron returns to readings without acknowledging an operation.
   Holds do not pair inside actions. Ordinary idle Start requires a continuous 900 ms
   hold on the ready control, replacing the repeated confirmation screen. Releasing
   early, leaving its hit region, moving over 12 logical pixels, attention/context loss,
@@ -578,19 +578,12 @@ not qualify live controller execution.
   and restored status still cancels the hold. Completion consumes the entire touch,
   so its release cannot Stop or issue a second Start. Removing Park/brake display copy
   does not remove any command guard or qualify the owner-supervised parked candidate.
-- Missing coolant retains Continue followed by a fresh hold, with No coolant visible
-  at commitment and its frozen one-minute maximum. State/context drift cancels that
-  confirmation; recovery cannot enlarge a queued request. ABS/TCS retains its named
-  Disable confirmation and Restart to restore guidance. Stop is one tap, including
-  from the sibling idle page, and always targets the actual running operation.
-- Starting, Return/verification and reconnection use green, red and yellow rotating
-  edge arcs. Starting and Return have no decorative play triangle or stop square;
-  reconnection retains its link symbol. They indicate pending work, not
-  percentage complete. Reuse the existing UI timer and LVGL arc; no animation task,
-  framebuffer or extra font set. Render timing, cancel/retry policy and command jobs
-  remain independent. Unknown keeps Check idle / Status unknown until reconciliation.
-  Verified restoration returns directly to Ready with no Done/success screen; known
-  high coolant keeps Start blocked. Worker validation remains authoritative.
+- The [approved compact presentation](#approved-compact-action-presentation) owns
+  current fallback commitment, ABS disable/Restore/reset controls and quiet
+  transition states. Start holds are explicit confirmation; Stop remains one tap
+  and targets the actual running operation even from the sibling idle page.
+  Verified restoration returns directly to Ready, while known high coolant keeps
+  Start blocked. Worker validation remains authoritative.
 - Readings remain selected behind the branch; remote selection and page cycling
   wait until it exits. Closing restarts the cycle quiet period and renders the
   cached samples through their existing freshness rules. Thirty idle seconds
@@ -871,8 +864,8 @@ actual brake state. For ABS/TCS, first use **Restore** to send captured `32 A4`,
 then perform the ignition reset and check that the warnings and brakes are normal.
 Ignition alone is not established restoration: the owner reported it remained
 disabled until JScan toggled the function and the Jeep restarted. Only then use
-the physical **Hold to confirm** control while
-stationary at normal idle. Confirmation sends no vehicle control. It records
+the physical **Confirm reset** control for ABS/TCS, or the retained
+**Hold to confirm** control for legacy Burnout, while stationary at normal idle. Confirmation sends no vehicle control. It records
 human provenance in command history/logs and clears that operation's uncertainty;
 it is not decoded controller proof. Unchecked or unexpected behavior stays
 unresolved. The [operator procedure](../development/jeep-action-qualification.md#brake-actions-follow-up)

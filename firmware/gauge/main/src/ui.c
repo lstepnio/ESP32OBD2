@@ -2872,7 +2872,9 @@ static void command_pointer(ui_t *ui, lv_event_code_t code, lv_obj_t *target, in
             }
         }
         else if (!held && !ui->command_moved && abs(dx) <= px(12) && abs(dy) <= px(12) &&
-                 target == ui->command_press_target && (target == ui->command_button || target == ui->command_back))
+                 target == ui->command_press_target &&
+                 (target == ui->command_back ||
+                  (target == ui->command_button && ui->command_press_epoch == atomic_load(&ui->command_epoch))))
         {
             lv_area_t area;
             lv_obj_get_coords(target, &area);
