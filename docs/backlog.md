@@ -106,4 +106,6 @@ pending note into current authorization.
 
 - FEATURE-04 entry follow-up: dev.80/App dev.57 source restores first-configured-page
   entry and one Connecting presentation across action states. Pending records and
-  admissible recovery controls remain intact; device delivery is pending.
+  admissible recovery controls remain intact. The [signed indoor delivery](evidence/dev80-action-entry.md)
+  passed. The owner confirmed first-page entry and matching Connecting styling;
+  parked checks remain separate.

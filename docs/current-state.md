@@ -2,15 +2,16 @@
 
 Updated 2026-10-29. This owns implemented/installed facts and their evidence limits.
 The [backlog](backlog.md) owns task status; the [roadmap](roadmap.md) owns outcome order.
-App dev.56/code56 and signed dev.79 are installed on the Pixel/reference gauge.
+App dev.57/code57 and signed dev.80 are installed on the Pixel/reference gauge.
 The App used replacement installation; firmware used App/Wi-Fi. The
-[current delivery evidence](evidence/dev79-action-ui.md) records exact source/image,
-healthy OTA, indoor checks and preserved setup/history/uncertainty. The approved
-compact action presentation is installed. The owner confirmed clean physical
-display/navigation and removal of the yellow icon; live vehicle behavior remains
-unqualified. Burnout is paused in normal menus. ABS/TCS Restore/reset and swapped
-adapter roles retain the [prior delivery's](evidence/dev78-indoor-rollout.md) parked
-qualification limits. PR #127 is stacked on unmerged PR #126; no main merge occurred.
+[current delivery evidence](evidence/dev80-action-entry.md) records exact signed
+source/image, healthy OTA, indoor checks and preserved setup/history/uncertainty.
+Actions enter at the first configured page. Offline status is one neutral Connecting
+label, without a generic unknown verdict. The owner confirmed first-page entry
+and consistent Connecting styling; [dev.79](evidence/dev79-action-ui.md) retains the
+owner's prior clean display/navigation observation. Burnout stays paused. Actual
+ABS/TCS restoration and swapped-adapter roles remain parked qualification. PR #127
+is stacked on unmerged PR #126; no main merge occurred.
 PRs #122/#123 and the [prior dev.75 delivery](evidence/dev75-indoor-rollout.md) retain
 foreground/history/radio checks and the earlier owner navigation observation.
 Live Jeep recovery and loaded presentation remain unqualified.
@@ -44,8 +45,8 @@ and brake actions require the separate explicit owner candidate described below.
 The dev.80/App dev.57 source follow-up removes recovery-driven entry jumps: entry
 starts at the first configured action, including after reorder. All offline action
 faces share a neutral centered **Connecting** label. Generic “Not verified” copy is
-omitted without clearing command uncertainty or enabling Start. This follow-up is
-not installed until separately verified; the current verified image is dev.79.
+omitted without clearing command uncertainty or enabling Start. The [signed indoor delivery](evidence/dev80-action-entry.md) passed; physical and
+parked qualification remain separate.
 
 Dev.79/App dev.56 source implements the owner-approved compact action review.
 The [presentation contract](architecture/vehicle-actions.md#approved-compact-action-presentation)
