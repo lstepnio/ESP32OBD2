@@ -110,6 +110,52 @@ def validate_claims(content, html):
     return replacements
 
 
+def claim_inputs(content):
+    """One shared input inventory covers material claims and their evidence."""
+    references = set(content.get("sourceDocuments", []))
+    for claim in [
+        *content.get("claims", {}).values(),
+        *content.get("actionAvailability", {}).values(),
+    ]:
+        references.update(claim.get("sources", [claim["source"]] if "source" in claim else []))
+        references.update(claim.get("evidence", []))
+    return references
+
+
+def review_claim_inputs(content):
+    baseline = content.get("claimInputProvenance", {})
+    hashes = baseline.get("sha256", {})
+    if not hashes or not baseline.get("reviewedOn") or not baseline.get("reason"):
+        raise ValueError("Missing claim input provenance or semantic review metadata")
+    date.fromisoformat(baseline["reviewedOn"])
+    current = {
+        name: hashlib.sha256(repository_file(name).read_bytes()).hexdigest()
+        for name in sorted(claim_inputs(content))
+    }
+    differences = sorted(
+        name for name in hashes.keys() | current.keys() if hashes.get(name) != current.get(name)
+    )
+    if not differences:
+        return []
+    affected = []
+    for key, claim in {
+        **content.get("claims", {}),
+        **content.get("actionAvailability", {}),
+    }.items():
+        references = set(claim.get("sources", [claim["source"]] if "source" in claim else []))
+        references.update(claim.get("evidence", []))
+        if references.intersection(differences):
+            affected.append(key)
+    return [
+        {
+            "changedInputs": differences,
+            "affectedClaims": sorted(affected),
+            "currentSha256": current,
+            "requiredAction": "Review affected claim scope, availability, copy and evidence against these exact sources; update claimInputProvenance with reviewedOn, specific reason and this exact currentSha256 map only after semantic review.",
+        }
+    ]
+
+
 def review_images(content, html):
     """Keep capture baselines immutable; only explicit equivalence reviews accept drift."""
     records = {}
@@ -195,12 +241,15 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
     template = (source / "index.html").read_text()
     claim_replacements = validate_claims(content, template)
     review = review_images(content, template)
+    review["changedClaimInputs"] = review_claim_inputs(content)
+    review["publicationReady"] = review["publicationReady"] and not review["changedClaimInputs"]
     if not metadata_only and not review["publicationReady"]:
         raise ValueError("Website semantic review/capture pending; run --check for review items")
     (output / "site-review.json").write_text(json.dumps(review, indent=2) + "\n")
     if not review["publicationReady"]:
         print(
-            f"REVIEW REQUIRED: {len(review['changedImageInputs'])} changed image input sets, "
+            f"REVIEW REQUIRED: {len(review['changedClaimInputs'])} changed claim input sets, "
+            f"{len(review['changedImageInputs'])} changed image input sets, "
             f"{len(review['pendingCaptures'])} pending captures (use --review-report)"
         )
     choices, screen_data = gallery(content)
@@ -325,6 +374,7 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
             "scopes": content["claimScopes"],
             "items": content["claims"],
             "actions": content["actionAvailability"],
+            "inputProvenance": content["claimInputProvenance"],
         },
         "visualReview": review,
         "imageProvenance": {

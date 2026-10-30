@@ -149,7 +149,16 @@ Material copy used through `CLAIM_*` tokens has a mandatory `claims` record;
 links implementation sources plus evidence. The manifest includes these records
 and the full image metadata. Review semantics and audience before changing copy:
 ordinary public controls remain disabled, owner-only candidates are separate, and
-Burnout is paused. Keep repeated action availability in `actionAvailability`, never
+Burnout is paused.
+`claimInputProvenance` holds one shared SHA-256 map for claim sources, evidence and
+source authorities. Missing baseline/review metadata fails the check. Changed,
+newly referenced or removed sources create `changedClaimInputs`, listing affected
+claims and the exact current hash map, and block deployable builds. Inspect the
+actual changes against the named audiences and availability, revise claims when
+needed, then update `reviewedOn`, a specific semantic-review `reason` and `sha256`
+with the report's current map. Do not rehash sources merely to make publication
+pass. The metadata check remains fast and reports unresolved drift without
+claiming it was reviewed. Keep repeated action availability in `actionAvailability`, never
 as independently maintained HTML assertions. `pendingCaptures` is the explicit
 publication gate for missing representative views, not permission to use stale
 screens. Clear it only after saving/reviewing the production capture or deciding

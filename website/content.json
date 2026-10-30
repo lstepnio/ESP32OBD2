@@ -229,5 +229,30 @@
   "imageProvenance": [
     "docs/assets/app/marketing-provenance.json",
     "docs/assets/gauge/capture-provenance.json"
-  ]
+  ],
+  "claimInputProvenance": {
+    "reviewedOn": "2026-10-29",
+    "reason": "Initial scoped claim references from committed source. Final consolidated documentation requires explicit semantic review before publication.",
+    "sha256": {
+      "contracts/reading-catalog.json": "ccda2356aecf4ba003f0b34be3b41262b50bf1c77ac119c0518e1af0851cf1f5",
+      "docs/architecture/alerts-and-diagnostics.md": "d63fa5de38347a0f1e3ce3d3e1547ee8b41c559da2558d11c92ed5a3a6e5f858",
+      "docs/architecture/display-experience.md": "7efc90da48dbfc3a38a12eda6ed9c62c57a9508263e360ec44ea0f544c58f8e1",
+      "docs/architecture/phone-alert-providers.md": "6b3a04988f2da30db963c6e37fe55cd7a228c78487eb001a6b5d98204af511dd",
+      "docs/architecture/platforms-and-releases.md": "6ccb5b1f4c51fc400068613853024edbf191ef9b70aae51b9d9396f9dd8d1576",
+      "docs/architecture/vehicle-actions.md": "31a0baf65eb19aa6d68d2f788965f1560657c588e807e497436a15303edd6bf3",
+      "docs/architecture/vehicle-connections.md": "3f0cfea953340596d86a865dd28a0372129214e05b37d15bbcd37090d91680b0",
+      "docs/backlog.md": "36113af1395d3ef0e7f95fa91f6e4383b63e01bbb423db097d34e5c3cf9d0b75",
+      "docs/current-state.md": "bf9912d963bc1be07b4675dfe5244c441b1ca390517291ae8339880082831a6b",
+      "docs/development/reading-catalog-alerts.md": "6d2a6d365516d14e339303d19ef2014e522beb3f2f00e36f104baf43fbe7fdeb",
+      "docs/evidence/action-pages-indoor.md": "3720880cb92f1a647f64939fde649f57e4eaf22ee35b6a87c3e3b70c8273e6a3",
+      "docs/evidence/dev75-indoor-rollout.md": "10d3b6d4dfdf6267b02db07c48013fb3dd18e3db67b9cb3abaf6f40db0daaf5c",
+      "docs/evidence/dev80-action-entry.md": "bd641ceaa166cde0ea11bec6a1efd811346d12a3caee02af96a7162a7044d9aa",
+      "docs/evidence/display-evolution.md": "30847aee0cb5b34dc788a7509372a93abf0aa94b6ad8a3e16f95518dd065c618",
+      "docs/evidence/gatt-long-read-recovery.md": "5de44236f645e52686eee817b0f6e575d56c3850ae56f03a012aa361a2fcb487",
+      "docs/evidence/jeep-high-idle-reference.md": "35112c013262fce0a8e0a60771fd99d674d5970ecd2679f26620e00a51cac462",
+      "docs/features.md": "d0cfd8063d2767d3130169bc767aefe41a4d486c343c734df62826ab55286f50",
+      "docs/roadmap.md": "ee6fef27ea95e6b6fa86fed48f72b8e27ff254ae3f295e42b2cad372569f92e7",
+      "firmware/gauge/main/src/jeep_abs_tcs_driver.c": "6cd5949a9b2caa24a3e7505bae16819ad7f14c1b1be1fdc2a33e0d5eeec52370"
+    }
+  }
 }
