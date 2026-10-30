@@ -1,5 +1,5 @@
 {
-  "reviewedOn": "2026-10-29",
+  "reviewedOn": "2026-10-30",
   "sourceDocuments": [
     "docs/current-state.md",
     "docs/roadmap.md",
@@ -62,7 +62,7 @@
   ],
   "actionAvailability": {
     "airUp": {
-      "text": "Owner-only candidate · Fixed idle setting. Adjustable RPM remains a phone-only draft.",
+      "text": "Being tested on Luke’s Jeep · A timed, fixed-idle preset.",
       "source": "docs/architecture/vehicle-actions.md",
       "scope": "candidate",
       "evidence": [
@@ -73,7 +73,7 @@
       "ownerAvailability": "explicit-supervised-candidate; physical qualification incomplete"
     },
     "winch": {
-      "text": "Owner-only candidate · Fixed idle setting. Minimum RPM and throttle-above-idle behavior still need controller qualification.",
+      "text": "Being tested · A separate timed preset for vehicle recovery.",
       "source": "docs/architecture/vehicle-actions.md",
       "scope": "candidate",
       "evidence": [
@@ -84,7 +84,7 @@
       "ownerAvailability": "explicit-supervised-candidate; physical qualification incomplete"
     },
     "absTcs": {
-      "text": "Public builds: execution disabled. An explicit owner-only candidate is installed; parked restoration qualification remains open.",
+      "text": "Owner testing only · Public support is in development.",
       "source": "firmware/gauge/main/src/jeep_abs_tcs_driver.c",
       "scope": "candidate",
       "evidence": [
@@ -185,16 +185,6 @@
       ],
       "text": "A basic iPhone App and browser-over-USB setup are planned. Core configuration should be available without relying on an Android phone; neither path is available today."
     },
-    "BURNOUT": {
-      "scope": "paused",
-      "sources": [
-        "docs/architecture/vehicle-actions.md"
-      ],
-      "evidence": [
-        "docs/backlog.md"
-      ],
-      "text": "Burnout Mode is paused. It is not a public capability or an active qualification promise."
-    },
     "ROAD_ALERTS": {
       "scope": "exploring",
       "sources": [
@@ -204,7 +194,7 @@
       "evidence": [
         "docs/backlog.md"
       ],
-      "text": "Crowdsourced alerts and touch reporting are not available today. Provider access, relevance, accuracy, coverage, privacy, and safe interaction must be validated before release."
+      "text": "Road-aware alerts are being explored. They are not available in the current build; provider access and real-world relevance still need validation."
     },
     "BUILD_STORY": {
       "scope": "observed",
@@ -215,24 +205,27 @@
         "docs/evidence/gatt-long-read-recovery.md"
       ],
       "text": "Built by Luke around a real Hemi-swapped Wrangler: keep engine and transmission readings together, save the setup on the gauge, and leave the phone in your pocket. Independent adapter loss and return have been checked on that Jeep. Broader vehicle and loaded-operation testing come next."
+    },
+    "ACTIONS": {
+      "scope": "candidate",
+      "sources": [
+        "docs/architecture/vehicle-actions.md"
+      ],
+      "evidence": [
+        "docs/evidence/jeep-high-idle-reference.md",
+        "docs/evidence/dev80-action-entry.md"
+      ],
+      "text": "Give useful routines a place on your dash. Air up and Winch pair a saved idle preset with a clear countdown and direct Stop. Being tested on Luke’s 5.7L Hemi-swapped Wrangler."
     }
   },
-  "pendingCaptures": [
-    {
-      "surface": "app/actions",
-      "reason": "Current compact action flow has no representative marketing capture. Reuse production Compose capture tooling before adding it.",
-      "sources": [
-        "android/app/src/main/java/com/lstepnio/egauge/ui/car/VehicleActionsSheet.kt"
-      ]
-    }
-  ],
+  "pendingCaptures": [],
   "imageProvenance": [
     "docs/assets/app/marketing-provenance.json",
     "docs/assets/gauge/capture-provenance.json"
   ],
   "claimInputProvenance": {
-    "reviewedOn": "2026-10-29",
-    "reason": "Initial scoped claim references from committed source. Final consolidated documentation requires explicit semantic review before publication.",
+    "reviewedOn": "2026-10-30",
+    "reason": "Reviewed consolidated dev80/current scope and source: ordinary builds keep controls disabled; fixed-target idle and ABS/TCS are explicit owner-only candidates with parked restoration/load gates still open; numeric RPM, providers, iOS and USB configuration remain future work. Build story uses retained live independent-source evidence. Current screenshots use production interfaces and synthetic values, never vehicle proof.",
     "sha256": {
       "contracts/reading-catalog.json": "ccda2356aecf4ba003f0b34be3b41262b50bf1c77ac119c0518e1af0851cf1f5",
       "docs/architecture/alerts-and-diagnostics.md": "d63fa5de38347a0f1e3ce3d3e1547ee8b41c559da2558d11c92ed5a3a6e5f858",
@@ -241,8 +234,8 @@
       "docs/architecture/platforms-and-releases.md": "6ccb5b1f4c51fc400068613853024edbf191ef9b70aae51b9d9396f9dd8d1576",
       "docs/architecture/vehicle-actions.md": "31a0baf65eb19aa6d68d2f788965f1560657c588e807e497436a15303edd6bf3",
       "docs/architecture/vehicle-connections.md": "3f0cfea953340596d86a865dd28a0372129214e05b37d15bbcd37090d91680b0",
-      "docs/backlog.md": "36113af1395d3ef0e7f95fa91f6e4383b63e01bbb423db097d34e5c3cf9d0b75",
-      "docs/current-state.md": "bf9912d963bc1be07b4675dfe5244c441b1ca390517291ae8339880082831a6b",
+      "docs/backlog.md": "7001a57dc9587d5ea5a927f8f91219d01192dd97bbd736464039b9e6a987809c",
+      "docs/current-state.md": "941883e5b545889957ffd42e4066ba7b823554ced8d9e89a44f7857557b17da8",
       "docs/development/reading-catalog-alerts.md": "6d2a6d365516d14e339303d19ef2014e522beb3f2f00e36f104baf43fbe7fdeb",
       "docs/evidence/action-pages-indoor.md": "3720880cb92f1a647f64939fde649f57e4eaf22ee35b6a87c3e3b70c8273e6a3",
       "docs/evidence/dev75-indoor-rollout.md": "10d3b6d4dfdf6267b02db07c48013fb3dd18e3db67b9cb3abaf6f40db0daaf5c",
@@ -250,9 +243,21 @@
       "docs/evidence/display-evolution.md": "30847aee0cb5b34dc788a7509372a93abf0aa94b6ad8a3e16f95518dd065c618",
       "docs/evidence/gatt-long-read-recovery.md": "5de44236f645e52686eee817b0f6e575d56c3850ae56f03a012aa361a2fcb487",
       "docs/evidence/jeep-high-idle-reference.md": "35112c013262fce0a8e0a60771fd99d674d5970ecd2679f26620e00a51cac462",
-      "docs/features.md": "d0cfd8063d2767d3130169bc767aefe41a4d486c343c734df62826ab55286f50",
-      "docs/roadmap.md": "ee6fef27ea95e6b6fa86fed48f72b8e27ff254ae3f295e42b2cad372569f92e7",
+      "docs/features.md": "6888bae16b39bea9e868811ba32bdfe2ce1d194e42327e6db2fa5d6d60200c97",
+      "docs/roadmap.md": "5f284fffe07a518c3a93a26fc8c94ab3e5cfbf289ccb9e0eedb6a15026a05b4e",
       "firmware/gauge/main/src/jeep_abs_tcs_driver.c": "6cd5949a9b2caa24a3e7505bae16819ad7f14c1b1be1fdc2a33e0d5eeec52370"
+    }
+  },
+  "pausedFeatures": {
+    "burnout": {
+      "scope": "paused",
+      "sources": [
+        "docs/architecture/vehicle-actions.md"
+      ],
+      "evidence": [
+        "docs/backlog.md"
+      ],
+      "text": "Burnout Mode is paused. It is not a public capability or an active qualification promise."
     }
   }
 }

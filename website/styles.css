@@ -105,3 +105,6 @@
 
 .action-screen-examples{display:flex;justify-content:center;flex-wrap:wrap;gap:40px;margin:32px auto}.action-screen-examples figure{margin:0;width:240px}.action-screen-examples img{width:240px;border-radius:50%}.action-screen-examples figcaption{text-align:center;font-size:13px;margin-top:12px;color:#d1d9c9}
 .offroad-section .screen-provenance{color:#bdc7b9}
+
+.action-config-example{display:grid;width:calc(100% - 40px);grid-template-columns:minmax(0,240px) minmax(0,1fr);align-items:center;gap:48px;max-width:760px;margin:64px auto 32px}.action-config-example figure{margin:0}.action-config-example img{display:block;width:100%;height:auto}.action-config-example h3{font-size:clamp(28px,3vw,42px);font-weight:500;line-height:1.12;margin:12px 0 20px}.action-config-example p{line-height:1.75;color:var(--muted)}
+@media(max-width:600px){.action-config-example{grid-template-columns:1fr;gap:28px;margin:40px auto}.action-config-example figure{max-width:240px;justify-self:center}.action-config-example h3{font-size:32px}}

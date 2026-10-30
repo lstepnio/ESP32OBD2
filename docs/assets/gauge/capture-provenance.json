@@ -1,6 +1,6 @@
 {
   "sourceCommit": "a4341d6328fa70f4e4c6ba1c90515763ba4ad8e3",
-  "renderer": "Production LVGL 9.2.2 host fixture; RGB565 at 240x240 expanded to RGB PNG",
+  "renderer": "Production LVGL9.2.2/fonts via RGB565 host fixture at240x240; visible RGB preserved, circular panel corners transparent",
   "data": "Synthetic source fixtures, not hardware/vehicle evidence",
   "candidateOptions": {
     "EGAUGE_HOST_RGB565": true,
@@ -9,47 +9,47 @@
   "entries": [
     {
       "file": "action-active.png",
-      "sha256": "bd45b0f91a8bbd282949834708881d8c745907e28f3642f8eac8a04e8ecdeb8f"
+      "sha256": "e74a115a65fefb0312b74506aa3073bbc27382611c873a632b0675ee405e31d3"
     },
     {
       "file": "action-ready.png",
-      "sha256": "72ead36544ec4409a7fa8f1fef95e882426b54cedcfcc1f4c5d79096eb774b19"
+      "sha256": "e8b60512025257e56ef9a71debef0024b9c1a1c00d72540dec01ab824589713f"
     },
     {
       "file": "action-recovery.png",
-      "sha256": "fcf8af2ac6e7a073556c6fb1a56ada35dc26ba5f3bff36898f47ad175de92d27"
+      "sha256": "b809b5fedc613f6cbe79ed05d77e8fd785064eec18c7e8b2fc910ef330a3dcfd"
     },
     {
       "file": "alerts.png",
-      "sha256": "1beea1a58dccf4518066b863a5f63de0274a0cf23cab2e6ae6930de7b1afa9b4"
+      "sha256": "c1c364b21fbfe50433c4190d5bb741d33b13d78256876bda2e9fd12bb414b0f5"
     },
     {
       "file": "arc.png",
-      "sha256": "6a6ff1939c7c82a3aebe0a1137400e11bdc95e9524724d8158f853d4e9676686"
+      "sha256": "8092107ed59d4d7e190cf3ea1e2d61cf1d98082419fd7a1060fb5dcc5202c1bd"
     },
     {
       "file": "bar.png",
-      "sha256": "6d5991d465bb5f68db70566ce13a73e6610cce45325dffc7cb19da52ffc9b007"
+      "sha256": "afe919b23446010148ab90444501f5312e12a34b7a43021d12a6d8a4f2d7868f"
     },
     {
       "file": "dual-arc.png",
-      "sha256": "f8e0a5f39a8f6eab3f81de6cd8ac693a7ffc705cfdc98702cc234601f79c6702"
+      "sha256": "6795f671e77a475d53ecdbed9ad009d9b69852b49dddb7eaae4367bee72d159f"
     },
     {
       "file": "dual.png",
-      "sha256": "b62fb39930b5243050e6381b55df27d771c64e8cc57f28ac7557770f5b7bec42"
+      "sha256": "55a3fc28a49292c3fe4dbe0e3b6547504422533812b5164117db8f73c2d012ce"
     },
     {
       "file": "numeric.png",
-      "sha256": "06a75d12d91dc8a092bcb317c8e20b5566cc726e600e3d6e85b9460bae4bf429"
+      "sha256": "305c4f96aab478adc208478a95fe2218a8e5916308ce79b325c94845cb2563ef"
     },
     {
       "file": "trend.png",
-      "sha256": "3900ea75617dbf888907f66703bd56a661bc2821d3bd4f2e3136d03626fe0958"
+      "sha256": "ad25985dd4227c0e1ffb28e0814af6c1c661aee845e29d723951328bab783f23"
     }
   ],
   "inputProvenance": {
-    "revision": "a4341d6328fa70f4e4c6ba1c90515763ba4ad8e3",
+    "revision": "bf5ad0ab663445056319febe8aecffcd3927a6b5",
     "paths": [
       "firmware/gauge/main/src/ui.c",
       "firmware/gauge/main/src/gauge_presentation.c",
@@ -180,12 +180,14 @@
       "firmware/gauge/tests/ui_host/stubs/sdkconfig.h": "68406ac34e5616a424a4137191598e92441e221680d8e1c1caff30446f453aa6",
       "firmware/gauge/tests/ui_host/stubs/util.h": "3835e23455df29249bf62678f08430b2b8805cb9c0095f7b5f8280bdd1d6a752",
       "firmware/gauge/tests/ui_host/ui_render_test.c": "ef1acbf3f6c23a4475914ad4520aac1a40ecea3b7b185aae871261bb46843c90",
-      "tools/render_gauge_gallery.py": "6c0de3667d8723f1533cd98ab898cd5c77ce39d4f313fd59d1925741a227b6f5"
+      "tools/render_gauge_gallery.py": "f2764334c567393932a3057051f8896caa0d5ae55c193b072d1865e6e83d8bc9"
     },
     "reviewPolicy": "Capture baseline from the actual current production render. Changed inputs need semantic review or recapture; age alone does not require recapture."
   },
   "previousCaptureRevision": "083b0013363a697ab832179ee1af71b4456ca181",
   "capturedOn": "2026-10-29",
   "command": "CMake EGAUGE_HOST_RGB565=ON EGAUGE_PARKED_IDLE_TEST=ON; gauge_ui_render artifacts/website-ui-renders; tools/render_gauge_gallery.py --frames artifacts/website-ui-renders",
-  "dependency": "Existing pinned LVGL managed component reused from action-ui-approved checkout, without dependency changes"
+  "dependency": "Existing pinned LVGL managed component reused from action-ui-approved checkout, without dependency changes",
+  "exportSourceCommit": "bf5ad0ab663445056319febe8aecffcd3927a6b5",
+  "exportedAtUtc": "2026-10-30T06:15:30.081409+00:00"
 }

@@ -49,10 +49,10 @@ masks were introduced. It does not establish OOM immunity or broaden vehicle sup
 
 ## Verification and issues found during execution
 
-- Host suite: 195 tests plus 14 review-server tests, all passed; native policy and
+- Host suite: 197 tests plus 14 review-server tests, all passed; native policy and
   transport fixtures ran with ASan/UBSan. The first host attempt overlapped a tooling
   edit and saw two outdated download-test mocks; the settled source run passed.
-- Android: debug/release JVM suites passed; focused action-page/command UI run passed
+- Android: 351 debug and 325 release JVM tests passed; focused action-page/command UI run passed
   32/32 with no skips. Separate current marketing capture passed. Android lint passed.
 - Firmware: ordinary and parked-idle/brake/orientation candidate builds passed with
   pinned ESP-IDF 5.4.1; production normal/fallback/parked rendering/config fixtures passed.
@@ -67,3 +67,28 @@ masks were introduced. It does not establish OOM immunity or broaden vehicle sup
   screenshot for that route, with actual image inspection before asset publication.
 
 Final source/CI, visual checks and publication state are recorded below as completed.
+
+
+## Public preview and handoff
+
+Current production App screenshots include the action configuration modal; Gauge,
+Car and Settings captures were reproduced byte-for-byte. Ten native gauge exports
+now have transparent circular corners, preserving visible pixels on both README
+and website. A native-pixel/alpha regression guards that conversion.
+
+Browser review covered desktop1280×720 and mobile390×844 action cards, circular
+screens and App-to-gauge workflow. DOM checks found no horizontal overflow or failed
+loaded images; lazy images were distinguished from failures. No contact form was
+submitted. Current claim/image review report has no unresolved items. The site was
+also built with all six immutable existing public download files verified against
+their manifest hashes/sizes. This changes neither the download versions nor the
+signed release catalog.
+
+Public deployment is blocked by SSH public-key rejection for the configured login
+to one.majjix.com. No server files/services or live website were changed. The verified
+bundle is under ignored artifacts/website-publication; it must be rebuilt from the
+final pushed commit before deployment. Main merges, signed firmware publication,
+installation and parked acceptance remain separately authorized delivery steps.
+
+CI status is available on PR #128. Local results above describe the actual offline
+checks, not an assertion that all remote jobs or physical scenarios passed.
