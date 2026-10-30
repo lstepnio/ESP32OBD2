@@ -114,13 +114,13 @@ App images come from the existing Compose capture procedure in
 [quality guidance](../docs/development/quality.md). Gauge images use the production
 LVGL host renderer and [gallery exporter](../tools/render_gauge_gallery.py).
 Both live in `docs/assets/`, shared with the GitHub README. Captions use screen names.
-The current App marketing set uses 390 × 844 dp production composables at density 2
+The Gauge/Car/Settings marketing set uses 390 × 844 dp production composables at density 2
 (780 × 1688 pixels), ordinary three-tab navigation and synthetic example data;
-`docs/assets/app/marketing-provenance.json` records its source and hashes. This is
+`docs/assets/app/marketing-provenance.json` records its source and hashes. Actions uses a native modal screenshot at1080×1920; its separate capture method is recorded there. This is
 not physical-device or vehicle evidence. Native gauge captures can use the existing
 host CMake option `EGAUGE_HOST_RGB565=ON`; default test rendering remains unchanged.
 The gallery exporter includes Dual + arc and the current combined CEL/threshold
-frame. Preserve native files; do not upscale a 240-pixel panel to invent detail.
+frame. Preserve native files; do not upscale a 240-pixel panel to invent detail. The gallery exporter keeps visible RGB pixels and makes nonexistent circular-panel corners transparent, so the same files work on GitHub and the site.
 The site publishes WebP alternatives for the large future concepts with PNG fallback.
 The dated `review/` report/captures record this audit and its verification limits;
 they are not a second feature-status authority.
