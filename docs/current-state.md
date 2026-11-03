@@ -8,28 +8,28 @@ owns their order. Recheck the active branch, CI and device owner before delivery
 
 | Item | Latest recorded state | Evidence and limits |
 | --- | --- | --- |
-| Pixel | App dev.57 / code 57 | [Dev.80 delivery](evidence/dev80-action-entry.md); replacement installation, setup/history preserved |
-| Gauge | Signed dev.80 from `0ef89b7`, healthy OTA; ELF `889ae28fe30ccb7be491c50503773d2488114c77cc26c509eeca2b3e280e0a7a` | Full App/Wi-Fi upload, two maintenance cycles, automatic recovery/readback passed in [delivery evidence](evidence/dev80-action-entry.md) |
+| Pixel | App dev.58 / code 58 | [Combined delivery](evidence/dev81-combined-delivery.md); installed APK hash verified, setup/history preserved |
+| Gauge | Signed dev.81 from `a129798`, healthy OTA; ELF `165bb38e4edfdd8653148a82a26525980a77b73ce1edf12bcc6f83f799061f6e` | Full App/Wi-Fi upload, two maintenance cycles, automatic connection/resume and cached readback passed in [delivery evidence](evidence/dev81-combined-delivery.md) |
 | Saved setup | Revision 66, whole-vehicle ECM + child-TCM dashboard, four TCM code filters | Settings/profiles/command records retained; 90 events, 67 episodes, 18 configuration contexts preserved in the delivery comparison |
-| Physical UI | Owner confirmed clean navigation, first-configured-action entry and consistent Connecting styling | [Dev.79](evidence/dev79-action-ui.md) and [dev.80](evidence/dev80-action-entry.md); loaded vehicle UX remains separate |
+| Physical UI | Latest owner confirmation remains dev.80: clean navigation, first-configured-action entry and consistent Connecting styling | [Dev.80](evidence/dev80-action-entry.md); dev.81 panel/navigation confirmation and loaded vehicle UX remain separate |
 | Retained command uncertainty | ABS/TCS Unknown, operation 1; Burnout inactive | No Restore, reset confirmation or vehicle command was sent in the indoor delivery |
 | Hardware / vehicle | Waveshare ESP32-S3-Touch-LCD-1.28; modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800, two same-model BLE adapters | Reference hardware only; controller/vehicle definitions remain calibration-specific |
 
 These are the latest recorded observations, not live polling. Device access and the
 original Android wake/notification policies were released/restored after delivery.
-PR #126 contains recovery/adapter-role work; PR #127 contains compact action UI and
-is stacked on #126. Neither was merged by those deliveries.
+PRs #126, #127 and #128 are merged through main `f4fc353`. The combined signed
+App/Wi-Fi delivery preserved revision 66, settings, profiles and retained recovery.
 
-## Source work beyond the installed baseline
+## Latest merged delivery
 
 PR #128 adds the [product delivery framework](documentation.md#product-quality-and-public-story)
 and the approved CODE-06 through CODE-09 follow-up. Per-action observation receipts replace
 the shared freshness timestamp; storage/queue fixtures and admission telemetry,
 compact current context, and source-aware public claims/screenshots are
 implemented and verified offline. [Implementation evidence](evidence/product-quality-implementation.md)
-records final checks. App dev.58 and firmware dev.81 are prepared for the owner-authorized combined
-merge/release/Wi-Fi delivery. The installed baseline above remains unchanged until
-exact post-install readback.
+records source checks; [dev.81 delivery](evidence/dev81-combined-delivery.md) records
+the installed App/FW pair and read-only indoor acceptance. Retired-callback faults,
+flash interruption, loaded radio and vehicle-control restoration remain distinct gates.
 
 ## Implemented product
 
