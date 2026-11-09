@@ -62,6 +62,7 @@ _Static_assert(CONFIG_ESP_MAIN_TASK_STACK_SIZE >= 4608, "Review the measured mai
 #include "ota_transfer.h"
 #include "wifi_bulk.h"
 #include "esp_ota_ops.h"
+#include "esp_timer.h"
 #include "transfer_gate.h"
 #include "adapter_registry.h"
 #include "adapter_status.h"
@@ -573,6 +574,25 @@ static bool ota_trial_pending(void)
     const esp_partition_t *running = esp_ota_get_running_partition();
     esp_ota_img_states_t   state;
     return running && esp_ota_get_state_partition(running, &state) == ESP_OK && state == ESP_OTA_IMG_PENDING_VERIFY;
+}
+
+static bool confirm_abs_record_discard(void)
+{
+    if (!lvgl_port_lock(100))
+        return false;
+    int64_t   deadline = esp_timer_get_time() + INT64_C(40000000);
+    lv_obj_t *prompt   = ui_show_abs_record_discard(deadline);
+    lvgl_port_unlock();
+    if (!prompt)
+        return false;
+    while (!ui_abs_record_discard_confirmed() && esp_timer_get_time() < deadline)
+        vTaskDelay(pdMS_TO_TICKS(25));
+    if (!lvgl_port_lock(100))
+        return false;
+    bool confirmed = ui_abs_record_discard_confirmed();
+    lv_obj_delete(prompt);
+    lvgl_port_unlock();
+    return confirmed;
 }
 
 static void boot_health_task(void *arg)
@@ -1441,9 +1461,14 @@ void app_main(void)
     ESP_ERROR_CHECK(vehicle_commands_runtime_init(g_runtime));
     if (vehicle_commands_runtime_restriction_conflict() && ota_trial_pending())
     {
-        ESP_LOGE(TAG, "Restricted firmware trial cannot replace unresolved vehicle action recovery");
-        ESP_ERROR_CHECK(esp_ota_mark_app_invalid_rollback_and_reboot());
-        return;
+        bool discard = vehicle_commands_runtime_abs_discard_allowed() && confirm_abs_record_discard();
+        if (!discard || !vehicle_commands_runtime_discard_abs_record())
+        {
+            ESP_LOGW(TAG, "Vehicle recovery record retained; rolling back restricted firmware trial");
+            ESP_ERROR_CHECK(esp_ota_mark_app_invalid_rollback_and_reboot());
+            return;
+        }
+        ESP_LOGW(TAG, "Owner discarded the legacy ABS + TCS record during the restricted firmware trial");
     }
     alert_engine_set_sink(alert_runtime_observe);
     if (g_runtime)

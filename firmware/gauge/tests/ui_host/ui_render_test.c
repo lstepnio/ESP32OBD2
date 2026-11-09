@@ -338,6 +338,39 @@ int main(int argc, char **argv)
 #endif
     lv_display_set_flush_cb(display, flush);
     lv_display_set_buffers(display, draw_buffer, NULL, draw_bytes, LV_DISPLAY_RENDER_MODE_FULL);
+    lv_obj_t *discard_prompt = ui_show_abs_record_discard(esp_timer_get_time() + 10000000);
+    assert(discard_prompt);
+    lv_obj_t *discard_button = lv_obj_get_parent(abs_discard.label);
+    tick(60);
+    check_labels(discard_prompt);
+    capture(argv[1], "lcd-abs-recovery-discard");
+    lv_obj_send_event(discard_button, LV_EVENT_PRESSED, NULL);
+    tick(500);
+    lv_obj_send_event(discard_button, LV_EVENT_RELEASED, NULL);
+    assert(!ui_abs_record_discard_confirmed());
+    lv_obj_send_event(discard_button, LV_EVENT_PRESSED, NULL);
+    tick(3001);
+    lv_obj_send_event(discard_button, LV_EVENT_PRESS_LOST, NULL);
+    lv_obj_send_event(discard_button, LV_EVENT_RELEASED, NULL);
+    assert(!ui_abs_record_discard_confirmed());
+    lv_obj_send_event(discard_button, LV_EVENT_PRESSED, NULL);
+    tick(3001);
+    lv_obj_send_event(discard_button, LV_EVENT_PRESSING, NULL);
+    assert(!ui_abs_record_discard_confirmed());
+    assert(!strcmp(lv_label_get_text(abs_discard.label), "Release to discard"));
+    lv_obj_send_event(discard_button, LV_EVENT_RELEASED, NULL);
+    assert(ui_abs_record_discard_confirmed());
+    lv_obj_delete(discard_prompt);
+
+    discard_prompt = ui_show_abs_record_discard(esp_timer_get_time() + 1000000);
+    assert(discard_prompt);
+    discard_button = lv_obj_get_parent(abs_discard.label);
+    lv_obj_send_event(discard_button, LV_EVENT_PRESSED, NULL);
+    tick(3001);
+    lv_obj_send_event(discard_button, LV_EVENT_RELEASED, NULL);
+    assert(!ui_abs_record_discard_confirmed());
+    lv_obj_delete(discard_prompt);
+
     ui_page_t saved = {
         .name         = "RPM",
         .renderer     = UI_RENDERER_NUMERIC,

@@ -69,10 +69,20 @@ Actions are disabled in the compiled release. Owner-supervised idle and brake
 builds are private bench candidates. The corresponding local build options
 remain available for shared regression testing without publishing those images.
 
-Resolve any retained vehicle-action recovery before updating a legacy device
-to the restricted firmware. The restricted OTA trial rejects an unresolved or
-unreadable recovery journal so the prior image can continue recovery. For a
-USB migration, check the journal on the original firmware before replacing it.
+Resolve retained vehicle-action recovery before updating a legacy device to
+restricted firmware. Dev.82 and dev.83 roll back for any pending or unreadable record.
+Starting with dev.84, a restricted Wi-Fi update can offer a one-time **Discard
+recovery?** screen for a readable ABS + TCS record with no other pending action.
+Use it only if the owner has established that ABS and TCS are restored. Hold the
+LCD button for three seconds, then release to discard the saved record and
+continue the update. This can be done offline and sends no vehicle command.
+The firmware logs the discard and makes no claim about vehicle state.
+
+Without confirmation within 40 seconds, the update rolls back. Mixed or
+unreadable records and a failed save also roll back. Once the confirmed discard
+is committed, it remains discarded if power is lost or the image later rolls
+back. Pairing, profiles and other settings are outside this operation. Check
+the journal on the original firmware before a USB migration.
 
 ## Publish
 

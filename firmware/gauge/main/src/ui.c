@@ -1313,6 +1313,86 @@ static lv_obj_t *plain_label(lv_obj_t *parent, uint32_t color)
     lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
     return label;
 }
+static struct
+{
+    int64_t     deadline_us;
+    int64_t     pressed_us;
+    lv_obj_t   *label;
+    bool        release_ready;
+    atomic_bool confirmed;
+} abs_discard;
+
+static void abs_discard_event(lv_event_t *event)
+{
+    lv_event_code_t code = lv_event_get_code(event);
+    int64_t         now  = esp_timer_get_time();
+    if (now >= abs_discard.deadline_us || atomic_load(&abs_discard.confirmed))
+        return;
+    if (code == LV_EVENT_PRESSED)
+    {
+        abs_discard.pressed_us    = now;
+        abs_discard.release_ready = false;
+        lv_label_set_text_static(abs_discard.label, "Keep holding");
+    }
+    else if (code == LV_EVENT_PRESSING && abs_discard.pressed_us >= 0 && !abs_discard.release_ready &&
+             now - abs_discard.pressed_us >= 3000000)
+    {
+        abs_discard.release_ready = true;
+        lv_label_set_text_static(abs_discard.label, "Release to discard");
+    }
+    else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST)
+    {
+        bool confirmed =
+            code == LV_EVENT_RELEASED && abs_discard.pressed_us >= 0 && now - abs_discard.pressed_us >= 3000000;
+        abs_discard.pressed_us = -1;
+        lv_label_set_text_static(abs_discard.label, confirmed ? "Continuing update" : "Hold 3s to discard");
+        atomic_store(&abs_discard.confirmed, confirmed);
+    }
+}
+
+lv_obj_t *ui_show_abs_record_discard(int64_t deadline_us)
+{
+    lv_obj_t *overlay = plain_view(lv_screen_active(), 240, 240);
+    lv_obj_set_size(overlay, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(overlay, lv_color_hex(color_background), 0);
+    lv_obj_set_style_bg_opa(overlay, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(overlay, LV_OBJ_FLAG_EVENT_BUBBLE | LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_add_flag(overlay, LV_OBJ_FLAG_CLICKABLE);
+    if (!label_at(plain_label(overlay, color_warning), "ABS + TCS", font_subtitle, gx(120), gy(61), px(156)) ||
+        !label_at(plain_label(overlay, color_text_primary), "Discard recovery?", font_subtitle, gx(120), gy(93),
+                  px(182)) ||
+        !label_at(plain_label(overlay, color_text_secondary), "Only if restored", font_subtitle, gx(120), gy(118),
+                  px(172)) ||
+        !label_at(plain_label(overlay, color_text_secondary), "Wait to cancel", font_subtitle, gx(120), gy(199),
+                  px(130)))
+    {
+        lv_obj_delete(overlay);
+        return NULL;
+    }
+
+    lv_obj_t *button = plain_view(overlay, 162, 38);
+    lv_obj_set_pos(button, gx(39), gy(139));
+    lv_obj_set_style_bg_color(button, lv_color_hex(color_track), 0);
+    lv_obj_set_style_bg_opa(button, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(button, px(19), 0);
+    lv_obj_clear_flag(button, LV_OBJ_FLAG_EVENT_BUBBLE | LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_PRESS_LOCK);
+    lv_obj_add_flag(button, LV_OBJ_FLAG_CLICKABLE);
+    abs_discard.label = plain_label(button, color_text_primary);
+    lv_obj_set_style_text_font(abs_discard.label, font_subtitle, 0);
+    lv_label_set_text_static(abs_discard.label, "Hold 3s to discard");
+    lv_obj_center(abs_discard.label);
+    abs_discard.deadline_us = deadline_us;
+    abs_discard.pressed_us  = -1;
+    atomic_store(&abs_discard.confirmed, false);
+    lv_obj_add_event_cb(button, abs_discard_event, LV_EVENT_ALL, NULL);
+    return overlay;
+}
+
+bool ui_abs_record_discard_confirmed(void)
+{
+    return atomic_load(&abs_discard.confirmed);
+}
+
 static lv_obj_t *icon_create(lv_obj_t *parent, bool diagnostic)
 {
     lv_obj_t *icon = plain_view(parent, diagnostic ? 32 : 22, 22);

@@ -632,6 +632,40 @@ int main(void)
         stored                            = true;
         reboot();
         assert(vehicle_commands_runtime_restriction_conflict());
+        assert(!vehicle_commands_runtime_abs_discard_allowed());
+        assert(!vehicle_commands_runtime_discard_abs_record() && journal[1] == 1);
+
+        retained.operation[1] = retained.revision[1] = retained.identity[1] = 1;
+        retained.mask                                                       = 3;
+        journal_length = vehicle_command_marker_encode(&retained, journal);
+        reboot();
+        assert(vehicle_commands_runtime_restriction_conflict());
+        assert(!vehicle_commands_runtime_abs_discard_allowed());
+        assert(!vehicle_commands_runtime_discard_abs_record() && journal[1] == 3);
+
+        retained.mask  = 2;
+        journal_length = vehicle_command_marker_encode(&retained, journal);
+        fail_read_open = true;
+        reboot();
+        assert(vehicle_commands_runtime_restriction_conflict());
+        assert(!vehicle_commands_runtime_discard_abs_record() && journal[1] == 2);
+
+        fail_read_open = false;
+        reboot();
+        assert(vehicle_commands_runtime_abs_discard_allowed());
+        fail_commit = true;
+        assert(!vehicle_commands_runtime_discard_abs_record());
+        assert(vehicle_commands_runtime_restriction_conflict() && journal[1] == 2);
+        fail_commit = false;
+        assert(vehicle_commands_runtime_discard_abs_record());
+        assert(!vehicle_commands_runtime_restriction_conflict() && journal[1] == 0);
+        vehicle_command_marker_t cleared;
+        assert(vehicle_command_marker_decode(journal, journal_length, &cleared));
+        assert(!cleared.operation[1] && !cleared.revision[1] && !cleared.identity[1]);
+        reboot();
+        assert(!vehicle_commands_runtime_restriction_conflict());
+        assert(!vehicle_commands_runtime_discard_abs_record());
+        assert(!starts && !returns && !vehicle_commands_runtime_pending());
         return 0;
     }
     assert(vehicle_commands_runtime_poll_reserve(1, 1500, 0) == 0);
