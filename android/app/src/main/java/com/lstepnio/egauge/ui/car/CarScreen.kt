@@ -12,6 +12,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import com.lstepnio.egauge.VehicleStarter
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.*
 import com.lstepnio.egauge.ui.state.CarUiState
@@ -22,7 +23,7 @@ fun CarScreen(
     state: CarUiState,
     onSetup: () -> Unit,
     onSelectProfile: (String) -> Unit,
-    onCreateProfile: (String) -> Unit,
+    onCreateProfile: (String, VehicleStarter) -> Unit,
     onFindAdapters: () -> Unit = {},
     onChooseAdapter: (com.lstepnio.egauge.AdapterBinding?) -> Unit = {},
     onSendAdapter: () -> Unit = {},
@@ -246,11 +247,13 @@ private fun ProfileDialog(
     state: CarUiState,
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit,
-    onCreate: (String) -> Unit,
+    onCreate: (String, VehicleStarter) -> Unit,
     onDelete: (String) -> Unit
 ) {
     var name by rememberSaveable { mutableStateOf("") }
+    var starter by rememberSaveable { mutableStateOf(VehicleStarter.Generic) }
     var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    val starters = VehicleStarter.entries.filter { it.available }
     val duplicate = state.profiles.any { it.name.equals(name.trim(), true) }
     if (deleteId ==
         null
@@ -283,6 +286,24 @@ private fun ProfileDialog(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
+                if (state.profiles.size < 8 && state.canManageVehicles && starters.size > 1) {
+                    Text("Starter setup", style = MaterialTheme.typography.titleSmall)
+                    starters.forEach { option ->
+                        FilterChip(
+                            selected = starter == option,
+                            onClick = { starter = option },
+                            label = { Text(option.label) },
+                            leadingIcon = if (starter == option) {
+                                { EGaugeIcon(GaugeIcon.Check) }
+                            } else {
+                                null
+                            }
+                        )
+                    }
+                    if (starter == VehicleStarter.JeepHemiJss) {
+                        Text("Adds gear and temperature pages for the JSS transmission.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
                 OutlinedTextField(
                     name,
                     {
@@ -303,7 +324,7 @@ private fun ProfileDialog(
         }, confirmButton = {
             Button(
                 {
-                    onCreate(name.trim())
+                    onCreate(name.trim(), starter)
                     onDismiss()
                 },
                 enabled =

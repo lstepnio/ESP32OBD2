@@ -298,6 +298,518 @@
       }
     },
     {
+      "id": "o2s1voltage",
+      "name": "Oxygen sensor 1 voltage",
+      "category": "Fuel and emissions",
+      "gaugeLabel": "O2 SENSOR 1",
+      "sample": "0.645",
+      "alertKind": "numeric",
+      "definition": {
+        "schemaVersion": 1,
+        "id": "engine.o2s1.voltage",
+        "revision": 1,
+        "name": "Oxygen sensor 1 voltage",
+        "unit": "V",
+        "request": {
+          "service": "01",
+          "identifier": "14",
+          "route": "functional",
+          "responseId": "7E8"
+        },
+        "response": {
+          "prefix": "4114",
+          "minPayloadBytes": 2
+        },
+        "decoder": {
+          "byteOffset": 0,
+          "byteLength": 1,
+          "endian": "big",
+          "signed": false,
+          "numerator": 1,
+          "denominator": 200,
+          "offset": 0
+        },
+        "range": {
+          "min": 0,
+          "max": 1.275
+        },
+        "pollIntervalMs": 1500,
+        "staleAfterMs": 6000,
+        "provenance": {
+          "source": "SAE Mode 01 narrowband sensor voltage, first byte A / 200 V; python-OBD command and decoder tables",
+          "license": "Project-authored protocol facts",
+          "vehicleScope": "11-bit CAN ECM 7E8; sensor slot requires vehicle support and layout attribution",
+          "evidence": "documented"
+        },
+        "vectors": [
+          {
+            "payloadHex": "81FF",
+            "expected": 0.645
+          },
+          {
+            "payloadHex": "FF00",
+            "expected": 1.275
+          },
+          {
+            "payloadHex": "0080",
+            "expected": 0
+          }
+        ],
+        "sourceId": "ecm"
+      },
+      "configurationVersion": 5,
+      "samplingClass": "slow",
+      "requiredCapability": "oxygenVoltage"
+    },
+    {
+      "id": "o2s2voltage",
+      "name": "Oxygen sensor 2 voltage",
+      "category": "Fuel and emissions",
+      "gaugeLabel": "O2 SENSOR 2",
+      "sample": "0.645",
+      "alertKind": "numeric",
+      "definition": {
+        "schemaVersion": 1,
+        "id": "engine.o2s2.voltage",
+        "revision": 1,
+        "name": "Oxygen sensor 2 voltage",
+        "unit": "V",
+        "request": {
+          "service": "01",
+          "identifier": "15",
+          "route": "functional",
+          "responseId": "7E8"
+        },
+        "response": {
+          "prefix": "4115",
+          "minPayloadBytes": 2
+        },
+        "decoder": {
+          "byteOffset": 0,
+          "byteLength": 1,
+          "endian": "big",
+          "signed": false,
+          "numerator": 1,
+          "denominator": 200,
+          "offset": 0
+        },
+        "range": {
+          "min": 0,
+          "max": 1.275
+        },
+        "pollIntervalMs": 1500,
+        "staleAfterMs": 6000,
+        "provenance": {
+          "source": "SAE Mode 01 narrowband sensor voltage, first byte A / 200 V; python-OBD command and decoder tables",
+          "license": "Project-authored protocol facts",
+          "vehicleScope": "11-bit CAN ECM 7E8; sensor slot requires vehicle support and layout attribution",
+          "evidence": "documented"
+        },
+        "vectors": [
+          {
+            "payloadHex": "81FF",
+            "expected": 0.645
+          },
+          {
+            "payloadHex": "FF00",
+            "expected": 1.275
+          },
+          {
+            "payloadHex": "0080",
+            "expected": 0
+          }
+        ],
+        "sourceId": "ecm"
+      },
+      "configurationVersion": 5,
+      "samplingClass": "slow",
+      "requiredCapability": "oxygenVoltage"
+    },
+    {
+      "id": "o2s3voltage",
+      "name": "Oxygen sensor 3 voltage",
+      "category": "Fuel and emissions",
+      "gaugeLabel": "O2 SENSOR 3",
+      "sample": "0.645",
+      "alertKind": "numeric",
+      "definition": {
+        "schemaVersion": 1,
+        "id": "engine.o2s3.voltage",
+        "revision": 1,
+        "name": "Oxygen sensor 3 voltage",
+        "unit": "V",
+        "request": {
+          "service": "01",
+          "identifier": "16",
+          "route": "functional",
+          "responseId": "7E8"
+        },
+        "response": {
+          "prefix": "4116",
+          "minPayloadBytes": 2
+        },
+        "decoder": {
+          "byteOffset": 0,
+          "byteLength": 1,
+          "endian": "big",
+          "signed": false,
+          "numerator": 1,
+          "denominator": 200,
+          "offset": 0
+        },
+        "range": {
+          "min": 0,
+          "max": 1.275
+        },
+        "pollIntervalMs": 1500,
+        "staleAfterMs": 6000,
+        "provenance": {
+          "source": "SAE Mode 01 narrowband sensor voltage, first byte A / 200 V; python-OBD command and decoder tables",
+          "license": "Project-authored protocol facts",
+          "vehicleScope": "11-bit CAN ECM 7E8; sensor slot requires vehicle support and layout attribution",
+          "evidence": "documented"
+        },
+        "vectors": [
+          {
+            "payloadHex": "81FF",
+            "expected": 0.645
+          },
+          {
+            "payloadHex": "FF00",
+            "expected": 1.275
+          },
+          {
+            "payloadHex": "0080",
+            "expected": 0
+          }
+        ],
+        "sourceId": "ecm"
+      },
+      "configurationVersion": 5,
+      "samplingClass": "slow",
+      "requiredCapability": "oxygenVoltage"
+    },
+    {
+      "id": "o2s4voltage",
+      "name": "Oxygen sensor 4 voltage",
+      "category": "Fuel and emissions",
+      "gaugeLabel": "O2 SENSOR 4",
+      "sample": "0.645",
+      "alertKind": "numeric",
+      "definition": {
+        "schemaVersion": 1,
+        "id": "engine.o2s4.voltage",
+        "revision": 1,
+        "name": "Oxygen sensor 4 voltage",
+        "unit": "V",
+        "request": {
+          "service": "01",
+          "identifier": "17",
+          "route": "functional",
+          "responseId": "7E8"
+        },
+        "response": {
+          "prefix": "4117",
+          "minPayloadBytes": 2
+        },
+        "decoder": {
+          "byteOffset": 0,
+          "byteLength": 1,
+          "endian": "big",
+          "signed": false,
+          "numerator": 1,
+          "denominator": 200,
+          "offset": 0
+        },
+        "range": {
+          "min": 0,
+          "max": 1.275
+        },
+        "pollIntervalMs": 1500,
+        "staleAfterMs": 6000,
+        "provenance": {
+          "source": "SAE Mode 01 narrowband sensor voltage, first byte A / 200 V; python-OBD command and decoder tables",
+          "license": "Project-authored protocol facts",
+          "vehicleScope": "11-bit CAN ECM 7E8; sensor slot requires vehicle support and layout attribution",
+          "evidence": "documented"
+        },
+        "vectors": [
+          {
+            "payloadHex": "81FF",
+            "expected": 0.645
+          },
+          {
+            "payloadHex": "FF00",
+            "expected": 1.275
+          },
+          {
+            "payloadHex": "0080",
+            "expected": 0
+          }
+        ],
+        "sourceId": "ecm"
+      },
+      "configurationVersion": 5,
+      "samplingClass": "slow",
+      "requiredCapability": "oxygenVoltage"
+    },
+    {
+      "id": "o2s5voltage",
+      "name": "Oxygen sensor 5 voltage",
+      "category": "Fuel and emissions",
+      "gaugeLabel": "O2 SENSOR 5",
+      "sample": "0.645",
+      "alertKind": "numeric",
+      "definition": {
+        "schemaVersion": 1,
+        "id": "engine.o2s5.voltage",
+        "revision": 1,
+        "name": "Oxygen sensor 5 voltage",
+        "unit": "V",
+        "request": {
+          "service": "01",
+          "identifier": "18",
+          "route": "functional",
+          "responseId": "7E8"
+        },
+        "response": {
+          "prefix": "4118",
+          "minPayloadBytes": 2
+        },
+        "decoder": {
+          "byteOffset": 0,
+          "byteLength": 1,
+          "endian": "big",
+          "signed": false,
+          "numerator": 1,
+          "denominator": 200,
+          "offset": 0
+        },
+        "range": {
+          "min": 0,
+          "max": 1.275
+        },
+        "pollIntervalMs": 1500,
+        "staleAfterMs": 6000,
+        "provenance": {
+          "source": "SAE Mode 01 narrowband sensor voltage, first byte A / 200 V; python-OBD command and decoder tables",
+          "license": "Project-authored protocol facts",
+          "vehicleScope": "11-bit CAN ECM 7E8; sensor slot requires vehicle support and layout attribution",
+          "evidence": "documented"
+        },
+        "vectors": [
+          {
+            "payloadHex": "81FF",
+            "expected": 0.645
+          },
+          {
+            "payloadHex": "FF00",
+            "expected": 1.275
+          },
+          {
+            "payloadHex": "0080",
+            "expected": 0
+          }
+        ],
+        "sourceId": "ecm"
+      },
+      "configurationVersion": 5,
+      "samplingClass": "slow",
+      "requiredCapability": "oxygenVoltage"
+    },
+    {
+      "id": "o2s6voltage",
+      "name": "Oxygen sensor 6 voltage",
+      "category": "Fuel and emissions",
+      "gaugeLabel": "O2 SENSOR 6",
+      "sample": "0.645",
+      "alertKind": "numeric",
+      "definition": {
+        "schemaVersion": 1,
+        "id": "engine.o2s6.voltage",
+        "revision": 1,
+        "name": "Oxygen sensor 6 voltage",
+        "unit": "V",
+        "request": {
+          "service": "01",
+          "identifier": "19",
+          "route": "functional",
+          "responseId": "7E8"
+        },
+        "response": {
+          "prefix": "4119",
+          "minPayloadBytes": 2
+        },
+        "decoder": {
+          "byteOffset": 0,
+          "byteLength": 1,
+          "endian": "big",
+          "signed": false,
+          "numerator": 1,
+          "denominator": 200,
+          "offset": 0
+        },
+        "range": {
+          "min": 0,
+          "max": 1.275
+        },
+        "pollIntervalMs": 1500,
+        "staleAfterMs": 6000,
+        "provenance": {
+          "source": "SAE Mode 01 narrowband sensor voltage, first byte A / 200 V; python-OBD command and decoder tables",
+          "license": "Project-authored protocol facts",
+          "vehicleScope": "11-bit CAN ECM 7E8; sensor slot requires vehicle support and layout attribution",
+          "evidence": "documented"
+        },
+        "vectors": [
+          {
+            "payloadHex": "81FF",
+            "expected": 0.645
+          },
+          {
+            "payloadHex": "FF00",
+            "expected": 1.275
+          },
+          {
+            "payloadHex": "0080",
+            "expected": 0
+          }
+        ],
+        "sourceId": "ecm"
+      },
+      "configurationVersion": 5,
+      "samplingClass": "slow",
+      "requiredCapability": "oxygenVoltage"
+    },
+    {
+      "id": "o2s7voltage",
+      "name": "Oxygen sensor 7 voltage",
+      "category": "Fuel and emissions",
+      "gaugeLabel": "O2 SENSOR 7",
+      "sample": "0.645",
+      "alertKind": "numeric",
+      "definition": {
+        "schemaVersion": 1,
+        "id": "engine.o2s7.voltage",
+        "revision": 1,
+        "name": "Oxygen sensor 7 voltage",
+        "unit": "V",
+        "request": {
+          "service": "01",
+          "identifier": "1A",
+          "route": "functional",
+          "responseId": "7E8"
+        },
+        "response": {
+          "prefix": "411A",
+          "minPayloadBytes": 2
+        },
+        "decoder": {
+          "byteOffset": 0,
+          "byteLength": 1,
+          "endian": "big",
+          "signed": false,
+          "numerator": 1,
+          "denominator": 200,
+          "offset": 0
+        },
+        "range": {
+          "min": 0,
+          "max": 1.275
+        },
+        "pollIntervalMs": 1500,
+        "staleAfterMs": 6000,
+        "provenance": {
+          "source": "SAE Mode 01 narrowband sensor voltage, first byte A / 200 V; python-OBD command and decoder tables",
+          "license": "Project-authored protocol facts",
+          "vehicleScope": "11-bit CAN ECM 7E8; sensor slot requires vehicle support and layout attribution",
+          "evidence": "documented"
+        },
+        "vectors": [
+          {
+            "payloadHex": "81FF",
+            "expected": 0.645
+          },
+          {
+            "payloadHex": "FF00",
+            "expected": 1.275
+          },
+          {
+            "payloadHex": "0080",
+            "expected": 0
+          }
+        ],
+        "sourceId": "ecm"
+      },
+      "configurationVersion": 5,
+      "samplingClass": "slow",
+      "requiredCapability": "oxygenVoltage"
+    },
+    {
+      "id": "o2s8voltage",
+      "name": "Oxygen sensor 8 voltage",
+      "category": "Fuel and emissions",
+      "gaugeLabel": "O2 SENSOR 8",
+      "sample": "0.645",
+      "alertKind": "numeric",
+      "definition": {
+        "schemaVersion": 1,
+        "id": "engine.o2s8.voltage",
+        "revision": 1,
+        "name": "Oxygen sensor 8 voltage",
+        "unit": "V",
+        "request": {
+          "service": "01",
+          "identifier": "1B",
+          "route": "functional",
+          "responseId": "7E8"
+        },
+        "response": {
+          "prefix": "411B",
+          "minPayloadBytes": 2
+        },
+        "decoder": {
+          "byteOffset": 0,
+          "byteLength": 1,
+          "endian": "big",
+          "signed": false,
+          "numerator": 1,
+          "denominator": 200,
+          "offset": 0
+        },
+        "range": {
+          "min": 0,
+          "max": 1.275
+        },
+        "pollIntervalMs": 1500,
+        "staleAfterMs": 6000,
+        "provenance": {
+          "source": "SAE Mode 01 narrowband sensor voltage, first byte A / 200 V; python-OBD command and decoder tables",
+          "license": "Project-authored protocol facts",
+          "vehicleScope": "11-bit CAN ECM 7E8; sensor slot requires vehicle support and layout attribution",
+          "evidence": "documented"
+        },
+        "vectors": [
+          {
+            "payloadHex": "81FF",
+            "expected": 0.645
+          },
+          {
+            "payloadHex": "FF00",
+            "expected": 1.275
+          },
+          {
+            "payloadHex": "0080",
+            "expected": 0
+          }
+        ],
+        "sourceId": "ecm"
+      },
+      "configurationVersion": 5,
+      "samplingClass": "slow",
+      "requiredCapability": "oxygenVoltage"
+    },
+    {
       "id": "tcmtemp",
       "name": "Transmission temperature",
       "category": "Transmission",

@@ -1,6 +1,6 @@
 # Prioritized backlog
 
-Updated 2026-10-30. This is the only current task/status list. Outcome order belongs
+Updated 2026-11-09. This is the only current task/status list. Outcome order belongs
 in [roadmap](roadmap.md); supported/installed behavior belongs in [current state](current-state.md).
 Evidence files retain historical pending notes and do not create additional tasks.
 
@@ -26,6 +26,7 @@ are in current state and evidence, with remaining qualification listed separatel
 | CODE-07 | P1 | Software verified; physical qualification pending | Close persistence and command-admission recovery test gaps | Production queue-drop accounting and staged/committed NVS replay now cover failed open/set/commit, reboot, saturation/drain and combined read-only pressure. [Implementation evidence](evidence/product-quality-implementation.md); hardware interruption/radio timing stays QUAL-02/08. |
 | CODE-08 | P1 | Implemented and validated | Reduce current-context drift | Current state/backlog now summarize latest facts and next acceptance, with exact prior chronology in [archive](evidence/status-through-dev80.md). Validate anchors, task IDs and bounded status context; no physical gate inferred complete. |
 | CODE-09 | P2 | Website published; GitHub source merged | Make public claims and visual refresh source-aware | Scoped claims/evidence, capture hashes and source-change review extend the existing builder. Current circular gauge/action/App captures are shared with README/site. Source13eef6b published after four green CI lanes; 40 HTTPS file hashes and live desktop/mobile checks passed. [Delivery evidence](evidence/product-quality-implementation.md). README/source merged in PR #128; normal daily cadence resumes. Dev.81 publication is discovered by the existing release selector without another website deployment. |
+| FEATURE-01 | P1 | Starter profiles and oxygen voltage implemented in source; vehicle qualification pending | Generic OBD-II and JK/Hemi + JSS profiles | Verify generic `7E8` on another vehicle and narrowband voltage/slot mapping on the Hemi. Match controller variants before promoting TIPM/ABS/TPMS, richer JSS data or enhanced DTCs. Compound trim and named statuses need separate decoder support. [Catalog](development/reading-catalog-alerts.md), [JK coverage](vehicles/jeep/reading-coverage.md). |
 | PERF-01 | P1 | Installed; parked qualification pending | Reading continuity, polling priorities and cycling recovery | Loaded comparison of foreground warmup/easing, cache continuity, cycling and five-minute MIL/filter behavior. Measure original sample age, rates, resource margins and control/thermal response using the [continuity plan](development/gauge-continuity-plan.md); [installed evidence](evidence/dev75-indoor-rollout.md) is indoor only. |
 | UX-01 | P1 | Installed; parked checks pending | Approved Car simplification and complete hidden-code presentation | One attention list, direct details, Current/History and shared hidden-code projection are installed. Qualify actual vehicle filtering and per-gauge acknowledgement; [Car evidence](evidence/car-ux-review.md). |
 | QUALITY-01 | P2 | Ready | Stabilize intermittent emulator UI interactions | Merged PR #101 quality attempts failed in two different UI fixtures: preset-save callback observation, then duration-editor scrolling. The reviewed source had all four checks green and the same tree as main. Reproduce and fix synchronization/interaction causes with repeated isolated evidence; do not retry blindly, weaken assertions or run fixture suites on the owner phone. [Rollout evidence](evidence/action-pages-indoor.md#2026-10-27-dev65-continuity-and-action-ui-rollout) |
@@ -64,7 +65,6 @@ are in current state and evidence, with remaining qualification listed separatel
 
 | ID | Status | Scope | Entry gate |
 | --- | --- | --- | --- |
-| FEATURE-01 | Deferred | Broader manufacturer packs and compound/oxygen-sensor readings | Licensed provenance, exact decoder/status semantics, bounded source routing and vectors; [catalog rules](development/reading-catalog-alerts.md) |
 | FEATURE-02 | Deferred | Live companion telemetry and optional physical sensors | Measured radio/resource budget, bounded freshness and protected protocol; [hardware strategy](architecture/hardware-and-transports.md) |
 | FEATURE-06 | Deferred | Authorized third-party alert providers | Inactive [ADR-018 synthetic harness](architecture/phone-companion-content.md) and Dev.48 synthetic provider seam and [integration guide](architecture/phone-alert-providers.md) are implemented; live feed requires documented access, licensing, TTL/attribution and qualification under [ADR-015](architecture/alerts-and-diagnostics.md#future-external-provider-seam) |
 

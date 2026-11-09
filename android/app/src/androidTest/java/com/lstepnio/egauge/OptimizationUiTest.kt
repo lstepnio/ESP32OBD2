@@ -32,6 +32,55 @@ import org.junit.runner.RunWith
 class OptimizationUiTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun addingACarDefaultsToGenericObd() = checkStarterSetup(VehicleStarter.Generic)
+
+    @Test fun jeepStarterRemainsSelectableAtLargeText() {
+        org.junit.Assume.assumeTrue(android.os.Build.HARDWARE in setOf("ranchu", "goldfish"))
+        val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        fun shell(command: String): String = android.os.ParcelFileDescriptor.AutoCloseInputStream(
+            instrumentation.uiAutomation.executeShellCommand(command)
+        ).bufferedReader().use { it.readText().trim() }
+        val original = shell("settings get system font_scale")
+        val scale = original.toFloatOrNull()
+        check(original == "null" || (scale != null && scale.isFinite() && scale > 0))
+        try {
+            shell("settings put system font_scale 2.0")
+            compose.waitUntil(10_000) { instrumentation.targetContext.resources.configuration.fontScale == 2f }
+            checkStarterSetup(VehicleStarter.JeepHemiJss)
+        } finally {
+            if (scale == null) shell("settings delete system font_scale") else shell("settings put system font_scale $scale")
+            compose.waitUntil(10_000) { instrumentation.targetContext.resources.configuration.fontScale == (scale ?: 1f) }
+        }
+    }
+
+    private fun checkStarterSetup(expected: VehicleStarter) {
+        var created: Pair<String, VehicleStarter>? = null
+        val state = CarUiState(
+            "My car", listOf(VehicleUi("car", "My car")), "car", StatusUi("Waiting"),
+            emptyList(), false, false, false, emptyList()
+        )
+        compose.setContent {
+            EGaugeTheme {
+                CarScreen(state, {}, {}, { name, starter -> created = name to starter })
+            }
+        }
+        compose.onNodeWithText("My car").performClick()
+        compose.onNodeWithText(VehicleStarter.Generic.label).performScrollTo().assertIsSelected()
+        if (expected != VehicleStarter.Generic) {
+            compose.onNodeWithText(expected.label).performScrollTo().performClick().assertIsSelected()
+        }
+        androidx.test.platform.app.InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")?.let { directory ->
+            val file = java.io.File(directory, "vehicle-starter/${expected.name}.png")
+            check(file.parentFile!!.mkdirs() || file.parentFile!!.isDirectory)
+            val screenshot = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            file.outputStream().use { check(screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)) }
+        }
+        compose.onNode(hasSetTextAction() and hasText("Car name")).performScrollTo().performTextInput("New car")
+        compose.closeKeyboardAndWaitForIdle()
+        compose.onNodeWithText("Add car").performClick()
+        compose.runOnIdle { assertEquals("New car" to expected, created) }
+    }
+
     @Test fun faultCodesAreVisibleBeforeOpeningAnExplanation() {
         val codes = listOf("U0121", "U0140", "P1DCA", "P1DF3").map { FaultUi(it, "", "Stored") }
         val source = FaultSourceUi("Transmission", StatusUi("Warning", tone = StatusTone.Warning), listOf(FaultCategoryUi("Stored", "", codes)))
@@ -39,7 +88,7 @@ class OptimizationUiTest {
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(1f, 1f), LocalConnectionStatus provides { ConnectionPill("Gauge ready", true, onClick = {}) }) {
                 EGaugeTheme(dark = true) {
-                    Surface(Modifier.requiredSize(390.dp, 1000.dp).testTag("fault-frame")) { CarScreen(state, {}, {}, {}) }
+                    Surface(Modifier.requiredSize(390.dp, 1000.dp).testTag("fault-frame")) { CarScreen(state, {}, {}, { _, _ -> }) }
                 }
             }
         }
@@ -152,7 +201,7 @@ class OptimizationUiTest {
                 "jeep", vehicleFaultStatus(listOf(engine, child)),
                 emptyList(), true, false, false, emptyList(), faultSources = listOf(engine, child)
             )
-        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}) } }
+        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, { _, _ -> }) } }
         compose.onAllNodesWithText("Fault checks incomplete").assertCountEquals(0)
         compose.onAllNodesWithText("Transmission checks are unavailable or out of date.", substring = true).assertCountEquals(0)
         compose.onAllNodesWithText("Pending").assertCountEquals(0)
@@ -180,7 +229,7 @@ class OptimizationUiTest {
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(1f, 2f)) {
                 EGaugeTheme {
-                    Surface(Modifier.requiredSize(390.dp, 844.dp)) { CarScreen(state, {}, {}, {}) }
+                    Surface(Modifier.requiredSize(390.dp, 844.dp)) { CarScreen(state, {}, {}, { _, _ -> }) }
                 }
             }
         }
@@ -205,7 +254,7 @@ class OptimizationUiTest {
             ),
             emptyList(), false, false, false, emptyList(), gaugeKnown = true
         )
-        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}) } }
+        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, { _, _ -> }) } }
         compose.onAllNodesWithText("Set up gauge").assertCountEquals(0)
         compose.onAllNodesWithText("Choose adapter").assertCountEquals(0)
         compose.onAllNodesWithText("Waiting for car").assertCountEquals(0)
@@ -442,7 +491,7 @@ class OptimizationUiTest {
         compose.setContent {
             EGaugeTheme {
                 CompositionLocalProvider(LocalConnectionStatus provides { ConnectionPill("Car reconnecting", false, onClick = {}) }) {
-                    CarScreen(state, {}, {}, {})
+                    CarScreen(state, {}, {}, { _, _ -> })
                 }
             }
         }
@@ -466,7 +515,7 @@ class OptimizationUiTest {
             "Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", vehicleFaultStatus(engine),
             emptyList(), true, false, false, emptyList(), faultSources = engine
         )
-        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}) } }
+        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, { _, _ -> }) } }
         compose.onNodeWithText("No active alerts").assertIsDisplayed()
         listOf("Needs attention", "P0420", "hidden", "filtered").forEach {
             compose.onAllNodesWithText(it, substring = true, ignoreCase = true, useUnmergedTree = true).assertCountEquals(0)
@@ -479,7 +528,7 @@ class OptimizationUiTest {
         val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", StatusUi("Waiting"), emptyList(), false, false, false, emptyList(), gaugeKnown = true)
         compose.setContent {
             EGaugeTheme {
-                CarScreen(state, {}, {}, {}, onHistory = { calls += "history" }, onAlertSettings = { calls += "alerts" }, onAdvanced = { calls += "advanced" }, onGaugeAssignment = { calls += "gauge" })
+                CarScreen(state, {}, {}, { _, _ -> }, onHistory = { calls += "history" }, onAlertSettings = { calls += "alerts" }, onAdvanced = { calls += "advanced" }, onGaugeAssignment = { calls += "gauge" })
             }
         }
         compose.onNodeWithText("History").performScrollTo().performClick()
@@ -498,7 +547,7 @@ class OptimizationUiTest {
         val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", StatusUi("Waiting"), emptyList(), false, false, false, emptyList(), gaugeKnown = true)
         compose.setContent {
             EGaugeTheme {
-                CarScreen(state, {}, {}, {}, currentAlerts = alerts, hasRecordedHistory = true, onOpenAlert = { calls += it }, onHistory = { calls += "history" })
+                CarScreen(state, {}, {}, { _, _ -> }, currentAlerts = alerts, hasRecordedHistory = true, onOpenAlert = { calls += it }, onHistory = { calls += "history" })
             }
         }
         compose.onNodeWithText("Coolant temperature").performScrollTo().performClick()
@@ -513,7 +562,7 @@ class OptimizationUiTest {
     @Test fun unknownFaultOpensItsHonestExplanationInOneTap() {
         val source = FaultSourceUi("Engine", StatusUi("Warning", tone = StatusTone.Warning), listOf(FaultCategoryUi("Stored", "", listOf(FaultUi("P1999", "", "Stored")))))
         val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", source.status, emptyList(), true, false, false, emptyList(), faultSources = listOf(source))
-        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}) } }
+        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, { _, _ -> }) } }
         compose.onNodeWithText("P1999 · Engine").performScrollTo().performClick()
         compose.onNodeWithText("A verified explanation for P1999 is not included. Its meaning may depend on the vehicle and controller.").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Next step").performScrollTo().assertIsDisplayed()
@@ -522,7 +571,7 @@ class OptimizationUiTest {
     @Test fun lastKnownCodeRemainsDirectlyReachableWithoutClaimingCurrentFault() {
         val source = FaultSourceUi("Engine", StatusUi("Last checked", tone = StatusTone.Stale), listOf(FaultCategoryUi("Stored", "", listOf(FaultUi("P0700", "", "Stored", current = false)))))
         val state = CarUiState("Jeep", listOf(VehicleUi("jeep", "Jeep")), "jeep", source.status, emptyList(), false, true, false, emptyList(), faultSources = listOf(source))
-        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, {}, hasRecordedHistory = true) } }
+        compose.setContent { EGaugeTheme { CarScreen(state, {}, {}, { _, _ -> }, hasRecordedHistory = true) } }
         compose.onNodeWithText("P0700 · Engine · Last checked").performScrollTo().performClick()
         compose.onNodeWithText("Last checked. This code has not been confirmed cleared.").performScrollTo().assertIsDisplayed()
     }

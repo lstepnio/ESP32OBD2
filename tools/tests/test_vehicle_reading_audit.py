@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import unittest
 
 from tools.research.audit_vehicle_readings import audit
-from tools.research.query_vehicle_catalog import search, translated_labels
+from tools.research.query_vehicle_catalog import module_coverage, search, translated_labels
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -27,15 +27,41 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(checked_in, result)
         self.assertEqual(42, len(result["readings"]))
         self.assertEqual(30, result["counts"]["selectable"])
-        self.assertEqual(4, result["counts"]["component_gap"])
+        self.assertEqual(4, result["counts"]["component_partial"])
         self.assertEqual(2, result["counts"]["named_state_gap"])
         self.assertEqual([], result["pendingSupportRanges"])
         self.assertNotIn("identity", result)
         self.assertNotIn("transfer", " ".join(r["name"].lower() for r in result["readings"]))
         for pid in ("14", "15", "18", "19"):
             self.assertEqual(
-                "component_gap", next(r for r in result["readings"] if r["pid"] == pid)["coverage"]
+                "component_partial",
+                next(r for r in result["readings"] if r["pid"] == pid)["coverage"],
             )
+
+    def test_archive_counts_keep_controller_families_and_exclude_write_resources(self):
+        with contextlib.closing(sqlite3.connect(":memory:")) as db:
+            db.row_factory = sqlite3.Row
+            db.executescript("""
+            CREATE TABLE resources(module TEXT, category TEXT, item_count INTEGER);
+            INSERT INTO resources VALUES
+                ('PCM', 'LiveData', 9), ('PCM', 'LiveData', 3),
+                ('PCM', 'Write', 50), ('PCM', 'DTC', 4), ('TCM', 'DTC', 7);
+            """)
+            result = module_coverage(
+                db,
+                {
+                    "vehicle": {"ShortName": "JK"},
+                    "modules": [
+                        {"Folder": "PCM", "RequestHeaderId": "7E0", "RespondeHeaderId": "7E8"},
+                        {"Folder": "TCM", "RequestHeaderId": "7E1", "RespondeHeaderId": "7E9"},
+                    ],
+                },
+            )
+        engine, transmission = result["modules"]
+        self.assertEqual({"variants": 2, "records": 12}, engine["liveData"])
+        self.assertEqual({"variants": 1, "records": 4}, engine["dtc"])
+        self.assertEqual({"variants": 0, "records": 0}, transmission["liveData"])
+        self.assertEqual("7E9", transmission["responseId"])
 
     def test_wrong_ecu_invalid_and_unlinked_ranges_are_not_coverage(self):
         catalog = {"readings": []}

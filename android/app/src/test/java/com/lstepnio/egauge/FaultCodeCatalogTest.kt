@@ -14,6 +14,16 @@ class FaultCodeCatalogTest {
         assertTrue(FaultCodeCatalog.lookup("P0420").nextStep.contains("does not identify a failed part"))
     }
 
+    @Test fun standardFaultsExplainConditionsWithoutAssigningVehicleMake() {
+        val oxygen = FaultCodeCatalog.lookup("p0131")
+        assertTrue(oxygen.title.contains("bank 1 sensor 1"))
+        assertNull(oxygen.manufacturer)
+        assertTrue(FaultCodeCatalog.lookup("P0456").title.contains("Very small"))
+        val transmission = FaultCodeCatalog.lookup("P0700")
+        assertNull(transmission.manufacturer)
+        assertTrue(transmission.explanation.contains("own fault codes"))
+    }
+
     @Test fun manufacturerOrUnknownCodesAreNeverGuessed() {
         for (code in listOf("P1999", "P0999", "C1234")) {
             assertNull(FaultCodeCatalog.lookup(code).reference)
@@ -24,6 +34,7 @@ class FaultCodeCatalogTest {
 
     @Test fun manufacturerReferencesAreNamedAndDoNotInventARepair() {
         assertEquals("Chrysler/Jeep", FaultCodeCatalog.lookup("P1DCA").manufacturer)
+        assertTrue(FaultCodeCatalog.lookup("P1DCA").referenceTitle.endsWith("(Chrysler/Jeep reference)"))
         assertEquals("Park sense circuit open", FaultCodeCatalog.lookup("P1DCA").title)
         assertEquals("Controller not initialized", FaultCodeCatalog.lookup("P1DF3").title)
         assertTrue(FaultCodeCatalog.lookup("P1DF3").nextStep.contains("does not identify"))

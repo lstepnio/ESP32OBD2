@@ -60,10 +60,13 @@ def generated():
             row["gaugeLabel"],
             d["id"],
         ]
+        capability = row.get("requiredCapability")
+        assert capability in {None, "oxygenVoltage"}
+        capability_argument = ", oxygenVoltage = true" if capability == "oxygenVoltage" else ""
         lines.append(
             "    PidExample("
             + ", ".join(map(q, fields))
-            + f", {float(d['range']['min'])}, {float(d['range']['max'])}, {q(row['alertKind'])}, {row['configurationVersion']}),"
+            + f", {float(d['range']['min'])}, {float(d['range']['max'])}, {q(row['alertKind'])}, {row['configurationVersion']}{capability_argument}),"
         )
     lines += [
         ")",

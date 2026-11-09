@@ -237,18 +237,22 @@ static void owner_save_worker(void *arg)
     "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"va\":1,"                                                               \
     "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY SMART_PAGE_CAPABILITY DUAL_ADAPTER_CAPABILITY        \
         VEHICLE_ACTION_CAPABILITY FEATURE_POLICY_CAPABILITY ",\"mp\":10,\"dx\":1" BRAKE_OWNER_CAPABILITY
-static const char capabilities[]             = LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
-static const char document_capabilities[]    = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
-static const char orientation_capabilities[] = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY ",\"ao\":1}";
-_Static_assert(sizeof(orientation_capabilities) - 1U <= 255U, "Orientation capability JSON too large");
+/* Legacy clients ignore the additive field. Keep the existing 255-byte limit
+ * even for custom board labels and feature combinations. */
+#define CAPABILITY_JSON(fields) (sizeof(fields ",\"ov\":1}") <= 256U ? fields ",\"ov\":1}" : fields "}")
+static const char *const capabilities          = CAPABILITY_JSON(LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY);
+static const char *const document_capabilities = CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY);
+static const char *const orientation_capabilities =
+    CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY ",\"ao\":1");
+_Static_assert(sizeof(LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}") <= 256U, "Public capability JSON too large");
+_Static_assert(sizeof(DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY ",\"ao\":1}") <= 256U,
+               "Document capability JSON too large");
 #if CONFIG_EGAUGE_WIFI_BULK_ENABLED
-static const char capabilities_without_wifi[]             = LEGACY_CAPABILITY_BASE "}";
-static const char document_capabilities_without_wifi[]    = DOCUMENT_CAPABILITY_BASE "}";
-static const char orientation_capabilities_without_wifi[] = DOCUMENT_CAPABILITY_BASE ",\"ao\":1}";
+static const char *const capabilities_without_wifi             = CAPABILITY_JSON(LEGACY_CAPABILITY_BASE);
+static const char *const document_capabilities_without_wifi    = CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE);
+static const char *const orientation_capabilities_without_wifi = CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE ",\"ao\":1");
 #endif
-_Static_assert(sizeof(capabilities) - 1U <= 255U, "Public capability JSON exceeds the qualified Android read boundary");
-_Static_assert(sizeof(document_capabilities) - 1U <= 255U,
-               "Document capability JSON exceeds the qualified Android read boundary");
+#undef CAPABILITY_JSON
 
 /* Protocol 0 quick-select request: byte 0 = 1, byte 1 = built-in PID index 0..4.
  * A successful ATT write queues a request; the authenticated state read confirms apply. */

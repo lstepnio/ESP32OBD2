@@ -6,7 +6,12 @@ reads use `6f1a0003`. Android configuration/readback and signed App/Wi-Fi update
 have recorded evidence. Public `configWrite` and `ota` stay false. Current prepared `cfg:7`
 includes bindings (`cfg:3`), local page actions (`cfg:4`), expanded catalog decimals
 and TCM numeric/gear alerts, exact CEL presentation filters (`cfg:6`) and ordered action pages (`cfg:7`). `va:1` identifies per-definition ECU routing and `da:1`
-source-index reads. Older `cfg:2`/`experimentalNumericConfig:true` are legacy variants.
+source-index reads. Additive `ov:1` enables the narrowband oxygen voltage
+component of standard `01 14` to `01 1B`. The compiler requires the two-byte
+response and the unsigned byte-A `1/200` V decoder. The marker is omitted if
+adding it would exceed the 255-byte capability limit. The App blocks transfer
+when a page or enabled alert needs the marker and the gauge omits it. Existing
+`cfg:7`, document schema and public write flags retain their meanings. Older `cfg:2`/`experimentalNumericConfig:true` are legacy variants.
 Negotiate these markers before writes; the later extension sections below define
 current semantics without changing the existing command layouts.
 See [current state](../current-state.md) for physical limits and

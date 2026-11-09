@@ -31,9 +31,47 @@ class ReadingCatalogTest {
         json
     )
 
+    @Test fun startersKeepExistingProfileStorageAndRequireNoControlsOrFilters() {
+        val generic = VehicleStarter.Generic.draft()
+        assertEquals(listOf("rpm", "coolant", "speed"), generic.pages.flatMap { it.pidIds })
+        assertTrue(ConfigurationProjector.blockers(generic).isEmpty())
+        val profiles = VehicleStarter.entries.filter { it.available }.map { starter ->
+            VehicleProfile(starter.name, starter.label, starter.draft()).also {
+                assertTrue(ConfigurationProjector.blockers(it.draft).isEmpty())
+                assertTrue(it.draft.actions.isEmpty())
+                assertTrue(it.draft.diagnosticFilters.isEmpty())
+                assertNull(it.primaryAdapter)
+                assertNull(it.transmission)
+            }
+        }
+        assertEquals(BuildConfig.DEBUG, VehicleStarter.JeepHemiJss.available)
+        if (BuildConfig.DEBUG) {
+            val jeep = profiles.single { it.id == VehicleStarter.JeepHemiJss.name }
+            assertEquals(setOf("tcmtemp", "tcmgear"), jeep.draft.pages.flatMap { it.pidIds }.toSet() - generic.pages.flatMap { it.pidIds }.toSet())
+            assertTrue(requiresVehicleDashboardFirmware(jeep.draft, false))
+        }
+        val collection = ProfileCollection(VehicleStarter.Generic.name, profiles)
+        assertEquals(collection, ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(collection)))
+    }
+
+    @Test fun oxygenVoltageNeedsExplicitCapabilityForPagesAndEnabledAlerts() {
+        val baseline = """{"protocolMajor":0,"board":"test","maxAdapterLinks":1,"configWrite":false,"ota":false,"cfg":7}"""
+        val previous = GaugeProtocolCodec.capabilities(baseline.toByteArray())
+        val capable = GaugeProtocolCodec.capabilities(JSONObject(baseline).put("ov", 1).toString().toByteArray())
+        assertFalse(previous.oxygenVoltageSupported)
+        assertTrue(capable.oxygenVoltageSupported)
+        assertEquals(previous.configurationVersion, capable.configurationVersion)
+        val draft = Draft(pidId = "o2s1voltage")
+        assertTrue(presentationBlockers(draft, previous).any { "oxygen sensor voltage" in it })
+        assertFalse(presentationBlockers(draft, capable).any { "oxygen sensor voltage" in it })
+        val alert = defaultAlert("o2s1voltage")
+        assertTrue(requiresOxygenVoltageFirmware(Draft(alerts = listOf(alert))))
+        assertFalse(requiresOxygenVoltageFirmware(Draft(alerts = listOf(alert.copy(enabled = false)))))
+    }
+
     @Test fun everySelectableCatalogReadingCanBeSelectedAndAlertedWithoutPollingTheWholeCatalog() {
-        assertEquals(55, readingCatalog.size)
-        assertEquals(53, ConfigurationProjector.supportedPidIds.size)
+        assertEquals(63, readingCatalog.size)
+        assertEquals(61, ConfigurationProjector.supportedPidIds.size)
         readingCatalog.filter { it.id in ConfigurationProjector.pagePidIds("ECM") }.forEach { reading ->
             val range = readingBounds(reading.id)
             val span = range.endInclusive - range.start

@@ -1874,6 +1874,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         require((transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion in 1..2) && ProfileActions.supported(transmittedDraft.actions, capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion)) {
             "Update the gauge before sending gesture actions"
         }
+        require(!requiresOxygenVoltageFirmware(transmittedDraft) || capabilities?.oxygenVoltageSupported == true) {
+            "Update the gauge before sending oxygen sensor voltage readings"
+        }
         require(
             !requiresPidCatalogFirmware(transmittedDraft) || capabilities?.pidCatalogVersion == 1
         ) {
@@ -2135,15 +2138,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         deviceMessage = "Vehicle deleted from this phone. Installed gauge settings are unchanged."
     }
 
-    fun createProfile() = launchLocalMutation {
+    fun createProfile(starter: VehicleStarter = VehicleStarter.Generic) = launchLocalMutation {
         val name = profileNameInput.trim()
-        if (profileError != null || modifyingSetupBlocked || name.isEmpty() ||
+        if (!starter.available || profileError != null || modifyingSetupBlocked || name.isEmpty() ||
             profileCollection.profiles.size >= 8 ||
             profileCollection.profiles.any { it.name.equals(name, ignoreCase = true) }
         ) {
             return@launchLocalMutation
         }
-        val profile = VehicleProfile(ProfileStore.newId(), name, Draft())
+        val profile = VehicleProfile(ProfileStore.newId(), name, starter.draft())
         val updated = profileCollection.copy(
             activeId = profile.id,
             profiles =

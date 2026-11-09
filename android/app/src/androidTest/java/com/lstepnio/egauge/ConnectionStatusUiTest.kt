@@ -65,7 +65,7 @@ class ConnectionStatusUiTest {
             ),
             connectionStatus = ready
         )
-        frame { CarScreen(state, {}, {}, {}) }
+        frame { CarScreen(state, {}, {}, { _, _ -> }) }
         compose.onNodeWithText("Connected").assertIsDisplayed()
         compose.onNodeWithText("Needs attention").assertIsDisplayed()
         listOf("Check faults", "Check adapter", "Transmission", "Find adapter").forEach {

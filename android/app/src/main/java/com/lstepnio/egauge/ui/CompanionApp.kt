@@ -397,9 +397,9 @@ fun CompanionApp(
                                         val current = history.filter { model.isAlertCurrent(it) && it.event.lifecycle == AlertLifecycle.Active }
                                         CarScreen(
                                             state.car, { route = Route.Setup }, model::selectProfile,
-                                            { name ->
+                                            { name, starter ->
                                                 model.editProfileName(name)
-                                                model.createProfile()
+                                                model.createProfile(starter)
                                             },
                                             model::findVehicleAdapters, model::choosePrimaryAdapter,
                                             {
