@@ -7,6 +7,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.KeyFactory
 import java.security.MessageDigest
+import java.security.PublicKey
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
@@ -18,11 +19,12 @@ data class DevUpdateBundle(
     val image: ByteArray,
     val sha256: ByteArray,
     val signatureDer: ByteArray,
-    val elfSha256: ByteArray
+    val elfSha256: ByteArray,
+    val boardTag: Long
 ) {
     companion object {
         private const val BOARD = "ESP32-S3-Touch-LCD-1.28"
-        private const val BOARD_TAG = 0x31534745
+        private const val BOARD_TAG = 0x31534745L
         private val fields = setOf(
             "board",
             "boardTag",
@@ -34,6 +36,32 @@ data class DevUpdateBundle(
         )
 
         fun read(context: Context, input: InputStream): DevUpdateBundle {
+            val publicPem = context.assets.open("dev-update-public.pem").bufferedReader().use {
+                it.readText()
+            }
+            val base64 = publicPem.lineSequence().filter {
+                !it.startsWith("-----") &&
+                    it.isNotBlank()
+            }.joinToString("")
+            val key = KeyFactory.getInstance(
+                "EC"
+            ).generatePublic(X509EncodedKeySpec(Base64.getDecoder().decode(base64)))
+            return read(input, key)
+        }
+
+        /** The caller supplies the trusted target and key independently of the bundle. */
+        internal fun read(
+            input: InputStream,
+            verificationKey: PublicKey,
+            expectedBoard: String = BOARD,
+            expectedBoardTag: Long = BOARD_TAG
+        ): DevUpdateBundle {
+            require(
+                expectedBoard.isNotBlank() && expectedBoardTag in 1..0xffffffffL &&
+                    (expectedBoard == BOARD) == (expectedBoardTag == BOARD_TAG)
+            ) {
+                "Invalid development update target"
+            }
             var metadata: ByteArray? = null
             var image: ByteArray? = null
             ZipInputStream(input).use { archive ->
@@ -68,8 +96,13 @@ data class DevUpdateBundle(
             require(json.keys().asSequence().toSet() == fields) {
                 "Unsupported update metadata fields"
             }
+            val boardTag = when (val value = json.get("boardTag")) {
+                is Int -> value.toLong()
+                is Long -> value
+                else -> error("Update board tag must be an unsigned integer")
+            }
             require(
-                json.getString("board") == BOARD && json.getInt("boardTag") == BOARD_TAG &&
+                json.get("board") == expectedBoard && boardTag == expectedBoardTag &&
                     json.getInt(
                         "transferProtocol"
                     ) == 0 && json.getInt("signaturePartBytes") == 8 &&
@@ -81,20 +114,10 @@ data class DevUpdateBundle(
             val expected = hex(json.getString("sha256"), 32)
             require(digest.contentEquals(expected)) { "Firmware SHA-256 does not match metadata" }
             val signature = hex(json.getString("signatureDerHex"), 64, 72)
-            val publicPem = context.assets.open("dev-update-public.pem").bufferedReader().use {
-                it.readText()
-            }
-            val base64 = publicPem.lineSequence().filter {
-                !it.startsWith("-----") &&
-                    it.isNotBlank()
-            }.joinToString("")
-            val key = KeyFactory.getInstance(
-                "EC"
-            ).generatePublic(X509EncodedKeySpec(Base64.getDecoder().decode(base64)))
             val signed = ByteBuffer.allocate(40).order(ByteOrder.LITTLE_ENDIAN)
-                .putInt(BOARD_TAG).putInt(bytes.size).put(digest).array()
+                .putInt(boardTag.toInt()).putInt(bytes.size).put(digest).array()
             val verifier = Signature.getInstance("SHA256withECDSA")
-            verifier.initVerify(key)
+            verifier.initVerify(verificationKey)
             verifier.update(signed)
             require(verifier.verify(signature)) { "Development update signature is invalid" }
             require(
@@ -104,7 +127,7 @@ data class DevUpdateBundle(
             ) {
                 "Firmware image has no supported ESP app descriptor"
             }
-            return DevUpdateBundle(bytes, digest, signature, bytes.copyOfRange(176, 208))
+            return DevUpdateBundle(bytes, digest, signature, bytes.copyOfRange(176, 208), boardTag)
         }
 
         private fun bounded(input: InputStream, maximum: Int): ByteArray {
