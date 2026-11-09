@@ -39,7 +39,7 @@ fun CarScreen(
 ) {
     var profilesOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
     var adapterOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
-    var idleOpen by rememberSaveable(state.activeId) { mutableStateOf(false) }
+    var idleOpen by rememberSaveable(state.activeId, state.vehicleActionsAllowed) { mutableStateOf(false) }
     var destination by rememberSaveable(state.activeId) { mutableStateOf("overview") }
     var warningSource by rememberSaveable(state.activeId) { mutableStateOf("") }
     var selectedFault by rememberSaveable(state.activeId) { mutableStateOf<String?>(null) }
@@ -158,13 +158,15 @@ fun CarScreen(
                 }
             }
             Panel {
-                SettingsRow("Vehicle actions", "Air up, Winch", state.canEditActions) { idleOpen = true }
+                if (state.vehicleActionsAllowed) {
+                    SettingsRow("Vehicle actions", "Air up, Winch", state.canEditActions) { idleOpen = true }
+                }
                 SettingsRow("Alert settings", onClick = onAlertSettings)
                 SettingsRow("History", onClick = onHistory)
             }
         }
     }
-    if (idleOpen) VehicleActionsSheet(state, onSaveIdlePresets, onVehicleCommand, { idleOpen = false })
+    if (idleOpen && state.vehicleActionsAllowed) VehicleActionsSheet(state, onSaveIdlePresets, onVehicleCommand, { idleOpen = false })
     if (profilesOpen) ProfileDialog(state, { profilesOpen = false }, onSelectProfile, onCreateProfile, onDeleteProfile)
     if (adapterOpen) {
         ModalBottomSheet(onDismissRequest = { adapterOpen = false }) {

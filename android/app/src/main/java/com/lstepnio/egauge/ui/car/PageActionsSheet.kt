@@ -20,7 +20,9 @@ fun PageActionsSheet(state: CarUiState, onDismiss: () -> Unit, onSave: (PageActi
     var target by remember(state.activeId, state.actions) {
         mutableStateOf(state.actions.firstOrNull()?.pageId)
     }
-    var menu by remember(state.activeId, state.actions) { mutableStateOf(state.actions.firstOrNull()?.type == PageActionType.VehicleActions) }
+    var menu by remember(state.activeId, state.actions, state.vehicleActionsAllowed) {
+        mutableStateOf(state.vehicleActionsAllowed && state.actions.firstOrNull()?.type == PageActionType.VehicleActions)
+    }
     var count by remember(state.activeId, state.actions) {
         mutableIntStateOf(state.actions.firstOrNull()?.count ?: 3)
     }
@@ -38,11 +40,15 @@ fun PageActionsSheet(state: CarUiState, onDismiss: () -> Unit, onSave: (PageActi
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             SectionTitle("Gesture action")
-            Text("Swipe up to open vehicle actions or jump to a page. Vehicle commands need confirmation in the menu.")
-            SettingsRow("Vehicle actions", if (menu) "Selected" else "Open Air up, Winch and ABS / traction control", state.canEditActions, {
-                menu = true
-                target = null
-            })
+            if (state.vehicleActionsAllowed) {
+                Text("Swipe up to open vehicle actions or jump to a page. Vehicle commands need confirmation in the menu.")
+                SettingsRow("Vehicle actions", if (menu) "Selected" else "Open Air up, Winch and ABS / traction control", state.canEditActions, {
+                    menu = true
+                    target = null
+                })
+            } else {
+                Text("Swipe up to jump to a dashboard page.")
+            }
             SettingsRow(
                 "Off",
                 if (target ==

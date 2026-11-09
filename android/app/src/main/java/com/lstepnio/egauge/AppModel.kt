@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -1105,7 +1106,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val profile = profileCollection.active
         val requested = vehicleSources
         val gaugeId = currentGaugeId
-        val indices = configuredSourceIndices(activeDocument)
+        val indices = liveSourceIndices(activeDocument)
         var pause = 20_000L
         for (source in requested) {
             val schedule = if (source == "TCM" && requested.size == 2) childPoll else vehiclePoll
@@ -1369,9 +1370,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         choosingGauge = false
         val sameGauge = currentGaugeId == candidate.id
         val value = bleClient.readCandidate(candidate)
+        val policy = value.featurePolicy
         val saved = setupTransactions.update { current ->
             val associations = current.associations.remember(candidate.id, candidate.name)
-            val profileId = associations.context(candidate.id, current.profiles)?.first
+            val profileId = associations.context(candidate.id, current.profiles, policy?.allowsSecondAdapter != false)?.first
             LocalSetup(
                 if (profileId ==
                     null
@@ -1386,6 +1388,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         connected(value, preserveSent = sameGauge)
         currentGaugeId = candidate.id
         rememberedGaugeId = candidate.id
+        if (policy == null) {
+            gaugeFeaturePolicies.remove(candidate.id)
+        } else {
+            gaugeFeaturePolicies[candidate.id] = policy
+            if (!policy.allowsSecondAdapter) adapterSelectionSource = "ECM"
+        }
         knownGauges = saved.associations.gauges
         profileCollection = saved.profiles
         draft = saved.profiles.active.draft
@@ -1629,6 +1637,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         require(capabilities?.adapterRegistryVersion == 1) {
             "Update the gauge before setting up an adapter"
         }
+        require(adapterSelectionSource != "TCM" || gaugeFeaturePolicy.allowsSecondAdapter) {
+            "This gauge uses a single adapter"
+        }
         adapterCandidates = emptyList()
         val found = GaugeConfigTransferClient(
             getApplication()
@@ -1665,7 +1676,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun findTransmissionAdapters() {
         if (profileCollection.active.transmission == null || localSaveBusy ||
-            modifyingSetupBlocked
+            modifyingSetupBlocked || !gaugeFeaturePolicy.allowsSecondAdapter
         ) {
             return
         }
@@ -1680,7 +1691,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         childOnly: Boolean
     ) = launchLocalMutation {
         if (profileError != null || modifyingSetupBlocked ||
-            profileCollection.activeId != vehicleId
+            profileCollection.activeId != vehicleId ||
+            (childOnly && !gaugeFeaturePolicy.allowsSecondAdapter)
         ) {
             return@launchLocalMutation
         }
@@ -1757,11 +1769,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     val vehicleSources: List<String> get() = activeDocument?.takeIf {
-        it.vehicleProfileId ==
-            profileCollection.activeId
+        it.vehicleProfileId == profileCollection.activeId
     }
-        ?.let { configuredSourceIndices(it).keys.toList().takeIf(List<String>::isNotEmpty) }
+        ?.let { liveSourceIndices(it).keys.toList().takeIf(List<String>::isNotEmpty) }
         ?: if (bothAdapters) listOf("ECM", "TCM") else listOf("ECM")
+
+    private fun liveSourceIndices(document: GaugeConfigTransferClient.ActiveDocument?): Map<String, Int> =
+        gaugeFeaturePolicy.sourceIndices(configuredSourceIndices(document))
+
     var adapterStatuses by mutableStateOf<Map<String, AdapterSourceStatus>>(emptyMap())
         private set
     var adapterCheckedAt by mutableStateOf<Map<String, Long>>(emptyMap())
@@ -1774,21 +1789,30 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var vehicleFailures by mutableStateOf<Set<String>>(emptySet())
         private set
-    val bothAdapters: Boolean get() = knownGauges.firstOrNull {
-        it.id == rememberedGaugeId
-    }?.bothAdapters ==
-        true
+    private val gaugeFeaturePolicies = mutableStateMapOf<String, GaugeFeaturePolicy>()
+    internal val gaugeFeaturePolicy: GaugeFeaturePolicy
+        get() = gaugeFeaturePolicyFor(rememberedGaugeId)
+    internal fun gaugeFeaturePolicyFor(id: String?): GaugeFeaturePolicy = id?.let { gaugeFeaturePolicies[it] } ?: GaugeFeaturePolicy()
+    val bothAdapters: Boolean get() = gaugeFeaturePolicy.usesSecondAdapter(
+        knownGauges.firstOrNull { it.id == rememberedGaugeId }?.bothAdapters == true
+    )
     var pageEditError by mutableStateOf<String?>(null)
         private set
     val editorDraft: Draft get() = profileCollection.active.dashboardDraft()
-    val transmittedDraft: Draft get() = editorDraft.copy(
-        source = "ECM",
-        actions = knownGauges.firstOrNull {
+    val transmittedDraft: Draft get() = gaugeFeaturePolicy.project(
+        editorDraft,
+        knownGauges.firstOrNull {
             it.id == rememberedGaugeId && it.vehicleId == profileCollection.activeId
         }?.actionOverride ?: editorDraft.actions
     )
     fun saveGaugeActionPages(action: PageAction?, presets: List<IdlePreset>) = launchLocalMutation {
         if (modifyingSetupBlocked || profileError != null || gaugeAssociationError != null) return@launchLocalMutation
+        val allowsVehicleActions = gaugeFeaturePolicy.allowsVehicleActions
+        if (!allowsVehicleActions &&
+            (action?.type == PageActionType.VehicleActions || action == transmittedDraft.actions.singleOrNull())
+        ) {
+            return@launchLocalMutation
+        }
         val id = rememberedGaugeId ?: return@launchLocalMutation
         require(vehicleCommands.values.none { it.busy }) { "Finish the active action before changing its pages" }
         ProfileActions.validate(listOfNotNull(action), editorDraft.pages)
@@ -1797,7 +1821,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             require(current.associations.gauges.any { it.id == id && it.vehicleId == current.profiles.activeId }) { "Assign this gauge to the car first" }
             current.copy(
                 associations = current.associations.copy(gauges = current.associations.gauges.map { if (it.id == id) it.copy(actionOverride = listOfNotNull(action)) else it }),
-                profiles = current.profiles.copy(profiles = current.profiles.profiles.map { if (it.id == current.profiles.activeId) it.copy(draft = it.draft.copy(idlePresets = presets)) else it })
+                profiles = if (allowsVehicleActions) {
+                    current.profiles.copy(profiles = current.profiles.profiles.map { if (it.id == current.profiles.activeId) it.copy(draft = it.draft.copy(idlePresets = presets)) else it })
+                } else {
+                    current.profiles
+                }
             )
         }
         profileCollection = saved.profiles
@@ -1806,7 +1834,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun setBothAdapters(enabled: Boolean) = launchLocalMutation {
         if (!BuildConfig.DEBUG || modifyingSetupBlocked ||
-            gaugeAssociationError != null
+            gaugeAssociationError != null || !gaugeFeaturePolicy.allowsSecondAdapter
         ) {
             return@launchLocalMutation
         }
@@ -1882,13 +1910,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ) {
             return
         }
-        if (source == "TCM" && profileCollection.active.transmission == null) return
+        if (source == "TCM" &&
+            (profileCollection.active.transmission == null || !gaugeFeaturePolicy.allowsSecondAdapter)
+        ) {
+            return
+        }
         adapterSelectionSource = source
     }
 
     fun addTransmissionChild() = launchLocalMutation {
         if (!BuildConfig.DEBUG || profileError != null ||
-            modifyingSetupBlocked
+            modifyingSetupBlocked || !gaugeFeaturePolicy.allowsSecondAdapter
         ) {
             return@launchLocalMutation
         }
@@ -1928,7 +1960,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun removeTransmissionChild() = launchLocalMutation {
-        if (profileError != null || modifyingSetupBlocked ||
+        if (profileError != null || modifyingSetupBlocked || !gaugeFeaturePolicy.allowsSecondAdapter ||
             profileCollection.active.transmission == null
         ) {
             return@launchLocalMutation
@@ -1974,9 +2006,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Confirm the previous gauge operation before switching gauges"
         }
         require(stored.gauges.any { it.id == id }) { "Gauge is not saved on this phone" }
+        val allowsSecondAdapter = gaugeFeaturePolicyFor(id).allowsSecondAdapter
         val saved = setupTransactions.update { current ->
             val selected = current.associations.copy(selectedId = id)
-            val profileId = selected.context(id, current.profiles)?.first
+            val profileId = selected.context(id, current.profiles, allowsSecondAdapter)?.first
             LocalSetup(
                 if (profileId ==
                     null
@@ -2050,7 +2083,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun attachLegacyTransmission(parentId: String) = launchLocalMutation {
         if (profileError != null || gaugeAssociationError != null ||
-            modifyingSetupBlocked
+            modifyingSetupBlocked || !gaugeFeaturePolicy.allowsSecondAdapter
         ) {
             return@launchLocalMutation
         }
@@ -2975,8 +3008,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun savePageCycleSeconds(seconds: Int) = savePageCycling(seconds, null)
 
     fun savePageCycling(seconds: Int, smart: Boolean?) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving page cycle interval") { id ->
-        require((capabilities?.displaySettingsVersion ?: 0) >= 3) {
+        val caps = capabilities
+        require(caps != null && caps.displaySettingsVersion >= 3) {
             "Gauge does not offer page cycling"
+        }
+        require(smart == null || caps.smartPageCyclingVersion == 1) {
+            "Gauge does not offer Smart page cycling"
         }
         require(seconds in setOf(0, 5, 10, 15, 30, 60)) { "Invalid page cycle interval" }
         operation = OperationState(
@@ -2987,7 +3024,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Waiting for gauge confirmation"
         )
         val client = GaugeConfigTransferClient(getApplication())
-        val current = client.readDisplaySettings(bleClient.selectedGauge(), capabilities?.smartPageCyclingVersion ?: 0)
+        val current = client.readDisplaySettings(bleClient.selectedGauge(), caps.smartPageCyclingVersion)
         displaySettingsRead(
             client.saveDisplaySettings(
                 bleClient.selectedGauge(),
@@ -2996,7 +3033,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 current.units,
                 seconds,
                 smartCycle = smart,
-                smartPageCyclingVersion = capabilities?.smartPageCyclingVersion ?: 0
+                smartPageCyclingVersion = caps.smartPageCyclingVersion
             )
         )
         ownerAccess = OwnerAccess.AUTHENTICATED
@@ -3263,6 +3300,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun readGaugeDiagnostics() = launchGaugeOperation(OperationKind.READ, "Checking vehicle faults") { id ->
+        val sources = vehicleSources
+        require(sources.size == 1 || capabilities?.dualAdapterVersion == 1) {
+            "This gauge uses a single adapter"
+        }
         if (capabilities?.adapterRegistryVersion == 1) {
             val source = GaugeConfigTransferClient(
                 getApplication()
@@ -3275,9 +3316,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         val client = GaugeConfigTransferClient(getApplication())
-        for (source in vehicleSources) {
-            val index = if (bothAdapters) {
-                configuredSourceIndices(activeDocument)[source]
+        for (source in sources) {
+            val index = if (sources.size == 2) {
+                liveSourceIndices(activeDocument)[source]
                     ?: error("Send both adapter connections before checking their faults")
             } else {
                 null
@@ -3731,7 +3772,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }) { persistDraft(changed) }
     }
     fun saveIdlePresets(values: List<IdlePreset>) = launchLocalMutation {
-        if (modifyingSetupBlocked || profileError != null) return@launchLocalMutation
+        if (modifyingSetupBlocked || profileError != null || !gaugeFeaturePolicy.allowsVehicleActions) return@launchLocalMutation
         IdlePresets.validate(values)
         persistDraft(
             editorDraft.copy(
@@ -3753,6 +3794,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /** Legacy vehicle-draft mutation; per-gauge configuration uses saveGaugeActionPages. */
     fun savePageAction(value: PageAction?) = launchLocalMutation {
         if (modifyingSetupBlocked || profileError != null) return@launchLocalMutation
+        if (value?.type == PageActionType.VehicleActions && !gaugeFeaturePolicy.allowsVehicleActions) return@launchLocalMutation
         if (profileCollection.active.transmission != null) {
             val updated = runCatching {
                 profileCollection.copy(

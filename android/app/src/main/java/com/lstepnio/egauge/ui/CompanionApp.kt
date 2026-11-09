@@ -73,8 +73,8 @@ fun CompanionApp(
         var carAlertId by rememberSaveable { mutableStateOf<String?>(null) }
         var customizeStep by rememberSaveable { mutableIntStateOf(0) }
         var progressOpen by rememberSaveable { mutableStateOf(false) }
-        var gestureOpen by rememberSaveable { mutableStateOf(false) }
-        var actionPagesOpen by rememberSaveable { mutableStateOf(false) }
+        var gestureOpen by rememberSaveable(model.rememberedGaugeId) { mutableStateOf(false) }
+        var actionPagesOpen by rememberSaveable(model.rememberedGaugeId, state.car.vehicleActionsAllowed) { mutableStateOf(false) }
         var connectionsOpen by rememberSaveable { mutableStateOf(false) }
         var backProgress by remember { mutableFloatStateOf(0f) }
         fun back() {
@@ -148,8 +148,10 @@ fun CompanionApp(
                 )
             }
         ) {
-            if (gestureOpen) PageActionsSheet(state.car, { gestureOpen = false }, { model.saveGaugeActionPages(it, state.car.idlePresets) })
-            if (actionPagesOpen) {
+            if (gestureOpen) {
+                PageActionsSheet(state.car.copy(canEditActions = actionAssignmentReady), { gestureOpen = false }, { model.saveGaugeActionPages(it, state.car.idlePresets) })
+            }
+            if (actionPagesOpen && state.car.vehicleActionsAllowed) {
                 ActionPagesSheet(
                     state.car.copy(actions = model.transmittedDraft.actions, actionsSupported = model.capabilities?.pageActionsVersion == 2, canEditActions = actionAssignmentReady),
                     model::saveGaugeActionPages,
@@ -333,7 +335,7 @@ fun CompanionApp(
                                         model.selectPage(index)
                                         customizeStep = 0
                                         route = Route.Customize
-                                    }, onUpdates = { route = Route.Updates }, onActionPages = { actionPagesOpen = true }, canEditActionPages = actionAssignmentReady)
+                                    }, onUpdates = { route = Route.Updates }, onActionPages = { actionPagesOpen = true }, canEditActionPages = actionAssignmentReady, onGesture = { gestureOpen = true })
 
                                     Route.Setup -> SetupScreen(
                                         state.setup, onFindGauge,

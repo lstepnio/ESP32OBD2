@@ -45,10 +45,10 @@ fun ExpertScreen(
     onBack: () -> Unit = {},
     onReview: () -> Unit = {}
 ) {
-    var tool by rememberSaveable(state.vehicleId) { mutableStateOf<String?>(null) }
+    var tool by rememberSaveable(state.vehicleId, state.secondAdapterAllowed) { mutableStateOf<String?>(null) }
     var filtersOpen by rememberSaveable(state.vehicleId) { mutableStateOf(false) }
-    var secondOpen by rememberSaveable(state.vehicleId) { mutableStateOf(false) }
-    var removeOpen by rememberSaveable(state.vehicleId) { mutableStateOf(false) }
+    var secondOpen by rememberSaveable(state.vehicleId, state.secondAdapterAllowed) { mutableStateOf(false) }
+    var removeOpen by rememberSaveable(state.vehicleId, state.secondAdapterAllowed) { mutableStateOf(false) }
     if (filtersOpen) {
         HiddenFaultCodesScreen(state, actions, { filtersOpen = false }, onReview)
         return
@@ -66,7 +66,7 @@ fun ExpertScreen(
             }
             if (state.vehicleId.isNotBlank() || state.vehicleName.isNotBlank()) {
                 SectionTitle(state.vehicleName.ifBlank { "Vehicle" })
-                if (BuildConfig.DEBUG && state.primarySource == "ECM") {
+                if (BuildConfig.DEBUG && state.secondAdapterAllowed && state.primarySource == "ECM") {
                     SettingsRow(
                         "Second adapter",
                         when {
@@ -80,7 +80,7 @@ fun ExpertScreen(
                         secondOpen = true
                     }
                 }
-                if (BuildConfig.DEBUG && !state.hasPrimaryAdapter && state.primarySource == "ECM") {
+                if (BuildConfig.DEBUG && state.secondAdapterAllowed && !state.hasPrimaryAdapter && state.primarySource == "ECM") {
                     Text(
                         "Choose your vehicle adapter in Car before adding a second one.",
                         style = MaterialTheme.typography.bodyMedium
@@ -117,7 +117,7 @@ fun ExpertScreen(
             }
         }
     }
-    if (tool != null) {
+    if (tool != null && (tool != "legacy" || state.secondAdapterAllowed)) {
         ModalBottomSheet(onDismissRequest = { tool = null }) {
             Column(
                 Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(
@@ -186,7 +186,7 @@ fun ExpertScreen(
             }
         }
     }
-    if (secondOpen) {
+    if (secondOpen && state.secondAdapterAllowed) {
         ModalBottomSheet(onDismissRequest = { secondOpen = false }) {
             SecondAdapterChoices(state, actions, onRemove = {
                 secondOpen = false
@@ -194,7 +194,7 @@ fun ExpertScreen(
             })
         }
     }
-    if (removeOpen) {
+    if (removeOpen && state.secondAdapterAllowed) {
         AlertDialog(
             onDismissRequest = { removeOpen = false },
             title = { Text("Remove second adapter?") },

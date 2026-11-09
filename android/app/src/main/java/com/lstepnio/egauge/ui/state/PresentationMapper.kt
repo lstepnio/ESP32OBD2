@@ -431,7 +431,8 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                     runtimeIdentity?.usedPreviousGeneration == true ||
                         runtimeIdentity?.trial == true ||
                         updatePreparation == "held" || blockers.isNotEmpty()
-                    )
+                    ),
+            vehicleActionsAllowed = gaugeFeaturePolicy.allowsVehicleActions
         ),
         CustomizeUiState(
             pages, editingPageIndex,
@@ -482,6 +483,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             settingsReadCurrent(settingsObservedAtElapsedMs, nowElapsedMs, settingsCheckFailed) &&
                 freshConnection,
             knownGauges.map {
+                val policy = gaugeFeaturePolicyFor(it.id)
                 GaugeUi(
                     it.id,
                     it.name,
@@ -491,9 +493,9 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                     }?.name,
                     it.source,
                     it.vehicleId != null &&
-                        GaugeAssociations(it.id, listOf(it)).context(it.id, profileCollection) ==
+                        GaugeAssociations(it.id, listOf(it)).context(it.id, profileCollection, policy.allowsSecondAdapter) ==
                         null,
-                    it.bothAdapters
+                    policy.usesSecondAdapter(it.bothAdapters)
                 )
             },
             rememberedGaugeId,
@@ -512,7 +514,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             !busy && profileError == null, adapterCandidates,
             capabilities?.adapterRegistryVersion == 1 && freshConnection && !busy,
             adapterMessage,
-            if (profileCollection.active.draft.source ==
+            if (gaugeFeaturePolicy.allowsSecondAdapter && profileCollection.active.draft.source ==
                 "TCM"
             ) {
                 profileCollection.profiles.filter {
@@ -566,7 +568,8 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 capabilities?.adapterRegistryVersion != 1 -> "Update the gauge to discover adapters."
                 busy -> "Waiting for the current gauge operation to finish."
                 else -> null
-            }
+            },
+            secondAdapterAllowed = gaugeFeaturePolicy.allowsSecondAdapter
         ),
         SetupUiState(
             found || androidBonded,
@@ -773,7 +776,8 @@ private fun AppViewModel.carState(
                     val saved = (0 until savedSources.length()).map {
                         savedSources.getJSONObject(it)
                     }
-                        .firstOrNull()?.optJSONObject("adapter")
+                        .firstOrNull { it.optString("role").equals(vehicleSources.firstOrNull(), true) }
+                        ?.optJSONObject("adapter")
                     if (saved == null && profileCollection.active.primaryAdapter == null) {
                         "No adapter selected on the gauge. Find your adapter when it is powered."
                     } else if (saved?.optString(
@@ -810,8 +814,8 @@ private fun AppViewModel.carState(
         canEditActions =
             !busy && profileError == null,
         actionsSupported = capabilities?.pageActionsVersion in 1..2, canManageVehicles = canManageVehicles,
-        gaugeKnown =
-            rememberedGaugeId != null
+        gaugeKnown = rememberedGaugeId != null,
+        vehicleActionsAllowed = gaugeFeaturePolicy.allowsVehicleActions
     )
 }
 

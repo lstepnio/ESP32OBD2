@@ -67,7 +67,8 @@ data class HomeUiState(
     val busy: Boolean,
     val details: List<DetailUi>,
     val updateNotice: UpdateNotice = UpdateNotice.None,
-    val showStatus: Boolean = true
+    val showStatus: Boolean = true,
+    val vehicleActionsAllowed: Boolean = true
 )
 enum class HomeAction { SetUp, Check, Review, Customize }
 
@@ -149,7 +150,8 @@ data class CarUiState(
     val gaugeKnown: Boolean = false,
     val idleCoolantLimitC: Double? = null,
     val runningIdleCoolantLimitC: Double? = null,
-    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric,
+    val vehicleActionsAllowed: Boolean = true
 )
 
 @Immutable
@@ -234,7 +236,8 @@ data class ExpertUiState(
     val showcaseActive: Boolean = false,
     val diagnosticFilters: List<com.lstepnio.egauge.DiagnosticCodeFilter> = emptyList(),
     val visibleFaultSources: List<FaultSourceUi> = emptyList(),
-    val filterTargets: List<DetailUi> = emptyList()
+    val filterTargets: List<DetailUi> = emptyList(),
+    val secondAdapterAllowed: Boolean = true
 )
 
 @Immutable
