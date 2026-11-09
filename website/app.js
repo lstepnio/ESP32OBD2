@@ -44,3 +44,14 @@ function registerForm(selector, messageSelector, pending, success) {
 }
 registerForm('#interest-form', '#form-message', 'Submitting…', 'You are on the list. We will email you about eGauge development and new vehicle profiles.');
 registerForm('#custom-form', '#custom-message', 'Sending…', 'Request received. We will review it and follow up by email.');
+
+let orderPrefill = '';
+document.querySelectorAll('[data-order-request]').forEach(link => {
+  link.addEventListener('click', () => {
+    const details = document.querySelector('#custom-details');
+    if (!details.value.trim() || details.value === orderPrefill) {
+      orderPrefill = `I'd like pricing and availability for ${link.dataset.orderRequest}.`;
+      details.value = orderPrefill;
+    }
+  });
+});

@@ -131,7 +131,7 @@
       "evidence": [
         "docs/evidence/gatt-long-read-recovery.md"
       ],
-      "text": "Your own pages, readings and alerts on a small display that runs on its own once configured. Thoughtful software, on hardware you buy independently."
+      "text": "Your own pages, readings and alerts on a small display that runs on its own once configured. Choose the free LCD build or explore the licensed OLED bundle."
     },
     "LAYOUTS": {
       "scope": "development",
@@ -142,7 +142,7 @@
       "evidence": [
         "docs/evidence/display-evolution.md"
       ],
-      "text": "Numeric, Arc, Bar, Trend, Dual, or Dual + arc. Arrange pages and save your display settings. Optional Smart cycling uses reading context and alert priorities while giving every saved page time on screen."
+      "text": "Numeric, Arc, Bar, Trend, Dual, or Dual + arc. Arrange pages and save your display settings. Smart Cycle is available for private evaluation on OLED."
     },
     "ANDROID": {
       "scope": "development",
@@ -186,17 +186,6 @@
         "docs/backlog.md"
       ],
       "text": "A basic iPhone App and browser-over-USB setup are planned. Core configuration should be available without relying on an Android phone; neither path is available today."
-    },
-    "ROAD_ALERTS": {
-      "scope": "exploring",
-      "sources": [
-        "docs/roadmap.md",
-        "docs/architecture/phone-alert-providers.md"
-      ],
-      "evidence": [
-        "docs/backlog.md"
-      ],
-      "text": "Road-aware alerts are being explored. They are not available in the current build; provider access and real-world relevance still need validation."
     },
     "BUILD_STORY": {
       "scope": "observed",

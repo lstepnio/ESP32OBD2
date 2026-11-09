@@ -88,6 +88,45 @@ cycling with the same interval. Firmware reads retain the original document
 revision and digest, and disabled features are rejected in new writes.
 See the [wire capability contract](../protocol/experimental-firmware-transfers.md#platform-feature-policy).
 
+## OLED entitlements
+
+The OLED bundle pairs one board with an offline, unit-bound entitlement. The
+shared catalog and dashboard behavior remain common. A board's capabilities and
+the compiled feature set form the ceiling for any licensed option. Runtime
+vehicle-command qualification still applies independently.
+
+The bench issuer/verifier `tools/board_license.py` signs a fixed-format envelope
+using a separate P-256 key. It reads the factory ESP32-S3 eFuse MAC from standard
+input. Obtain it during private provisioning using Espressif's
+`esp_efuse_mac_get_default` and keep it out of public logs. The unit ID is SHA-256
+over the ASCII bytes `egauge/esp32s3/factory-mac/v1`, a zero byte, and the six MAC
+bytes. Treat the derived ID as a private identifier too.
+
+The signed payload is eight magic bytes (`EGOLIC1` plus a zero byte), the 32-byte
+unit ID, then a one-byte feature mask. The trailing DER ECDSA signature covers
+the entire payload with SHA-256. The magic scopes version 1 to the OLED product.
+Bits 0, 1 and 2 grant dual-adapter, Smart Cycle and Vehicle Actions respectively.
+Unknown bits and a different unit, product or signature are rejected. The format
+has no expiry. Any future expiry, revocation, or transfer policy needs its own
+contract and qualification.
+
+Example fulfillment trial, using private files and an offline signing machine:
+
+```sh
+python tools/board_license.py issue --signing-key /private/issuer.pem \
+  --feature dual-adapter --feature smart-cycle board.egauge-license < factory-mac.txt
+python tools/board_license.py verify --verification-key /private/issuer-public.pem \
+  board.egauge-license < factory-mac.txt
+```
+
+Firmware activation, durable storage across update/recovery, effective capability
+advertisement and per-feature enforcement are pending. Qualify valid activation,
+wrong board/key, loss or corruption of the license, replacement and rollback
+before taking paid OLED orders. The factory MAC is a stable ID and can be read
+from the device. Stronger resistance to cloning or modified firmware requires
+separate device-key and secure-boot provisioning. No eFuse writes are needed to
+read the factory ID or issue an entitlement.
+
 ## Implemented reference interfaces
 
 `gauge_board.h` is the ESP32/LVGL board boundary. The reference adapter delegates
