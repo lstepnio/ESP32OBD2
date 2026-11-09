@@ -1,8 +1,9 @@
 #include "orientation_policy.h"
 
-void orientation_policy_init(orientation_policy_t *p, uint8_t manual)
+void orientation_policy_init(orientation_policy_t *p, uint8_t manual, uint8_t mount_offset)
 {
-    *p = (orientation_policy_t){.applied = manual <= 3 ? manual : 0};
+    *p = (orientation_policy_t){.applied      = manual <= 3 ? manual : 0,
+                                .mount_offset = mount_offset <= 3 ? mount_offset : 0};
 }
 void orientation_policy_hold(orientation_policy_t *p)
 {
@@ -34,9 +35,9 @@ bool orientation_policy_observe(orientation_policy_t *p, uint32_t now, int32_t x
         p->pending = false;
         return false;
     }
-    /* On this board, USB down is -X and needs the native LCD angle; USB left
-     * is +Y and needs 90 degrees. Keep manual angles independent of this map. */
-    uint8_t candidate = ay >= ax ? (y >= 0 ? 1 : 3) : (x >= 0 ? 2 : 0);
+    /* The reference sensor/display frame sets the zero-offset cardinal map. */
+    uint8_t cardinal  = ay >= ax ? (y >= 0 ? 1 : 3) : (x >= 0 ? 2 : 0);
+    uint8_t candidate = (cardinal + p->mount_offset) % 4;
     if (candidate == p->applied)
     {
         p->pending = false;

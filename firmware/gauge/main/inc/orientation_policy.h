@@ -4,17 +4,17 @@
 
 /* Mapping v2 includes the reference board's sensor/LCD quarter-turn offset,
  * measured at USB-down and USB-left poses. Qualification remains a separate gate. */
-#define ORIENTATION_MAPPING_VERSION 2
+#define ORIENTATION_MAPPING_VERSION 3
 #define ORIENTATION_STALE_MS 1000U
 #define ORIENTATION_DWELL_MS 800U
 
 typedef struct
 {
-    uint8_t  applied, candidate;
+    uint8_t  applied, candidate, mount_offset;
     bool     pending, have_sample;
     uint32_t candidate_since, last_sample;
 } orientation_policy_t;
-void orientation_policy_init(orientation_policy_t *policy, uint8_t manual_angle);
+void orientation_policy_init(orientation_policy_t *policy, uint8_t manual_angle, uint8_t mount_offset);
 /* Acceleration is signed milli-g. Only fresh, steady gravity changes the angle. */
 bool orientation_policy_observe(orientation_policy_t *policy, uint32_t now_ms, int32_t x, int32_t y, int32_t z);
 void orientation_policy_hold(orientation_policy_t *policy);

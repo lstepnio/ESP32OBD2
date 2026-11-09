@@ -91,9 +91,11 @@ Normal-mode testing does not establish sensor calibration or relax gravity guard
 
 The pure policy requires plausible gravity (0.85..1.15 g), at least 650 mg in-plane,
 a 1.5:1 cardinal margin and 800 ms stable dwell. Flat poses, motion, jitter and
-one-second stale observations hold the last angle. Axis mapping version 2 compensates the reference board sensor/LCD quarter-turn
-offset measured at labelled USB-down and USB-left poses. It remains a candidate
-until all four text/touch orientations are physically verified on the new image. Rotation is
+one-second stale observations hold the last angle. The cardinal map uses the
+reference sensor/display frame. A board adapter may supply an Auto-only
+quarter-turn mount offset. Manual angles keep their saved meaning.
+Each target remains a candidate until all four text and touch orientations
+are physically verified on its image. Rotation is
 applied through the existing board display/touch transform; applied state changes
 only after successful application. In Auto, startup uses a separate validated NVS
 hint for the last checkpointed applied angle, before the logo and sensor setup.

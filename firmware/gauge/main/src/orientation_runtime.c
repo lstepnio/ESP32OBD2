@@ -67,7 +67,7 @@ void orientation_runtime_init_bus(uint8_t manual, orientation_bus_t transport, b
     stack_margin                         = 0;
     apply_retry_pending                  = false;
     apply_failed_at                      = 0;
-    orientation_policy_init(&policy, manual);
+    orientation_policy_init(&policy, manual, bus.mount_offset);
     portENTER_CRITICAL(&mux);
     status      = (orientation_status_t){.applied_angle = policy.applied};
     diagnostics = (orientation_diagnostics_t){0};
@@ -333,9 +333,11 @@ static void start_worker(void)
 #if CONFIG_EGAUGE_AUTO_ORIENTATION_CANDIDATE
         candidate = true;
 #endif
-        ESP_LOGI("orientation", "Sensor worker %s; internal stack=%u mapping=%u permitted=%u qualified=%u candidate=%u",
-                 task ? "started" : "unavailable", (unsigned)sizeof(sensor_stack), ORIENTATION_MAPPING_VERSION,
-                 permitted, gauge_board_orientation_qualified(), candidate);
+        ESP_LOGI(
+            "orientation",
+            "Sensor worker %s; internal stack=%u mapping=%u mount_offset=%u permitted=%u qualified=%u candidate=%u",
+            task ? "started" : "unavailable", (unsigned)sizeof(sensor_stack), ORIENTATION_MAPPING_VERSION,
+            (unsigned)policy.mount_offset, permitted, gauge_board_orientation_qualified(), candidate);
     }
 }
 #else

@@ -44,6 +44,6 @@ bool orientation_qmi8658_bus(i2c_master_bus_handle_t shared, orientation_bus_t *
         if (i2c_master_bus_add_device(shared, &config, &sensor.devices[index]) != ESP_OK)
             return false;
     }
-    *bus = (orientation_bus_t){&sensor, sensor_read, sensor_write};
+    *bus = (orientation_bus_t){.context = &sensor, .read = sensor_read, .write = sensor_write};
     return true;
 }
