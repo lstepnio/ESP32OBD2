@@ -23,10 +23,6 @@ internal fun PremiumGate(
     onBack: () -> Unit,
     content: @Composable (onManageAccess: (() -> Unit)?) -> Unit
 ) {
-    if (BuildConfig.DEBUG) {
-        content(null)
-        return
-    }
     val context = LocalContext.current
     val activity = LocalActivity.current
     val key = remember {
@@ -116,11 +112,4 @@ internal fun PremiumGate(
             TextButton({ refresh.trySend(Unit) }, enabled = !checking && !checkout) { Text("Restore purchases") }
         }
     }
-}
-
-@Composable
-internal fun PremiumOffer(terms: SubscriptionTerms, enabled: Boolean, onPurchase: () -> Unit) {
-    Text(terms.trial?.let { "$it, then ${terms.renewal}." } ?: "${terms.renewal}.")
-    Text("Renews automatically until canceled in Google Play.")
-    PrimaryAction("Continue to Google Play", onPurchase, enabled = enabled)
 }

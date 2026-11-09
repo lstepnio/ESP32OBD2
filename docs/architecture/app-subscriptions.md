@@ -18,7 +18,8 @@ The Android build pins the official Play Billing SDK. Set
 `egaugePlayBillingPublicKey` to the app's base64 Play purchase-verification
 public key for the internal release build. Leave it unset for unprovisioned
 builds, which show that subscriptions are coming and offer no purchase action.
-Debug builds keep Virtual Gauge open for vehicle testing.
+Debug builds omit the payment client and keep Virtual Gauge open for vehicle
+testing.
 
 One Android gate owns store access for each premium destination. It checks
 current subscriptions on entry and resume, validates the signed purchase against

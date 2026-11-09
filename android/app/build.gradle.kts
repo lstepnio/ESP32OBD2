@@ -82,9 +82,9 @@ kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }
 
 dependencies {
     implementation(project(":core:designsystem"))
-    implementation("com.android.billingclient:billing:9.1.0")
+    releaseImplementation("com.android.billingclient:billing:9.1.0")
     constraints {
-        implementation("androidx.fragment:fragment:1.8.9") {
+        releaseImplementation("androidx.fragment:fragment:1.8.9") {
             because("Play Billing brings an older Fragment transitively, which is incompatible with Activity Result")
         }
     }
