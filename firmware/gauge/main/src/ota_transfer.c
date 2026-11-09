@@ -16,6 +16,7 @@
 #include "portmacro.h"
 #include "mbedtls/sha256.h"
 #include "mbedtls/pk.h"
+#include "gauge_board.h"
 #include "ota_transfer.h"
 #include "transfer_gate.h"
 #include "wifi_bulk.h"
@@ -30,7 +31,6 @@
 #define OP_ABORT 0x26
 #define OP_STATUS 0x27
 #define OP_SIGNATURE 0x28
-#define BOARD_TAG 0x31534745U /* EGS1 little endian */
 
 typedef struct
 {
@@ -57,6 +57,7 @@ static struct
     uint32_t sequence;
     uint32_t id;
     uint32_t length;
+    uint32_t board_tag;
     uint32_t accepted;
     uint32_t last_activity;
     uint32_t activation_deadline;
@@ -148,7 +149,7 @@ static uint8_t verify_image(void)
     if (rc != 0 || memcmp(actual, state.digest, 32) != 0)
         return 2;
     uint8_t signed_bytes[40];
-    put_u32(signed_bytes, BOARD_TAG);
+    put_u32(signed_bytes, state.board_tag);
     put_u32(signed_bytes + 4, state.length);
     memcpy(signed_bytes + 8, actual, 32);
     uint8_t signed_digest[32];
@@ -214,11 +215,12 @@ static void process(const request_t *request)
 
     if (op == OP_BEGIN && request->length == 17 && id != 0)
     {
+        const gauge_board_t   *board  = gauge_board_description();
         const esp_partition_t *next   = esp_ota_get_next_update_partition(NULL);
         uint32_t               length = u32(p + 9);
         if (state.phase != 0)
             state.result = 3;
-        else if (u32(p + 13) != BOARD_TAG || !next || length < 1024 || length > next->size)
+        else if (!gauge_board_accepts_ota_target(board, u32(p + 13)) || !next || length < 1024 || length > next->size)
             state.result = 5;
         else if (!transfer_gate_claim(2))
             state.result = 3;
@@ -229,6 +231,7 @@ static void process(const request_t *request)
             state.wifi_generation  = request->wifi_generation;
             state.id               = id;
             state.length           = length;
+            state.board_tag        = board->ota_target_tag;
             state.accepted         = 0;
             state.digest_parts     = 0;
             state.signature_parts  = 0;

@@ -12,6 +12,7 @@ static const gauge_board_t reference_board = {
     .surface            = &gauge_reference_surface,
     .display_transport  = GAUGE_DISPLAY_SPI,
     .brightness_control = GAUGE_BRIGHTNESS_PWM,
+    .ota_target_tag     = 0x31534745U, /* EGS1, little endian */
 };
 
 const gauge_board_t *gauge_board_description(void)

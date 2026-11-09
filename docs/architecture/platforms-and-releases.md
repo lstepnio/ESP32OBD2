@@ -186,11 +186,21 @@ existing trust/anti-rollback rules. Existing development sequences/channels keep
 their meanings; adding private trust namespaces or RC catalogs needs a reviewed
 protocol/client migration. No board inherits another board's qualification.
 
-Future signed metadata must bind exact target/revision, partition layout and image
-hash. Both updater and firmware must enforce compatibility. ESP32 chip identity
-alone cannot establish board identity; USB ROM flashing cannot infer attached
-hardware. Use explicit target selection/provisioning and a separately qualified
-recovery package. The current legacy board tag is not a universal multi-board ID.
+The board descriptor's update tag gates the [shared development OTA worker](../protocol/experimental-firmware-transfers.md#development-owner-protocol-0).
+The reference LCD keeps its existing tag, bundle and installer compatibility.
+The host board fixture checks reference and alternate target matching, including
+unset and mismatched tags (`python -m unittest tools.tests.test_gauge_platform`).
+
+Before enabling OTA for a private board, qualify a rollback-capable A/B layout
+and recovery image, allocate a distinct tag for the compatible hardware and
+layout, and wire it through protected signing and the private catalog and
+installer. Provision the corresponding verification key in the gauge and
+installer. The installer must identify the attached target and select only the
+compatible image. Signed release metadata must bind exact target/revision,
+partition layout and image hash. ESP32 chip identity alone cannot establish board
+identity; USB ROM flashing requires explicit target selection and a qualified
+recovery package. Qualify wrong-target rejection, update, interruption and
+rollback on the actual board before promotion.
 
 ## Implementation order and tradeoffs
 
