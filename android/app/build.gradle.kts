@@ -9,17 +9,12 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-val virtualGaugePublicKey = providers.gradleProperty("egaugeVirtualGaugePublicKey").orNull.orEmpty()
-val virtualGaugeCheckout = providers.gradleProperty("egaugeVirtualGaugeCheckout").orNull.orEmpty()
-require(virtualGaugePublicKey.isEmpty() == virtualGaugeCheckout.isEmpty()) {
-    "Provision both Virtual Gauge access settings together"
-}
-if (virtualGaugePublicKey.isNotEmpty()) {
-    require(virtualGaugeCheckout == "https://egauge.majjix.com/virtual-gauge/") {
-        "Virtual Gauge checkout must use the first-party subscription page"
-    }
-    require(virtualGaugePublicKey.length <= 512)
-    KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(Base64.getDecoder().decode(virtualGaugePublicKey)))
+val playBillingPublicKey = providers.gradleProperty("egaugePlayBillingPublicKey").orNull.orEmpty()
+if (playBillingPublicKey.isNotEmpty()) {
+    require(playBillingPublicKey.length <= 1_024)
+    KeyFactory.getInstance("RSA").generatePublic(
+        X509EncodedKeySpec(Base64.getDecoder().decode(playBillingPublicKey))
+    )
 }
 
 android {
@@ -34,8 +29,7 @@ android {
         versionName = "0.2.0-dev.58"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "PRIVATE_OTA_PROVISIONED", "false")
-        buildConfigField("String", "VIRTUAL_GAUGE_PUBLIC_KEY", "\"$virtualGaugePublicKey\"")
-        buildConfigField("String", "VIRTUAL_GAUGE_CHECKOUT", "\"$virtualGaugeCheckout\"")
+        buildConfigField("String", "PLAY_BILLING_PUBLIC_KEY", "\"$playBillingPublicKey\"")
     }
 
     providers.gradleProperty("egaugePrivateOtaAssets").orNull?.let { path ->
@@ -88,6 +82,12 @@ kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }
 
 dependencies {
     implementation(project(":core:designsystem"))
+    implementation("com.android.billingclient:billing:9.1.0")
+    constraints {
+        implementation("androidx.fragment:fragment:1.8.9") {
+            because("Play Billing brings an older Fragment transitively, which is incompatible with Activity Result")
+        }
+    }
     val composeBom = platform("androidx.compose:compose-bom:2026.05.00")
     implementation(composeBom)
     implementation("androidx.activity:activity-compose:1.10.1")

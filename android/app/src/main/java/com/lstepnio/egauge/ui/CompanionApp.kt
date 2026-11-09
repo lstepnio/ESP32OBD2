@@ -20,6 +20,8 @@ import androidx.window.layout.FoldingFeature
 import com.lstepnio.egauge.*
 import com.lstepnio.egauge.connection.ConnectionPhase
 import com.lstepnio.egauge.core.designsystem.*
+import com.lstepnio.egauge.premium.PremiumFeature
+import com.lstepnio.egauge.premium.PremiumGate
 import com.lstepnio.egauge.ui.car.ActionPagesSheet
 import com.lstepnio.egauge.ui.car.CarAlertSettingsScreen
 import com.lstepnio.egauge.ui.car.CarScreen
@@ -30,7 +32,6 @@ import com.lstepnio.egauge.ui.home.HomeScreen
 import com.lstepnio.egauge.ui.settings.*
 import com.lstepnio.egauge.ui.setup.SetupScreen
 import com.lstepnio.egauge.ui.state.*
-import com.lstepnio.egauge.virtual.VirtualGaugeAccess
 import com.lstepnio.egauge.virtual.VirtualGaugeScreen
 import com.lstepnio.egauge.virtual.VirtualPid
 import kotlinx.coroutines.CancellationException
@@ -345,7 +346,7 @@ fun CompanionApp(
                                     }, onUpdates = { route = Route.Updates }, onActionPages = { actionPagesOpen = true }, canEditActionPages = actionAssignmentReady, onVirtualGauge = { route = Route.VirtualGauge }, onGesture = { gestureOpen = true })
 
                                     Route.VirtualGauge -> key(state.car.activeId) {
-                                        VirtualGaugeAccess(::back) { onManageAccess ->
+                                        PremiumGate(PremiumFeature.VirtualGauge, ::back) { onManageAccess ->
                                             VirtualGaugeScreen(
                                                 state.car.activeId,
                                                 model.editorDraft.pages,

@@ -46,52 +46,17 @@ describes header-enabled CAN output and interpreter commands.
 [Android BluetoothGatt](https://developer.android.com/reference/android/bluetooth/BluetoothGatt)
 defines the write and subscription callbacks used by the transport.
 
-## Subscription launch
+## Subscription access
 
-For the sideload channel, the recommended launch uses Stripe-hosted Checkout
-on the eGauge website. The product should have one free 30-day trial per
-verified account, followed by the disclosed recurring price. Use the existing
-Stripe Checkout subscription trial period, confirmed pricing and hosted account
-management. Check eligibility on the server. A reinstall or device change
-restores the same account and remaining trial, rather than starting another
-one. Show conversion date, billing interval, price and cancellation before
-consent. Use verified webhooks and reconcile subscription state before issuing
-access. [Stripe Checkout](https://docs.stripe.com/payments/checkout/build-subscriptions),
-[free trial periods](https://docs.stripe.com/billing/subscriptions/trials/free-trials),
-[subscription webhooks](https://docs.stripe.com/billing/subscriptions/webhooks).
-
-Keep the Android entitlement boundary independent of the payment provider.
-A future Play Store channel needs a policy review and a Play Billing path where
-required. Keep website checkout out of the Play build unless an applicable
-program expressly permits it.
-[Google Play Payments policy](https://support.google.com/googleplay/android-developer/answer/10281818).
-
-The App has a release-only signed-access gate and a bounded access-file import
-for staging or recovery. The regular developer APK remains available for
-hardware qualification. Provision the production release with
-`egaugeVirtualGaugePublicKey` (base64 SPKI EC public key) and
-`egaugeVirtualGaugeCheckout=https://egauge.majjix.com/virtual-gauge/`.
-Use a dedicated issuer key outside the app and unrelated to firmware signing.
-The app takes a signed grant tied to its random installation ID. Wire format is
-base64url payload, a dot and base64url DER ECDSA signature (SHA-256). The payload
-is `EGVG1|virtual-gauge|installation|Trial-or-Subscription|period-start|period-end|issued-at`,
-with Unix seconds, exact case `Trial` or `Subscription`, and a maximum 30-day
-trial period. Access is checked on entry or resume. A grant is usable for
-up to three days after issuance and never past the paid or trial period.
-A checkout redirect, local switch or invalid file confers no access.
-
-Live checkout and the entitlement issuer are separate launch work. Before
-provisioning, configure verified account login, purchase/restore and automatic
-grant refresh, a price and cancellation portal, and Stripe test-mode coverage. Define the
-production APK signing key and upgrade path from developer builds.
-The access-file path is a fallback, not the intended recurring refresh UX.
-Leave launch claims and payment links inactive until these are confirmed.
+Virtual Gauge is an optional subscription feature. The free app's hardware
+functions remain available independently. See [App subscriptions](app-subscriptions.md)
+for Play Billing, future StoreKit support, and the introductory trial.
 
 ## Qualification
 
 Run the virtual gauge JVM and managed UI fixtures. They cover fragmented
 responses, controller identity, source loss, duplicate binding rejection,
-grant validity and compact/200% dashboard states. The owner reported the
+and compact/200% dashboard states. The owner reported the
 single-adapter dashboard worked on the Jeep. The revised two-adapter path
 needs parked testing with both Vgates: select the correct ports, compare
 RPM/gear/temperature, unplug each adapter separately, verify the other
