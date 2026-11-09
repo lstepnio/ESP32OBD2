@@ -117,6 +117,9 @@
 .store-copy{display:flex;flex:1;flex-direction:column;padding:clamp(20px,4vw,38px)}
 .store-copy h3{font-size:clamp(24px,3vw,35px);font-weight:500;letter-spacing:-.04em;margin:7px 0}
 .store-copy>p:not(.eyebrow){color:var(--muted);line-height:1.65;margin:8px 0 22px}
+.store-price{margin:0 0 22px;color:var(--muted)}
+.store-price p{margin:0;line-height:1.6}
+.store-price strong{margin-right:6px;color:var(--ink);font-size:24px;font-weight:600}
 .store-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px}
 .store-actions>a:not(.button){font-size:14px;text-decoration:underline;text-underline-offset:3px;padding-block:8px}
 .store-comparison{margin-top:36px;border:1px solid var(--line);border-radius:8px;overflow-x:auto}
