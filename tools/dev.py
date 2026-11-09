@@ -322,7 +322,11 @@ def firmware(
                 ],
                 json_object,
             ],
-            includes=["-I" + str(json_dir)],
+            includes=[
+                "-I" + str(json_dir),
+                "-DEGAUGE_FEATURE_DUAL_ADAPTER=1",
+                "-DEGAUGE_FEATURE_VEHICLE_ACTIONS=1",
+            ],
             arguments=[
                 "contracts/examples/config-bound-adapter.json",
                 "android/app/src/main/assets/numeric_config_template.json",
