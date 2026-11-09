@@ -206,7 +206,7 @@
   ],
   "claimInputProvenance": {
     "reviewedOn": "2026-11-09",
-    "reason": "Reviewed the concise storefront against public reference-board behavior, the Android virtual-gauge scope added in PR #142, the private OLED entitlement candidate and sandbox order evidence. The free LCD build keeps one adapter and timed cycling. The 5/12-page limits remain targets. OLED is available by inquiry while physical license activation and recovery are pending, and vehicle controls remain private candidates. The indoor Wi-Fi update evidence is unchanged. The Android virtual gauge remains outside storefront claims pending bench and parked checks.",
+    "reason": "Reviewed the concise storefront against public reference-board behavior, the Android virtual-gauge scope added in PR #142, the private OLED firmware scope and sandbox order evidence. The free LCD build keeps one adapter and timed cycling. The 5/12-page limits remain targets. OLED is available by inquiry while physical license activation and recovery are pending, and vehicle controls remain private candidates. The indoor Wi-Fi update evidence is unchanged. The Android virtual gauge remains outside storefront claims pending bench and parked checks.",
     "sha256": {
       "contracts/reading-catalog.json": "4253cf23fdb0345599178af36efdfe3f95de5ea1613def88c37f20049e596595",
       "docs/architecture/alerts-and-diagnostics.md": "e61735ee015ca11afd262765e55af860824fc9ede165feee265f2964cd52b71f",

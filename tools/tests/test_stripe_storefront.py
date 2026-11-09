@@ -1,6 +1,5 @@
-"""Exercise the sandbox checkout contract and real offline license issuance."""
+"""Exercise the sandbox checkout contract."""
 
-from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from pathlib import Path
 import sys
@@ -8,12 +7,9 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from board_license import openssl, verify
 from storefront import storefront_catalog
-from stripe_storefront import StripeSandbox, allocate_license, export_license, setup, verify_order
+from stripe_storefront import StripeSandbox, setup, verify_order
 
-BOARD = "00:11:22:33:44:55"
-OTHER_BOARD = "00:11:22:33:44:56"
 SESSION = "cs_test_OledOrder"
 
 
@@ -144,29 +140,3 @@ class StripeStorefrontTest(unittest.TestCase):
                 self.stripe.session["payment_intent"]["latest_charge"].update(patch)
                 verify_order(self.stripe, self.state, SESSION)
             self.stripe.session["payment_intent"] = intent
-
-    def test_paid_oled_order_can_issue_once_and_reexport_the_same_license(self):
-        key, public = self.root / "private.pem", self.root / "public.pem"
-        key.touch(mode=0o600)
-        key.write_bytes(openssl("ecparam", "-name", "prime256v1", "-genkey", "-noout"))
-        public.write_bytes(openssl("pkey", "-in", key, "-pubout"))
-        self.assertEqual(verify_order(self.stripe, self.state, SESSION)[0], "oled")
-        db = self.root / "orders.sqlite3"
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            first = pool.submit(allocate_license, db, SESSION, BOARD, key, public)
-            second = pool.submit(allocate_license, db, SESSION, BOARD, key, public)
-            payload = first.result()
-            self.assertEqual(second.result(), payload)
-        self.assertEqual(verify(payload, BOARD, public), ["dual-adapter", "smart-cycle"])
-        with self.assertRaises(ValueError):
-            verify(payload, OTHER_BOARD, public)
-        with self.assertRaisesRegex(ValueError, "different assigned board"):
-            allocate_license(db, SESSION, OTHER_BOARD, key, public)
-        with self.assertRaisesRegex(ValueError, "different order"):
-            allocate_license(db, "cs_test_Another", BOARD, key, public)
-        output = self.root / "test-license"
-        export_license(output, payload)
-        export_license(output, payload)
-        self.assertEqual(output.read_bytes(), payload)
-        with self.assertRaisesRegex(ValueError, "different"):
-            export_license(output, b"wrong")

@@ -1095,8 +1095,7 @@ static void obd_task(void *arg)
             continue;
         poll_pid_policy_t policies[POLL_SCHEDULER_MAX_PIDS];
         unsigned          selected = atomic_load(&g_selected_page);
-        unsigned          next     = platform_feature_enabled(PLATFORM_FEATURE_SMART_CYCLE) &&
-                                             display_settings_snapshot().smart_cycle && g_runtime
+        unsigned          next     = EGAUGE_FEATURE_SMART_CYCLE && display_settings_snapshot().smart_cycle && g_runtime
                                          ? atomic_load(&g_upcoming_page) % page_count()
                                          : (selected + 1) % page_count();
         bool              cycling  = display_settings_snapshot().cycle_seconds != 0;
@@ -1448,7 +1447,6 @@ void app_main(void)
         return;
     }
 
-    platform_features_init();
     config_document_init();
     init_config();
     ESP_LOGI(TAG, "Main startup stack_free=%u", (unsigned)uxTaskGetStackHighWaterMark(NULL));
@@ -1563,7 +1561,7 @@ void app_main(void)
             diagnostics_endpoint_configure(e, transport, g_running_config_record.revision,
                                            g_runtime && g_runtime->sources[transport].simulated);
     }
-    if (platform_feature_enabled(PLATFORM_FEATURE_SMART_CYCLE))
+    if (EGAUGE_FEATURE_SMART_CYCLE)
         smart_configure();
     atomic_store(&g_upcoming_page, (atomic_load(&g_selected_page) + 1U) % page_count());
     init_obd_task(ui);
@@ -1791,12 +1789,12 @@ void app_main(void)
         if (before_reason != cycling.reason)
             ESP_LOGI(TAG, "page cycle reason=%u interval_s=%u", cycling.reason, cycle.cycle_seconds);
         smart_page_decision_t choice = {0};
-        bool smart = platform_feature_enabled(PLATFORM_FEATURE_SMART_CYCLE) && cycle.smart_cycle && g_runtime;
+        bool                  smart  = EGAUGE_FEATURE_SMART_CYCLE && cycle.smart_cycle && g_runtime;
         if (smart)
             cycle_due = smart_select(ui, cycle, selected_before, activity_before, cycling.reason, now_ms, &choice);
         else
         {
-            if (platform_feature_enabled(PLATFORM_FEATURE_SMART_CYCLE))
+            if (EGAUGE_FEATURE_SMART_CYCLE)
                 smart_page_suspend(&smart_pages);
             atomic_store(&g_upcoming_page, (atomic_load(&g_selected_page) + 1U) % page_count());
         }
