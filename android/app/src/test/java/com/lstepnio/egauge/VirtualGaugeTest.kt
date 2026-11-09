@@ -66,4 +66,23 @@ class VirtualGaugeTest {
         assertFalse(face.description.contains("Preview"))
         assertTrue(virtualFace(page.copy(arcMetricIndex = 1), reads, 6_000, MeasurementSystem.Imperial).arcAvailable)
     }
+
+    @Test fun intakeTrendScalesRecentHistoryAndRetainsActualTimeSpacing() {
+        val page = GaugePageDraft("intake", "Intake", GaugeLayout.Trend, listOf("intake"))
+        val reads = mapOf(
+            VirtualPid.Intake to listOf(
+                VirtualSample(60.0, 0),
+                VirtualSample(30.25, 20_000),
+                VirtualSample(34.25, 27_000),
+                VirtualSample(32.25, 31_000)
+            )
+        )
+        val face = virtualFace(page, reads, 31_500, MeasurementSystem.Metric)
+        assertEquals(listOf(0.25f, 0.75f, 0.5f), face.trendFractions)
+        assertTrue(face.trendPositions[1] - face.trendPositions[0] > face.trendPositions[2] - face.trendPositions[1])
+        assertEquals("32", face.shownValue)
+        val stale = virtualFace(page, reads, 41_000, MeasurementSystem.Metric)
+        assertEquals("--", stale.shownValue)
+        assertTrue(stale.trendFractions.isEmpty())
+    }
 }

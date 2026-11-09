@@ -33,6 +33,7 @@ typedef struct
     uint8_t            pid_count;
     uint8_t            pid_indices[2];
     uint8_t            arc_metric_index;
+    uint16_t           rpm_redline;
 } runtime_page_t;
 
 typedef struct

@@ -1,10 +1,14 @@
 package com.lstepnio.egauge
 
 import android.graphics.Bitmap
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.core.designsystem.EGaugeTheme
@@ -38,6 +42,46 @@ class UnifiedDashboardUiTest {
         emptyList(), emptyList(), false, false, false, false, true, false, GaugeLayout.entries.toSet(), emptyList()
     )
     private fun actions(add: (String) -> Unit = {}) = CustomizeActions({}, {}, {}, add, {}, { _, _ -> }, {}, {}, {}, {}, {}, {})
+
+    @Test fun rpmRingRedlineIsOptionalAndValidatesBeforeSaving() {
+        val page = GaugePageDraft("page.rpm", "RPM", GaugeLayout.Arc, listOf("rpm"))
+        val editor = mutableStateOf(page)
+        val scale = mutableStateOf(1f)
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, scale.value)) {
+                EGaugeTheme {
+                    DashboardEditorScreen(
+                        state().copy(pages = listOf(pageUi(editor.value))),
+                        0,
+                        {},
+                        {},
+                        actions().copy(setRpmRedline = { editor.value = editor.value.copy(rpmRedline = it) })
+                    )
+                }
+            }
+        }
+        fun capture(name: String, bitmap: Bitmap) {
+            val dir = InstrumentationRegistry.getArguments().getString("additionalTestOutputDir") ?: return
+            val file = File(dir, "rpm-ring/$name.png")
+            check(file.parentFile!!.mkdirs() || file.parentFile!!.isDirectory)
+            file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+        }
+        compose.onNodeWithText("RPM redline").performScrollTo().performClick()
+        val entry = compose.onNode(hasSetTextAction())
+        entry.assertIsDisplayed()
+        capture("redline-editor", InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
+        entry.performTextReplacement("999")
+        compose.onNodeWithText("Save").assertIsNotEnabled()
+        entry.performTextReplacement("5800")
+        compose.onNodeWithText("Save").assertIsEnabled().performClick()
+        compose.runOnIdle {
+            assertEquals(5800, editor.value.rpmRedline)
+            scale.value = 2f
+        }
+        compose.onNodeWithText("5800 RPM").performScrollTo().assertIsDisplayed()
+        capture("rpm-ring-200-percent", compose.onRoot().captureToImage().asAndroidBitmap())
+    }
 
     @Test fun dualArcEditorOffersOnlyNumericArcReadings() {
         val page = GaugePageDraft("page.arc", "TRANSMISSION", GaugeLayout.DualArc, listOf("tcmgear", "tcmtemp"), 1)

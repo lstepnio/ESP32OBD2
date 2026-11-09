@@ -65,7 +65,8 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                         localPid(ids.getString(it))
                             ?: error("Saved reading is not available")
                     },
-                    page.optInt("arcMetricIndex", 0)
+                    page.optInt("arcMetricIndex", 0),
+                    page.opt("rpmRedline") as? Int
                 )
             }
             val values = saved.getJSONArray("alerts")
@@ -123,7 +124,8 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
             fun pageSettings(local: List<GaugePageDraft>): String = local.mapIndexed { index, page ->
                 "${index + 1}. ${page.name} / ${page.layout.label} / ${page.pidIds.joinToString(
                     " + "
-                )}" + if (page.layout == GaugeLayout.DualArc) " / arc ${page.arcMetricIndex}" else ""
+                )}" + (if (page.layout == GaugeLayout.DualArc) " / arc ${page.arcMetricIndex}" else "") +
+                    (page.rpmRedline?.let { " / redline $it RPM" } ?: "")
             }.joinToString("\n")
             fun savedPageSettings(): String? = pages?.let { value ->
                 (0 until value.length()).map { index ->
@@ -140,7 +142,8 @@ data class GaugeDraftComparison(val revision: Long, val fields: List<GaugeDraftF
                     }
                     "${index + 1}. ${page.optString(
                         "name"
-                    )} / $renderer / ${mapped.joinToString(" + ")}" + if (renderer == GaugeLayout.DualArc.label) " / arc ${page.optInt("arcMetricIndex", 0)}" else ""
+                    )} / $renderer / ${mapped.joinToString(" + ")}" + (if (renderer == GaugeLayout.DualArc.label) " / arc ${page.optInt("arcMetricIndex", 0)}" else "") +
+                        ((page.opt("rpmRedline") as? Int)?.let { " / redline $it RPM" } ?: "")
                 }.joinToString("\n")
             }
             fun alertSettings(local: List<GaugeAlertDraft>): String = local.joinToString("\n") { alert ->

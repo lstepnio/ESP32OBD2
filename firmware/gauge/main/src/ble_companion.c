@@ -239,7 +239,10 @@ static void owner_save_worker(void *arg)
         VEHICLE_ACTION_CAPABILITY FEATURE_POLICY_CAPABILITY ",\"mp\":10,\"dx\":1" BRAKE_OWNER_CAPABILITY
 /* Legacy clients ignore the additive field. Keep the existing 255-byte limit
  * even for custom board labels and feature combinations. */
-#define CAPABILITY_JSON(fields) (sizeof(fields ",\"ov\":1}") <= 256U ? fields ",\"ov\":1}" : fields "}")
+#define CAPABILITY_JSON(fields)                                                                                        \
+    (sizeof(fields ",\"ov\":1,\"rl\":1}") <= 256U ? fields ",\"ov\":1,\"rl\":1}"                                       \
+     : sizeof(fields ",\"ov\":1}") <= 256U        ? fields ",\"ov\":1}"                                                \
+                                                  : fields "}")
 static const char *const capabilities          = CAPABILITY_JSON(LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY);
 static const char *const document_capabilities = CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY);
 static const char *const orientation_capabilities =

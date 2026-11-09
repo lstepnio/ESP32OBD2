@@ -18,13 +18,17 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import com.lstepnio.egauge.GaugeLayout
 import com.lstepnio.egauge.GaugePageDraft
 import com.lstepnio.egauge.MeasurementSystem
 import com.lstepnio.egauge.MeasurementUnits
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.readingCatalog
+import com.lstepnio.egauge.readingFraction
+import com.lstepnio.egauge.rpmRedlineFraction
 import com.lstepnio.egauge.ui.ScreenContent
 import com.lstepnio.egauge.ui.state.readingName
+import kotlin.math.abs
 import kotlinx.coroutines.*
 
 internal enum class VirtualStatus(val label: String) {
@@ -39,6 +43,8 @@ internal enum class VirtualStatus(val label: String) {
     UnsupportedAdapter("Adapter unsupported")
 }
 
+private const val TREND_WINDOW_MS = 30_000L
+
 internal typealias VirtualReadings = Map<VirtualPid, List<VirtualSample>>
 
 internal fun virtualFace(
@@ -49,20 +55,39 @@ internal fun virtualFace(
 ): ReadingPreviewUi {
     fun history(id: String): List<VirtualSample> {
         val pid = VirtualPid.entries.firstOrNull { it.id == id } ?: return emptyList()
-        return readings[pid].orEmpty().filter { it.fresh(pid, now) }
+        val samples = readings[pid].orEmpty()
+        val latest = samples.lastOrNull()?.takeIf { it.fresh(pid, now) } ?: return emptyList()
+        return samples.filter { latest.observedAtMs - it.observedAtMs in 0..TREND_WINDOW_MS }
     }
     fun formatted(id: String): String {
         val latest = history(id).lastOrNull() ?: return "--"
         val unit = readingCatalog.first { it.id == id }.unit
         return MeasurementUnits.displayValue(latest.value.toString(), unit, units)
     }
-    fun fraction(id: String, sample: VirtualSample): Float {
-        val metric = readingCatalog.first { it.id == id }
-        return ((sample.value - metric.minimum) / (metric.maximum - metric.minimum)).toFloat().coerceIn(0f, 1f)
-    }
     val primary = page.pidIds.first()
     val arc = page.pidIds.getOrElse(page.arcMetricIndex) { primary }
-    val fraction = history(arc).lastOrNull()?.let { fraction(arc, it) }
+    val fraction = history(arc).lastOrNull()?.let { sample ->
+        val metric = readingCatalog.first { it.id == arc }
+        readingFraction(arc, sample.value, metric.minimum, metric.maximum, page.rpmRedline)
+    }
+    val trend = if (page.layout == GaugeLayout.Trend) history(primary) else emptyList()
+    val trendMetric = readingCatalog.first { it.id == primary }
+    val trendFractions = if (trend.isEmpty()) {
+        emptyList()
+    } else {
+        val low = trend.minOf { it.value }
+        val high = trend.maxOf { it.value }
+        val floor = when (trendMetric.unit) {
+            "°C" -> 8.0
+            "rpm" -> 500.0
+            "%", "km/h" -> 5.0
+            "V" -> 0.2
+            else -> maxOf(abs(trend.last().value) * 0.05, (trendMetric.maximum - trendMetric.minimum) * 0.001)
+        }
+        val span = maxOf(floor, (high - low) * 1.25)
+        val center = (low + high) / 2
+        trend.map { (0.5 + (it.value - center) / span).toFloat().coerceIn(0f, 1f) }
+    }
     val secondary = page.pidIds.getOrNull(1)
     fun unit(id: String) = MeasurementUnits.label(readingCatalog.first { it.id == id }.unit, units)
     return ReadingPreviewUi(
@@ -77,7 +102,9 @@ internal fun virtualFace(
         arcMetricIndex = page.arcMetricIndex,
         arcFraction = fraction ?: 0f,
         arcAvailable = fraction != null,
-        trendFractions = history(primary).map { fraction(primary, it) }
+        trendFractions = trendFractions,
+        trendPositions = trend.map { 1f - (trend.last().observedAtMs - it.observedAtMs).toFloat() / TREND_WINDOW_MS },
+        rpmRedlineFraction = rpmRedlineFraction(page.rpmRedline)
     )
 }
 
@@ -172,8 +199,13 @@ internal fun VirtualGaugeScreen(
                                     }
                                     dueAt[pid] = observed + interval
                                     if (value != null) {
-                                        val recent = readings[pid].orEmpty().filter { it.fresh(pid, observed) }
-                                        readings = readings + (pid to (recent.takeLast(23) + VirtualSample(value, observed)))
+                                        val previous = readings[pid].orEmpty()
+                                        val recent = if (previous.lastOrNull()?.fresh(pid, observed) == true) {
+                                            previous.filter { observed - it.observedAtMs <= TREND_WINDOW_MS }.takeLast(59)
+                                        } else {
+                                            emptyList()
+                                        }
+                                        readings = readings + (pid to (recent + VirtualSample(value, observed)))
                                         retryMs = 1_000
                                     }
                                 }

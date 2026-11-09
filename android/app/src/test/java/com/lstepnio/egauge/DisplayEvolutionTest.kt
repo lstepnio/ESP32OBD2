@@ -47,6 +47,24 @@ class DisplayEvolutionTest {
         assertTrue(runCatching { ProfileDocumentCodec.decode(JSONObject(raw).put("schemaVersion", 20).toString()) }.isFailure)
     }
 
+    @Test fun configuredRpmRedlineRoundTripsAndRequiresGaugeSupport() {
+        val ring = GaugePageDraft("page.rpm", "RPM", GaugeLayout.Arc, listOf("rpm"), rpmRedline = 5800)
+        val draft = Draft(pages = listOf(ring))
+        val profiles = ProfileCollection("v", listOf(VehicleProfile("v", "Jeep", draft)))
+        assertEquals(profiles, ProfileDocumentCodec.decode(ProfileDocumentCodec.encode(profiles)))
+        val template = File("src/main/assets/numeric_config_template.json").readText()
+        val wire = ConfigurationProjector.project(template, draft, "v", 1, schemaVersion = 2).second
+        val page = JSONObject(wire.toString(Charsets.UTF_8)).getJSONArray("pages").getJSONObject(0)
+        assertEquals(5800, page.getInt("rpmRedline"))
+        assertTrue(presentationBlockers(draft, caps()).any { it.contains("RPM redline") })
+        assertTrue(presentationBlockers(draft, caps(",\"rl\":1")).isEmpty())
+        assertFalse(caps(",\"rl\":\"1\"").rpmRedlineSupported)
+        assertTrue(ConfigurationProjector.blockers(draft.copy(pages = listOf(ring.copy(pidIds = listOf("intake"))))).isNotEmpty())
+        assertEquals(6500, rpmRingMaximum(5800))
+        assertEquals(0.5f, readingFraction("rpm", 4000.0, 0.0, 16383.75), 0.001f)
+        assertEquals(5800f / 6500, requireNotNull(pageUi(ring).preview.rpmRedlineFraction), 0.001f)
+    }
+
     @Test fun arcProjectsItsSelectedNumericMetricAndOrdinaryLayoutsOmitTheExtension() {
         val template = File("src/main/assets/numeric_config_template.json").readText()
         val draft = Draft(pages = listOf(arc, GaugePageDraft("page.numeric", "RPM", GaugeLayout.Numeric, listOf("rpm"))))

@@ -1874,6 +1874,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         require((transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion in 1..2) && ProfileActions.supported(transmittedDraft.actions, capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion)) {
             "Update the gauge before sending gesture actions"
         }
+        require(transmittedDraft.pages.none { it.rpmRedline != null } || capabilities?.rpmRedlineSupported == true) {
+            "Update the gauge before sending the RPM redline"
+        }
         require(!requiresOxygenVoltageFirmware(transmittedDraft) || capabilities?.oxygenVoltageSupported == true) {
             "Update the gauge before sending oxygen sensor voltage readings"
         }
@@ -3678,7 +3681,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             current.layout
         }
-        pages[editingPageIndex] = current.copy(name = pid.gaugeLabel, pidIds = ids, layout = layout, arcMetricIndex = numericArcIndex(layout, ids, current.arcMetricIndex))
+        pages[editingPageIndex] = current.copy(name = pid.gaugeLabel, pidIds = ids, layout = layout, arcMetricIndex = numericArcIndex(layout, ids, current.arcMetricIndex)).withoutInapplicableRedline()
         save(working.copy(pidId = pid.id, layout = layout, source = working.source, pages = pages))
     }
 
@@ -3692,7 +3695,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val pages = working.pages.toMutableList()
         val current = pages[editingPageIndex]
         if (!current.layout.isDual || current.pidIds.first() == pid.id) return
-        pages[editingPageIndex] = current.copy(pidIds = listOf(current.pidIds.first(), pid.id), arcMetricIndex = numericArcIndex(current.layout, listOf(current.pidIds.first(), pid.id), current.arcMetricIndex))
+        pages[editingPageIndex] = current.copy(pidIds = listOf(current.pidIds.first(), pid.id), arcMetricIndex = numericArcIndex(current.layout, listOf(current.pidIds.first(), pid.id), current.arcMetricIndex)).withoutInapplicableRedline()
         save(working.copy(pages = pages))
     }
 
@@ -3711,7 +3714,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             listOf(current.pidIds.first())
         }
-        pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids, arcMetricIndex = numericArcIndex(layout, ids, current.arcMetricIndex))
+        pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids, arcMetricIndex = numericArcIndex(layout, ids, current.arcMetricIndex)).withoutInapplicableRedline()
         save(working.copy(layout = layout, pages = pages))
     }
 
@@ -3727,7 +3730,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val working = editorDraft
         val current = working.pages.getOrNull(editingPageIndex) ?: return
         if (current.layout != GaugeLayout.DualArc || index !in 0..1 || numericArcIndex(current.layout, current.pidIds, index) != index) return
-        save(working.copy(pages = working.pages.mapIndexed { i, page -> if (i == editingPageIndex) page.copy(arcMetricIndex = index) else page }))
+        save(working.copy(pages = working.pages.mapIndexed { i, page -> if (i == editingPageIndex) page.copy(arcMetricIndex = index).withoutInapplicableRedline() else page }))
+    }
+
+    fun setRpmRedline(value: Int?) {
+        val working = editorDraft
+        val current = working.pages.getOrNull(editingPageIndex) ?: return
+        if (!current.isRpmRing || (value != null && value !in rpmRedlineRange)) return
+        save(
+            working.copy(
+                pages = working.pages.mapIndexed { index, page ->
+                    if (index == editingPageIndex) page.copy(rpmRedline = value) else page
+                }
+            )
+        )
     }
 
     /** Commit a completed form once. Opening or cancelling never creates an alert. */

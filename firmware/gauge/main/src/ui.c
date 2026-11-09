@@ -83,6 +83,22 @@ typedef struct
 
 typedef struct
 {
+    ui_trend_metric_t metric;
+    trend_history_t   history;
+} ui_trend_t;
+
+typedef struct
+{
+    trend_sample_t points[TREND_CAPACITY];
+    float          positions[TREND_CAPACITY];
+    ui_trend_t     series[];
+} ui_trend_bank_t;
+
+_Static_assert(sizeof(ui_trend_bank_t) + EGAUGE_RUNTIME_PAGES * sizeof(ui_trend_t) <= 8192,
+               "Trend PSRAM budget exceeded");
+
+typedef struct
+{
     uint8_t  severity;
     uint8_t  additional;
     bool     simulated;
@@ -216,6 +232,7 @@ struct _ui_t
         lv_obj_t *dual_unit[2];
         lv_obj_t *page_dots[8], *page_position;
         lv_obj_t *arc;
+        lv_obj_t *redline_arc;
         lv_obj_t *bar;
         lv_obj_t *trend;
         lv_obj_t *dual_value[2];
@@ -228,6 +245,8 @@ struct _ui_t
     portMUX_TYPE          sample_lock;
     ui_sample_t           samples[EGAUGE_RUNTIME_PIDS];
     uint32_t              sample_continuity;
+    ui_trend_bank_t      *trends;
+    unsigned              trend_metric_count;
     struct
     {
         bool     ready;
@@ -247,7 +266,7 @@ struct _ui_t
         float                  trend_samples[TREND_CAPACITY];
         uint8_t               *trend_mask;
         uint8_t                trend_count;
-        TickType_t             trend_recorded_at;
+        uint32_t               trend_revision;
     } display;
 };
 
@@ -437,6 +456,23 @@ static int32_t normalized_value(double value, const ui_metric_t *metric, int32_t
 {
     double normalized = (value - metric->minimum) / bounded_range(metric->minimum, metric->maximum);
     return (int32_t)lround(fmin(1, fmax(0, normalized)) * extent);
+}
+
+static bool is_rpm(const ui_metric_t *metric)
+{
+    return metric->pid == 0x0c && (!strcmp(metric->unit, "rpm") || !strcmp(metric->unit, "/min"));
+}
+
+static int rpm_ring_maximum(unsigned redline)
+{
+    return redline ? (int)((redline + 999U) / 500U * 500U) : 8000;
+}
+
+static int32_t ring_value(double value, const ui_metric_t *metric, unsigned redline)
+{
+    if (!is_rpm(metric))
+        return normalized_value(value, metric, 1000);
+    return (int32_t)lround(fmin(1, fmax(0, value / rpm_ring_maximum(redline))) * 1000);
 }
 
 static lv_obj_t          *boot_logo;
@@ -800,7 +836,15 @@ static void select_renderer_widgets(ui_t *ui)
     show(ui->widgets.value_lbl, !dual);
     show(ui->widgets.info_lbl, !dual);
     show(ui->widgets.unit_lbl, !dual);
-    show(ui->widgets.arc, renderer == UI_RENDERER_ARC || renderer == UI_RENDERER_DUAL_ARC);
+    const ui_page_t *page = presented_page(ui);
+    bool             ring = renderer == UI_RENDERER_ARC || renderer == UI_RENDERER_DUAL_ARC;
+    show(ui->widgets.arc, ring);
+    show(ui->widgets.redline_arc, ring && page->rpm_redline);
+    if (ring && page->rpm_redline)
+    {
+        int start = 135 + (int)lround(270.0 * page->rpm_redline / rpm_ring_maximum(page->rpm_redline));
+        lv_arc_set_bg_angles(ui->widgets.redline_arc, start % 360, 45);
+    }
     show(ui->widgets.bar, renderer == UI_RENDERER_BAR);
     show(ui->widgets.trend, renderer == UI_RENDERER_TREND);
     for (unsigned i = 0; i < 2; ++i)
@@ -1033,23 +1077,79 @@ static void format_reading(char out[32], const ui_metric_t *metric, bool availab
 static ui_alert_t       visible_alert(ui_t *ui);
 static ui_diagnostics_t visible_diagnostics(ui_t *ui);
 /* Geometry remains in the design grid until the final surface transform. */
-static void update_trend(ui_t *ui)
+static void update_trend(ui_t *ui, const float *positions)
 {
     unsigned     count   = ui->display.trend_count;
-    const float *samples = ui->display.trend_samples + TREND_CAPACITY - count;
+    const float *samples = ui->display.trend_samples;
     if (ui->display.trend_mask)
     {
-        trend_curve_mask(ui->display.trend_mask, samples, count);
+        trend_curve_mask_positions(ui->display.trend_mask, samples, positions, count);
         lv_obj_invalidate(ui->widgets.trend);
     }
     else
     {
         for (unsigned i = 0; i < count; i++)
-            ui->display.trend_points[i] =
-                (lv_point_precise_t){.x = (int32_t)(TREND_CAPACITY - count + i) * px(144) / (TREND_CAPACITY - 1),
-                                     .y = (int32_t)lroundf(samples[i] * px(30) / 30.f)};
+        {
+            float x = positions ? positions[i] : (TREND_CAPACITY - count + i) * 144.f / (TREND_CAPACITY - 1);
+            ui->display.trend_points[i] = (lv_point_precise_t){.x = (int32_t)lroundf(x * px(144) / 144.f),
+                                                               .y = (int32_t)lroundf(samples[i] * px(30) / 30.f)};
+        }
         lv_line_set_points(ui->widgets.trend, ui->display.trend_points, count);
     }
+}
+
+static double trend_minimum_span(const ui_metric_t *metric, double value)
+{
+    if (!strcmp(metric->unit, "degC") || !strcmp(metric->unit, "°C"))
+        return 8;
+    if (!strcmp(metric->unit, "rpm") || !strcmp(metric->unit, "/min"))
+        return 500;
+    if (!strcmp(metric->unit, "%") || !strcmp(metric->unit, "km/h"))
+        return 5;
+    if (!strcmp(metric->unit, "V"))
+        return 0.2;
+    return fmax(fabs(value) * 0.05, bounded_range(metric->minimum, metric->maximum) * 0.001);
+}
+
+static void render_live_trend(ui_t *ui, const ui_metric_t *metric, const ui_sample_t *sample)
+{
+    size_t count = 0;
+    portENTER_CRITICAL(&ui->sample_lock);
+    ui_trend_bank_t *bank = ui->trends;
+    if (!bank)
+    {
+        portEXIT_CRITICAL(&ui->sample_lock);
+        return;
+    }
+    trend_sample_t *points = bank->points;
+    for (unsigned i = 0; i < ui->trend_metric_count; ++i)
+    {
+        const ui_trend_t *trend = &bank->series[i];
+        if (trend->metric.pid != sample->pid || trend->metric.source != sample->source ||
+            trend->metric.revision != sample->revision)
+            continue;
+        if (sample->source < 2 && (!ui->sample_sources[sample->source].ready ||
+                                   ui->sample_sources[sample->source].generation != sample->generation))
+            break;
+        if (ui->display.trend_revision == trend->history.revision && ui->display.rendered_once &&
+            ui->display.trend_count)
+        {
+            portEXIT_CRITICAL(&ui->sample_lock);
+            return;
+        }
+        ui->display.trend_revision = trend->history.revision;
+        count                      = trend_history_copy(&trend->history, points);
+        break;
+    }
+    portEXIT_CRITICAL(&ui->sample_lock);
+    ui->display.trend_count = count;
+    if (count < 2)
+        return;
+    float *positions = bank->positions;
+    for (size_t i = 0; i < count; ++i)
+        positions[i] = 144.f * (TREND_WINDOW_MS - (points[count - 1].at_ms - points[i].at_ms)) / TREND_WINDOW_MS;
+    trend_scale(points, count, trend_minimum_span(metric, sample->value), ui->display.trend_samples);
+    update_trend(ui, positions);
 }
 static void render_page(ui_t *ui)
 {
@@ -1189,30 +1289,21 @@ static void render_page(ui_t *ui)
                                     0);
     }
     if (renderer == UI_RENDERER_ARC)
-        lv_arc_set_value(ui->widgets.arc, available[0] ? normalized_value(analog[0], primary, 1000) : 0);
+        lv_arc_set_value(ui->widgets.arc, available[0] ? ring_value(analog[0], primary, page->rpm_redline) : 0);
     if (renderer == UI_RENDERER_BAR)
-        lv_bar_set_value(ui->widgets.bar, available[0] ? normalized_value(analog[0], primary, 1000) : 0, LV_ANIM_OFF);
+        lv_bar_set_value(ui->widgets.bar, available[0] ? ring_value(analog[0], primary, 0) : 0, LV_ANIM_OFF);
     if (renderer == UI_RENDERER_DUAL_ARC)
     {
         unsigned arc = page->arc_metric_index < 2 ? page->arc_metric_index : 0;
         lv_arc_set_value(ui->widgets.arc,
-                         available[arc] ? normalized_value(analog[arc], &page->metrics[arc], 1000) : 0);
+                         available[arc] ? ring_value(analog[arc], &page->metrics[arc], page->rpm_redline) : 0);
     }
     if (renderer == UI_RENDERER_TREND)
     {
         if (!available[0])
             ui->display.trend_count = 0;
-        else if (xTaskGetTickCount() - ui->display.trend_recorded_at >= pdMS_TO_TICKS(500))
-        {
-            ui->display.trend_recorded_at = xTaskGetTickCount();
-            if (ui->display.trend_count < 60)
-                ui->display.trend_count++;
-            memmove(ui->display.trend_samples, ui->display.trend_samples + 1,
-                    (TREND_CAPACITY - 1) * sizeof(ui->display.trend_samples[0]));
-            double normalized = (values[0] - primary->minimum) / bounded_range(primary->minimum, primary->maximum);
-            ui->display.trend_samples[TREND_CAPACITY - 1] = 30 - 30 * fmin(1, fmax(0, normalized));
-            update_trend(ui);
-        }
+        else if (!frame)
+            render_live_trend(ui, primary, &samples[0]);
         show(ui->widgets.trend, available[0] && ui->display.trend_count >= 2);
     }
     for (unsigned i = 0; i < 2; i++)
@@ -1263,8 +1354,7 @@ static void showcase_frame(ui_t *ui)
             ui->display.trend_samples[i] = 30 - 30 * fmin(1, fmax(0, normalized));
         }
         ui->display.trend_count = TREND_CAPACITY;
-        update_trend(ui);
-        ui->display.trend_recorded_at = xTaskGetTickCount();
+        update_trend(ui, NULL);
     }
     showcase_publish(ui);
 }
@@ -1881,8 +1971,18 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(arc, lv_color_hex(color_track), LV_PART_MAIN);
     lv_obj_set_style_arc_color(arc, lv_color_hex(color_accent), LV_PART_INDICATOR);
-    ui->widgets.arc = arc;
-    lv_obj_t *bar   = lv_bar_create(gauge_content);
+    ui->widgets.arc  = arc;
+    lv_obj_t *marker = lv_arc_create(gauge_content);
+    lv_obj_remove_style_all(marker);
+    lv_obj_set_size(marker, GAUGE_ARC_DIAMETER, GAUGE_ARC_DIAMETER);
+    lv_obj_align(marker, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_clear_flag(marker, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_arc_width(marker, GAUGE_ARC_WIDTH, LV_PART_MAIN);
+    lv_obj_set_style_arc_color(marker, lv_color_hex(color_critical), LV_PART_MAIN);
+    lv_obj_set_style_arc_opa(marker, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_arc_opa(marker, LV_OPA_TRANSP, LV_PART_INDICATOR);
+    ui->widgets.redline_arc = marker;
+    lv_obj_t *bar           = lv_bar_create(gauge_content);
     lv_obj_remove_style_all(bar);
     lv_obj_set_size(bar, px(140), px(6));
     lv_obj_set_pos(bar, gx(50), gy(174));
@@ -2108,6 +2208,23 @@ ui_t *ui_init(ui_page_t const    *page,
     return ui;
 }
 
+bool ui_configure_trends(ui_t *ui, const ui_trend_metric_t *metrics, unsigned count)
+{
+    if (!ui || !metrics || !count || count > EGAUGE_RUNTIME_PAGES || ui->trends)
+        return false;
+    ui_trend_bank_t *trends =
+        heap_caps_calloc(1, sizeof(*trends) + count * sizeof(ui_trend_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!trends)
+        return false;
+    for (unsigned i = 0; i < count; ++i)
+        trends->series[i].metric = metrics[i];
+    portENTER_CRITICAL(&ui->sample_lock);
+    ui->trends             = trends;
+    ui->trend_metric_count = count;
+    portEXIT_CRITICAL(&ui->sample_lock);
+    return true;
+}
+
 void ui_set_source_state(ui_t *ui, unsigned source, bool ready, uint32_t revision, uint32_t generation)
 {
     if (!ui || source >= 2)
@@ -2115,9 +2232,14 @@ void ui_set_source_state(ui_t *ui, unsigned source, bool ready, uint32_t revisio
     portENTER_CRITICAL(&ui->sample_lock);
     if (!ready || ui->sample_sources[source].revision != revision ||
         ui->sample_sources[source].generation != generation)
+    {
         for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
             if (ui->samples[i].used && ui->samples[i].source == source)
                 ui->samples[i].used = ui->samples[i].present = false;
+        for (unsigned i = 0; i < ui->trend_metric_count; ++i)
+            if (ui->trends->series[i].metric.source == source)
+                trend_history_clear(&ui->trends->series[i].history);
+    }
     ui->sample_sources[source].ready      = ready;
     ui->sample_sources[source].revision   = revision;
     ui->sample_sources[source].generation = generation;
@@ -2165,6 +2287,16 @@ static void set_sample(ui_t         *ui,
                               .revision       = revision,
                               .generation     = generation,
                               .observed_at_ms = observed_at_ms};
+        for (unsigned i = 0; i < ui->trend_metric_count; ++i)
+        {
+            ui_trend_t *trend = &ui->trends->series[i];
+            if (trend->metric.pid == pid && trend->metric.source == source && trend->metric.revision == revision)
+            {
+                trend_history_record(&trend->history, observed_at_ms, slot->present ? slot->value : NAN,
+                                     trend->metric.gap_ms);
+                break;
+            }
+        }
     }
     portEXIT_CRITICAL(&ui->sample_lock);
 }
@@ -2204,8 +2336,6 @@ void ui_set_page(ui_t *ui, ui_page_t const *page)
     ui->display.page          = *page;
     ui->display.rendered_once = false;
     ui->display.trend_count   = 0;
-    for (unsigned i = 0; i < 60; ++i)
-        ui->display.trend_samples[i] = 30;
     lv_arc_set_range(ui->widgets.arc, 0, 1000);
     lv_bar_set_range(ui->widgets.bar, 0, 1000);
     select_renderer_widgets(ui);

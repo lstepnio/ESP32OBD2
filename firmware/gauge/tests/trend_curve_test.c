@@ -39,5 +39,23 @@ int main(void)
         assert(!mask[i]);
     assert(!trend_curve_mask(mask, NULL, 0));
     assert(!trend_curve_mask(mask, constant, TREND_CAPACITY + 1));
+    trend_history_t history = {0};
+    trend_sample_t  snapshot[TREND_CAPACITY];
+    for (unsigned i = 0; i <= 40; ++i)
+        trend_history_record(&history, UINT32_MAX - 15000 + i * 1000, 31.25 + i * 0.125, 4000);
+    size_t count = trend_history_copy(&history, snapshot);
+    assert(count == 31 && snapshot[0].value == 32.5f && snapshot[count - 1].value == 36.25f);
+    trend_scale(snapshot, count, 8, constant);
+    assert(constant[0] > 20 && constant[count - 1] < 10);
+    trend_history_record(&history, UINT32_MAX - 15000 + 45000, 99, 4000);
+    assert(trend_history_copy(&history, snapshot) == 1 && snapshot[0].value == 99);
+    trend_history_record(&history, 30001, NAN, 4000);
+    assert(trend_history_copy(&history, snapshot) == 0);
+    float positions[] = {10, 60, 144};
+    float scaled[]    = {20, 10, 14};
+    assert(trend_curve_mask_positions(mask, scaled, positions, 3));
+    assert(mask[22 * TREND_WIDTH + 12] == 255);
+    positions[1] = NAN;
+    assert(!trend_curve_mask_positions(mask, scaled, positions, 3));
     puts("PASS: trend anchors, extrema, fractional edge coverage, history scale and invalid-data gaps");
 }

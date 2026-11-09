@@ -84,6 +84,22 @@ int main(int argc, char **argv)
     assert(!runtime.legacy_auto_discovery && !strcmp(runtime.sources[0].address, "C0:00:00:00:00:01") &&
            runtime.sources[0].address_type == 1);
     assert(runtime.pids[0].responder == 0x7e8);
+    cJSON *rpm_config = cJSON_Duplicate(root, true);
+    cJSON *rpm_ring   = cJSON_GetArrayItem(cJSON_GetObjectItem(rpm_config, "pages"), 0);
+    cJSON_ReplaceItemInObject(rpm_ring, "renderer", cJSON_CreateString("arc"));
+    cJSON *redline = cJSON_AddNumberToObject(rpm_ring, "rpmRedline", 5800);
+    set(rpm_config);
+    assert(validate() == ESP_OK && config_runtime_load(&runtime, &active, &previous) == ESP_OK);
+    assert(runtime.pages[0].rpm_redline == 5800);
+    cJSON_SetNumberValue(redline, 5800.5);
+    set(rpm_config);
+    assert(validate() != ESP_OK && config_runtime_validate(&partition, 0, document_length, NULL) != ESP_OK);
+    cJSON_SetNumberValue(redline, 5800);
+    cJSON_ReplaceItemInObject(rpm_ring, "renderer", cJSON_CreateString("numeric"));
+    set(rpm_config);
+    assert(validate() != ESP_OK);
+    cJSON_Delete(rpm_config);
+    set(root);
     cJSON *expanded       = cJSON_Duplicate(root, true);
     cJSON *expanded_pages = cJSON_GetObjectItem(expanded, "pages");
     while (cJSON_GetArraySize(expanded_pages) < 10)
