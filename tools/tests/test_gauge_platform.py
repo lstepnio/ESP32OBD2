@@ -59,16 +59,22 @@ class GaugePlatformTest(unittest.TestCase):
 
     def test_feature_config_projection(self):
         for dual, actions in ((0, 0), (0, 1), (1, 0), (1, 1)):
-            with self.subTest(dual=dual, actions=actions):
-                self.build_and_run(
-                    "platform-config",
-                    ["tests/platform_config_test.c"],
-                    ["firmware/gauge/tests/stubs", "firmware/gauge/tests/display_stubs"],
-                    [
+            for mask in (None, 0, 1, 4, 7):
+                with self.subTest(dual=dual, actions=actions, license_mask=mask):
+                    defines = [
                         f"EGAUGE_FEATURE_DUAL_ADAPTER={dual}",
                         f"EGAUGE_FEATURE_VEHICLE_ACTIONS={actions}",
-                    ],
-                )
+                    ]
+                    if mask is not None:
+                        defines.extend(
+                            ["EGAUGE_OLED_LICENSE_REQUIRED=1", f"EGAUGE_TEST_LICENSE_MASK={mask}"]
+                        )
+                    self.build_and_run(
+                        "platform-config",
+                        ["tests/platform_config_test.c"],
+                        ["firmware/gauge/tests/stubs", "firmware/gauge/tests/display_stubs"],
+                        defines,
+                    )
 
     def test_ota_target_preflight_wire_layout(self):
         self.build_and_run(

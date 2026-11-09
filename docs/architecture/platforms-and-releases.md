@@ -26,8 +26,8 @@ owns installed/observed behavior; [backlog](../backlog.md) owns implementation s
   do not change licenses or claim technical copy protection from this structure.
 
 The current public workflow is still reference-board development-only. This change
-creates no stable/RC publisher, private delivery service, signing key or entitlement
-system, and does not withdraw historical public releases.
+creates no stable/RC publisher, private delivery service or signing key, and does
+not withdraw historical public releases.
 
 ## Share behavior, isolate hardware
 
@@ -119,13 +119,107 @@ python tools/board_license.py verify --verification-key /private/issuer-public.p
   board.egauge-license < factory-mac.txt
 ```
 
-Firmware activation, durable storage across update/recovery, effective capability
-advertisement and per-feature enforcement are pending. Qualify valid activation,
-wrong board/key, loss or corruption of the license, replacement and rollback
-before taking paid OLED orders. The factory MAC is a stable ID and can be read
-from the device. Stronger resistance to cloning or modified firmware requires
-separate device-key and secure-boot provisioning. No eFuse writes are needed to
-read the factory ID or issue an entitlement.
+### Private OLED candidate
+
+A private product build opts in with
+`-DEGAUGE_OLED_LICENSE_PUBLIC_KEY=/absolute/private/issuer-public.pem`.
+Use a separate P-256 verifier from the firmware-update trust key. The reference
+project rejects the option. Ordinary private development builds with the
+option unset retain their existing compile-time policy.
+
+The licensed build reads its factory eFuse MAC and verifies the entitlement
+once, before configuration and BLE startup. Missing, unreadable, corrupted
+or mismatched data yields an empty paid-feature set. The verified mask is
+intersected with the compiled feature ceiling. Existing BLE discovery reports
+that effective set. Stored setup bytes and digests survive restriction and
+restore. New disabled-feature requests are rejected, and loss of a license
+never authorizes discarding a retained vehicle-action record. The existing
+vehicle-command qualification and recovery rules continue to apply.
+
+Use the private AMOLED project's A/B build and pin the reviewed shared core
+commit. Copy the shared `firmware/gauge/partitions.csv` to the private project's
+`product/amoled/partitions-licensed.csv` and add this row after `ota_1`:
+
+```csv
+eg_entitle,data,nvs,0x660000,0x3000,readonly
+```
+
+In the private project, set the A/B branch's `amoled_partition_file` to the
+absolute path of that new CSV, using
+`${CMAKE_CURRENT_LIST_DIR}/partitions-licensed.csv` instead of the shared path.
+Create a private candidate defaults file with
+`CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="/absolute/private/product/amoled/partitions-licensed.csv"`.
+With ESP-IDF 5.4.1 active, build the private project without owner action switches:
+
+```sh
+idf.py -C "$private_repo/product/amoled" -B "$private_work/build" \
+  -DIDF_TARGET=esp32s3 -DEGAUGE_BUILD_AB_LAYOUT=1 \
+  -DEGAUGE_CANDIDATE_DEFAULTS="$private_work/entitlement.sdkconfig.defaults" \
+  -DEGAUGE_PROTOCOL_BOARD_NAME=EGS-AMOLED-175B \
+  -DEGAUGE_OLED_LICENSE_PUBLIC_KEY="$private_work/issuer-public.pem" build
+```
+
+The private wrapper's existing exact-layout receipt must be extended before
+it can attest this added partition. The reference table stays unchanged.
+The entitlement occupies a dedicated read-only NVS partition, separate
+from the application slots, pairing NVS and both configuration generations.
+Normal app-slot updates preserve it. Recovery must use the same licensed
+layout and exclude the entitlement region from ordinary writes. A whole-chip
+erase requires re-provisioning from the retained, verified board license.
+
+### Provisioning and acceptance
+
+Keep the factory MAC, signed license, flash readbacks and provisioning workspace
+private. Read the connected board's factory MAC using the pinned ESP-IDF
+`esptool.py --chip esp32s3 --port "$oled_port" read_mac` operation, capture the
+six-byte value in `factory-mac.txt`, and verify the paid order's license against
+that MAC and the build's embedded public key using the verifier above.
+
+The entitlement image is an ESP-IDF NVS blob. Use a private directory and
+an absolute comma-free filename for the binary license:
+
+```sh
+umask 077
+printf 'key,type,encoding,value\nlicense,namespace,,\nentitlement,file,binary,%s\n' \
+  "$private_work/board.egauge-license" > "$private_work/entitlement.csv"
+python "$IDF_PATH/components/nvs_flash/nvs_partition_generator/nvs_partition_gen.py" \
+  generate "$private_work/entitlement.csv" "$private_work/entitlement.bin" 0x3000
+```
+
+USB installation requires owner authorization and the OLED-specific
+[USB recovery procedure](../development/firmware-release-runbook.md).
+After the reviewed licensed partition table is installed, compare the board's
+partition table to the exact build and verify the NVS image size before writing.
+Run the following in order and stop if any command fails:
+
+```sh
+esptool.py --chip esp32s3 --port "$oled_port" read_flash 0x8000 0xc00 \
+  "$private_work/partition-table-readback.bin"
+cmp "$private_work/build/partition_table/partition-table.bin" \
+  "$private_work/partition-table-readback.bin"
+test "$(wc -c < "$private_work/entitlement.bin")" -eq 12288
+python "$IDF_PATH/components/partition_table/parttool.py" --port "$oled_port" \
+  write_partition --partition-name eg_entitle --ignore-readonly \
+  --input "$private_work/entitlement.bin"
+python "$IDF_PATH/components/partition_table/parttool.py" --port "$oled_port" \
+  read_partition --partition-name eg_entitle --output "$private_work/entitlement-readback.bin"
+cmp "$private_work/entitlement.bin" "$private_work/entitlement-readback.bin"
+```
+
+With ESP-IDF 5.4.1 active, run
+`python -m unittest tools.tests.test_oled_firmware_license` from the shared
+repository. The test links the production boot verifier against the pinned
+Mbed TLS library and feeds it host-issued licenses through simulated NVS and
+factory-MAC reads.
+
+On physical OLEDs, verify cold-boot activation, effective BLE capabilities and
+configuration admission on the intended board. Exercise wrong-board and wrong-key
+rejection, missing and corrupted data, authorized replacement, and survival across
+an update, rollback and scoped USB recovery. Verify both customer app slots enforce
+the same licensing policy. Keep customer distribution gated on this evidence.
+The factory MAC is a stable, readable ID. Resistance to modified firmware or
+cloning requires separate secure-boot and device-key provisioning. Reading the
+factory ID and provisioning this NVS partition require no eFuse writes.
 
 ## Implemented reference interfaces
 

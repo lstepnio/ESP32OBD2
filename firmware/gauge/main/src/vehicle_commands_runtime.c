@@ -230,11 +230,13 @@ esp_err_t vehicle_commands_runtime_init(const config_runtime_t *runtime)
 bool vehicle_commands_runtime_restriction_conflict(void)
 {
     /* Called during boot, before any worker can change the retained journal. */
-    return !EGAUGE_FEATURE_VEHICLE_ACTIONS && (!commands.journal_ready || commands.marker.mask != 0);
+    return !platform_feature_enabled(PLATFORM_FEATURE_VEHICLE_ACTIONS) &&
+           (!commands.journal_ready || commands.marker.mask != 0);
 }
 
 bool vehicle_commands_runtime_abs_discard_allowed(void)
 {
+    /* Entitlement loss alone never authorizes discarding retained recovery. */
     return !EGAUGE_FEATURE_VEHICLE_ACTIONS && commands.journal_ready &&
            commands.marker.mask == (1U << (VEHICLE_ABS_TCS - 1));
 }
@@ -261,7 +263,7 @@ static bool submit(const uint8_t *bytes, size_t length, bool gauge_confirmed)
     vehicle_command_request_t request;
     if (!requests || !transfer_gate_vehicle_allowed() || ble_mgr_is_paused() ||
         !vehicle_command_decode(bytes, length, &request) ||
-        (!EGAUGE_FEATURE_VEHICLE_ACTIONS && request.verb == VEHICLE_START))
+        (!platform_feature_enabled(PLATFORM_FEATURE_VEHICLE_ACTIONS) && request.verb == VEHICLE_START))
         return false;
     /* A readable interface is not an enabled controller. Fail closed at
      * admission so old/unqualified profiles never acquire a worker lease. */
