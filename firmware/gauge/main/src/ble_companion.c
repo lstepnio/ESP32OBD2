@@ -71,6 +71,7 @@ static QueueHandle_t owner_save_queue;
 #define ACTIVE_DOCUMENT_HEADER_SIZE 52U
 #define ACTIVE_DOCUMENT_CHUNK_SIZE 128U
 #define BLE_OWNER_MAX_REQUEST 173U
+#define OTA_TARGET_PREFLIGHT_STATUS_MODE 22U
 static uint8_t  status_snapshot[512];
 static unsigned extended_source;
 static uint32_t alert_boot, alert_cursor;
@@ -187,13 +188,13 @@ static void owner_save_worker(void *arg)
 #define BRAKE_OWNER_CAPABILITY ""
 #endif
 #define LEGACY_CAPABILITY_BASE                                                                                         \
-    "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","                                                      \
+    "{\"protocolMajor\":0,\"board\":\"" EGAUGE_PROTOCOL_BOARD_NAME "\","                                               \
     "\"maxAdapterLinks\":1,"                                                                                           \
     "\"savedStateRead\":true,\"displayRotationWrite\":true,"                                                           \
     "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"da\":1,\"va\":1,"                                                      \
     "\"qs\":true,\"ota\":false,\"hw\":1" DISPLAY_SETTINGS_CAPABILITY
 #define DOCUMENT_CAPABILITY_BASE                                                                                       \
-    "{\"protocolMajor\":0,\"board\":\"ESP32-S3-Touch-LCD-1.28\","                                                      \
+    "{\"protocolMajor\":0,\"board\":\"" EGAUGE_PROTOCOL_BOARD_NAME "\","                                               \
     "\"maxAdapterLinks\":1,"                                                                                           \
     "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"da\":1,\"va\":1,\"vc\":1,\"bm\":1,"                                    \
     "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY SMART_PAGE_CAPABILITY                                \
@@ -367,9 +368,13 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle, struct ble
         status_snapshot_length = 0;
         return 0;
     }
-    if (request[0] == 0x31 && length == 5)
+    if (request[0] == 0x31)
     {
-        extended_status_mode   = 4;
+        if (length != 5 && length != 6)
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        if (length == 6 && request[5] != 1)
+            return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        extended_status_mode   = length == 5 ? 4 : OTA_TARGET_PREFLIGHT_STATUS_MODE;
         status_snapshot_length = 0;
         return 0;
     }
@@ -688,10 +693,11 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_g
             return BLE_ATT_ERR_INVALID_OFFSET;
         return companion_gatt_read_value(ctxt->om, status_snapshot, status_snapshot_length, ctxt->offset);
     }
-    if (extended_status_mode == 4)
+    if (extended_status_mode == 4 || extended_status_mode == OTA_TARGET_PREFLIGHT_STATUS_MODE)
     {
         if (ctxt->offset == 0 || status_snapshot_length == 0)
-            status_snapshot_length = ota_transfer_boot_identity(status_snapshot);
+            status_snapshot_length = extended_status_mode == 4 ? ota_transfer_boot_identity(status_snapshot)
+                                                               : ota_transfer_target_preflight(status_snapshot);
         if (status_snapshot_length == 0)
             return BLE_ATT_ERR_INSUFFICIENT_RES;
         if (ctxt->offset > status_snapshot_length)
