@@ -211,6 +211,14 @@ static void owner_save_worker(void *arg)
 #define LEGACY_ACTION_SETUP_CAPABILITY ""
 #endif
 
+/* Modern display settings include rotation. Avoid duplicating the legacy
+ * rotation flag in feature-policy discovery, which must fit 255 bytes. */
+#if EGAUGE_FEATURES_RESTRICTED && CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED
+#define LEGACY_ROTATION_CAPABILITY ""
+#else
+#define LEGACY_ROTATION_CAPABILITY ",\"displayRotationWrite\":true"
+#endif
+
 #if EGAUGE_FEATURE_VEHICLE_ACTIONS && CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
 #define BRAKE_OWNER_CAPABILITY ",\"bt\":1"
 #else
@@ -219,7 +227,7 @@ static void owner_save_worker(void *arg)
 #define LEGACY_CAPABILITY_BASE                                                                                         \
     "{\"protocolMajor\":0,\"board\":\"" EGAUGE_PROTOCOL_BOARD_NAME "\","                                               \
     "\"maxAdapterLinks\":1,"                                                                                           \
-    "\"savedStateRead\":true,\"displayRotationWrite\":true,"                                                           \
+    "\"savedStateRead\":true" LEGACY_ROTATION_CAPABILITY ","                                                           \
     "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"va\":1,"                                                               \
     "\"qs\":true,\"ota\":false,\"hw\":1" DISPLAY_SETTINGS_CAPABILITY DUAL_ADAPTER_CAPABILITY FEATURE_POLICY_CAPABILITY \
         LEGACY_ACTION_SETUP_CAPABILITY
