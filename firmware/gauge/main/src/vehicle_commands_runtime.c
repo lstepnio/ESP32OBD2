@@ -233,6 +233,22 @@ bool vehicle_commands_runtime_restriction_conflict(void)
     return !EGAUGE_FEATURE_VEHICLE_ACTIONS && (!commands.journal_ready || commands.marker.mask != 0);
 }
 
+bool vehicle_commands_runtime_abs_discard_allowed(void)
+{
+    return !EGAUGE_FEATURE_VEHICLE_ACTIONS && commands.journal_ready &&
+           commands.marker.mask == (1U << (VEHICLE_ABS_TCS - 1));
+}
+
+bool vehicle_commands_runtime_discard_abs_record(void)
+{
+    const vehicle_command_marker_t empty = {0};
+    if (!vehicle_commands_runtime_abs_discard_allowed() || !save(&empty, NULL))
+        return false;
+    vehicle_commands_init(&commands, commands.boot, save, NULL, &empty, true);
+    publish((vehicle_command_context_t){0}, 0);
+    return true;
+}
+
 static bool enqueue(const vehicle_command_request_t *request)
 {
     if (xQueueSend(requests, request, 0) == pdTRUE)
