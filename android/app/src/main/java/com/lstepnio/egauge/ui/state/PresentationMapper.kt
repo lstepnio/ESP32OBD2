@@ -810,6 +810,7 @@ private fun AppViewModel.carState(
         canEditActions =
             !busy && profileError == null,
         actionsSupported = capabilities?.pageActionsVersion in 1..2, canManageVehicles = canManageVehicles,
+        idlePageSetupSupported = capabilities?.pageActionsVersion == 2 && capabilities?.vehicleCommandsVersion == 1,
         gaugeKnown =
             rememberedGaugeId != null
     )

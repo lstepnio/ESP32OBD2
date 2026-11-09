@@ -578,7 +578,10 @@ not qualify live controller execution.
 - The App saves overrides and vehicle pressure calibration together through
   `LocalSetupTransactions`. It offers typed compatible actions, edit, reorder and
   remove with Undo. Compact rows open an editor with duration, the shared coolant
-  limit and optional pressure estimation. Missing protection has one actionable warning;
+  limit and optional pressure estimation. On gauges with ordered action pages and
+  vehicle-command support, Air up and Winch can be added before the car is
+  connected. Their Start controls still require the existing live checks.
+  Missing protection has one actionable warning;
   the estimate remains explicitly an estimate. Active/unresolved controls lock configuration. Save on phone
   never claims installation; the existing review/send and exact running readback
   are still required. No saved configuration contains a Start intent. One-session

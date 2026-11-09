@@ -149,7 +149,8 @@ data class CarUiState(
     val gaugeKnown: Boolean = false,
     val idleCoolantLimitC: Double? = null,
     val runningIdleCoolantLimitC: Double? = null,
-    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric
+    val measurementSystem: MeasurementSystem = MeasurementSystem.Metric,
+    val idlePageSetupSupported: Boolean = false
 )
 
 @Immutable
