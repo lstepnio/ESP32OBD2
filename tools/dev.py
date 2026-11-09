@@ -260,6 +260,8 @@ def firmware(
                 )
             )
             options = ["-B", FIRMWARE / ("build-" + variant), "-D", "SDKCONFIG=" + str(config)]
+        if parked_idle_test or brake_actions_test:
+            options.extend(["-D", "EGAUGE_FEATURE_VEHICLE_ACTIONS=ON"])
         run([*idf, "-C", FIRMWARE, *options, "build"])
     elif action == "test":
         idf = os.environ.get("IDF_PATH")
@@ -320,7 +322,11 @@ def firmware(
                 ],
                 json_object,
             ],
-            includes=["-I" + str(json_dir)],
+            includes=[
+                "-I" + str(json_dir),
+                "-DEGAUGE_FEATURE_DUAL_ADAPTER=1",
+                "-DEGAUGE_FEATURE_VEHICLE_ACTIONS=1",
+            ],
             arguments=[
                 "contracts/examples/config-bound-adapter.json",
                 "android/app/src/main/assets/numeric_config_template.json",

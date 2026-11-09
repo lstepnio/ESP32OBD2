@@ -1,4 +1,5 @@
 #include "vehicle_commands_runtime.h"
+#include "platform_features.h"
 #include "adapter_role_policy.h"
 #include "vehicle_idle_coolant.h"
 #include "worker_health.h"
@@ -1074,7 +1075,7 @@ static void obd_task(void *arg)
             continue;
         poll_pid_policy_t policies[POLL_SCHEDULER_MAX_PIDS];
         unsigned          selected = atomic_load(&g_selected_page);
-        unsigned          next     = display_settings_snapshot().smart_cycle && g_runtime
+        unsigned          next     = EGAUGE_FEATURE_SMART_CYCLE && display_settings_snapshot().smart_cycle && g_runtime
                                          ? atomic_load(&g_upcoming_page) % page_count()
                                          : (selected + 1) % page_count();
         bool              cycling  = display_settings_snapshot().cycle_seconds != 0;
@@ -1438,6 +1439,12 @@ void app_main(void)
     ESP_ERROR_CHECK(alert_runtime_init(g_runtime ? g_running_config_record.revision : 0));
     ESP_ERROR_CHECK(diagnostic_clear_init());
     ESP_ERROR_CHECK(vehicle_commands_runtime_init(g_runtime));
+    if (vehicle_commands_runtime_restriction_conflict() && ota_trial_pending())
+    {
+        ESP_LOGE(TAG, "Restricted firmware trial cannot replace unresolved vehicle action recovery");
+        ESP_ERROR_CHECK(esp_ota_mark_app_invalid_rollback_and_reboot());
+        return;
+    }
     alert_engine_set_sink(alert_runtime_observe);
     if (g_runtime)
     {
@@ -1529,7 +1536,8 @@ void app_main(void)
             diagnostics_endpoint_configure(e, transport, g_running_config_record.revision,
                                            g_runtime && g_runtime->sources[transport].simulated);
     }
-    smart_configure();
+    if (EGAUGE_FEATURE_SMART_CYCLE)
+        smart_configure();
     atomic_store(&g_upcoming_page, (atomic_load(&g_selected_page) + 1U) % page_count());
     init_obd_task(ui);
     BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 4096, ui, 5, NULL);
@@ -1756,12 +1764,13 @@ void app_main(void)
         if (before_reason != cycling.reason)
             ESP_LOGI(TAG, "page cycle reason=%u interval_s=%u", cycling.reason, cycle.cycle_seconds);
         smart_page_decision_t choice = {0};
-        bool                  smart  = cycle.smart_cycle && g_runtime;
+        bool                  smart  = EGAUGE_FEATURE_SMART_CYCLE && cycle.smart_cycle && g_runtime;
         if (smart)
             cycle_due = smart_select(ui, cycle, selected_before, activity_before, cycling.reason, now_ms, &choice);
         else
         {
-            smart_page_suspend(&smart_pages);
+            if (EGAUGE_FEATURE_SMART_CYCLE)
+                smart_page_suspend(&smart_pages);
             atomic_store(&g_upcoming_page, (atomic_load(&g_selected_page) + 1U) % page_count());
         }
         if (cycle_due && lvgl_port_lock(0))

@@ -78,6 +78,12 @@ owns details. Parked thermal/fallback and real compressor calibration remain ope
 
 ## Compatibility and public boundaries
 
+- Source builds distinguish the free reference platform from private boards.
+  The free build uses one OBD-II adapter, timed cycling and navigation gestures.
+  Private builds can enable dual adapters, Smart Cycle and vehicle Action Pages.
+  The [platform policy](architecture/platforms-and-releases.md#platform-feature-flags)
+  describes compatibility with existing setups. Installed baselines above
+  describe earlier firmware.
 - Phone profiles use schema 19, associations schema 2; gauge configuration schema 2.
   [Storage compatibility](architecture/android-runtime.md#storage-and-recovery) and
   [wire documents](README.md#protocols) own migration/version details.

@@ -61,34 +61,18 @@ Inventory license fields marked `NOASSERTION` are not a license review or a comp
 SBOM; retained notices support that review. Historical releases do not retroactively
 acquire original CI support artifacts. No new release is implied by source changes.
 
-## Parked idle qualification candidate
+## Public reference feature policy
 
-The optional `parked_idle_test` workflow input defaults to `false`. Use `true` only
-for an owner-authorized [parked idle candidate](../architecture/vehicle-actions.md#owner-supervised-parked-idle-candidate),
-and identify that limitation in its release notes. It selects the separately built
-`build-parked-idle` image; ordinary releases keep the test switch off. CI compiles
-the ordinary and candidate images from the exact source before publication. Publication and installation
-still require owner authorization; this input does not qualify a vehicle profile.
+Public firmware is built with one adapter, timed cycling and navigation
+shortcuts. The workflow verifies that Dual Adapter, Smart Cycle and Vehicle
+Actions are disabled in the compiled release. Owner-supervised idle and brake
+builds are private bench candidates. The corresponding local build options
+remain available for shared regression testing without publishing those images.
 
-## Owner-supervised brake-actions candidate
-
-The optional `brake_actions_test` workflow input defaults to `false` and is
-independent of `parked_idle_test`. Enable it only for an explicitly owner-authorized
-ABS/TCS and Burnout candidate on the matched captured Jeep, and record that scope
-in the release notes. It selects `build-brake-actions-test` and its retained build
-evidence even when parked idle and orientation are also requested. The equivalent
-local build is `python tools/dev.py build --target firmware --brake-actions-test`;
-append `--parked-idle-test --orientation-candidate` for the combined candidate.
-Without the brake switch, the existing build-directory choices are unchanged.
-
-Start requires the physical gauge and manual brake-state confirmation, alongside
-the runtime identity and safety checks. Owner confirmation is evidence of the
-operator's observation only. It does not qualify automatic brake-state detection,
-the controller's automatic safety path, or a general vehicle profile. Keep public
-BLE capability flags disabled. Record physical Jeep and gauge observations
-separately from build, simulator, app and transport results. CI compiles the combined
-parked-idle, brake-actions and orientation branch as well as the existing variants;
-compilation does not establish physical qualification.
+Resolve any retained vehicle-action recovery before updating a legacy device
+to the restricted firmware. The restricted OTA trial rejects an unresolved or
+unreadable recovery journal so the prior image can continue recovery. For a
+USB migration, check the journal on the original firmware before replacing it.
 
 ## Publish
 

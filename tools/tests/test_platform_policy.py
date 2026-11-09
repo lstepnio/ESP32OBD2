@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from platform_policy import load_policy, require_public_firmware
+from platform_policy import load_policy, require_public_build, require_public_firmware
 
 
 class PlatformPolicyTest(unittest.TestCase):
@@ -17,6 +17,24 @@ class PlatformPolicyTest(unittest.TestCase):
         require_public_firmware(
             policy, policy["referenceBoard"], "development", policy["publicRepository"]
         )
+
+    def test_public_build_requires_explicit_off_definitions(self):
+        disabled = [
+            f"-DEGAUGE_FEATURE_{name}=0"
+            for name in ("DUAL_ADAPTER", "SMART_CYCLE", "VEHICLE_ACTIONS")
+        ]
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "compile_commands.json"
+            entry = {"file": "/src/main/src/ble_companion.c", "arguments": ["cc", *disabled]}
+            path.write_text(json.dumps([entry]))
+            require_public_build(folder)
+            for definition in disabled:
+                for bad in ([], [definition[:-1] + "1"], [definition, definition[:-1] + "1"]):
+                    with self.subTest(definition=definition, bad=bad):
+                        entry["arguments"] = ["cc", *(d for d in disabled if d != definition), *bad]
+                        path.write_text(json.dumps([entry]))
+                        with self.assertRaises(ValueError):
+                            require_public_build(folder)
 
     def test_new_hardware_is_private_by_default(self):
         policy = load_policy()

@@ -73,4 +73,15 @@ class ProfileActionsUiTest {
         }
         compose.onNodeWithText("Save action").performScrollTo().assertIsNotEnabled()
     }
+
+    @Test fun restrictedGaugeStillOffersPageJumpAndOff() {
+        var saved: PageAction? = null
+        val restricted = state().copy(vehicleActionsAllowed = false)
+        compose.setContent { EGaugeTheme { PageActionsSheet(restricted, {}, { saved = it }) } }
+        compose.onNodeWithText("Vehicle actions").assertDoesNotExist()
+        compose.onNodeWithText("Off").assertIsDisplayed()
+        compose.onNodeWithText(draft.pages.first().name).performScrollTo().performClick()
+        compose.onNodeWithText("Save action").performScrollTo().performClick()
+        assertEquals(PageAction(draft.pages.first().id), saved)
+    }
 }
