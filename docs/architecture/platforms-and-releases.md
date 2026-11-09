@@ -66,6 +66,11 @@ without introducing a second lifecycle/ownership model.
 
 ## Platform feature flags
 
+Board attributes such as [dashboard capacity](display-experience.md#board-page-capacity)
+come from the target build and are advertised to the App. Keep them separate
+from feature switches. Any future signed entitlement can enable a licensed
+feature within the hardware and build limits.
+
 | Build feature | Free reference LCD | Private product builds |
 | --- | --- | --- |
 | `EGAUGE_FEATURE_DUAL_ADAPTER` | Off. One OBD-II adapter | Opt in to a separate child adapter |

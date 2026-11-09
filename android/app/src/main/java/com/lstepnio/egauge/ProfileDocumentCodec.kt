@@ -40,7 +40,7 @@ object ProfileDocumentCodec {
                 item.optJSONArray("pageOrder")?.let { order ->
                     (0 until order.length()).map { order.getString(it) }.also { ids ->
                         require(
-                            ids.size <= 10 && ids.distinct().size == ids.size &&
+                            ids.size <= MAX_DASHBOARD_PAGES && ids.distinct().size == ids.size &&
                                 ids.all {
                                     it.matches(Regex("[a-z][a-z0-9._-]{0,63}"))
                                 }
@@ -71,9 +71,9 @@ object ProfileDocumentCodec {
                     if (schemaVersion >=
                         9
                     ) {
-                        0..10
+                        0..MAX_DASHBOARD_PAGES
                     } else {
-                        1..10
+                        1..MAX_DASHBOARD_PAGES
                     }
                     )
             ) { "Profile page count is invalid" }
@@ -230,7 +230,7 @@ object ProfileDocumentCodec {
     }
 
     private fun draftJson(draft: Draft): JSONObject = JSONObject().also {
-        require(draft.pages.size <= 10)
+        require(draft.pages.size <= MAX_DASHBOARD_PAGES)
         draft.pages.forEach { page ->
             require(page.arcMetricIndex in 0..1 && (page.layout == GaugeLayout.DualArc || page.arcMetricIndex == 0))
             require(

@@ -20,7 +20,7 @@ class DisplayEvolutionTest {
         assertEquals(10, caps(",\"mp\":10,\"dx\":1").maxPages)
         assertTrue(GaugeLayout.DualArc in caps(",\"dx\":1").supportedRenderers)
         assertEquals(3, GaugeProtocolCodec.capabilities(capabilities.replace("\"cfg\":7", "\"cfg\":1").toByteArray()).maxPages)
-        listOf("0", "11", "true", "\"10\"", "1.5", "null").forEach { value ->
+        listOf("0", "13", "true", "\"10\"", "1.5", "null").forEach { value ->
             assertTrue(runCatching { caps(",\"mp\":$value") }.isFailure)
         }
         listOf("2", "true", "\"1\"", "1.5", "null").forEach { value ->
@@ -29,8 +29,8 @@ class DisplayEvolutionTest {
         }
     }
 
-    @Test fun tenPagesAndSelectedArcRoundTripWithoutWeakeningOldFirmwareDeploymentLimits() {
-        val pages = (1..10).map { arc.copy(id = "page.$it") }
+    @Test fun twelvePagesAndSelectedArcRoundTripWithinDetectedBoardCapacity() {
+        val pages = (1..12).map { arc.copy(id = "page.$it") }
         val draft = Draft(pages = pages)
         val profile = VehicleProfile("vehicle", "Vehicle", draft, pageOrder = pages.map { it.id }.reversed())
         val profiles = ProfileCollection("vehicle", listOf(profile))
@@ -40,8 +40,15 @@ class DisplayEvolutionTest {
         assertTrue(ConfigurationProjector.blockers(draft).isEmpty())
         assertTrue(presentationBlockers(draft, caps()).any { "8 pages" in it })
         assertTrue(presentationBlockers(draft, caps()).any { "Dual + arc" in it })
-        assertTrue(presentationBlockers(draft, caps(",\"mp\":10,\"dx\":1")).isEmpty())
-        assertTrue(ConfigurationProjector.blockers(draft.copy(pages = pages + arc.copy(id = "page.11"))).isNotEmpty())
+        val lcd = caps(",\"mp\":5,\"dx\":1")
+        val oled = caps(",\"mp\":12,\"dx\":1")
+        assertEquals(5, lcd.maxPages)
+        assertEquals(12, oled.maxPages)
+        assertTrue(presentationBlockers(draft.copy(pages = pages.take(5)), lcd).isEmpty())
+        assertTrue(presentationBlockers(draft.copy(pages = pages.take(6)), lcd).any { "5 pages" in it })
+        assertTrue(presentationBlockers(draft, caps(",\"mp\":10,\"dx\":1")).any { "10 pages" in it })
+        assertTrue(presentationBlockers(draft, oled).isEmpty())
+        assertTrue(ConfigurationProjector.blockers(draft.copy(pages = pages + arc.copy(id = "page.13"))).isNotEmpty())
         val legacy = JSONObject(ProfileDocumentCodec.encode(ProfileCollection("v", listOf(VehicleProfile("v", "Vehicle", Draft()))))).put("schemaVersion", 17).toString()
         assertTrue(ProfileDocumentCodec.decode(legacy).active.draft.pages.all { it.arcMetricIndex == 0 })
         assertTrue(runCatching { ProfileDocumentCodec.decode(JSONObject(raw).put("schemaVersion", 20).toString()) }.isFailure)

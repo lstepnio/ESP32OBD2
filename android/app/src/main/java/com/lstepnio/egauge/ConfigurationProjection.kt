@@ -73,7 +73,7 @@ object ConfigurationProjector {
                 add("Vehicle source is invalid")
             }
             if (draft.pages.size !in
-                (if (allowEmptyPages) 0..10 else 1..10)
+                (if (allowEmptyPages) 0..MAX_DASHBOARD_PAGES else 1..MAX_DASHBOARD_PAGES)
             ) {
                 add("Add a page for the selected adapter before sending")
             }

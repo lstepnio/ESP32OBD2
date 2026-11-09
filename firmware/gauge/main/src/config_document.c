@@ -473,8 +473,8 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
         !integer(cJSON_GetObjectItemCaseSensitive(root, "brightness"), 5, 100) ||
         !cJSON_IsBool(cJSON_GetObjectItemCaseSensitive(root, "reducedMotion")) ||
         !array_size(sources, 1, context->max_adapter_links) || !array_size(definitions, 1, 32) ||
-        !array_size(pages, 1, 10) || !array_size(alerts, 0, 32) || !unique_ids(sources) || !unique_ids(definitions) ||
-        !unique_ids(pages) || !unique_ids(alerts))
+        !array_size(pages, 1, context->max_pages) || !array_size(alerts, 0, 32) || !unique_ids(sources) ||
+        !unique_ids(definitions) || !unique_ids(pages) || !unique_ids(alerts))
         return false;
     const cJSON *filters = cJSON_GetObjectItemCaseSensitive(root, "diagnosticFilters");
     if (filters)

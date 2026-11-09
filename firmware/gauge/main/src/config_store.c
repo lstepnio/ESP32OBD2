@@ -9,6 +9,7 @@
 #include "mbedtls/sha256.h"
 #include "config_store.h"
 #include "config_document.h"
+#include "board_page_capacity.h"
 
 #define HEADER_MAGIC 0x31434645U /* EFC1 on little-endian flash */
 #define COMMIT_MAGIC 0x54494d43U /* CMIT */
@@ -92,6 +93,7 @@ static bool valid_slot(int index, config_store_record_t *record)
         return false;
     config_document_context_t context = {
         .base_revision     = header.revision - 1,
+        .max_pages         = EGAUGE_RUNTIME_PAGES,
         .max_adapter_links = 2,
     };
     if (config_document_validate(slots[index], DOCUMENT_OFFSET, header.length, &context) != ESP_OK)
@@ -311,6 +313,7 @@ esp_err_t config_store_validate(void)
         return ESP_ERR_INVALID_CRC;
     config_document_context_t limits = {
         .base_revision     = revision,
+        .max_pages         = EGAUGE_BOARD_PAGE_LIMIT,
         .max_adapter_links = 2,
     };
     return config_document_validate(partition, DOCUMENT_OFFSET, length, &limits);
@@ -350,6 +353,7 @@ esp_err_t config_store_commit(config_store_validator_t validator, void *context,
         return ESP_ERR_INVALID_CRC;
     config_document_context_t limits = {
         .base_revision     = revision,
+        .max_pages         = EGAUGE_BOARD_PAGE_LIMIT,
         .max_adapter_links = 2,
     };
     err = config_document_validate(partition, DOCUMENT_OFFSET, length, &limits);
