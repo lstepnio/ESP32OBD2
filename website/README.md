@@ -204,7 +204,7 @@ status here.
 ## Public offer
 
 The [product roadmap](../docs/roadmap.md#distribution-and-custom-work) defines the
-free LCD firmware and licensed OLED bundle. The shop comparison distinguishes
+free LCD firmware and preloaded OLED bundle. The shop comparison distinguishes
 installed capabilities, private evaluation, and the proposed 5/12-page limits.
 Board cutouts are AI-assisted adaptations of the exact
 [Waveshare LCD photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-lcd-1.28-1.jpg)
@@ -224,11 +224,13 @@ bundle. Match the OLED offer to the [shop card](index.html#oled-bundle), includi
 the BLE adapter. Confirm pricing, stock, lead time, shipping, tax and returns before
 inserting live links. Exercise both offers in Stripe test
 mode using the [Payment Links guide](https://docs.stripe.com/payment-links).
-Keep OLED checkout disabled until the provisioned license works on the shipped
-board and fails on a different board. Disable the payment link when stock runs
-out. During low-volume fulfillment, verify the paid order in Stripe and record
-its fulfillment once before shipping. A redirect alone does not establish payment.
-An OLED order uses the [private license process](../docs/architecture/platforms-and-releases.md#oled-entitlements).
+Use a one-time payment for each hardware order. List the included firmware
+major version on the OLED offer. Keep OLED checkout disabled until a production
+unit boots offline and its recovery path is verified. Disable the payment link
+when stock runs out. During low-volume fulfillment, verify the paid order in
+Stripe and record its fulfillment once, including the OLED firmware major
+shipped. A redirect alone does not establish payment.
+See the [OLED software policy](../docs/architecture/platforms-and-releases.md#oled-hardware-purchase-and-included-software).
 
 
 ## Intake source and operational checks

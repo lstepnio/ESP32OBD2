@@ -13,7 +13,7 @@ class StorefrontTest(unittest.TestCase):
         actions = storefront_actions({"lcdCheckout": None, "oledCheckout": None})
         self.assertIn('href="#custom-form"', actions["LCD_ORDER"])
         self.assertIn("S3-LCD-1.28 v1 hardware", actions["LCD_ORDER"])
-        self.assertIn("S3-OLED-1.75 v1 hardware and license", actions["OLED_ORDER"])
+        self.assertIn("S3-OLED-1.75 v1 preloaded hardware bundle", actions["OLED_ORDER"])
 
     def test_configured_checkout_does_not_enable_the_other_product(self):
         actions = storefront_actions(

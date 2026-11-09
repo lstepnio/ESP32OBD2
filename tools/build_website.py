@@ -75,7 +75,7 @@ def gallery(content):
 def storefront_actions(settings):
     offers = (
         ("lcdCheckout", "LCD_ORDER", "LCD hardware", "S3-LCD-1.28 v1 hardware"),
-        ("oledCheckout", "OLED_ORDER", "OLED bundle", "S3-OLED-1.75 v1 hardware and license"),
+        ("oledCheckout", "OLED_ORDER", "OLED bundle", "S3-OLED-1.75 v1 preloaded hardware bundle"),
     )
     if not isinstance(settings, dict) or set(settings) != {offer[0] for offer in offers}:
         raise ValueError("Unexpected storefront configuration")

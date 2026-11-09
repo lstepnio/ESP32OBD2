@@ -31,10 +31,10 @@ qualification task, not useful independent offline work.
 
 The S3-LCD-1.28 v1 remains the free public development firmware target. Customers
 can source the board independently or request LCD hardware through the site. The
-S3-OLED-1.75 v1 is a planned paid hardware bundle with a per-board firmware
-entitlement. Its firmware distribution remains private. The storefront starts
-with inquiries and adds hosted checkout after fulfillment and activation
-qualification. See the [storefront runbook](../website/README.md#checkout-and-fulfillment)
+S3-OLED-1.75 v1 is a planned hardware purchase with private firmware
+preinstalled. The purchase includes its shipped software major version, with
+no device activation. The storefront starts with inquiries and adds Stripe
+hardware checkout after fulfillment and recovery qualification. See the [storefront runbook](../website/README.md#checkout-and-fulfillment)
 and [platform/RC contract](architecture/platforms-and-releases.md).
 
 Custom work can extend beyond vehicles to desktop software/displays, control panels
