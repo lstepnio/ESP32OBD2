@@ -121,6 +121,12 @@ def audit(discovery: dict, catalog: dict, responder: str = "7E8") -> dict:
                 )
                 if pid not in observed:
                     pending.append(f"{pid:02X}")
+            elif found and 0x14 <= pid <= 0x1B:
+                kind, name, why = (
+                    "component_partial",
+                    found[0]["name"],
+                    "Voltage is selectable. Fuel trim and physical sensor location need separate decoding.",
+                )
             elif found:
                 kind, name, why = (
                     "selectable",

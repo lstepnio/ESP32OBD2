@@ -6,7 +6,12 @@ reads use `6f1a0003`. Android configuration/readback and signed App/Wi-Fi update
 have recorded evidence. Public `configWrite` and `ota` stay false. Current prepared `cfg:7`
 includes bindings (`cfg:3`), local page actions (`cfg:4`), expanded catalog decimals
 and TCM numeric/gear alerts, exact CEL presentation filters (`cfg:6`) and ordered action pages (`cfg:7`). `va:1` identifies per-definition ECU routing and `da:1`
-source-index reads. Older `cfg:2`/`experimentalNumericConfig:true` are legacy variants.
+source-index reads. Additive `ov:1` enables the narrowband oxygen voltage
+component of standard `01 14` to `01 1B`. The compiler requires the two-byte
+response and the unsigned byte-A `1/200` V decoder. The marker is omitted if
+adding it would exceed the 255-byte capability limit. The App blocks transfer
+when a page or enabled alert needs the marker and the gauge omits it. Existing
+`cfg:7`, document schema and public write flags retain their meanings. Older `cfg:2`/`experimentalNumericConfig:true` are legacy variants.
 Negotiate these markers before writes; the later extension sections below define
 current semantics without changing the existing command layouts.
 See [current state](../current-state.md) for physical limits and
@@ -105,6 +110,22 @@ Ordinary debug builds and release APKs exclude private provisioning assets.
 Owner opcode `32` with a little-endian `u32 sequence` and `u32 document offset` selects a protected active-document read. State version `07` has a 52-byte header followed by up to 128 document bytes. Byte 1 is `1` when a custom document is active and `0` for built-in readings. Bytes 2..3 and 17..19 are reserved zero. Bytes 4..7 hold active revision, 8..11 total document length, 12..15 returned offset, byte 16 returned byte count, and 20..51 the committed SHA-256. All integers are little endian. With no custom document, offset zero returns only the 52-byte header and flag zero. Out-of-range offsets fail. Each request reads a bounded piece from the active slot; if revision or digest changes while that piece is read, the read fails. The client must verify stable metadata across all pieces and hash the complete reconstructed document before presenting it as a saved configuration. This readback is experimental owner functionality and does not enable general `configWrite` or establish any vehicle PID support.
 
 Owner opcode `33` with a four-byte sequence selects protected runtime configuration identity version `08`. The response is 44 bytes. Byte 1 bit 0 means a custom configuration is running; bit 1 means the runtime rejected the newest stored generation and loaded the previous committed executable generation; bit 2 means the running generation is in its boot-health trial. Bytes 2..3 are reserved zero. Bytes 4..7 hold the little-endian running revision, bytes 8..11 hold the newest durable revision observed before any recovery selection, and bytes 12..43 hold the running revision's SHA-256. When bit 0 is clear, the firmware is using built-in readings and the running revision and digest are zero; the durable revision may still identify a rejected document. This identity is distinct from the active-document read: version 7 reports the current store base used for the next revision, while version 8 reports what the current boot actually compiled and whether a newer durable generation was rejected.
+
+## Platform feature policy
+
+A capability document with numeric `fp:1` has at least one disabled platform
+feature. Missing `da:1` limits the gauge to one adapter, missing `sp:1` disables
+Smart Cycle and missing `vc:1` disables vehicle Action Pages and new vehicle
+commands. The absence of `fp` retains the legacy interpretation. Fully enabled
+builds can omit `fp` to fit the existing 255-byte discovery read boundary.
+`cfg:7` remains the document format version. It does not grant features.
+
+New documents requesting a disabled adapter or vehicle-action menu are rejected
+as unavailable at commit. Existing documents retain their original bytes and
+digest. Firmware suppresses the restricted parts in the effective runtime.
+The `69` display settings operation rejects Smart enabled when `sp` is absent
+on a restricted build. Timed cycling and the existing display settings read
+and write formats remain available.
 
 ## Dual-source development configuration, dev.41
 

@@ -15,7 +15,7 @@ import com.lstepnio.egauge.ui.state.CarFaultUi
 fun FaultCodeRow(fault: CarFaultUi, recorded: Boolean = false, onClick: () -> Unit) {
     val meaning = FaultCodeCatalog.lookup(fault.code)
     SettingsRow(
-        meaning.title,
+        meaning.referenceTitle,
         "${fault.code} · ${fault.source}${if (recorded) {
             " · Saved with alert"
         } else if (fault.current) {

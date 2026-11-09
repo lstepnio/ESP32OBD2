@@ -113,6 +113,7 @@ object GaugeProtocolCodec {
             displayShowcaseVersion = json.optInt("sc", 0).takeIf { it == 1 } ?: 0,
             configurationVersion = configurationVersion,
             pidCatalogVersion = if (configurationVersion >= 5) 1 else 0,
+            oxygenVoltageSupported = json.optInt("ov", 0) == 1 && json.opt("ov") is Int && configurationVersion >= 5,
             vehicleDashboardVersion = json.optInt("va", 0).also { require(it in 0..1) },
             dualAdapterVersion = json.optInt("da", 0).also { require(it in 0..1) },
             pageActionsVersion = if (configurationVersion >= 7) {
@@ -130,6 +131,10 @@ object GaugeProtocolCodec {
             brakeActionsTestVersion = json.optInt("bt", 0).also {
                 require(!json.has("bt") || json.get("bt") is Int) { "Invalid brake actions test capability" }
                 require(it in 0..1) { "Unsupported brake actions test capability" }
+            },
+            featurePolicyVersion = json.optInt("fp", 0).also {
+                require(!json.has("fp") || json.get("fp") is Int) { "Invalid platform feature policy" }
+                require(it in 0..1) { "Unsupported platform feature policy" }
             },
             adapterRegistryVersion = json.optInt("ad", 0).also { require(it in 0..1) },
             maxPages = if (json.has("mp")) {

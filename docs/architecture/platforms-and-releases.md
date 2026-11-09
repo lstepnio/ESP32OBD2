@@ -63,6 +63,31 @@ widget implementation or graphics stack onto ESP32 and Android. Reuse existing
 C/Kotlin logic; share native modules only when that removes measured duplication
 without introducing a second lifecycle/ownership model.
 
+
+## Platform feature flags
+
+| Build feature | Free reference LCD | Private product builds |
+| --- | --- | --- |
+| `EGAUGE_FEATURE_DUAL_ADAPTER` | Off. One OBD-II adapter | Opt in to a separate child adapter |
+| `EGAUGE_FEATURE_SMART_CYCLE` | Off. Timed cycling remains | Opt in to reading-driven page selection |
+| `EGAUGE_FEATURE_VEHICLE_ACTIONS` | Off. Page-jump gestures remain | Opt in to vehicle Action Pages and command admission |
+
+The CMake switches are independent, default off in the shared component, and
+can be selected by a private product project. An enabled action feature does
+not qualify a vehicle or enable the supervised owner-test switches. The public
+release workflow verifies all three switches are off. This is a product build
+policy. The shared implementation remains available as source.
+
+The App projects a setup against the selected gauge's advertised capabilities.
+It retains the user's private feature assignments on the phone. On firmware
+with a restricted profile, a previously saved two-adapter setup runs with
+only the engine adapter and preserves the dashboard. Readings sourced solely
+from the disabled child show as unavailable. Saved vehicle-action gestures
+do not open an action menu. A saved Smart preference falls back to timed
+cycling with the same interval. Firmware reads retain the original document
+revision and digest, and disabled features are rejected in new writes.
+See the [wire capability contract](../protocol/experimental-firmware-transfers.md#platform-feature-policy).
+
 ## Implemented reference interfaces
 
 `gauge_board.h` is the ESP32/LVGL board boundary. The reference adapter delegates

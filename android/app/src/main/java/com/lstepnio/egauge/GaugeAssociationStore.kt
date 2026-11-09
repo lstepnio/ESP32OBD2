@@ -58,10 +58,10 @@ data class GaugeAssociations(val selectedId: String?, val gauges: List<KnownGaug
             }
         )
     }
-    fun context(id: String, profiles: ProfileCollection): Pair<String, Draft>? {
+    fun context(id: String, profiles: ProfileCollection, allowsSecondAdapter: Boolean = true): Pair<String, Draft>? {
         val gauge = gauges.firstOrNull { it.id == id } ?: return null
         val profile = profiles.profiles.firstOrNull { it.id == gauge.vehicleId } ?: return null
-        if (gauge.bothAdapters &&
+        if (allowsSecondAdapter && gauge.bothAdapters &&
             (profile.draft.source != "ECM" || profile.transmission?.adapter == null)
         ) {
             return null

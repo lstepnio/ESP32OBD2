@@ -197,7 +197,7 @@ object ScreenFixtures {
                         customizeActions
                     )
 
-                    "car" -> CarScreen(car, {}, {}, {})
+                    "car" -> CarScreen(car, {}, {}, { _, _ -> })
 
                     "updates" -> UpdatesScreen(updates, update, {}, {}, {}, {}, {})
 

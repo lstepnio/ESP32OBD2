@@ -15,7 +15,8 @@ data class PidExample(
     val minimum: Double = 0.0,
     val maximum: Double = 100.0,
     val alertKind: String = "numeric",
-    val configurationVersion: Int = 5
+    val configurationVersion: Int = 5,
+    val oxygenVoltage: Boolean = false
 )
 
 /** Populated only from an adapter session with a known vehicle and ECU source. */
@@ -200,6 +201,7 @@ data class CapabilitySnapshot(
     val dualAdapterVersion: Int = 0,
     val vehicleDashboardVersion: Int = 0,
     val pidCatalogVersion: Int = 0,
+    val oxygenVoltageSupported: Boolean = false,
     val pageActionsVersion: Int = 0,
     val maxPages: Int = 0,
     val supportedRenderers: Set<GaugeLayout> = emptySet(),
@@ -208,8 +210,36 @@ data class CapabilitySnapshot(
     val smartPageCyclingVersion: Int = 0,
     val automaticOrientationVersion: Int = 0,
     val burnoutActionsVersion: Int = 0,
-    val brakeActionsTestVersion: Int = 0
-)
+    val brakeActionsTestVersion: Int = 0,
+    val featurePolicyVersion: Int = 0
+) {
+    internal val featurePolicy: GaugeFeaturePolicy?
+        get() = if (featurePolicyVersion == 1) {
+            GaugeFeaturePolicy(dualAdapterVersion == 1, vehicleCommandsVersion == 1)
+        } else {
+            null
+        }
+}
+
+/** Intentional omissions affect the selected gauge's projection, leaving saved setup intact. */
+internal data class GaugeFeaturePolicy(
+    val allowsSecondAdapter: Boolean = true,
+    val allowsVehicleActions: Boolean = true
+) {
+    fun usesSecondAdapter(requested: Boolean): Boolean = allowsSecondAdapter && requested
+
+    // Restricted firmware promotes the engine source to slot zero even in a TCM-first document.
+    fun sourceIndices(stored: Map<String, Int>): Map<String, Int> = if (!allowsSecondAdapter && stored.size == 2) {
+        mapOf("ECM" to 0)
+    } else {
+        stored
+    }
+
+    fun project(dashboard: Draft, actions: List<PageAction>): Draft = dashboard.copy(
+        source = "ECM",
+        actions = if (allowsVehicleActions) actions else actions.filter { it.type == PageActionType.JumpPage }
+    )
+}
 
 data class GaugeSavedSnapshot(val readingIndex: Int, val rotation: Int, val revision: Long)
 

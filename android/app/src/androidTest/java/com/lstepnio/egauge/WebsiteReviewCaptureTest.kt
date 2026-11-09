@@ -173,7 +173,7 @@ class WebsiteReviewCaptureTest {
                 {}
             )
 
-            "car" -> CarScreen(car, {}, {}, {}, currentAlerts = listOf(CarAttentionAlert("coolant", "Coolant above your limit", "108 °C · Limit 105 °C", 3)), hasRecordedHistory = true)
+            "car" -> CarScreen(car, {}, {}, { _, _ -> }, currentAlerts = listOf(CarAttentionAlert("coolant", "Coolant above your limit", "108 °C · Limit 105 °C", 3)), hasRecordedHistory = true)
 
             "settings" -> SettingsScreen(SettingsUiState("eGauge", true, 0, true, false, true, false, BuildConfig.VERSION_NAME, emptyList(), displaySettingsVersion = 3, brightness = 80, cycleSeconds = 10, gauges = listOf(GaugeUi("example", "eGauge", "Example car", "Engine")), selectedGaugeId = "example", smartCycleSupported = true, autoOrientationSupported = true, orientationProtocolSupported = true), {}, {}, {}, {}, { _, _ -> }, {}, {}, {})
 

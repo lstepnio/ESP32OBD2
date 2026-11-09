@@ -26,7 +26,8 @@ fun HomeScreen(
     onEditPage: (Int) -> Unit = {},
     onUpdates: () -> Unit = {},
     onActionPages: () -> Unit = {},
-    canEditActionPages: Boolean = false
+    canEditActionPages: Boolean = false,
+    onGesture: () -> Unit = {}
 ) {
     val pager = rememberPagerState(pageCount = { state.pages.size })
     val scope = rememberCoroutineScope()
@@ -97,7 +98,11 @@ fun HomeScreen(
                 ) {
                     StatusCard(state.status)
                 }
-                SettingsRow("Action pages", "Air up, Winch and ABS + TCS", canEditActionPages, onActionPages)
+                if (state.vehicleActionsAllowed) {
+                    SettingsRow("Action pages", "Air up, Winch and ABS + TCS", canEditActionPages, onActionPages)
+                } else {
+                    SettingsRow("Gesture action", "Swipe up to jump to a page", canEditActionPages, onGesture)
+                }
                 PrimaryAction(state.primaryLabel, onPrimary, enabled = !state.busy)
                 if (state.primaryAction != HomeAction.Customize) {
                     OutlinedButton(onCustomize, Modifier.fillMaxWidth().heightIn(min = 48.dp)) {

@@ -5,6 +5,7 @@
 #include "cJSON.h"
 #include "esp_heap_caps.h"
 #include "config_runtime.h"
+#include "platform_config.h"
 #include "config_store.h"
 #include "config_trial.h"
 #include "config_document.h"
@@ -67,6 +68,21 @@ static bool renderer_value(const char *name, runtime_renderer_t *out)
         }
     }
     return false;
+}
+
+/* Admit only the standard narrowband voltage component. Keep the second response byte
+ * in the framing check even though the decoder consumes only the first. */
+static bool narrowband_voltage(unsigned     pid,
+                               const cJSON *item,
+                               const cJSON *response,
+                               const cJSON *decoder,
+                               const cJSON *range)
+{
+    return pid >= 0x14 && pid <= 0x1B && field(response, "minPayloadBytes")->valueint == 2 &&
+           field(decoder, "byteLength")->valueint == 1 && !cJSON_IsTrue(field(decoder, "signed")) &&
+           field(decoder, "numerator")->valueint == 1 && field(decoder, "denominator")->valueint == 200 &&
+           field(decoder, "offset")->valuedouble == 0 && !strcmp(field(item, "unit")->valuestring, "V") &&
+           field(range, "min")->valuedouble == 0 && field(range, "max")->valuedouble == 1.275;
 }
 
 static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *out)
@@ -160,6 +176,7 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
         const cJSON *response     = field(item, "response");
         const char  *identifier   = field(request, "identifier")->valuestring;
         unsigned     source_index = 0;
+        unsigned     pid_number   = strtoul(identifier, NULL, 16);
         while (source_index < out->source_count &&
                strcmp(field(item, "sourceId")->valuestring, out->sources[source_index].id))
             ++source_index;
@@ -188,7 +205,8 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
                  strcmp(field(request, "service")->valuestring, "01") ||
                  strcmp(field(request, "route")->valuestring, "functional") || strlen(identifier) != 2 ||
                  !strcmp(identifier, "01") ||
-                 field(response, "minPayloadBytes")->valueint != field(decoder, "byteLength")->valueint)
+                 (field(response, "minPayloadBytes")->valueint != field(decoder, "byteLength")->valueint &&
+                  !narrowband_voltage(pid_number, item, response, decoder, range)))
             goto done;
         runtime_pid_t *pid = &out->pids[out->pid_count++];
         if (!copy_text(pid->id, sizeof(pid->id), field(item, "id")) ||
@@ -197,7 +215,7 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
             goto done;
         pid->source_index = source_index;
         pid->service      = enhanced ? 0x22 : 0x01;
-        pid->obd.pid      = strtoul(identifier, NULL, 16);
+        pid->obd.pid      = pid_number;
         pid->responder    = strtoul(field(request, "responseId")->valuestring, NULL, 16);
         for (unsigned previous = 0; previous + 1 < out->pid_count; ++previous)
             if (out->pids[previous].obd.pid == pid->obd.pid)
@@ -369,6 +387,8 @@ esp_err_t config_runtime_validate(const esp_partition_t *partition,
     if (!candidate)
         return ESP_ERR_NO_MEM;
     esp_err_t err = compile_partition(partition, document_offset, length, candidate);
+    if (err == ESP_OK && !platform_config_accepts(candidate))
+        err = ESP_ERR_NOT_SUPPORTED;
     heap_caps_free(candidate);
     return err;
 }
@@ -380,7 +400,11 @@ static esp_err_t compile_record(const config_store_record_t *record, config_runt
         return ESP_ERR_NO_MEM;
     esp_err_t err = config_store_read_record(record, 0, bytes, record->length);
     if (err == ESP_OK)
+    {
         err = compile_bytes(bytes, record->length, out);
+        if (err == ESP_OK)
+            platform_config_apply(out);
+    }
     heap_caps_free(bytes);
     return err;
 }

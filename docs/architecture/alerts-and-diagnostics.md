@@ -180,8 +180,8 @@ dependency, lookup telemetry, new permission, firmware/protocol change or catalo
 
 ### Reference inventory and coverage
 
-Reviewed 2026-10-19: 20 common standardized definitions plus 35 FCA transmission
-reference definitions, 55 distinct five-character codes. The latter covers the
+Reviewed 2026-11-09: 32 common standardized definitions plus 35 FCA transmission
+reference definitions, 67 distinct five-character codes. The latter covers the
 complete TCU park-related index in the cited PE15-030 enclosure, the listed codes
 in TSB 21-009-20, and two additional 850RE conditions. It is **not** a complete
 8HP70 calibration list, universal ZF database, or validated JSS/PCS repair guide.
@@ -193,6 +193,9 @@ never truncate, pad or reinterpret them through this lookup.
 | [Ford PCED diagnostic descriptions](https://www.fordservicecontent.dealerconnection.com/pubs/content/~WVX2/~MUS~LEN/14/VX24002.HTM) | P0300/P0301..P0310, P0171/P0172/P0174/P0175, P0420/P0430 |
 | [Ford 2018 gasoline OBD summary](https://www.fordservicecontent.com/Ford_Content/catalog/motorcraft/OBDSM1802-2018.pdf) | P0128 thermostat condition |
 | [Ford 2017 diesel OBD summary](https://www.fordservicecontent.com/ford_content/catalog/motorcraft/DOBDSM1701.pdf) | U0121/U0140 communication conditions |
+| [Ford 2012 gasoline OBD summary](https://www.fordservicecontent.com/ford_content/catalog/motorcraft/OBDSM1201_16.pdf) | P0101, P0130–P0132 and P0506/P0507 |
+| [Ford 2024–2025 gasoline OBD summary](https://www.fordservicecontent.com/Ford_Content/catalog/motorcraft/OBD_Operation_Summary_to_Gasoline_MY_2024_2025.pdf) | P0442/P0443 and P0455–P0457 |
+| [Stellantis STAR publication](https://static.nhtsa.gov/odi/tsbs/2023/MC-10241004-9999.pdf) | P0700 transmission warning-lamp request; use the transmission controller's own codes |
 | [FCA PE15-030, Enclosure 6](https://static.nhtsa.gov/odi/inv/2015/INRD-PE15030-64026.pdf) | 14 TCU park-related codes in the 8HP70/845RE index; ESM-only suffix-specific entries excluded |
 | [FCA TSB 21-009-20](https://static.nhtsa.gov/odi/tsbs/2020/MC-10173360-9999.pdf) | 19 listed 8HP75 conditions, including P1DF3; a definition reference, not an applicable repair instruction for the swap |
 | [Stellantis TSB 21-022-25](https://static.nhtsa.gov/odi/tsbs/2025/MC-11015662-0001.pdf) | 850RE P1DB7/P0701 reference meanings |

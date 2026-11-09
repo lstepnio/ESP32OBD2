@@ -60,6 +60,37 @@ def vehicle_report(database: sqlite3.Connection, key: str) -> dict:
     }
 
 
+def module_coverage(database: sqlite3.Connection, report: dict) -> dict:
+    """Count variant resources by folder without assigning them to an installed controller."""
+    modules = []
+    for module in report["modules"]:
+        folder = module["Folder"]
+        counts = {
+            row["category"]: {"variants": row["variants"], "records": row["records"]}
+            for row in database.execute(
+                """SELECT category, COUNT(*) AS variants, SUM(item_count) AS records
+                   FROM resources WHERE module = ? AND category IN ('LiveData', 'DTC')
+                   GROUP BY category""",
+                (folder,),
+            )
+        }
+        modules.append(
+            {
+                "module": folder,
+                "requestId": module.get("RequestHeaderId"),
+                "responseId": module.get("RespondeHeaderId"),
+                "diagnosticSessionRequired": module.get("DiagnosticSessionRequired"),
+                "liveData": counts.get("LiveData", {"variants": 0, "records": 0}),
+                "dtc": counts.get("DTC", {"variants": 0, "records": 0}),
+            }
+        )
+    return {
+        "vehicle": report["vehicle"]["ShortName"],
+        "scope": "Archive candidates across module variants. Counts include duplicate definitions.",
+        "modules": modules,
+    }
+
+
 def translated_labels(
     database: sqlite3.Connection, module: str | None, term: str
 ) -> dict[str, str]:
@@ -164,6 +195,11 @@ def main() -> None:
         "vehicle", help="Show the candidate module and adaptation inventory"
     )
     vehicle.add_argument("key", help="Vehicle short name or full name")
+    vehicle.add_argument(
+        "--coverage",
+        action="store_true",
+        help="Count live-data and DTC variants without exporting payloads",
+    )
     vehicle.add_argument("--output", type=Path, help="Write JSON report to a local file")
     find = commands.add_parser("search", help="Search indexed records, one JSON object per line")
     for field in ("category", "module", "mode", "pid", "dtc", "name"):
@@ -176,6 +212,8 @@ def main() -> None:
     try:
         if args.operation == "vehicle":
             report = vehicle_report(database, args.key)
+            if args.coverage:
+                report = module_coverage(database, report)
             rendered = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
             if args.output:
                 args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -84,6 +84,9 @@ ui_t *ui_init(ui_page_t const    *page,
               ui_touch_callback_t touch_cb,
               bool                pairing_required,
               bool                imperial_units);
+/* Only used by the restricted OTA trial, before normal input or adapters start. */
+lv_obj_t *ui_show_abs_record_discard(int64_t deadline_us);
+bool      ui_abs_record_discard_confirmed(void);
 /* Bounded latest-value mailbox. Legacy/test values are unscoped. Production
  * values require the exact source scope armed by its worker. Observations use
  * monotonic milliseconds and retain their original age across page changes. */

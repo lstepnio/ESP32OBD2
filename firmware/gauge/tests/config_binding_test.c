@@ -435,6 +435,15 @@ int main(int argc, char **argv)
             assert(!pid_decoder_eval(&runtime.pids[0].obd.decoder, payload, runtime.pids[0].obd.decoder.byte_length - 1,
                                      &value));
         }
+        if (!strncmp(id, "engine.o2s", strlen("engine.o2s")))
+        {
+            assert(runtime.pids[0].obd.len == 2 && runtime.pids[0].obd.decoder.byte_length == 1);
+            cJSON_ReplaceItemInObject(one_definition, "unit", cJSON_CreateString("mV"));
+            set(selected);
+            assert(validate() == ESP_OK);
+            assert(config_runtime_validate(&partition, 0, document_length, NULL) == ESP_ERR_NOT_SUPPORTED);
+            cJSON_ReplaceItemInObject(one_definition, "unit", cJSON_CreateString("V"));
+        }
         if (is_gear)
         {
             cJSON_SetNumberValue(cJSON_GetObjectItem(rule, "warning"), 12);
@@ -454,7 +463,7 @@ int main(int argc, char **argv)
         cJSON_Delete(selected);
         ++catalog_count;
     }
-    assert(catalog_count == 55);
+    assert(catalog_count == 63);
     printf("%u catalog definitions and alerts compiled and vectors decoded\n", catalog_count);
     cJSON_Delete(asset);
     free(document);

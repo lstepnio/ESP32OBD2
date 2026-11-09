@@ -7,6 +7,7 @@ third parties building already published source. New boards default to private.
 
 import argparse
 import json
+import shlex
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,6 +49,25 @@ def require_public_firmware(policy, board, channel, repository):
         raise ValueError(f"Public firmware channel is not approved: {channel}")
 
 
+def require_public_build(build):
+    commands = json.loads((Path(build) / "compile_commands.json").read_text())
+    components = [
+        entry
+        for entry in commands
+        if Path(entry["file"]).as_posix().endswith("/main/src/ble_companion.c")
+    ]
+    if len(components) != 1:
+        raise ValueError("Cannot identify the public companion build")
+    entry = components[0]
+    arguments = entry["arguments"] if "arguments" in entry else shlex.split(entry["command"])
+    for name in ("DUAL_ADAPTER", "SMART_CYCLE", "VEHICLE_ACTIONS"):
+        define = f"-DEGAUGE_FEATURE_{name}"
+        if [value for value in arguments if value == define or value.startswith(define + "=")] != [
+            define + "=0"
+        ]:
+            raise ValueError(f"Public firmware requires {name} off")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -55,12 +75,15 @@ def main():
     mode.add_argument("--board")
     parser.add_argument("--channel", default="development")
     parser.add_argument("--repository", default="lstepnio/ESP32OBD2")
+    parser.add_argument("--build-dir", type=Path)
     args = parser.parse_args()
     try:
         policy = load_policy()
         if args.board:
             require_public_firmware(policy, args.board, args.channel, args.repository)
-    except (ValueError, OSError) as error:
+        if args.build_dir:
+            require_public_build(args.build_dir)
+    except (ValueError, OSError, KeyError, TypeError) as error:
         parser.exit(1, f"Platform policy: {error}\n")
     print("PASS: public firmware remains limited to the reference board")
 

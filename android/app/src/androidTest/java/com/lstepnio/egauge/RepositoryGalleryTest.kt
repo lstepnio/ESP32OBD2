@@ -75,7 +75,7 @@ class RepositoryGalleryTest {
                                             ),
                                             {},
                                             {},
-                                            {},
+                                            { _, _ -> },
                                             currentAlerts = listOf(CarAttentionAlert("coolant", "Coolant above your limit", "248 °F · Limit 230 °F", 3))
                                         )
                                     } else {

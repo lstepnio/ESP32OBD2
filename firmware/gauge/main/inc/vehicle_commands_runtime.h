@@ -5,6 +5,11 @@
 #include "esp_err.h"
 
 esp_err_t vehicle_commands_runtime_init(const config_runtime_t *runtime);
+/* Boot-only check before an OTA trial can replace a vehicle recovery build. */
+bool vehicle_commands_runtime_restriction_conflict(void);
+/* Boot only, before workers start. Discard is permitted only after local confirmation. */
+bool vehicle_commands_runtime_abs_discard_allowed(void);
+bool vehicle_commands_runtime_discard_abs_record(void);
 /* Authenticated App and physical shortcut/menu both enqueue typed intents here.
  * Queue admission never performs flash or adapter IO on the caller's thread. */
 bool   vehicle_commands_runtime_submit(const uint8_t *bytes, size_t length);

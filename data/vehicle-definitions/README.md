@@ -6,7 +6,7 @@ The [Jeep Wrangler JK report](vehicles/jeep/wrangler-jk.json) provides the first
 
 The [JK handler inventory](vehicles/jeep/wrangler-jk-handler-inventory.json) preserves static method and command-literal findings that are outside the embedded JSON definitions. The [analysis notes](../../docs/vehicles/jeep/jk-handler-analysis.md) distinguish those fragments from verified vehicle procedures.
 
-The manifest retains the package provenance, input hashes, and the repository owner's statement that public redistribution is permitted. The underlying license documentation has not been independently reviewed. These records are candidate research data and do not establish compatibility with any vehicle. In particular, activation and write records are fragments of diagnostic behavior, not safe standalone procedures. Nothing in this archive is enabled by eGauge.
+The manifest retains the package provenance, input hashes, and the repository owner's statement that public redistribution is permitted. The underlying license documentation has not been independently reviewed. The archive lists candidate definitions by variant. The [JK coverage record](../../docs/vehicles/jeep/reading-coverage.md) separates the captured Hemi and JSS evidence from the remaining variants. In particular, activation and write records are fragments of diagnostic behavior, not safe standalone procedures. The runtime enables individually reviewed definitions through the reading catalog.
 
 To inspect one shard locally:
 

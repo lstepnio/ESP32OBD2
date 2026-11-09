@@ -1,4 +1,5 @@
 #include "vehicle_commands_runtime.h"
+#include "platform_features.h"
 #include "adapter_role_policy.h"
 #include "vehicle_idle_coolant.h"
 #include "worker_health.h"
@@ -61,6 +62,7 @@ _Static_assert(CONFIG_ESP_MAIN_TASK_STACK_SIZE >= 4608, "Review the measured mai
 #include "ota_transfer.h"
 #include "wifi_bulk.h"
 #include "esp_ota_ops.h"
+#include "esp_timer.h"
 #include "transfer_gate.h"
 #include "adapter_registry.h"
 #include "adapter_status.h"
@@ -574,6 +576,25 @@ static bool ota_trial_pending(void)
     return running && esp_ota_get_state_partition(running, &state) == ESP_OK && state == ESP_OTA_IMG_PENDING_VERIFY;
 }
 
+static bool confirm_abs_record_discard(void)
+{
+    if (!lvgl_port_lock(100))
+        return false;
+    int64_t   deadline = esp_timer_get_time() + INT64_C(40000000);
+    lv_obj_t *prompt   = ui_show_abs_record_discard(deadline);
+    lvgl_port_unlock();
+    if (!prompt)
+        return false;
+    while (!ui_abs_record_discard_confirmed() && esp_timer_get_time() < deadline)
+        vTaskDelay(pdMS_TO_TICKS(25));
+    if (!lvgl_port_lock(100))
+        return false;
+    bool confirmed = ui_abs_record_discard_confirmed();
+    lv_obj_delete(prompt);
+    lvgl_port_unlock();
+    return confirmed;
+}
+
 static void boot_health_task(void *arg)
 {
     (void)arg;
@@ -1074,7 +1095,7 @@ static void obd_task(void *arg)
             continue;
         poll_pid_policy_t policies[POLL_SCHEDULER_MAX_PIDS];
         unsigned          selected = atomic_load(&g_selected_page);
-        unsigned          next     = display_settings_snapshot().smart_cycle && g_runtime
+        unsigned          next     = EGAUGE_FEATURE_SMART_CYCLE && display_settings_snapshot().smart_cycle && g_runtime
                                          ? atomic_load(&g_upcoming_page) % page_count()
                                          : (selected + 1) % page_count();
         bool              cycling  = display_settings_snapshot().cycle_seconds != 0;
@@ -1438,6 +1459,17 @@ void app_main(void)
     ESP_ERROR_CHECK(alert_runtime_init(g_runtime ? g_running_config_record.revision : 0));
     ESP_ERROR_CHECK(diagnostic_clear_init());
     ESP_ERROR_CHECK(vehicle_commands_runtime_init(g_runtime));
+    if (vehicle_commands_runtime_restriction_conflict() && ota_trial_pending())
+    {
+        bool discard = vehicle_commands_runtime_abs_discard_allowed() && confirm_abs_record_discard();
+        if (!discard || !vehicle_commands_runtime_discard_abs_record())
+        {
+            ESP_LOGW(TAG, "Vehicle recovery record retained; rolling back restricted firmware trial");
+            ESP_ERROR_CHECK(esp_ota_mark_app_invalid_rollback_and_reboot());
+            return;
+        }
+        ESP_LOGW(TAG, "Owner discarded the legacy ABS + TCS record during the restricted firmware trial");
+    }
     alert_engine_set_sink(alert_runtime_observe);
     if (g_runtime)
     {
@@ -1529,7 +1561,8 @@ void app_main(void)
             diagnostics_endpoint_configure(e, transport, g_running_config_record.revision,
                                            g_runtime && g_runtime->sources[transport].simulated);
     }
-    smart_configure();
+    if (EGAUGE_FEATURE_SMART_CYCLE)
+        smart_configure();
     atomic_store(&g_upcoming_page, (atomic_load(&g_selected_page) + 1U) % page_count());
     init_obd_task(ui);
     BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 4096, ui, 5, NULL);
@@ -1756,12 +1789,13 @@ void app_main(void)
         if (before_reason != cycling.reason)
             ESP_LOGI(TAG, "page cycle reason=%u interval_s=%u", cycling.reason, cycle.cycle_seconds);
         smart_page_decision_t choice = {0};
-        bool                  smart  = cycle.smart_cycle && g_runtime;
+        bool                  smart  = EGAUGE_FEATURE_SMART_CYCLE && cycle.smart_cycle && g_runtime;
         if (smart)
             cycle_due = smart_select(ui, cycle, selected_before, activity_before, cycling.reason, now_ms, &choice);
         else
         {
-            smart_page_suspend(&smart_pages);
+            if (EGAUGE_FEATURE_SMART_CYCLE)
+                smart_page_suspend(&smart_pages);
             atomic_store(&g_upcoming_page, (atomic_load(&g_selected_page) + 1U) % page_count());
         }
         if (cycle_due && lvgl_port_lock(0))

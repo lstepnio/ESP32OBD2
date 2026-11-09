@@ -24,6 +24,15 @@ if(protocol_board_name_length GREATER 29 OR NOT EGAUGE_PROTOCOL_BOARD_NAME MATCH
     message(FATAL_ERROR "EGAUGE_PROTOCOL_BOARD_NAME must be a 1-29 byte ASCII board label")
 endif()
 
+# Public firmware defaults. Private product projects opt in to each feature.
+option(EGAUGE_FEATURE_DUAL_ADAPTER "Enable a separate child OBD2 adapter" OFF)
+option(EGAUGE_FEATURE_SMART_CYCLE "Enable reading-driven automatic page cycling" OFF)
+option(EGAUGE_FEATURE_VEHICLE_ACTIONS "Enable vehicle action pages and Start" OFF)
+if((CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST OR CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST)
+    AND NOT EGAUGE_FEATURE_VEHICLE_ACTIONS)
+    message(FATAL_ERROR "Owner action candidates require EGAUGE_FEATURE_VEHICLE_ACTIONS")
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/../cmake/presentation.cmake")
 
 idf_component_register(
@@ -106,4 +115,7 @@ idf_component_register(
 target_compile_options(${COMPONENT_TARGET} PRIVATE -Wall -Wextra -Wshadow -Werror)
 target_compile_definitions(${COMPONENT_TARGET} PRIVATE
     LV_LVGL_H_INCLUDE_SIMPLE=1
-    EGAUGE_PROTOCOL_BOARD_NAME="${EGAUGE_PROTOCOL_BOARD_NAME}")
+    EGAUGE_PROTOCOL_BOARD_NAME="${EGAUGE_PROTOCOL_BOARD_NAME}"
+    EGAUGE_FEATURE_DUAL_ADAPTER=$<BOOL:${EGAUGE_FEATURE_DUAL_ADAPTER}>
+    EGAUGE_FEATURE_SMART_CYCLE=$<BOOL:${EGAUGE_FEATURE_SMART_CYCLE}>
+    EGAUGE_FEATURE_VEHICLE_ACTIONS=$<BOOL:${EGAUGE_FEATURE_VEHICLE_ACTIONS}>)

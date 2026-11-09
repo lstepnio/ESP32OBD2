@@ -1,4 +1,5 @@
 #include "vehicle_commands_runtime.h"
+#include "platform_features.h"
 #include "adapter_status.h"
 #include "transfer_gate.h"
 #include "freertos/queue.h"
@@ -619,6 +620,54 @@ static void owner_brake_runtime_paths(void)
 
 int main(void)
 {
+    if (!EGAUGE_FEATURE_VEHICLE_ACTIONS)
+    {
+        setup(false);
+        phase(VEHICLE_READY);
+        assert(!vehicle_commands_runtime_restriction_conflict());
+        assert(!vehicle_commands_runtime_intent(VEHICLE_IDLE, false, 1, 300));
+        assert(!vehicle_commands_runtime_pending() && starts == 0);
+        vehicle_command_marker_t retained = {.operation = {1}, .revision = {7}, .identity = {1}, .mask = 1};
+        journal_length                    = vehicle_command_marker_encode(&retained, journal);
+        stored                            = true;
+        reboot();
+        assert(vehicle_commands_runtime_restriction_conflict());
+        assert(!vehicle_commands_runtime_abs_discard_allowed());
+        assert(!vehicle_commands_runtime_discard_abs_record() && journal[1] == 1);
+
+        retained.operation[1] = retained.revision[1] = retained.identity[1] = 1;
+        retained.mask                                                       = 3;
+        journal_length = vehicle_command_marker_encode(&retained, journal);
+        reboot();
+        assert(vehicle_commands_runtime_restriction_conflict());
+        assert(!vehicle_commands_runtime_abs_discard_allowed());
+        assert(!vehicle_commands_runtime_discard_abs_record() && journal[1] == 3);
+
+        retained.mask  = 2;
+        journal_length = vehicle_command_marker_encode(&retained, journal);
+        fail_read_open = true;
+        reboot();
+        assert(vehicle_commands_runtime_restriction_conflict());
+        assert(!vehicle_commands_runtime_discard_abs_record() && journal[1] == 2);
+
+        fail_read_open = false;
+        reboot();
+        assert(vehicle_commands_runtime_abs_discard_allowed());
+        fail_commit = true;
+        assert(!vehicle_commands_runtime_discard_abs_record());
+        assert(vehicle_commands_runtime_restriction_conflict() && journal[1] == 2);
+        fail_commit = false;
+        assert(vehicle_commands_runtime_discard_abs_record());
+        assert(!vehicle_commands_runtime_restriction_conflict() && journal[1] == 0);
+        vehicle_command_marker_t cleared;
+        assert(vehicle_command_marker_decode(journal, journal_length, &cleared));
+        assert(!cleared.operation[1] && !cleared.revision[1] && !cleared.identity[1]);
+        reboot();
+        assert(!vehicle_commands_runtime_restriction_conflict());
+        assert(!vehicle_commands_runtime_discard_abs_record());
+        assert(!starts && !returns && !vehicle_commands_runtime_pending());
+        return 0;
+    }
     assert(vehicle_commands_runtime_poll_reserve(1, 1500, 0) == 0);
     setup(true);
     phase(VEHICLE_UNAVAILABLE);
