@@ -1,4 +1,4 @@
 {
-  "lcdCheckout": null,
-  "oledCheckout": null
+  "lcd": { "amountCents": 7500, "checkout": null },
+  "oled": { "amountCents": 19900, "checkout": null }
 }

@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#151a17">
-  <meta name="description" content="Free gauge software for affordable hardware. Build your own vehicle display, explore the working App and firmware, or bring us a custom dashboard and integration project.">
+  <meta name="description" content="A customizable vehicle gauge with free LCD firmware and an Android companion. Compare LCD and OLED options, explore the displays, or request a custom build.">
   <meta name="robots" content="noindex, nofollow">
   <title>eGauge | Your vehicle. Your view.</title>
   <meta property="og:type" content="website">
   <meta property="og:title" content="eGauge | Your vehicle. Your view.">
-  <meta property="og:description" content="Free gauge software for affordable hardware. Build your own vehicle display, explore the working App and firmware, or bring us a custom dashboard and integration project.">
+  <meta property="og:description" content="A customizable vehicle gauge with free LCD firmware and an Android companion. Compare LCD and OLED options, explore the displays, or request a custom build.">
   <meta property="og:image" content="{{SOCIAL_IMAGE}}">
   <meta property="og:image:alt" content="eGauge circular display and Android companion App with example readings">
   <link rel="icon" href="{{ASSET_PREFIX}}/favicon.svg" type="image/svg+xml">
@@ -20,184 +20,184 @@
   <a class="skip" href="#main">Skip to content</a>
   <header class="header wrap">
     <a class="brand" href="#" aria-label="eGauge home"><span class="brand-symbol" aria-hidden="true"></span>eGauge<span class="brand-dot">.</span></a>
-    <nav aria-label="Main navigation"><a href="#experience">The gauge</a><a href="#app">Android App</a><a href="#hardware">Shop</a><a href="#roadmap">Progress</a><a href="/recovery/">Recovery</a><a href="https://github.com/lstepnio/ESP32OBD2">GitHub ↗</a></nav>
-    <a class="nav-cta" href="/recovery/">Try it free <span aria-hidden="true">↗</span></a>
+    <nav aria-label="Main navigation">
+      <a href="#hardware">Shop</a>
+      <a href="#experience">The gauge</a>
+      <a href="#app">Android App</a>
+      <a href="#roadmap">Progress</a>
+      <a href="#custom-projects">Contact</a>
+    </nav>
+    <a class="nav-cta" href="/recovery/">Downloads &amp; recovery <span aria-hidden="true">↗</span></a>
   </header>
   <main id="main">
     <section class="hero wrap" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="status-dot"></span> AUTONOMOUS GAUGE. ANDROID COMPANION.</p>
+        <p class="eyebrow"><span class="status-dot"></span> A CUSTOMIZABLE OBD-II GAUGE</p>
         <h1 id="hero-title">Your vehicle.<br>Your <span class="serif">view.</span></h1>
         <p class="hero-description">{{CLAIM_CORE}}</p>
-        <div class="hero-actions"><a class="button primary" href="/recovery/">Try it free <span aria-hidden="true">↗</span></a><a class="button secondary" href="#preview">Explore the display <span aria-hidden="true">↗</span></a></div>
-        <p class="quiet hero-note">Free LCD firmware. <a href="#hardware">Compare LCD and OLED ↗</a></p>
+        <div class="hero-actions">
+          <a class="button primary" href="#hardware">Shop eGauge <span aria-hidden="true">↗</span></a>
+          <a class="button secondary" href="/recovery/">Get free LCD firmware <span aria-hidden="true">↗</span></a>
+        </div>
       </div>
-      <div class="hero-art" aria-label="eGauge arc layout showing coolant temperature">
+      <div class="hero-art">
         <span class="art-orbit orbit-one" aria-hidden="true"></span><span class="art-orbit orbit-two" aria-hidden="true"></span>
-        <div class="art-label"><span class="tiny-cross" aria-hidden="true">+</span> YOUR READINGS. YOUR LAYOUT.</div>
         <div class="gauge-shell hero-gauge"><img class="firmware-screen" src="{{ASSET_PREFIX}}/gauge/arc.png" width="240" height="240" alt="Arc layout, coolant temperature 92 degrees Celsius"></div>
-        <div class="art-bottom"><span>RUNS WITHOUT YOUR PHONE</span><span class="art-caption">Round display · Configurable pages</span></div>
       </div>
     </section>
-    <div class="principles"><div class="wrap principles-inner"><span>AUTONOMOUS BY DESIGN</span><span aria-hidden="true">+</span><span>YOUR PAGES &amp; ALERTS</span><span aria-hidden="true">+</span><span>SET UP WITH ANDROID</span></div></div>
-    <section id="experience" class="experience wrap section-space" aria-labelledby="experience-title">
-      <div class="section-heading"><p class="eyebrow">01 / BUILT AND RUNNING</p><h2 id="experience-title">More connected.<br>Less complicated.</h2><p>Choose the information that belongs on your dash. Save it on the gauge, then let the display handle readings, alerts, and recovery on its own.</p></div>
-      <div class="feature-grid">
-        <article class="feature"><div class="feature-art art-pages" aria-hidden="true"><span class="mini-circle back-circle"></span><span class="mini-circle front-circle">90<span>°C</span></span><span class="feature-plus">+</span></div><span class="feature-number">01</span><h3>Your readings.</h3><p>Choose from a catalog of {{READING_COUNT}} readings, including common engine values and the tested JSS transmission temperature and gear. What is available depends on your vehicle and adapter.</p></article>
-        <article class="feature"><div class="feature-art art-layout" aria-hidden="true"><span class="layout-circle"><i></i><b>2,450</b><small>RPM</small></span><span class="layout-swatch"></span></div><span class="feature-number">02</span><h3>Your style.</h3><p>{{CLAIM_LAYOUTS}}</p></article>
-        <article class="feature"><div class="feature-art art-phone" aria-hidden="true"><span class="mini-phone"><span class="phone-top"></span><span class="phone-dial"></span><span class="phone-lines"></span><span class="phone-button"></span></span><span class="connection-dot"></span><span class="connection-dot"></span><span class="connection-ring"></span></div><span class="feature-number">03</span><h3>Your setup.</h3><p>{{CLAIM_ANDROID}}</p></article>
-      </div>
-    </section>
-    <section class="preview-section" id="preview" aria-labelledby="preview-title">
-      <div class="wrap preview-grid">
-        <div class="preview-copy"><p class="eyebrow">02 / FIND YOUR VIEW</p><h2 id="preview-title">A little circle.<br>A lot of possibility.</h2><p>One clear number, a changing trend, or two readings together. Explore the current gauge layouts, including Dual + arc for two readings with a visual scale.</p>
-          <fieldset><legend>Choose a screen</legend><div class="choice-row" id="screen-options">
-            {{SCREEN_CHOICES}}
-          </div></fieldset>
-          <p class="preview-note">Available readings depend on the vehicle and adapter. The gauge treats missing data as unavailable. It does not replace a vehicle's instruments or diagnose a fault by itself.</p>
-        </div>
-        <div class="preview-stage"><div class="stage-top"><span class="status-dot"></span> eGAUGE DISPLAY <span>240 × 240</span></div>
-          <div class="gauge-shell display-explorer"><img id="screen-image" class="firmware-screen" src="{{ASSET_PREFIX}}/gauge/numeric.png" width="240" height="240" alt="Numeric layout showing engine speed"></div>
-          <p class="stage-caption" id="screen-caption" aria-live="polite">Numeric · One reading, at a glance.</p>
-          <p class="screen-provenance">Production interface with example data, rendered at the panel’s native 240 × 240 resolution.</p>
-        </div>
-      </div>
-    </section>
-    <section class="app-section wrap section-space" id="app" aria-labelledby="app-title">
-      <div class="section-heading"><p class="eyebrow">03 / THE ANDROID APP</p><h2 id="app-title">Your setup.<br>One place.</h2><p>Make it your dashboard: choose pages, set alerts, adjust the display and see your vehicle’s fault information in one place.</p></div>
-      <div class="app-gallery">
-        <figure><div class="phone-frame"><img src="{{ASSET_PREFIX}}/app/gauge.png" width="390" height="844" loading="lazy" alt="Gauge tab with configured pages and Customize action"></div><figcaption><strong>Gauge</strong><span>Your pages, layouts, and reading alerts.</span></figcaption></figure>
-        <figure><div class="phone-frame"><img src="{{ASSET_PREFIX}}/app/car.png" width="390" height="844" loading="lazy" alt="Car tab with current vehicle attention and fault information"></div><figcaption><strong>Car</strong><span>Vehicle health and faults, kept simple.</span></figcaption></figure>
-        <figure><div class="phone-frame"><img src="{{ASSET_PREFIX}}/app/settings.png" width="390" height="844" loading="lazy" alt="Settings tab with display preferences and Smart page cycling"></div><figcaption><strong>Settings</strong><span>Display preferences and optional Smart cycling.</span></figcaption></figure>
-      </div>
-      <p class="section-note screen-provenance">App screens use the production interface with example data and the ordinary Gauge, Car and Settings navigation. Advanced tools are optional.</p>
-      <aside class="compatibility-note" aria-label="Compatibility and limits"><h3>Before you start.</h3><p>Android 10 or newer, the exact <a href="#hardware">reference touch-display board and a compatible BLE OBD-II adapter</a> are required. Readings depend on the vehicle, controller and adapter; catalog entries do not establish compatibility. Auto orientation remains a candidate pending physical qualification; manual rotation is available. The gauge does not replace your vehicle’s instruments.</p></aside>
-      <div class="capability-grid">
-        <article><h3>Alerts with context.</h3><p>Set thresholds for any selectable reading, including transmission values. Threshold and check-engine events share severity, history, and context, with optional phone notifications. Phone notifications need the gauge connection and Android permission.</p></article>
-        <article><h3>One vehicle. Optional second adapter.</h3><p>Most vehicles use one OBD-II adapter. Swaps like our 5.7L Hemi Wrangler can have separate engine and transmission ports. Private gauge builds can combine those two adapters in one dashboard. The free reference build uses one adapter.</p></article>
-        <article><h3>Advanced fault filters.</h3><p>Filter expected Engine or Transmission fault codes from everyday views while preserving the original diagnostic information. The gauge hides a CEL indication only when complete, fresh checks account for all reported codes.</p></article>
-      </div>
-      <section id="platforms" class="platform-section" aria-labelledby="platform-title">
-        <h3 id="platform-title">More ways to make it yours.</h3>
-        <p class="platform-lead">{{CLAIM_PLATFORMS}}</p>
-        <div class="capability-grid platform-grid">
-          <article><h4>iPhone: the essentials.</h4><p>We’re working toward a basic iOS companion for core gauge setup and everyday use. It will have a smaller feature set than Android; some phone integrations may remain Android-only.</p></article>
-          <article><h4>Set up over USB.</h4><p>Planned browser-based configuration will let you set up core gauge functions from a supported desktop browser over USB, without a smartphone App. Today’s <a href="/recovery/">USB recovery tool</a> installs firmware; configuration is a separate feature still to come.</p></article>
-          <article><h4>More with Android.</h4><p>Android remains the fullest companion experience. Some phone integrations will remain Android-only. Police and road-alert integrations are still in development, with availability depending on the platform and provider.</p></article>
-        </div>
-      </section>
-    </section>
-    <section class="offroad-section section-space" id="offroad-actions" aria-labelledby="offroad-title">
-      <div class="wrap">
-        <div class="section-heading"><p class="eyebrow">IN DEVELOPMENT / OFF-ROAD ACTIONS</p><h2 id="offroad-title">Air up. Winch.<br>Get back to the trail.</h2><p>{{CLAIM_ACTIONS}}</p></div>
-        <div class="offroad-grid">
-          <article class="offroad-card">
-            <svg class="offroad-icon" viewBox="0 0 96 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="13" y="31" width="44" height="25" rx="10"/><path d="M23 31V17h24v14M19 56v6m32-6v6M57 43h12c13 0 13-23 22-23M29 17v-6h12v6"/><circle cx="35" cy="43" r="6"/><path d="m35 43 3-3"/></svg>
-            <p class="offroad-label">01 / ONBOARD AIR</p><h3>Air up at raised idle.</h3><p class="action-status">{{AIR_UP_STATUS}}</p><p>A four-tire preset that estimates time from starting PSI, target PSI and a measured fill. Save your usual setup or override the time for one session. This is a timer estimate, not live tire pressure. <a href="https://github.com/lstepnio/ESP32OBD2/blob/main/docs/architecture/vehicle-actions.md#four-tire-air-up-timer">Air up implementation and qualification ↗</a></p>
-          </article>
-          <article class="offroad-card">
-            <svg class="offroad-icon" viewBox="0 0 96 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="18" y="24" width="48" height="28" rx="5"/><path d="M26 21v34m10-31v28m10-28v28m10-31v34M66 38h12v13c0 10 12 10 12 1M22 57h40M14 24H8v28h10"/></svg>
-            <p class="offroad-label">02 / VEHICLE RECOVERY</p><h3>A preset for winching.</h3><p class="action-status">{{WINCH_STATUS}}</p><p>Temporary raised idle during winching, with its own duration and a clear running state. Stop the session directly from the gauge when the recovery is complete.</p>
-          </article>
-          <article class="offroad-card">
-            <svg class="offroad-icon" viewBox="0 0 96 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="48" cy="36" r="21"/><path d="M20 17a34 34 0 0 0 0 38m56-38a34 34 0 0 1 0 38M35 36h26"/></svg>
-            <p class="offroad-label">03 / OFF-ROAD CONTROL</p><h3>ABS + traction control.</h3><p class="action-status">{{ABS_TCS_STATUS}}</p><p>A deliberate, separate brake-controller operation. Private availability depends on controller restoration evidence, including restart behavior.</p>
-          </article>
-        </div>
-        <div class="offroad-note"><p>These controls are being developed on Luke’s Hemi-swapped Wrangler. Vehicle controls are reserved for private builds while controller behavior and restoration are tested.</p><p>Adjustable RPM targets and testing under compressor and winching loads come next.</p><a href="https://github.com/lstepnio/ESP32OBD2/blob/main/docs/architecture/vehicle-actions.md">Follow vehicle-action development ↗</a></div>
-      </div>
-      <div class="action-screen-examples" aria-label="Action interface examples"><figure><img class="firmware-screen" src="{{ASSET_PREFIX}}/gauge/action-ready.png" width="240" height="240" loading="lazy" alt="Air up action page with five-minute preset and Hold to start control"><figcaption>Air up preset</figcaption></figure><figure><img class="firmware-screen" src="{{ASSET_PREFIX}}/gauge/action-active.png" width="240" height="240" loading="lazy" alt="Air up running page with countdown and direct Stop control"><figcaption>Countdown and direct Stop</figcaption></figure><figure><img class="firmware-screen" src="{{ASSET_PREFIX}}/gauge/action-recovery.png" width="240" height="240" loading="lazy" alt="Air up action page with neutral Connecting status"><figcaption>Quiet connection recovery</figcaption></figure></div>
-      <div class="action-config-example"><figure class="phone-frame"><img src="{{ASSET_PREFIX}}/app/actions.png" width="1080" height="1920" loading="lazy" alt="App Action pages with Air up and Winch presets and ABS plus TCS development status"></figure><div><p class="eyebrow">SET UP IN THE APP. USE ON THE GAUGE.</p><h3>Your shortcuts.<br>Your routine.</h3><p>Choose the actions you need, arrange their order and save a duration for each idle preset. Open them with an upward swipe sequence on the gauge.</p><p>Configuration stays separate from execution. Starting an action is a deliberate interaction on the gauge, with availability matched to your vehicle.</p></div></div>
-      <p class="screen-provenance">Production action interface with example data. These views do not establish controller qualification.</p>
-    </section>
+
     <section class="wrap section-space" id="hardware" aria-labelledby="hardware-title">
       <div class="section-heading">
-        <p class="eyebrow">03 / THE eGAUGE SHOP</p>
+        <p class="eyebrow">THE eGAUGE SHOP</p>
         <h2 id="hardware-title">Pick your gauge.</h2>
-        <p>Start with free firmware on the compact LCD, or request the larger OLED bundle with private firmware preinstalled.</p>
+        <p>Flash your own LCD board with free firmware, request one preflashed, or ask about the larger OLED bundle.</p>
       </div>
       <div class="store-grid">
         <article class="store-card">
-          <div class="store-art"><img src="{{ASSET_PREFIX}}/hardware/lcd.webp" width="640" height="640" alt="Waveshare 1.28-inch round LCD development board with exposed circuit board and USB-C connector" loading="lazy"></div>
+          <div class="store-art"><img src="{{ASSET_PREFIX}}/hardware/lcd.webp" width="640" height="640" alt="Waveshare 1.28-inch round LCD development board with exposed circuit board and USB-C connector"></div>
           <div class="store-copy">
             <p class="eyebrow">FREE FIRMWARE / DIY</p>
             <h3>S3-LCD-1.28 v1</h3>
-            <p>A compact 1.28-inch color touchscreen for your everyday readings. Get a board with eGauge already installed, or buy your own board and flash the free firmware.</p>
-            <div class="store-price"><p><strong>$75 USD</strong> preflashed board</p><p>BLE OBD-II adapter sold separately.</p></div>
-            <div class="store-actions">{{LCD_ORDER}}<a href="https://www.waveshare.com/esp32-s3-touch-lcd-1.28.htm">Buy from Waveshare ↗</a><a href="/recovery/">Get free firmware and App ↗</a></div>
+            <div class="store-price">
+              <p><strong>{{LCD_PRICE}}</strong> preflashed board</p>
+              <p>BLE OBD-II adapter sold separately.</p>
+            </div>
+            <div class="store-actions">
+              {{LCD_ORDER}}
+              <div class="store-links">
+                <a href="https://www.waveshare.com/esp32-s3-touch-lcd-1.28.htm">Source your own board ↗</a>
+                <a href="/recovery/">Free firmware and Android App ↗</a>
+              </div>
+            </div>
           </div>
         </article>
         <article class="store-card" id="oled-bundle">
-          <div class="store-art store-art-oled"><img src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare 1.75-inch round AMOLED board in a black protective case" loading="lazy"></div>
+          <div class="store-art store-art-oled"><img src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare 1.75-inch round AMOLED board in a black protective case"></div>
           <div class="store-copy">
-            <p class="eyebrow">PRELOADED BUNDLE / IN DEVELOPMENT</p>
+            <p class="eyebrow">OLED BUNDLE / IN DEVELOPMENT</p>
             <h3>S3-OLED-1.75 v1</h3>
-            <p>The bundle includes an enclosed 1.75-inch AMOLED touchscreen gauge, one Vgate BLE OBD-II adapter, and the private firmware already installed. Your purchase includes the software license for the shipped major version. The gauge works offline without activation.</p>
-            <div class="store-price"><p><strong>$199 USD</strong> plus tax and shipping</p><p>Estimated lead time is about 30 days.</p></div>
-            <div class="store-actions">{{OLED_ORDER}}<a href="https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-1.75/blob/main/HARDWARE_REFERENCE.md">See the Waveshare 31262 hardware ↗</a></div>
+            <div class="store-price">
+              <p><strong>{{OLED_PRICE}}</strong> plus tax and shipping</p>
+              <p>Estimated lead time is about 30 days.</p>
+            </div>
+            <p>Enclosed AMOLED gauge, one Vgate BLE OBD-II adapter and private firmware preinstalled with the shipped major version included.</p>
+            <div class="store-actions">
+              {{OLED_ORDER}}
+              <div class="store-links">
+                <a href="https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-1.75/blob/main/HARDWARE_REFERENCE.md">View hardware specs ↗</a>
+              </div>
+            </div>
           </div>
         </article>
       </div>
       <div class="store-comparison" tabindex="0" role="region" aria-labelledby="comparison-title">
         <table>
           <caption id="comparison-title">Compare the builds</caption>
-          <thead><tr><th scope="col">Feature</th><th scope="col">LCD DIY</th><th scope="col">OLED bundle</th></tr></thead>
+          <thead><tr><th scope="col">Feature</th><th scope="col">LCD</th><th scope="col">OLED</th></tr></thead>
           <tbody>
-            <tr><th scope="row">Round touchscreen</th><td>1.28-inch LCD · 240 × 240</td><td>1.75-inch AMOLED · 466 × 466</td></tr>
-            <tr><th scope="row">Firmware</th><td>Free public download</td><td>Private firmware preinstalled. Shipped major version included.</td></tr>
-            <tr><th scope="row">Dashboard pages</th><td>5-page target</td><td>12-page target</td></tr>
-            <tr><th scope="row">Readings and alerts</th><td>Shared standard PID catalog, layouts and alerts</td><td>Shared standard PID catalog, layouts and alerts</td></tr>
-            <tr><th scope="row">OBD-II adapters</th><td>Uses one compatible BLE adapter</td><td>One BLE adapter included. Optional second adapter for a separate transmission port.</td></tr>
-            <tr><th scope="row">Page cycling</th><td>Timed</td><td>Timed and optional Smart Cycle</td></tr>
-            <tr><th scope="row">Vehicle actions</th><td>Page-jump shortcuts</td><td>Vehicle controls in development for matched setups</td></tr>
+            <tr><th scope="row">Touchscreen</th><td>1.28″ LCD<br>240 × 240</td><td>1.75″ AMOLED<br>466 × 466</td></tr>
+            <tr><th scope="row">Dashboard pages</th><td>5 planned</td><td>12 planned</td></tr>
+            <tr><th scope="row">Readings and alerts</th><td colspan="2">Shared catalog, layouts and threshold alerts</td></tr>
+            <tr><th scope="row">BLE adapters</th><td>One</td><td>One included. Optional transmission adapter.</td></tr>
+            <tr><th scope="row">Page cycling</th><td>Timed</td><td>Timed and Smart Cycle</td></tr>
+            <tr><th scope="row">Shortcuts</th><td>Page jumps</td><td><a href="#offroad-actions">Vehicle controls in development</a></td></tr>
           </tbody>
         </table>
       </div>
-      <p class="section-note">The page limits are planned for the next builds. OLED features are in private development. The first Jeep field test went well, with individual readings, control behavior and recovery still being validated. Use a compatible BLE OBD-II adapter such as the <a href="https://www.amazon.com/dp/B06XGB4873">Vgate iCar Pro BLE ↗</a>. Vehicle data availability varies.</p>
-      <p class="store-credit">Board imagery adapted from Waveshare product photography. Displays shown powered off.</p>
+      <p class="section-note">Setup requires Android 10 or later and a compatible BLE OBD-II adapter such as the <a href="https://www.amazon.com/dp/B06XGB4873">Vgate iCar Pro BLE ↗</a>. Readings depend on your vehicle and adapter. OLED features are in private development.</p>
+      <p class="store-credit">Board images adapted from Waveshare product photos.</p>
     </section>
+
+    <section class="preview-section" id="experience" aria-labelledby="preview-title">
+      <div class="wrap preview-grid" id="preview">
+        <div class="preview-copy">
+          <p class="eyebrow">THE GAUGE</p>
+          <h2 id="preview-title">Find your layout.</h2>
+          <p>{{CLAIM_LAYOUTS}} Build pages from a catalog of {{READING_COUNT}} readings.</p>
+          <fieldset><legend>Choose a screen</legend><div class="choice-row" id="screen-options">
+            {{SCREEN_CHOICES}}
+          </div></fieldset>
+        </div>
+        <div class="preview-stage">
+          <div class="stage-top"><span class="status-dot"></span> eGAUGE DISPLAY <span>240 × 240</span></div>
+          <div class="gauge-shell display-explorer"><img id="screen-image" class="firmware-screen" src="{{ASSET_PREFIX}}/gauge/numeric.png" width="240" height="240" alt="Numeric layout showing engine speed"></div>
+          <p class="stage-caption" id="screen-caption" aria-live="polite">Numeric · One reading, at a glance.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="app-section wrap section-space" id="app" aria-labelledby="app-title">
+      <div class="section-heading">
+        <p class="eyebrow">ANDROID APP</p>
+        <h2 id="app-title">Set it up from your phone.</h2>
+        <p>{{CLAIM_ANDROID}}</p>
+      </div>
+      <div class="app-gallery" tabindex="0" role="region" aria-label="Android App screens">
+        <figure><div class="phone-frame"><img src="{{ASSET_PREFIX}}/app/gauge.png" width="390" height="844" loading="lazy" alt="Gauge tab with configured pages and Customize action"></div><figcaption><strong>Gauge</strong><span>Choose pages and set alerts for your readings.</span></figcaption></figure>
+        <figure><div class="phone-frame"><img src="{{ASSET_PREFIX}}/app/car.png" width="390" height="844" loading="lazy" alt="Car tab with current vehicle attention and fault information"></div><figcaption><strong>Car</strong><span>Review check-engine events, fault codes and alert history.</span></figcaption></figure>
+        <figure><div class="phone-frame"><img src="{{ASSET_PREFIX}}/app/settings.png" width="390" height="844" loading="lazy" alt="Settings tab with display preferences and Smart page cycling"></div><figcaption><strong>Settings</strong><span>Adjust brightness, rotation and cycling.</span></figcaption></figure>
+      </div>
+      <p class="section-note">Optional phone notifications require a gauge connection and Android permission. Advanced filters can hide expected faults from everyday views while preserving the diagnostic records. <a href="/recovery/">Android App and downloads ↗</a></p>
+    </section>
+
+    <section class="offroad-section section-space" id="offroad-actions" aria-labelledby="offroad-title">
+      <div class="wrap offroad-summary">
+        <div>
+          <p class="eyebrow">PRIVATE DEVELOPMENT</p>
+          <h2 id="offroad-title">Off-road actions</h2>
+          <p>{{CLAIM_ACTIONS}}</p>
+          <dl class="action-list">
+            <div><dt>Air up</dt><dd>{{AIR_UP_STATUS}}</dd></div>
+            <div><dt>Winch</dt><dd>{{WINCH_STATUS}}</dd></div>
+            <div><dt>ABS + traction control</dt><dd>{{ABS_TCS_STATUS}}</dd></div>
+          </dl>
+          <a href="https://github.com/lstepnio/ESP32OBD2/blob/main/docs/architecture/vehicle-actions.md">Action details and qualification ↗</a>
+        </div>
+        <div class="action-screen-examples" aria-label="Action interface examples">
+          <figure><img class="firmware-screen" src="{{ASSET_PREFIX}}/gauge/action-ready.png" width="240" height="240" loading="lazy" alt="Air up action page with five-minute preset and Hold to start control"><figcaption>Air up preset</figcaption></figure>
+          <figure><img class="firmware-screen" src="{{ASSET_PREFIX}}/gauge/action-active.png" width="240" height="240" loading="lazy" alt="Air up running page with countdown and direct Stop control"><figcaption>Running countdown</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
     <section class="roadmap wrap section-space" id="roadmap" aria-labelledby="roadmap-title">
-      <div class="section-heading"><p class="eyebrow">04 / PROJECT PROGRESS</p><h2 id="roadmap-title">Working today.<br>Proving what is next.</h2><p>A working development platform, with testing kept separate from promises. Our current development vehicle is a 2010 Jeep Wrangler with a 5.7L Hemi swap, supported by Jeep Speed Shop (JSS).</p></div>
-      <div class="roadmap-grid">
-        <article><span class="roadmap-status">OBSERVED ON HARDWARE</span><h3>Engine and transmission, together</h3><p>{{CLAIM_READINGS}}</p></article>
-        <article><span class="roadmap-status">OBSERVED ON HARDWARE</span><h3>Setup and update recovery</h3><p>{{CLAIM_UPDATES}}</p></article>
-        <article><span class="roadmap-status future">NEXT IN QUALIFICATION</span><h3>More time in the vehicle</h3><p>Longer dual-adapter sessions, startup with a missing source, reading freshness, real fault and threshold alerts, live CEL filtering, and daylight and night legibility.</p></article>
-        <article><span class="roadmap-status future">PLANNED / VEHICLE PROFILES</span><h3>Next vehicles, shaped by interest.</h3><p>After the 5.7L Hemi-swapped Wrangler’s current qualification work, likely profile candidates include the Volvo C30, Lexus GX470, Toyota FJ Cruiser, a newer Subaru Crosstrek and Porsche 718 S. We have direct access to these vehicles for development. <a href="#roadmap-idea">Your interest can help set the order.</a> These are candidates, not confirmed compatibility.</p></article>
+      <div class="section-heading">
+        <p class="eyebrow">PROJECT PROGRESS</p>
+        <h2 id="roadmap-title">Where we are.</h2>
+        <p>Built by Luke around a 5.7L Hemi-swapped Wrangler with a Jeep Speed Shop transmission setup.</p>
       </div>
-      <p class="section-note">{{CLAIM_BUILD_STORY}}</p>
-      <div class="project-links"><p>Project details reviewed <time datetime="{{UPDATED_DATE}}">{{UPDATED_LABEL}}</time>.</p><a href="https://github.com/lstepnio/ESP32OBD2/blob/main/docs/current-state.md">Current state ↗</a><a href="https://github.com/lstepnio/ESP32OBD2/blob/main/docs/roadmap.md">Roadmap ↗</a><a href="https://github.com/lstepnio/ESP32OBD2/blob/main/docs/backlog.md">Backlog ↗</a></div>
-    </section>
-    <section class="availability wrap section-space" id="availability" aria-labelledby="availability-title">
-      <div class="availability-copy"><p class="eyebrow">05 / STAY IN THE LOOP</p><h2 id="availability-title">Follow the build.</h2><p>Get updates on hardware availability, vehicle profiles and new capabilities. To ask about a board or licensed bundle, <a href="#hardware">visit the shop</a>. For a tailored display or integration, <a href="#custom-form">tell us what you have in mind.</a></p><form class="interest-form" id="interest-form" action="/api/interest" method="post"><input type="hidden" name="consent_version" value="project-updates-v1"><label for="roadmap-idea" class="optional-label">What should we prioritize? <span>(optional)</span></label><textarea id="roadmap-idea" name="roadmap_idea" maxlength="500" rows="3" placeholder="Your vehicle, swap, or feature idea"></textarea><label for="interest-email">Email for project updates</label><div class="form-row"><input id="interest-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required maxlength="254"><button type="submit">Keep me posted</button></div><div class="trap" aria-hidden="true"><label for="interest-website">Website</label><input id="interest-website" name="website" type="text" tabindex="-1" autocomplete="off"></div><p class="form-note">We’ll email you about eGauge development and new vehicle profiles. You can request removal at any time. Signing up creates no order or reservation.</p><p class="form-message" id="form-message" role="status" aria-live="polite"></p></form><span class="availability-tag"><span class="status-dot"></span> Free software · Your hardware · Custom possibilities</span></div>
-      <div class="faq">
-        <details open><summary>How do I order hardware?<span aria-hidden="true">+</span></summary><p>Choose a board in the <a href="#hardware">eGauge shop</a>. Request a preflashed LCD board or install the free firmware on a board you source yourself. For the OLED, see the <a href="#oled-bundle">bundle price and estimated lead time</a>, then send a request so we can confirm availability and your total with tax and shipping.</p></details>
-        <details><summary>How is my contact information used?<span aria-hidden="true">+</span></summary><p>We use your signup details for the eGauge project updates you requested. Order and custom project details are used to review and respond to your request. We do not sell this information. To request removal, use the project request form and say you want your information removed.</p></details>
-        <details><summary>Can I help shape what comes next?<span aria-hidden="true">+</span></summary><p>Yes. Tell us which vehicle, display or feature would make this useful to you. We balance that interest with the current roadmap, available test vehicles and the work needed to make each feature reliable. <a href="#roadmap-idea">Share an idea</a>; no VIP tier required.</p></details>
-        <details><summary>Will it work with my vehicle?<span aria-hidden="true">+</span></summary><p>Our current field work uses a 2010 Jeep Wrangler with a 5.7L Hemi swap, supported by Jeep Speed Shop (JSS). Available readings depend on your vehicle, controller and adapter. <a href="#roadmap">More vehicle profiles are planned</a>; a catalog entry alone is not confirmed compatibility.</p></details>
-        <details><summary>What can it do today?<span aria-hidden="true">+</span></summary><p>On the tested Jeep, the private build displays engine and transmission readings and keeps working without the phone. The Android App sets up pages, alerts and display settings, and installs signed development firmware over private Wi-Fi. Fault-code meanings use a built-in lookup where verified; unknown codes remain visible. Keep or share diagnostic reports for troubleshooting. The screen gallery shows the implemented interface; the <a href="#roadmap">progress section</a> separates tested behavior from the work ahead.</p></details>
-        <details><summary>Do I need to keep the App connected?<span aria-hidden="true">+</span></summary><p>No. Use the App to set up the gauge, then let it run directly from your vehicle adapters. Saved pages, readings and local alerts work without the phone or internet. Reconnect when you want to change your setup or install an update. Phone-sourced features still need that connection.</p></details>
-        <details><summary>What is still in development?<span aria-hidden="true">+</span></summary><p><a href="#offroad-actions">Vehicle controls</a>, a basic iOS App and browser-over-USB configuration are in development or planning. Virtual gauges and Android Auto are exploratory. Follow the linked progress sections for each feature’s current scope.</p></details>
-        <details><summary>Can you work with hardware I already have?<span aria-hidden="true">+</span></summary><p>Possibly. We can assess existing displays, controllers and unsupported devices for new software or a replacement controller. Tell us what you have and what you want it to do; we’ll discuss feasibility, scope and budget before any paid work begins.</p></details>
+      <div class="progress-grid">
+        <div><h3>Tested on hardware</h3><p>{{CLAIM_READINGS}} {{CLAIM_UPDATES}}</p></div>
+        <div id="platforms"><h3>On the roadmap</h3><p>{{CLAIM_PLATFORMS}}</p></div>
+      </div>
+      <div class="project-links">
+        <p>Reviewed <time datetime="{{UPDATED_DATE}}">{{UPDATED_LABEL}}</time></p>
+        <a href="https://github.com/lstepnio/ESP32OBD2/blob/main/docs/current-state.md">Current state ↗</a>
+        <a href="https://github.com/lstepnio/ESP32OBD2/blob/main/docs/roadmap.md">Roadmap ↗</a>
+        <a href="https://github.com/lstepnio/ESP32OBD2/blob/main/docs/backlog.md">Backlog ↗</a>
+        <a href="https://github.com/lstepnio/ESP32OBD2">GitHub ↗</a>
       </div>
     </section>
+
     <section class="custom-work wrap section-space" id="custom-projects" aria-labelledby="custom-title">
-      <div class="custom-heading">
-        <div><p class="eyebrow">06 / CUSTOM PROJECTS</p><h2 id="custom-title">Have a specific<br> build in mind?</h2></div>
-        <div><p>Think beyond the dashboard. From cars, boats and aircraft to desktop displays, custom control panels and standalone devices, we build around your goals, your environment and your style.</p><a class="custom-jump" href="#custom-form">Tell us what you’re building <span aria-hidden="true">↗</span></a></div>
-      </div>
-      <ul class="custom-capabilities">
-        <li><span class="custom-number" aria-hidden="true">01 / DISPLAY &amp; FORM</span><h3>Shaped around you.</h3><p>Affordable LCD, OLED or e-paper, with a form factor and finish that fit your project. Custom bezels and visible-area mapping keep readings and touch controls clear of masked edges and cutouts.</p></li>
-        <li><span class="custom-number" aria-hidden="true">02 / SOFTWARE &amp; INTEGRATION</span><h3>Make it all connect.</h3><p>Desktop Apps, mobile Apps and embedded firmware that bring displays, sensors, controllers and systems into one useful experience.</p></li>
-        <li><span class="custom-number" aria-hidden="true">03 / DIRECT CAN BUS</span><h3>Go straight to the data.</h3><p>When OBD-II polling is too slow or useful signals are missing, we can evaluate direct CAN bus integration for high-rate displays and controls. Suitable interface hardware and signal validation are required.</p></li>
-        <li><span class="custom-number" aria-hidden="true">04 / CUSTOM CONTROLS</span><h3>Switches, reimagined.</h3><p>Replace or augment physical switches with on-screen controls, from sport-mode selection on a compatible Jeep JK / ZF 8HP swap to sPOD-style relay and accessory control.</p></li>
-        <li><span class="custom-number" aria-hidden="true">05 / INTERACTION</span><h3>Touch, voice and feedback.</h3><p>Explore touch-enabled displays, microphone input, AI assistance and haptic feedback, with hardware and interactions tailored to the project.</p></li>
-        <li><span class="custom-number" aria-hidden="true">06 / HARDWARE</span><h3>Build new. Reimagine existing.</h3><p>Reuse an existing device or assess abandoned hardware for new software or a replacement controller. With the right budget and commitment, we can also help design custom hardware.</p></li>
-      </ul>
-      <p class="custom-scope">Custom projects are scoped around the selected hardware and controller. These integrations are not included in the current DIY firmware.</p>
       <div class="custom-inquiry">
-        <div class="custom-inquiry-copy"><p class="eyebrow">ORDERS AND CUSTOM WORK</p><h3>Tell us what you need.</h3><p>Ask about a gauge order or describe a custom project. We’ll follow up with availability, scope and pricing.</p><h4>Investigate it remotely.</h4><p>We can provide capture software and suitable hardware for guided remote sessions, then analyze recordings, map useful signals and investigate undocumented protocols for your use case.</p></div>
-        <form id="custom-form" action="/api/custom" method="post"><label for="custom-email">Email</label><input id="custom-email" name="email" type="email" autocomplete="email" required maxlength="254"><label for="custom-details">What would you like?</label><textarea id="custom-details" name="details" required minlength="20" maxlength="3000" rows="5" placeholder="Your idea, existing hardware, display, integrations, operating conditions, and preferred look and feel"></textarea><div class="trap" aria-hidden="true"><label for="custom-website">Website</label><input id="custom-website" name="website" type="text" tabindex="-1" autocomplete="off"></div><button type="submit">Send request</button><p class="form-note">We will use these details only to respond to your request. Submitting does not create an order or commit us to a project.</p><p class="form-message" id="custom-message" role="status" aria-live="polite"></p></form>
+        <div class="custom-inquiry-copy">
+          <p class="eyebrow">ORDERS AND CUSTOM WORK</p>
+          <h2 id="custom-title">Tell us what you’re building.</h2>
+          <p>Ask about a gauge, or tell us about your own dashboard, display, control panel or integration. We’ll follow up on availability, scope and pricing.</p>
+          <p>Custom work can include LCD, OLED or e-paper displays, software for new or existing hardware, and CAN bus or accessory controls. We can also help capture and investigate signals remotely.</p>
+        </div>
+        <form id="custom-form" action="/api/custom" method="post"><label for="custom-email">Email</label><input id="custom-email" name="email" type="email" autocomplete="email" required maxlength="254"><label for="custom-details">What would you like?</label><textarea id="custom-details" name="details" required minlength="20" maxlength="3000" rows="5" placeholder="Your vehicle, hardware or project idea"></textarea><div class="trap" aria-hidden="true"><label for="custom-website">Website</label><input id="custom-website" name="website" type="text" tabindex="-1" autocomplete="off"></div><button type="submit">Send request</button><p class="form-note">We use your details only to reply. Sending a request does not place an order.</p><p class="form-message" id="custom-message" role="status" aria-live="polite"></p></form>
       </div>
+    </section>
+
+    <section class="availability wrap section-space" id="availability" aria-labelledby="availability-title">
+      <div class="availability-copy">
+        <p class="eyebrow">PROJECT UPDATES</p>
+        <h2 id="availability-title">Follow the build.</h2>
+        <p>Hear about new features and vehicle profiles. Tell us what you’d like to see next, or <a href="#custom-form">ask about your setup</a>.</p>
+      </div>
+      <form class="interest-form" id="interest-form" action="/api/interest" method="post"><input type="hidden" name="consent_version" value="project-updates-v1"><label for="roadmap-idea" class="optional-label">What should we prioritize? <span>(optional)</span></label><textarea id="roadmap-idea" name="roadmap_idea" maxlength="500" rows="3" placeholder="Your vehicle, swap, or feature idea"></textarea><label for="interest-email">Email for project updates</label><div class="form-row"><input id="interest-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required maxlength="254"><button type="submit">Keep me posted</button></div><div class="trap" aria-hidden="true"><label for="interest-website">Website</label><input id="interest-website" name="website" type="text" tabindex="-1" autocomplete="off"></div><p class="form-note">We’ll email you about eGauge development and new vehicle profiles. You can request removal at any time. Signing up creates no order or reservation.</p><p class="form-message" id="form-message" role="status" aria-live="polite"></p></form>
     </section>
   </main>
   <footer class="footer wrap"><a class="brand" href="#" aria-label="Back to eGauge home">eGauge<span class="brand-dot">.</span></a><p class="footer-credit">Built by Lukasz (Luke) Stepniowski<span class="footer-profiles"><a href="https://www.linkedin.com/in/lstepnio">LinkedIn ↗</a><a href="https://github.com/lstepnio">GitHub ↗</a></span></p><span>© <span id="year">2026</span> Majjix · eGauge project</span></footer>

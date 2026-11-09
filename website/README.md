@@ -204,7 +204,7 @@ status here.
 ## Public offer
 
 The [product roadmap](../docs/roadmap.md#distribution-and-custom-work) defines the
-free LCD firmware and preloaded OLED bundle. The shop comparison distinguishes
+free LCD firmware and licensed OLED bundle. The shop comparison distinguishes
 installed capabilities, private evaluation, and the proposed 5/12-page limits.
 Board cutouts are AI-assisted adaptations of the exact
 [Waveshare LCD photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-lcd-1.28-1.jpg)
@@ -214,24 +214,43 @@ replace them with equivalent original product photographs.
 
 ### Checkout and fulfillment
 
-`storefront.json` has one optional Stripe Payment Link per product. With null
-values, both buttons prefill the existing request form and no payment is taken.
-Keep the project update list separate from order requests. The website handles no
-payment details, provider credentials, or board identifiers.
+`storefront.json` owns both USD prices. The public build rejects any non-null
+checkout setting. Each product button opens the existing inquiry form. Stripe
+Payment Links are created separately in the sandbox and kept out of the webroot.
 
-For launch, configure two hosted products, the preflashed LCD board and the OLED
-bundle. Match the OLED offer to the [shop card](index.html#oled-bundle), including
-the BLE adapter. Confirm pricing, stock, lead time, shipping, tax and returns before
-inserting live links. Exercise both offers in Stripe test
-mode using the [Payment Links guide](https://docs.stripe.com/payment-links).
-Use a one-time payment for each hardware order. List the included firmware
-major version on the OLED offer. Keep OLED checkout disabled until a production
-unit boots offline and its recovery path is verified. Disable the payment link
-when stock runs out. During low-volume fulfillment, verify the paid order in
-Stripe and record its fulfillment once, including the OLED firmware major
-shipped. A redirect alone does not establish payment.
-See the [OLED software policy](../docs/architecture/platforms-and-releases.md#oled-hardware-purchase-and-included-software).
+1. Open the Stripe sandbox. Configure its tax origin and an active **test** tax
+   registration. Use an authorized test key stored in a private file or entered
+   at the terminal prompt. The operator tool rejects live keys and sessions.
+2. From the repository root, create an owner-only workspace outside Git and
+   generate both test links. The example charges $9.95 for U.S. test shipping and
+   enables Stripe Tax on tax-exclusive item and shipping prices.
 
+   ```sh
+   install -d -m 700 /private/egauge-sandbox
+   python3 tools/stripe_storefront.py --workspace /private/egauge-sandbox \
+     setup --shipping-cents 995
+   ```
+
+3. Complete each hosted checkout with Stripe's test card and a U.S. test address.
+   Confirm tax and shipping are itemized before payment. Retrieve the Checkout
+   Session ID from the sandbox and run `verify-order cs_test_...` using the same
+   workspace. Stripe remains the source of shipping addresses. The tool prints
+   amounts and verifies payment, product, shipping, tax and charge state.
+4. Record each verified order once before shipping. For OLED, record the firmware
+   major listed with the order and ship the matching preloaded build. Follow the
+   [included software policy](../docs/architecture/platforms-and-releases.md#oled-hardware-purchase-and-included-software).
+
+Use the [Stripe Tax sandbox guide](https://docs.stripe.com/tax/testing) and
+[Stripe test cards](https://docs.stripe.com/testing). The rehearsal verified LCD
+subtotal $75.00, shipping $9.95 and Idaho tax $4.50, and OLED subtotal $199.00,
+shipping $9.95 and Idaho tax $11.94.
+Test shipping and the Idaho registration are rehearsal settings.
+
+Before accepting real payments, set approved shipping destinations/rates and
+returns terms, confirm tax registrations and product classification, and
+qualify offline boot, replacement and recovery on physical OLED boards. Any future
+live order integration needs explicit activation and must verify Stripe payment
+state before fulfillment.
 
 ## Intake source and operational checks
 

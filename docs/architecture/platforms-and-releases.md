@@ -26,8 +26,8 @@ owns installed/observed behavior; [backlog](../backlog.md) owns implementation s
   do not change licenses or claim technical copy protection from this structure.
 
 The current public workflow is still reference-board development-only. This change
-creates no stable/RC publisher, private delivery service, signing key or entitlement
-system, and does not withdraw historical public releases.
+creates no stable/RC publisher, private delivery service or signing key, and does
+not withdraw historical public releases.
 
 ## Share behavior, isolate hardware
 
