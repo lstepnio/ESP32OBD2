@@ -27,6 +27,7 @@ fun HomeScreen(
     onUpdates: () -> Unit = {},
     onActionPages: () -> Unit = {},
     canEditActionPages: Boolean = false,
+    onVirtualGauge: (() -> Unit)? = null,
     onGesture: () -> Unit = {}
 ) {
     val pager = rememberPagerState(pageCount = { state.pages.size })
@@ -104,6 +105,9 @@ fun HomeScreen(
                     SettingsRow("Gesture action", "Swipe up to jump to a page", canEditActionPages, onGesture)
                 }
                 PrimaryAction(state.primaryLabel, onPrimary, enabled = !state.busy)
+                onVirtualGauge?.let {
+                    SettingsRow("Virtual gauge", "Use your phone as the display", true, it)
+                }
                 if (state.primaryAction != HomeAction.Customize) {
                     OutlinedButton(onCustomize, Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                         Text("Customize")

@@ -23,7 +23,8 @@ fun SetupScreen(
     onChoose: (String) -> Unit,
     onCustomize: () -> Unit,
     onBack: () -> Unit,
-    onCar: () -> Unit = onCustomize
+    onCar: () -> Unit = onCustomize,
+    onVirtualGauge: (() -> Unit)? = null
 ) {
     val step = when {
         state.owner == OwnerAccess.AUTHENTICATED -> 2
@@ -82,6 +83,9 @@ fun SetupScreen(
         }
         when (step) {
             0 -> {
+                onVirtualGauge?.let {
+                    SettingsRow("Virtual gauge", "Use your phone with a BLE OBD-II adapter", true, it)
+                }
                 state.candidates.forEach { item ->
                     ReadingTile(
                         "${item.name} · ${item.shortId}",

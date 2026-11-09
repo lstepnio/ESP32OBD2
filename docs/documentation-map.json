@@ -29,6 +29,7 @@
     "architecture": [
       "docs/architecture/alerts-and-diagnostics.md",
       "docs/architecture/android-runtime.md",
+      "docs/architecture/virtual-gauge.md",
       "docs/architecture/config-storage.md",
       "docs/decisions/README.md",
       "docs/architecture/firmware-runtime.md",

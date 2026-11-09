@@ -47,7 +47,8 @@ fun DashboardEditorScreen(
     destination: Int,
     onDestination: (Int) -> Unit,
     onBack: () -> Unit,
-    actions: CustomizeActions
+    actions: CustomizeActions,
+    phoneOnly: Boolean = false
 ) {
     var picker by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -111,9 +112,9 @@ fun DashboardEditorScreen(
         else -> EditorScaffold(
             "Customize",
             onBack,
-            "Review and send",
-            { onDestination(5) },
-            state.editingEnabled
+            if (phoneOnly) "Done" else "Review and send",
+            { if (phoneOnly) onBack() else onDestination(5) },
+            phoneOnly || state.editingEnabled
         ) {
             ResponsivePanels(first = {
                 PagePreview(state, { actions.selectPage(it) }, { picker = "reading" })
@@ -176,7 +177,7 @@ fun DashboardEditorScreen(
                             }
                         }
                     }
-                    if (state.readings.any {
+                    if (!phoneOnly && state.readings.any {
                             it.id in
                                 com.lstepnio.egauge.ConfigurationProjector.pagePidIds("ECM")
                         }

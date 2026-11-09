@@ -19,7 +19,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 
-/** A mock physical display, with a separate font-scalable accessible equivalent. Always synthetic. */
+/** Shared round face with a separate font-scalable accessible equivalent. */
 @Composable
 fun RoundPreview(
     state: ReadingPreviewUi,
@@ -51,6 +51,7 @@ fun RoundPreview(
                 )
                 val missing =
                     state.condition in setOf(PreviewCondition.Stale, PreviewCondition.Offline)
+                val hasArcValue = state.arcAvailable && state.arcFraction > 0f
                 if (state.layout == PreviewLayout.Arc || state.layout == PreviewLayout.DualArc) {
                     drawArc(
                         EGaugeTokens.Dark.gaugeTrack,
@@ -61,7 +62,7 @@ fun RoundPreview(
                         Size(241f, 241f),
                         style = Stroke(13f, cap = StrokeCap.Round)
                     )
-                    if (!missing) {
+                    if (!missing && hasArcValue) {
                         drawArc(
                             accent,
                             138f,
@@ -106,7 +107,7 @@ fun RoundPreview(
                     }
                     drawContext.canvas.nativeCanvas.drawText(fitted, 140f, y, paint)
                 }
-                text("PREVIEW", 55f, 10f, EGaugeTokens.Dark.gaugeMuted)
+                if (!state.live) text("PREVIEW", 55f, 10f, EGaugeTokens.Dark.gaugeMuted)
                 if (state.layout == PreviewLayout.Dual || state.layout == PreviewLayout.DualArc) {
                     text(state.name, 82f, 12f)
                     text(state.shownValue, 121f, 38f, readingColor(state.primaryGear, state.shownValue, state.condition, accent), true)
@@ -150,18 +151,22 @@ fun RoundPreview(
                                 Size(148f, 9f),
                                 androidx.compose.ui.geometry.CornerRadius(4.5f)
                             )
-                            if (!missing) {
+                            if (!missing && (!state.live || hasArcValue)) {
                                 drawRoundRect(
                                     accent,
                                     Offset(66f, 201f),
-                                    Size(90f, 9f),
+                                    Size(if (state.live) 148f * state.arcFraction else 90f, 9f),
                                     androidx.compose.ui.geometry.CornerRadius(4.5f)
                                 )
                             }
                         }
 
-                        PreviewLayout.Trend -> if (!missing) {
-                            val path = trendPath(
+                        PreviewLayout.Trend -> if (!missing && (!state.live || state.trendFractions.size >= 2)) {
+                            val points = if (state.live) {
+                                state.trendFractions.mapIndexed { index, fraction ->
+                                    Offset(62f + 153f * index / state.trendFractions.lastIndex, 216f - 33f * fraction)
+                                }
+                            } else {
                                 listOf(
                                     Offset(62f, 216f),
                                     Offset(82f, 207f),
@@ -172,8 +177,8 @@ fun RoundPreview(
                                     Offset(190f, 193f),
                                     Offset(215f, 183f)
                                 )
-                            )
-                            drawPath(path, accent, style = Stroke(3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                            }
+                            drawPath(trendPath(points), accent, style = Stroke(3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
                         }
 
                         else -> Unit
@@ -194,14 +199,18 @@ fun RoundPreview(
             }
         }
         if (showDescription) {
-            val summary = "Preview · ${state.name} · ${state.shownValue} ${state.unit}" +
-                (if (state.condition == PreviewCondition.Normal) "" else " · ${state.stateLabel}") +
-                if (state.layout == PreviewLayout.Dual || state.layout == PreviewLayout.DualArc) {
-                    "\n${state.secondaryName.orEmpty()} · " +
-                        "${if (state.shownValue == "--") "--" else state.secondaryValue.orEmpty()} ${state.secondaryUnit.orEmpty()}"
-                } else {
-                    ""
-                }
+            val summary = if (state.live) {
+                state.description
+            } else {
+                "Preview · ${state.name} · ${state.shownValue} ${state.unit}" +
+                    (if (state.condition == PreviewCondition.Normal) "" else " · ${state.stateLabel}") +
+                    if (state.layout == PreviewLayout.Dual || state.layout == PreviewLayout.DualArc) {
+                        "\n${state.secondaryName.orEmpty()} · " +
+                            "${if (state.shownValue == "--") "--" else state.secondaryValue.orEmpty()} ${state.secondaryUnit.orEmpty()}"
+                    } else {
+                        ""
+                    }
+            }
             // The canvas already provides one complete announcement, including the secondary reading.
             Text(
                 summary,

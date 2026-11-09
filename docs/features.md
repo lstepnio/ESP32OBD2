@@ -14,6 +14,7 @@ locates modules/tests. This index deliberately does not duplicate those status l
 | Brightness, manual rotation, units and timed cycling | [Display settings wire/storage](protocol/experimental-firmware-transfers.md#legacy-selection-pairing-and-display-settings) |
 | Smart cycling, interest priorities and context | [Smart cycling](architecture/smart-page-cycling.md) |
 | Sensor-driven Auto orientation | [Orientation policy and support boundary](architecture/hardware-and-transports.md#automatic-display-orientation), [indoor qualification](development/display-indoor-qualification.md) |
+| Android virtual gauge | [Direct adapter dashboard](architecture/virtual-gauge.md) |
 | Sampling/cache continuity and scheduling | [Firmware runtime](architecture/firmware-runtime.md#polling-diagnostics-and-alerts), [continuity qualification](development/gauge-continuity-plan.md) |
 | Threshold alerts, notifications, context and history | [Shared alerts/diagnostics](architecture/alerts-and-diagnostics.md) |
 | CEL/MIL, code lookup/filtering and explicit clearing | [Diagnostics contract](protocol/diagnostics-and-alerts.md), [shared semantics](architecture/alerts-and-diagnostics.md) |

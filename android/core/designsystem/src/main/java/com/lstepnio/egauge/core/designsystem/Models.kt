@@ -30,7 +30,10 @@ data class ReadingPreviewUi(
     val arcMetricIndex: Int = 0,
     val arcFraction: Float = 0.56f,
     val primaryGear: Boolean = false,
-    val secondaryGear: Boolean = false
+    val secondaryGear: Boolean = false,
+    val live: Boolean = false,
+    val arcAvailable: Boolean = true,
+    val trendFractions: List<Float> = emptyList()
 ) {
     val shownValue: String get() = if (condition in
         setOf(PreviewCondition.Stale, PreviewCondition.Offline)
@@ -46,10 +49,15 @@ data class ReadingPreviewUi(
         PreviewCondition.Stale -> "No recent reading"
         PreviewCondition.Offline -> "Adapter offline"
     }
-    val description: String get() = "Preview. $name, $shownValue $unit. $stateLabel." +
+    val description: String get() = (if (live) "$name, ${spokenValue(shownValue, unit)}." else "Preview. $name, $shownValue $unit. $stateLabel.") +
         if (layout == PreviewLayout.Dual || layout == PreviewLayout.DualArc) {
-            " ${secondaryName.orEmpty()}, ${if (shownValue == "--") "--" else secondaryValue.orEmpty()} ${secondaryUnit.orEmpty()}."
+            if (live) {
+                " ${secondaryName.orEmpty()}, ${spokenValue(secondaryValue ?: "--", secondaryUnit.orEmpty())}."
+            } else {
+                " ${secondaryName.orEmpty()}, ${if (shownValue == "--") "--" else secondaryValue.orEmpty()} ${secondaryUnit.orEmpty()}."
+            }
         } else {
             ""
         }
+    private fun spokenValue(value: String, unit: String) = if (value == "--") "unavailable" else "$value $unit".trim()
 }
