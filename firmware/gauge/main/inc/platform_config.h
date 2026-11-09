@@ -5,13 +5,13 @@
 
 static inline bool platform_config_accepts(const config_runtime_t *runtime)
 {
-    return (EGAUGE_FEATURE_DUAL_ADAPTER || runtime->source_count <= 1) &&
-           (EGAUGE_FEATURE_VEHICLE_ACTIONS || !runtime->page_action.vehicle_menu);
+    return (platform_feature_enabled(PLATFORM_FEATURE_DUAL_ADAPTER) || runtime->source_count <= 1) &&
+           (platform_feature_enabled(PLATFORM_FEATURE_VEHICLE_ACTIONS) || !runtime->page_action.vehicle_menu);
 }
 
 static inline void platform_config_apply(config_runtime_t *runtime)
 {
-    if (!EGAUGE_FEATURE_DUAL_ADAPTER && runtime->source_count == 2)
+    if (!platform_feature_enabled(PLATFORM_FEATURE_DUAL_ADAPTER) && runtime->source_count == 2)
     {
         /* The ECM is the single active link. Keep the other slot and its PID
          * indices intact so its saved pages and alerts remain unavailable. */
@@ -25,6 +25,6 @@ static inline void platform_config_apply(config_runtime_t *runtime)
         }
         runtime->source_count = 1;
     }
-    if (!EGAUGE_FEATURE_VEHICLE_ACTIONS && runtime->page_action.vehicle_menu)
+    if (!platform_feature_enabled(PLATFORM_FEATURE_VEHICLE_ACTIONS) && runtime->page_action.vehicle_menu)
         runtime->page_action = (page_action_config_t){0};
 }

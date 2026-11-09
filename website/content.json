@@ -62,7 +62,7 @@
   ],
   "actionAvailability": {
     "airUp": {
-      "text": "Being tested on Luke’s Jeep · A timed idle preset.",
+      "text": "A four-tire timer estimated from a measured fill.",
       "source": "docs/architecture/vehicle-actions.md",
       "scope": "candidate",
       "evidence": [
@@ -73,7 +73,7 @@
       "ownerAvailability": "explicit-supervised-candidate; physical qualification incomplete"
     },
     "winch": {
-      "text": "Being tested · A separate timed preset for vehicle recovery.",
+      "text": "A separate timed preset for recovery.",
       "source": "docs/architecture/vehicle-actions.md",
       "scope": "candidate",
       "evidence": [
@@ -84,7 +84,7 @@
       "ownerAvailability": "explicit-supervised-candidate; physical qualification incomplete"
     },
     "absTcs": {
-      "text": "Private owner testing · Restoration validation is in progress.",
+      "text": "Private testing while controller restoration is validated.",
       "source": "firmware/gauge/main/src/jeep_abs_tcs_driver.c",
       "scope": "candidate",
       "evidence": [
@@ -131,7 +131,7 @@
       "evidence": [
         "docs/evidence/gatt-long-read-recovery.md"
       ],
-      "text": "Your own pages, readings and alerts on a small display that runs on its own once configured. Choose the free LCD build or explore the licensed OLED bundle."
+      "text": "Set up pages, readings and alerts from Android. The round gauge keeps running on your dash without the phone."
     },
     "LAYOUTS": {
       "scope": "development",
@@ -142,7 +142,7 @@
       "evidence": [
         "docs/evidence/display-evolution.md"
       ],
-      "text": "Numeric, Arc, Bar, Trend, Dual, or Dual + arc. Arrange pages and save your display settings. Smart Cycle is available for private evaluation on OLED."
+      "text": "Show a single number, a trend or two readings side by side."
     },
     "ANDROID": {
       "scope": "development",
@@ -154,7 +154,7 @@
       "evidence": [
         "docs/evidence/dev75-indoor-rollout.md"
       ],
-      "text": "The Android App manages vehicles, gauges, pages, and alerts. It reconnects and reads saved settings automatically, and installs signed development firmware over private Wi-Fi."
+      "text": "Manage vehicles, gauges and settings in one place. The App reconnects to read your saved setup and can install signed development firmware over private Wi-Fi."
     },
     "READINGS": {
       "scope": "observed",
@@ -164,7 +164,7 @@
       "evidence": [
         "docs/evidence/gatt-long-read-recovery.md"
       ],
-      "text": "Live engine RPM has matched the Jeep's dash. Transmission temperature and gear display on the gauge. Simultaneous ECM and TCM readings, independent adapter loss and return, and operation without the phone have been checked on this setup."
+      "text": "On the modified Jeep, RPM matched the dash and engine readings ran alongside transmission temperature and gear. Independent loss and return of each adapter were checked."
     },
     "UPDATES": {
       "scope": "observed",
@@ -175,7 +175,7 @@
         "docs/evidence/dev75-indoor-rollout.md",
         "docs/evidence/action-pages-indoor.md"
       ],
-      "text": "Saved configuration and signed App/Wi-Fi firmware installation are working. Repeated Wi-Fi sessions and controlled interrupted-update checks have passed with saved setup retained. Longer loaded tests and physical power-loss cases remain."
+      "text": "Indoor Wi-Fi update and interruption checks retained the saved setup."
     },
     "PLATFORMS": {
       "scope": "planned",
@@ -185,17 +185,7 @@
       "evidence": [
         "docs/backlog.md"
       ],
-      "text": "A basic iPhone App and browser-over-USB setup are planned. Core configuration should be available without relying on an Android phone; neither path is available today."
-    },
-    "BUILD_STORY": {
-      "scope": "observed",
-      "sources": [
-        "docs/architecture/vehicle-connections.md"
-      ],
-      "evidence": [
-        "docs/evidence/gatt-long-read-recovery.md"
-      ],
-      "text": "Built by Luke around a real Hemi-swapped Wrangler: keep engine and transmission readings together, save the setup on the gauge, and leave the phone in your pocket. Independent adapter loss and return have been checked on that Jeep. Broader vehicle and loaded-operation testing come next."
+      "text": "Planned work includes more vehicle profiles, a basic iPhone App and setup over USB in a browser."
     },
     "ACTIONS": {
       "scope": "candidate",
@@ -206,7 +196,7 @@
         "docs/evidence/jeep-high-idle-reference.md",
         "docs/evidence/dev80-action-entry.md"
       ],
-      "text": "Give useful routines a place on your dash. Air up and Winch pair a saved idle preset with a clear countdown and direct Stop. Being tested on Luke’s 5.7L Hemi-swapped Wrangler."
+      "text": "Air up and Winch use timed raised idle with a countdown and direct Stop. Vehicle controls are being tested privately on Luke’s Jeep."
     }
   },
   "pendingCaptures": [],
@@ -216,18 +206,18 @@
   ],
   "claimInputProvenance": {
     "reviewedOn": "2026-11-09",
-    "reason": "Reviewed storefront and release scope against the shared platform feature flags, recent offline idle setup, reading catalog and private OLED development. LCD firmware remains free with one adapter and timed cycling. The OLED license and 5/12-page limits are prelaunch targets. Owner-supervised vehicle controls retain controller and restoration gates. New oxygen readings and wider diagnostics are catalog additions, with vehicle qualification tracked separately.",
+    "reason": "Reviewed the concise storefront against public reference-board behavior, the Android virtual-gauge scope added in PR #142, the private OLED entitlement candidate and sandbox order evidence. The free LCD build keeps one adapter and timed cycling. The 5/12-page limits remain targets. OLED is available by inquiry while physical license activation and recovery are pending, and vehicle controls remain private candidates. The indoor Wi-Fi update evidence is unchanged. The Android virtual gauge remains outside storefront claims pending bench and parked checks.",
     "sha256": {
       "contracts/reading-catalog.json": "4253cf23fdb0345599178af36efdfe3f95de5ea1613def88c37f20049e596595",
       "docs/architecture/alerts-and-diagnostics.md": "e61735ee015ca11afd262765e55af860824fc9ede165feee265f2964cd52b71f",
       "docs/architecture/android-runtime.md": "cbec3bcbc4d4ac7437e8fb030f27598ce64a6f4bc2579eef24b9990b9d51fb0d",
       "docs/architecture/display-experience.md": "7efc90da48dbfc3a38a12eda6ed9c62c57a9508263e360ec44ea0f544c58f8e1",
       "docs/architecture/interaction-recovery.md": "2b2a8ae31b07292b35f8c62f3e8e5463222a4464b60a9d3502c3d09df9614b54",
-      "docs/architecture/platforms-and-releases.md": "8ae6ac305a539f951a093ea7f573f8ee28cba3da79e478b98147e649fa7142f7",
+      "docs/architecture/platforms-and-releases.md": "bafe2a72c64a20c0b3078bf7b0d9a4f262934a04ca77dff478121a8872a11f9b",
       "docs/architecture/vehicle-actions.md": "8d1db6bf431a4a970eae18393a2190e13056887016d1a7602c8dc6e5a91b0018",
       "docs/architecture/vehicle-connections.md": "3f0cfea953340596d86a865dd28a0372129214e05b37d15bbcd37090d91680b0",
-      "docs/backlog.md": "2f0e8a52e34611a57ee27b51d1650841b65d7dad560cf587abc8dc8440c6aee4",
-      "docs/current-state.md": "021ab50af4bd6504412be2b3ca08e48587a33b1ea86f55dc7714845ba7f93ea0",
+      "docs/backlog.md": "5353b6dac1a9e9d3df1b4eb20aa188c27762a7e471720c961d144760f835e150",
+      "docs/current-state.md": "0aa7010717732e5a7e476168db7b51ddc4b919b493abc8b0a1d3c92b0f7fb6d6",
       "docs/development/reading-catalog-alerts.md": "6431d865aa2278e6a85308bad1ff957f3952054f9f14bc91d7c14ae8cef458e0",
       "docs/evidence/action-pages-indoor.md": "3720880cb92f1a647f64939fde649f57e4eaf22ee35b6a87c3e3b70c8273e6a3",
       "docs/evidence/dev75-indoor-rollout.md": "10d3b6d4dfdf6267b02db07c48013fb3dd18e3db67b9cb3abaf6f40db0daaf5c",
@@ -235,9 +225,9 @@
       "docs/evidence/display-evolution.md": "30847aee0cb5b34dc788a7509372a93abf0aa94b6ad8a3e16f95518dd065c618",
       "docs/evidence/gatt-long-read-recovery.md": "5de44236f645e52686eee817b0f6e575d56c3850ae56f03a012aa361a2fcb487",
       "docs/evidence/jeep-high-idle-reference.md": "35112c013262fce0a8e0a60771fd99d674d5970ecd2679f26620e00a51cac462",
-      "docs/features.md": "6888bae16b39bea9e868811ba32bdfe2ce1d194e42327e6db2fa5d6d60200c97",
+      "docs/features.md": "78352d1a6522dd95f3e2788f348f44978f44093a471a4626ddb292bfc7cc1057",
       "docs/protocol/wifi-bulk-v1.md": "c06ca3529e17446d81fe1609994b564688ca103a7cc6ec3a5dbe5c342382c8c8",
-      "docs/roadmap.md": "f4dd7cca5c8bbe7c4ce3437a23e887136501a4b10ab757ac012652ae7bc1f04a",
+      "docs/roadmap.md": "c99f2eec969c3dcc33741ba150992908d671524ba750fe6364c0885ef48b9adf",
       "firmware/gauge/main/src/jeep_abs_tcs_driver.c": "6cd5949a9b2caa24a3e7505bae16819ad7f14c1b1be1fdc2a33e0d5eeec52370"
     }
   },

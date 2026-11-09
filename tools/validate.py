@@ -368,9 +368,20 @@ for guard in (
 ):
     check(guard in companion, f"Missing companion owner protection: {guard}")
 
-# Public link capacity must not promise the unqualified simultaneous adapter path.
+# Both public capability shapes share the same qualified link declaration.
+capability_macros = dict(
+    re.findall(
+        r"^#define (CAPABILITY_START|\w+_CAPABILITY_BASE)\s+([^\n]+)",
+        companion.replace("\\\n", ""),
+        re.M,
+    )
+)
 check(
-    companion.count('\\"maxAdapterLinks\\":1') == 2,
+    r"\"maxAdapterLinks\":1," in capability_macros.get("CAPABILITY_START", "")
+    and all(
+        capability_macros.get(name, "").lstrip().startswith("CAPABILITY_START ")
+        for name in ("LEGACY_CAPABILITY_BASE", "DOCUMENT_CAPABILITY_BASE")
+    ),
     "Public companion variants must advertise only one qualified adapter link",
 )
 

@@ -181,24 +181,101 @@ static void owner_save_worker(void *arg)
 #define DISPLAY_SETTINGS_CAPABILITY ""
 #endif
 
+#define CAPABILITY_START "{\"protocolMajor\":0,\"board\":\"" EGAUGE_PROTOCOL_BOARD_NAME "\",\"maxAdapterLinks\":1,"
+#define CAPABILITY_CONFIG "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"va\":1,"
+#define CAPABILITY_LEGACY_STATUS "\"qs\":true,\"ota\":false,\"hw\":1" DISPLAY_SETTINGS_CAPABILITY
+#define CAPABILITY_DOCUMENT_STATUS "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY
+#define CAPABILITY_LEGACY_ROTATION ",\"displayRotationWrite\":true"
+#define CAPABILITY_SMART ",\"sp\":1"
+#define CAPABILITY_DUAL ",\"da\":1"
+#define CAPABILITY_ACTION ",\"vc\":1"
+#define CAPABILITY_BURNOUT ",\"bm\":1"
+#if CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
+#define CAPABILITY_BRAKE_OWNER ",\"bt\":1"
+#else
+#define CAPABILITY_BRAKE_OWNER ""
+#endif
+#define CAPABILITY_RESTRICTED ",\"fp\":1"
+#define CAPABILITY_PAGES ",\"mp\":10,\"dx\":1"
+#define CAPABILITY_ORIENTATION ",\"ao\":1"
+#define CAPABILITY_OXYGEN ",\"ov\":1"
+#define CAPABILITY_SIZE 256U
+
+#ifdef EGAUGE_OLED_LICENSE_REQUIRED
+static char capabilities[CAPABILITY_SIZE];
+static char document_capabilities[CAPABILITY_SIZE];
+static char orientation_capabilities[CAPABILITY_SIZE];
+#if CONFIG_EGAUGE_WIFI_BULK_ENABLED
+static char capabilities_without_wifi[CAPABILITY_SIZE];
+static char document_capabilities_without_wifi[CAPABILITY_SIZE];
+static char orientation_capabilities_without_wifi[CAPABILITY_SIZE];
+#endif
+
+/* Fill immutable discovery values before starting BLE. Existing wire fields
+ * distinguish an effective partial license from the full feature profile. */
+static void licensed_capabilities(char out[CAPABILITY_SIZE], bool document, bool orientation, const char *wifi)
+{
+    bool        restricted = platform_feature_mask() != PLATFORM_FEATURE_ALL;
+    bool        actions    = platform_feature_enabled(PLATFORM_FEATURE_VEHICLE_ACTIONS);
+    const char *dual       = platform_feature_enabled(PLATFORM_FEATURE_DUAL_ADAPTER) ? CAPABILITY_DUAL : "";
+    const char *policy     = restricted ? CAPABILITY_RESTRICTED : "";
+    int         length;
+    if (document)
+        length = snprintf(out, CAPABILITY_SIZE,
+                          CAPABILITY_START CAPABILITY_CONFIG CAPABILITY_DOCUMENT_STATUS "%s%s%s%s%s" CAPABILITY_PAGES
+                                                                                        "%s%s%s",
+                          platform_feature_enabled(PLATFORM_FEATURE_SMART_CYCLE) ? CAPABILITY_SMART : "", dual,
+                          actions ? CAPABILITY_ACTION : "", actions ? CAPABILITY_BURNOUT : "", policy,
+                          actions ? CAPABILITY_BRAKE_OWNER : "", wifi, orientation ? CAPABILITY_ORIENTATION : "");
+    else
+        length = snprintf(out, CAPABILITY_SIZE,
+                          CAPABILITY_START "\"savedStateRead\":true%s," CAPABILITY_CONFIG CAPABILITY_LEGACY_STATUS
+                                           "%s%s%s%s",
+                          restricted ? "" : CAPABILITY_LEGACY_ROTATION, dual, policy,
+                          restricted && actions ? CAPABILITY_ACTION : "", wifi);
+    /* Build-time limits below cover all possible masks. Preserve the optional
+     * oxygen catalog flag when the resolved variant has space. */
+    if (length < 0 || (size_t)length + sizeof("}") > CAPABILITY_SIZE)
+    {
+        memcpy(out, "{}", sizeof("{}"));
+        return;
+    }
+    const char *suffix =
+        (size_t)length + sizeof(CAPABILITY_OXYGEN "}") <= CAPABILITY_SIZE ? CAPABILITY_OXYGEN "}" : "}";
+    memcpy(out + length, suffix, strlen(suffix) + 1);
+}
+
+/* A partial document loses at least one feature field. Its policy field is no
+ * longer than the smallest feature field it can lose. Legacy adds the policy
+ * and setup action fields only when it drops the longer rotation field. */
+_Static_assert(sizeof(CAPABILITY_START
+                      "\"savedStateRead\":true" CAPABILITY_LEGACY_ROTATION
+                      "," CAPABILITY_CONFIG CAPABILITY_LEGACY_STATUS CAPABILITY_DUAL WIFI_BULK_CAPABILITY
+                      "}") <= CAPABILITY_SIZE,
+               "Licensed legacy capability JSON too large");
+_Static_assert(sizeof(CAPABILITY_START CAPABILITY_CONFIG CAPABILITY_DOCUMENT_STATUS CAPABILITY_SMART CAPABILITY_DUAL
+                          CAPABILITY_ACTION CAPABILITY_BURNOUT CAPABILITY_PAGES CAPABILITY_BRAKE_OWNER
+                              WIFI_BULK_CAPABILITY CAPABILITY_ORIENTATION "}") <= CAPABILITY_SIZE,
+               "Licensed document capability JSON too large");
+#else
 #if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED && EGAUGE_FEATURE_SMART_CYCLE
-#define SMART_PAGE_CAPABILITY ",\"sp\":1"
+#define SMART_PAGE_CAPABILITY CAPABILITY_SMART
 #else
 #define SMART_PAGE_CAPABILITY ""
 #endif
 
 #if EGAUGE_FEATURE_DUAL_ADAPTER
-#define DUAL_ADAPTER_CAPABILITY ",\"da\":1"
+#define DUAL_ADAPTER_CAPABILITY CAPABILITY_DUAL
 #else
 #define DUAL_ADAPTER_CAPABILITY ""
 #endif
 #if EGAUGE_FEATURE_VEHICLE_ACTIONS
-#define VEHICLE_ACTION_CAPABILITY ",\"vc\":1,\"bm\":1"
+#define VEHICLE_ACTION_CAPABILITY CAPABILITY_ACTION CAPABILITY_BURNOUT
 #else
 #define VEHICLE_ACTION_CAPABILITY ""
 #endif
 #if EGAUGE_FEATURES_RESTRICTED
-#define FEATURE_POLICY_CAPABILITY ",\"fp\":1"
+#define FEATURE_POLICY_CAPABILITY CAPABILITY_RESTRICTED
 #else
 #define FEATURE_POLICY_CAPABILITY ""
 #endif
@@ -206,7 +283,7 @@ static void owner_save_worker(void *arg)
 /* A partial feature profile must describe Action Pages during initial setup,
  * before a custom document makes the regular command capability available. */
 #if EGAUGE_FEATURES_RESTRICTED && EGAUGE_FEATURE_VEHICLE_ACTIONS
-#define LEGACY_ACTION_SETUP_CAPABILITY ",\"vc\":1"
+#define LEGACY_ACTION_SETUP_CAPABILITY CAPABILITY_ACTION
 #else
 #define LEGACY_ACTION_SETUP_CAPABILITY ""
 #endif
@@ -216,43 +293,40 @@ static void owner_save_worker(void *arg)
 #if EGAUGE_FEATURES_RESTRICTED && CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED
 #define LEGACY_ROTATION_CAPABILITY ""
 #else
-#define LEGACY_ROTATION_CAPABILITY ",\"displayRotationWrite\":true"
+#define LEGACY_ROTATION_CAPABILITY CAPABILITY_LEGACY_ROTATION
 #endif
 
 #if EGAUGE_FEATURE_VEHICLE_ACTIONS && CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
-#define BRAKE_OWNER_CAPABILITY ",\"bt\":1"
+#define BRAKE_OWNER_CAPABILITY CAPABILITY_BRAKE_OWNER
 #else
 #define BRAKE_OWNER_CAPABILITY ""
 #endif
 #define LEGACY_CAPABILITY_BASE                                                                                         \
-    "{\"protocolMajor\":0,\"board\":\"" EGAUGE_PROTOCOL_BOARD_NAME "\","                                               \
-    "\"maxAdapterLinks\":1,"                                                                                           \
-    "\"savedStateRead\":true" LEGACY_ROTATION_CAPABILITY ","                                                           \
-    "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"va\":1,"                                                               \
-    "\"qs\":true,\"ota\":false,\"hw\":1" DISPLAY_SETTINGS_CAPABILITY DUAL_ADAPTER_CAPABILITY FEATURE_POLICY_CAPABILITY \
-        LEGACY_ACTION_SETUP_CAPABILITY
+    CAPABILITY_START "\"savedStateRead\":true" LEGACY_ROTATION_CAPABILITY                                              \
+                     "," CAPABILITY_CONFIG CAPABILITY_LEGACY_STATUS DUAL_ADAPTER_CAPABILITY FEATURE_POLICY_CAPABILITY  \
+                         LEGACY_ACTION_SETUP_CAPABILITY
 #define DOCUMENT_CAPABILITY_BASE                                                                                       \
-    "{\"protocolMajor\":0,\"board\":\"" EGAUGE_PROTOCOL_BOARD_NAME "\","                                               \
-    "\"maxAdapterLinks\":1,"                                                                                           \
-    "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"va\":1,"                                                               \
-    "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY SMART_PAGE_CAPABILITY DUAL_ADAPTER_CAPABILITY        \
-        VEHICLE_ACTION_CAPABILITY FEATURE_POLICY_CAPABILITY ",\"mp\":10,\"dx\":1" BRAKE_OWNER_CAPABILITY
+    CAPABILITY_START CAPABILITY_CONFIG CAPABILITY_DOCUMENT_STATUS SMART_PAGE_CAPABILITY DUAL_ADAPTER_CAPABILITY        \
+        VEHICLE_ACTION_CAPABILITY FEATURE_POLICY_CAPABILITY CAPABILITY_PAGES BRAKE_OWNER_CAPABILITY
 /* Legacy clients ignore the additive field. Keep the existing 255-byte limit
  * even for custom board labels and feature combinations. */
-#define CAPABILITY_JSON(fields) (sizeof(fields ",\"ov\":1}") <= 256U ? fields ",\"ov\":1}" : fields "}")
+#define CAPABILITY_JSON(fields)                                                                                        \
+    (sizeof(fields CAPABILITY_OXYGEN "}") <= CAPABILITY_SIZE ? fields CAPABILITY_OXYGEN "}" : fields "}")
 static const char *const capabilities          = CAPABILITY_JSON(LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY);
 static const char *const document_capabilities = CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY);
 static const char *const orientation_capabilities =
-    CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY ",\"ao\":1");
+    CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY CAPABILITY_ORIENTATION);
 _Static_assert(sizeof(LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}") <= 256U, "Public capability JSON too large");
 _Static_assert(sizeof(DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY ",\"ao\":1}") <= 256U,
                "Document capability JSON too large");
 #if CONFIG_EGAUGE_WIFI_BULK_ENABLED
-static const char *const capabilities_without_wifi             = CAPABILITY_JSON(LEGACY_CAPABILITY_BASE);
-static const char *const document_capabilities_without_wifi    = CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE);
-static const char *const orientation_capabilities_without_wifi = CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE ",\"ao\":1");
+static const char *const capabilities_without_wifi          = CAPABILITY_JSON(LEGACY_CAPABILITY_BASE);
+static const char *const document_capabilities_without_wifi = CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE);
+static const char *const orientation_capabilities_without_wifi =
+    CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE CAPABILITY_ORIENTATION);
 #endif
 #undef CAPABILITY_JSON
+#endif
 
 /* Protocol 0 quick-select request: byte 0 = 1, byte 1 = built-in PID index 0..4.
  * A successful ATT write queues a request; the authenticated state read confirms apply. */
@@ -492,7 +566,7 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle, struct ble
             .smart_cycle   = request[6] == 1,
             .base_revision = read_u32(request + 7),
         };
-        if (command.smart_cycle && !EGAUGE_FEATURE_SMART_CYCLE)
+        if (command.smart_cycle && !platform_feature_enabled(PLATFORM_FEATURE_SMART_CYCLE))
             return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
         uint16_t           interval = command.cycle_seconds;
         display_settings_t settings = display_settings_snapshot();
@@ -1176,6 +1250,16 @@ bool ble_companion_has_owner(void)
 
 void ble_companion_set_control(ui_t *ui, QueueHandle_t command_queue, uint8_t selected_index, bool custom)
 {
+#ifdef EGAUGE_OLED_LICENSE_REQUIRED
+    licensed_capabilities(capabilities, false, false, WIFI_BULK_CAPABILITY);
+    licensed_capabilities(document_capabilities, true, false, WIFI_BULK_CAPABILITY);
+    licensed_capabilities(orientation_capabilities, true, true, WIFI_BULK_CAPABILITY);
+#if CONFIG_EGAUGE_WIFI_BULK_ENABLED
+    licensed_capabilities(capabilities_without_wifi, false, false, "");
+    licensed_capabilities(document_capabilities_without_wifi, true, false, "");
+    licensed_capabilities(orientation_capabilities_without_wifi, true, true, "");
+#endif
+#endif
     g_ui            = ui;
     g_command_queue = command_queue;
     atomic_store(&g_selected_index, selected_index);
