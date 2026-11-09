@@ -84,7 +84,7 @@
       "ownerAvailability": "explicit-supervised-candidate; physical qualification incomplete"
     },
     "absTcs": {
-      "text": "Owner testing only · Public support is in development.",
+      "text": "Private owner testing · Restoration validation is in progress.",
       "source": "firmware/gauge/main/src/jeep_abs_tcs_driver.c",
       "scope": "candidate",
       "evidence": [
