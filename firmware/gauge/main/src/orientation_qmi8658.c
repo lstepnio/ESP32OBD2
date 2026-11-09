@@ -1,5 +1,4 @@
-#include "orientation_runtime.h"
-#include "bsp_init.h"
+#include "orientation_qmi8658.h"
 #include "driver/i2c_master.h"
 
 /* Register meanings and addresses 0x6a/0x6b follow Waveshare's QMI8658 example in
@@ -29,10 +28,9 @@ static esp_err_t sensor_write(void *context, uint8_t reg, uint8_t value)
     uint8_t       bytes[] = {reg, value};
     return i2c_master_transmit(bus->devices[bus->selected], bytes, sizeof(bytes), 10);
 }
-bool orientation_qmi8658_bus(orientation_bus_t *bus)
+bool orientation_qmi8658_bus(i2c_master_bus_handle_t shared, orientation_bus_t *bus)
 {
-    static sensor_bus_t     sensor;
-    i2c_master_bus_handle_t shared = bsp_touch_shared_i2c_bus();
+    static sensor_bus_t sensor;
     if (!shared || !bus)
         return false;
     for (unsigned index = 0; index < 2; ++index)
