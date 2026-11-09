@@ -12,7 +12,7 @@ static void settle(orientation_policy_t *p, uint32_t start, int x, int y, int z,
 int main(void)
 {
     orientation_policy_t p;
-    orientation_policy_init(&p, 0);
+    orientation_policy_init(&p, 0, 0);
     settle(&p, 0, 1000, 0, 0, 2);
     settle(&p, 1100, 0, -1000, 0, 3);
     settle(&p, 2200, -1000, 0, 0, 0); /* Labelled USB-down reference. */
@@ -32,7 +32,13 @@ int main(void)
     assert(!orientation_policy_observe(&p, 10000, 1000, 0, 0));
     assert(!orientation_policy_observe(&p, 10700, 1000, 0, 0));
     assert(orientation_policy_observe(&p, 10800, 1000, 0, 0));
-    orientation_policy_init(&p, 0);
+    orientation_policy_init(&p, 0, 0);
     settle(&p, UINT32_MAX - 500, 1000, 0, 0, 2);
+    orientation_policy_init(&p, 1, 2);
+    assert(p.applied == 1); /* Starting/manual angle is independent of the mount. */
+    settle(&p, 0, -1000, 0, 0, 2);
+    settle(&p, 1100, 0, -1000, 0, 1);
+    settle(&p, 2200, 1000, 0, 0, 0);
+    settle(&p, 3300, 0, 1000, 0, 3);
     puts("Orientation policy: cardinal mapping, dwell, jitter, motion, flat, stale and wrap passed");
 }

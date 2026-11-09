@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include "sdkconfig.h"
 #include "esp_ota_ops.h"
 #include "esp_app_desc.h"
 #include "esp_partition.h"
@@ -17,6 +18,7 @@
 #include "mbedtls/sha256.h"
 #include "mbedtls/pk.h"
 #include "gauge_board.h"
+#include "ota_target_preflight.h"
 #include "ota_transfer.h"
 #include "transfer_gate.h"
 #include "wifi_bulk.h"
@@ -67,6 +69,7 @@ static struct
     uint16_t signature_parts;
 } state;
 static uint8_t      status_cache[OTA_TRANSFER_STATUS_SIZE];
+static uint8_t      target_preflight_cache[OTA_TARGET_PREFLIGHT_SIZE];
 static portMUX_TYPE status_mux = portMUX_INITIALIZER_UNLOCKED;
 
 static uint32_t u32(const uint8_t *p)
@@ -158,9 +161,12 @@ static uint8_t verify_image(void)
     mbedtls_pk_context key;
     mbedtls_pk_init(&key);
     rc = mbedtls_pk_parse_public_key(&key, update_public_key_start, update_public_key_end - update_public_key_start);
-    if (rc == 0)
+    const mbedtls_ecp_keypair *ec_key = rc == 0 ? mbedtls_pk_ec(key) : NULL;
+    if (ec_key && mbedtls_ecp_keypair_get_group_id(ec_key) == MBEDTLS_ECP_DP_SECP256R1)
         rc = mbedtls_pk_verify(&key, MBEDTLS_MD_SHA256, signed_digest, sizeof(signed_digest), state.signature,
                                state.signature_length);
+    else
+        rc = MBEDTLS_ERR_PK_TYPE_MISMATCH;
     mbedtls_pk_free(&key);
     if (rc != 0)
         return 2;
@@ -361,6 +367,18 @@ static void worker(void *arg)
 
 esp_err_t ota_transfer_init(void)
 {
+    const gauge_board_t   *board     = gauge_board_description();
+    const esp_partition_t *running   = esp_ota_get_running_partition();
+    const esp_partition_t *alternate = running ? esp_ota_get_next_update_partition(running) : NULL;
+    const esp_partition_t *otadata =
+        esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_OTA, NULL);
+    bool rollback = false;
+#if CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE
+    rollback = true;
+#endif
+    ota_target_preflight_encode(target_preflight_cache, rollback, board ? board->ota_target_tag : 0, running, alternate,
+                                otadata);
+
     lock  = xSemaphoreCreateMutex();
     queue = xQueueCreate(4, sizeof(request_t));
     if (!lock || !queue)
@@ -424,4 +442,10 @@ size_t ota_transfer_boot_identity(uint8_t out[OTA_BOOT_IDENTITY_SIZE])
         memcpy(out + 40, description->version, 16);
     }
     return OTA_BOOT_IDENTITY_SIZE;
+}
+
+size_t ota_transfer_target_preflight(uint8_t out[OTA_TARGET_PREFLIGHT_SIZE])
+{
+    memcpy(out, target_preflight_cache, sizeof(target_preflight_cache));
+    return sizeof(target_preflight_cache);
 }

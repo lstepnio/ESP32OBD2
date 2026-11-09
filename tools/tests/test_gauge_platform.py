@@ -56,6 +56,13 @@ class GaugePlatformTest(unittest.TestCase):
     def test_reference_parity_and_other_surfaces(self):
         self.build_and_run("surface", ["tests/gauge_surface_test.c", "main/src/gauge_surface.c"])
 
+    def test_ota_target_preflight_wire_layout(self):
+        self.build_and_run(
+            "ota-target-preflight",
+            ["tests/ota_target_preflight_test.c"],
+            ["firmware/gauge/tests/stubs"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

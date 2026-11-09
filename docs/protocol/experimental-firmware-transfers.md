@@ -63,10 +63,16 @@ allowed, an unset or mismatched tag, missing update slot or invalid image length
 returns result 5 before claiming the flash gate or starting an erase. The signed
 bytes are the admitted little-endian board tag, little-endian image length,
 then the 32 raw image SHA-256 bytes. VERIFY uses
-ECDSA P-256 with SHA-256 and the pinned development public key in
-`firmware/gauge/main/certs`. Bootloader rollback is enabled. A trial image is
-confirmed after display, touch, BLE and task startup. No OBD adapter is required
-for boot health.
+ECDSA P-256 with SHA-256 and the pinned development public key. The reference
+build defaults to the key in `firmware/gauge/main/certs/dev-update-public.pem`
+and the BLE discovery board label `ESP32-S3-Touch-LCD-1.28`. A board build can
+set `EGAUGE_DEV_UPDATE_PUBLIC_KEY` to an absolute path to a P-256 public key PEM
+and `EGAUGE_PROTOCOL_BOARD_NAME` to its 1 to 29 byte ASCII discovery label. The
+label starts with an alphanumeric character and may contain letters, digits,
+periods, underscores and hyphens. These build options set the verification key
+and discovery label independently of the board descriptor's update tag. The
+reference build enables bootloader rollback. A trial image is confirmed after
+display, touch, BLE and task startup. No OBD adapter is required for boot health.
 
 **Trust boundary:** Update activation requires the authenticated owner bond, full-image SHA-256, and a P-256 signature from the pinned development key. Published development releases use protected GitHub signing material and the [release runbook](../development/firmware-release-runbook.md). Earlier local bench keys are historical inputs, never a substitute for the protected publication workflow. Development trust is not production provisioning. This design does not yet enforce downgrade prevention, hardware secure boot, or encrypted NVS. Keep `ota:false` until power interruption, production signing and recovery policy are exercised. A 23-byte ATT MTU allows only seven bytes per chunk; negotiated larger MTUs are important for a practical update time.
 
@@ -75,6 +81,26 @@ The Android development install path now imports the signed package, checks its 
 Owner opcode `30` with a four-byte sequence switches the protected state read to a 32-byte diagnostic snapshot, version `05`. Flag bits at byte 1 indicate fresh MIL evidence (bit 0), MIL on (bit 1), and fresh Mode 03/07/0A category evidence (bits 2/3/4). Byte 2 is the reported Mode 01 PID 01 DTC count. Bytes 3..5 count nonzero DTC pairs in confirmed/pending/permanent replies. Bytes 6..11 are the first raw two-byte DTC in each category, big endian; zero means none. Little-endian observation timestamps at 12, 16 and 20, MIL timestamp at 24, and current monotonic milliseconds at 28 let the caller calculate age. The firmware rejects malformed, ambiguous or multi-responder ELM text. Read-only diagnostics do not authorize Mode 04 clearing. The legacy snapshot is Engine-only and partial. Current command `39` / version `0F` carries full source-scoped lists; its single authoritative layout is in [diagnostics](diagnostics-and-alerts.md).
 
 Owner opcode `31` with a four-byte sequence switches the protected state read to a 60-byte running image identity, version `06`. Byte 1 is the ESP-IDF OTA image state (`0` new, `1` pending verify, `2` valid, `3` invalid, `4` aborted, `255` unavailable). Byte 2 is the running partition subtype. Bytes 4..7 are the little-endian secure version, bytes 8..39 the running app's ELF SHA-256, bytes 40..55 the first 16 bytes of its version string, and bytes 56..59 the little-endian running partition address. The Android app can display these after an authenticated read. The ELF hash identifies the booted build, but differs from the signed update package's raw binary SHA-256. The installer compares the signed package's ELF hash with this protected running identity before reporting success. A valid prior image means the trial was not confirmed; proving the inactive slot's aborted state requires an OTA metadata read.
+
+Owner opcode `31` with a little-endian four-byte sequence and selector byte
+`01` selects the 32-byte update target preflight. Byte 0 is version `01`, byte 1
+bit 0 is the build's bootloader rollback setting, and bytes 2..3 are reserved
+zero. Little-endian `u32` fields report the board descriptor's update tag at 4,
+running app address at 8, alternate app address at 12, running app size at 16,
+alternate app size at 20, OTA data partition address at 24, and OTA data partition
+size at 28. Unavailable fields are zero. The alternate is the update partition
+selected by ESP-IDF, provided it differs from the running partition. Firmware
+captures the geometry at boot and reads the cached bytes on the owner link.
+The original five-byte request still selects the running image identity.
+
+A provisioned Android debug build can use `-PegaugePrivateOtaAssets=/absolute/directory`
+with a target descriptor and its public key. Settings → Updates accepts a local
+signed bundle for that target. A settled install or rollback allows choosing
+another bundle from the same screen. The owner preflight must report a matching tag,
+two compatible application slots, an OTA metadata partition and rollback support
+before the app opens the temporary Wi-Fi network. The private path uses Wi-Fi
+and the same signed post-boot identity confirmation as the reference path.
+Ordinary debug builds and release APKs exclude private provisioning assets.
 
 Owner opcode `32` with a little-endian `u32 sequence` and `u32 document offset` selects a protected active-document read. State version `07` has a 52-byte header followed by up to 128 document bytes. Byte 1 is `1` when a custom document is active and `0` for built-in readings. Bytes 2..3 and 17..19 are reserved zero. Bytes 4..7 hold active revision, 8..11 total document length, 12..15 returned offset, byte 16 returned byte count, and 20..51 the committed SHA-256. All integers are little endian. With no custom document, offset zero returns only the 52-byte header and flag zero. Out-of-range offsets fail. Each request reads a bounded piece from the active slot; if revision or digest changes while that piece is read, the read fails. The client must verify stable metadata across all pieces and hash the complete reconstructed document before presenting it as a saved configuration. This readback is experimental owner functionality and does not enable general `configWrite` or establish any vehicle PID support.
 

@@ -72,7 +72,7 @@ static void tick(uint32_t now, bool automatic, bool suspended)
 }
 int main(void)
 {
-    orientation_bus_t bus = {NULL, read_sensor, write_sensor};
+    orientation_bus_t bus = {.read = read_sensor, .write = write_sensor};
     orientation_runtime_init_bus(0, bus, false);
     for (uint32_t now = 0; now < 2000; now += 100)
         tick(now, true, false);

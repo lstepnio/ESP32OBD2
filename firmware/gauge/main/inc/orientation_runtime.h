@@ -10,6 +10,7 @@ typedef struct
     void *context;
     esp_err_t (*read)(void *context, uint8_t reg, uint8_t *bytes, size_t length);
     esp_err_t (*write)(void *context, uint8_t reg, uint8_t value);
+    uint8_t mount_offset; /* Auto-only correction in quarter turns. */
 } orientation_bus_t;
 typedef struct
 {

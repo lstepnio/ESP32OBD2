@@ -33,7 +33,7 @@ fun UpdatesScreen(
             Text("Available: $it", style = MaterialTheme.typography.bodyLarge)
         }
         if (state.installedVersion == "Not checked" && !state.ready &&
-            state.availableVersion == null && !state.held && !state.recoveryRequired
+            state.availableVersion == null && !state.held && !state.recoveryRequired && !state.privateLocal
         ) {
             EmptyState(
                 "Waiting for your gauge",
@@ -63,7 +63,7 @@ fun UpdatesScreen(
                 when {
                     state.recoveryRequired -> "Check installed version"
                     state.held -> "Check your gauge"
-                    state.feedUnavailable -> "Choose signed package"
+                    state.feedUnavailable || (state.privateLocal && !state.ready) -> "Choose signed package"
                     state.ready -> "Install update"
                     state.availableVersion != null -> "Download and install"
                     else -> "Check for updates"
@@ -72,7 +72,7 @@ fun UpdatesScreen(
                     when {
                         state.recoveryRequired -> onReadInstalled()
                         state.held -> onCheck()
-                        state.feedUnavailable -> onChoosePackage()
+                        state.feedUnavailable || (state.privateLocal && !state.ready) -> onChoosePackage()
                         state.ready || state.availableVersion != null -> onInstall()
                         else -> onCheck()
                     }
@@ -84,6 +84,9 @@ fun UpdatesScreen(
                     else -> state.canCheck
                 }
             )
+        }
+        if (state.privateLocal && state.ready && !state.busy && !state.recoveryRequired) {
+            TextButton(onChoosePackage) { Text("Choose another package") }
         }
         if (state.feedUnavailable && !state.recoveryRequired &&
             !state.held

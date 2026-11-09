@@ -124,9 +124,10 @@ class MainActivity : ComponentActivity() {
             if (uri != null) {
                 lifecycleScope.launch {
                     try {
+                        val privateTarget = model.privateUpdateTarget
                         val bundle = withContext(Dispatchers.IO) {
                             contentResolver.openInputStream(uri)?.use {
-                                DevUpdateBundle.read(this@MainActivity, it)
+                                privateTarget?.readBundle(it) ?: DevUpdateBundle.read(this@MainActivity, it)
                             }
                                 ?: error("Could not open the update package")
                         }

@@ -327,11 +327,29 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val canSend = found && !busy && profileError == null && !needsCheck && blockers.isEmpty() &&
         capabilities?.experimentalNumericConfig == true
     val car = carState(nowElapsedMs, busy, details)
+    val privateLocalUpdate = privateUpdateTarget != null
     val updateStatus = when {
         updateInProgress || updatePreparation == "downloading" -> op.status
 
         updateRecovery != null && updateRecovery.state != UpdateRecoveryState.INSTALLED -> updateRecoveryUi(
             updateRecovery
+        )
+
+        privateLocalUpdate && (
+            presentationError == updatePackageMessage ||
+                (operation.stage == OperationStage.FAILED && operation.detail == updatePackageMessage)
+            ) ->
+            friendlyFailure(updatePackageMessage, true)
+
+        privateLocalUpdate && !updateReady -> StatusUi(
+            "Private gauge updates",
+            "Choose a signed package for this gauge."
+        )
+
+        privateLocalUpdate && !privateUpdateWifiAvailable -> StatusUi(
+            "Maintenance Wi-Fi unavailable",
+            "This package can be installed when the paired gauge is ready for maintenance Wi-Fi.",
+            StatusTone.Stale
         )
 
         updatePreparation == "held" -> StatusUi(
@@ -366,9 +384,9 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         !freshConnection || !found -> UpdateNotice.None
 
         updateRecovery?.state !in setOf(null, UpdateRecoveryState.INSTALLED) ||
-            updatePreparation == "held" -> UpdateNotice.NeedsCheck
+            (!privateLocalUpdate && updatePreparation == "held") -> UpdateNotice.NeedsCheck
 
-        hostedUpdate != null && updateReady -> UpdateNotice.Ready
+        !privateLocalUpdate && hostedUpdate != null && updateReady -> UpdateNotice.Ready
 
         else -> UpdateNotice.None
     }
@@ -607,10 +625,11 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             androidBonded
         ),
         UpdatesUiState(
-            updateStatus, hostedUpdate?.release?.version,
+            updateStatus, hostedUpdate?.release?.version?.takeUnless { privateLocalUpdate },
             bootIdentity?.version ?: "Not checked",
             found && !busy,
             updateReady && found && !busy && capabilities?.experimentalNumericConfig == true &&
+                (!privateLocalUpdate || privateUpdateWifiAvailable) &&
                 updateRecovery?.state !in
                 setOf(
                     UpdateRecoveryState.CHECK_REQUIRED,
@@ -623,8 +642,9 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                     UpdateRecoveryState.WAITING_FOR_CONFIRMATION
                 ),
             details,
-            updatePreparation == "held",
-            updatePreparation == "failed" && hostedUpdateMessage == HOSTED_RELEASE_FEED_UNAVAILABLE
+            !privateLocalUpdate && updatePreparation == "held",
+            !privateLocalUpdate && updatePreparation == "failed" && hostedUpdateMessage == HOSTED_RELEASE_FEED_UNAVAILABLE,
+            privateLocalUpdate
         ),
         op,
         if (gaugeAssociationError != null) {

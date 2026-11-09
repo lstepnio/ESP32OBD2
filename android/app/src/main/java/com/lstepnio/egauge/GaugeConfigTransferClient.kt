@@ -971,11 +971,16 @@ class GaugeConfigTransferClient(private val context: Context) {
                     val session = this
                     action(object : WifiUpdateBootstrapSession {
                         override suspend fun identity() = session.readBootIdentityInSession()
+                        override suspend fun targetIdentity(): ByteArray {
+                            session.writeRaw(privateOtaTargetRequest())
+                            return session.readRaw()
+                        }
                         override suspend fun openWifi() = session.openWifiBulkInSession()
                     })
                 }
                 override suspend fun closeWifi() = closeWifiBulk(device)
-            }
+            },
+            expectedTargetTag = bundle.boardTag.takeUnless { it == DevUpdateBundle.REFERENCE_BOARD_TAG }
         )
         val before = bootstrap.before
         val wifiSession = bootstrap.wifi
@@ -1120,6 +1125,9 @@ class GaugeConfigTransferClient(private val context: Context) {
         stage: (FirmwareUpdateStage) -> Unit = {},
         pauseBeforeActivationMs: Long = 0
     ): UpdateResult {
+        require(bundle.boardTag == DevUpdateBundle.REFERENCE_BOARD_TAG) {
+            "Private gauge updates require Wi-Fi"
+        }
         require(device.bondState == BluetoothDevice.BOND_BONDED) {
             "Pair this phone as gauge owner first"
         }

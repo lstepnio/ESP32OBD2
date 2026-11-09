@@ -5,6 +5,25 @@ if(NOT IS_ABSOLUTE "${EGAUGE_BOARD_ADAPTER_SOURCE}" OR NOT EXISTS "${EGAUGE_BOAR
     message(FATAL_ERROR "EGAUGE_BOARD_ADAPTER_SOURCE must name an existing absolute source path")
 endif()
 
+set(EGAUGE_DEV_UPDATE_PUBLIC_KEY "${CMAKE_CURRENT_LIST_DIR}/certs/dev-update-public.pem"
+    CACHE FILEPATH "P-256 public verification key for development firmware updates")
+if(NOT IS_ABSOLUTE "${EGAUGE_DEV_UPDATE_PUBLIC_KEY}" OR NOT EXISTS "${EGAUGE_DEV_UPDATE_PUBLIC_KEY}"
+    OR IS_DIRECTORY "${EGAUGE_DEV_UPDATE_PUBLIC_KEY}")
+    message(FATAL_ERROR "EGAUGE_DEV_UPDATE_PUBLIC_KEY must name an existing absolute PEM path")
+endif()
+file(READ "${EGAUGE_DEV_UPDATE_PUBLIC_KEY}" dev_update_public_pem)
+if(NOT dev_update_public_pem MATCHES "^-----BEGIN PUBLIC KEY-----[\r\n]+[A-Za-z0-9+/=\r\n]+-----END PUBLIC KEY-----[\r\n]*$")
+    message(FATAL_ERROR "EGAUGE_DEV_UPDATE_PUBLIC_KEY must contain a single PUBLIC KEY PEM")
+endif()
+set(dev_update_public_embed "${CMAKE_CURRENT_BINARY_DIR}/dev-update-public.pem")
+configure_file("${EGAUGE_DEV_UPDATE_PUBLIC_KEY}" "${dev_update_public_embed}" COPYONLY)
+
+set(EGAUGE_PROTOCOL_BOARD_NAME "ESP32-S3-Touch-LCD-1.28" CACHE STRING "Board label in BLE discovery")
+string(LENGTH "${EGAUGE_PROTOCOL_BOARD_NAME}" protocol_board_name_length)
+if(protocol_board_name_length GREATER 29 OR NOT EGAUGE_PROTOCOL_BOARD_NAME MATCHES "^[A-Za-z0-9][A-Za-z0-9._-]*$")
+    message(FATAL_ERROR "EGAUGE_PROTOCOL_BOARD_NAME must be a 1-29 byte ASCII board label")
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/../cmake/presentation.cmake")
 
 idf_component_register(
@@ -79,10 +98,12 @@ idf_component_register(
     INCLUDE_DIRS
         "."
         "inc"
-    EMBED_TXTFILES "certs/dev-update-public.pem"
+    EMBED_TXTFILES "${dev_update_public_embed}"
     REQUIRES lvgl esp_lvgl_port bt
     PRIV_REQUIRES nvs_flash spi_flash mbedtls json app_update esp_wifi esp_netif esp_event lwip esp_psram esp_timer
 )
 
 target_compile_options(${COMPONENT_TARGET} PRIVATE -Wall -Wextra -Wshadow -Werror)
-target_compile_definitions(${COMPONENT_TARGET} PRIVATE LV_LVGL_H_INCLUDE_SIMPLE=1)
+target_compile_definitions(${COMPONENT_TARGET} PRIVATE
+    LV_LVGL_H_INCLUDE_SIMPLE=1
+    EGAUGE_PROTOCOL_BOARD_NAME="${EGAUGE_PROTOCOL_BOARD_NAME}")
