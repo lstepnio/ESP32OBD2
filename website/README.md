@@ -219,8 +219,8 @@ values, both buttons prefill the existing request form and no payment is taken.
 Keep the project update list separate from order requests. The website handles no
 payment details, provider credentials, or board identifiers.
 
-For launch, configure two hosted products, LCD hardware and OLED hardware plus
-license. Match the OLED offer to the [shop card](index.html#oled-bundle), including
+For launch, configure two hosted products, the preflashed LCD board and the OLED
+bundle. Match the OLED offer to the [shop card](index.html#oled-bundle), including
 the BLE adapter. Confirm pricing, stock, lead time, shipping, tax and returns before
 inserting live links. Exercise both offers in Stripe test
 mode using the [Payment Links guide](https://docs.stripe.com/payment-links).
