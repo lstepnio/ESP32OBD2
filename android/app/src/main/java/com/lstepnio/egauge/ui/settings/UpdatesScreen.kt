@@ -85,6 +85,9 @@ fun UpdatesScreen(
                 }
             )
         }
+        if (state.privateLocal && state.ready && !state.busy && !state.recoveryRequired) {
+            TextButton(onChoosePackage) { Text("Choose another package") }
+        }
         if (state.feedUnavailable && !state.recoveryRequired &&
             !state.held
         ) {

@@ -95,7 +95,8 @@ The original five-byte request still selects the running image identity.
 
 A provisioned Android debug build can use `-PegaugePrivateOtaAssets=/absolute/directory`
 with a target descriptor and its public key. Settings → Updates accepts a local
-signed bundle for that target. The owner preflight must report a matching tag,
+signed bundle for that target. A settled install or rollback allows choosing
+another bundle from the same screen. The owner preflight must report a matching tag,
 two compatible application slots, an OTA metadata partition and rollback support
 before the app opens the temporary Wi-Fi network. The private path uses Wi-Fi
 and the same signed post-boot identity confirmation as the reference path.
