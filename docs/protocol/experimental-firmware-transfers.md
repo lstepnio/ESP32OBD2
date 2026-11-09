@@ -439,7 +439,7 @@ per kind; no new transport or polling worker is added.
 
 ## Display capacity and Dual + arc extensions
 
-Document-mode capability `mp:10` advertises the ten-page bound and `dx:1` advertises
+Capability `mp` advertises the board limit for new dashboards (5 for LCD, 12 for OLED). `dx:1` advertises
 Dual + arc. `cfg:7` and schema version 2 are unchanged. Absence retains legacy page
 limits and blocks the new renderer before transfer. `dualArc` requires two distinct
 PID references and integer `arcMetricIndex` 0 or 1 selecting a numeric, non-gear

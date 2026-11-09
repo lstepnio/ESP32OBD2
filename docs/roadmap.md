@@ -1,6 +1,6 @@
 # Product roadmap
 
-Updated 2026-10-30. This document orders outcomes, not individual task status.
+Updated 2026-11-09. This document orders outcomes, not individual task status.
 [Current state](current-state.md) records support and devices. The
 [backlog](backlog.md) is the sole prioritized task/status list.
 
@@ -11,7 +11,7 @@ Updated 2026-10-30. This document orders outcomes, not individual task status.
 | Now: indoor reliability | Qualify recovery and memory stability on the installed baseline | PERF-01, QUAL-12, QUAL-02, QUAL-08 | [Latest delivery](current-state.md#installed-baseline) retains signed Wi-Fi, indoor recovery and preserved setup. CODE-06/07 strengthen freshness/persistence/admission checks; extend measured end-to-end recovery and interruption evidence. Device and parked gates remain independent |
 | Next parked vehicle session | Qualify the existing logical vehicle, diagnostics and shared alerts under real load | PERF-01, QUAL-03, QUAL-04, QUAL-08, QUAL-05, FEATURE-05, FEATURE-09, QUAL-11, QUAL-07 | Simultaneous ECM/child-TCM plus phone, startup absence and independent recovery, sustained freshness/resource limits and foreground smoothness, read-only idle reboot reconciliation, real CEL/filter/threshold transitions and daylight/night readability |
 | Next capability increment | Add usable Auto orientation and qualify remaining diagnostic semantics | FEATURE-07, FEATURE-03, QUAL-06, FEATURE-08 | Physically qualified sensor/touch mapping; authoritative JSS meanings; separately qualified explicit clearing; [shared alert implementation sequence](architecture/alerts-and-diagnostics.md) and custom-PID display rules |
-| Smart display milestone | Qualify opt-in Smart cycling, ten pages, Dual + arc and icon-only waiting | FEATURE-11, FEATURE-12, PERF-01 | [Runtime contract](architecture/smart-page-cycling.md), protected settings/replay acceptance and [matched loaded comparison](development/smart-page-cycling-plan.md) after PERF-01; existing alert/control semantics remain authoritative |
+| Smart display milestone | Qualify board page limits, opt-in Smart cycling, Dual + arc and icon-only waiting | FEATURE-11, FEATURE-12, PERF-01 | [Runtime contract](architecture/smart-page-cycling.md), protected settings/replay acceptance and [matched loaded comparison](development/smart-page-cycling-plan.md) after PERF-01; existing alert/control semantics remain authoritative |
 | Parallel command preparation | Qualify shared idle and combined ABS/TCS shortcuts; keep Burnout paused | FEATURE-04, FEATURE-10 | [Shared command path](architecture/vehicle-actions.md#shared-command-owner), offline Air up target/Winch floor drafts, then matched variable-target/throttle/guard/restoration proofs and parked release/expiry qualification for full profiles; Burnout remains deferred; explicit owner candidates allow bounded supervised writes without promoting qualification; existing reliability gates continue |
 | Beta preparation | Broader phones/adapters, accessibility and reliable distribution | QUAL-09, QUAL-10, RELEASE-01 | [Quality gates](development/quality.md), compatibility evidence and explicit release review |
 | Future capability | Broader definitions, live phone telemetry, optional sensors and additional reviewed controls | FEATURE-01, FEATURE-02, FEATURE-06 | Bounded contracts, authoritative definitions and complete protected path before advertising support; ABS/TCS has an explicit captured-Jeep owner candidate; brake-controller identity, release latency and state/reset qualification remain required for full profiles; Burnout remains paused |
@@ -25,6 +25,19 @@ them with a new architecture or delaying fixes for a marketing refresh.
 Dependencies and precise acceptance criteria belong to the backlog. There are no
 implied dates or automatic release authorizations. Unavailable hardware blocks its
 qualification task, not useful independent offline work.
+
+## Remaining validation by board
+
+The owner reports a successful Jeep session with the private OLED build.
+[Installed baseline](current-state.md#installed-baseline) records the scope.
+Use the [display contract](architecture/display-experience.md#board-page-capacity)
+for the next firmware and App pair.
+
+| Scope | Next acceptance |
+| --- | --- |
+| Both boards | Confirm the App detects each limit and prevents adding or sending one extra page. On the gauge, check full-capacity navigation, wrap, restart readback, Dual + arc fit, and loaded refresh. Verify the new oxygen readings and slot mapping against a reference, fault and alert transitions, daylight/night legibility, and Wi-Fi/configuration recovery with setup preserved. FEATURE-01, FEATURE-12, QUAL-02, QUAL-05, QUAL-07, QUAL-08 |
+| S3-LCD-1.28 v1 | Verify five-page sends and single-adapter ECM startup, disconnect and reconnect. Verify the upgrade path on a saved dashboard over five pages, then reduce it explicitly in the App. Check manual rotation and timed cycling. QUAL-03, FEATURE-12 |
+| S3-OLED-1.75 v1 | Verify twelve-page sends, simultaneous ECM/child-TCM and phone use, independent loss/recovery, swapped ports and loaded soak. Check Auto rotation and touch in each orientation, Smart cycling under load, and Air Up, Winch and ABS/TCS only in their separate parked qualification. QUAL-04, QUAL-08, FEATURE-04, FEATURE-07, FEATURE-10, FEATURE-11, FEATURE-12 |
 
 ## Distribution and custom work
 

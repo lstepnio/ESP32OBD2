@@ -138,7 +138,7 @@ object GaugeProtocolCodec {
             },
             adapterRegistryVersion = json.optInt("ad", 0).also { require(it in 0..1) },
             maxPages = if (json.has("mp")) {
-                require(configurationVersion >= 2 && json.get("mp") is Int && json.getInt("mp") in 1..10) { "Invalid page limit" }
+                require(configurationVersion >= 2 && json.get("mp") is Int && json.getInt("mp") in 1..MAX_DASHBOARD_PAGES) { "Invalid page limit" }
                 json.getInt("mp")
             } else if (configurationVersion >=
                 2

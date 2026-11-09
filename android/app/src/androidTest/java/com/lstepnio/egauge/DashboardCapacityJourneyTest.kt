@@ -18,12 +18,12 @@ import org.junit.runner.RunWith
 
 /** Opt-in indoor add-only round trip. No injected readings, vehicle commands or firmware writes. */
 @RunWith(AndroidJUnit4::class)
-class TenPageDisplayJourneyTest {
+class DashboardCapacityJourneyTest {
     private val allowed = InstrumentationRegistry.getArguments().getString("allowGaugeWrite") == "true"
 
     @get:Rule val compose = activityTestRule(automaticConnection = allowed)
 
-    @Test fun tenAppendedPagesHaveExactReadbackAndRestoreOriginalSetup() {
+    @Test fun fullDashboardHasExactReadbackAndRestoresOriginalSetup() {
         assumeTrue("Requires explicit indoor gauge-write authorization", allowed)
         val holdArgument = InstrumentationRegistry.getArguments().getString("visualHoldMs")
         val visualHoldMs = if (holdArgument == null) {
@@ -35,8 +35,8 @@ class TenPageDisplayJourneyTest {
         }
         require(visualHoldMs in 0L..180_000L) { "visualHoldMs must be between 0 and 180000" }
         val model = (compose.activity.application as EGaugeApplication).model
-        val output = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "ten-page-display").apply { mkdirs() }
-        val report = StringBuilder("Ten-page indoor configuration round trip\n")
+        val output = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "dashboard-capacity").apply { mkdirs() }
+        val report = StringBuilder("Board page capacity round trip\n")
         fun record(message: String) {
             report.append(message).append('\n')
             File(output, "result.txt").writeText(report.toString())
@@ -79,11 +79,13 @@ class TenPageDisplayJourneyTest {
         assertEquals("Selected gauge assignment must survive ordinary send", draft.source, transmitted.source)
         val cursor = model.editingPageIndex
         val capabilities = requireNotNull(model.capabilities)
-        assertEquals("Requires mp:10", 10, capabilities.maxPages)
+        val capacity = requireNotNull(InstrumentationRegistry.getArguments().getString("expectedPageLimit")?.toIntOrNull())
+        require(capacity in setOf(5, 12))
+        assertEquals("Negotiated page capacity", capacity, capabilities.maxPages)
         assertTrue("Requires dx:1", GaugeLayout.DualArc in capabilities.supportedRenderers)
         assertTrue(isConfirmedSetup(original.revision, original.sha256, model.runtimeIdentity))
         assertEquals(original.vehicleProfileId, profiles.activeId)
-        assertTrue("Requires 1..7 original pages", editor.pages.size in 1..7)
+        assertTrue("Requires room to append without editing original pages", editor.pages.size in 1 until capacity)
         assertTrue("Reconcile unsent setup changes first", sameSettings(GaugeDraftComparison.savedDraft(original, profiles.activeId), transmitted))
         val matching = editor.pages.indexOfFirst { it.pidIds.first() == draft.pidId && it.layout == draft.layout }
         assertTrue("Original legacy selection must be recoverable without editing original pages", matching >= 0)
@@ -92,13 +94,14 @@ class TenPageDisplayJourneyTest {
         val gear = "tcmgear".takeIf { it in available }
         val layouts = listOf(
             GaugeLayout.DualArc, GaugeLayout.DualArc, GaugeLayout.Dual, GaugeLayout.Arc,
-            GaugeLayout.Bar, GaugeLayout.Trend, GaugeLayout.Numeric, GaugeLayout.Arc, GaugeLayout.Bar
-        ).take(10 - editor.pages.size)
+            GaugeLayout.Bar, GaugeLayout.Trend, GaugeLayout.Numeric, GaugeLayout.Arc, GaugeLayout.Bar,
+            GaugeLayout.Trend, GaugeLayout.Numeric
+        ).take(capacity - editor.pages.size)
         assertTrue(capabilities.supportedRenderers.containsAll(layouts))
         // Pure storage-normalization proof before any phone mutation.
         val simulatedPages = editor.pages + layouts.mapIndexed { index, layout ->
             GaugePageDraft(
-                "page.ten.fixture.$index",
+                "page.capacity.fixture.$index",
                 "Engine speed",
                 layout,
                 if (layout.isDual) listOf("rpm", if (index == 0) gear ?: "coolant" else "coolant") else listOf("rpm"),
@@ -147,7 +150,9 @@ class TenPageDisplayJourneyTest {
                 assertEquals(if (layout.isDual) listOf("rpm", if (index == 0) gear ?: "coolant" else "coolant") else listOf("rpm"), page.pidIds)
                 assertEquals(if (index == 1) 1 else 0, page.arcMetricIndex)
             }
-            assertEquals(10, model.editorDraft.pages.size)
+            assertEquals(capacity, model.editorDraft.pages.size)
+            local { model.addPage("rpm") }
+            assertEquals("Adding beyond the advertised capacity has no effect", capacity, model.editorDraft.pages.size)
             assertEquals(editor.pages, model.editorDraft.pages.take(editor.pages.size))
             assertEquals(
                 transmitted.copy(
@@ -177,10 +182,10 @@ class TenPageDisplayJourneyTest {
             compose.onNodeWithText("Gauge", useUnmergedTree = true).performClick()
             compose.onNodeWithText("Customize").performScrollTo().performClick()
             compose.onNodeWithText("Manage pages").performScrollTo().performClick()
-            capture("ten-pages-editor")
+            capture("capacity-editor")
             compose.onNodeWithText("Done").performClick()
             compose.onNodeWithText("Review and send").performClick()
-            capture("ten-pages-review")
+            capture("capacity-review")
             operation(model::checkGaugeForReview)
             assertEquals(original, model.activeDocument)
             assertTrue(isConfirmedSetup(original.revision, original.sha256, model.runtimeIdentity))
@@ -191,14 +196,14 @@ class TenPageDisplayJourneyTest {
             confirmed = true
             sentDigest = model.expectedSentDigest
             operation(model::checkGaugeForReview)
-            val ten = requireNotNull(model.activeDocument)
-            assertEquals(original.revision + 1, ten.revision)
-            assertEquals(sentDigest, ten.sha256)
-            assertTrue(isConfirmedSetup(ten.revision, ten.sha256, model.runtimeIdentity))
-            assertTrue(sameSettings(expected, requireNotNull(GaugeDraftComparison.savedDraft(ten, profiles.activeId))))
-            assertEquals(10, JSONObject(ten.json).getJSONArray("pages").length())
+            val full = requireNotNull(model.activeDocument)
+            assertEquals(original.revision + 1, full.revision)
+            assertEquals(sentDigest, full.sha256)
+            assertTrue(isConfirmedSetup(full.revision, full.sha256, model.runtimeIdentity))
+            assertTrue(sameSettings(expected, requireNotNull(GaugeDraftComparison.savedDraft(full, profiles.activeId))))
+            assertEquals(capacity, JSONObject(full.json).getJSONArray("pages").length())
             val before = JSONObject(original.json)
-            val after = JSONObject(ten.json)
+            val after = JSONObject(full.json)
             listOf("sources", "alerts", "actions", "diagnosticFilters").forEach { key ->
                 assertEquals("Preserved $key", canonical(before.opt(key)), canonical(after.opt(key)))
             }
@@ -207,16 +212,16 @@ class TenPageDisplayJourneyTest {
             }
             assertEquals(settings, model.displaySettings)
             assertEquals(gauges, model.knownGauges)
-            capture("ten-pages-confirmed")
-            record("Ten pages confirmed at revision ${ten.revision}, digest ${ten.sha256}; trial cleared.")
-            record("Both arc indices and ${if (gear != null) "gear in non-arc slot" else "numeric fallback (gear unsupported)"} read back.")
+            capture("capacity-confirmed")
+            record("$capacity pages confirmed at revision ${full.revision}, digest ${full.sha256}; trial cleared.")
+            record("Appended layouts and ${if (gear != null) "gear in non-arc slot" else "numeric fallback (gear unsupported)"} read back.")
             record("No App protected quick-selection API: all-index tap/cycling and physical appearance require owner observation. No physical rendering claim.")
             // Emit only after exact healthy readback and fresh settings proof. No device identifiers.
             InstrumentationRegistry.getInstrumentation().sendStatus(
                 0,
                 android.os.Bundle().apply {
-                    putString("checkpoint", "TEN_PAGE_LAYOUT_READY")
-                    putString("stream", "TEN_PAGE_LAYOUT_READY\n")
+                    putString("checkpoint", "DASHBOARD_CAPACITY_READY")
+                    putString("stream", "DASHBOARD_CAPACITY_READY\n")
                 }
             )
             if (visualHoldMs > 0) {

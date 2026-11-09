@@ -137,7 +137,7 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
         if (draft.pages.size >
             it.maxPages
         ) {
-            add("Your gauge supports ${it.maxPages} pages. Remove an extra page.")
+            add("Your gauge supports ${it.maxPages} pages. Reduce the page count before sending.")
         }
         val unsupported = draft.pages.map { it.layout }.distinct().filter { layout ->
             layout !in
@@ -465,6 +465,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 "Jump to $name · ${action.count} swipes up within ${action.windowMs / 1000} seconds"
             },
             editingIssue = pageEditError,
+            pageLimit = editorPageLimit,
             reviewAlerts = transmittedDraft.alerts.filter { it.enabled }.map { alertUi(it, system) },
             idleCoolantWarning = transmittedDraft.actions.any { it.type == PageActionType.VehicleActions } && idleCoolantLimitC(transmittedDraft.alerts) == null,
             reviewNotice = if (transmittedDraft.diagnosticFilters != sentDraft?.diagnosticFilters.orEmpty()) {

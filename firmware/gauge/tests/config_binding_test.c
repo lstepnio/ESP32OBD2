@@ -58,10 +58,14 @@ static void set(cJSON *root)
     assert(document);
     document_length = strlen(document);
 }
+static esp_err_t validate_pages(uint8_t limit)
+{
+    config_document_context_t ctx = {.base_revision = 21, .max_adapter_links = 2, .max_pages = limit};
+    return config_document_validate(&partition, 0, document_length, &ctx);
+}
 static esp_err_t validate(void)
 {
-    config_document_context_t ctx = {.base_revision = 21, .max_adapter_links = 2};
-    return config_document_validate(&partition, 0, document_length, &ctx);
+    return validate_pages(EGAUGE_RUNTIME_PAGES);
 }
 int main(int argc, char **argv)
 {
@@ -84,31 +88,41 @@ int main(int argc, char **argv)
     assert(!runtime.legacy_auto_discovery && !strcmp(runtime.sources[0].address, "C0:00:00:00:00:01") &&
            runtime.sources[0].address_type == 1);
     assert(runtime.pids[0].responder == 0x7e8);
+    assert(config_runtime_validate(&partition, 0, document_length, NULL) == ESP_OK);
     cJSON *expanded       = cJSON_Duplicate(root, true);
     cJSON *expanded_pages = cJSON_GetObjectItem(expanded, "pages");
-    while (cJSON_GetArraySize(expanded_pages) < 10)
+    while (cJSON_GetArraySize(expanded_pages) < EGAUGE_RUNTIME_PAGES)
     {
         cJSON *page = cJSON_Duplicate(cJSON_GetArrayItem(expanded_pages, 0), true);
         char   id[32];
         snprintf(id, sizeof(id), "page.extra-%d", cJSON_GetArraySize(expanded_pages));
         cJSON_ReplaceItemInObject(page, "id", cJSON_CreateString(id));
         cJSON_AddItemToArray(expanded_pages, page);
+        int count = cJSON_GetArraySize(expanded_pages);
+        if (count == EGAUGE_BOARD_PAGE_LIMIT || count == EGAUGE_BOARD_PAGE_LIMIT + 1)
+        {
+            set(expanded);
+            bool fits = count == EGAUGE_BOARD_PAGE_LIMIT;
+            assert((validate_pages(EGAUGE_BOARD_PAGE_LIMIT) == ESP_OK) == fits);
+            assert((config_runtime_validate(&partition, 0, document_length, NULL) == ESP_OK) == fits);
+        }
     }
-    cJSON *arc_page = cJSON_GetArrayItem(expanded_pages, 9);
+    cJSON *arc_page = cJSON_GetArrayItem(expanded_pages, EGAUGE_RUNTIME_PAGES - 1);
     cJSON_ReplaceItemInObject(arc_page, "renderer", cJSON_CreateString("dualArc"));
     cJSON_AddItemToArray(cJSON_GetObjectItem(arc_page, "pidIds"), cJSON_CreateString("engine.coolant"));
     cJSON_AddNumberToObject(arc_page, "arcMetricIndex", 1);
     set(expanded);
     assert(validate() == ESP_OK && config_runtime_load(&runtime, &active, &previous) == ESP_OK);
-    assert(runtime.page_count == 10 && runtime.pages[9].renderer == RUNTIME_RENDERER_DUAL_ARC &&
-           runtime.pages[9].arc_metric_index == 1);
+    assert(runtime.page_count == EGAUGE_RUNTIME_PAGES &&
+           runtime.pages[EGAUGE_RUNTIME_PAGES - 1].renderer == RUNTIME_RENDERER_DUAL_ARC &&
+           runtime.pages[EGAUGE_RUNTIME_PAGES - 1].arc_metric_index == 1);
     cJSON_SetNumberValue(cJSON_GetObjectItem(arc_page, "arcMetricIndex"), 2);
     set(expanded);
     assert(validate() != ESP_OK);
     cJSON_SetNumberValue(cJSON_GetObjectItem(arc_page, "arcMetricIndex"), 1);
-    cJSON *eleventh = cJSON_Duplicate(cJSON_GetArrayItem(expanded_pages, 0), true);
-    cJSON_ReplaceItemInObject(eleventh, "id", cJSON_CreateString("page.eleven"));
-    cJSON_AddItemToArray(expanded_pages, eleventh);
+    cJSON *overflow = cJSON_Duplicate(cJSON_GetArrayItem(expanded_pages, 0), true);
+    cJSON_ReplaceItemInObject(overflow, "id", cJSON_CreateString("page.overflow"));
+    cJSON_AddItemToArray(expanded_pages, overflow);
     set(expanded);
     assert(validate() != ESP_OK);
     cJSON_Delete(expanded);

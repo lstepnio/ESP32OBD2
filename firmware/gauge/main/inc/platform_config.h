@@ -5,7 +5,8 @@
 
 static inline bool platform_config_accepts(const config_runtime_t *runtime)
 {
-    return (EGAUGE_FEATURE_DUAL_ADAPTER || runtime->source_count <= 1) &&
+    return runtime->page_count <= EGAUGE_BOARD_PAGE_LIMIT &&
+           (EGAUGE_FEATURE_DUAL_ADAPTER || runtime->source_count <= 1) &&
            (EGAUGE_FEATURE_VEHICLE_ACTIONS || !runtime->page_action.vehicle_menu);
 }
 

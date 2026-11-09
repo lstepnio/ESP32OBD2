@@ -1,5 +1,7 @@
 package com.lstepnio.egauge
 
+internal const val MAX_DASHBOARD_PAGES = 12
+
 /** All catalog rows below are examples, never vehicle capability evidence. */
 data class PidExample(
     val id: String,

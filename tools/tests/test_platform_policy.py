@@ -25,13 +25,25 @@ class PlatformPolicyTest(unittest.TestCase):
         ]
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "compile_commands.json"
-            entry = {"file": "/src/main/src/ble_companion.c", "arguments": ["cc", *disabled]}
+            entry = {
+                "file": "/src/main/src/ble_companion.c",
+                "arguments": ["cc", "-DEGAUGE_BOARD_PAGE_LIMIT=5", *disabled],
+            }
             path.write_text(json.dumps([entry]))
             require_public_build(folder)
+            entry["arguments"] = ["cc", "-DEGAUGE_BOARD_PAGE_LIMIT=12", *disabled]
+            path.write_text(json.dumps([entry]))
+            with self.assertRaisesRegex(ValueError, "five-page"):
+                require_public_build(folder)
             for definition in disabled:
                 for bad in ([], [definition[:-1] + "1"], [definition, definition[:-1] + "1"]):
                     with self.subTest(definition=definition, bad=bad):
-                        entry["arguments"] = ["cc", *(d for d in disabled if d != definition), *bad]
+                        entry["arguments"] = [
+                            "cc",
+                            "-DEGAUGE_BOARD_PAGE_LIMIT=5",
+                            *(d for d in disabled if d != definition),
+                            *bad,
+                        ]
                         path.write_text(json.dumps([entry]))
                         with self.assertRaises(ValueError):
                             require_public_build(folder)

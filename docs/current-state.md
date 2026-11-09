@@ -8,17 +8,15 @@ owns their order. Recheck the active branch, CI and device owner before delivery
 
 | Item | Latest recorded state | Evidence and limits |
 | --- | --- | --- |
-| Pixel | App dev.58 / code 58 | [Combined delivery](evidence/dev81-combined-delivery.md); installed APK hash verified, setup/history preserved |
-| Gauge | Signed dev.81 from `a129798`, healthy OTA; ELF `165bb38e4edfdd8653148a82a26525980a77b73ce1edf12bcc6f83f799061f6e` | Full App/Wi-Fi upload, two maintenance cycles, automatic connection/resume and cached readback passed in [delivery evidence](evidence/dev81-combined-delivery.md) |
-| Saved setup | Revision 66, whole-vehicle ECM + child-TCM dashboard, four TCM code filters | Settings/profiles/command records retained; 90 events, 67 episodes, 18 configuration contexts preserved in the delivery comparison |
-| Physical UI | Latest owner confirmation remains dev.80: clean navigation, first-configured-action entry and consistent Connecting styling | [Dev.80](evidence/dev80-action-entry.md); dev.81 panel/navigation confirmation and loaded vehicle UX remain separate |
-| Retained command uncertainty | ABS/TCS Unknown, operation 1; Burnout inactive | No Restore, reset confirmation or vehicle command was sent in the indoor delivery |
-| Hardware / vehicle | Waveshare ESP32-S3-Touch-LCD-1.28; modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800, two same-model BLE adapters | Reference hardware only; controller/vehicle definitions remain calibration-specific |
+| Pixel | App dev.58, built from the source merged in PR #134 | Installed APK matched its local build. Both named gauges and saved vehicle profiles were retained |
+| Gauge | **S3-LCD-1.28 v1** on [signed dev.84](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.84)<br>**S3-OLED-1.75 v1** on private w06 bench firmware | Exact healthy images and saved setup confirmed after App/Wi-Fi. LCD ABS/TCS recovery readback showed operation 0 after the owner's confirmation |
+| Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800 | Controller definitions remain calibration-specific. See [JK reading coverage](vehicles/jeep/reading-coverage.md) |
 
-These are the latest recorded observations, not live polling. Device access and the
-original Android wake/notification policies were released/restored after delivery.
-PRs #126, #127 and #128 are merged through main `f4fc353`. The combined signed
-App/Wi-Fi delivery preserved revision 66, settings, profiles and retained recovery.
+**OLED field report, 2026-11-09.** The owner tested the gauge on the Hemi-swapped Jeep and reported that everything worked as expected. It does not
+enumerate the readings, actions, or faults exercised or establish loaded recovery
+and memory margins. The [roadmap](roadmap.md#remaining-validation-by-board) separates
+the remaining checks. Historical dev.81 results remain in the
+[combined delivery evidence](evidence/dev81-combined-delivery.md).
 
 ## Latest merged delivery
 
@@ -36,7 +34,7 @@ flash interruption, loaded radio and vehicle-control restoration remain distinct
 | Area | Current behavior / authority | Remaining acceptance |
 | --- | --- | --- |
 | Logical vehicle | One primary adapter; optional swap TCM child changes routing, never reading/page/alert availability. Independent workers and source expiry. [Connections](architecture/vehicle-connections.md) | Earlier live simultaneous sources and independent loss/return passed; startup absence, loaded maintenance, swapped-port correction and soak remain under QUAL-03/04/08 |
-| Reading experience | Six renderers, up to ten negotiated pages, units, brightness, manual rotation, timed/Smart cycling, icon-only waiting. Foreground warmup, bounded display-only easing/text stability preserve raw ages. [Display](architecture/display-experience.md), [sampling](development/reading-catalog-alerts.md) | Loaded continuity, rate/latency/resource and daylight/gesture matrix; no prediction or stale values promoted to fresh |
+| Reading experience | Six renderers, board-advertised page capacity, units, brightness, manual rotation, timed/Smart cycling, icon-only waiting. Foreground warmup, bounded display-only easing/text stability preserve raw ages. [Display](architecture/display-experience.md), [sampling](development/reading-catalog-alerts.md) | Loaded continuity, rate/latency/resource and daylight/gesture matrix; no prediction or stale values promoted to fresh |
 | Engine / TCM data | Header-attributed engine replies; captured JSS temperature and current gear. Source catalog has 61 Mode 01 readings (including eight oxygen voltage components) plus two JSS readings. Generic and JK/Hemi + JSS starter setups are available in source. [Vehicle scope](vehicles/jeep/wrangler-jk.md) | RPM matched dash; TCM display/loss/return observed. Temperature meaning/scale, moving gears and broader vehicle compatibility remain unqualified |
 | Alerts / faults | Shared threshold/MIL/provider-event lifecycle, scoped code lookup/filtering, bounded context/history, opt-in phone monitoring. [Alert owner](architecture/alerts-and-diagnostics.md) | Live filtering, autonomous attention, OEM/background/storage behavior and explicit ECU clearing qualification remain |
 | App UX | Gauge/Car/Settings share connection status; Car uses one attention list, direct detail, Current/History and focused alert settings. Expert contains technical support/recovery. [Design](design/design-system.md) | Real vehicle workflow, accessibility/alternate phones and notification acceptance |
