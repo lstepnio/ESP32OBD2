@@ -67,7 +67,8 @@ not a qualification claim; all ordinary defaults/public flags stay off. The
 [indoor qualification procedure](../development/display-indoor-qualification.md)
 owns build isolation, restoration and the observed acceptance matrix.
 
-The optional low-priority worker borrows the existing board I2C bus, probes identity,
+The board adapter supplies its existing I2C bus to the shared QMI8658 transport.
+The optional low-priority worker probes identity,
 verifies configuration readback, configures accelerometer-only sampling and detects
 frozen timestamps. Source uses the documented +/-2 g normal-power 31.25 Hz mode;
 installed dev.70 uses this verified normal-power mode after dev.69
