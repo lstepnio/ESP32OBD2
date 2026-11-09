@@ -1,6 +1,6 @@
 # Hemi-swapped JK reading coverage
 
-Reconciled 2026-10-28 from the 2026-10-19 research. This scopes the 2010 JK / Hemi ECM `68059434AD` and separate
+Updated 2026-11-09. This scopes the 2010 JK / Hemi ECM `68059434AD` and separate
 JSS/PCS transmission setup. The optional child adapter is an Expert routing
 choice; current defaults use one primary adapter for the vehicle dashboard. It is not a stock-JK or donor-Challenger compatibility
 profile. `contracts/reading-catalog.json` remains the executable catalog; the
@@ -14,11 +14,12 @@ comes from the engine-port discovery recorded 2026-10-06. The
 accounts for every advertised bit. Advertisement proves a declared PID, not a
 correct measurement, installed sensor or fitted accessory.
 
-- 42 advertised identifiers: 30 already selectable scalar readings, four missing
-  compound oxygen-sensor readings, two unimplemented named statuses, two diagnostic
-  items, one identity item, one sensor-layout item and two continuation maps.
-- The compound gaps are `01 14`, `15`, `18`, `19`. Each reply contains oxygen voltage
-  and a trim component; one whole-word number is not a correct decode. The two
+- The 42 advertised identifiers include 30 selectable scalar readings and four
+  selectable oxygen voltage components. The rest are two named statuses, two
+  diagnostic items, one identity item, one sensor-layout item and two continuation
+  maps.
+- `01 14`, `15`, `18`, `19` now expose the voltage component in source. The trim
+  component and physical sensor-location attribution remain open. The two
   ordinary named-state gaps are fuel-system status `01 03` and PTO status `01 1E`.
 - MIL/monitor data `01 01` already uses shared diagnostics. Drive-cycle monitor
   status `01 41` needs its own diagnostic interpretation. Layout `01 13`, standard
@@ -34,6 +35,35 @@ python tools/research/audit_vehicle_readings.py \
   firmware/gauge/tests/fixtures/jeep-ecm-support.json \
   --output data/vehicle-definitions/vehicles/jeep/wrangler-jk-standard-coverage.json
 ```
+
+## Module variant audit
+
+The JK index identifies 17 candidate module routes. The archive contains 5,968
+live-data and 1,733 DTC resource variants in those folders across the catalog.
+Counts include shared variants and duplicate records. Generate the complete
+per-module counts with `query_vehicle_catalog.py vehicle JK --coverage` after
+[importing the archive](../catalog-research.md#rebuild-and-inspect).
+
+| Route family | Live-data variants | DTC variants | Current evidence |
+| --- | ---: | ---: | --- |
+| PCM | 2,602 | 803 | Hemi ECM `68059434AD`, CVN `CA36378C`, `7E8` support maps; no exact archive resource-name match to that calibration |
+| TCM | 690 | 194 | JSS/PCS `7E9` captures for `2204FE` temperature and `225503` gear; stock/FCA variant records need separate matching |
+| TIPMCGW | 102 | 29 | `620` to `504` candidate, conflicting transfer-case enum variants |
+| ABS | 447 | 126 | Candidate `784` to `785` route; identify installed variant and correlate brake and wheel data before enabling readings |
+| TPM | 93 | 24 | Candidate `7DA` to `7DB` route; fitted sensors and wheel positions need confirmation |
+
+The TCM folder contains both plain and suffix-bearing records. Exact indexed
+matches include `P1DCA00` in 13 resources, `P1DF300` in 26, `U0121` in 50 and
+`U0140` in 35. These matches corroborate candidate families. Keep the complete
+DTC namespace, controller identity and variant when researching an enhanced
+fault. The existing five-character fault path keeps the captured codes and
+clearly attributes FCA service references. It cannot infer a matching UDS status
+or diagnostic procedure from a suffix-bearing archive entry.
+
+For broader coverage, record software identity, fitted module, request and
+reply, and independent units/state validation before adding each enhanced pack.
+The [stock JK research](wrangler-jk.md) and [JSS capture plan](../../development/tcm-values-research-plan.md)
+cover distinct installations.
 
 ## Transfer case first
 

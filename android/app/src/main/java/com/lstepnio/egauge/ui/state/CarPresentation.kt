@@ -42,7 +42,7 @@ fun carAttention(state: CarUiState, alerts: List<CarAttentionAlert>): List<CarAt
     val faults = carFaults(state).filter { it.current }
     val codes = faults.map {
         CarAttentionIssue(
-            com.lstepnio.egauge.FaultCodeCatalog.lookup(it.code).title,
+            com.lstepnio.egauge.FaultCodeCatalog.lookup(it.code).referenceTitle,
             "${it.code} · ${it.source}",
             1,
             fault = it

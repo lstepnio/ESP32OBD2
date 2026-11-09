@@ -8,7 +8,7 @@
     "40": "FED00000"
   },
   "counts": {
-    "component_gap": 4,
+    "component_partial": 4,
     "diagnostic": 1,
     "diagnostic_gap": 1,
     "diagnostic_identity": 1,
@@ -150,31 +150,39 @@
     },
     {
       "pid": "14",
-      "name": "Narrowband oxygen sensor voltage / trim",
-      "coverage": "component_gap",
-      "readingIds": [],
-      "note": "One reply has two signals; component decoding and sensor-layout attribution are required"
+      "name": "Oxygen sensor 1 voltage",
+      "coverage": "component_partial",
+      "readingIds": [
+        "o2s1voltage"
+      ],
+      "note": "Voltage is selectable. Fuel trim and physical sensor location need separate decoding."
     },
     {
       "pid": "15",
-      "name": "Narrowband oxygen sensor voltage / trim",
-      "coverage": "component_gap",
-      "readingIds": [],
-      "note": "One reply has two signals; component decoding and sensor-layout attribution are required"
+      "name": "Oxygen sensor 2 voltage",
+      "coverage": "component_partial",
+      "readingIds": [
+        "o2s2voltage"
+      ],
+      "note": "Voltage is selectable. Fuel trim and physical sensor location need separate decoding."
     },
     {
       "pid": "18",
-      "name": "Narrowband oxygen sensor voltage / trim",
-      "coverage": "component_gap",
-      "readingIds": [],
-      "note": "One reply has two signals; component decoding and sensor-layout attribution are required"
+      "name": "Oxygen sensor 5 voltage",
+      "coverage": "component_partial",
+      "readingIds": [
+        "o2s5voltage"
+      ],
+      "note": "Voltage is selectable. Fuel trim and physical sensor location need separate decoding."
     },
     {
       "pid": "19",
-      "name": "Narrowband oxygen sensor voltage / trim",
-      "coverage": "component_gap",
-      "readingIds": [],
-      "note": "One reply has two signals; component decoding and sensor-layout attribution are required"
+      "name": "Oxygen sensor 6 voltage",
+      "coverage": "component_partial",
+      "readingIds": [
+        "o2s6voltage"
+      ],
+      "note": "Voltage is selectable. Fuel trim and physical sensor location need separate decoding."
     },
     {
       "pid": "1C",

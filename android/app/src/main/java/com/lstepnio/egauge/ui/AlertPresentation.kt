@@ -160,7 +160,7 @@ internal data class AlertWorkspaceRow(
     val fault: CarFaultUi? = null,
     val occurrences: List<StoredAlert> = listOf(entry)
 ) {
-    val title: String get() = fault?.let { FaultCodeCatalog.lookup(it.code).title }
+    val title: String get() = fault?.let { FaultCodeCatalog.lookup(it.code).referenceTitle }
         ?: when (entry.event.key) {
             32, 34 -> "Engine warning"
             33, 35 -> "Transmission warning"

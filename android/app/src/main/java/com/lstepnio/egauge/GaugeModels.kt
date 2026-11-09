@@ -15,7 +15,8 @@ data class PidExample(
     val minimum: Double = 0.0,
     val maximum: Double = 100.0,
     val alertKind: String = "numeric",
-    val configurationVersion: Int = 5
+    val configurationVersion: Int = 5,
+    val oxygenVoltage: Boolean = false
 )
 
 /** Populated only from an adapter session with a known vehicle and ECU source. */
@@ -200,6 +201,7 @@ data class CapabilitySnapshot(
     val dualAdapterVersion: Int = 0,
     val vehicleDashboardVersion: Int = 0,
     val pidCatalogVersion: Int = 0,
+    val oxygenVoltageSupported: Boolean = false,
     val pageActionsVersion: Int = 0,
     val maxPages: Int = 0,
     val supportedRenderers: Set<GaugeLayout> = emptySet(),

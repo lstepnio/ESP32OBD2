@@ -1,6 +1,6 @@
 # Current implementation and evidence
 
-Updated 2026-10-30. This is the current source/device snapshot, not a delivery diary.
+Updated 2026-11-09. This is the current source/device snapshot, not a delivery diary.
 The [backlog](backlog.md) owns next acceptance outcomes; the [roadmap](roadmap.md)
 owns their order. Recheck the active branch, CI and device owner before delivery.
 
@@ -37,7 +37,7 @@ flash interruption, loaded radio and vehicle-control restoration remain distinct
 | --- | --- | --- |
 | Logical vehicle | One primary adapter; optional swap TCM child changes routing, never reading/page/alert availability. Independent workers and source expiry. [Connections](architecture/vehicle-connections.md) | Earlier live simultaneous sources and independent loss/return passed; startup absence, loaded maintenance, swapped-port correction and soak remain under QUAL-03/04/08 |
 | Reading experience | Six renderers, up to ten negotiated pages, units, brightness, manual rotation, timed/Smart cycling, icon-only waiting. Foreground warmup, bounded display-only easing/text stability preserve raw ages. [Display](architecture/display-experience.md), [sampling](development/reading-catalog-alerts.md) | Loaded continuity, rate/latency/resource and daylight/gesture matrix; no prediction or stale values promoted to fresh |
-| Engine / TCM data | Header-attributed engine replies; captured JSS temperature and current gear. Catalog has 53 Mode 01 + two JSS readings. [Vehicle scope](vehicles/jeep/wrangler-jk.md) | RPM matched dash; TCM display/loss/return observed. Temperature meaning/scale, moving gears and broader vehicle compatibility remain unqualified |
+| Engine / TCM data | Header-attributed engine replies; captured JSS temperature and current gear. Source catalog has 61 Mode 01 readings (including eight oxygen voltage components) plus two JSS readings. Generic and JK/Hemi + JSS starter setups are available in source. [Vehicle scope](vehicles/jeep/wrangler-jk.md) | RPM matched dash; TCM display/loss/return observed. Temperature meaning/scale, moving gears and broader vehicle compatibility remain unqualified |
 | Alerts / faults | Shared threshold/MIL/provider-event lifecycle, scoped code lookup/filtering, bounded context/history, opt-in phone monitoring. [Alert owner](architecture/alerts-and-diagnostics.md) | Live filtering, autonomous attention, OEM/background/storage behavior and explicit ECU clearing qualification remain |
 | App UX | Gauge/Car/Settings share connection status; Car uses one attention list, direct detail, Current/History and focused alert settings. Expert contains technical support/recovery. [Design](design/design-system.md) | Real vehicle workflow, accessibility/alternate phones and notification acceptance |
 | Configuration / updates | Coupled phone setup saves, dual gauge generations, running revision/hash/trial verification; signed owner-protected Wi-Fi update and A/B health reconciliation. [Storage](architecture/config-storage.md), [release runbook](development/firmware-release-runbook.md) | Config commit interruption, trial rollback, rail-power loss and loaded radio matrix remain separate from indoor upload success |

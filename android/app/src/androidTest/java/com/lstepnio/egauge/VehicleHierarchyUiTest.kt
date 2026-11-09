@@ -210,7 +210,7 @@ class VehicleHierarchyUiTest {
                 {
                 },
                 {},
-                {}
+                { _, _ -> }
             )
         }
         compose.onNodeWithContentDescription("Car settings").performClick()

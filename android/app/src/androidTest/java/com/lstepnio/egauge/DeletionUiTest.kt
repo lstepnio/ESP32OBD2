@@ -71,7 +71,7 @@ class DeletionUiTest {
             )
         compose.setContent {
             EGaugeTheme {
-                CarScreen(state, {}, { selected = it }, {}, onDeleteProfile = {
+                CarScreen(state, {}, { selected = it }, { _, _ -> }, onDeleteProfile = {
                     deleted =
                         it
                 })

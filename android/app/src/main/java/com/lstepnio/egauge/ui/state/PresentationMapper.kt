@@ -101,6 +101,9 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
     ) {
         add("Update gauge firmware to use CEL code filters.")
     }
+    if (caps != null && requiresOxygenVoltageFirmware(draft) && !caps.oxygenVoltageSupported) {
+        add("Update the gauge before sending oxygen sensor voltage readings")
+    }
     ConfigurationProjector.transferBlockers(draft).forEach { raw ->
         add(
             when {

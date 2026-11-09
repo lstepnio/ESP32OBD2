@@ -1,6 +1,6 @@
 # Local diagnostic catalog research
 
-The complete decoded resource inventory is available locally in `references/vehicle-catalog/catalog.sqlite`. That directory is Git-ignored. The database contains every decoded JSON resource and an index of top-level records. A compact [definition archive](../../data/vehicle-definitions/README.md) in the working tree contains the same decoded resources in 34 compressed shards. The [export tool](../../tools/research/export_vehicle_catalog.py) rebuilds the database from locally held managed assemblies; the [query tool](../../tools/research/query_vehicle_catalog.py) searches it and assembles a vehicle inventory. The extracted definitions are research inputs, not verified eGauge profiles or vehicle commands.
+The complete decoded resource inventory is available locally in `references/vehicle-catalog/catalog.sqlite`. That directory is Git-ignored. The database contains every decoded JSON resource and an index of top-level records. A compact [definition archive](../../data/vehicle-definitions/README.md) in the working tree contains the same decoded resources in 34 compressed shards. The [export tool](../../tools/research/export_vehicle_catalog.py) rebuilds the database from locally held managed assemblies; the [query tool](../../tools/research/query_vehicle_catalog.py) searches it and assembles a vehicle inventory. The extracted definitions supply candidate routes and decoders. Use the [JK coverage record](jeep/reading-coverage.md) for captured or implemented evidence by controller.
 
 ## Current inventory
 
@@ -38,6 +38,7 @@ To reconstruct the SQLite index from the compressed archive without the original
 
 ```sh
 python3 tools/research/query_vehicle_catalog.py vehicle JK --output references/vehicle-catalog/jeep-wrangler-jk.json
+python3 tools/research/query_vehicle_catalog.py vehicle JK --coverage
 python3 tools/research/query_vehicle_catalog.py search --category LiveData --module PCM --mode 22 --pid B010 --raw
 python3 tools/research/query_vehicle_catalog.py search --category LiveData --module TIPMCGW --name 'T-Case Encoder Sensor' --raw
 python3 tools/research/query_vehicle_catalog.py search --category VehicleAdaptations --name 'Engine Idle' --raw

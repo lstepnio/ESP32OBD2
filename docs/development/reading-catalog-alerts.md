@@ -2,9 +2,10 @@
 
 ## Scope and authority
 
-The current catalog offers 55 executable readings: 53 scalar SAE
-Mode 01 readings and the two existing calibration-specific JSS transmission
-readings. The list covers fuel trims, pressures, intake/ambient/oil/catalyst
+The source catalog offers 63 executable readings. These include 53 scalar SAE
+Mode 01 readings, eight narrowband oxygen voltage components and two
+calibration-specific JSS transmission readings. The catalog covers fuel trims,
+pressures, intake/ambient/oil/catalyst
 temperatures, voltage, air flow, throttle/pedal positions, EGR/purge, run time,
 distance/time since diagnostic events, ethanol, fuel rate and torque.
 
@@ -13,8 +14,8 @@ identity, source/category, gauge label, example, minimum configuration capabilit
 and the complete wire definition, provenance and synthetic decode vectors.
 `tools/generate_reading_catalog.py` generates Android `ReadingCatalog.kt` and the
 wire template plus firmware `reading_policy_catalog.inc`. `tools/validate.py` rejects drift and validates every definition
-and a selected one-reading configuration. The template is a definition library;
-it is not itself an executable 55-reading configuration.
+and a selected one-reading configuration. The template stores the full library.
+The gauge receives only definitions used by the saved pages and enabled alerts.
 
 Protocol formulas were checked against the primary
 [python-OBD command tables](https://python-obd.readthedocs.io/en/latest/Command%20Tables/)
@@ -26,10 +27,42 @@ imported or promoted into executable support.
 Catalog availability is not vehicle support evidence. Mode 01 entries use the
 existing functional CAN/7E8 path. A missing response is unavailable and does not
 prove permanent lack of support. Automatic recovery/backoff remains per reading
-and per source. Compound status bytes, oxygen-sensor multi-signal responses,
-arbitrary enhanced identifiers and alternate transport/responders remain outside
-this increment. Legacy synthetic transmission input speed remains readable in
+and per source. Compound status bytes, oxygen-sensor trim and wideband components, arbitrary
+enhanced identifiers and alternate transport/responders require separate work. Legacy synthetic transmission input speed remains readable in
 local profiles but cannot be selected for execution or alerts.
+
+## Starter profiles
+
+In **Car > Your cars**, the default Generic OBD-II starter includes RPM, coolant
+and speed through functional request `7DF` and engine responder `7E8`, matching the
+archive’s generic 11-bit CAN route. Valid replies determine which readings become
+available. The archive also records the distinct 29-bit `18DB33F1` / `18DAF110`
+route for future transport qualification. The starter uses one primary adapter
+and standard emissions requests.
+
+Development builds also offer **JK / Hemi + JSS 8HP70**, which adds temperature and
+gear pages using the two captured JSS reads. Add the optional transmission child
+only for a separate port. The starter creates editable pages in the existing
+profile format. Adapter binding, sending a setup, vehicle actions and code
+filters follow their own explicit setup paths.
+The [JK coverage](../vehicles/jeep/reading-coverage.md) separates supported software
+from advertised, observed and archive-only candidates.
+
+## Narrowband oxygen voltage
+
+Mode 01 `14` through `1B` each return two data bytes. Voltage is `A / 200` V with a
+range of 0 to 1.275 V. The runtime requires both data bytes and decodes byte A.
+Byte B carries a separate trim component and can contain `FF` when trim is
+unavailable. Slot numbers avoid assuming a bank or position before interpreting
+`01 13` or `01 1D`. The current Hemi fixture advertises slots 1, 2, 5 and 6.
+The other slots are standard definitions available on vehicles that report them.
+
+The App requires `ov:1` for an oxygen voltage page or enabled alert. Older gauges
+can keep the draft locally until updated. The existing Mode 01 admission guard
+allows this response/decoder length difference only for the documented voltage
+shape. Standard responder, timeout, stale age and configured-reading limits still
+apply. Missing or truncated replies stay unavailable. The [owner protocol](../protocol/experimental-firmware-transfers.md)
+defines the additive marker.
 
 ## Editing, routing and runtime
 
@@ -94,7 +127,7 @@ Configured alerts cap the interval at their original polling requirement. Their
 `staleAfterMs`, dwell and control freshness are not increased. A display age limit
 never changes with visibility and page navigation never renews the timestamp.
 The table schedules only configured page/alert readings; it does not start querying
-all 55 catalog entries. Rates remain subject to measured adapter capacity.
+the entire catalog. Rates remain subject to measured adapter capacity.
 Metadata does not add wire fields, change saved configuration digests or require an
 App migration. Existing installed definitions acquire the firmware presentation
 policy when their identities and timings match the catalog.
@@ -150,7 +183,7 @@ Release publication is separately authorized under `AGENTS.md`.
   alert-only definitions, exact saved readback, profile persistence, child routing
   and removal, unsupported versions, invalid/nonfinite thresholds, unknown/fractional
   gear codes, bounds and the union-of-readings limit.
-- Production C configuration fixtures compile all 55 definitions with alerts and
+- Production C configuration fixtures compile all 63 definitions with alerts and
   evaluate their synthetic vectors through the actual decoder. Rejection cases
   include short payloads, gear reset distance and non-gear equality conditions.
 - Sanitized core tests cover fractional threshold hysteresis, named-position dwell,

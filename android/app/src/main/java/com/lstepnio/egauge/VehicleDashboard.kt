@@ -1,5 +1,23 @@
 package com.lstepnio.egauge
 
+/** Starter pages are ordinary editable profile data and confer no controller authority. */
+enum class VehicleStarter(val label: String) {
+    Generic("Generic OBD-II"),
+    JeepHemiJss("JK / Hemi + JSS 8HP70");
+
+    val available: Boolean get() = this == Generic || BuildConfig.DEBUG
+
+    fun draft(): Draft {
+        require(available) { "This setup requires a development build" }
+        val common = Draft()
+        if (this == Generic) return common
+        val transmission = readingCatalog.filter { it.id in setOf("tcmtemp", "tcmgear") }.map {
+            GaugePageDraft("page.${it.id}", it.gaugeLabel, GaugeLayout.Numeric, listOf(it.id))
+        }
+        return common.copy(pages = common.pages + transmission)
+    }
+}
+
 /** One editable dashboard; controller ownership is derived from the selected readings. */
 fun VehicleProfile.withDashboard(value: Draft): VehicleProfile {
     require(
@@ -75,3 +93,8 @@ fun requiresPidCatalogFirmware(draft: Draft): Boolean = (draft.pages.flatMap { i
         it.pidId in ConfigurationProjector.transmissionPidIds ||
             it.direction == AlertDirection.Equals
     }
+
+/** Only enabled alerts and displayed readings are part of the transmitted configuration. */
+fun requiresOxygenVoltageFirmware(draft: Draft): Boolean = (draft.pages.flatMap { it.pidIds } + draft.alerts.filter { it.enabled }.map { it.pidId }).any { id ->
+    readingCatalog.any { it.id == id && it.oxygenVoltage }
+}
