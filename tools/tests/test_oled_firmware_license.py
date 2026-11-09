@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from board_license import issue, openssl
 
 GAUGE = Path(__file__).resolve().parents[2] / "firmware/gauge"
-MAC = "00:11:22:33:44:55"
+MACS = ("00:11:22:33:44:55", "00:11:22:33:44:56")
 STUB_SDK = """#pragma once
 #include <stdbool.h>
 #include <stddef.h>
@@ -96,7 +96,9 @@ class OledFirmwareLicenseTest(unittest.TestCase):
                 binary,
             )
             fixture = root / "test.egauge-license"
-            for signing_key, flags, expected in ((issuer, 7, 3), (issuer, 1, 1), (other, 7, 0)):
-                with self.subTest(flags=flags, expected=expected):
-                    fixture.write_bytes(issue(MAC, flags, signing_key))
-                    verify(binary, fixture, str(expected))
+            # One verifier binary and public key activate both separately licensed boards.
+            for board, mac in enumerate(MACS):
+                for signing_key, flags, expected in ((issuer, 7, 3), (issuer, 1, 1), (other, 7, 0)):
+                    with self.subTest(board=board, flags=flags, expected=expected):
+                        fixture.write_bytes(issue(mac, flags, signing_key))
+                        verify(binary, fixture, str(expected), str(board))

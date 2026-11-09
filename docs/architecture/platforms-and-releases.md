@@ -90,10 +90,18 @@ See the [wire capability contract](../protocol/experimental-firmware-transfers.m
 
 ## OLED entitlements
 
-The OLED bundle pairs one board with an offline, unit-bound entitlement. The
-shared catalog and dashboard behavior remain common. A board's capabilities and
-the compiled feature set form the ceiling for any licensed option. Runtime
-vehicle-command qualification still applies independently.
+Each supported OLED board on a given release gets the same firmware and
+partition table. The firmware embeds the issuer's public verification key,
+shared across all boards in that product environment. The private signing key
+stays on the provisioning machine.
+
+Per board, read the factory eFuse MAC, sign a license for the derived unit ID
+and write only that board's entitlement image to its dedicated NVS partition.
+On boot the shared firmware verifies the signature and matches the unit ID
+against the board's own eFuse MAC, offline. The firmware build takes no board ID
+or license file. A board's capabilities and the compiled feature set form the
+ceiling for licensed options. Runtime vehicle-command qualification still
+applies independently.
 
 The bench issuer/verifier `tools/board_license.py` signs a fixed-format envelope
 using a separate P-256 key. It reads the factory ESP32-S3 eFuse MAC from standard
@@ -119,12 +127,13 @@ python tools/board_license.py verify --verification-key /private/issuer-public.p
   board.egauge-license < factory-mac.txt
 ```
 
-### Private OLED candidate
+### Build once per OLED release
 
 A private product build opts in with
 `-DEGAUGE_OLED_LICENSE_PUBLIC_KEY=/absolute/private/issuer-public.pem`.
-Use a separate P-256 verifier from the firmware-update trust key. The reference
-project rejects the option. Ordinary private development builds with the
+Use a separate P-256 verifier from the firmware-update trust key. Reuse the same
+issuer key across orders in each environment. A disposable sandbox issuer stays
+separate from the production issuer. The reference project rejects the option. Ordinary private development builds with the
 option unset retain their existing compile-time policy.
 
 The licensed build reads its factory eFuse MAC and verifies the entitlement
@@ -167,7 +176,7 @@ Normal app-slot updates preserve it. Recovery must use the same licensed
 layout and exclude the entitlement region from ordinary writes. A whole-chip
 erase requires re-provisioning from the retained, verified board license.
 
-### Provisioning and acceptance
+### Provision each board
 
 Keep the factory MAC, signed license, flash readbacks and provisioning workspace
 private. Read the connected board's factory MAC using the pinned ESP-IDF
@@ -212,10 +221,12 @@ repository. The test links the production boot verifier against the pinned
 Mbed TLS library and feeds it host-issued licenses through simulated NVS and
 factory-MAC reads.
 
-On physical OLEDs, verify cold-boot activation, effective BLE capabilities and
-configuration admission on the intended board. Exercise wrong-board and wrong-key
-rejection, missing and corrupted data, authorized replacement, and survival across
-an update, rollback and scoped USB recovery. Verify both customer app slots enforce
+For physical acceptance, provision two OLED boards using the same application
+hash and partition table. Confirm each activates with its own entitlement and
+rejects the other board's entitlement. Check effective BLE capabilities and
+configuration admission, wrong-key rejection, missing and corrupted data,
+authorized replacement, and retention across update, rollback and scoped USB
+recovery. Verify both customer app slots enforce
 the same licensing policy. Keep customer distribution gated on this evidence.
 The factory MAC is a stable, readable ID. Resistance to modified firmware or
 cloning requires separate secure-boot and device-key provisioning. Reading the

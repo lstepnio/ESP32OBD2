@@ -237,9 +237,10 @@ Payment Links are created separately in the sandbox and kept out of the webroot.
    workspace. Stripe remains the source of shipping addresses. The tool prints
    amounts and verifies payment, product, shipping, tax and charge state.
 4. For OLED only, pass a verified sandbox session and the factory MAC read from the
-   assigned test board. Use a disposable, separate P-256 issuer key and its matching
-   public key. The ledger preserves one license per order and one order per board
-   even if issuance is retried. Keep the key, ledger and exports in private storage.
+   assigned test board. Reuse the sandbox's separate P-256 issuer across test orders.
+   All boards use the same licensed OLED release for that sandbox. Only the signed
+   entitlement varies by board. The ledger preserves one license per order and one
+   order per board on retry. Keep the key, ledger and exports in private storage.
 
    ```sh
    python3 tools/stripe_storefront.py --workspace /private/egauge-sandbox \

@@ -9,7 +9,7 @@
 static esp_partition_t partition = {0x660000, 0x3000, true, false};
 static uint8_t         data[256];
 static size_t          data_len;
-static bool            wrong_board, unavailable, no_key;
+static bool            second_board, unavailable, no_key;
 
 const esp_partition_t *esp_partition_find_first(int type, int subtype, const char *name)
 {
@@ -48,13 +48,14 @@ void nvs_close(nvs_handle_t handle)
 }
 int esp_efuse_mac_get_default(uint8_t *out)
 {
-    const uint8_t mac[] = {0x00, 0x11, 0x22, 0x33, 0x44, wrong_board ? 0x56 : 0x55};
+    const uint8_t mac[] = {0x00, 0x11, 0x22, 0x33, 0x44, second_board ? 0x56 : 0x55};
     memcpy(out, mac, sizeof(mac));
     return ESP_OK;
 }
 int main(int argc, char **argv)
 {
-    assert(argc == 3);
+    assert(argc == 4);
+    second_board  = atoi(argv[3]) != 0;
     FILE *license = fopen(argv[1], "rb");
     assert(license);
     data_len = fread(data, 1, sizeof(data), license);
@@ -62,11 +63,11 @@ int main(int argc, char **argv)
     assert(platform_feature_mask() == 0);
     platform_features_init();
     assert(platform_feature_mask() == atoi(argv[2]));
-    wrong_board = true;
+    second_board = !second_board;
     platform_features_init();
     assert(platform_feature_mask() == 0);
-    wrong_board = false;
-    unavailable = true;
+    second_board = !second_board;
+    unavailable  = true;
     platform_features_init();
     assert(platform_feature_mask() == 0);
     unavailable = false;
