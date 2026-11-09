@@ -4,6 +4,22 @@ The development gauge now runs the two-slot layout and a rollback-enabled bootlo
 
 For local integration work, `python3 tools/sign_dev_update.py firmware/gauge/build/esp32-idf-project.bin --bundle /tmp/egauge-dev-update.zip` creates a development ZIP with exactly `metadata.json` and `firmware.bin`. The metadata carries board tag, image length, SHA-256, and a DER P-256 signature over the firmware transfer's 40 signed bytes. The private key remains outside Git. The Android development installer imports this package and separately verifies its image and signature; creating the package alone does not activate an update. It is not a production release manifest.
 
+The signer defaults to the reference LCD label and `EGS1` tag. Local engineering
+tooling can pass an explicit `--board`, `--board-tag`, and `--key` for an alternate
+target. The Android parser can verify against an independently supplied label,
+tag and public key. The bundle cannot supply those trust inputs. Both App
+transports use the verified bundle tag in BEGIN and the gauge independently
+requires its own tag and verification key. The wire format and 3 MiB image
+limit are unchanged. The reference label and tag are reserved as a pair.
+Assign each supported board, revision and layout
+compatibility group its own tag before enabling an alternate target.
+
+Existing App imports and hosted releases use the pinned reference target and
+key. Alternate device selection, key provisioning, partition admission and
+physical recovery qualification remain separate gates. Host verification uses
+disposable keys with `python -m unittest tools.tests.test_sign_dev_update` and
+Android's `DevUpdateBundleTest` JVM fixture.
+
 ## Development 16 MiB layout
 
 | Partition | Offset | Size | Purpose |

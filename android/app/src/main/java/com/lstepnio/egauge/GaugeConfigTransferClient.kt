@@ -1019,7 +1019,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                     check(current.phase == 0) { "Gauge is already activating an update" }
                 }
                 stage(FirmwareUpdateStage.PREPARING_FLASH)
-                command(0x20, id + le32(bundle.image.size.toLong()) + le32(0x31534745))
+                command(0x20, id + le32(bundle.image.size.toLong()) + le32(bundle.boardTag))
                 try {
                     for (part in 0..3) {
                         command(
@@ -1145,7 +1145,7 @@ class GaugeConfigTransferClient(private val context: Context) {
                         check(current.phase == 0) { "Gauge is already activating an update" }
                     }
                     cleanupState.preparing()
-                    otaCommand(0x20, sequence++, id + le32(bundle.image.size.toLong()) + le32(0x31534745))
+                    otaCommand(0x20, sequence++, id + le32(bundle.image.size.toLong()) + le32(bundle.boardTag))
                     stage(FirmwareUpdateStage.TRANSFERRING)
                     for (part in 0..3) {
                         otaCommand(
