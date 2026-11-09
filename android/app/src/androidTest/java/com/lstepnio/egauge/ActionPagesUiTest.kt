@@ -276,6 +276,29 @@ class ActionPagesUiTest {
         }
     }
 
+    @Test fun canAddBothIdlePagesBeforeVehicleQualifies() {
+        var saved: PageAction? = null
+        val original = PageAction(type = PageActionType.VehicleActions, pages = listOf(ActionPageId.AbsTcs))
+        compose.setContent {
+            EGaugeTheme {
+                ActionPagesSheet(
+                    state().copy(actions = listOf(original), vehicleCommands = emptyMap(), idlePageSetupSupported = true),
+                    { action, _ -> saved = action },
+                    {}
+                )
+            }
+        }
+        for (label in listOf("Air up", "Winch")) {
+            compose.onNodeWithText("Add action").performScrollTo().performClick()
+            compose.onNodeWithText(label).performScrollTo().assertIsEnabled().performClick()
+            finishEditor()
+        }
+        compose.onNodeWithText("Save on phone").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(original.copy(pages = listOf(ActionPageId.AbsTcs, ActionPageId.AirUp, ActionPageId.Winch)), saved)
+        }
+    }
+
     @Test fun emptySetupDoesNotOfferUnsupportedCommands() {
         compose.setContent { EGaugeTheme { ActionPagesSheet(state().copy(actions = emptyList(), vehicleCommands = emptyMap()), { _, _ -> }, {}) } }
         compose.onNodeWithText("Add action").performScrollTo().performClick()

@@ -99,23 +99,25 @@ fun ActionPagesSheet(
                 }, enabled = editable) { Text("Remove action") }
                 TextButton({ editing = null }) { Text("Back") }
             } else if (adding) {
-                val available = legacyActionPages.filter { it in action.pages || state.vehicleCommands[it.kind]?.let { status -> status.qualified || status.ownerSupervised } == true }
+                val available = legacyActionPages.filter { id ->
+                    (id.kind == VehicleCommandKind.Idle && state.idlePageSetupSupported) ||
+                        state.vehicleCommands[id.kind]?.let { it.qualified || it.ownerSupervised } == true
+                }
                 if (available.none { it !in action.pages }) Text("No additional actions available for this car yet.")
-                available.forEach { id ->
+                legacyActionPages.filter { it in action.pages || it in available }.forEach { id ->
                     val added = id in action.pages
-                    val compatible = state.vehicleCommands[id.kind]?.let { it.qualified || it.ownerSupervised } == true
                     SettingsRow(
                         id.label,
                         if (added) {
                             "Already added"
-                        } else if (!compatible) {
-                            "Not available for this car yet"
                         } else if (id == ActionPageId.AbsTcs) {
                             "ABS and traction control"
-                        } else {
+                        } else if (state.vehicleCommands[id.kind]?.qualified == true) {
                             "Temporary raised idle"
+                        } else {
+                            "Vehicle support checked on gauge"
                         },
-                        editable && !added && compatible,
+                        editable && !added,
                         {
                             action = action.copy(pages = action.pages + id)
                             removed = null

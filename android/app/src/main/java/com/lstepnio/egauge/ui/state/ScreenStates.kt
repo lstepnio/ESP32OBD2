@@ -151,7 +151,8 @@ data class CarUiState(
     val idleCoolantLimitC: Double? = null,
     val runningIdleCoolantLimitC: Double? = null,
     val measurementSystem: MeasurementSystem = MeasurementSystem.Metric,
-    val vehicleActionsAllowed: Boolean = true
+    val vehicleActionsAllowed: Boolean = true,
+    val idlePageSetupSupported: Boolean = false
 )
 
 @Immutable

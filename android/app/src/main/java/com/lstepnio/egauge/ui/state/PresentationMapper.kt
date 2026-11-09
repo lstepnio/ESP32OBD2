@@ -818,7 +818,9 @@ private fun AppViewModel.carState(
             !busy && profileError == null,
         actionsSupported = capabilities?.pageActionsVersion in 1..2, canManageVehicles = canManageVehicles,
         gaugeKnown = rememberedGaugeId != null,
-        vehicleActionsAllowed = gaugeFeaturePolicy.allowsVehicleActions
+        vehicleActionsAllowed = gaugeFeaturePolicy.allowsVehicleActions,
+        idlePageSetupSupported = gaugeFeaturePolicy.allowsVehicleActions &&
+            capabilities?.pageActionsVersion == 2 && capabilities?.vehicleCommandsVersion == 1
     )
 }
 
