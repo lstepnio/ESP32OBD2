@@ -164,8 +164,8 @@ publication gate for missing representative views, not permission to use stale
 screens. Clear it only after saving/reviewing the production capture or deciding
 with the owner that the view is outside the public batch.
 
-Future road-awareness illustrations are stored separately in `future/` and must
-remain explicitly described as unavailable future concepts.
+Historical road-awareness concept images remain under `future/` and are excluded
+from the public site build.
 
 ## Deployment and rollback
 
@@ -203,14 +203,32 @@ status here.
 
 ## Public offer
 
-The owner’s distribution direction is [free DIY software and custom projects](../docs/roadmap.md#distribution-and-custom-work).
-Free public firmware applies to the original reference board only. Additional
-hardware integrations/releases default to private under the [platform policy](../docs/architecture/platforms-and-releases.md). Do not imply free firmware for every future board.
-Use project-update signup language, not preorders, deposits, reservations or paid
-roadmap access. A finished unit can be discussed on request; do not imply a retail
-launch commitment. Consent text and success messages must match the visible form.
-New copy does not authorize repurposing existing signup records or changing their
-recorded preferences. Preserve the existing API and data during copy-only changes.
+The [product roadmap](../docs/roadmap.md#distribution-and-custom-work) defines the
+free LCD firmware and licensed OLED bundle. The shop comparison distinguishes
+installed capabilities, private evaluation, and the proposed 5/12-page limits.
+Board cutouts are AI-assisted adaptations of the exact
+[Waveshare LCD photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-lcd-1.28-1.jpg)
+and [enclosed AMOLED photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-amoled-1.75-b-1.jpg).
+They show the displays powered off. Confirm reuse for commercial publication or
+replace them with equivalent original product photographs.
+
+### Checkout and fulfillment
+
+`storefront.json` has one optional Stripe Payment Link per product. With null
+values, both buttons prefill the existing request form and no payment is taken.
+Keep the project update list separate from order requests. The website handles no
+payment details, provider credentials, or board identifiers.
+
+For launch, configure two hosted products, LCD hardware and OLED hardware plus
+license. Set the prices, stock, shipping destinations/rates, tax treatment and
+returns terms before inserting live links. Exercise both offers in Stripe test
+mode using the [Payment Links guide](https://docs.stripe.com/payment-links).
+Keep OLED checkout disabled until the provisioned license works on the shipped
+board and fails on a different board. Disable the payment link when stock runs
+out. During low-volume fulfillment, verify the paid order in Stripe and record
+its fulfillment once before shipping. A redirect alone does not establish payment.
+An OLED order uses the [private license process](../docs/architecture/platforms-and-releases.md#oled-entitlements).
+
 
 ## Intake source and operational checks
 

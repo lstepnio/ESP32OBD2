@@ -72,6 +72,31 @@ def gallery(content):
     return "".join(choices), json.dumps(data, ensure_ascii=False)
 
 
+def storefront_actions(settings):
+    offers = (
+        ("lcdCheckout", "LCD_ORDER", "LCD hardware", "S3-LCD-1.28 v1 hardware"),
+        ("oledCheckout", "OLED_ORDER", "OLED bundle", "S3-OLED-1.75 v1 hardware and license"),
+    )
+    if not isinstance(settings, dict) or set(settings) != {offer[0] for offer in offers}:
+        raise ValueError("Unexpected storefront configuration")
+    actions = {}
+    for key, token, label, offer in offers:
+        url = settings[key]
+        if url is None:
+            actions[token] = (
+                f'<a class="button primary" href="#custom-form" data-order-request="{offer}">'
+                f'Request {label} <span aria-hidden="true">↗</span></a>'
+            )
+        elif isinstance(url, str) and re.fullmatch(r"https://buy\.stripe\.com/[A-Za-z0-9_]+", url):
+            actions[token] = (
+                f'<a class="button primary" href="{escape(url)}">Order {label} '
+                '<span aria-hidden="true">↗</span></a>'
+            )
+        else:
+            raise ValueError(f"Invalid hosted payment link for {key}")
+    return actions
+
+
 def repository_file(name):
     path = ROOT / name
     if Path(name).is_absolute() or ".." in Path(name).parts or not path.is_file():
@@ -263,10 +288,9 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
     used_images.update("gauge/" + screen["key"] + ".png" for screen in content["screens"])
     for name in sorted(used_images):
         files[name] = (ROOT / "docs/assets" / name).read_bytes()
-    for image in sorted((source / "future").glob("*")):
-        if image.suffix not in {".png", ".webp"}:
-            continue
-        files["future/" + image.name] = image.read_bytes()
+    for board in ("lcd", "oled"):
+        asset = f"hardware/{board}.webp"
+        files[asset] = (source / asset).read_bytes()
     files["social-preview.png"] = (source / "social-preview.png").read_bytes()
     for asset in sorted((source / "recovery").iterdir()):
         if asset.suffix != ".html" and asset.name != "package.json":
@@ -321,6 +345,7 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
         "SOCIAL_IMAGE": "https://egauge.majjix.com" + prefix + "/social-preview.png",
     }
     replacements.update(claim_replacements)
+    replacements.update(storefront_actions(json.loads((source / "storefront.json").read_text())))
     for key in ("airUp", "winch", "absTcs"):
         item = content["actionAvailability"][key]
         if not (ROOT / item["source"]).is_file():

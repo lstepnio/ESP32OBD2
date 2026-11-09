@@ -28,15 +28,14 @@ qualification task, not useful independent offline work.
 
 ## Distribution and custom work
 
-The original 1.28-inch reference board retains free public development firmware.
-Additional hardware integrations and firmware default to private distribution, with
-custom software, interfaces and integrations as the primary service. The
-[platform/RC contract](architecture/platforms-and-releases.md) defines shared-core
-development, capability limits, square/virtual display extensions and target-specific
-release-candidate qualification before general availability.
-There is no committed standard-gauge retail launch, preorder/deposit program or
-paid roadmap tier. A finished build or custom hardware can be discussed by request
-and scoped separately. Customer ideas can influence priorities without payment.
+The S3-LCD-1.28 v1 remains the free public development firmware target. Customers
+can source the board independently or request LCD hardware through the site. The
+S3-OLED-1.75 v1 is a planned paid hardware bundle with a per-board firmware
+entitlement. Its firmware distribution remains private. The storefront starts
+with inquiries and adds hosted checkout after fulfillment and activation
+qualification. See the [storefront runbook](../website/README.md#checkout-and-fulfillment)
+and [platform/RC contract](architecture/platforms-and-releases.md).
+
 Custom work can extend beyond vehicles to desktop software/displays, control panels
 and standalone connected devices. These are project possibilities, not claims of
 implemented eGauge support. Direct CAN integration and guided remote protocol

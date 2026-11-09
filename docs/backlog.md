@@ -60,6 +60,7 @@ are in current state and evidence, with remaining qualification listed separatel
 | QUAL-09 | P2 | Needs device | Accessibility and adaptive/OEM matrix | TalkBack, keyboard/switch, 200% text, RTL, fold/hinge and alternate Android generation; fixture success is not user/device qualification |
 | QUAL-10 | P2 | Needs device | Adapter/vehicle expansion | One alternate BLE/GATT profile and another vehicle with captured identity, header/parser vectors and field loss/recovery evidence. [Owner-accessible candidates and customer-led priorities](roadmap.md#vehicle-profile-expansion) follow Jeep qualification; scope guided remote captures per setup. [Capture runbook](development/vehicle-capture-runbook.md) |
 | RELEASE-01 | P2 | Ready | Production trust and Play readiness | Review signing/provisioning, release threat model and compatibility; follow [release runbook](development/firmware-release-runbook.md); owner handles consequential Play actions; no production claim from prereleases |
+| RELEASE-02 | P2 | Store preview and bench issuer; activation pending | LCD hardware orders and licensed OLED bundle | Confirm product, stock, pricing, shipping, taxes and returns. Verify paid-order fulfillment once, a valid factory-bound offline entitlement on its intended board, rejection on a different board, and recovery without losing the license. [Storefront](../website/README.md#checkout-and-fulfillment), [entitlements](architecture/platforms-and-releases.md#oled-entitlements). |
 
 ## Deferred capabilities
 
