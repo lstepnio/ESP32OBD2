@@ -214,22 +214,57 @@ replace them with equivalent original product photographs.
 
 ### Checkout and fulfillment
 
-`storefront.json` has one optional Stripe Payment Link per product. With null
-values, both buttons prefill the existing request form and no payment is taken.
-Keep the project update list separate from order requests. The website handles no
-payment details, provider credentials, or board identifiers.
+`storefront.json` owns both USD prices. The public build rejects any non-null
+checkout setting. Each product button opens the existing inquiry form. Stripe
+Payment Links are created separately in the sandbox and kept out of the webroot.
 
-For launch, configure two hosted products, the preflashed LCD board and the OLED
-bundle. Match the OLED offer to the [shop card](index.html#oled-bundle), including
-the BLE adapter. Confirm pricing, stock, lead time, shipping, tax and returns before
-inserting live links. Exercise both offers in Stripe test
-mode using the [Payment Links guide](https://docs.stripe.com/payment-links).
-Keep OLED checkout disabled until the provisioned license works on the shipped
-board and fails on a different board. Disable the payment link when stock runs
-out. During low-volume fulfillment, verify the paid order in Stripe and record
-its fulfillment once before shipping. A redirect alone does not establish payment.
-An OLED order uses the [private license process](../docs/architecture/platforms-and-releases.md#oled-entitlements).
+1. Open the Stripe sandbox. Configure its tax origin and an active **test** tax
+   registration. Use an authorized test key stored in a private file or entered
+   at the terminal prompt. The operator tool rejects live keys and sessions.
+2. From the repository root, create an owner-only workspace outside Git and
+   generate both test links. The example charges $9.95 for U.S. test shipping and
+   enables Stripe Tax on tax-exclusive item and shipping prices.
 
+   ```sh
+   install -d -m 700 /private/egauge-sandbox
+   python3 tools/stripe_storefront.py --workspace /private/egauge-sandbox \
+     setup --shipping-cents 995
+   ```
+
+3. Complete each hosted checkout with Stripe's test card and a U.S. test address.
+   Confirm tax and shipping are itemized before payment. Retrieve the Checkout
+   Session ID from the sandbox and run `verify-order cs_test_...` using the same
+   workspace. Stripe remains the source of shipping addresses. The tool prints
+   amounts and verifies payment, product, shipping, tax and charge state.
+4. For OLED only, pass a verified sandbox session and the factory MAC read from the
+   assigned test board. Use a disposable, separate P-256 issuer key and its matching
+   public key. The ledger preserves one license per order and one order per board
+   even if issuance is retried. Keep the key, ledger and exports in private storage.
+
+   ```sh
+   python3 tools/stripe_storefront.py --workspace /private/egauge-sandbox \
+     --stripe-key-file /private/stripe-sandbox.key provision-oled cs_test_... \
+     --signing-key /private/test-issuer.pem \
+     --verification-key /private/test-issuer-public.pem \
+     --output /private/egauge-sandbox/test-board.egauge-license < /private/factory-mac.txt
+   ```
+
+5. Use the [private OLED provisioning procedure](../docs/architecture/platforms-and-releases.md#oled-entitlements)
+   to install the entitlement. Test issuance grants dual adapters and Smart Cycle.
+   Vehicle controls have a separate qualification path.
+
+Use the [Stripe Tax sandbox guide](https://docs.stripe.com/tax/testing) and
+[Stripe test cards](https://docs.stripe.com/testing). The rehearsal verified LCD
+subtotal $75.00, shipping $9.95 and Idaho tax $4.50, and OLED subtotal $199.00,
+shipping $9.95 and Idaho tax $11.94. A disposable-key OLED entitlement was
+issued and re-exported from the paid sandbox order using a synthetic board ID.
+Test shipping and the Idaho registration are rehearsal settings.
+
+Before accepting real payments, set approved shipping destinations/rates and
+returns terms, confirm tax registrations and product classification, and
+qualify OLED activation, replacement and recovery on physical boards. Any future
+live order integration needs explicit activation and must verify Stripe payment
+state before fulfillment.
 
 ## Intake source and operational checks
 

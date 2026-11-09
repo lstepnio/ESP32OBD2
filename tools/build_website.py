@@ -19,6 +19,9 @@ import subprocess
 import tempfile
 from urllib.parse import unquote, urlsplit
 
+from storefront import OFFERS, storefront_catalog
+
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -72,28 +75,16 @@ def gallery(content):
     return "".join(choices), json.dumps(data, ensure_ascii=False)
 
 
-def storefront_actions(settings):
-    offers = (
-        ("lcdCheckout", "LCD_ORDER", "LCD hardware", "S3-LCD-1.28 v1 hardware"),
-        ("oledCheckout", "OLED_ORDER", "OLED bundle", "S3-OLED-1.75 v1 hardware and license"),
-    )
-    if not isinstance(settings, dict) or set(settings) != {offer[0] for offer in offers}:
-        raise ValueError("Unexpected storefront configuration")
+def storefront_actions(prices):
     actions = {}
-    for key, token, label, offer in offers:
-        url = settings[key]
-        if url is None:
-            actions[token] = (
-                f'<a class="button primary" href="#custom-form" data-order-request="{offer}">'
-                f'Request {label} <span aria-hidden="true">↗</span></a>'
-            )
-        elif isinstance(url, str) and re.fullmatch(r"https://buy\.stripe\.com/[A-Za-z0-9_]+", url):
-            actions[token] = (
-                f'<a class="button primary" href="{escape(url)}">Order {label} '
-                '<span aria-hidden="true">↗</span></a>'
-            )
-        else:
-            raise ValueError(f"Invalid hosted payment link for {key}")
+    for key, (label, offer, _) in OFFERS.items():
+        dollars, cents = divmod(prices[key], 100)
+        amount = f"${dollars:,}" if cents == 0 else f"${dollars:,}.{cents:02d}"
+        actions[key.upper() + "_PRICE"] = f"{amount} USD"
+        actions[key.upper() + "_ORDER"] = (
+            f'<a class="button primary" href="#custom-form" data-order-request="{offer}">'
+            f'Request {label} <span aria-hidden="true">↗</span></a>'
+        )
     return actions
 
 
@@ -345,7 +336,7 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
         "SOCIAL_IMAGE": "https://egauge.majjix.com" + prefix + "/social-preview.png",
     }
     replacements.update(claim_replacements)
-    replacements.update(storefront_actions(json.loads((source / "storefront.json").read_text())))
+    replacements.update(storefront_actions(storefront_catalog(source / "storefront.json")))
     for key in ("airUp", "winch", "absTcs"):
         item = content["actionAvailability"][key]
         if not (ROOT / item["source"]).is_file():
@@ -373,6 +364,8 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
     for name, document in documents.items():
         for link in document.links:
             url = urlsplit(link)
+            if url.hostname in {"buy.stripe.com", "checkout.stripe.com"}:
+                raise ValueError("Hosted checkout links belong in the private Stripe sandbox only")
             if url.scheme or url.netloc or url.path.startswith("/api/"):
                 continue
             path = unquote(url.path)

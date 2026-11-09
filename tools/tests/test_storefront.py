@@ -1,34 +1,40 @@
-"""Check request-only and configured checkout modes."""
+"""Check the public catalog and fail-closed checkout boundary."""
 
+import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from build_website import storefront_actions
+from storefront import storefront_catalog
 
 
 class StorefrontTest(unittest.TestCase):
-    def test_each_product_has_a_distinct_inquiry(self):
-        actions = storefront_actions({"lcdCheckout": None, "oledCheckout": None})
+    def test_each_product_has_a_distinct_inquiry_and_price(self):
+        actions = storefront_actions(storefront_catalog())
+        self.assertEqual(actions["LCD_PRICE"], "$75 USD")
+        self.assertEqual(actions["OLED_PRICE"], "$199 USD")
         self.assertIn('href="#custom-form"', actions["LCD_ORDER"])
         self.assertIn("S3-LCD-1.28 v1 hardware", actions["LCD_ORDER"])
+        self.assertIn('href="#custom-form"', actions["OLED_ORDER"])
         self.assertIn("S3-OLED-1.75 v1 hardware and license", actions["OLED_ORDER"])
 
-    def test_configured_checkout_does_not_enable_the_other_product(self):
-        actions = storefront_actions(
-            {"lcdCheckout": "https://buy.stripe.com/test_example", "oledCheckout": None}
-        )
-        self.assertIn('href="https://buy.stripe.com/test_example"', actions["LCD_ORDER"])
-        self.assertIn("Order LCD hardware", actions["LCD_ORDER"])
-        self.assertIn("Request OLED bundle", actions["OLED_ORDER"])
-
-    def test_untrusted_links_fail_the_build(self):
-        for url in (
-            "http://buy.stripe.com/id",
-            "https://buy.stripe.com.invalid/id",
-            "https://buy.stripe.com/id?x=y",
-            True,
-        ):
-            with self.subTest(url=url), self.assertRaises(ValueError):
-                storefront_actions({"lcdCheckout": None, "oledCheckout": url})
+    def test_public_build_rejects_test_and_live_checkout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "storefront.json"
+            for url in (
+                "https://buy.stripe.com/test_example",
+                "https://buy.stripe.com/liveExample",
+            ):
+                with self.subTest(url=url), self.assertRaises(ValueError):
+                    path.write_text(
+                        json.dumps(
+                            {
+                                "lcd": {"amountCents": 7500, "checkout": None},
+                                "oled": {"amountCents": 19900, "checkout": url},
+                            }
+                        )
+                    )
+                    storefront_catalog(path)
