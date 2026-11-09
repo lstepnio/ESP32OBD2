@@ -36,6 +36,26 @@ class PlatformPolicyTest(unittest.TestCase):
                         with self.assertRaises(ValueError):
                             require_public_build(folder)
 
+    def test_public_build_excludes_private_oled_entitlements(self):
+        disabled = [
+            f"-DEGAUGE_FEATURE_{name}=0"
+            for name in ("DUAL_ADAPTER", "SMART_CYCLE", "VEHICLE_ACTIONS")
+        ]
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "compile_commands.json"
+            companion = {"file": "/src/main/src/ble_companion.c", "arguments": ["cc", *disabled]}
+            flagged = {
+                **companion,
+                "arguments": [*companion["arguments"], "-DEGAUGE_OLED_LICENSE_REQUIRED=1"],
+            }
+            for commands in (
+                [flagged],
+                [companion, {"file": "/src/main/src/oled_license.c", "arguments": ["cc"]}],
+            ):
+                with self.subTest(commands=commands), self.assertRaisesRegex(ValueError, "OLED"):
+                    path.write_text(json.dumps(commands))
+                    require_public_build(folder)
+
     def test_new_hardware_is_private_by_default(self):
         policy = load_policy()
         for board in (

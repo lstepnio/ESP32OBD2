@@ -60,6 +60,13 @@ def require_public_build(build):
         raise ValueError("Cannot identify the public companion build")
     entry = components[0]
     arguments = entry["arguments"] if "arguments" in entry else shlex.split(entry["command"])
+    license_define = "-DEGAUGE_OLED_LICENSE_REQUIRED"
+    if any(
+        value == license_define or value.startswith(license_define + "=") for value in arguments
+    ):
+        raise ValueError("Public firmware excludes the OLED entitlement runtime")
+    if any(Path(entry["file"]).name == "oled_license.c" for entry in commands):
+        raise ValueError("Public firmware excludes the OLED entitlement source")
     for name in ("DUAL_ADAPTER", "SMART_CYCLE", "VEHICLE_ACTIONS"):
         define = f"-DEGAUGE_FEATURE_{name}"
         if [value for value in arguments if value == define or value.startswith(define + "=")] != [
