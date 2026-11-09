@@ -96,7 +96,7 @@ owns details. Parked thermal/fallback and real compressor calibration remain ope
   manual rotation and page cycling are independent. [Orientation](architecture/hardware-and-transports.md#automatic-display-orientation).
 - TCM temperature currently uses first-byte A−40 °C; pressure remains raw. Gear
   meanings and topology are calibration-specific. No catalog-wide vehicle support.
-- Live phone telemetry/providers, general diagnostic clearing, basic iOS and browser
+- ESP32-to-phone telemetry, live external providers, general diagnostic clearing, basic iOS and browser
   USB configuration remain gated/planned. Browser recovery flashes firmware only.
   Additional-board firmware defaults to private; [platform policy](architecture/platforms-and-releases.md).
 

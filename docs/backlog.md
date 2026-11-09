@@ -67,7 +67,7 @@ are in current state and evidence, with remaining qualification listed separatel
 
 | ID | Status | Scope | Entry gate |
 | --- | --- | --- | --- |
-| FEATURE-02 | Deferred | Live companion telemetry and optional physical sensors | Measured radio/resource budget, bounded freshness and protected protocol; [hardware strategy](architecture/hardware-and-transports.md) |
+| FEATURE-02 | Deferred | ESP32-to-phone telemetry and optional physical sensors | Measured radio/resource budget, bounded freshness and protected protocol; [hardware strategy](architecture/hardware-and-transports.md) |
 | FEATURE-06 | Deferred | Authorized third-party alert providers | Inactive [ADR-018 synthetic harness](architecture/phone-companion-content.md) and Dev.48 synthetic provider seam and [integration guide](architecture/phone-alert-providers.md) are implemented; live feed requires documented access, licensing, TTL/attribution and qualification under [ADR-015](architecture/alerts-and-diagnostics.md#future-external-provider-seam) |
 
 ## Updating a task

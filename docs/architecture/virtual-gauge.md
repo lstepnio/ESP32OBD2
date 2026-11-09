@@ -46,7 +46,8 @@ defines the write and subscription callbacks used by the transport.
 
 JVM fixtures cover fragmented replies, wrong source/PID, malformed or conflicting
 frames, polling fairness, and independent stale and unit handling. Managed UI
-checks cover entry, local editing and rendered compact/200% text faces. Bench
+checks cover entry, the local editor and rendered compact/200% text faces. All
+three focused UI tests passed and both captures were reviewed. Bench
 acceptance still requires the owner's supported Vgate on the ECM port: select the
 correct unit with both adapters nearby, compare RPM/speed/coolant with an
 independent reference, observe stale/return after ignition or adapter loss, and
