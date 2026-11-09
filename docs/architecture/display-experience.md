@@ -29,8 +29,8 @@ nine or ten use a compact page counter without allocating additional dots.
 
 The App offers this beside Dual in the layout chooser. Two readings remain explicit;
 the user chooses which numeric reading drives the perimeter arc. Gear can occupy
-the other slot. The arc uses that reading's complete canonical range and availability,
-including unit conversion at presentation. A missing selected reading removes its
+the other slot. The arc follows that reading's availability. Numeric ranges and unit conversion
+follow the catalog, with a separate display scale for [RPM](#rpm-ring-and-trend-history). A missing selected reading removes its
 arc without hiding the healthy sibling. Ordinary Dual keeps its previous geometry.
 
 The document uses `renderer: "dualArc"` and required `arcMetricIndex: 0|1`.
@@ -39,6 +39,39 @@ The field is invalid on other renderers. The App requires `dx:1` before transfer
 The existing single arc object is reused; text is narrowed to fit within its ring.
 Custom definitions follow the same measured glyph fitting, units, range and
 unavailable rules as catalog readings. No label-based guessing of enum semantics.
+
+## RPM ring and trend history
+
+An engine RPM Arc or Dual + arc uses a 0 to 8,000 RPM display scale by default.
+In Customize, the **RPM redline** row lets the owner set a red zone for the selected
+ring. The scale ends at the next 500 RPM boundary at least 500 RPM above the
+configured redline. A value beyond the end fills the ring while the number still
+shows the measured RPM. Leave the field blank when the vehicle's redline is unknown.
+The setting is display-only and stays in the draft until Review and send. The App
+requires firmware capability `rl:1` before sending a configured redline.
+The [Jeep coverage](../vehicles/jeep/reading-coverage.md#rpm-display-reference)
+records the remaining calibration check.
+
+Trend pages share history by configured reading and source. The ESP32 retains
+up to 60 real observations across the last 30 seconds in RAM. It records at most
+one point per 500 ms from readings the gauge already polls. Page changes do not
+interrupt recording or schedule more OBD requests. The horizontal position uses
+the observation time. Source loss, invalid data and gaps longer than the reading's
+stale interval start a fresh trace. Reboot clears history. Dashes replace the value and the line disappears when
+the reading is unavailable.
+
+The vertical range uses the window's observed low and high with padding and a
+minimum span. Temperature uses an 8 °C minimum span, RPM 500 RPM, percentages
+and speed five canonical units, and voltage 0.2 V. Other continuous readings
+use a floor based on signal magnitude and canonical range. This keeps flat
+or nearly flat data legible without amplifying small fluctuations.
+The App's direct-adapter virtual gauge uses the same window and scaling.
+The number, decoder range, alert thresholds and vehicle command guards keep
+their existing raw-data semantics.
+
+ESP32 trend history and rendering scratch use a bounded PSRAM allocation only
+when a dashboard contains Trend pages. The reading remains available if history
+allocation fails. A missing curve mask uses the same data in the line renderer.
 
 ## Foreground reading motion
 

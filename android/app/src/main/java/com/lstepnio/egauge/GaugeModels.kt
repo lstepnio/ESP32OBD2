@@ -62,8 +62,22 @@ data class GaugePageDraft(
     val name: String,
     val layout: GaugeLayout,
     val pidIds: List<String>,
-    val arcMetricIndex: Int = 0
-)
+    val arcMetricIndex: Int = 0,
+    val rpmRedline: Int? = null
+) {
+    internal val isRpmRing: Boolean
+        get() = (layout == GaugeLayout.Arc || layout == GaugeLayout.DualArc) && pidIds.getOrNull(arcMetricIndex) == "rpm"
+
+    internal fun withoutInapplicableRedline() = if (rpmRedline != null && !isRpmRing) copy(rpmRedline = null) else this
+}
+
+internal val rpmRedlineRange = 1000..16000
+
+internal fun rpmRingMaximum(redline: Int?): Int = if (redline == null) 8000 else (redline + 999) / 500 * 500
+
+internal fun readingFraction(id: String, value: Double, minimum: Double, maximum: Double, redline: Int? = null): Float = (if (id == "rpm") value / rpmRingMaximum(redline) else (value - minimum) / (maximum - minimum)).toFloat().coerceIn(0f, 1f)
+
+internal fun rpmRedlineFraction(redline: Int?): Float? = redline?.let { it.toFloat() / rpmRingMaximum(it) }
 
 enum class AlertDirection { Above, Below, Equals }
 
@@ -201,6 +215,7 @@ data class CapabilitySnapshot(
     val dualAdapterVersion: Int = 0,
     val vehicleDashboardVersion: Int = 0,
     val pidCatalogVersion: Int = 0,
+    val rpmRedlineSupported: Boolean = false,
     val oxygenVoltageSupported: Boolean = false,
     val pageActionsVersion: Int = 0,
     val maxPages: Int = 0,

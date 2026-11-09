@@ -94,8 +94,7 @@ defines the additive marker.
   unchanged existing threshold preserves its canonical value. The gauge keeps
   doubles through its bounded UI queue/cache; fractional units render with up to
   three decimals. Familiar temperature/speed/RPM pages retain whole-number display.
-  Arc/Bar/Trend normalize using the full canonical range, including negative values
-  and sub-unit ranges.
+  Arc and Bar use the canonical range for ordinary readings. The [RPM display scale and trend window](../architecture/display-experience.md#rpm-ring-and-trend-history) use presentation-only bounds.
 
 ## Display and polling classes
 

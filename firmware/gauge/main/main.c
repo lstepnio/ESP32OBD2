@@ -278,6 +278,7 @@ static void page_ui(unsigned index, ui_page_t *out)
     out->renderer              = ui_renderer(page->renderer);
     out->metric_count          = page->pid_count;
     out->arc_metric_index      = page->arc_metric_index;
+    out->rpm_redline           = page->rpm_redline;
     for (unsigned i = 0; i < page->pid_count; ++i)
     {
         const runtime_pid_t *pid = &g_runtime->pids[page->pid_indices[i]];
@@ -1493,6 +1494,25 @@ void app_main(void)
     ui_t *ui = ui_init(&initial_page, ui_interval_ms, ui_touch_callback, pairing_required,
                        display_settings_snapshot().units == 1);
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
+    if (g_runtime)
+    {
+        ui_trend_metric_t trends[EGAUGE_RUNTIME_PAGES];
+        unsigned          count   = 0;
+        uint32_t          tracked = 0;
+        for (unsigned i = 0; i < g_runtime->page_count; ++i)
+        {
+            const runtime_page_t *page  = &g_runtime->pages[i];
+            uint8_t               index = page->pid_indices[0];
+            if (page->renderer != RUNTIME_RENDERER_TREND || (tracked & (UINT32_C(1) << index)))
+                continue;
+            tracked |= UINT32_C(1) << index;
+            const runtime_pid_t *pid = &g_runtime->pids[index];
+            trends[count++] =
+                (ui_trend_metric_t){pid->obd.pid, pid->source_index, g_running_config_record.revision, pid->stale_ms};
+        }
+        if (count && !ui_configure_trends(ui, trends, count))
+            ESP_LOGW(TAG, "Trend history unavailable: insufficient PSRAM");
+    }
     if (lvgl_port_lock(portMAX_DELAY))
     {
         ui_set_page_position(ui, g_config.cfg_idx, page_count());

@@ -19,7 +19,8 @@ data class PageUi(
     val layout: GaugeLayout,
     val preview: ReadingPreviewUi,
     val secondaryId: String? = null,
-    val arcMetricIndex: Int = 0
+    val arcMetricIndex: Int = 0,
+    val rpmRedline: Int? = null
 )
 
 @Immutable

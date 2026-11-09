@@ -439,6 +439,12 @@ per kind; no new transport or polling worker is added.
 
 ## Display capacity and Dual + arc extensions
 
+Capability `rl:1` permits the optional integer `rpmRedline` on an Arc or
+Dual + arc page when its ring uses `engine.rpm`. Valid values are 1,000 through
+16,000 RPM. Missing fields use the default display scale and omit the red zone.
+The field changes presentation only. The [display contract](../architecture/display-experience.md#rpm-ring-and-trend-history)
+defines rendering and history.
+
 Document-mode capability `mp:10` advertises the ten-page bound and `dx:1` advertises
 Dual + arc. `cfg:7` and schema version 2 are unchanged. Absence retains legacy page
 limits and blocks the new renderer before transfer. `dualArc` requires two distinct
