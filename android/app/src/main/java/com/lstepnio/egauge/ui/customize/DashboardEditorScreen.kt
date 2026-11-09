@@ -446,7 +446,7 @@ private fun PageToolbar(state: CustomizeUiState, onAdd: () -> Unit, onManage: ()
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        TextButton(onAdd, enabled = state.editingEnabled && state.pages.size < 10) {
+        TextButton(onAdd, enabled = state.editingEnabled && state.pages.size < state.pageLimit) {
             EGaugeIcon(GaugeIcon.Add, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
             Text("Add page")
@@ -454,10 +454,10 @@ private fun PageToolbar(state: CustomizeUiState, onAdd: () -> Unit, onManage: ()
         TextButton(onManage) { Text("Manage pages") }
     }
     if (state.pages.size >=
-        10
+        state.pageLimit
     ) {
         Text(
-            "All 10 pages are in use. Remove one to add another.",
+            "Up to ${state.pageLimit} pages. Remove pages to add another.",
             style = MaterialTheme.typography.bodySmall
         )
     }

@@ -20,7 +20,7 @@ object TransmissionSetup {
             previous.pages[0].name == "TCM temp (test)"
         ) {
             listOf(combinedPage(previous.pages[0].id))
-        } else if (previous.pages.size < 10) {
+        } else if (previous.pages.size < MAX_DASHBOARD_PAGES) {
             previous.pages + GaugePageDraft(
                 "page.tcm.gear".let { base ->
                     generateSequence(base) { "$it.next" }.first { id ->

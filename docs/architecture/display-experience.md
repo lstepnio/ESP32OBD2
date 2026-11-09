@@ -8,22 +8,23 @@ from installed and physically qualified behavior.
 [Gauge presentation rules](../development/reading-catalog-alerts.md#gauge-presentation-smoothing)
 own bounded motion, RPM text stabilization and immediate raw-data invalidation.
 
-## Ten saved pages
+## Board page capacity
 
-The App can save and reorder up to ten pages per gauge. Firmware compiles at most
-ten pages and 32 distinct active readings, still within the 64 KiB document limit.
-Local profile schema 18 adds the selected arc index, migrates schema 17 with an
-index-zero default, and retains newer/malformed records rather than overwriting
-them. Gauge association schema remains 2. More pages reuse the same rendering objects and sample cache; they do not each
-allocate a screen or duplicate polling. More distinct readings can reduce achieved
-refresh rates because OBD transport capacity is finite. Page visibility and the next
-cycling page influence scheduling, not cache identity or observation timestamps.
+The reference **S3-LCD-1.28 v1** accepts up to five new saved dashboard pages.
+The **S3-OLED-1.75 v1** target sets the board build attribute to twelve.
+Firmware advertises that value as `mp` and validates it before accepting a new
+document. The App uses the negotiated capacity in the editor and send checks.
+Offline drafts can contain up to twelve pages. Legacy document gauges without
+`mp` retain the eight-page fallback and earlier configurations keep their
+existing limits. Update the App before using OLED firmware that advertises
+`mp:12`. Older Apps accept values up to ten.
 
-The negotiated `mp` limit controls deployment. Legacy document gauges default to
-eight; older fallback configurations retain their existing limits. Editing ten
-pages offline is allowed, but deployment to an older gauge is rejected before
-transfer. Never silently drop pages. Up to eight pages retain the existing dots;
-nine or ten use a compact page counter without allocating additional dots.
+Previously committed LCD dashboards with six to ten pages remain readable and
+runnable with their original revision and digest. The owner can keep editing
+the draft and reduce it to five before sending. A firmware update does not
+truncate or rewrite it. Each configuration still has a 32-distinct-reading and
+64 KiB bound. Pages reuse rendering objects and the sample cache. Up to eight
+pages use dots. Larger dashboards use a compact page counter.
 
 ## Dual + arc
 
@@ -110,16 +111,16 @@ original evidence and physical acceptance inputs.
 
 ## Resource and qualification gates
 
-Fixed bulk sampling/Smart state stays in PSRAM. Ten pages add two bounded page
+Fixed bulk sampling/Smart state stays in PSRAM. Larger dashboards use bounded page
 records, not tasks or per-page UI trees. Stability tracking is 20 bytes per active
 reading, at most 640 bytes. The optional orientation worker has a separately gated
 4 KiB internal static stack and is disabled in default images.
 
 Tests exercise real production LVGL with the same fixed 64 KiB arena size, native
-configuration compilation/rejection, cache/wake timing and ten-page fairness.
+configuration compilation/rejection, cache/wake timing and full-capacity fairness.
 A 100-redraw waiting-logo fixture checks its four-object tree and unchanged LVGL
 free memory after warm-up.
 They do not prove radio coexistence or physical comfort. Before rollout, verify
 saved-page migration/readback, cold boot and brightness, first-touch consumption,
-source loss/recovery, all ten pages, mixed gear/arc layouts, and Wi-Fi/BLE memory
+source loss/recovery, full board capacity, mixed gear/arc layouts, and Wi-Fi/BLE memory
 under loaded ECM/TCM polling. Orientation has its own qualification gate.

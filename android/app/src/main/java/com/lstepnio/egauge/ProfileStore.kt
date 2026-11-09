@@ -23,7 +23,7 @@ data class VehicleProfile(
             "Keep at least one vehicle page"
         }
         require(
-            pageOrder.size <= 10 && pageOrder.distinct().size == pageOrder.size &&
+            pageOrder.size <= MAX_DASHBOARD_PAGES && pageOrder.distinct().size == pageOrder.size &&
                 pageOrder.all {
                     it.matches(Regex("[a-z][a-z0-9._-]{0,63}"))
                 }

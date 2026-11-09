@@ -1,5 +1,6 @@
 #include "vehicle_commands_runtime.h"
 #include "platform_features.h"
+#include "board_page_capacity.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -224,19 +225,23 @@ static void owner_save_worker(void *arg)
 #else
 #define BRAKE_OWNER_CAPABILITY ""
 #endif
+#define PAGE_CAPACITY_TEXT_INNER(value) #value
+#define PAGE_CAPACITY_TEXT(value) PAGE_CAPACITY_TEXT_INNER(value)
+#define PAGE_CAPACITY_CAPABILITY ",\"mp\":" PAGE_CAPACITY_TEXT(EGAUGE_BOARD_PAGE_LIMIT)
 #define LEGACY_CAPABILITY_BASE                                                                                         \
     "{\"protocolMajor\":0,\"board\":\"" EGAUGE_PROTOCOL_BOARD_NAME "\","                                               \
     "\"maxAdapterLinks\":1,"                                                                                           \
     "\"savedStateRead\":true" LEGACY_ROTATION_CAPABILITY ","                                                           \
     "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"va\":1,"                                                               \
     "\"qs\":true,\"ota\":false,\"hw\":1" DISPLAY_SETTINGS_CAPABILITY DUAL_ADAPTER_CAPABILITY FEATURE_POLICY_CAPABILITY \
-        LEGACY_ACTION_SETUP_CAPABILITY
+        LEGACY_ACTION_SETUP_CAPABILITY PAGE_CAPACITY_CAPABILITY
 #define DOCUMENT_CAPABILITY_BASE                                                                                       \
     "{\"protocolMajor\":0,\"board\":\"" EGAUGE_PROTOCOL_BOARD_NAME "\","                                               \
     "\"maxAdapterLinks\":1,"                                                                                           \
     "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"va\":1,"                                                               \
     "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY SMART_PAGE_CAPABILITY DUAL_ADAPTER_CAPABILITY        \
-        VEHICLE_ACTION_CAPABILITY FEATURE_POLICY_CAPABILITY ",\"mp\":10,\"dx\":1" BRAKE_OWNER_CAPABILITY
+        VEHICLE_ACTION_CAPABILITY FEATURE_POLICY_CAPABILITY PAGE_CAPACITY_CAPABILITY                                   \
+    ",\"dx\":1" BRAKE_OWNER_CAPABILITY
 /* Legacy clients ignore the additive field. Keep the existing 255-byte limit
  * even for custom board labels and feature combinations. */
 #define CAPABILITY_JSON(fields) (sizeof(fields ",\"ov\":1}") <= 256U ? fields ",\"ov\":1}" : fields "}")

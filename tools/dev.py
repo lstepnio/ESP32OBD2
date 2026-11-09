@@ -305,33 +305,35 @@ def firmware(
                 json_object,
             ]
         )
-        native(
-            "config_binding",
-            [
-                "tests/config_binding_test.c",
-                *[
-                    "main/src/" + name + ".c"
-                    for name in (
-                        "config_document",
-                        "config_runtime",
-                        "diagnostic_filter",
-                        "json_guard",
-                        "obd_adapter_profile",
-                        "pid_decoder",
-                    )
+        for page_limit in (5, 12):
+            native(
+                f"config_binding_{page_limit}",
+                [
+                    "tests/config_binding_test.c",
+                    *[
+                        "main/src/" + name + ".c"
+                        for name in (
+                            "config_document",
+                            "config_runtime",
+                            "diagnostic_filter",
+                            "json_guard",
+                            "obd_adapter_profile",
+                            "pid_decoder",
+                        )
+                    ],
+                    json_object,
                 ],
-                json_object,
-            ],
-            includes=[
-                "-I" + str(json_dir),
-                "-DEGAUGE_FEATURE_DUAL_ADAPTER=1",
-                "-DEGAUGE_FEATURE_VEHICLE_ACTIONS=1",
-            ],
-            arguments=[
-                "contracts/examples/config-bound-adapter.json",
-                "android/app/src/main/assets/numeric_config_template.json",
-            ],
-        )
+                includes=[
+                    "-I" + str(json_dir),
+                    f"-DEGAUGE_BOARD_PAGE_LIMIT={page_limit}",
+                    "-DEGAUGE_FEATURE_DUAL_ADAPTER=1",
+                    "-DEGAUGE_FEATURE_VEHICLE_ACTIONS=1",
+                ],
+                arguments=[
+                    "contracts/examples/config-bound-adapter.json",
+                    "android/app/src/main/assets/numeric_config_template.json",
+                ],
+            )
     elif action == "lint":
         # Compiler warnings are errors; the linked-image memory gate is part of the build.
         run([*idf, "-C", FIRMWARE, "build"])

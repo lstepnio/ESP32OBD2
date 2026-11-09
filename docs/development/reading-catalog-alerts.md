@@ -87,7 +87,7 @@ defines the additive marker.
   not invalidate healthy-source samples. A single primary transport can carry both
   kinds of requests without adding a child in Expert.
 - Only definitions referenced by pages or alerts are transmitted/polled. Limits
-  remain 32 different active readings, 32 alerts, ten pages and 64 KiB (subject to negotiated `mp` capacity). Asking for
+  remain 32 different active readings, 32 alerts, up to twelve pages and 64 KiB (subject to negotiated `mp` capacity). Asking for
   short intervals does not guarantee that rate on a slow or missing adapter.
 - Configuration and alerts retain canonical metric values. Imperial display and
   editing convert temperature, speed/distance, pressure, flow and torque. Saving an

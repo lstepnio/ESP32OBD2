@@ -8,6 +8,7 @@ typedef struct
 {
     uint32_t base_revision;
     uint8_t  max_adapter_links;
+    uint8_t  max_pages;
 } config_document_context_t;
 
 /* Call once at startup, before any cJSON users start. JSON nodes use PSRAM. */

@@ -3594,9 +3594,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         // Page order/readings remain committed. Navigation does not create a disk write.
     }
 
+    internal val editorPageLimit: Int
+        get() = capabilities?.maxPages?.takeIf { it > 0 } ?: MAX_DASHBOARD_PAGES
+
     fun addPage(pidId: String = "rpm") {
         val working = editorDraft
-        if (working.pages.size >= 10 ||
+        if (working.pages.size >= editorPageLimit ||
             pidId !in ConfigurationProjector.pagePidIds(working.source)
         ) {
             return
