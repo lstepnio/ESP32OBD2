@@ -30,11 +30,15 @@ import com.lstepnio.egauge.ui.home.HomeScreen
 import com.lstepnio.egauge.ui.settings.*
 import com.lstepnio.egauge.ui.setup.SetupScreen
 import com.lstepnio.egauge.ui.state.*
+import com.lstepnio.egauge.virtual.VirtualGaugeScreen
+import com.lstepnio.egauge.virtual.VirtualPid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 private enum class Route(val title: String, val icon: GaugeIcon) {
     Gauge("Gauge", GaugeIcon.Gauge),
+    VirtualGauge("Virtual gauge", GaugeIcon.Gauge),
+    VirtualCustomize("Customize", GaugeIcon.Gauge),
     Car("Car", GaugeIcon.Car),
     CarAlerts("Alerts", GaugeIcon.Car),
     CarAlertSettings("Alert settings", GaugeIcon.Car),
@@ -72,6 +76,7 @@ fun CompanionApp(
         var carHistory by rememberSaveable { mutableStateOf(false) }
         var carAlertId by rememberSaveable { mutableStateOf<String?>(null) }
         var customizeStep by rememberSaveable { mutableIntStateOf(0) }
+        var virtualEditorUnits by rememberSaveable { mutableStateOf(MeasurementSystem.Metric) }
         var progressOpen by rememberSaveable { mutableStateOf(false) }
         var gestureOpen by rememberSaveable(model.rememberedGaugeId) { mutableStateOf(false) }
         var actionPagesOpen by rememberSaveable(model.rememberedGaugeId, state.car.vehicleActionsAllowed) { mutableStateOf(false) }
@@ -79,9 +84,10 @@ fun CompanionApp(
         var backProgress by remember { mutableFloatStateOf(0f) }
         fun back() {
             when {
-                route == Route.Customize && customizeStep > 0 -> customizeStep = 0
+                route in setOf(Route.Customize, Route.VirtualCustomize) && customizeStep > 0 -> customizeStep = 0
                 route in setOf(Route.CarAlerts, Route.CarAlertSettings, Route.CarAdvanced) -> route = Route.Car
                 route == Route.Updates -> route = Route.Settings
+                route == Route.VirtualCustomize -> route = Route.VirtualGauge
                 else -> route = Route.Gauge
             }
         }
@@ -121,7 +127,7 @@ fun CompanionApp(
             listOf(Route.Gauge, Route.Car, Route.Settings) +
                 if (state.settings.advanced) listOf(Route.Expert) else emptyList()
         val selectedRoute = when (route) {
-            Route.Setup, Route.Customize -> Route.Gauge
+            Route.Setup, Route.Customize, Route.VirtualGauge, Route.VirtualCustomize -> Route.Gauge
             Route.CarAlerts, Route.CarAlertSettings, Route.CarAdvanced -> Route.Car
             Route.Updates -> Route.Settings
             else -> route
@@ -335,7 +341,23 @@ fun CompanionApp(
                                         model.selectPage(index)
                                         customizeStep = 0
                                         route = Route.Customize
-                                    }, onUpdates = { route = Route.Updates }, onActionPages = { actionPagesOpen = true }, canEditActionPages = actionAssignmentReady, onGesture = { gestureOpen = true })
+                                    }, onUpdates = { route = Route.Updates }, onActionPages = { actionPagesOpen = true }, canEditActionPages = actionAssignmentReady, onVirtualGauge = { route = Route.VirtualGauge }, onGesture = { gestureOpen = true })
+
+                                    Route.VirtualGauge -> key(state.car.activeId) {
+                                        VirtualGaugeScreen(
+                                            state.car.activeId,
+                                            model.editorDraft.pages,
+                                            model.presentationPreferences.measurementSystem,
+                                            ::back,
+                                            { index, units ->
+                                                model.selectPage(index)
+                                                virtualEditorUnits = units
+                                                customizeStep = 0
+                                                route = Route.VirtualCustomize
+                                            },
+                                            onBluetoothSettings
+                                        )
+                                    }
 
                                     Route.Setup -> SetupScreen(
                                         state.setup, onFindGauge,
@@ -352,44 +374,61 @@ fun CompanionApp(
                                         }, ::back, {
                                             route =
                                                 Route.Car
-                                        }
+                                        },
+                                        onVirtualGauge = { route = Route.VirtualGauge }
                                     )
 
-                                    Route.Customize -> key(state.car.activeId) {
-                                        DashboardEditorScreen(
-                                            state.customize,
-                                            customizeStep,
-                                            {
-                                                customizeStep =
-                                                    it
-                                            },
-                                            ::back,
-                                            CustomizeActions(
-                                                model::selectPage, { id ->
-                                                    model.selectPid(
-                                                        demoCatalog.first {
-                                                            it.id ==
-                                                                id
-                                                        }
+                                    Route.Customize, Route.VirtualCustomize -> key(state.car.activeId) {
+                                        val virtual = route == Route.VirtualCustomize
+                                        val editorStatus = LocalConnectionStatus.current
+                                        CompositionLocalProvider(LocalConnectionStatus provides if (virtual) null else editorStatus) {
+                                            DashboardEditorScreen(
+                                                if (virtual) {
+                                                    state.customize.copy(
+                                                        pages = model.editorDraft.pages.map { pageUi(it, virtualEditorUnits) },
+                                                        readings = demoCatalog.filter { reading ->
+                                                            VirtualPid.entries.any { it.id == reading.id }
+                                                        }.map { readingUi(it, virtualEditorUnits) },
+                                                        measurementSystem = virtualEditorUnits,
+                                                        blockers = emptyList()
                                                     )
+                                                } else {
+                                                    state.customize
                                                 },
-                                                { id ->
-                                                    model.selectSecondaryPid(
-                                                        demoCatalog.first {
-                                                            it.id ==
-                                                                id
-                                                        }
-                                                    )
+                                                customizeStep,
+                                                {
+                                                    customizeStep =
+                                                        it
                                                 },
-                                                model::addPage, model::removePage, model::movePage, model::selectLayout,
-                                                model::saveAlert, model::removeAlert,
-                                                model::checkGaugeForReview, {
-                                                    model.sendNumericConfiguration()
-                                                    route =
-                                                        Route.Gauge
-                                                }, { route = Route.Setup }, model::selectArcMetric
+                                                ::back,
+                                                CustomizeActions(
+                                                    model::selectPage, { id ->
+                                                        model.selectPid(
+                                                            demoCatalog.first {
+                                                                it.id ==
+                                                                    id
+                                                            }
+                                                        )
+                                                    },
+                                                    { id ->
+                                                        model.selectSecondaryPid(
+                                                            demoCatalog.first {
+                                                                it.id ==
+                                                                    id
+                                                            }
+                                                        )
+                                                    },
+                                                    model::addPage, model::removePage, model::movePage, model::selectLayout,
+                                                    model::saveAlert, model::removeAlert,
+                                                    model::checkGaugeForReview, {
+                                                        model.sendNumericConfiguration()
+                                                        route =
+                                                            Route.Gauge
+                                                    }, { route = Route.Setup }, model::selectArcMetric
+                                                ),
+                                                phoneOnly = virtual
                                             )
-                                        )
+                                        }
                                     }
 
                                     Route.Car -> carSavedState.SaveableStateProvider(state.car.activeId) {
