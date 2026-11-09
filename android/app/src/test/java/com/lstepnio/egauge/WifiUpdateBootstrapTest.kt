@@ -1,15 +1,20 @@
 package com.lstepnio.egauge
 
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Test
 
 class WifiUpdateBootstrapTest {
+    private val privateTag = 0xf2434755L
+
     private class Owner : WifiUpdateBootstrapOwner {
         val events = mutableListOf<String>()
         val boot = GaugeConfigTransferClient.BootIdentity(2, 16, 1, "a".repeat(64), "fixture", 0x60000)
         val wifi = WifiBulkSession(byteArrayOf(192.toByte(), 168.toByte(), 4, 1), 1234, 1, ByteArray(32), 60, "fixture", "password")
         var read: suspend () -> GaugeConfigTransferClient.BootIdentity = { boot }
+        var target: suspend () -> ByteArray = { error("Unexpected private target read") }
         var open: suspend () -> WifiBulkSession = { wifi }
         var cleanup: suspend () -> Unit = {}
         override suspend fun <T> withSession(action: suspend WifiUpdateBootstrapSession.() -> T): T {
@@ -19,6 +24,10 @@ class WifiUpdateBootstrapTest {
                     override suspend fun identity(): GaugeConfigTransferClient.BootIdentity {
                         events += "identity"
                         return read()
+                    }
+                    override suspend fun targetIdentity(): ByteArray {
+                        events += "target"
+                        return target()
                     }
                     override suspend fun openWifi(): WifiBulkSession {
                         events += "wifi-start"
@@ -33,6 +42,50 @@ class WifiUpdateBootstrapTest {
             events += "wifi-close"
             cleanup()
         }
+    }
+
+    private fun targetReply(running: Int = 0x60000, alternate: Int = 0x360000): ByteArray = ByteBuffer.allocate(32).order(ByteOrder.LITTLE_ENDIAN)
+        .put(byteArrayOf(1, 1, 0, 0))
+        .putInt(privateTag.toInt()).putInt(running).putInt(alternate)
+        .putInt(0x300000).putInt(0x300000).putInt(0x10000).putInt(0x2000).array()
+
+    @Test fun privateTargetAndBootAreReadBeforeOpeningWifiInSameSession() = runBlocking {
+        assertArrayEquals(byteArrayOf(0x31, 1, 0, 0, 0, 1), privateOtaTargetRequest())
+        val owner = Owner()
+        owner.read = { owner.boot.copy(partitionAddress = 0x360000) }
+        owner.target = { targetReply(0x360000, 0x60000) }
+        val result = bootstrapWifiUpdate("b".repeat(64), owner, privateTag)
+        assertSame(owner.wifi, result.wifi)
+        assertEquals(listOf("owner-open", "identity", "target", "wifi-start", "owner-closed"), owner.events)
+    }
+
+    @Test fun invalidPrivateTargetNeverOpensOrClosesWifi() = runBlocking {
+        val invalidReplies = listOf(
+            targetReply().copyOf(31),
+            targetReply().apply { this[0] = 2 },
+            targetReply().apply { this[1] = 0 },
+            targetReply().apply { this[2] = 1 },
+            targetReply().apply { this[4] = 0 },
+            targetReply(0x360000, 0x60000),
+            targetReply(alternate = 0x60000),
+            targetReply().apply { this[16] = 1 },
+            targetReply().apply { this[20] = 1 },
+            targetReply().apply { this[24] = 1 },
+            targetReply().apply { this[28] = 1 }
+        )
+        for (reply in invalidReplies) {
+            val owner = Owner()
+            owner.target = { reply }
+            assertTrue(runCatching { bootstrapWifiUpdate("b".repeat(64), owner, privateTag) }.isFailure)
+            assertEquals(listOf("owner-open", "identity", "target", "owner-closed"), owner.events)
+        }
+    }
+
+    @Test fun unconfirmedPrivateBootNeverRequestsTargetOrOpensWifi() = runBlocking {
+        val owner = Owner()
+        owner.read = { owner.boot.copy(otaState = 1) }
+        assertTrue(runCatching { bootstrapWifiUpdate("b".repeat(64), owner, privateTag) }.isFailure)
+        assertEquals(listOf("owner-open", "identity", "owner-closed"), owner.events)
     }
 
     @Test fun oneOwnerSessionReadsIdentityBeforeStartingWifiAndReturnsAuthenticatedValues() = runBlocking {

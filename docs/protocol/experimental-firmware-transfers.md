@@ -93,6 +93,14 @@ selected by ESP-IDF, provided it differs from the running partition. Firmware
 captures the geometry at boot and reads the cached bytes on the owner link.
 The original five-byte request still selects the running image identity.
 
+A provisioned Android debug build can use `-PegaugePrivateOtaAssets=/absolute/directory`
+with a target descriptor and its public key. Settings → Updates accepts a local
+signed bundle for that target. The owner preflight must report a matching tag,
+two compatible application slots, an OTA metadata partition and rollback support
+before the app opens the temporary Wi-Fi network. The private path uses Wi-Fi
+and the same signed post-boot identity confirmation as the reference path.
+Ordinary debug builds and release APKs exclude private provisioning assets.
+
 Owner opcode `32` with a little-endian `u32 sequence` and `u32 document offset` selects a protected active-document read. State version `07` has a 52-byte header followed by up to 128 document bytes. Byte 1 is `1` when a custom document is active and `0` for built-in readings. Bytes 2..3 and 17..19 are reserved zero. Bytes 4..7 hold active revision, 8..11 total document length, 12..15 returned offset, byte 16 returned byte count, and 20..51 the committed SHA-256. All integers are little endian. With no custom document, offset zero returns only the 52-byte header and flag zero. Out-of-range offsets fail. Each request reads a bounded piece from the active slot; if revision or digest changes while that piece is read, the read fails. The client must verify stable metadata across all pieces and hash the complete reconstructed document before presenting it as a saved configuration. This readback is experimental owner functionality and does not enable general `configWrite` or establish any vehicle PID support.
 
 Owner opcode `33` with a four-byte sequence selects protected runtime configuration identity version `08`. The response is 44 bytes. Byte 1 bit 0 means a custom configuration is running; bit 1 means the runtime rejected the newest stored generation and loaded the previous committed executable generation; bit 2 means the running generation is in its boot-health trial. Bytes 2..3 are reserved zero. Bytes 4..7 hold the little-endian running revision, bytes 8..11 hold the newest durable revision observed before any recovery selection, and bytes 12..43 hold the running revision's SHA-256. When bit 0 is clear, the firmware is using built-in readings and the running revision and digest are zero; the durable revision may still identify a rejected document. This identity is distinct from the active-document read: version 7 reports the current store base used for the next revision, while version 8 reports what the current boot actually compiled and whether a newer durable generation was rejected.

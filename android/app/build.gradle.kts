@@ -1,3 +1,6 @@
+import java.security.KeyFactory
+import java.security.spec.X509EncodedKeySpec
+import java.util.Base64
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -17,6 +20,23 @@ android {
         versionCode = 58
         versionName = "0.2.0-dev.58"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("boolean", "PRIVATE_OTA_PROVISIONED", "false")
+    }
+
+    providers.gradleProperty("egaugePrivateOtaAssets").orNull?.let { path ->
+        val directory = File(path)
+        val assets = directory.listFiles().orEmpty()
+        require(
+            directory.isAbsolute && assets.map { it.name }.toSet() ==
+                setOf("private-ota-target.json", "private-ota-public.pem") &&
+                assets.all { it.isFile && it.length() in 1..4096 }
+        ) { "Private OTA requires an absolute directory containing only its two provisioning assets" }
+        val pem = directory.resolve("private-ota-public.pem").readLines().filter { it.isNotBlank() }
+        require(pem.firstOrNull() == "-----BEGIN PUBLIC KEY-----" && pem.lastOrNull() == "-----END PUBLIC KEY-----")
+        val encodedKey = Base64.getDecoder().decode(pem.drop(1).dropLast(1).joinToString(""))
+        KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(encodedKey))
+        sourceSets.getByName("debug").assets.srcDir(directory)
+        buildTypes.getByName("debug").buildConfigField("boolean", "PRIVATE_OTA_PROVISIONED", "true")
     }
 
     buildFeatures {

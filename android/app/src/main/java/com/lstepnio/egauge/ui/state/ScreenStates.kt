@@ -249,7 +249,8 @@ data class UpdatesUiState(
     val recoveryRequired: Boolean,
     val details: List<DetailUi>,
     val held: Boolean = false,
-    val feedUnavailable: Boolean = false
+    val feedUnavailable: Boolean = false,
+    val privateLocal: Boolean = false
 )
 
 @Immutable

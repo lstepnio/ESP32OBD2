@@ -1222,7 +1222,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val caps = capabilities ?: return
         val gaugeId = rememberedGaugeId ?: return
         if (!connectionForeground || ownerAccess != OwnerAccess.AUTHENTICATED ||
-            caps.board != "ESP32-S3-Touch-LCD-1.28" || !caps.experimentalNumericConfig ||
+            caps.board != DevUpdateBundle.REFERENCE_BOARD || !caps.experimentalNumericConfig ||
             updateInProgress || hostedUpdateBusy || automaticUpdateJob?.isActive == true ||
             updateRecoveryResult?.state !in setOf(null, UpdateRecoveryState.INSTALLED) ||
             (selectedUpdate != null && hostedUpdate == null)
@@ -1542,7 +1542,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     private var selectedUpdate: DevUpdateBundle? = null
     private var updateMayHaveChangedGauge = false
-    val updateReady: Boolean get() = selectedUpdate != null
+    private val provisionedPrivateUpdateTarget by lazy { PrivateOtaTarget.load(getApplication()) }
+    internal val privateUpdateTarget: PrivateOtaTarget?
+        get() = provisionedPrivateUpdateTarget?.takeIf { it.board == capabilities?.board }
+    internal val privateUpdateWifiAvailable: Boolean
+        get() = ownerAccess == OwnerAccess.AUTHENTICATED && capabilities?.wifiBulk in
+            setOf("experimental-softap-aead-v1", "experimental-softap-aead-v2")
+    val updateReady: Boolean
+        get() = selectedUpdate?.boardTag == (privateUpdateTarget?.boardTag ?: DevUpdateBundle.REFERENCE_BOARD_TAG)
     fun updateBundle(): DevUpdateBundle = selectedUpdate ?: error("Select a signed update package first")
     var updateInProgress by mutableStateOf(false)
         private set
@@ -2693,12 +2700,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 foregroundConnection.runUserOperation(OperationKind.UPDATE) { id ->
-                    updateStarted()
                     val wifiVersion = capabilities?.wifiBulk
                     val usingWifi = !bluetoothRecovery && wifiVersion in setOf(
                         "experimental-softap-aead-v1",
                         "experimental-softap-aead-v2"
                     )
+                    val privateTarget = privateUpdateTarget
+                    if (privateTarget != null || bundle.boardTag != DevUpdateBundle.REFERENCE_BOARD_TAG) {
+                        if (privateTarget?.boardTag != bundle.boardTag || selectedUpdate !== bundle) {
+                            updatePackageError("Choose a signed package for the connected gauge.")
+                            return@runUserOperation
+                        }
+                        if (!usingWifi || !privateUpdateWifiAvailable) {
+                            updatePackageError("Private updates require a paired gauge with maintenance Wi-Fi.")
+                            return@runUserOperation
+                        }
+                    }
+                    updateStarted()
                     operation = OperationState(
                         id,
                         OperationKind.UPDATE,
@@ -3395,7 +3413,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun checkHostedFirmware() {
-        if (hostedUpdateBusy) return
+        if (hostedUpdateBusy || privateUpdateTarget != null) return
         val caps = capabilities ?: run {
             hostedUpdateMessage = "Find the gauge before checking firmware compatibility"
             return
@@ -3408,6 +3426,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 automaticUpdateJob?.cancelAndJoin()
                 selectedUpdate = null
                 foregroundConnection.runUserOperation(OperationKind.READ) { id ->
+                    if (privateUpdateTarget != null) return@runUserOperation
                     operation = OperationState(
                         id,
                         OperationKind.READ,
@@ -3461,7 +3480,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun downloadHostedFirmware(installWhenReady: Boolean = false) {
-        if (hostedUpdateBusy) return
+        if (hostedUpdateBusy || privateUpdateTarget != null) return
         val available = hostedUpdate ?: return
         hostedUpdateBusy = true
         viewModelScope.launch {
@@ -3471,6 +3490,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 automaticUpdateJob?.cancelAndJoin()
                 foregroundConnection.runUserOperation(OperationKind.UPDATE) { id ->
+                    if (privateUpdateTarget != null) return@runUserOperation
                     operation = OperationState(
                         id,
                         OperationKind.UPDATE,

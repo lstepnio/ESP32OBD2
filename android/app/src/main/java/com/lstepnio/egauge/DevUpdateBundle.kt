@@ -23,8 +23,8 @@ data class DevUpdateBundle(
     val boardTag: Long
 ) {
     companion object {
-        private const val BOARD = "ESP32-S3-Touch-LCD-1.28"
-        private const val BOARD_TAG = 0x31534745L
+        internal const val REFERENCE_BOARD = "ESP32-S3-Touch-LCD-1.28"
+        internal const val REFERENCE_BOARD_TAG = 0x31534745L
         private val fields = setOf(
             "board",
             "boardTag",
@@ -53,12 +53,12 @@ data class DevUpdateBundle(
         internal fun read(
             input: InputStream,
             verificationKey: PublicKey,
-            expectedBoard: String = BOARD,
-            expectedBoardTag: Long = BOARD_TAG
+            expectedBoard: String = REFERENCE_BOARD,
+            expectedBoardTag: Long = REFERENCE_BOARD_TAG
         ): DevUpdateBundle {
             require(
                 expectedBoard.isNotBlank() && expectedBoardTag in 1..0xffffffffL &&
-                    (expectedBoard == BOARD) == (expectedBoardTag == BOARD_TAG)
+                    (expectedBoard == REFERENCE_BOARD) == (expectedBoardTag == REFERENCE_BOARD_TAG)
             ) {
                 "Invalid development update target"
             }
