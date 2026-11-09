@@ -57,6 +57,18 @@ int main(void)
     assert(board->surface == &gauge_reference_surface);
     assert(board->display_transport == GAUGE_DISPLAY_SPI);
     assert(board->brightness_control == GAUGE_BRIGHTNESS_PWM);
+    const uint32_t      reference_tag = 0x31534745U;
+    const uint32_t      alternate_tag = 0x12345678U;
+    const gauge_board_t alternate     = {.ota_target_tag = alternate_tag};
+    const gauge_board_t unconfigured  = {0};
+    assert(gauge_board_accepts_ota_target(board, reference_tag));
+    assert(!gauge_board_accepts_ota_target(board, alternate_tag));
+    assert(!gauge_board_accepts_ota_target(board, 0));
+    assert(gauge_board_accepts_ota_target(&alternate, alternate_tag));
+    assert(!gauge_board_accepts_ota_target(&alternate, reference_tag));
+    assert(!gauge_board_accepts_ota_target(&unconfigured, reference_tag));
+    assert(!gauge_board_accepts_ota_target(&unconfigured, 0));
+    assert(!gauge_board_accepts_ota_target(NULL, reference_tag));
     gauge_board_initialize();
     assert(count == 4);
     for (unsigned i = 0; i < count; ++i)

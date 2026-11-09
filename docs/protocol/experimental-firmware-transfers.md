@@ -44,7 +44,7 @@ State version `03` has 64 bytes: phase at 1, result at 2, last opcode at 3, sequ
 
 | Update opcode | Payload after opcode + sequence | Effect |
 | --- | --- | --- |
-| `20` BEGIN | transferId, imageLength, boardTag `0x31534745`, all `u32` | Reserve inactive OTA slot |
+| `20` BEGIN | transferId, imageLength, boardTag, all `u32` | Reserve an eligible inactive OTA slot for the board's update target |
 | `21` DIGEST | transferId `u32`, partIndex `u8` 0..3, eight SHA-256 bytes | Supply image digest |
 | `28` SIGNATURE | transferId `u32`, partIndex `u8` 0..8, DER signature length `u8`, 1..8 signature bytes | Supply a P-256 release signature in fragments |
 | `22` START | transferId `u32` | Erase inactive OTA slot |
@@ -54,7 +54,19 @@ State version `03` has 64 bytes: phase at 1, result at 2, last opcode at 3, sequ
 | `26` ABORT | transferId `u32` | Stop incomplete update |
 | `27` STATUS | none | Resume status reads |
 
-Update state version `04` has 56 bytes: phase/result/opcode/sequence/transferId/acceptedOffset/totalLength at the same positions as config; digest-part mask at 20, signature length at 21, signature-part mask at 22, and expected SHA-256 at 24. Phases: 0 idle, 1 metadata, 2 receiving, 3 verified, 4 activating. Results: 0 success, 2 invalid image/request, 3 conflict, 4 flash error, 5 unsupported board/length. The signed bytes are little-endian board tag `0x31534745`, little-endian image length, then the 32 raw image SHA-256 bytes. Verify uses ECDSA P-256 with SHA-256 and the pinned development public key in `firmware/gauge/main/certs`. Bootloader rollback is enabled. A trial image is confirmed after display, touch, BLE and task startup. No OBD adapter is required for boot health.
+Update state version `04` has 56 bytes: phase/result/opcode/sequence/transferId/acceptedOffset/totalLength at the same positions as config; digest-part mask at 20, signature length at 21, signature-part mask at 22, and expected SHA-256 at 24. Phases: 0 idle, 1 metadata, 2 receiving, 3 verified, 4 activating. Results: 0 success, 2 invalid image/request, 3 conflict, 4 flash error, 5 unsupported board/length.
+
+The shared BLE and Wi-Fi OTA worker requires BEGIN's board tag to match the
+board descriptor's nonzero `ota_target_tag`. The reference LCD uses the existing
+`0x31534745` (`EGS1` in wire order). When the worker is idle and maintenance is
+allowed, an unset or mismatched tag, missing update slot or invalid image length
+returns result 5 before claiming the flash gate or starting an erase. The signed
+bytes are the admitted little-endian board tag, little-endian image length,
+then the 32 raw image SHA-256 bytes. VERIFY uses
+ECDSA P-256 with SHA-256 and the pinned development public key in
+`firmware/gauge/main/certs`. Bootloader rollback is enabled. A trial image is
+confirmed after display, touch, BLE and task startup. No OBD adapter is required
+for boot health.
 
 **Trust boundary:** Update activation requires the authenticated owner bond, full-image SHA-256, and a P-256 signature from the pinned development key. Published development releases use protected GitHub signing material and the [release runbook](../development/firmware-release-runbook.md). Earlier local bench keys are historical inputs, never a substitute for the protected publication workflow. Development trust is not production provisioning. This design does not yet enforce downgrade prevention, hardware secure boot, or encrypted NVS. Keep `ota:false` until power interruption, production signing and recovery policy are exercised. A 23-byte ATT MTU allows only seven bytes per chunk; negotiated larger MTUs are important for a practical update time.
 
