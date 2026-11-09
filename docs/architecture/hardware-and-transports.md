@@ -177,7 +177,12 @@ Android local Wi-Fi routing must respect OS consent and lifecycle. The network i
 
 Optional future LAN read-only telemetry endpoint or MQTT publisher can consume the typed telemetry cache; publish source/ECU/age/quality and use explicit opt-in credentials. Do not expose raw vehicle writes to the LAN. ESP-NOW multi-gauge sharing is an exploratory option, subject to shared-channel/coexistence constraints and authenticated source/freshness semantics; it is not committed product support.
 
-Power saving: use bounded reconnect scans, optional screen dimming and explicit sleep policy after sustained loss of vehicle activity. BLE disconnect alone does not prove ignition off. Validate wake behavior with both adapter types and any fitted battery. Night dimming can be manual/time-based before adding ambient sensing; do not invent ambient readings from nonexistent sensors.
+Gauges are externally powered in normal use. Prioritize display and touch response,
+fresh readings, reconnect time, and predictable update throughput across targets.
+Use board-specific display transport and memory placement within measured budgets.
+Keep reconnect backoff for radio stability. Treat dimming and sleep as explicit
+options for night use, storage, or battery-powered builds. BLE disconnect alone
+does not prove ignition off.
 
 ## Qualification ownership
 
