@@ -1,12 +1,17 @@
 #include <assert.h>
 #include <string.h>
 #include "gauge_board.h"
+#include "orientation_qmi8658.h"
 
 static unsigned              calls[4], count;
 static int                   backend_result;
 static uint8_t               brightness;
 static bool                  power;
 static lv_display_rotation_t angle;
+static struct i2c_master_bus_t
+{
+    unsigned unused;
+} shared_i2c;
 
 esp_err_t bsp_init(void)
 {
@@ -44,10 +49,16 @@ esp_err_t bsp_lv_disp_set_rotation(lv_display_rotation_t rotation)
     return backend_result;
 }
 
-bool orientation_qmi8658_bus(orientation_bus_t *bus)
+void *bsp_touch_shared_i2c_bus(void)
 {
-    (void)bus;
-    return false;
+    return &shared_i2c;
+}
+
+bool orientation_qmi8658_bus(struct i2c_master_bus_t *shared, orientation_bus_t *bus)
+{
+    assert(shared == &shared_i2c);
+    *bus = (orientation_bus_t){.context = shared};
+    return true;
 }
 
 int main(void)
@@ -61,6 +72,8 @@ int main(void)
     assert(count == 4);
     for (unsigned i = 0; i < count; ++i)
         assert(calls[i] == i + 1);
+    orientation_bus_t orientation;
+    assert(gauge_board_orientation_bus(&orientation) && orientation.context == &shared_i2c);
     for (int result = 0; result >= -1; --result)
     {
         backend_result = result;
