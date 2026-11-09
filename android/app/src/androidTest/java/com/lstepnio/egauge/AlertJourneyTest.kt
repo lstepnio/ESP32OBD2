@@ -56,9 +56,6 @@ class AlertJourneyTest {
         compose.onAllNodesWithText("Save report").assertCountEquals(0)
         compose.onAllNodesWithText("Delete history").assertCountEquals(0)
         compose.onNodeWithText("History").performScrollTo().performClick()
-        compose.onNodeWithText("Options").performClick()
-        compose.onNodeWithText("Save report").assertIsDisplayed()
-        androidx.test.espresso.Espresso.pressBack()
         compose.onNode(
             hasText("Coolant fixture") and hasAnyAncestor(hasTestTag("alert-history"))
         ).performScrollTo().performClick()
@@ -78,6 +75,8 @@ class AlertJourneyTest {
         compose.onAllNodesWithText("Coolant fixture").assertCountEquals(0)
         compose.onNodeWithText("History").assertIsDisplayed().performClick()
         compose.onNodeWithText("Coolant fixture").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Options").performClick()
+        compose.onNodeWithText("Save report").assertIsDisplayed()
         val uri = exportAlertReport(compose.activity, repository.list(vehicle), repository, vehicle) { emptyList() }
         val zip = java.util.zip.ZipInputStream(
             compose.activity.contentResolver.openInputStream(uri)!!

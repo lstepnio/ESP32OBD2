@@ -11,20 +11,23 @@ import androidx.test.platform.app.InstrumentationRegistry
 internal fun ComposeTestRule.closeKeyboardAndWaitForIdle() {
     if (Build.VERSION.SDK_INT >= 30) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        var focused: android.view.View? = null
-        waitUntil(5_000) {
-            instrumentation.runOnMainSync {
-                focused = WindowInspector.getGlobalWindowViews().lastOrNull { it.hasWindowFocus() }
-            }
-            focused != null
+        val ime = WindowInsets.Type.ime()
+        waitForIdle()
+        instrumentation.runOnMainSync {
+            // Cancel pending IME requests on the focused dialog, when there is one.
+            WindowInspector.getGlobalWindowViews().lastOrNull { it.hasWindowFocus() }
+                ?.windowInsetsController?.hide(ime)
         }
-        val root = requireNotNull(focused)
-        // Espresso can select the unfocused Activity behind a Compose dialog.
-        // Address the actual focused window without a Back press that could dismiss it.
-        instrumentation.runOnMainSync { root.windowInsetsController?.hide(WindowInsets.Type.ime()) }
         waitUntil(5_000) {
             var hidden = false
-            instrumentation.runOnMainSync { hidden = root.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == false }
+            instrumentation.runOnMainSync {
+                val roots = WindowInspector.getGlobalWindowViews()
+                val visible = roots.filter { it.rootWindowInsets?.isVisible(ime) == true }
+                // Synthetic text input can succeed without showing an IME or granting
+                // window focus. Only require focus to dismiss an actual visible IME.
+                visible.lastOrNull { it.hasWindowFocus() }?.windowInsetsController?.hide(ime)
+                hidden = visible.isEmpty() && roots.any { it.rootWindowInsets != null }
+            }
             hidden
         }
     } else {
