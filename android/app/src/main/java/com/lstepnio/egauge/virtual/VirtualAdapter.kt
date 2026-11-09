@@ -21,7 +21,8 @@ private val serviceId = assignedUuid("18f0")
 private val writeId = assignedUuid("2af1")
 private val notifyId = assignedUuid("2af0")
 private val cccdId = assignedUuid("2902")
-private val adapterLease = Mutex()
+internal val virtualReadLease = Mutex()
+private val virtualScanLease = Mutex()
 
 internal val virtualPermissions: Array<String> get() = if (Build.VERSION.SDK_INT >= 31) {
     arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
@@ -39,7 +40,7 @@ internal class VirtualAdapter(private val context: Context) {
     val available: Boolean get() = context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) && adapter != null
     val enabled: Boolean get() = context.hasVirtualPermissions() && adapter?.isEnabled == true
 
-    suspend fun scan(): List<VirtualCandidate> = adapterLease.withLock {
+    suspend fun scan(): List<VirtualCandidate> = virtualScanLease.withLock {
         val scanner = checkNotNull(adapter?.bluetoothLeScanner)
         val candidates = ConcurrentHashMap<String, VirtualCandidate>()
         val result = CompletableDeferred<Unit>()
@@ -71,9 +72,9 @@ internal class VirtualAdapter(private val context: Context) {
         candidates.values.sortedWith(compareBy(VirtualCandidate::name, VirtualCandidate::address))
     }
 
-    suspend fun read(address: String, action: suspend VirtualElmSession.() -> Unit) = adapterLease.withLock {
+    suspend fun read(address: String, source: VirtualSource, action: suspend VirtualElmSession.() -> Unit) {
         val device = checkNotNull(adapter).getRemoteDevice(address)
-        val session = VirtualElmSession()
+        val session = VirtualElmSession(source)
         val gatt = checkNotNull(device.connectGatt(context, false, session, BluetoothDevice.TRANSPORT_LE))
         try {
             session.open(gatt)
@@ -85,7 +86,7 @@ internal class VirtualAdapter(private val context: Context) {
 }
 
 @SuppressLint("MissingPermission")
-internal class VirtualElmSession : BluetoothGattCallback() {
+internal class VirtualElmSession(private val source: VirtualSource) : BluetoothGattCallback() {
     private enum class Ack { Connected, Services, Subscribed, Written }
     private val events = Channel<Any>(32)
     private val disconnected = CompletableDeferred<Unit>()
@@ -140,7 +141,7 @@ internal class VirtualElmSession : BluetoothGattCallback() {
     }
 
     @Suppress("DEPRECATION")
-    suspend fun open(connection: BluetoothGatt) = withTimeout(12_000) {
+    suspend fun open(connection: BluetoothGatt) = withTimeout(15_000) {
         gatt = connection
         check(events.receive() == Ack.Connected)
         check(gatt.discoverServices())
@@ -168,14 +169,24 @@ internal class VirtualElmSession : BluetoothGattCallback() {
         )
         check(events.receive() == Ack.Subscribed)
         // Reset volatile interpreter settings left by a previous client. CAN 11-bit / 500 kbps only.
-        for (command in listOf("ATD", "ATE0", "ATL0", "ATS1", "ATH1", "ATCAF1", "ATM0", "ATTP6", "ATSH7DF")) {
+        val header = if (source == VirtualSource.Engine) "ATSH7DF" else "ATSH7E1"
+        for (command in listOf("ATD", "ATE0", "ATL0", "ATS1", "ATH1", "ATCAF1", "ATM0", "ATTP6", header)) {
             if (exchange(command).lineSequence().none { it.trim().equals("OK", ignoreCase = true) }) {
                 throw UnsupportedVirtualAdapter()
             }
         }
+        if (source == VirtualSource.Transmission &&
+            !matchesVirtualTransmission(exchange("0904"), exchange("0906"))
+        ) {
+            // This may be an ignition-off port. Retry with backoff, without requesting enhanced data.
+            throw VirtualTransmissionUnverified()
+        }
     }
 
-    suspend fun sample(pid: VirtualPid): Double? = decodeVirtualReply(exchange(pid.request), pid)
+    suspend fun sample(pid: VirtualPid): Double? {
+        require(pid.source == source)
+        return decodeVirtualReply(exchange(pid.request), pid)
+    }
 
     @Suppress("DEPRECATION")
     private suspend fun exchange(command: String): String = withTimeout(3_000) {
@@ -222,3 +233,5 @@ internal class VirtualElmSession : BluetoothGattCallback() {
 }
 
 internal class UnsupportedVirtualAdapter : Exception()
+
+internal class VirtualTransmissionUnverified : Exception()

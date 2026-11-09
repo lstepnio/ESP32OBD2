@@ -183,18 +183,20 @@ fun RoundPreview(
 
                         else -> Unit
                     }
-                    text(
-                        if (state.condition ==
-                            PreviewCondition.Normal
-                        ) {
-                            "eGauge"
-                        } else {
-                            state.stateLabel
-                        },
-                        239f,
-                        11f,
-                        accent
-                    )
+                    if (!state.live) {
+                        text(
+                            if (state.condition ==
+                                PreviewCondition.Normal
+                            ) {
+                                "eGauge"
+                            } else {
+                                state.stateLabel
+                            },
+                            239f,
+                            11f,
+                            accent
+                        )
+                    }
                 }
             }
         }

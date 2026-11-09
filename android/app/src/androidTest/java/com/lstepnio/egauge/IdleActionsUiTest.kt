@@ -1,8 +1,10 @@
 package com.lstepnio.egauge
 
 import android.graphics.Bitmap
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.text.AnnotatedString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lstepnio.egauge.core.designsystem.EGaugeTheme
@@ -45,9 +47,10 @@ class IdleActionsUiTest {
         compose.setContent { EGaugeTheme { IdleActionsSheet("fixture", listOf(IdlePreset(IdlePresetId.AirUp, 1200)), true, {}, {}, IdleControlState(IdlePhase.Ready), { selected = it }, coolantLimitC = 105.0) } }
         compose.onNodeWithText("Start Air up").performScrollTo().assertIsNotEnabled()
         compose.runOnIdle { assertNull(selected) }
-        compose.onNodeWithText("Target RPM").performScrollTo().performTextClearance()
-        compose.closeKeyboardAndWaitForIdle()
-        compose.onNodeWithText("Start Air up").performScrollTo().assertIsEnabled().performClick()
+        // Exercise the editable field without requesting IME focus before the Start tap.
+        compose.onNodeWithText("Target RPM").performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetText) { it(AnnotatedString("")) }
+        compose.onNodeWithText("Start Air up").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(IdlePreset(IdlePresetId.AirUp), selected) }
     }
 

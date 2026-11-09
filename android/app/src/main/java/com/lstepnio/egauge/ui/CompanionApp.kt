@@ -20,6 +20,8 @@ import androidx.window.layout.FoldingFeature
 import com.lstepnio.egauge.*
 import com.lstepnio.egauge.connection.ConnectionPhase
 import com.lstepnio.egauge.core.designsystem.*
+import com.lstepnio.egauge.premium.PremiumFeature
+import com.lstepnio.egauge.premium.PremiumGate
 import com.lstepnio.egauge.ui.car.ActionPagesSheet
 import com.lstepnio.egauge.ui.car.CarAlertSettingsScreen
 import com.lstepnio.egauge.ui.car.CarScreen
@@ -344,19 +346,22 @@ fun CompanionApp(
                                     }, onUpdates = { route = Route.Updates }, onActionPages = { actionPagesOpen = true }, canEditActionPages = actionAssignmentReady, onVirtualGauge = { route = Route.VirtualGauge }, onGesture = { gestureOpen = true })
 
                                     Route.VirtualGauge -> key(state.car.activeId) {
-                                        VirtualGaugeScreen(
-                                            state.car.activeId,
-                                            model.editorDraft.pages,
-                                            model.presentationPreferences.measurementSystem,
-                                            ::back,
-                                            { index, units ->
-                                                model.selectPage(index)
-                                                virtualEditorUnits = units
-                                                customizeStep = 0
-                                                route = Route.VirtualCustomize
-                                            },
-                                            onBluetoothSettings
-                                        )
+                                        PremiumGate(PremiumFeature.VirtualGauge, ::back) { onManageAccess ->
+                                            VirtualGaugeScreen(
+                                                state.car.activeId,
+                                                model.editorDraft.pages,
+                                                model.presentationPreferences.measurementSystem,
+                                                ::back,
+                                                { index, units ->
+                                                    model.selectPage(index)
+                                                    virtualEditorUnits = units
+                                                    customizeStep = 0
+                                                    route = Route.VirtualCustomize
+                                                },
+                                                onBluetoothSettings,
+                                                onManageAccess
+                                            )
+                                        }
                                     }
 
                                     Route.Setup -> SetupScreen(
@@ -387,7 +392,7 @@ fun CompanionApp(
                                                     state.customize.copy(
                                                         pages = model.editorDraft.pages.map { pageUi(it, virtualEditorUnits) },
                                                         readings = demoCatalog.filter { reading ->
-                                                            VirtualPid.entries.any { it.id == reading.id }
+                                                            VirtualPid.entries.any { it.available && it.id == reading.id }
                                                         }.map { readingUi(it, virtualEditorUnits) },
                                                         measurementSystem = virtualEditorUnits,
                                                         blockers = emptyList()
