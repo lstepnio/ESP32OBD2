@@ -1,5 +1,5 @@
 {
-  "reviewedOn": "2026-10-30",
+  "reviewedOn": "2026-11-09",
   "sourceDocuments": [
     "docs/current-state.md",
     "docs/roadmap.md",
@@ -62,7 +62,7 @@
   ],
   "actionAvailability": {
     "airUp": {
-      "text": "Being tested on Luke’s Jeep · A timed, fixed-idle preset.",
+      "text": "Being tested on Luke’s Jeep · A timed idle preset.",
       "source": "docs/architecture/vehicle-actions.md",
       "scope": "candidate",
       "evidence": [
@@ -215,21 +215,20 @@
     "docs/assets/gauge/capture-provenance.json"
   ],
   "claimInputProvenance": {
-    "reviewedOn": "2026-10-30",
-    "reason": "Reviewed consolidated dev80/current scope and source: ordinary builds keep controls disabled; fixed-target idle and ABS/TCS are explicit owner-only candidates with parked restoration/load gates still open; numeric RPM, providers, iOS and USB configuration remain future work. Build story uses retained live independent-source evidence. Current screenshots use production interfaces and synthetic values, never vehicle proof. Closing delivery receipts/status changed no public capability, copy or screenshot; reviewed after live publication.",
+    "reviewedOn": "2026-11-09",
+    "reason": "Reviewed storefront and release scope against the shared platform feature flags, recent offline idle setup, reading catalog and private OLED development. LCD firmware remains free with one adapter and timed cycling. The OLED license and 5/12-page limits are prelaunch targets. Owner-supervised vehicle controls retain controller and restoration gates. New oxygen readings and wider diagnostics are catalog additions, with vehicle qualification tracked separately.",
     "sha256": {
-      "contracts/reading-catalog.json": "ccda2356aecf4ba003f0b34be3b41262b50bf1c77ac119c0518e1af0851cf1f5",
-      "docs/architecture/alerts-and-diagnostics.md": "d63fa5de38347a0f1e3ce3d3e1547ee8b41c559da2558d11c92ed5a3a6e5f858",
+      "contracts/reading-catalog.json": "4253cf23fdb0345599178af36efdfe3f95de5ea1613def88c37f20049e596595",
+      "docs/architecture/alerts-and-diagnostics.md": "e61735ee015ca11afd262765e55af860824fc9ede165feee265f2964cd52b71f",
       "docs/architecture/android-runtime.md": "cbec3bcbc4d4ac7437e8fb030f27598ce64a6f4bc2579eef24b9990b9d51fb0d",
       "docs/architecture/display-experience.md": "7efc90da48dbfc3a38a12eda6ed9c62c57a9508263e360ec44ea0f544c58f8e1",
       "docs/architecture/interaction-recovery.md": "2b2a8ae31b07292b35f8c62f3e8e5463222a4464b60a9d3502c3d09df9614b54",
-      "docs/architecture/phone-alert-providers.md": "6b3a04988f2da30db963c6e37fe55cd7a228c78487eb001a6b5d98204af511dd",
-      "docs/architecture/platforms-and-releases.md": "6ccb5b1f4c51fc400068613853024edbf191ef9b70aae51b9d9396f9dd8d1576",
-      "docs/architecture/vehicle-actions.md": "31a0baf65eb19aa6d68d2f788965f1560657c588e807e497436a15303edd6bf3",
+      "docs/architecture/platforms-and-releases.md": "8ae6ac305a539f951a093ea7f573f8ee28cba3da79e478b98147e649fa7142f7",
+      "docs/architecture/vehicle-actions.md": "8d1db6bf431a4a970eae18393a2190e13056887016d1a7602c8dc6e5a91b0018",
       "docs/architecture/vehicle-connections.md": "3f0cfea953340596d86a865dd28a0372129214e05b37d15bbcd37090d91680b0",
-      "docs/backlog.md": "07808ff9a178b3f26ad8ec5b98a0937436b9678547abba314c6215ff8dc1b56a",
-      "docs/current-state.md": "982273d1472c58b4bfa076d7212481da5de55ab0b2f85f260ffa3dc495f9c914",
-      "docs/development/reading-catalog-alerts.md": "6d2a6d365516d14e339303d19ef2014e522beb3f2f00e36f104baf43fbe7fdeb",
+      "docs/backlog.md": "2f0e8a52e34611a57ee27b51d1650841b65d7dad560cf587abc8dc8440c6aee4",
+      "docs/current-state.md": "021ab50af4bd6504412be2b3ca08e48587a33b1ea86f55dc7714845ba7f93ea0",
+      "docs/development/reading-catalog-alerts.md": "6431d865aa2278e6a85308bad1ff957f3952054f9f14bc91d7c14ae8cef458e0",
       "docs/evidence/action-pages-indoor.md": "3720880cb92f1a647f64939fde649f57e4eaf22ee35b6a87c3e3b70c8273e6a3",
       "docs/evidence/dev75-indoor-rollout.md": "10d3b6d4dfdf6267b02db07c48013fb3dd18e3db67b9cb3abaf6f40db0daaf5c",
       "docs/evidence/dev80-action-entry.md": "bd641ceaa166cde0ea11bec6a1efd811346d12a3caee02af96a7162a7044d9aa",
@@ -238,7 +237,7 @@
       "docs/evidence/jeep-high-idle-reference.md": "35112c013262fce0a8e0a60771fd99d674d5970ecd2679f26620e00a51cac462",
       "docs/features.md": "6888bae16b39bea9e868811ba32bdfe2ce1d194e42327e6db2fa5d6d60200c97",
       "docs/protocol/wifi-bulk-v1.md": "c06ca3529e17446d81fe1609994b564688ca103a7cc6ec3a5dbe5c342382c8c8",
-      "docs/roadmap.md": "5f284fffe07a518c3a93a26fc8c94ab3e5cfbf289ccb9e0eedb6a15026a05b4e",
+      "docs/roadmap.md": "f4dd7cca5c8bbe7c4ce3437a23e887136501a4b10ab757ac012652ae7bc1f04a",
       "firmware/gauge/main/src/jeep_abs_tcs_driver.c": "6cd5949a9b2caa24a3e7505bae16819ad7f14c1b1be1fdc2a33e0d5eeec52370"
     }
   },

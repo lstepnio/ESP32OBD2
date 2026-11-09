@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "a4341d6328fa70f4e4c6ba1c90515763ba4ad8e3",
+  "sourceCommit": "c42b6566ba093c81ce3d64d07fcff84931a10ff4",
   "renderer": "Production LVGL9.2.2/fonts via RGB565 host fixture at240x240; visible RGB preserved, circular panel corners transparent",
   "data": "Synthetic source fixtures, not hardware/vehicle evidence",
   "candidateOptions": {
@@ -45,11 +45,11 @@
     },
     {
       "file": "trend.png",
-      "sha256": "ad25985dd4227c0e1ffb28e0814af6c1c661aee845e29d723951328bab783f23"
+      "sha256": "b5d5ee11a739566cdf8eebf24fe2e958e6ba88220c5f3c664b9427be580b5584"
     }
   ],
   "inputProvenance": {
-    "revision": "bf5ad0ab663445056319febe8aecffcd3927a6b5",
+    "revision": "c42b6566ba093c81ce3d64d07fcff84931a10ff4",
     "paths": [
       "firmware/gauge/main/src/ui.c",
       "firmware/gauge/main/src/gauge_presentation.c",
@@ -109,7 +109,7 @@
       "firmware/gauge/main/inc/display_showcase.h": "3d4bcebe448b8b0e6f03fb7bcb81fdf22dd7dfae1269ed936a9911517379a82c",
       "firmware/gauge/main/inc/display_units.h": "e801e513c679d05df568201ea3f21b2b642ba7b8ad409b9f2058e7ffa5626e7b",
       "firmware/gauge/main/inc/elm_response.h": "be9ec803afd1641d64169e2ecbbdc0afd8a701a9b070bad39072209307b3fe2b",
-      "firmware/gauge/main/inc/gauge_board.h": "baf9ddb2b854ddbd8a36b2c1c288be3eae1ef08aef9e1ebd4cf547ea03e72834",
+      "firmware/gauge/main/inc/gauge_board.h": "ea6f644e2c410f2487bfe7b975e97f4d274876fd24234b73f93a5f4ccc8b2e7d",
       "firmware/gauge/main/inc/gauge_gear_colors.h": "68a027db258e20a72fb56e67d9557cc5f2660a4af4fcfaec2b2d74a5a86a865f",
       "firmware/gauge/main/inc/gauge_layout.h": "1ad39f9b519a3a1bc7b4d16fbb9d2fa31c26aca08d7c6ab8841b2ff3095c8512",
       "firmware/gauge/main/inc/gauge_presentation.h": "28c8374d4b36c86df93af952a16c592ac0351739ef70c064b46438eaf5a43f3c",
@@ -125,13 +125,17 @@
       "firmware/gauge/main/inc/obd_adapter_profile.h": "fa633a51e4ad0b5d1f9ff4b2654d03b9129c2c1f7ce88e5fa432513e33d8a71d",
       "firmware/gauge/main/inc/obd_trace.h": "d91bc344e1e19a1e2f175bff15c499488dae417ca1f46589047b14222e7189e0",
       "firmware/gauge/main/inc/obd_wait_policy.h": "a1ee4eac232ed35b7c5cfe968e975dabbac679dd9c76154cad69c1f11d3300f2",
-      "firmware/gauge/main/inc/orientation_policy.h": "b60cbf9a424e8ce9b87f6a1821ed78ae90bdf38ffb76378c0615fe2d00829df0",
-      "firmware/gauge/main/inc/orientation_runtime.h": "2f9301dd8f5a404199f840b27bfb235e5af444cfe2588a66b95ad4790d296567",
+      "firmware/gauge/main/inc/orientation_policy.h": "6b38634f8b33a92693ac340ef617c137eaf93f1782991547a6636b7561b0fef2",
+      "firmware/gauge/main/inc/orientation_qmi8658.h": "5a8f022fcb6f1106f829cd1b06f46e6bb6eef100ee42fc4bd67ffac5b57c357c",
+      "firmware/gauge/main/inc/orientation_runtime.h": "3efdf71267f655430180c8ee1a359b925f1d472aef4f09187c863f214fe752a9",
       "firmware/gauge/main/inc/ota_recovery_policy.h": "cec7da2d3e2ec548e9ac593dec7838745a694779fa23356a19906377f0964cce",
-      "firmware/gauge/main/inc/ota_transfer.h": "374ce984cd0f74531c6398fdb76bb7906c447b5852bf1ef52ca55d9b95e86236",
+      "firmware/gauge/main/inc/ota_target_preflight.h": "378b14a92d6ceb426d612d2ce500e1b6e7cda0ff6d800a95dc975fb3aefa2e2c",
+      "firmware/gauge/main/inc/ota_transfer.h": "6ccff0061da6e09370a780d812bbb6d5b725dc111d216d41f6815d332573b904",
       "firmware/gauge/main/inc/page_action.h": "b5fe82e3c9a648ea8d1e7aca0bdcbe6f7272cb413e6f1b662def6d14c49a6ea9",
       "firmware/gauge/main/inc/page_save_policy.h": "9fbe32ef33c5d07528b0b6dbdf4312435ac3f3f422a92d2face7f75e62e18dcd",
       "firmware/gauge/main/inc/pid_decoder.h": "242a79c3a5176aa20df3d9557d0291b94523e5a1a04f1fac779c9409bc17e92c",
+      "firmware/gauge/main/inc/platform_config.h": "54b5c27fd130aacde27689520f6d9ca4465c3eb836a1f7b89aa61a26654095f4",
+      "firmware/gauge/main/inc/platform_features.h": "cfe08d869c21592e1a365541da86b1e164a3776476ecb72587749b59092117c2",
       "firmware/gauge/main/inc/poll_scheduler.h": "bf3e924de07ec14b50121808897959a754a377b395cbb7a63ecff1306f78f99d",
       "firmware/gauge/main/inc/reading_policy.h": "2801469bb75f6c1285941a88fb4a36bf5ac1544a3e3cec411fe4654707e560b8",
       "firmware/gauge/main/inc/reading_presentation.h": "f640b4bc8b820e2aa97454014cff85057b0c25361bee95d6ee38f1358ef71182",
@@ -141,10 +145,10 @@
       "firmware/gauge/main/inc/transfer_gate.h": "e7ea8274a7b69826b3334e25478f84b3f41624c8eb78f029b29337745ac2c6f0",
       "firmware/gauge/main/inc/transmission_gear.h": "de0bbbe7cebf63f6b1ba5839f3fb8daa468218f62a16af1ce23f4cedcca5dd5f",
       "firmware/gauge/main/inc/trend_curve.h": "38215e8eed651a91b2a8156700b2fb471f46472c8f0aedf4ea52f96e890083e5",
-      "firmware/gauge/main/inc/ui.h": "042e9bd9a430b9139a5323f95c86446167631cb833634e0f27867b94a3e75fd2",
+      "firmware/gauge/main/inc/ui.h": "356c19d8f6150b97e3750cf684ecd854d191e0788fb203aaf254c3dc9c358a6e",
       "firmware/gauge/main/inc/util.h": "29f48af496e35dfd90d040d3fa088652fed30c95da8fa6451d95263d843107ba",
       "firmware/gauge/main/inc/vehicle_commands.h": "f56a39fc5dc7da4c9a5fc6b9b960fa97648fa8e7d4dba0abad9aa73d22baa50e",
-      "firmware/gauge/main/inc/vehicle_commands_runtime.h": "9248126f05104a6e31e64f3461b6c2bf50e3b8608a19547a3903f59bb7b401ee",
+      "firmware/gauge/main/inc/vehicle_commands_runtime.h": "531e965bb1199b64b96be3dc158da6f64f86f2149f3206886eed77d55d3d751a",
       "firmware/gauge/main/inc/vehicle_idle_coolant.h": "489fc82b17044835b050abbfd16faf48b61c8339e8d9919d60088b77f02a5118",
       "firmware/gauge/main/inc/wifi_bulk.h": "f53c0303abb83d3417afcfeb8cc0aa597cf6aaa69a70025cf953b97f53b6f1ca",
       "firmware/gauge/main/inc/wifi_bulk_io.h": "06967d6ada5eaf0e679400af76f9a266946d86067bee00094304690b997b637d",
@@ -160,7 +164,7 @@
       "firmware/gauge/main/src/page_action.c": "aec32811972f9572bff9079a74855501318f82f6a899462dde60f9bed2d01ada",
       "firmware/gauge/main/src/reading_presentation.c": "f20e91a695ccabbc771f7b9b006bed2cfc6ad718abc71f545450c4bc13939162",
       "firmware/gauge/main/src/trend_curve.c": "bcab8f89ecdefeb1dda7f8ebf1c83625123efc8f940696fcb80769a37e4cb1b7",
-      "firmware/gauge/main/src/ui.c": "a3e90d0d05bb6eb7fa686dfb18e369295b807d9f2659267b271c308ab2637478",
+      "firmware/gauge/main/src/ui.c": "e76cb051e38133a622ebccdd744e26e8d89ec52615120a223f3cf4a3d8afe676",
       "firmware/gauge/tests/ui_host/CMakeLists.txt": "a0dc58da8533248b0a70fc7b2d540ea3e520620c43665c908cc63f46a130a61a",
       "firmware/gauge/tests/ui_host/gesture_regression.inc": "8c7b447350a8e89065d9031240445879c80b938a043bfbac938b7d700fe1b0b2",
       "firmware/gauge/tests/ui_host/lv_conf.h": "9febe67c6853174c32159bdf4a1271b5819439fa205d486c6195162bc877fda1",
@@ -179,15 +183,15 @@
       "firmware/gauge/tests/ui_host/stubs/portmacro.h": "f050e65ba1b7ae07942ec43cf0589675bb4ff7475aa154f23f50982204921460",
       "firmware/gauge/tests/ui_host/stubs/sdkconfig.h": "68406ac34e5616a424a4137191598e92441e221680d8e1c1caff30446f453aa6",
       "firmware/gauge/tests/ui_host/stubs/util.h": "3835e23455df29249bf62678f08430b2b8805cb9c0095f7b5f8280bdd1d6a752",
-      "firmware/gauge/tests/ui_host/ui_render_test.c": "ef1acbf3f6c23a4475914ad4520aac1a40ecea3b7b185aae871261bb46843c90",
+      "firmware/gauge/tests/ui_host/ui_render_test.c": "d242c0c04a2d152e551416c23f70e6b27f07a8365abf43c22417f9abc2d83830",
       "tools/render_gauge_gallery.py": "f2764334c567393932a3057051f8896caa0d5ae55c193b072d1865e6e83d8bc9"
     },
     "reviewPolicy": "Capture baseline from the actual current production render. Changed inputs need semantic review or recapture; age alone does not require recapture."
   },
-  "previousCaptureRevision": "083b0013363a697ab832179ee1af71b4456ca181",
-  "capturedOn": "2026-10-29",
-  "command": "CMake EGAUGE_HOST_RGB565=ON EGAUGE_PARKED_IDLE_TEST=ON; gauge_ui_render artifacts/website-ui-renders; tools/render_gauge_gallery.py --frames artifacts/website-ui-renders",
-  "dependency": "Existing pinned LVGL managed component reused from action-ui-approved checkout, without dependency changes",
-  "exportSourceCommit": "bf5ad0ab663445056319febe8aecffcd3927a6b5",
-  "exportedAtUtc": "2026-10-30T06:15:30.081409+00:00"
+  "previousCaptureRevision": "a4341d6328fa70f4e4c6ba1c90515763ba4ad8e3",
+  "capturedOn": "2026-11-09",
+  "command": "CMake EGAUGE_HOST_RGB565=ON EGAUGE_PARKED_IDLE_TEST=ON; gauge_ui_render artifacts/storefront-gauge-frames; tools/render_gauge_gallery.py exporter",
+  "dependency": "Existing pinned LVGL 9.2.2 component from shared project checkout",
+  "exportSourceCommit": "c42b6566ba093c81ce3d64d07fcff84931a10ff4",
+  "exportedAtUtc": "2026-11-09T19:53:29.112993+00:00"
 }
