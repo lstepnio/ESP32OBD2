@@ -236,34 +236,19 @@ Payment Links are created separately in the sandbox and kept out of the webroot.
    Session ID from the sandbox and run `verify-order cs_test_...` using the same
    workspace. Stripe remains the source of shipping addresses. The tool prints
    amounts and verifies payment, product, shipping, tax and charge state.
-4. For OLED only, pass a verified sandbox session and the factory MAC read from the
-   assigned test board. Reuse the sandbox's separate P-256 issuer across test orders.
-   All boards use the same licensed OLED release for that sandbox. Only the signed
-   entitlement varies by board. The ledger preserves one license per order and one
-   order per board on retry. Keep the key, ledger and exports in private storage.
-
-   ```sh
-   python3 tools/stripe_storefront.py --workspace /private/egauge-sandbox \
-     --stripe-key-file /private/stripe-sandbox.key provision-oled cs_test_... \
-     --signing-key /private/test-issuer.pem \
-     --verification-key /private/test-issuer-public.pem \
-     --output /private/egauge-sandbox/test-board.egauge-license < /private/factory-mac.txt
-   ```
-
-5. Use the [private OLED provisioning procedure](../docs/architecture/platforms-and-releases.md#oled-entitlements)
-   to install the entitlement. Test issuance grants dual adapters and Smart Cycle.
-   Vehicle controls have a separate qualification path.
+4. Record each verified order once before shipping. For OLED, record the firmware
+   major listed with the order and ship the matching preloaded build. Follow the
+   [included software policy](../docs/architecture/platforms-and-releases.md#oled-hardware-purchase-and-included-software).
 
 Use the [Stripe Tax sandbox guide](https://docs.stripe.com/tax/testing) and
 [Stripe test cards](https://docs.stripe.com/testing). The rehearsal verified LCD
 subtotal $75.00, shipping $9.95 and Idaho tax $4.50, and OLED subtotal $199.00,
-shipping $9.95 and Idaho tax $11.94. A disposable-key OLED entitlement was
-issued and re-exported from the paid sandbox order using a synthetic board ID.
+shipping $9.95 and Idaho tax $11.94.
 Test shipping and the Idaho registration are rehearsal settings.
 
 Before accepting real payments, set approved shipping destinations/rates and
 returns terms, confirm tax registrations and product classification, and
-qualify OLED activation, replacement and recovery on physical boards. Any future
+qualify offline boot, replacement and recovery on physical OLED boards. Any future
 live order integration needs explicit activation and must verify Stripe payment
 state before fulfillment.
 

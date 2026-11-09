@@ -6,7 +6,7 @@ from pathlib import Path
 CATALOG = Path(__file__).resolve().parents[1] / "website/storefront.json"
 OFFERS = {
     "lcd": ("LCD hardware", "S3-LCD-1.28 v1 hardware", "eGauge preflashed LCD board"),
-    "oled": ("OLED bundle", "S3-OLED-1.75 v1 hardware and license", "eGauge OLED bundle"),
+    "oled": ("OLED bundle", "S3-OLED-1.75 v1 with preinstalled firmware", "eGauge OLED bundle"),
 }
 
 

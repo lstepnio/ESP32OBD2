@@ -143,7 +143,7 @@ static display_settings_t raw_settings_snapshot(void)
 display_settings_t display_settings_snapshot(void)
 {
     display_settings_t result = raw_settings_snapshot();
-    result.smart_cycle &= platform_feature_enabled(PLATFORM_FEATURE_SMART_CYCLE);
+    result.smart_cycle &= EGAUGE_FEATURE_SMART_CYCLE;
     return result;
 }
 
@@ -169,13 +169,12 @@ static esp_err_t save_settings(uint8_t             rotation,
         xSemaphoreGive(settings_lock);
         return ESP_ERR_INVALID_STATE;
     }
-    bool               smart_supported = platform_feature_enabled(PLATFORM_FEATURE_SMART_CYCLE);
     display_settings_t next      = {rotation,
                                     brightness,
                                     units,
                                     previous.revision + 1,
                                     cycle_seconds,
-                                    preserve_smart || !smart_supported ? previous.smart_cycle : smart_cycle,
+                                    preserve_smart || !EGAUGE_FEATURE_SMART_CYCLE ? previous.smart_cycle : smart_cycle,
                                     orientation_mode < 0 ? previous.auto_orientation && rotation == previous.rotation
                                                          : orientation_mode != 0};
     int                next_slot = active_smart_slot == 0 ? 1 : 0;
@@ -205,7 +204,7 @@ static esp_err_t save_settings(uint8_t             rotation,
         if (saved)
         {
             *saved = next;
-            saved->smart_cycle &= smart_supported;
+            saved->smart_cycle &= EGAUGE_FEATURE_SMART_CYCLE;
         }
     }
     xSemaphoreGive(settings_lock);
@@ -230,7 +229,7 @@ esp_err_t display_settings_save_smart(uint8_t             rotation,
                                       uint32_t            expected_revision,
                                       display_settings_t *saved)
 {
-    if (smart_cycle && !platform_feature_enabled(PLATFORM_FEATURE_SMART_CYCLE))
+    if (smart_cycle && !EGAUGE_FEATURE_SMART_CYCLE)
         return ESP_ERR_NOT_SUPPORTED;
     return save_settings(rotation, brightness, units, cycle_seconds, smart_cycle, false, -1, expected_revision, saved);
 }

@@ -19,7 +19,7 @@ class StorefrontTest(unittest.TestCase):
         self.assertIn('href="#custom-form"', actions["LCD_ORDER"])
         self.assertIn("S3-LCD-1.28 v1 hardware", actions["LCD_ORDER"])
         self.assertIn('href="#custom-form"', actions["OLED_ORDER"])
-        self.assertIn("S3-OLED-1.75 v1 hardware and license", actions["OLED_ORDER"])
+        self.assertIn("S3-OLED-1.75 v1 with preinstalled firmware", actions["OLED_ORDER"])
 
     def test_public_build_rejects_test_and_live_checkout(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -2,15 +2,12 @@
 """Set up and fulfill eGauge orders in a Stripe test sandbox."""
 
 import argparse
-from contextlib import closing
 from fcntl import LOCK_EX, flock
 from getpass import getpass
 import json
 import os
 from pathlib import Path
 import re
-import sqlite3
-import subprocess
 import sys
 import tempfile
 from urllib.error import URLError
@@ -18,13 +15,11 @@ from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from uuid import uuid4
 
-from board_license import FEATURES, issue, unit_id, verify
 from storefront import OFFERS, storefront_catalog
 
 API_VERSION = "2026-10-28.endive"
 TEST_LINK = re.compile(r"https://buy\.stripe\.com/test_[A-Za-z0-9]+")
 SESSION = re.compile(r"cs_test_[A-Za-z0-9]+")
-LICENSE_FLAGS = FEATURES["dual-adapter"] | FEATURES["smart-cycle"]
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -215,51 +210,6 @@ def verify_order(stripe, state, session_id):
     return offer, subtotal, shipping_cents, tax_cents
 
 
-def allocate_license(database, session_id, mac, private_key, public_key):
-    identity = unit_id(mac)
-    with closing(sqlite3.connect(database, timeout=10)) as db:
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS issued (
-                session TEXT PRIMARY KEY, unit BLOB NOT NULL UNIQUE, license BLOB NOT NULL
-            )
-            """)
-        with db:
-            db.execute("BEGIN IMMEDIATE")
-            existing = db.execute(
-                "SELECT unit, license FROM issued WHERE session = ?", (session_id,)
-            ).fetchone()
-            if existing:
-                if existing[0] != identity:
-                    raise ValueError("This order already has a different assigned board")
-                license_bytes = existing[1]
-                verify(license_bytes, mac, public_key)
-                return license_bytes
-            if db.execute("SELECT 1 FROM issued WHERE unit = ?", (identity,)).fetchone():
-                raise ValueError("This board is already assigned to a different order")
-            license_bytes = issue(mac, LICENSE_FLAGS, private_key)
-            verify(license_bytes, mac, public_key)
-            db.execute("INSERT INTO issued VALUES (?, ?, ?)", (session_id, identity, license_bytes))
-            return license_bytes
-
-
-def export_license(path, payload):
-    # Link a complete private file atomically, without replacing a previous export.
-    with tempfile.TemporaryDirectory(dir=path.parent) as directory:
-        temp = Path(directory) / "license"
-        temp.write_bytes(payload)
-        temp.chmod(0o600)
-        try:
-            os.link(temp, path)
-        except FileExistsError:
-            if (
-                path.is_symlink()
-                or not path.is_file()
-                or path.stat().st_mode & 0o077
-                or path.read_bytes() != payload
-            ):
-                raise ValueError("The output path already contains a different or nonprivate file")
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -270,12 +220,7 @@ def main():
     configure = sub.add_parser("setup")
     configure.add_argument("--shipping-cents", type=int, required=True)
     order = sub.add_parser("verify-order")
-    provision = sub.add_parser("provision-oled")
-    for command in (order, provision):
-        command.add_argument("session", help="Checkout Session ID starting with cs_test_")
-    provision.add_argument("--signing-key", type=Path, required=True)
-    provision.add_argument("--verification-key", type=Path, required=True)
-    provision.add_argument("--output", type=Path, required=True)
+    order.add_argument("session", help="Checkout Session ID starting with cs_test_")
     args = parser.parse_args()
     os.umask(0o077)
     try:
@@ -309,27 +254,12 @@ def main():
         offer, subtotal, shipping, tax = verify_order(
             stripe, json.loads(config.read_text()), args.session
         )
-        if args.command == "provision-oled":
-            if offer != "oled":
-                raise ValueError("Only a paid OLED order can provision an OLED board")
-            if args.output.parent.resolve() != args.workspace.resolve():
-                raise ValueError("Export the test license directly to the private workspace")
-            mac = sys.stdin.read(32).strip()
-            payload = allocate_license(
-                args.workspace / "fulfillment.sqlite3",
-                args.session,
-                mac,
-                args.signing_key,
-                args.verification_key,
-            )
-            export_license(args.output, payload)
-            print("OLED test license ready for private bench provisioning.")
         print(
             f"Verified {offer.upper()} sandbox order (USD cents): item {subtotal}, shipping {shipping}, tax {tax}."
         )
     except ValueError as error:
         parser.exit(1, f"{error}\n")
-    except (OSError, KeyError, TypeError, sqlite3.Error, subprocess.SubprocessError):
+    except (OSError, KeyError, TypeError):
         parser.exit(
             1, "Sandbox operation failed. Check the private workspace, keys and Stripe setup.\n"
         )

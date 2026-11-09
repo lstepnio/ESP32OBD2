@@ -33,32 +33,6 @@ if((CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST OR CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNE
     message(FATAL_ERROR "Owner action candidates require EGAUGE_FEATURE_VEHICLE_ACTIONS")
 endif()
 
-set(EGAUGE_OLED_LICENSE_PUBLIC_KEY "" CACHE FILEPATH "Private OLED entitlement verification PEM")
-if(EGAUGE_OLED_LICENSE_PUBLIC_KEY)
-    if(PROJECT_NAME STREQUAL "esp32-idf-project" OR
-        EGAUGE_BOARD_ADAPTER_SOURCE STREQUAL "${CMAKE_CURRENT_LIST_DIR}/src/gauge_board_reference.c")
-        message(FATAL_ERROR "OLED entitlements require a private board project and adapter")
-    endif()
-    if(NOT CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED)
-        message(FATAL_ERROR "OLED entitlements require the modern display settings protocol")
-    endif()
-    if(NOT IS_ABSOLUTE "${EGAUGE_OLED_LICENSE_PUBLIC_KEY}" OR NOT EXISTS "${EGAUGE_OLED_LICENSE_PUBLIC_KEY}"
-        OR IS_DIRECTORY "${EGAUGE_OLED_LICENSE_PUBLIC_KEY}")
-        message(FATAL_ERROR "EGAUGE_OLED_LICENSE_PUBLIC_KEY must name an existing absolute PEM path")
-    endif()
-    file(READ "${EGAUGE_OLED_LICENSE_PUBLIC_KEY}" oled_license_public_pem)
-    if(NOT oled_license_public_pem MATCHES "^-----BEGIN PUBLIC KEY-----[\r\n]+[A-Za-z0-9+/=\r\n]+-----END PUBLIC KEY-----[\r\n]*$")
-        message(FATAL_ERROR "EGAUGE_OLED_LICENSE_PUBLIC_KEY must contain a single PUBLIC KEY PEM")
-    endif()
-    string(REGEX REPLACE "[\r\n]" "" oled_license_key_line "${oled_license_public_pem}")
-    string(REGEX REPLACE "[\r\n]" "" dev_update_key_line "${dev_update_public_pem}")
-    if(oled_license_key_line STREQUAL dev_update_key_line)
-        message(FATAL_ERROR "Use separate verification keys for OLED entitlements and updates")
-    endif()
-    set(oled_license_public_embed "${CMAKE_CURRENT_BINARY_DIR}/oled-license-public.pem")
-    configure_file("${EGAUGE_OLED_LICENSE_PUBLIC_KEY}" "${oled_license_public_embed}" COPYONLY)
-endif()
-
 include("${CMAKE_CURRENT_LIST_DIR}/../cmake/presentation.cmake")
 
 idf_component_register(
@@ -145,9 +119,3 @@ target_compile_definitions(${COMPONENT_TARGET} PRIVATE
     EGAUGE_FEATURE_DUAL_ADAPTER=$<BOOL:${EGAUGE_FEATURE_DUAL_ADAPTER}>
     EGAUGE_FEATURE_SMART_CYCLE=$<BOOL:${EGAUGE_FEATURE_SMART_CYCLE}>
     EGAUGE_FEATURE_VEHICLE_ACTIONS=$<BOOL:${EGAUGE_FEATURE_VEHICLE_ACTIONS}>)
-
-if(EGAUGE_OLED_LICENSE_PUBLIC_KEY)
-    target_sources(${COMPONENT_TARGET} PRIVATE "src/oled_license.c")
-    target_add_binary_data(${COMPONENT_TARGET} "${oled_license_public_embed}" TEXT)
-    target_compile_definitions(${COMPONENT_TARGET} PRIVATE EGAUGE_OLED_LICENSE_REQUIRED=1)
-endif()
