@@ -226,9 +226,12 @@ internal data class GaugeFeaturePolicy(
 ) {
     fun usesSecondAdapter(requested: Boolean): Boolean = allowsSecondAdapter && requested
 
-    fun sourceIndices(stored: Map<String, Int>): Map<String, Int> =
-        // Restricted firmware promotes the engine source to slot zero even in a TCM-first document.
-        if (!allowsSecondAdapter && stored.size == 2) mapOf("ECM" to 0) else stored
+    // Restricted firmware promotes the engine source to slot zero even in a TCM-first document.
+    fun sourceIndices(stored: Map<String, Int>): Map<String, Int> = if (!allowsSecondAdapter && stored.size == 2) {
+        mapOf("ECM" to 0)
+    } else {
+        stored
+    }
 
     fun project(dashboard: Draft, actions: List<PageAction>): Draft = dashboard.copy(
         source = "ECM",

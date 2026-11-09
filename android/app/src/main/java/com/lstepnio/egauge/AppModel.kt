@@ -1774,8 +1774,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ?.let { liveSourceIndices(it).keys.toList().takeIf(List<String>::isNotEmpty) }
         ?: if (bothAdapters) listOf("ECM", "TCM") else listOf("ECM")
 
-    private fun liveSourceIndices(document: GaugeConfigTransferClient.ActiveDocument?): Map<String, Int> =
-        gaugeFeaturePolicy.sourceIndices(configuredSourceIndices(document))
+    private fun liveSourceIndices(document: GaugeConfigTransferClient.ActiveDocument?): Map<String, Int> = gaugeFeaturePolicy.sourceIndices(configuredSourceIndices(document))
 
     var adapterStatuses by mutableStateOf<Map<String, AdapterSourceStatus>>(emptyMap())
         private set
