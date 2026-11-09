@@ -430,7 +430,7 @@ fun CompanionApp(
                                                         model.sendNumericConfiguration()
                                                         route =
                                                             Route.Gauge
-                                                    }, { route = Route.Setup }, model::selectArcMetric
+                                                    }, { route = Route.Setup }, model::selectArcMetric, model::setRpmRedline
                                                 ),
                                                 phoneOnly = virtual
                                             )

@@ -68,7 +68,18 @@ typedef struct
     uint8_t       metric_count;
     ui_metric_t   metrics[2];
     uint8_t       arc_metric_index;
+    uint16_t      rpm_redline;
 } ui_page_t;
+
+typedef struct
+{
+    uint16_t pid;
+    uint8_t  source;
+    uint32_t revision, gap_ms;
+} ui_trend_metric_t;
+
+/* Register the immutable set of Trend readings before the OBD workers start. */
+bool ui_configure_trends(ui_t *ui, const ui_trend_metric_t *metrics, unsigned count);
 
 typedef void (*ui_touch_callback_t)(ui_t *ui, lv_event_code_t event_code);
 

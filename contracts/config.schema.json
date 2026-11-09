@@ -88,6 +88,11 @@
             "maxItems": 2,
             "uniqueItems": true
           },
+          "rpmRedline": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 16000
+          },
           "arcMetricIndex": {
             "type": "integer",
             "minimum": 0,
@@ -102,6 +107,10 @@
         ],
         "additionalProperties": false,
         "allOf": [
+          {
+            "if": {"required": ["rpmRedline"]},
+            "then": {"properties": {"renderer": {"enum": ["arc", "dualArc"]}}}
+          },
           {
             "if": {
               "properties": {

@@ -42,15 +42,17 @@ fun pageUi(page: GaugePageDraft, system: MeasurementSystem = MeasurementSystem.M
             secondaryGear = secondary?.alertKind == "gear",
             arcFraction = page.pidIds.getOrNull(page.arcMetricIndex)?.let { id ->
                 demoCatalog.first { it.id == id }.let { metric ->
-                    metric.demoValue.replace(",", "").toDoubleOrNull()?.let { ((it - metric.minimum) / (metric.maximum - metric.minimum)).toFloat().coerceIn(0f, 1f) }
+                    metric.demoValue.replace(",", "").toDoubleOrNull()?.let { readingFraction(id, it, metric.minimum, metric.maximum, page.rpmRedline) }
                 }
             } ?: 0f,
+            rpmRedlineFraction = rpmRedlineFraction(page.rpmRedline),
             secondaryUnit = secondary?.let {
                 MeasurementUnits.label(it.unit, system)
             }
         ),
         secondary?.id,
-        page.arcMetricIndex
+        page.arcMetricIndex,
+        page.rpmRedline
     )
 }
 
@@ -100,6 +102,9 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
         (caps?.configurationVersion ?: 0) < 6
     ) {
         add("Update gauge firmware to use CEL code filters.")
+    }
+    if (caps != null && draft.pages.any { it.rpmRedline != null } && !caps.rpmRedlineSupported) {
+        add("Update the gauge before sending the RPM redline")
     }
     if (caps != null && requiresOxygenVoltageFirmware(draft) && !caps.oxygenVoltageSupported) {
         add("Update the gauge before sending oxygen sensor voltage readings")

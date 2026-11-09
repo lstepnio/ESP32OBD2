@@ -265,6 +265,17 @@ static esp_err_t compile_bytes(char *bytes, uint32_t length, config_runtime_t *o
                 goto done;
             page->pid_indices[i] = index;
         }
+        const cJSON *redline = field(item, "rpmRedline");
+        if (redline)
+        {
+            const runtime_pid_t *rpm = &out->pids[page->pid_indices[page->arc_metric_index]];
+            if ((page->renderer != RUNTIME_RENDERER_ARC && page->renderer != RUNTIME_RENDERER_DUAL_ARC) ||
+                !cJSON_IsNumber(redline) || redline->valueint != redline->valuedouble || redline->valueint < 1000 ||
+                redline->valueint > 16000 || strcmp(rpm->id, "engine.rpm") || rpm->service != 0x01 ||
+                rpm->obd.pid != 0x0c)
+                goto done;
+            page->rpm_redline = redline->valueint;
+        }
         out->page_count++;
     }
     for (const cJSON *item = alerts->child; item; item = item->next)

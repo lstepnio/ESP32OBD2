@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,11 +16,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.GaugeAlertDraft
 import com.lstepnio.egauge.GaugeLayout
 import com.lstepnio.egauge.core.designsystem.*
+import com.lstepnio.egauge.rpmRedlineRange
 import com.lstepnio.egauge.ui.ResponsivePanels
 import com.lstepnio.egauge.ui.state.*
 import kotlinx.coroutines.launch
@@ -38,7 +41,8 @@ data class CustomizeActions(
     val check: () -> Unit,
     val send: () -> Unit,
     val setup: () -> Unit,
-    val selectArc: (Int) -> Unit = {}
+    val selectArc: (Int) -> Unit = {},
+    val setRpmRedline: (Int?) -> Unit = {}
 )
 
 @Composable
@@ -51,6 +55,7 @@ fun DashboardEditorScreen(
     phoneOnly: Boolean = false
 ) {
     var picker by rememberSaveable { mutableStateOf<String?>(null) }
+    var redlineOpen by rememberSaveable { mutableStateOf(false) }
     var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
     var alertReading by rememberSaveable { mutableStateOf<String?>(null) }
     var alertReturn by rememberSaveable { mutableIntStateOf(0) }
@@ -166,6 +171,15 @@ fun DashboardEditorScreen(
                                     }
                                 }
                             }
+                            val ringReading = if (current.arcMetricIndex == 0) current.readingId else current.secondaryId
+                            if (current.layout in setOf(GaugeLayout.Arc, GaugeLayout.DualArc) && ringReading == "rpm") {
+                                HorizontalDivider(Modifier.padding(horizontal = 18.dp))
+                                EditorRow(
+                                    "RPM redline",
+                                    current.rpmRedline?.let { "$it RPM" } ?: "Unset · 8,000 RPM scale",
+                                    state.editingEnabled
+                                ) { redlineOpen = true }
+                            }
                             current.secondaryId?.let { id ->
                                 HorizontalDivider(Modifier.padding(horizontal = 18.dp))
                                 EditorRow(
@@ -236,6 +250,38 @@ fun DashboardEditorScreen(
                 actions.removePage(deletion)
                 deleteId = null
             }
+        )
+    }
+    if (redlineOpen && current != null) {
+        var input by rememberSaveable(current.id, current.rpmRedline) {
+            mutableStateOf(current.rpmRedline?.toString().orEmpty())
+        }
+        val value = input.toIntOrNull()
+        val valid = input.isEmpty() || (value != null && value in rpmRedlineRange)
+        AlertDialog(
+            onDismissRequest = { redlineOpen = false },
+            title = { Text("RPM redline") },
+            text = {
+                DialogContent {
+                    Text("Enter the engine redline for this ring. Leave blank to use the standard scale.")
+                    OutlinedTextField(
+                        value = input,
+                        onValueChange = { if (it.length <= 5 && it.all(Char::isDigit)) input = it },
+                        label = { Text("RPM") },
+                        singleLine = true,
+                        isError = !valid,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        supportingText = { if (!valid) Text("Enter 1,000 to 16,000 RPM.") }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    actions.setRpmRedline(value)
+                    redlineOpen = false
+                }, enabled = valid) { Text("Save") }
+            },
+            dismissButton = { TextButton({ redlineOpen = false }) { Text("Cancel") } }
         )
     }
     if (picker != null) {

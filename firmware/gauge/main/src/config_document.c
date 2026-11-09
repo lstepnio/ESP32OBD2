@@ -344,7 +344,7 @@ static bool definition_valid(const cJSON *item, const cJSON *sources)
 
 static bool page_valid(const cJSON *item, const cJSON *definitions)
 {
-    static const char *const keys[]      = {"id", "name", "renderer", "pidIds", "arcMetricIndex"};
+    static const char *const keys[]      = {"id", "name", "renderer", "pidIds", "arcMetricIndex", "rpmRedline"};
     static const char *const renderers[] = {"numeric", "arc", "bar", "trend", "dual", "dualArc"};
     const cJSON             *renderer    = cJSON_GetObjectItemCaseSensitive(item, "renderer");
     const cJSON             *ids         = cJSON_GetObjectItemCaseSensitive(item, "pidIds");
@@ -358,6 +358,14 @@ static bool page_valid(const cJSON *item, const cJSON *definitions)
     bool         dual_arc = !strcmp(renderer->valuestring, "dualArc");
     if ((dual_arc && !integer(arc, 0, 1)) || (!dual_arc && arc))
         return false;
+    const cJSON *redline = cJSON_GetObjectItemCaseSensitive(item, "rpmRedline");
+    if (redline)
+    {
+        const cJSON *selected = cJSON_GetArrayItem(ids, dual_arc ? arc->valueint : 0);
+        if ((!dual_arc && strcmp(renderer->valuestring, "arc")) || !integer(redline, 1000, 16000) ||
+            !cJSON_IsString(selected) || strcmp(selected->valuestring, "engine.rpm"))
+            return false;
+    }
     if (dual_arc)
     {
         const cJSON *selected_id = cJSON_GetArrayItem(ids, arc->valueint);

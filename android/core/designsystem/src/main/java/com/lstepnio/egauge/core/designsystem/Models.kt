@@ -33,7 +33,9 @@ data class ReadingPreviewUi(
     val secondaryGear: Boolean = false,
     val live: Boolean = false,
     val arcAvailable: Boolean = true,
-    val trendFractions: List<Float> = emptyList()
+    val trendFractions: List<Float> = emptyList(),
+    val trendPositions: List<Float> = emptyList(),
+    val rpmRedlineFraction: Float? = null
 ) {
     val shownValue: String get() = if (condition in
         setOf(PreviewCondition.Stale, PreviewCondition.Offline)
