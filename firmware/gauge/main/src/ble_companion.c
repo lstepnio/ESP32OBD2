@@ -203,6 +203,14 @@ static void owner_save_worker(void *arg)
 #define FEATURE_POLICY_CAPABILITY ""
 #endif
 
+/* A partial feature profile must describe Action Pages during initial setup,
+ * before a custom document makes the regular command capability available. */
+#if EGAUGE_FEATURES_RESTRICTED && EGAUGE_FEATURE_VEHICLE_ACTIONS
+#define LEGACY_ACTION_SETUP_CAPABILITY ",\"vc\":1"
+#else
+#define LEGACY_ACTION_SETUP_CAPABILITY ""
+#endif
+
 #if EGAUGE_FEATURE_VEHICLE_ACTIONS && CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
 #define BRAKE_OWNER_CAPABILITY ",\"bt\":1"
 #else
@@ -213,7 +221,8 @@ static void owner_save_worker(void *arg)
     "\"maxAdapterLinks\":1,"                                                                                           \
     "\"savedStateRead\":true,\"displayRotationWrite\":true,"                                                           \
     "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"va\":1,"                                                               \
-    "\"qs\":true,\"ota\":false,\"hw\":1" DISPLAY_SETTINGS_CAPABILITY DUAL_ADAPTER_CAPABILITY FEATURE_POLICY_CAPABILITY
+    "\"qs\":true,\"ota\":false,\"hw\":1" DISPLAY_SETTINGS_CAPABILITY DUAL_ADAPTER_CAPABILITY FEATURE_POLICY_CAPABILITY \
+        LEGACY_ACTION_SETUP_CAPABILITY
 #define DOCUMENT_CAPABILITY_BASE                                                                                       \
     "{\"protocolMajor\":0,\"board\":\"" EGAUGE_PROTOCOL_BOARD_NAME "\","                                               \
     "\"maxAdapterLinks\":1,"                                                                                           \
