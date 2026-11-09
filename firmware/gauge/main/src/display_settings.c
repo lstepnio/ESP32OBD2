@@ -1,4 +1,5 @@
 #include "display_settings.h"
+#include "platform_features.h"
 #include <stdbool.h>
 #include "nvs.h"
 #include "esp_log.h"
@@ -130,12 +131,19 @@ esp_err_t display_settings_init(uint8_t default_rotation, uint8_t default_bright
     return ESP_OK;
 }
 
-display_settings_t display_settings_snapshot(void)
+static display_settings_t raw_settings_snapshot(void)
 {
     /* Never wait for NVS/flash on the Bluetooth or UI task. */
     portENTER_CRITICAL(&snapshot_mux);
     display_settings_t result = current;
     portEXIT_CRITICAL(&snapshot_mux);
+    return result;
+}
+
+display_settings_t display_settings_snapshot(void)
+{
+    display_settings_t result = raw_settings_snapshot();
+    result.smart_cycle &= EGAUGE_FEATURE_SMART_CYCLE;
     return result;
 }
 
@@ -155,7 +163,7 @@ static esp_err_t save_settings(uint8_t             rotation,
         return ESP_ERR_INVALID_STATE;
     if (xSemaphoreTake(settings_lock, pdMS_TO_TICKS(250)) != pdTRUE)
         return ESP_ERR_TIMEOUT;
-    display_settings_t previous = display_settings_snapshot();
+    display_settings_t previous = raw_settings_snapshot();
     if (previous.revision != expected_revision || previous.revision == UINT32_MAX)
     {
         xSemaphoreGive(settings_lock);
@@ -166,7 +174,7 @@ static esp_err_t save_settings(uint8_t             rotation,
                                     units,
                                     previous.revision + 1,
                                     cycle_seconds,
-                                    preserve_smart ? previous.smart_cycle : smart_cycle,
+                                    preserve_smart || !EGAUGE_FEATURE_SMART_CYCLE ? previous.smart_cycle : smart_cycle,
                                     orientation_mode < 0 ? previous.auto_orientation && rotation == previous.rotation
                                                          : orientation_mode != 0};
     int                next_slot = active_smart_slot == 0 ? 1 : 0;
@@ -194,7 +202,10 @@ static esp_err_t save_settings(uint8_t             rotation,
         active_smart_slot = next_slot;
         portEXIT_CRITICAL(&snapshot_mux);
         if (saved)
+        {
             *saved = next;
+            saved->smart_cycle &= EGAUGE_FEATURE_SMART_CYCLE;
+        }
     }
     xSemaphoreGive(settings_lock);
     return err;
@@ -218,6 +229,8 @@ esp_err_t display_settings_save_smart(uint8_t             rotation,
                                       uint32_t            expected_revision,
                                       display_settings_t *saved)
 {
+    if (smart_cycle && !EGAUGE_FEATURE_SMART_CYCLE)
+        return ESP_ERR_NOT_SUPPORTED;
     return save_settings(rotation, brightness, units, cycle_seconds, smart_cycle, false, -1, expected_revision, saved);
 }
 

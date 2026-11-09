@@ -1,4 +1,5 @@
 #include "vehicle_commands_runtime.h"
+#include "platform_features.h"
 #include "esp_random.h"
 #include "esp_attr.h"
 #include "nvs.h"
@@ -226,6 +227,12 @@ esp_err_t vehicle_commands_runtime_init(const config_runtime_t *runtime)
     publish((vehicle_command_context_t){0}, 0);
     return requests ? ESP_OK : ESP_ERR_NO_MEM;
 }
+bool vehicle_commands_runtime_restriction_conflict(void)
+{
+    /* Called during boot, before any worker can change the retained journal. */
+    return !EGAUGE_FEATURE_VEHICLE_ACTIONS && (!commands.journal_ready || commands.marker.mask != 0);
+}
+
 static bool enqueue(const vehicle_command_request_t *request)
 {
     if (xQueueSend(requests, request, 0) == pdTRUE)
@@ -237,7 +244,8 @@ static bool submit(const uint8_t *bytes, size_t length, bool gauge_confirmed)
 {
     vehicle_command_request_t request;
     if (!requests || !transfer_gate_vehicle_allowed() || ble_mgr_is_paused() ||
-        !vehicle_command_decode(bytes, length, &request))
+        !vehicle_command_decode(bytes, length, &request) ||
+        (!EGAUGE_FEATURE_VEHICLE_ACTIONS && request.verb == VEHICLE_START))
         return false;
     /* A readable interface is not an enabled controller. Fail closed at
      * admission so old/unqualified profiles never acquire a worker lease. */

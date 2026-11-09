@@ -5,6 +5,7 @@
 #include "cJSON.h"
 #include "esp_heap_caps.h"
 #include "config_runtime.h"
+#include "platform_config.h"
 #include "config_store.h"
 #include "config_trial.h"
 #include "config_document.h"
@@ -369,6 +370,8 @@ esp_err_t config_runtime_validate(const esp_partition_t *partition,
     if (!candidate)
         return ESP_ERR_NO_MEM;
     esp_err_t err = compile_partition(partition, document_offset, length, candidate);
+    if (err == ESP_OK && !platform_config_accepts(candidate))
+        err = ESP_ERR_NOT_SUPPORTED;
     heap_caps_free(candidate);
     return err;
 }
@@ -380,7 +383,11 @@ static esp_err_t compile_record(const config_store_record_t *record, config_runt
         return ESP_ERR_NO_MEM;
     esp_err_t err = config_store_read_record(record, 0, bytes, record->length);
     if (err == ESP_OK)
+    {
         err = compile_bytes(bytes, record->length, out);
+        if (err == ESP_OK)
+            platform_config_apply(out);
+    }
     heap_caps_free(bytes);
     return err;
 }

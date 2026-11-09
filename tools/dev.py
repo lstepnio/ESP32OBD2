@@ -260,6 +260,8 @@ def firmware(
                 )
             )
             options = ["-B", FIRMWARE / ("build-" + variant), "-D", "SDKCONFIG=" + str(config)]
+        if parked_idle_test or brake_actions_test:
+            options.extend(["-D", "EGAUGE_FEATURE_VEHICLE_ACTIONS=ON"])
         run([*idf, "-C", FIRMWARE, *options, "build"])
     elif action == "test":
         idf = os.environ.get("IDF_PATH")

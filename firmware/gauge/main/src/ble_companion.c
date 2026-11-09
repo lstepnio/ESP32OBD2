@@ -1,4 +1,5 @@
 #include "vehicle_commands_runtime.h"
+#include "platform_features.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -176,13 +177,33 @@ static void owner_save_worker(void *arg)
 
 #if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED
 #define DISPLAY_SETTINGS_CAPABILITY ",\"ds\":3"
-#define SMART_PAGE_CAPABILITY ",\"sp\":1"
 #else
 #define DISPLAY_SETTINGS_CAPABILITY ""
+#endif
+
+#if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED && EGAUGE_FEATURE_SMART_CYCLE
+#define SMART_PAGE_CAPABILITY ",\"sp\":1"
+#else
 #define SMART_PAGE_CAPABILITY ""
 #endif
 
-#if CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
+#if EGAUGE_FEATURE_DUAL_ADAPTER
+#define DUAL_ADAPTER_CAPABILITY ",\"da\":1"
+#else
+#define DUAL_ADAPTER_CAPABILITY ""
+#endif
+#if EGAUGE_FEATURE_VEHICLE_ACTIONS
+#define VEHICLE_ACTION_CAPABILITY ",\"vc\":1,\"bm\":1"
+#else
+#define VEHICLE_ACTION_CAPABILITY ""
+#endif
+#if EGAUGE_FEATURES_RESTRICTED
+#define FEATURE_POLICY_CAPABILITY ",\"fp\":1"
+#else
+#define FEATURE_POLICY_CAPABILITY ""
+#endif
+
+#if EGAUGE_FEATURE_VEHICLE_ACTIONS && CONFIG_EGAUGE_JEEP_BRAKE_ACTIONS_OWNER_TEST
 #define BRAKE_OWNER_CAPABILITY ",\"bt\":1"
 #else
 #define BRAKE_OWNER_CAPABILITY ""
@@ -191,14 +212,14 @@ static void owner_save_worker(void *arg)
     "{\"protocolMajor\":0,\"board\":\"" EGAUGE_PROTOCOL_BOARD_NAME "\","                                               \
     "\"maxAdapterLinks\":1,"                                                                                           \
     "\"savedStateRead\":true,\"displayRotationWrite\":true,"                                                           \
-    "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"da\":1,\"va\":1,"                                                      \
-    "\"qs\":true,\"ota\":false,\"hw\":1" DISPLAY_SETTINGS_CAPABILITY
+    "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"va\":1,"                                                               \
+    "\"qs\":true,\"ota\":false,\"hw\":1" DISPLAY_SETTINGS_CAPABILITY DUAL_ADAPTER_CAPABILITY FEATURE_POLICY_CAPABILITY
 #define DOCUMENT_CAPABILITY_BASE                                                                                       \
     "{\"protocolMajor\":0,\"board\":\"" EGAUGE_PROTOCOL_BOARD_NAME "\","                                               \
     "\"maxAdapterLinks\":1,"                                                                                           \
-    "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"da\":1,\"va\":1,\"vc\":1,\"bm\":1,"                                    \
-    "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY SMART_PAGE_CAPABILITY                                \
-    ",\"mp\":10,\"dx\":1" BRAKE_OWNER_CAPABILITY
+    "\"configWrite\":false,\"cfg\":7,\"ad\":1,\"va\":1,"                                                               \
+    "\"ota\":false,\"hw\":1,\"sc\":1" DISPLAY_SETTINGS_CAPABILITY SMART_PAGE_CAPABILITY DUAL_ADAPTER_CAPABILITY        \
+        VEHICLE_ACTION_CAPABILITY FEATURE_POLICY_CAPABILITY ",\"mp\":10,\"dx\":1" BRAKE_OWNER_CAPABILITY
 static const char capabilities[]             = LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
 static const char document_capabilities[]    = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY "}";
 static const char orientation_capabilities[] = DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY ",\"ao\":1}";
@@ -450,6 +471,8 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle, struct ble
             .smart_cycle   = request[6] == 1,
             .base_revision = read_u32(request + 7),
         };
+        if (command.smart_cycle && !EGAUGE_FEATURE_SMART_CYCLE)
+            return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
         uint16_t           interval = command.cycle_seconds;
         display_settings_t settings = display_settings_snapshot();
         if (command.value > 3 || command.brightness < 5 || command.brightness > 100 || command.units > 1 ||

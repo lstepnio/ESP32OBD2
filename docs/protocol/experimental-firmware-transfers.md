@@ -106,6 +106,22 @@ Owner opcode `32` with a little-endian `u32 sequence` and `u32 document offset` 
 
 Owner opcode `33` with a four-byte sequence selects protected runtime configuration identity version `08`. The response is 44 bytes. Byte 1 bit 0 means a custom configuration is running; bit 1 means the runtime rejected the newest stored generation and loaded the previous committed executable generation; bit 2 means the running generation is in its boot-health trial. Bytes 2..3 are reserved zero. Bytes 4..7 hold the little-endian running revision, bytes 8..11 hold the newest durable revision observed before any recovery selection, and bytes 12..43 hold the running revision's SHA-256. When bit 0 is clear, the firmware is using built-in readings and the running revision and digest are zero; the durable revision may still identify a rejected document. This identity is distinct from the active-document read: version 7 reports the current store base used for the next revision, while version 8 reports what the current boot actually compiled and whether a newer durable generation was rejected.
 
+## Platform feature policy
+
+A capability document with numeric `fp:1` has at least one disabled platform
+feature. Missing `da:1` limits the gauge to one adapter, missing `sp:1` disables
+Smart Cycle and missing `vc:1` disables vehicle Action Pages and new vehicle
+commands. The absence of `fp` retains the legacy interpretation. Fully enabled
+builds can omit `fp` to fit the existing 255-byte discovery read boundary.
+`cfg:7` remains the document format version. It does not grant features.
+
+New documents requesting a disabled adapter or vehicle-action menu are rejected
+as unavailable at commit. Existing documents retain their original bytes and
+digest. Firmware suppresses the restricted parts in the effective runtime.
+The `69` display settings operation rejects Smart enabled when `sp` is absent
+on a restricted build. Timed cycling and the existing display settings read
+and write formats remain available.
+
 ## Dual-source development configuration, dev.41
 
 The existing schema-2 config transaction can atomically carry a bound ECM plus TCM.

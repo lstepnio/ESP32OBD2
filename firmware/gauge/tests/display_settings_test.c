@@ -4,6 +4,7 @@
 #include <string.h>
 #include <setjmp.h>
 #include "display_settings.h"
+#include "platform_features.h"
 #include "nvs.h"
 
 int test_lock_busy, test_critical_depth;
@@ -107,6 +108,22 @@ static void seed_legacy(unsigned version, unsigned revision)
 }
 int main(void)
 {
+    if (!EGAUGE_FEATURE_SMART_CYCLE)
+    {
+        seed_legacy(3, 9);
+        flash[1] = (blob_t){.bytes = {1, 3, 0, 0, 9, 0, 0, 0}, .length = 8};
+        reboot();
+        assert(!before.smart_cycle && before.auto_orientation && before.cycle_seconds == 15);
+        assert(display_settings_save_smart(2, 75, 0, 30, true, 9, NULL) == ESP_ERR_NOT_SUPPORTED);
+        assert(display_settings_snapshot().revision == 9);
+        display_settings_t saved;
+        assert(display_settings_save_smart(2, 75, 0, 30, false, 9, &saved) == ESP_OK);
+        assert(!saved.smart_cycle && saved.auto_orientation && saved.cycle_seconds == 30);
+        assert(flash[2].bytes[1] == 3); /* Preserve the stored Smart bit across a timed write. */
+        reboot();
+        assert(!before.smart_cycle && before.auto_orientation && before.cycle_seconds == 30);
+        return 0;
+    }
     reboot();
     assert(!before.smart_cycle && before.revision == 0);
     save(true);
