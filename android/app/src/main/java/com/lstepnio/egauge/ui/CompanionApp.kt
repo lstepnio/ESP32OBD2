@@ -30,6 +30,7 @@ import com.lstepnio.egauge.ui.home.HomeScreen
 import com.lstepnio.egauge.ui.settings.*
 import com.lstepnio.egauge.ui.setup.SetupScreen
 import com.lstepnio.egauge.ui.state.*
+import com.lstepnio.egauge.virtual.VirtualGaugeAccess
 import com.lstepnio.egauge.virtual.VirtualGaugeScreen
 import com.lstepnio.egauge.virtual.VirtualPid
 import kotlinx.coroutines.CancellationException
@@ -344,19 +345,22 @@ fun CompanionApp(
                                     }, onUpdates = { route = Route.Updates }, onActionPages = { actionPagesOpen = true }, canEditActionPages = actionAssignmentReady, onVirtualGauge = { route = Route.VirtualGauge }, onGesture = { gestureOpen = true })
 
                                     Route.VirtualGauge -> key(state.car.activeId) {
-                                        VirtualGaugeScreen(
-                                            state.car.activeId,
-                                            model.editorDraft.pages,
-                                            model.presentationPreferences.measurementSystem,
-                                            ::back,
-                                            { index, units ->
-                                                model.selectPage(index)
-                                                virtualEditorUnits = units
-                                                customizeStep = 0
-                                                route = Route.VirtualCustomize
-                                            },
-                                            onBluetoothSettings
-                                        )
+                                        VirtualGaugeAccess(::back) { onManageAccess ->
+                                            VirtualGaugeScreen(
+                                                state.car.activeId,
+                                                model.editorDraft.pages,
+                                                model.presentationPreferences.measurementSystem,
+                                                ::back,
+                                                { index, units ->
+                                                    model.selectPage(index)
+                                                    virtualEditorUnits = units
+                                                    customizeStep = 0
+                                                    route = Route.VirtualCustomize
+                                                },
+                                                onBluetoothSettings,
+                                                onManageAccess
+                                            )
+                                        }
                                     }
 
                                     Route.Setup -> SetupScreen(
@@ -387,7 +391,7 @@ fun CompanionApp(
                                                     state.customize.copy(
                                                         pages = model.editorDraft.pages.map { pageUi(it, virtualEditorUnits) },
                                                         readings = demoCatalog.filter { reading ->
-                                                            VirtualPid.entries.any { it.id == reading.id }
+                                                            VirtualPid.entries.any { it.available && it.id == reading.id }
                                                         }.map { readingUi(it, virtualEditorUnits) },
                                                         measurementSystem = virtualEditorUnits,
                                                         blockers = emptyList()

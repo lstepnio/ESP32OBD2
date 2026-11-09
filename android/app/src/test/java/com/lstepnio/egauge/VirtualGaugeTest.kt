@@ -66,4 +66,33 @@ class VirtualGaugeTest {
         assertFalse(face.description.contains("Preview"))
         assertTrue(virtualFace(page.copy(arcMetricIndex = 1), reads, 6_000, MeasurementSystem.Imperial).arcAvailable)
     }
+
+    @Test fun transmissionRequiresTheCapturedIdentityAndExactHeader() {
+        val calibration = "7E9 10 13 49 04 01 36 38 32\r7E9 21 37 34 38 36 37 41 45\r7E9 22 00 00 00 00 00 00"
+        val verification = "7E9 07 49 06 01 82 40 DA E8"
+        assertTrue(matchesVirtualTransmission(calibration, verification))
+        assertFalse(matchesVirtualTransmission(calibration.replace("7E9 22", "7E9 23"), verification))
+        assertFalse(matchesVirtualTransmission(calibration, verification.replace("DA", "00")))
+        assertFalse(matchesVirtualTransmission(calibration, verification.replace("7E9", "7E8")))
+        assertEquals(45.0, decodeVirtualReply("7E9 06 62 04 FE 55 00 00", VirtualPid.TransmissionTemp)!!, 0.0)
+        assertEquals(13.0, decodeVirtualReply("7E9 04 62 55 03 0D", VirtualPid.Gear)!!, 0.0)
+        assertNull(decodeVirtualReply("7E8 04 62 55 03 0D", VirtualPid.Gear))
+        assertNull(decodeVirtualReply("7E9 04 62 55 03 0C", VirtualPid.Gear))
+    }
+
+    @Test fun losingOneSourceLeavesTheOtherReadingVisible() {
+        val page = GaugePageDraft("pair", "Engine and gear", GaugeLayout.Dual, listOf("rpm", "tcmgear"))
+        val engine = VirtualLink(VirtualStatus.Waiting, mapOf(VirtualPid.Rpm to listOf(VirtualSample(675.0, 1_000))))
+        val tcm = VirtualLink(VirtualStatus.Waiting, mapOf(VirtualPid.Gear to listOf(VirtualSample(13.0, 1_000))))
+        val units = MeasurementSystem.Imperial
+        assertEquals("P", virtualFace(page, engine.readings + tcm.readings, 1_000, units).secondaryValue)
+        val engineOnly = virtualFace(page, engine.readings, 1_000, units)
+        assertEquals("675", engineOnly.shownValue)
+        assertEquals("--", engineOnly.secondaryValue)
+        val transmissionOnly = virtualFace(page, tcm.readings, 1_000, units)
+        assertEquals("--", transmissionOnly.shownValue)
+        assertEquals("P", transmissionOnly.secondaryValue)
+        assertFalse(VirtualBindings("main", "child").accepts(VirtualSource.Transmission, "main"))
+        assertNull(VirtualBindings(null, "child").address(VirtualSource.Transmission))
+    }
 }

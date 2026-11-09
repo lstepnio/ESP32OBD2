@@ -11,9 +11,11 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -22,10 +24,12 @@ import com.lstepnio.egauge.GaugePageDraft
 import com.lstepnio.egauge.MeasurementSystem
 import com.lstepnio.egauge.MeasurementUnits
 import com.lstepnio.egauge.core.designsystem.*
+import com.lstepnio.egauge.gearPositions
 import com.lstepnio.egauge.readingCatalog
 import com.lstepnio.egauge.ui.ScreenContent
 import com.lstepnio.egauge.ui.state.readingName
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.withLock
 
 internal enum class VirtualStatus(val label: String) {
     Unselected("Choose adapter"),
@@ -36,7 +40,8 @@ internal enum class VirtualStatus(val label: String) {
     Waiting("Waiting for readings"),
     Live("Live readings"),
     Retrying("Reconnecting"),
-    UnsupportedAdapter("Adapter unsupported")
+    UnsupportedAdapter("Adapter unsupported"),
+    CheckPort("Check transmission port")
 }
 
 internal typealias VirtualReadings = Map<VirtualPid, List<VirtualSample>>
@@ -53,6 +58,7 @@ internal fun virtualFace(
     }
     fun formatted(id: String): String {
         val latest = history(id).lastOrNull() ?: return "--"
+        if (id == "tcmgear") return gearPositions[latest.value] ?: "--"
         val unit = readingCatalog.first { it.id == id }.unit
         return MeasurementUnits.displayValue(latest.value.toString(), unit, units)
     }
@@ -75,10 +81,96 @@ internal fun virtualFace(
         secondaryValue = secondary?.let(::formatted),
         secondaryUnit = secondary?.let(::unit),
         arcMetricIndex = page.arcMetricIndex,
+        primaryGear = primary == "tcmgear",
+        secondaryGear = secondary == "tcmgear",
         arcFraction = fraction ?: 0f,
         arcAvailable = fraction != null,
         trendFractions = history(primary).map { fraction(primary, it) }
     )
+}
+
+internal data class VirtualBindings(val engine: String?, val transmission: String?) {
+    fun address(source: VirtualSource) = when (source) {
+        VirtualSource.Engine -> engine
+        VirtualSource.Transmission -> transmission?.takeIf { engine != null && it != engine }
+    }
+
+    fun accepts(source: VirtualSource, address: String): Boolean = when (source) {
+        VirtualSource.Engine -> address != transmission
+        VirtualSource.Transmission -> engine != null && address != engine
+    }
+}
+
+internal data class VirtualLink(
+    val status: VirtualStatus = VirtualStatus.Unselected,
+    val readings: VirtualReadings = emptyMap()
+) {
+    fun statusAt(now: Long): VirtualStatus = if (status == VirtualStatus.Waiting &&
+        readings.any { (pid, samples) -> samples.lastOrNull()?.fresh(pid, now) == true }
+    ) {
+        VirtualStatus.Live
+    } else {
+        status
+    }
+}
+
+private suspend fun pollVirtualLink(
+    adapter: VirtualAdapter,
+    address: String,
+    source: VirtualSource,
+    pids: Set<VirtualPid>,
+    visible: () -> Set<String>,
+    publish: (VirtualLink) -> Unit
+) {
+    var retryMs = 1_000L
+    while (true) {
+        publish(VirtualLink(VirtualStatus.Connecting))
+        val failure = try {
+            adapter.read(address, source) {
+                var link = VirtualLink(VirtualStatus.Waiting)
+                publish(link)
+                val dueAt = mutableMapOf<VirtualPid, Long>()
+                var lastSample = SystemClock.elapsedRealtime()
+                while (true) {
+                    val pid = nextVirtualPid(pids, visible(), dueAt, SystemClock.elapsedRealtime())
+                    if (pid == null) {
+                        delay(50)
+                        continue
+                    }
+                    val value = sample(pid)
+                    val observed = SystemClock.elapsedRealtime()
+                    val interval = when {
+                        value == null -> 4_000L
+                        pid.id in visible() -> pid.periodMs
+                        else -> 3_000L
+                    }
+                    dueAt[pid] = observed + interval
+                    if (value != null) {
+                        val recent = link.readings[pid].orEmpty().filter { it.fresh(pid, observed) }
+                        link = link.copy(readings = link.readings + (pid to (recent.takeLast(23) + VirtualSample(value, observed))))
+                        publish(link)
+                        lastSample = observed
+                        retryMs = 1_000
+                    } else if (source == VirtualSource.Transmission && observed - lastSample >= 15_000) {
+                        // Recheck calibration after a quiet interval before admitting enhanced data again.
+                        throw VirtualTransmissionUnverified()
+                    }
+                }
+            }
+            VirtualStatus.Retrying
+        } catch (_: UnsupportedVirtualAdapter) {
+            publish(VirtualLink(VirtualStatus.UnsupportedAdapter))
+            awaitCancellation()
+        } catch (_: VirtualTransmissionUnverified) {
+            VirtualStatus.CheckPort
+        } catch (_: Exception) {
+            currentCoroutineContext().ensureActive()
+            VirtualStatus.Retrying
+        }
+        publish(VirtualLink(failure))
+        delay(retryMs)
+        retryMs = (retryMs * 2).coerceAtMost(15_000L)
+    }
 }
 
 @Composable
@@ -88,7 +180,8 @@ internal fun VirtualGaugeScreen(
     units: MeasurementSystem,
     onBack: () -> Unit,
     onEdit: (Int, MeasurementSystem) -> Unit,
-    onBluetoothSettings: () -> Unit
+    onBluetoothSettings: () -> Unit,
+    onManageAccess: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -98,150 +191,137 @@ internal fun VirtualGaugeScreen(
     var displayUnits by remember(prefs) {
         mutableStateOf(MeasurementSystem.entries.firstOrNull { it.name == prefs.getString("units", null) } ?: units)
     }
-    val adapterKey = "adapter.$vehicleId"
-    var address by remember(vehicleId) {
-        mutableStateOf(prefs.getString(adapterKey, null)?.takeIf(BluetoothAdapter::checkBluetoothAddress))
+    fun key(source: VirtualSource) = if (source == VirtualSource.Engine) "adapter.$vehicleId" else "transmission.$vehicleId"
+    var bindings by remember(vehicleId) {
+        fun saved(source: VirtualSource) = prefs.getString(key(source), null)?.takeIf(BluetoothAdapter::checkBluetoothAddress)
+        mutableStateOf(VirtualBindings(saved(VirtualSource.Engine), saved(VirtualSource.Transmission).takeIf { VirtualPid.Gear.available }))
     }
-    var picker by rememberSaveable(vehicleId) { mutableStateOf(false) }
+    var setup by rememberSaveable(vehicleId) { mutableStateOf(false) }
+    var picker by rememberSaveable(vehicleId) { mutableStateOf<VirtualSource?>(null) }
     var scanRequest by rememberSaveable(vehicleId) { mutableIntStateOf(0) }
-    var permissionsChanged by remember { mutableIntStateOf(0) }
+    var permissionRevision by remember { mutableIntStateOf(0) }
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        permissionsChanged++
+        permissionRevision++
     }
-    var status by remember { mutableStateOf(VirtualStatus.Unselected) }
-    var readings by remember { mutableStateOf<VirtualReadings>(emptyMap()) }
+    var radioStatus by remember { mutableStateOf<VirtualStatus?>(null) }
     var results by remember { mutableStateOf<List<VirtualCandidate>>(emptyList()) }
     var scanning by remember { mutableStateOf(false) }
-    var searched by remember { mutableStateOf(false) }
     var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     val pager = rememberPagerState(pageCount = { pages.size })
     val visibleIds by rememberUpdatedState(pages.getOrNull(pager.currentPage)?.pidIds.orEmpty().toSet())
     val pids = remember(pages) {
         val ids = pages.flatMap { it.pidIds }.toSet()
-        VirtualPid.entries.filter { it.id in ids }.toSet()
+        VirtualPid.entries.filter { it.available && it.id in ids }.toSet()
     }
-    DisposableEffect(view) {
+    val links = remember(bindings, radioStatus, pids) { mutableStateMapOf<VirtualSource, VirtualLink>() }
+    DisposableEffect(view, setup) {
         val previous = view.keepScreenOn
-        view.keepScreenOn = true
+        if (!setup) view.keepScreenOn = true
         onDispose { view.keepScreenOn = previous }
     }
-    LaunchedEffect(lifecycle) {
+    LaunchedEffect(lifecycle, permissionRevision) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 now = SystemClock.elapsedRealtime()
+                radioStatus = when {
+                    !adapter.available -> VirtualStatus.UnsupportedPhone
+                    !context.hasVirtualPermissions() -> VirtualStatus.Permission
+                    !adapter.enabled -> VirtualStatus.BluetoothOff
+                    else -> null
+                }
                 delay(250)
             }
         }
     }
-    LaunchedEffect(lifecycle, address, picker, scanRequest, permissionsChanged, pids) {
+    LaunchedEffect(lifecycle, bindings, radioStatus, pids) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            readings = emptyMap()
-            try {
-                var retryMs = 1_000L
-                while (true) {
-                    status = when {
-                        !adapter.available -> VirtualStatus.UnsupportedPhone
-                        !context.hasVirtualPermissions() -> VirtualStatus.Permission
-                        !adapter.enabled -> VirtualStatus.BluetoothOff
-                        picker || address == null -> VirtualStatus.Unselected
-                        else -> VirtualStatus.Connecting
-                    }
-                    if (status == VirtualStatus.Connecting) {
-                        if (pids.isEmpty()) {
-                            status = VirtualStatus.Waiting
-                            awaitCancellation()
-                        }
-                        try {
-                            adapter.read(requireNotNull(address)) {
-                                status = VirtualStatus.Waiting
-                                val dueAt = mutableMapOf<VirtualPid, Long>()
-                                while (true) {
-                                    val pid = nextVirtualPid(pids, visibleIds, dueAt, SystemClock.elapsedRealtime())
-                                    if (pid == null) {
-                                        delay(50)
-                                        continue
-                                    }
-                                    val value = sample(pid)
-                                    val observed = SystemClock.elapsedRealtime()
-                                    val interval = if (value == null) {
-                                        4_000L
-                                    } else if (pid.id in visibleIds) {
-                                        pid.periodMs
-                                    } else {
-                                        3_000L
-                                    }
-                                    dueAt[pid] = observed + interval
-                                    if (value != null) {
-                                        val recent = readings[pid].orEmpty().filter { it.fresh(pid, observed) }
-                                        readings = readings + (pid to (recent.takeLast(23) + VirtualSample(value, observed)))
-                                        retryMs = 1_000
-                                    }
+            if (radioStatus == null && adapter.enabled) {
+                virtualReadLease.withLock {
+                    try {
+                        coroutineScope {
+                            VirtualSource.entries.forEach { source ->
+                                val address = bindings.address(source) ?: return@forEach
+                                val owned = pids.filter { it.source == source }.toSet().ifEmpty {
+                                    setOf(if (source == VirtualSource.Engine) VirtualPid.Rpm else VirtualPid.TransmissionTemp)
                                 }
+                                launch { pollVirtualLink(adapter, address, source, owned, { visibleIds }) { links[source] = it } }
                             }
-                        } catch (_: UnsupportedVirtualAdapter) {
-                            status = VirtualStatus.UnsupportedAdapter
-                            awaitCancellation()
-                        } catch (error: Exception) {
-                            currentCoroutineContext().ensureActive()
-                            readings = emptyMap()
-                            status = VirtualStatus.Retrying
-                            delay(retryMs)
-                            retryMs = (retryMs * 2).coerceAtMost(15_000L)
                         }
-                    } else if (picker && status == VirtualStatus.Unselected) {
-                        scanning = true
-                        results = emptyList()
-                        try {
-                            results = adapter.scan()
-                        } catch (error: Exception) {
-                            currentCoroutineContext().ensureActive()
-                        } finally {
-                            scanning = false
-                        }
-                        searched = true
-                        awaitCancellation()
-                    } else if (status == VirtualStatus.Unselected || status == VirtualStatus.UnsupportedPhone) {
-                        awaitCancellation()
-                    } else {
-                        delay(1_000)
+                    } finally {
+                        links.clear()
                     }
                 }
-            } finally {
-                readings = emptyMap()
             }
         }
     }
-    val effectiveStatus = if (status == VirtualStatus.Waiting && readings.any { (pid, history) ->
-            history.lastOrNull()?.fresh(pid, now) == true
+    LaunchedEffect(lifecycle, picker, scanRequest, radioStatus) {
+        if (picker == null || radioStatus != null || !adapter.enabled) return@LaunchedEffect
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            scanning = true
+            results = emptyList()
+            try {
+                results = adapter.scan()
+            } catch (_: Exception) {
+                currentCoroutineContext().ensureActive()
+            } finally {
+                scanning = false
+            }
+            awaitCancellation()
         }
-    ) {
-        VirtualStatus.Live
-    } else {
-        status
     }
-    BackHandler(enabled = picker) { picker = false }
-    VirtualGaugeContent(
-        pages, displayUnits, pager, readings, now, effectiveStatus,
-        picker, scanning, searched, results,
-        onBack = { if (picker) picker = false else onBack() },
-        onSearch = {
-            searched = false
-            picker = true
-            scanRequest++
-        },
-        onChoose = {
-            prefs.edit().putString(adapterKey, it).apply()
-            address = it
-            picker = false
-        },
-        onPermission = { permissions.launch(virtualPermissions) },
-        onBluetoothSettings = onBluetoothSettings,
-        onUnits = {
-            prefs.edit().putString("units", it.name).apply()
-            displayUnits = it
-        },
-        onEdit = { onEdit(pager.currentPage.coerceIn(pages.indices), displayUnits) }
-    )
+    fun back() {
+        when {
+            picker != null -> picker = null
+            setup -> setup = false
+            else -> onBack()
+        }
+    }
+    fun select(source: VirtualSource, address: String) {
+        if (!bindings.accepts(source, address)) return
+        prefs.edit().putString(key(source), address).apply()
+        bindings = when (source) {
+            VirtualSource.Engine -> bindings.copy(engine = address)
+            VirtualSource.Transmission -> bindings.copy(transmission = address)
+        }
+        picker = null
+    }
+    val statuses = VirtualSource.entries.associateWith { source ->
+        radioStatus ?: links[source]?.statusAt(now) ?: VirtualStatus.Unselected
+    }
+    BackHandler(enabled = setup) { back() }
+    if (setup) {
+        VirtualAdapterSetup(
+            bindings, statuses, radioStatus, picker, scanning, results, displayUnits,
+            onBack = ::back,
+            onPick = {
+                picker = it
+                scanRequest++
+            },
+            onChoose = ::select,
+            onPermission = { permissions.launch(virtualPermissions) },
+            onBluetoothSettings = onBluetoothSettings,
+            onManageAccess = onManageAccess,
+            onRemoveTransmission = {
+                prefs.edit().remove(key(VirtualSource.Transmission)).apply()
+                bindings = bindings.copy(transmission = null)
+            },
+            onUnits = {
+                prefs.edit().putString("units", it.name).apply()
+                displayUnits = it
+            }
+        )
+    } else {
+        val readings = links.values.flatMap { it.readings.entries }.associate { it.key to it.value }
+        VirtualGaugeContent(
+            pages, displayUnits, pager, readings, now,
+            VirtualSource.Engine.let(statuses::getValue),
+            statuses[VirtualSource.Transmission].takeIf { bindings.address(VirtualSource.Transmission) != null },
+            hasMainAdapter = bindings.engine != null,
+            onBack = ::back,
+            onSetup = { setup = true },
+            onEdit = { onEdit(pager.currentPage.coerceIn(pages.indices), displayUnits) }
+        )
+    }
 }
 
 @Composable
@@ -251,93 +331,57 @@ internal fun VirtualGaugeContent(
     pager: androidx.compose.foundation.pager.PagerState,
     readings: VirtualReadings,
     now: Long,
-    status: VirtualStatus,
-    picker: Boolean,
-    scanning: Boolean,
-    searched: Boolean,
-    results: List<VirtualCandidate>,
+    engine: VirtualStatus,
+    transmission: VirtualStatus?,
+    hasMainAdapter: Boolean,
     onBack: () -> Unit,
-    onSearch: () -> Unit,
-    onChoose: (String) -> Unit,
-    onPermission: () -> Unit,
-    onBluetoothSettings: () -> Unit,
-    onUnits: (MeasurementSystem) -> Unit,
+    onSetup: () -> Unit,
     onEdit: () -> Unit
 ) {
-    var unitsMenu by remember { mutableStateOf(false) }
+    val mainLive = engine == VirtualStatus.Live
+    val transmissionLive = transmission == VirtualStatus.Live
+    val label = when {
+        transmission == null -> engine.label
+        mainLive && transmissionLive -> "Both adapters live"
+        mainLive -> "Engine live"
+        transmissionLive -> "Transmission live"
+        else -> engine.label
+    }
+    val page = pages.getOrNull(pager.currentPage)
     ScreenContent {
-        ScreenTitle(if (picker) "Choose adapter" else "Virtual gauge", onBack) {
-            ConnectionPill(status.label, status == VirtualStatus.Live)
+        ScreenTitle("Virtual gauge", onBack) {
+            ConnectionPill(label, mainLive && (transmission == null || transmissionLive), onClick = onSetup, clickLabel = "Open adapter setup")
         }
-        if (picker && status == VirtualStatus.Permission) {
-            PrimaryAction("Allow nearby devices", onPermission)
-        } else if (picker && status == VirtualStatus.BluetoothOff) {
-            PrimaryAction("Turn on Bluetooth", onBluetoothSettings)
-        } else if (picker) {
-            Text("Use the adapter in your car’s main OBD-II port. Turn on the ignition and disconnect any other app or gauge using it.")
-            results.forEach {
-                SettingsRow(it.name, "Ends in ${it.address.takeLast(5)}", true, { onChoose(it.address) })
-            }
-            if (scanning) {
-                LinearProgressIndicator(Modifier.fillMaxWidth())
-                Text("Looking for adapters")
-            } else if (searched && results.isEmpty()) {
-                Text("No compatible adapters found")
-                PrimaryAction("Search again", onSearch)
-            }
-        } else {
-            HorizontalPager(pager, modifier = Modifier.fillMaxWidth()) { index ->
-                RoundPreview(virtualFace(pages[index], readings, now, units), Modifier.fillMaxWidth())
-            }
-            if (pages.size > 1) {
-                Text(
-                    "Page ${pager.currentPage + 1} of ${pages.size} · Swipe to change",
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
-            if (pages.getOrNull(pager.currentPage)?.pidIds?.any { id ->
-                    VirtualPid.entries.none { it.id == id }
-                } == true
-            ) {
-                Text("Some readings on this page need a supported vehicle setup.")
-            }
-            when (status) {
-                VirtualStatus.Unselected -> PrimaryAction("Find adapter", onSearch)
+        HorizontalPager(pager, modifier = Modifier.fillMaxWidth()) { index ->
+            RoundPreview(virtualFace(pages[index], readings, now, units), Modifier.fillMaxWidth())
+        }
+        if (pages.size > 1) {
+            Text(
+                "${pager.currentPage + 1} / ${pages.size}",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        when {
+            !hasMainAdapter -> PrimaryAction("Set up adapters", onSetup)
 
-                VirtualStatus.Permission -> PrimaryAction("Allow nearby devices", onPermission)
+            page?.pidIds?.any { id -> VirtualPid.entries.none { it.available && it.id == id } } == true ->
+                Text("This reading is unavailable on Virtual Gauge.", style = MaterialTheme.typography.bodySmall)
 
-                VirtualStatus.BluetoothOff -> PrimaryAction("Turn on Bluetooth", onBluetoothSettings)
-
-                VirtualStatus.UnsupportedPhone -> Text("This phone needs Bluetooth LE to connect to an adapter.")
-
-                VirtualStatus.UnsupportedAdapter -> Text("Choose a compatible 18F0 BLE OBD-II adapter.")
-
-                VirtualStatus.Retrying, VirtualStatus.Waiting ->
-                    Text("Keep the ignition on and disconnect other apps or gauges using this adapter.")
-
-                else -> Unit
+            page?.pidIds?.any { it == "tcmgear" || it == "tcmtemp" } == true && transmission == null ->
+                TextButton(onSetup) { Text("Add transmission adapter") }
+        }
+        FlowRow(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+        ) {
+            if (hasMainAdapter) {
+                TextButton(onSetup, Modifier.heightIn(min = 48.dp)) { Text("Adapters") }
             }
-            if (status in setOf(
-                    VirtualStatus.Connecting,
-                    VirtualStatus.Waiting,
-                    VirtualStatus.Live,
-                    VirtualStatus.Retrying,
-                    VirtualStatus.UnsupportedAdapter
-                )
-            ) {
-                TextButton(onSearch) { Text("Change adapter") }
-            }
-            if (pages.isNotEmpty()) TextButton(onEdit) { Text("Customize pages") }
-            Box {
-                TextButton({ unitsMenu = true }) { Text("Units: ${units.name}") }
-                DropdownMenu(unitsMenu, { unitsMenu = false }) {
-                    MeasurementSystem.entries.forEach { system ->
-                        DropdownMenuItem({ Text(system.name) }, {
-                            unitsMenu = false
-                            onUnits(system)
-                        })
-                    }
-                }
+            if (pages.isNotEmpty()) {
+                OutlinedButton(onEdit, Modifier.heightIn(min = 48.dp)) { Text("Customize pages") }
             }
         }
     }

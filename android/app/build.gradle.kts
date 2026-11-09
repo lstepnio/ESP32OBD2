@@ -9,6 +9,19 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val virtualGaugePublicKey = providers.gradleProperty("egaugeVirtualGaugePublicKey").orNull.orEmpty()
+val virtualGaugeCheckout = providers.gradleProperty("egaugeVirtualGaugeCheckout").orNull.orEmpty()
+require(virtualGaugePublicKey.isEmpty() == virtualGaugeCheckout.isEmpty()) {
+    "Provision both Virtual Gauge access settings together"
+}
+if (virtualGaugePublicKey.isNotEmpty()) {
+    require(virtualGaugeCheckout == "https://egauge.majjix.com/virtual-gauge/") {
+        "Virtual Gauge checkout must use the first-party subscription page"
+    }
+    require(virtualGaugePublicKey.length <= 512)
+    KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(Base64.getDecoder().decode(virtualGaugePublicKey)))
+}
+
 android {
     namespace = "com.lstepnio.egauge"
     compileSdk = 36
@@ -21,6 +34,8 @@ android {
         versionName = "0.2.0-dev.58"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "PRIVATE_OTA_PROVISIONED", "false")
+        buildConfigField("String", "VIRTUAL_GAUGE_PUBLIC_KEY", "\"$virtualGaugePublicKey\"")
+        buildConfigField("String", "VIRTUAL_GAUGE_CHECKOUT", "\"$virtualGaugeCheckout\"")
     }
 
     providers.gradleProperty("egaugePrivateOtaAssets").orNull?.let { path ->

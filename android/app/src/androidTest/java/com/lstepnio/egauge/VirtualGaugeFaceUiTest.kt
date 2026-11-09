@@ -4,7 +4,7 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
@@ -39,8 +39,8 @@ class VirtualGaugeFaceUiTest {
                             rememberPagerState(pageCount = { pages.size }),
                             readings, 1_000,
                             if (live) VirtualStatus.Live else VirtualStatus.Unselected,
-                            false, false, false, emptyList(),
-                            {}, {}, {}, {}, {}, {}, {}
+                            null, live,
+                            {}, {}, {}
                         )
                     }
                 }
@@ -60,13 +60,41 @@ class VirtualGaugeFaceUiTest {
         render(1f, live = true)
         compose.onNodeWithContentDescription("Engine speed, 675 rpm.").assertIsDisplayed()
         compose.onNodeWithText("Live readings").assertIsDisplayed()
+        compose.onNodeWithText("Adapters").performScrollTo().assertIsDisplayed()
         capture("virtual-gauge-compact")
     }
 
     @Test fun largeTextFaceKeepsUnavailableStateAndSetupReachable() {
         render(2f, live = false)
         compose.onNodeWithContentDescription("Engine speed, unavailable.").assertExists()
-        compose.onNodeWithText("Find adapter").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Set up adapters").performScrollTo().assertIsDisplayed()
         capture("virtual-gauge-large-text")
+    }
+
+    @Test fun transmissionSetupRejectsTheAlreadyBoundMainAdapter() {
+        var selected: Pair<VirtualSource, String>? = null
+        val main = "AA:BB:CC:DD:11:22"
+        val child = "AA:BB:CC:DD:33:44"
+        compose.setContent {
+            EGaugeTheme {
+                val density = LocalDensity.current
+                CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                    var picker by remember { mutableStateOf<VirtualSource?>(null) }
+                    VirtualAdapterSetup(
+                        VirtualBindings(main, null), mapOf(VirtualSource.Engine to VirtualStatus.Live), null,
+                        picker, false,
+                        listOf(VirtualCandidate(main, "Vgate main"), VirtualCandidate(child, "Vgate child")),
+                        MeasurementSystem.Imperial,
+                        {}, { picker = it }, { role, address -> selected = role to address },
+                        {}, {}, null, {}, {}
+                    )
+                }
+            }
+        }
+        compose.onNodeWithText("Add transmission adapter").performScrollTo().performClick()
+        capture("virtual-transmission-setup-large-text")
+        compose.onAllNodesWithText("Vgate main").assertCountEquals(0)
+        compose.onNodeWithText("Vgate child").performClick()
+        org.junit.Assert.assertEquals(VirtualSource.Transmission to child, selected)
     }
 }
