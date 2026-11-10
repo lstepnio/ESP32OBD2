@@ -72,22 +72,22 @@ class VirtualGaugeTest {
             }
         }
         assertEquals(listOf("0100", "0120"), commands)
-        val choices = virtualReadingChoices(support, transmissionBound = false)
+        val choices = virtualReadingChoices(support)
         assertTrue("rpm" in choices)
         assertFalse("speed" in choices)
         assertTrue("voltage" in choices)
-        assertFalse("tcmgear" in choices)
+        assertEquals(BuildConfig.DEBUG, "tcmgear" in choices)
 
         val complete = discoverVirtualEngineSupport {
             assertEquals("0100", it)
             "7E8 06 41 00 04 10 00 00"
         }
-        assertEquals(setOf("stft1", "rpm"), virtualReadingChoices(complete, transmissionBound = false))
-        val offline = virtualReadingChoices(null, transmissionBound = false)
-        assertEquals(ConfigurationProjector.supportedPidIds, offline)
-        assertEquals(BuildConfig.DEBUG, "tcmgear" in virtualReadingChoices(null, transmissionBound = true))
+        val enhanced = ConfigurationProjector.transmissionPidIds.takeIf { BuildConfig.DEBUG }.orEmpty()
+        assertEquals(setOf("stft1", "rpm") + enhanced, virtualReadingChoices(complete))
+        val offline = virtualReadingChoices(null)
+        assertEquals(ConfigurationProjector.supportedPidIds + enhanced, offline)
         val noEngineReply = discoverVirtualEngineSupport { "7E9 06 41 00 00 00 00 00" }
-        assertEquals(offline, virtualReadingChoices(noEngineReply, transmissionBound = false))
+        assertEquals(offline, virtualReadingChoices(noEngineReply))
     }
 
     @Test fun visibleReadsWinTiesWithoutStarvingOlderDueReads() {

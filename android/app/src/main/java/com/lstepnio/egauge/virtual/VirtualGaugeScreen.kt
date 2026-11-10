@@ -321,7 +321,8 @@ internal fun VirtualGaugeScreen(
     } else {
         val readings = links.values.flatMap { it.readings.entries }.associate { it.key to it.value }
         val transmissionBound = bindings.address(VirtualSource.Transmission) != null
-        val readingChoices = virtualReadingChoices(links[VirtualSource.Engine]?.engineSupport, transmissionBound)
+        val engineSupport = links[VirtualSource.Engine]?.engineSupport
+        val readingChoices = remember(engineSupport) { virtualReadingChoices(engineSupport) }
         VirtualGaugeContent(
             pages, displayUnits, pager, readings, now,
             VirtualSource.Engine.let(statuses::getValue),
@@ -348,7 +349,7 @@ internal fun VirtualGaugeContent(
     onBack: () -> Unit,
     onSetup: () -> Unit,
     onEdit: () -> Unit,
-    readingChoices: Set<String> = virtualReadingChoices(null, transmission != null)
+    readingChoices: Set<String> = virtualReadingChoices(null)
 ) {
     val mainLive = engine == VirtualStatus.Live
     val transmissionLive = transmission == VirtualStatus.Live

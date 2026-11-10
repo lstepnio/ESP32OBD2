@@ -83,11 +83,8 @@ internal suspend fun discoverVirtualEngineSupport(exchange: suspend (String) -> 
     return VirtualEngineSupport(blocks)
 }
 
-internal fun virtualReadingChoices(support: VirtualEngineSupport?, transmissionBound: Boolean): Set<String> = virtualPidCatalog.filter { pid ->
-    pid.source.available && when (pid.source) {
-        VirtualSource.Engine -> support?.permits(pid.code) ?: true
-        VirtualSource.Transmission -> transmissionBound
-    }
+internal fun virtualReadingChoices(support: VirtualEngineSupport?): Set<String> = virtualPidCatalog.filter { pid ->
+    pid.source.available && (pid.source != VirtualSource.Engine || support?.permits(pid.code) != false)
 }.mapTo(mutableSetOf()) { it.id }
 
 internal data class VirtualSample(val value: Double, val observedAtMs: Long) {

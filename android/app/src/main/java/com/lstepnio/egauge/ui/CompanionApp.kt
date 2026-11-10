@@ -391,7 +391,7 @@ fun CompanionApp(
                                         CompositionLocalProvider(LocalConnectionStatus provides if (virtual) null else editorStatus) {
                                             DashboardEditorScreen(
                                                 if (virtual) {
-                                                    val readingIds = virtualEditorReadings?.toSet() ?: virtualReadingChoices(null, false)
+                                                    val readingIds = virtualEditorReadings?.toSet() ?: virtualReadingChoices(null)
                                                     state.customize.copy(
                                                         pages = model.editorDraft.pages.map { pageUi(it, virtualEditorUnits) },
                                                         readings = readingCatalog.filter { it.id in readingIds }.map { readingUi(it, virtualEditorUnits) },
