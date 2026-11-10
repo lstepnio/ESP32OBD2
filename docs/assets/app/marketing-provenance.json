@@ -181,7 +181,7 @@
   },
   "equivalenceReview": {
     "reviewedOn": "2026-11-09",
-    "reason": "PR #142 adds direct-adapter navigation outside the marketing capture shell. PR #143 changes that route and adds release-only Play Billing. The debug capture harness calls HomeScreen without the optional Virtual Gauge callback and calls CarScreen, SettingsScreen and ActionPagesSheet directly. Its fixture has a positive Arc fraction, arcAvailable true and live false. The new live-only label suppression leaves this fixture unchanged. SetupScreen, DashboardEditorScreen and the paid route are outside these captures. The screenshots continue to represent the hardware-gauge companion with example data.",
+    "reason": "PR #142 adds direct-adapter navigation outside the marketing capture shell. PR #143 changes that route and adds release-only Play Billing. The debug capture harness calls HomeScreen without the optional Virtual Gauge callback and calls CarScreen, SettingsScreen and ActionPagesSheet directly. Its fixture has a positive Arc fraction, arcAvailable true and live false. The new live-only label suppression leaves this fixture unchanged. SetupScreen, DashboardEditorScreen and the paid route are outside these captures. The screenshots continue to represent the hardware-gauge companion with example data. PR #147 changes Virtual Gauge reading selection within the route bypassed by this harness.",
     "evidence": [
       "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
       "android/app/src/debug/java/com/lstepnio/egauge/ui/preview/ScreenFixtures.kt",
@@ -193,7 +193,7 @@
       "android/app/build.gradle.kts": "57a10386819fcdd02a5cbabdd176015dae4965ddc6fb7cabae0399d9204ed4eb",
       "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt": "70b88e21abfc4158b43a86508ee975d675a6ebf25382d68162f291be224a3bcc",
       "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt": "529457e8a24468b2276362bf3a47235fdc4d978ed3efae726148b30b355e8287",
-      "android/app/src/main/java/com/lstepnio/egauge/ui/CompanionApp.kt": "47a195c0f9eab68840840b7d505732c0f166f0dceeebcd800eeda668136d642c",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/CompanionApp.kt": "0db0e396ec0f4f9f18e18e805d8070be97ab33a309001f8a148d62c08d06bb49",
       "android/app/src/main/java/com/lstepnio/egauge/ui/ConnectionStatusWidget.kt": "5dff48527e861a2bd1903c2bbc8391445bf403dbe9017fad48fd54d18aee03dc",
       "android/app/src/main/java/com/lstepnio/egauge/ui/Layouts.kt": "4cf790eca642c7aee94f570d8c62062c807d1420e9ae2f495046e033fd4f429e",
       "android/app/src/main/java/com/lstepnio/egauge/ui/car/ActionPagesSheet.kt": "71f998d0bbe003fd914a7591a1b8cbb43a2330ec08c9a7ff5f222ee0f57eba8a",

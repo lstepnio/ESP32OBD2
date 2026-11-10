@@ -206,7 +206,7 @@
   ],
   "claimInputProvenance": {
     "reviewedOn": "2026-11-09",
-    "reason": "Reviewed the redesigned site after PRs #145 and #143. The OLED hardware offer includes preinstalled private firmware for the shipped major version. Both products remain inquiry-only while OLED boot and recovery qualification are pending. The Android Virtual Gauge and Play Billing stay outside storefront claims while dual-adapter and Play tester checks are pending. The indoor Wi-Fi update evidence and planned 5/12-page limits are unchanged.",
+    "reason": "Reviewed the redesigned site after PRs #145 and #143. The OLED hardware offer includes preinstalled private firmware for the shipped major version. Both products remain inquiry-only while OLED boot and recovery qualification are pending. The Android Virtual Gauge and Play Billing stay outside storefront claims while dual-adapter and Play tester checks are pending. The indoor Wi-Fi update evidence and planned 5/12-page limits are unchanged. PR #147 documents the shared catalog projection into the Virtual Gauge, which remains outside storefront claims.",
     "sha256": {
       "contracts/reading-catalog.json": "4253cf23fdb0345599178af36efdfe3f95de5ea1613def88c37f20049e596595",
       "docs/architecture/alerts-and-diagnostics.md": "e61735ee015ca11afd262765e55af860824fc9ede165feee265f2964cd52b71f",
@@ -218,7 +218,7 @@
       "docs/architecture/vehicle-connections.md": "3f0cfea953340596d86a865dd28a0372129214e05b37d15bbcd37090d91680b0",
       "docs/backlog.md": "c951769f9b7c040536ef75aa403f666420d2fe99b50ddd9cdfc3a5392744020c",
       "docs/current-state.md": "5ccedf10c8a9c6b062452d42dcd4eb682a4627b0e1dc8cf82406275572b83df4",
-      "docs/development/reading-catalog-alerts.md": "6431d865aa2278e6a85308bad1ff957f3952054f9f14bc91d7c14ae8cef458e0",
+      "docs/development/reading-catalog-alerts.md": "2cd862cf04f37bc8b8d8dd731ccca3153ff3e4dccd5e425a45c1d0d4b6cbbf11",
       "docs/evidence/action-pages-indoor.md": "3720880cb92f1a647f64939fde649f57e4eaf22ee35b6a87c3e3b70c8273e6a3",
       "docs/evidence/dev75-indoor-rollout.md": "10d3b6d4dfdf6267b02db07c48013fb3dd18e3db67b9cb3abaf6f40db0daaf5c",
       "docs/evidence/dev80-action-entry.md": "bd641ceaa166cde0ea11bec6a1efd811346d12a3caee02af96a7162a7044d9aa",
