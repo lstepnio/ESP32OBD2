@@ -357,6 +357,7 @@ def android_ui(action):
     classes = (
         "ConnectionStatusUiTest",
         "VirtualGaugeUiTest",
+        "SunsetBrightnessUiTest",
         "PremiumSubscriptionUiTest",
         "VirtualGaugeFaceUiTest",
         "PresentationAccessibilityTest",
