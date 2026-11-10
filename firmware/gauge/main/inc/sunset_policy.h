@@ -21,8 +21,9 @@ typedef struct
 } sunset_policy_t;
 
 /* Call from the display owner. A manual choice lasts until the next solar edge. */
-void sunset_policy_observe(sunset_policy_t *policy, bool solar_night);
-void sunset_policy_toggle(sunset_policy_t *policy);
+sunset_policy_t sunset_policy_reconfigure(sunset_policy_t previous, bool was_automatic, bool automatic);
+void            sunset_policy_observe(sunset_policy_t *policy, bool solar_night);
+void            sunset_policy_toggle(sunset_policy_t *policy);
 
 typedef struct
 {

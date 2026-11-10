@@ -42,6 +42,13 @@ bool sunset_is_night(uint32_t utc, int16_t latitude, int16_t longitude, bool *ni
     return true;
 }
 
+sunset_policy_t sunset_policy_reconfigure(sunset_policy_t previous, bool was_automatic, bool automatic)
+{
+    /* Leaving the schedule restores Day even on boards without a button.
+     * Editing a manual level preserves the current manual selection. */
+    return (sunset_policy_t){.night = !was_automatic && !automatic && previous.night};
+}
+
 void sunset_policy_observe(sunset_policy_t *policy, bool solar_night)
 {
     if (policy->solar_known && solar_night != policy->solar_night)

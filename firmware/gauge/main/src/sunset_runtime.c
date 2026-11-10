@@ -96,7 +96,7 @@ esp_err_t sunset_runtime_save(bool     automatic,
         return ESP_ERR_INVALID_ARG;
     if (expected_revision != record.revision || record.revision == UINT32_MAX)
         return ESP_ERR_INVALID_STATE;
-    sunset_policy_t next_policy = {.night = policy.night};
+    sunset_policy_t next_policy = sunset_policy_reconfigure(policy, record.automatic, automatic);
     if (automatic)
     {
         bool solar_night;

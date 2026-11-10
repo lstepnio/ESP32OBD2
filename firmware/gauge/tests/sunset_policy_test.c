@@ -34,6 +34,8 @@ int main(void)
     assert(!policy.night && !policy.override);
     sunset_policy_observe(&policy, true);
     assert(policy.night);
+    assert(!sunset_policy_reconfigure(policy, true, false).night);
+    assert(sunset_policy_reconfigure(policy, false, false).night);
     sunset_policy_t no_clock = {0};
     sunset_policy_toggle(&no_clock);
     sunset_policy_observe(&no_clock, false);

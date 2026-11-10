@@ -89,7 +89,7 @@ wake. Quiet recovery continues behind the logo.
 
 In Settings, **Day brightness** retains the existing 5–100% level. **Night
 brightness** starts at 10% and cannot drive the panel above the Day level.
-**Sunset to sunrise** is opt-in. The owner can supply approximate phone
+**Sunset to sunrise** is opt-in. Turning it off restores Day brightness. The owner can supply approximate phone
 location on demand. The App rounds it to a tenth of a degree before sending
 it to the gauge and asks for no background location permission.
 
