@@ -85,6 +85,36 @@ complete viewing interval. Waiting never creates a false reading or changes aler
 control or source-loss freshness. Dashes still represent unavailable values after
 wake. Quiet recovery continues behind the logo.
 
+## Sunset brightness
+
+In Settings, **Day brightness** retains the existing 5–100% level. **Night
+brightness** starts at 10% and cannot drive the panel above the Day level.
+**Sunset to sunrise** is opt-in. The owner can supply approximate phone
+location on demand. The App rounds it to a tenth of a degree before sending
+it to the gauge and asks for no background location permission.
+
+The gauge estimates solar daylight from UTC and the saved location using
+[NOAA's solar-position equations](https://gml.noaa.gov/grad/solcalc/solareqns.PDF).
+The schedule tracks seasonal daylight, including polar day or night. It runs
+locally once the App has synced the clock. On a cold boot without a valid
+retained clock, the gauge uses the last saved Day/Night mode until the App
+reconnects. A board with a supported battery-backed RTC can resume the
+schedule at boot. Update the saved location in Settings after travel.
+
+On the OLED adapter, a short release of the right-side BOOT key with USB-C
+at the bottom switches Day/Night. The override stays active through the next
+automatic phase evaluation and expires when the solar phase changes.
+Holding the key at startup, long presses and bouncing contacts do not
+toggle brightness. The reference LCD has no bound button shortcut. The
+display owner applies the hardware level, and scheduled state does not write
+flash between Day/Night changes. Settings migrations preserve the legacy
+brightness, rotation and cycling records.
+
+Validate both panels' low-end readability, daylight return, boot without the
+phone, clock-loss recovery, and the physical OLED button before qualifying.
+The [owner protocol](../protocol/experimental-firmware-transfers.md#sunset-brightness)
+defines the version gate and confirmation.
+
 ## Touch motion and shortcut arbitration
 
 A configured upward shortcut accepts 40 through 800 ms strokes with at least

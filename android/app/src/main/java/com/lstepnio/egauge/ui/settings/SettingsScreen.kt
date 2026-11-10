@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.lstepnio.egauge.MeasurementSystem
+import com.lstepnio.egauge.SunsetLocation
 import com.lstepnio.egauge.core.designsystem.*
 import com.lstepnio.egauge.ui.*
 import com.lstepnio.egauge.ui.state.SettingsUiState
@@ -37,12 +38,14 @@ fun SettingsScreen(
     monitoring: Boolean = false,
     onPhoneAlerts: (Boolean) -> Unit = {},
     onSaveSmartCycle: (Int, Boolean) -> Unit = { seconds, _ -> onSaveCycle(seconds) },
-    onSaveOrientation: (Boolean, Int) -> Unit = { _, angle -> onRotate(angle) }
+    onSaveOrientation: (Boolean, Int) -> Unit = { _, angle -> onRotate(angle) },
+    onSaveSunset: (Boolean, Int, SunsetLocation?) -> Unit = { _, _, _ -> }
 ) {
     var gaugesOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var nameOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var rotationOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var brightnessOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
+    var sunsetOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var unitsOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var cycleOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var pairingHelpOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
@@ -62,7 +65,7 @@ fun SettingsScreen(
                 }
                 SettingsRow("Your gauges", state.name, !state.busy) { gaugesOpen = true }
                 SettingsRow(
-                    "Brightness",
+                    if (state.sunsetBrightness != null) "Day brightness" else "Brightness",
                     state.brightness?.let { "$it%" } ?: if (!state.found) {
                         "Connect a gauge"
                     } else if (state.displaySettingsVersion >=
@@ -77,6 +80,16 @@ fun SettingsScreen(
                         state.brightness != null
                 ) {
                     brightnessOpen = true
+                }
+                state.sunsetBrightness?.let { sunset ->
+                    val detail = when {
+                        sunset.automatic && !sunset.clockKnown -> "${sunset.nightBrightness}% · Syncing clock"
+                        sunset.automatic -> "${sunset.nightBrightness}% · Sunset to sunrise"
+                        else -> "${sunset.nightBrightness}% · Manual"
+                    }
+                    SettingsRow("Night brightness", detail, state.found && state.settingsCurrent && !state.busy) {
+                        sunsetOpen = true
+                    }
                 }
                 SettingsRow(
                     "Rotation",
@@ -279,6 +292,14 @@ fun SettingsScreen(
             },
             dismissButton = { TextButton({ rotationOpen = false }) { Text("Cancel") } }
         )
+    }
+    if (sunsetOpen) {
+        state.sunsetBrightness?.let { current ->
+            SunsetBrightnessDialog(current, state.brightness ?: 80, { sunsetOpen = false }) { automatic, level, location ->
+                onSaveSunset(automatic, level, location)
+                sunsetOpen = false
+            }
+        }
     }
     if (brightnessOpen) {
         var brightness by rememberSaveable(state.selectedGaugeId) {

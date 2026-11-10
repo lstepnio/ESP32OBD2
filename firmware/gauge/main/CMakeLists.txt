@@ -54,6 +54,8 @@ idf_component_register(
         "src/display_settings.c"
         "src/display_idle_policy.c"
         "src/orientation_policy.c"
+        "src/sunset_policy.c"
+        "src/sunset_runtime.c"
         "src/orientation_runtime.c"
         "src/orientation_qmi8658.c"
         "src/display_units.c"

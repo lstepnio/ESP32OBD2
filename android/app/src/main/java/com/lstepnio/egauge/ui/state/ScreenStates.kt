@@ -178,7 +178,8 @@ data class SettingsUiState(
     val autoOrientationSupported: Boolean = false,
     val automaticOrientation: Boolean = false,
     val orientationSensorStale: Boolean = false,
-    val orientationProtocolSupported: Boolean = false
+    val orientationProtocolSupported: Boolean = false,
+    val sunsetBrightness: com.lstepnio.egauge.SunsetBrightness? = null
 )
 
 @Immutable

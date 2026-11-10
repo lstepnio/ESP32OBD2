@@ -738,6 +738,53 @@ class GaugeConfigTransferClient(private val context: Context) {
         }
     }
 
+    suspend fun readSunsetBrightness(device: BluetoothDevice): SunsetBrightness {
+        require(device.bondState == BluetoothDevice.BOND_BONDED)
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x6c) + le32(1))
+            val state = GaugeProtocolCodec.sunsetBrightness(readRaw())
+            val utc = System.currentTimeMillis() / 1000
+            if (state.automatic && !state.clockKnown && utc in 1704067200L..4102444799L) {
+                writeRaw(byteArrayOf(0x6e) + le32(utc))
+                return@withGauge GaugeProtocolCodec.sunsetBrightness(readRaw())
+            }
+            state
+        }
+    }
+
+    suspend fun saveSunsetBrightness(
+        device: BluetoothDevice,
+        automatic: Boolean,
+        level: Int,
+        location: SunsetLocation?
+    ): SunsetBrightness {
+        require(device.bondState == BluetoothDevice.BOND_BONDED)
+        return withGauge(device) {
+            writeRaw(byteArrayOf(0x6c) + le32(1))
+            val before = GaugeProtocolCodec.sunsetBrightness(readRaw())
+            val coordinates = location ?: before.location
+            if (before.automatic == automatic && before.nightBrightness == level && before.location == coordinates) {
+                return@withGauge before
+            }
+            val utc = System.currentTimeMillis() / 1000
+            writeRaw(GaugeProtocolCodec.sunsetBrightnessWrite(automatic, level, coordinates, utc, before.revision))
+            repeat(20) {
+                val after = GaugeProtocolCodec.sunsetBrightness(readRaw())
+                if (after.revision > before.revision) {
+                    check(
+                        after.revision == before.revision + 1 && after.automatic == automatic &&
+                            after.nightBrightness == level && after.location == coordinates
+                    ) {
+                        "Brightness changed during save. Try again."
+                    }
+                    return@withGauge after
+                }
+                delay(100)
+            }
+            error("Gauge did not confirm saved night brightness")
+        }
+    }
+
     suspend fun readOrientationSettings(device: BluetoothDevice): GaugeOrientationSettings {
         require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
         return withGauge(device) {

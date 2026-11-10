@@ -50,6 +50,7 @@ _Static_assert(CONFIG_ESP_MAIN_TASK_STACK_SIZE >= 4608, "Review the measured mai
 #include "ble_mgr.h"
 #include "config.h"
 #include "display_settings.h"
+#include "sunset_runtime.h"
 #include "smart_page_policy.h"
 #include "smart_metric_catalog.h"
 #include "orientation_runtime.h"
@@ -1356,7 +1357,11 @@ static void init_config(void)
 
     ESP_ERROR_CHECK(config_init());
     ESP_ERROR_CHECK(display_settings_init(0, 80, 0));
+    sunset_runtime_init();
     gauge_board_initialize();
+    const gauge_board_t *board = gauge_board_description();
+    if (board->read_utc)
+        sunset_runtime_sync(board->read_utc(), (uint64_t)(esp_timer_get_time() / 1000));
     gauge_display_set_rotation((lv_display_rotation_t)display_settings_boot_rotation());
     if (lvgl_port_lock(portMAX_DELAY))
     {
@@ -1364,7 +1369,7 @@ static void init_config(void)
         lvgl_port_unlock();
     }
     gauge_display_set_power(true);
-    ESP_ERROR_CHECK(gauge_display_set_brightness(display_settings_snapshot().brightness));
+    ESP_ERROR_CHECK(gauge_display_set_brightness(sunset_runtime_level(display_settings_snapshot().brightness)));
     ESP_ERROR_CHECK(config_store_init());
     ESP_ERROR_CHECK(config_trial_init());
     ESP_ERROR_CHECK(ota_transfer_init());
@@ -1504,7 +1509,7 @@ void app_main(void)
         }
         lvgl_port_unlock();
     }
-    ESP_ERROR_CHECK(gauge_display_set_brightness(display_settings_snapshot().brightness));
+    ESP_ERROR_CHECK(gauge_display_set_brightness(sunset_runtime_level(display_settings_snapshot().brightness)));
     orientation_runtime_init((uint8_t)g_config.disp_rot);
 
 #if CONFIG_EGAUGE_DISPLAY_CALIBRATION
@@ -1638,7 +1643,7 @@ void app_main(void)
                 apply_display_rotation(g_config.disp_rot);
                 lvgl_port_unlock();
             }
-            ESP_ERROR_CHECK(gauge_display_set_brightness(saved.brightness));
+            ESP_ERROR_CHECK(gauge_display_set_brightness(sunset_runtime_level(saved.brightness)));
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%%", (unsigned)saved.rotation * 90,
                      (unsigned)saved.brightness);
         }
@@ -1657,7 +1662,7 @@ void app_main(void)
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
             }
-            ESP_ERROR_CHECK(gauge_display_set_brightness(saved.brightness));
+            ESP_ERROR_CHECK(gauge_display_set_brightness(sunset_runtime_level(saved.brightness)));
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u", (unsigned)saved.rotation * 90,
                      (unsigned)saved.brightness, (unsigned)saved.units);
         }
@@ -1684,11 +1689,27 @@ void app_main(void)
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
             }
-            ESP_ERROR_CHECK(gauge_display_set_brightness(saved.brightness));
+            ESP_ERROR_CHECK(gauge_display_set_brightness(sunset_runtime_level(saved.brightness)));
             atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u cycle=%us",
                      (unsigned)saved.rotation * 90, (unsigned)saved.brightness, (unsigned)saved.units,
                      (unsigned)saved.cycle_seconds);
+        }
+        else if (has_command && command.opcode == 0x6d)
+        {
+            esp_err_t err =
+                sunset_runtime_save(command.value != 0, command.brightness, command.latitude, command.longitude,
+                                    command.utc, command.base_revision, (uint64_t)(esp_timer_get_time() / 1000));
+            if (err != ESP_OK)
+                ESP_LOGW(TAG, "Sunset brightness setting was not saved: %s", esp_err_to_name(err));
+            else if (gauge_board_description()->sync_utc)
+                gauge_board_description()->sync_utc(command.utc);
+        }
+        else if (has_command && command.opcode == 0x6e)
+        {
+            sunset_runtime_sync(command.utc, (uint64_t)(esp_timer_get_time() / 1000));
+            if (gauge_board_description()->sync_utc)
+                gauge_board_description()->sync_utc(command.utc);
         }
         else if (has_command && command.opcode == 0x6b)
         {
@@ -1717,11 +1738,30 @@ void app_main(void)
         else if (has_command && command.opcode == 3)
             ble_companion_forget_owner();
 
-        uint32_t           now_ms      = (uint32_t)(esp_timer_get_time() / 1000);
-        display_settings_t cycle       = display_settings_snapshot();
-        bool               owner_ready = ble_companion_has_owner();
-        bool               maintenance = !transfer_gate_vehicle_allowed();
-        uint8_t            auto_angle;
+        uint32_t               now_ms      = (uint32_t)(esp_timer_get_time() / 1000);
+        display_settings_t     cycle       = display_settings_snapshot();
+        bool                   owner_ready = ble_companion_has_owner();
+        bool                   maintenance = !transfer_gate_vehicle_allowed();
+        static sunset_button_t night_button;
+        uint64_t               display_now_ms = (uint64_t)(esp_timer_get_time() / 1000);
+        bool            night_tap = board->night_button_pressed &&
+                                    sunset_button_release(&night_button, board->night_button_pressed(), display_now_ms);
+        static uint8_t  night_level;
+        static uint64_t next_brightness_try;
+        if (!maintenance)
+        {
+            if (night_tap)
+                sunset_runtime_toggle();
+            sunset_runtime_poll(display_now_ms);
+            uint8_t wanted_level = sunset_runtime_level(cycle.brightness);
+            if (wanted_level != night_level && display_now_ms >= next_brightness_try)
+            {
+                if (gauge_display_set_brightness(wanted_level) == ESP_OK)
+                    night_level = wanted_level;
+                next_brightness_try = display_now_ms + 1000;
+            }
+        }
+        uint8_t auto_angle;
         if (orientation_runtime_poll(cycle.auto_orientation, cycle.rotation,
                                      maintenance || ble_mgr_is_paused() ||
                                          transfer_gate_current() == TRANSFER_GATE_VEHICLE_COMMAND ||
