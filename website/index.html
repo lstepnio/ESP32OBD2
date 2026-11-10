@@ -54,7 +54,21 @@
       </div>
       <div class="store-grid">
         <article class="store-card">
-          <div class="store-art"><img src="{{ASSET_PREFIX}}/hardware/lcd.webp" width="640" height="640" alt="Waveshare 1.28-inch round LCD development board with exposed circuit board and USB-C connector"></div>
+          <div class="store-art">
+            <figure>
+              <div class="store-device store-device-lcd-front">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/arc.png" width="240" height="240" alt="LCD viewed face-on with the coolant temperature arc">
+              </div>
+              <figcaption>Face-on</figcaption>
+            </figure>
+            <figure>
+              <div class="store-device store-device-lcd-angle">
+                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/lcd.webp" width="640" height="640" alt="Waveshare LCD board with exposed PCB and USB-C connector" aria-hidden="true">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/trend.png" width="240" height="240" alt="LCD viewed at an angle with a coolant temperature trend">
+              </div>
+              <figcaption>Angled</figcaption>
+            </figure>
+          </div>
           <div class="store-copy">
             <p class="eyebrow">FREE FIRMWARE / DIY</p>
             <h3>S3-LCD-1.28 v1</h3>
@@ -71,7 +85,22 @@
           </div>
         </article>
         <article class="store-card" id="oled-bundle">
-          <div class="store-art store-art-oled"><img src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare 1.75-inch round AMOLED board in a black protective case"></div>
+          <div class="store-art store-art-oled">
+            <figure>
+              <div class="store-device store-device-oled">
+                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED board in a black protective case" aria-hidden="true">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/dual-arc.png" width="240" height="240" alt="OLED viewed face-on with gear and engine speed">
+              </div>
+              <figcaption>Face-on</figcaption>
+            </figure>
+            <figure>
+              <div class="store-device store-device-oled store-device-tilted">
+                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED protective case" aria-hidden="true">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/numeric.png" width="240" height="240" alt="OLED viewed at an angle with a large engine speed reading">
+              </div>
+              <figcaption>Angled</figcaption>
+            </figure>
+          </div>
           <div class="store-copy">
             <p class="eyebrow">OLED GAUGE / IN DEVELOPMENT</p>
             <h3>S3-OLED-1.75 v1</h3>
@@ -113,7 +142,7 @@
         </table>
       </div>
       <p class="section-note">Setup requires Android 10 or later. Readings depend on your vehicle and adapter. OLED features are in private development. <a href="https://www.amazon.com/dp/B06XGB4873">View the Vgate adapter on Amazon ↗</a></p>
-      <p class="store-credit">Board images adapted from Waveshare product photos.</p>
+      <p class="store-credit">Device views show eGauge interface examples. Board imagery is adapted from Waveshare product photos.</p>
     </section>
 
     <section class="preview-section" id="experience" aria-labelledby="preview-title">

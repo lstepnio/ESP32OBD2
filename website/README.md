@@ -209,8 +209,11 @@ installed capabilities, private evaluation, and the proposed 5/12-page limits.
 Board cutouts are AI-assisted adaptations of the exact
 [Waveshare LCD photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-lcd-1.28-1.jpg)
 and [enclosed AMOLED photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-amoled-1.75-b-1.jpg).
-They show the displays powered off. Confirm reuse for commercial publication or
-replace them with equivalent original product photographs.
+The shop pairs a face-on and angled view for each board. CSS aligns the
+reference firmware's existing circular screen renders with the board faces.
+The OLED views illustrate shared eGauge layouts using the same public captures.
+The front LCD bezel and OLED tilt are browser illustrations. Confirm photo reuse
+for commercial publication or replace the cutouts with original photographs.
 
 ### Checkout and fulfillment
 
