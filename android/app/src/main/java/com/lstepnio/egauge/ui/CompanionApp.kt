@@ -33,7 +33,7 @@ import com.lstepnio.egauge.ui.settings.*
 import com.lstepnio.egauge.ui.setup.SetupScreen
 import com.lstepnio.egauge.ui.state.*
 import com.lstepnio.egauge.virtual.VirtualGaugeScreen
-import com.lstepnio.egauge.virtual.VirtualPid
+import com.lstepnio.egauge.virtual.virtualReadingChoices
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
@@ -79,6 +79,7 @@ fun CompanionApp(
         var carAlertId by rememberSaveable { mutableStateOf<String?>(null) }
         var customizeStep by rememberSaveable { mutableIntStateOf(0) }
         var virtualEditorUnits by rememberSaveable { mutableStateOf(MeasurementSystem.Metric) }
+        var virtualEditorReadings by rememberSaveable(state.car.activeId) { mutableStateOf<ArrayList<String>?>(null) }
         var progressOpen by rememberSaveable { mutableStateOf(false) }
         var gestureOpen by rememberSaveable(model.rememberedGaugeId) { mutableStateOf(false) }
         var actionPagesOpen by rememberSaveable(model.rememberedGaugeId, state.car.vehicleActionsAllowed) { mutableStateOf(false) }
@@ -352,9 +353,10 @@ fun CompanionApp(
                                                 model.editorDraft.pages,
                                                 model.presentationPreferences.measurementSystem,
                                                 ::back,
-                                                { index, units ->
+                                                { index, units, readings ->
                                                     model.selectPage(index)
                                                     virtualEditorUnits = units
+                                                    virtualEditorReadings = ArrayList(readings)
                                                     customizeStep = 0
                                                     route = Route.VirtualCustomize
                                                 },
@@ -389,11 +391,10 @@ fun CompanionApp(
                                         CompositionLocalProvider(LocalConnectionStatus provides if (virtual) null else editorStatus) {
                                             DashboardEditorScreen(
                                                 if (virtual) {
+                                                    val readingIds = virtualEditorReadings?.toSet() ?: virtualReadingChoices(null)
                                                     state.customize.copy(
                                                         pages = model.editorDraft.pages.map { pageUi(it, virtualEditorUnits) },
-                                                        readings = demoCatalog.filter { reading ->
-                                                            VirtualPid.entries.any { it.available && it.id == reading.id }
-                                                        }.map { readingUi(it, virtualEditorUnits) },
+                                                        readings = readingCatalog.filter { it.id in readingIds }.map { readingUi(it, virtualEditorUnits) },
                                                         measurementSystem = virtualEditorUnits,
                                                         blockers = emptyList()
                                                     )

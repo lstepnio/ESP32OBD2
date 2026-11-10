@@ -188,6 +188,15 @@ internal class VirtualElmSession(private val source: VirtualSource) : BluetoothG
         return decodeVirtualReply(exchange(pid.request), pid)
     }
 
+    suspend fun engineSupport(): VirtualEngineSupport {
+        check(source == VirtualSource.Engine)
+        return discoverVirtualEngineSupport(::exchange)
+    }
+
+    suspend fun waitForDisconnect() {
+        disconnected.await()
+    }
+
     @Suppress("DEPRECATION")
     private suspend fun exchange(command: String): String = withTimeout(3_000) {
         val waiting = events.tryReceive()

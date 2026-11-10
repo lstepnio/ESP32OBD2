@@ -15,6 +15,10 @@ class VirtualGaugeUiTest {
         compose.onNodeWithText("Customize pages").performScrollTo().performClick()
         compose.onNodeWithText("Done").assertExists()
         compose.onAllNodesWithText("Review and send").assertCountEquals(0)
+        compose.onNodeWithText("Reading", substring = false).performScrollTo().performClick()
+        compose.onNodeWithText("Search readings").performTextReplacement("Ignition timing")
+        compose.onNodeWithText("Ignition timing advance").performScrollTo().performClick()
+        compose.onNodeWithText("Ignition timing advance").assertExists()
         compose.onNodeWithText("Done").performClick()
         compose.onNodeWithText("Virtual gauge").assertIsDisplayed()
     }

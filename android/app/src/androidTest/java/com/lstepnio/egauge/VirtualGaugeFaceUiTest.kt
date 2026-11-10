@@ -30,7 +30,7 @@ class VirtualGaugeFaceUiTest {
                     Box(Modifier.width(360.dp)) {
                         val pages = defaultGaugePages(layout = GaugeLayout.Arc)
                         val readings = if (live) {
-                            mapOf(VirtualPid.Rpm to listOf(VirtualSample(675.0, 1_000)))
+                            mapOf(virtualPidsById.getValue("rpm") to listOf(VirtualSample(675.0, 1_000)))
                         } else {
                             emptyMap()
                         }
