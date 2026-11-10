@@ -1624,11 +1624,10 @@ static void acknowledge_alert(lv_event_t *event)
 #if EGAUGE_FEATURE_CONNECTION_FOOTER
 enum
 {
-    FOOTER_SINGLE_Y     = 219,
-    FOOTER_STACKED_Y    = 192,
-    FOOTER_READING_GAP  = 10,
-    FOOTER_DOT_GAP      = 8,
-    FOOTER_ACTIVE_SHIFT = 4
+    FOOTER_SINGLE_Y    = 219,
+    FOOTER_STACKED_Y   = 192,
+    FOOTER_READING_GAP = 10,
+    FOOTER_DOT_GAP     = 8
 };
 
 /* Each glyph is a set of short line segments in the 240 px design grid. */
@@ -1652,7 +1651,7 @@ static const connection_stroke_t obd_strokes[] = {
 
 static lv_area_t connection_footer_area(unsigned y)
 {
-    return (lv_area_t){gx(91), gy(y - 6), gx(149), gy(y + 6)};
+    return (lv_area_t){gx(90), gy(y - 6), gx(150), gy(y + 6)};
 }
 
 static bool footer_overlaps(lv_obj_t *obj, const lv_area_t *area, int gap)
@@ -1726,18 +1725,19 @@ static void draw_connection_footer(lv_event_t *event)
     if (!ui->waiting_visible && !footer_clear(ui, &area))
         return;
 
-    static const uint32_t live_color[]     = {0x8b9a9d, 0x538dbb, 0x5d9f78, 0x9382b4};
-    static const int      center[]         = {97, 112, 128, 143};
-    const bool            child_configured = ui->rendered_connections & 8U;
-    lv_draw_line_dsc_t    line;
+    static const uint32_t live_color[] = {0x8b9a9d, 0x538dbb, 0x5d9f78, 0x9382b4};
+    int                   x            = 128;
+    for (unsigned links = ui->rendered_connections; links; links &= links - 1)
+        x -= 8;
+    lv_draw_line_dsc_t line;
     lv_draw_line_dsc_init(&line);
     line.width        = px(1);
     lv_layer_t *layer = lv_event_get_layer(event);
-    for (unsigned i = 0; i < (child_configured ? 4U : 3U); ++i)
+    for (unsigned i = 0; i < sizeof(live_color) / sizeof(live_color[0]); ++i)
     {
-        int x = child_configured ? center[i] : 104 + (int)i * 16;
-        line.color =
-            lv_color_hex(ui->rendered_connections & (1U << (i + FOOTER_ACTIVE_SHIFT)) ? live_color[i] : 0x434f58);
+        if (!(ui->rendered_connections & (1U << i)))
+            continue;
+        line.color                         = lv_color_hex(live_color[i]);
         const connection_stroke_t *strokes = i == 0 ? wifi_strokes : i == 1 ? ble_strokes : obd_strokes;
         unsigned                   count   = i == 0   ? sizeof(wifi_strokes) / sizeof(wifi_strokes[0])
                                              : i == 1 ? sizeof(ble_strokes) / sizeof(ble_strokes[0])
@@ -1751,6 +1751,7 @@ static void draw_connection_footer(lv_event_t *event)
             connection_stroke(layer, &line, x, y, (connection_stroke_t){-2, 0, -2, 1});
             connection_stroke(layer, &line, x, y, (connection_stroke_t){2, 0, 2, 1});
         }
+        x += 16;
     }
 }
 
@@ -1760,11 +1761,9 @@ static void render_connection_footer(ui_t *ui)
     unsigned y     = 0;
     if (links && connection_footer_allowed(ui))
     {
-        y = ui->waiting_visible || ui->page_count <= 1 ? FOOTER_SINGLE_Y : FOOTER_STACKED_Y;
-        /* Bluetooth is taller than the outer Wi-Fi and plug glyphs. Measure
-         * those footprints separately against the curved bezel. */
-        if (y && (!gauge_presentation_fits(gx(91), gy(y - 5), gx(149), gy(y + 5)) ||
-                  !gauge_presentation_fits(gx(107), gy(y - 6), gx(117), gy(y + 6))))
+        y              = ui->waiting_visible || ui->page_count <= 1 ? FOOTER_SINGLE_Y : FOOTER_STACKED_Y;
+        lv_area_t area = connection_footer_area(y);
+        if (!gauge_presentation_fits(area.x1, area.y1, area.x2, area.y2))
             y = 0;
     }
     if (y == ui->connection_footer_y && (!y || links == ui->rendered_connections))
@@ -2591,9 +2590,9 @@ void ui_set_vehicle_diagnostics(ui_t *ui, const diagnostics_snapshot_t *snapshot
 #if EGAUGE_FEATURE_CONNECTION_FOOTER
 void ui_set_connection_status(ui_t *ui, bool wifi, bool phone, bool child_configured, unsigned obd_ready_mask)
 {
-    unsigned present = child_configured ? 15U : 7U;
-    unsigned active  = (wifi ? 1U : 0U) | (phone ? 2U : 0U) | ((obd_ready_mask & 3U) << 2);
-    atomic_store(&ui->connection_links, present | ((active & present) << FOOTER_ACTIVE_SHIFT));
+    unsigned obd_links = obd_ready_mask & (child_configured ? 3U : 1U);
+    unsigned active    = (wifi ? 1U : 0U) | (phone ? 2U : 0U) | (obd_links << 2);
+    atomic_store(&ui->connection_links, active);
 }
 #endif
 
