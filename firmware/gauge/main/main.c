@@ -1320,7 +1320,6 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         ui_page_t page;
         page_ui(selected, &page);
         ui_set_page(ui, &page);
-        ui_set_page_position(ui, selected, page_count());
         atomic_store(&g_selected_page, selected);
         atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
         ble_companion_selection_applied(selected);
@@ -1513,7 +1512,6 @@ void app_main(void)
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
     if (lvgl_port_lock(portMAX_DELAY))
     {
-        ui_set_page_position(ui, g_config.cfg_idx, page_count());
         if (g_runtime)
         {
             ui_configure_page_action(ui, g_runtime->page_action);
@@ -1611,7 +1609,6 @@ void app_main(void)
                     ui_page_t page;
                     page_ui(command.value, &page);
                     ui_set_page(ui, &page);
-                    ui_set_page_position(ui, command.value, page_count());
                     atomic_store(&g_selected_page, command.value);
                     atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
                     lvgl_port_unlock();
@@ -1708,6 +1705,14 @@ void app_main(void)
                      (unsigned)saved.rotation * 90, (unsigned)saved.brightness, (unsigned)saved.units,
                      (unsigned)saved.cycle_seconds);
         }
+#if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED && EGAUGE_FEATURE_CONNECTION_FOOTER
+        else if (has_command && command.opcode == 0x6f)
+        {
+            esp_err_t err = display_connection_icons_save(command.value != 0, command.base_revision);
+            if (err != ESP_OK)
+                ESP_LOGW(TAG, "Connection icons save failed: %s", esp_err_to_name(err));
+        }
+#endif
         else if (has_command && command.opcode == 0x6d)
         {
             esp_err_t err =
@@ -1833,6 +1838,18 @@ void app_main(void)
                      (unsigned long)sensor.maximum_tick_us);
         }
 #endif
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+        bool     child_configured = g_runtime && g_runtime->source_count > 1 && g_runtime->sources[1].address[0] &&
+                                    !g_runtime->sources[1].simulated;
+        bool     icons_enabled    = !(display_connection_icons_snapshot() & 1U);
+        unsigned obd_count = child_configured ? 2 : 1, obd_ready_mask = 0;
+        if (icons_enabled && !maintenance)
+            for (unsigned source = 0; source < obd_count; ++source)
+                if (adapter_status_ready_for(source) && (!g_runtime || !g_runtime->sources[source].simulated))
+                    obd_ready_mask |= 1U << source;
+        ui_set_connection_status(ui, icons_enabled && wifi_bulk_phone_connected(),
+                                 icons_enabled && ble_companion_phone_connected(), child_configured, obd_ready_mask);
+#endif
         ui_set_action_context(ui, owner_ready && !maintenance);
         uint8_t             selected_before = atomic_load(&g_selected_page);
         uint32_t            activity_before = atomic_load(&g_page_activity_ms);
@@ -1870,7 +1887,6 @@ void app_main(void)
                 ui_page_t page;
                 page_ui(selected, &page);
                 ui_set_page(ui, &page);
-                ui_set_page_position(ui, selected, page_count());
                 atomic_store(&g_selected_page, selected);
                 ble_companion_selection_applied(selected);
                 atomic_store(&g_page_activity_ms, now_ms);

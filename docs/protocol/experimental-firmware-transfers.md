@@ -523,3 +523,21 @@ Day brightness. The sunset record has its own revision.
 - Sync `0x6e` followed by LE32 UTC seconds. The phone sends this when
   automatic mode lacks valid time. Clock synchronization does not change
   the configuration revision. Only dates from 2024 through 2099 are accepted.
+
+
+## Connection icons
+
+For firmware with the connection footer and display settings enabled, an
+authenticated owner can select the preference with `0x35` followed by LE32
+selector 2. The six-byte reply is tag 26, enabled (0 or 1), and LE32 revision
+(0 through `0x7fffffff`). Revision 0 represents the default On. Older or
+unsupported firmware returns its ordinary tag 12 display settings, so the
+client can omit the control without an extra public capability flag. The
+legacy selector and Smart cycling request retain their reply formats.
+
+Save with `0x6f`, enabled (0 or 1), and LE32 expected revision. The display
+owner persists the independent preference and advances its revision after
+commit. For a changed setting, report success only after a protected tag 26
+read returns the requested value and the next revision. Firmware with the
+feature compiled out ignores the stored preference. Older firmware leaves
+its independent storage record intact.

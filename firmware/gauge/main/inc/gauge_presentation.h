@@ -21,10 +21,17 @@ typedef enum
     GAUGE_SYMBOL_COUNT,
 } gauge_symbol_id_t;
 
+/* Boot mark geometry on the shared 240 px design grid. */
+typedef struct
+{
+    uint8_t diameter, ring_width, needle_width, needle_offset, pivot_diameter;
+} gauge_boot_logo_t;
+
 /* Immutable native-pixel resources. One profile is linked for the whole image. */
 typedef struct
 {
     const gauge_surface_t    *surface;
+    const gauge_boot_logo_t  *boot_logo;
     const struct lv_font_t   *title;
     const struct lv_font_t   *compact;
     const struct lv_font_t   *large;
@@ -35,6 +42,7 @@ typedef struct
 } gauge_presentation_t;
 
 const gauge_presentation_t *gauge_presentation(void);
+const gauge_boot_logo_t    *gauge_presentation_boot_logo(void);
 bool                        gauge_presentation_matches(const gauge_surface_t *surface);
 
 /* The shared composition uses a centered square design grid. Only geometry is

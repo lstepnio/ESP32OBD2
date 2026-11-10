@@ -308,10 +308,15 @@ static void presentation_regression(ui_t *ui)
     puts("PASS: production numeric/arc/bar/dual easing, raw cache, unit/page, stale and dropout resets");
 }
 
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+#include "connection_review.inc"
+#endif
+
 int main(int argc, char **argv)
 {
-    assert(argc == 2 || (argc == 3 && !strcmp(argv[2], "--no-psram")));
-    host_psram_failure = argc == 3;
+    bool review        = argc == 3 && !strcmp(argv[2], "--connection-review");
+    host_psram_failure = argc == 3 && !strcmp(argv[2], "--no-psram");
+    assert(argc == 2 || review || host_psram_failure);
     mkdir(argv[1], 0700);
     lv_init();
     const gauge_surface_t *surface = gauge_presentation()->surface;
@@ -337,7 +342,17 @@ int main(int argc, char **argv)
     lv_display_set_color_format(display, LV_COLOR_FORMAT_XRGB8888);
 #endif
     lv_display_set_flush_cb(display, flush);
-    lv_display_set_buffers(display, draw_buffer, NULL, draw_bytes, LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_buffers(display, draw_buffer, NULL, draw_bytes,
+                           review ? LV_DISPLAY_RENDER_MODE_PARTIAL : LV_DISPLAY_RENDER_MODE_FULL);
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+    if (review)
+    {
+        review_connections(argv[1]);
+        return 0;
+    }
+#else
+    assert(!review);
+#endif
     lv_obj_t *discard_prompt = ui_show_abs_record_discard(esp_timer_get_time() + 10000000);
     assert(discard_prompt);
     lv_obj_t *discard_button = lv_obj_get_parent(abs_discard.label);
@@ -535,7 +550,6 @@ int main(int argc, char **argv)
     ui_set_source_state(ui, 0, false, 7, 1);
     ui_set_source_state(ui, 1, false, 8, 2);
     vehicle = false;
-    ui_set_page_position(ui, 1, 3);
     assert(ui_request_showcase(ui, true, 8, 7, false, false));
     tick(60);
     assert(lv_obj_has_flag(ui->widgets.demo_lbl, LV_OBJ_FLAG_HIDDEN));
@@ -1188,7 +1202,7 @@ int main(int argc, char **argv)
     close_vehicle_menu(ui);
     assert(!ui_vehicle_burnout_held(ui));
     /* A dual arc reuses the original arc object, selects either numeric slot,
-     * and retains the two reading identities/colors and tenth-page position. */
+     * and retains the two reading identities/colors. */
     ui->simulated = false;
     page_action_reset(&ui->action);
     ui_set_alert_full(ui, 0, false, "", false);
@@ -1205,12 +1219,10 @@ int main(int argc, char **argv)
     ui_set_value(ui, 0x5503, &park);
     ui_set_value(ui, 0x0c, &idle_rpm);
     ui_set_page(ui, &dual_arc);
-    ui_set_page_position(ui, 9, 10);
     tick(60);
     assert(!lv_obj_has_flag(ui->widgets.arc, LV_OBJ_FLAG_HIDDEN));
     assert(lv_arc_get_value(ui->widgets.arc) == 84);
     assert(!strcmp(lv_label_get_text(ui->widgets.dual_value[0]), "P"));
-    assert(!strcmp(lv_label_get_text(ui->widgets.page_position), "10/10"));
     assert(lv_color_to_u32(lv_obj_get_style_text_color(ui->widgets.dual_value[0], 0)) ==
            lv_color_to_u32(lv_color_hex(GAUGE_GEAR_PARK)));
     capture(argv[1], "dual-arc-gear-rpm");
@@ -1233,6 +1245,15 @@ int main(int argc, char **argv)
     assert(lv_obj_check_type(lv_obj_get_child(boot_logo, 0), &lv_arc_class));
     assert(lv_obj_check_type(lv_obj_get_child(boot_logo, 1), &lv_line_class));
     assert(object_count(boot_logo) == 4);
+    const gauge_boot_logo_t *mark        = gauge_presentation_boot_logo();
+    lv_obj_t                *mark_ring   = lv_obj_get_child(boot_logo, 0);
+    lv_obj_t                *mark_needle = lv_obj_get_child(boot_logo, 1);
+    lv_obj_t                *mark_pivot  = lv_obj_get_child(boot_logo, 2);
+    assert(lv_obj_get_width(mark_ring) == px(mark->diameter));
+    assert(lv_obj_get_style_arc_width(mark_ring, LV_PART_INDICATOR) == px(mark->ring_width));
+    assert(lv_obj_get_style_line_width(mark_needle, 0) == px(mark->needle_width));
+    assert(lv_obj_get_width(mark_pivot) == px(mark->pivot_diameter));
+    assert(boot_needle[1].x == gx(120 + mark->needle_offset) && boot_needle[1].y == gy(120 - mark->needle_offset));
     assert(lv_color_to_u32(lv_obj_get_style_arc_color(lv_obj_get_child(boot_logo, 0), LV_PART_MAIN)) ==
            lv_color_to_u32(lv_color_hex(0x555555)));
     assert(lv_color_to_u32(lv_obj_get_style_line_color(lv_obj_get_child(boot_logo, 1), 0)) ==

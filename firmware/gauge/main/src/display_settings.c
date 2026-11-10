@@ -1,6 +1,7 @@
 #include "display_settings.h"
 #include "platform_features.h"
 #include <stdbool.h>
+#include <stdatomic.h>
 #include "nvs.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -8,8 +9,12 @@
 
 static SemaphoreHandle_t  settings_lock;
 static display_settings_t current;
-static int                active_smart_slot = -1;
-static portMUX_TYPE       snapshot_mux      = portMUX_INITIALIZER_UNLOCKED;
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+/* Low bit stores the disabled state so an absent record defaults to enabled. */
+static _Atomic uint32_t connection_icons;
+#endif
+static int          active_smart_slot = -1;
+static portMUX_TYPE snapshot_mux      = portMUX_INITIALIZER_UNLOCKED;
 typedef struct
 {
     uint8_t  version;
@@ -95,6 +100,9 @@ esp_err_t display_settings_init(uint8_t default_rotation, uint8_t default_bright
     current           = (display_settings_t){default_rotation, default_brightness, default_units, 0, 0, false, false};
     active_smart_slot = -1;
     auto_hint_valid = auto_candidate_valid = auto_attempted = false;
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+    atomic_store(&connection_icons, 0);
+#endif
     nvs_handle_t nvs;
     esp_err_t    err = nvs_open("display", NVS_READONLY, &nvs);
     if (err == ESP_ERR_NVS_NOT_FOUND)
@@ -102,6 +110,13 @@ esp_err_t display_settings_init(uint8_t default_rotation, uint8_t default_bright
     if (err != ESP_OK)
         return err;
     load_auto_rotation(nvs);
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+    uint32_t footer      = 0;
+    size_t   footer_size = sizeof(footer);
+    if (nvs_get_blob(nvs, "conn_icons", &footer, &footer_size) == ESP_OK && footer_size == sizeof(footer) &&
+        (footer >> 1) != 0)
+        atomic_store(&connection_icons, footer);
+#endif
     display_record_t stored = {0};
     size_t           length = sizeof(stored);
     err                     = nvs_get_blob(nvs, "settings", &stored, &length);
@@ -310,3 +325,42 @@ esp_err_t display_settings_persist_auto_rotation(uint64_t now_ms)
     xSemaphoreGive(settings_lock);
     return err;
 }
+
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+uint32_t display_connection_icons_snapshot(void)
+{
+    return atomic_load(&connection_icons);
+}
+
+esp_err_t display_connection_icons_save(bool enabled, uint32_t expected_revision)
+{
+    if (!settings_lock)
+        return ESP_ERR_INVALID_STATE;
+    if (xSemaphoreTake(settings_lock, pdMS_TO_TICKS(250)) != pdTRUE)
+        return ESP_ERR_TIMEOUT;
+    uint32_t  before = display_connection_icons_snapshot();
+    esp_err_t err    = ESP_ERR_INVALID_STATE;
+    if ((before >> 1) == expected_revision && expected_revision < (UINT32_MAX >> 1))
+    {
+        if (enabled == !(before & 1U))
+            err = ESP_OK;
+        else
+        {
+            uint32_t     next = ((expected_revision + 1U) << 1) | (enabled ? 0U : 1U);
+            nvs_handle_t nvs;
+            err = nvs_open("display", NVS_READWRITE, &nvs);
+            if (err == ESP_OK)
+            {
+                err = nvs_set_blob(nvs, "conn_icons", &next, sizeof(next));
+                if (err == ESP_OK)
+                    err = nvs_commit(nvs);
+                nvs_close(nvs);
+            }
+            if (err == ESP_OK)
+                atomic_store(&connection_icons, next);
+        }
+    }
+    xSemaphoreGive(settings_lock);
+    return err;
+}
+#endif

@@ -62,6 +62,8 @@ object GaugeProtocolCodec {
 
         25 -> runCatching { sunsetBrightness(bytes) }.isSuccess
 
+        26 -> runCatching { connectionIcons(bytes) }.isSuccess
+
         23 -> runCatching { displaySettings(bytes) }.isSuccess
 
         else -> false
@@ -233,6 +235,24 @@ object GaugeProtocolCodec {
             .put(0x6d).put(if (automatic) 1 else 0).put(level.toByte())
             .putShort(location.latitude.toShort()).putShort(location.longitude.toShort())
             .putInt(utc.toInt()).putInt(revision.toInt()).array()
+    }
+
+    fun connectionIcons(bytes: ByteArray): ConnectionIconsSetting? {
+        if (bytes.size == 10 && bytes[0].toInt() == 12) {
+            displaySettings(bytes)
+            return null
+        }
+        require(bytes.size == 6 && bytes[0].toInt() == 26 && bytes[1].toInt() in 0..1) {
+            "Gauge returned invalid connection icon settings"
+        }
+        val revision = u32(bytes, 2)
+        require(revision in 0..0x7fffffffL && (revision != 0L || bytes[1].toInt() == 1))
+        return ConnectionIconsSetting(bytes[1].toInt() == 1, revision)
+    }
+
+    fun connectionIconsWrite(enabled: Boolean, revision: Long): ByteArray {
+        require(revision in 0 until 0x7fffffffL)
+        return byteArrayOf(0x6f, if (enabled) 1 else 0) + ByteArray(4) { (revision shr (it * 8)).toByte() }
     }
 
     fun displaySettings(bytes: ByteArray): GaugeConfigTransferClient.DisplaySettings {

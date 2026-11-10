@@ -281,6 +281,7 @@ def firmware(
         )
         run(["cmake", "--build", build, "-j", "2"])
         run([build / "gauge_ui_render", OUTPUT / "ui-renders"])
+        run([build / "gauge_ui_render", OUTPUT / "ui-connection-renders", "--connection-review"])
         run([build / "gauge_ui_render", OUTPUT / "ui-fallback-renders", "--no-psram"])
         run(
             ["cmake", "-S", FIRMWARE / "tests/ui_host", "-B", build, "-DEGAUGE_PARKED_IDLE_TEST=ON"]

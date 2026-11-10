@@ -1,5 +1,18 @@
 #include "gauge_presentation.h"
 
+const gauge_boot_logo_t *gauge_presentation_boot_logo(void)
+{
+    static const gauge_boot_logo_t reference = {
+        .diameter       = 168,
+        .ring_width     = 12,
+        .needle_width   = 12,
+        .needle_offset  = 47,
+        .pivot_diameter = 22,
+    };
+    const gauge_boot_logo_t *logo = gauge_presentation()->boot_logo;
+    return logo ? logo : &reference;
+}
+
 bool gauge_presentation_matches(const gauge_surface_t *surface)
 {
     const gauge_presentation_t *p = gauge_presentation();

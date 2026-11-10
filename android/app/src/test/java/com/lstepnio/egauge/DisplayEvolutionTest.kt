@@ -97,4 +97,19 @@ class DisplayEvolutionTest {
         assertTrue(runCatching { GaugeProtocolCodec.orientationSettings(frame.copyOf(11)) }.isFailure)
         assertTrue(runCatching { GaugeProtocolCodec.orientationSettingsWrite(true, 4, 1) }.isFailure)
     }
+
+    @Test
+    fun connectionIconsUseAnOptionalProtectedSelector() {
+        val legacy = byteArrayOf(12, 0, 90, 0, 1, 0, 0, 0, 5, 0)
+        assertNull(GaugeProtocolCodec.connectionIcons(legacy))
+        val defaults = byteArrayOf(26, 1, 0, 0, 0, 0)
+        val off = byteArrayOf(26, 0, 1, 0, 0, 0)
+        assertEquals(ConnectionIconsSetting(true, 0), GaugeProtocolCodec.connectionIcons(defaults))
+        assertEquals(ConnectionIconsSetting(false, 1), GaugeProtocolCodec.connectionIcons(off))
+        assertTrue(GaugeProtocolCodec.isProtectedStatusFrame(off))
+        assertFalse(GaugeProtocolCodec.isProtectedStatusFrame(byteArrayOf(26, 0, 0, 0, 0, 0)))
+        assertFalse(GaugeProtocolCodec.isProtectedStatusFrame(byteArrayOf(26, 2, 1, 0, 0, 0)))
+        assertFalse(GaugeProtocolCodec.isProtectedStatusFrame(off.copyOf(5)))
+        assertTrue(byteArrayOf(0x6f, 1, 0x34, 0x12, 0, 0).contentEquals(GaugeProtocolCodec.connectionIconsWrite(true, 0x1234)))
+    }
 }

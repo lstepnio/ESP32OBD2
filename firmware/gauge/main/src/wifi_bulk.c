@@ -75,7 +75,7 @@ static bool              server_started;
 static uint8_t          *frame_ciphertext, *frame_plaintext;
 static portMUX_TYPE      status_mux = portMUX_INITIALIZER_UNLOCKED;
 static uint32_t          status_expires_at;
-static atomic_bool       wifi_active;
+static atomic_bool       wifi_active, wifi_phone_connected;
 static atomic_uint       wifi_generation;
 static atomic_uint       abandoned_ota_session;
 static struct
@@ -178,9 +178,13 @@ static void wifi_event(void *arg, esp_event_base_t base, int32_t id, void *data)
     (void)arg;
     (void)data;
     if (base == WIFI_EVENT && id == WIFI_EVENT_AP_STACONNECTED)
+    {
+        atomic_store(&wifi_phone_connected, true);
         ESP_LOGI(TAG, "Owner phone joined temporary maintenance network");
+    }
     else if (base == WIFI_EVENT && id == WIFI_EVENT_AP_STADISCONNECTED)
     {
+        atomic_store(&wifi_phone_connected, false);
         // Leave the bounded session available, but release the departed client's
         // socket promptly. Never replay an already admitted transfer command.
         atomic_fetch_add(&wifi_generation, 1);
@@ -235,6 +239,7 @@ static bool start_maintenance_network(void)
 {
     // Retire the prior client/transfer even if a subsequent startup step fails.
     atomic_store(&wifi_active, false);
+    atomic_store(&wifi_phone_connected, false);
     atomic_fetch_add(&wifi_generation, 1);
     if (wifi_initialized)
         esp_wifi_stop();
@@ -307,6 +312,7 @@ static bool start_maintenance_network(void)
 static void stop_maintenance_network(void)
 {
     atomic_store(&wifi_active, false);
+    atomic_store(&wifi_phone_connected, false);
     atomic_fetch_add(&wifi_generation, 1);
     release_wifi_driver();
     memory_health_log("wifi_released");
@@ -318,6 +324,11 @@ static void stop_maintenance_network(void)
 
 /* Only the server task closes descriptors. A generation change invalidates an
  * old client even if a new maintenance session starts before its next IO slice. */
+bool wifi_bulk_phone_connected(void)
+{
+    return atomic_load(&wifi_active) && atomic_load(&wifi_phone_connected);
+}
+
 bool wifi_bulk_session_current(uint32_t generation)
 {
     return atomic_load(&wifi_active) && atomic_load(&wifi_generation) == generation;

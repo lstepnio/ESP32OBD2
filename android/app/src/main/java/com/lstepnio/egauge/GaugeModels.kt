@@ -182,6 +182,8 @@ data class Draft(
     val idlePresets: List<IdlePreset> = emptyList()
 )
 
+data class ConnectionIconsSetting(val enabled: Boolean, val revision: Long)
+
 data class CapabilitySnapshot(
     val board: String,
     val protocolMajor: Int,

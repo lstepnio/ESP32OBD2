@@ -22,8 +22,9 @@ cycling page influence scheduling, not cache identity or observation timestamps.
 The negotiated `mp` limit controls deployment. Legacy document gauges default to
 eight; older fallback configurations retain their existing limits. Editing ten
 pages offline is allowed, but deployment to an older gauge is rejected before
-transfer. Never silently drop pages. Up to eight pages retain the existing dots;
-nine or ten use a compact page counter without allocating additional dots.
+transfer. Never silently drop pages. Reading and action screens keep the lower
+edge free of page markers. Swipe navigation and page cycling continue to use
+the saved page order.
 
 ## Dual + arc
 
@@ -65,10 +66,11 @@ After NVS display preferences load, the board initializes and presents the logo
 before heavier configuration/radio setup. It uses four retained LVGL objects
 (container, arc, line and dot), with no bitmap, additional framebuffer or animation
 task. Saved brightness and the manual angle (or last checkpointed applied angle in Auto) apply at startup. The logo has no text.
-Its icon occupies a centered 168-pixel diameter on the 240-pixel reference display,
-using a muted neutral grey (`#555555`) for the arc, needle and pivot. Dimensions
-scale through the existing presentation profile. It reuses the same objects and
-point buffer; the larger mark adds no bitmap, framebuffer or animation allocation.
+The reference mark spans 168 pixels on the 240-pixel LCD. Presentation profiles
+can tune the mark's proportions on the shared 240-pixel design grid. The OLED
+Balanced profile uses a 148-pixel diameter and a 9-pixel ring stroke on that grid,
+with a shorter needle that clears the ring. Both use muted neutral gray
+(`#555555`) and the same retained objects and point buffer.
 
 With no valid vehicle observation, it stays until touch or data. After observations
 have arrived, sixty seconds without a valid scoped vehicle observation returns to
@@ -84,6 +86,38 @@ attention take precedence. The logo pauses automatic page cycling; wake resumes 
 complete viewing interval. Waiting never creates a false reading or changes alert,
 control or source-loss freshness. Dashes still represent unavailable values after
 wake. Quiet recovery continues behind the logo.
+
+## Connection footer
+
+`EGAUGE_FEATURE_CONNECTION_FOOTER` is off by default. It is an opt-in OLED
+experiment, independent of feature licensing, and uses the shared presentation
+profile. Wi-Fi (silver) means a station has joined the active maintenance
+network. Blue marks the phone BLE link. The green and violet plug icons indicate
+ready OBD adapter sessions with one and two pins. A ready link can still have
+unavailable readings. The muted icons appear only while their connections are
+live, and the visible icons are centered. A child icon requires both a saved
+adapter binding and a ready link. When every link is down, the footer is empty.
+On supported gauges, **Settings → Connection icons** in the App turns the
+footer on or off. It defaults to On, including for existing gauges on their
+first update. The owner preference is saved on the gauge, applies to both
+readings and the waiting logo, and survives restart. The App reads it
+automatically and shows a switch only after supported firmware confirms it.
+See the [protected settings protocol](../protocol/experimental-firmware-transfers.md#connection-icons).
+Transport, polling, and alert behavior are independent of the preference.
+
+A single centered row sits low in the round safe area on the waiting logo and
+reading screens, independent of how many pages are saved. A tight layout drops
+the icons and keeps the reading in place. Pairing, calibration, showcase,
+action controls, and vehicle warnings take priority.
+The compositor uses one packed status snapshot, fixed stroke geometry, and
+bounded footer invalidation. No persistent image buffer or transport task is
+added. The first boot-logo frame can render before connection state is known.
+
+Run the production LVGL host test with `--connection-review` to capture the
+24-state matrix and exercise clearance changes under partial refresh. Verify
+on each physical panel at 10% Night brightness before
+enabling the flag in a field build. Native frames establish geometry and color
+selection, while physical panels establish legibility and bezel clearance.
 
 ## Sunset brightness
 

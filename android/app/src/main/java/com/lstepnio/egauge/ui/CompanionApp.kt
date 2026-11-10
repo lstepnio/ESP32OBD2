@@ -534,7 +534,8 @@ fun CompanionApp(
                                         model.phoneAlertsEnabled, model.alertMonitoring, onPhoneAlerts,
                                         onSaveSmartCycle = model::savePageCycling,
                                         onSaveOrientation = model::saveOrientation,
-                                        onSaveSunset = model::saveSunsetBrightness
+                                        onSaveSunset = model::saveSunsetBrightness,
+                                        onSaveConnectionIcons = model::saveConnectionIcons
                                     )
 
                                     Route.Updates -> UpdatesScreen(

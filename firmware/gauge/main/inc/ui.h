@@ -110,7 +110,7 @@ void ui_set_source_value(ui_t         *ui,
                          double const *value,
                          uint32_t      observed_at_ms);
 void ui_set_page(ui_t *ui, ui_page_t const *page);
-void ui_set_page_position(ui_t *ui, unsigned index, unsigned count);
+void ui_set_connection_status(ui_t *ui, bool wifi, bool phone, bool child_configured, unsigned obd_ready_mask);
 /* LVGL owner only for configuration and target access. Context mailbox is thread-safe. */
 void    ui_configure_page_action(ui_t *ui, page_action_config_t config);
 void    ui_set_action_context(ui_t *ui, bool allowed);
