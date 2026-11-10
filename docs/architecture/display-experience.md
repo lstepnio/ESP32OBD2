@@ -124,8 +124,12 @@ clearance. Native frames establish geometry and color selection.
 dashboard. The owner can set it from 5 to 100%. **Night brightness** defaults to
 10% and cannot drive the panel above the Day level. Existing saved levels take
 precedence. **Sunset to sunrise** is opt-in. Turning it off restores Day brightness.
-The owner can supply approximate phone location on demand. The App rounds it to a tenth of a degree before sending
-it to the gauge and asks for no background location permission.
+On first enable, the App requests approximate phone location. It uses the newest
+fix up to 15 minutes old, or waits up to 12 seconds for the first fix from an
+available provider. Settings distinguishes missing permission, disabled Location,
+and a failed lookup. The owner can retry or update a saved location. The App
+rounds coordinates to a tenth of a degree before sending them to the gauge and
+requests only foreground location.
 
 The gauge estimates solar daylight from UTC and the saved location using
 [NOAA's solar-position equations](https://gml.noaa.gov/grad/solcalc/solareqns.PDF).
