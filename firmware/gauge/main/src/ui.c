@@ -177,7 +177,6 @@ struct _ui_t
 #if EGAUGE_FEATURE_CONNECTION_FOOTER
     atomic_uint connection_links;
     unsigned    rendered_connections;
-    uint8_t     connection_footer_y;
 #endif
 #if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
     struct
@@ -1624,9 +1623,9 @@ static const connection_stroke_t obd_strokes[] = {
     {-4, 3, -5, -3},
 };
 
-static lv_area_t connection_footer_area(unsigned y)
+static lv_area_t connection_footer_area(void)
 {
-    return (lv_area_t){gx(90), gy(y - 6), gx(150), gy(y + 6)};
+    return (lv_area_t){gx(90), gy(FOOTER_Y - 6), gx(150), gy(FOOTER_Y + 6)};
 }
 
 static bool footer_overlaps(lv_obj_t *obj, const lv_area_t *area, int gap)
@@ -1637,6 +1636,8 @@ static bool footer_overlaps(lv_obj_t *obj, const lv_area_t *area, int gap)
     lv_obj_get_coords(obj, &occupied);
     if (lv_obj_check_type(obj, &lv_label_class))
     {
+        if (occupied.y2 + gap < area->y1 || occupied.y1 - gap > area->y2)
+            return false;
         /* The text box includes line height even when the unit string is empty. */
         ink_t glyphs;
         if (ink(lv_label_get_text(obj), lv_obj_get_style_text_font(obj, 0), &glyphs))
@@ -1688,13 +1689,10 @@ static bool connection_footer_allowed(const ui_t *ui)
 
 static void draw_connection_footer(lv_event_t *event)
 {
-    const ui_t    *ui = lv_event_get_user_data(event);
-    const unsigned y  = ui->connection_footer_y;
-    if (!y || !connection_footer_allowed(ui))
+    const ui_t *ui = lv_event_get_user_data(event);
+    if (!ui->rendered_connections || !connection_footer_allowed(ui))
         return;
-    lv_area_t area = connection_footer_area(y);
-    if (!ui->waiting_visible && !footer_clear(ui, &area))
-        return;
+    const int y = FOOTER_Y;
 
     static const uint32_t live_color[] = {0x8b9a9d, 0x538dbb, 0x5d9f78, 0x9382b4};
     int                   x            = 128;
@@ -1728,28 +1726,21 @@ static void draw_connection_footer(lv_event_t *event)
 
 static void render_connection_footer(ui_t *ui)
 {
-    unsigned links = atomic_load(&ui->connection_links);
-    unsigned y     = 0;
-    if (links && connection_footer_allowed(ui))
-    {
-        y              = FOOTER_Y;
-        lv_area_t area = connection_footer_area(y);
-        if (!gauge_presentation_fits(area.x1, area.y1, area.x2, area.y2))
-            y = 0;
-    }
-    if (y == ui->connection_footer_y && (!y || links == ui->rendered_connections))
-        return;
+    unsigned  links  = connection_footer_allowed(ui) ? atomic_load(&ui->connection_links) : 0;
     lv_obj_t *screen = lv_screen_active();
-    if (ui->connection_footer_y)
+    lv_area_t area   = connection_footer_area();
+    if (links)
     {
-        lv_area_t old = connection_footer_area(ui->connection_footer_y);
-        lv_obj_invalidate_area(screen, &old);
+        /* LVGL resolves widget coordinates lazily. Cache effective visibility
+         * before comparing links so partial refreshes erase the old glyphs. */
+        lv_obj_update_layout(screen);
+        if (!gauge_presentation_fits(area.x1, area.y1, area.x2, area.y2) ||
+            (!ui->waiting_visible && !footer_clear(ui, &area)))
+            links = 0;
     }
-    ui->connection_footer_y  = y;
-    ui->rendered_connections = links;
-    if (y)
+    if (links != ui->rendered_connections)
     {
-        lv_area_t area = connection_footer_area(y);
+        ui->rendered_connections = links;
         lv_obj_invalidate_area(screen, &area);
     }
 }

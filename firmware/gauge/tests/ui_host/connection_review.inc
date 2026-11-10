@@ -15,16 +15,7 @@ static bool footer_color_at(unsigned x, unsigned y, uint32_t color)
 static void review_frame(ui_t *ui, const char *directory, const char *name, unsigned y, unsigned expected_links)
 {
     tick(60);
-    unsigned rendered_y = ui->connection_footer_y;
-    if (rendered_y && !ui->waiting_visible)
-    {
-        lv_area_t footer = connection_footer_area(rendered_y);
-        if (!footer_clear(ui, &footer))
-            rendered_y = 0;
-    }
-    if (rendered_y != y)
-        fprintf(stderr, "%s: expected footer at %u, got %u\n", name, y, rendered_y);
-    assert(rendered_y == y);
+    assert(ui->rendered_connections == expected_links);
     static const uint32_t colors[] = {0x8b9a9d, 0x538dbb, 0x5d9f78, 0x9382b4};
     int                   x        = 128;
     for (unsigned links = expected_links; links; links &= links - 1)
@@ -115,6 +106,21 @@ static void review_connections(const char *directory)
         unsigned y        = expected ? FOOTER_Y : 0;
         review_frame(ui, directory, cases[i].name, y, expected);
     }
+
+    /* The bar leaves the old footer pixels untouched but takes its clearance.
+     * With the same links, partial redraw must still erase and restore the row. */
+    page.renderer = UI_RENDERER_BAR;
+    ui_set_page(ui, &page);
+    ui_set_connection_status(ui, false, true, false, 0);
+    tick(60);
+    assert(ui->rendered_connections == 2 && footer_color_at(120, FOOTER_Y, 0x538dbb));
+    lv_obj_set_pos(ui->widgets.bar, gx(50), gy(FOOTER_Y - 13));
+    tick(60);
+    assert(atomic_load(&ui->connection_links) == 2 && ui->rendered_connections == 0);
+    assert(!footer_color_at(120, FOOTER_Y, 0x538dbb));
+    lv_obj_set_pos(ui->widgets.bar, gx(50), gy(174));
+    tick(60);
+    assert(ui->rendered_connections == 2 && footer_color_at(120, FOOTER_Y, 0x538dbb));
 
     ui_set_value(ui, 12, &rpm);
     ui_set_diagnostics(ui, true, true, false, 3, "P0123");

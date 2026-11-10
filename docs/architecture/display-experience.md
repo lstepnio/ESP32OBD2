@@ -114,7 +114,8 @@ bounded footer invalidation. No persistent image buffer or transport task is
 added. The first boot-logo frame can render before connection state is known.
 
 Run the production LVGL host test with `--connection-review` to capture the
-24-state matrix. Verify on each physical panel at 10% Night brightness before
+24-state matrix and exercise clearance changes under partial refresh. Verify
+on each physical panel at 10% Night brightness before
 enabling the flag in a field build. Native frames establish geometry and color
 selection, while physical panels establish legibility and bezel clearance.
 

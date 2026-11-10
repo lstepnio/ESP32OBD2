@@ -342,7 +342,8 @@ int main(int argc, char **argv)
     lv_display_set_color_format(display, LV_COLOR_FORMAT_XRGB8888);
 #endif
     lv_display_set_flush_cb(display, flush);
-    lv_display_set_buffers(display, draw_buffer, NULL, draw_bytes, LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_buffers(display, draw_buffer, NULL, draw_bytes,
+                           review ? LV_DISPLAY_RENDER_MODE_PARTIAL : LV_DISPLAY_RENDER_MODE_FULL);
 #if EGAUGE_FEATURE_CONNECTION_FOOTER
     if (review)
     {
