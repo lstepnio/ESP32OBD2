@@ -35,6 +35,9 @@ class DisplayExperienceTests(unittest.TestCase):
     def test_logo_waiting_policy(self):
         self.native("idle", ["tests/display_idle_policy_test.c", "main/src/display_idle_policy.c"])
 
+    def test_sunset_schedule_and_manual_override(self):
+        self.native("sunset", ["tests/sunset_policy_test.c", "main/src/sunset_policy.c"])
+
     def test_orientation_confidence_and_hysteresis(self):
         self.native(
             "orientation", ["tests/orientation_policy_test.c", "main/src/orientation_policy.c"]

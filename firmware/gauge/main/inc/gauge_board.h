@@ -27,6 +27,9 @@ typedef struct
     gauge_display_transport_t  display_transport;
     gauge_brightness_control_t brightness_control;
     uint32_t                   ota_target_tag; /* Zero disables owner firmware updates. */
+    bool (*night_button_pressed)(void);
+    uint32_t (*read_utc)(void); /* 0 when unprovisioned or invalid. */
+    void (*sync_utc)(uint32_t utc);
 } gauge_board_t;
 
 static inline bool gauge_board_accepts_ota_target(const gauge_board_t *board, uint32_t tag)

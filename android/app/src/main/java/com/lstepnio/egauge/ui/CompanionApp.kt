@@ -533,7 +533,8 @@ fun CompanionApp(
                                         },
                                         model.phoneAlertsEnabled, model.alertMonitoring, onPhoneAlerts,
                                         onSaveSmartCycle = model::savePageCycling,
-                                        onSaveOrientation = model::saveOrientation
+                                        onSaveOrientation = model::saveOrientation,
+                                        onSaveSunset = model::saveSunsetBrightness
                                     )
 
                                     Route.Updates -> UpdatesScreen(

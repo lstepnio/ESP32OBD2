@@ -1035,7 +1035,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     ): Long {
         val caps = capabilities ?: return 20_000L
         if (caps.displaySettingsVersion < 1 && !caps.savedStateRead) return 20_000L
-        val key = "$currentGaugeId:${caps.displaySettingsVersion}:${caps.smartPageCyclingVersion}:${caps.automaticOrientationVersion}"
+        val key = "$currentGaugeId:${caps.displaySettingsVersion}:${caps.smartPageCyclingVersion}:${caps.automaticOrientationVersion}:${caps.sunsetBrightnessSupported}"
         val now = android.os.SystemClock.elapsedRealtime()
         if (!settingsPoll.due(key, now)) return settingsPoll.pause(now)
         var healthy = false
@@ -1045,6 +1045,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     1
                 ) {
                     displaySettingsRead(client.readDisplaySettings(device, caps.smartPageCyclingVersion))
+                    sunsetBrightness = if (caps.sunsetBrightnessSupported) client.readSunsetBrightness(device) else null
                     if (caps.automaticOrientationVersion == 1) {
                         orientationSettings = client.readOrientationSettings(device)
                         check(orientationSettings?.revision == displaySettings?.revision) { "Gauge settings changed during refresh" }
@@ -1534,6 +1535,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     private var pairingWindowReadAtElapsedMs = 0L
     var savedGauge by mutableStateOf<GaugeSavedSnapshot?>(null)
+    var sunsetBrightness by mutableStateOf<SunsetBrightness?>(null)
+        private set
     var orientationSettings by mutableStateOf<GaugeOrientationSettings?>(null)
         private set
     var displaySettings by mutableStateOf<GaugeConfigTransferClient.DisplaySettings?>(null)
@@ -2178,6 +2181,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ownerAccess = OwnerAccess.UNKNOWN
         savedGauge = null
         displaySettings = null
+        sunsetBrightness = null
         orientationSettings = null
         displayShowcase = null
         settingsObservedAtElapsedMs = null
@@ -2207,6 +2211,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (!preserveSent) {
             savedGauge = null
             displaySettings = null
+            sunsetBrightness = null
             orientationSettings = null
             displayShowcase = null
             settingsObservedAtElapsedMs = null
@@ -2663,6 +2668,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         // after the update lease closes instead of keeping the previous image's snapshot.
         capabilities = null
         displaySettings = null
+        sunsetBrightness = null
         orientationSettings = null
         displayShowcase = null
         settingsObservedAtElapsedMs = null
@@ -2938,6 +2944,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             OperationStage.ACTIVE,
             "Display orientation saved",
             if (automatic) "Automatic orientation is on" else "The gauge confirmed ${manualAngle * 90}°",
+            terminal = true
+        )
+    }
+
+    fun saveSunsetBrightness(automatic: Boolean, level: Int, location: SunsetLocation?) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving night brightness") { id ->
+        require(capabilities?.sunsetBrightnessSupported == true && (!automatic || location != null))
+        sunsetBrightness = GaugeConfigTransferClient(getApplication()).saveSunsetBrightness(
+            bleClient.selectedGauge(),
+            automatic,
+            level,
+            location
+        )
+        ownerAccess = OwnerAccess.AUTHENTICATED
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.ACTIVE,
+            "Night brightness saved",
+            "The gauge confirmed the settings",
             terminal = true
         )
     }

@@ -507,7 +507,8 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             autoOrientationSupported = capabilities?.automaticOrientationVersion == 1 && orientationSettings?.automaticAvailable == true,
             automaticOrientation = orientationSettings?.automatic == true,
             orientationSensorStale = orientationSettings?.sensorStatus == 2,
-            orientationProtocolSupported = capabilities?.automaticOrientationVersion == 1
+            orientationProtocolSupported = capabilities?.automaticOrientationVersion == 1,
+            sunsetBrightness = sunsetBrightness
         ),
         ExpertUiState(
             found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,

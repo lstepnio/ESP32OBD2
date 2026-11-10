@@ -505,3 +505,21 @@ ID `burnout` (0..4 pages). Absent `pages` still means the original three-page me
 never an implicit Burnout page. App preflight refuses sending it to v1/unknown
 gauges while retaining the editable local draft. Runtime journal compatibility
 and physical hold ownership are defined in the [action contract](../architecture/vehicle-actions.md#burnout-mode-and-brake-actions).
+
+
+## Sunset brightness
+
+Additive `sb:1` permits protected night brightness and time sync when the
+capability fits. Legacy display settings continue to report the configured
+Day brightness. The sunset record has its own revision.
+
+- Read `0x6c` followed by LE32 protocol version 1. The 12-byte reply is type
+  25, version 1, flags (automatic, active Night, valid clock), night percent,
+  signed LE16 latitude and longitude in hundredths of a degree, and LE32
+  revision.
+- Save `0x6d` followed by automatic 0/1, night percent 5–100, signed LE16
+  latitude and longitude, LE32 UTC seconds, and LE32 expected revision.
+  Verify the next revision and requested fields before reporting success.
+- Sync `0x6e` followed by LE32 UTC seconds. The phone sends this when
+  automatic mode lacks valid time. Clock synchronization does not change
+  the configuration revision. Only dates from 2024 through 2099 are accepted.

@@ -60,6 +60,8 @@ object GaugeProtocolCodec {
 
         24 -> runCatching { orientationSettings(bytes) }.isSuccess
 
+        25 -> runCatching { sunsetBrightness(bytes) }.isSuccess
+
         23 -> runCatching { displaySettings(bytes) }.isSuccess
 
         else -> false
@@ -103,6 +105,7 @@ object GaugeProtocolCodec {
                 require(it in 0..1) { "Unsupported Smart page cycling version" }
                 require(it == 0 || json.optInt("ds", 0) == 3) { "Smart page cycling requires display settings" }
             },
+            sunsetBrightnessSupported = json.opt("sb") == 1 && json.optInt("ds", 0) >= 1,
             automaticOrientationVersion = json.optInt("ao", 0).also {
                 require(!json.has("ao") || json.get("ao") is Int) { "Invalid automatic orientation capability" }
                 require(it in 0..1) { "Unsupported automatic orientation version" }
@@ -206,6 +209,30 @@ object GaugeProtocolCodec {
         require(manualAngle in 0..3 && revision in 0..0xffffffffL)
         return byteArrayOf(0x6b, if (automatic) 1 else 0, manualAngle.toByte()) +
             ByteArray(4) { (revision shr (it * 8)).toByte() }
+    }
+
+    fun sunsetBrightness(bytes: ByteArray): SunsetBrightness {
+        require(bytes.size == 12 && bytes[0].toInt() == 25 && bytes[1].toInt() == 1)
+        val input = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        val flags = bytes[2].toInt()
+        val nightLevel = bytes[3].toInt()
+        require(flags in 0..7 && nightLevel in 5..100)
+        return SunsetBrightness(
+            flags and 1 != 0,
+            flags and 2 != 0,
+            flags and 4 != 0,
+            nightLevel,
+            SunsetLocation(input.getShort(4).toInt(), input.getShort(6).toInt()),
+            input.getInt(8).toLong() and 0xffffffff
+        )
+    }
+
+    fun sunsetBrightnessWrite(automatic: Boolean, level: Int, location: SunsetLocation, utc: Long, revision: Long): ByteArray {
+        require(level in 5..100 && utc in 1704067200L..4102444799L && revision in 0..0xfffffffeL)
+        return java.nio.ByteBuffer.allocate(15).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            .put(0x6d).put(if (automatic) 1 else 0).put(level.toByte())
+            .putShort(location.latitude.toShort()).putShort(location.longitude.toShort())
+            .putInt(utc.toInt()).putInt(revision.toInt()).array()
     }
 
     fun displaySettings(bytes: ByteArray): GaugeConfigTransferClient.DisplaySettings {

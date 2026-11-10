@@ -37,6 +37,7 @@
 #include "diagnostic_clear.h"
 #include "config_runtime.h"
 #include "display_settings.h"
+#include "sunset_runtime.h"
 #include "orientation_runtime.h"
 #include "hardware_probe.h"
 #include "ui.h"
@@ -239,7 +240,10 @@ static void owner_save_worker(void *arg)
         VEHICLE_ACTION_CAPABILITY FEATURE_POLICY_CAPABILITY ",\"mp\":10,\"dx\":1" BRAKE_OWNER_CAPABILITY
 /* Legacy clients ignore the additive field. Keep the existing 255-byte limit
  * even for custom board labels and feature combinations. */
-#define CAPABILITY_JSON(fields) (sizeof(fields ",\"ov\":1}") <= 256U ? fields ",\"ov\":1}" : fields "}")
+#define CAPABILITY_JSON(fields)                                                                                        \
+    (sizeof(fields ",\"ov\":1,\"sb\":1}") <= 256U ? fields ",\"ov\":1,\"sb\":1}"                                       \
+     : sizeof(fields ",\"ov\":1}") <= 256U        ? fields ",\"ov\":1}"                                                \
+                                                  : fields "}")
 static const char *const capabilities          = CAPABILITY_JSON(LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY);
 static const char *const document_capabilities = CAPABILITY_JSON(DOCUMENT_CAPABILITY_BASE WIFI_BULK_CAPABILITY);
 static const char *const orientation_capabilities =
@@ -436,6 +440,43 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle, struct ble
     if (request[0] == 0x34 && length == 5)
     {
         extended_status_mode   = 8;
+        status_snapshot_length = 0;
+        return 0;
+    }
+    if (request[0] >= 0x6c && request[0] <= 0x6e)
+    {
+        uint8_t opcode = request[0];
+        if (length != (opcode == 0x6d ? 15 : 5))
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        if (opcode == 0x6c)
+        {
+            if (read_u32(request + 1) != 1)
+                return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        }
+        else
+        {
+            companion_command_t command = {.opcode = opcode};
+            if (opcode == 0x6d)
+            {
+                command.value         = request[1];
+                command.brightness    = request[2];
+                command.latitude      = (int16_t)(request[3] | ((uint16_t)request[4] << 8));
+                command.longitude     = (int16_t)(request[5] | ((uint16_t)request[6] << 8));
+                command.utc           = read_u32(request + 7);
+                command.base_revision = read_u32(request + 11);
+                if (command.value > 1 || command.brightness < 5 || command.brightness > 100 ||
+                    !sunset_location_valid(command.latitude, command.longitude) ||
+                    command.base_revision != sunset_runtime_status().revision)
+                    return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+            }
+            else
+                command.utc = read_u32(request + 1);
+            if (!sunset_utc_valid(command.utc))
+                return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+            if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+                return BLE_ATT_ERR_UNLIKELY;
+        }
+        extended_status_mode   = 22;
         status_snapshot_length = 0;
         return 0;
     }
@@ -846,6 +887,26 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_g
         if (ctxt->offset > length)
             return BLE_ATT_ERR_INVALID_OFFSET;
         return companion_gatt_read_value(ctxt->om, state, length, ctxt->offset);
+    }
+    if (extended_status_mode == 22)
+    {
+        sunset_status_t sunset = sunset_runtime_status();
+        uint16_t        lat = (uint16_t)sunset.latitude, lon = (uint16_t)sunset.longitude;
+        uint8_t         state[] = {25,
+                                   1,
+                                   (sunset.automatic ? 1 : 0) | (sunset.night ? 2 : 0) | (sunset.clock_known ? 4 : 0),
+                                   sunset.night_brightness,
+                                   (uint8_t)lat,
+                                   (uint8_t)(lat >> 8),
+                                   (uint8_t)lon,
+                                   (uint8_t)(lon >> 8),
+                                   (uint8_t)sunset.revision,
+                                   (uint8_t)(sunset.revision >> 8),
+                                   (uint8_t)(sunset.revision >> 16),
+                                   (uint8_t)(sunset.revision >> 24)};
+        if (ctxt->offset > sizeof(state))
+            return BLE_ATT_ERR_INVALID_OFFSET;
+        return companion_gatt_read_value(ctxt->om, state, sizeof(state), ctxt->offset);
     }
     if (extended_status_mode == 21)
     {

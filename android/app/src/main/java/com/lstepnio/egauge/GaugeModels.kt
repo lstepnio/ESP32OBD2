@@ -208,6 +208,7 @@ data class CapabilitySnapshot(
     val displayShowcaseVersion: Int = 0,
     val vehicleCommandsVersion: Int = 0,
     val smartPageCyclingVersion: Int = 0,
+    val sunsetBrightnessSupported: Boolean = false,
     val automaticOrientationVersion: Int = 0,
     val burnoutActionsVersion: Int = 0,
     val brakeActionsTestVersion: Int = 0,
