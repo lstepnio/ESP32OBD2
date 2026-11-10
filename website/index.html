@@ -23,7 +23,7 @@
     <nav aria-label="Main navigation">
       <a href="#hardware">Shop</a>
       <a href="#experience">The gauge</a>
-      <a href="#app">Mobile App</a>
+      <a href="#app">The App</a>
       <a href="#roadmap">Progress</a>
       <a href="#custom-projects">Contact</a>
     </nav>
@@ -50,19 +50,20 @@
       <div class="section-heading">
         <p class="eyebrow">THE eGAUGE SHOP</p>
         <h2 id="hardware-title">Pick your gauge.</h2>
-        <p>Flash your own LCD board with free firmware, request one preflashed, or ask about the larger OLED gauge.</p>
+        <p>Start with free LCD firmware, or step up to the larger AMOLED display with licensed eGauge firmware preinstalled.</p>
       </div>
       <section class="panel-compare" id="panel-compare" aria-labelledby="panel-compare-title">
         <header class="panel-compare-head">
           <div>
             <p class="eyebrow">DISPLAY COMPARISON</p>
             <h3 id="panel-compare-title">Two sizes. Side by side.</h3>
-            <p>The OLED screen is about <strong>37% wider</strong>. Both show the same example readings using each board’s native layout.</p>
+            <p>The AMOLED screen is <strong>37% wider</strong> with nearly four times the pixels. Compare the same readings or see how each gauge starts up.</p>
           </div>
           <fieldset class="panel-examples">
             <legend>Compare layouts</legend>
             <label><input name="compare-layout" type="radio" data-lcd-src="{{ASSET_PREFIX}}/gauge/arc.png" data-oled-src="{{ASSET_PREFIX}}/gauge/oled-arc.png" data-description="Coolant temperature 92 °C with an arc" checked> Coolant</label>
             <label><input name="compare-layout" type="radio" data-lcd-src="{{ASSET_PREFIX}}/gauge/dual-arc.png" data-oled-src="{{ASSET_PREFIX}}/gauge/oled-dual-arc.png" data-description="Gear P and engine speed 675 RPM with an arc"> Gear + RPM</label>
+            <label><input name="compare-layout" type="radio" data-lcd-src="{{ASSET_PREFIX}}/gauge/lcd-startup.png" data-oled-src="{{ASSET_PREFIX}}/gauge/oled-startup.png" data-description="Waiting screen with the eGauge logo"> Startup</label>
           </fieldset>
         </header>
         <div class="panel-pair">
@@ -109,6 +110,7 @@
             <div class="store-price">
               <p><strong>{{LCD_PRICE}}</strong> preflashed board</p>
             </div>
+            <p>Free firmware includes customizable readings, alerts and timed page cycling for a single OBD-II adapter.</p>
             <div class="store-actions">
               {{LCD_ORDER}}
               <div class="store-links">
@@ -130,19 +132,24 @@
             <figure>
               <div class="store-device store-device-oled store-device-tilted">
                 <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED protective case" aria-hidden="true">
-                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/oled-numeric.png" width="466" height="466" alt="OLED viewed at an angle with a large engine speed reading">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/oled-numeric.png" width="466" height="466" alt="OLED viewed at an angle with a large engine speed reading and small connection icons">
               </div>
               <figcaption>Angled</figcaption>
             </figure>
           </div>
           <div class="store-copy">
-            <p class="eyebrow">OLED GAUGE / IN DEVELOPMENT</p>
+            <p class="eyebrow">AMOLED / LICENSED FIRMWARE</p>
             <h3>S3-OLED-1.75 v1</h3>
             <div class="store-price">
-              <p><strong>{{OLED_PRICE}}</strong> gauge with preinstalled firmware</p>
+              <p><strong>{{OLED_PRICE}}</strong> gauge and firmware license</p>
               <p>Estimated lead time is about 30 days.</p>
             </div>
-            <p>Enclosed AMOLED gauge with the shipped firmware major version included.</p>
+            <p>A larger, high-contrast display with crisp type and an interface tuned for the 466 × 466 panel. The license covers the preinstalled firmware major version.</p>
+            <ul class="store-highlights">
+              <li>Smart Cycle brings relevant readings forward.</li>
+              <li>Optional second adapter for a separate transmission port.</li>
+              <li>Side button switches between Day and Night brightness.</li>
+            </ul>
             <div class="store-actions">
               {{OLED_ORDER}}
               <div class="store-links">
@@ -167,6 +174,7 @@
           <thead><tr><th scope="col">Feature</th><th scope="col">LCD</th><th scope="col">OLED</th></tr></thead>
           <tbody>
             <tr><th scope="row">Touchscreen</th><td>1.28″ LCD<br>240 × 240</td><td>1.75″ AMOLED<br>466 × 466</td></tr>
+            <tr><th scope="row">Firmware</th><td>Free download</td><td>Licensed and preinstalled</td></tr>
             <tr><th scope="row">Dashboard pages</th><td>5 planned</td><td>12 planned</td></tr>
             <tr><th scope="row">Readings and alerts</th><td colspan="2">Shared catalog, layouts and threshold alerts</td></tr>
             <tr><th scope="row">Supported BLE adapters</th><td>One</td><td>One, with an optional second adapter for a separate transmission port</td></tr>
@@ -199,16 +207,16 @@
 
     <section class="app-section wrap section-space" id="app" aria-labelledby="app-title">
       <div class="section-heading">
-        <p class="eyebrow">MOBILE APP</p>
+        <p class="eyebrow">THE APP</p>
         <h2 id="app-title">Set it up from your phone.</h2>
         <p>{{CLAIM_ANDROID}}</p>
       </div>
-      <div class="app-gallery" tabindex="0" role="region" aria-label="Mobile app screens">
+      <div class="app-gallery" tabindex="0" role="region" aria-label="App screens">
         <figure><div class="phone-frame"><img src="{{ASSET_PREFIX}}/app/gauge.png" width="390" height="844" loading="lazy" alt="Gauge tab with configured pages and Customize action"></div><figcaption><strong>Gauge</strong><span>Choose pages and set alerts for your readings.</span></figcaption></figure>
         <figure><div class="phone-frame"><img src="{{ASSET_PREFIX}}/app/car.png" width="390" height="844" loading="lazy" alt="Car tab with current vehicle attention and fault information"></div><figcaption><strong>Car</strong><span>Review check-engine events, fault codes and alert history.</span></figcaption></figure>
         <figure><div class="phone-frame"><img src="{{ASSET_PREFIX}}/app/settings.png" width="390" height="844" loading="lazy" alt="Settings tab with display preferences and Smart page cycling"></div><figcaption><strong>Settings</strong><span>Adjust brightness, rotation and cycling.</span></figcaption></figure>
       </div>
-      <p class="section-note"><strong>Available on Android 10 and later. iPhone support is next, starting with essential gauge setup.</strong> <a href="/recovery/">Download the Android app ↗</a></p>
+      <p class="section-note"><strong>Available on Android 10 and later. iPhone support is next, starting with essential gauge setup.</strong> <a href="/recovery/">Download for Android ↗</a></p>
       <p class="section-note">Optional phone notifications require a gauge connection and notification permission. Advanced filters can hide expected faults from everyday views while preserving the diagnostic records.</p>
     </section>
 

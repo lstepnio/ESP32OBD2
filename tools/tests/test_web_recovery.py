@@ -252,15 +252,18 @@ class WebsiteMetadataTests(unittest.TestCase):
             html = (output / "index.html").read_text()
             prefix = manifest["assetPrefix"]
             self.assertIn('id="panel-compare"', html)
-            for layout in ("arc", "dual-arc"):
-                self.assertIn(f'data-lcd-src="{prefix}/gauge/{layout}.png"', html)
+            for layout in ("arc", "dual-arc", "startup"):
+                lcd = "lcd-startup" if layout == "startup" else layout
+                self.assertIn(f'data-lcd-src="{prefix}/gauge/{lcd}.png"', html)
                 self.assertIn(f'data-oled-src="{prefix}/gauge/oled-{layout}.png"', html)
             for name, dimension in (
                 ("arc", 240),
                 ("dual-arc", 240),
+                ("lcd-startup", 240),
                 ("oled-arc", 466),
                 ("oled-dual-arc", 466),
                 ("oled-numeric", 466),
+                ("oled-startup", 466),
             ):
                 with self.subTest(name=name):
                     png = (output / prefix.lstrip("/") / "gauge" / f"{name}.png").read_bytes()

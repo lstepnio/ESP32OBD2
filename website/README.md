@@ -213,7 +213,9 @@ The shop pairs a face-on and angled view for each board. The comparison uses
 the nominal panel diameters, 1.28″ and 1.75″, for relative scale. Both panels use
 matched example readings rendered by their own production UI profiles. The
 OLED entries in [capture provenance](../docs/assets/gauge/capture-provenance.json)
-record the three owner-approved 466 × 466 PNGs. Keep the private integration
+record the storefront PNGs, including the Balanced startup mark and connected
+reading. The [firmware policy](../docs/architecture/platforms-and-releases.md#platform-feature-flags)
+owns the differences between free LCD and licensed OLED builds. Keep the private integration
 sources, firmware, and raw captures outside this website.
 The front LCD bezel and OLED tilt are browser illustrations. Confirm photo reuse
 for commercial publication or replace the cutouts with original photographs.

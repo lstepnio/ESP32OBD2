@@ -54,9 +54,10 @@
         466,
         466
       ],
-      "renderer": "Production LVGL 9.2.2 using the native AMOLED presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
+      "renderer": "Production LVGL 9.2.2 using the OLED Balanced presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
       "sharedCoreCommit": "45813bd676e41b42d3a6d0f84148e228cb2d114a",
-      "use": "Owner-approved storefront render"
+      "fixture": "Coolant arc",
+      "use": "Storefront render"
     },
     {
       "file": "oled-dual-arc.png",
@@ -65,20 +66,43 @@
         466,
         466
       ],
-      "renderer": "Production LVGL 9.2.2 using the native AMOLED presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
+      "renderer": "Production LVGL 9.2.2 using the OLED Balanced presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
       "sharedCoreCommit": "45813bd676e41b42d3a6d0f84148e228cb2d114a",
-      "use": "Owner-approved storefront render"
+      "fixture": "Gear and RPM with arc",
+      "use": "Storefront render"
     },
     {
       "file": "oled-numeric.png",
-      "sha256": "efa82ebfb5a1bb778e45facfe384892331fb594dc5d1f7c9717133e753ec94f3",
+      "sha256": "5e89232053dee4ae637e4983cc389f6d85bc70770024647143c3fe1c0d9ae284",
       "nativeResolution": [
         466,
         466
       ],
-      "renderer": "Production LVGL 9.2.2 using the native AMOLED presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
+      "renderer": "Production LVGL 9.2.2 using the OLED Balanced presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
       "sharedCoreCommit": "45813bd676e41b42d3a6d0f84148e228cb2d114a",
-      "use": "Owner-approved storefront render"
+      "fixture": "Engine speed with muted Bluetooth and OBD-II icons",
+      "use": "Storefront render"
+    },
+    {
+      "file": "oled-startup.png",
+      "sha256": "5c8ee51ea59b009e718552957f5680c3d6ef2c4707e67885976d77a4e93a6552",
+      "nativeResolution": [
+        466,
+        466
+      ],
+      "renderer": "Production LVGL 9.2.2 using the OLED Balanced presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
+      "sharedCoreCommit": "45813bd676e41b42d3a6d0f84148e228cb2d114a",
+      "fixture": "OLED Balanced startup mark with no active links",
+      "use": "Storefront render"
+    },
+    {
+      "file": "lcd-startup.png",
+      "sha256": "05dca7df2b2c957cb59e723c8f7d92a43730608f78fece9dc6cd15e89855ed52",
+      "nativeResolution": [
+        240,
+        240
+      ],
+      "fixture": "Reference startup mark with no active links"
     }
   ],
   "inputProvenance": {

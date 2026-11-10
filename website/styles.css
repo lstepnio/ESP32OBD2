@@ -88,7 +88,7 @@
 .panel-oled{--panel:var(--oled-panel)}
 .panel-stand{display:grid;place-items:center;height:calc(var(--oled-panel) * 1.43)}
 .panel-pair .store-device{width:calc(var(--panel) / .64);margin:0}
-.panel-pair .store-device-screen{width:var(--panel)}
+.panel-pair .store-device .store-device-screen{width:var(--panel)}
 .panel-pair figcaption strong,.panel-pair figcaption span{display:block}
 .panel-pair figcaption strong{font-size:clamp(16px,2.3vw,24px)}
 .panel-pair figcaption span,.panel-scale-note{font-size:13px;color:var(--muted);margin-top:4px}
@@ -111,6 +111,8 @@
 .store-copy{display:flex;flex:1;flex-direction:column;padding:clamp(20px,4vw,38px)}
 .store-copy h3{font-size:clamp(24px,3vw,35px);font-weight:500;letter-spacing:-.04em;margin:7px 0 14px}
 .store-copy>p:not(.eyebrow){color:var(--muted);line-height:1.6;margin:0 0 20px}
+.store-highlights{margin:0 0 22px;padding-left:19px;color:var(--muted);line-height:1.55}
+.store-highlights li+li{margin-top:5px}
 .store-price{margin:0 0 22px;color:var(--muted)}
 .store-price p{margin:0;line-height:1.6}
 .store-price strong,.store-addon-price strong{color:var(--ink);font-size:24px;font-weight:600}
