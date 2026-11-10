@@ -20,6 +20,7 @@ from storefront import OFFERS, storefront_catalog
 API_VERSION = "2026-10-28.endive"
 TEST_LINK = re.compile(r"https://buy\.stripe\.com/test_[A-Za-z0-9]+")
 SESSION = re.compile(r"cs_test_[A-Za-z0-9]+")
+MAX_ADAPTER_QUANTITY = 99
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -69,9 +70,11 @@ def save_state(path, state):
         Path(temporary).unlink(missing_ok=True)
 
 
-def setup(stripe, path, prices, shipping_cents):
+def setup(stripe, path, prices, shipping_cents, adapter_cents):
     if not 0 < shipping_cents <= 10_000:
         raise ValueError("Supply a positive test shipping amount in USD cents")
+    if not 0 < adapter_cents < 100_000:
+        raise ValueError("Supply a positive test adapter price in USD cents")
     if test_object(stripe.request("/v1/tax/settings"))["status"] != "active":
         raise ValueError("Configure the Stripe Tax origin in this sandbox first")
     registrations = stripe.request("/v1/tax/registrations?status=active&limit=1")["data"]
@@ -81,9 +84,19 @@ def setup(stripe, path, prices, shipping_cents):
     state = (
         json.loads(path.read_text())
         if path.exists()
-        else {"setup": uuid4().hex, "shippingCents": shipping_cents, "prices": prices, "offers": {}}
+        else {
+            "setup": uuid4().hex,
+            "shippingCents": shipping_cents,
+            "adapterCents": adapter_cents,
+            "prices": prices,
+            "offers": {},
+        }
     )
-    if state["shippingCents"] != shipping_cents or state["prices"] != prices:
+    if (
+        state["shippingCents"] != shipping_cents
+        or state["prices"] != prices
+        or state.get("adapterCents") != adapter_cents
+    ):
         raise ValueError(
             "Use a fresh private workspace for a different test catalog or shipping rate"
         )
@@ -93,6 +106,21 @@ def setup(stripe, path, prices, shipping_cents):
         return test_object(
             stripe.request(path, data=data, idempotency=f"egauge-{state['setup']}-{role}")
         )
+
+    def create_price(role, name, amount):
+        product = create(
+            "/v1/products",
+            f"{role}-product",
+            {
+                "name": name,
+                "shippable": "true",
+                "tax_code": "txcd_99999999",
+                "default_price_data[currency]": "usd",
+                "default_price_data[unit_amount]": amount,
+                "default_price_data[tax_behavior]": "exclusive",
+            },
+        )
+        return product["default_price"]
 
     if "shippingRate" not in state:
         shipping = create(
@@ -109,27 +137,26 @@ def setup(stripe, path, prices, shipping_cents):
         )
         state["shippingRate"] = shipping["id"]
         save_state(path, state)
+
+    if "adapterPrice" not in state:
+        state["adapterPrice"] = create_price(
+            "adapter", "Vgate iCar Pro BLE OBD-II adapter", adapter_cents
+        )
+        save_state(path, state)
     for offer, (_, _, name) in OFFERS.items():
         item = state["offers"].setdefault(offer, {})
         if "price" not in item:
-            product = create(
-                "/v1/products",
-                f"{offer}-product",
-                {
-                    "name": name,
-                    "shippable": "true",
-                    "tax_code": "txcd_99999999",
-                    "default_price_data[currency]": "usd",
-                    "default_price_data[unit_amount]": prices[offer],
-                    "default_price_data[tax_behavior]": "exclusive",
-                },
-            )
-            item["price"] = product["default_price"]
+            item["price"] = create_price(offer, name, prices[offer])
             save_state(path, state)
         if "link" not in item:
             parameters = {
                 "line_items[0][price]": item["price"],
                 "line_items[0][quantity]": 1,
+                "optional_items[0][price]": state["adapterPrice"],
+                "optional_items[0][quantity]": 1,
+                "optional_items[0][adjustable_quantity][enabled]": "true",
+                "optional_items[0][adjustable_quantity][minimum]": 1,
+                "optional_items[0][adjustable_quantity][maximum]": MAX_ADAPTER_QUANTITY,
                 "automatic_tax[enabled]": "true",
                 "shipping_address_collection[allowed_countries][0]": "US",
                 "shipping_options[0][shipping_rate]": state["shippingRate"],
@@ -168,15 +195,26 @@ def verify_order(stripe, state, session_id):
     if not item or session.get("payment_link") != item["link"]:
         raise ValueError("Checkout does not match a configured eGauge Payment Link")
     line_items = stripe.request(path + "/line_items?limit=2")
-    lines = line_items["data"]
+    entries = line_items["data"]
+    lines = {line["price"]["id"]: line for line in entries}
+    if line_items["has_more"] or len(lines) != len(entries):
+        raise ValueError("Checkout line items are incomplete or duplicated")
+    gauge = lines.pop(item["price"], {})
     subtotal = state["prices"][offer]
-    if (
-        line_items["has_more"]
-        or len(lines) != 1
-        or (lines[0]["quantity"], lines[0]["price"]["id"], lines[0]["amount_subtotal"])
-        != (1, item["price"], subtotal)
-    ):
+    if gauge.get("quantity") != 1 or gauge.get("amount_subtotal") != subtotal:
         raise ValueError("Checkout line items or price do not match the offer")
+    adapter_quantity = 0
+    if lines:
+        adapter = lines.get(state.get("adapterPrice"), {})
+        adapter_quantity = adapter.get("quantity")
+        if (
+            len(lines) != 1
+            or type(adapter_quantity) is not int
+            or not 1 <= adapter_quantity <= MAX_ADAPTER_QUANTITY
+            or adapter.get("amount_subtotal") != adapter_quantity * state["adapterCents"]
+        ):
+            raise ValueError("Checkout adapter quantity or price does not match the offer")
+        subtotal += adapter["amount_subtotal"]
     shipping = session.get("shipping_cost") or {}
     ship_to = (session.get("collected_information") or {}).get("shipping_details") or {}
     tax = session.get("automatic_tax") or {}
@@ -207,7 +245,7 @@ def verify_order(stripe, state, session_id):
         or charge.get("disputed") is not False
     ):
         raise ValueError("Checkout payment is not captured and available for fulfillment")
-    return offer, subtotal, shipping_cents, tax_cents
+    return offer, subtotal, shipping_cents, tax_cents, adapter_quantity
 
 
 def main():
@@ -219,6 +257,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     configure = sub.add_parser("setup")
     configure.add_argument("--shipping-cents", type=int, required=True)
+    configure.add_argument("--adapter-cents", type=int, required=True, help="Test unit price")
     order = sub.add_parser("verify-order")
     order.add_argument("session", help="Checkout Session ID starting with cs_test_")
     args = parser.parse_args()
@@ -247,15 +286,18 @@ def main():
         if args.command == "setup":
             with (args.workspace / "setup.lock").open("a") as lock:
                 flock(lock, LOCK_EX)
-                state = setup(stripe, config, storefront_catalog(), args.shipping_cents)
+                state = setup(
+                    stripe, config, storefront_catalog(), args.shipping_cents, args.adapter_cents
+                )
             for name, item in state["offers"].items():
                 print(f"{name.upper()} test checkout: {item['url']}")
             return
-        offer, subtotal, shipping, tax = verify_order(
+        offer, subtotal, shipping, tax, adapters = verify_order(
             stripe, json.loads(config.read_text()), args.session
         )
         print(
-            f"Verified {offer.upper()} sandbox order (USD cents): item {subtotal}, shipping {shipping}, tax {tax}."
+            f"Verified {offer.upper()} sandbox order with {adapters} adapter(s) (USD cents): "
+            f"items {subtotal}, shipping {shipping}, tax {tax}."
         )
     except ValueError as error:
         parser.exit(1, f"{error}\n")
