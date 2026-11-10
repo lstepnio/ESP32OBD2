@@ -215,27 +215,33 @@ replace them with equivalent original product photographs.
 ### Checkout and fulfillment
 
 `storefront.json` owns both USD prices. The public build rejects any non-null
-checkout setting. Each product button opens the existing inquiry form. Stripe
-Payment Links are created separately in the sandbox and kept out of the webroot.
+checkout setting. Both gauges are sold without an adapter. Each product button
+opens the inquiry form, where buyers can include the number of adapters they need.
+Sandbox Stripe Payment Links offer the Vgate iCar Pro BLE as an optional line
+item with an adjustable quantity from 1 to 99. Buyers who bring their own leave
+it out. Test links stay outside the webroot.
 
 1. Open the Stripe sandbox. Configure its tax origin and an active **test** tax
    registration. Use an authorized test key stored in a private file or entered
    at the terminal prompt. The operator tool rejects live keys and sessions.
 2. From the repository root, create an owner-only workspace outside Git and
-   generate both test links. The example charges $9.95 for U.S. test shipping and
-   enables Stripe Tax on tax-exclusive item and shipping prices.
+   generate both test links. The example uses $9.95 for U.S. test shipping and
+   $29.95 per test adapter. These are rehearsal amounts. Stripe Tax calculates
+   tax on the separate items and shipping. Use a fresh workspace for new links
+   and retain the old workspace to verify earlier test orders.
 
    ```sh
-   install -d -m 700 /private/egauge-sandbox
-   python3 tools/stripe_storefront.py --workspace /private/egauge-sandbox \
-     setup --shipping-cents 995
+   install -d -m 700 /private/egauge-adapter-sandbox
+   python3 tools/stripe_storefront.py --workspace /private/egauge-adapter-sandbox \
+     setup --shipping-cents 995 --adapter-cents 2995
    ```
 
-3. Complete each hosted checkout with Stripe's test card and a U.S. test address.
-   Confirm tax and shipping are itemized before payment. Retrieve the Checkout
+3. Complete hosted checkouts with Stripe's test card and a U.S. test address.
+   Try each gauge alone and with two adapters. Confirm adapter quantity, tax and
+   shipping are itemized before payment. Retrieve the Checkout
    Session ID from the sandbox and run `verify-order cs_test_...` using the same
    workspace. Stripe remains the source of shipping addresses. The tool prints
-   amounts and verifies payment, product, shipping, tax and charge state.
+   amounts and adapter quantity after verifying the line items, shipping, tax and charge.
 4. Record each verified order once before shipping. For OLED, record the firmware
    major listed with the order and ship the matching preloaded build. Follow the
    [included software policy](../docs/architecture/platforms-and-releases.md#oled-hardware-purchase-and-included-software).
