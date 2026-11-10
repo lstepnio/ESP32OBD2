@@ -19,7 +19,7 @@ import subprocess
 import tempfile
 from urllib.parse import unquote, urlsplit
 
-from storefront import OFFERS, storefront_catalog
+from storefront import OFFERS, US_SHIPPING_CENTS, storefront_catalog
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -77,10 +77,11 @@ def gallery(content):
 
 def storefront_actions(prices):
     actions = {}
-    for key, (label, offer, _) in OFFERS.items():
-        dollars, cents = divmod(prices[key], 100)
+    for key, price in (prices | {"us_shipping": US_SHIPPING_CENTS}).items():
+        dollars, cents = divmod(price, 100)
         amount = f"${dollars:,}" if cents == 0 else f"${dollars:,}.{cents:02d}"
         actions[key.upper() + "_PRICE"] = f"{amount} USD"
+    for key, (label, offer, _) in OFFERS.items():
         actions[key.upper() + "_ORDER"] = (
             f'<a class="button primary" href="#custom-form" data-order-request="{offer}">'
             f'Request {label} <span aria-hidden="true">↗</span></a>'

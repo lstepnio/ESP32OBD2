@@ -57,7 +57,9 @@ class SandboxFixture:
             if path == "/v1/shipping_rates":
                 return result | {"id": "shr_ground"}
             if path == "/v1/products":
-                key = "oled" if "OLED" in data["name"] else "lcd"
+                key = {19900: "oled", 7900: "lcd", 5500: "vgate"}[
+                    data["default_price_data[unit_amount]"]
+                ]
                 return result | {"default_price": "price_" + key}
             if path == "/v1/payment_links":
                 key = data["metadata[egauge_offer]"]
@@ -82,7 +84,7 @@ class StripeStorefrontTest(unittest.TestCase):
         self.state = setup(self.stripe, self.root / "checkout.json", storefront_catalog(), 995)
 
     def test_setup_tax_shipping_and_idempotency(self):
-        self.assertEqual(len(self.stripe.writes), 5)
+        self.assertEqual(len(self.stripe.writes), 6)
         for path, params, idempotency in self.stripe.writes:
             self.assertTrue(idempotency.startswith("egauge-"))
             if path == "/v1/payment_links":
@@ -90,10 +92,12 @@ class StripeStorefrontTest(unittest.TestCase):
                 self.assertEqual(params["shipping_address_collection[allowed_countries][0]"], "US")
                 self.assertEqual(params["shipping_options[0][shipping_rate]"], "shr_ground")
                 self.assertEqual(params["payment_method_types[0]"], "card")
+                self.assertEqual(params["optional_items[0][price]"], "price_vgate")
+                self.assertEqual(params["optional_items[0][quantity]"], 1)
         self.assertEqual(
             setup(self.stripe, self.root / "checkout.json", storefront_catalog(), 995), self.state
         )
-        self.assertEqual(len(self.stripe.writes), 5)
+        self.assertEqual(len(self.stripe.writes), 6)
         with self.assertRaises(ValueError):
             setup(self.stripe, self.root / "checkout.json", storefront_catalog(), 1000)
         self.stripe.tax_registrations = []
@@ -103,16 +107,20 @@ class StripeStorefrontTest(unittest.TestCase):
             StripeSandbox("sk_live_Sensitive")
 
     def test_paid_test_order_requires_correct_checkout_tax_shipping_and_charge(self):
-        self.assertEqual(verify_order(self.stripe, self.state, SESSION), ("oled", 19900, 995, 1000))
+        self.assertEqual(
+            verify_order(self.stripe, self.state, SESSION), ("oled", 19900, 995, 1000, False)
+        )
         self.stripe.session.update(
             metadata={"egauge_offer": "lcd"},
             payment_link="plink_lcd",
-            amount_subtotal=7500,
-            amount_total=9495,
+            amount_subtotal=7900,
+            amount_total=9895,
         )
-        self.stripe.session["payment_intent"]["amount_received"] = 9495
-        self.stripe.items["data"][0].update(price={"id": "price_lcd"}, amount_subtotal=7500)
-        self.assertEqual(verify_order(self.stripe, self.state, SESSION), ("lcd", 7500, 995, 1000))
+        self.stripe.session["payment_intent"]["amount_received"] = 9895
+        self.stripe.items["data"][0].update(price={"id": "price_lcd"}, amount_subtotal=7900)
+        self.assertEqual(
+            verify_order(self.stripe, self.state, SESSION), ("lcd", 7900, 995, 1000, False)
+        )
         with self.assertRaises(ValueError):
             verify_order(self.stripe, self.state, "cs_live_Order")
         for patch in (
@@ -140,3 +148,23 @@ class StripeStorefrontTest(unittest.TestCase):
                 self.stripe.session["payment_intent"]["latest_charge"].update(patch)
                 verify_order(self.stripe, self.state, SESSION)
             self.stripe.session["payment_intent"] = intent
+
+    def test_optional_adapter_must_be_one_catalog_item_with_a_gauge(self):
+        adapter = {"quantity": 1, "price": {"id": "price_vgate"}, "amount_subtotal": 5500}
+        self.stripe.items["data"].insert(0, adapter)
+        self.stripe.session.update(amount_subtotal=25400, amount_total=27395)
+        self.stripe.session["payment_intent"]["amount_received"] = 27395
+        self.assertEqual(
+            verify_order(self.stripe, self.state, SESSION), ("oled", 25400, 995, 1000, True)
+        )
+        gauge = self.stripe.items["data"][1]
+        for lines in (
+            [adapter],
+            [gauge, adapter, adapter],
+            [gauge, adapter | {"quantity": 2}],
+            [gauge, adapter | {"amount_subtotal": 4900}],
+            [gauge, adapter | {"price": {"id": "price_other"}}],
+        ):
+            with self.subTest(lines=lines), self.assertRaisesRegex(ValueError, "line items"):
+                self.stripe.items["data"] = lines
+                verify_order(self.stripe, self.state, SESSION)

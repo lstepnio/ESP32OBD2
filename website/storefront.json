@@ -1,4 +1,5 @@
 {
-  "lcd": { "amountCents": 7500, "checkout": null },
-  "oled": { "amountCents": 19900, "checkout": null }
+  "lcd": { "amountCents": 7900, "checkout": null },
+  "oled": { "amountCents": 19900, "checkout": null },
+  "vgate": { "amountCents": 5500, "checkout": null }
 }
