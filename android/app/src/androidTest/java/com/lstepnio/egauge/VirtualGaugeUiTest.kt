@@ -18,7 +18,11 @@ class VirtualGaugeUiTest {
         compose.onNodeWithText("Reading", substring = false).performScrollTo().performClick()
         compose.onNodeWithText("Search readings").performTextReplacement("Ignition timing")
         compose.onNodeWithText("Ignition timing advance").performScrollTo().performClick()
-        compose.onNodeWithText("Ignition timing advance").assertExists()
+        // The picker closes before the off-main save publishes the updated editor.
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Search readings").fetchSemanticsNodes().isEmpty() &&
+                compose.onAllNodesWithText("Ignition timing advance").fetchSemanticsNodes().size == 1
+        }
         compose.onNodeWithText("Done").performClick()
         compose.onNodeWithText("Virtual gauge").assertIsDisplayed()
     }
