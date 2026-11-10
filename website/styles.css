@@ -107,7 +107,7 @@
 .store-device-lcd-front::after{content:"";position:absolute;bottom:9%;left:42%;width:16%;height:6%;border:1px solid #8d9496;border-radius:4px;background:#283137;z-index:-1}
 .store-device-lcd-front .store-device-screen{width:65%;left:50%;top:50%}
 .store-device-lcd-angle .store-device-screen{width:65%;left:51.2%;top:45.6%;transform:translate(-50%,-50%) rotate(-7deg) scaleY(.73)}
-.store-device-tilted{transform:rotateX(32deg) rotateY(-25deg) rotateZ(9deg);filter:drop-shadow(4px 7px 0 #202723) drop-shadow(4px 9px 7px #15211450)}
+.store-device-tilted{transform:rotateX(27deg) rotateY(-19deg) rotateZ(4deg);filter:drop-shadow(1px 2px 0 #252c27) drop-shadow(0 9px 8px #15211442)}
 .store-copy{display:flex;flex:1;flex-direction:column;padding:clamp(20px,4vw,38px)}
 .store-copy h3{font-size:clamp(24px,3vw,35px);font-weight:500;letter-spacing:-.04em;margin:7px 0 14px}
 .store-copy>p:not(.eyebrow){color:var(--muted);line-height:1.6;margin:0 0 20px}
