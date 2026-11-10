@@ -205,7 +205,8 @@ object ConfigurationProjector {
         profileId: String,
         baseRevision: Long,
         adapter: AdapterBinding? = null,
-        schemaVersion: Int = 1
+        schemaVersion: Int = 1,
+        savedDayBrightness: Int? = null
     ): Pair<ConfigurationProjection, ByteArray> {
         val issues = transferBlockers(draft)
         require(issues.isEmpty()) { issues.joinToString(". ") }
@@ -228,6 +229,10 @@ object ConfigurationProjector {
         json.remove("actions")
         if (draft.actions.isNotEmpty()) json.put("actions", ProfileActions.json(draft.actions))
         json.put("schemaVersion", schemaVersion)
+        if (schemaVersion == 2) {
+            val dayBrightness = savedDayBrightness ?: DEFAULT_DAY_BRIGHTNESS.takeIf { baseRevision == 0L }
+            if (dayBrightness != null) json.put("brightness", dayBrightness)
+        }
         val source = json.getJSONArray("sources").getJSONObject(0)
         if (draft.source == "TCM") {
             require(schemaVersion == 2 && adapter != null) {
@@ -325,7 +330,8 @@ object ConfigurationProjector {
         baseRevision: Long,
         useChildAdapter: Boolean,
         schemaVersion: Int = 2,
-        actions: List<PageAction>? = null
+        actions: List<PageAction>? = null,
+        savedDayBrightness: Int? = null
     ): Pair<ConfigurationProjection, ByteArray> {
         val original = vehicle.dashboardDraft()
         val draft = original.copy(source = "ECM", actions = actions ?: original.actions)
@@ -336,7 +342,8 @@ object ConfigurationProjector {
                 vehicle.id,
                 baseRevision,
                 vehicle.primaryAdapter,
-                schemaVersion
+                schemaVersion,
+                savedDayBrightness
             )
         if (!useChildAdapter) return result
         vehicle.combinedDraft() // Distinct bindings, never two workers claiming the same radio.

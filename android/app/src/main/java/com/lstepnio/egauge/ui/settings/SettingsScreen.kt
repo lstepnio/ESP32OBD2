@@ -13,6 +13,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import com.lstepnio.egauge.DEFAULT_DAY_BRIGHTNESS
 import com.lstepnio.egauge.MeasurementSystem
 import com.lstepnio.egauge.SunsetLocation
 import com.lstepnio.egauge.core.designsystem.*
@@ -281,7 +282,7 @@ fun SettingsScreen(
                     if (state.orientationProtocolSupported) {
                         onSaveOrientation(rotation == -1, if (rotation == -1) state.rotation ?: 0 else rotation)
                     } else if (state.displaySettingsVersion >= 1) {
-                        onSaveDisplay(rotation, state.brightness ?: 80)
+                        onSaveDisplay(rotation, state.brightness ?: DEFAULT_DAY_BRIGHTNESS)
                     } else {
                         onRotate(rotation)
                     }
@@ -295,7 +296,7 @@ fun SettingsScreen(
     }
     if (sunsetOpen) {
         state.sunsetBrightness?.let { current ->
-            SunsetBrightnessDialog(current, state.brightness ?: 80, { sunsetOpen = false }) { automatic, level, location ->
+            SunsetBrightnessDialog(current, state.brightness ?: DEFAULT_DAY_BRIGHTNESS, { sunsetOpen = false }) { automatic, level, location ->
                 onSaveSunset(automatic, level, location)
                 sunsetOpen = false
             }
@@ -303,7 +304,7 @@ fun SettingsScreen(
     }
     if (brightnessOpen) {
         var brightness by rememberSaveable(state.selectedGaugeId) {
-            mutableIntStateOf(state.brightness ?: 80)
+            mutableIntStateOf(state.brightness ?: DEFAULT_DAY_BRIGHTNESS)
         }
         AlertDialog(
             onDismissRequest = {

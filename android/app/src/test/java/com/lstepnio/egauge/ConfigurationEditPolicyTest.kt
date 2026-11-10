@@ -1,6 +1,7 @@
 package com.lstepnio.egauge
 
 import java.io.File
+import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.experimental.categories.Category
@@ -21,6 +22,19 @@ class ConfigurationEditPolicyTest {
             profile.dashboardDraft().alerts.count { it.enabled },
             bytes.toString(Charsets.UTF_8)
         )
+    }
+
+    @Test fun dayBrightnessDefaultsAndLegacyCompatibility() {
+        val fresh = ConfigurationProjector.projectVehicle(template, vehicle, 0, false).second
+        assertEquals(90, JSONObject(fresh.toString(Charsets.UTF_8)).getInt("brightness"))
+
+        val legacy = ConfigurationProjector.project(template, vehicle.draft, vehicle.id, 0).second
+        assertEquals(80, JSONObject(legacy.toString(Charsets.UTF_8)).getInt("brightness"))
+
+        val saved = ConfigurationProjector.projectVehicle(template, vehicle, 0, false, savedDayBrightness = 80).second
+        assertEquals(80, JSONObject(saved.toString(Charsets.UTF_8)).getInt("brightness"))
+        val firstRunning = document(vehicle).copy(revision = 1, length = saved.size, json = saved.toString(Charsets.UTF_8))
+        assertTrue(ConfigurationEditPolicy.matchesRunning(firstRunning, vehicle, false, vehicle.draft.actions))
     }
 
     @Test fun cleanSetupAndPhoneOnlyDisabledEditsCanUseQuickSave() {

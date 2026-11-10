@@ -22,7 +22,8 @@ object ConfigurationEditPolicy {
             running.getLong("baseRevision"),
             bothAdapters,
             running.getInt("schemaVersion"),
-            actions
+            actions,
+            savedDayBrightness = running.getInt("brightness")
         ).second
         normalized(running) == normalized(JSONObject(projected.toString(Charsets.UTF_8)))
     }.getOrDefault(false)
