@@ -312,7 +312,7 @@ esp_err_t bsp_display_on_off(bool on)
     if (on)
     {
         ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(lcd_panel_handle, true));
-        ESP_ERROR_CHECK(bsp_display_backlight_set_percent(BSP_LCD_BACKLIGHT_DEFAULT_PERCENT));
+        /* The display owner sets the configured level before enabling the panel. */
     }
     else
     {

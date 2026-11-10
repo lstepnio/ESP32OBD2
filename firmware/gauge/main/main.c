@@ -1351,6 +1351,19 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
     }
 }
 
+static uint8_t applied_brightness;
+
+static esp_err_t apply_brightness(uint8_t day_brightness)
+{
+    uint8_t level = sunset_runtime_level(day_brightness);
+    if (level == applied_brightness)
+        return ESP_OK;
+    esp_err_t err = gauge_display_set_brightness(level);
+    if (err == ESP_OK)
+        applied_brightness = level;
+    return err;
+}
+
 static void init_config(void)
 {
     ESP_LOGI(TAG, "Initializing configuration...");
@@ -1368,8 +1381,8 @@ static void init_config(void)
         ui_boot_logo_early();
         lvgl_port_unlock();
     }
+    ESP_ERROR_CHECK(apply_brightness(display_settings_snapshot().brightness));
     gauge_display_set_power(true);
-    ESP_ERROR_CHECK(gauge_display_set_brightness(sunset_runtime_level(display_settings_snapshot().brightness)));
     ESP_ERROR_CHECK(config_store_init());
     ESP_ERROR_CHECK(config_trial_init());
     ESP_ERROR_CHECK(ota_transfer_init());
@@ -1509,7 +1522,7 @@ void app_main(void)
         }
         lvgl_port_unlock();
     }
-    ESP_ERROR_CHECK(gauge_display_set_brightness(sunset_runtime_level(display_settings_snapshot().brightness)));
+    ESP_ERROR_CHECK(apply_brightness(display_settings_snapshot().brightness));
     orientation_runtime_init((uint8_t)g_config.disp_rot);
 
 #if CONFIG_EGAUGE_DISPLAY_CALIBRATION
@@ -1643,7 +1656,7 @@ void app_main(void)
                 apply_display_rotation(g_config.disp_rot);
                 lvgl_port_unlock();
             }
-            ESP_ERROR_CHECK(gauge_display_set_brightness(sunset_runtime_level(saved.brightness)));
+            ESP_ERROR_CHECK(apply_brightness(saved.brightness));
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%%", (unsigned)saved.rotation * 90,
                      (unsigned)saved.brightness);
         }
@@ -1662,7 +1675,7 @@ void app_main(void)
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
             }
-            ESP_ERROR_CHECK(gauge_display_set_brightness(sunset_runtime_level(saved.brightness)));
+            ESP_ERROR_CHECK(apply_brightness(saved.brightness));
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u", (unsigned)saved.rotation * 90,
                      (unsigned)saved.brightness, (unsigned)saved.units);
         }
@@ -1689,7 +1702,7 @@ void app_main(void)
                 ui_set_units(ui, saved.units == 1);
                 lvgl_port_unlock();
             }
-            ESP_ERROR_CHECK(gauge_display_set_brightness(sunset_runtime_level(saved.brightness)));
+            ESP_ERROR_CHECK(apply_brightness(saved.brightness));
             atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
             ESP_LOGI(TAG, "Display settings saved: rotation=%u brightness=%u%% units=%u cycle=%us",
                      (unsigned)saved.rotation * 90, (unsigned)saved.brightness, (unsigned)saved.units,
@@ -1746,7 +1759,6 @@ void app_main(void)
         uint64_t               display_now_ms = (uint64_t)(esp_timer_get_time() / 1000);
         bool            night_tap = board->night_button_pressed &&
                                     sunset_button_release(&night_button, board->night_button_pressed(), display_now_ms);
-        static uint8_t  night_level;
         static uint64_t next_brightness_try;
         if (!maintenance)
         {
@@ -1754,10 +1766,11 @@ void app_main(void)
                 sunset_runtime_toggle();
             sunset_runtime_poll(display_now_ms);
             uint8_t wanted_level = sunset_runtime_level(cycle.brightness);
-            if (wanted_level != night_level && display_now_ms >= next_brightness_try)
+            if (wanted_level != applied_brightness && display_now_ms >= next_brightness_try)
             {
-                if (gauge_display_set_brightness(wanted_level) == ESP_OK)
-                    night_level = wanted_level;
+                esp_err_t err = apply_brightness(cycle.brightness);
+                if (err != ESP_OK)
+                    ESP_LOGW(TAG, "Brightness apply deferred: %s", esp_err_to_name(err));
                 next_brightness_try = display_now_ms + 1000;
             }
         }

@@ -62,6 +62,7 @@ internal fun SunsetBrightnessDialog(
                     { level = it.roundToInt() },
                     enabled = dayBrightness > 5,
                     valueRange = 5f..maxOf(dayBrightness.toFloat(), 6f),
+                    colors = SliderDefaults.colors(inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.semantics {
                         contentDescription = "Night brightness level"
                         stateDescription = "$level percent"
