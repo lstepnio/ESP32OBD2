@@ -89,9 +89,9 @@ wake. Quiet recovery continues behind the logo.
 
 ## Connection footer
 
-`EGAUGE_FEATURE_CONNECTION_FOOTER` is off by default. It is an opt-in OLED
-experiment, independent of feature licensing, and uses the shared presentation
-profile. Wi-Fi (silver) means a station has joined the active maintenance
+The reference LCD build enables `EGAUGE_FEATURE_CONNECTION_FOOTER`. The OLED
+integration opts in to the same footer. The build flag is independent of
+feature licensing. Wi-Fi (silver) means a station has joined the active maintenance
 network. Blue marks the phone BLE link. The green and violet plug icons indicate
 ready OBD adapter sessions with one and two pins. A ready link can still have
 unavailable readings. The muted icons appear only while their connections are
@@ -114,10 +114,9 @@ bounded footer invalidation. No persistent image buffer or transport task is
 added. The first boot-logo frame can render before connection state is known.
 
 Run the production LVGL host test with `--connection-review` to capture the
-24-state matrix and exercise clearance changes under partial refresh. Verify
-on each physical panel at 10% Night brightness before
-enabling the flag in a field build. Native frames establish geometry and color
-selection, while physical panels establish legibility and bezel clearance.
+24-state matrix and exercise clearance changes under partial refresh. Check
+each physical panel at 10% Night brightness to verify legibility and bezel
+clearance. Native frames establish geometry and color selection.
 
 ## Sunset brightness
 

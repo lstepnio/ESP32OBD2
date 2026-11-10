@@ -24,7 +24,7 @@ if(protocol_board_name_length GREATER 29 OR NOT EGAUGE_PROTOCOL_BOARD_NAME MATCH
     message(FATAL_ERROR "EGAUGE_PROTOCOL_BOARD_NAME must be a 1-29 byte ASCII board label")
 endif()
 
-# Public firmware defaults. Private product projects opt in to each feature.
+# Shared feature defaults. Board projects can opt in independently.
 option(EGAUGE_FEATURE_DUAL_ADAPTER "Enable a separate child OBD2 adapter" OFF)
 option(EGAUGE_FEATURE_SMART_CYCLE "Enable reading-driven automatic page cycling" OFF)
 option(EGAUGE_FEATURE_VEHICLE_ACTIONS "Enable vehicle action pages and Start" OFF)

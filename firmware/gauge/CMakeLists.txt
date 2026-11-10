@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 set(IDF_COMPONENT_MANAGER=1)
 
+# Reference LCD presentation. Other board projects choose their own default.
+option(EGAUGE_FEATURE_CONNECTION_FOOTER "Enable subtle display link status" ON)
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(esp32-idf-project)
 
