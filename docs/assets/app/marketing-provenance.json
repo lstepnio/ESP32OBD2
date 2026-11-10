@@ -181,7 +181,7 @@
   },
   "equivalenceReview": {
     "reviewedOn": "2026-11-09",
-    "reason": "PR #142 adds direct-adapter routes outside the marketing capture shell. The harness calls HomeScreen directly without the new optional Virtual gauge callback, and calls CarScreen, SettingsScreen and ActionPagesSheet directly. The captured Arc uses synthetic 2,840 RPM, a positive arc fraction with arcAvailable defaulting to true, and live defaulting to false. The existing preview label, geometry, fill and accessibility text therefore remain the same. SetupScreen and DashboardEditorScreen are outside these captures. These remain representative synthetic hardware-gauge views; the virtual gauge capture and storefront claim await bench and parked evidence.",
+    "reason": "PR #142 adds direct-adapter navigation outside the marketing capture shell. PR #143 changes that route and adds release-only Play Billing. The debug capture harness calls HomeScreen without the optional Virtual Gauge callback and calls CarScreen, SettingsScreen and ActionPagesSheet directly. Its fixture has a positive Arc fraction, arcAvailable true and live false. The new live-only label suppression leaves this fixture unchanged. SetupScreen, DashboardEditorScreen and the paid route are outside these captures. The screenshots continue to represent the hardware-gauge companion with example data.",
     "evidence": [
       "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
       "android/app/src/debug/java/com/lstepnio/egauge/ui/preview/ScreenFixtures.kt",
@@ -190,10 +190,10 @@
       "docs/architecture/virtual-gauge.md"
     ],
     "sha256": {
-      "android/app/build.gradle.kts": "c235466878e4228fc6c9e12b629d15681779260a98894439a69e323dbf7c0c9b",
+      "android/app/build.gradle.kts": "57a10386819fcdd02a5cbabdd176015dae4965ddc6fb7cabae0399d9204ed4eb",
       "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt": "70b88e21abfc4158b43a86508ee975d675a6ebf25382d68162f291be224a3bcc",
       "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt": "529457e8a24468b2276362bf3a47235fdc4d978ed3efae726148b30b355e8287",
-      "android/app/src/main/java/com/lstepnio/egauge/ui/CompanionApp.kt": "46f333df59407fa8a22015292bfe0c57983a6dad9e08abb21a171c43a291bc1f",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/CompanionApp.kt": "47a195c0f9eab68840840b7d505732c0f166f0dceeebcd800eeda668136d642c",
       "android/app/src/main/java/com/lstepnio/egauge/ui/ConnectionStatusWidget.kt": "5dff48527e861a2bd1903c2bbc8391445bf403dbe9017fad48fd54d18aee03dc",
       "android/app/src/main/java/com/lstepnio/egauge/ui/Layouts.kt": "4cf790eca642c7aee94f570d8c62062c807d1420e9ae2f495046e033fd4f429e",
       "android/app/src/main/java/com/lstepnio/egauge/ui/car/ActionPagesSheet.kt": "71f998d0bbe003fd914a7591a1b8cbb43a2330ec08c9a7ff5f222ee0f57eba8a",
@@ -242,7 +242,7 @@
       "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/GeneratedTokens.kt": "cdb4e2e4a77cc9fa2f57ea58008e769588dc7ab17aa0d9c4d2584f50a499929a",
       "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Icons.kt": "fc953c0dcc502b65c64c5381482ab8fbeabe2286a918fdbee3649d799cbc2b98",
       "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Models.kt": "b0d10c43009b78daecb38dda8faa397e17925ffacdb5b894dfb0928527e949e5",
-      "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/RoundPreview.kt": "d06c5e072f9cc4862a6dfdbf593dc497bb91ac4e747b5ca4f641f59b148d8d4c",
+      "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/RoundPreview.kt": "107fed6646dfd55e2a47599b5845df5403d99e69c86af1c9d783b091acc9479c",
       "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Theme.kt": "622c975b915ea4bb7fe6cdcdc7105478e48a5117ed041e4ff56909cc1d9d83d0",
       "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/TrendCurve.kt": "ccb1ae90f00c54da8a407a2fe4b5985eaba751222dabc67364ce90bf160ae562"
     }
