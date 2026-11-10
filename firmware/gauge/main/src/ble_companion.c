@@ -1054,9 +1054,9 @@ static const struct ble_gatt_svc_def services[] = {
     {0},
 };
 
-static uint8_t  own_addr_type;
-static bool     database_announced;
-static uint16_t phone_conn = BLE_HS_CONN_HANDLE_NONE;
+static uint8_t     own_addr_type;
+static bool        database_announced;
+static atomic_uint phone_conn = BLE_HS_CONN_HANDLE_NONE;
 
 static int phone_gap_event(struct ble_gap_event *event, void *arg);
 
@@ -1234,6 +1234,11 @@ bool ble_companion_ready(void)
 bool ble_companion_has_owner(void)
 {
     return atomic_load(&g_has_owner);
+}
+
+bool ble_companion_phone_connected(void)
+{
+    return atomic_load(&phone_conn) != BLE_HS_CONN_HANDLE_NONE;
 }
 
 void ble_companion_set_control(ui_t *ui, QueueHandle_t command_queue, uint8_t selected_index, bool custom)

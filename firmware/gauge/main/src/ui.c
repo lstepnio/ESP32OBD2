@@ -15,6 +15,7 @@
 #include <stdatomic.h>
 #include "transmission_gear.h"
 #include "display_idle_policy.h"
+#include "platform_features.h"
 #include "reading_presentation.h"
 #include "sdkconfig.h"
 #include "esp_timer.h"
@@ -175,6 +176,11 @@ struct _ui_t
     atomic_uint        showcase_generation, showcase_sequence, showcase_packed, showcase_started;
     ui_page_t          showcase_page;
     unsigned           page_index, page_count;
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+    atomic_uint connection_links;
+    unsigned    rendered_connections;
+    uint8_t     connection_footer_y;
+#endif
 #if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
     struct
     {
@@ -471,31 +477,34 @@ void ui_boot_logo_early(void)
     lv_obj_set_style_bg_opa(boot_logo, LV_OPA_COVER, 0);
     lv_obj_clear_flag(boot_logo, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_add_event_cb(boot_logo, boot_logo_touch, LV_EVENT_PRESSED, NULL);
-    lv_obj_t *arc = lv_arc_create(boot_logo);
-    lv_obj_set_size(arc, px(168), px(168));
-    lv_obj_set_pos(arc, gx(36), gy(36));
+    const gauge_boot_logo_t *mark     = gauge_presentation_boot_logo();
+    int                      arc_size = px(mark->diameter);
+    lv_obj_t                *arc      = lv_arc_create(boot_logo);
+    lv_obj_set_size(arc, arc_size, arc_size);
+    lv_obj_set_pos(arc, gx(120) - arc_size / 2, gy(120) - arc_size / 2);
     lv_arc_set_bg_angles(arc, 135, 405);
     lv_arc_set_range(arc, 0, 100);
     lv_arc_set_value(arc, 100);
     lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
     lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_arc_width(arc, px(12), LV_PART_MAIN);
-    lv_obj_set_style_arc_width(arc, px(12), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(arc, px(mark->ring_width), LV_PART_MAIN);
+    lv_obj_set_style_arc_width(arc, px(mark->ring_width), LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(arc, lv_color_hex(color_boot_logo), LV_PART_MAIN);
     lv_obj_set_style_arc_color(arc, lv_color_hex(color_boot_logo), LV_PART_INDICATOR);
     lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
     boot_needle[0]   = (lv_point_precise_t){gx(120), gy(120)};
-    boot_needle[1]   = (lv_point_precise_t){gx(167), gy(73)};
+    boot_needle[1]   = (lv_point_precise_t){gx(120 + mark->needle_offset), gy(120 - mark->needle_offset)};
     lv_obj_t *needle = lv_line_create(boot_logo);
     lv_line_set_points(needle, boot_needle, 2);
-    lv_obj_set_style_line_width(needle, px(12), 0);
+    lv_obj_set_style_line_width(needle, px(mark->needle_width), 0);
     lv_obj_set_style_line_rounded(needle, true, 0);
     lv_obj_set_style_line_color(needle, lv_color_hex(color_boot_logo), 0);
     lv_obj_clear_flag(needle, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_t *dot = lv_obj_create(boot_logo);
     lv_obj_remove_style_all(dot);
-    lv_obj_set_size(dot, px(22), px(22));
-    lv_obj_set_pos(dot, gx(109), gy(109));
+    int pivot_size = px(mark->pivot_diameter);
+    lv_obj_set_size(dot, pivot_size, pivot_size);
+    lv_obj_set_pos(dot, gx(120) - pivot_size / 2, gy(120) - pivot_size / 2);
     lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(dot, lv_color_hex(color_boot_logo), 0);
     lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
@@ -1031,7 +1040,7 @@ static void format_reading(char out[32], const ui_metric_t *metric, bool availab
         display_units_format(out, 32, value, metric->unit, imperial);
 }
 static ui_alert_t       visible_alert(ui_t *ui);
-static ui_diagnostics_t visible_diagnostics(ui_t *ui);
+static ui_diagnostics_t visible_diagnostics(const ui_t *ui);
 /* Geometry remains in the design grid until the final surface transform. */
 static void update_trend(ui_t *ui)
 {
@@ -1453,7 +1462,7 @@ static ui_alert_t visible_alert(ui_t *ui)
     snprintf(alert.unit, sizeof(alert.unit), "%s", unit);
     return alert;
 }
-static ui_diagnostics_t visible_diagnostics(ui_t *ui)
+static ui_diagnostics_t visible_diagnostics(const ui_t *ui)
 {
     if (!atomic_load(&ui->showcase_active))
         return ui->rendered_diagnostics;
@@ -1611,6 +1620,170 @@ static void acknowledge_alert(lv_event_t *event)
     memcpy(command + 8, &chosen.boot, 4);
     alert_runtime_command(command, sizeof(command));
 }
+
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+enum
+{
+    FOOTER_SINGLE_Y     = 219,
+    FOOTER_STACKED_Y    = 192,
+    FOOTER_READING_GAP  = 10,
+    FOOTER_DOT_GAP      = 8,
+    FOOTER_ACTIVE_SHIFT = 4
+};
+
+/* Each glyph is a set of short line segments in the 240 px design grid. */
+typedef struct
+{
+    int8_t x1, y1, x2, y2;
+} connection_stroke_t;
+
+static const connection_stroke_t wifi_strokes[] = {
+    {-5, -2, -3, -4}, {-3, -4, 3, -4}, {3, -4, 5, -2}, {-3, 0, -1, -2}, {-1, -2, 1, -2}, {1, -2, 3, 0}, {0, 2, 0, 3},
+};
+static const connection_stroke_t ble_strokes[] = {
+    {0, -5, 0, 5}, {0, -5, 3, -2}, {3, -2, -3, 3}, {0, 5, 3, 2}, {3, 2, -3, -3},
+};
+static const connection_stroke_t obd_strokes[] = {
+    {-5, -3, 5, -3},
+    {5, -3, 4, 3},
+    {4, 3, -4, 3},
+    {-4, 3, -5, -3},
+};
+
+static lv_area_t connection_footer_area(unsigned y)
+{
+    return (lv_area_t){gx(91), gy(y - 6), gx(149), gy(y + 6)};
+}
+
+static bool footer_overlaps(lv_obj_t *obj, const lv_area_t *area, int gap)
+{
+    if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN))
+        return false;
+    lv_area_t occupied;
+    lv_obj_get_coords(obj, &occupied);
+    if (lv_obj_check_type(obj, &lv_label_class))
+    {
+        /* The text box includes line height even when the unit string is empty. */
+        ink_t glyphs;
+        if (ink(lv_label_get_text(obj), lv_obj_get_style_text_font(obj, 0), &glyphs))
+        {
+            if (glyphs.right == glyphs.left || glyphs.bottom == glyphs.top)
+                return false;
+            int x    = occupied.x1 + lv_obj_get_style_pad_left(obj, 0);
+            int y    = occupied.y1 + lv_obj_get_style_pad_top(obj, 0);
+            occupied = (lv_area_t){x + glyphs.left, y + glyphs.top, x + glyphs.right - 1, y + glyphs.bottom - 1};
+        }
+    }
+    else if (lv_obj_check_type(obj, &lv_canvas_class))
+    {
+        /* The trend canvas is scaled from its top-left corner. */
+        uint32_t scale = lv_image_get_scale(obj);
+        occupied.x2    = occupied.x1 + (lv_area_get_width(&occupied) * scale + LV_SCALE_NONE - 1) / LV_SCALE_NONE - 1;
+        occupied.y2    = occupied.y1 + (lv_area_get_height(&occupied) * scale + LV_SCALE_NONE - 1) / LV_SCALE_NONE - 1;
+    }
+    return occupied.x1 - gap <= area->x2 && occupied.x2 + gap >= area->x1 && occupied.y1 - gap <= area->y2 &&
+           occupied.y2 + gap >= area->y1;
+}
+
+static bool footer_clear(const ui_t *ui, const lv_area_t *area)
+{
+    lv_obj_t *protected[] = {ui->widgets.info_lbl,      ui->widgets.value_lbl,    ui->widgets.unit_lbl,
+                             ui->widgets.dual_info[0],  ui->widgets.dual_info[1], ui->widgets.dual_value[0],
+                             ui->widgets.dual_value[1], ui->widgets.dual_unit[0], ui->widgets.dual_unit[1],
+                             ui->widgets.bar,           ui->widgets.trend};
+    for (unsigned i = 0; i < sizeof(protected) / sizeof(protected[0]); ++i)
+        if (footer_overlaps(protected[i], area, px(FOOTER_READING_GAP)))
+            return false;
+    for (unsigned i = 0; i < sizeof(ui->widgets.page_dots) / sizeof(ui->widgets.page_dots[0]); ++i)
+        if (footer_overlaps(ui->widgets.page_dots[i], area, px(FOOTER_DOT_GAP)))
+            return false;
+    return true;
+}
+
+static void connection_stroke(lv_layer_t *layer, lv_draw_line_dsc_t *line, int x, int y, connection_stroke_t stroke)
+{
+    line->p1 = (lv_point_precise_t){gx(x + stroke.x1), gy(y + stroke.y1)};
+    line->p2 = (lv_point_precise_t){gx(x + stroke.x2), gy(y + stroke.y2)};
+    lv_draw_line(layer, line);
+}
+
+static bool connection_footer_allowed(const ui_t *ui)
+{
+    ui_diagnostics_t diagnostics = visible_diagnostics(ui);
+    return !ui->pairing_visible && !ui->calibration_mode && !ui->command_menu_visible && !ui->rendered_alert.severity &&
+           !ui->rendered_alert.attention && !(diagnostics.valid && (diagnostics.mil_on || diagnostics.count)) &&
+           !ui->action.progress && !ui->action_enter_pending && !ui->simulated && !atomic_load(&ui->showcase_active) &&
+           (ui->waiting_visible || ui->page_count <= 8);
+}
+
+static void draw_connection_footer(lv_event_t *event)
+{
+    const ui_t    *ui = lv_event_get_user_data(event);
+    const unsigned y  = ui->connection_footer_y;
+    if (!y || !connection_footer_allowed(ui))
+        return;
+    lv_area_t area = connection_footer_area(y);
+    if (!ui->waiting_visible && !footer_clear(ui, &area))
+        return;
+
+    static const uint32_t live_color[] = {0xacbebd, 0x67aee8, 0x73c593, 0xb6a0df};
+    static const int      center[]     = {97, 112, 128, 143};
+    lv_draw_line_dsc_t    line;
+    lv_draw_line_dsc_init(&line);
+    line.width        = px(1);
+    lv_layer_t *layer = lv_event_get_layer(event);
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        if (!(ui->rendered_connections & (1U << i)))
+            continue;
+        line.color =
+            lv_color_hex(ui->rendered_connections & (1U << (i + FOOTER_ACTIVE_SHIFT)) ? live_color[i] : 0x52646c);
+        const connection_stroke_t *strokes = i == 0 ? wifi_strokes : i == 1 ? ble_strokes : obd_strokes;
+        unsigned                   count   = i == 0   ? sizeof(wifi_strokes) / sizeof(wifi_strokes[0])
+                                             : i == 1 ? sizeof(ble_strokes) / sizeof(ble_strokes[0])
+                                                      : sizeof(obd_strokes) / sizeof(obd_strokes[0]);
+        for (unsigned j = 0; j < count; ++j)
+            connection_stroke(layer, &line, center[i], y, strokes[j]);
+        if (i == 2)
+            connection_stroke(layer, &line, center[i], y, (connection_stroke_t){0, 0, 0, 1});
+        if (i == 3)
+        {
+            connection_stroke(layer, &line, center[i], y, (connection_stroke_t){-2, 0, -2, 1});
+            connection_stroke(layer, &line, center[i], y, (connection_stroke_t){2, 0, 2, 1});
+        }
+    }
+}
+
+static void render_connection_footer(ui_t *ui)
+{
+    unsigned links = atomic_load(&ui->connection_links);
+    unsigned y     = 0;
+    if (links && connection_footer_allowed(ui))
+    {
+        y = ui->waiting_visible || ui->page_count <= 1 ? FOOTER_SINGLE_Y : FOOTER_STACKED_Y;
+        /* Bluetooth is taller than the outer Wi-Fi and plug glyphs. Measure
+         * those footprints separately against the curved bezel. */
+        if (y && (!gauge_presentation_fits(gx(91), gy(y - 5), gx(149), gy(y + 5)) ||
+                  !gauge_presentation_fits(gx(107), gy(y - 6), gx(117), gy(y + 6))))
+            y = 0;
+    }
+    if (y == ui->connection_footer_y && (!y || links == ui->rendered_connections))
+        return;
+    lv_obj_t *screen = lv_screen_active();
+    if (ui->connection_footer_y)
+    {
+        lv_area_t old = connection_footer_area(ui->connection_footer_y);
+        lv_obj_invalidate_area(screen, &old);
+    }
+    ui->connection_footer_y  = y;
+    ui->rendered_connections = links;
+    if (y)
+    {
+        lv_area_t area = connection_footer_area(y);
+        lv_obj_invalidate_area(screen, &area);
+    }
+}
+#endif
 
 static void ui_task(lv_timer_t *timer)
 {
@@ -1835,6 +2008,9 @@ static void ui_task(lv_timer_t *timer)
                 lv_obj_add_flag(boot_logo, LV_OBJ_FLAG_HIDDEN);
         }
     }
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+    render_connection_footer(ui);
+#endif
     atomic_store(&ui->cycle_pause, ui->pairing_visible || ui->rendered_alert.attention    ? PAGE_CYCLE_ATTENTION
                                    : ui->command_menu_visible                             ? PAGE_CYCLE_ACTIONS
                                    : atomic_load(&ui->showcase_active)                    ? PAGE_CYCLE_SHOWCASE
@@ -1999,6 +2175,9 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
 
     // add handlers
     lv_obj_add_event_cb(lv_screen_active(), ui_touch_callback, LV_EVENT_ALL, ui);
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+    lv_obj_add_event_cb(lv_screen_active(), draw_connection_footer, LV_EVENT_DRAW_POST, ui);
+#endif
 #if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
     lv_display_add_event_cb(lv_display_get_default(), render_finished, LV_EVENT_REFR_READY, ui);
 #endif
@@ -2409,6 +2588,15 @@ void ui_set_vehicle_diagnostics(ui_t *ui, const diagnostics_snapshot_t *snapshot
     snprintf(d.first_code, sizeof(d.first_code), "%s", snapshot->first_code);
     xQueueOverwrite(ui->rtos.diagnostics_que, &d);
 }
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+void ui_set_connection_status(ui_t *ui, bool wifi, bool phone, unsigned obd_count, unsigned obd_ready_mask)
+{
+    unsigned present = 3U | (obd_count > 0 ? 4U : 0U) | (obd_count > 1 ? 8U : 0U);
+    unsigned active  = (wifi ? 1U : 0U) | (phone ? 2U : 0U) | ((obd_ready_mask & 3U) << 2);
+    atomic_store(&ui->connection_links, present | ((active & present) << FOOTER_ACTIVE_SHIFT));
+}
+#endif
+
 void ui_set_page_position(ui_t *ui, unsigned index, unsigned count)
 {
     if (!ui || !count || index >= count)

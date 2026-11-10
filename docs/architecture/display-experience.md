@@ -65,10 +65,11 @@ After NVS display preferences load, the board initializes and presents the logo
 before heavier configuration/radio setup. It uses four retained LVGL objects
 (container, arc, line and dot), with no bitmap, additional framebuffer or animation
 task. Saved brightness and the manual angle (or last checkpointed applied angle in Auto) apply at startup. The logo has no text.
-Its icon occupies a centered 168-pixel diameter on the 240-pixel reference display,
-using a muted neutral grey (`#555555`) for the arc, needle and pivot. Dimensions
-scale through the existing presentation profile. It reuses the same objects and
-point buffer; the larger mark adds no bitmap, framebuffer or animation allocation.
+The reference mark spans 168 pixels on the 240-pixel LCD. Presentation profiles
+can tune the mark's proportions on the shared 240-pixel design grid. The OLED
+Balanced profile uses a 148-pixel diameter and a 9-pixel ring stroke on that grid,
+with a shorter needle that clears the ring. Both use muted neutral gray
+(`#555555`) and the same retained objects and point buffer.
 
 With no valid vehicle observation, it stays until touch or data. After observations
 have arrived, sixty seconds without a valid scoped vehicle observation returns to
@@ -84,6 +85,30 @@ attention take precedence. The logo pauses automatic page cycling; wake resumes 
 complete viewing interval. Waiting never creates a false reading or changes alert,
 control or source-loss freshness. Dashes still represent unavailable values after
 wake. Quiet recovery continues behind the logo.
+
+## Connection footer
+
+`EGAUGE_FEATURE_CONNECTION_FOOTER` is off by default. It is an opt-in OLED
+experiment, independent of feature licensing, and uses the shared presentation
+profile. Wi-Fi (silver) means a station has joined the active maintenance
+network. Blue marks the phone BLE link. The green and violet plug icons indicate
+ready OBD adapter sessions with one and two pins. A ready link can still have
+unavailable readings. Idle links are gray, and an unconfigured child leaves its
+slot empty. The footer does not change transport, polling, or alert behavior.
+
+The same symbols sit below the waiting logo or a reading with a free footer.
+On multipage readings the icons sit above the ordinary page dots,
+with clearance from both the reading and the dots. A tight layout drops the
+icons and keeps its reading and page indicator in place. Page counters, pairing,
+calibration, showcase, action controls, and vehicle warnings take priority.
+The compositor uses one packed status snapshot, fixed stroke geometry, and
+bounded footer invalidation. No persistent image buffer or transport task is
+added. The first boot-logo frame can render before connection state is known.
+
+Run the production LVGL host test with `--connection-review` to capture the
+24-state matrix. Verify on each physical panel at 10% Night brightness before
+enabling the flag in a field build. Native frames establish geometry and color
+selection, while physical panels establish legibility and bezel clearance.
 
 ## Sunset brightness
 

@@ -38,5 +38,6 @@ void ble_companion_selection_applied(uint8_t selected_index);
 void ble_companion_tick(void);
 bool ble_companion_ready(void);
 bool ble_companion_has_owner(void);
+bool ble_companion_phone_connected(void);
 /* Physical 12-second hold only. Erases the owner association and restarts. */
 void ble_companion_forget_owner(void);

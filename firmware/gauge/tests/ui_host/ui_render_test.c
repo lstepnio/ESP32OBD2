@@ -308,10 +308,15 @@ static void presentation_regression(ui_t *ui)
     puts("PASS: production numeric/arc/bar/dual easing, raw cache, unit/page, stale and dropout resets");
 }
 
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+#include "connection_review.inc"
+#endif
+
 int main(int argc, char **argv)
 {
-    assert(argc == 2 || (argc == 3 && !strcmp(argv[2], "--no-psram")));
-    host_psram_failure = argc == 3;
+    bool review        = argc == 3 && !strcmp(argv[2], "--connection-review");
+    host_psram_failure = argc == 3 && !strcmp(argv[2], "--no-psram");
+    assert(argc == 2 || review || host_psram_failure);
     mkdir(argv[1], 0700);
     lv_init();
     const gauge_surface_t *surface = gauge_presentation()->surface;
@@ -338,6 +343,15 @@ int main(int argc, char **argv)
 #endif
     lv_display_set_flush_cb(display, flush);
     lv_display_set_buffers(display, draw_buffer, NULL, draw_bytes, LV_DISPLAY_RENDER_MODE_FULL);
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+    if (review)
+    {
+        review_connections(argv[1]);
+        return 0;
+    }
+#else
+    assert(!review);
+#endif
     lv_obj_t *discard_prompt = ui_show_abs_record_discard(esp_timer_get_time() + 10000000);
     assert(discard_prompt);
     lv_obj_t *discard_button = lv_obj_get_parent(abs_discard.label);
@@ -1233,6 +1247,15 @@ int main(int argc, char **argv)
     assert(lv_obj_check_type(lv_obj_get_child(boot_logo, 0), &lv_arc_class));
     assert(lv_obj_check_type(lv_obj_get_child(boot_logo, 1), &lv_line_class));
     assert(object_count(boot_logo) == 4);
+    const gauge_boot_logo_t *mark        = gauge_presentation_boot_logo();
+    lv_obj_t                *mark_ring   = lv_obj_get_child(boot_logo, 0);
+    lv_obj_t                *mark_needle = lv_obj_get_child(boot_logo, 1);
+    lv_obj_t                *mark_pivot  = lv_obj_get_child(boot_logo, 2);
+    assert(lv_obj_get_width(mark_ring) == px(mark->diameter));
+    assert(lv_obj_get_style_arc_width(mark_ring, LV_PART_INDICATOR) == px(mark->ring_width));
+    assert(lv_obj_get_style_line_width(mark_needle, 0) == px(mark->needle_width));
+    assert(lv_obj_get_width(mark_pivot) == px(mark->pivot_diameter));
+    assert(boot_needle[1].x == gx(120 + mark->needle_offset) && boot_needle[1].y == gy(120 - mark->needle_offset));
     assert(lv_color_to_u32(lv_obj_get_style_arc_color(lv_obj_get_child(boot_logo, 0), LV_PART_MAIN)) ==
            lv_color_to_u32(lv_color_hex(0x555555)));
     assert(lv_color_to_u32(lv_obj_get_style_line_color(lv_obj_get_child(boot_logo, 1), 0)) ==

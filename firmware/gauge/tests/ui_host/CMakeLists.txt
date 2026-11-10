@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(gauge_ui_host C CXX)
 option(EGAUGE_PARKED_IDLE_TEST "Render the supervised parked idle candidate" OFF)
 option(EGAUGE_HOST_RGB565 "Capture the reference panel's RGB565 rendering format" OFF)
+option(EGAUGE_HOST_CONNECTION_FOOTER "Build the connection footer review fixture" ON)
 set(LV_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/lv_conf.h" CACHE STRING "" FORCE)
 set(LV_CONF_BUILD_DISABLE_EXAMPLES ON CACHE BOOL "" FORCE)
 set(LV_CONF_BUILD_DISABLE_DEMOS ON CACHE BOOL "" FORCE)
@@ -22,4 +23,5 @@ target_include_directories(gauge_ui_render BEFORE PRIVATE stubs ../../main/inc "
 target_link_libraries(gauge_ui_render PRIVATE lvgl m)
 target_compile_options(gauge_ui_render PRIVATE -Wall -Wextra -Werror -Wno-unused-parameter)
 target_compile_definitions(gauge_ui_render PRIVATE
-    CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST=$<BOOL:${EGAUGE_PARKED_IDLE_TEST}>)
+    CONFIG_EGAUGE_JEEP_IDLE_PARKED_TEST=$<BOOL:${EGAUGE_PARKED_IDLE_TEST}>
+    EGAUGE_FEATURE_CONNECTION_FOOTER=$<BOOL:${EGAUGE_HOST_CONNECTION_FOOTER}>)

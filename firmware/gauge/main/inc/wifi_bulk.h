@@ -11,6 +11,7 @@
  * Credentials and session secrets must never be exposed by a public endpoint. */
 esp_err_t wifi_bulk_init(void);
 bool      wifi_bulk_available(void);
+bool      wifi_bulk_phone_connected(void);
 bool      wifi_bulk_command(const uint8_t *bytes, size_t length);
 size_t    wifi_bulk_status(uint8_t out[WIFI_BULK_STATUS_SIZE]);
 

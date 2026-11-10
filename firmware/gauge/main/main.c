@@ -1833,6 +1833,15 @@ void app_main(void)
                      (unsigned long)sensor.maximum_tick_us);
         }
 #endif
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+        unsigned obd_count = runtime_source_count(), obd_ready_mask = 0;
+        if (!maintenance)
+            for (unsigned source = 0; source < obd_count; ++source)
+                if (adapter_status_ready_for(source) && (!g_runtime || !g_runtime->sources[source].simulated))
+                    obd_ready_mask |= 1U << source;
+        ui_set_connection_status(ui, wifi_bulk_phone_connected(), ble_companion_phone_connected(), obd_count,
+                                 obd_ready_mask);
+#endif
         ui_set_action_context(ui, owner_ready && !maintenance);
         uint8_t             selected_before = atomic_load(&g_selected_page);
         uint32_t            activity_before = atomic_load(&g_page_activity_ms);

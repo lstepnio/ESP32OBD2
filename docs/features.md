@@ -8,7 +8,7 @@ locates modules/tests. This index deliberately does not duplicate those status l
 | Feature area | Authoritative details |
 | --- | --- |
 | Vehicles, saved profiles, per-gauge assignments and optional child TCM | [Vehicle connections](architecture/vehicle-connections.md), [phone persistence](architecture/android-runtime.md#storage-and-recovery) |
-| Pairing, owner access, connection status and automatic recovery | [Interaction/recovery](architecture/interaction-recovery.md), [protected BLE](protocol/experimental-firmware-transfers.md) |
+| Pairing, owner access, connection status and automatic recovery | [Interaction/recovery](architecture/interaction-recovery.md), [gauge footer](architecture/display-experience.md#connection-footer), [protected BLE](protocol/experimental-firmware-transfers.md) |
 | PID catalog, custom definitions, units and polling classes | [Reading/alert catalog](development/reading-catalog-alerts.md), [typed definitions](../contracts/pid-definition.schema.json) |
 | Pages, layouts, circular rendering and display behavior | [Display experience](architecture/display-experience.md), [Gauge UI contract](design/gauge-ui-proposal.md), [display geometry](design/round-display-ui-guidelines.md), [firmware runtime](architecture/firmware-runtime.md) |
 | Brightness, manual rotation, units and timed cycling | [Display settings wire/storage](protocol/experimental-firmware-transfers.md#legacy-selection-pairing-and-display-settings) |
