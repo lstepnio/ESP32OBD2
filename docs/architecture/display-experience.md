@@ -93,8 +93,10 @@ experiment, independent of feature licensing, and uses the shared presentation
 profile. Wi-Fi (silver) means a station has joined the active maintenance
 network. Blue marks the phone BLE link. The green and violet plug icons indicate
 ready OBD adapter sessions with one and two pins. A ready link can still have
-unavailable readings. Idle links are gray, and an unconfigured child leaves its
-slot empty. The footer does not change transport, polling, or alert behavior.
+unavailable readings. Icons use a muted palette below the reading hierarchy.
+A configured child with a lost link is gray. With no saved child adapter
+binding, the three remaining icons are centered. The footer does not change
+transport, polling, or alert behavior.
 
 The same symbols sit below the waiting logo or a reading with a free footer.
 On multipage readings the icons sit above the ordinary page dots,

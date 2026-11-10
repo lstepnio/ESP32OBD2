@@ -1726,30 +1726,30 @@ static void draw_connection_footer(lv_event_t *event)
     if (!ui->waiting_visible && !footer_clear(ui, &area))
         return;
 
-    static const uint32_t live_color[] = {0xacbebd, 0x67aee8, 0x73c593, 0xb6a0df};
-    static const int      center[]     = {97, 112, 128, 143};
+    static const uint32_t live_color[]     = {0x8b9a9d, 0x538dbb, 0x5d9f78, 0x9382b4};
+    static const int      center[]         = {97, 112, 128, 143};
+    const bool            child_configured = ui->rendered_connections & 8U;
     lv_draw_line_dsc_t    line;
     lv_draw_line_dsc_init(&line);
     line.width        = px(1);
     lv_layer_t *layer = lv_event_get_layer(event);
-    for (unsigned i = 0; i < 4; ++i)
+    for (unsigned i = 0; i < (child_configured ? 4U : 3U); ++i)
     {
-        if (!(ui->rendered_connections & (1U << i)))
-            continue;
+        int x = child_configured ? center[i] : 104 + (int)i * 16;
         line.color =
-            lv_color_hex(ui->rendered_connections & (1U << (i + FOOTER_ACTIVE_SHIFT)) ? live_color[i] : 0x52646c);
+            lv_color_hex(ui->rendered_connections & (1U << (i + FOOTER_ACTIVE_SHIFT)) ? live_color[i] : 0x434f58);
         const connection_stroke_t *strokes = i == 0 ? wifi_strokes : i == 1 ? ble_strokes : obd_strokes;
         unsigned                   count   = i == 0   ? sizeof(wifi_strokes) / sizeof(wifi_strokes[0])
                                              : i == 1 ? sizeof(ble_strokes) / sizeof(ble_strokes[0])
                                                       : sizeof(obd_strokes) / sizeof(obd_strokes[0]);
         for (unsigned j = 0; j < count; ++j)
-            connection_stroke(layer, &line, center[i], y, strokes[j]);
+            connection_stroke(layer, &line, x, y, strokes[j]);
         if (i == 2)
-            connection_stroke(layer, &line, center[i], y, (connection_stroke_t){0, 0, 0, 1});
+            connection_stroke(layer, &line, x, y, (connection_stroke_t){0, 0, 0, 1});
         if (i == 3)
         {
-            connection_stroke(layer, &line, center[i], y, (connection_stroke_t){-2, 0, -2, 1});
-            connection_stroke(layer, &line, center[i], y, (connection_stroke_t){2, 0, 2, 1});
+            connection_stroke(layer, &line, x, y, (connection_stroke_t){-2, 0, -2, 1});
+            connection_stroke(layer, &line, x, y, (connection_stroke_t){2, 0, 2, 1});
         }
     }
 }
@@ -2589,9 +2589,9 @@ void ui_set_vehicle_diagnostics(ui_t *ui, const diagnostics_snapshot_t *snapshot
     xQueueOverwrite(ui->rtos.diagnostics_que, &d);
 }
 #if EGAUGE_FEATURE_CONNECTION_FOOTER
-void ui_set_connection_status(ui_t *ui, bool wifi, bool phone, unsigned obd_count, unsigned obd_ready_mask)
+void ui_set_connection_status(ui_t *ui, bool wifi, bool phone, bool child_configured, unsigned obd_ready_mask)
 {
-    unsigned present = 3U | (obd_count > 0 ? 4U : 0U) | (obd_count > 1 ? 8U : 0U);
+    unsigned present = child_configured ? 15U : 7U;
     unsigned active  = (wifi ? 1U : 0U) | (phone ? 2U : 0U) | ((obd_ready_mask & 3U) << 2);
     atomic_store(&ui->connection_links, present | ((active & present) << FOOTER_ACTIVE_SHIFT));
 }

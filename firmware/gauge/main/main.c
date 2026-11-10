@@ -1834,12 +1834,14 @@ void app_main(void)
         }
 #endif
 #if EGAUGE_FEATURE_CONNECTION_FOOTER
-        unsigned obd_count = runtime_source_count(), obd_ready_mask = 0;
+        bool     child_configured = g_runtime && g_runtime->source_count > 1 && g_runtime->sources[1].address[0] &&
+                                    !g_runtime->sources[1].simulated;
+        unsigned obd_count = child_configured ? 2 : 1, obd_ready_mask = 0;
         if (!maintenance)
             for (unsigned source = 0; source < obd_count; ++source)
                 if (adapter_status_ready_for(source) && (!g_runtime || !g_runtime->sources[source].simulated))
                     obd_ready_mask |= 1U << source;
-        ui_set_connection_status(ui, wifi_bulk_phone_connected(), ble_companion_phone_connected(), obd_count,
+        ui_set_connection_status(ui, wifi_bulk_phone_connected(), ble_companion_phone_connected(), child_configured,
                                  obd_ready_mask);
 #endif
         ui_set_action_context(ui, owner_ready && !maintenance);

@@ -31,10 +31,15 @@ static void review_frame(ui_t *ui, const char *directory, const char *name, unsi
         lv_obj_get_coords(ui->widgets.page_dots[0], &dots);
         assert(gy(y + 6) + px(FOOTER_DOT_GAP) < dots.y1);
     }
+    bool     child   = (ui->rendered_connections & 8U) != 0;
+    unsigned phone_x = child ? 112 : 120;
     if (y && (ui->rendered_connections & (2U << FOOTER_ACTIVE_SHIFT)))
-        assert(footer_color_at(112, y, 0x67aee8));
+        assert(footer_color_at(phone_x, y, 0x538dbb));
     else if (!y)
-        assert(!footer_color_at(112, FOOTER_SINGLE_Y, 0x67aee8) && !footer_color_at(112, FOOTER_STACKED_Y, 0x67aee8));
+        assert(!footer_color_at(phone_x, FOOTER_SINGLE_Y, 0x538dbb) &&
+               !footer_color_at(phone_x, FOOTER_STACKED_Y, 0x538dbb));
+    if (y && !child)
+        assert(!footer_color_at(149, y, 0x434f58) && !footer_color_at(149, y, 0x9382b4));
     capture(directory, name);
 }
 
@@ -53,13 +58,13 @@ static void review_connections(const char *directory)
     ui_t *ui = ui_init(&page, 50, touch, false, false);
     assert(ui);
     ui_waiting_logo_enable(ui, true);
-    ui_set_connection_status(ui, false, false, 1, 0);
+    ui_set_connection_status(ui, false, false, false, 0);
     review_frame(ui, directory, "01-splash-waiting", FOOTER_SINGLE_Y);
-    ui_set_connection_status(ui, false, true, 1, 0);
+    ui_set_connection_status(ui, false, true, false, 0);
     review_frame(ui, directory, "02-splash-phone-connected", FOOTER_SINGLE_Y);
-    ui_set_connection_status(ui, true, false, 2, 0);
+    ui_set_connection_status(ui, true, false, true, 0);
     review_frame(ui, directory, "03-splash-wifi-connected", FOOTER_SINGLE_Y);
-    assert(footer_color_at(97, FOOTER_SINGLE_Y, 0xacbebd));
+    assert(footer_color_at(97, FOOTER_SINGLE_Y, 0x8b9a9d));
     ui_waiting_logo_enable(ui, false);
 
     const struct
@@ -97,7 +102,7 @@ static void review_connections(const char *directory)
         ui_set_value(ui, 5, &coolant);
         ui_set_page(ui, &page);
         ui_set_page_position(ui, cases[i].pages > 8 ? 9 : 0, cases[i].pages);
-        ui_set_connection_status(ui, cases[i].wifi, cases[i].phone, cases[i].adapters, cases[i].ready);
+        ui_set_connection_status(ui, cases[i].wifi, cases[i].phone, cases[i].adapters > 1, cases[i].ready);
         if (page.renderer == UI_RENDERER_TREND)
             for (unsigned step = 0; step < 60; ++step)
             {
@@ -111,11 +116,9 @@ static void review_connections(const char *directory)
         if (y)
         {
             if (cases[i].ready & 1)
-                assert(footer_color_at(128, y, 0x73c593));
-            if (cases[i].ready & 2)
-                assert(footer_color_at(143, y, 0xb6a0df));
-            else
-                assert(!footer_color_at(143, y, 0xb6a0df));
+                assert(footer_color_at(cases[i].adapters > 1 ? 128 : 136, y, 0x5d9f78));
+            if (cases[i].adapters > 1)
+                assert(footer_color_at(143, y, cases[i].ready & 2 ? 0x9382b4 : 0x434f58));
         }
     }
 
