@@ -50,7 +50,7 @@
       <div class="section-heading">
         <p class="eyebrow">THE eGAUGE SHOP</p>
         <h2 id="hardware-title">Pick your gauge.</h2>
-        <p>Start with free LCD firmware, or step up to the larger AMOLED display with licensed eGauge firmware preinstalled.</p>
+        <p>Get the full eGauge experience on the larger AMOLED display with licensed firmware preinstalled. The LCD development board is the budget-friendly option with free firmware.</p>
       </div>
       <section class="panel-compare" id="panel-compare" aria-labelledby="panel-compare-title">
         <header class="panel-compare-head">
@@ -120,7 +120,7 @@
             </div>
           </div>
         </article>
-        <article class="store-card" id="oled-bundle">
+        <article class="store-card store-card-featured" id="oled-bundle">
           <div class="store-art store-art-oled">
             <figure>
               <div class="store-device store-device-oled">
@@ -165,7 +165,10 @@
           <h3 id="store-addon-title">Vgate iCar Pro BLE adapter</h3>
           <p>Sold separately for either gauge. You can use a compatible BLE OBD-II adapter you already own.</p>
         </div>
-        <p class="store-addon-price"><strong>{{VGATE_PRICE}}</strong></p>
+        <div class="store-addon-prices">
+          <p>With the LCD dev board <strong>{{VGATE_LCD_PRICE}}</strong> <a href="#custom-form" data-order-request="S3-LCD-1.28 v1 hardware with a Vgate iCar Pro BLE adapter">Request LCD + adapter ↗</a></p>
+          <p>With the OLED gauge <strong>{{VGATE_PRICE}}</strong> <a href="#custom-form" data-order-request="S3-OLED-1.75 v1 with preinstalled firmware and a Vgate iCar Pro BLE adapter">Request OLED + adapter ↗</a></p>
+        </div>
       </section>
       <p class="section-note">U.S. shipping is {{US_SHIPPING_PRICE}} per order, plus applicable sales tax.</p>
       <div class="store-comparison" tabindex="0" role="region" aria-labelledby="comparison-title">

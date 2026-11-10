@@ -15,7 +15,14 @@ from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from uuid import uuid4
 
-from storefront import ADAPTER, ADAPTER_NAME, OFFERS, US_SHIPPING_CENTS, storefront_catalog
+from storefront import (
+    ADAPTER,
+    ADAPTER_BY_OFFER,
+    ADAPTER_NAME,
+    OFFERS,
+    US_SHIPPING_CENTS,
+    storefront_catalog,
+)
 
 API_VERSION = "2026-10-28.endive"
 TEST_LINK = re.compile(r"https://buy\.stripe\.com/test_[A-Za-z0-9]+")
@@ -128,10 +135,12 @@ def setup(stripe, path, prices, shipping_cents):
             save_state(path, state)
         return item["price"]
 
-    adapter_price = ensure_price(ADAPTER, ADAPTER_NAME, state.setdefault("adapter", {}))
     for offer, (_, _, name) in OFFERS.items():
         item = state["offers"].setdefault(offer, {})
         gauge_price = ensure_price(offer, name, item)
+        adapter_price = ensure_price(
+            ADAPTER_BY_OFFER[offer], ADAPTER_NAME, item.setdefault("adapter", {})
+        )
         if "link" not in item:
             parameters = {
                 "line_items[0][price]": gauge_price,
@@ -178,9 +187,13 @@ def verify_order(stripe, state, session_id):
     line_items = stripe.request(path + "/line_items?limit=2")
     lines = line_items["data"]
     allowed = {item["price"]: state["prices"][offer]}
-    adapter_price = state.get("adapter", {}).get("price")
+    adapter_price = item.get("adapter", {}).get("price")
+    adapter_key = ADAPTER_BY_OFFER[offer]
+    if not adapter_price:
+        adapter_price = state.get("adapter", {}).get("price")
+        adapter_key = ADAPTER
     if adapter_price:
-        allowed[adapter_price] = state["prices"][ADAPTER]
+        allowed[adapter_price] = state["prices"][adapter_key]
     purchased = {line["price"]["id"]: line for line in lines}
     if (
         line_items["has_more"]

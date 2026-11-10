@@ -224,8 +224,9 @@ for commercial publication or replace the cutouts with original photographs.
 
 `storefront.json` owns the USD item prices. The public build rejects any non-null
 checkout setting. Each gauge button opens the existing inquiry form. Both gauge
-prices exclude the adapter. The main page shows the Vgate as a separately priced
-add-on for either gauge, and customers can reuse a compatible BLE adapter. Stripe
+prices exclude the adapter. The Vgate add-on has a separate price for each gauge
+order. The LCD supports one connected adapter. Customers can also reuse a
+compatible BLE adapter. Stripe
 Payment Links are created separately in the sandbox and kept out of the webroot.
 
 1. Open the Stripe sandbox. Configure its tax origin and an active **test** tax
