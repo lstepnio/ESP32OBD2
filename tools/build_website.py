@@ -38,7 +38,7 @@ class SiteHTML(HTMLParser):
             if identifier in self.ids:
                 raise ValueError(f"Duplicate website id: {identifier}")
             self.ids.add(identifier)
-        for key in ("href", "src", "action"):
+        for key in ("href", "src", "action", "data-lcd-src", "data-oled-src"):
             if attrs.get(key):
                 self.links.append(attrs[key])
         for candidate in attrs.get("srcset", "").split(","):

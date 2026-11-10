@@ -46,6 +46,39 @@
     {
       "file": "trend.png",
       "sha256": "b5d5ee11a739566cdf8eebf24fe2e958e6ba88220c5f3c664b9427be580b5584"
+    },
+    {
+      "file": "oled-arc.png",
+      "sha256": "b566e3c67db51d2692cb615bd3fb83b88a07773f1e79f3b960e005c7d2f8de0c",
+      "nativeResolution": [
+        466,
+        466
+      ],
+      "renderer": "Production LVGL 9.2.2 using the native AMOLED presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
+      "sharedCoreCommit": "45813bd676e41b42d3a6d0f84148e228cb2d114a",
+      "use": "Owner-approved storefront render"
+    },
+    {
+      "file": "oled-dual-arc.png",
+      "sha256": "9738943c094c0eba3d3b989e4819c6d87428fc1e1d5415e43f1d3b8640d58f64",
+      "nativeResolution": [
+        466,
+        466
+      ],
+      "renderer": "Production LVGL 9.2.2 using the native AMOLED presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
+      "sharedCoreCommit": "45813bd676e41b42d3a6d0f84148e228cb2d114a",
+      "use": "Owner-approved storefront render"
+    },
+    {
+      "file": "oled-numeric.png",
+      "sha256": "efa82ebfb5a1bb778e45facfe384892331fb594dc5d1f7c9717133e753ec94f3",
+      "nativeResolution": [
+        466,
+        466
+      ],
+      "renderer": "Production LVGL 9.2.2 using the native AMOLED presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
+      "sharedCoreCommit": "45813bd676e41b42d3a6d0f84148e228cb2d114a",
+      "use": "Owner-approved storefront render"
     }
   ],
   "inputProvenance": {

@@ -52,6 +52,40 @@
         <h2 id="hardware-title">Pick your gauge.</h2>
         <p>Flash your own LCD board with free firmware, request one preflashed, or ask about the larger OLED gauge.</p>
       </div>
+      <section class="panel-compare" id="panel-compare" aria-labelledby="panel-compare-title">
+        <header class="panel-compare-head">
+          <div>
+            <p class="eyebrow">DISPLAY COMPARISON</p>
+            <h3 id="panel-compare-title">Two sizes. Side by side.</h3>
+            <p>The OLED screen is about <strong>37% wider</strong>. Both show the same example readings using each board’s native layout.</p>
+          </div>
+          <fieldset class="panel-examples">
+            <legend>Compare layouts</legend>
+            <label><input name="compare-layout" type="radio" data-lcd-src="{{ASSET_PREFIX}}/gauge/arc.png" data-oled-src="{{ASSET_PREFIX}}/gauge/oled-arc.png" data-description="Coolant temperature 92 °C with an arc" checked> Coolant</label>
+            <label><input name="compare-layout" type="radio" data-lcd-src="{{ASSET_PREFIX}}/gauge/dual-arc.png" data-oled-src="{{ASSET_PREFIX}}/gauge/oled-dual-arc.png" data-description="Gear P and engine speed 675 RPM with an arc"> Gear + RPM</label>
+          </fieldset>
+        </header>
+        <div class="panel-pair">
+          <figure class="panel-lcd">
+            <div class="panel-stand">
+              <div class="store-device store-device-lcd-front">
+                <img class="store-device-screen" data-panel="lcd" src="{{ASSET_PREFIX}}/gauge/arc.png" width="240" height="240" alt="LCD: coolant temperature 92 °C with an arc">
+              </div>
+            </div>
+            <figcaption><strong>1.28″ LCD</strong><span>240 × 240 pixels</span></figcaption>
+          </figure>
+          <figure class="panel-oled">
+            <div class="panel-stand">
+              <div class="store-device store-device-oled">
+                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Protective OLED case" aria-hidden="true">
+                <img class="store-device-screen" data-panel="oled" src="{{ASSET_PREFIX}}/gauge/oled-arc.png" width="466" height="466" alt="OLED: coolant temperature 92 °C with an arc">
+              </div>
+            </div>
+            <figcaption><strong>1.75″ AMOLED</strong><span>466 × 466 pixels</span></figcaption>
+          </figure>
+        </div>
+        <p class="panel-scale-note">Screen diameters shown to relative scale.</p>
+      </section>
       <div class="store-grid">
         <article class="store-card">
           <div class="store-art">
@@ -89,14 +123,14 @@
             <figure>
               <div class="store-device store-device-oled">
                 <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED board in a black protective case" aria-hidden="true">
-                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/dual-arc.png" width="240" height="240" alt="OLED viewed face-on with gear and engine speed">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/oled-dual-arc.png" width="466" height="466" alt="OLED viewed face-on with gear and engine speed">
               </div>
               <figcaption>Face-on</figcaption>
             </figure>
             <figure>
               <div class="store-device store-device-oled store-device-tilted">
                 <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED protective case" aria-hidden="true">
-                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/numeric.png" width="240" height="240" alt="OLED viewed at an angle with a large engine speed reading">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/oled-numeric.png" width="466" height="466" alt="OLED viewed at an angle with a large engine speed reading">
               </div>
               <figcaption>Angled</figcaption>
             </figure>
@@ -142,7 +176,7 @@
         </table>
       </div>
       <p class="section-note">Setup requires Android 10 or later. Readings depend on your vehicle and adapter. OLED features are in private development. <a href="https://www.amazon.com/dp/B06XGB4873">View the Vgate adapter on Amazon ↗</a></p>
-      <p class="store-credit">Device views show eGauge interface examples. Board imagery is adapted from Waveshare product photos.</p>
+      <p class="store-credit">Device views show examples rendered for each board. Board imagery is adapted from Waveshare product photos.</p>
     </section>
 
     <section class="preview-section" id="experience" aria-labelledby="preview-title">

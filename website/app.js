@@ -13,6 +13,18 @@ document.querySelectorAll('[data-screen]').forEach(button => {
 });
 document.querySelector('#year').textContent = new Date().getFullYear();
 
+const panelComparison = document.querySelector('#panel-compare');
+const lcdPanel = panelComparison?.querySelector('[data-panel="lcd"]');
+const oledPanel = panelComparison?.querySelector('[data-panel="oled"]');
+panelComparison?.addEventListener('change', event => {
+  const option = event.target;
+  if (!option.matches('input[name="compare-layout"]')) return;
+  lcdPanel.src = option.dataset.lcdSrc;
+  oledPanel.src = option.dataset.oledSrc;
+  lcdPanel.alt = `LCD: ${option.dataset.description}`;
+  oledPanel.alt = `OLED: ${option.dataset.description}`;
+});
+
 function registerForm(selector, messageSelector, pending, success) {
   const form = document.querySelector(selector);
   form?.addEventListener('submit', async event => {

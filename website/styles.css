@@ -73,6 +73,27 @@
 
 .action-screen-examples figcaption{text-align:center;font-size:13px;margin-top:12px;color:#d1d9c9}
 
+.panel-compare{--oled-panel:min(222px,24vw);margin-top:26px;padding:clamp(17px,3.5vw,36px);border:1px solid var(--line);border-radius:8px;background:radial-gradient(ellipse at 62% 58%,#d3dec9,#e6eadf)}
+.panel-compare-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px 28px;align-items:end}
+.panel-compare h3{font-size:clamp(23px,3vw,35px);font-weight:500;letter-spacing:-.035em;margin:6px 0}
+.panel-compare-head p:not(.eyebrow){margin:0;color:var(--muted);max-width:54ch;line-height:1.5}
+.panel-examples{display:flex;flex-wrap:wrap;gap:8px;border:0;padding:0;margin:0}
+.panel-examples legend{font-size:13px;color:var(--muted);margin-bottom:5px}
+.panel-examples label{display:flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid var(--line);border-radius:6px;background:#f1f1e9;font-size:13px;cursor:pointer}
+.panel-examples input{accent-color:#305b42}
+.panel-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:850px;margin:12px auto 0}
+.panel-pair figure{margin:0;min-width:0;text-align:center}
+/* Keep the LCD and OLED screen diameters in the ratio 1.28 / 1.75. */
+.panel-lcd{--panel:calc(var(--oled-panel) * .7314285714)}
+.panel-oled{--panel:var(--oled-panel)}
+.panel-stand{display:grid;place-items:center;height:calc(var(--oled-panel) * 1.43)}
+.panel-pair .store-device{width:calc(var(--panel) / .64);margin:0}
+.panel-pair .store-device-screen{width:var(--panel)}
+.panel-pair figcaption strong,.panel-pair figcaption span{display:block}
+.panel-pair figcaption strong{font-size:clamp(16px,2.3vw,24px)}
+.panel-pair figcaption span,.panel-scale-note{font-size:13px;color:var(--muted);margin-top:4px}
+.panel-scale-note{text-align:center;margin-bottom:0}
+
 .store-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-top:26px}
 .store-card{border:1px solid var(--line);border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
 .store-art{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:12px clamp(9px,2vw,22px);background:radial-gradient(ellipse at center,#e9eddf,#d5ddcb)}

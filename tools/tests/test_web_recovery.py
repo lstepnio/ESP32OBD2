@@ -5,6 +5,7 @@ import copy
 import importlib.util
 import json
 from pathlib import Path
+import struct
 import subprocess
 import tempfile
 import unittest
@@ -243,6 +244,27 @@ class WebsiteMetadataTests(unittest.TestCase):
             self.assertNotIn("EGAUGE_SCREEN_DATA", script)
             self.assertIn('content="noindex, nofollow"', html)
             self.assertIn('property="og:image"', html)
+
+    def test_storefront_comparison_preserves_native_screen_resolutions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            manifest = site.build(output, metadata_only=True)
+            html = (output / "index.html").read_text()
+            prefix = manifest["assetPrefix"]
+            self.assertIn('id="panel-compare"', html)
+            for layout in ("arc", "dual-arc"):
+                self.assertIn(f'data-lcd-src="{prefix}/gauge/{layout}.png"', html)
+                self.assertIn(f'data-oled-src="{prefix}/gauge/oled-{layout}.png"', html)
+            for name, dimension in (
+                ("arc", 240),
+                ("dual-arc", 240),
+                ("oled-arc", 466),
+                ("oled-dual-arc", 466),
+                ("oled-numeric", 466),
+            ):
+                with self.subTest(name=name):
+                    png = (output / prefix.lstrip("/") / "gauge" / f"{name}.png").read_bytes()
+                    self.assertEqual(struct.unpack(">II", png[16:24]), (dimension, dimension))
 
     def test_missing_claim_scope_or_evidence_is_rejected(self):
         content = json.loads((ROOT / "website/content.json").read_text())
