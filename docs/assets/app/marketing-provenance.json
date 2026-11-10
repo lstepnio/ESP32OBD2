@@ -180,20 +180,17 @@
     "reviewPolicy": "Any changed, added or removed relevant input requires semantic review. Hash mismatch alone is not proof that a screen changed. Do not replace baseline hashes without a capture or documented equivalence review."
   },
   "equivalenceReview": {
-    "reviewedOn": "2026-11-09",
-    "reason": "PR #142 adds direct-adapter navigation outside the marketing capture shell. PR #143 changes that route and adds release-only Play Billing. The debug capture harness calls HomeScreen without the optional Virtual Gauge callback and calls CarScreen, SettingsScreen and ActionPagesSheet directly. Its fixture has a positive Arc fraction, arcAvailable true and live false. The new live-only label suppression leaves this fixture unchanged. SetupScreen, DashboardEditorScreen and the paid route are outside these captures. The screenshots continue to represent the hardware-gauge companion with example data. PR #147 changes Virtual Gauge reading selection within the route bypassed by this harness.",
+    "reviewedOn": "2026-11-10",
+    "reason": "Ran the production WebsiteReviewCaptureTest in marketing mode on managed API 35 at f4f4cf0. Gauge, Car and Settings matched pixel for pixel. Actions matched outside the Android status-bar clock area, so the existing captures remain representative. The fixture does not show board-specific connection icon or sunset controls.",
     "evidence": [
       "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
-      "android/app/src/debug/java/com/lstepnio/egauge/ui/preview/ScreenFixtures.kt",
-      "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationMapper.kt",
-      "contracts/reading-catalog.json",
-      "docs/architecture/virtual-gauge.md"
+      "docs/development/quality.md"
     ],
     "sha256": {
       "android/app/build.gradle.kts": "57a10386819fcdd02a5cbabdd176015dae4965ddc6fb7cabae0399d9204ed4eb",
       "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt": "70b88e21abfc4158b43a86508ee975d675a6ebf25382d68162f291be224a3bcc",
       "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt": "529457e8a24468b2276362bf3a47235fdc4d978ed3efae726148b30b355e8287",
-      "android/app/src/main/java/com/lstepnio/egauge/ui/CompanionApp.kt": "0db0e396ec0f4f9f18e18e805d8070be97ab33a309001f8a148d62c08d06bb49",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/CompanionApp.kt": "45c1f45a449190781dedfcb469618aa76496b4b50ce10898aa0cb1d6f5c38fff",
       "android/app/src/main/java/com/lstepnio/egauge/ui/ConnectionStatusWidget.kt": "5dff48527e861a2bd1903c2bbc8391445bf403dbe9017fad48fd54d18aee03dc",
       "android/app/src/main/java/com/lstepnio/egauge/ui/Layouts.kt": "4cf790eca642c7aee94f570d8c62062c807d1420e9ae2f495046e033fd4f429e",
       "android/app/src/main/java/com/lstepnio/egauge/ui/car/ActionPagesSheet.kt": "71f998d0bbe003fd914a7591a1b8cbb43a2330ec08c9a7ff5f222ee0f57eba8a",
@@ -213,7 +210,9 @@
       "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt": "3c0beb5b8384f3d68108054d5aa0e411a167b5e4b5313112f5055a6ee2e94a5b",
       "android/app/src/main/java/com/lstepnio/egauge/ui/expert/HiddenFaultCodesScreen.kt": "499f224949c5884b69f0da272e7e64e37f17b2d3d2ff310c163b55d7a6b42bda",
       "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt": "fc97f046cc31c7bf902efcee2d4d30981fec359cea54c7c584ff6fcbba92c1b2",
-      "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SettingsScreen.kt": "173be4037c39f249c374d26eb7f27ddd4b7dc23dc27ea701cb07701ef9f2b3a8",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SettingsScreen.kt": "21adada1189ce05b920cc1f0c76fe9cd49eb4d57093c327b4f220ce532544f26",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SunsetBrightnessDialog.kt": "d1bf5172b4d5fbdf5f5256d0434af47b381964270ca3a8f55c4c32718e0b39eb",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SunsetPhoneLocation.kt": "277639b67d2b56475c7722c4d82492673eb93391fff44e144866c6dd04099f16",
       "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt": "dae50e94cbd3396559f06f2275e358acd78ba8da3996b76c39adf556c9055591",
       "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt": "6d25600a9d91ab077891c9b81ae7478f4e09ae55185bf049825dbd40b1304651",
       "android/app/src/main/java/com/lstepnio/egauge/ui/state/AlertContextCopy.kt": "367a204da69e53206014e5953ae043ac67bb52acc1887a8192b3107439d24830",
@@ -223,9 +222,9 @@
       "android/app/src/main/java/com/lstepnio/egauge/ui/state/DiagnosticPresentation.kt": "20927a5c825d5d75cc1825b8026edbe31e53801a919f8fbe6258fd0965b6ace8",
       "android/app/src/main/java/com/lstepnio/egauge/ui/state/OperationCopy.kt": "d007e5066af80cf337a23c6efa3d8a24e1f3000a93b86bba303a944f15398a11",
       "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationDetails.kt": "f976ca048a41b7d43c6c2717c4a868b730a44b66aaf5f94a440f7d1773a97d1f",
-      "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationMapper.kt": "fed08fd1a4419a6eaa8f7733f98757aa0100c2466b4e894386ea5d6432e50f3d",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationMapper.kt": "2ab4e61d93396439b04299aed58f3c2c3759bd4678cef164c262b300c5da4645",
       "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationPreferences.kt": "6fddc9dd88728794c9068f23c16e441f322834bf029eb331172aa0bf44dc3e6e",
-      "android/app/src/main/java/com/lstepnio/egauge/ui/state/ScreenStates.kt": "48c6d5476b64182d5b69920f3d70814b8b37456fc222a7895a832781c11832d7",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/state/ScreenStates.kt": "757b4fcbc49bad5e0a298c5390cc04bb3a93eabc003d072992050ed08c649bf9",
       "android/app/src/main/java/com/lstepnio/egauge/ui/state/SecondAdapterPresentation.kt": "eeab334e8f826089e1c16377f9cbc8a722f4592c6ea3df703b4eafeda051f753",
       "android/app/src/main/java/com/lstepnio/egauge/ui/state/VehicleConnectionCopy.kt": "5c9636285d4bda39e9be1f7980ecad9bfa54ff1f9ca7479c216cd6bc3b27310c",
       "android/app/src/main/res/drawable/ic_alert_notification.xml": "5a1ef06d88ee8f876fce3909aa707022aff8a048d5f5fe428b7aa4fc0e243efc",

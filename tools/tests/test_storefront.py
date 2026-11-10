@@ -14,8 +14,11 @@ from storefront import storefront_catalog
 class StorefrontTest(unittest.TestCase):
     def test_each_product_has_a_distinct_inquiry_and_price(self):
         actions = storefront_actions(storefront_catalog())
-        self.assertEqual(actions["LCD_PRICE"], "$75 USD")
+        self.assertEqual(actions["LCD_PRICE"], "$79 USD")
         self.assertEqual(actions["OLED_PRICE"], "$199 USD")
+        self.assertEqual(actions["VGATE_PRICE"], "$55 USD")
+        self.assertEqual(actions["US_SHIPPING_PRICE"], "$9.95 USD")
+        self.assertNotIn("VGATE_ORDER", actions)
         self.assertIn('href="#custom-form"', actions["LCD_ORDER"])
         self.assertIn("S3-LCD-1.28 v1 hardware", actions["LCD_ORDER"])
         self.assertIn('href="#custom-form"', actions["OLED_ORDER"])
@@ -32,8 +35,9 @@ class StorefrontTest(unittest.TestCase):
                     path.write_text(
                         json.dumps(
                             {
-                                "lcd": {"amountCents": 7500, "checkout": None},
+                                "lcd": {"amountCents": 7900, "checkout": None},
                                 "oled": {"amountCents": 19900, "checkout": url},
+                                "vgate": {"amountCents": 5500, "checkout": None},
                             }
                         )
                     )

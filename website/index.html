@@ -50,17 +50,30 @@
       <div class="section-heading">
         <p class="eyebrow">THE eGAUGE SHOP</p>
         <h2 id="hardware-title">Pick your gauge.</h2>
-        <p>Flash your own LCD board with free firmware, request one preflashed, or ask about the larger OLED bundle.</p>
+        <p>Flash your own LCD board with free firmware, request one preflashed, or ask about the larger OLED gauge.</p>
       </div>
       <div class="store-grid">
         <article class="store-card">
-          <div class="store-art"><img src="{{ASSET_PREFIX}}/hardware/lcd.webp" width="640" height="640" alt="Waveshare 1.28-inch round LCD development board with exposed circuit board and USB-C connector"></div>
+          <div class="store-art">
+            <figure>
+              <div class="store-device store-device-lcd-front">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/arc.png" width="240" height="240" alt="LCD viewed face-on with the coolant temperature arc">
+              </div>
+              <figcaption>Face-on</figcaption>
+            </figure>
+            <figure>
+              <div class="store-device store-device-lcd-angle">
+                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/lcd.webp" width="640" height="640" alt="Waveshare LCD board with exposed PCB and USB-C connector" aria-hidden="true">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/trend.png" width="240" height="240" alt="LCD viewed at an angle with a coolant temperature trend">
+              </div>
+              <figcaption>Angled</figcaption>
+            </figure>
+          </div>
           <div class="store-copy">
             <p class="eyebrow">FREE FIRMWARE / DIY</p>
             <h3>S3-LCD-1.28 v1</h3>
             <div class="store-price">
               <p><strong>{{LCD_PRICE}}</strong> preflashed board</p>
-              <p>BLE OBD-II adapter sold separately.</p>
             </div>
             <div class="store-actions">
               {{LCD_ORDER}}
@@ -72,15 +85,30 @@
           </div>
         </article>
         <article class="store-card" id="oled-bundle">
-          <div class="store-art store-art-oled"><img src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare 1.75-inch round AMOLED board in a black protective case"></div>
+          <div class="store-art store-art-oled">
+            <figure>
+              <div class="store-device store-device-oled">
+                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED board in a black protective case" aria-hidden="true">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/dual-arc.png" width="240" height="240" alt="OLED viewed face-on with gear and engine speed">
+              </div>
+              <figcaption>Face-on</figcaption>
+            </figure>
+            <figure>
+              <div class="store-device store-device-oled store-device-tilted">
+                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED protective case" aria-hidden="true">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/numeric.png" width="240" height="240" alt="OLED viewed at an angle with a large engine speed reading">
+              </div>
+              <figcaption>Angled</figcaption>
+            </figure>
+          </div>
           <div class="store-copy">
-            <p class="eyebrow">OLED BUNDLE / IN DEVELOPMENT</p>
+            <p class="eyebrow">OLED GAUGE / IN DEVELOPMENT</p>
             <h3>S3-OLED-1.75 v1</h3>
             <div class="store-price">
-              <p><strong>{{OLED_PRICE}}</strong> plus tax and shipping</p>
+              <p><strong>{{OLED_PRICE}}</strong> gauge with preinstalled firmware</p>
               <p>Estimated lead time is about 30 days.</p>
             </div>
-            <p>Enclosed AMOLED gauge, one Vgate BLE OBD-II adapter and private firmware preinstalled with the shipped major version included.</p>
+            <p>Enclosed AMOLED gauge with the shipped firmware major version included.</p>
             <div class="store-actions">
               {{OLED_ORDER}}
               <div class="store-links">
@@ -90,6 +118,15 @@
           </div>
         </article>
       </div>
+      <section class="store-addon" aria-labelledby="store-addon-title">
+        <div>
+          <p class="eyebrow">OPTIONAL ADD-ON</p>
+          <h3 id="store-addon-title">Vgate iCar Pro BLE adapter</h3>
+          <p>Sold separately for either gauge. You can use a compatible BLE OBD-II adapter you already own.</p>
+        </div>
+        <p class="store-addon-price"><strong>{{VGATE_PRICE}}</strong></p>
+      </section>
+      <p class="section-note">U.S. shipping is {{US_SHIPPING_PRICE}} per order, plus applicable sales tax.</p>
       <div class="store-comparison" tabindex="0" role="region" aria-labelledby="comparison-title">
         <table>
           <caption id="comparison-title">Compare the builds</caption>
@@ -98,14 +135,14 @@
             <tr><th scope="row">Touchscreen</th><td>1.28″ LCD<br>240 × 240</td><td>1.75″ AMOLED<br>466 × 466</td></tr>
             <tr><th scope="row">Dashboard pages</th><td>5 planned</td><td>12 planned</td></tr>
             <tr><th scope="row">Readings and alerts</th><td colspan="2">Shared catalog, layouts and threshold alerts</td></tr>
-            <tr><th scope="row">BLE adapters</th><td>One</td><td>One included. Optional transmission adapter.</td></tr>
+            <tr><th scope="row">Supported BLE adapters</th><td>One</td><td>One, with an optional second adapter for a separate transmission port</td></tr>
             <tr><th scope="row">Page cycling</th><td>Timed</td><td>Timed and Smart Cycle</td></tr>
             <tr><th scope="row">Shortcuts</th><td>Page jumps</td><td><a href="#offroad-actions">Vehicle controls in development</a></td></tr>
           </tbody>
         </table>
       </div>
-      <p class="section-note">Setup requires Android 10 or later and a compatible BLE OBD-II adapter such as the <a href="https://www.amazon.com/dp/B06XGB4873">Vgate iCar Pro BLE ↗</a>. Readings depend on your vehicle and adapter. OLED features are in private development.</p>
-      <p class="store-credit">Board images adapted from Waveshare product photos.</p>
+      <p class="section-note">Setup requires Android 10 or later. Readings depend on your vehicle and adapter. OLED features are in private development. <a href="https://www.amazon.com/dp/B06XGB4873">View the Vgate adapter on Amazon ↗</a></p>
+      <p class="store-credit">Device views show eGauge interface examples. Board imagery is adapted from Waveshare product photos.</p>
     </section>
 
     <section class="preview-section" id="experience" aria-labelledby="preview-title">

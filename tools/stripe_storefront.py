@@ -15,7 +15,7 @@ from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from uuid import uuid4
 
-from storefront import OFFERS, storefront_catalog
+from storefront import ADAPTER, ADAPTER_NAME, OFFERS, US_SHIPPING_CENTS, storefront_catalog
 
 API_VERSION = "2026-10-28.endive"
 TEST_LINK = re.compile(r"https://buy\.stripe\.com/test_[A-Za-z0-9]+")
@@ -109,27 +109,35 @@ def setup(stripe, path, prices, shipping_cents):
         )
         state["shippingRate"] = shipping["id"]
         save_state(path, state)
-    for offer, (_, _, name) in OFFERS.items():
-        item = state["offers"].setdefault(offer, {})
+
+    def ensure_price(key, name, item):
         if "price" not in item:
             product = create(
                 "/v1/products",
-                f"{offer}-product",
+                f"{key}-product",
                 {
                     "name": name,
                     "shippable": "true",
                     "tax_code": "txcd_99999999",
                     "default_price_data[currency]": "usd",
-                    "default_price_data[unit_amount]": prices[offer],
+                    "default_price_data[unit_amount]": prices[key],
                     "default_price_data[tax_behavior]": "exclusive",
                 },
             )
             item["price"] = product["default_price"]
             save_state(path, state)
+        return item["price"]
+
+    adapter_price = ensure_price(ADAPTER, ADAPTER_NAME, state.setdefault("adapter", {}))
+    for offer, (_, _, name) in OFFERS.items():
+        item = state["offers"].setdefault(offer, {})
+        gauge_price = ensure_price(offer, name, item)
         if "link" not in item:
             parameters = {
-                "line_items[0][price]": item["price"],
+                "line_items[0][price]": gauge_price,
                 "line_items[0][quantity]": 1,
+                "optional_items[0][price]": adapter_price,
+                "optional_items[0][quantity]": 1,
                 "automatic_tax[enabled]": "true",
                 "shipping_address_collection[allowed_countries][0]": "US",
                 "shipping_options[0][shipping_rate]": state["shippingRate"],
@@ -169,14 +177,23 @@ def verify_order(stripe, state, session_id):
         raise ValueError("Checkout does not match a configured eGauge Payment Link")
     line_items = stripe.request(path + "/line_items?limit=2")
     lines = line_items["data"]
-    subtotal = state["prices"][offer]
+    allowed = {item["price"]: state["prices"][offer]}
+    adapter_price = state.get("adapter", {}).get("price")
+    if adapter_price:
+        allowed[adapter_price] = state["prices"][ADAPTER]
+    purchased = {line["price"]["id"]: line for line in lines}
     if (
         line_items["has_more"]
-        or len(lines) != 1
-        or (lines[0]["quantity"], lines[0]["price"]["id"], lines[0]["amount_subtotal"])
-        != (1, item["price"], subtotal)
+        or len(purchased) != len(lines)
+        or item["price"] not in purchased
+        or any(
+            price not in allowed
+            or (line["quantity"], line["amount_subtotal"]) != (1, allowed[price])
+            for price, line in purchased.items()
+        )
     ):
         raise ValueError("Checkout line items or price do not match the offer")
+    subtotal = sum(allowed[price] for price in purchased)
     shipping = session.get("shipping_cost") or {}
     ship_to = (session.get("collected_information") or {}).get("shipping_details") or {}
     tax = session.get("automatic_tax") or {}
@@ -207,7 +224,7 @@ def verify_order(stripe, state, session_id):
         or charge.get("disputed") is not False
     ):
         raise ValueError("Checkout payment is not captured and available for fulfillment")
-    return offer, subtotal, shipping_cents, tax_cents
+    return offer, subtotal, shipping_cents, tax_cents, adapter_price in purchased
 
 
 def main():
@@ -218,7 +235,7 @@ def main():
     parser.add_argument("--stripe-key-file", type=Path, help="Private key file, or prompt securely")
     sub = parser.add_subparsers(dest="command", required=True)
     configure = sub.add_parser("setup")
-    configure.add_argument("--shipping-cents", type=int, required=True)
+    configure.add_argument("--shipping-cents", type=int, default=US_SHIPPING_CENTS)
     order = sub.add_parser("verify-order")
     order.add_argument("session", help="Checkout Session ID starting with cs_test_")
     args = parser.parse_args()
@@ -251,11 +268,13 @@ def main():
             for name, item in state["offers"].items():
                 print(f"{name.upper()} test checkout: {item['url']}")
             return
-        offer, subtotal, shipping, tax = verify_order(
+        offer, subtotal, shipping, tax, has_adapter = verify_order(
             stripe, json.loads(config.read_text()), args.session
         )
+        adapter_label = "included" if has_adapter else "not selected"
         print(
-            f"Verified {offer.upper()} sandbox order (USD cents): item {subtotal}, shipping {shipping}, tax {tax}."
+            f"Verified {offer.upper()} sandbox order (USD cents): items {subtotal}, "
+            f"shipping {shipping}, tax {tax}. Vgate add-on: {adapter_label}."
         )
     except ValueError as error:
         parser.exit(1, f"{error}\n")

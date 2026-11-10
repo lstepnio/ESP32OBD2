@@ -209,42 +209,51 @@ installed capabilities, private evaluation, and the proposed 5/12-page limits.
 Board cutouts are AI-assisted adaptations of the exact
 [Waveshare LCD photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-lcd-1.28-1.jpg)
 and [enclosed AMOLED photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-amoled-1.75-b-1.jpg).
-They show the displays powered off. Confirm reuse for commercial publication or
-replace them with equivalent original product photographs.
+The shop pairs a face-on and angled view for each board. CSS aligns the
+reference firmware's existing circular screen renders with the board faces.
+The OLED views illustrate shared eGauge layouts using the same public captures.
+The front LCD bezel and OLED tilt are browser illustrations. Confirm photo reuse
+for commercial publication or replace the cutouts with original photographs.
 
 ### Checkout and fulfillment
 
-`storefront.json` owns both USD prices. The public build rejects any non-null
-checkout setting. Each product button opens the existing inquiry form. Stripe
+`storefront.json` owns the USD item prices. The public build rejects any non-null
+checkout setting. Each gauge button opens the existing inquiry form. Both gauge
+prices exclude the adapter. The main page shows the Vgate as a separately priced
+add-on for either gauge, and customers can reuse a compatible BLE adapter. Stripe
 Payment Links are created separately in the sandbox and kept out of the webroot.
 
 1. Open the Stripe sandbox. Configure its tax origin and an active **test** tax
    registration. Use an authorized test key stored in a private file or entered
    at the terminal prompt. The operator tool rejects live keys and sessions.
 2. From the repository root, create an owner-only workspace outside Git and
-   generate both test links. The example charges $9.95 for U.S. test shipping and
-   enables Stripe Tax on tax-exclusive item and shipping prices.
+   generate both test links. The default charges $9.95 per U.S. order, offers one
+   optional Vgate per gauge, and enables Stripe Tax on tax-exclusive item and
+   shipping prices. Use a fresh workspace when the catalog or rate changes.
 
    ```sh
-   install -d -m 700 /private/egauge-sandbox
-   python3 tools/stripe_storefront.py --workspace /private/egauge-sandbox \
-     setup --shipping-cents 995
+   install -d -m 700 "$HOME/.local/state/egauge"
+   sandbox_dir="$(mktemp -d "$HOME/.local/state/egauge/stripe-sandbox.XXXXXXXX")"
+   python3 tools/stripe_storefront.py --workspace "$sandbox_dir" setup
    ```
 
 3. Complete each hosted checkout with Stripe's test card and a U.S. test address.
-   Confirm tax and shipping are itemized before payment. Retrieve the Checkout
+   Include a test with the adapter and one without it. Confirm tax and shipping
+   are itemized before payment. Retrieve the Checkout
    Session ID from the sandbox and run `verify-order cs_test_...` using the same
    workspace. Stripe remains the source of shipping addresses. The tool prints
-   amounts and verifies payment, product, shipping, tax and charge state.
+   amounts and verifies payment, gauge, optional adapter, shipping, tax and charge state.
 4. Record each verified order once before shipping. For OLED, record the firmware
    major listed with the order and ship the matching preloaded build. Follow the
    [included software policy](../docs/architecture/platforms-and-releases.md#oled-hardware-purchase-and-included-software).
 
 Use the [Stripe Tax sandbox guide](https://docs.stripe.com/tax/testing) and
-[Stripe test cards](https://docs.stripe.com/testing). The rehearsal verified LCD
-subtotal $75.00, shipping $9.95 and Idaho tax $4.50, and OLED subtotal $199.00,
-shipping $9.95 and Idaho tax $11.94.
-Test shipping and the Idaho registration are rehearsal settings.
+[Stripe test cards](https://docs.stripe.com/testing). The Idaho tax registration
+is a rehearsal setting. Tax is calculated for destinations where the sandbox has
+an applicable registration. The hosted rehearsal completed a gauge-only LCD
+order and an OLED order with the optional adapter. Check Dashboard-created
+orders in the Stripe sandbox Dashboard. The CLI verifier uses the link IDs and
+metadata of links provisioned by its own setup command.
 
 Before accepting real payments, set approved shipping destinations/rates and
 returns terms, confirm tax registrations and product classification, and

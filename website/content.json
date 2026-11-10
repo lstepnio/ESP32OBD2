@@ -1,5 +1,5 @@
 {
-  "reviewedOn": "2026-11-09",
+  "reviewedOn": "2026-11-10",
   "sourceDocuments": [
     "docs/current-state.md",
     "docs/roadmap.md",
@@ -205,13 +205,13 @@
     "docs/assets/gauge/capture-provenance.json"
   ],
   "claimInputProvenance": {
-    "reviewedOn": "2026-11-09",
-    "reason": "Reviewed the redesigned site after PRs #145 and #143. The OLED hardware offer includes preinstalled private firmware for the shipped major version. Both products remain inquiry-only while OLED boot and recovery qualification are pending. The Android Virtual Gauge and Play Billing stay outside storefront claims while dual-adapter and Play tester checks are pending. The indoor Wi-Fi update evidence and planned 5/12-page limits are unchanged. PR #147 documents the shared catalog projection into the Virtual Gauge, which remains outside storefront claims.",
+    "reviewedOn": "2026-11-10",
+    "reason": "Reviewed CORE and LAYOUTS against the current feature index and display contract. Dot removal, the connection footer and brightness scheduling preserve the published setup, independent gauge operation and reading layouts. The feature-index additions do not change public access to virtual gauges, subscriptions or vehicle controls. The OLED offer still includes its preinstalled software major and remains inquiry-only. The separately priced Vgate is optional on both gauge offers. The foreground location retry for sunset brightness changes setup error handling and leaves the published layout claim unchanged.",
     "sha256": {
       "contracts/reading-catalog.json": "4253cf23fdb0345599178af36efdfe3f95de5ea1613def88c37f20049e596595",
       "docs/architecture/alerts-and-diagnostics.md": "e61735ee015ca11afd262765e55af860824fc9ede165feee265f2964cd52b71f",
       "docs/architecture/android-runtime.md": "cbec3bcbc4d4ac7437e8fb030f27598ce64a6f4bc2579eef24b9990b9d51fb0d",
-      "docs/architecture/display-experience.md": "7efc90da48dbfc3a38a12eda6ed9c62c57a9508263e360ec44ea0f544c58f8e1",
+      "docs/architecture/display-experience.md": "df4ee659c8eeaf7608dcfdaeeca1a52a748ea49d6a85897f33eeaadd84bb7ce6",
       "docs/architecture/interaction-recovery.md": "2b2a8ae31b07292b35f8c62f3e8e5463222a4464b60a9d3502c3d09df9614b54",
       "docs/architecture/platforms-and-releases.md": "e318714b1593b747acc0585ca54fcdb0b853e33e1266cf635c0e8a502cf3045f",
       "docs/architecture/vehicle-actions.md": "8d1db6bf431a4a970eae18393a2190e13056887016d1a7602c8dc6e5a91b0018",
@@ -225,7 +225,7 @@
       "docs/evidence/display-evolution.md": "30847aee0cb5b34dc788a7509372a93abf0aa94b6ad8a3e16f95518dd065c618",
       "docs/evidence/gatt-long-read-recovery.md": "5de44236f645e52686eee817b0f6e575d56c3850ae56f03a012aa361a2fcb487",
       "docs/evidence/jeep-high-idle-reference.md": "35112c013262fce0a8e0a60771fd99d674d5970ecd2679f26620e00a51cac462",
-      "docs/features.md": "c04c46c650bd75b8c1f2b55781fa60c3f4d9247844a68bd573782453f5d58fa8",
+      "docs/features.md": "689f49aef0dd954364da33413726afde539474f15fded015dfe3da6de8243edb",
       "docs/protocol/wifi-bulk-v1.md": "c06ca3529e17446d81fe1609994b564688ca103a7cc6ec3a5dbe5c342382c8c8",
       "docs/roadmap.md": "015c2fd3a78b8bdc2671061553a03a628e7e60eba42fefebfb002606d501b644",
       "firmware/gauge/main/src/jeep_abs_tcs_driver.c": "6cd5949a9b2caa24a3e7505bae16819ad7f14c1b1be1fdc2a33e0d5eeec52370"
