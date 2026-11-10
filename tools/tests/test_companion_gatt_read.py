@@ -39,3 +39,17 @@ class CompanionGattReadTest(unittest.TestCase):
         for arguments in reads:
             self.assertRegex(arguments, r"^ctxt->om\s*,")
             self.assertRegex(arguments, r",\s*ctxt->offset\s*$")
+
+    def test_extended_status_dispatch_has_unique_modes(self):
+        source = (ROOT / "firmware/gauge/main/src/ble_companion.c").read_text()
+        named_modes = dict(re.findall(r"^#define (\w+_STATUS_MODE) (\d+)U?$", source, re.M))
+        conditions = re.findall(r"if \((extended_status_mode == [^)]*)\)", source)
+        selectors = [
+            selector
+            for condition in conditions
+            for selector in re.findall(r"extended_status_mode == ([A-Z0-9_]+)", condition)
+        ]
+        self.assertIn("OTA_TARGET_PREFLIGHT_STATUS_MODE", selectors)
+        self.assertIn("SUNSET_BRIGHTNESS_STATUS_MODE", selectors)
+        values = [int(named_modes.get(selector, selector)) for selector in selectors]
+        self.assertEqual(len(values), len(set(values)), list(zip(selectors, values)))

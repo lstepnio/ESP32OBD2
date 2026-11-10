@@ -74,6 +74,7 @@ static QueueHandle_t owner_save_queue;
 #define ACTIVE_DOCUMENT_CHUNK_SIZE 128U
 #define BLE_OWNER_MAX_REQUEST 173U
 #define OTA_TARGET_PREFLIGHT_STATUS_MODE 22U
+#define SUNSET_BRIGHTNESS_STATUS_MODE 23U
 static uint8_t  status_snapshot[512];
 static unsigned extended_source;
 static uint32_t alert_boot, alert_cursor;
@@ -476,7 +477,7 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle, struct ble
             if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
                 return BLE_ATT_ERR_UNLIKELY;
         }
-        extended_status_mode   = 22;
+        extended_status_mode   = SUNSET_BRIGHTNESS_STATUS_MODE;
         status_snapshot_length = 0;
         return 0;
     }
@@ -888,7 +889,7 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_g
             return BLE_ATT_ERR_INVALID_OFFSET;
         return companion_gatt_read_value(ctxt->om, state, length, ctxt->offset);
     }
-    if (extended_status_mode == 22)
+    if (extended_status_mode == SUNSET_BRIGHTNESS_STATUS_MODE)
     {
         sunset_status_t sunset = sunset_runtime_status();
         uint16_t        lat = (uint16_t)sunset.latitude, lon = (uint16_t)sunset.longitude;
