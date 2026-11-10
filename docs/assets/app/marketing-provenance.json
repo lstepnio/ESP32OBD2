@@ -181,7 +181,7 @@
   },
   "equivalenceReview": {
     "reviewedOn": "2026-11-10",
-    "reason": "Ran the production WebsiteReviewCaptureTest in marketing mode on managed API 35 at c902a37. Gauge, Car and Settings matched pixel for pixel. Actions matched outside the Android status-bar clock area, so the existing captures remain representative. The fixture does not show board-specific connection icon or sunset controls.",
+    "reason": "Ran the production WebsiteReviewCaptureTest in marketing mode on managed API 35 at f4f4cf0. Gauge, Car and Settings matched pixel for pixel. Actions matched outside the Android status-bar clock area, so the existing captures remain representative. The fixture does not show board-specific connection icon or sunset controls.",
     "evidence": [
       "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
       "docs/development/quality.md"
@@ -211,7 +211,8 @@
       "android/app/src/main/java/com/lstepnio/egauge/ui/expert/HiddenFaultCodesScreen.kt": "499f224949c5884b69f0da272e7e64e37f17b2d3d2ff310c163b55d7a6b42bda",
       "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt": "fc97f046cc31c7bf902efcee2d4d30981fec359cea54c7c584ff6fcbba92c1b2",
       "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SettingsScreen.kt": "21adada1189ce05b920cc1f0c76fe9cd49eb4d57093c327b4f220ce532544f26",
-      "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SunsetBrightnessDialog.kt": "ca6600480ed27e75e2c12486e22007e3856bf89071650456152bb2a643ced83c",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SunsetBrightnessDialog.kt": "d1bf5172b4d5fbdf5f5256d0434af47b381964270ca3a8f55c4c32718e0b39eb",
+      "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SunsetPhoneLocation.kt": "277639b67d2b56475c7722c4d82492673eb93391fff44e144866c6dd04099f16",
       "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt": "dae50e94cbd3396559f06f2275e358acd78ba8da3996b76c39adf556c9055591",
       "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt": "6d25600a9d91ab077891c9b81ae7478f4e09ae55185bf049825dbd40b1304651",
       "android/app/src/main/java/com/lstepnio/egauge/ui/state/AlertContextCopy.kt": "367a204da69e53206014e5953ae043ac67bb52acc1887a8192b3107439d24830",
