@@ -67,7 +67,7 @@ internal fun VirtualAdapterSetup(
                 radioStatus == null,
                 { onPick(VirtualSource.Engine) }
             )
-            if (engine != null && VirtualPid.Gear.available) {
+            if (engine != null && VirtualSource.Transmission.available) {
                 SettingsRow(
                     if (transmission == null) "Add transmission adapter" else "Transmission adapter",
                     transmission?.let { "${statuses[VirtualSource.Transmission]?.label} · Ends in ${it.takeLast(5)}" }
