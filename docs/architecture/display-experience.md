@@ -96,7 +96,13 @@ ready OBD adapter sessions with one and two pins. A ready link can still have
 unavailable readings. The muted icons appear only while their connections are
 live, and the visible icons are centered. A child icon requires both a saved
 adapter binding and a ready link. When every link is down, the footer is empty.
-The footer does not change transport, polling, or alert behavior.
+On supported gauges, **Settings → Connection icons** in the App turns the
+footer on or off. It defaults to On, including for existing gauges on their
+first update. The owner preference is saved on the gauge, applies to both
+readings and the waiting logo, and survives restart. The App reads it
+automatically and shows a switch only after supported firmware confirms it.
+See the [protected settings protocol](../protocol/experimental-firmware-transfers.md#connection-icons).
+Transport, polling, and alert behavior are independent of the preference.
 
 The same symbols sit below the waiting logo or a reading with a free footer.
 On multipage readings the icons sit above the ordinary page dots,

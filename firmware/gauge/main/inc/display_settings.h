@@ -56,3 +56,7 @@ void display_settings_observe_auto_rotation(uint8_t applied_rotation, uint64_t n
  * No settings revision changes. Success includes a no-op; busy returns TIMEOUT.
  * A last-second movement/power loss can therefore retain the older boot hint. */
 esp_err_t display_settings_persist_auto_rotation(uint64_t now_ms);
+
+/* A separate revision keeps the optional footer preference downgrade-safe. */
+uint32_t  display_connection_icons_snapshot(void);
+esp_err_t display_connection_icons_save(bool enabled, uint32_t expected_revision);

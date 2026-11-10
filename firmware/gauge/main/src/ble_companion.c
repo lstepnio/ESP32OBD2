@@ -75,6 +75,7 @@ static QueueHandle_t owner_save_queue;
 #define BLE_OWNER_MAX_REQUEST 173U
 #define OTA_TARGET_PREFLIGHT_STATUS_MODE 22U
 #define SUNSET_BRIGHTNESS_STATUS_MODE 23U
+#define CONNECTION_ICONS_STATUS_MODE 24U
 static uint8_t  status_snapshot[512];
 static unsigned extended_source;
 static uint32_t alert_boot, alert_cursor;
@@ -548,9 +549,29 @@ static int control_access(uint16_t conn_handle, uint16_t attr_handle, struct ble
         status_snapshot_length = 0;
         return 0;
     }
+#if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED && EGAUGE_FEATURE_CONNECTION_FOOTER
+    if (request[0] == 0x6f)
+    {
+        if (length != 6)
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        uint32_t revision = read_u32(request + 2);
+        if (request[1] > 1 || revision >= (UINT32_MAX >> 1) || revision != (display_connection_icons_snapshot() >> 1))
+            return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+        companion_command_t command = {.opcode = 0x6f, .value = request[1], .base_revision = revision};
+        if (!g_command_queue || xQueueSend(g_command_queue, &command, 0) != pdTRUE)
+            return BLE_ATT_ERR_UNLIKELY;
+        extended_status_mode   = CONNECTION_ICONS_STATUS_MODE;
+        status_snapshot_length = 0;
+        return 0;
+    }
+#endif
     if (request[0] == 0x35 && length == 5)
     {
-        extended_status_mode   = 9;
+        extended_status_mode = 9;
+#if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED && EGAUGE_FEATURE_CONNECTION_FOOTER
+        if (read_u32(request + 1) == 2)
+            extended_status_mode = CONNECTION_ICONS_STATUS_MODE;
+#endif
         status_snapshot_length = 0;
         return 0;
     }
@@ -948,6 +969,17 @@ static int state_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_g
             return BLE_ATT_ERR_INVALID_OFFSET;
         return companion_gatt_read_value(ctxt->om, state, sizeof(state), ctxt->offset);
     }
+#if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED && EGAUGE_FEATURE_CONNECTION_FOOTER
+    if (extended_status_mode == CONNECTION_ICONS_STATUS_MODE)
+    {
+        uint32_t snapshot = display_connection_icons_snapshot();
+        uint8_t  state[6] = {26, (snapshot & 1U) ? 0 : 1};
+        write_u32(state + 2, snapshot >> 1);
+        if (ctxt->offset > sizeof(state))
+            return BLE_ATT_ERR_INVALID_OFFSET;
+        return companion_gatt_read_value(ctxt->om, state, sizeof(state), ctxt->offset);
+    }
+#endif
     if (extended_status_mode == 9)
     {
         display_settings_t settings = display_settings_snapshot();

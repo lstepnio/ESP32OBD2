@@ -40,7 +40,8 @@ fun SettingsScreen(
     onPhoneAlerts: (Boolean) -> Unit = {},
     onSaveSmartCycle: (Int, Boolean) -> Unit = { seconds, _ -> onSaveCycle(seconds) },
     onSaveOrientation: (Boolean, Int) -> Unit = { _, angle -> onRotate(angle) },
-    onSaveSunset: (Boolean, Int, SunsetLocation?) -> Unit = { _, _, _ -> }
+    onSaveSunset: (Boolean, Int, SunsetLocation?) -> Unit = { _, _, _ -> },
+    onSaveConnectionIcons: (Boolean) -> Unit = {}
 ) {
     var gaugesOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
     var nameOpen by rememberSaveable(state.selectedGaugeId) { mutableStateOf(false) }
@@ -91,6 +92,9 @@ fun SettingsScreen(
                     SettingsRow("Night brightness", detail, state.found && state.settingsCurrent && !state.busy) {
                         sunsetOpen = true
                     }
+                }
+                state.connectionIcons?.let { enabled ->
+                    PreferenceToggle("Connection icons", enabled, onSaveConnectionIcons, state.found && state.settingsCurrent && !state.busy)
                 }
                 SettingsRow(
                     "Rotation",

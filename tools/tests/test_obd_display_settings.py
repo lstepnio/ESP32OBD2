@@ -27,6 +27,7 @@ class DisplaySettingsTests(unittest.TestCase):
                     "-Wextra",
                     "-Werror",
                     f"-DEGAUGE_FEATURE_SMART_CYCLE={smart}",
+                    f"-DEGAUGE_FEATURE_CONNECTION_FOOTER={smart}",
                     "-fsanitize=address,undefined",
                     "-I",
                     str(ROOT / "firmware/gauge/tests/display_stubs"),

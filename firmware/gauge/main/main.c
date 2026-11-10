@@ -1708,6 +1708,14 @@ void app_main(void)
                      (unsigned)saved.rotation * 90, (unsigned)saved.brightness, (unsigned)saved.units,
                      (unsigned)saved.cycle_seconds);
         }
+#if CONFIG_EGAUGE_DISPLAY_SETTINGS_ENABLED && EGAUGE_FEATURE_CONNECTION_FOOTER
+        else if (has_command && command.opcode == 0x6f)
+        {
+            esp_err_t err = display_connection_icons_save(command.value != 0, command.base_revision);
+            if (err != ESP_OK)
+                ESP_LOGW(TAG, "Connection icons save failed: %s", esp_err_to_name(err));
+        }
+#endif
         else if (has_command && command.opcode == 0x6d)
         {
             esp_err_t err =
@@ -1836,13 +1844,14 @@ void app_main(void)
 #if EGAUGE_FEATURE_CONNECTION_FOOTER
         bool     child_configured = g_runtime && g_runtime->source_count > 1 && g_runtime->sources[1].address[0] &&
                                     !g_runtime->sources[1].simulated;
+        bool     icons_enabled    = !(display_connection_icons_snapshot() & 1U);
         unsigned obd_count = child_configured ? 2 : 1, obd_ready_mask = 0;
-        if (!maintenance)
+        if (icons_enabled && !maintenance)
             for (unsigned source = 0; source < obd_count; ++source)
                 if (adapter_status_ready_for(source) && (!g_runtime || !g_runtime->sources[source].simulated))
                     obd_ready_mask |= 1U << source;
-        ui_set_connection_status(ui, wifi_bulk_phone_connected(), ble_companion_phone_connected(), child_configured,
-                                 obd_ready_mask);
+        ui_set_connection_status(ui, icons_enabled && wifi_bulk_phone_connected(),
+                                 icons_enabled && ble_companion_phone_connected(), child_configured, obd_ready_mask);
 #endif
         ui_set_action_context(ui, owner_ready && !maintenance);
         uint8_t             selected_before = atomic_load(&g_selected_page);

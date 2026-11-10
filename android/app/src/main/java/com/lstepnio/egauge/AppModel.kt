@@ -1044,7 +1044,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 if (caps.displaySettingsVersion >=
                     1
                 ) {
-                    displaySettingsRead(client.readDisplaySettings(device, caps.smartPageCyclingVersion))
+                    val (display, icons) = client.readDisplayPreferences(device, caps.smartPageCyclingVersion)
+                    displaySettingsRead(display)
+                    connectionIcons = icons
                     sunsetBrightness = if (caps.sunsetBrightnessSupported) client.readSunsetBrightness(device) else null
                     if (caps.automaticOrientationVersion == 1) {
                         orientationSettings = client.readOrientationSettings(device)
@@ -1535,6 +1537,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     private var pairingWindowReadAtElapsedMs = 0L
     var savedGauge by mutableStateOf<GaugeSavedSnapshot?>(null)
+    var connectionIcons by mutableStateOf<ConnectionIconsSetting?>(null)
+        private set
     var sunsetBrightness by mutableStateOf<SunsetBrightness?>(null)
         private set
     var orientationSettings by mutableStateOf<GaugeOrientationSettings?>(null)
@@ -2183,6 +2187,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         savedGauge = null
         displaySettings = null
         sunsetBrightness = null
+        connectionIcons = null
         orientationSettings = null
         displayShowcase = null
         settingsObservedAtElapsedMs = null
@@ -2213,6 +2218,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             savedGauge = null
             displaySettings = null
             sunsetBrightness = null
+            connectionIcons = null
             orientationSettings = null
             displayShowcase = null
             settingsObservedAtElapsedMs = null
@@ -2670,6 +2676,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         capabilities = null
         displaySettings = null
         sunsetBrightness = null
+        connectionIcons = null
         orientationSettings = null
         displayShowcase = null
         settingsObservedAtElapsedMs = null
@@ -2945,6 +2952,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             OperationStage.ACTIVE,
             "Display orientation saved",
             if (automatic) "Automatic orientation is on" else "The gauge confirmed ${manualAngle * 90}°",
+            terminal = true
+        )
+    }
+
+    fun saveConnectionIcons(enabled: Boolean) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving connection icons") { id ->
+        require(connectionIcons != null) { "Gauge does not offer connection icons" }
+        connectionIcons = GaugeConfigTransferClient(getApplication()).saveConnectionIcons(bleClient.selectedGauge(), enabled)
+        ownerAccess = OwnerAccess.AUTHENTICATED
+        operation = OperationState(
+            id,
+            OperationKind.CONFIGURATION,
+            OperationStage.ACTIVE,
+            "Connection icons saved",
+            "The gauge confirmed the setting",
             terminal = true
         )
     }

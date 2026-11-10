@@ -13,7 +13,7 @@ typedef struct
     unsigned char bytes[16];
     size_t        length;
 } blob_t;
-static blob_t             flash[4], pending[4];
+static blob_t             flash[5], pending[5];
 static int                commit_count, cut_commit, fail_commit, fail_set, set_count;
 static bool               cut_after;
 static jmp_buf            power_loss;
@@ -26,8 +26,10 @@ static int                key_index(const char *key)
         return 1;
     if (strcmp(key, "smart1") == 0)
         return 2;
-    assert(strcmp(key, "auto_angle") == 0);
-    return 3;
+    if (strcmp(key, "auto_angle") == 0)
+        return 3;
+    assert(strcmp(key, "conn_icons") == 0);
+    return 4;
 }
 esp_err_t nvs_open(const char *key, int mode, nvs_handle_t *handle)
 {
@@ -405,6 +407,31 @@ int main(void)
     memset(flash[0].bytes + 4, 255, 4);
     reboot();
     assert(display_settings_save_smart(0, 50, 0, 0, true, UINT32_MAX, NULL) == ESP_ERR_INVALID_STATE);
+#if EGAUGE_FEATURE_CONNECTION_FOOTER
+    memset(flash, 0, sizeof(flash));
+    reboot();
+    assert(display_connection_icons_snapshot() == 0);
+    assert(display_connection_icons_save(true, 0) == ESP_OK && commit_count == 0);
+    assert(display_connection_icons_save(false, 0) == ESP_OK);
+    assert(display_connection_icons_snapshot() == 3);
+    reboot();
+    assert(display_connection_icons_snapshot() == 3);
+    assert(display_connection_icons_save(true, 0) == ESP_ERR_INVALID_STATE);
+    fail_commit = 1;
+    assert(display_connection_icons_save(true, 1) == ESP_FAIL);
+    assert(display_connection_icons_snapshot() == 3);
+    reboot();
+    assert(display_connection_icons_snapshot() == 3);
+    assert(display_settings_save(2, 90, 0, 5, 0, NULL) == ESP_OK);
+    before = display_settings_snapshot();
+    assert(display_connection_icons_save(true, 1) == ESP_OK);
+    reboot();
+    assert(display_connection_icons_snapshot() == 4);
+    assert(before.rotation == 2 && before.brightness == 90 && before.cycle_seconds == 5 && before.revision == 1);
+    flash[4].length = 3;
+    reboot();
+    assert(display_connection_icons_snapshot() == 0);
+#endif
     assert(test_critical_depth == 0);
     puts(
         "Smart sidecars: commit cuts, failures, nonblocking readers, legacy migration/downgrade and corruption passed");

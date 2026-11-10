@@ -820,13 +820,49 @@ class GaugeConfigTransferClient(private val context: Context) {
         require(device.bondState == BluetoothDevice.BOND_BONDED) {
             "Pair this phone as gauge owner first"
         }
-        return withGauge(device) {
-            writeRaw(byteArrayOf(if (smartPageCyclingVersion == 1) 0x68 else 0x35) + le32(1))
-            GaugeProtocolCodec.displaySettings(readRaw()).also {
-                check(it.supportsSmartCycle == (smartPageCyclingVersion == 1)) {
-                    "Gauge returned unexpected display settings"
-                }
+        return withGauge(device) { readDisplaySettingsInSession(smartPageCyclingVersion) }
+    }
+
+    private suspend fun Session.readDisplaySettingsInSession(smartPageCyclingVersion: Int): DisplaySettings {
+        writeRaw(byteArrayOf(if (smartPageCyclingVersion == 1) 0x68 else 0x35) + le32(1))
+        return GaugeProtocolCodec.displaySettings(readRaw()).also {
+            check(it.supportsSmartCycle == (smartPageCyclingVersion == 1)) {
+                "Gauge returned unexpected display settings"
             }
+        }
+    }
+
+    suspend fun readDisplayPreferences(device: BluetoothDevice, smartPageCyclingVersion: Int): Pair<DisplaySettings, ConnectionIconsSetting?> {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        return withGauge(device) {
+            val display = readDisplaySettingsInSession(smartPageCyclingVersion)
+            val icons = if (display.version >= 3) readConnectionIconsInSession() else null
+            display to icons
+        }
+    }
+
+    private suspend fun Session.readConnectionIconsInSession(): ConnectionIconsSetting? {
+        writeRaw(byteArrayOf(0x35) + le32(2))
+        return GaugeProtocolCodec.connectionIcons(readRaw())
+    }
+
+    suspend fun saveConnectionIcons(device: BluetoothDevice, enabled: Boolean): ConnectionIconsSetting {
+        require(device.bondState == BluetoothDevice.BOND_BONDED) { "Pair this phone as gauge owner first" }
+        return withGauge(device) {
+            val before = requireNotNull(readConnectionIconsInSession()) { "Gauge does not offer connection icons" }
+            if (before.enabled == enabled) return@withGauge before
+            writeRaw(GaugeProtocolCodec.connectionIconsWrite(enabled, before.revision))
+            repeat(20) {
+                val after = requireNotNull(GaugeProtocolCodec.connectionIcons(readRaw()))
+                if (after.revision != before.revision) {
+                    check(after.revision == before.revision + 1 && after.enabled == enabled) {
+                        "Gauge settings changed during save; refresh and retry"
+                    }
+                    return@withGauge after
+                }
+                delay(100)
+            }
+            error("Gauge did not confirm connection icon settings")
         }
     }
 
